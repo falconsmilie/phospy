@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 import pandas.testing as pdt
 import pytest
 from pandas.api.types import (
@@ -34,7 +36,10 @@ from phospy.signalomes.constants import (
 from phospy.workflows.signalome.constants import (
     SIGNALOME_INTERPRETER_SCORE_PRECONDITIONING_SEAM,
 )
-from tests.support.rewrite_fixture_data import build_rat_l6_dataset
+from tests.support.rewrite_fixture_data import (
+    build_rat_l6_dataset,
+    load_signalome_l6_provenance_golden,
+)
 from tests.support.signalome_config import build_signalome_config
 
 pytestmark = pytest.mark.integration
@@ -42,6 +47,41 @@ pytestmark = pytest.mark.integration
 
 def _is_text_dtype(values: object) -> bool:
     return is_object_dtype(values) or is_string_dtype(values)
+
+
+def _fingerprints_by_name(
+    fingerprints: tuple[object, ...],
+) -> dict[str, Mapping[str, object]]:
+    return {
+        str(item.name): {
+            "rows": int(item.rows),
+            "columns": int(item.columns),
+            "hash_algorithm": str(item.hash_algorithm),
+            "hash_value": str(item.hash_value),
+        }
+        for item in fingerprints
+    }
+
+
+def _assert_expected_fingerprint_map(
+    *,
+    observed: Mapping[str, Mapping[str, object]],
+    expected: Mapping[str, object],
+) -> None:
+    expected_map = {
+        str(name): values
+        for name, values in expected.items()
+        if isinstance(values, Mapping)
+    }
+    assert set(observed) == set(expected_map)
+    for table_name, table_expected in expected_map.items():
+        table_observed = observed[table_name]
+        assert table_observed == {
+            "rows": int(table_expected["rows"]),
+            "columns": int(table_expected["columns"]),
+            "hash_algorithm": str(table_expected["hash_algorithm"]),
+            "hash_value": str(table_expected["hash_value"]),
+        }
 
 
 def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
@@ -533,3 +573,71 @@ def test_signalome_workflow_rejects_sparse_missing_rank_weighted_fusion_rows_und
     assert error.details["score_preconditioning_policy"] == "error_on_drop"
     assert "dropped_all_missing_row_count=5" in message
     assert "score_preconditioning_policy=error_on_drop" in message
+
+
+def test_signalome_l6_provenance_matches_golden_contract() -> None:
+    dataset = build_rat_l6_dataset(n_sites=260)
+    kinase_result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=ReferencePreset.AUTO,
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=6,
+                deterministic_max_selected_kinases=12,
+                adaptive_ensemble_runs=12,
+            ),
+            activity_config=None,
+        )
+    )
+    result = SignalomeWorkflow().run(
+        SignalomeWorkflowRequest(
+            kinase_result=kinase_result,
+            config=build_signalome_config(substrate_support_cutoff=0.5),
+        )
+    )
+    provenance = result.provenance
+    assert provenance is not None
+    golden = load_signalome_l6_provenance_golden()
+
+    assert provenance.workflow_name == golden["workflow_name"]
+    assert provenance.random_state is None
+    assert provenance.random_seed_policy is None
+    assert (
+        provenance.workflow_parameters["signalome_config"]
+        == (golden["workflow_parameters"]["signalome_config"])
+    )
+    assert (
+        provenance.workflow_parameters["score_preconditioning_diagnostics"]
+        == (golden["workflow_parameters"]["score_preconditioning_diagnostics"])
+    )
+    upstream = provenance.workflow_parameters["upstream_kinase_provenance"]
+    assert isinstance(upstream, dict)
+    assert (
+        upstream["workflow_name"]
+        == golden["upstream_kinase_provenance"]["workflow_name"]
+    )
+    assert (
+        upstream["random_state"] == golden["upstream_kinase_provenance"]["random_state"]
+    )
+    assert provenance.reference is not None
+    assert provenance.reference.source_type == golden["reference"]["source_type"]
+    assert provenance.reference.organism == golden["reference"]["organism"]
+    assert provenance.reference.bundle_id == golden["reference"]["bundle_id"]
+
+    _assert_expected_fingerprint_map(
+        observed=_fingerprints_by_name(provenance.input_tables),
+        expected=golden["input_tables"],
+    )
+    _assert_expected_fingerprint_map(
+        observed=_fingerprints_by_name(provenance.output_tables),
+        expected=golden["output_tables"],
+    )
+    _assert_expected_fingerprint_map(
+        observed=_fingerprints_by_name(provenance.reference.table_fingerprints),
+        expected=golden["reference"]["table_fingerprints"],
+    )
+    assert [
+        {"id": item.id.value, "name": item.name, "version": item.version}
+        for item in provenance.scientific_policies
+    ] == golden["scientific_policies"]

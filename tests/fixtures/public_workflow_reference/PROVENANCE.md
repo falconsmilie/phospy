@@ -2,7 +2,11 @@
 
 This directory stores rewrite-owned public-workflow parity references used by
 active tests in `tests/parity/test_public_predmat_parity.py` and
-`tests/parity/test_signalome_workflow_parity.py`.
+`tests/parity/test_signalome_workflow_parity.py`, plus provenance golden
+contracts used by:
+
+- `tests/integration/test_kinase_workflow_integration.py`
+- `tests/integration/test_signalome_workflow_integration.py`
 
 ## predMat Lane Sources
 
@@ -72,6 +76,7 @@ The supported and parity-locked outputs are:
 - `signalome_rewrite_l6_network_edges.csv`
 - `signalome_rewrite_l6_expanded_signalome.csv`
 - `signalome_rewrite_l6_contract.json`
+- `signalome_l6_provenance_golden.json`
 
 ### Signalome Donor Source
 
@@ -122,3 +127,44 @@ Rules include:
 This fixture family is considered stable because it is generated from a fixed
 supported workflow configuration and fixed fixture input, and parity now asserts
 all supported downstream signalome outputs as full tables.
+
+## Provenance Golden Contracts
+
+The provenance regression fixtures lock stable, reproducibility-critical fields
+for one representative kinase lane and one representative signalome lane.
+
+- `kinase_public_predmat_provenance_golden.json`
+- `signalome_l6_provenance_golden.json`
+
+These fixtures intentionally include:
+
+- deterministic input/output table fingerprints (`rows`, `columns`,
+  `hash_algorithm`, `hash_value`);
+- workflow name;
+- workflow configuration values used by the lane;
+- reference source/organism/bundle metadata;
+- policy `id`/`name`/`version` metadata;
+- adaptive `random_state` and `random_seed_policy` where used.
+
+These fixtures intentionally exclude unstable environment/runtime values such as
+timestamp-like data, machine paths, and exact Python patch runtime strings.
+
+## Updating Golden Fixtures Intentionally
+
+Only update these golden fixtures when there is an intentional scientific or
+contract change.
+
+1. Run the representative workflows that back the tests:
+   - kinase public predMat lane (`adaptive_policy="stable"`, `random_state=17`);
+   - signalome L6 supported lane (`build_rat_l6_dataset(n_sites=260)`).
+2. Capture the new stable provenance fields (fingerprints, config, reference,
+   policy metadata, workflow name, and adaptive seed fields).
+3. Update:
+   - `kinase_public_predmat_provenance_golden.json`
+   - `signalome_l6_provenance_golden.json`
+4. Verify:
+   - `pytest tests/integration/test_kinase_workflow_integration.py -k provenance`
+   - `pytest tests/integration/test_signalome_workflow_integration.py -k provenance`
+   - `pytest tests/parity`
+5. In the PR, document why the scientific output/provenance changed and why the
+   update is expected.

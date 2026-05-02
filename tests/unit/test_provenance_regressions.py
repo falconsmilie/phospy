@@ -8,13 +8,16 @@ from phospy.api import (
     DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
     KinaseActivityConfig,
+    KinasePredictionConfig,
     KinasePredictionResult,
+    KinaseScoringConfig,
     KinaseScoringResult,
     KinaseWorkflow,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
+    ReferencePreset,
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
@@ -24,6 +27,7 @@ from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
 )
+from tests.support.rewrite_fixture_data import build_rat_l6_dataset
 from tests.support.signalome_config import build_signalome_config
 
 
@@ -253,3 +257,64 @@ def test_active_scientific_policy_ids_are_present_in_kinase_and_signalome_proven
         ScientificPolicyId.SIGNALOME_SCORE_PRECONDITIONING,
         ScientificPolicyId.PROTEIN_MODULE_FROM_SITE_MEMBERSHIP,
     }.issubset(signalome_policy_ids)
+
+
+def test_adaptive_kinase_prediction_records_random_seed_provenance() -> None:
+    dataset = build_rat_l6_dataset(n_sites=120)
+    result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=ReferencePreset.AUTO,
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(
+                mode="adaptive_ensemble",
+                top_k=4,
+                deterministic_max_selected_kinases=8,
+                adaptive_ensemble_runs=8,
+                n_iterations=2,
+                adaptive_policy="stable",
+                random_state=17,
+            ),
+            activity_config=None,
+        )
+    )
+    provenance = result.provenance
+    assert provenance is not None
+    assert provenance.random_state == 17
+    assert provenance.random_seed_policy == "stable_by_kinase"
+    assert provenance.workflow_parameters["prediction_config"]["random_state"] == 17
+
+
+def test_workflow_provenance_fingerprints_and_policy_versions_are_stable() -> None:
+    dataset = build_rat_l6_dataset(n_sites=180)
+    kinase_result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=ReferencePreset.AUTO,
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=4,
+                deterministic_max_selected_kinases=8,
+                adaptive_ensemble_runs=8,
+            ),
+            activity_config=None,
+        )
+    )
+    signalome_result = SignalomeWorkflow().run(
+        SignalomeWorkflowRequest(
+            kinase_result=kinase_result,
+            config=build_signalome_config(module_count=1),
+        )
+    )
+
+    for provenance in (kinase_result.provenance, signalome_result.provenance):
+        assert provenance is not None
+        assert provenance.workflow_name in {"kinase_workflow", "signalome_workflow"}
+        assert provenance.input_tables
+        assert provenance.output_tables
+        for fingerprint in (*provenance.input_tables, *provenance.output_tables):
+            assert fingerprint.hash_algorithm == "sha256"
+            assert len(fingerprint.hash_value) == 64
+        for policy in provenance.scientific_policies:
+            assert policy.name
+            assert policy.version

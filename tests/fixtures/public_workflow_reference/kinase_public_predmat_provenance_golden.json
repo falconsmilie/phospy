@@ -1,0 +1,114 @@
+{
+  "workflow_name": "kinase_workflow",
+  "workflow_parameters": {
+    "scoring_config": {
+      "min_substrates": 2,
+      "include_diagnostic_scoring_tables": false,
+      "profile_missing_value_strategy": "strict"
+    },
+    "prediction_config": {
+      "top_k": 4,
+      "deterministic_max_selected_kinases": 3,
+      "adaptive_ensemble_runs": 3,
+      "mode": "adaptive_ensemble",
+      "adaptive_policy": "stable",
+      "n_iterations": 2,
+      "random_state": 17
+    }
+  },
+  "random_state": 17,
+  "random_seed_policy": "stable_by_kinase",
+  "reference": {
+    "source_type": "explicit",
+    "organism": "rat",
+    "bundle_id": null,
+    "table_fingerprints": {
+      "references.kinase_substrate_map": {
+        "rows": 8,
+        "columns": 2,
+        "hash_algorithm": "sha256",
+        "hash_value": "79d1de19449b0273721c2de2c91fabad142cf00204a87f119a79f961857c8c4d"
+      },
+      "references.site_sequences": {
+        "rows": 8,
+        "columns": 1,
+        "hash_algorithm": "sha256",
+        "hash_value": "061e9eaf989ddfb9d5adb1bffeb3d2a3f1bb9c3d84d294775d40b169034fb160"
+      }
+    }
+  },
+  "input_tables": {
+    "dataset.phospho": {
+      "rows": 8,
+      "columns": 3,
+      "hash_algorithm": "sha256",
+      "hash_value": "bbe9fd36e940077af946988f0841c565d61b678940ba90cbf3ce7127050a0e37"
+    },
+    "dataset.site_metadata": {
+      "rows": 8,
+      "columns": 3,
+      "hash_algorithm": "sha256",
+      "hash_value": "60abd3a54a4ba6b192fb0595525a211f17e409759b21a093104852d51af615d8"
+    },
+    "references.kinase_substrate_map": {
+      "rows": 8,
+      "columns": 2,
+      "hash_algorithm": "sha256",
+      "hash_value": "79d1de19449b0273721c2de2c91fabad142cf00204a87f119a79f961857c8c4d"
+    },
+    "references.site_sequences": {
+      "rows": 8,
+      "columns": 1,
+      "hash_algorithm": "sha256",
+      "hash_value": "061e9eaf989ddfb9d5adb1bffeb3d2a3f1bb9c3d84d294775d40b169034fb160"
+    }
+  },
+  "output_tables": {
+    "outputs.scoring.profile_scores": {
+      "rows": 8,
+      "columns": 2,
+      "hash_algorithm": "sha256",
+      "hash_value": "ed034265341031e2b913620db6c192b77eaf07e0b2af30c1ad1f20b50b840020"
+    },
+    "outputs.scoring.rank_weighted_fusion_scores": {
+      "rows": 8,
+      "columns": 2,
+      "hash_algorithm": "sha256",
+      "hash_value": "74fb0c2bd1ed2e2013fe4ed7ef618a9506f65fb37a316bd4976156563737b8ce"
+    },
+    "outputs.prediction.pred_mat": {
+      "rows": 8,
+      "columns": 2,
+      "hash_algorithm": "sha256",
+      "hash_value": "b4c58511d11041f7122ab4e29499d1e24592be580a67f3a508ec98a443154b10"
+    },
+    "outputs.prediction.substrate_list": {
+      "rows": 8,
+      "columns": 4,
+      "hash_algorithm": "sha256",
+      "hash_value": "f9bf1fc3c07b6151628e7abef6c6ec7bf9e258a9da76770597677455d3ab9595"
+    }
+  },
+  "scientific_policies": [
+    {
+      "id": "profile_correlation_shifted_unit_v1",
+      "name": "Profile Correlation Shifted Unit Support",
+      "version": "1"
+    },
+    {
+      "id": "kinase_profile_scoring_v1",
+      "name": "Kinase Profile Scoring Policy",
+      "version": "1"
+    },
+    {
+      "id": "motif_profile_rank_fusion_v1",
+      "name": "Motif/Profile Rank-Weighted Fusion",
+      "version": "1"
+    },
+    {
+      "id": "candidate_substrate_selection_v1",
+      "name": "Candidate Substrate Selection Policy",
+      "version": "1"
+    }
+  ]
+}

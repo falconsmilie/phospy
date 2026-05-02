@@ -144,6 +144,12 @@ SIGNALOME_REWRITE_L6_EXPANDED_SIGNALOME = (
 SIGNALOME_REWRITE_L6_CONTRACT = (
     REWRITE_PUBLIC_WORKFLOW_REFERENCE / "signalome_rewrite_l6_contract.json"
 )
+KINASE_PUBLIC_PREDMAT_PROVENANCE_GOLDEN = (
+    REWRITE_PUBLIC_WORKFLOW_REFERENCE / "kinase_public_predmat_provenance_golden.json"
+)
+SIGNALOME_L6_PROVENANCE_GOLDEN = (
+    REWRITE_PUBLIC_WORKFLOW_REFERENCE / "signalome_l6_provenance_golden.json"
+)
 
 
 @lru_cache(maxsize=1)
@@ -453,6 +459,11 @@ def load_signalome_rewrite_l6_contract() -> dict[str, object]:
 
 
 @lru_cache(maxsize=1)
+def load_signalome_l6_provenance_golden() -> dict[str, object]:
+    return json.loads(SIGNALOME_L6_PROVENANCE_GOLDEN.read_text(encoding="utf-8"))
+
+
+@lru_cache(maxsize=1)
 def load_public_predmat_input_phospho() -> pd.DataFrame:
     frame = pd.read_csv(PUBLIC_PREDMAT_INPUT_PHOSPHO).set_index("phosphosite")
     frame.index = pd.Index(frame.index.astype(str), name="phosphosite")
@@ -477,6 +488,13 @@ def load_public_predmat_input_site_sequences() -> dict[str, str]:
 @lru_cache(maxsize=1)
 def load_public_predmat_rewrite_contract() -> dict[str, object]:
     return json.loads(PUBLIC_PREDMAT_REWRITE_CONTRACT.read_text(encoding="utf-8"))
+
+
+@lru_cache(maxsize=1)
+def load_kinase_public_predmat_provenance_golden() -> dict[str, object]:
+    return json.loads(
+        KINASE_PUBLIC_PREDMAT_PROVENANCE_GOLDEN.read_text(encoding="utf-8")
+    )
 
 
 @lru_cache(maxsize=1)

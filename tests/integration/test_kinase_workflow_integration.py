@@ -1,25 +1,86 @@
 from __future__ import annotations
 
+import re
+from collections.abc import Mapping
+
 import numpy as np
 import pandas as pd
 import pytest
 
 import phospy.workflows.kinase.executor as kinase_executor
 from phospy import (
+    AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     KinaseWorkflow,
 )
 from phospy.api import (
+    DatasetBuildRequest,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
     KinaseWorkflowRequest,
+    Organism,
     ReferenceBundle,
     ReferencePreset,
 )
-from tests.support.rewrite_fixture_data import build_rat_l6_dataset
+from tests.support.rewrite_fixture_data import (
+    build_rat_l6_dataset,
+    load_kinase_public_predmat_provenance_golden,
+    load_public_predmat_input_phospho,
+    load_public_predmat_input_site_sequences,
+    load_public_predmat_input_substrate_map,
+)
 
 pytestmark = pytest.mark.integration
+_PUBLIC_SITE_ID_PATTERN = re.compile(r"^\s*[^;]+\s*;\s*[^;]+\s*;\s*$")
+
+
+def _canonical_public_site_components(site_id: object) -> tuple[str, str, str]:
+    raw_site = str(site_id).strip()
+    if _PUBLIC_SITE_ID_PATTERN.fullmatch(raw_site):
+        parts = raw_site.split(";")
+        gene_symbol = parts[0].strip()
+        site = parts[1].strip()
+        return f"{gene_symbol};{site};", gene_symbol, site
+
+    gene_symbol = raw_site.split("_", 1)[0].strip()
+    site = raw_site
+    return f"{gene_symbol};{site};", gene_symbol, site
+
+
+def _fingerprints_by_name(
+    fingerprints: tuple[object, ...],
+) -> dict[str, Mapping[str, object]]:
+    return {
+        str(item.name): {
+            "rows": int(item.rows),
+            "columns": int(item.columns),
+            "hash_algorithm": str(item.hash_algorithm),
+            "hash_value": str(item.hash_value),
+        }
+        for item in fingerprints
+    }
+
+
+def _assert_expected_fingerprint_map(
+    *,
+    observed: Mapping[str, Mapping[str, object]],
+    expected: Mapping[str, object],
+) -> None:
+    expected_map = {
+        str(name): values
+        for name, values in expected.items()
+        if isinstance(values, Mapping)
+    }
+    assert set(observed) == set(expected_map)
+    for table_name, table_expected in expected_map.items():
+        table_observed = observed[table_name]
+        assert table_observed == {
+            "rows": int(table_expected["rows"]),
+            "columns": int(table_expected["columns"]),
+            "hash_algorithm": str(table_expected["hash_algorithm"]),
+            "hash_value": str(table_expected["hash_value"]),
+        }
 
 
 def test_kinase_workflow_runs_without_dataset_site_sequence_column() -> None:
@@ -349,3 +410,117 @@ def test_motif_library_build_is_limited_to_profile_eligible_kinases(
     assert list(result.scoring_result.profile_scores.columns) == ["K_ELIGIBLE"]
     assert result.scoring_result.motif_scores is not None
     assert list(result.scoring_result.motif_scores.columns) == ["K_ELIGIBLE"]
+
+
+def test_kinase_public_predmat_provenance_matches_golden_contract() -> None:
+    input_phospho = load_public_predmat_input_phospho()
+    site_sequences = load_public_predmat_input_site_sequences()
+    canonical_components = [
+        _canonical_public_site_components(site_id) for site_id in input_phospho.index
+    ]
+    phospho = input_phospho.copy(deep=True)
+    phospho.index = pd.Index(
+        [canonical_site_id for canonical_site_id, _, _ in canonical_components],
+        name=input_phospho.index.name,
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": [gene_symbol for _, gene_symbol, _ in canonical_components],
+            "site": [site for _, _, site in canonical_components],
+            "site_sequence": [
+                str(site_sequences[str(site_id).strip()])
+                for site_id in input_phospho.index.astype(str)
+            ],
+        },
+        index=phospho.index.copy(),
+    )
+    substrate_map = load_public_predmat_input_substrate_map()
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+        )
+    )
+    references = ReferenceBundle(
+        organism=Organism.RAT,
+        kinase_substrate_map=pd.DataFrame(
+            [
+                {
+                    "kinase": str(kinase),
+                    "substrate_site": _canonical_public_site_components(site_id)[0],
+                }
+                for kinase, site_ids in substrate_map.items()
+                for site_id in site_ids
+            ]
+        ),
+        site_sequences=pd.DataFrame(
+            {
+                "site_sequence": [
+                    str(sequence) for _, sequence in site_sequences.items()
+                ]
+            },
+            index=pd.Index(
+                [
+                    _canonical_public_site_components(site_id)[0]
+                    for site_id, _ in site_sequences.items()
+                ],
+                name="site_id",
+            ),
+        ),
+    )
+
+    result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=references,
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=4,
+                deterministic_max_selected_kinases=3,
+                adaptive_ensemble_runs=3,
+                mode="adaptive_ensemble",
+                adaptive_policy="stable",
+                n_iterations=2,
+                random_state=17,
+            ),
+            activity_config=None,
+        )
+    )
+    provenance = result.provenance
+    assert provenance is not None
+    golden = load_kinase_public_predmat_provenance_golden()
+
+    assert provenance.workflow_name == golden["workflow_name"]
+    assert provenance.random_state == int(golden["random_state"])
+    assert provenance.random_seed_policy == golden["random_seed_policy"]
+    assert (
+        provenance.workflow_parameters["scoring_config"]
+        == (golden["workflow_parameters"]["scoring_config"])
+    )
+    assert (
+        provenance.workflow_parameters["prediction_config"]
+        == (golden["workflow_parameters"]["prediction_config"])
+    )
+    assert provenance.workflow_parameters["prediction_config"]["random_state"] == 17
+    assert provenance.reference is not None
+    assert provenance.reference.source_type == golden["reference"]["source_type"]
+    assert provenance.reference.organism == golden["reference"]["organism"]
+    assert provenance.reference.bundle_id is None
+
+    _assert_expected_fingerprint_map(
+        observed=_fingerprints_by_name(provenance.input_tables),
+        expected=golden["input_tables"],
+    )
+    _assert_expected_fingerprint_map(
+        observed=_fingerprints_by_name(provenance.output_tables),
+        expected=golden["output_tables"],
+    )
+    _assert_expected_fingerprint_map(
+        observed=_fingerprints_by_name(provenance.reference.table_fingerprints),
+        expected=golden["reference"]["table_fingerprints"],
+    )
+    assert [
+        {"id": item.id.value, "name": item.name, "version": item.version}
+        for item in provenance.scientific_policies
+    ] == golden["scientific_policies"]

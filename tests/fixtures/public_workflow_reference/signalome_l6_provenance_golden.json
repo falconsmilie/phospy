@@ -1,0 +1,160 @@
+{
+  "workflow_name": "signalome_workflow",
+  "workflow_parameters": {
+    "signalome_config": {
+      "scientific": {
+        "substrate_support_cutoff": 0.5,
+        "assignment_policy": "cutoff_binary"
+      },
+      "clustering": {
+        "module_selection_primary_correlation_threshold": 0.5,
+        "module_selection_fallback_correlation_threshold": 0.1,
+        "module_selection_max_clusters": 10,
+        "candidate_scoring_policy": "full",
+        "missing_value_policy": "column_median_imputation_with_zero_for_all_missing_columns",
+        "clustering_engine": "scipy_hierarchical",
+        "module_count": null
+      },
+      "validation": {
+        "score_preconditioning_policy": "error_on_drop"
+      },
+      "output": {
+        "network_correlation_threshold": 0.5,
+        "network_policy": "signed"
+      },
+      "performance": {
+        "max_exact_tree_sites": 2000,
+        "max_full_candidate_scoring_sites": 2000
+      }
+    },
+    "score_preconditioning_diagnostics": {
+      "policy": "error_on_drop",
+      "input_row_count": 260,
+      "dropped_all_missing_row_count": 0,
+      "retained_row_count": 260
+    }
+  },
+  "random_state": null,
+  "random_seed_policy": null,
+  "upstream_kinase_provenance": {
+    "workflow_name": "kinase_workflow",
+    "random_state": null
+  },
+  "reference": {
+    "source_type": "bundled",
+    "organism": "rat",
+    "bundle_id": "l6_native",
+    "table_fingerprints": {
+      "references.kinase_substrate_map": {
+        "rows": 117,
+        "columns": 2,
+        "hash_algorithm": "sha256",
+        "hash_value": "fef3045e964b11170edaffcb2b7b66363b5f424cdf2ddc4bb87d9772e3afe644"
+      },
+      "references.site_sequences": {
+        "rows": 589,
+        "columns": 1,
+        "hash_algorithm": "sha256",
+        "hash_value": "2472c56d35c696ecf9a2b35face8b0bb3bb169949e625ada555333fd77986501"
+      }
+    }
+  },
+  "input_tables": {
+    "dataset.phospho": {
+      "rows": 260,
+      "columns": 12,
+      "hash_algorithm": "sha256",
+      "hash_value": "5d58657bf38d47938920b0e8d3703f1c06ddfe8ed7bfced7b4dba5f597fdc83d"
+    },
+    "dataset.site_metadata": {
+      "rows": 260,
+      "columns": 4,
+      "hash_algorithm": "sha256",
+      "hash_value": "f1dc94f9836f4294fa6e18d7c86edf76304970d734419f2cfdaa62f7d52dfed7"
+    },
+    "upstream.prediction.pred_mat": {
+      "rows": 260,
+      "columns": 12,
+      "hash_algorithm": "sha256",
+      "hash_value": "de04a17a01b8dcead6ba3eb69c9c41bf0c39d7dfa4ece8d685dabcb2f38c433b"
+    },
+    "upstream.scoring.downstream_score_matrix": {
+      "rows": 260,
+      "columns": 12,
+      "hash_algorithm": "sha256",
+      "hash_value": "bc9ef50c46cc50499a9a2e0f8740794b40a2e0bb15463715f3a0851c367f2a2b"
+    }
+  },
+  "output_tables": {
+    "outputs.signalome.module_assignments": {
+      "rows": 260,
+      "columns": 14,
+      "hash_algorithm": "sha256",
+      "hash_value": "16f4b940bbf43370582b48f7cd3ffd95dd475eb97facb55629e5e32ccc26a255"
+    },
+    "outputs.signalome.signalome_modules": {
+      "rows": 34,
+      "columns": 12,
+      "hash_algorithm": "sha256",
+      "hash_value": "9cda829f70d602aa4a1a017c24721d5495da37cba77823afdb62bbe9ed89ac87"
+    },
+    "outputs.signalome.kinase_network.edges": {
+      "rows": 66,
+      "columns": 3,
+      "hash_algorithm": "sha256",
+      "hash_value": "22482cb85fce19d641299fb11f47ba26b5bd50ada593e8fec4b628b710e94ea8"
+    },
+    "outputs.signalome.kinase_network.nodes": {
+      "rows": 12,
+      "columns": 2,
+      "hash_algorithm": "sha256",
+      "hash_value": "a0df3c58402f8eb27e67511c60b7d6eb113111c84e5945680d277f9f5d7f33f2"
+    },
+    "outputs.signalome.kinase_network.candidate_correlations": {
+      "rows": 66,
+      "columns": 6,
+      "hash_algorithm": "sha256",
+      "hash_value": "d542527f89f255ea0581bc6c08a2c34eb2f93df046e3566f1b90d5c8b1b628bb"
+    },
+    "outputs.signalome.expanded_signalome": {
+      "rows": 124,
+      "columns": 13,
+      "hash_algorithm": "sha256",
+      "hash_value": "e5a54f3b6d2919f9a2090215ed8e12d90f760693a3007abd62decc9d070585c9"
+    },
+    "outputs.signalome.site_membership": {
+      "rows": 260,
+      "columns": 11,
+      "hash_algorithm": "sha256",
+      "hash_value": "fbf4480d607a0c2d19f06569112fdc2ea420c5b8b1f9cc2a44f948e700ed0ab7"
+    },
+    "outputs.signalome.protein_site_context": {
+      "rows": 176,
+      "columns": 11,
+      "hash_algorithm": "sha256",
+      "hash_value": "651af112b89f2ec40a49643c30fed7312d7ec26f00e366cf1015777fbd8ab060"
+    }
+  },
+  "scientific_policies": [
+    {
+      "id": "signalome_module_candidate_score_v1",
+      "name": "Signalome Module Candidate Score",
+      "version": "1"
+    },
+    {
+      "id": "signalome_missing_value_clustering_v1",
+      "name": "Signalome Missing-Value Clustering Policy",
+      "version": "1"
+    },
+    {
+      "id": "signalome_score_preconditioning_v1",
+      "name": "Signalome Score Preconditioning Policy",
+      "version": "1"
+    },
+    {
+      "id": "protein_module_from_site_membership_v1",
+      "name": "Protein Module From Site-Cluster Membership",
+      "version": "1"
+    }
+  ]
+}
