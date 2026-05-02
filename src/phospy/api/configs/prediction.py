@@ -111,6 +111,19 @@ class KinasePredictionConfig:
             error_type=WorkflowValidationError,
         )
 
+    @classmethod
+    def deterministic(cls) -> KinasePredictionConfig:
+        """Return deterministic ranking mode configuration."""
+        return cls(mode=KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING)
+
+    @classmethod
+    def adaptive_reproducible(cls, random_state: int) -> KinasePredictionConfig:
+        """Return adaptive ensemble mode with an explicit reproducibility seed."""
+        return cls(
+            mode=KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,
+            random_state=random_state,
+        )
+
 
 __all__ = [
     "KINASE_ADAPTIVE_POLICIES",

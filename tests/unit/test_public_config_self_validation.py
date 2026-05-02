@@ -1,11 +1,31 @@
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
+
 import pytest
 
 from phospy.api.configs import (
+    DATASET_COMPARISON_BUILDING_POLICY_NONE,
+    DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY,
+    DATASET_INTENSITY_TRANSFORM_POLICY_LOG2,
+    DATASET_MISSING_DATA_POLICY_FORBID,
+    DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
+    DATASET_NORMALISATION_POLICY_MEDIAN_CENTER,
+    DATASET_NORMALISATION_POLICY_NONE,
+    DATASET_SITE_MATRIX_POLICY_AS_INPUT,
+    DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA,
+    DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
+    KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,
+    KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
+    KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT,
+    SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
     SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
     SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
     SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
+    SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT,
+    SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT,
+    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
+    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
@@ -216,6 +236,48 @@ def test_dataset_preprocessing_config_rejects_wrong_nested_types(
         DatasetPreprocessingConfig(**kwargs)  # type: ignore[arg-type]
 
 
+def test_dataset_preprocessing_config_presets_return_expected_values() -> None:
+    default = DatasetPreprocessingConfig.default()
+    strict = DatasetPreprocessingConfig.strict()
+    raw = DatasetPreprocessingConfig.from_raw_phosphosite_table()
+
+    assert (
+        default.intensity_transform.policy
+        == DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY
+    )
+    assert default.normalisation.policy == DATASET_NORMALISATION_POLICY_NONE
+    assert default.missing_data.policy == DATASET_MISSING_DATA_POLICY_FORBID
+    assert (
+        default.total_protein_correction.policy
+        == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE
+    )
+    assert default.site_matrix.policy == DATASET_SITE_MATRIX_POLICY_AS_INPUT
+    assert default.comparisons.policy == DATASET_COMPARISON_BUILDING_POLICY_NONE
+
+    assert (
+        strict.intensity_transform.policy == DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY
+    )
+    assert strict.normalisation.policy == DATASET_NORMALISATION_POLICY_NONE
+    assert strict.missing_data.policy == DATASET_MISSING_DATA_POLICY_FORBID
+    assert (
+        strict.total_protein_correction.policy
+        == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE
+    )
+    assert strict.site_matrix.policy == DATASET_SITE_MATRIX_POLICY_AS_INPUT
+    assert strict.comparisons.policy == DATASET_COMPARISON_BUILDING_POLICY_NONE
+
+    assert raw.intensity_transform.policy == DATASET_INTENSITY_TRANSFORM_POLICY_LOG2
+    assert raw.normalisation.policy == DATASET_NORMALISATION_POLICY_MEDIAN_CENTER
+    assert raw.missing_data.policy == DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN
+    assert raw.missing_data.min_observed_values == 1
+    assert (
+        raw.total_protein_correction.policy
+        == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE
+    )
+    assert raw.site_matrix.policy == DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA
+    assert raw.comparisons.policy == DATASET_COMPARISON_BUILDING_POLICY_NONE
+
+
 @pytest.mark.parametrize(
     ("kwargs", "pattern"),
     [
@@ -242,6 +304,20 @@ def test_kinase_scoring_config_self_validates(
 ) -> None:
     with pytest.raises(WorkflowValidationError, match=pattern):
         KinaseScoringConfig(**kwargs)  # type: ignore[arg-type]
+
+
+def test_kinase_scoring_config_presets_return_expected_values() -> None:
+    default = KinaseScoringConfig.default()
+    strict_missing = KinaseScoringConfig.strict_missing_values()
+
+    assert (
+        default.profile_missing_value_strategy
+        == KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
+    )
+    assert (
+        strict_missing.profile_missing_value_strategy
+        == KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
+    )
 
 
 @pytest.mark.parametrize(
@@ -293,6 +369,30 @@ def test_kinase_prediction_config_has_explicit_mode_specific_sizes() -> None:
 
     assert config.deterministic_max_selected_kinases >= 1
     assert config.adaptive_ensemble_runs >= 1
+
+
+def test_kinase_prediction_config_presets_return_expected_values() -> None:
+    deterministic = KinasePredictionConfig.deterministic()
+    adaptive = KinasePredictionConfig.adaptive_reproducible(random_state=1)
+
+    assert deterministic.mode == KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING
+    assert deterministic.random_state is None
+    assert adaptive.mode == KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE
+    assert adaptive.random_state == 1
+
+
+def test_kinase_prediction_adaptive_reproducible_rejects_invalid_seed() -> None:
+    with pytest.raises(
+        WorkflowValidationError,
+        match="prediction_config.random_state must be greater than or equal to 0",
+    ):
+        KinasePredictionConfig.adaptive_reproducible(random_state=-1)
+
+
+def test_config_presets_return_frozen_dataclass_objects() -> None:
+    config = KinasePredictionConfig.deterministic()
+    with pytest.raises(FrozenInstanceError):
+        config.mode = KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE  # type: ignore[misc]
 
 
 def test_kinase_prediction_config_rejects_removed_ensemble_size_alias() -> None:
@@ -446,6 +546,32 @@ def test_signalome_config_accepts_supported_clustering_engine_names() -> None:
     )
 
 
+def test_signalome_config_presets_return_expected_values() -> None:
+    strict = SignalomeConfig.strict()
+    permissive = SignalomeConfig.permissive_missing_scores()
+    large = SignalomeConfig.large_dataset()
+
+    assert (
+        strict.validation.score_preconditioning_policy
+        == SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
+    )
+    assert (
+        permissive.validation.score_preconditioning_policy
+        == SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
+    )
+    assert (
+        large.clustering.candidate_scoring_policy
+        == SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
+    )
+    assert (
+        large.performance.max_exact_tree_sites == SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT
+    )
+    assert (
+        large.performance.max_full_candidate_scoring_sites
+        == SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT
+    )
+
+
 def test_signalome_config_defaults_to_scipy_clustering_engine() -> None:
     assert (
         SignalomeConfig().clustering.clustering_engine
@@ -475,6 +601,13 @@ def test_signalome_config_accepts_engine_and_policy_names() -> None:
     assert (
         config.clustering.clustering_engine
         == SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
+    )
+
+
+def test_signalome_config_default_preset_matches_full_candidate_scoring() -> None:
+    assert (
+        SignalomeConfig.strict().clustering.candidate_scoring_policy
+        == SIGNALOME_CANDIDATE_SCORING_POLICY_FULL
     )
 
 

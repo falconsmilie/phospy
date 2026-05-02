@@ -42,9 +42,13 @@ from phospy import (
 )
 from phospy.api import (
     DatasetBuildRequest,
+    DatasetPreprocessingConfig,
+    KinasePredictionConfig,
+    KinaseScoringConfig,
     KinaseWorkflowRequest,
     Organism,
     ReferencePreset,
+    SignalomeConfig,
     SignalomeWorkflowRequest,
 )
 
@@ -74,6 +78,7 @@ dataset = AnalysisReadyDatasetBuilder().run(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
+        preprocessing_config=DatasetPreprocessingConfig.from_raw_phosphosite_table(),
     )
 )
 
@@ -81,12 +86,17 @@ kinase_result = KinaseWorkflow().run(
     KinaseWorkflowRequest(
         dataset=dataset,
         references=ReferencePreset.AUTO,
+        scoring_config=KinaseScoringConfig.default(),
+        prediction_config=KinasePredictionConfig.deterministic(),
         activity_config=None,
     )
 )
 
 signalome_result = SignalomeWorkflow().run(
-    SignalomeWorkflowRequest(kinase_result=kinase_result)
+    SignalomeWorkflowRequest(
+        kinase_result=kinase_result,
+        config=SignalomeConfig.large_dataset(),
+    )
 )
 
 print(

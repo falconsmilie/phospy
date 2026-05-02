@@ -93,6 +93,16 @@ interpreted sites.
 
 `DatasetPreprocessingConfig` groups six areas.
 
+For most users, start with intent presets and only drop to low-level policy
+constants when you need fine-grained control:
+
+```python
+from phospy.api import DatasetPreprocessingConfig
+
+strict = DatasetPreprocessingConfig.strict()
+raw_table = DatasetPreprocessingConfig.from_raw_phosphosite_table()
+```
+
 | Field | Config class | Default |
 | --- | --- | --- |
 | `intensity_transform` | `DatasetIntensityTransformConfig` | `policy="identity"` |
@@ -201,6 +211,15 @@ When `sample_metadata_pairs` is used, `sample_metadata` is required.
 
 ### `KinaseScoringConfig`
 
+Use presets first:
+
+```python
+from phospy.api import KinaseScoringConfig
+
+default_scoring = KinaseScoringConfig.default()
+strict_missing = KinaseScoringConfig.strict_missing_values()
+```
+
 | Field | Meaning |
 | --- | --- |
 | `min_substrates` | minimum quantified substrates per kinase; must be at least `2` |
@@ -209,6 +228,15 @@ When `sample_metadata_pairs` is used, `sample_metadata` is required.
 | `allow_mixed_total_protein_quantitative_meaning` | default `False`; require explicit opt-in to run on mixed corrected/uncorrected datasets |
 
 ### `KinasePredictionConfig`
+
+Use intent presets for the two common prediction lanes:
+
+```python
+from phospy.api import KinasePredictionConfig
+
+deterministic = KinasePredictionConfig.deterministic()
+adaptive = KinasePredictionConfig.adaptive_reproducible(random_state=1)
+```
 
 | Field | Default | Meaning |
 | --- | --- | --- |
@@ -262,6 +290,16 @@ result = SignalomeWorkflow().run(
 )
 ```
 
+Intent presets for common signalome behaviour:
+
+```python
+from phospy.api import SignalomeConfig
+
+strict = SignalomeConfig.strict()
+permissive = SignalomeConfig.permissive_missing_scores()
+large = SignalomeConfig.large_dataset()
+```
+
 Grouped options:
 
 | Group | Option | Default | Meaning |
@@ -290,6 +328,9 @@ default. Use `"exact_python"` mainly for reference/debug checks.
 
 Tree implementation details are recorded in internal diagnostics/provenance as
 backend metadata, not as a public configuration choice.
+
+Low-level constants and nested config fields remain part of the advanced API for
+specialized scientific workflows.
 
 Signalome module/network scores are derived summaries over upstream kinase score
 profiles. They are not probabilities, calibrated confidence values, or direct

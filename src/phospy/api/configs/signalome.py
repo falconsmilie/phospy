@@ -310,6 +310,37 @@ class SignalomeConfig:
                 "SignalomePerformanceConfig"
             )
 
+    @classmethod
+    def strict(cls) -> SignalomeConfig:
+        """Return strict score preconditioning for signalome workflows."""
+        return cls(
+            validation=SignalomeValidationConfig(
+                score_preconditioning_policy=(
+                    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
+                )
+            )
+        )
+
+    @classmethod
+    def permissive_missing_scores(cls) -> SignalomeConfig:
+        """Allow and report all-missing score-row drops."""
+        return cls(
+            validation=SignalomeValidationConfig(
+                score_preconditioning_policy=(
+                    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
+                )
+            )
+        )
+
+    @classmethod
+    def large_dataset(cls) -> SignalomeConfig:
+        """Prefer sampled candidate scoring while keeping scale guards enabled."""
+        return cls(
+            clustering=SignalomeClusteringConfig(
+                candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
+            )
+        )
+
 
 __all__ = [
     "SIGNALOME_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT",

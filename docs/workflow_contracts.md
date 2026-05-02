@@ -42,6 +42,9 @@ For executable usage, see:
   - optional total-protein correction
   - optional site-matrix and comparison construction
 - No hidden transforms are applied outside this configuration.
+- Prefer intent presets (`DatasetPreprocessingConfig.default()`,
+  `DatasetPreprocessingConfig.strict()`, and
+  `DatasetPreprocessingConfig.from_raw_phosphosite_table()`) for common lanes.
 
 ### Scoring Policy
 
@@ -106,12 +109,16 @@ For executable usage, see:
 - Site-vs-profile Pearson correlations are shifted to `[0, 1]` support scores.
 - Motif and profile evidence are fused by rank-weighted fusion with profile fallback.
 - `profile_missing_value_strategy` controls strict vs skip-missing profile medians.
+- Prefer `KinaseScoringConfig.default()` or
+  `KinaseScoringConfig.strict_missing_values()` before low-level field tuning.
 
 ### Candidate/Module Selection Policy
 
 - Candidate substrates per kinase are selected from top-`k` downstream scores with score `> 0`.
 - Deterministic mode ranks kinases by mean candidate support and keeps top configured kinases.
 - Adaptive mode uses ensemble sampling policy from `prediction_config`.
+- Prefer `KinasePredictionConfig.deterministic()` and
+  `KinasePredictionConfig.adaptive_reproducible(random_state=...)` presets.
 
 ### Provenance Guarantees
 
@@ -151,6 +158,8 @@ For executable usage, see:
   - `allow_and_report`: explicit opt-in to drop and report
 - Non-finite values are rejected.
 - Partially missing values are retained for correlation-based steps with explicit diagnostics.
+- Prefer `SignalomeConfig.strict()` and
+  `SignalomeConfig.permissive_missing_scores()` presets for this choice.
 
 ### Transformation and Normalisation Policy
 
@@ -172,6 +181,8 @@ For executable usage, see:
 - Kinase-supported substrates are selected by `substrate_support_cutoff`.
 - Module count is either explicit (`module_count`) or automatically selected from configured candidate thresholds.
 - Module composition uses `assignment_policy` (`cutoff_binary` or `weighted_top`).
+- For larger runs, prefer `SignalomeConfig.large_dataset()` to select sampled
+  candidate scoring while preserving scale-guard checks.
 
 ### Provenance Guarantees
 

@@ -90,6 +90,20 @@ class KinaseScoringConfig:
             error_type=WorkflowValidationError,
         )
 
+    @classmethod
+    def default(cls) -> KinaseScoringConfig:
+        """Return the package default kinase scoring profile."""
+        return cls()
+
+    @classmethod
+    def strict_missing_values(cls) -> KinaseScoringConfig:
+        """Return strict missing-value handling for profile aggregation."""
+        return cls(
+            profile_missing_value_strategy=(
+                KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
+            )
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class KinaseActivityConfig:
