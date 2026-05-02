@@ -9,6 +9,11 @@ from phospy.api.configs import (
     KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
 )
+from phospy.api.results import (
+    KinaseWorkflowPreprocessingAttritionSummary,
+    KinaseWorkflowScoringAttritionSummary,
+    KinaseWorkflowSiteAttritionSummary,
+)
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.workflows.kinase.activity_runner import KinaseActivityRunner
@@ -269,12 +274,32 @@ def test_result_assembler_preserves_owned_dataframe_transfer() -> None:
         request=request,
         scoring_result=scoring_result,
         prediction_result=prediction_result,
+        site_attrition_summary=KinaseWorkflowSiteAttritionSummary(
+            preprocessing=KinaseWorkflowPreprocessingAttritionSummary(
+                input_rows=2,
+                rows_removed_during_preprocessing=0,
+                rows_removed_invalid_or_missing_site_identifiers=0,
+                duplicate_sites_merged_or_resolved=0,
+                output_rows=2,
+            ),
+            scoring=KinaseWorkflowScoringAttritionSummary(
+                rows_removed_invalid_or_missing_site_identifiers=0,
+                final_quantitative_sites_entering_scoring=2,
+                sites_with_valid_site_sequence=2,
+                sites_without_usable_site_sequence=0,
+                sites_eligible_for_motif_scoring=2,
+                sites_with_kinase_substrate_reference_profile_evidence=2,
+                sites_contributing_to_final_fused_prediction_scoring_output=2,
+                sites_contributing_to_activity_scoring=None,
+            ),
+        ),
         activity_result=None,
         provenance=provenance,
     )
 
     assert assembled.scoring_result is scoring_result
     assert assembled.prediction_result is prediction_result
+    assert assembled.site_attrition_summary is not None
     assert assembled.scoring_result._profile_scores is scoring_result._profile_scores
     assert assembled.prediction_result._pred_mat is prediction_result._pred_mat
     assert (

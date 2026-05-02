@@ -180,6 +180,60 @@ def publish_kinase_workflow(
                 if result.activity_result is None
                 else result.activity_result.activity_method.to_payload()
             ),
+            "site_attrition_summary": (
+                None
+                if result.site_attrition_summary is None
+                else {
+                    "preprocessing": {
+                        "input_rows": int(
+                            result.site_attrition_summary.preprocessing.input_rows
+                        ),
+                        "rows_removed_during_preprocessing": int(
+                            result.site_attrition_summary.preprocessing.rows_removed_during_preprocessing
+                        ),
+                        "rows_removed_invalid_or_missing_site_identifiers": int(
+                            result.site_attrition_summary.preprocessing.rows_removed_invalid_or_missing_site_identifiers
+                        ),
+                        "duplicate_sites_merged_or_resolved": int(
+                            result.site_attrition_summary.preprocessing.duplicate_sites_merged_or_resolved
+                        ),
+                        "output_rows": int(
+                            result.site_attrition_summary.preprocessing.output_rows
+                        ),
+                    },
+                    "scoring": {
+                        "rows_removed_invalid_or_missing_site_identifiers": int(
+                            result.site_attrition_summary.scoring.rows_removed_invalid_or_missing_site_identifiers
+                        ),
+                        "final_quantitative_sites_entering_scoring": int(
+                            result.site_attrition_summary.scoring.final_quantitative_sites_entering_scoring
+                        ),
+                        "sites_with_valid_site_sequence": int(
+                            result.site_attrition_summary.scoring.sites_with_valid_site_sequence
+                        ),
+                        "sites_without_usable_site_sequence": int(
+                            result.site_attrition_summary.scoring.sites_without_usable_site_sequence
+                        ),
+                        "sites_eligible_for_motif_scoring": int(
+                            result.site_attrition_summary.scoring.sites_eligible_for_motif_scoring
+                        ),
+                        "sites_with_kinase_substrate_reference_profile_evidence": int(
+                            result.site_attrition_summary.scoring.sites_with_kinase_substrate_reference_profile_evidence
+                        ),
+                        "sites_contributing_to_final_fused_prediction_scoring_output": int(
+                            result.site_attrition_summary.scoring.sites_contributing_to_final_fused_prediction_scoring_output
+                        ),
+                        "sites_contributing_to_activity_scoring": (
+                            None
+                            if result.site_attrition_summary.scoring.sites_contributing_to_activity_scoring
+                            is None
+                            else int(
+                                result.site_attrition_summary.scoring.sites_contributing_to_activity_scoring
+                            )
+                        ),
+                    },
+                }
+            ),
             "output_format": output_format,
             "provenance": (
                 None

@@ -37,6 +37,7 @@ from phospy.workflows.kinase.science import (
     score_profile_correlations,
 )
 from phospy.workflows.kinase.scoring_runner import KinaseScoringRunner
+from phospy.workflows.kinase.site_attrition import KinaseSiteAttritionSummaryComposer
 
 
 class KinaseWorkflowExecutor:
@@ -50,6 +51,8 @@ class KinaseWorkflowExecutor:
         prediction_runner: KinasePredictionRunner | None = None,
         activity_runner: KinaseActivityRunner | None = None,
         provenance_builder: KinaseProvenanceBuilder | None = None,
+        site_attrition_summary_composer: KinaseSiteAttritionSummaryComposer
+        | None = None,
         result_assembler: KinaseResultAssembler | None = None,
     ) -> None:
         # Keep dependency wiring local so tests monkeypatching this module's symbols
@@ -75,6 +78,9 @@ class KinaseWorkflowExecutor:
             compute_activity=compute_activity_from_inputs,
         )
         self._provenance_builder = provenance_builder or KinaseProvenanceBuilder()
+        self._site_attrition_summary_composer = (
+            site_attrition_summary_composer or KinaseSiteAttritionSummaryComposer()
+        )
         self._result_assembler = result_assembler or KinaseResultAssembler()
 
     def run(self, request: ResolvedKinaseWorkflowRequest) -> KinaseWorkflowResult:
@@ -93,6 +99,12 @@ class KinaseWorkflowExecutor:
             config=config,
             prediction_result=prediction_result,
         )
+        site_attrition_summary = self._site_attrition_summary_composer.run(
+            request=request,
+            scoring_execution=scoring_execution,
+            prediction_result=prediction_result,
+            activity_enabled=activity_result is not None,
+        )
         provenance = self._provenance_builder.run(
             request=request,
             config=config,
@@ -104,6 +116,7 @@ class KinaseWorkflowExecutor:
             request=request,
             scoring_result=scoring_execution.scoring_result,
             prediction_result=prediction_result,
+            site_attrition_summary=site_attrition_summary,
             activity_result=activity_result,
             provenance=provenance,
         )

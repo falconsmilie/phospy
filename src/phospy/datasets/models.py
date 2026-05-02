@@ -62,6 +62,17 @@ from phospy.validation.transformations.state import IntensityScaleStateValidator
 _INTENSITY_SCALE_STATE_VALIDATOR = IntensityScaleStateValidator()
 
 
+@dataclass(frozen=True, slots=True)
+class PreprocessingSiteAttritionSummary:
+    """Compact preprocessing-owned site attrition counters."""
+
+    input_rows: int
+    output_rows: int
+    rows_removed_during_preprocessing: int
+    rows_removed_invalid_or_missing_site_identifiers: int
+    duplicate_sites_merged_or_resolved: int
+
+
 @dataclass(frozen=True, slots=True, init=False)
 class DatasetPreprocessingReport:
     """Public provenance report for dataset preprocessing."""
@@ -269,6 +280,37 @@ class DatasetPreprocessingReport:
 
         return export_optional_dataframe(self._comparison_pair_stats)
 
+    def site_attrition_summary(self) -> PreprocessingSiteAttritionSummary:
+        """Return compact preprocessing-owned site attrition counters."""
+
+        input_rows = int(self._resolve_row_count(stage="preprocessing_input"))
+        output_rows = int(self._resolve_row_count(stage="preprocessing_complete"))
+        duplicate_sites_merged_or_resolved = 0
+        duplicate_site_resolution = self._duplicate_site_resolution
+        if (
+            duplicate_site_resolution is not None
+            and not duplicate_site_resolution.empty
+        ):
+            duplicate_sites_merged_or_resolved = int(
+                duplicate_site_resolution.loc[:, "site_id"]
+                .astype("string")
+                .str.strip()
+                .dropna()
+                .nunique()
+            )
+        rows_removed_invalid_or_missing_site_identifiers = (
+            self._count_invalid_or_missing_identifier_drops()
+        )
+        return PreprocessingSiteAttritionSummary(
+            input_rows=input_rows,
+            output_rows=output_rows,
+            rows_removed_during_preprocessing=max(input_rows - output_rows, 0),
+            rows_removed_invalid_or_missing_site_identifiers=(
+                rows_removed_invalid_or_missing_site_identifiers
+            ),
+            duplicate_sites_merged_or_resolved=duplicate_sites_merged_or_resolved,
+        )
+
     @classmethod
     def from_rows(
         cls,
@@ -321,6 +363,35 @@ class DatasetPreprocessingReport:
             comparison_pair_stats=comparison_pair_stats,
             _assume_owned=True,
         )
+
+    def _resolve_row_count(self, *, stage: str) -> int:
+        row_counts = self._row_counts
+        if row_counts.empty:
+            return 0
+        stage_mask = row_counts.loc[:, "stage"].astype(str) == str(stage)
+        if not bool(stage_mask.any()):
+            return 0
+        return int(row_counts.loc[stage_mask, "output_rows"].iloc[-1])
+
+    def _count_invalid_or_missing_identifier_drops(self) -> int:
+        row_audit = self._row_audit
+        if row_audit.empty:
+            return 0
+        dropped = row_audit.loc[row_audit.loc[:, "action"].astype(str) == "dropped", :]
+        if dropped.empty:
+            return 0
+        reasons = dropped.loc[:, "reason"].astype("string").str.lower()
+        site_id_reason = reasons.str.contains(
+            "site identifier|site_id|site id",
+            regex=True,
+            na=False,
+        )
+        invalid_reason = reasons.str.contains(
+            "invalid|missing|blank|empty",
+            regex=True,
+            na=False,
+        )
+        return int((site_id_reason & invalid_reason).sum())
 
 
 @dataclass(frozen=True, slots=True, init=False)

@@ -33,6 +33,39 @@ from phospy.tables.signalome import (
 
 
 @dataclass(frozen=True, slots=True)
+class KinaseWorkflowPreprocessingAttritionSummary:
+    """Preprocessing-owned site attrition counters composed into kinase results."""
+
+    input_rows: int
+    rows_removed_during_preprocessing: int
+    rows_removed_invalid_or_missing_site_identifiers: int
+    duplicate_sites_merged_or_resolved: int
+    output_rows: int
+
+
+@dataclass(frozen=True, slots=True)
+class KinaseWorkflowScoringAttritionSummary:
+    """Kinase workflow site-eligibility counters after preprocessing."""
+
+    rows_removed_invalid_or_missing_site_identifiers: int
+    final_quantitative_sites_entering_scoring: int
+    sites_with_valid_site_sequence: int
+    sites_without_usable_site_sequence: int
+    sites_eligible_for_motif_scoring: int
+    sites_with_kinase_substrate_reference_profile_evidence: int
+    sites_contributing_to_final_fused_prediction_scoring_output: int
+    sites_contributing_to_activity_scoring: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class KinaseWorkflowSiteAttritionSummary:
+    """Compact, user-facing kinase site attrition summary."""
+
+    preprocessing: KinaseWorkflowPreprocessingAttritionSummary
+    scoring: KinaseWorkflowScoringAttritionSummary
+
+
+@dataclass(frozen=True, slots=True)
 class KinaseWorkflowResult:
     """Top-level public kinase workflow result."""
 
@@ -40,6 +73,7 @@ class KinaseWorkflowResult:
     references: ReferenceBundle
     scoring_result: KinaseScoringResult
     prediction_result: KinasePredictionResult
+    site_attrition_summary: KinaseWorkflowSiteAttritionSummary | None = None
     activity_result: KinaseActivityResult | None = None
     provenance: RunProvenance | None = None
 
