@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from phospy.api.requests import KinaseWorkflowRequest
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.validation import WorkflowValidationError
@@ -22,16 +24,18 @@ class KinaseWorkflowValidator:
     ) -> None:
         self._config_validator = config_validator or KinaseWorkflowConfigValidator()
 
-    def run(self, request: KinaseWorkflowRequest) -> KinaseWorkflowRequest:
+    def run(self, request: object) -> KinaseWorkflowRequest:
         if not isinstance(request, KinaseWorkflowRequest):
             raise WorkflowValidationError(
                 "kinase workflow input must be a KinaseWorkflowRequest"
             )
-        if not isinstance(request.dataset, AnalysisReadyPhosphoDataset):
+        dataset = cast(object, request.dataset)
+        if not isinstance(dataset, AnalysisReadyPhosphoDataset):
             raise WorkflowValidationError(
                 "kinase workflow request dataset must be AnalysisReadyPhosphoDataset"
             )
-        if not isinstance(request.references, (ReferencePreset, ReferenceBundle)):
+        references = cast(object, request.references)
+        if not isinstance(references, (ReferencePreset, ReferenceBundle)):
             raise WorkflowValidationError(
                 "kinase workflow request references must be ReferencePreset or ReferenceBundle"
             )
@@ -41,7 +45,7 @@ class KinaseWorkflowValidator:
             activity_config=request.activity_config,
         )
         reject_mixed_total_protein_quantitative_meaning(
-            dataset=request.dataset,
+            dataset=dataset,
             allow_mixed=scoring_config.allow_mixed_total_protein_quantitative_meaning,
             context="kinase workflow request dataset",
         )
