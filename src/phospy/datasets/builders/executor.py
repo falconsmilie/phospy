@@ -32,6 +32,7 @@ from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_NORMALISATION,
     DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT,
     DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
+    DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
     PreprocessingPlan,
     PreprocessingStageExecution,
@@ -55,6 +56,7 @@ from phospy.errors.transformations import (
 from phospy.provenance.environment import collect_environment_provenance
 from phospy.provenance.hashing import fingerprint_optional_table
 from phospy.provenance.models import (
+    JsonValue,
     PreprocessingStageProvenance,
     RunProvenance,
     TableFingerprint,
@@ -70,6 +72,7 @@ from phospy.transformations.transformers import IdentityTransformer
 
 _FINAL_DATASET_STAGE = "final_dataset_construction"
 _SUPPORTED_PREPROCESSING_STAGE_ORDER = (
+    DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
@@ -330,10 +333,26 @@ def _stage_trace_to_provenance(
             imputed_cell_count=int(item.imputed_cell_count),
             imputed_row_ids=item.imputed_row_ids,
             notes=item.notes,
-            diagnostics=dict(item.diagnostics),
+            diagnostics=_to_json_mapping(item.diagnostics),
         )
         for item in trace
     )
+
+
+def _to_json_mapping(values: dict[str, object]) -> dict[str, JsonValue]:
+    return {str(key): _to_json_value(value) for key, value in values.items()}
+
+
+def _to_json_value(value: object) -> JsonValue:
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, dict):
+        return {str(key): _to_json_value(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [_to_json_value(item) for item in value]
+    if isinstance(value, list):
+        return [_to_json_value(item) for item in value]
+    return str(value)
 
 
 def _preprocessing_plan_to_payload(plan: PreprocessingPlan) -> dict[str, object]:
@@ -343,6 +362,20 @@ def _preprocessing_plan_to_payload(plan: PreprocessingPlan) -> dict[str, object]
         "normalisation_policy": plan.normalisation_policy,
         "missing_data_policy": plan.missing_data_policy,
         "missing_data_min_observed_values": plan.missing_data_min_observed_values,
+        "site_sequence_resolution_enabled": plan.site_sequence_resolution_enabled,
+        "site_sequence_resolution_fasta_path": (
+            plan.site_sequence_resolution_fasta_path
+        ),
+        "site_sequence_resolution_mode": plan.site_sequence_resolution_mode,
+        "site_sequence_resolution_flank_size": int(
+            plan.site_sequence_resolution_flank_size
+        ),
+        "site_sequence_resolution_accession_column": (
+            plan.site_sequence_resolution_accession_column
+        ),
+        "site_sequence_resolution_site_column": (
+            plan.site_sequence_resolution_site_column
+        ),
         "total_protein_correction_policy": plan.total_protein_correction_policy,
         "total_protein_correction_identity_policy": (
             _total_correction_identity_policy_to_payload(

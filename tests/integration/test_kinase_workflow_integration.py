@@ -116,6 +116,79 @@ def test_kinase_workflow_runs_without_dataset_site_sequence_column() -> None:
     assert not result.prediction_result.pred_mat.empty
 
 
+def test_kinase_workflow_uses_dataset_site_sequences_without_mutating_references() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0, 2.0, 3.0], "sample_b": [1.5, 2.5, 3.5]},
+        index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;", "EXTRA;S1;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "GSK3B", "EXTRA"],
+            "site": ["Y182", "S9", "S1"],
+            "site_sequence": [
+                "AAAAAAAYAAAAAAA",
+                "AAAAAAASAAAAAAA",
+                "AAAAAAASAAAAAAA",
+            ],
+        },
+        index=phospho.index.copy(),
+    )
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+        )
+    )
+    references = ReferenceBundle(
+        organism=Organism.RAT,
+        kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["MAP2K6", "MAP2K6"],
+                "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
+            }
+        ),
+        site_sequences=pd.DataFrame(
+            {
+                "site_sequence": [
+                    "AAAAAAAYAAAAAAA",
+                    "AAAAAAASAAAAAAA",
+                ]
+            },
+            index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
+        ),
+    )
+    original_reference_sequences = references.site_sequences.copy(deep=True)
+
+    result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=references,
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=2,
+                deterministic_max_selected_kinases=2,
+                adaptive_ensemble_runs=2,
+            ),
+            activity_config=None,
+        )
+    )
+
+    assert result.site_attrition_summary is not None
+    assert result.site_attrition_summary.scoring.sites_with_valid_site_sequence == 3
+    assert set(result.prediction_result.pred_mat.index.astype(str)) == {
+        "MAPK14;Y182;",
+        "GSK3B;S9;",
+        "EXTRA;S1;",
+    }
+    pd.testing.assert_frame_equal(
+        result.references.site_sequences,
+        original_reference_sequences,
+    )
+
+
 def test_kinase_workflow_runs_dataset_to_kinase_path() -> None:
     dataset = build_rat_l6_dataset(n_sites=260)
     result = KinaseWorkflow().run(
@@ -141,9 +214,9 @@ def test_kinase_workflow_runs_dataset_to_kinase_path() -> None:
     assert result.scoring_result.rank_weighted_fusion_scores is not None
     assert result.scoring_result.motif_scores is None
     assert result.scoring_result.score_fusion_weights is None
-    sequence_sites = set(result.references.site_sequences.index.astype(str))
+    dataset_sites = set(dataset.phospho.index.astype(str))
     assert set(result.scoring_result.profile_scores.index.astype(str)).issubset(
-        sequence_sites
+        dataset_sites
     )
     assert result.prediction_result.pred_mat.shape[1] <= 8
     pred_values = result.prediction_result.pred_mat.to_numpy(dtype=float)

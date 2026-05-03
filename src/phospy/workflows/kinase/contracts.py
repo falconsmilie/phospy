@@ -41,6 +41,7 @@ class ResolvedKinaseWorkflowRequest:
     scoring_site_index: pd.Index
     activity_phospho_matrix: pd.DataFrame
     execution_config: ResolvedKinaseExecutionConfig
+    site_sequence_merge_diagnostics: dict[str, object] = field(default_factory=dict)
     _kinase_substrate_reference: KinaseSubstrateReference = field(
         init=False,
         repr=False,
@@ -98,13 +99,18 @@ class ResolvedKinaseWorkflowRequest:
                 "next_action=consume the normalized reference table from "
                 "ReferenceBundle without workflow-local identifier cleanup"
             )
-        if not site_sequence_reference.frame.equals(self.references.site_sequences):
+        if not self._has_compatible_site_sequence_reference_alignment(
+            merged_site_sequences=site_sequence_reference.frame,
+            reference_site_sequences=self.references.site_sequences,
+        ):
             raise WorkflowBoundaryError(
                 "kinase workflow boundary validation failed at seam="
                 "kinase.contracts.site_sequence_reference_alignment; "
-                "site_sequences must match references.site_sequences exactly; "
-                "next_action=consume the normalized reference table from "
-                "ReferenceBundle without workflow-local identifier cleanup"
+                "site_sequences must preserve every "
+                "references.site_sequences row exactly; "
+                "next_action=ensure execution-time site-sequence merge keeps "
+                "reference-provided sequences unchanged and only appends new "
+                "dataset-supported rows"
             )
         object.__setattr__(
             self, "kinase_substrate_map", kinase_substrate_reference.frame
@@ -140,6 +146,28 @@ class ResolvedKinaseWorkflowRequest:
     @property
     def activity_phospho_table(self) -> PhosphoIntensityMatrix:
         return self._activity_phospho_table
+
+    @staticmethod
+    def _has_compatible_site_sequence_reference_alignment(
+        *,
+        merged_site_sequences: pd.DataFrame,
+        reference_site_sequences: pd.DataFrame,
+    ) -> bool:
+        if not {"site_sequence"}.issubset(set(merged_site_sequences.columns)):
+            return False
+        if not {"site_sequence"}.issubset(set(reference_site_sequences.columns)):
+            return False
+        if merged_site_sequences.index.has_duplicates:
+            return False
+        for site_id, sequence in reference_site_sequences.loc[
+            :, "site_sequence"
+        ].items():
+            if site_id not in merged_site_sequences.index:
+                return False
+            merged_value = merged_site_sequences.at[site_id, "site_sequence"]
+            if str(merged_value) != str(sequence):
+                return False
+        return True
 
 
 @dataclass(frozen=True, slots=True)

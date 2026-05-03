@@ -22,6 +22,7 @@ from phospy.api.configs.preprocessing import (
     DatasetMissingDataConfig,
     DatasetNormalisationConfig,
     DatasetSiteMatrixConfig,
+    DatasetSiteSequenceResolutionConfig,
     DatasetTotalProteinCorrectionConfig,
 )
 from phospy.errors.input import PhosPyInputError
@@ -39,6 +40,8 @@ class DatasetPreprocessingConfig:
     - `missing_data`: missing-value handling policy.
     - `total_protein_correction`: total/protein correction policy.
     - `site_matrix`: site-matrix construction policy.
+    - `site_sequence_resolution`: optional local FASTA-backed site-sequence
+      resolution policy.
     - `comparisons`: comparison-building policy.
     """
 
@@ -56,6 +59,9 @@ class DatasetPreprocessingConfig:
     )
     site_matrix: DatasetSiteMatrixConfig = field(
         default_factory=DatasetSiteMatrixConfig
+    )
+    site_sequence_resolution: DatasetSiteSequenceResolutionConfig = field(
+        default_factory=DatasetSiteSequenceResolutionConfig
     )
     comparisons: DatasetComparisonBuildingConfig = field(
         default_factory=DatasetComparisonBuildingConfig
@@ -88,6 +94,14 @@ class DatasetPreprocessingConfig:
             raise PhosPyInputError(
                 "dataset build request preprocessing_config.site_matrix must be a "
                 "DatasetSiteMatrixConfig"
+            )
+        if not isinstance(
+            self.site_sequence_resolution,
+            DatasetSiteSequenceResolutionConfig,
+        ):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.site_sequence_resolution "
+                "must be a DatasetSiteSequenceResolutionConfig"
             )
         if not isinstance(self.comparisons, DatasetComparisonBuildingConfig):
             raise PhosPyInputError(

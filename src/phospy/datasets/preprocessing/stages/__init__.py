@@ -7,6 +7,9 @@ from phospy.datasets.preprocessing.stages.intensity_transform import (
 from phospy.datasets.preprocessing.stages.missing_data import MissingDataStage
 from phospy.datasets.preprocessing.stages.normalisation import NormalisationStage
 from phospy.datasets.preprocessing.stages.site_matrix import SiteMatrixStage
+from phospy.datasets.preprocessing.stages.site_sequence_resolution import (
+    SiteSequenceResolutionStage,
+)
 from phospy.datasets.preprocessing.stages.total_protein_correction import (
     TotalProteinCorrectionStage,
 )
@@ -17,5 +20,6 @@ __all__ = [
     "MissingDataStage",
     "NormalisationStage",
     "SiteMatrixStage",
+    "SiteSequenceResolutionStage",
     "TotalProteinCorrectionStage",
 ]

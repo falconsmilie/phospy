@@ -8,6 +8,7 @@ from phospy.datasets.processing_state import (
     MissingDataState,
     NormalisationState,
     SiteMatrixState,
+    SiteSequenceResolutionState,
     TotalProteinCorrectionDiagnostics,
     TotalProteinCorrectionState,
 )
@@ -46,6 +47,15 @@ def _processing_state_with_diagnostics(
 ):
     return DatasetProcessingState(
         intensity_scale=_intensity_scale_state(quantity=quantitative_meaning),
+        site_sequence_resolution=SiteSequenceResolutionState(
+            configured=False,
+            mode=None,
+            flank_size=None,
+            fasta_sha256=None,
+            resolved_site_count=0,
+            unresolved_site_count=0,
+            unresolved_counts_by_reason={},
+        ),
         missing_data=MissingDataState(
             policy="forbid",
             min_observed_values=None,

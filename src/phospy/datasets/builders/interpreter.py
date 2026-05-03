@@ -77,6 +77,7 @@ class DatasetBuildRequestInterpreter:
                 allow_partial=(
                     preprocessing_plan.site_matrix_policy
                     == DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA
+                    or preprocessing_plan.site_sequence_resolution_enabled
                 ),
             )
         except (TypeError, ValueError, KeyError) as exc:

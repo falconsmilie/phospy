@@ -180,6 +180,44 @@ def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
     )
 
 
+def test_interpreter_merges_dataset_site_sequences_without_mutating_references() -> (
+    None
+):
+    dataset = _dataset(
+        site_ids=["MAPK14;Y182;", "GSK3B;S9;", "EXTRA;S1;"],
+        sample_names=["sample_a", "sample_b"],
+    )
+    references = ReferenceBundle(
+        organism=Organism.RAT,
+        kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["MAP2K6", "MAP2K6"],
+                "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
+            }
+        ),
+        site_sequences=pd.DataFrame(
+            {"site_sequence": ["A" * 31, "A" * 31]},
+            index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
+        ),
+    )
+    original_reference_sequences = references.site_sequences.copy(deep=True)
+
+    interpreted = KinaseWorkflowInterpreter().run(
+        KinaseWorkflowRequest(dataset=dataset, references=references)
+    )
+
+    assert set(interpreted.site_sequences.index.astype(str)) == {
+        "MAPK14;Y182;",
+        "GSK3B;S9;",
+        "EXTRA;S1;",
+    }
+    pd.testing.assert_frame_equal(
+        references.site_sequences,
+        original_reference_sequences,
+    )
+    assert interpreted.site_sequence_merge_diagnostics["dataset_sequences_added"] == 1
+
+
 def test_scoring_stage_is_reference_input_form_invariant_for_equivalent_content() -> (
     None
 ):
@@ -239,7 +277,7 @@ def test_scoring_stage_is_reference_input_form_invariant_for_equivalent_content(
     assert from_preset.downstream_score_source == from_bundle.downstream_score_source
 
 
-def test_workflow_limits_scoring_to_sites_with_reference_sequences() -> None:
+def test_workflow_uses_execution_time_merged_site_sequences() -> None:
     dataset = _dataset(
         site_ids=["MAPK14;Y182;", "GSK3B;S9;", "EXTRA;S1;"],
         sample_names=["sample_a", "sample_b"],
@@ -274,10 +312,12 @@ def test_workflow_limits_scoring_to_sites_with_reference_sequences() -> None:
     assert list(result.scoring_result.profile_scores.index) == [
         "MAPK14;Y182;",
         "GSK3B;S9;",
+        "EXTRA;S1;",
     ]
     assert list(result.prediction_result.pred_mat.index) == [
         "MAPK14;Y182;",
         "GSK3B;S9;",
+        "EXTRA;S1;",
     ]
 
 

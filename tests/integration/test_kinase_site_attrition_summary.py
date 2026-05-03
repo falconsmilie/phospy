@@ -168,9 +168,9 @@ def test_kinase_workflow_exposes_compact_site_attrition_summary() -> None:
 
     assert scoring.rows_removed_invalid_or_missing_site_identifiers == 1
     assert scoring.final_quantitative_sites_entering_scoring == 6
-    assert scoring.sites_with_valid_site_sequence == 4
-    assert scoring.sites_without_usable_site_sequence == 2
-    assert scoring.sites_eligible_for_motif_scoring == 4
+    assert scoring.sites_with_valid_site_sequence == 5
+    assert scoring.sites_without_usable_site_sequence == 1
+    assert scoring.sites_eligible_for_motif_scoring == 5
     assert scoring.sites_with_kinase_substrate_reference_profile_evidence == 3
     assert scoring.sites_contributing_to_final_fused_prediction_scoring_output == int(
         result.prediction_result.pred_mat.notna().any(axis=1).sum()

@@ -73,7 +73,7 @@ class PreprocessingStageProvenance:
     imputed_cell_count: int = 0
     imputed_row_ids: tuple[str, ...] = ()
     notes: str | None = None
-    diagnostics: dict[str, object] | None = None
+    diagnostics: dict[str, JsonValue] | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -10,6 +10,7 @@ from phospy.datasets.processing_state import (
     MissingDataState,
     NormalisationState,
     SiteMatrixState,
+    SiteSequenceResolutionState,
     TotalProteinCorrectionDiagnostics,
     TotalProteinCorrectionState,
 )
@@ -37,6 +38,22 @@ def processing_state_to_payload(state: DatasetProcessingState) -> dict[str, obje
     )
     return {
         "intensity_scale": intensity_scale_state_to_payload(state.intensity_scale),
+        "site_sequence_resolution": {
+            "configured": bool(state.site_sequence_resolution.configured),
+            "mode": state.site_sequence_resolution.mode,
+            "flank_size": state.site_sequence_resolution.flank_size,
+            "fasta_sha256": state.site_sequence_resolution.fasta_sha256,
+            "resolved_site_count": int(
+                state.site_sequence_resolution.resolved_site_count
+            ),
+            "unresolved_site_count": int(
+                state.site_sequence_resolution.unresolved_site_count
+            ),
+            "unresolved_counts_by_reason": {
+                str(key): int(value)
+                for key, value in state.site_sequence_resolution.unresolved_counts_by_reason.items()
+            },
+        },
         "missing_data": {
             "policy": state.missing_data.policy,
             "min_observed_values": state.missing_data.min_observed_values,
@@ -104,6 +121,15 @@ def processing_state_from_payload(
         payload.get("comparisons"),
         field_name="dataset.metadata.processing_state.comparisons",
     )
+    site_sequence_resolution_raw = payload.get("site_sequence_resolution")
+    site_sequence_resolution_payload = (
+        {}
+        if site_sequence_resolution_raw is None
+        else require_mapping(
+            site_sequence_resolution_raw,
+            field_name="dataset.metadata.processing_state.site_sequence_resolution",
+        )
+    )
     intensity_scale_payload = require_mapping(
         payload.get("intensity_scale"),
         field_name="dataset.metadata.processing_state.intensity_scale",
@@ -155,6 +181,56 @@ def processing_state_from_payload(
     )
     return DatasetProcessingState(
         intensity_scale=intensity_scale_state,
+        site_sequence_resolution=SiteSequenceResolutionState(
+            configured=require_bool(
+                site_sequence_resolution_payload.get("configured", False),
+                field_name=(
+                    "dataset.metadata.processing_state.site_sequence_resolution."
+                    "configured"
+                ),
+            ),
+            mode=_require_optional_str(
+                site_sequence_resolution_payload.get("mode"),
+                field_name=(
+                    "dataset.metadata.processing_state.site_sequence_resolution.mode"
+                ),
+            ),
+            flank_size=_require_optional_int(
+                site_sequence_resolution_payload.get("flank_size"),
+                field_name=(
+                    "dataset.metadata.processing_state.site_sequence_resolution."
+                    "flank_size"
+                ),
+            ),
+            fasta_sha256=_require_optional_str(
+                site_sequence_resolution_payload.get("fasta_sha256"),
+                field_name=(
+                    "dataset.metadata.processing_state.site_sequence_resolution."
+                    "fasta_sha256"
+                ),
+            ),
+            resolved_site_count=require_int(
+                site_sequence_resolution_payload.get("resolved_site_count", 0),
+                field_name=(
+                    "dataset.metadata.processing_state.site_sequence_resolution."
+                    "resolved_site_count"
+                ),
+            ),
+            unresolved_site_count=require_int(
+                site_sequence_resolution_payload.get("unresolved_site_count", 0),
+                field_name=(
+                    "dataset.metadata.processing_state.site_sequence_resolution."
+                    "unresolved_site_count"
+                ),
+            ),
+            unresolved_counts_by_reason=_parse_optional_string_int_mapping(
+                site_sequence_resolution_payload.get("unresolved_counts_by_reason"),
+                field_name=(
+                    "dataset.metadata.processing_state.site_sequence_resolution."
+                    "unresolved_counts_by_reason"
+                ),
+            ),
+        ),
         missing_data=MissingDataState(
             policy=require_str(
                 missing_data_payload.get("policy"),
@@ -370,3 +446,18 @@ def _require_total_correction_quantitative_meaning(
             "quantitative_meaning"
         )
     return direct
+
+
+def _parse_optional_string_int_mapping(
+    value: object,
+    *,
+    field_name: str,
+) -> dict[str, int]:
+    if value is None:
+        return {}
+    mapping = require_mapping(value, field_name=field_name)
+    parsed: dict[str, int] = {}
+    for raw_key, raw_value in mapping.items():
+        key = require_str(raw_key, field_name=f"{field_name}.<key>")
+        parsed[key] = require_int(raw_value, field_name=f"{field_name}.{key}")
+    return parsed

@@ -158,6 +158,10 @@ class KinaseProvenanceBuilder:
             scoring_diagnostics["motif_library_validation"] = (
                 scoring_result.motif_library_validation.summary()
             )
+        if request.site_sequence_merge_diagnostics:
+            scoring_diagnostics["site_sequence_merge"] = dict(
+                request.site_sequence_merge_diagnostics
+            )
         scientific_policies = [
             PROFILE_CORRELATION_SHIFTED_UNIT_POLICY,
             KinaseProfileScoringPolicy(

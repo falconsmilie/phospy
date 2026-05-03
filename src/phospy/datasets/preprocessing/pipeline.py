@@ -14,6 +14,7 @@ from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
     DATASET_PREPROCESSING_STAGE_NORMALISATION,
     DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
+    DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
     PreprocessingPlan,
     PreprocessingReportRow,
@@ -32,6 +33,9 @@ from phospy.datasets.preprocessing.stages.intensity_transform import (
 from phospy.datasets.preprocessing.stages.missing_data import MissingDataStage
 from phospy.datasets.preprocessing.stages.normalisation import NormalisationStage
 from phospy.datasets.preprocessing.stages.site_matrix import SiteMatrixStage
+from phospy.datasets.preprocessing.stages.site_sequence_resolution import (
+    SiteSequenceResolutionStage,
+)
 from phospy.datasets.preprocessing.stages.total_protein_correction import (
     TotalProteinCorrectionStage,
 )
@@ -56,6 +60,7 @@ _RESERVED_DIAGNOSTIC_KEYS = frozenset(
 _DEFAULT_STAGE_CONSUMED_TABLES = ("dataset.phospho",)
 _DEFAULT_STAGE_PRODUCED_TABLES = ("dataset.phospho",)
 _STAGE_CONSUMED_TABLES: dict[str, tuple[str, ...]] = {
+    DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION: ("dataset.site_metadata",),
     DATASET_PREPROCESSING_STAGE_MISSING_DATA: (
         "dataset.phospho",
         "dataset.site_metadata",
@@ -80,6 +85,7 @@ _STAGE_CONSUMED_TABLES: dict[str, tuple[str, ...]] = {
     ),
 }
 _STAGE_PRODUCED_TABLES: dict[str, tuple[str, ...]] = {
+    DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION: ("dataset.site_metadata",),
     DATASET_PREPROCESSING_STAGE_MISSING_DATA: (
         "dataset.phospho",
         "dataset.site_metadata",
@@ -105,6 +111,7 @@ _STAGE_PRODUCED_TABLES: dict[str, tuple[str, ...]] = {
     ),
 }
 _STAGE_BACKENDS: dict[str, str] = {
+    DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION: "phospy.sequences",
     DATASET_PREPROCESSING_STAGE_MISSING_DATA: "pandas",
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM: "numpy",
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION: "pandas",
@@ -115,6 +122,14 @@ _STAGE_BACKENDS: dict[str, str] = {
 
 _STAGE_LABEL_TO_PARAMETERS: dict[str, tuple[str, ...]] = {
     DATASET_PREPROCESSING_STAGE_NORMALISATION: (),
+    DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION: (
+        "site_sequence_resolution_enabled",
+        "site_sequence_resolution_fasta_path",
+        "site_sequence_resolution_mode",
+        "site_sequence_resolution_flank_size",
+        "site_sequence_resolution_accession_column",
+        "site_sequence_resolution_site_column",
+    ),
     DATASET_PREPROCESSING_STAGE_MISSING_DATA: (
         "missing_data_policy",
         "missing_data_min_observed_values",
@@ -151,6 +166,7 @@ class PreprocessingPipeline:
         stage_registry: tuple[PreprocessingStage, ...] | None = None,
     ) -> None:
         stages = stage_registry or (
+            SiteSequenceResolutionStage(),
             MissingDataStage(),
             IntensityTransformStage(),
             TotalProteinCorrectionStage(),
@@ -279,6 +295,15 @@ def _resolve_stage_parameters(
         }
     if stage == DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM:
         return {"pseudocount": float(plan.intensity_transform_pseudocount)}
+    if stage == DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION:
+        return {
+            "enabled": bool(plan.site_sequence_resolution_enabled),
+            "fasta_path": plan.site_sequence_resolution_fasta_path,
+            "mode": plan.site_sequence_resolution_mode,
+            "flank_size": int(plan.site_sequence_resolution_flank_size),
+            "accession_column": plan.site_sequence_resolution_accession_column,
+            "site_column": plan.site_sequence_resolution_site_column,
+        }
     parameter_names = _STAGE_LABEL_TO_PARAMETERS.get(stage, ())
     return {name: getattr(plan, name) for name in parameter_names}
 
@@ -290,6 +315,8 @@ def _resolve_stage_operation(*, plan: PreprocessingPlan, stage: str) -> str:
         return plan.normalisation_policy
     if stage == DATASET_PREPROCESSING_STAGE_MISSING_DATA:
         return plan.missing_data_policy
+    if stage == DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION:
+        return plan.site_sequence_resolution_mode
     if stage == DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION:
         return str(plan.total_protein_correction_policy)
     if stage == DATASET_PREPROCESSING_STAGE_SITE_MATRIX:

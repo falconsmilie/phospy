@@ -20,6 +20,7 @@ from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
     DATASET_PREPROCESSING_STAGE_NORMALISATION,
     DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
+    DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
     PreprocessingPlan,
     PreprocessingStageExecution,
@@ -42,6 +43,7 @@ from phospy.datasets.processing_state import (
     MissingDataState,
     NormalisationState,
     SiteMatrixState,
+    SiteSequenceResolutionState,
     TotalProteinCorrectionDiagnostics,
     TotalProteinCorrectionState,
 )
@@ -56,6 +58,14 @@ _PREPROCESSING_INPUT_STAGE = "preprocessing_input"
 _PREPROCESSING_COMPLETE_STAGE = "preprocessing_complete"
 _STAGE_LABEL_TO_PARAMETERS: dict[str, tuple[str, ...]] = {
     DATASET_PREPROCESSING_STAGE_NORMALISATION: (),
+    DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION: (
+        "site_sequence_resolution_enabled",
+        "site_sequence_resolution_fasta_path",
+        "site_sequence_resolution_mode",
+        "site_sequence_resolution_flank_size",
+        "site_sequence_resolution_accession_column",
+        "site_sequence_resolution_site_column",
+    ),
     DATASET_PREPROCESSING_STAGE_MISSING_DATA: (
         "missing_data_policy",
         "missing_data_min_observed_values",
@@ -153,6 +163,11 @@ def build_dataset_processing_state(
     correction_diagnostics = _resolve_total_correction_diagnostics(
         preprocessing_trace=preprocessing_trace
     )
+    site_sequence_resolution_diagnostics = (
+        _resolve_site_sequence_resolution_diagnostics(
+            preprocessing_trace=preprocessing_trace
+        )
+    )
     intensity_scale_state = _resolve_quantitative_meaning_state(
         intensity_scale_state=intensity_scale_state,
         total_correction_policy=resolved_total_policy,
@@ -203,6 +218,38 @@ def build_dataset_processing_state(
     )
     return DatasetProcessingState(
         intensity_scale=intensity_scale_state,
+        site_sequence_resolution=SiteSequenceResolutionState(
+            configured=bool(plan.site_sequence_resolution_enabled),
+            mode=(
+                str(plan.site_sequence_resolution_mode).strip()
+                if plan.site_sequence_resolution_enabled
+                else None
+            ),
+            flank_size=(
+                int(plan.site_sequence_resolution_flank_size)
+                if plan.site_sequence_resolution_enabled
+                else None
+            ),
+            fasta_sha256=_resolve_optional_string_diagnostic(
+                site_sequence_resolution_diagnostics,
+                key="fasta_sha256",
+                default=None,
+            ),
+            resolved_site_count=_resolve_optional_int_diagnostic(
+                site_sequence_resolution_diagnostics,
+                key="resolved_site_count",
+                default=0,
+            ),
+            unresolved_site_count=_resolve_optional_int_diagnostic(
+                site_sequence_resolution_diagnostics,
+                key="unresolved_site_count",
+                default=0,
+            ),
+            unresolved_counts_by_reason=_resolve_optional_mapping_int_diagnostic(
+                site_sequence_resolution_diagnostics,
+                key="unresolved_counts_by_reason",
+            ),
+        ),
         missing_data=MissingDataState(
             policy=plan.missing_data_policy,
             min_observed_values=plan.missing_data_min_observed_values,
@@ -278,6 +325,18 @@ def _resolve_total_correction_diagnostics(
     return None
 
 
+def _resolve_site_sequence_resolution_diagnostics(
+    *,
+    preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
+) -> dict[str, object] | None:
+    if preprocessing_trace is None:
+        return None
+    for item in preprocessing_trace:
+        if item.stage == DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION:
+            return dict(item.diagnostics)
+    return None
+
+
 def _resolve_optional_string_diagnostic(
     diagnostics: Mapping[str, object] | None,
     *,
@@ -306,6 +365,60 @@ def _resolve_optional_bool_diagnostic(
     if isinstance(value, bool):
         return value
     return default
+
+
+def _resolve_optional_int_diagnostic(
+    diagnostics: Mapping[str, object] | None,
+    *,
+    key: str,
+    default: int,
+) -> int:
+    if diagnostics is None:
+        return int(default)
+    value = diagnostics.get(key)
+    if value is None:
+        return int(default)
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return int(value)
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, str):
+        stripped = value.strip()
+        return int(default) if stripped == "" else int(stripped)
+    return int(default)
+
+
+def _resolve_optional_mapping_int_diagnostic(
+    diagnostics: Mapping[str, object] | None,
+    *,
+    key: str,
+) -> dict[str, int]:
+    if diagnostics is None:
+        return {}
+    value = diagnostics.get(key)
+    if not isinstance(value, Mapping):
+        return {}
+    resolved: dict[str, int] = {}
+    for raw_key, raw_value in value.items():
+        normalized_key = str(raw_key)
+        if isinstance(raw_value, bool):
+            resolved[normalized_key] = int(raw_value)
+            continue
+        if isinstance(raw_value, int):
+            resolved[normalized_key] = int(raw_value)
+            continue
+        if isinstance(raw_value, float):
+            resolved[normalized_key] = int(raw_value)
+            continue
+        if isinstance(raw_value, str):
+            stripped = raw_value.strip()
+            if stripped == "":
+                continue
+            resolved[normalized_key] = int(stripped)
+            continue
+    return resolved
 
 
 def _with_default_string_diagnostic(
@@ -396,7 +509,8 @@ def _build_preprocessing_provenance_tables(
 
     row_cursor = input_row_count
     step_order = 1
-    for stage in _PROVENANCE_CANONICAL_STAGES:
+    canonical_stages = _resolve_provenance_canonical_stages(plan)
+    for stage in canonical_stages:
         record = trace_by_stage.get(stage)
         if record is None:
             stage_input_rows = row_cursor
@@ -452,9 +566,27 @@ def _build_preprocessing_provenance_tables(
     return row_counts, operations
 
 
+def _resolve_provenance_canonical_stages(plan: PreprocessingPlan) -> tuple[str, ...]:
+    if not plan.site_sequence_resolution_enabled:
+        return _PROVENANCE_CANONICAL_STAGES
+    return (
+        DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
+        *_PROVENANCE_CANONICAL_STAGES,
+    )
+
+
 def _resolve_stage_parameters(
     *, plan: PreprocessingPlan, stage: str
 ) -> dict[str, object]:
+    if stage == DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION:
+        return {
+            "enabled": bool(plan.site_sequence_resolution_enabled),
+            "fasta_path": plan.site_sequence_resolution_fasta_path,
+            "mode": plan.site_sequence_resolution_mode,
+            "flank_size": int(plan.site_sequence_resolution_flank_size),
+            "accession_column": plan.site_sequence_resolution_accession_column,
+            "site_column": plan.site_sequence_resolution_site_column,
+        }
     if stage == DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION:
         identity = plan.total_protein_correction_identity_policy
         return {
@@ -478,6 +610,8 @@ def _resolve_stage_parameters(
 
 
 def _resolve_stage_operation(*, plan: PreprocessingPlan, stage: str) -> str:
+    if stage == DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION:
+        return plan.site_sequence_resolution_mode
     if stage == DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM:
         return plan.intensity_transform_policy
     if stage == DATASET_PREPROCESSING_STAGE_NORMALISATION:

@@ -88,10 +88,14 @@ class KinaseSiteAttritionSummaryComposer:
         motif_sequence_validation = (
             scoring_execution.scoring_result.motif_sequence_validation
         )
+        sequence_supported_sites = int(len(request.scoring_site_index))
         motif_valid_sites = int(
-            len(request.scoring_site_index)
+            sequence_supported_sites
             if motif_sequence_validation is None
-            else motif_sequence_validation.valid_sequences
+            else min(
+                int(motif_sequence_validation.valid_sequences),
+                sequence_supported_sites,
+            )
         )
         motif_invalid_site_ids = set()
         if motif_sequence_validation is not None:

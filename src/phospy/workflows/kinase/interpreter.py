@@ -31,6 +31,14 @@ class _OverlapSummary(TypedDict):
     per_kinase_quantified: pd.Series
 
 
+class _SiteSequenceMergeSummary(TypedDict):
+    site_sequences: pd.DataFrame
+    dataset_sequences_added: int
+    dataset_reference_conflict_count: int
+    dataset_sequences_missing: int
+    dataset_sequences_available: int
+
+
 class KinaseWorkflowInterpreter:
     """Resolve workflow request defaults and references for execution."""
 
@@ -53,7 +61,12 @@ class KinaseWorkflowInterpreter:
         # ReferenceBundle construction is the sole identifier-normalisation
         # boundary. Downstream workflow stages consume these tables as-is.
         kinase_substrate_map = references.kinase_substrate_map
-        site_sequences = references.site_sequences
+        merge_summary = self._build_execution_site_sequences(
+            dataset=request.dataset.phospho,
+            site_metadata=request.dataset.site_metadata,
+            reference_site_sequences=references.site_sequences,
+        )
+        site_sequences = merge_summary["site_sequences"]
         overlap_counts = self._summarize_overlap(
             dataset=request.dataset.phospho,
             kinase_substrate_map=kinase_substrate_map,
@@ -85,7 +98,76 @@ class KinaseWorkflowInterpreter:
             scoring_site_index=scoring_site_index,
             activity_phospho_matrix=activity_phospho_matrix,
             execution_config=execution_config,
+            site_sequence_merge_diagnostics={
+                "dataset_sequences_added": int(
+                    merge_summary["dataset_sequences_added"]
+                ),
+                "dataset_reference_conflict_count": int(
+                    merge_summary["dataset_reference_conflict_count"]
+                ),
+                "dataset_sequences_missing": int(
+                    merge_summary["dataset_sequences_missing"]
+                ),
+                "dataset_sequences_available": int(
+                    merge_summary["dataset_sequences_available"]
+                ),
+                "reference_sequence_count": int(references.site_sequences.shape[0]),
+                "execution_sequence_count": int(site_sequences.shape[0]),
+            },
         )
+
+    @classmethod
+    def _build_execution_site_sequences(
+        cls,
+        *,
+        dataset: pd.DataFrame,
+        site_metadata: pd.DataFrame,
+        reference_site_sequences: pd.DataFrame,
+    ) -> _SiteSequenceMergeSummary:
+        merged = reference_site_sequences.copy(deep=True)
+        dataset_sequences_available = 0
+        dataset_sequences_missing = 0
+        dataset_sequences_added = 0
+        dataset_reference_conflict_count = 0
+        if "site_sequence" not in site_metadata.columns:
+            return {
+                "site_sequences": merged,
+                "dataset_sequences_added": 0,
+                "dataset_reference_conflict_count": 0,
+                "dataset_sequences_missing": int(dataset.shape[0]),
+                "dataset_sequences_available": 0,
+            }
+        dataset_sequence_series = (
+            site_metadata.reindex(dataset.index)
+            .loc[:, "site_sequence"]
+            .astype("string")
+            .str.strip()
+        )
+        for site_id in dataset.index.tolist():
+            site_key = str(site_id)
+            sequence_value = dataset_sequence_series.loc[site_id]
+            has_sequence = bool(pd.notna(sequence_value)) and str(sequence_value) != ""
+            if not has_sequence:
+                dataset_sequences_missing += 1
+                continue
+            dataset_sequences_available += 1
+            sequence_text = str(sequence_value)
+            if site_key in merged.index:
+                reference_value = str(merged.at[site_key, cls._SITE_SEQUENCE_COLUMN])
+                if reference_value != sequence_text:
+                    dataset_reference_conflict_count += 1
+                continue
+            merged.loc[site_key, cls._SITE_SEQUENCE_COLUMN] = sequence_text
+            dataset_sequences_added += 1
+        if merged.index.name != reference_site_sequences.index.name:
+            merged.index.name = reference_site_sequences.index.name
+        return {
+            "site_sequences": merged,
+            "dataset_sequences_added": dataset_sequences_added,
+            "dataset_reference_conflict_count": dataset_reference_conflict_count,
+            "dataset_sequences_missing": dataset_sequences_missing,
+            "dataset_sequences_available": dataset_sequences_available,
+        }
 
     @staticmethod
     def _resolve_execution_config(

@@ -342,7 +342,7 @@ def _stage_from_payload(payload: Mapping[str, object]) -> PreprocessingStageProv
         None
         if diagnostics_raw is None
         else {
-            str(key): value
+            str(key): _to_json_value(value)
             for key, value in _require_mapping(
                 diagnostics_raw,
                 field_name="preprocessing_stage.diagnostics",

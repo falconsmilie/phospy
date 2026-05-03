@@ -32,6 +32,7 @@ from phospy.api.configs import (
     DatasetNormalisationConfig,
     DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
+    DatasetSiteSequenceResolutionConfig,
     DatasetTotalProteinCorrectionConfig,
     KinaseActivityConfig,
     KinasePredictionConfig,
@@ -216,6 +217,38 @@ def test_dataset_comparison_building_config_self_validates(
     ("kwargs", "pattern"),
     [
         (
+            {"mode": "invalid"},
+            "site_sequence_resolution.mode must be one of",
+        ),
+        (
+            {"fasta_path": "https://example.org/test.fasta"},
+            "fasta_path must be a local filesystem path",
+        ),
+        (
+            {"fasta_path": "local.fasta", "flank_size": 0},
+            "flank_size must be greater than or equal to 1",
+        ),
+        (
+            {"accession_column": ""},
+            "site_sequence_resolution.accession_column must be a non-empty string",
+        ),
+        (
+            {"site_column": ""},
+            "site_sequence_resolution.site_column must be a non-empty string",
+        ),
+    ],
+)
+def test_dataset_site_sequence_resolution_config_self_validates(
+    kwargs: dict[str, object], pattern: str
+) -> None:
+    with pytest.raises(PhosPyInputError, match=pattern):
+        DatasetSiteSequenceResolutionConfig(**kwargs)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "pattern"),
+    [
+        (
             {"missing_data": object()},
             "preprocessing_config.missing_data must be a DatasetMissingDataConfig",
         ),
@@ -226,6 +259,10 @@ def test_dataset_comparison_building_config_self_validates(
         (
             {"comparisons": object()},
             "preprocessing_config.comparisons must be a DatasetComparisonBuildingConfig",
+        ),
+        (
+            {"site_sequence_resolution": object()},
+            "preprocessing_config.site_sequence_resolution must be a DatasetSiteSequenceResolutionConfig",
         ),
     ],
 )

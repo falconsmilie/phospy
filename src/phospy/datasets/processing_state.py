@@ -696,6 +696,19 @@ class NormalisationState:
 
 
 @dataclass(frozen=True, slots=True)
+class SiteSequenceResolutionState:
+    """Dataset site-sequence FASTA-resolution state at preprocessing boundary."""
+
+    configured: bool
+    mode: str | None
+    flank_size: int | None
+    fasta_sha256: str | None
+    resolved_site_count: int
+    unresolved_site_count: int
+    unresolved_counts_by_reason: dict[str, int]
+
+
+@dataclass(frozen=True, slots=True)
 class TotalProteinCorrectionState:
     """Total-protein correction state at the analysis-ready dataset boundary."""
 
@@ -745,6 +758,7 @@ class DatasetProcessingState:
     """Compact summary of preprocessing state at the analysis-ready boundary."""
 
     intensity_scale: IntensityScaleState
+    site_sequence_resolution: SiteSequenceResolutionState
     missing_data: MissingDataState
     normalisation: NormalisationState
     total_protein_correction: TotalProteinCorrectionState

@@ -17,6 +17,7 @@ from phospy.api.configs import (
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
     DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
     DATASET_SITE_MATRIX_POLICY_AS_INPUT,
+    DATASET_SITE_SEQUENCE_RESOLUTION_MODE_VALIDATE_EXISTING_AND_FILL_MISSING,
     DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICY_ERROR,
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT,
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_MAPPING_TABLE,
@@ -31,6 +32,7 @@ from phospy.api.configs import (
     DatasetSiteMatrixDuplicateSitePolicy,
     DatasetSiteMatrixMissingDataPolicy,
     DatasetSiteMatrixPolicy,
+    DatasetSiteSequenceResolutionMode,
     DatasetTotalProteinCorrectionDuplicatePolicy,
     DatasetTotalProteinCorrectionIdentityConfig,
     DatasetTotalProteinCorrectionIdentityMode,
@@ -55,6 +57,7 @@ from phospy.provenance.models import (
 )
 
 DATASET_PREPROCESSING_STAGE_MISSING_DATA = "missing_data"
+DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION = "site_sequence_resolution"
 DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION = "total_protein_correction"
 DATASET_PREPROCESSING_STAGE_SITE_MATRIX = "site_matrix"
 DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM = "intensity_transform"
@@ -97,6 +100,14 @@ class PreprocessingPlan:
     normalisation_policy: DatasetNormalisationPolicy = DATASET_NORMALISATION_POLICY_NONE
     missing_data_policy: DatasetMissingDataPolicy = DATASET_MISSING_DATA_POLICY_FORBID
     missing_data_min_observed_values: int | None = None
+    site_sequence_resolution_enabled: bool = False
+    site_sequence_resolution_fasta_path: str | None = None
+    site_sequence_resolution_mode: DatasetSiteSequenceResolutionMode = (
+        DATASET_SITE_SEQUENCE_RESOLUTION_MODE_VALIDATE_EXISTING_AND_FILL_MISSING
+    )
+    site_sequence_resolution_flank_size: int = 7
+    site_sequence_resolution_accession_column: str = "protein_accession"
+    site_sequence_resolution_site_column: str = "site"
     total_protein_correction_policy: DatasetTotalProteinCorrectionPolicy = (
         DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE
     )
@@ -132,7 +143,13 @@ class PreprocessingPlan:
 
     @classmethod
     def from_config(cls, config: DatasetPreprocessingConfig) -> PreprocessingPlan:
-        stage_order: list[str] = [DATASET_PREPROCESSING_STAGE_MISSING_DATA]
+        stage_order: list[str] = []
+        site_sequence_resolution_enabled = (
+            config.site_sequence_resolution.fasta_path is not None
+        )
+        if site_sequence_resolution_enabled:
+            stage_order.append(DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION)
+        stage_order.append(DATASET_PREPROCESSING_STAGE_MISSING_DATA)
         if (
             config.intensity_transform.policy
             != DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY
@@ -157,6 +174,18 @@ class PreprocessingPlan:
             normalisation_policy=config.normalisation.policy,
             missing_data_policy=config.missing_data.policy,
             missing_data_min_observed_values=config.missing_data.min_observed_values,
+            site_sequence_resolution_enabled=site_sequence_resolution_enabled,
+            site_sequence_resolution_fasta_path=config.site_sequence_resolution.fasta_path,
+            site_sequence_resolution_mode=config.site_sequence_resolution.mode,
+            site_sequence_resolution_flank_size=int(
+                config.site_sequence_resolution.flank_size
+            ),
+            site_sequence_resolution_accession_column=(
+                config.site_sequence_resolution.accession_column
+            ),
+            site_sequence_resolution_site_column=(
+                config.site_sequence_resolution.site_column
+            ),
             total_protein_correction_policy=config.total_protein_correction.policy,
             total_protein_correction_identity_policy=_resolve_total_correction_identity_policy(
                 config.total_protein_correction.identity
@@ -311,6 +340,7 @@ __all__ = [
     "DATASET_PREPROCESSING_STAGE_NORMALISATION",
     "DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT",
     "DATASET_PREPROCESSING_STAGE_SITE_MATRIX",
+    "DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION",
     "DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION",
     "ComparisonBuildResult",
     "DuplicateSiteResolutionResult",

@@ -15,6 +15,7 @@ PREPROCESSING_REPORT_DUPLICATE_SITE_RESOLUTION_TABLE = "duplicate_site_resolutio
 PREPROCESSING_REPORT_METADATA_CONFLICTS_TABLE = "metadata_conflicts"
 PREPROCESSING_REPORT_COMPARISON_GROUP_STATS_TABLE = "comparison_group_stats"
 PREPROCESSING_REPORT_COMPARISON_PAIR_STATS_TABLE = "comparison_pair_stats"
+PREPROCESSING_REPORT_SITE_SEQUENCE_RESOLUTION_TABLE = "site_sequence_resolution"
 
 
 class _DataclassInstance(Protocol):
@@ -156,6 +157,22 @@ class ComparisonPairStatsRow:
         return _columns_for_dataclass(cls)
 
 
+@dataclass(frozen=True, slots=True)
+class SiteSequenceResolutionRow:
+    row_id: str
+    status: str
+    reason: object
+    accession: object
+    site_token: object
+    existing_site_sequence: object
+    resolved_site_sequence: object
+    action: str
+
+    @classmethod
+    def columns(cls) -> tuple[str, ...]:
+        return _columns_for_dataclass(cls)
+
+
 ROW_COUNTS_COLUMNS = PreprocessingRowCountRow.columns()
 OPERATIONS_COLUMNS = PreprocessingOperationRow.columns()
 ROW_AUDIT_COLUMNS = PreprocessingRowAuditRow.columns()
@@ -163,6 +180,7 @@ DUPLICATE_SITE_RESOLUTION_COLUMNS = DuplicateSiteResolutionRow.columns()
 METADATA_CONFLICT_COLUMNS = MetadataConflictRow.columns()
 COMPARISON_GROUP_STATS_COLUMNS = ComparisonGroupStatsRow.columns()
 COMPARISON_PAIR_STATS_COLUMNS = ComparisonPairStatsRow.columns()
+SITE_SEQUENCE_RESOLUTION_COLUMNS = SiteSequenceResolutionRow.columns()
 
 PREPROCESSING_REPORT_TABLE_COLUMNS = {
     PREPROCESSING_REPORT_ROW_COUNTS_TABLE: ROW_COUNTS_COLUMNS,
@@ -174,6 +192,7 @@ PREPROCESSING_REPORT_TABLE_COLUMNS = {
     PREPROCESSING_REPORT_METADATA_CONFLICTS_TABLE: METADATA_CONFLICT_COLUMNS,
     PREPROCESSING_REPORT_COMPARISON_GROUP_STATS_TABLE: COMPARISON_GROUP_STATS_COLUMNS,
     PREPROCESSING_REPORT_COMPARISON_PAIR_STATS_TABLE: COMPARISON_PAIR_STATS_COLUMNS,
+    PREPROCESSING_REPORT_SITE_SEQUENCE_RESOLUTION_TABLE: SITE_SEQUENCE_RESOLUTION_COLUMNS,
 }
 
 _ReportRowT = TypeVar("_ReportRowT", bound=_DataclassInstance)
@@ -289,6 +308,12 @@ def dataframe_from_comparison_pair_stats_rows(
     return dataframe_from_rows(rows, row_type=ComparisonPairStatsRow)
 
 
+def dataframe_from_site_sequence_resolution_rows(
+    rows: Sequence[SiteSequenceResolutionRow],
+) -> pd.DataFrame:
+    return dataframe_from_rows(rows, row_type=SiteSequenceResolutionRow)
+
+
 def row_count_rows_from_dataframe(
     frame: pd.DataFrame | None,
 ) -> tuple[PreprocessingRowCountRow, ...]:
@@ -331,6 +356,12 @@ def comparison_pair_stats_rows_from_dataframe(
     return rows_from_dataframe(frame, row_type=ComparisonPairStatsRow)
 
 
+def site_sequence_resolution_rows_from_dataframe(
+    frame: pd.DataFrame | None,
+) -> tuple[SiteSequenceResolutionRow, ...]:
+    return rows_from_dataframe(frame, row_type=SiteSequenceResolutionRow)
+
+
 __all__ = [
     "COMPARISON_GROUP_STATS_COLUMNS",
     "COMPARISON_PAIR_STATS_COLUMNS",
@@ -345,6 +376,7 @@ __all__ = [
     "PREPROCESSING_REPORT_COMPARISON_GROUP_STATS_TABLE",
     "PREPROCESSING_REPORT_COMPARISON_PAIR_STATS_TABLE",
     "PREPROCESSING_REPORT_DUPLICATE_SITE_RESOLUTION_TABLE",
+    "PREPROCESSING_REPORT_SITE_SEQUENCE_RESOLUTION_TABLE",
     "PREPROCESSING_REPORT_METADATA_CONFLICTS_TABLE",
     "PREPROCESSING_REPORT_OPERATIONS_TABLE",
     "PREPROCESSING_REPORT_ROW_AUDIT_TABLE",
@@ -352,6 +384,8 @@ __all__ = [
     "PREPROCESSING_REPORT_TABLE_COLUMNS",
     "PreprocessingRowAuditRow",
     "PreprocessingRowCountRow",
+    "SITE_SEQUENCE_RESOLUTION_COLUMNS",
+    "SiteSequenceResolutionRow",
     "ROW_AUDIT_COLUMNS",
     "ROW_COUNTS_COLUMNS",
     "comparison_group_stats_rows_from_dataframe",
@@ -364,6 +398,7 @@ __all__ = [
     "dataframe_from_row_audit_rows",
     "dataframe_from_row_count_rows",
     "dataframe_from_rows",
+    "dataframe_from_site_sequence_resolution_rows",
     "duplicate_site_resolution_rows_from_dataframe",
     "metadata_conflict_rows_from_dataframe",
     "missing_columns",
@@ -372,4 +407,5 @@ __all__ = [
     "row_audit_rows_from_dataframe",
     "row_count_rows_from_dataframe",
     "rows_from_dataframe",
+    "site_sequence_resolution_rows_from_dataframe",
 ]

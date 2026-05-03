@@ -127,6 +127,26 @@ DATASET_COMPARISON_BUILDING_POLICIES = frozenset(
         DATASET_COMPARISON_BUILDING_POLICY_SAMPLE_METADATA_PAIRS,
     }
 )
+DATASET_SITE_SEQUENCE_RESOLUTION_MODE_VALIDATE_EXISTING_AND_FILL_MISSING = (
+    "validate_existing_and_fill_missing"
+)
+DATASET_SITE_SEQUENCE_RESOLUTION_MODE_FILL_MISSING_ONLY = "fill_missing_only"
+DATASET_SITE_SEQUENCE_RESOLUTION_MODE_VALIDATE_EXISTING_ONLY = "validate_existing_only"
+DATASET_SITE_SEQUENCE_RESOLUTION_MODE_REPLACE_EXISTING = "replace_existing"
+DatasetSiteSequenceResolutionMode = Literal[
+    "validate_existing_and_fill_missing",
+    "fill_missing_only",
+    "validate_existing_only",
+    "replace_existing",
+]
+DATASET_SITE_SEQUENCE_RESOLUTION_MODES = frozenset(
+    {
+        DATASET_SITE_SEQUENCE_RESOLUTION_MODE_VALIDATE_EXISTING_AND_FILL_MISSING,
+        DATASET_SITE_SEQUENCE_RESOLUTION_MODE_FILL_MISSING_ONLY,
+        DATASET_SITE_SEQUENCE_RESOLUTION_MODE_VALIDATE_EXISTING_ONLY,
+        DATASET_SITE_SEQUENCE_RESOLUTION_MODE_REPLACE_EXISTING,
+    }
+)
 
 _INCOMPATIBLE_SITE_MATRIX_MISSING_DATA_POLICIES = frozenset(
     {"retain_missing", "require_min_observed_values"}
@@ -620,6 +640,68 @@ class DatasetComparisonBuildingConfig:
             seen_pairs.add(canonical_pair)
 
 
+@dataclass(frozen=True, slots=True)
+class DatasetSiteSequenceResolutionConfig:
+    """Optional local-FASTA-backed site-sequence resolution policy."""
+
+    fasta_path: str | None = None
+    mode: DatasetSiteSequenceResolutionMode = (
+        DATASET_SITE_SEQUENCE_RESOLUTION_MODE_VALIDATE_EXISTING_AND_FILL_MISSING
+    )
+    flank_size: int = 7
+    accession_column: str = "protein_accession"
+    site_column: str = "site"
+
+    def __post_init__(self) -> None:
+        mode = self.mode
+        if mode not in DATASET_SITE_SEQUENCE_RESOLUTION_MODES:
+            supported = ", ".join(sorted(DATASET_SITE_SEQUENCE_RESOLUTION_MODES))
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.site_sequence_resolution."
+                f"mode must be one of: {supported}"
+            )
+
+        accession_column = self.accession_column
+        if not isinstance(accession_column, str) or not accession_column.strip():
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.site_sequence_resolution."
+                "accession_column must be a non-empty string"
+            )
+        site_column = self.site_column
+        if not isinstance(site_column, str) or not site_column.strip():
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.site_sequence_resolution."
+                "site_column must be a non-empty string"
+            )
+
+        fasta_path = self.fasta_path
+        if fasta_path is None:
+            return
+        if not isinstance(fasta_path, str) or not fasta_path.strip():
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.site_sequence_resolution."
+                "fasta_path must be a non-empty string when provided"
+            )
+        if "://" in fasta_path.lower():
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.site_sequence_resolution."
+                "fasta_path must be a local filesystem path; remote URLs are not "
+                "supported"
+            )
+        flank_size = self.flank_size
+        if isinstance(flank_size, bool) or not isinstance(flank_size, int):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.site_sequence_resolution."
+                "flank_size must be an int when fasta_path is provided"
+            )
+        if flank_size < 1:
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.site_sequence_resolution."
+                "flank_size must be greater than or equal to 1 when fasta_path is "
+                "provided"
+            )
+
+
 __all__ = [
     "DATASET_COMPARISON_BUILDING_POLICIES",
     "DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN",
@@ -646,6 +728,11 @@ __all__ = [
     "DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN",
     "DATASET_SITE_MATRIX_DUPLICATE_POLICY_ERROR",
     "DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING",
+    "DATASET_SITE_SEQUENCE_RESOLUTION_MODES",
+    "DATASET_SITE_SEQUENCE_RESOLUTION_MODE_FILL_MISSING_ONLY",
+    "DATASET_SITE_SEQUENCE_RESOLUTION_MODE_REPLACE_EXISTING",
+    "DATASET_SITE_SEQUENCE_RESOLUTION_MODE_VALIDATE_EXISTING_AND_FILL_MISSING",
+    "DATASET_SITE_SEQUENCE_RESOLUTION_MODE_VALIDATE_EXISTING_ONLY",
     "DATASET_TOTAL_PROTEIN_CORRECTION_POLICIES",
     "DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE",
     "DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL",
@@ -670,6 +757,8 @@ __all__ = [
     "DatasetSiteMatrixDuplicateSitePolicy",
     "DatasetSiteMatrixMissingDataPolicy",
     "DatasetSiteMatrixPolicy",
+    "DatasetSiteSequenceResolutionConfig",
+    "DatasetSiteSequenceResolutionMode",
     "DatasetTotalProteinCorrectionIdentityConfig",
     "DatasetTotalProteinCorrectionIdentityMode",
     "DatasetTotalProteinCorrectionDuplicatePolicy",
