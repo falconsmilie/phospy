@@ -171,6 +171,12 @@ def reconstruct_kinase_result(
         field_name="bundle manifest.outputs.activity.tables.thresholded_substrate_counts",
         series_name="n_substrates",
     )
+    activity_substrate_counts = read_optional_table(
+        bundle_root=bundle_root,
+        tables=sections.activity_tables,
+        table_key="activity_substrate_counts",
+        field_name="bundle manifest.outputs.activity.tables.activity_substrate_counts",
+    )
     target_counts = read_optional_series(
         bundle_root=bundle_root,
         tables=sections.activity_tables,
@@ -223,6 +229,7 @@ def reconstruct_kinase_result(
             weighted_activity=weighted_activity,
             thresholded_substrate_mean_activity=thresholded_substrate_mean_activity,
             thresholded_substrate_counts=thresholded_substrate_counts,
+            activity_substrate_counts=activity_substrate_counts,
             target_counts=target_counts,
             target_table=target_table,
             statistics_table=statistics_table,
@@ -234,6 +241,7 @@ def reconstruct_kinase_result(
             weighted_activity is not None
             or thresholded_substrate_mean_activity is not None
             or thresholded_substrate_counts is not None
+            or activity_substrate_counts is not None
             or target_counts is not None
             or target_table is not None
             or statistics_table is not None

@@ -92,6 +92,81 @@ class ActivityMatrix(TableSchema):
 
 
 @dataclass(frozen=True, slots=True)
+class ActivityCountMatrix(TableSchema):
+    """Schema wrapper for condition-specific activity count matrices."""
+
+    field_name: str = field(
+        default="activity_result.activity_substrate_counts",
+        repr=False,
+        compare=False,
+    )
+
+    _field_name = "activity_result.activity_substrate_counts"
+    _error_type = PhosPyValidationError
+
+    def _own_frame(self, assume_owned: bool) -> pd.DataFrame:
+        return own_dataframe(
+            self.frame,
+            field_name=self.field_name,
+            error_type=self._error_type,
+            assume_owned=assume_owned,
+        )
+
+    def _validate_frame(self, frame: pd.DataFrame) -> pd.DataFrame:
+        require_dataframe(
+            frame,
+            field_name=self.field_name,
+            allow_empty=True,
+            error_type=self._error_type,
+        )
+        require_numeric_dataframe(
+            frame,
+            field_name=self.field_name,
+            error_type=self._error_type,
+        )
+        require_unique_index(
+            frame,
+            field_name=self.field_name,
+            error_type=self._error_type,
+        )
+        require_unique_columns(
+            frame,
+            field_name=self.field_name,
+            error_type=self._error_type,
+        )
+        require_canonical_label_index(
+            frame.index,
+            field_name=f"{self.field_name}.index",
+            error_type=self._error_type,
+        )
+        require_canonical_label_index(
+            frame.columns,
+            field_name=f"{self.field_name}.columns",
+            error_type=self._error_type,
+        )
+        if frame.empty:
+            return frame.astype("int64", copy=False)
+
+        values = frame.to_numpy(dtype="float64", copy=False)
+        if not np.isfinite(values).all():
+            raise self._error_type(f"{self.field_name} must contain finite counts")
+        if (values < 0.0).any():
+            raise self._error_type(
+                f"{self.field_name} must contain non-negative counts"
+            )
+        if not np.isclose(values, np.round(values)).all():
+            raise self._error_type(
+                f"{self.field_name} must contain integer-compatible counts"
+            )
+        return pd.DataFrame(
+            np.round(values).astype("int64"),
+            index=frame.index.copy(),
+            columns=frame.columns.copy(),
+            dtype="int64",
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class ActivityTargetTable(TableSchema):
     """Schema wrapper for ``activity_result.target_table``."""
 

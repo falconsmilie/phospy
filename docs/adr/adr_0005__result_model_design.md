@@ -111,7 +111,7 @@ Examples of intended usage:
 
 - `result.scoring_result.profile_scores`
 - `result.prediction_result.pred_mat`
-- `result.activity_result.weighted_activity`
+- `result.activity_result.activity_scores` (`weighted_activity` compatibility alias)
 
 The top-level result should not mirror these through repeated aliases.
 
@@ -160,7 +160,7 @@ This result should hold prediction-stage outputs such as:
 
 This result should hold activity-stage outputs such as:
 
-- `weighted_activity`
+- primary `activity_scores` matrix (`weighted_activity` compatibility alias)
 - `thresholded_substrate_mean_activity`
 - `thresholded_substrate_counts`
 - `target_counts`

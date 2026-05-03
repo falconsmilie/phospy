@@ -206,6 +206,7 @@ class KseaZScoreActivityMethod:
             name="n_targets",
             dtype="int64",
         ).sort_values(ascending=False)
+        # Compatibility sidecar: global evidence-membership counts after thresholding.
         thresholded_substrate_counts = target_counts.rename("n_substrates")
         target_table = _build_target_table(
             pred_mat=aligned_pred_mat,
@@ -235,6 +236,7 @@ class KseaZScoreActivityMethod:
             weighted_activity=z_scores,
             thresholded_substrate_mean_activity=substrate_means,
             thresholded_substrate_counts=thresholded_substrate_counts,
+            activity_substrate_counts=substrate_count_table,
             target_counts=target_counts,
             target_table=target_table,
             statistics_table=statistics_table,

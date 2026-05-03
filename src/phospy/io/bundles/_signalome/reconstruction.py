@@ -210,6 +210,15 @@ def reconstruct_signalome_result(
         ),
         series_name="n_substrates",
     )
+    activity_substrate_counts = read_optional_table(
+        bundle_root=bundle_root,
+        tables=sections.activity_tables,
+        table_key="activity_substrate_counts",
+        field_name=(
+            "bundle manifest.upstream_kinase_outputs.activity.tables."
+            "activity_substrate_counts"
+        ),
+    )
     target_counts = read_optional_series(
         bundle_root=bundle_root,
         tables=sections.activity_tables,
@@ -238,6 +247,7 @@ def reconstruct_signalome_result(
             weighted_activity=weighted_activity,
             thresholded_substrate_mean_activity=thresholded_substrate_mean_activity,
             thresholded_substrate_counts=thresholded_substrate_counts,
+            activity_substrate_counts=activity_substrate_counts,
             target_counts=target_counts,
             target_table=target_table,
         )
@@ -246,6 +256,7 @@ def reconstruct_signalome_result(
             weighted_activity is not None
             or thresholded_substrate_mean_activity is not None
             or thresholded_substrate_counts is not None
+            or activity_substrate_counts is not None
             or target_counts is not None
             or target_table is not None
         ):

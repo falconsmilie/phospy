@@ -134,7 +134,7 @@ def save_kinase_workflow_bundle(
             table=(
                 None
                 if result.activity_result is None
-                else result.activity_result.weighted_activity
+                else result.activity_result.activity_scores
             ),
             bundle_root=bundle_root,
             relative_path=Path("activity") / f"weighted_activity{suffix}",
@@ -165,6 +165,17 @@ def save_kinase_workflow_bundle(
             relative_path=Path("activity") / f"thresholded_substrate_counts{suffix}",
             written=written,
             written_key="activity.thresholded_substrate_counts",
+        ),
+        "activity_substrate_counts": write_optional_bundle_table(
+            table=(
+                None
+                if result.activity_result is None
+                else result.activity_result.activity_substrate_counts
+            ),
+            bundle_root=bundle_root,
+            relative_path=Path("activity") / f"activity_substrate_counts{suffix}",
+            written=written,
+            written_key="activity.activity_substrate_counts",
         ),
         "target_counts": write_optional_bundle_table(
             table=(

@@ -83,6 +83,7 @@ _ACTIVITY_TABLE_KEYS = frozenset(
         "weighted_activity",
         "thresholded_substrate_mean_activity",
         "thresholded_substrate_counts",
+        "activity_substrate_counts",
         "target_counts",
         "target_table",
         "statistics_table",

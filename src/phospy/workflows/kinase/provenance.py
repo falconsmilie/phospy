@@ -97,7 +97,7 @@ class KinaseProvenanceBuilder:
                     "outputs.activity.weighted_activity",
                     None
                     if activity_result is None
-                    else activity_result.weighted_activity,
+                    else activity_result.activity_scores,
                 ),
                 (
                     "outputs.activity.thresholded_substrate_mean_activity",
@@ -115,6 +115,14 @@ class KinaseProvenanceBuilder:
                         else activity_result.thresholded_substrate_counts.to_frame(
                             name="n_substrates"
                         )
+                    ),
+                ),
+                (
+                    "outputs.activity.activity_substrate_counts",
+                    (
+                        None
+                        if activity_result is None
+                        else activity_result.activity_substrate_counts
                     ),
                 ),
                 (

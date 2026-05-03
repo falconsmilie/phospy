@@ -15,6 +15,7 @@ from phospy._frame_ownership import (
 from phospy.errors.validation import PhosPyValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.tables.activity import (
+    ActivityCountMatrix,
     ActivityCountSeries,
     ActivityMatrix,
     ActivityStatisticsTable,
@@ -209,11 +210,13 @@ class KinaseActivityResult:
 
     Outputs are deliberately table-first and mirror the historical baseline stage:
 
-    - ``weighted_activity``: weighted kinase activity matrix
+    - ``activity_scores``: primary activity score matrix for the selected method
+    - ``weighted_activity``: compatibility alias for ``activity_scores``
     - ``thresholded_substrate_mean_activity``: sample-by-kinase mean phospho
       signal over predicted substrates above threshold
-    - ``thresholded_substrate_counts``: number of selected thresholded predicted
-      substrates per kinase
+    - ``thresholded_substrate_counts``: compatibility sidecar count series
+    - ``activity_substrate_counts``: method-neutral condition-specific count matrix
+      for finite substrates used per kinase-condition score when defined
     - ``target_counts``: thresholded predicted target counts per kinase
     - ``target_table``: thresholded kinase-target edge table
     - ``activity_method``: stable method identity metadata for these outputs
@@ -223,6 +226,7 @@ class KinaseActivityResult:
     _weighted_activity: pd.DataFrame = field(init=False, repr=False)
     _thresholded_substrate_mean_activity: pd.DataFrame = field(init=False, repr=False)
     _thresholded_substrate_counts: pd.Series = field(init=False, repr=False)
+    _activity_substrate_counts: pd.DataFrame | None = field(init=False, repr=False)
     _target_counts: pd.Series = field(init=False, repr=False)
     _target_table: pd.DataFrame = field(init=False, repr=False)
     _statistics_table: pd.DataFrame | None = field(init=False, repr=False)
@@ -235,6 +239,7 @@ class KinaseActivityResult:
         thresholded_substrate_counts: pd.Series,
         target_counts: pd.Series,
         target_table: pd.DataFrame,
+        activity_substrate_counts: pd.DataFrame | None = None,
         statistics_table: pd.DataFrame | None = None,
         method_summary: ActivityMethodSummary | None = None,
         activity_method: ActivityMethodMetadata = (
@@ -261,6 +266,12 @@ class KinaseActivityResult:
             field_name="activity_result.thresholded_substrate_counts",
             _assume_owned=_assume_owned,
         ).series
+        if activity_substrate_counts is not None:
+            activity_substrate_counts = ActivityCountMatrix(
+                frame=activity_substrate_counts,
+                field_name="activity_result.activity_substrate_counts",
+                _assume_owned=_assume_owned,
+            ).frame
         target_counts = ActivityCountSeries(
             series=target_counts,
             field_name="activity_result.target_counts",
@@ -292,6 +303,11 @@ class KinaseActivityResult:
             "_thresholded_substrate_counts",
             thresholded_substrate_counts,
         )
+        object.__setattr__(
+            self,
+            "_activity_substrate_counts",
+            activity_substrate_counts,
+        )
         object.__setattr__(self, "_target_counts", target_counts)
         object.__setattr__(self, "activity_method", activity_method)
         object.__setattr__(self, "_target_table", target_table)
@@ -299,8 +315,16 @@ class KinaseActivityResult:
         object.__setattr__(self, "method_summary", method_summary)
 
     @property
-    def weighted_activity(self) -> pd.DataFrame:
+    def activity_scores(self) -> pd.DataFrame:
+        """Return the primary activity score matrix for the selected method."""
+
         return export_dataframe(self._weighted_activity)
+
+    @property
+    def weighted_activity(self) -> pd.DataFrame:
+        """Compatibility alias for :attr:`activity_scores`."""
+
+        return self.activity_scores
 
     @property
     def thresholded_substrate_mean_activity(self) -> pd.DataFrame:
@@ -309,6 +333,10 @@ class KinaseActivityResult:
     @property
     def thresholded_substrate_counts(self) -> pd.Series:
         return export_series(self._thresholded_substrate_counts)
+
+    @property
+    def activity_substrate_counts(self) -> pd.DataFrame | None:
+        return export_optional_dataframe(self._activity_substrate_counts)
 
     @property
     def target_counts(self) -> pd.Series:
@@ -322,6 +350,29 @@ class KinaseActivityResult:
     def statistics_table(self) -> pd.DataFrame | None:
         return export_optional_dataframe(self._statistics_table)
 
+    @property
+    def count_field_semantics(self) -> dict[str, str]:
+        if self.activity_method.is_ksea:
+            return {
+                "activity_substrate_counts": (
+                    "condition-specific finite substrate count used for each "
+                    "kinase-condition activity score"
+                ),
+                "thresholded_substrate_counts": (
+                    "global post-threshold evidence membership count before "
+                    "condition-specific finite-value filtering"
+                ),
+                "target_counts": (
+                    "global post-threshold predicted target membership count"
+                ),
+            }
+        return {
+            "thresholded_substrate_counts": (
+                "global thresholded substrate membership count per kinase"
+            ),
+            "target_counts": "global thresholded predicted target count per kinase",
+        }
+
     @classmethod
     def _from_owned(
         cls,
@@ -331,6 +382,7 @@ class KinaseActivityResult:
         thresholded_substrate_counts: pd.Series,
         target_counts: pd.Series,
         target_table: pd.DataFrame,
+        activity_substrate_counts: pd.DataFrame | None = None,
         statistics_table: pd.DataFrame | None = None,
         method_summary: ActivityMethodSummary | None = None,
         activity_method: ActivityMethodMetadata = (
@@ -341,6 +393,7 @@ class KinaseActivityResult:
             weighted_activity=weighted_activity,
             thresholded_substrate_mean_activity=thresholded_substrate_mean_activity,
             thresholded_substrate_counts=thresholded_substrate_counts,
+            activity_substrate_counts=activity_substrate_counts,
             target_counts=target_counts,
             target_table=target_table,
             statistics_table=statistics_table,
@@ -350,9 +403,9 @@ class KinaseActivityResult:
         )
 
     def to_dataframe(self) -> pd.DataFrame:
-        """Return a weighted-activity snapshot isolated from this result."""
+        """Return a primary activity-score snapshot isolated from this result."""
 
-        return export_dataframe(self._weighted_activity)
+        return self.activity_scores
 
     def thresholded_substrate_mean_activity_dataframe(self) -> pd.DataFrame:
         """Return a thresholded-mean snapshot isolated from this result."""

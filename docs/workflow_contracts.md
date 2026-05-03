@@ -149,7 +149,7 @@ approximation behavior, and failure modes), see `docs/performance.md`.
 
 - Scoring: `profile_scores`, `rank_weighted_fusion_scores` (plus optional diagnostics)
 - Prediction: `pred_mat`, `substrate_list`
-- Optional activity: `weighted_activity`, `thresholded_substrate_mean_activity`, `thresholded_substrate_counts`, `target_counts`, `target_table`, optional `statistics_table`
+- Optional activity: primary `activity_scores` matrix (with `weighted_activity` as compatibility alias), `thresholded_substrate_mean_activity`, `thresholded_substrate_counts`, `target_counts`, `target_table`, optional `statistics_table`
 
 ## SignalomeWorkflow Contract
 

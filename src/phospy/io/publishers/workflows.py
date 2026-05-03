@@ -122,7 +122,7 @@ def publish_kinase_workflow(
     if result.activity_result is not None:
         activity_dir = workflow_dir / "activity"
         weighted_activity_path = activity_dir / f"weighted_activity{suffix}"
-        write_table(result.activity_result.weighted_activity, weighted_activity_path)
+        write_table(result.activity_result.activity_scores, weighted_activity_path)
         written["kinase.activity.weighted_activity"] = weighted_activity_path
 
         thresholded_substrate_mean_activity_path = (
@@ -148,6 +148,18 @@ def publish_kinase_workflow(
         written["kinase.activity.thresholded_substrate_counts"] = (
             thresholded_substrate_counts_path
         )
+
+        if result.activity_result.activity_substrate_counts is not None:
+            activity_substrate_counts_path = (
+                activity_dir / f"activity_substrate_counts{suffix}"
+            )
+            write_table(
+                result.activity_result.activity_substrate_counts,
+                activity_substrate_counts_path,
+            )
+            written["kinase.activity.activity_substrate_counts"] = (
+                activity_substrate_counts_path
+            )
 
         target_counts_path = activity_dir / f"target_counts{suffix}"
         write_table(
@@ -189,6 +201,11 @@ def publish_kinase_workflow(
                 if result.activity_result is None
                 or result.activity_result.method_summary is None
                 else result.activity_result.method_summary.to_payload()
+            ),
+            "activity_count_field_semantics": (
+                None
+                if result.activity_result is None
+                else result.activity_result.count_field_semantics
             ),
             "site_attrition_summary": (
                 None

@@ -258,6 +258,14 @@ def test_kinase_workflow_supports_ksea_activity_method_with_statistics_output() 
         result.activity_result.activity_method.is_phosr_kinase_activity_equivalent
         is False
     )
+    pd.testing.assert_frame_equal(
+        result.activity_result.activity_scores,
+        result.activity_result.weighted_activity,
+    )
+    pd.testing.assert_frame_equal(
+        result.activity_result.to_dataframe(),
+        result.activity_result.activity_scores,
+    )
     assert result.activity_result.statistics_table is not None
     assert {
         "kinase",
@@ -272,6 +280,33 @@ def test_kinase_workflow_supports_ksea_activity_method_with_statistics_output() 
         "computability_status",
         "reason",
     } <= set(result.activity_result.statistics_table.columns)
+    assert result.activity_result.activity_substrate_counts is not None
+    expected_counts = (
+        result.activity_result.statistics_table.pivot(
+            index="kinase",
+            columns="condition",
+            values="n_substrates",
+        )
+        .reindex(index=result.activity_result.activity_substrate_counts.index)
+        .reindex(columns=result.activity_result.activity_substrate_counts.columns)
+        .astype("int64")
+    )
+    expected_counts.index.name = (
+        result.activity_result.activity_substrate_counts.index.name
+    )
+    expected_counts.columns.name = (
+        result.activity_result.activity_substrate_counts.columns.name
+    )
+    pd.testing.assert_frame_equal(
+        result.activity_result.activity_substrate_counts,
+        expected_counts,
+    )
+    assert (
+        "global post-threshold evidence membership count"
+        in (
+            result.activity_result.count_field_semantics["thresholded_substrate_counts"]
+        )
+    )
     assert result.site_attrition_summary is not None
     assert result.provenance is not None
     activity_config = result.provenance.workflow_parameters["activity_config"]
@@ -336,6 +371,14 @@ def test_weighted_and_ksea_activity_methods_are_independently_selectable() -> No
         "simplified_weighted_substrate_activity_v1"
     )
     assert ksea.activity_result.activity_method.activity_method_id == "ksea_zscore_v1"
+    pd.testing.assert_frame_equal(
+        weighted.activity_result.activity_scores,
+        weighted.activity_result.weighted_activity,
+    )
+    pd.testing.assert_frame_equal(
+        ksea.activity_result.activity_scores,
+        ksea.activity_result.weighted_activity,
+    )
     assert ksea.activity_result.statistics_table is not None
 
 
@@ -374,6 +417,56 @@ def test_kinase_publish_manifest_includes_activity_method_identity(
     )
     assert method_metadata["is_ksea"] is False
     assert method_metadata["is_phosr_kinase_activity_equivalent"] is False
+    count_semantics = manifest["activity_count_field_semantics"]
+    assert count_semantics["thresholded_substrate_counts"] == (
+        "global thresholded substrate membership count per kinase"
+    )
+
+
+def test_kinase_publish_writes_ksea_activity_substrate_counts_from_result(
+    tmp_path: Path,
+) -> None:
+    dataset = build_rat_l6_dataset(n_sites=220)
+    result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=ReferencePreset.AUTO,
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=5,
+                deterministic_max_selected_kinases=8,
+                adaptive_ensemble_runs=8,
+            ),
+            activity_config=KinaseActivityConfig(
+                enabled=True,
+                method="ksea_zscore",
+                threshold=0.6,
+                min_substrates=3,
+                top_n_substrates=20,
+                ksea_min_substrates=5,
+                ksea_evidence_threshold=0.6,
+            ),
+        )
+    )
+    assert result.activity_result is not None
+    assert result.activity_result.activity_substrate_counts is not None
+
+    written = publish_kinase_workflow(
+        result, tmp_path / "published", output_format="csv"
+    )
+    assert "kinase.activity.activity_substrate_counts" in written
+    published = pd.read_csv(
+        written["kinase.activity.activity_substrate_counts"],
+        index_col=0,
+    )
+    published.index.name = result.activity_result.activity_substrate_counts.index.name
+    published.columns.name = (
+        result.activity_result.activity_substrate_counts.columns.name
+    )
+    pd.testing.assert_frame_equal(
+        published.astype("int64"),
+        result.activity_result.activity_substrate_counts.astype("int64"),
+    )
 
 
 def test_kinase_workflow_default_scoring_floor_supports_realistic_input() -> None:

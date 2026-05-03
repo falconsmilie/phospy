@@ -269,6 +269,13 @@ default recommendation for production workflows is `adaptive_policy="stable"`.
 per-condition computability statuses and statistics output. It is not equivalent
 to PhosR kinase activity inference.
 
+`activity_result.activity_scores` is the method-neutral primary activity matrix:
+
+- for `simplified_weighted_substrate_activity_v1`, values are weighted substrate activity scores
+- for `ksea_zscore_v1`, values are KSEA z-scores
+
+`activity_result.weighted_activity` remains available as a compatibility alias.
+
 When activity is enabled, `result.activity_result.activity_method` exposes
 explicit method identity metadata, including:
 
@@ -409,7 +416,9 @@ Important fields:
 - `provenance`
 
 Common tables include `profile_scores`, `rank_weighted_fusion_scores`,
-`pred_mat`, and activity tables when activity is enabled.
+`pred_mat`, and activity tables when activity is enabled. Use
+`activity_result.activity_scores` as the primary activity-score matrix, and
+`weighted_activity` as a compatibility alias.
 
 Use `to_dataframe()` on scoring/prediction/activity result objects for safe table
 snapshots.

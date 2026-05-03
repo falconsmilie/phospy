@@ -774,6 +774,10 @@ def test_kinase_result_table_properties_are_defensive_snapshots() -> None:
     weighted_activity.iloc[0, 0] = 999.0
     assert float(activity_result.weighted_activity.iloc[0, 0]) == 1.0
 
+    activity_scores = activity_result.activity_scores
+    activity_scores.iloc[0, 0] = 777.0
+    assert float(activity_result.activity_scores.iloc[0, 0]) == 1.0
+
     thresholded_mean = activity_result.thresholded_substrate_mean_activity
     thresholded_mean.iloc[0, 0] = 999.0
     assert float(activity_result.thresholded_substrate_mean_activity.iloc[0, 0]) == 0.5

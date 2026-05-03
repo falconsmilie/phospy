@@ -206,8 +206,11 @@ def test_kinase_result_exposes_supported_activity_stage_outputs_when_enabled() -
         result.activity_result.activity_method.is_phosr_kinase_activity_equivalent
         is False
     )
+    assert hasattr(result.activity_result, "activity_scores")
     assert hasattr(result.activity_result, "thresholded_substrate_mean_activity")
     assert hasattr(result.activity_result, "thresholded_substrate_counts")
+    assert hasattr(result.activity_result, "activity_substrate_counts")
+    assert result.activity_result.activity_substrate_counts is None
     assert not hasattr(result.activity_result, "ksea_scores")
     assert not hasattr(result.activity_result, "ksea_counts")
     assert result.provenance is not None

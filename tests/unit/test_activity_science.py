@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+import pandas.testing as pdt
 import pytest
 
 from phospy.activities.methods.ksea_zscore import (
@@ -86,6 +87,26 @@ def test_ksea_basic_zscore_calculation_matches_hand_computed_values() -> None:
     assert row["p_value"] == pytest.approx(0.27332167829229814)
     assert row["n_substrates"] == 2
     assert row["n_background_sites"] == 4
+
+
+def test_ksea_activity_scores_exposes_primary_zscore_matrix() -> None:
+    pred_mat = pd.DataFrame(
+        {"K1": [0.9, 0.8, 0.1, 0.2]},
+        index=["S1;S1;", "S2;S2;", "S3;S3;", "S4;S4;"],
+    )
+    phospho = pd.DataFrame({"c1": [1.0, 2.0, 3.0, 4.0]}, index=pred_mat.index.copy())
+
+    result = _ksea_result(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho,
+        evidence_threshold=0.5,
+        min_substrates=2,
+    )
+
+    assert result.activity_method.activity_method_id == "ksea_zscore_v1"
+    assert result.activity_scores.at["K1", "c1"] == pytest.approx(-1.0954451150103324)
+    pdt.assert_frame_equal(result.activity_scores, result.weighted_activity)
+    pdt.assert_frame_equal(result.to_dataframe(), result.activity_scores)
 
 
 def test_ksea_computes_each_kinase_condition_pair_independently() -> None:
@@ -201,13 +222,24 @@ def test_ksea_excludes_non_finite_phosphosite_values_per_condition() -> None:
 
     stats = result.statistics_table
     assert stats is not None
+    assert result.activity_substrate_counts is not None
     c1 = stats.loc[stats["condition"] == "c1"].iloc[0]
     c2 = stats.loc[stats["condition"] == "c2"].iloc[0]
     assert c1["n_background_sites"] == 2
     assert c1["n_substrates"] == 2
     assert c1["computability_status"] == KSEA_STATUS_COMPUTED
     assert c2["n_background_sites"] == 1
+    assert c2["n_substrates"] == 1
     assert c2["computability_status"] == KSEA_STATUS_INSUFFICIENT_SUBSTRATES
+    assert result.activity_substrate_counts.at["K1", "c1"] == 2
+    assert result.activity_substrate_counts.at["K1", "c2"] == 1
+    assert result.thresholded_substrate_counts.to_dict() == {"K1": 3}
+    assert result.target_counts.to_dict() == {"K1": 3}
+    assert (
+        result.count_field_semantics["thresholded_substrate_counts"]
+        == "global post-threshold evidence membership count before "
+        "condition-specific finite-value filtering"
+    )
 
 
 def test_ksea_p_value_uses_two_sided_normal_approximation() -> None:
@@ -256,6 +288,43 @@ def test_ksea_q_values_are_benjamini_hochberg_adjusted_per_condition() -> None:
     assert q_values[2] == pytest.approx(1.0)
 
 
+def test_ksea_activity_substrate_counts_match_statistics_table_n_substrates() -> None:
+    pred_mat = pd.DataFrame(
+        {
+            "K1": [0.9, 0.9, 0.1],
+            "K2": [0.9, 0.1, 0.9],
+        },
+        index=["S1;S1;", "S2;S2;", "S3;S3;"],
+    )
+    phospho = pd.DataFrame(
+        {
+            "c1": [1.0, float("nan"), 3.0],
+            "c2": [4.0, 5.0, float("nan")],
+        },
+        index=pred_mat.index.copy(),
+    )
+
+    result = _ksea_result(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho,
+        evidence_threshold=0.5,
+        min_substrates=1,
+    )
+
+    assert result.activity_substrate_counts is not None
+    stats = result.statistics_table
+    assert stats is not None
+    expected = (
+        stats.pivot(index="kinase", columns="condition", values="n_substrates")
+        .reindex(index=result.activity_substrate_counts.index)
+        .reindex(columns=result.activity_substrate_counts.columns)
+        .astype("int64")
+    )
+    expected.index.name = result.activity_substrate_counts.index.name
+    expected.columns.name = result.activity_substrate_counts.columns.name
+    pdt.assert_frame_equal(result.activity_substrate_counts, expected)
+
+
 def test_weighted_activity_ignores_missing_values_per_sample() -> None:
     pred_mat = pd.DataFrame(
         {"PRKACA": [0.9, 0.8, 0.7]},
@@ -287,6 +356,42 @@ def test_weighted_activity_ignores_missing_values_per_sample() -> None:
     ] == pytest.approx((20 * 0.9 + 6 * 0.8) / (0.9 + 0.8))
 
 
+def test_weighted_activity_scores_exposes_primary_weighted_matrix() -> None:
+    pred_mat = pd.DataFrame(
+        {"PRKACA": [0.9, 0.8, 0.7]},
+        index=["A;S1;", "B;S2;", "C;S3;"],
+    )
+    phospho_matrix = pd.DataFrame(
+        {
+            "phospho_corrected_1": [10.0, float("nan"), 1.0],
+            "phospho_corrected_2": [20.0, 6.0, float("nan")],
+        },
+        index=pred_mat.index.copy(),
+    )
+
+    result = compute_activity_from_inputs(
+        _inputs(
+            pred_mat=pred_mat,
+            phospho_matrix=phospho_matrix,
+            threshold=0.6,
+            min_substrates=3,
+            top_n_substrates=3,
+        )
+    )
+
+    assert result.activity_method.activity_method_id == (
+        "simplified_weighted_substrate_activity_v1"
+    )
+    assert result.activity_scores.at["PRKACA", "phospho_corrected_1"] == pytest.approx(
+        6.0625
+    )
+    assert result.activity_scores.at["PRKACA", "phospho_corrected_2"] == pytest.approx(
+        (20 * 0.9 + 6 * 0.8) / (0.9 + 0.8)
+    )
+    pdt.assert_frame_equal(result.activity_scores, result.weighted_activity)
+    pdt.assert_frame_equal(result.to_dataframe(), result.activity_scores)
+
+
 def test_thresholded_substrate_mean_activity_respects_threshold_and_min_substrates() -> (
     None
 ):
@@ -316,6 +421,7 @@ def test_thresholded_substrate_mean_activity_respects_threshold_and_min_substrat
     )
 
     assert result.thresholded_substrate_counts.to_dict() == {"AKT1": 3, "MAP2K6": 2}
+    assert result.activity_substrate_counts is None
     assert result.thresholded_substrate_mean_activity.at[
         "MAP2K6", "sample_a"
     ] == pytest.approx(1.5)

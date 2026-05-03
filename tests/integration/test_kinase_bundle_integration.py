@@ -266,6 +266,7 @@ def test_kinase_bundle_manifest_v1_is_explicit(tmp_path: Path) -> None:
         "weighted_activity": "activity/weighted_activity.csv",
         "thresholded_substrate_mean_activity": "activity/thresholded_substrate_mean_activity.csv",
         "thresholded_substrate_counts": "activity/thresholded_substrate_counts.csv",
+        "activity_substrate_counts": None,
         "target_counts": "activity/target_counts.csv",
         "target_table": "activity/target_table.csv",
         "statistics_table": None,
@@ -317,6 +318,7 @@ def test_kinase_bundle_round_trip_supports_disabled_activity(
             "weighted_activity": None,
             "thresholded_substrate_mean_activity": None,
             "thresholded_substrate_counts": None,
+            "activity_substrate_counts": None,
             "target_counts": None,
             "target_table": None,
             "statistics_table": None,
@@ -868,6 +870,10 @@ def _assert_kinase_result_equal(left, right) -> None:
         check_dtype=False,
         check_names=False,
         check_index_type=False,
+    )
+    _assert_optional_frame_equal(
+        left.activity_result.activity_substrate_counts,
+        right.activity_result.activity_substrate_counts,
     )
     pd.testing.assert_series_equal(
         left.activity_result.target_counts,
