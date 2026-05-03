@@ -628,6 +628,86 @@ def test_dataset_builder_runs_site_sequence_resolution_before_minprob_diagnostic
     assert missing_data_diagnostics.get("imputation_method_id") == "minprob"
 
 
+def test_dataset_builder_site_sequence_resolution_processing_state_tracks_diagnostics(
+    tmp_path: Path,
+) -> None:
+    fasta_path = tmp_path / "proteins.fasta"
+    fasta_path.write_text(
+        ">P1 protein_1\nAAAASAAAA\n>P2 protein_2\nCCCCCTCCCC\n",
+        encoding="utf-8",
+    )
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [10.0, 8.0, 7.0, 6.0],
+            "sample_b": [9.0, 7.0, 6.0, 5.0],
+        },
+        index=pd.Index(
+            ["MAPK14;S5;", "GSK3B;T6;", "BAD;T6;", "MAPK1;S5;"],
+            name="site_id",
+        ),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "GSK3B", "BAD", "MAPK1"],
+            "site": ["S5", "T6", "T6", "S5"],
+            "protein_accession": ["P1", "P2", "P404", "P1"],
+            "site_sequence": [pd.NA, "XXXXX", "KEEP", "AASAA"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            preprocessing_config=DatasetPreprocessingConfig(
+                site_sequence_resolution=DatasetSiteSequenceResolutionConfig(
+                    fasta_path=str(fasta_path),
+                    mode="replace_existing",
+                    flank_size=2,
+                ),
+            ),
+        )
+    )
+
+    assert built.provenance is not None
+    sequence_stages = [
+        stage
+        for stage in built.provenance.preprocessing_stages
+        if stage.stage == "site_sequence_resolution"
+    ]
+    assert len(sequence_stages) == 1
+    sequence_diagnostics = dict(sequence_stages[0].diagnostics or {})
+    state = built.processing_state.site_sequence_resolution
+
+    assert state.configured is True
+    assert state.mode == "replace_existing"
+    assert state.flank_size == 2
+    assert state.fasta_source_path == sequence_diagnostics.get("fasta_source_path")
+    assert state.fasta_source_label == sequence_diagnostics.get("fasta_source_label")
+    assert state.fasta_sha256 == sequence_diagnostics.get("fasta_sha256")
+    assert state.resolver_version == sequence_diagnostics.get("resolver_version")
+    assert state.resolved_site_count == sequence_diagnostics.get("resolved_site_count")
+    assert state.unresolved_site_count == sequence_diagnostics.get(
+        "unresolved_site_count"
+    )
+    assert state.unresolved_counts_by_reason == sequence_diagnostics.get(
+        "unresolved_counts_by_reason"
+    )
+    assert state.filled_missing_count == sequence_diagnostics.get(
+        "filled_missing_count"
+    )
+    assert state.replaced_existing_count == sequence_diagnostics.get(
+        "replaced_existing_count"
+    )
+    assert state.preserved_existing_count == sequence_diagnostics.get(
+        "preserved_existing_count"
+    )
+    assert state.existing_sequence_conflict_count == sequence_diagnostics.get(
+        "existing_sequence_conflict_count"
+    )
+
+
 def test_dataset_builder_supports_site_matrix_build_from_metadata_policy() -> None:
     phospho = pd.DataFrame(
         {

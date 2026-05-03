@@ -8,8 +8,14 @@ from phospy.api.configs import (
     DatasetPreprocessingConfig,
     DatasetSiteSequenceResolutionConfig,
 )
-from phospy.datasets.builders.preprocessing import DatasetPreprocessor
+from phospy.datasets.builders.preprocessing import (
+    DatasetPreprocessor,
+    build_dataset_processing_state,
+)
 from phospy.datasets.preprocessing.models import PreprocessingPlan
+from phospy.io.bundles._shared.intensity_scale_state import (
+    intensity_scale_state_from_payload,
+)
 
 
 def _phospho() -> pd.DataFrame:
@@ -172,3 +178,67 @@ def test_unresolved_reason_counts_are_reported(tmp_path: Path) -> None:
         "missing_accession": 1,
         "residue_mismatch": 1,
     }
+
+
+def test_site_sequence_resolution_processing_state_populates_fasta_provenance(
+    tmp_path: Path,
+) -> None:
+    config = DatasetPreprocessingConfig(
+        site_sequence_resolution=DatasetSiteSequenceResolutionConfig(
+            fasta_path=_write_fasta(tmp_path),
+            mode="replace_existing",
+            flank_size=2,
+        )
+    )
+    plan = PreprocessingPlan.from_config(config)
+    preprocessed = DatasetPreprocessor().run(
+        phospho=_phospho(),
+        site_metadata=_site_metadata(site_sequences=[pd.NA, "XXXXX"]),
+        sample_metadata=None,
+        total=None,
+        plan=plan,
+    )
+
+    processing_state = build_dataset_processing_state(
+        plan=plan,
+        intensity_scale_state=intensity_scale_state_from_payload(
+            {
+                "phospho": {
+                    "kind": "linear",
+                    "transformed": False,
+                    "established_by": "bundle.fixture",
+                },
+                "total": None,
+                "quantity": "phosphosite_abundance",
+            }
+        ),
+        preprocessing_trace=preprocessed.preprocessing_trace,
+        final_phospho=preprocessed.phospho,
+        final_site_metadata=preprocessed.site_metadata,
+        final_sample_metadata=preprocessed.sample_metadata,
+    )
+    diagnostics = _stage_diagnostics(preprocessed)
+    resolution = processing_state.site_sequence_resolution
+
+    assert resolution.configured is True
+    assert resolution.mode == "replace_existing"
+    assert resolution.flank_size == 2
+    assert resolution.fasta_source_path == diagnostics.get("fasta_source_path")
+    assert resolution.fasta_source_label == diagnostics.get("fasta_source_label")
+    assert resolution.fasta_sha256 == diagnostics.get("fasta_sha256")
+    assert resolution.resolver_version == diagnostics.get("resolver_version")
+    assert resolution.resolved_site_count == diagnostics.get("resolved_site_count")
+    assert resolution.unresolved_site_count == diagnostics.get("unresolved_site_count")
+    assert resolution.unresolved_counts_by_reason == diagnostics.get(
+        "unresolved_counts_by_reason"
+    )
+    assert resolution.filled_missing_count == diagnostics.get("filled_missing_count")
+    assert resolution.replaced_existing_count == diagnostics.get(
+        "replaced_existing_count"
+    )
+    assert resolution.preserved_existing_count == diagnostics.get(
+        "preserved_existing_count"
+    )
+    assert resolution.existing_sequence_conflict_count == diagnostics.get(
+        "existing_sequence_conflict_count"
+    )

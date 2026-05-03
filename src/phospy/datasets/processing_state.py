@@ -1191,10 +1191,17 @@ class SiteSequenceResolutionState:
     configured: bool
     mode: str | None
     flank_size: int | None
+    fasta_source_path: str | None
+    fasta_source_label: str | None
     fasta_sha256: str | None
+    resolver_version: str | None
     resolved_site_count: int
     unresolved_site_count: int
     unresolved_counts_by_reason: dict[str, int]
+    filled_missing_count: int
+    replaced_existing_count: int
+    preserved_existing_count: int
+    existing_sequence_conflict_count: int
 
 
 @dataclass(frozen=True, slots=True)

@@ -55,10 +55,17 @@ def _processing_state_with_diagnostics(
             configured=False,
             mode=None,
             flank_size=None,
+            fasta_source_path=None,
+            fasta_source_label=None,
             fasta_sha256=None,
+            resolver_version=None,
             resolved_site_count=0,
             unresolved_site_count=0,
             unresolved_counts_by_reason={},
+            filled_missing_count=0,
+            replaced_existing_count=0,
+            preserved_existing_count=0,
+            existing_sequence_conflict_count=0,
         ),
         missing_data=MissingDataState(
             policy="forbid",
@@ -568,3 +575,134 @@ def test_processing_state_payload_without_ruv_readiness_uses_backward_compatible
     assert restored.ruv_readiness.enabled is False
     assert restored.ruv_readiness.ready is False
     assert "not configured" in set(restored.ruv_readiness.reasons)
+
+
+def test_processing_state_payload_round_trip_preserves_site_sequence_resolution_fields() -> (
+    None
+):
+    state = _processing_state_with_diagnostics(
+        {
+            "diagnostics_schema_version": 1,
+            "policy": "subtract_log_total",
+            "requested_policy": "subtract_log_total",
+            "resolved_policy": "subtract_log_total",
+            "quantitative_meaning": "phospho_total_log_ratio",
+        }
+    )
+    state = DatasetProcessingState(
+        intensity_scale=state.intensity_scale,
+        site_sequence_resolution=SiteSequenceResolutionState(
+            configured=True,
+            mode="replace_existing",
+            flank_size=7,
+            fasta_source_path="C:/data/proteome.fasta",
+            fasta_source_label="dataset.site_sequence_resolution",
+            fasta_sha256="abcdef123456",
+            resolver_version="phospy.sequences.resolver.v1",
+            resolved_site_count=11,
+            unresolved_site_count=3,
+            unresolved_counts_by_reason={"missing_accession": 2, "site_not_found": 1},
+            filled_missing_count=5,
+            replaced_existing_count=2,
+            preserved_existing_count=4,
+            existing_sequence_conflict_count=2,
+        ),
+        missing_data=state.missing_data,
+        normalisation=state.normalisation,
+        total_protein_correction=state.total_protein_correction,
+        site_matrix=state.site_matrix,
+        comparisons=state.comparisons,
+        ruv_readiness=state.ruv_readiness,
+    )
+
+    payload = processing_state_to_payload(state)
+    restored = processing_state_from_payload(payload)
+    resolution = restored.site_sequence_resolution
+    assert resolution.configured is True
+    assert resolution.mode == "replace_existing"
+    assert resolution.flank_size == 7
+    assert resolution.fasta_source_path == "C:/data/proteome.fasta"
+    assert resolution.fasta_source_label == "dataset.site_sequence_resolution"
+    assert resolution.fasta_sha256 == "abcdef123456"
+    assert resolution.resolver_version == "phospy.sequences.resolver.v1"
+    assert resolution.resolved_site_count == 11
+    assert resolution.unresolved_site_count == 3
+    assert resolution.unresolved_counts_by_reason == {
+        "missing_accession": 2,
+        "site_not_found": 1,
+    }
+    assert resolution.filled_missing_count == 5
+    assert resolution.replaced_existing_count == 2
+    assert resolution.preserved_existing_count == 4
+    assert resolution.existing_sequence_conflict_count == 2
+
+
+def test_processing_state_payload_without_site_sequence_resolution_uses_backward_compatible_default() -> (
+    None
+):
+    payload = _processing_payload_with_diagnostics(
+        {
+            "diagnostics_schema_version": 1,
+            "policy": "subtract_log_total",
+            "requested_policy": "subtract_log_total",
+            "resolved_policy": "subtract_log_total",
+            "quantitative_meaning": "phospho_total_log_ratio",
+        }
+    )
+
+    restored = processing_state_from_payload(payload)
+    resolution = restored.site_sequence_resolution
+    assert resolution.configured is False
+    assert resolution.mode is None
+    assert resolution.flank_size is None
+    assert resolution.fasta_source_path is None
+    assert resolution.fasta_source_label is None
+    assert resolution.fasta_sha256 is None
+    assert resolution.resolver_version is None
+    assert resolution.resolved_site_count == 0
+    assert resolution.unresolved_site_count == 0
+    assert resolution.unresolved_counts_by_reason == {}
+    assert resolution.filled_missing_count == 0
+    assert resolution.replaced_existing_count == 0
+    assert resolution.preserved_existing_count == 0
+    assert resolution.existing_sequence_conflict_count == 0
+
+
+def test_processing_state_payload_with_legacy_site_sequence_resolution_fields_deserializes() -> (
+    None
+):
+    payload = _processing_payload_with_diagnostics(
+        {
+            "diagnostics_schema_version": 1,
+            "policy": "subtract_log_total",
+            "requested_policy": "subtract_log_total",
+            "resolved_policy": "subtract_log_total",
+            "quantitative_meaning": "phospho_total_log_ratio",
+        }
+    )
+    payload["site_sequence_resolution"] = {
+        "configured": True,
+        "mode": "fill_missing_only",
+        "flank_size": 5,
+        "fasta_sha256": "legacy_digest",
+        "resolved_site_count": 10,
+        "unresolved_site_count": 1,
+        "unresolved_counts_by_reason": {"missing_accession": 1},
+    }
+
+    restored = processing_state_from_payload(payload)
+    resolution = restored.site_sequence_resolution
+    assert resolution.configured is True
+    assert resolution.mode == "fill_missing_only"
+    assert resolution.flank_size == 5
+    assert resolution.fasta_sha256 == "legacy_digest"
+    assert resolution.resolved_site_count == 10
+    assert resolution.unresolved_site_count == 1
+    assert resolution.unresolved_counts_by_reason == {"missing_accession": 1}
+    assert resolution.fasta_source_path is None
+    assert resolution.fasta_source_label is None
+    assert resolution.resolver_version is None
+    assert resolution.filled_missing_count == 0
+    assert resolution.replaced_existing_count == 0
+    assert resolution.preserved_existing_count == 0
+    assert resolution.existing_sequence_conflict_count == 0

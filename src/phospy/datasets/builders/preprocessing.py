@@ -182,6 +182,23 @@ def build_dataset_processing_state(
             preprocessing_trace=preprocessing_trace
         )
     )
+    site_sequence_resolution_configured = bool(
+        _resolve_optional_bool_diagnostic(
+            site_sequence_resolution_diagnostics,
+            key="configured",
+            default=bool(plan.site_sequence_resolution_enabled),
+        )
+    )
+    site_sequence_resolution_mode_default = (
+        str(plan.site_sequence_resolution_mode).strip()
+        if site_sequence_resolution_configured
+        else None
+    )
+    site_sequence_resolution_flank_size_default = (
+        int(plan.site_sequence_resolution_flank_size)
+        if site_sequence_resolution_configured
+        else None
+    )
     intensity_scale_state = _resolve_quantitative_meaning_state(
         intensity_scale_state=intensity_scale_state,
         total_correction_policy=resolved_total_policy,
@@ -270,20 +287,35 @@ def build_dataset_processing_state(
     return DatasetProcessingState(
         intensity_scale=intensity_scale_state,
         site_sequence_resolution=SiteSequenceResolutionState(
-            configured=bool(plan.site_sequence_resolution_enabled),
-            mode=(
-                str(plan.site_sequence_resolution_mode).strip()
-                if plan.site_sequence_resolution_enabled
-                else None
+            configured=site_sequence_resolution_configured,
+            mode=_resolve_optional_string_diagnostic(
+                site_sequence_resolution_diagnostics,
+                key="mode",
+                default=site_sequence_resolution_mode_default,
             ),
-            flank_size=(
-                int(plan.site_sequence_resolution_flank_size)
-                if plan.site_sequence_resolution_enabled
-                else None
+            flank_size=_resolve_optional_nullable_int_diagnostic(
+                site_sequence_resolution_diagnostics,
+                key="flank_size",
+                default=site_sequence_resolution_flank_size_default,
+            ),
+            fasta_source_path=_resolve_optional_string_diagnostic(
+                site_sequence_resolution_diagnostics,
+                key="fasta_source_path",
+                default=None,
+            ),
+            fasta_source_label=_resolve_optional_string_diagnostic(
+                site_sequence_resolution_diagnostics,
+                key="fasta_source_label",
+                default=None,
             ),
             fasta_sha256=_resolve_optional_string_diagnostic(
                 site_sequence_resolution_diagnostics,
                 key="fasta_sha256",
+                default=None,
+            ),
+            resolver_version=_resolve_optional_string_diagnostic(
+                site_sequence_resolution_diagnostics,
+                key="resolver_version",
                 default=None,
             ),
             resolved_site_count=_resolve_optional_int_diagnostic(
@@ -299,6 +331,26 @@ def build_dataset_processing_state(
             unresolved_counts_by_reason=_resolve_optional_mapping_int_diagnostic(
                 site_sequence_resolution_diagnostics,
                 key="unresolved_counts_by_reason",
+            ),
+            filled_missing_count=_resolve_optional_int_diagnostic(
+                site_sequence_resolution_diagnostics,
+                key="filled_missing_count",
+                default=0,
+            ),
+            replaced_existing_count=_resolve_optional_int_diagnostic(
+                site_sequence_resolution_diagnostics,
+                key="replaced_existing_count",
+                default=0,
+            ),
+            preserved_existing_count=_resolve_optional_int_diagnostic(
+                site_sequence_resolution_diagnostics,
+                key="preserved_existing_count",
+                default=0,
+            ),
+            existing_sequence_conflict_count=_resolve_optional_int_diagnostic(
+                site_sequence_resolution_diagnostics,
+                key="existing_sequence_conflict_count",
+                default=0,
             ),
         ),
         missing_data=MissingDataState(
@@ -450,6 +502,29 @@ def _resolve_optional_int_diagnostic(
         stripped = value.strip()
         return int(default) if stripped == "" else int(stripped)
     return int(default)
+
+
+def _resolve_optional_nullable_int_diagnostic(
+    diagnostics: Mapping[str, object] | None,
+    *,
+    key: str,
+    default: int | None,
+) -> int | None:
+    if diagnostics is None:
+        return default
+    value = diagnostics.get(key, default)
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return int(value)
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, str):
+        stripped = value.strip()
+        return default if stripped == "" else int(stripped)
+    return default
 
 
 def _resolve_optional_mapping_int_diagnostic(

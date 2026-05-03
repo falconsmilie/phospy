@@ -49,7 +49,10 @@ def processing_state_to_payload(state: DatasetProcessingState) -> dict[str, obje
             "configured": bool(state.site_sequence_resolution.configured),
             "mode": state.site_sequence_resolution.mode,
             "flank_size": state.site_sequence_resolution.flank_size,
+            "fasta_source_path": state.site_sequence_resolution.fasta_source_path,
+            "fasta_source_label": state.site_sequence_resolution.fasta_source_label,
             "fasta_sha256": state.site_sequence_resolution.fasta_sha256,
+            "resolver_version": state.site_sequence_resolution.resolver_version,
             "resolved_site_count": int(
                 state.site_sequence_resolution.resolved_site_count
             ),
@@ -60,6 +63,18 @@ def processing_state_to_payload(state: DatasetProcessingState) -> dict[str, obje
                 str(key): int(value)
                 for key, value in state.site_sequence_resolution.unresolved_counts_by_reason.items()
             },
+            "filled_missing_count": int(
+                state.site_sequence_resolution.filled_missing_count
+            ),
+            "replaced_existing_count": int(
+                state.site_sequence_resolution.replaced_existing_count
+            ),
+            "preserved_existing_count": int(
+                state.site_sequence_resolution.preserved_existing_count
+            ),
+            "existing_sequence_conflict_count": int(
+                state.site_sequence_resolution.existing_sequence_conflict_count
+            ),
         },
         "missing_data": {
             "policy": state.missing_data.policy,
@@ -234,11 +249,32 @@ def processing_state_from_payload(
                     "flank_size"
                 ),
             ),
+            fasta_source_path=_require_optional_str(
+                site_sequence_resolution_payload.get("fasta_source_path"),
+                field_name=(
+                    "dataset.metadata.processing_state.site_sequence_resolution."
+                    "fasta_source_path"
+                ),
+            ),
+            fasta_source_label=_require_optional_str(
+                site_sequence_resolution_payload.get("fasta_source_label"),
+                field_name=(
+                    "dataset.metadata.processing_state.site_sequence_resolution."
+                    "fasta_source_label"
+                ),
+            ),
             fasta_sha256=_require_optional_str(
                 site_sequence_resolution_payload.get("fasta_sha256"),
                 field_name=(
                     "dataset.metadata.processing_state.site_sequence_resolution."
                     "fasta_sha256"
+                ),
+            ),
+            resolver_version=_require_optional_str(
+                site_sequence_resolution_payload.get("resolver_version"),
+                field_name=(
+                    "dataset.metadata.processing_state.site_sequence_resolution."
+                    "resolver_version"
                 ),
             ),
             resolved_site_count=require_int(
@@ -260,6 +296,36 @@ def processing_state_from_payload(
                 field_name=(
                     "dataset.metadata.processing_state.site_sequence_resolution."
                     "unresolved_counts_by_reason"
+                ),
+            ),
+            filled_missing_count=require_int(
+                site_sequence_resolution_payload.get("filled_missing_count", 0),
+                field_name=(
+                    "dataset.metadata.processing_state.site_sequence_resolution."
+                    "filled_missing_count"
+                ),
+            ),
+            replaced_existing_count=require_int(
+                site_sequence_resolution_payload.get("replaced_existing_count", 0),
+                field_name=(
+                    "dataset.metadata.processing_state.site_sequence_resolution."
+                    "replaced_existing_count"
+                ),
+            ),
+            preserved_existing_count=require_int(
+                site_sequence_resolution_payload.get("preserved_existing_count", 0),
+                field_name=(
+                    "dataset.metadata.processing_state.site_sequence_resolution."
+                    "preserved_existing_count"
+                ),
+            ),
+            existing_sequence_conflict_count=require_int(
+                site_sequence_resolution_payload.get(
+                    "existing_sequence_conflict_count", 0
+                ),
+                field_name=(
+                    "dataset.metadata.processing_state.site_sequence_resolution."
+                    "existing_sequence_conflict_count"
                 ),
             ),
         ),
