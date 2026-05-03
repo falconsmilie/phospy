@@ -594,10 +594,71 @@ def _normalize_signalome_collection_value(value: object) -> str:
     return str(parsed)
 
 
+def _canonical_kinase_label(value: object) -> str:
+    return str(value).strip().upper()
+
+
+def _normalize_signalome_kinase_collection_value(value: object) -> str:
+    parsed = value
+    if value is None:
+        return "[]"
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped == "":
+            return "[]"
+        try:
+            parsed = ast.literal_eval(stripped)
+        except (ValueError, SyntaxError):
+            return _canonical_kinase_label(stripped)
+    elif not isinstance(value, (tuple, list)) and pd.isna(value):
+        return "[]"
+    if isinstance(parsed, (tuple, list)):
+        return json.dumps(
+            [_canonical_kinase_label(item) for item in parsed if item is not None],
+            ensure_ascii=True,
+            separators=(",", ":"),
+        )
+    return _canonical_kinase_label(parsed)
+
+
+def _normalize_signalome_kinase_weight_collection_value(value: object) -> str:
+    parsed = value
+    if value is None:
+        return "[]"
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped == "":
+            return "[]"
+        try:
+            parsed = ast.literal_eval(stripped)
+        except (ValueError, SyntaxError):
+            return stripped
+    elif not isinstance(value, (tuple, list)) and pd.isna(value):
+        return "[]"
+    if isinstance(parsed, (tuple, list)):
+        normalised_items: list[object] = []
+        for item in parsed:
+            if isinstance(item, tuple) and len(item) == 2:
+                kinase, weight = item
+                normalised_items.append((_canonical_kinase_label(kinase), weight))
+            else:
+                normalised_items.append(item)
+        return json.dumps(
+            [str(item) for item in normalised_items],
+            ensure_ascii=True,
+            separators=(",", ":"),
+        )
+    return str(parsed)
+
+
 def normalize_signalome_modules_for_parity(frame: pd.DataFrame) -> pd.DataFrame:
     normalized = frame.copy(deep=True)
     normalized.index = pd.Index(normalized.index.astype("int64"), name="module_id")
-    normalized.columns = pd.Index(normalized.columns.astype(str), name="kinase")
+    normalized.columns = pd.Index(
+        [_canonical_kinase_label(value) for value in normalized.columns],
+        name="kinase",
+    )
+    normalized = normalized.T.groupby(level=0, sort=False).mean().T
     return normalized.astype(float).sort_index().sort_index(axis=1)
 
 
@@ -614,7 +675,9 @@ def normalize_signalome_module_assignments_for_parity(
     for column in collection_columns:
         if column in normalized.columns:
             normalized.loc[:, column] = normalized.loc[:, column].map(
-                _normalize_signalome_collection_value
+                _normalize_signalome_kinase_weight_collection_value
+                if column == "top_kinase_weights"
+                else _normalize_signalome_kinase_collection_value
             )
     bool_columns = (
         "top_kinase_is_ambiguous",
@@ -639,12 +702,22 @@ def normalize_signalome_module_assignments_for_parity(
             normalized.loc[:, column] = normalized.loc[:, column].astype("int64")
     if "top_score" in normalized.columns:
         normalized.loc[:, "top_score"] = normalized.loc[:, "top_score"].astype(float)
+    kinase_scalar_columns = ("top_kinase", "module_top_kinase")
+    for column in kinase_scalar_columns:
+        if column in normalized.columns:
+            normalized.loc[:, column] = normalized.loc[:, column].map(
+                _canonical_kinase_label
+            )
     return normalized.sort_index()
 
 
 def normalize_signalome_network_nodes_for_parity(frame: pd.DataFrame) -> pd.DataFrame:
     normalized = frame.copy(deep=True)
-    normalized.index = pd.Index(normalized.index.astype(str), name="kinase")
+    normalized.index = pd.Index(
+        [_canonical_kinase_label(value) for value in normalized.index],
+        name="kinase",
+    )
+    normalized = normalized.groupby(level=0, sort=False).sum()
     normalized = normalized.astype({"degree": "int64", "n_substrates": "int64"})
     return normalized.sort_index()
 
@@ -656,6 +729,12 @@ def normalize_signalome_network_edges_for_parity(frame: pd.DataFrame) -> pd.Data
             "target_kinase": str,
             "correlation": float,
         }
+    )
+    normalized.loc[:, "source_kinase"] = normalized.loc[:, "source_kinase"].map(
+        _canonical_kinase_label
+    )
+    normalized.loc[:, "target_kinase"] = normalized.loc[:, "target_kinase"].map(
+        _canonical_kinase_label
     )
     return normalized.sort_values(
         ["source_kinase", "target_kinase"],
@@ -683,6 +762,17 @@ def normalize_signalome_expanded_signalome_for_parity(
             "top_score": float,
         }
     )
+    normalized.loc[:, "kinase"] = normalized.loc[:, "kinase"].map(
+        _canonical_kinase_label
+    )
+    normalized.loc[:, "top_kinase"] = normalized.loc[:, "top_kinase"].map(
+        _canonical_kinase_label
+    )
+    kinase_collection_columns = ("linked_kinases", "support_kinases")
+    for column in kinase_collection_columns:
+        normalized.loc[:, column] = normalized.loc[:, column].map(
+            _normalize_signalome_kinase_collection_value
+        )
     return normalized.sort_values(
         [
             "kinase",

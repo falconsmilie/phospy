@@ -25,6 +25,40 @@ from tests.support.rewrite_fixture_data import (
 )
 
 
+def _canonical_kinase_label(value: object) -> str:
+    return str(value).strip().upper()
+
+
+def _canonicalise_kinase_columns(frame: pd.DataFrame) -> pd.DataFrame:
+    canonical = frame.copy(deep=True)
+    canonical.columns = pd.Index(
+        [_canonical_kinase_label(value) for value in canonical.columns],
+        name=canonical.columns.name,
+    )
+    return canonical.T.groupby(level=0, sort=False).mean().T
+
+
+def _canonicalise_kinase_index(frame: pd.DataFrame) -> pd.DataFrame:
+    canonical = frame.copy(deep=True)
+    canonical.index = pd.Index(
+        [_canonical_kinase_label(value) for value in canonical.index],
+        name=canonical.index.name,
+    )
+    return canonical.groupby(level=0, sort=False).mean()
+
+
+def _canonicalise_kinase_column(
+    frame: pd.DataFrame,
+    *,
+    column_name: str,
+) -> pd.DataFrame:
+    canonical = frame.copy(deep=True)
+    canonical.loc[:, column_name] = canonical.loc[:, column_name].map(
+        _canonical_kinase_label
+    )
+    return canonical
+
+
 @dataclass(frozen=True, slots=True)
 class TableParityMetrics:
     observed_shape: tuple[int, int]
@@ -331,10 +365,11 @@ def _collect_ranking_metrics(
 def _rank_prediction_matrix_surface(
     surface: PredictionMatrixSurface,
 ) -> RankedSiteOrderSurface:
+    canonical_frame = _canonicalise_kinase_columns(surface.frame)
     ranked_by_kinase: dict[str, list[str]] = {}
-    for kinase in surface.frame.columns.astype(str):
+    for kinase in canonical_frame.columns.astype(str):
         ordered = (
-            surface.frame.loc[:, kinase]
+            canonical_frame.loc[:, kinase]
             .astype(float)
             .sort_values(ascending=False, kind="mergesort")
             .index.astype(str)
@@ -355,6 +390,9 @@ def _normalize_prediction_topk_frame(frame: pd.DataFrame) -> pd.DataFrame:
             "expected top-k prediction frame to contain kinase/site_id columns"
         )
     normalized = normalized.astype({"kinase": str, "site_id": str})
+    normalized.loc[:, "kinase"] = normalized.loc[:, "kinase"].map(
+        _canonical_kinase_label
+    )
     if "rank" in normalized.columns:
         normalized.loc[:, "rank"] = normalized.loc[:, "rank"].astype("int64")
     else:
@@ -396,25 +434,31 @@ def _collect_policy_divergence_metrics(
     stable_topk_export: RankedTopKExportSurface,
     r_parity_topk_export: RankedTopKExportSurface,
 ) -> PolicyDivergenceMetrics:
+    stable_prediction_frame = _canonicalise_kinase_columns(
+        stable_prediction_matrix.frame
+    )
+    r_parity_prediction_frame = _canonicalise_kinase_columns(
+        r_parity_prediction_matrix.frame
+    )
     stable_long = (
-        _stack_frame(stable_prediction_matrix.frame)
+        _stack_frame(stable_prediction_frame)
         .rename("score_stable")
         .reset_index()
         .rename(
             columns={
                 "level_1": "kinase",
-                stable_prediction_matrix.frame.index.name or "level_0": "site_id",
+                stable_prediction_frame.index.name or "level_0": "site_id",
             }
         )
     )
     r_parity_long = (
-        _stack_frame(r_parity_prediction_matrix.frame)
+        _stack_frame(r_parity_prediction_frame)
         .rename("score_r_parity")
         .reset_index()
         .rename(
             columns={
                 "level_1": "kinase",
-                r_parity_prediction_matrix.frame.index.name or "level_0": "site_id",
+                r_parity_prediction_frame.index.name or "level_0": "site_id",
             }
         )
     )
@@ -502,20 +546,35 @@ def collect_l6_prediction_parity_metrics() -> L6PredictionParityMetrics:
     stable_result = _run_l6_workflow("stable")
     r_parity_result = _run_l6_workflow("r_parity")
 
-    observed_profile = stable_result.scoring_result.profile_scores
-    expected_profile = load_l6_prediction_reference_profile_scores()
+    observed_profile = _canonicalise_kinase_columns(
+        stable_result.scoring_result.profile_scores
+    )
+    expected_profile = _canonicalise_kinase_columns(
+        load_l6_prediction_reference_profile_scores()
+    )
     observed_combined = stable_result.scoring_result.rank_weighted_fusion_scores
     if observed_combined is None:
         raise AssertionError(
             "expected rank_weighted_fusion_scores to be present for L6 parity"
         )
-    expected_combined = load_l6_prediction_reference_rank_weighted_fusion_scores()
+    observed_combined = _canonicalise_kinase_columns(observed_combined)
+    expected_combined = _canonicalise_kinase_columns(
+        load_l6_prediction_reference_rank_weighted_fusion_scores()
+    )
     observed_weights = stable_result.scoring_result.score_fusion_weights
     if observed_weights is None:
         raise AssertionError("expected score_fusion_weights table for L6 parity")
-    expected_weights = load_l6_prediction_reference_score_fusion_weights()
-    expected_candidates = load_l6_prediction_reference_candidate_substrates()
-    expected_pred_mat = load_l6_prediction_reference_predmat()
+    observed_weights = _canonicalise_kinase_index(observed_weights)
+    expected_weights = _canonicalise_kinase_index(
+        load_l6_prediction_reference_score_fusion_weights()
+    )
+    expected_candidates = _canonicalise_kinase_column(
+        load_l6_prediction_reference_candidate_substrates(),
+        column_name="kinase",
+    )
+    expected_pred_mat = _canonicalise_kinase_columns(
+        load_l6_prediction_reference_predmat()
+    )
     expected_topk_export_surface = RankedTopKExportSurface(
         frame=_normalize_prediction_topk_frame(load_l6_prediction_reference_top30())
     )
@@ -537,10 +596,10 @@ def collect_l6_prediction_parity_metrics() -> L6PredictionParityMetrics:
     )
 
     stable_prediction_matrix_surface = PredictionMatrixSurface(
-        frame=stable_result.prediction_result.pred_mat
+        frame=_canonicalise_kinase_columns(stable_result.prediction_result.pred_mat)
     )
     r_parity_prediction_matrix_surface = PredictionMatrixSurface(
-        frame=r_parity_result.prediction_result.pred_mat
+        frame=_canonicalise_kinase_columns(r_parity_result.prediction_result.pred_mat)
     )
     expected_prediction_matrix_surface = PredictionMatrixSurface(
         frame=expected_pred_mat

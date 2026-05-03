@@ -11,6 +11,9 @@ from phospy._frame_ownership import export_dataframe, own_dataframe
 from phospy.errors.validation import ReferenceValidationError
 from phospy.provenance.hashing import fingerprint_table
 from phospy.provenance.models import ReferenceProvenance
+from phospy.references.identifiers import (
+    merge_reference_identifier_normalisation_reports,
+)
 from phospy.tables.references import KinaseSubstrateReference, SiteSequenceReference
 
 
@@ -90,6 +93,14 @@ class ReferenceBundle:
                 "references.site_sequences is missing sequence entries for "
                 f"substrate sites in references.kinase_substrate_map: {missing_sample}"
             )
+        identifier_normalisation = merge_reference_identifier_normalisation_reports(
+            report
+            for report in (
+                kinase_substrate_reference.identifier_normalisation,
+                site_sequence_reference.identifier_normalisation,
+            )
+            if report is not None
+        )
         provenance = self.provenance
         if provenance is None:
             provenance = ReferenceProvenance(
@@ -106,10 +117,22 @@ class ReferenceBundle:
                         name="references.site_sequences",
                     ),
                 ),
+                identifier_normalisation=identifier_normalisation,
             )
         elif not isinstance(provenance, ReferenceProvenance):
             raise ReferenceValidationError(
                 "references.provenance must be ReferenceProvenance or None"
+            )
+        elif (
+            provenance.source_type == "explicit"
+            and provenance.identifier_normalisation is None
+        ):
+            provenance = ReferenceProvenance(
+                source_type=provenance.source_type,
+                organism=provenance.organism,
+                bundle_id=provenance.bundle_id,
+                table_fingerprints=provenance.table_fingerprints,
+                identifier_normalisation=identifier_normalisation,
             )
         object.__setattr__(
             self,

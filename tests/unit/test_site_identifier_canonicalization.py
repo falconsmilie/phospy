@@ -250,6 +250,50 @@ def test_reference_bundle_rejects_duplicate_pairs_after_site_id_normalization() 
         )
 
 
+def test_reference_bundle_normalises_mixed_case_kinase_ids() -> None:
+    bundle = ReferenceBundle(
+        organism=Organism.RAT,
+        kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["akt1", "Akt1", "AKT1"],
+                "substrate_site": [
+                    "MAPK14;Y182;",
+                    "MAPK14;T185;",
+                    "GSK3B;S9;",
+                ],
+            }
+        ),
+        site_sequences=pd.DataFrame(
+            {"site_sequence": ["A" * 31, "B" * 31, "C" * 31]},
+            index=pd.Index(
+                ["MAPK14;Y182;", "MAPK14;T185;", "GSK3B;S9;"],
+                name="site_id",
+            ),
+        ),
+    )
+    assert set(bundle.kinase_substrate_map.loc[:, "kinase"]) == {"AKT1"}
+
+
+def test_reference_bundle_rejects_duplicate_pairs_after_kinase_normalization() -> None:
+    with pytest.raises(
+        ReferenceValidationError,
+        match="contains duplicate \\(kinase, substrate_site\\) pairs",
+    ):
+        ReferenceBundle(
+            organism=Organism.RAT,
+            kinase_substrate_map=pd.DataFrame(
+                {
+                    "kinase": ["akt1", "AKT1"],
+                    "substrate_site": ["MAPK14;Y182;", "MAPK14;Y182;"],
+                }
+            ),
+            site_sequences=pd.DataFrame(
+                {"site_sequence": ["A" * 31]},
+                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            ),
+        )
+
+
 def test_reference_provider_shapes_bundled_resources_for_strict_boundary() -> None:
     bundle = ReferenceResolver().run(
         ReferencePreset.RAT,

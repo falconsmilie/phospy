@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.models import (
@@ -15,6 +15,12 @@ from phospy.provenance.models import (
     TableFingerprint,
 )
 from phospy.scientific_policies import ScientificPolicyRecord
+
+if TYPE_CHECKING:
+    from phospy.references.identifiers import (
+        ReferenceIdentifierNormalisationRecord,
+        ReferenceIdentifierNormalisationReport,
+    )
 
 
 def to_payload(provenance: RunProvenance) -> dict[str, object]:
@@ -414,6 +420,13 @@ def _reference_to_payload(reference: ReferenceProvenance) -> dict[str, object]:
         "table_fingerprints": [
             _table_fingerprint_to_payload(item) for item in reference.table_fingerprints
         ],
+        "identifier_normalisation": (
+            None
+            if reference.identifier_normalisation is None
+            else _reference_identifier_normalisation_to_payload(
+                reference.identifier_normalisation
+            )
+        ),
     }
 
 
@@ -443,6 +456,150 @@ def _reference_from_payload(payload: Mapping[str, object]) -> ReferenceProvenanc
                 )
             )
             for position, item in enumerate(table_payload)
+        ),
+        identifier_normalisation=_optional_reference_identifier_normalisation_from_payload(
+            payload.get("identifier_normalisation"),
+            field_name="reference_provenance.identifier_normalisation",
+        ),
+    )
+
+
+def _reference_identifier_normalisation_to_payload(
+    report: ReferenceIdentifierNormalisationReport,
+) -> dict[str, object]:
+    return {
+        "schema_version": int(report.schema_version),
+        "original_row_count": int(report.original_row_count),
+        "normalised_row_count": int(report.normalised_row_count),
+        "invalid_identifier_count": int(report.invalid_identifier_count),
+        "changed_identifier_count": int(report.changed_identifier_count),
+        "duplicate_identifier_count": int(report.duplicate_identifier_count),
+        "conflict_count": int(report.conflict_count),
+        "records": [
+            _reference_identifier_normalisation_record_to_payload(record)
+            for record in report.records
+        ],
+    }
+
+
+def _reference_identifier_normalisation_record_to_payload(
+    record: ReferenceIdentifierNormalisationRecord,
+) -> dict[str, object]:
+    return {
+        "table_name": record.table_name,
+        "column_name": record.column_name,
+        "row_position": int(record.row_position),
+        "identifier_kind": record.identifier_kind,
+        "original_value": record.original_value,
+        "normalised_value": record.normalised_value,
+        "status": record.status,
+        "reason": record.reason,
+    }
+
+
+def _optional_reference_identifier_normalisation_from_payload(
+    value: object,
+    *,
+    field_name: str,
+) -> ReferenceIdentifierNormalisationReport | None:
+    if value is None:
+        return None
+    return _reference_identifier_normalisation_from_payload(
+        _require_mapping(value, field_name=field_name)
+    )
+
+
+def _reference_identifier_normalisation_from_payload(
+    payload: Mapping[str, object],
+) -> ReferenceIdentifierNormalisationReport:
+    from phospy.references.identifiers import ReferenceIdentifierNormalisationReport
+
+    records_payload = _require_sequence(
+        payload.get("records"),
+        field_name="reference_identifier_normalisation.records",
+    )
+    return ReferenceIdentifierNormalisationReport(
+        schema_version=_require_int(
+            payload.get("schema_version"),
+            field_name="reference_identifier_normalisation.schema_version",
+        ),
+        original_row_count=_require_int(
+            payload.get("original_row_count"),
+            field_name="reference_identifier_normalisation.original_row_count",
+        ),
+        normalised_row_count=_require_int(
+            payload.get("normalised_row_count"),
+            field_name="reference_identifier_normalisation.normalised_row_count",
+        ),
+        invalid_identifier_count=_require_int(
+            payload.get("invalid_identifier_count"),
+            field_name="reference_identifier_normalisation.invalid_identifier_count",
+        ),
+        changed_identifier_count=_require_int(
+            payload.get("changed_identifier_count"),
+            field_name="reference_identifier_normalisation.changed_identifier_count",
+        ),
+        duplicate_identifier_count=_require_int(
+            payload.get("duplicate_identifier_count"),
+            field_name=(
+                "reference_identifier_normalisation.duplicate_identifier_count"
+            ),
+        ),
+        conflict_count=_require_int(
+            payload.get("conflict_count"),
+            field_name="reference_identifier_normalisation.conflict_count",
+        ),
+        records=tuple(
+            _reference_identifier_normalisation_record_from_payload(
+                _require_mapping(
+                    item,
+                    field_name=(
+                        f"reference_identifier_normalisation.records[{position}]"
+                    ),
+                )
+            )
+            for position, item in enumerate(records_payload)
+        ),
+    )
+
+
+def _reference_identifier_normalisation_record_from_payload(
+    payload: Mapping[str, object],
+) -> ReferenceIdentifierNormalisationRecord:
+    from phospy.references.identifiers import ReferenceIdentifierNormalisationRecord
+
+    return ReferenceIdentifierNormalisationRecord(
+        table_name=_require_str(
+            payload.get("table_name"),
+            field_name="reference_identifier_normalisation_record.table_name",
+        ),
+        column_name=_require_str(
+            payload.get("column_name"),
+            field_name="reference_identifier_normalisation_record.column_name",
+        ),
+        row_position=_require_int(
+            payload.get("row_position"),
+            field_name="reference_identifier_normalisation_record.row_position",
+        ),
+        identifier_kind=_require_str(
+            payload.get("identifier_kind"),
+            field_name="reference_identifier_normalisation_record.identifier_kind",
+        ),
+        original_value=_require_raw_str(
+            payload.get("original_value"),
+            field_name="reference_identifier_normalisation_record.original_value",
+        ),
+        normalised_value=_optional_raw_str(
+            payload.get("normalised_value"),
+            field_name="reference_identifier_normalisation_record.normalised_value",
+        ),
+        status=_require_str(
+            payload.get("status"),
+            field_name="reference_identifier_normalisation_record.status",
+        ),
+        reason=_optional_str(
+            payload.get("reason"),
+            field_name="reference_identifier_normalisation_record.reason",
         ),
     )
 
@@ -488,6 +645,18 @@ def _optional_str(value: object, *, field_name: str) -> str | None:
     if value is None:
         return None
     return _require_str(value, field_name=field_name)
+
+
+def _require_raw_str(value: object, *, field_name: str) -> str:
+    if not isinstance(value, str):
+        raise PhosPyInputError(f"{field_name} must be a string")
+    return value
+
+
+def _optional_raw_str(value: object, *, field_name: str) -> str | None:
+    if value is None:
+        return None
+    return _require_raw_str(value, field_name=field_name)
 
 
 def _optional_mapping(value: object, *, field_name: str) -> Mapping[str, object] | None:

@@ -4,8 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from phospy.scientific_policies import ScientificPolicyRecord
+
+if TYPE_CHECKING:
+    from phospy.references.identifiers import ReferenceIdentifierNormalisationReport
 
 PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V1 = 1
 PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V2 = 2
@@ -80,6 +84,7 @@ class ReferenceProvenance:
     organism: str
     bundle_id: str | None
     table_fingerprints: tuple[TableFingerprint, ...]
+    identifier_normalisation: ReferenceIdentifierNormalisationReport | None = None
 
 
 @dataclass(frozen=True, slots=True)

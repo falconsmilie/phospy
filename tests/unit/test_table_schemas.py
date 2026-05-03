@@ -444,15 +444,15 @@ def test_reference_schema_duplicate_pairs_fail() -> None:
         KinaseSubstrateReference(frame=frame)
 
 
-def test_reference_schema_non_canonical_kinase_fails() -> None:
+def test_reference_schema_non_canonical_kinase_normalizes() -> None:
     frame = pd.DataFrame(
         {
             "kinase": [" MAP2K6 "],
             "substrate_site": ["MAPK14;Y182;"],
         }
     )
-    with pytest.raises(ReferenceValidationError, match="canonical non-empty string"):
-        KinaseSubstrateReference(frame=frame)
+    wrapper = KinaseSubstrateReference(frame=frame)
+    assert wrapper.frame.loc[0, "kinase"] == "MAP2K6"
 
 
 def test_reference_schema_non_canonical_substrate_site_normalizes() -> None:
