@@ -19,6 +19,7 @@ from phospy.api import (
     DatasetMissingDataConfig,
     DatasetNormalisationConfig,
     DatasetPreprocessingConfig,
+    DatasetRuvReadinessConfig,
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
     DatasetTotalProteinCorrectionIdentityConfig,
@@ -158,6 +159,38 @@ def test_dataset_builder_builds_analysis_ready_dataset_from_fixture() -> None:
     assert built.processing_state.site_matrix.constructed is False
     assert built.processing_state.comparisons.policy == "none"
     assert built.processing_state.comparisons.pairs is None
+
+
+def test_dataset_builder_reports_ruv_readiness_without_mutating_phospho_values() -> (
+    None
+):
+    phospho = load_rat_l6_phospho().head(8).copy(deep=True)
+    site_metadata = site_metadata_for(phospho).copy(deep=True)
+
+    baseline = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho.copy(deep=True),
+            site_metadata=site_metadata.copy(deep=True),
+            organism=Organism.RAT,
+        )
+    )
+    with_readiness = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho.copy(deep=True),
+            site_metadata=site_metadata.copy(deep=True),
+            organism=Organism.RAT,
+            preprocessing_config=DatasetPreprocessingConfig(
+                ruv_readiness=DatasetRuvReadinessConfig(enabled=True),
+            ),
+        )
+    )
+
+    pdt.assert_frame_equal(with_readiness.phospho, baseline.phospho)
+    assert with_readiness.processing_state.ruv_readiness.enabled is True
+    assert with_readiness.processing_state.ruv_readiness.ready is False
+    assert "control feature column missing" in set(
+        with_readiness.processing_state.ruv_readiness.reasons
+    )
 
 
 def test_dataset_builder_establishes_intensity_scale_state_via_supported_path() -> None:

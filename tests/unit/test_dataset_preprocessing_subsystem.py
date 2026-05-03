@@ -14,6 +14,7 @@ from phospy.api.configs import (
     DatasetMissingDataConfig,
     DatasetNormalisationConfig,
     DatasetPreprocessingConfig,
+    DatasetRuvReadinessConfig,
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
 )
@@ -24,7 +25,10 @@ from phospy.datasets.builders.contracts import (
 )
 from phospy.datasets.builders.executor import DatasetBuildExecutor
 from phospy.datasets.builders.interpreter import DatasetBuildRequestInterpreter
-from phospy.datasets.builders.preprocessing import DatasetPreprocessor
+from phospy.datasets.builders.preprocessing import (
+    DatasetPreprocessor,
+    build_dataset_processing_state,
+)
 from phospy.datasets.builders.transformation_resolver import ResolvedIntensityScale
 from phospy.datasets.preprocessing.models import (
     PreprocessingPlan,
@@ -82,6 +86,59 @@ def _comparison_sample_metadata(columns: pd.Index) -> pd.DataFrame:
         },
         index=columns,
     )
+
+
+def _ruv_site_metadata(index: pd.Index) -> pd.DataFrame:
+    metadata = _site_metadata(index).copy(deep=True)
+    metadata.loc[:, "is_control_feature"] = [
+        position == 0 for position in range(len(metadata.index))
+    ]
+    return metadata
+
+
+def _ruv_sample_metadata(columns: pd.Index) -> pd.DataFrame:
+    sample_count = len(columns)
+    midpoint = max(sample_count // 2, 1)
+    return pd.DataFrame(
+        {
+            "replicate_group": [
+                "group_a" if position < midpoint else "group_b"
+                for position in range(sample_count)
+            ],
+            "batch": [
+                f"batch_{(position % 2) + 1}" for position in range(sample_count)
+            ],
+        },
+        index=columns.copy(),
+    )
+
+
+def _build_processing_state_from_preprocessor(
+    *,
+    phospho: pd.DataFrame,
+    site_metadata: pd.DataFrame,
+    sample_metadata: pd.DataFrame | None,
+    config: DatasetPreprocessingConfig,
+):
+    plan = PreprocessingPlan.from_config(config)
+    preprocessed = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=sample_metadata,
+        total=None,
+        plan=plan,
+    )
+    state = build_dataset_processing_state(
+        plan=plan,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        preprocessing_trace=preprocessed.preprocessing_trace,
+        final_phospho=preprocessed.phospho,
+        final_site_metadata=preprocessed.site_metadata,
+        final_sample_metadata=preprocessed.sample_metadata,
+    )
+    return preprocessed, state
 
 
 def _internal_site_matrix_config(
@@ -352,6 +409,148 @@ def test_dataset_missing_data_config_rejects_knn_unsupported_distance() -> None:
             distance="euclidean",
             max_missing_fraction_per_row=0.5,
         )
+
+
+def test_ruv_readiness_disabled_reports_not_configured() -> None:
+    _, state = _build_processing_state_from_preprocessor(
+        phospho=_phospho(),
+        site_metadata=_site_metadata(),
+        sample_metadata=None,
+        config=DatasetPreprocessingConfig(),
+    )
+
+    assert state.ruv_readiness.enabled is False
+    assert state.ruv_readiness.ready is False
+    assert "not configured" in set(state.ruv_readiness.reasons)
+
+
+def test_ruv_readiness_enabled_reports_missing_control_feature_column() -> None:
+    _, state = _build_processing_state_from_preprocessor(
+        phospho=_phospho(),
+        site_metadata=_site_metadata(),
+        sample_metadata=_ruv_sample_metadata(_phospho().columns),
+        config=DatasetPreprocessingConfig(
+            ruv_readiness=DatasetRuvReadinessConfig(enabled=True)
+        ),
+    )
+
+    assert state.ruv_readiness.enabled is True
+    assert state.ruv_readiness.ready is False
+    assert "control feature column missing" in set(state.ruv_readiness.reasons)
+
+
+def test_ruv_readiness_enabled_reports_missing_sample_metadata() -> None:
+    _, state = _build_processing_state_from_preprocessor(
+        phospho=_phospho(),
+        site_metadata=_ruv_site_metadata(_phospho().index),
+        sample_metadata=None,
+        config=DatasetPreprocessingConfig(
+            ruv_readiness=DatasetRuvReadinessConfig(enabled=True)
+        ),
+    )
+
+    assert state.ruv_readiness.enabled is True
+    assert state.ruv_readiness.ready is False
+    assert "sample metadata unavailable" in set(state.ruv_readiness.reasons)
+
+
+def test_ruv_readiness_enabled_reports_missing_replicate_group_column() -> None:
+    phospho = _phospho()
+    sample_metadata = pd.DataFrame(
+        {"batch": ["batch_1", "batch_1", "batch_2"]},
+        index=phospho.columns.copy(),
+    )
+    _, state = _build_processing_state_from_preprocessor(
+        phospho=phospho,
+        site_metadata=_ruv_site_metadata(phospho.index),
+        sample_metadata=sample_metadata,
+        config=DatasetPreprocessingConfig(
+            ruv_readiness=DatasetRuvReadinessConfig(enabled=True)
+        ),
+    )
+
+    assert state.ruv_readiness.enabled is True
+    assert state.ruv_readiness.ready is False
+    assert "replicate group column missing" in set(state.ruv_readiness.reasons)
+
+
+def test_ruv_readiness_enabled_reports_ready_when_requirements_are_met() -> None:
+    phospho = _phospho()
+    _, state = _build_processing_state_from_preprocessor(
+        phospho=phospho,
+        site_metadata=_ruv_site_metadata(phospho.index),
+        sample_metadata=_ruv_sample_metadata(phospho.columns),
+        config=DatasetPreprocessingConfig(
+            ruv_readiness=DatasetRuvReadinessConfig(enabled=True)
+        ),
+    )
+
+    assert state.ruv_readiness.enabled is True
+    assert state.ruv_readiness.ready is True
+    assert state.ruv_readiness.reasons == ()
+    assert state.ruv_readiness.matrix_complete is True
+    assert state.ruv_readiness.control_feature_count >= 1
+    assert state.ruv_readiness.replicate_group_count >= 2
+    assert (state.ruv_readiness.batch_count or 0) >= 1
+
+
+@pytest.mark.parametrize(
+    ("missing_data_config", "expected_method_id"),
+    [
+        (
+            DatasetMissingDataConfig(
+                policy="impute_row_median",
+                min_observed_values=2,
+            ),
+            "row_median",
+        ),
+        (
+            DatasetMissingDataConfig(
+                policy="impute_minprob",
+                q=0.01,
+                width=0.3,
+                seed=12345,
+                max_missing_fraction_per_row=0.5,
+            ),
+            "minprob",
+        ),
+        (
+            DatasetMissingDataConfig(
+                policy="impute_knn",
+                k=1,
+                distance="nan_euclidean",
+                max_missing_fraction_per_row=0.5,
+            ),
+            "knn",
+        ),
+    ],
+)
+def test_ruv_readiness_reports_imputation_method_id_from_missing_data_diagnostics(
+    missing_data_config: DatasetMissingDataConfig,
+    expected_method_id: str,
+) -> None:
+    phospho = _phospho()
+    phospho.loc["MAPK14;Y182;", "sample_a"] = float("nan")
+    phospho.loc["GSK3B;S9;", :] = float("nan")
+    config = DatasetPreprocessingConfig(
+        intensity_transform=DatasetIntensityTransformConfig(
+            policy="log2",
+            pseudocount=1.0,
+        )
+        if missing_data_config.policy == "impute_minprob"
+        else DatasetIntensityTransformConfig(policy="identity"),
+        missing_data=missing_data_config,
+        ruv_readiness=DatasetRuvReadinessConfig(enabled=True),
+    )
+    _, state = _build_processing_state_from_preprocessor(
+        phospho=phospho,
+        site_metadata=_ruv_site_metadata(phospho.index),
+        sample_metadata=_ruv_sample_metadata(phospho.columns),
+        config=config,
+    )
+
+    assert state.ruv_readiness.imputation_method_id == expected_method_id
+    assert state.ruv_readiness.missingness_mask_preserved is True
 
 
 def test_dataset_preprocessor_knn_imputes_expected_values_and_preserves_labels() -> (

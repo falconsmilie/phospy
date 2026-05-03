@@ -71,6 +71,12 @@ Common cross-field checks:
 - site-matrix construction may drop incomplete rows because the public output
   dataset must be complete.
 - duplicate-site resolution is recorded in `dataset.preprocessing_report` when it runs.
+- `ruv_readiness.enabled=True` records readiness signals for future
+  RUV-compatible preprocessing, including complete-matrix status, missingness
+  mask provenance, control-feature availability, replicate groups, and optional
+  batch metadata.
+- RUV readiness is informational only in this release: dataset construction is
+  not rejected when readiness is false.
 
 ## Reference Validation
 

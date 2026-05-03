@@ -55,6 +55,7 @@ approximation behavior, and failure modes), see `docs/performance.md`.
   - normalisation (`none`, `median_center`, `quantile`)
   - optional total-protein correction
   - optional site-matrix and comparison construction
+  - optional `ruv_readiness` reporting for future RUV-compatible preprocessing
 - No hidden transforms are applied outside this configuration.
 - Prefer intent presets (`DatasetPreprocessingConfig.default()`,
   `DatasetPreprocessingConfig.strict()`, and
@@ -74,6 +75,9 @@ approximation behavior, and failure modes), see `docs/performance.md`.
 - Dataset provenance records preprocessing-stage execution and table fingerprints.
 - `intensity_scale_state` and `processing_state` are attached and validated at boundary.
 - `preprocessing_report` provides row-level and operation-level preprocessing audit tables.
+- `processing_state.ruv_readiness` reports whether required controls/groups/batch and
+  missingness provenance are present for future RUV-compatible correction stages.
+  This is report-only and does not run correction or block dataset construction.
 
 ### Known Limitations
 

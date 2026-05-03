@@ -819,6 +819,50 @@ class DatasetComparisonBuildingConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class DatasetRuvReadinessConfig:
+    """RUV-readiness reporting configuration for future correction support."""
+
+    enabled: bool = False
+    control_feature_column: str = "is_control_feature"
+    replicate_group_column: str = "replicate_group"
+    batch_column: str | None = "batch"
+
+    def __post_init__(self) -> None:
+        enabled = self.enabled
+        if not isinstance(enabled, bool):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.ruv_readiness.enabled "
+                "must be a bool"
+            )
+        control_feature_column = self.control_feature_column
+        if (
+            not isinstance(control_feature_column, str)
+            or not control_feature_column.strip()
+        ):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.ruv_readiness."
+                "control_feature_column must be a non-empty string"
+            )
+        replicate_group_column = self.replicate_group_column
+        if (
+            not isinstance(replicate_group_column, str)
+            or not replicate_group_column.strip()
+        ):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.ruv_readiness."
+                "replicate_group_column must be a non-empty string"
+            )
+        batch_column = self.batch_column
+        if batch_column is None:
+            return
+        if not isinstance(batch_column, str) or not batch_column.strip():
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.ruv_readiness."
+                "batch_column must be None or a non-empty string"
+            )
+
+
+@dataclass(frozen=True, slots=True)
 class DatasetSiteSequenceResolutionConfig:
     """Optional local-FASTA-backed site-sequence resolution policy."""
 
@@ -933,6 +977,7 @@ __all__ = [
     "DatasetMissingDataPolicy",
     "DatasetNormalisationConfig",
     "DatasetNormalisationPolicy",
+    "DatasetRuvReadinessConfig",
     "DatasetSiteMatrixConfig",
     "DatasetSiteMatrixDuplicateSitePolicy",
     "DatasetSiteMatrixMissingDataPolicy",

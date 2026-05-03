@@ -10,10 +10,12 @@ from phospy.datasets.processing_state import (
     MissingDataDiagnostics,
     MissingDataState,
     NormalisationState,
+    RuvReadinessState,
     SiteMatrixState,
     SiteSequenceResolutionState,
     TotalProteinCorrectionDiagnostics,
     TotalProteinCorrectionState,
+    default_ruv_readiness_state,
 )
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.intensity_scale_state import (
@@ -103,6 +105,21 @@ def processing_state_to_payload(state: DatasetProcessingState) -> dict[str, obje
                 else [list(pair) for pair in state.comparisons.pairs]
             ),
         },
+        "ruv_readiness": {
+            "enabled": state.ruv_readiness.enabled,
+            "ready": state.ruv_readiness.ready,
+            "reasons": list(state.ruv_readiness.reasons),
+            "control_feature_column": state.ruv_readiness.control_feature_column,
+            "replicate_group_column": state.ruv_readiness.replicate_group_column,
+            "batch_column": state.ruv_readiness.batch_column,
+            "control_feature_count": state.ruv_readiness.control_feature_count,
+            "replicate_group_count": state.ruv_readiness.replicate_group_count,
+            "batch_count": state.ruv_readiness.batch_count,
+            "requires_complete_matrix": state.ruv_readiness.requires_complete_matrix,
+            "matrix_complete": state.ruv_readiness.matrix_complete,
+            "imputation_method_id": state.ruv_readiness.imputation_method_id,
+            "missingness_mask_preserved": state.ruv_readiness.missingness_mask_preserved,
+        },
     }
 
 
@@ -144,6 +161,7 @@ def processing_state_from_payload(
         payload.get("intensity_scale"),
         field_name="dataset.metadata.processing_state.intensity_scale",
     )
+    ruv_readiness_payload_raw = payload.get("ruv_readiness")
     minimum_observed_values = _require_optional_int(
         missing_data_payload.get("min_observed_values"),
         field_name="dataset.metadata.processing_state.missing_data.min_observed_values",
@@ -343,6 +361,7 @@ def processing_state_from_payload(
                 field_name="dataset.metadata.processing_state.comparisons.pairs",
             ),
         ),
+        ruv_readiness=_parse_ruv_readiness_state(ruv_readiness_payload_raw),
     )
 
 
@@ -453,6 +472,93 @@ def _parse_optional_pairs(
     return tuple(parsed)
 
 
+def _parse_ruv_readiness_state(value: object) -> RuvReadinessState:
+    if value is None:
+        return default_ruv_readiness_state()
+    payload = require_mapping(
+        value,
+        field_name="dataset.metadata.processing_state.ruv_readiness",
+    )
+    reasons_raw = payload.get("reasons")
+    if reasons_raw is None:
+        reasons = ()
+    else:
+        reasons = _parse_required_string_tuple(
+            reasons_raw,
+            field_name="dataset.metadata.processing_state.ruv_readiness.reasons",
+        )
+    control_feature_count = _require_non_negative_int(
+        payload.get("control_feature_count"),
+        field_name=(
+            "dataset.metadata.processing_state.ruv_readiness.control_feature_count"
+        ),
+    )
+    replicate_group_count = _require_non_negative_int(
+        payload.get("replicate_group_count"),
+        field_name=(
+            "dataset.metadata.processing_state.ruv_readiness.replicate_group_count"
+        ),
+    )
+    batch_count = _require_optional_non_negative_int(
+        payload.get("batch_count"),
+        field_name="dataset.metadata.processing_state.ruv_readiness.batch_count",
+    )
+    return RuvReadinessState(
+        enabled=require_bool(
+            payload.get("enabled"),
+            field_name="dataset.metadata.processing_state.ruv_readiness.enabled",
+        ),
+        ready=require_bool(
+            payload.get("ready"),
+            field_name="dataset.metadata.processing_state.ruv_readiness.ready",
+        ),
+        reasons=reasons,
+        control_feature_column=require_str(
+            payload.get("control_feature_column"),
+            field_name=(
+                "dataset.metadata.processing_state.ruv_readiness.control_feature_column"
+            ),
+        ),
+        replicate_group_column=require_str(
+            payload.get("replicate_group_column"),
+            field_name=(
+                "dataset.metadata.processing_state.ruv_readiness.replicate_group_column"
+            ),
+        ),
+        batch_column=_require_optional_str(
+            payload.get("batch_column"),
+            field_name="dataset.metadata.processing_state.ruv_readiness.batch_column",
+        ),
+        control_feature_count=control_feature_count,
+        replicate_group_count=replicate_group_count,
+        batch_count=batch_count,
+        requires_complete_matrix=require_bool(
+            payload.get("requires_complete_matrix"),
+            field_name=(
+                "dataset.metadata.processing_state.ruv_readiness."
+                "requires_complete_matrix"
+            ),
+        ),
+        matrix_complete=require_bool(
+            payload.get("matrix_complete"),
+            field_name="dataset.metadata.processing_state.ruv_readiness.matrix_complete",
+        ),
+        imputation_method_id=_require_optional_str(
+            payload.get("imputation_method_id"),
+            field_name=(
+                "dataset.metadata.processing_state.ruv_readiness.imputation_method_id"
+            ),
+        ),
+        missingness_mask_preserved=require_bool(
+            payload.get("missingness_mask_preserved"),
+            field_name=(
+                "dataset.metadata.processing_state.ruv_readiness."
+                "missingness_mask_preserved"
+            ),
+        ),
+    )
+
+
 def _require_total_correction_quantitative_meaning(
     *,
     correction_payload: Mapping[str, object],
@@ -500,3 +606,29 @@ def _parse_optional_string_int_mapping(
         key = require_str(raw_key, field_name=f"{field_name}.<key>")
         parsed[key] = require_int(raw_value, field_name=f"{field_name}.{key}")
     return parsed
+
+
+def _parse_required_string_tuple(
+    value: object,
+    *,
+    field_name: str,
+) -> tuple[str, ...]:
+    if not isinstance(value, (list, tuple)):
+        raise PhosPyInputError(f"{field_name} must be an array of strings")
+    parsed: list[str] = []
+    for position, item in enumerate(value):
+        parsed.append(require_str(item, field_name=f"{field_name}[{position}]"))
+    return tuple(parsed)
+
+
+def _require_non_negative_int(value: object, *, field_name: str) -> int:
+    parsed = require_int(value, field_name=field_name)
+    if parsed < 0:
+        raise PhosPyInputError(f"{field_name} must be >= 0")
+    return parsed
+
+
+def _require_optional_non_negative_int(value: object, *, field_name: str) -> int | None:
+    if value is None:
+        return None
+    return _require_non_negative_int(value, field_name=field_name)

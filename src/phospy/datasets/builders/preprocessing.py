@@ -43,6 +43,7 @@ from phospy.datasets.processing_state import (
     MissingDataDiagnostics,
     MissingDataState,
     NormalisationState,
+    RuvReadinessState,
     SiteMatrixState,
     SiteSequenceResolutionState,
     TotalProteinCorrectionDiagnostics,
@@ -155,6 +156,9 @@ def build_dataset_processing_state(
     plan: PreprocessingPlan,
     intensity_scale_state: IntensityScaleState,
     preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None = None,
+    final_phospho: pd.DataFrame | None = None,
+    final_site_metadata: pd.DataFrame | None = None,
+    final_sample_metadata: pd.DataFrame | None = None,
 ) -> DatasetProcessingState:
     """Build compact dataset processing state from the resolved preprocessing plan."""
 
@@ -255,6 +259,14 @@ def build_dataset_processing_state(
         key="imputed_cell_count",
         default=0,
     )
+    ruv_readiness = _resolve_ruv_readiness_state(
+        plan=plan,
+        final_phospho=final_phospho,
+        final_site_metadata=final_site_metadata,
+        final_sample_metadata=final_sample_metadata,
+        missing_data_diagnostics=missing_data_diagnostics,
+        default_matrix_complete=(output_missing_cell_count == 0),
+    )
     return DatasetProcessingState(
         intensity_scale=intensity_scale_state,
         site_sequence_resolution=SiteSequenceResolutionState(
@@ -347,6 +359,7 @@ def build_dataset_processing_state(
                 else comparison_pairs
             ),
         ),
+        ruv_readiness=ruv_readiness,
     )
 
 
@@ -536,6 +549,148 @@ def _resolve_quantitative_meaning_state(
             QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE
         )
     return intensity_scale_state.with_quantitative_meaning(QuantitativeMeaning.UNKNOWN)
+
+
+def _resolve_ruv_readiness_state(
+    *,
+    plan: PreprocessingPlan,
+    final_phospho: pd.DataFrame | None,
+    final_site_metadata: pd.DataFrame | None,
+    final_sample_metadata: pd.DataFrame | None,
+    missing_data_diagnostics: Mapping[str, object] | None,
+    default_matrix_complete: bool,
+) -> RuvReadinessState:
+    enabled = bool(plan.ruv_readiness_enabled)
+    matrix_complete = _resolve_matrix_completeness(
+        final_phospho=final_phospho,
+        default_matrix_complete=default_matrix_complete,
+    )
+    control_feature_column = str(plan.ruv_readiness_control_feature_column).strip()
+    replicate_group_column = str(plan.ruv_readiness_replicate_group_column).strip()
+    batch_column = plan.ruv_readiness_batch_column
+
+    control_feature_count = _count_control_features(
+        site_metadata=final_site_metadata,
+        control_feature_column=control_feature_column,
+    )
+    replicate_group_count = _count_distinct_non_missing(
+        sample_metadata=final_sample_metadata,
+        column=replicate_group_column,
+    )
+    batch_count = (
+        None
+        if batch_column is None
+        else _count_distinct_non_missing(
+            sample_metadata=final_sample_metadata,
+            column=batch_column,
+        )
+    )
+
+    imputation_method_id = _resolve_optional_string_diagnostic(
+        missing_data_diagnostics,
+        key="imputation_method_id",
+        default=None,
+    )
+    missingness_mask_hash = _resolve_optional_string_diagnostic(
+        missing_data_diagnostics,
+        key="missingness_mask_hash",
+        default=None,
+    )
+    missingness_mask_preserved = missingness_mask_hash is not None
+    reasons: list[str] = []
+    if not enabled:
+        reasons.append("not configured")
+    else:
+        if not matrix_complete:
+            reasons.append("matrix contains missing values")
+        if missing_data_diagnostics is None:
+            reasons.append("missing-data diagnostics unavailable")
+        if missingness_mask_hash is None:
+            reasons.append("missingness_mask_hash unavailable")
+        if final_site_metadata is None:
+            reasons.append("site metadata unavailable")
+        else:
+            if control_feature_column not in final_site_metadata.columns:
+                reasons.append("control feature column missing")
+            if control_feature_count < 1:
+                reasons.append("no control features present")
+        if final_sample_metadata is None:
+            reasons.append("sample metadata unavailable")
+        else:
+            if replicate_group_column not in final_sample_metadata.columns:
+                reasons.append("replicate group column missing")
+            if replicate_group_count < 2:
+                reasons.append("insufficient replicate groups")
+            if batch_column is not None:
+                if batch_column not in final_sample_metadata.columns:
+                    reasons.append("batch column missing")
+                elif (batch_count or 0) < 1:
+                    reasons.append("no batch values present")
+
+    return RuvReadinessState(
+        enabled=enabled,
+        ready=enabled and len(reasons) == 0,
+        reasons=tuple(reasons),
+        control_feature_column=control_feature_column,
+        replicate_group_column=replicate_group_column,
+        batch_column=batch_column,
+        control_feature_count=control_feature_count,
+        replicate_group_count=replicate_group_count,
+        batch_count=batch_count,
+        requires_complete_matrix=True,
+        matrix_complete=matrix_complete,
+        imputation_method_id=imputation_method_id,
+        missingness_mask_preserved=missingness_mask_preserved,
+    )
+
+
+def _resolve_matrix_completeness(
+    *,
+    final_phospho: pd.DataFrame | None,
+    default_matrix_complete: bool,
+) -> bool:
+    if final_phospho is None:
+        return bool(default_matrix_complete)
+    return int(final_phospho.isna().to_numpy().sum()) == 0
+
+
+def _count_control_features(
+    *,
+    site_metadata: pd.DataFrame | None,
+    control_feature_column: str,
+) -> int:
+    if site_metadata is None or control_feature_column not in site_metadata.columns:
+        return 0
+    series = site_metadata.loc[:, control_feature_column]
+    return int(series.map(_is_truthy_control_feature).sum())
+
+
+def _is_truthy_control_feature(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return bool(value)
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        return normalized in {"1", "true", "t", "yes", "y"}
+    return False
+
+
+def _count_distinct_non_missing(
+    *,
+    sample_metadata: pd.DataFrame | None,
+    column: str,
+) -> int:
+    if sample_metadata is None or column not in sample_metadata.columns:
+        return 0
+    values = (
+        sample_metadata.loc[:, column]
+        .astype("string")
+        .str.strip()
+        .replace("", pd.NA)
+        .dropna()
+    )
+    return int(values.nunique())
 
 
 def _build_preprocessing_provenance_tables(

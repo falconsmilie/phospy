@@ -1243,6 +1243,45 @@ class ComparisonState:
 
 
 @dataclass(frozen=True, slots=True)
+class RuvReadinessState:
+    """RUV-compatible preprocessing readiness reporting state."""
+
+    enabled: bool
+    ready: bool
+    reasons: tuple[str, ...]
+    control_feature_column: str
+    replicate_group_column: str
+    batch_column: str | None
+    control_feature_count: int
+    replicate_group_count: int
+    batch_count: int | None
+    requires_complete_matrix: bool
+    matrix_complete: bool
+    imputation_method_id: str | None
+    missingness_mask_preserved: bool
+
+
+def default_ruv_readiness_state() -> RuvReadinessState:
+    """Return the default disabled readiness state."""
+
+    return RuvReadinessState(
+        enabled=False,
+        ready=False,
+        reasons=("not configured",),
+        control_feature_column="is_control_feature",
+        replicate_group_column="replicate_group",
+        batch_column="batch",
+        control_feature_count=0,
+        replicate_group_count=0,
+        batch_count=0,
+        requires_complete_matrix=True,
+        matrix_complete=False,
+        imputation_method_id=None,
+        missingness_mask_preserved=False,
+    )
+
+
+@dataclass(frozen=True, slots=True)
 class DatasetProcessingState:
     """Compact summary of preprocessing state at the analysis-ready boundary."""
 
@@ -1253,6 +1292,9 @@ class DatasetProcessingState:
     total_protein_correction: TotalProteinCorrectionState
     site_matrix: SiteMatrixState
     comparisons: ComparisonState
+    ruv_readiness: RuvReadinessState = field(
+        default_factory=default_ruv_readiness_state
+    )
 
 
 def _require_mapping(value: object, *, field_name: str) -> Mapping[str, object]:

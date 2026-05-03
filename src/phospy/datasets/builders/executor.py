@@ -134,6 +134,9 @@ class DatasetBuildExecutor:
             plan=request.preprocessing_plan,
             intensity_scale_state=resolved.intensity_scale_state,
             preprocessing_trace=preprocessed.preprocessing_trace,
+            final_phospho=resolved.phospho,
+            final_site_metadata=preprocessed.site_metadata,
+            final_sample_metadata=preprocessed.sample_metadata,
         )
         intensity_scale_state = processing_state.intensity_scale
         quantitative_meaning = intensity_scale_state.quantity
@@ -401,6 +404,14 @@ def _preprocessing_plan_to_payload(plan: PreprocessingPlan) -> dict[str, object]
         "comparison_pairs": (
             None if plan.comparison_pairs is None else list(plan.comparison_pairs)
         ),
+        "ruv_readiness_enabled": bool(plan.ruv_readiness_enabled),
+        "ruv_readiness_control_feature_column": (
+            plan.ruv_readiness_control_feature_column
+        ),
+        "ruv_readiness_replicate_group_column": (
+            plan.ruv_readiness_replicate_group_column
+        ),
+        "ruv_readiness_batch_column": plan.ruv_readiness_batch_column,
         "stage_order": list(plan.stage_order),
     }
     return payload

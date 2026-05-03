@@ -8,6 +8,7 @@ from phospy.datasets.processing_state import (
     MissingDataDiagnostics,
     MissingDataState,
     NormalisationState,
+    RuvReadinessState,
     SiteMatrixState,
     SiteSequenceResolutionState,
     TotalProteinCorrectionDiagnostics,
@@ -46,6 +47,7 @@ def _processing_state_with_diagnostics(
     *,
     quantitative_meaning: str = "phospho_total_log_ratio",
     missing_data_diagnostics=None,
+    ruv_readiness: RuvReadinessState | None = None,
 ):
     return DatasetProcessingState(
         intensity_scale=_intensity_scale_state(quantity=quantitative_meaning),
@@ -87,6 +89,25 @@ def _processing_state_with_diagnostics(
             policy="none",
             sample_group_column="comparison_group",
             pairs=None,
+        ),
+        ruv_readiness=(
+            RuvReadinessState(
+                enabled=False,
+                ready=False,
+                reasons=("not configured",),
+                control_feature_column="is_control_feature",
+                replicate_group_column="replicate_group",
+                batch_column="batch",
+                control_feature_count=0,
+                replicate_group_count=0,
+                batch_count=0,
+                requires_complete_matrix=True,
+                matrix_complete=True,
+                imputation_method_id=None,
+                missingness_mask_preserved=False,
+            )
+            if ruv_readiness is None
+            else ruv_readiness
         ),
     )
 
@@ -491,3 +512,59 @@ def test_processing_state_payload_without_missing_data_diagnostics_deserializes(
     restored = processing_state_from_payload(payload)
 
     assert restored.missing_data.diagnostics is None
+
+
+def test_processing_state_payload_round_trip_preserves_ruv_readiness() -> None:
+    state = _processing_state_with_diagnostics(
+        {
+            "diagnostics_schema_version": 1,
+            "policy": "subtract_log_total",
+            "requested_policy": "subtract_log_total",
+            "resolved_policy": "subtract_log_total",
+            "quantitative_meaning": "phospho_total_log_ratio",
+        },
+        ruv_readiness=RuvReadinessState(
+            enabled=True,
+            ready=True,
+            reasons=(),
+            control_feature_column="is_control_feature",
+            replicate_group_column="replicate_group",
+            batch_column="batch",
+            control_feature_count=3,
+            replicate_group_count=2,
+            batch_count=2,
+            requires_complete_matrix=True,
+            matrix_complete=True,
+            imputation_method_id="row_median",
+            missingness_mask_preserved=True,
+        ),
+    )
+
+    payload = processing_state_to_payload(state)
+    restored = processing_state_from_payload(payload)
+
+    assert restored.ruv_readiness.enabled is True
+    assert restored.ruv_readiness.ready is True
+    assert restored.ruv_readiness.reasons == ()
+    assert restored.ruv_readiness.imputation_method_id == "row_median"
+    assert restored.ruv_readiness.missingness_mask_preserved is True
+
+
+def test_processing_state_payload_without_ruv_readiness_uses_backward_compatible_default() -> (
+    None
+):
+    payload = _processing_payload_with_diagnostics(
+        {
+            "diagnostics_schema_version": 1,
+            "policy": "subtract_log_total",
+            "requested_policy": "subtract_log_total",
+            "resolved_policy": "subtract_log_total",
+            "quantitative_meaning": "phospho_total_log_ratio",
+        }
+    )
+
+    restored = processing_state_from_payload(payload)
+
+    assert restored.ruv_readiness.enabled is False
+    assert restored.ruv_readiness.ready is False
+    assert "not configured" in set(restored.ruv_readiness.reasons)

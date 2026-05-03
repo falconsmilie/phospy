@@ -37,7 +37,7 @@ from phospy.datasets.preprocessing.report_schema import (
     dataframe_from_row_count_rows,
     reorder_columns,
 )
-from phospy.datasets.processing_state import DatasetProcessingState
+from phospy.datasets.processing_state import DatasetProcessingState, RuvReadinessState
 from phospy.errors.validation import DatasetValidationError
 from phospy.provenance.models import RunProvenance
 from phospy.references.models import Organism
@@ -588,6 +588,19 @@ class AnalysisReadyPhosphoDataset:
         if not isinstance(self.processing_state, DatasetProcessingState):
             raise DatasetValidationError(
                 "dataset.processing_state must be a DatasetProcessingState instance"
+            )
+        if not isinstance(self.processing_state.ruv_readiness, RuvReadinessState):
+            raise DatasetValidationError(
+                "dataset.processing_state.ruv_readiness must be a "
+                "RuvReadinessState instance"
+            )
+        if (
+            not self.processing_state.ruv_readiness.enabled
+            and self.processing_state.ruv_readiness.ready
+        ):
+            raise DatasetValidationError(
+                "dataset.processing_state.ruv_readiness.ready must be False when "
+                "ruv_readiness.enabled is False"
             )
         if self.processing_state.intensity_scale != validated_intensity_scale_state:
             raise DatasetValidationError(

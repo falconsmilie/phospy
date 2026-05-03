@@ -21,6 +21,7 @@ from phospy.api.configs.preprocessing import (
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
     DatasetNormalisationConfig,
+    DatasetRuvReadinessConfig,
     DatasetSiteMatrixConfig,
     DatasetSiteSequenceResolutionConfig,
     DatasetTotalProteinCorrectionConfig,
@@ -43,6 +44,8 @@ class DatasetPreprocessingConfig:
     - `site_sequence_resolution`: optional local FASTA-backed site-sequence
       resolution policy.
     - `comparisons`: comparison-building policy.
+    - `ruv_readiness`: readiness reporting contract for future RUV-compatible
+      preprocessing (report-only; no correction).
     """
 
     intensity_transform: DatasetIntensityTransformConfig = field(
@@ -65,6 +68,9 @@ class DatasetPreprocessingConfig:
     )
     comparisons: DatasetComparisonBuildingConfig = field(
         default_factory=DatasetComparisonBuildingConfig
+    )
+    ruv_readiness: DatasetRuvReadinessConfig = field(
+        default_factory=DatasetRuvReadinessConfig
     )
 
     def __post_init__(self) -> None:
@@ -107,6 +113,11 @@ class DatasetPreprocessingConfig:
             raise PhosPyInputError(
                 "dataset build request preprocessing_config.comparisons must be a "
                 "DatasetComparisonBuildingConfig"
+            )
+        if not isinstance(self.ruv_readiness, DatasetRuvReadinessConfig):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.ruv_readiness must be a "
+                "DatasetRuvReadinessConfig"
             )
 
     @classmethod

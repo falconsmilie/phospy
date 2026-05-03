@@ -147,6 +147,10 @@ class PreprocessingPlan:
         DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN
     )
     comparison_pairs: tuple[DatasetComparisonPair, ...] | None = None
+    ruv_readiness_enabled: bool = False
+    ruv_readiness_control_feature_column: str = "is_control_feature"
+    ruv_readiness_replicate_group_column: str = "replicate_group"
+    ruv_readiness_batch_column: str | None = "batch"
     stage_order: tuple[str, ...] = DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT
 
     @classmethod
@@ -242,6 +246,14 @@ class PreprocessingPlan:
                 if config.comparisons.pairs is None
                 else tuple(config.comparisons.pairs)
             ),
+            ruv_readiness_enabled=bool(config.ruv_readiness.enabled),
+            ruv_readiness_control_feature_column=(
+                config.ruv_readiness.control_feature_column
+            ),
+            ruv_readiness_replicate_group_column=(
+                config.ruv_readiness.replicate_group_column
+            ),
+            ruv_readiness_batch_column=config.ruv_readiness.batch_column,
             stage_order=tuple(stage_order),
         )
 
