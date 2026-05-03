@@ -70,6 +70,10 @@ _STAGE_LABEL_TO_PARAMETERS: dict[str, tuple[str, ...]] = {
     DATASET_PREPROCESSING_STAGE_MISSING_DATA: (
         "missing_data_policy",
         "missing_data_min_observed_values",
+        "missing_data_q",
+        "missing_data_width",
+        "missing_data_seed",
+        "missing_data_max_missing_fraction_per_row",
     ),
     DATASET_PREPROCESSING_STAGE_SITE_MATRIX: (
         "site_matrix_policy",

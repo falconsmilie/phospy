@@ -39,6 +39,9 @@ approximation behavior, and failure modes), see `docs/performance.md`.
 - When `missing_data.policy="impute_row_median"`, row-median imputation is deterministic.
 - Row-median imputation is not left-censored imputation.
 - Row-median-imputed values are explicit replacements and are not evidence that the original values were observed.
+- `missing_data.policy="impute_minprob"` is explicit opt-in left-censored random imputation.
+- `impute_minprob` requires `intensity_transform.policy="log2"` and runs after the log2 stage.
+- `impute_minprob` is deterministic for fixed seed and records per-column distribution parameters and dropped-row diagnostics.
 - Output `comparisons` (when produced) must also be numeric and missing-value-free.
 
 ### Transformation and Normalisation Policy

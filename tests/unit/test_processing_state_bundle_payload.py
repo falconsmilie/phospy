@@ -441,6 +441,14 @@ def test_processing_state_payload_round_trip_preserves_missing_data_diagnostics(
         "missingness_mask_hash": "abc123",
         "left_censored_assumption": False,
         "rows_not_imputable": [],
+        "per_column_distribution_parameters": {
+            "sample_1": {
+                "observed_count": 2,
+                "missing_count": 1,
+                "q": 0.01,
+            }
+        },
+        "dropped_rows_above_max_missing_fraction": ["row_c"],
     }
     state = _processing_state_with_diagnostics(
         {

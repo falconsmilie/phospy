@@ -364,6 +364,12 @@ def _preprocessing_plan_to_payload(plan: PreprocessingPlan) -> dict[str, object]
         "normalisation_policy": plan.normalisation_policy,
         "missing_data_policy": plan.missing_data_policy,
         "missing_data_min_observed_values": plan.missing_data_min_observed_values,
+        "missing_data_q": plan.missing_data_q,
+        "missing_data_width": plan.missing_data_width,
+        "missing_data_seed": plan.missing_data_seed,
+        "missing_data_max_missing_fraction_per_row": (
+            plan.missing_data_max_missing_fraction_per_row
+        ),
         "site_sequence_resolution_enabled": plan.site_sequence_resolution_enabled,
         "site_sequence_resolution_fasta_path": (
             plan.site_sequence_resolution_fasta_path

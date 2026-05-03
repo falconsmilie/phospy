@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+import numpy as np
 import pandas as pd
 
 from phospy.api.configs import (
     DATASET_MISSING_DATA_POLICY_FORBID,
+    DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB,
     DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
 )
 from phospy.datasets.preprocessing.models import (
@@ -66,6 +68,8 @@ class MissingDataStage:
                 missingness_mask_hash=missingness_mask_hash,
                 left_censored_assumption=None,
                 rows_not_imputable=(),
+                per_column_distribution_parameters=None,
+                dropped_rows_above_max_missing_fraction=(),
             )
             return PreprocessingStageResult(
                 state=state,
@@ -77,6 +81,17 @@ class MissingDataStage:
                     "notes": "stage executed",
                     "diagnostics": diagnostics,
                 },
+            )
+
+        if state.plan.missing_data_policy == DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB:
+            return _run_minprob_missing_data_stage(
+                state=state,
+                input_missing_cell_count=input_missing_cell_count,
+                input_affected_row_ids=input_affected_row_ids,
+                input_affected_column_ids=input_affected_column_ids,
+                affected_row_count=affected_row_count,
+                affected_column_count=affected_column_count,
+                missingness_mask_hash=missingness_mask_hash,
             )
 
         if (
@@ -214,6 +229,8 @@ class MissingDataStage:
             missingness_mask_hash=missingness_mask_hash,
             left_censored_assumption=False,
             rows_not_imputable=rows_not_imputable,
+            per_column_distribution_parameters=None,
+            dropped_rows_above_max_missing_fraction=(),
         )
         return PreprocessingStageResult(
             state=replace(
@@ -231,6 +248,273 @@ class MissingDataStage:
                 "diagnostics": diagnostics,
             },
         )
+
+
+def _run_minprob_missing_data_stage(
+    *,
+    state: PreprocessingState,
+    input_missing_cell_count: int,
+    input_affected_row_ids: tuple[str, ...],
+    input_affected_column_ids: tuple[str, ...],
+    affected_row_count: int,
+    affected_column_count: int,
+    missingness_mask_hash: str,
+) -> PreprocessingStageResult:
+    if state.plan.intensity_transform_policy != "log2":
+        raise PhosPyInputError(
+            "dataset build request preprocessing_config.missing_data.policy="
+            "'impute_minprob' requires log2-scale values. Configure "
+            "preprocessing_config.intensity_transform.policy='log2'."
+        )
+
+    q = state.plan.missing_data_q
+    width = state.plan.missing_data_width
+    seed = state.plan.missing_data_seed
+    max_missing_fraction_per_row = state.plan.missing_data_max_missing_fraction_per_row
+    if (
+        q is None
+        or width is None
+        or seed is None
+        or max_missing_fraction_per_row is None
+    ):
+        raise PhosPyInputError(
+            "dataset build request preprocessing_config.missing_data.policy="
+            "'impute_minprob' requires q, width, seed, and "
+            "max_missing_fraction_per_row"
+        )
+    q_value = float(q)
+    width_value = float(width)
+    seed_value = int(seed)
+    max_missing_fraction_value = float(max_missing_fraction_per_row)
+
+    missing_fraction = state.phospho.isna().mean(axis=1)
+    retained_mask = missing_fraction <= max_missing_fraction_value
+    dropped_missing_fraction = missing_fraction.loc[~retained_mask]
+    filtered_phospho = state.phospho.loc[retained_mask].copy(deep=True)
+    filtered_site_metadata = state.site_metadata.loc[filtered_phospho.index]
+
+    eps = float(np.finfo(float).eps)
+    per_column_distribution_parameters: dict[str, dict[str, JsonValue]] = {}
+    for column_index, column_name in enumerate(filtered_phospho.columns):
+        column_label = str(column_name)
+        column = filtered_phospho.loc[:, column_name]
+        missing_mask = column.isna().to_numpy(dtype=bool, copy=False)
+        missing_count = int(missing_mask.sum())
+        observed_values = column.dropna().to_numpy(dtype=float, copy=False)
+        observed_count = int(observed_values.size)
+        if observed_count == 0 and missing_count > 0:
+            raise PhosPyInputError(
+                "dataset preprocessing stage 'missing_data' cannot apply "
+                "missing_data.policy='impute_minprob' because column "
+                f"{column_label!r} has no observed values after row filtering; "
+                "adjust missing_data.max_missing_fraction_per_row or input data."
+            )
+
+        quantile_value = (
+            float(np.quantile(observed_values, q_value)) if observed_count > 0 else 0.0
+        )
+        if observed_count > 1:
+            observed_sd = float(np.std(observed_values, ddof=1))
+        elif observed_count == 1:
+            observed_sd = 0.0
+        else:
+            observed_sd = 0.0
+        if not np.isfinite(observed_sd) or observed_sd <= 0.0:
+            observed_sd = (
+                float(np.std(observed_values, ddof=0)) if observed_count > 0 else 0.0
+            )
+        if not np.isfinite(observed_sd) or observed_sd <= 0.0:
+            observed_sd = eps
+
+        imputation_sd = max(observed_sd * width_value, eps)
+        imputation_mean = float(quantile_value - (1.8 * imputation_sd))
+        lower_tail = observed_values[observed_values <= quantile_value]
+        lower_tail_mean = (
+            float(np.mean(lower_tail))
+            if int(lower_tail.size) > 0
+            else float(quantile_value)
+        )
+
+        per_column_distribution_parameters[column_label] = {
+            "observed_count": int(observed_count),
+            "missing_count": int(missing_count),
+            "q": float(q_value),
+            "width": float(width_value),
+            "lower_q_quantile": float(quantile_value),
+            "lower_tail_mean": float(lower_tail_mean),
+            "observed_sd": float(observed_sd),
+            "imputation_mean": float(imputation_mean),
+            "imputation_sd": float(imputation_sd),
+        }
+
+        if missing_count == 0:
+            continue
+        column_rng = np.random.default_rng(seed_value + column_index)
+        draws = column_rng.normal(
+            loc=imputation_mean,
+            scale=imputation_sd,
+            size=missing_count,
+        )
+        missing_index = filtered_phospho.index[missing_mask]
+        filtered_phospho.loc[missing_index, column_name] = draws
+
+    if filtered_phospho.empty:
+        imputed_mask = filtered_phospho.isna() & filtered_phospho.notna()
+    else:
+        imputed_mask = (
+            state.phospho.loc[retained_mask].isna() & filtered_phospho.notna()
+        )
+    imputed_cell_count = int(imputed_mask.to_numpy().sum())
+    imputed_row_ids = (
+        tuple(
+            str(row_id)
+            for row_id in filtered_phospho.index[
+                imputed_mask.any(axis=1).to_numpy(dtype=bool, copy=False)
+            ].tolist()
+        )
+        if not filtered_phospho.empty
+        else ()
+    )
+    imputed_column_ids = (
+        tuple(
+            str(column_name)
+            for column_name in filtered_phospho.columns[
+                imputed_mask.any(axis=0).to_numpy(dtype=bool, copy=False)
+            ].tolist()
+        )
+        if not filtered_phospho.empty
+        else ()
+    )
+    rows_not_imputable = (
+        tuple(
+            str(row_id)
+            for row_id in filtered_phospho.index[
+                filtered_phospho.isna().any(axis=1).to_numpy(dtype=bool, copy=False)
+            ].tolist()
+        )
+        if not filtered_phospho.empty
+        else ()
+    )
+    dropped_row_ids = tuple(
+        str(row_id) for row_id in dropped_missing_fraction.index.tolist()
+    )
+    output_missing_cell_count = int(filtered_phospho.isna().to_numpy().sum())
+    row_audit_records: list[PreprocessingRowAuditRow] = []
+    row_audit_snapshot_base = _build_minprob_row_audit_snapshot_base(
+        input_missing_cell_count=input_missing_cell_count,
+        output_missing_cell_count=output_missing_cell_count,
+        imputed_cell_count=imputed_cell_count,
+        affected_row_count=affected_row_count,
+        affected_column_count=affected_column_count,
+        missingness_mask_hash=missingness_mask_hash,
+        stage_order=state.plan.stage_order,
+        q=q_value,
+        width=width_value,
+        seed=seed_value,
+        max_missing_fraction_per_row=max_missing_fraction_value,
+    )
+    for row_id, missing_fraction_value in dropped_missing_fraction.items():
+        source_row_id = str(row_id)
+        row_audit_records.append(
+            PreprocessingRowAuditRow(
+                stage=DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+                action="dropped",
+                reason=(
+                    "dropped because missing fraction exceeds "
+                    "missing_data.max_missing_fraction_per_row"
+                ),
+                source_row_id=source_row_id,
+                site_id=source_row_id,
+                retained=False,
+                retained_row_id=pd.NA,
+                source_rows=(source_row_id,),
+                retained_row=pd.NA,
+                parameter_snapshot={
+                    **row_audit_snapshot_base,
+                    "row_missing_fraction": float(missing_fraction_value),
+                },
+            )
+        )
+
+    if not filtered_phospho.empty:
+        for row_id in filtered_phospho.index[
+            imputed_mask.any(axis=1).to_numpy(dtype=bool, copy=False)
+        ]:
+            source_row_id = str(row_id)
+            row_imputed_mask = imputed_mask.loc[row_id]
+            imputed_columns = tuple(
+                str(column_name)
+                for column_name in filtered_phospho.columns[row_imputed_mask].tolist()
+            )
+            row_column_distributions = {
+                column_name: per_column_distribution_parameters[column_name]
+                for column_name in imputed_columns
+                if column_name in per_column_distribution_parameters
+            }
+            row_audit_records.append(
+                PreprocessingRowAuditRow(
+                    stage=DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+                    action="imputed",
+                    reason="missing values imputed with minprob",
+                    source_row_id=source_row_id,
+                    site_id=source_row_id,
+                    retained=True,
+                    retained_row_id=source_row_id,
+                    source_rows=(source_row_id,),
+                    retained_row=source_row_id,
+                    parameter_snapshot={
+                        **row_audit_snapshot_base,
+                        "imputed_columns": imputed_columns,
+                        "imputed_cell_count": int(row_imputed_mask.sum()),
+                        "column_distribution_parameters": row_column_distributions,
+                    },
+                )
+            )
+
+    next_state = append_row_audit_records(state, row_audit_records)
+    diagnostics = _build_missing_data_diagnostics(
+        missing_data_policy=state.plan.missing_data_policy,
+        imputation_method_id="minprob",
+        imputation_method_family="left_censored_random",
+        input_missing_cell_count=input_missing_cell_count,
+        output_missing_cell_count=output_missing_cell_count,
+        imputed_cell_count=imputed_cell_count,
+        affected_row_ids=input_affected_row_ids,
+        affected_column_ids=input_affected_column_ids,
+        imputed_row_ids=imputed_row_ids,
+        imputed_column_ids=imputed_column_ids,
+        dropped_row_ids=dropped_row_ids,
+        random_seed=seed_value,
+        method_parameters={
+            "q": float(q_value),
+            "width": float(width_value),
+            "seed": int(seed_value),
+            "max_missing_fraction_per_row": float(max_missing_fraction_value),
+        },
+        matrix_scale_requirement="log2",
+        stage_order=state.plan.stage_order,
+        missingness_mask_hash=missingness_mask_hash,
+        left_censored_assumption=True,
+        rows_not_imputable=rows_not_imputable,
+        per_column_distribution_parameters=per_column_distribution_parameters,
+        dropped_rows_above_max_missing_fraction=dropped_row_ids,
+    )
+    return PreprocessingStageResult(
+        state=replace(
+            next_state,
+            phospho=filtered_phospho,
+            site_metadata=filtered_site_metadata,
+        ),
+        report_rows=report_rows_from_row_audit_rows(row_audit_records),
+        diagnostics={
+            "dropped_row_ids": dropped_row_ids,
+            "dropped_row_count": int(len(dropped_row_ids)),
+            "imputed_cell_count": imputed_cell_count,
+            "imputed_row_ids": imputed_row_ids,
+            "notes": "stage executed",
+            "diagnostics": diagnostics,
+        },
+    )
 
 
 def _fail_if_forbid_policy_has_missing_values(phospho: pd.DataFrame) -> None:
@@ -297,8 +581,10 @@ def _build_missing_data_diagnostics(
     missingness_mask_hash: str,
     left_censored_assumption: bool | None,
     rows_not_imputable: tuple[str, ...],
+    per_column_distribution_parameters: dict[str, dict[str, JsonValue]] | None,
+    dropped_rows_above_max_missing_fraction: tuple[str, ...],
 ) -> dict[str, JsonValue]:
-    return {
+    diagnostics: dict[str, JsonValue] = {
         "diagnostics_schema_version": MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
         "missing_data_policy": missing_data_policy,
         "imputation_method_id": imputation_method_id,
@@ -320,7 +606,19 @@ def _build_missing_data_diagnostics(
         "missingness_mask_hash": missingness_mask_hash,
         "left_censored_assumption": left_censored_assumption,
         "rows_not_imputable": list(rows_not_imputable),
+        "dropped_rows_above_max_missing_fraction": list(
+            dropped_rows_above_max_missing_fraction
+        ),
     }
+    if per_column_distribution_parameters is not None:
+        per_column_distribution_payload: dict[str, JsonValue] = {
+            str(column_name): dict(parameters)
+            for column_name, parameters in per_column_distribution_parameters.items()
+        }
+        diagnostics["per_column_distribution_parameters"] = (
+            per_column_distribution_payload
+        )
+    return diagnostics
 
 
 def _build_row_audit_snapshot_base(
@@ -345,6 +643,36 @@ def _build_row_audit_snapshot_base(
         "affected_column_count": int(affected_column_count),
         "missingness_mask_hash": str(missingness_mask_hash),
         "stage_order": [str(stage) for stage in stage_order],
+    }
+
+
+def _build_minprob_row_audit_snapshot_base(
+    *,
+    input_missing_cell_count: int,
+    output_missing_cell_count: int,
+    imputed_cell_count: int,
+    affected_row_count: int,
+    affected_column_count: int,
+    missingness_mask_hash: str,
+    stage_order: tuple[str, ...],
+    q: float,
+    width: float,
+    seed: int,
+    max_missing_fraction_per_row: float,
+) -> dict[str, JsonValue]:
+    return {
+        "missing_data_policy": DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB,
+        "input_missing_cell_count": int(input_missing_cell_count),
+        "output_missing_cell_count": int(output_missing_cell_count),
+        "imputed_cell_count": int(imputed_cell_count),
+        "affected_row_count": int(affected_row_count),
+        "affected_column_count": int(affected_column_count),
+        "missingness_mask_hash": str(missingness_mask_hash),
+        "stage_order": [str(stage) for stage in stage_order],
+        "q": float(q),
+        "width": float(width),
+        "seed": int(seed),
+        "max_missing_fraction_per_row": float(max_missing_fraction_per_row),
     }
 
 

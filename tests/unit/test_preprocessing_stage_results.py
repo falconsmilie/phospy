@@ -655,6 +655,174 @@ def test_missing_data_stage_row_median_values_remain_unchanged() -> None:
     assert diagnostics["dropped_row_ids"] == ["row_drop"]
 
 
+def test_missing_data_stage_minprob_emits_distribution_diagnostics_and_drops_rows() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [10.0, float("nan"), float("nan"), 4.0],
+            "sample_b": [9.0, 8.0, float("nan"), 6.0],
+            "sample_c": [11.0, 7.0, 5.0, float("nan")],
+        },
+        index=pd.Index(["row_keep", "row_impute_a", "row_drop", "row_impute_c"]),
+    )
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14", "AKT1", "GSK3B", "PRKACA"],
+                "site": ["Y182", "T308", "S9", "S339"],
+                "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+            },
+            index=phospho.index.copy(),
+        ),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan(
+            intensity_transform_policy="log2",
+            missing_data_policy="impute_minprob",
+            missing_data_q=0.01,
+            missing_data_width=0.3,
+            missing_data_seed=12345,
+            missing_data_max_missing_fraction_per_row=0.5,
+            stage_order=("intensity_transform", "missing_data"),
+        ),
+    )
+
+    result = MissingDataStage().run(state)
+    diagnostics = result.diagnostics["diagnostics"]
+
+    assert result.state.phospho.isna().to_numpy().sum() == 0
+    assert result.state.phospho.index.tolist() == [
+        "row_keep",
+        "row_impute_a",
+        "row_impute_c",
+    ]
+    assert diagnostics["imputation_method_id"] == "minprob"
+    assert diagnostics["imputation_method_family"] == "left_censored_random"
+    assert diagnostics["left_censored_assumption"] is True
+    assert diagnostics["matrix_scale_requirement"] == "log2"
+    assert diagnostics["random_seed"] == 12345
+    assert diagnostics["dropped_row_ids"] == ["row_drop"]
+    assert diagnostics["dropped_rows_above_max_missing_fraction"] == ["row_drop"]
+    assert diagnostics["output_missing_cell_count"] == 0
+    assert (
+        diagnostics["per_column_distribution_parameters"]["sample_a"]["observed_count"]
+        == 2
+    )
+    assert (
+        diagnostics["per_column_distribution_parameters"]["sample_a"]["missing_count"]
+        == 1
+    )
+
+
+def test_missing_data_stage_minprob_is_deterministic_for_same_seed() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [10.0, float("nan"), float("nan"), 4.0],
+            "sample_b": [9.0, 8.0, float("nan"), 6.0],
+            "sample_c": [11.0, 7.0, 5.0, float("nan")],
+        },
+        index=pd.Index(["row_keep", "row_impute_a", "row_drop", "row_impute_c"]),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1", "GSK3B", "PRKACA"],
+            "site": ["Y182", "T308", "S9", "S339"],
+            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+        },
+        index=phospho.index.copy(),
+    )
+    plan = PreprocessingPlan(
+        intensity_transform_policy="log2",
+        missing_data_policy="impute_minprob",
+        missing_data_q=0.01,
+        missing_data_width=0.3,
+        missing_data_seed=12345,
+        missing_data_max_missing_fraction_per_row=0.5,
+        stage_order=("intensity_transform", "missing_data"),
+    )
+
+    first = MissingDataStage().run(
+        PreprocessingState(
+            phospho=phospho.copy(deep=True),
+            site_metadata=site_metadata.copy(deep=True),
+            sample_metadata=None,
+            total=None,
+            plan=plan,
+        )
+    )
+    second = MissingDataStage().run(
+        PreprocessingState(
+            phospho=phospho.copy(deep=True),
+            site_metadata=site_metadata.copy(deep=True),
+            sample_metadata=None,
+            total=None,
+            plan=plan,
+        )
+    )
+
+    pd.testing.assert_frame_equal(first.state.phospho, second.state.phospho)
+
+
+def test_missing_data_stage_minprob_changes_with_seed() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [10.0, float("nan"), float("nan"), 4.0],
+            "sample_b": [9.0, 8.0, float("nan"), 6.0],
+            "sample_c": [11.0, 7.0, 5.0, float("nan")],
+        },
+        index=pd.Index(["row_keep", "row_impute_a", "row_drop", "row_impute_c"]),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1", "GSK3B", "PRKACA"],
+            "site": ["Y182", "T308", "S9", "S339"],
+            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    first = MissingDataStage().run(
+        PreprocessingState(
+            phospho=phospho.copy(deep=True),
+            site_metadata=site_metadata.copy(deep=True),
+            sample_metadata=None,
+            total=None,
+            plan=PreprocessingPlan(
+                intensity_transform_policy="log2",
+                missing_data_policy="impute_minprob",
+                missing_data_q=0.01,
+                missing_data_width=0.3,
+                missing_data_seed=1,
+                missing_data_max_missing_fraction_per_row=0.5,
+                stage_order=("intensity_transform", "missing_data"),
+            ),
+        )
+    )
+    second = MissingDataStage().run(
+        PreprocessingState(
+            phospho=phospho.copy(deep=True),
+            site_metadata=site_metadata.copy(deep=True),
+            sample_metadata=None,
+            total=None,
+            plan=PreprocessingPlan(
+                intensity_transform_policy="log2",
+                missing_data_policy="impute_minprob",
+                missing_data_q=0.01,
+                missing_data_width=0.3,
+                missing_data_seed=2,
+                missing_data_max_missing_fraction_per_row=0.5,
+                stage_order=("intensity_transform", "missing_data"),
+            ),
+        )
+    )
+
+    assert float(first.state.phospho.loc["row_impute_a", "sample_a"]) != pytest.approx(
+        float(second.state.phospho.loc["row_impute_a", "sample_a"])
+    )
+
+
 def test_processing_state_missing_data_imputed_flag_requires_provenance() -> None:
     state = build_dataset_processing_state(
         plan=PreprocessingPlan(

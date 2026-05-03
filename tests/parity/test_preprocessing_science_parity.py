@@ -153,6 +153,83 @@ def test_row_median_missing_data_policy_is_deterministic_and_provenance_backed(
     )
 
 
+def test_minprob_missing_data_policy_is_deterministic_and_seeded(
+    request: pytest.FixtureRequest,
+) -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [10.0, float("nan"), float("nan"), 4.0],
+            "sample_b": [9.0, 8.0, float("nan"), 6.0],
+            "sample_c": [11.0, 7.0, 5.0, float("nan")],
+        },
+        index=pd.Index(["row_keep", "row_impute_a", "row_drop", "row_impute_c"]),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1", "GSK3B", "PRKACA"],
+            "site": ["Y182", "T308", "S9", "S339"],
+            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+        },
+        index=phospho.index.copy(),
+    )
+    config = DatasetPreprocessingConfig(
+        intensity_transform=DatasetIntensityTransformConfig(
+            policy="log2", pseudocount=1.0
+        ),
+        missing_data=DatasetMissingDataConfig(
+            policy="impute_minprob",
+            q=0.01,
+            width=0.3,
+            seed=12345,
+            max_missing_fraction_per_row=0.5,
+        ),
+    )
+    plan = PreprocessingPlan.from_config(config)
+
+    first = DatasetPreprocessor().run(
+        phospho=phospho.copy(deep=True),
+        site_metadata=site_metadata.copy(deep=True),
+        sample_metadata=None,
+        total=None,
+        plan=plan,
+    )
+    second = DatasetPreprocessor().run(
+        phospho=phospho.copy(deep=True),
+        site_metadata=site_metadata.copy(deep=True),
+        sample_metadata=None,
+        total=None,
+        plan=plan,
+    )
+
+    pdt.assert_frame_equal(first.phospho, second.phospho)
+    assert first.phospho.isna().to_numpy().sum() == 0
+    assert first.phospho.index.tolist() == ["row_keep", "row_impute_a", "row_impute_c"]
+
+    missing_stage = next(
+        stage for stage in first.preprocessing_trace if stage.stage == "missing_data"
+    )
+    diagnostics = dict(missing_stage.diagnostics)
+    assert diagnostics["imputation_method_id"] == "minprob"
+    assert diagnostics["left_censored_assumption"] is True
+    assert diagnostics["random_seed"] == 12345
+    assert diagnostics["dropped_rows_above_max_missing_fraction"] == ["row_drop"]
+    assert "sample_a" in diagnostics["per_column_distribution_parameters"]
+
+    record_parity_metrics(
+        request.config,
+        family="preprocessing_science",
+        metrics=[
+            ("minprob output shape", format_shape(*first.phospho.shape)),
+            ("minprob imputed cells", int(diagnostics["imputed_cell_count"])),
+            ("minprob dropped rows", len(diagnostics["dropped_row_ids"])),
+        ],
+        notes=(
+            "policy lane: missing_data.policy=impute_minprob with log2 transform",
+            "deterministic lane: fixed-seed repeated run outputs match exactly",
+        ),
+    )
+
+
 def test_subtract_log_total_total_protein_correction_matches_rewrite_reference_fixture(
     request: pytest.FixtureRequest,
 ) -> None:

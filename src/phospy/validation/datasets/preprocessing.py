@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from phospy.api.configs import (
     DATASET_INTENSITY_TRANSFORM_POLICY_LOG2,
+    DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL,
     DatasetComparisonBuildingConfig,
@@ -34,6 +35,7 @@ class DatasetPreprocessingConfigValidator:
         self._validate_site_matrix(config.site_matrix)
         self._validate_comparisons(config.comparisons)
         self._validate_total_protein_correction_scale_contract(config)
+        self._validate_minprob_scale_contract(config)
         return config
 
     def _validate_intensity_transform(
@@ -102,4 +104,19 @@ class DatasetPreprocessingConfigValidator:
                 "requires log2-scale phospho and total values. Configure "
                 "preprocessing_config.intensity_transform.policy='log2', or disable "
                 "total-protein correction."
+            )
+
+    def _validate_minprob_scale_contract(
+        self,
+        config: DatasetPreprocessingConfig,
+    ) -> None:
+        if config.missing_data.policy != DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB:
+            return
+        if config.intensity_transform.policy != DATASET_INTENSITY_TRANSFORM_POLICY_LOG2:
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.missing_data.policy="
+                "'impute_minprob' requires "
+                "preprocessing_config.intensity_transform.policy='log2'. "
+                "Set intensity_transform.policy='log2' or choose a different "
+                "missing_data policy."
             )

@@ -37,6 +37,8 @@ _V1_KNOWN_MISSING_DATA_DIAGNOSTICS_FIELDS = frozenset(
         "missingness_mask_hash",
         "left_censored_assumption",
         "rows_not_imputable",
+        "per_column_distribution_parameters",
+        "dropped_rows_above_max_missing_fraction",
     )
 )
 _V1_KNOWN_DIAGNOSTICS_FIELDS = frozenset(
@@ -148,6 +150,8 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
     random_seed: int | None = None
     matrix_scale_requirement: str | None = None
     left_censored_assumption: bool | None = None
+    per_column_distribution_parameters: dict[str, JsonValue] | None = None
+    dropped_rows_above_max_missing_fraction: tuple[str, ...] | None = None
     diagnostics_schema_version: int = MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1
     _payload: dict[str, JsonValue] = field(init=False, repr=False, compare=False)
 
@@ -272,6 +276,14 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
             rows_not_imputable=_require_required_string_tuple(
                 payload.get("rows_not_imputable"),
                 field_name=f"{field_name}.rows_not_imputable",
+            ),
+            per_column_distribution_parameters=_require_optional_json_mapping(
+                payload.get("per_column_distribution_parameters"),
+                field_name=f"{field_name}.per_column_distribution_parameters",
+            ),
+            dropped_rows_above_max_missing_fraction=_require_optional_string_tuple(
+                payload.get("dropped_rows_above_max_missing_fraction"),
+                field_name=(f"{field_name}.dropped_rows_above_max_missing_fraction"),
             ),
         )
 
@@ -406,6 +418,20 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
                 "dataset processing state missing_data.diagnostics.rows_not_imputable"
             ),
         )
+        per_column_distribution_parameters = _require_optional_json_mapping(
+            self.per_column_distribution_parameters,
+            field_name=(
+                "dataset processing state missing_data.diagnostics."
+                "per_column_distribution_parameters"
+            ),
+        )
+        dropped_rows_above_max_missing_fraction = _require_optional_string_tuple(
+            self.dropped_rows_above_max_missing_fraction,
+            field_name=(
+                "dataset processing state missing_data.diagnostics."
+                "dropped_rows_above_max_missing_fraction"
+            ),
+        )
         payload: dict[str, JsonValue] = {
             "diagnostics_schema_version": self.diagnostics_schema_version,
             "missing_data_policy": missing_data_policy,
@@ -437,6 +463,14 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
         _set_optional_payload_value(
             payload, "left_censored_assumption", left_censored_assumption
         )
+        if per_column_distribution_parameters is not None:
+            payload["per_column_distribution_parameters"] = dict(
+                per_column_distribution_parameters
+            )
+        if dropped_rows_above_max_missing_fraction is not None:
+            payload["dropped_rows_above_max_missing_fraction"] = list(
+                dropped_rows_above_max_missing_fraction
+            )
 
         object.__setattr__(self, "missing_data_policy", missing_data_policy)
         object.__setattr__(self, "imputation_method_id", imputation_method_id)
@@ -458,6 +492,20 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
         object.__setattr__(self, "missingness_mask_hash", missingness_mask_hash)
         object.__setattr__(self, "left_censored_assumption", left_censored_assumption)
         object.__setattr__(self, "rows_not_imputable", rows_not_imputable)
+        object.__setattr__(
+            self,
+            "per_column_distribution_parameters",
+            (
+                None
+                if per_column_distribution_parameters is None
+                else dict(per_column_distribution_parameters)
+            ),
+        )
+        object.__setattr__(
+            self,
+            "dropped_rows_above_max_missing_fraction",
+            dropped_rows_above_max_missing_fraction,
+        )
         object.__setattr__(self, "_payload", payload)
 
     def __getitem__(self, key: str) -> JsonValue:
@@ -1335,6 +1383,16 @@ def _require_json_mapping(
             raw_value, field_name=f"{field_name}.{key}"
         )
     return normalized
+
+
+def _require_optional_json_mapping(
+    value: object,
+    *,
+    field_name: str,
+) -> dict[str, JsonValue] | None:
+    if value is None:
+        return None
+    return _require_json_mapping(value, field_name=field_name)
 
 
 def _set_optional_payload_value(

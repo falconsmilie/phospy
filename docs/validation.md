@@ -56,6 +56,9 @@ Common cross-field checks:
 - `missing_data.policy="impute_row_median"` is deterministic.
 - row-median imputation is not left-censored imputation.
 - imputed row-median values are replacements and must not be treated as evidence that the original values were observed.
+- `missing_data.policy="impute_minprob"` requires `intensity_transform.policy="log2"`.
+- `impute_minprob` requires explicit `q`, `width`, `seed`, and `max_missing_fraction_per_row`.
+- `impute_minprob` is left-censored random imputation with deterministic seeded draws and row-drop reporting above the configured missing-fraction threshold.
 - `subtract_log_total` requires `total` input data.
 - `subtract_log_total` requires `intensity_transform.policy="log2"`.
 - When `subtract_log_total` runs with `unmatched_policy="allow_uncorrected"` and

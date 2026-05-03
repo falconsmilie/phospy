@@ -12,7 +12,9 @@ from phospy.api.configs import (
     DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN,
     DATASET_COMPARISON_BUILDING_POLICY_NONE,
     DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY,
+    DATASET_INTENSITY_TRANSFORM_POLICY_LOG2,
     DATASET_MISSING_DATA_POLICY_FORBID,
+    DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB,
     DATASET_NORMALISATION_POLICY_NONE,
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
     DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
@@ -100,6 +102,10 @@ class PreprocessingPlan:
     normalisation_policy: DatasetNormalisationPolicy = DATASET_NORMALISATION_POLICY_NONE
     missing_data_policy: DatasetMissingDataPolicy = DATASET_MISSING_DATA_POLICY_FORBID
     missing_data_min_observed_values: int | None = None
+    missing_data_q: float | None = None
+    missing_data_width: float | None = None
+    missing_data_seed: int | None = None
+    missing_data_max_missing_fraction_per_row: float | None = None
     site_sequence_resolution_enabled: bool = False
     site_sequence_resolution_fasta_path: str | None = None
     site_sequence_resolution_mode: DatasetSiteSequenceResolutionMode = (
@@ -147,14 +153,31 @@ class PreprocessingPlan:
         site_sequence_resolution_enabled = (
             config.site_sequence_resolution.fasta_path is not None
         )
-        if site_sequence_resolution_enabled:
-            stage_order.append(DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION)
-        stage_order.append(DATASET_PREPROCESSING_STAGE_MISSING_DATA)
-        if (
-            config.intensity_transform.policy
-            != DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY
-        ):
+        if config.missing_data.policy == DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB:
+            if (
+                config.intensity_transform.policy
+                != DATASET_INTENSITY_TRANSFORM_POLICY_LOG2
+            ):
+                raise PhosPyInputError(
+                    "dataset build request preprocessing_config.missing_data.policy="
+                    "'impute_minprob' requires "
+                    "preprocessing_config.intensity_transform.policy='log2'. "
+                    "Set intensity_transform.policy='log2' or choose a different "
+                    "missing_data policy."
+                )
             stage_order.append(DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM)
+            stage_order.append(DATASET_PREPROCESSING_STAGE_MISSING_DATA)
+            if site_sequence_resolution_enabled:
+                stage_order.append(DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION)
+        else:
+            if site_sequence_resolution_enabled:
+                stage_order.append(DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION)
+            stage_order.append(DATASET_PREPROCESSING_STAGE_MISSING_DATA)
+            if (
+                config.intensity_transform.policy
+                != DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY
+            ):
+                stage_order.append(DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM)
         if (
             config.total_protein_correction.policy
             != DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE
@@ -174,6 +197,20 @@ class PreprocessingPlan:
             normalisation_policy=config.normalisation.policy,
             missing_data_policy=config.missing_data.policy,
             missing_data_min_observed_values=config.missing_data.min_observed_values,
+            missing_data_q=(
+                None if config.missing_data.q is None else float(config.missing_data.q)
+            ),
+            missing_data_width=(
+                None
+                if config.missing_data.width is None
+                else float(config.missing_data.width)
+            ),
+            missing_data_seed=config.missing_data.seed,
+            missing_data_max_missing_fraction_per_row=(
+                None
+                if config.missing_data.max_missing_fraction_per_row is None
+                else float(config.missing_data.max_missing_fraction_per_row)
+            ),
             site_sequence_resolution_enabled=site_sequence_resolution_enabled,
             site_sequence_resolution_fasta_path=config.site_sequence_resolution.fasta_path,
             site_sequence_resolution_mode=config.site_sequence_resolution.mode,

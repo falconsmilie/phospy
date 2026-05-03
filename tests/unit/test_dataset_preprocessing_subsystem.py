@@ -288,6 +288,216 @@ def test_dataset_preprocessor_regression_impute_row_median_policy() -> None:
     assert "imputed_columns" in imputed.iloc[0]["parameter_snapshot"]
 
 
+def test_dataset_missing_data_config_rejects_minprob_without_seed() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="missing_data.seed must be an int",
+    ):
+        DatasetMissingDataConfig(
+            policy="impute_minprob",
+            q=0.01,
+            width=0.3,
+            max_missing_fraction_per_row=0.5,
+        )
+
+
+def test_dataset_missing_data_config_rejects_minprob_invalid_q() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="missing_data.q must satisfy 0 < q < 0.5",
+    ):
+        DatasetMissingDataConfig(
+            policy="impute_minprob",
+            q=0.5,
+            width=0.3,
+            seed=12345,
+            max_missing_fraction_per_row=0.5,
+        )
+
+
+def test_dataset_missing_data_config_rejects_minprob_invalid_width() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="missing_data.width must satisfy 0 < width <= 1.0",
+    ):
+        DatasetMissingDataConfig(
+            policy="impute_minprob",
+            q=0.01,
+            width=0.0,
+            seed=12345,
+            max_missing_fraction_per_row=0.5,
+        )
+
+
+def test_preprocessing_plan_rejects_minprob_without_log2_transform() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="missing_data.policy='impute_minprob' requires",
+    ):
+        PreprocessingPlan.from_config(
+            DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(policy="identity"),
+                missing_data=DatasetMissingDataConfig(
+                    policy="impute_minprob",
+                    q=0.01,
+                    width=0.3,
+                    seed=12345,
+                    max_missing_fraction_per_row=0.5,
+                ),
+            )
+        )
+
+
+def test_preprocessing_plan_orders_minprob_after_intensity_transform() -> None:
+    plan = PreprocessingPlan.from_config(
+        DatasetPreprocessingConfig(
+            intensity_transform=DatasetIntensityTransformConfig(
+                policy="log2",
+                pseudocount=1.0,
+            ),
+            missing_data=DatasetMissingDataConfig(
+                policy="impute_minprob",
+                q=0.01,
+                width=0.3,
+                seed=12345,
+                max_missing_fraction_per_row=0.5,
+            ),
+            total_protein_correction=DatasetTotalProteinCorrectionConfig(
+                policy="subtract_log_total"
+            ),
+            site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata"),
+        )
+    )
+
+    assert plan.stage_order == (
+        "intensity_transform",
+        "missing_data",
+        "total_protein_correction",
+        "site_matrix",
+    )
+
+
+def test_dataset_preprocessor_minprob_is_deterministic_for_same_seed() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [10.0, float("nan"), float("nan"), 4.0],
+            "sample_b": [9.0, 8.0, float("nan"), 6.0],
+            "sample_c": [11.0, 7.0, 5.0, float("nan")],
+        },
+        index=pd.Index(["row_keep", "row_impute_a", "row_drop", "row_impute_c"]),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1", "GSK3B", "PRKACA"],
+            "site": ["Y182", "T308", "S9", "S339"],
+            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+        },
+        index=phospho.index.copy(),
+    )
+    config = DatasetPreprocessingConfig(
+        intensity_transform=DatasetIntensityTransformConfig(
+            policy="log2", pseudocount=1.0
+        ),
+        missing_data=DatasetMissingDataConfig(
+            policy="impute_minprob",
+            q=0.01,
+            width=0.3,
+            seed=12345,
+            max_missing_fraction_per_row=0.5,
+        ),
+    )
+    plan = PreprocessingPlan.from_config(config)
+
+    first = DatasetPreprocessor().run(
+        phospho=phospho.copy(deep=True),
+        site_metadata=site_metadata.copy(deep=True),
+        sample_metadata=None,
+        total=None,
+        plan=plan,
+    )
+    second = DatasetPreprocessor().run(
+        phospho=phospho.copy(deep=True),
+        site_metadata=site_metadata.copy(deep=True),
+        sample_metadata=None,
+        total=None,
+        plan=plan,
+    )
+
+    pdt.assert_frame_equal(first.phospho, second.phospho)
+    assert first.phospho.isna().to_numpy().sum() == 0
+    assert first.phospho.index.tolist() == ["row_keep", "row_impute_a", "row_impute_c"]
+
+
+def test_dataset_preprocessor_minprob_changes_with_seed() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [10.0, float("nan"), float("nan"), 4.0],
+            "sample_b": [9.0, 8.0, float("nan"), 6.0],
+            "sample_c": [11.0, 7.0, 5.0, float("nan")],
+        },
+        index=pd.Index(["row_keep", "row_impute_a", "row_drop", "row_impute_c"]),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1", "GSK3B", "PRKACA"],
+            "site": ["Y182", "T308", "S9", "S339"],
+            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    first_plan = PreprocessingPlan.from_config(
+        DatasetPreprocessingConfig(
+            intensity_transform=DatasetIntensityTransformConfig(
+                policy="log2",
+                pseudocount=1.0,
+            ),
+            missing_data=DatasetMissingDataConfig(
+                policy="impute_minprob",
+                q=0.01,
+                width=0.3,
+                seed=1,
+                max_missing_fraction_per_row=0.5,
+            ),
+        )
+    )
+    second_plan = PreprocessingPlan.from_config(
+        DatasetPreprocessingConfig(
+            intensity_transform=DatasetIntensityTransformConfig(
+                policy="log2",
+                pseudocount=1.0,
+            ),
+            missing_data=DatasetMissingDataConfig(
+                policy="impute_minprob",
+                q=0.01,
+                width=0.3,
+                seed=2,
+                max_missing_fraction_per_row=0.5,
+            ),
+        )
+    )
+
+    first = DatasetPreprocessor().run(
+        phospho=phospho.copy(deep=True),
+        site_metadata=site_metadata.copy(deep=True),
+        sample_metadata=None,
+        total=None,
+        plan=first_plan,
+    )
+    second = DatasetPreprocessor().run(
+        phospho=phospho.copy(deep=True),
+        site_metadata=site_metadata.copy(deep=True),
+        sample_metadata=None,
+        total=None,
+        plan=second_plan,
+    )
+
+    assert first.phospho.index.tolist() == second.phospho.index.tolist()
+    assert float(first.phospho.loc["row_impute_a", "sample_a"]) != pytest.approx(
+        float(second.phospho.loc["row_impute_a", "sample_a"])
+    )
+
+
 def test_preprocessing_plan_orders_intensity_transform_before_total_correction() -> (
     None
 ):

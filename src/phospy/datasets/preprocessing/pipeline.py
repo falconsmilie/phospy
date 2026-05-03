@@ -133,6 +133,10 @@ _STAGE_LABEL_TO_PARAMETERS: dict[str, tuple[str, ...]] = {
     DATASET_PREPROCESSING_STAGE_MISSING_DATA: (
         "missing_data_policy",
         "missing_data_min_observed_values",
+        "missing_data_q",
+        "missing_data_width",
+        "missing_data_seed",
+        "missing_data_max_missing_fraction_per_row",
     ),
     DATASET_PREPROCESSING_STAGE_SITE_MATRIX: (
         "site_matrix_policy",
@@ -259,7 +263,9 @@ class PreprocessingPipeline:
                     consumed_input_tables=consumed_input_tables,
                     produced_output_tables=produced_output_tables,
                     backend=_STAGE_BACKENDS.get(stage_key),
-                    random_seed=None,
+                    random_seed=_resolve_random_seed(
+                        diagnostics=diagnostics["diagnostics"]
+                    ),
                     is_deterministic=True,
                     imputed_cell_count=int(diagnostics["imputed_cell_count"]),
                     imputed_row_ids=tuple(diagnostics["imputed_row_ids"]),
@@ -436,6 +442,15 @@ def _resolve_imputation_summary(
         if bool(flagged)
     )
     return row_ids, imputed_cell_count
+
+
+def _resolve_random_seed(*, diagnostics: Mapping[str, object]) -> int | None:
+    value = diagnostics.get("random_seed")
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    return None
 
 
 def _collect_stage_table_fingerprints(

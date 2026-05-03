@@ -37,6 +37,10 @@ def processing_state_to_payload(state: DatasetProcessingState) -> dict[str, obje
             "dataset.metadata.processing_state.total_protein_correction.diagnostics"
         ),
     )
+    missing_data_diagnostics = _normalize_optional_missing_data_diagnostics(
+        state.missing_data.diagnostics,
+        field_name="dataset.metadata.processing_state.missing_data.diagnostics",
+    )
     return {
         "intensity_scale": intensity_scale_state_to_payload(state.intensity_scale),
         "site_sequence_resolution": {
@@ -62,8 +66,8 @@ def processing_state_to_payload(state: DatasetProcessingState) -> dict[str, obje
             "imputed": state.missing_data.imputed,
             "diagnostics": (
                 None
-                if state.missing_data.diagnostics is None
-                else state.missing_data.diagnostics.to_payload()
+                if missing_data_diagnostics is None
+                else missing_data_diagnostics.to_payload()
             ),
         },
         "normalisation": {"policy": state.normalisation.policy},
@@ -402,6 +406,18 @@ def _parse_optional_missing_data_diagnostics(
 ) -> MissingDataDiagnostics | None:
     if value is None:
         return None
+    return MissingDataDiagnostics.from_payload(value, field_name=field_name)
+
+
+def _normalize_optional_missing_data_diagnostics(
+    value: object,
+    *,
+    field_name: str,
+) -> MissingDataDiagnostics | None:
+    if value is None:
+        return None
+    if isinstance(value, MissingDataDiagnostics):
+        return value
     return MissingDataDiagnostics.from_payload(value, field_name=field_name)
 
 
