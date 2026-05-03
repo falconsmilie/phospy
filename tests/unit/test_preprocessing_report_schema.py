@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pandas as pd
 import pytest
 
@@ -12,6 +14,8 @@ from phospy.api.configs import (
 )
 from phospy.api.requests import DatasetBuildRequest
 from phospy.datasets.models import DatasetPreprocessingReport
+from phospy.datasets.preprocessing.models import PreprocessingReportRow
+from phospy.datasets.preprocessing.report_rows import validate_preprocessing_report_row
 from phospy.datasets.preprocessing.report_schema import (
     COMPARISON_GROUP_STATS_COLUMNS,
     COMPARISON_PAIR_STATS_COLUMNS,
@@ -31,6 +35,7 @@ from phospy.datasets.preprocessing.report_schema import (
     dataframe_from_row_audit_rows,
     dataframe_from_row_count_rows,
 )
+from phospy.errors.build import DatasetBuildError
 
 
 def test_row_count_rows_convert_to_dataframe_with_schema_order() -> None:
@@ -245,3 +250,40 @@ def test_report_schema_stable_with_missing_data_diagnostics_enabled() -> None:
     assert built.processing_state.missing_data.diagnostics is not None
     diagnostics_payload = built.processing_state.missing_data.diagnostics.to_payload()
     assert isinstance(diagnostics_payload["missingness_mask_hash"], str)
+
+
+def test_row_audit_parameter_snapshot_must_be_mapping() -> None:
+    with pytest.raises(
+        DatasetBuildError,
+        match="row_audit.parameter_snapshot with invalid type",
+    ):
+        validate_preprocessing_report_row(
+            PreprocessingReportRow(
+                table="row_audit",
+                values=PreprocessingRowAuditRow(
+                    stage="missing_data",
+                    action="imputed",
+                    reason="invalid test payload",
+                    source_row_id="row_a",
+                    site_id="row_a",
+                    retained=True,
+                    retained_row_id="row_a",
+                    source_rows=("row_a",),
+                    retained_row="row_a",
+                    parameter_snapshot="not-a-mapping",
+                ),
+            )
+        )
+
+
+def test_docs_state_row_median_missing_data_semantics() -> None:
+    root = Path(__file__).resolve().parents[2]
+    workflow_contracts = (root / "docs" / "workflow_contracts.md").read_text(
+        encoding="utf-8"
+    )
+    validation = (root / "docs" / "validation.md").read_text(encoding="utf-8")
+
+    combined = f"{workflow_contracts}\n{validation}"
+    assert "missing-data handling runs before normalisation" in combined
+    assert "row-median imputation is deterministic" in combined
+    assert "row-median imputation is not left-censored imputation" in combined

@@ -42,6 +42,8 @@ class MissingDataStage:
             str(column_id)
             for column_id in state.phospho.columns[input_missing_mask.any(axis=0)]
         )
+        affected_row_count = int(len(input_affected_row_ids))
+        affected_column_count = int(len(input_affected_column_ids))
         missingness_mask_hash = _hash_missingness_mask(input_missing_mask)
         if state.plan.missing_data_policy == DATASET_MISSING_DATA_POLICY_FORBID:
             _fail_if_forbid_policy_has_missing_values(state.phospho)
@@ -111,29 +113,10 @@ class MissingDataStage:
         imputed = filtered_phospho.T.fillna(row_medians).T
         imputed_mask = filtered_phospho.isna() & imputed.notna()
         row_audit_records: list[PreprocessingRowAuditRow] = []
-        for row_id, observed_value_count in dropped_observed_counts.items():
-            source_row_id = str(row_id)
-            row_audit_records.append(
-                PreprocessingRowAuditRow(
-                    stage=DATASET_PREPROCESSING_STAGE_MISSING_DATA,
-                    action="dropped",
-                    reason=(
-                        "dropped because observed value count is below "
-                        "missing_data.min_observed_values"
-                    ),
-                    source_row_id=source_row_id,
-                    site_id=source_row_id,
-                    retained=False,
-                    retained_row_id=pd.NA,
-                    source_rows=(source_row_id,),
-                    retained_row=pd.NA,
-                    parameter_snapshot={
-                        "missing_data_policy": DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
-                        "missing_data_min_observed_values": int(min_observed_values),
-                        "observed_values": int(observed_value_count),
-                    },
-                )
-            )
+        dropped_row_details = tuple(
+            (str(row_id), int(observed_value_count))
+            for row_id, observed_value_count in dropped_observed_counts.items()
+        )
 
         imputed_row_flags = imputed_mask.any(axis=1)
         imputed_rows = filtered_phospho.index[imputed_row_flags]
@@ -149,6 +132,42 @@ class MissingDataStage:
                 imputed.isna().any(axis=1) & filtered_phospho.isna().any(axis=1)
             ].tolist()
         )
+        dropped_row_ids = tuple(
+            str(row_id) for row_id in dropped_observed_counts.index.tolist()
+        )
+        output_missing_cell_count = int(imputed.isna().to_numpy().sum())
+        row_audit_snapshot_base = _build_row_audit_snapshot_base(
+            missing_data_policy=DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
+            missing_data_min_observed_values=int(min_observed_values),
+            input_missing_cell_count=input_missing_cell_count,
+            output_missing_cell_count=output_missing_cell_count,
+            imputed_cell_count=imputed_cell_count,
+            affected_row_count=affected_row_count,
+            affected_column_count=affected_column_count,
+            missingness_mask_hash=missingness_mask_hash,
+            stage_order=state.plan.stage_order,
+        )
+        for source_row_id, observed_value_count in dropped_row_details:
+            row_audit_records.append(
+                PreprocessingRowAuditRow(
+                    stage=DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+                    action="dropped",
+                    reason=(
+                        "dropped because observed value count is below "
+                        "missing_data.min_observed_values"
+                    ),
+                    source_row_id=source_row_id,
+                    site_id=source_row_id,
+                    retained=False,
+                    retained_row_id=pd.NA,
+                    source_rows=(source_row_id,),
+                    retained_row=pd.NA,
+                    parameter_snapshot={
+                        **row_audit_snapshot_base,
+                        "observed_values": int(observed_value_count),
+                    },
+                )
+            )
         for row_id in imputed_rows:
             source_row_id = str(row_id)
             row_imputed_mask = imputed_mask.loc[row_id]
@@ -168,8 +187,7 @@ class MissingDataStage:
                     source_rows=(source_row_id,),
                     retained_row=source_row_id,
                     parameter_snapshot={
-                        "missing_data_policy": DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
-                        "missing_data_min_observed_values": int(min_observed_values),
+                        **row_audit_snapshot_base,
                         "imputed_columns": imputed_columns,
                         "imputed_cell_count": int(row_imputed_mask.sum()),
                         "row_median": float(row_medians.loc[row_id]),
@@ -177,10 +195,6 @@ class MissingDataStage:
                 )
             )
         next_state = append_row_audit_records(state, row_audit_records)
-        dropped_row_ids = tuple(
-            str(row_id) for row_id in dropped_observed_counts.index.tolist()
-        )
-        output_missing_cell_count = int(imputed.isna().to_numpy().sum())
         diagnostics = _build_missing_data_diagnostics(
             missing_data_policy=state.plan.missing_data_policy,
             imputation_method_id="row_median",
@@ -306,6 +320,31 @@ def _build_missing_data_diagnostics(
         "missingness_mask_hash": missingness_mask_hash,
         "left_censored_assumption": left_censored_assumption,
         "rows_not_imputable": list(rows_not_imputable),
+    }
+
+
+def _build_row_audit_snapshot_base(
+    *,
+    missing_data_policy: str,
+    missing_data_min_observed_values: int,
+    input_missing_cell_count: int,
+    output_missing_cell_count: int,
+    imputed_cell_count: int,
+    affected_row_count: int,
+    affected_column_count: int,
+    missingness_mask_hash: str,
+    stage_order: tuple[str, ...],
+) -> dict[str, JsonValue]:
+    return {
+        "missing_data_policy": missing_data_policy,
+        "missing_data_min_observed_values": int(missing_data_min_observed_values),
+        "input_missing_cell_count": int(input_missing_cell_count),
+        "output_missing_cell_count": int(output_missing_cell_count),
+        "imputed_cell_count": int(imputed_cell_count),
+        "affected_row_count": int(affected_row_count),
+        "affected_column_count": int(affected_column_count),
+        "missingness_mask_hash": str(missingness_mask_hash),
+        "stage_order": [str(stage) for stage in stage_order],
     }
 
 

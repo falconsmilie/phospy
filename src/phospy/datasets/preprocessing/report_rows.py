@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 import pandas as pd
@@ -75,6 +75,13 @@ def validate_preprocessing_report_row(
             "dataset preprocessing stage emitted report row values with invalid type "
             f"for table {row.table!r}: expected {expected_type.__name__}, got "
             f"{type(row.values).__name__}"
+        )
+    if isinstance(row.values, PreprocessingRowAuditRow) and not isinstance(
+        row.values.parameter_snapshot, Mapping
+    ):
+        raise DatasetBuildError(
+            "dataset preprocessing stage emitted row_audit.parameter_snapshot with "
+            "invalid type; expected mapping"
         )
     return row
 

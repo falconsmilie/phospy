@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, fields
 from typing import ClassVar, Protocol, TypeVar, cast
 
@@ -69,7 +69,7 @@ class PreprocessingRowAuditRow:
     retained_row_id: object
     source_rows: object
     retained_row: object
-    parameter_snapshot: object
+    parameter_snapshot: Mapping[str, object]
 
     @classmethod
     def columns(cls) -> tuple[str, ...]:

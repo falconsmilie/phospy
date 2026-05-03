@@ -8,7 +8,6 @@ import pandas as pd
 
 from phospy.api.configs import (
     DATASET_COMPARISON_BUILDING_POLICY_NONE,
-    DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
     DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL,
@@ -250,12 +249,6 @@ def build_dataset_processing_state(
         key="imputed_cell_count",
         default=0,
     )
-    if missing_data_diagnostics is None:
-        imputed_cell_count = (
-            1
-            if plan.missing_data_policy == DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN
-            else 0
-        )
     return DatasetProcessingState(
         intensity_scale=intensity_scale_state,
         site_sequence_resolution=SiteSequenceResolutionState(

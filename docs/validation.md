@@ -52,6 +52,10 @@ no total-protein correction, and no comparison construction.
 
 Common cross-field checks:
 
+- missing-data handling runs before normalisation in preprocessing stage order.
+- `missing_data.policy="impute_row_median"` is deterministic.
+- row-median imputation is not left-censored imputation.
+- imputed row-median values are replacements and must not be treated as evidence that the original values were observed.
 - `subtract_log_total` requires `total` input data.
 - `subtract_log_total` requires `intensity_transform.policy="log2"`.
 - When `subtract_log_total` runs with `unmatched_policy="allow_uncorrected"` and

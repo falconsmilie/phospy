@@ -7,7 +7,10 @@ import pytest
 
 from phospy.datasets.builders.contracts import InterpretedDatasetBuildRequest
 from phospy.datasets.builders.executor import DatasetBuildExecutor
-from phospy.datasets.builders.preprocessing import DatasetPreprocessor
+from phospy.datasets.builders.preprocessing import (
+    DatasetPreprocessor,
+    build_dataset_processing_state,
+)
 from phospy.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingReportRow,
@@ -28,6 +31,7 @@ from phospy.datasets.preprocessing.stages.total_protein_correction import (
 )
 from phospy.errors.build import DatasetBuildError
 from phospy.errors.input import PhosPyInputError
+from tests.support.intensity_scale_states import supported_linear_intensity_scale_state
 
 
 def _phospho() -> pd.DataFrame:
@@ -588,6 +592,8 @@ def test_missing_data_stage_row_median_emits_structured_diagnostics() -> None:
     assert diagnostics["input_missing_cell_count"] == 4
     assert diagnostics["output_missing_cell_count"] == 0
     assert diagnostics["imputed_cell_count"] == 1
+    assert diagnostics["affected_row_count"] == 2
+    assert diagnostics["affected_column_count"] == 3
     assert diagnostics["affected_row_ids"] == ["row_a", "row_c"]
     assert diagnostics["affected_column_ids"] == ["sample_a", "sample_b", "sample_c"]
     assert diagnostics["imputed_row_ids"] == ["row_a"]
@@ -595,4 +601,72 @@ def test_missing_data_stage_row_median_emits_structured_diagnostics() -> None:
     assert diagnostics["dropped_row_ids"] == ["row_c"]
     assert diagnostics["random_seed"] is None
     assert diagnostics["matrix_scale_requirement"] is None
+    assert diagnostics["stage_order"] == ["missing_data"]
+    assert isinstance(diagnostics["missingness_mask_hash"], str)
     assert diagnostics["left_censored_assumption"] is False
+
+
+def test_missing_data_stage_row_median_values_remain_unchanged() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, float("nan"), float("nan")],
+            "sample_b": [2.0, 10.0, float("nan")],
+            "sample_c": [3.0, 20.0, 9.0],
+            "sample_d": [4.0, float("nan"), float("nan")],
+        },
+        index=pd.Index(["row_keep", "row_impute", "row_drop"], name="source_row"),
+    )
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
+                "site": ["Y182", "T308", "S9"],
+                "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            },
+            index=phospho.index.copy(),
+        ),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan(
+            missing_data_policy="impute_row_median",
+            missing_data_min_observed_values=2,
+            stage_order=("missing_data",),
+        ),
+    )
+
+    result = MissingDataStage().run(state)
+
+    assert result.state.phospho.index.tolist() == ["row_keep", "row_impute"]
+    assert float(result.state.phospho.loc["row_keep", "sample_a"]) == 1.0
+    assert float(result.state.phospho.loc["row_keep", "sample_b"]) == 2.0
+    assert float(result.state.phospho.loc["row_keep", "sample_c"]) == 3.0
+    assert float(result.state.phospho.loc["row_keep", "sample_d"]) == 4.0
+    assert float(result.state.phospho.loc["row_impute", "sample_a"]) == 15.0
+    assert float(result.state.phospho.loc["row_impute", "sample_b"]) == 10.0
+    assert float(result.state.phospho.loc["row_impute", "sample_c"]) == 20.0
+    assert float(result.state.phospho.loc["row_impute", "sample_d"]) == 15.0
+
+    diagnostics = result.diagnostics["diagnostics"]
+    assert diagnostics["input_missing_cell_count"] == 5
+    assert diagnostics["imputed_cell_count"] == 2
+    assert diagnostics["affected_row_count"] == 2
+    assert diagnostics["affected_column_count"] == 3
+    assert diagnostics["dropped_row_ids"] == ["row_drop"]
+
+
+def test_processing_state_missing_data_imputed_flag_requires_provenance() -> None:
+    state = build_dataset_processing_state(
+        plan=PreprocessingPlan(
+            missing_data_policy="impute_row_median",
+            missing_data_min_observed_values=1,
+            stage_order=("missing_data",),
+        ),
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        preprocessing_trace=None,
+    )
+
+    assert state.missing_data.policy == "impute_row_median"
+    assert state.missing_data.imputed is False

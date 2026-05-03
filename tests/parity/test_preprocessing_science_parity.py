@@ -11,6 +11,7 @@ import pytest
 from phospy.api.configs import (
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
+    DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
@@ -55,6 +56,99 @@ def _plan_without_missing_stage(
         plan,
         stage_order=tuple(
             stage for stage in plan.stage_order if stage != "missing_data"
+        ),
+    )
+
+
+def test_row_median_missing_data_policy_is_deterministic_and_provenance_backed(
+    request: pytest.FixtureRequest,
+) -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, float("nan"), float("nan")],
+            "sample_b": [2.0, 10.0, float("nan")],
+            "sample_c": [3.0, 20.0, 9.0],
+            "sample_d": [4.0, float("nan"), float("nan")],
+        },
+        index=pd.Index(["row_keep", "row_impute", "row_drop"], name="source_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
+            "site": ["Y182", "T308", "S9"],
+            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+        },
+        index=phospho.index.copy(),
+    )
+    config = DatasetPreprocessingConfig(
+        missing_data=DatasetMissingDataConfig(
+            policy="impute_row_median",
+            min_observed_values=2,
+        )
+    )
+    plan = PreprocessingPlan.from_config(config)
+
+    first = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=None,
+        total=None,
+        plan=plan,
+    )
+    second = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=None,
+        total=None,
+        plan=plan,
+    )
+
+    expected = pd.DataFrame(
+        {
+            "sample_a": [1.0, 15.0],
+            "sample_b": [2.0, 10.0],
+            "sample_c": [3.0, 20.0],
+            "sample_d": [4.0, 15.0],
+        },
+        index=pd.Index(["row_keep", "row_impute"], name="source_row"),
+    )
+    pdt.assert_frame_equal(first.phospho, expected)
+    pdt.assert_frame_equal(second.phospho, expected)
+
+    imputed_audit_rows = first.row_audit.loc[
+        (first.row_audit.loc[:, "stage"] == "missing_data")
+        & (first.row_audit.loc[:, "action"] == "imputed")
+    ]
+    assert imputed_audit_rows.shape[0] == 1
+    imputed_snapshot = imputed_audit_rows.iloc[0]["parameter_snapshot"]
+    assert isinstance(imputed_snapshot, dict)
+    assert tuple(imputed_snapshot["imputed_columns"]) == ("sample_a", "sample_d")
+    assert float(imputed_snapshot["row_median"]) == 15.0
+
+    missing_stage = next(
+        stage for stage in first.preprocessing_trace if stage.stage == "missing_data"
+    )
+    diagnostics = dict(missing_stage.diagnostics)
+    assert diagnostics["input_missing_cell_count"] == 5
+    assert diagnostics["output_missing_cell_count"] == 0
+    assert diagnostics["imputed_cell_count"] == 2
+    assert diagnostics["affected_row_count"] == 2
+    assert diagnostics["affected_column_count"] == 3
+    assert diagnostics["dropped_row_ids"] == ["row_drop"]
+    assert diagnostics["stage_order"] == ["missing_data"]
+    assert isinstance(diagnostics["missingness_mask_hash"], str)
+
+    record_parity_metrics(
+        request.config,
+        family="preprocessing_science",
+        metrics=[
+            ("row_median output shape", format_shape(*first.phospho.shape)),
+            ("row_median imputed cells", int(diagnostics["imputed_cell_count"])),
+            ("row_median dropped rows", len(diagnostics["dropped_row_ids"])),
+        ],
+        notes=(
+            "policy lane: missing_data.policy=impute_row_median",
+            "deterministic lane: repeated run outputs match exactly",
         ),
     )
 

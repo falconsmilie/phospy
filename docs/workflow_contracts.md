@@ -35,6 +35,10 @@ approximation behavior, and failure modes), see `docs/performance.md`.
 
 - Output `AnalysisReadyPhosphoDataset.phospho` is required to be complete (missing-value-free).
 - Missing values are either forbidden or handled explicitly by configured preprocessing policy.
+- Missing-data handling runs before normalisation in preprocessing stage order.
+- When `missing_data.policy="impute_row_median"`, row-median imputation is deterministic.
+- Row-median imputation is not left-censored imputation.
+- Row-median-imputed values are explicit replacements and are not evidence that the original values were observed.
 - Output `comparisons` (when produced) must also be numeric and missing-value-free.
 
 ### Transformation and Normalisation Policy

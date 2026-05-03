@@ -59,6 +59,16 @@ def test_missing_data_stage_audits_rows_dropped_below_min_observed_values() -> N
     assert dropped.iloc[0]["site_id"] == "row_drop"
     assert bool(dropped.iloc[0]["retained"]) is False
     assert "below missing_data.min_observed_values" in str(dropped.iloc[0]["reason"])
+    snapshot = dropped.iloc[0]["parameter_snapshot"]
+    assert isinstance(snapshot, dict)
+    assert snapshot["observed_values"] == 1
+    assert snapshot["input_missing_cell_count"] == 3
+    assert snapshot["output_missing_cell_count"] == 0
+    assert snapshot["imputed_cell_count"] == 1
+    assert snapshot["affected_row_count"] == 2
+    assert snapshot["affected_column_count"] == 2
+    assert isinstance(snapshot["missingness_mask_hash"], str)
+    assert tuple(snapshot["stage_order"]) == ("missing_data",)
 
 
 def test_missing_data_stage_audits_row_median_imputation() -> None:
@@ -104,6 +114,12 @@ def test_missing_data_stage_audits_row_median_imputation() -> None:
     assert isinstance(snapshot, dict)
     assert "imputed_columns" in snapshot
     assert set(snapshot["imputed_columns"]) == {"sample_a", "sample_c"}
+    assert snapshot["row_median"] == 2.0
+    assert snapshot["imputed_cell_count"] == 2
+    assert snapshot["input_missing_cell_count"] == 2
+    assert snapshot["output_missing_cell_count"] == 0
+    assert isinstance(snapshot["missingness_mask_hash"], str)
+    assert tuple(snapshot["stage_order"]) == ("missing_data",)
 
 
 def test_site_matrix_stage_audits_missing_sequence_drops() -> None:
