@@ -6,10 +6,18 @@ from phospy.sequences.models import (
     ProteinSequenceRecord,
 )
 from phospy.sequences.repository import FastaProteinSequenceRepository
+from phospy.sequences.resolver import (
+    PhosphositeSequenceResolutionRequest,
+    PhosphositeSequenceResolutionResult,
+    PhosphositeSequenceResolver,
+)
 
 __all__ = [
     "FastaProteinSequenceRepository",
     "FastaSourceMetadata",
+    "PhosphositeSequenceResolutionRequest",
+    "PhosphositeSequenceResolutionResult",
+    "PhosphositeSequenceResolver",
     "ProteinSequenceLookupResult",
     "ProteinSequenceRecord",
 ]
