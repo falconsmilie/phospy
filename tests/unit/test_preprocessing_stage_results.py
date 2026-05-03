@@ -137,6 +137,12 @@ def test_missing_data_stage_forbid_policy_accepts_complete_matrix() -> None:
     assert result.state is state
     assert result.diagnostics["dropped_row_count"] == 0
     assert result.diagnostics["imputed_cell_count"] == 0
+    diagnostics = result.diagnostics["diagnostics"]
+    assert diagnostics["input_missing_cell_count"] == 0
+    assert diagnostics["output_missing_cell_count"] == 0
+    assert diagnostics["imputed_cell_count"] == 0
+    assert diagnostics["affected_row_count"] == 0
+    assert diagnostics["affected_column_count"] == 0
 
 
 def test_missing_data_stage_forbid_policy_rejects_single_missing_value() -> None:
@@ -541,3 +547,52 @@ def test_pipeline_trace_preserves_comparison_diagnostics() -> None:
     assert diagnostics["resolved_comparison_pairs"] == [("group1", "group2")]
     assert set(diagnostics["group_labels"]) == {"group1", "group2"}
     assert isinstance(diagnostics.get("output_comparison_hash"), str)
+
+
+def test_missing_data_stage_row_median_emits_structured_diagnostics() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0, float("nan")],
+            "sample_b": [float("nan"), 3.0, float("nan")],
+            "sample_c": [4.0, 5.0, float("nan")],
+        },
+        index=pd.Index(["row_a", "row_b", "row_c"], name="source_row"),
+    )
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
+                "site": ["Y182", "T308", "S9"],
+                "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            },
+            index=phospho.index.copy(),
+        ),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan(
+            missing_data_policy="impute_row_median",
+            missing_data_min_observed_values=2,
+            stage_order=("missing_data",),
+        ),
+    )
+
+    result = MissingDataStage().run(state)
+    diagnostics = result.diagnostics["diagnostics"]
+    assert float(result.state.phospho.loc["row_a", "sample_b"]) == 2.5
+
+    assert diagnostics["diagnostics_schema_version"] == 1
+    assert diagnostics["missing_data_policy"] == "impute_row_median"
+    assert diagnostics["imputation_method_id"] == "row_median"
+    assert diagnostics["imputation_method_family"] == "deterministic_row_statistic"
+    assert diagnostics["input_missing_cell_count"] == 4
+    assert diagnostics["output_missing_cell_count"] == 0
+    assert diagnostics["imputed_cell_count"] == 1
+    assert diagnostics["affected_row_ids"] == ["row_a", "row_c"]
+    assert diagnostics["affected_column_ids"] == ["sample_a", "sample_b", "sample_c"]
+    assert diagnostics["imputed_row_ids"] == ["row_a"]
+    assert diagnostics["imputed_column_ids"] == ["sample_b"]
+    assert diagnostics["dropped_row_ids"] == ["row_c"]
+    assert diagnostics["random_seed"] is None
+    assert diagnostics["matrix_scale_requirement"] is None
+    assert diagnostics["left_censored_assumption"] is False

@@ -18,7 +18,12 @@ from phospy.datasets.preprocessing.models import (
 )
 from phospy.datasets.preprocessing.report_rows import report_rows_from_row_audit_rows
 from phospy.datasets.preprocessing.report_schema import PreprocessingRowAuditRow
+from phospy.datasets.processing_state import (
+    MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
+    JsonValue,
+)
 from phospy.errors.input import PhosPyInputError
+from phospy.provenance.hashing import hash_table
 
 
 class MissingDataStage:
@@ -27,8 +32,39 @@ class MissingDataStage:
     stage_key = DATASET_PREPROCESSING_STAGE_MISSING_DATA
 
     def run(self, state: PreprocessingState) -> PreprocessingStageResult:
+        input_missing_mask = state.phospho.isna()
+        input_missing_cell_count = int(input_missing_mask.to_numpy().sum())
+        input_affected_row_ids = tuple(
+            str(row_id)
+            for row_id in state.phospho.index[input_missing_mask.any(axis=1)]
+        )
+        input_affected_column_ids = tuple(
+            str(column_id)
+            for column_id in state.phospho.columns[input_missing_mask.any(axis=0)]
+        )
+        missingness_mask_hash = _hash_missingness_mask(input_missing_mask)
         if state.plan.missing_data_policy == DATASET_MISSING_DATA_POLICY_FORBID:
             _fail_if_forbid_policy_has_missing_values(state.phospho)
+            diagnostics = _build_missing_data_diagnostics(
+                missing_data_policy=state.plan.missing_data_policy,
+                imputation_method_id=None,
+                imputation_method_family=None,
+                input_missing_cell_count=input_missing_cell_count,
+                output_missing_cell_count=input_missing_cell_count,
+                imputed_cell_count=0,
+                affected_row_ids=input_affected_row_ids,
+                affected_column_ids=input_affected_column_ids,
+                imputed_row_ids=(),
+                imputed_column_ids=(),
+                dropped_row_ids=(),
+                random_seed=None,
+                method_parameters={},
+                matrix_scale_requirement=None,
+                stage_order=state.plan.stage_order,
+                missingness_mask_hash=missingness_mask_hash,
+                left_censored_assumption=None,
+                rows_not_imputable=(),
+            )
             return PreprocessingStageResult(
                 state=state,
                 diagnostics={
@@ -37,10 +73,7 @@ class MissingDataStage:
                     "imputed_cell_count": 0,
                     "imputed_row_ids": (),
                     "notes": "stage executed",
-                    "diagnostics": {
-                        "min_observed_values": state.plan.missing_data_min_observed_values,
-                        "imputed_row_ids": [],
-                    },
+                    "diagnostics": diagnostics,
                 },
             )
 
@@ -106,6 +139,16 @@ class MissingDataStage:
         imputed_rows = filtered_phospho.index[imputed_row_flags]
         imputed_cell_count = int(imputed_mask.to_numpy().sum())
         imputed_row_ids = tuple(str(row_id) for row_id in imputed_rows.tolist())
+        imputed_column_ids = tuple(
+            str(column_name)
+            for column_name in filtered_phospho.columns[imputed_mask.any(axis=0)]
+        )
+        rows_not_imputable = tuple(
+            str(row_id)
+            for row_id in imputed.index[
+                imputed.isna().any(axis=1) & filtered_phospho.isna().any(axis=1)
+            ].tolist()
+        )
         for row_id in imputed_rows:
             source_row_id = str(row_id)
             row_imputed_mask = imputed_mask.loc[row_id]
@@ -137,6 +180,27 @@ class MissingDataStage:
         dropped_row_ids = tuple(
             str(row_id) for row_id in dropped_observed_counts.index.tolist()
         )
+        output_missing_cell_count = int(imputed.isna().to_numpy().sum())
+        diagnostics = _build_missing_data_diagnostics(
+            missing_data_policy=state.plan.missing_data_policy,
+            imputation_method_id="row_median",
+            imputation_method_family="deterministic_row_statistic",
+            input_missing_cell_count=input_missing_cell_count,
+            output_missing_cell_count=output_missing_cell_count,
+            imputed_cell_count=imputed_cell_count,
+            affected_row_ids=input_affected_row_ids,
+            affected_column_ids=input_affected_column_ids,
+            imputed_row_ids=imputed_row_ids,
+            imputed_column_ids=imputed_column_ids,
+            dropped_row_ids=dropped_row_ids,
+            random_seed=None,
+            method_parameters={"min_observed_values": int(min_observed_values)},
+            matrix_scale_requirement=None,
+            stage_order=state.plan.stage_order,
+            missingness_mask_hash=missingness_mask_hash,
+            left_censored_assumption=False,
+            rows_not_imputable=rows_not_imputable,
+        )
         return PreprocessingStageResult(
             state=replace(
                 next_state,
@@ -150,10 +214,7 @@ class MissingDataStage:
                 "imputed_cell_count": imputed_cell_count,
                 "imputed_row_ids": imputed_row_ids,
                 "notes": "stage executed",
-                "diagnostics": {
-                    "min_observed_values": state.plan.missing_data_min_observed_values,
-                    "imputed_row_ids": [row_id for row_id in imputed_row_ids],
-                },
+                "diagnostics": diagnostics,
             },
         )
 
@@ -191,6 +252,61 @@ def _label_preview(values: list[object], *, max_items: int = 3) -> str:
     if remaining_count > 0:
         rendered.append(f"+{remaining_count} more")
     return ", ".join(rendered)
+
+
+def _hash_missingness_mask(mask: pd.DataFrame) -> str:
+    """Return stable fingerprint for input missingness structure."""
+
+    return hash_table(
+        mask.astype("int8"),
+        name="missing_data.input_missingness_mask",
+    )
+
+
+def _build_missing_data_diagnostics(
+    *,
+    missing_data_policy: str,
+    imputation_method_id: str | None,
+    imputation_method_family: str | None,
+    input_missing_cell_count: int,
+    output_missing_cell_count: int,
+    imputed_cell_count: int,
+    affected_row_ids: tuple[str, ...],
+    affected_column_ids: tuple[str, ...],
+    imputed_row_ids: tuple[str, ...],
+    imputed_column_ids: tuple[str, ...],
+    dropped_row_ids: tuple[str, ...],
+    random_seed: int | None,
+    method_parameters: dict[str, JsonValue],
+    matrix_scale_requirement: str | None,
+    stage_order: tuple[str, ...],
+    missingness_mask_hash: str,
+    left_censored_assumption: bool | None,
+    rows_not_imputable: tuple[str, ...],
+) -> dict[str, JsonValue]:
+    return {
+        "diagnostics_schema_version": MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
+        "missing_data_policy": missing_data_policy,
+        "imputation_method_id": imputation_method_id,
+        "imputation_method_family": imputation_method_family,
+        "input_missing_cell_count": int(input_missing_cell_count),
+        "output_missing_cell_count": int(output_missing_cell_count),
+        "imputed_cell_count": int(imputed_cell_count),
+        "affected_row_count": int(len(affected_row_ids)),
+        "affected_column_count": int(len(affected_column_ids)),
+        "affected_row_ids": list(affected_row_ids),
+        "affected_column_ids": list(affected_column_ids),
+        "imputed_row_ids": list(imputed_row_ids),
+        "imputed_column_ids": list(imputed_column_ids),
+        "dropped_row_ids": list(dropped_row_ids),
+        "random_seed": random_seed,
+        "method_parameters": dict(method_parameters),
+        "matrix_scale_requirement": matrix_scale_requirement,
+        "stage_order": list(stage_order),
+        "missingness_mask_hash": missingness_mask_hash,
+        "left_censored_assumption": left_censored_assumption,
+        "rows_not_imputable": list(rows_not_imputable),
+    }
 
 
 __all__ = ["MissingDataStage"]

@@ -6,6 +6,7 @@ import pytest
 from phospy.api.builders import AnalysisReadyDatasetBuilder
 from phospy.api.configs import (
     DatasetComparisonBuildingConfig,
+    DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
 )
@@ -207,3 +208,40 @@ def test_preprocessing_report_integration_preserves_representative_values() -> N
     ]
     assert pair_stats.shape[0] == 1
     assert float(pair_stats.iloc[0]["effect_size"]) == 6.0
+
+
+def test_report_schema_stable_with_missing_data_diagnostics_enabled() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_1": [10.0, 8.0],
+            "sample_2": [12.0, float("nan")],
+        },
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1"],
+            "site": ["Y182", "T308"],
+            "site_sequence": ["SEQ_A", "SEQ_B"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            preprocessing_config=DatasetPreprocessingConfig(
+                missing_data=DatasetMissingDataConfig(
+                    policy="impute_row_median",
+                    min_observed_values=1,
+                ),
+            ),
+        )
+    )
+
+    assert built.preprocessing_report is not None
+    assert tuple(built.preprocessing_report.operations.columns) == OPERATIONS_COLUMNS
+    assert built.processing_state.missing_data.diagnostics is not None
+    diagnostics_payload = built.processing_state.missing_data.diagnostics.to_payload()
+    assert isinstance(diagnostics_payload["missingness_mask_hash"], str)

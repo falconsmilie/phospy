@@ -6,6 +6,8 @@ intensity scale state after applying explicit builder preprocessing policy.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 import pandas as pd
 
 from phospy.api.configs import DATASET_INTENSITY_TRANSFORM_POLICY_LOG2
@@ -339,7 +341,7 @@ def _stage_trace_to_provenance(
     )
 
 
-def _to_json_mapping(values: dict[str, object]) -> dict[str, JsonValue]:
+def _to_json_mapping(values: Mapping[str, object]) -> dict[str, JsonValue]:
     return {str(key): _to_json_value(value) for key, value in values.items()}
 
 

@@ -37,9 +37,11 @@ from phospy.datasets.preprocessing.report_schema import (
     dataframe_from_row_count_rows,
 )
 from phospy.datasets.processing_state import (
+    MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
     TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1,
     ComparisonState,
     DatasetProcessingState,
+    MissingDataDiagnostics,
     MissingDataState,
     NormalisationState,
     SiteMatrixState,
@@ -163,6 +165,9 @@ def build_dataset_processing_state(
     correction_diagnostics = _resolve_total_correction_diagnostics(
         preprocessing_trace=preprocessing_trace
     )
+    missing_data_diagnostics = _resolve_missing_data_diagnostics(
+        preprocessing_trace=preprocessing_trace
+    )
     site_sequence_resolution_diagnostics = (
         _resolve_site_sequence_resolution_diagnostics(
             preprocessing_trace=preprocessing_trace
@@ -206,6 +211,17 @@ def build_dataset_processing_state(
         key="diagnostics_schema_version",
         default=TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1,
     )
+    if missing_data_diagnostics is not None:
+        missing_data_diagnostics = _with_default_int_diagnostic(
+            missing_data_diagnostics,
+            key="diagnostics_schema_version",
+            default=MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
+        )
+        missing_data_diagnostics = _with_default_string_diagnostic(
+            missing_data_diagnostics,
+            key="missing_data_policy",
+            default=str(plan.missing_data_policy),
+        )
     typed_correction_diagnostics = (
         None
         if correction_diagnostics is None
@@ -216,6 +232,30 @@ def build_dataset_processing_state(
             ),
         )
     )
+    typed_missing_data_diagnostics = (
+        None
+        if missing_data_diagnostics is None
+        else MissingDataDiagnostics.from_payload(
+            missing_data_diagnostics,
+            field_name="dataset processing state missing_data.diagnostics",
+        )
+    )
+    output_missing_cell_count = _resolve_optional_int_diagnostic(
+        missing_data_diagnostics,
+        key="output_missing_cell_count",
+        default=0,
+    )
+    imputed_cell_count = _resolve_optional_int_diagnostic(
+        missing_data_diagnostics,
+        key="imputed_cell_count",
+        default=0,
+    )
+    if missing_data_diagnostics is None:
+        imputed_cell_count = (
+            1
+            if plan.missing_data_policy == DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN
+            else 0
+        )
     return DatasetProcessingState(
         intensity_scale=intensity_scale_state,
         site_sequence_resolution=SiteSequenceResolutionState(
@@ -253,11 +293,9 @@ def build_dataset_processing_state(
         missing_data=MissingDataState(
             policy=plan.missing_data_policy,
             min_observed_values=plan.missing_data_min_observed_values,
-            complete_matrix=True,
-            imputed=(
-                plan.missing_data_policy
-                == DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN
-            ),
+            complete_matrix=(output_missing_cell_count == 0),
+            imputed=(imputed_cell_count > 0),
+            diagnostics=typed_missing_data_diagnostics,
         ),
         normalisation=NormalisationState(policy=plan.normalisation_policy),
         total_protein_correction=TotalProteinCorrectionState(
@@ -321,6 +359,18 @@ def _resolve_total_correction_diagnostics(
         return None
     for item in preprocessing_trace:
         if item.stage == DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION:
+            return dict(item.diagnostics)
+    return None
+
+
+def _resolve_missing_data_diagnostics(
+    *,
+    preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
+) -> dict[str, object] | None:
+    if preprocessing_trace is None:
+        return None
+    for item in preprocessing_trace:
+        if item.stage == DATASET_PREPROCESSING_STAGE_MISSING_DATA:
             return dict(item.diagnostics)
     return None
 

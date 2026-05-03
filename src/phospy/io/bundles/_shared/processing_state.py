@@ -7,6 +7,7 @@ from collections.abc import Mapping
 from phospy.datasets.processing_state import (
     ComparisonState,
     DatasetProcessingState,
+    MissingDataDiagnostics,
     MissingDataState,
     NormalisationState,
     SiteMatrixState,
@@ -59,6 +60,11 @@ def processing_state_to_payload(state: DatasetProcessingState) -> dict[str, obje
             "min_observed_values": state.missing_data.min_observed_values,
             "complete_matrix": state.missing_data.complete_matrix,
             "imputed": state.missing_data.imputed,
+            "diagnostics": (
+                None
+                if state.missing_data.diagnostics is None
+                else state.missing_data.diagnostics.to_payload()
+            ),
         },
         "normalisation": {"policy": state.normalisation.policy},
         "total_protein_correction": {
@@ -137,6 +143,10 @@ def processing_state_from_payload(
     minimum_observed_values = _require_optional_int(
         missing_data_payload.get("min_observed_values"),
         field_name="dataset.metadata.processing_state.missing_data.min_observed_values",
+    )
+    missing_data_diagnostics = _parse_optional_missing_data_diagnostics(
+        missing_data_payload.get("diagnostics"),
+        field_name="dataset.metadata.processing_state.missing_data.diagnostics",
     )
     site_matrix_minimum_observed_values = _require_optional_int(
         site_matrix_payload.get("minimum_observed_values"),
@@ -247,6 +257,7 @@ def processing_state_from_payload(
                 missing_data_payload.get("imputed"),
                 field_name="dataset.metadata.processing_state.missing_data.imputed",
             ),
+            diagnostics=missing_data_diagnostics,
         ),
         normalisation=NormalisationState(
             policy=require_str(
@@ -382,6 +393,16 @@ def _normalize_optional_total_correction_diagnostics(
     if isinstance(value, TotalProteinCorrectionDiagnostics):
         return value
     return TotalProteinCorrectionDiagnostics.from_payload(value, field_name=field_name)
+
+
+def _parse_optional_missing_data_diagnostics(
+    value: object,
+    *,
+    field_name: str,
+) -> MissingDataDiagnostics | None:
+    if value is None:
+        return None
+    return MissingDataDiagnostics.from_payload(value, field_name=field_name)
 
 
 def _parse_optional_pairs(

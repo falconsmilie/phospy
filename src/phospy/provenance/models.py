@@ -57,7 +57,7 @@ class PreprocessingStageProvenance:
 
     stage: str
     operation: str
-    parameters: dict[str, object]
+    parameters: Mapping[str, object]
     input_shape: tuple[int, int]
     output_shape: tuple[int, int]
     input_hash: str
@@ -96,7 +96,7 @@ class RunProvenance:
     preprocessing_stages: tuple[PreprocessingStageProvenance, ...]
     reference: ReferenceProvenance | None
     workflow_name: str | None
-    workflow_parameters: dict[str, object]
+    workflow_parameters: Mapping[str, object]
     random_state: int | None
     random_seed_policy: str | None
     output_tables: tuple[TableFingerprint, ...]

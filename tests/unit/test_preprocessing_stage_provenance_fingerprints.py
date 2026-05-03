@@ -7,6 +7,7 @@ from phospy.api import (
     DatasetBuildRequest,
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
+    DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
@@ -210,3 +211,31 @@ def test_stage_configuration_change_updates_stage_provenance() -> None:
     assert _hash_by_name(
         stage_a.produced_output_tables, "dataset.phospho"
     ) != _hash_by_name(stage_b.produced_output_tables, "dataset.phospho")
+
+
+def test_missing_data_missingness_mask_hash_is_stable() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [15.0, float("nan")],
+            "sample_b": [float("nan"), 15.0],
+        },
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+    )
+    config = DatasetPreprocessingConfig(
+        missing_data=DatasetMissingDataConfig(
+            policy="impute_row_median",
+            min_observed_values=1,
+        )
+    )
+
+    built_a = _build_dataset(phospho=phospho, preprocessing_config=config)
+    built_b = _build_dataset(phospho=phospho, preprocessing_config=config)
+
+    stage_a = _stage(built_a, "missing_data")
+    stage_b = _stage(built_b, "missing_data")
+    diagnostics_a = stage_a.diagnostics or {}
+    diagnostics_b = stage_b.diagnostics or {}
+
+    assert diagnostics_a.get("missingness_mask_hash") == diagnostics_b.get(
+        "missingness_mask_hash"
+    )

@@ -112,7 +112,8 @@ def from_payload(payload: Mapping[str, object]) -> RunProvenance:
             field_name="provenance.workflow_name",
         ),
         workflow_parameters={
-            str(key): value for key, value in workflow_parameters.items()
+            str(key): _to_json_value(value)
+            for key, value in workflow_parameters.items()
         },
         random_state=_optional_int(
             payload.get("random_state"),
@@ -365,7 +366,9 @@ def _stage_from_payload(payload: Mapping[str, object]) -> PreprocessingStageProv
             payload.get("operation"),
             field_name="preprocessing_stage.operation",
         ),
-        parameters={str(key): value for key, value in parameters.items()},
+        parameters={
+            str(key): _to_json_value(value) for key, value in parameters.items()
+        },
         input_shape=input_shape,
         output_shape=output_shape,
         input_hash=_require_str(

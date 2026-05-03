@@ -314,7 +314,7 @@ class PreprocessingStageExecution:
     imputed_cell_count: int = 0
     imputed_row_ids: tuple[str, ...] = ()
     notes: str | None = None
-    diagnostics: dict[str, object] = field(default_factory=dict)
+    diagnostics: Mapping[str, object] = field(default_factory=dict)
 
     @property
     def input_rows(self) -> int:

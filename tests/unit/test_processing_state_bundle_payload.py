@@ -5,6 +5,7 @@ import pytest
 from phospy.datasets.processing_state import (
     ComparisonState,
     DatasetProcessingState,
+    MissingDataDiagnostics,
     MissingDataState,
     NormalisationState,
     SiteMatrixState,
@@ -44,6 +45,7 @@ def _processing_state_with_diagnostics(
     diagnostics,
     *,
     quantitative_meaning: str = "phospho_total_log_ratio",
+    missing_data_diagnostics=None,
 ):
     return DatasetProcessingState(
         intensity_scale=_intensity_scale_state(quantity=quantitative_meaning),
@@ -61,6 +63,7 @@ def _processing_state_with_diagnostics(
             min_observed_values=None,
             complete_matrix=True,
             imputed=False,
+            diagnostics=missing_data_diagnostics,
         ),
         normalisation=NormalisationState(policy="none"),
         total_protein_correction=TotalProteinCorrectionState(
@@ -92,6 +95,7 @@ def _processing_payload_with_diagnostics(
     diagnostics,
     *,
     quantitative_meaning: str = "phospho_total_log_ratio",
+    missing_data_diagnostics=None,
 ):
     return {
         "intensity_scale": {
@@ -112,6 +116,7 @@ def _processing_payload_with_diagnostics(
             "min_observed_values": None,
             "complete_matrix": True,
             "imputed": False,
+            "diagnostics": missing_data_diagnostics,
         },
         "normalisation": {"policy": "none"},
         "total_protein_correction": {
@@ -409,3 +414,70 @@ def test_processing_state_from_payload_rejects_applied_total_correction_with_nul
         ),
     ):
         processing_state_from_payload(payload)
+
+
+def test_processing_state_payload_round_trip_preserves_missing_data_diagnostics() -> (
+    None
+):
+    missing_data_diagnostics = {
+        "diagnostics_schema_version": 1,
+        "missing_data_policy": "impute_row_median",
+        "imputation_method_id": "row_median",
+        "imputation_method_family": "deterministic_row_statistic",
+        "input_missing_cell_count": 2,
+        "output_missing_cell_count": 0,
+        "imputed_cell_count": 2,
+        "affected_row_count": 2,
+        "affected_column_count": 2,
+        "affected_row_ids": ["row_a", "row_b"],
+        "affected_column_ids": ["sample_1", "sample_2"],
+        "imputed_row_ids": ["row_a"],
+        "imputed_column_ids": ["sample_2"],
+        "dropped_row_ids": ["row_c"],
+        "random_seed": None,
+        "method_parameters": {"min_observed_values": 1},
+        "matrix_scale_requirement": None,
+        "stage_order": ["missing_data"],
+        "missingness_mask_hash": "abc123",
+        "left_censored_assumption": False,
+        "rows_not_imputable": [],
+    }
+    state = _processing_state_with_diagnostics(
+        {
+            "diagnostics_schema_version": 1,
+            "policy": "subtract_log_total",
+            "requested_policy": "subtract_log_total",
+            "resolved_policy": "subtract_log_total",
+            "quantitative_meaning": "phospho_total_log_ratio",
+        },
+        missing_data_diagnostics=missing_data_diagnostics,
+    )
+
+    payload = processing_state_to_payload(state)
+    restored = processing_state_from_payload(payload)
+
+    assert isinstance(restored.missing_data.diagnostics, MissingDataDiagnostics)
+    assert restored.missing_data.diagnostics is not None
+    assert (
+        restored.missing_data.diagnostics.to_payload()
+        == payload["missing_data"]["diagnostics"]
+    )
+
+
+def test_processing_state_payload_without_missing_data_diagnostics_deserializes() -> (
+    None
+):
+    payload = _processing_payload_with_diagnostics(
+        {
+            "diagnostics_schema_version": 1,
+            "policy": "subtract_log_total",
+            "requested_policy": "subtract_log_total",
+            "resolved_policy": "subtract_log_total",
+            "quantitative_meaning": "phospho_total_log_ratio",
+        },
+    )
+    payload["missing_data"].pop("diagnostics", None)
+
+    restored = processing_state_from_payload(payload)
+
+    assert restored.missing_data.diagnostics is None
