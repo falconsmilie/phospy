@@ -441,6 +441,8 @@ def test_processing_state_payload_round_trip_preserves_missing_data_diagnostics(
         "missingness_mask_hash": "abc123",
         "left_censored_assumption": False,
         "rows_not_imputable": [],
+        "neighbour_count": 3,
+        "distance_metric": "nan_euclidean",
         "per_column_distribution_parameters": {
             "sample_1": {
                 "observed_count": 2,

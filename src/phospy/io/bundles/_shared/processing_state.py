@@ -414,6 +414,8 @@ def _normalize_optional_missing_data_diagnostics(
     *,
     field_name: str,
 ) -> MissingDataDiagnostics | None:
+    """Normalize versioned missing-data diagnostics payloads for bundle I/O."""
+
     if value is None:
         return None
     if isinstance(value, MissingDataDiagnostics):

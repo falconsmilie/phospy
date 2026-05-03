@@ -823,6 +823,97 @@ def test_missing_data_stage_minprob_changes_with_seed() -> None:
     )
 
 
+def test_missing_data_stage_knn_imputes_drops_and_reports_diagnostics() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 1.0, 2.0, 10.0],
+            "sample_b": [1.0, 2.0, 2.0, float("nan")],
+            "sample_c": [float("nan"), 3.0, 3.0, float("nan")],
+        },
+        index=pd.Index(["row_impute", "row_ref_1", "row_ref_2", "row_drop"]),
+    )
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14", "AKT1", "GSK3B", "PRKACA"],
+                "site": ["Y182", "T308", "S9", "S339"],
+                "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+            },
+            index=phospho.index.copy(),
+        ),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan(
+            missing_data_policy="impute_knn",
+            missing_data_k=1,
+            missing_data_distance="nan_euclidean",
+            missing_data_max_missing_fraction_per_row=0.5,
+            stage_order=("missing_data",),
+        ),
+    )
+
+    result = MissingDataStage().run(state)
+    diagnostics = result.diagnostics["diagnostics"]
+
+    assert result.state.phospho.columns.tolist() == ["sample_a", "sample_b", "sample_c"]
+    assert result.state.phospho.index.tolist() == [
+        "row_impute",
+        "row_ref_1",
+        "row_ref_2",
+    ]
+    assert float(result.state.phospho.loc["row_impute", "sample_c"]) == pytest.approx(
+        3.0
+    )
+    assert int(result.state.phospho.isna().to_numpy().sum()) == 0
+    assert diagnostics["imputation_method_id"] == "knn"
+    assert diagnostics["imputation_method_family"] == "nearest_neighbour"
+    assert diagnostics["neighbour_count"] == 1
+    assert diagnostics["distance_metric"] == "nan_euclidean"
+    assert diagnostics["rows_not_imputable"] == ["row_drop"]
+    assert diagnostics["dropped_row_ids"] == ["row_drop"]
+    assert diagnostics["output_missing_cell_count"] == 0
+    assert diagnostics["matrix_scale_requirement"] is None
+    assert diagnostics["left_censored_assumption"] is False
+
+
+def test_missing_data_stage_knn_rejects_columns_without_observed_values() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0],
+            "sample_b": [2.0, 3.0],
+            "sample_c": [float("nan"), float("nan")],
+        },
+        index=pd.Index(["row_a", "row_b"]),
+    )
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14", "AKT1"],
+                "site": ["Y182", "T308"],
+                "site_sequence": ["SEQ_A", "SEQ_B"],
+            },
+            index=phospho.index.copy(),
+        ),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan(
+            missing_data_policy="impute_knn",
+            missing_data_k=1,
+            missing_data_distance="nan_euclidean",
+            missing_data_max_missing_fraction_per_row=1.0,
+            stage_order=("missing_data",),
+        ),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="have no observed values after row filtering",
+    ):
+        MissingDataStage().run(state)
+
+
 def test_processing_state_missing_data_imputed_flag_requires_provenance() -> None:
     state = build_dataset_processing_state(
         plan=PreprocessingPlan(

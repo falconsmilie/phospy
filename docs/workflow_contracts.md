@@ -42,6 +42,10 @@ approximation behavior, and failure modes), see `docs/performance.md`.
 - `missing_data.policy="impute_minprob"` is explicit opt-in left-censored random imputation.
 - `impute_minprob` requires `intensity_transform.policy="log2"` and runs after the log2 stage.
 - `impute_minprob` is deterministic for fixed seed and records per-column distribution parameters and dropped-row diagnostics.
+- `missing_data.policy="impute_knn"` is explicit opt-in nearest-neighbour imputation.
+- `impute_knn` requires explicit `k`, `distance="nan_euclidean"`, and `max_missing_fraction_per_row`.
+- `impute_knn` drops rows above the configured row-missingness threshold before imputation and reports those rows as not imputable.
+- `impute_knn` is deterministic for fixed input/config and records neighbour count, distance metric, and row-drop diagnostics.
 - Output `comparisons` (when produced) must also be numeric and missing-value-free.
 
 ### Transformation and Normalisation Policy

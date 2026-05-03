@@ -329,6 +329,91 @@ def test_dataset_missing_data_config_rejects_minprob_invalid_width() -> None:
         )
 
 
+def test_dataset_missing_data_config_rejects_knn_without_k() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="missing_data.k must be an int",
+    ):
+        DatasetMissingDataConfig(
+            policy="impute_knn",
+            distance="nan_euclidean",
+            max_missing_fraction_per_row=0.5,
+        )
+
+
+def test_dataset_missing_data_config_rejects_knn_unsupported_distance() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="missing_data.distance must be 'nan_euclidean'",
+    ):
+        DatasetMissingDataConfig(
+            policy="impute_knn",
+            k=2,
+            distance="euclidean",
+            max_missing_fraction_per_row=0.5,
+        )
+
+
+def test_dataset_preprocessor_knn_imputes_expected_values_and_preserves_labels() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 1.0, 2.0, 10.0],
+            "sample_b": [1.0, 2.0, 2.0, float("nan")],
+            "sample_c": [float("nan"), 3.0, 3.0, float("nan")],
+        },
+        index=pd.Index(["row_impute", "row_ref_1", "row_ref_2", "row_drop"]),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1", "GSK3B", "PRKACA"],
+            "site": ["Y182", "T308", "S9", "S339"],
+            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+        },
+        index=phospho.index.copy(),
+    )
+    preprocessed = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan.from_config(
+            DatasetPreprocessingConfig(
+                missing_data=DatasetMissingDataConfig(
+                    policy="impute_knn",
+                    k=1,
+                    distance="nan_euclidean",
+                    max_missing_fraction_per_row=0.5,
+                )
+            )
+        ),
+    )
+
+    expected = pd.DataFrame(
+        {
+            "sample_a": [1.0, 1.0, 2.0],
+            "sample_b": [1.0, 2.0, 2.0],
+            "sample_c": [3.0, 3.0, 3.0],
+        },
+        index=pd.Index(["row_impute", "row_ref_1", "row_ref_2"]),
+    )
+    pdt.assert_frame_equal(preprocessed.phospho, expected)
+    assert preprocessed.phospho.index.tolist() == [
+        "row_impute",
+        "row_ref_1",
+        "row_ref_2",
+    ]
+    assert preprocessed.phospho.columns.tolist() == ["sample_a", "sample_b", "sample_c"]
+    assert int(preprocessed.phospho.isna().to_numpy().sum()) == 0
+    assert preprocessed.row_audit is not None
+    dropped = preprocessed.row_audit.loc[
+        (preprocessed.row_audit.loc[:, "stage"] == "missing_data")
+        & (preprocessed.row_audit.loc[:, "action"] == "dropped")
+    ]
+    assert set(dropped.loc[:, "source_row_id"].astype(str)) == {"row_drop"}
+
+
 def test_preprocessing_plan_rejects_minprob_without_log2_transform() -> None:
     with pytest.raises(
         PhosPyInputError,

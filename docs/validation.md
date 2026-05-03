@@ -59,6 +59,9 @@ Common cross-field checks:
 - `missing_data.policy="impute_minprob"` requires `intensity_transform.policy="log2"`.
 - `impute_minprob` requires explicit `q`, `width`, `seed`, and `max_missing_fraction_per_row`.
 - `impute_minprob` is left-censored random imputation with deterministic seeded draws and row-drop reporting above the configured missing-fraction threshold.
+- `missing_data.policy="impute_knn"` requires explicit `k`, `distance="nan_euclidean"`, and `max_missing_fraction_per_row`.
+- `impute_knn` requires `min_observed_values=None` and does not support alternative distance metrics in the public contract.
+- `impute_knn` drops rows above `max_missing_fraction_per_row`, reports dropped rows as not imputable, and must produce a complete matrix.
 - `subtract_log_total` requires `total` input data.
 - `subtract_log_total` requires `intensity_transform.policy="log2"`.
 - When `subtract_log_total` runs with `unmatched_policy="allow_uncorrected"` and

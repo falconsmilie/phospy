@@ -39,6 +39,8 @@ _V1_KNOWN_MISSING_DATA_DIAGNOSTICS_FIELDS = frozenset(
         "rows_not_imputable",
         "per_column_distribution_parameters",
         "dropped_rows_above_max_missing_fraction",
+        "neighbour_count",
+        "distance_metric",
     )
 )
 _V1_KNOWN_DIAGNOSTICS_FIELDS = frozenset(
@@ -152,6 +154,8 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
     left_censored_assumption: bool | None = None
     per_column_distribution_parameters: dict[str, JsonValue] | None = None
     dropped_rows_above_max_missing_fraction: tuple[str, ...] | None = None
+    neighbour_count: int | None = None
+    distance_metric: str | None = None
     diagnostics_schema_version: int = MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1
     _payload: dict[str, JsonValue] = field(init=False, repr=False, compare=False)
 
@@ -284,6 +288,14 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
             dropped_rows_above_max_missing_fraction=_require_optional_string_tuple(
                 payload.get("dropped_rows_above_max_missing_fraction"),
                 field_name=(f"{field_name}.dropped_rows_above_max_missing_fraction"),
+            ),
+            neighbour_count=_require_optional_int(
+                payload.get("neighbour_count"),
+                field_name=f"{field_name}.neighbour_count",
+            ),
+            distance_metric=_require_optional_str(
+                payload.get("distance_metric"),
+                field_name=f"{field_name}.distance_metric",
             ),
         )
 
@@ -432,6 +444,23 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
                 "dropped_rows_above_max_missing_fraction"
             ),
         )
+        neighbour_count = _require_optional_int(
+            self.neighbour_count,
+            field_name=(
+                "dataset processing state missing_data.diagnostics.neighbour_count"
+            ),
+        )
+        if neighbour_count is not None and neighbour_count < 1:
+            raise PhosPyInputError(
+                "dataset processing state missing_data.diagnostics."
+                "neighbour_count must be >= 1"
+            )
+        distance_metric = _require_optional_str(
+            self.distance_metric,
+            field_name=(
+                "dataset processing state missing_data.diagnostics.distance_metric"
+            ),
+        )
         payload: dict[str, JsonValue] = {
             "diagnostics_schema_version": self.diagnostics_schema_version,
             "missing_data_policy": missing_data_policy,
@@ -471,6 +500,8 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
             payload["dropped_rows_above_max_missing_fraction"] = list(
                 dropped_rows_above_max_missing_fraction
             )
+        _set_optional_payload_value(payload, "neighbour_count", neighbour_count)
+        _set_optional_payload_value(payload, "distance_metric", distance_metric)
 
         object.__setattr__(self, "missing_data_policy", missing_data_policy)
         object.__setattr__(self, "imputation_method_id", imputation_method_id)
@@ -506,6 +537,8 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
             "dropped_rows_above_max_missing_fraction",
             dropped_rows_above_max_missing_fraction,
         )
+        object.__setattr__(self, "neighbour_count", neighbour_count)
+        object.__setattr__(self, "distance_metric", distance_metric)
         object.__setattr__(self, "_payload", payload)
 
     def __getitem__(self, key: str) -> JsonValue:

@@ -367,6 +367,8 @@ def _preprocessing_plan_to_payload(plan: PreprocessingPlan) -> dict[str, object]
         "missing_data_q": plan.missing_data_q,
         "missing_data_width": plan.missing_data_width,
         "missing_data_seed": plan.missing_data_seed,
+        "missing_data_k": plan.missing_data_k,
+        "missing_data_distance": plan.missing_data_distance,
         "missing_data_max_missing_fraction_per_row": (
             plan.missing_data_max_missing_fraction_per_row
         ),

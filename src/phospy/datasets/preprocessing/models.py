@@ -105,6 +105,8 @@ class PreprocessingPlan:
     missing_data_q: float | None = None
     missing_data_width: float | None = None
     missing_data_seed: int | None = None
+    missing_data_k: int | None = None
+    missing_data_distance: str | None = None
     missing_data_max_missing_fraction_per_row: float | None = None
     site_sequence_resolution_enabled: bool = False
     site_sequence_resolution_fasta_path: str | None = None
@@ -206,6 +208,8 @@ class PreprocessingPlan:
                 else float(config.missing_data.width)
             ),
             missing_data_seed=config.missing_data.seed,
+            missing_data_k=config.missing_data.k,
+            missing_data_distance=config.missing_data.distance,
             missing_data_max_missing_fraction_per_row=(
                 None
                 if config.missing_data.max_missing_fraction_per_row is None
