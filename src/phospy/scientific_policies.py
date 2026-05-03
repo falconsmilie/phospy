@@ -18,6 +18,7 @@ class ScientificPolicyId(str, Enum):
     MOTIF_PROFILE_RANK_FUSION = "motif_profile_rank_fusion_v1"
     CANDIDATE_SUBSTRATE_SELECTION = "candidate_substrate_selection_v1"
     SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY = "simplified_weighted_substrate_activity_v1"
+    KSEA_ZSCORE_ACTIVITY = "ksea_zscore_activity_v1"
     SIGNALOME_MISSING_VALUE_CLUSTERING = "signalome_missing_value_clustering_v1"
     SIGNALOME_SCORE_PRECONDITIONING = "signalome_score_preconditioning_v1"
     PREPROCESSING_STAGE_ORDER = "preprocessing_stage_order_v1"
@@ -377,6 +378,47 @@ def build_simplified_weighted_substrate_activity_policy(
     )
 
 
+def build_ksea_zscore_activity_policy(
+    *,
+    evidence_threshold: float,
+    min_substrates: int,
+    p_value_method: str,
+    adjust_p_values: bool,
+    q_value_method: str | None,
+) -> ScientificPolicyRecord:
+    return ScientificPolicyRecord(
+        id=ScientificPolicyId.KSEA_ZSCORE_ACTIVITY,
+        name="ksea_zscore_activity_v1",
+        version="1",
+        description=(
+            "Computes KSEA-style substrate-set enrichment activity z-scores using "
+            "unweighted substrate membership after evidence thresholding."
+        ),
+        parameters={
+            "evidence_threshold": float(evidence_threshold),
+            "min_substrates": int(min_substrates),
+            "membership_rule": "finite_evidence >= evidence_threshold",
+            "weighting_rule": "unweighted_membership",
+            "z_score_formula": "(mean_S - mean_U) * sqrt(n) / sd_U",
+            "background_sd_ddof": 1,
+            "p_value_method": str(p_value_method),
+            "adjust_p_values": bool(adjust_p_values),
+            "q_value_method": None if q_value_method is None else str(q_value_method),
+        },
+        assumptions=(
+            "Substrate evidence contributes as binary membership after thresholding.",
+            "Background phosphosite values define per-condition mean and sample variance.",
+            "Scores with insufficient substrates or invalid background variance are not computable.",
+            "KSEA z-scores are statistical enrichment summaries and are not PhosR-equivalent activity inference.",
+        ),
+        output_scale=(
+            "Condition-by-kinase z-score substrate-set enrichment activity matrix "
+            "with normal-approximation p-values."
+        ),
+        quantitative_meaning="substrate_set_enrichment_z_score",
+    )
+
+
 def build_signalome_missing_value_clustering_policy(
     *,
     missing_value_policy: str,
@@ -681,6 +723,7 @@ __all__ = [
     "ScientificPolicyRecord",
     "build_candidate_substrate_selection_policy",
     "build_duplicate_site_resolution_policy",
+    "build_ksea_zscore_activity_policy",
     "build_kinase_profile_scoring_policy",
     "build_motif_profile_rank_fusion_policy",
     "build_preprocessing_stage_order_policy",

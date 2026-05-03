@@ -159,6 +159,10 @@ def publish_kinase_workflow(
         target_table_path = activity_dir / f"target_table{suffix}"
         write_table(result.activity_result.target_table, target_table_path)
         written["kinase.activity.target_table"] = target_table_path
+        if result.activity_result.statistics_table is not None:
+            statistics_table_path = activity_dir / f"statistics_table{suffix}"
+            write_table(result.activity_result.statistics_table, statistics_table_path)
+            written["kinase.activity.statistics_table"] = statistics_table_path
 
     references_dir = workflow_dir / "references"
     kinase_substrate_map_path = references_dir / f"kinase_substrate_map{suffix}"
@@ -179,6 +183,12 @@ def publish_kinase_workflow(
                 None
                 if result.activity_result is None
                 else result.activity_result.activity_method.to_payload()
+            ),
+            "activity_method_summary": (
+                None
+                if result.activity_result is None
+                or result.activity_result.method_summary is None
+                else result.activity_result.method_summary.to_payload()
             ),
             "site_attrition_summary": (
                 None

@@ -25,9 +25,14 @@ def test_kinase_snapshot_payload_round_trip_preserves_fields() -> None:
         },
         "activity_config": {
             "enabled": True,
+            "method": "simplified_weighted_substrate_activity",
             "threshold": 0.4,
             "min_substrates": 2,
             "top_n_substrates": 8,
+            "ksea_min_substrates": 5,
+            "ksea_evidence_threshold": None,
+            "ksea_p_value_method": "normal_approximation",
+            "ksea_adjust_p_values": True,
         },
     }
 

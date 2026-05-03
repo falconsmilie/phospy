@@ -112,7 +112,9 @@ preserved in published outputs.
 
 For kinase activity outputs, manifest metadata includes explicit activity method
 identity (`activity_method_id`, family, and non-KSEA/non-PhosR-equivalence
-flags) when activity is enabled.
+flags) when activity is enabled. KSEA runs also emit an activity
+`statistics_table` with z-scores, p-values, optional q-values, substrate counts,
+background counts, and computability statuses.
 
 Bundle loaders reconstruct `dataset.processing_state` and
 `dataset.intensity_scale_state` from saved payloads, including mixed

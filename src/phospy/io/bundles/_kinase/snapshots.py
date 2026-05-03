@@ -7,10 +7,14 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
 from phospy.api.configs import (
+    KINASE_ACTIVITY_KSEA_P_VALUE_METHODS,
+    KINASE_ACTIVITY_METHODS,
     KINASE_ADAPTIVE_POLICIES,
     KINASE_PREDICTION_MODES,
     KINASE_PROFILE_MISSING_VALUE_STRATEGIES,
     KinaseActivityConfig,
+    KinaseActivityMethod,
+    KinaseActivityPValueMethod,
     KinaseAdaptivePolicy,
     KinasePredictionConfig,
     KinasePredictionMode,
@@ -56,7 +60,17 @@ _PREDICTION_CONFIG_ALLOWED_FIELDS = frozenset(
     }
 )
 _ACTIVITY_CONFIG_ALLOWED_FIELDS = frozenset(
-    {"enabled", "threshold", "min_substrates", "top_n_substrates"}
+    {
+        "enabled",
+        "method",
+        "threshold",
+        "min_substrates",
+        "top_n_substrates",
+        "ksea_min_substrates",
+        "ksea_evidence_threshold",
+        "ksea_p_value_method",
+        "ksea_adjust_p_values",
+    }
 )
 _CONFIG_SNAPSHOT_ALLOWED_FIELDS = frozenset(
     {"scoring_config", "prediction_config", "activity_config"}
@@ -98,9 +112,14 @@ class KinaseWorkflowConfigSnapshot:
         else:
             activity_payload = {
                 "enabled": self.activity_config.enabled,
+                "method": self.activity_config.method,
                 "threshold": float(self.activity_config.threshold),
                 "min_substrates": self.activity_config.min_substrates,
                 "top_n_substrates": self.activity_config.top_n_substrates,
+                "ksea_min_substrates": self.activity_config.ksea_min_substrates,
+                "ksea_evidence_threshold": self.activity_config.ksea_evidence_threshold,
+                "ksea_p_value_method": self.activity_config.ksea_p_value_method,
+                "ksea_adjust_p_values": self.activity_config.ksea_adjust_p_values,
             }
         return {
             "scoring_config": {
@@ -197,6 +216,13 @@ class KinaseWorkflowConfigSnapshot:
                     activity_payload.get("enabled"),
                     field_name=f"{scope}.activity_config.enabled",
                 ),
+                method=_parse_activity_method(
+                    require_str(
+                        activity_payload.get("method"),
+                        field_name=f"{scope}.activity_config.method",
+                    ),
+                    field_name=f"{scope}.activity_config.method",
+                ),
                 threshold=require_float(
                     activity_payload.get("threshold"),
                     field_name=f"{scope}.activity_config.threshold",
@@ -208,6 +234,29 @@ class KinaseWorkflowConfigSnapshot:
                 top_n_substrates=require_int(
                     activity_payload.get("top_n_substrates"),
                     field_name=f"{scope}.activity_config.top_n_substrates",
+                ),
+                ksea_min_substrates=require_int(
+                    activity_payload.get("ksea_min_substrates"),
+                    field_name=f"{scope}.activity_config.ksea_min_substrates",
+                ),
+                ksea_evidence_threshold=(
+                    None
+                    if activity_payload.get("ksea_evidence_threshold") is None
+                    else require_float(
+                        activity_payload.get("ksea_evidence_threshold"),
+                        field_name=f"{scope}.activity_config.ksea_evidence_threshold",
+                    )
+                ),
+                ksea_p_value_method=_parse_activity_p_value_method(
+                    require_str(
+                        activity_payload.get("ksea_p_value_method"),
+                        field_name=f"{scope}.activity_config.ksea_p_value_method",
+                    ),
+                    field_name=f"{scope}.activity_config.ksea_p_value_method",
+                ),
+                ksea_adjust_p_values=require_bool(
+                    activity_payload.get("ksea_adjust_p_values"),
+                    field_name=f"{scope}.activity_config.ksea_adjust_p_values",
                 ),
             )
         return cls(
@@ -341,3 +390,19 @@ def _parse_adaptive_policy(value: str, *, field_name: str) -> KinaseAdaptivePoli
         allowed = ", ".join(sorted(KINASE_ADAPTIVE_POLICIES))
         raise PhosPyInputError(f"{field_name} must be one of: {allowed}")
     return cast(KinaseAdaptivePolicy, value)
+
+
+def _parse_activity_method(value: str, *, field_name: str) -> KinaseActivityMethod:
+    if value not in KINASE_ACTIVITY_METHODS:
+        allowed = ", ".join(sorted(KINASE_ACTIVITY_METHODS))
+        raise PhosPyInputError(f"{field_name} must be one of: {allowed}")
+    return cast(KinaseActivityMethod, value)
+
+
+def _parse_activity_p_value_method(
+    value: str, *, field_name: str
+) -> KinaseActivityPValueMethod:
+    if value not in KINASE_ACTIVITY_KSEA_P_VALUE_METHODS:
+        allowed = ", ".join(sorted(KINASE_ACTIVITY_KSEA_P_VALUE_METHODS))
+        raise PhosPyInputError(f"{field_name} must be one of: {allowed}")
+    return cast(KinaseActivityPValueMethod, value)

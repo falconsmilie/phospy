@@ -158,6 +158,119 @@ class ActivityTargetTable(TableSchema):
 
 
 @dataclass(frozen=True, slots=True)
+class ActivityStatisticsTable(TableSchema):
+    """Schema wrapper for method-specific activity statistics tables."""
+
+    _field_name = "activity_result.statistics_table"
+    _error_type = PhosPyValidationError
+
+    def _validate_frame(self, frame: pd.DataFrame) -> pd.DataFrame:
+        require_dataframe(
+            frame,
+            field_name=self._field_name,
+            allow_empty=True,
+            error_type=self._error_type,
+        )
+        require_unique_columns(
+            frame,
+            field_name=self._field_name,
+            error_type=self._error_type,
+        )
+        require_columns(
+            frame,
+            field_name=self._field_name,
+            required_columns=(
+                "kinase",
+                "condition",
+                "z_score",
+                "p_value",
+                "q_value",
+                "n_substrates",
+                "n_background_sites",
+                "evidence_threshold",
+                "min_substrates",
+                "computability_status",
+                "reason",
+            ),
+            error_type=self._error_type,
+        )
+        if frame.empty:
+            return frame
+
+        for column_name in ("kinase", "condition", "computability_status", "reason"):
+            values = _column_series(frame, column_name)
+            if values.isna().any():
+                raise self._error_type(
+                    f"{self._field_name}.{column_name} must not contain missing values"
+                )
+            if not values.astype(str).str.len().ge(0).all():
+                raise self._error_type(
+                    f"{self._field_name}.{column_name} must contain string values"
+                )
+
+        _require_numeric_column_allowing_missing(
+            frame,
+            field_name=self._field_name,
+            column_name="z_score",
+            error_type=self._error_type,
+        )
+        _require_numeric_column_allowing_missing(
+            frame,
+            field_name=self._field_name,
+            column_name="p_value",
+            error_type=self._error_type,
+        )
+        _require_numeric_column_allowing_missing(
+            frame,
+            field_name=self._field_name,
+            column_name="q_value",
+            error_type=self._error_type,
+        )
+        for count_column in ("n_substrates", "n_background_sites", "min_substrates"):
+            numeric = _require_integer_compatible_column(
+                frame,
+                field_name=self._field_name,
+                column_name=count_column,
+                error_type=self._error_type,
+            )
+            if (numeric < 0.0).any():
+                raise self._error_type(
+                    f"{self._field_name}.{count_column} must be non-negative"
+                )
+        evidence_threshold = _require_numeric_column_allowing_missing(
+            frame,
+            field_name=self._field_name,
+            column_name="evidence_threshold",
+            error_type=self._error_type,
+        )
+        if (evidence_threshold < 0.0).any() or (evidence_threshold > 1.0).any():
+            raise self._error_type(
+                f"{self._field_name}.evidence_threshold must be between 0.0 and 1.0"
+            )
+        p_values = _require_numeric_column_allowing_missing(
+            frame,
+            field_name=self._field_name,
+            column_name="p_value",
+            error_type=self._error_type,
+        )
+        if (p_values < 0.0).any() or (p_values > 1.0).any():
+            raise self._error_type(
+                f"{self._field_name}.p_value must be between 0.0 and 1.0 when present"
+            )
+        q_values = _require_numeric_column_allowing_missing(
+            frame,
+            field_name=self._field_name,
+            column_name="q_value",
+            error_type=self._error_type,
+        )
+        if (q_values < 0.0).any() or (q_values > 1.0).any():
+            raise self._error_type(
+                f"{self._field_name}.q_value must be between 0.0 and 1.0 when present"
+            )
+        return frame
+
+
+@dataclass(frozen=True, slots=True)
 class SeriesSchema:
     """Base wrapper for one owned, validated Series contract."""
 
@@ -259,6 +372,50 @@ def _require_numeric_column(
         raise error_type(
             f"{field_name}.{column_name} must contain finite numeric values"
         )
+
+
+def _require_numeric_column_allowing_missing(
+    frame: pd.DataFrame,
+    *,
+    field_name: str,
+    column_name: str,
+    error_type: type[PhosPyValidationError],
+) -> np.ndarray:
+    raw_values = _column_series(frame, column_name)
+    values = cast(pd.Series, pd.to_numeric(raw_values, errors="coerce"))
+    coerced_missing = values.isna() & raw_values.notna()
+    if coerced_missing.any():
+        raise error_type(
+            f"{field_name}.{column_name} must contain numeric values when present"
+        )
+    array = values.to_numpy(dtype="float64", copy=False)
+    finite_mask = np.isfinite(array)
+    nan_mask = np.isnan(array)
+    if ~(finite_mask | nan_mask).all():
+        raise error_type(
+            f"{field_name}.{column_name} must contain finite numeric values when present"
+        )
+    return array[finite_mask]
+
+
+def _require_integer_compatible_column(
+    frame: pd.DataFrame,
+    *,
+    field_name: str,
+    column_name: str,
+    error_type: type[PhosPyValidationError],
+) -> np.ndarray:
+    values = cast(
+        pd.Series, pd.to_numeric(_column_series(frame, column_name), errors="coerce")
+    )
+    if values.isna().any():
+        raise error_type(f"{field_name}.{column_name} must be integer-compatible")
+    array = values.to_numpy(dtype="float64", copy=False)
+    if not np.isfinite(array).all():
+        raise error_type(f"{field_name}.{column_name} must be finite")
+    if not np.isclose(array, np.round(array)).all():
+        raise error_type(f"{field_name}.{column_name} must be integer-compatible")
+    return array
 
 
 def _column_series(frame: pd.DataFrame, column_name: str) -> pd.Series:

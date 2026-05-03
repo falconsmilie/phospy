@@ -111,9 +111,14 @@ def _resolved_request(
         prediction_n_iterations=5,
         prediction_random_state=None,
         activity=ResolvedKinaseActivityExecutionConfig(
+            method="simplified_weighted_substrate_activity",
             threshold=float(threshold),
             min_substrates=int(activity_min_substrates),
             top_n_substrates=int(activity_top_n_substrates),
+            ksea_min_substrates=5,
+            ksea_evidence_threshold=float(threshold),
+            ksea_p_value_method="normal_approximation",
+            ksea_adjust_p_values=True,
         ),
     )
     return ResolvedKinaseWorkflowRequest(
@@ -161,9 +166,18 @@ def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
     assert interpreted.execution_config.prediction_n_iterations == 5
     assert interpreted.execution_config.prediction_random_state is None
     assert interpreted.execution_config.activity is not None
+    assert (
+        interpreted.execution_config.activity.method
+        == "simplified_weighted_substrate_activity"
+    )
     assert interpreted.execution_config.activity.threshold == pytest.approx(0.6)
     assert interpreted.execution_config.activity.min_substrates == 3
     assert interpreted.execution_config.activity.top_n_substrates == 20
+    assert interpreted.execution_config.activity.ksea_min_substrates == 5
+    assert (
+        interpreted.execution_config.activity.ksea_evidence_threshold
+        == pytest.approx(0.6)
+    )
 
 
 def test_scoring_stage_is_reference_input_form_invariant_for_equivalent_content() -> (

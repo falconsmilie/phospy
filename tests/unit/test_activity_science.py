@@ -3,6 +3,12 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from phospy.activities.methods.ksea_zscore import (
+    KSEA_STATUS_COMPUTED,
+    KSEA_STATUS_INSUFFICIENT_SUBSTRATES,
+    KSEA_STATUS_ZERO_BACKGROUND_VARIANCE,
+    KseaZScoreActivityMethod,
+)
 from phospy.activities.models import KinaseActivityInputs, PredMatOverlapSummary
 from phospy.activities.scoring import (
     SimplifiedWeightedSubstrateActivityPolicy,
@@ -33,6 +39,221 @@ def _inputs(
             phospho_rows=int(phospho_matrix.index.size),
         ),
     )
+
+
+def _ksea_result(
+    *,
+    pred_mat: pd.DataFrame,
+    phospho_matrix: pd.DataFrame,
+    evidence_threshold: float = 0.5,
+    min_substrates: int = 2,
+    adjust_p_values: bool = True,
+):
+    return KseaZScoreActivityMethod(
+        evidence_threshold=evidence_threshold,
+        min_substrates=min_substrates,
+        adjust_p_values=adjust_p_values,
+    ).run(
+        _inputs(
+            pred_mat=pred_mat,
+            phospho_matrix=phospho_matrix,
+            threshold=evidence_threshold,
+            min_substrates=min_substrates,
+            top_n_substrates=1,
+        )
+    )
+
+
+def test_ksea_basic_zscore_calculation_matches_hand_computed_values() -> None:
+    pred_mat = pd.DataFrame(
+        {"K1": [0.9, 0.8, 0.1, 0.2]},
+        index=["S1;S1;", "S2;S2;", "S3;S3;", "S4;S4;"],
+    )
+    phospho = pd.DataFrame({"c1": [1.0, 2.0, 3.0, 4.0]}, index=pred_mat.index.copy())
+
+    result = _ksea_result(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho,
+        evidence_threshold=0.5,
+        min_substrates=2,
+    )
+
+    assert result.weighted_activity.at["K1", "c1"] == pytest.approx(-1.0954451150103324)
+    stats = result.statistics_table
+    assert stats is not None
+    row = stats.iloc[0]
+    assert row["computability_status"] == KSEA_STATUS_COMPUTED
+    assert row["p_value"] == pytest.approx(0.27332167829229814)
+    assert row["n_substrates"] == 2
+    assert row["n_background_sites"] == 4
+
+
+def test_ksea_computes_each_kinase_condition_pair_independently() -> None:
+    pred_mat = pd.DataFrame(
+        {
+            "K1": [0.9, 0.9, 0.1],
+            "K2": [0.1, 0.8, 0.8],
+        },
+        index=["S1;S1;", "S2;S2;", "S3;S3;"],
+    )
+    phospho = pd.DataFrame(
+        {
+            "c1": [1.0, 2.0, 3.0],
+            "c2": [3.0, 2.0, 1.0],
+        },
+        index=pred_mat.index.copy(),
+    )
+
+    result = _ksea_result(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho,
+        evidence_threshold=0.5,
+        min_substrates=2,
+    )
+
+    assert result.weighted_activity.at["K1", "c1"] == pytest.approx(-0.7071067811865476)
+    assert result.weighted_activity.at["K2", "c1"] == pytest.approx(0.7071067811865476)
+    assert result.weighted_activity.at["K1", "c2"] == pytest.approx(0.7071067811865476)
+    assert result.weighted_activity.at["K2", "c2"] == pytest.approx(-0.7071067811865476)
+
+
+def test_ksea_reports_insufficient_substrates_without_dropping_pairs() -> None:
+    pred_mat = pd.DataFrame(
+        {"K1": [0.9, 0.1]},
+        index=["S1;S1;", "S2;S2;"],
+    )
+    phospho = pd.DataFrame({"c1": [1.0, 2.0]}, index=pred_mat.index.copy())
+
+    result = _ksea_result(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho,
+        evidence_threshold=0.5,
+        min_substrates=2,
+    )
+
+    assert pd.isna(result.weighted_activity.at["K1", "c1"])
+    stats = result.statistics_table
+    assert stats is not None
+    assert int(stats.shape[0]) == 1
+    assert stats.at[0, "computability_status"] == KSEA_STATUS_INSUFFICIENT_SUBSTRATES
+
+
+def test_ksea_evidence_threshold_is_inclusive_and_ignores_missing_values() -> None:
+    pred_mat = pd.DataFrame(
+        {"K1": [0.5, 0.49, float("nan")]},
+        index=["S1;S1;", "S2;S2;", "S3;S3;"],
+    )
+    phospho = pd.DataFrame({"c1": [1.0, 2.0, 3.0]}, index=pred_mat.index.copy())
+
+    result = _ksea_result(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho,
+        evidence_threshold=0.5,
+        min_substrates=1,
+    )
+
+    assert result.target_counts.to_dict() == {"K1": 1}
+    stats = result.statistics_table
+    assert stats is not None
+    assert stats.at[0, "n_substrates"] == 1
+    assert stats.at[0, "computability_status"] == KSEA_STATUS_COMPUTED
+
+
+def test_ksea_reports_zero_background_variance_as_not_computable() -> None:
+    pred_mat = pd.DataFrame(
+        {"K1": [0.8, 0.8, 0.8]},
+        index=["S1;S1;", "S2;S2;", "S3;S3;"],
+    )
+    phospho = pd.DataFrame({"c1": [5.0, 5.0, 5.0]}, index=pred_mat.index.copy())
+
+    result = _ksea_result(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho,
+        evidence_threshold=0.5,
+        min_substrates=1,
+    )
+
+    stats = result.statistics_table
+    assert stats is not None
+    assert stats.at[0, "computability_status"] == KSEA_STATUS_ZERO_BACKGROUND_VARIANCE
+    assert pd.isna(stats.at[0, "z_score"])
+
+
+def test_ksea_excludes_non_finite_phosphosite_values_per_condition() -> None:
+    pred_mat = pd.DataFrame(
+        {"K1": [0.9, 0.9, 0.9]},
+        index=["S1;S1;", "S2;S2;", "S3;S3;"],
+    )
+    phospho = pd.DataFrame(
+        {
+            "c1": [1.0, float("nan"), 3.0],
+            "c2": [float("nan"), float("nan"), 2.0],
+        },
+        index=pred_mat.index.copy(),
+    )
+
+    result = _ksea_result(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho,
+        evidence_threshold=0.5,
+        min_substrates=2,
+    )
+
+    stats = result.statistics_table
+    assert stats is not None
+    c1 = stats.loc[stats["condition"] == "c1"].iloc[0]
+    c2 = stats.loc[stats["condition"] == "c2"].iloc[0]
+    assert c1["n_background_sites"] == 2
+    assert c1["n_substrates"] == 2
+    assert c1["computability_status"] == KSEA_STATUS_COMPUTED
+    assert c2["n_background_sites"] == 1
+    assert c2["computability_status"] == KSEA_STATUS_INSUFFICIENT_SUBSTRATES
+
+
+def test_ksea_p_value_uses_two_sided_normal_approximation() -> None:
+    pred_mat = pd.DataFrame(
+        {"K1": [0.9, 0.8, 0.1, 0.2]},
+        index=["S1;S1;", "S2;S2;", "S3;S3;", "S4;S4;"],
+    )
+    phospho = pd.DataFrame({"c1": [1.0, 2.0, 3.0, 4.0]}, index=pred_mat.index.copy())
+
+    result = _ksea_result(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho,
+        evidence_threshold=0.5,
+        min_substrates=2,
+    )
+    stats = result.statistics_table
+    assert stats is not None
+    assert stats.at[0, "p_value"] == pytest.approx(0.27332167829229814)
+
+
+def test_ksea_q_values_are_benjamini_hochberg_adjusted_per_condition() -> None:
+    pred_mat = pd.DataFrame(
+        {
+            "K1": [0.9, 0.9, 0.1, 0.1],
+            "K2": [0.1, 0.1, 0.9, 0.9],
+            "K3": [0.9, 0.1, 0.1, 0.9],
+        },
+        index=["S1;S1;", "S2;S2;", "S3;S3;", "S4;S4;"],
+    )
+    phospho = pd.DataFrame({"c1": [1.0, 2.0, 3.0, 4.0]}, index=pred_mat.index.copy())
+
+    result = _ksea_result(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho,
+        evidence_threshold=0.5,
+        min_substrates=2,
+        adjust_p_values=True,
+    )
+
+    stats = result.statistics_table
+    assert stats is not None
+    c1_rows = stats.loc[stats["condition"] == "c1"].sort_values("kinase")
+    q_values = c1_rows.loc[:, "q_value"].to_numpy(dtype=float)
+    assert q_values[0] == pytest.approx(0.4099825174384472)
+    assert q_values[1] == pytest.approx(0.4099825174384472)
+    assert q_values[2] == pytest.approx(1.0)
 
 
 def test_weighted_activity_ignores_missing_values_per_sample() -> None:

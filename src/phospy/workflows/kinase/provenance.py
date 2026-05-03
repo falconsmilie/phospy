@@ -6,8 +6,11 @@ from collections.abc import Callable, Mapping
 
 import pandas as pd
 
+from phospy.activities.methods import KSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG
 from phospy.activities.models import KinaseActivityResult
 from phospy.api.configs import (
+    KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
+    KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
     KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
@@ -27,6 +30,7 @@ from phospy.scientific_policies import (
     KinaseProfileScoringPolicy,
     ScientificPolicyRecord,
     build_duplicate_site_resolution_policy,
+    build_ksea_zscore_activity_policy,
     build_motif_profile_rank_fusion_policy,
     build_simplified_weighted_substrate_activity_policy,
 )
@@ -125,6 +129,12 @@ class KinaseProvenanceBuilder:
                     "outputs.activity.target_table",
                     None if activity_result is None else activity_result.target_table,
                 ),
+                (
+                    "outputs.activity.statistics_table",
+                    None
+                    if activity_result is None
+                    else activity_result.statistics_table,
+                ),
             )
         )
         scoring_diagnostics: dict[str, object] = (
@@ -167,13 +177,33 @@ class KinaseProvenanceBuilder:
         if duplicate_site_policy is not None:
             scientific_policies.append(duplicate_site_policy)
         if config.activity is not None:
-            scientific_policies.append(
-                build_simplified_weighted_substrate_activity_policy(
-                    threshold=float(config.activity.threshold),
-                    min_substrates=int(config.activity.min_substrates),
-                    top_n_substrates=int(config.activity.top_n_substrates),
+            if (
+                config.activity.method
+                == KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY
+            ):
+                scientific_policies.append(
+                    build_simplified_weighted_substrate_activity_policy(
+                        threshold=float(config.activity.threshold),
+                        min_substrates=int(config.activity.min_substrates),
+                        top_n_substrates=int(config.activity.top_n_substrates),
+                    )
                 )
-            )
+            elif config.activity.method == KINASE_ACTIVITY_METHOD_KSEA_ZSCORE:
+                scientific_policies.append(
+                    build_ksea_zscore_activity_policy(
+                        evidence_threshold=float(
+                            config.activity.ksea_evidence_threshold
+                        ),
+                        min_substrates=int(config.activity.ksea_min_substrates),
+                        p_value_method=str(config.activity.ksea_p_value_method),
+                        adjust_p_values=bool(config.activity.ksea_adjust_p_values),
+                        q_value_method=(
+                            KSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG
+                            if config.activity.ksea_adjust_p_values
+                            else None
+                        ),
+                    )
+                )
 
         return RunProvenance(
             environment=self._collect_environment(),
@@ -209,13 +239,34 @@ class KinaseProvenanceBuilder:
                     None
                     if config.activity is None
                     else {
+                        "method": str(config.activity.method),
                         "threshold": float(config.activity.threshold),
                         "min_substrates": int(config.activity.min_substrates),
                         "top_n_substrates": int(config.activity.top_n_substrates),
+                        "ksea_min_substrates": int(config.activity.ksea_min_substrates),
+                        "ksea_evidence_threshold": float(
+                            config.activity.ksea_evidence_threshold
+                        ),
+                        "ksea_p_value_method": str(config.activity.ksea_p_value_method),
+                        "ksea_adjust_p_values": bool(
+                            config.activity.ksea_adjust_p_values
+                        ),
+                        "ksea_formula_version": "v1",
+                        "ksea_q_value_method": (
+                            KSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG
+                            if config.activity.ksea_adjust_p_values
+                            else None
+                        ),
                         "activity_method": (
                             None
                             if activity_result is None
                             else activity_result.activity_method.to_payload()
+                        ),
+                        "activity_method_summary": (
+                            None
+                            if activity_result is None
+                            or activity_result.method_summary is None
+                            else activity_result.method_summary.to_payload()
                         ),
                     }
                 ),

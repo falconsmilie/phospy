@@ -256,21 +256,32 @@ default recommendation for production workflows is `adaptive_policy="stable"`.
 | Field | Default | Meaning |
 | --- | --- | --- |
 | `enabled` | `True` | set `False` to disable activity after construction |
+| `method` | `"simplified_weighted_substrate_activity"` | activity method selector: weighted heuristic or KSEA-style z-score |
 | `threshold` | `0.6` | prediction-score threshold for selected substrates |
 | `min_substrates` | `3` | minimum selected substrates per kinase |
 | `top_n_substrates` | `20` | top predicted substrates used in weighted activity |
+| `ksea_min_substrates` | `5` | minimum substrates per kinase/condition for KSEA scoring |
+| `ksea_evidence_threshold` | `None` | KSEA membership threshold; defaults to `threshold` when `None` |
+| `ksea_p_value_method` | `"normal_approximation"` | KSEA p-value method |
+| `ksea_adjust_p_values` | `True` | apply Benjamini-Hochberg q-values per condition for KSEA |
 
-`thresholded_substrate_mean_activity` is a simple mean phospho signal over
-predicted substrates above the configured threshold. It is not full KSEA-style
-enrichment.
+`method="ksea_zscore"` enables KSEA-style z-score activity inference with
+per-condition computability statuses and statistics output. It is not equivalent
+to PhosR kinase activity inference.
 
 When activity is enabled, `result.activity_result.activity_method` exposes
 explicit method identity metadata, including:
 
-- `activity_method_id="simplified_weighted_substrate_activity_v1"`
-- `activity_method_family="heuristic_weighted_substrate_score"`
-- `is_ksea=False`
-- `is_phosr_kinase_activity_equivalent=False`
+- weighted method:
+  - `activity_method_id="simplified_weighted_substrate_activity_v1"`
+  - `activity_method_family="heuristic_weighted_substrate_score"`
+  - `is_ksea=False`
+  - `is_phosr_kinase_activity_equivalent=False`
+- KSEA method:
+  - `activity_method_id="ksea_zscore_v1"`
+  - `activity_method_family="substrate_set_enrichment"`
+  - `is_ksea=True`
+  - `is_phosr_kinase_activity_equivalent=False`
 
 ## Signalome Config
 
@@ -408,7 +419,8 @@ policies with stable IDs, assumptions, parameters, and output-scale notes for
 auditability.
 
 `result.provenance.workflow_parameters["activity_config"]["activity_method"]`
-mirrors this method identity for the active weighted activity score.
+mirrors this method identity, and `activity_method_summary` reports method-level
+computed/skipped counts.
 
 ### `SignalomeWorkflowResult`
 

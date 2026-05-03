@@ -12,6 +12,10 @@ from phospy.api.configs import (
     KINASE_ACTIVITY_DEFAULT_MIN_SUBSTRATES,
     KINASE_ACTIVITY_DEFAULT_THRESHOLD,
     KINASE_ACTIVITY_DEFAULT_TOP_N_SUBSTRATES,
+    KINASE_ACTIVITY_KSEA_DEFAULT_MIN_SUBSTRATES,
+    KINASE_ACTIVITY_KSEA_P_VALUE_METHOD_NORMAL_APPROXIMATION,
+    KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
+    KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
     KINASE_ADAPTIVE_POLICY_STABLE,
     KINASE_PREDICTION_DEFAULT_ADAPTIVE_ENSEMBLE_RUNS,
     KINASE_PREDICTION_DEFAULT_DETERMINISTIC_MAX_SELECTED_KINASES,
@@ -332,6 +336,15 @@ def _add_kinase_runtime_arguments(parser: argparse.ArgumentParser) -> None:
         help="Disable activity-stage output.",
     )
     parser.add_argument(
+        "--activity-method",
+        default=KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
+        choices=[
+            KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
+            KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
+        ],
+        help="Activity method: weighted heuristic or KSEA-style z-score.",
+    )
+    parser.add_argument(
         "--activity-threshold",
         type=float,
         default=KINASE_ACTIVITY_DEFAULT_THRESHOLD,
@@ -348,6 +361,32 @@ def _add_kinase_runtime_arguments(parser: argparse.ArgumentParser) -> None:
         type=int,
         default=KINASE_ACTIVITY_DEFAULT_TOP_N_SUBSTRATES,
         help="Top-N predicted substrates per kinase used in weighted activity.",
+    )
+    parser.add_argument(
+        "--activity-ksea-min-substrates",
+        type=int,
+        default=KINASE_ACTIVITY_KSEA_DEFAULT_MIN_SUBSTRATES,
+        help="Minimum substrate count per kinase/condition for KSEA scoring.",
+    )
+    parser.add_argument(
+        "--activity-ksea-evidence-threshold",
+        type=float,
+        default=None,
+        help=(
+            "KSEA evidence threshold for kinase-substrate membership. "
+            "Defaults to --activity-threshold when omitted."
+        ),
+    )
+    parser.add_argument(
+        "--activity-ksea-p-value-method",
+        default=KINASE_ACTIVITY_KSEA_P_VALUE_METHOD_NORMAL_APPROXIMATION,
+        choices=[KINASE_ACTIVITY_KSEA_P_VALUE_METHOD_NORMAL_APPROXIMATION],
+        help="KSEA p-value method.",
+    )
+    parser.add_argument(
+        "--activity-ksea-no-adjust-p-values",
+        action="store_true",
+        help="Disable Benjamini-Hochberg q-value adjustment for KSEA.",
     )
 
 
@@ -425,9 +464,14 @@ def _run_kinase_workflow_from_args(args: argparse.Namespace):
         if args.skip_activity
         else KinaseActivityConfig(
             enabled=True,
+            method=args.activity_method,
             threshold=args.activity_threshold,
             min_substrates=args.activity_min_substrates,
             top_n_substrates=args.activity_top_n_substrates,
+            ksea_min_substrates=args.activity_ksea_min_substrates,
+            ksea_evidence_threshold=args.activity_ksea_evidence_threshold,
+            ksea_p_value_method=args.activity_ksea_p_value_method,
+            ksea_adjust_p_values=not args.activity_ksea_no_adjust_p_values,
         )
     )
     deterministic_max_selected_kinases = (

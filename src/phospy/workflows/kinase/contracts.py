@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Protocol
 import pandas as pd
 
 from phospy.api.configs import (
+    KinaseActivityMethod,
+    KinaseActivityPValueMethod,
     KinaseAdaptivePolicy,
     KinasePredictionMode,
     KinaseProfileMissingValueStrategy,
@@ -125,9 +127,14 @@ class ResolvedKinaseWorkflowRequest:
 class ResolvedKinaseActivityExecutionConfig:
     """Execution-ready kinase activity-stage config."""
 
+    method: KinaseActivityMethod
     threshold: float
     min_substrates: int
     top_n_substrates: int
+    ksea_min_substrates: int
+    ksea_evidence_threshold: float
+    ksea_p_value_method: KinaseActivityPValueMethod
+    ksea_adjust_p_values: bool
 
 
 @dataclass(frozen=True, slots=True)

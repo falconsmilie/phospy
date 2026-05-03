@@ -21,6 +21,7 @@ from phospy.scientific_policies import (
     ScorePreconditioningPolicy,
     SignalomeMissingValueClusteringPolicy,
     build_duplicate_site_resolution_policy,
+    build_ksea_zscore_activity_policy,
     build_signalome_module_candidate_score_policy,
     build_simplified_weighted_substrate_activity_policy,
     resolve_score_preconditioning_policy,
@@ -47,6 +48,7 @@ def test_scientific_policy_ids_are_stable() -> None:
     assert ScientificPolicyId.SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY.value == (
         "simplified_weighted_substrate_activity_v1"
     )
+    assert ScientificPolicyId.KSEA_ZSCORE_ACTIVITY.value == "ksea_zscore_activity_v1"
     assert ScientificPolicyId.SIGNALOME_MISSING_VALUE_CLUSTERING.value == (
         "signalome_missing_value_clustering_v1"
     )
@@ -90,6 +92,20 @@ def test_scientific_policy_record_payload_round_trip() -> None:
     assert restored.parameters == policy.parameters
     assert restored.assumptions == policy.assumptions
     assert restored.output_scale == policy.output_scale
+
+
+def test_ksea_activity_policy_record_is_serializable() -> None:
+    policy = build_ksea_zscore_activity_policy(
+        evidence_threshold=0.6,
+        min_substrates=5,
+        p_value_method="normal_approximation",
+        adjust_p_values=True,
+        q_value_method="benjamini_hochberg",
+    )
+    restored = ScientificPolicyRecord.from_payload(policy.to_payload())
+    assert restored.id == ScientificPolicyId.KSEA_ZSCORE_ACTIVITY
+    assert restored.parameters["evidence_threshold"] == pytest.approx(0.6)
+    assert restored.parameters["min_substrates"] == 5
 
 
 def test_profile_correlation_shifted_unit_policy_record_is_stable() -> None:

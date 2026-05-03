@@ -1,4 +1,4 @@
-"""Shared site-identifier canonicalization helpers."""
+"""Shared site-identifier canonicalisation helpers."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ def canonicalize_site_index(
     require_unique: bool = True,
     index_name: str | None = None,
 ) -> pd.Index:
-    """Canonicalize one site-identifier index to stripped string labels."""
+    """Canonicalise one site-identifier index to stripped string labels."""
 
     canonical = pd.Index(
         [
@@ -56,7 +56,7 @@ def canonicalize_site_series(
     field_name: str,
     error_type: type[ErrorType],
 ) -> pd.Series:
-    """Canonicalize one site-identifier series to stripped string labels."""
+    """Canonicalise one site-identifier series to stripped string labels."""
 
     return pd.Series(
         [
@@ -79,7 +79,7 @@ def canonicalize_site_identifier(
     field_name: str,
     error_type: type[ErrorType],
 ) -> str:
-    """Canonicalize one supported phosphosite identifier to ``GENE;SITE;``."""
+    """Canonicalise one supported phosphosite identifier to ``GENE;SITE;``."""
 
     if _is_missing(value):
         raise error_type(f"{field_name} must not contain missing site identifiers")
@@ -134,7 +134,7 @@ def canonicalize_site_components(
     field_name: str,
     error_type: type[ErrorType],
 ) -> str:
-    """Canonicalize one ``gene_symbol``/``site`` pair to ``GENE;SITE;``."""
+    """Canonicalise one ``gene_symbol``/``site`` pair to ``GENE;SITE;``."""
 
     if _is_missing(gene_symbol) or _is_missing(site):
         raise error_type(
@@ -163,7 +163,7 @@ def canonicalize_site_components_series(
     error_type: type[ErrorType],
     output_name: str = "site_id",
 ) -> pd.Series:
-    """Canonicalize paired ``gene_symbol``/``site`` columns to one site-ID series."""
+    """Canonicalise paired ``gene_symbol``/``site`` columns to one site-ID series."""
 
     if len(gene_symbol.index) != len(site.index):
         raise error_type(

@@ -114,9 +114,18 @@ def _resolved_kinase_execution_config(
         None
         if request.activity_config is None or not request.activity_config.enabled
         else ResolvedKinaseActivityExecutionConfig(
+            method=request.activity_config.method,
             threshold=float(request.activity_config.threshold),
             min_substrates=int(request.activity_config.min_substrates),
             top_n_substrates=int(request.activity_config.top_n_substrates),
+            ksea_min_substrates=int(request.activity_config.ksea_min_substrates),
+            ksea_evidence_threshold=float(
+                request.activity_config.threshold
+                if request.activity_config.ksea_evidence_threshold is None
+                else request.activity_config.ksea_evidence_threshold
+            ),
+            ksea_p_value_method=request.activity_config.ksea_p_value_method,
+            ksea_adjust_p_values=bool(request.activity_config.ksea_adjust_p_values),
         )
     )
     return ResolvedKinaseExecutionConfig(

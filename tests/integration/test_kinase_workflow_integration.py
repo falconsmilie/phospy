@@ -225,6 +225,120 @@ def test_kinase_activity_method_identity_is_present_in_result_and_provenance() -
     assert method_metadata["is_phosr_kinase_activity_equivalent"] is False
 
 
+def test_kinase_workflow_supports_ksea_activity_method_with_statistics_output() -> None:
+    dataset = build_rat_l6_dataset(n_sites=220)
+    result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=ReferencePreset.AUTO,
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=5,
+                deterministic_max_selected_kinases=8,
+                adaptive_ensemble_runs=8,
+            ),
+            activity_config=KinaseActivityConfig(
+                enabled=True,
+                method="ksea_zscore",
+                threshold=0.6,
+                min_substrates=3,
+                top_n_substrates=20,
+                ksea_min_substrates=5,
+                ksea_evidence_threshold=0.6,
+                ksea_p_value_method="normal_approximation",
+                ksea_adjust_p_values=True,
+            ),
+        )
+    )
+
+    assert result.activity_result is not None
+    assert result.activity_result.activity_method.activity_method_id == "ksea_zscore_v1"
+    assert result.activity_result.activity_method.is_ksea is True
+    assert (
+        result.activity_result.activity_method.is_phosr_kinase_activity_equivalent
+        is False
+    )
+    assert result.activity_result.statistics_table is not None
+    assert {
+        "kinase",
+        "condition",
+        "z_score",
+        "p_value",
+        "q_value",
+        "n_substrates",
+        "n_background_sites",
+        "evidence_threshold",
+        "min_substrates",
+        "computability_status",
+        "reason",
+    } <= set(result.activity_result.statistics_table.columns)
+    assert result.site_attrition_summary is not None
+    assert result.provenance is not None
+    activity_config = result.provenance.workflow_parameters["activity_config"]
+    assert isinstance(activity_config, Mapping)
+    assert activity_config["method"] == "ksea_zscore"
+    summary = activity_config["activity_method_summary"]
+    assert isinstance(summary, Mapping)
+    assert int(summary["kinases_evaluated"]) >= 1
+    policy_ids = {policy.id.value for policy in result.provenance.scientific_policies}
+    assert "ksea_zscore_activity_v1" in policy_ids
+    scoring_diagnostics = result.provenance.workflow_parameters["scoring_diagnostics"]
+    assert isinstance(scoring_diagnostics, Mapping)
+    assert "motif_site_sequence_coverage" in scoring_diagnostics
+
+
+def test_weighted_and_ksea_activity_methods_are_independently_selectable() -> None:
+    dataset = build_rat_l6_dataset(n_sites=220)
+    weighted = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=ReferencePreset.AUTO,
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=5,
+                deterministic_max_selected_kinases=8,
+                adaptive_ensemble_runs=8,
+            ),
+            activity_config=KinaseActivityConfig(
+                enabled=True,
+                method="simplified_weighted_substrate_activity",
+                threshold=0.6,
+                min_substrates=3,
+                top_n_substrates=20,
+            ),
+        )
+    )
+    ksea = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=ReferencePreset.AUTO,
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=5,
+                deterministic_max_selected_kinases=8,
+                adaptive_ensemble_runs=8,
+            ),
+            activity_config=KinaseActivityConfig(
+                enabled=True,
+                method="ksea_zscore",
+                threshold=0.6,
+                min_substrates=3,
+                top_n_substrates=20,
+                ksea_min_substrates=5,
+                ksea_evidence_threshold=0.6,
+            ),
+        )
+    )
+
+    assert weighted.activity_result is not None
+    assert ksea.activity_result is not None
+    assert weighted.activity_result.activity_method.activity_method_id == (
+        "simplified_weighted_substrate_activity_v1"
+    )
+    assert ksea.activity_result.activity_method.activity_method_id == "ksea_zscore_v1"
+    assert ksea.activity_result.statistics_table is not None
+
+
 def test_kinase_publish_manifest_includes_activity_method_identity(
     tmp_path: Path,
 ) -> None:

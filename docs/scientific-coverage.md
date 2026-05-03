@@ -31,15 +31,19 @@ Use these labels when discussing coverage:
 | --- | --- |
 | Dataset boundary | strict PhosPy dataset contract |
 | Kinase scoring and prediction | active fixture-backed parity and workflow tests |
-| Activity output | supported as a thresholded substrate-mean and weighted activity output; not full KSEA enrichment |
+| Activity output | supports weighted heuristic activity and KSEA-style z-score substrate-set enrichment activity |
 | Signalome workflow | supported from kinase result with explicit `protein_id` |
 | Output publishing | supported simple publishers and reloadable bundle services |
 | Human/mouse bundled references | open gap for bundled runtime data in this release |
 
 ## Interpretation Limits
 
-- Activity output named `thresholded_substrate_mean_activity` is a simple summary
-  over predicted substrates above threshold.
+- Weighted activity output (`simplified_weighted_substrate_activity_v1`) is a
+  heuristic summary over predicted substrates above threshold/top-N support.
+- KSEA-style activity output (`ksea_zscore_v1`) applies unweighted substrate-set
+  enrichment z-scores after evidence thresholding and reports p-values (and
+  q-values when enabled).
+- KSEA-style activity is not equivalent to full PhosR kinase activity inference.
 - Rank-weighted fusion scores combine profile-correlation and motif-frequency
   evidence using rank-derived weights.
 - Signalome module/network scores are derived summaries, not probabilities,
@@ -115,6 +119,21 @@ Each record carries:
   relative sample-by-kinase activity summaries.
 - Output does not mean:
   full KSEA-style enrichment statistics.
+
+### `ksea_zscore_activity_v1`
+
+- What it does:
+  computes KSEA-style z-score substrate-set enrichment activity.
+- Assumptions:
+  kinase substrate membership is unweighted after evidence thresholding.
+- Parameters:
+  evidence threshold, minimum substrates, z-score formula, p-value method, and
+  optional q-value adjustment.
+- Output meaning:
+  statistically interpretable substrate-set enrichment activity z-scores with
+  accompanying p-values.
+- Output does not mean:
+  PhosR-equivalent kinase activity inference.
 
 ### `candidate_substrate_selection_v1`
 

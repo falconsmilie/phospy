@@ -188,6 +188,17 @@ def save_kinase_workflow_bundle(
             written=written,
             written_key="activity.target_table",
         ),
+        "statistics_table": write_optional_bundle_table(
+            table=(
+                None
+                if result.activity_result is None
+                else result.activity_result.statistics_table
+            ),
+            bundle_root=bundle_root,
+            relative_path=Path("activity") / f"statistics_table{suffix}",
+            written=written,
+            written_key="activity.statistics_table",
+        ),
     }
 
     config_path = bundle_root / Path(CONFIG_SNAPSHOT_RELATIVE_PATH)

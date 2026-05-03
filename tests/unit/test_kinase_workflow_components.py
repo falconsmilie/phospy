@@ -6,6 +6,8 @@ import pytest
 from phospy import AnalysisReadyPhosphoDataset
 from phospy.api import Organism, ReferenceBundle
 from phospy.api.configs import (
+    KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
+    KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
     KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
 )
@@ -100,6 +102,22 @@ def _config(
         prediction_n_iterations=3,
         prediction_random_state=7,
         activity=activity,
+    )
+
+
+def _activity_config(
+    *,
+    method: str,
+) -> ResolvedKinaseActivityExecutionConfig:
+    return ResolvedKinaseActivityExecutionConfig(
+        method=method,  # type: ignore[arg-type]
+        threshold=0.6,
+        min_substrates=2,
+        top_n_substrates=3,
+        ksea_min_substrates=2,
+        ksea_evidence_threshold=0.6,
+        ksea_p_value_method="normal_approximation",
+        ksea_adjust_p_values=True,
     )
 
 
@@ -207,11 +225,65 @@ def test_activity_runner_returns_none_when_activity_is_disabled() -> None:
     )
 
 
+def test_activity_runner_selects_weighted_method_from_config() -> None:
+    request = _resolved_request(
+        config=_config(
+            activity=_activity_config(
+                method=KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY
+            )
+        )
+    )
+    prediction_result = KinasePredictionResult._from_owned(
+        pred_mat=pd.DataFrame(
+            {"MAP2K6": [0.7, 0.6]},
+            index=request.scoring_site_index.copy(),
+        )
+    )
+
+    result = KinaseActivityRunner().run(
+        request=request,
+        config=request.execution_config,
+        prediction_result=prediction_result,
+    )
+    assert result is not None
+    assert result.activity_method.activity_method_id == (
+        "simplified_weighted_substrate_activity_v1"
+    )
+
+
+def test_activity_runner_selects_ksea_method_from_config() -> None:
+    request = _resolved_request(
+        config=_config(
+            activity=_activity_config(method=KINASE_ACTIVITY_METHOD_KSEA_ZSCORE)
+        )
+    )
+    prediction_result = KinasePredictionResult._from_owned(
+        pred_mat=pd.DataFrame(
+            {"MAP2K6": [0.7, 0.6]},
+            index=request.scoring_site_index.copy(),
+        )
+    )
+
+    result = KinaseActivityRunner().run(
+        request=request,
+        config=request.execution_config,
+        prediction_result=prediction_result,
+    )
+    assert result is not None
+    assert result.activity_method.activity_method_id == "ksea_zscore_v1"
+    assert result.statistics_table is not None
+
+
 def test_provenance_builder_includes_active_scientific_policies() -> None:
     activity = ResolvedKinaseActivityExecutionConfig(
+        method="simplified_weighted_substrate_activity",
         threshold=0.6,
         min_substrates=2,
         top_n_substrates=3,
+        ksea_min_substrates=5,
+        ksea_evidence_threshold=0.6,
+        ksea_p_value_method="normal_approximation",
+        ksea_adjust_p_values=True,
     )
     request = _resolved_request(config=_config(activity=activity))
     scoring_result = KinaseScoringResult._from_owned(
@@ -237,6 +309,33 @@ def test_provenance_builder_includes_active_scientific_policies() -> None:
     policy_ids = {policy.id.value for policy in provenance.scientific_policies}
     assert "candidate_substrate_selection_v1" in policy_ids
     assert "simplified_weighted_substrate_activity_v1" in policy_ids
+
+
+def test_provenance_builder_includes_ksea_policy_when_selected() -> None:
+    activity = _activity_config(method=KINASE_ACTIVITY_METHOD_KSEA_ZSCORE)
+    request = _resolved_request(config=_config(activity=activity))
+    scoring_result = KinaseScoringResult._from_owned(
+        profile_scores=pd.DataFrame(
+            {"MAP2K6": [0.7, 0.2]},
+            index=request.scoring_site_index.copy(),
+        )
+    )
+    prediction_result = KinasePredictionResult._from_owned(
+        pred_mat=pd.DataFrame(
+            {"MAP2K6": [0.7, 0.2]},
+            index=request.scoring_site_index.copy(),
+        )
+    )
+
+    provenance = KinaseProvenanceBuilder().run(
+        request=request,
+        config=request.execution_config,
+        scoring_result=scoring_result,
+        prediction_result=prediction_result,
+        activity_result=None,
+    )
+    policy_ids = {policy.id.value for policy in provenance.scientific_policies}
+    assert "ksea_zscore_activity_v1" in policy_ids
 
 
 def test_result_assembler_preserves_owned_dataframe_transfer() -> None:

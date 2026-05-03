@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from phospy.activities.models import KinaseActivityResult
-from phospy.activities.scoring import compute_activity_from_inputs
 from phospy.api.results import KinaseWorkflowResult
 from phospy.prediction.candidates import (
     build_candidate_substrate_list,
@@ -75,7 +74,6 @@ class KinaseWorkflowExecutor:
         )
         self._activity_runner = activity_runner or KinaseActivityRunner(
             activity_input_validator=activity_input_validator,
-            compute_activity=compute_activity_from_inputs,
         )
         self._provenance_builder = provenance_builder or KinaseProvenanceBuilder()
         self._site_attrition_summary_composer = (

@@ -248,22 +248,27 @@ def test_kinase_bundle_manifest_v1_is_explicit(tmp_path: Path) -> None:
         "pred_mat": "prediction/pred_mat.csv",
         "substrate_list": "prediction/substrate_list.csv",
     }
-    assert manifest["outputs"]["activity"] == {
-        "enabled": True,
-        "method": {
-            "activity_method_id": "simplified_weighted_substrate_activity_v1",
-            "activity_method_family": "heuristic_weighted_substrate_score",
-            "activity_method_label": "simplified weighted substrate activity",
-            "is_ksea": False,
-            "is_phosr_kinase_activity_equivalent": False,
-        },
-        "tables": {
-            "weighted_activity": "activity/weighted_activity.csv",
-            "thresholded_substrate_mean_activity": "activity/thresholded_substrate_mean_activity.csv",
-            "thresholded_substrate_counts": "activity/thresholded_substrate_counts.csv",
-            "target_counts": "activity/target_counts.csv",
-            "target_table": "activity/target_table.csv",
-        },
+    assert manifest["outputs"]["activity"]["enabled"] is True
+    assert manifest["outputs"]["activity"]["method"] == {
+        "activity_method_id": "simplified_weighted_substrate_activity_v1",
+        "activity_method_family": "heuristic_weighted_substrate_score",
+        "activity_method_label": "simplified weighted substrate activity",
+        "is_ksea": False,
+        "is_phosr_kinase_activity_equivalent": False,
+    }
+    assert manifest["outputs"]["activity"]["summary"] == (
+        None
+        if result.activity_result is None
+        or result.activity_result.method_summary is None
+        else result.activity_result.method_summary.to_payload()
+    )
+    assert manifest["outputs"]["activity"]["tables"] == {
+        "weighted_activity": "activity/weighted_activity.csv",
+        "thresholded_substrate_mean_activity": "activity/thresholded_substrate_mean_activity.csv",
+        "thresholded_substrate_counts": "activity/thresholded_substrate_counts.csv",
+        "target_counts": "activity/target_counts.csv",
+        "target_table": "activity/target_table.csv",
+        "statistics_table": None,
     }
     correction_diagnostics = manifest["dataset"]["metadata"]["processing_state"][
         "total_protein_correction"
@@ -307,12 +312,14 @@ def test_kinase_bundle_round_trip_supports_disabled_activity(
     assert manifest["outputs"]["activity"] == {
         "enabled": False,
         "method": None,
+        "summary": None,
         "tables": {
             "weighted_activity": None,
             "thresholded_substrate_mean_activity": None,
             "thresholded_substrate_counts": None,
             "target_counts": None,
             "target_table": None,
+            "statistics_table": None,
         },
     }
 
@@ -876,6 +883,11 @@ def _assert_kinase_result_equal(left, right) -> None:
         check_names=False,
         check_index_type=False,
     )
+    _assert_optional_frame_equal(
+        left.activity_result.statistics_table,
+        right.activity_result.statistics_table,
+    )
+    assert left.activity_result.method_summary == right.activity_result.method_summary
 
 
 def _assert_optional_frame_equal(left, right) -> None:

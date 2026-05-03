@@ -28,6 +28,27 @@ KINASE_ACTIVITY_TOP_N_SUBSTRATES_FLOOR = 1
 KINASE_ACTIVITY_DEFAULT_THRESHOLD = 0.6
 KINASE_ACTIVITY_DEFAULT_MIN_SUBSTRATES = 3
 KINASE_ACTIVITY_DEFAULT_TOP_N_SUBSTRATES = 20
+KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY = (
+    "simplified_weighted_substrate_activity"
+)
+KINASE_ACTIVITY_METHOD_KSEA_ZSCORE = "ksea_zscore"
+KinaseActivityMethod = Literal[
+    "simplified_weighted_substrate_activity",
+    "ksea_zscore",
+]
+KINASE_ACTIVITY_METHODS = frozenset(
+    {
+        KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
+        KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
+    }
+)
+KINASE_ACTIVITY_KSEA_DEFAULT_MIN_SUBSTRATES = 5
+KINASE_ACTIVITY_KSEA_P_VALUE_METHOD_NORMAL_APPROXIMATION = "normal_approximation"
+KinaseActivityPValueMethod = Literal["normal_approximation"]
+KINASE_ACTIVITY_KSEA_P_VALUE_METHODS = frozenset(
+    {KINASE_ACTIVITY_KSEA_P_VALUE_METHOD_NORMAL_APPROXIMATION}
+)
+KINASE_ACTIVITY_KSEA_DEFAULT_ADJUST_P_VALUES = True
 KINASE_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT = False
 
 
@@ -116,13 +137,27 @@ class KinaseActivityConfig:
     """
 
     enabled: bool = True
+    method: KinaseActivityMethod = (
+        KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY
+    )
     threshold: float = KINASE_ACTIVITY_DEFAULT_THRESHOLD
     min_substrates: int = KINASE_ACTIVITY_DEFAULT_MIN_SUBSTRATES
     top_n_substrates: int = KINASE_ACTIVITY_DEFAULT_TOP_N_SUBSTRATES
+    ksea_min_substrates: int = KINASE_ACTIVITY_KSEA_DEFAULT_MIN_SUBSTRATES
+    ksea_evidence_threshold: float | None = None
+    ksea_p_value_method: KinaseActivityPValueMethod = (
+        KINASE_ACTIVITY_KSEA_P_VALUE_METHOD_NORMAL_APPROXIMATION
+    )
+    ksea_adjust_p_values: bool = KINASE_ACTIVITY_KSEA_DEFAULT_ADJUST_P_VALUES
 
     def __post_init__(self) -> None:
         if not isinstance(self.enabled, bool):
             raise WorkflowValidationError("activity_config.enabled must be a bool")
+        if self.method not in KINASE_ACTIVITY_METHODS:
+            allowed_methods = ", ".join(sorted(KINASE_ACTIVITY_METHODS))
+            raise WorkflowValidationError(
+                f"activity_config.method must be one of: {allowed_methods}"
+            )
         _require_real_between(
             self.threshold,
             field_name="activity_config.threshold",
@@ -142,13 +177,43 @@ class KinaseActivityConfig:
             minimum=KINASE_ACTIVITY_TOP_N_SUBSTRATES_FLOOR,
             error_type=WorkflowValidationError,
         )
+        _require_int_at_least(
+            self.ksea_min_substrates,
+            field_name="activity_config.ksea_min_substrates",
+            minimum=KINASE_ACTIVITY_MIN_SUBSTRATES_FLOOR,
+            error_type=WorkflowValidationError,
+        )
+        if self.ksea_evidence_threshold is not None:
+            _require_real_between(
+                self.ksea_evidence_threshold,
+                field_name="activity_config.ksea_evidence_threshold",
+                minimum=0.0,
+                maximum=1.0,
+                error_type=WorkflowValidationError,
+            )
+        if self.ksea_p_value_method not in KINASE_ACTIVITY_KSEA_P_VALUE_METHODS:
+            allowed_methods = ", ".join(sorted(KINASE_ACTIVITY_KSEA_P_VALUE_METHODS))
+            raise WorkflowValidationError(
+                f"activity_config.ksea_p_value_method must be one of: {allowed_methods}"
+            )
+        if not isinstance(self.ksea_adjust_p_values, bool):
+            raise WorkflowValidationError(
+                "activity_config.ksea_adjust_p_values must be a bool"
+            )
 
 
 __all__ = [
     "KINASE_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT",
+    "KINASE_ACTIVITY_KSEA_DEFAULT_ADJUST_P_VALUES",
+    "KINASE_ACTIVITY_KSEA_DEFAULT_MIN_SUBSTRATES",
+    "KINASE_ACTIVITY_KSEA_P_VALUE_METHOD_NORMAL_APPROXIMATION",
+    "KINASE_ACTIVITY_KSEA_P_VALUE_METHODS",
     "KINASE_ACTIVITY_DEFAULT_MIN_SUBSTRATES",
     "KINASE_ACTIVITY_DEFAULT_THRESHOLD",
     "KINASE_ACTIVITY_DEFAULT_TOP_N_SUBSTRATES",
+    "KINASE_ACTIVITY_METHODS",
+    "KINASE_ACTIVITY_METHOD_KSEA_ZSCORE",
+    "KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY",
     "KINASE_ACTIVITY_MIN_SUBSTRATES_FLOOR",
     "KINASE_ACTIVITY_TOP_N_SUBSTRATES_FLOOR",
     "KINASE_PROFILE_MISSING_VALUE_STRATEGIES",
@@ -156,6 +221,8 @@ __all__ = [
     "KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT",
     "KINASE_SCORING_MIN_SUBSTRATES_FLOOR",
     "KinaseActivityConfig",
+    "KinaseActivityMethod",
+    "KinaseActivityPValueMethod",
     "KinaseProfileMissingValueStrategy",
     "KinaseScoringConfig",
 ]

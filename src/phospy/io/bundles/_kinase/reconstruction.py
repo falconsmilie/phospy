@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from phospy.activities.models import ActivityMethodMetadata, KinaseActivityResult
+from phospy.activities.models import (
+    ActivityMethodMetadata,
+    ActivityMethodSummary,
+    KinaseActivityResult,
+)
 from phospy.api.results import KinaseWorkflowResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.input import PhosPyInputError
@@ -180,6 +184,12 @@ def reconstruct_kinase_result(
         table_key="target_table",
         field_name="bundle manifest.outputs.activity.tables.target_table",
     )
+    statistics_table = read_optional_table(
+        bundle_root=bundle_root,
+        tables=sections.activity_tables,
+        table_key="statistics_table",
+        field_name="bundle manifest.outputs.activity.tables.statistics_table",
+    )
 
     if sections.activity_enabled:
         if (
@@ -204,12 +214,19 @@ def reconstruct_kinase_result(
             raise PhosPyInputError(
                 f"bundle manifest.outputs.activity.method is invalid: {exc}"
             ) from exc
+        activity_method_summary = None
+        if sections.activity_method_summary is not None:
+            activity_method_summary = ActivityMethodSummary.from_payload(
+                sections.activity_method_summary
+            )
         activity_result = KinaseActivityResult(
             weighted_activity=weighted_activity,
             thresholded_substrate_mean_activity=thresholded_substrate_mean_activity,
             thresholded_substrate_counts=thresholded_substrate_counts,
             target_counts=target_counts,
             target_table=target_table,
+            statistics_table=statistics_table,
+            method_summary=activity_method_summary,
             activity_method=activity_method,
         )
     else:
@@ -219,6 +236,7 @@ def reconstruct_kinase_result(
             or thresholded_substrate_counts is not None
             or target_counts is not None
             or target_table is not None
+            or statistics_table is not None
         ):
             raise PhosPyInputError(
                 "bundle manifest outputs.activity.enabled=false must not declare populated activity tables"
@@ -226,6 +244,10 @@ def reconstruct_kinase_result(
         if sections.activity_method_metadata is not None:
             raise PhosPyInputError(
                 "bundle manifest outputs.activity.enabled=false must not declare activity method metadata"
+            )
+        if sections.activity_method_summary is not None:
+            raise PhosPyInputError(
+                "bundle manifest outputs.activity.enabled=false must not declare activity method summary metadata"
             )
         activity_result = None
 

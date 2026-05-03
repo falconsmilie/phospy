@@ -408,6 +408,10 @@ def test_kinase_prediction_config_rejects_removed_ensemble_size_alias() -> None:
             "activity_config.enabled must be a bool",
         ),
         (
+            {"method": "invalid"},
+            "activity_config.method must be one of",
+        ),
+        (
             {"threshold": 1.2},
             "activity_config.threshold must be between 0.0 and 1.0",
         ),
@@ -422,6 +426,22 @@ def test_kinase_prediction_config_rejects_removed_ensemble_size_alias() -> None:
         (
             {"top_n_substrates": 0},
             "activity_config.top_n_substrates must be greater than or equal to 1",
+        ),
+        (
+            {"ksea_min_substrates": 0},
+            "activity_config.ksea_min_substrates must be greater than or equal to 1",
+        ),
+        (
+            {"ksea_evidence_threshold": 1.2},
+            "activity_config.ksea_evidence_threshold must be between 0.0 and 1.0",
+        ),
+        (
+            {"ksea_p_value_method": "invalid"},
+            "activity_config.ksea_p_value_method must be one of",
+        ),
+        (
+            {"ksea_adjust_p_values": "yes"},
+            "activity_config.ksea_adjust_p_values must be a bool",
         ),
     ],
 )

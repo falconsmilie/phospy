@@ -139,16 +139,17 @@ approximation behavior, and failure modes), see `docs/performance.md`.
 ### Known Limitations
 
 - Scores are relative support values within a run, not calibrated probabilities.
-- Activity outputs are a simplified weighted substrate activity score
-  (`simplified_weighted_substrate_activity_v1`), not full KSEA enrichment and
-  not PhosR-equivalent kinase activity inference.
+- Activity supports two explicit methods:
+  - `simplified_weighted_substrate_activity_v1` (heuristic weighted substrate activity)
+  - `ksea_zscore_v1` (KSEA-style z-score substrate-set enrichment)
+- KSEA-style activity is not equivalent to PhosR kinase activity inference.
 - In this release, `ReferencePreset.AUTO` bundled runtime data is rat-first.
 
 ### Expected Output Tables
 
 - Scoring: `profile_scores`, `rank_weighted_fusion_scores` (plus optional diagnostics)
 - Prediction: `pred_mat`, `substrate_list`
-- Optional activity: `weighted_activity`, `thresholded_substrate_mean_activity`, `thresholded_substrate_counts`, `target_counts`, `target_table`
+- Optional activity: `weighted_activity`, `thresholded_substrate_mean_activity`, `thresholded_substrate_counts`, `target_counts`, `target_table`, optional `statistics_table`
 
 ## SignalomeWorkflow Contract
 
