@@ -21,6 +21,7 @@ from phospy.api import (
     DatasetPreprocessingConfig,
     DatasetRuvReadinessConfig,
     DatasetSiteMatrixConfig,
+    DatasetSiteSequenceResolutionConfig,
     DatasetTotalProteinCorrectionConfig,
     DatasetTotalProteinCorrectionIdentityConfig,
     Organism,
@@ -558,6 +559,73 @@ def test_dataset_builder_supports_row_median_missing_data_preprocessing_policy()
     assert built.phospho.loc[original_index[0], phospho.columns[0]] == expected_imputed
     assert built.processing_state.missing_data.policy == "impute_row_median"
     assert built.processing_state.missing_data.imputed is True
+
+
+def test_dataset_builder_runs_site_sequence_resolution_before_minprob_diagnostics(
+    tmp_path: Path,
+) -> None:
+    fasta_path = tmp_path / "proteins.fasta"
+    fasta_path.write_text(
+        ">P1 protein_1\nAAAASAAAA\n>P2 protein_2\nCCCCCTCCCC\n>P3 protein_3\nAAAASAAAA\n",
+        encoding="utf-8",
+    )
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [10.0, float("nan"), 8.0],
+            "sample_b": [9.0, 7.0, float("nan")],
+            "sample_c": [11.0, 6.0, 5.0],
+        },
+        index=pd.Index(["MAPK14;S5;", "GSK3B;T6;", "AKT1;S5;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "GSK3B", "AKT1"],
+            "site": ["S5", "T6", "S5"],
+            "protein_accession": ["P1", "P2", "P3"],
+            "site_sequence": [pd.NA, pd.NA, pd.NA],
+        },
+        index=phospho.index.copy(),
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            preprocessing_config=DatasetPreprocessingConfig(
+                site_sequence_resolution=DatasetSiteSequenceResolutionConfig(
+                    fasta_path=str(fasta_path),
+                    flank_size=2,
+                ),
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="log2",
+                    pseudocount=1.0,
+                ),
+                missing_data=DatasetMissingDataConfig(
+                    policy="impute_minprob",
+                    q=0.01,
+                    width=0.3,
+                    seed=12345,
+                    max_missing_fraction_per_row=0.5,
+                ),
+            ),
+        )
+    )
+
+    assert built.provenance is not None
+    stage_order = [stage.stage for stage in built.provenance.preprocessing_stages]
+    assert stage_order == [
+        "site_sequence_resolution",
+        "intensity_transform",
+        "missing_data",
+    ]
+
+    sequence_stage = built.provenance.preprocessing_stages[0]
+    missing_data_stage = built.provenance.preprocessing_stages[2]
+    sequence_diagnostics = sequence_stage.diagnostics or {}
+    missing_data_diagnostics = missing_data_stage.diagnostics or {}
+    assert sequence_diagnostics.get("resolved_site_count") == 3
+    assert sequence_diagnostics.get("unresolved_site_count") == 0
+    assert missing_data_diagnostics.get("imputation_method_id") == "minprob"
 
 
 def test_dataset_builder_supports_site_matrix_build_from_metadata_policy() -> None:

@@ -159,6 +159,8 @@ class PreprocessingPlan:
         site_sequence_resolution_enabled = (
             config.site_sequence_resolution.fasta_path is not None
         )
+        if site_sequence_resolution_enabled:
+            stage_order.append(DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION)
         if config.missing_data.policy == DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB:
             if (
                 config.intensity_transform.policy
@@ -173,11 +175,7 @@ class PreprocessingPlan:
                 )
             stage_order.append(DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM)
             stage_order.append(DATASET_PREPROCESSING_STAGE_MISSING_DATA)
-            if site_sequence_resolution_enabled:
-                stage_order.append(DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION)
         else:
-            if site_sequence_resolution_enabled:
-                stage_order.append(DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION)
             stage_order.append(DATASET_PREPROCESSING_STAGE_MISSING_DATA)
             if (
                 config.intensity_transform.policy

@@ -16,6 +16,7 @@ from phospy.api.configs import (
     DatasetPreprocessingConfig,
     DatasetRuvReadinessConfig,
     DatasetSiteMatrixConfig,
+    DatasetSiteSequenceResolutionConfig,
     DatasetTotalProteinCorrectionConfig,
 )
 from phospy.api.requests import DatasetBuildRequest
@@ -659,6 +660,60 @@ def test_preprocessing_plan_orders_minprob_after_intensity_transform() -> None:
         "total_protein_correction",
         "site_matrix",
     )
+
+
+def test_preprocessing_plan_orders_fasta_resolution_before_minprob_with_log2(
+    tmp_path: Path,
+) -> None:
+    fasta_path = tmp_path / "proteins.fasta"
+    fasta_path.write_text(">P1\nAAAASAAAA\n", encoding="utf-8")
+    plan = PreprocessingPlan.from_config(
+        DatasetPreprocessingConfig(
+            site_sequence_resolution=DatasetSiteSequenceResolutionConfig(
+                fasta_path=str(fasta_path),
+                flank_size=2,
+            ),
+            intensity_transform=DatasetIntensityTransformConfig(
+                policy="log2",
+                pseudocount=1.0,
+            ),
+            missing_data=DatasetMissingDataConfig(
+                policy="impute_minprob",
+                q=0.01,
+                width=0.3,
+                seed=12345,
+                max_missing_fraction_per_row=0.5,
+            ),
+        )
+    )
+
+    assert plan.stage_order == (
+        "site_sequence_resolution",
+        "intensity_transform",
+        "missing_data",
+    )
+
+
+def test_preprocessing_plan_rejects_minprob_without_log2_when_fasta_enabled() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="missing_data.policy='impute_minprob' requires",
+    ):
+        PreprocessingPlan.from_config(
+            DatasetPreprocessingConfig(
+                site_sequence_resolution=DatasetSiteSequenceResolutionConfig(
+                    fasta_path="local.fasta",
+                ),
+                intensity_transform=DatasetIntensityTransformConfig(policy="identity"),
+                missing_data=DatasetMissingDataConfig(
+                    policy="impute_minprob",
+                    q=0.01,
+                    width=0.3,
+                    seed=12345,
+                    max_missing_fraction_per_row=0.5,
+                ),
+            )
+        )
 
 
 def test_dataset_preprocessor_minprob_is_deterministic_for_same_seed() -> None:
