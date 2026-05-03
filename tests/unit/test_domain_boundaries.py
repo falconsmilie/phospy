@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import re
+from pathlib import Path
+
 import pandas as pd
 import pytest
 
@@ -32,6 +35,20 @@ from phospy.transformations.models import (
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
+)
+
+ROOT = Path(__file__).resolve().parents[2]
+_REFERENCE_IDENTIFIER_GUARD_TARGETS = (
+    "src/phospy/workflows/kinase/scoring_runner.py",
+    "src/phospy/workflows/kinase/prediction_runner.py",
+    "src/phospy/workflows/kinase/activity_runner.py",
+    "src/phospy/prediction/scoring.py",
+    "src/phospy/activities/scoring.py",
+)
+_FORBIDDEN_IDENTIFIER_CLEANUP = re.compile(r"\.(?:upper|lower|strip)\(")
+_REFERENCE_IDENTIFIER_COLUMN_HINT = re.compile(
+    r"['\"](?:kinase|substrate_site)['\"]",
+    re.IGNORECASE,
 )
 
 
@@ -792,4 +809,28 @@ def test_builder_establishes_intensity_scale_state_with_supported_path() -> None
     assert (
         built.intensity_scale_state.phospho.established_by
         == "phospy.transformations.transformers.identity"
+    )
+
+
+def test_kinase_reference_identifier_cleanup_is_owned_by_reference_ingestion_boundary() -> (
+    None
+):
+    violations: list[str] = []
+    for relative_path in _REFERENCE_IDENTIFIER_GUARD_TARGETS:
+        path = ROOT / relative_path
+        source = path.read_text(encoding="utf-8")
+        lines = source.splitlines()
+        for match in _FORBIDDEN_IDENTIFIER_CLEANUP.finditer(source):
+            line_number = source.count("\n", 0, match.start()) + 1
+            window_start = max(1, line_number - 2)
+            window_end = min(len(lines), line_number + 2)
+            window_text = "\n".join(lines[window_start - 1 : window_end])
+            if _REFERENCE_IDENTIFIER_COLUMN_HINT.search(window_text) is None:
+                continue
+            line = lines[line_number - 1].strip()
+            violations.append(f"{relative_path}:{line_number}: {line}")
+
+    assert not violations, (
+        "identifier normalisation must stay inside reference ingestion; "
+        "forbidden workflow-local cleanup detected:\n" + "\n".join(violations)
     )

@@ -93,6 +93,8 @@ class KinaseScoringRunner:
             profile_matrix=profile_build.profile_matrix,
         )
         eligible_kinases = set(profile_scores.columns.astype(str))
+        # `request.kinase_substrate_map` comes from ReferenceBundle and is
+        # already normalized at reference-ingestion time.
         motif_kinase_substrate_map = request.kinase_substrate_map.loc[
             request.kinase_substrate_map.loc[:, "kinase"]
             .astype(str)

@@ -136,6 +136,8 @@ class KinasePredictionRunner:
         pred_mat, substrate_list = self._build_outputs(
             prediction_score_matrix=downstream_score_matrix,
             selected_kinases=selected_kinases,
+            # Candidate keys and selected kinase labels are inherited from the
+            # normalized downstream score matrix columns.
             candidate_substrates=candidate_substrates,
             top_k=config.prediction_top_k,
         )
@@ -227,6 +229,8 @@ class KinasePredictionRunner:
         pred_mat, substrate_list = self._build_outputs(
             prediction_score_matrix=adaptive_scores,
             selected_kinases=selected_kinases,
+            # Candidate keys and selected kinase labels are inherited from the
+            # normalized downstream score matrix columns.
             candidate_substrates=candidate_substrates,
             top_k=config.prediction_top_k,
             retain_full_scores=True,

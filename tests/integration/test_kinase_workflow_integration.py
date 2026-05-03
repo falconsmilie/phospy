@@ -486,6 +486,72 @@ def test_kinase_workflow_default_scoring_floor_supports_realistic_input() -> Non
     assert result.scoring_result.profile_scores.shape[1] > 0
 
 
+def test_explicit_mixed_case_references_align_and_emit_normalised_identifiers() -> None:
+    sequence_a = "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA"
+    sequence_b = "AAAAAAAAAAAAAAATAAAAAAAAAAAAAAA"
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 0.7],
+            "sample_b": [2.0, 1.4],
+        },
+        index=pd.Index(["MAPK1;S123;", "MAPK1;T185;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK1", "MAPK1"],
+            "site": ["S123", "T185"],
+            "site_sequence": [sequence_a, sequence_b],
+        },
+        index=phospho.index.copy(),
+    )
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+        )
+    )
+    references = ReferenceBundle(
+        organism=Organism.RAT,
+        kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["akt1", "Akt1"],
+                "substrate_site": ["mapk1;s123", " MAPK1 ; t185 ; "],
+            }
+        ),
+        site_sequences=pd.DataFrame(
+            {"site_sequence": [sequence_a, sequence_b]},
+            index=pd.Index(["mapk1;s123", "MAPK1;T185"], name="site_id"),
+        ),
+    )
+
+    result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=references,
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=2,
+                deterministic_max_selected_kinases=1,
+                adaptive_ensemble_runs=1,
+            ),
+            activity_config=None,
+        )
+    )
+
+    assert set(result.references.kinase_substrate_map.loc[:, "kinase"]) == {"AKT1"}
+    assert set(result.references.kinase_substrate_map.loc[:, "substrate_site"]) == {
+        "MAPK1;S123;",
+        "MAPK1;T185;",
+    }
+    assert "MAPK1;S123;" in result.scoring_result.profile_scores.index
+    assert "MAPK1;S123;" in result.prediction_result.pred_mat.index
+    assert list(result.prediction_result.pred_mat.columns) == ["AKT1"]
+    substrate_list = result.prediction_result.substrate_list
+    assert substrate_list is not None
+    assert set(substrate_list.loc[:, "kinase"]) == {"AKT1"}
+
+
 def test_prediction_changes_when_downstream_matrix_switches_profile_vs_combined(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -50,6 +50,8 @@ class KinaseWorkflowInterpreter:
             request.references,
             dataset_organism=request.dataset.organism,
         )
+        # ReferenceBundle construction is the sole identifier-normalisation
+        # boundary. Downstream workflow stages consume these tables as-is.
         kinase_substrate_map = references.kinase_substrate_map
         site_sequences = references.site_sequences
         overlap_counts = self._summarize_overlap(

@@ -87,6 +87,25 @@ class ResolvedKinaseWorkflowRequest:
                 "next_action=ensure interpreted activity phospho rows are aligned "
                 "to the resolved scoring-site index"
             )
+        if not kinase_substrate_reference.frame.equals(
+            self.references.kinase_substrate_map
+        ):
+            raise WorkflowBoundaryError(
+                "kinase workflow boundary validation failed at seam="
+                "kinase.contracts.kinase_substrate_reference_alignment; "
+                "kinase_substrate_map must match "
+                "references.kinase_substrate_map exactly; "
+                "next_action=consume the normalized reference table from "
+                "ReferenceBundle without workflow-local identifier cleanup"
+            )
+        if not site_sequence_reference.frame.equals(self.references.site_sequences):
+            raise WorkflowBoundaryError(
+                "kinase workflow boundary validation failed at seam="
+                "kinase.contracts.site_sequence_reference_alignment; "
+                "site_sequences must match references.site_sequences exactly; "
+                "next_action=consume the normalized reference table from "
+                "ReferenceBundle without workflow-local identifier cleanup"
+            )
         object.__setattr__(
             self, "kinase_substrate_map", kinase_substrate_reference.frame
         )

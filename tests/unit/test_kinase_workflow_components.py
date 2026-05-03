@@ -11,6 +11,7 @@ from phospy.api.configs import (
     KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
 )
+from phospy.api.requests import KinaseWorkflowRequest
 from phospy.api.results import (
     KinaseWorkflowPreprocessingAttritionSummary,
     KinaseWorkflowScoringAttritionSummary,
@@ -18,6 +19,7 @@ from phospy.api.results import (
 )
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
+from phospy.validation.workflows.activity import KinaseActivityInputValidator
 from phospy.workflows.kinase.activity_runner import KinaseActivityRunner
 from phospy.workflows.kinase.component_models import KinaseScoringRunResult
 from phospy.workflows.kinase.contracts import (
@@ -25,9 +27,14 @@ from phospy.workflows.kinase.contracts import (
     ResolvedKinaseExecutionConfig,
     ResolvedKinaseWorkflowRequest,
 )
+from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
 from phospy.workflows.kinase.prediction_runner import KinasePredictionRunner
 from phospy.workflows.kinase.provenance import KinaseProvenanceBuilder
 from phospy.workflows.kinase.result_assembly import KinaseResultAssembler
+from phospy.workflows.kinase.science import (
+    build_kinase_profiles,
+    build_prediction_outputs,
+)
 from phospy.workflows.kinase.scoring_runner import KinaseScoringRunner
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
@@ -85,6 +92,27 @@ def _references() -> ReferenceBundle:
     )
 
 
+def _mixed_case_references() -> ReferenceBundle:
+    return ReferenceBundle(
+        organism=Organism.RAT,
+        kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["map2k6", "Map2K6"],
+                "substrate_site": [" mapk14 ; y182 ", "gsk3b;s9"],
+            }
+        ),
+        site_sequences=pd.DataFrame(
+            {
+                "site_sequence": [
+                    "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
+                    "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
+                ]
+            },
+            index=pd.Index(["mapk14 ; y182", "GSK3B;S9"], name="site_id"),
+        ),
+    )
+
+
 def _config(
     *,
     prediction_mode: str = KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
@@ -124,9 +152,10 @@ def _activity_config(
 def _resolved_request(
     *,
     config: ResolvedKinaseExecutionConfig | None = None,
+    references: ReferenceBundle | None = None,
 ) -> ResolvedKinaseWorkflowRequest:
     dataset = _dataset()
-    references = _references()
+    references = references or _references()
     scoring_site_index = dataset.phospho.index.copy()
     return ResolvedKinaseWorkflowRequest(
         dataset=dataset,
@@ -141,6 +170,32 @@ def _resolved_request(
     )
 
 
+def test_interpreter_overlap_uses_normalised_reference_tables_after_bundle_construction() -> (
+    None
+):
+    request = KinaseWorkflowRequest(
+        dataset=_dataset(),
+        references=_mixed_case_references(),
+    )
+
+    interpreted = KinaseWorkflowInterpreter().run(request)
+    overlap = KinaseWorkflowInterpreter._summarize_overlap(
+        dataset=request.dataset.phospho,
+        kinase_substrate_map=interpreted.kinase_substrate_map,
+    )
+
+    assert set(interpreted.kinase_substrate_map.loc[:, "kinase"]) == {"MAP2K6"}
+    assert set(interpreted.kinase_substrate_map.loc[:, "substrate_site"]) == {
+        "MAPK14;Y182;",
+        "GSK3B;S9;",
+    }
+    assert set(interpreted.site_sequences.index.astype(str)) == {
+        "MAPK14;Y182;",
+        "GSK3B;S9;",
+    }
+    assert overlap["overlap_sites"] == 2
+
+
 def test_scoring_runner_returns_expected_downstream_score_source() -> None:
     request = _resolved_request()
     result = KinaseScoringRunner().run(
@@ -149,6 +204,119 @@ def test_scoring_runner_returns_expected_downstream_score_source() -> None:
     )
     assert result.downstream_score_source == "rank_weighted_fusion_scores"
     assert not result.downstream_score_matrix.empty
+
+
+def test_scoring_runner_receives_normalised_reference_identifiers() -> None:
+    request = _resolved_request(references=_mixed_case_references())
+    captured_map: pd.DataFrame | None = None
+
+    def _capture_build_profiles(
+        *,
+        phospho: pd.DataFrame,
+        kinase_substrate_map: pd.DataFrame,
+        min_substrates: int,
+        allow_single_substrate_profiles: bool,
+        profile_missing_value_strategy: str,
+    ):
+        nonlocal captured_map
+        captured_map = kinase_substrate_map.copy(deep=True)
+        return build_kinase_profiles(
+            phospho=phospho,
+            kinase_substrate_map=kinase_substrate_map,
+            min_substrates=min_substrates,
+            allow_single_substrate_profiles=allow_single_substrate_profiles,
+            profile_missing_value_strategy=profile_missing_value_strategy,
+        )
+
+    KinaseScoringRunner(build_profiles=_capture_build_profiles).run(
+        request=request,
+        config=request.execution_config,
+    )
+
+    assert captured_map is not None
+    assert set(captured_map.loc[:, "kinase"]) == {"MAP2K6"}
+    assert set(captured_map.loc[:, "substrate_site"]) == {
+        "MAPK14;Y182;",
+        "GSK3B;S9;",
+    }
+
+
+def test_prediction_output_construction_receives_normalised_kinase_ids() -> None:
+    request = _resolved_request(references=_mixed_case_references())
+    scoring_execution = KinaseScoringRunner().run(
+        request=request,
+        config=request.execution_config,
+    )
+    captured_selected_kinases: pd.Index | None = None
+    captured_candidate_keys: set[str] | None = None
+
+    def _capture_build_outputs(
+        *,
+        prediction_score_matrix: pd.DataFrame,
+        selected_kinases: pd.Index,
+        candidate_substrates: dict[str, list[str]],
+        top_k: int,
+        retain_full_scores: bool = False,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        nonlocal captured_selected_kinases, captured_candidate_keys
+        captured_selected_kinases = selected_kinases.copy()
+        captured_candidate_keys = set(candidate_substrates)
+        return build_prediction_outputs(
+            prediction_score_matrix=prediction_score_matrix,
+            selected_kinases=selected_kinases,
+            candidate_substrates=candidate_substrates,
+            top_k=top_k,
+            retain_full_scores=retain_full_scores,
+        )
+
+    prediction_result = KinasePredictionRunner(
+        build_outputs=_capture_build_outputs
+    ).run(
+        request=request,
+        config=request.execution_config,
+        scoring_execution=scoring_execution,
+    )
+
+    assert captured_selected_kinases is not None
+    assert captured_candidate_keys is not None
+    assert set(captured_selected_kinases.astype(str)) == {"MAP2K6"}
+    assert captured_candidate_keys == {"MAP2K6"}
+    assert set(prediction_result.pred_mat.columns.astype(str)) == {"MAP2K6"}
+    if prediction_result.substrate_list is not None:
+        assert set(prediction_result.substrate_list.loc[:, "kinase"]) <= {"MAP2K6"}
+
+
+def test_activity_scoring_receives_only_normalised_kinase_ids() -> None:
+    request = _resolved_request(
+        config=_config(
+            activity=_activity_config(
+                method=KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY
+            )
+        ),
+        references=_mixed_case_references(),
+    )
+    scoring_execution = KinaseScoringRunner().run(
+        request=request,
+        config=request.execution_config,
+    )
+    prediction_result = KinasePredictionRunner().run(
+        request=request,
+        config=request.execution_config,
+        scoring_execution=scoring_execution,
+    )
+
+    class _ActivityValidatorSpy(KinaseActivityInputValidator):
+        def run(self, **kwargs):
+            pred_mat = kwargs["pred_mat"]
+            assert set(pred_mat.columns.astype(str)) == {"MAP2K6"}
+            return super().run(**kwargs)
+
+    result = KinaseActivityRunner(activity_input_validator=_ActivityValidatorSpy()).run(
+        request=request,
+        config=request.execution_config,
+        prediction_result=prediction_result,
+    )
+    assert result is not None
 
 
 def test_deterministic_prediction_runner_handles_no_candidates() -> None:

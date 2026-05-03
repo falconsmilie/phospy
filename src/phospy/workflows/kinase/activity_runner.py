@@ -47,6 +47,8 @@ class KinaseActivityRunner:
             activity_config.method
             == KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY
         ):
+            # Prediction matrix kinase columns are expected to already be
+            # normalized upstream by the reference-ingestion boundary.
             validated_inputs = self._activity_input_validator.run(
                 pred_mat=prediction_result.pred_mat,
                 phospho_matrix=request.activity_phospho_matrix,
