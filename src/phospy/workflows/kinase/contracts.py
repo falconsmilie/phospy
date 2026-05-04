@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol
 
@@ -104,15 +105,16 @@ class ResolvedKinaseWorkflowRequest:
         if not self._has_compatible_site_sequence_reference_alignment(
             merged_site_sequences=site_sequences,
             reference_site_sequences=self.references.site_sequences,
+            merge_diagnostics=self.site_sequence_merge_diagnostics,
         ):
             raise WorkflowBoundaryError(
                 "kinase workflow boundary validation failed at seam="
                 "kinase.contracts.site_sequence_reference_alignment; "
-                "site_sequences must preserve every "
-                "references.site_sequences row exactly; "
-                "next_action=ensure execution-time site-sequence merge keeps "
-                "reference-provided sequences unchanged and only appends new "
-                "dataset-supported rows"
+                "site_sequences must preserve every references.site_sequences row "
+                "exactly unless conflict_policy='prefer_dataset' and each changed "
+                "row is declared in site_sequence_merge_diagnostics.conflict_diagnostics; "
+                "next_action=ensure execution-time site-sequence merge diagnostics "
+                "match any reference-row overrides"
             )
         object.__setattr__(self, "kinase_substrate_map", kinase_substrate_map)
         object.__setattr__(self, "site_sequences", site_sequences)
@@ -248,6 +250,7 @@ class ResolvedKinaseWorkflowRequest:
         *,
         merged_site_sequences: pd.DataFrame,
         reference_site_sequences: pd.DataFrame,
+        merge_diagnostics: Mapping[str, object] | None = None,
     ) -> bool:
         if not {"site_sequence"}.issubset(set(merged_site_sequences.columns)):
             return False
@@ -255,13 +258,44 @@ class ResolvedKinaseWorkflowRequest:
             return False
         if merged_site_sequences.index.has_duplicates:
             return False
+        conflict_policy = None
+        prefer_dataset_conflicts: dict[str, Mapping[str, object]] = {}
+        if isinstance(merge_diagnostics, Mapping):
+            policy_value = merge_diagnostics.get("conflict_policy")
+            if isinstance(policy_value, str):
+                conflict_policy = policy_value
+            conflict_rows = merge_diagnostics.get("conflict_diagnostics")
+            if isinstance(conflict_rows, list):
+                for row in conflict_rows:
+                    if not isinstance(row, Mapping):
+                        continue
+                    site_value = row.get("site_id")
+                    if not isinstance(site_value, str):
+                        continue
+                    prefer_dataset_conflicts[site_value] = row
         for site_id, sequence in reference_site_sequences.loc[
             :, "site_sequence"
         ].items():
             if site_id not in merged_site_sequences.index:
                 return False
             merged_value = merged_site_sequences.at[site_id, "site_sequence"]
-            if str(merged_value) != str(sequence):
+            merged_sequence = str(merged_value)
+            reference_sequence = str(sequence)
+            if merged_sequence == reference_sequence:
+                continue
+            if conflict_policy != "prefer_dataset":
+                return False
+            conflict_row = prefer_dataset_conflicts.get(str(site_id))
+            if conflict_row is None:
+                return False
+            selected_source = conflict_row.get("selected_sequence_source")
+            if str(selected_source) != "dataset":
+                return False
+            selected_sequence = conflict_row.get("selected_sequence")
+            if str(selected_sequence) != merged_sequence:
+                return False
+            conflict_reference = conflict_row.get("reference_sequence")
+            if str(conflict_reference) != reference_sequence:
                 return False
         return True
 
