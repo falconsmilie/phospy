@@ -8,12 +8,6 @@ import numpy as np
 import pandas as pd
 from sklearn.impute import KNNImputer
 
-from phospy.api.configs import (
-    DATASET_MISSING_DATA_POLICY_FORBID,
-    DATASET_MISSING_DATA_POLICY_IMPUTE_KNN,
-    DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB,
-    DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
-)
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
     PreprocessingStageResult,
@@ -28,6 +22,7 @@ from phospy.datasets.processing_state import (
     MissingDataDiagnosticsV1,
 )
 from phospy.errors.input import PhosPyInputError
+from phospy.policy_models import MissingDataPolicy
 from phospy.provenance.hashing import hash_table
 
 
@@ -50,10 +45,10 @@ class MissingDataStage:
         affected_row_count = int(len(input_affected_row_ids))
         affected_column_count = int(len(input_affected_column_ids))
         missingness_mask_hash = _hash_missingness_mask(input_missing_mask)
-        if state.plan.missing_data_policy == DATASET_MISSING_DATA_POLICY_FORBID:
+        if state.plan.missing_data_policy is MissingDataPolicy.FORBID:
             forbid_failure_diagnostics = MissingDataDiagnosticsV1.from_mapping(
                 _build_missing_data_diagnostics(
-                    missing_data_policy=state.plan.missing_data_policy,
+                    missing_data_policy=state.plan.missing_data_policy.value,
                     imputation_method_id="forbid",
                     imputation_method_family="strict_rejection",
                     input_missing_cell_count=input_missing_cell_count,
@@ -84,7 +79,7 @@ class MissingDataStage:
                 diagnostics=forbid_failure_diagnostics,
             )
             diagnostics = _build_missing_data_diagnostics(
-                missing_data_policy=state.plan.missing_data_policy,
+                missing_data_policy=state.plan.missing_data_policy.value,
                 imputation_method_id=None,
                 imputation_method_family=None,
                 input_missing_cell_count=input_missing_cell_count,
@@ -120,7 +115,7 @@ class MissingDataStage:
                 },
             )
 
-        if state.plan.missing_data_policy == DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB:
+        if state.plan.missing_data_policy is MissingDataPolicy.IMPUTE_MINPROB:
             return _run_minprob_missing_data_stage(
                 state=state,
                 input_missing_cell_count=input_missing_cell_count,
@@ -131,7 +126,7 @@ class MissingDataStage:
                 missingness_mask_hash=missingness_mask_hash,
             )
 
-        if state.plan.missing_data_policy == DATASET_MISSING_DATA_POLICY_IMPUTE_KNN:
+        if state.plan.missing_data_policy is MissingDataPolicy.IMPUTE_KNN:
             return _run_knn_missing_data_stage(
                 state=state,
                 input_missing_cell_count=input_missing_cell_count,
@@ -142,10 +137,7 @@ class MissingDataStage:
                 missingness_mask_hash=missingness_mask_hash,
             )
 
-        if (
-            state.plan.missing_data_policy
-            != DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN
-        ):
+        if state.plan.missing_data_policy is not MissingDataPolicy.IMPUTE_ROW_MEDIAN:
             raise PhosPyInputError(
                 "dataset build request preprocessing_config contains an unsupported "
                 "missing_data.policy"
@@ -203,7 +195,7 @@ class MissingDataStage:
         )
         output_missing_cell_count = int(imputed.isna().to_numpy().sum())
         row_audit_snapshot_base = _build_row_audit_snapshot_base(
-            missing_data_policy=DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
+            missing_data_policy=MissingDataPolicy.IMPUTE_ROW_MEDIAN.value,
             missing_data_min_observed_values=int(min_observed_values),
             input_missing_cell_count=input_missing_cell_count,
             output_missing_cell_count=output_missing_cell_count,
@@ -262,7 +254,7 @@ class MissingDataStage:
             )
         next_state = append_row_audit_records(state, row_audit_records)
         diagnostics = _build_missing_data_diagnostics(
-            missing_data_policy=state.plan.missing_data_policy,
+            missing_data_policy=state.plan.missing_data_policy.value,
             imputation_method_id="row_median",
             imputation_method_family="deterministic_row_statistic",
             input_missing_cell_count=input_missing_cell_count,
@@ -492,7 +484,7 @@ def _run_knn_missing_data_stage(
 
     next_state = append_row_audit_records(state, row_audit_records)
     diagnostics = _build_missing_data_diagnostics(
-        missing_data_policy=state.plan.missing_data_policy,
+        missing_data_policy=state.plan.missing_data_policy.value,
         imputation_method_id="knn",
         imputation_method_family="nearest_neighbour",
         input_missing_cell_count=input_missing_cell_count,
@@ -761,7 +753,7 @@ def _run_minprob_missing_data_stage(
 
     next_state = append_row_audit_records(state, row_audit_records)
     diagnostics = _build_missing_data_diagnostics(
-        missing_data_policy=state.plan.missing_data_policy,
+        missing_data_policy=state.plan.missing_data_policy.value,
         imputation_method_id="minprob",
         imputation_method_family="left_censored_random",
         input_missing_cell_count=input_missing_cell_count,
@@ -965,7 +957,7 @@ def _build_knn_row_audit_snapshot_base(
     max_missing_fraction_per_row: float,
 ) -> dict[str, JsonValue]:
     return {
-        "missing_data_policy": DATASET_MISSING_DATA_POLICY_IMPUTE_KNN,
+        "missing_data_policy": MissingDataPolicy.IMPUTE_KNN.value,
         "input_missing_cell_count": int(input_missing_cell_count),
         "output_missing_cell_count": int(output_missing_cell_count),
         "imputed_cell_count": int(imputed_cell_count),
@@ -994,7 +986,7 @@ def _build_minprob_row_audit_snapshot_base(
     max_missing_fraction_per_row: float,
 ) -> dict[str, JsonValue]:
     return {
-        "missing_data_policy": DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB,
+        "missing_data_policy": MissingDataPolicy.IMPUTE_MINPROB.value,
         "input_missing_cell_count": int(input_missing_cell_count),
         "output_missing_cell_count": int(output_missing_cell_count),
         "imputed_cell_count": int(imputed_cell_count),

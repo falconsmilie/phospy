@@ -45,7 +45,7 @@ class PreprocessingStageMetadata:
 def _resolve_total_protein_parameters(plan: PreprocessingPlan) -> dict[str, object]:
     identity = plan.total_protein_correction_identity_policy
     return {
-        "total_protein_correction_policy": plan.total_protein_correction_policy,
+        "total_protein_correction_policy": plan.total_protein_correction_policy.value,
         "identity_mode": identity.mode,
         "phosphosite_key": identity.phosphosite_key,
         "total_protein_key": identity.total_protein_key,
@@ -80,7 +80,7 @@ def _resolve_site_sequence_parameters(plan: PreprocessingPlan) -> dict[str, obje
 
 def _resolve_missing_data_parameters(plan: PreprocessingPlan) -> dict[str, object]:
     return {
-        "missing_data_policy": plan.missing_data_policy,
+        "missing_data_policy": plan.missing_data_policy.value,
         "missing_data_min_observed_values": plan.missing_data_min_observed_values,
         "missing_data_q": plan.missing_data_q,
         "missing_data_width": plan.missing_data_width,
@@ -115,7 +115,7 @@ def _resolve_normalisation_parameters(_plan: PreprocessingPlan) -> dict[str, obj
 
 
 def _resolve_missing_data_operation(plan: PreprocessingPlan) -> str:
-    return plan.missing_data_policy
+    return plan.missing_data_policy.value
 
 
 def _resolve_intensity_transform_operation(plan: PreprocessingPlan) -> str:
@@ -123,7 +123,7 @@ def _resolve_intensity_transform_operation(plan: PreprocessingPlan) -> str:
 
 
 def _resolve_total_protein_operation(plan: PreprocessingPlan) -> str:
-    return str(plan.total_protein_correction_policy)
+    return plan.total_protein_correction_policy.value
 
 
 def _resolve_site_matrix_operation(plan: PreprocessingPlan) -> str:

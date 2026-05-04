@@ -7,8 +7,6 @@ import pandas as pd
 from phospy.api.configs import (
     DATASET_COMPARISON_BUILDING_POLICY_NONE,
     DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA,
-    DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
-    DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL,
 )
 from phospy.datasets.preprocessing.diagnostics import ProcessingTraceDiagnostics
 from phospy.datasets.preprocessing.models import (
@@ -30,6 +28,7 @@ from phospy.datasets.processing_state import (
     TotalProteinCorrectionState,
 )
 from phospy.errors.build import DatasetBuildError
+from phospy.policy_models import TotalProteinCorrectionPolicy
 from phospy.transformations.models import (
     IntensityScaleKind,
     IntensityScaleState,
@@ -57,7 +56,7 @@ class DatasetProcessingStateBuilder:
         )
         resolved_total_policy = plan.total_protein_correction_policy
         total_correction_applied = (
-            resolved_total_policy != DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE
+            resolved_total_policy is not TotalProteinCorrectionPolicy.NONE
         )
         parsed = ProcessingTraceDiagnostics.from_trace(preprocessing_trace)
         correction_diagnostics = parsed.total_protein_correction
@@ -92,21 +91,18 @@ class DatasetProcessingStateBuilder:
         )
         default_formula = (
             "log2_phospho - log2_total"
-            if resolved_total_policy
-            == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL
+            if resolved_total_policy is TotalProteinCorrectionPolicy.SUBTRACT_LOG_TOTAL
             else None
         )
         default_requires_log_scale: bool | None = bool(total_correction_applied)
         default_input_scale = (
             "log2"
-            if resolved_total_policy
-            == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL
+            if resolved_total_policy is TotalProteinCorrectionPolicy.SUBTRACT_LOG_TOTAL
             else None
         )
         default_output_scale = (
             "log2_ratio"
-            if resolved_total_policy
-            == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL
+            if resolved_total_policy is TotalProteinCorrectionPolicy.SUBTRACT_LOG_TOTAL
             else None
         )
         quantitative_meaning = intensity_scale_state.quantity
@@ -134,7 +130,7 @@ class DatasetProcessingStateBuilder:
             missing_data_diagnostics = parsed.with_default_string(
                 missing_data_diagnostics,
                 key="missing_data_policy",
-                default=str(plan.missing_data_policy),
+                default=plan.missing_data_policy.value,
             )
         typed_correction_diagnostics = (
             None
@@ -280,10 +276,12 @@ class DatasetProcessingStateBuilder:
                     key="output_scale",
                     default=default_output_scale,
                 ),
-                quantitative_meaning=parsed.resolve_optional_string(
-                    correction_diagnostics,
-                    key="quantitative_meaning",
-                    default=default_quantitative_meaning,
+                quantitative_meaning=_resolve_total_correction_quantitative_meaning(
+                    parsed.resolve_optional_string(
+                        correction_diagnostics,
+                        key="quantitative_meaning",
+                        default=default_quantitative_meaning,
+                    )
                 ),
                 diagnostics=typed_correction_diagnostics,
             ),
@@ -314,7 +312,7 @@ class DatasetProcessingStateBuilder:
 def _resolve_quantitative_meaning_state(
     *,
     intensity_scale_state: IntensityScaleState,
-    total_correction_policy: str,
+    total_correction_policy: TotalProteinCorrectionPolicy,
     correction_diagnostics: dict[str, object] | None,
 ) -> IntensityScaleState:
     quantitative_meaning = ProcessingTraceDiagnostics.resolve_optional_string(
@@ -327,12 +325,14 @@ def _resolve_quantitative_meaning_state(
             return intensity_scale_state.with_quantitative_meaning(
                 QuantitativeMeaning(quantitative_meaning)
             )
-        except ValueError:
-            pass
-    if (
-        total_correction_policy
-        == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL
-    ):
+        except ValueError as exc:
+            supported = ", ".join(member.value for member in QuantitativeMeaning)
+            raise DatasetBuildError(
+                "dataset preprocessing total_protein_correction diagnostics "
+                "quantitative_meaning must be one of: "
+                f"{supported}; got {quantitative_meaning!r}"
+            ) from exc
+    if total_correction_policy is TotalProteinCorrectionPolicy.SUBTRACT_LOG_TOTAL:
         return intensity_scale_state.with_quantitative_meaning(
             QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO
         )
@@ -487,3 +487,18 @@ def _count_distinct_non_missing(
         .dropna()
     )
     return int(values.nunique())
+
+
+def _resolve_total_correction_quantitative_meaning(
+    quantitative_meaning: str | None,
+) -> QuantitativeMeaning | None:
+    if quantitative_meaning is None:
+        return None
+    try:
+        return QuantitativeMeaning(quantitative_meaning)
+    except ValueError as exc:
+        supported = ", ".join(member.value for member in QuantitativeMeaning)
+        raise DatasetBuildError(
+            "dataset preprocessing total_protein_correction quantitative_meaning "
+            f"must be one of: {supported}; got {quantitative_meaning!r}"
+        ) from exc

@@ -13,8 +13,6 @@ from phospy.api.configs import (
     DATASET_COMPARISON_BUILDING_POLICY_NONE,
     DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY,
     DATASET_INTENSITY_TRANSFORM_POLICY_LOG2,
-    DATASET_MISSING_DATA_POLICY_FORBID,
-    DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB,
     DATASET_NORMALISATION_POLICY_NONE,
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
     DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
@@ -26,12 +24,10 @@ from phospy.api.configs import (
     DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICY_ERROR,
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT,
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_MAPPING_TABLE,
-    DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ERROR,
     DatasetComparisonBuildingPolicy,
     DatasetComparisonPair,
     DatasetIntensityTransformPolicy,
-    DatasetMissingDataPolicy,
     DatasetNormalisationPolicy,
     DatasetPreprocessingConfig,
     DatasetSiteMatrixDuplicateSitePolicy,
@@ -42,7 +38,6 @@ from phospy.api.configs import (
     DatasetTotalProteinCorrectionDuplicatePolicy,
     DatasetTotalProteinCorrectionIdentityConfig,
     DatasetTotalProteinCorrectionIdentityMode,
-    DatasetTotalProteinCorrectionPolicy,
     DatasetTotalProteinCorrectionUnmatchedPolicy,
 )
 from phospy.datasets.preprocessing.report_schema import (
@@ -56,6 +51,7 @@ from phospy.datasets.preprocessing.report_schema import (
     reorder_columns,
 )
 from phospy.errors.input import PhosPyInputError
+from phospy.policy_models import MissingDataPolicy, TotalProteinCorrectionPolicy
 from phospy.provenance.hashing import hash_table
 from phospy.provenance.models import (
     PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V2,
@@ -104,7 +100,7 @@ class PreprocessingPlan:
     )
     intensity_transform_pseudocount: float = 1.0
     normalisation_policy: DatasetNormalisationPolicy = DATASET_NORMALISATION_POLICY_NONE
-    missing_data_policy: DatasetMissingDataPolicy = DATASET_MISSING_DATA_POLICY_FORBID
+    missing_data_policy: MissingDataPolicy = MissingDataPolicy.FORBID
     missing_data_min_observed_values: int | None = None
     missing_data_q: float | None = None
     missing_data_width: float | None = None
@@ -123,8 +119,8 @@ class PreprocessingPlan:
     site_sequence_resolution_flank_size: int = 7
     site_sequence_resolution_accession_column: str = "protein_accession"
     site_sequence_resolution_site_column: str = "site"
-    total_protein_correction_policy: DatasetTotalProteinCorrectionPolicy = (
-        DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE
+    total_protein_correction_policy: TotalProteinCorrectionPolicy = (
+        TotalProteinCorrectionPolicy.NONE
     )
     total_protein_correction_identity_policy: TotalProteinCorrectionIdentityPolicy = (
         TotalProteinCorrectionIdentityPolicy(
@@ -160,6 +156,29 @@ class PreprocessingPlan:
     ruv_readiness_batch_column: str | None = "batch"
     stage_order: tuple[str, ...] = DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT
 
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "missing_data_policy",
+            MissingDataPolicy.parse(
+                self.missing_data_policy,
+                field_name=(
+                    "dataset preprocessing plan missing_data_policy (internal model)"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "total_protein_correction_policy",
+            TotalProteinCorrectionPolicy.parse(
+                self.total_protein_correction_policy,
+                field_name=(
+                    "dataset preprocessing plan total_protein_correction_policy "
+                    "(internal model)"
+                ),
+            ),
+        )
+
     @classmethod
     def from_config(cls, config: DatasetPreprocessingConfig) -> PreprocessingPlan:
         stage_order: list[str] = []
@@ -168,7 +187,15 @@ class PreprocessingPlan:
         )
         if site_sequence_resolution_enabled:
             stage_order.append(DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION)
-        if config.missing_data.policy == DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB:
+        missing_data_policy = MissingDataPolicy.parse(
+            config.missing_data.policy,
+            field_name="preprocessing_config.missing_data.policy",
+        )
+        total_correction_policy = TotalProteinCorrectionPolicy.parse(
+            config.total_protein_correction.policy,
+            field_name="preprocessing_config.total_protein_correction.policy",
+        )
+        if missing_data_policy is MissingDataPolicy.IMPUTE_MINPROB:
             if (
                 config.intensity_transform.policy
                 != DATASET_INTENSITY_TRANSFORM_POLICY_LOG2
@@ -189,10 +216,7 @@ class PreprocessingPlan:
                 != DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY
             ):
                 stage_order.append(DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM)
-        if (
-            config.total_protein_correction.policy
-            != DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE
-        ):
+        if total_correction_policy is not TotalProteinCorrectionPolicy.NONE:
             stage_order.append(DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION)
         if config.site_matrix.policy != DATASET_SITE_MATRIX_POLICY_AS_INPUT:
             stage_order.append(DATASET_PREPROCESSING_STAGE_SITE_MATRIX)
@@ -206,7 +230,7 @@ class PreprocessingPlan:
                 config.intensity_transform.pseudocount
             ),
             normalisation_policy=config.normalisation.policy,
-            missing_data_policy=config.missing_data.policy,
+            missing_data_policy=missing_data_policy,
             missing_data_min_observed_values=config.missing_data.min_observed_values,
             missing_data_q=(
                 None if config.missing_data.q is None else float(config.missing_data.q)
@@ -242,7 +266,7 @@ class PreprocessingPlan:
             site_sequence_resolution_site_column=(
                 config.site_sequence_resolution.site_column
             ),
-            total_protein_correction_policy=config.total_protein_correction.policy,
+            total_protein_correction_policy=total_correction_policy,
             total_protein_correction_identity_policy=_resolve_total_correction_identity_policy(
                 config.total_protein_correction.identity
             ),

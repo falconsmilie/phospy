@@ -9,14 +9,17 @@ from types import MappingProxyType
 import numpy as np
 import pandas as pd
 
+from phospy.policy_models import DownstreamScoreSource
 from phospy.scientific_policies import (
     ScientificPolicyId,
     ScientificPolicyRecord,
     build_motif_profile_rank_fusion_policy,
 )
 
-DOWNSTREAM_SCORE_SOURCE_PROFILE = "profile_scores"
-DOWNSTREAM_SCORE_SOURCE_RANK_WEIGHTED_FUSION = "rank_weighted_fusion_scores"
+DOWNSTREAM_SCORE_SOURCE_PROFILE = DownstreamScoreSource.PROFILE_SCORES.value
+DOWNSTREAM_SCORE_SOURCE_RANK_WEIGHTED_FUSION = (
+    DownstreamScoreSource.RANK_WEIGHTED_FUSION_SCORES.value
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,22 +77,22 @@ def select_downstream_score_matrix(
     *,
     profile_scores: pd.DataFrame,
     rank_weighted_fusion_scores: pd.DataFrame | None,
-) -> tuple[pd.DataFrame, str]:
+) -> tuple[pd.DataFrame, DownstreamScoreSource]:
     """Resolve the authoritative downstream prediction score matrix."""
 
     if rank_weighted_fusion_scores is not None:
         return (
             rank_weighted_fusion_scores,
-            DOWNSTREAM_SCORE_SOURCE_RANK_WEIGHTED_FUSION,
+            DownstreamScoreSource.RANK_WEIGHTED_FUSION_SCORES,
         )
-    return profile_scores, DOWNSTREAM_SCORE_SOURCE_PROFILE
+    return profile_scores, DownstreamScoreSource.PROFILE_SCORES
 
 
 def resolve_downstream_score_matrix(
     *,
     profile_scores: pd.DataFrame,
     rank_weighted_fusion_scores: pd.DataFrame | None,
-) -> tuple[pd.DataFrame, str, DownstreamScoreSelectionPolicy]:
+) -> tuple[pd.DataFrame, DownstreamScoreSource, DownstreamScoreSelectionPolicy]:
     """Resolve downstream score matrix/source and the active selection policy."""
 
     selected, source = select_downstream_score_matrix(

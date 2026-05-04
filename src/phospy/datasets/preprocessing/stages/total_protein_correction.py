@@ -10,8 +10,6 @@ from phospy.api.configs import (
     DATASET_INTENSITY_TRANSFORM_POLICY_LOG2,
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT,
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_MAPPING_TABLE,
-    DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
-    DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL,
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ERROR,
 )
@@ -25,13 +23,17 @@ from phospy.datasets.processing_state import (
     TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1,
 )
 from phospy.errors.input import PhosPyInputError
+from phospy.policy_models import TotalProteinCorrectionPolicy
 from phospy.provenance.hashing import hash_table
+from phospy.transformations.models import QuantitativeMeaning
 
 _INDEX_IDENTITY_KEY = "__index__"
 _GENE_SYMBOL_COLUMN = "gene_symbol"
-_PHOSPHO_TOTAL_LOG_RATIO_QUANTITATIVE_MEANING = "phospho_total_log_ratio"
+_PHOSPHO_TOTAL_LOG_RATIO_QUANTITATIVE_MEANING = (
+    QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO
+)
 _MIXED_QUANTITATIVE_MEANING = (
-    "mixed_phospho_total_log_ratio_and_phosphosite_log_abundance"
+    QuantitativeMeaning.MIXED_PHOSPHO_TOTAL_LOG_RATIO_AND_PHOSPHOSITE_LOG_ABUNDANCE
 )
 
 
@@ -55,7 +57,7 @@ class TotalProteinCorrectionStage:
     def run(self, state: PreprocessingState) -> PreprocessingStageResult:
         requested_policy = state.plan.total_protein_correction_policy
         identity_policy = state.plan.total_protein_correction_identity_policy
-        if requested_policy == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE:
+        if requested_policy is TotalProteinCorrectionPolicy.NONE:
             return PreprocessingStageResult(
                 state=state,
                 diagnostics={
@@ -68,9 +70,9 @@ class TotalProteinCorrectionStage:
                         "diagnostics_schema_version": (
                             TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1
                         ),
-                        "policy": str(requested_policy),
-                        "requested_policy": str(requested_policy),
-                        "resolved_policy": str(requested_policy),
+                        "policy": requested_policy.value,
+                        "requested_policy": requested_policy.value,
+                        "resolved_policy": requested_policy.value,
                         "identity_mode": str(identity_policy.mode),
                         "phosphosite_key": str(identity_policy.phosphosite_key),
                         "total_protein_key": str(identity_policy.total_protein_key),
@@ -79,10 +81,7 @@ class TotalProteinCorrectionStage:
                     },
                 },
             )
-        if (
-            requested_policy
-            != DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL
-        ):
+        if requested_policy is not TotalProteinCorrectionPolicy.SUBTRACT_LOG_TOTAL:
             raise PhosPyInputError(
                 "dataset build request preprocessing_config contains an unsupported "
                 "total_protein_correction.policy"
@@ -93,7 +92,8 @@ class TotalProteinCorrectionStage:
         ):
             raise PhosPyInputError(
                 "dataset build request "
-                f"preprocessing_config.total_protein_correction.policy={requested_policy!r} "
+                "preprocessing_config.total_protein_correction."
+                f"policy={requested_policy.value!r} "
                 "requires log2-scale phospho and total values. Configure "
                 "preprocessing_config.intensity_transform.policy='log2', or disable "
                 "total-protein correction."
@@ -101,7 +101,7 @@ class TotalProteinCorrectionStage:
         if state.total is None:
             raise PhosPyInputError(
                 "dataset build request preprocessing_config.total_protein_correction."
-                f"policy={requested_policy!r} requires total input data"
+                f"policy={requested_policy.value!r} requires total input data"
             )
         if not state.total.columns.equals(state.phospho.columns):
             raise PhosPyInputError(
@@ -157,7 +157,7 @@ class TotalProteinCorrectionStage:
 
 def _build_diagnostics(
     *,
-    requested_policy: str,
+    requested_policy: TotalProteinCorrectionPolicy,
     identity_policy: TotalProteinCorrectionIdentityPolicy,
     mapping: _ResolvedIdentityMapping,
     phospho: pd.DataFrame,
@@ -188,14 +188,14 @@ def _build_diagnostics(
     }
     diagnostics: dict[str, object] = {
         "diagnostics_schema_version": TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1,
-        "policy": str(requested_policy),
-        "requested_policy": str(requested_policy),
-        "resolved_policy": str(requested_policy),
+        "policy": requested_policy.value,
+        "requested_policy": requested_policy.value,
+        "resolved_policy": requested_policy.value,
         "formula": "log2_phospho - log2_total",
         "requires_log_scale": True,
         "input_scale": "log2",
         "output_scale": "log2_ratio",
-        "quantitative_meaning": quantitative_meaning,
+        "quantitative_meaning": quantitative_meaning.value,
         "matched_rows": corrected_rows,
         "identity_mode": str(identity_policy.mode),
         "phosphosite_key": str(identity_policy.phosphosite_key),

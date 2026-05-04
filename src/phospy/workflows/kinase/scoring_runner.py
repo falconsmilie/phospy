@@ -7,6 +7,7 @@ from collections.abc import Callable
 import pandas as pd
 
 from phospy.errors.workflows import WorkflowStageError
+from phospy.policy_models import DownstreamScoreSource
 from phospy.prediction.models import KinaseScoringResult
 from phospy.prediction.motif_scoring import (
     DEFAULT_MOTIF_FLANK_SIZE,
@@ -54,8 +55,12 @@ class KinaseScoringRunner:
         ),
         select_downstream: Callable[
             ...,
-            tuple[pd.DataFrame, str]
-            | tuple[pd.DataFrame, str, DownstreamScoreSelectionPolicy],
+            tuple[pd.DataFrame, DownstreamScoreSource]
+            | tuple[
+                pd.DataFrame,
+                DownstreamScoreSource,
+                DownstreamScoreSelectionPolicy,
+            ],
         ] = (resolve_downstream_score_matrix),
     ) -> None:
         self._build_profiles = build_profiles

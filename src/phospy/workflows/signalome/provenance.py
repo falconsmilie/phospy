@@ -7,6 +7,7 @@ from dataclasses import asdict
 
 import pandas as pd
 
+from phospy.policy_models import DownstreamScoreSource
 from phospy.provenance.environment import collect_environment_provenance
 from phospy.provenance.hashing import fingerprint_optional_table
 from phospy.provenance.models import (
@@ -407,11 +408,11 @@ def _build_signalome_score_semantics(
     scale_guard_decision: SignalomeScaleGuardDecision,
     clustering_missing_value_diagnostics: SignalomeClusteringMissingValueDiagnostics,
 ) -> dict[str, object]:
-    downstream_score_source = str(request.downstream_score_source)
+    downstream_score_source = request.downstream_score_source
     module_selection_diagnostics = clustering_result.module_selection_diagnostics
     preconditioning = request.score_preconditioning_diagnostics
     return {
-        "downstream_score_source": downstream_score_source,
+        "downstream_score_source": downstream_score_source.value,
         "downstream_score_meaning": _downstream_score_meaning(
             downstream_score_source=downstream_score_source
         ),
@@ -565,13 +566,19 @@ def _build_signalome_score_semantics(
     }
 
 
-def _downstream_score_meaning(*, downstream_score_source: str) -> str:
-    if downstream_score_source == "rank_weighted_fusion_scores":
+def _downstream_score_meaning(
+    *, downstream_score_source: DownstreamScoreSource | str
+) -> str:
+    resolved_source = DownstreamScoreSource.parse(
+        downstream_score_source,
+        field_name="signalome provenance downstream_score_source",
+    )
+    if resolved_source is DownstreamScoreSource.RANK_WEIGHTED_FUSION_SCORES:
         return (
             "rank-weighted fusion of upstream downstream-score lanes; larger values "
             "indicate stronger relative downstream support within the run"
         )
-    if downstream_score_source == "profile_scores":
+    if resolved_source is DownstreamScoreSource.PROFILE_SCORES:
         return (
             "upstream downstream profile-score lane; larger values indicate stronger "
             "relative downstream support within the run"

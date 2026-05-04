@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from enum import Enum
 from types import MappingProxyType
 
+from phospy.policy_models import ThresholdMode
+
 ScientificPolicyParameter = str | int | float | bool | None
 
 
@@ -130,9 +132,19 @@ class CandidateSubstrateSelectionPolicy:
     top_k: int
     score_threshold: float
     inclusion: int
-    threshold_operator: str = "score > threshold"
+    threshold_operator: ThresholdMode = ThresholdMode.GREATER_THAN
     ranking_rule: str = "top_n_scores_per_kinase_then_threshold"
     site_restriction: str = "none"
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "threshold_operator",
+            ThresholdMode.parse(
+                self.threshold_operator,
+                field_name=("candidate substrate selection policy threshold_operator"),
+            ),
+        )
 
     @property
     def record(self) -> ScientificPolicyRecord:
@@ -305,10 +317,14 @@ def build_candidate_substrate_selection_policy(
     top_k: int,
     score_threshold: float,
     inclusion: int,
-    threshold_operator: str = "score > threshold",
+    threshold_operator: ThresholdMode | str = ThresholdMode.GREATER_THAN,
     ranking_rule: str = "top_n_scores_per_kinase_then_threshold",
     site_restriction: str = "none",
 ) -> ScientificPolicyRecord:
+    resolved_threshold_mode = ThresholdMode.parse(
+        threshold_operator,
+        field_name="candidate substrate selection policy threshold_operator",
+    )
     return ScientificPolicyRecord(
         id=ScientificPolicyId.CANDIDATE_SUBSTRATE_SELECTION,
         name="Candidate Substrate Selection Policy",
@@ -321,7 +337,7 @@ def build_candidate_substrate_selection_policy(
             "top_k": int(top_k),
             "score_threshold": float(score_threshold),
             "inclusion": int(inclusion),
-            "threshold_operator": str(threshold_operator),
+            "threshold_operator": resolved_threshold_mode.value,
             "ranking_rule": str(ranking_rule),
             "site_restriction": str(site_restriction),
         },
@@ -361,7 +377,8 @@ def build_simplified_weighted_substrate_activity_policy(
                 "prediction-weighted mean over top-N predicted substrates"
             ),
             "thresholded_activity_rule": (
-                "mean phospho over predicted substrates with score > threshold"
+                "mean phospho over predicted substrates with "
+                f"{ThresholdMode.GREATER_THAN_OR_EQUAL.value}"
             ),
         },
         assumptions=(
@@ -397,7 +414,11 @@ def build_ksea_zscore_activity_policy(
         parameters={
             "evidence_threshold": float(evidence_threshold),
             "min_substrates": int(min_substrates),
-            "membership_rule": "finite_evidence >= evidence_threshold",
+            "membership_rule": (
+                "finite_evidence "
+                f"{_threshold_operator_token(ThresholdMode.GREATER_THAN_OR_EQUAL)} "
+                "evidence_threshold"
+            ),
             "weighting_rule": "unweighted_membership",
             "z_score_formula": "(mean_S - mean_U) * sqrt(n) / sd_U",
             "background_sd_ddof": 1,
@@ -706,6 +727,14 @@ def build_duplicate_site_resolution_policy(
         output_scale="Deduplicated site-matrix rows for downstream scoring.",
         quantitative_meaning="duplicate_site_resolved_matrix",
     )
+
+
+def _threshold_operator_token(mode: ThresholdMode) -> str:
+    if mode is ThresholdMode.GREATER_THAN:
+        return ">"
+    if mode is ThresholdMode.GREATER_THAN_OR_EQUAL:
+        return ">="
+    return ">"
 
 
 __all__ = [

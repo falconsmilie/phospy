@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+from phospy.policy_models import DownstreamScoreSource
 from phospy.prediction.models import KinaseScoringResult
 from phospy.prediction.scoring import DownstreamScoreSelectionPolicy
 
@@ -17,9 +18,19 @@ CANDIDATE_MIN_INCLUSION = 1
 class KinaseScoringRunResult:
     scoring_result: KinaseScoringResult
     downstream_score_matrix: pd.DataFrame
-    downstream_score_source: str
+    downstream_score_source: DownstreamScoreSource
     quantified_substrates: dict[str, list[str]]
     downstream_score_selection_policy: DownstreamScoreSelectionPolicy | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "downstream_score_source",
+            DownstreamScoreSource.parse(
+                self.downstream_score_source,
+                field_name="kinase scoring run downstream_score_source",
+            ),
+        )
 
 
 __all__ = [

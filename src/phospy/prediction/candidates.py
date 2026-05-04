@@ -8,6 +8,8 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from phospy.policy_models import ThresholdMode
+
 
 @dataclass(frozen=True, slots=True)
 class CandidateShortfallDiagnostics:
@@ -28,6 +30,7 @@ def build_candidate_substrate_list(
     score_threshold: float,
     inclusion: int,
     allowed_sites_by_kinase: Mapping[str, list[str]] | None = None,
+    threshold_mode: ThresholdMode | str = ThresholdMode.GREATER_THAN,
 ) -> dict[str, list[str]]:
     """Select per-kinase candidate phosphosites from a score matrix."""
 
@@ -45,6 +48,10 @@ def build_candidate_substrate_list(
     kinase_labels = scores.columns.to_numpy(copy=False)
     top_k = min(int(top), score_values.shape[0])
     substrate_list: dict[str, list[str]] = {}
+    resolved_threshold_mode = ThresholdMode.parse(
+        threshold_mode,
+        field_name="candidate_substrate_selection.threshold_mode",
+    )
 
     for kinase_position, kinase in enumerate(kinase_labels):
         kinase_key = str(kinase)
@@ -74,7 +81,11 @@ def build_candidate_substrate_list(
             np.lexsort((selected_positions, -selected_scores))
         ]
         qualifying_positions = ranked_positions[
-            kinase_scores[ranked_positions] > score_threshold
+            _threshold_pass_mask(
+                values=kinase_scores[ranked_positions],
+                score_threshold=float(score_threshold),
+                threshold_mode=resolved_threshold_mode,
+            )
         ]
         sites = site_ids[qualifying_positions].tolist()
         if len(sites) >= inclusion:
@@ -89,6 +100,7 @@ def summarize_candidate_shortfall(
     score_threshold: float,
     inclusion: int,
     max_examples: int = 3,
+    threshold_mode: ThresholdMode | str = ThresholdMode.GREATER_THAN,
 ) -> CandidateShortfallDiagnostics:
     """Summarize candidate loss for actionable boundary diagnostics."""
 
@@ -107,6 +119,10 @@ def summarize_candidate_shortfall(
 
     qualifying_counts = np.zeros(kinase_count, dtype=int)
     kinase_labels = scores.columns.to_numpy(dtype=object, copy=False)
+    resolved_threshold_mode = ThresholdMode.parse(
+        threshold_mode,
+        field_name="candidate_substrate_selection.threshold_mode",
+    )
     for kinase_position in range(kinase_count):
         kinase_scores = score_values[:, kinase_position]
         finite_positions = np.flatnonzero(np.isfinite(kinase_scores))
@@ -118,7 +134,13 @@ def summarize_candidate_shortfall(
         ]
         top_values = kinase_scores[top_positions]
         qualifying_counts[kinase_position] = int(
-            np.count_nonzero(top_values > score_threshold)
+            np.count_nonzero(
+                _threshold_pass_mask(
+                    values=top_values,
+                    score_threshold=float(score_threshold),
+                    threshold_mode=resolved_threshold_mode,
+                )
+            )
         )
 
     near_miss_positions = np.flatnonzero(
@@ -141,6 +163,19 @@ def summarize_candidate_shortfall(
         max_qualifying_sites=int(qualifying_counts.max()) if kinase_count > 0 else 0,
         near_miss_kinases=near_miss_kinases,
     )
+
+
+def _threshold_pass_mask(
+    *,
+    values: np.ndarray,
+    score_threshold: float,
+    threshold_mode: ThresholdMode,
+) -> np.ndarray:
+    if threshold_mode is ThresholdMode.GREATER_THAN:
+        return values > score_threshold
+    if threshold_mode is ThresholdMode.GREATER_THAN_OR_EQUAL:
+        return values >= score_threshold
+    return values > score_threshold
 
 
 __all__ = [

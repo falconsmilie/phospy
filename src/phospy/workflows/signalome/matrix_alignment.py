@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.errors.validation import WorkflowValidationError
+from phospy.policy_models import DownstreamScoreSource
 from phospy.validation.common.dataframes import (
     require_aligned_dataframe_shape,
     require_no_duplicate_labels,
@@ -46,7 +47,7 @@ class SignalomeMatrixAligner:
         dataset_sites: pd.Index,
         prediction_matrix: pd.DataFrame,
         downstream_score_matrix: pd.DataFrame,
-        downstream_score_source: str,
+        downstream_score_source: DownstreamScoreSource,
     ) -> SignalomeMatrixAlignment:
         score_field_name = (
             "signalome workflow request kinase_result.scoring_result."

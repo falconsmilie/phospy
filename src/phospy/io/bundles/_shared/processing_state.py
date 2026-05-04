@@ -29,6 +29,8 @@ from phospy.io.bundles._shared.primitives import (
     require_mapping,
     require_str,
 )
+from phospy.policy_models import MissingDataPolicy, TotalProteinCorrectionPolicy
+from phospy.transformations.models import QuantitativeMeaning
 
 
 def processing_state_to_payload(state: DatasetProcessingState) -> dict[str, object]:
@@ -83,7 +85,7 @@ def processing_state_to_payload(state: DatasetProcessingState) -> dict[str, obje
             ],
         },
         "missing_data": {
-            "policy": state.missing_data.policy,
+            "policy": state.missing_data.policy.value,
             "min_observed_values": state.missing_data.min_observed_values,
             "complete_matrix": state.missing_data.complete_matrix,
             "imputed": state.missing_data.imputed,
@@ -95,14 +97,16 @@ def processing_state_to_payload(state: DatasetProcessingState) -> dict[str, obje
         },
         "normalisation": {"policy": state.normalisation.policy},
         "total_protein_correction": {
-            "policy": state.total_protein_correction.policy,
+            "policy": state.total_protein_correction.policy.value,
             "applied": state.total_protein_correction.applied,
             "formula": state.total_protein_correction.formula,
             "requires_log_scale": state.total_protein_correction.requires_log_scale,
             "input_scale": state.total_protein_correction.input_scale,
             "output_scale": state.total_protein_correction.output_scale,
             "quantitative_meaning": (
-                state.total_protein_correction.quantitative_meaning
+                None
+                if state.total_protein_correction.quantitative_meaning is None
+                else state.total_protein_correction.quantitative_meaning.value
             ),
             "diagnostics": (
                 None
@@ -350,8 +354,11 @@ def processing_state_from_payload(
             ),
         ),
         missing_data=MissingDataState(
-            policy=require_str(
-                missing_data_payload.get("policy"),
+            policy=MissingDataPolicy.parse(
+                require_str(
+                    missing_data_payload.get("policy"),
+                    field_name="dataset.metadata.processing_state.missing_data.policy",
+                ),
                 field_name="dataset.metadata.processing_state.missing_data.policy",
             ),
             min_observed_values=minimum_observed_values,
@@ -374,8 +381,13 @@ def processing_state_from_payload(
             )
         ),
         total_protein_correction=TotalProteinCorrectionState(
-            policy=require_str(
-                correction_payload.get("policy"),
+            policy=TotalProteinCorrectionPolicy.parse(
+                require_str(
+                    correction_payload.get("policy"),
+                    field_name=(
+                        "dataset.metadata.processing_state.total_protein_correction.policy"
+                    ),
+                ),
                 field_name=(
                     "dataset.metadata.processing_state.total_protein_correction.policy"
                 ),
@@ -656,7 +668,7 @@ def _require_total_correction_quantitative_meaning(
     *,
     correction_payload: Mapping[str, object],
     correction_diagnostics: TotalProteinCorrectionDiagnostics,
-) -> str:
+) -> QuantitativeMeaning:
     direct = require_str(
         correction_payload.get("quantitative_meaning"),
         field_name=(
@@ -683,7 +695,15 @@ def _require_total_correction_quantitative_meaning(
             "dataset.metadata.processing_state.total_protein_correction.diagnostics."
             "quantitative_meaning"
         )
-    return direct
+    try:
+        return QuantitativeMeaning(direct)
+    except ValueError as exc:
+        supported = ", ".join(member.value for member in QuantitativeMeaning)
+        raise PhosPyInputError(
+            "dataset.metadata.processing_state.total_protein_correction."
+            "quantitative_meaning must be one of: "
+            f"{supported}"
+        ) from exc
 
 
 def _parse_optional_string_int_mapping(

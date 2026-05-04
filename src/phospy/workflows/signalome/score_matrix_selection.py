@@ -8,6 +8,7 @@ from typing import Protocol
 import pandas as pd
 
 from phospy.api.results import KinaseScoringResult
+from phospy.policy_models import DownstreamScoreSource
 from phospy.prediction.scoring import (
     SIGNALOME_DOWNSTREAM_SCORE_RANK_WEIGHTED_PREFERRED_POLICY,
     DownstreamScoreSelectionPolicy,
@@ -18,7 +19,7 @@ from phospy.prediction.scoring import (
 @dataclass(frozen=True, slots=True)
 class SignalomeScoreMatrixSelection:
     downstream_score_matrix: pd.DataFrame
-    downstream_score_source: str
+    downstream_score_source: DownstreamScoreSource
     downstream_score_selection_policy: DownstreamScoreSelectionPolicy
 
 
@@ -28,7 +29,7 @@ class _SelectDownstreamScoreMatrixContract(Protocol):
         *,
         profile_scores: pd.DataFrame,
         rank_weighted_fusion_scores: pd.DataFrame | None,
-    ) -> tuple[pd.DataFrame, str]: ...
+    ) -> tuple[pd.DataFrame, DownstreamScoreSource]: ...
 
 
 class SignalomeScoreMatrixSelector:

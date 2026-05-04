@@ -23,6 +23,8 @@ from phospy.io.bundles._shared.processing_state import (
     processing_state_from_payload,
     processing_state_to_payload,
 )
+from phospy.policy_models import MissingDataPolicy, TotalProteinCorrectionPolicy
+from phospy.transformations.models import QuantitativeMeaning
 
 
 def _intensity_scale_state(*, quantity: str = "phospho_total_log_ratio"):
@@ -216,6 +218,11 @@ def test_processing_state_payload_round_trip_preserves_total_correction_fields()
     assert isinstance(correction.diagnostics, TotalProteinCorrectionDiagnostics)
     assert correction.diagnostics is not None
     assert correction.diagnostics.to_payload() == diagnostics_payload
+    assert correction.policy is TotalProteinCorrectionPolicy.SUBTRACT_LOG_TOTAL
+    assert (
+        correction.quantitative_meaning is QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO
+    )
+    assert restored.missing_data.policy is MissingDataPolicy.FORBID
 
 
 def test_processing_state_payload_loads_new_versioned_diagnostics() -> None:
@@ -429,6 +436,59 @@ def test_processing_state_from_payload_rejects_missing_total_correction_diagnost
             "diagnostics is required"
         ),
     ):
+        processing_state_from_payload(payload)
+
+
+def test_processing_state_from_payload_rejects_unknown_total_correction_quantitative_meaning() -> (
+    None
+):
+    payload = _processing_payload_with_diagnostics(
+        {
+            "diagnostics_schema_version": 1,
+            "policy": "subtract_log_total",
+            "requested_policy": "subtract_log_total",
+            "resolved_policy": "subtract_log_total",
+            "quantitative_meaning": "not_a_supported_meaning",
+        },
+    )
+    payload["total_protein_correction"]["quantitative_meaning"] = (
+        "not_a_supported_meaning"
+    )
+
+    with pytest.raises(PhosPyInputError, match="must be one of:"):
+        processing_state_from_payload(payload)
+
+
+def test_processing_state_from_payload_rejects_unknown_missing_data_policy() -> None:
+    payload = _processing_payload_with_diagnostics(
+        {
+            "diagnostics_schema_version": 1,
+            "policy": "subtract_log_total",
+            "requested_policy": "subtract_log_total",
+            "resolved_policy": "subtract_log_total",
+            "quantitative_meaning": "phospho_total_log_ratio",
+        },
+        missing_data_diagnostics={
+            "diagnostics_schema_version": 1,
+            "missing_data_policy": "unknown_policy",
+            "input_missing_cell_count": 0,
+            "output_missing_cell_count": 0,
+            "imputed_cell_count": 0,
+            "affected_row_count": 0,
+            "affected_column_count": 0,
+            "affected_row_ids": [],
+            "affected_column_ids": [],
+            "imputed_row_ids": [],
+            "imputed_column_ids": [],
+            "dropped_row_ids": [],
+            "method_parameters": {},
+            "stage_order": ["missing_data"],
+            "missingness_mask_hash": "hash",
+            "rows_not_imputable": [],
+        },
+    )
+
+    with pytest.raises(PhosPyInputError, match="must be one of:"):
         processing_state_from_payload(payload)
 
 

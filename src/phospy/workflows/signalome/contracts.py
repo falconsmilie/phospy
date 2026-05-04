@@ -17,6 +17,7 @@ from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.policy_models import DownstreamScoreSource
 from phospy.prediction.scoring import DownstreamScoreSelectionPolicy
 from phospy.scientific_policies import ScientificPolicyRecord
 from phospy.signalomes.clustering.models import (
@@ -77,7 +78,7 @@ class ResolvedSignalomeWorkflowRequest:
     kinase_result: KinaseWorkflowResult
     execution_config: ResolvedSignalomeExecutionConfig
     downstream_score_matrix: pd.DataFrame
-    downstream_score_source: str
+    downstream_score_source: DownstreamScoreSource
     prediction_matrix: pd.DataFrame
     site_to_protein: pd.Series
     score_preconditioning_diagnostics: SignalomeScorePreconditioningDiagnostics = field(
@@ -99,6 +100,10 @@ class ResolvedSignalomeWorkflowRequest:
     )
 
     def __post_init__(self) -> None:
+        downstream_score_source = DownstreamScoreSource.parse(
+            self.downstream_score_source,
+            field_name="signalome_request.downstream_score_source",
+        )
         downstream_score_table = KinaseScoreMatrix(
             frame=self.downstream_score_matrix,
             field_name="signalome_request.downstream_score_matrix",
@@ -138,6 +143,7 @@ class ResolvedSignalomeWorkflowRequest:
         object.__setattr__(
             self, "downstream_score_matrix", downstream_score_table.frame
         )
+        object.__setattr__(self, "downstream_score_source", downstream_score_source)
         object.__setattr__(self, "prediction_matrix", prediction_table.frame)
         object.__setattr__(self, "_downstream_score_table", downstream_score_table)
         object.__setattr__(self, "_prediction_table", prediction_table)

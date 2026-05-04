@@ -23,6 +23,7 @@ from phospy.datasets.preprocessing.provenance_adapter import (
     PreprocessingProvenanceAdapter,
 )
 from phospy.datasets.preprocessing.state_builder import DatasetProcessingStateBuilder
+from phospy.errors.build import DatasetBuildError
 from phospy.errors.input import PhosPyInputError
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
@@ -131,6 +132,28 @@ def test_processing_state_builder_surfaces_invalid_diagnostics_clearly() -> None
     )
 
     with pytest.raises(PhosPyInputError, match="diagnostics_schema_version"):
+        builder.build(
+            plan=plan,
+            intensity_scale_state=supported_linear_intensity_scale_state(
+                has_total_matrix=False
+            ),
+            preprocessing_trace=trace,
+        )
+
+
+def test_processing_state_builder_rejects_unknown_quantitative_meaning_without_defaulting() -> (
+    None
+):
+    plan = PreprocessingPlan.default()
+    builder = DatasetProcessingStateBuilder()
+    trace = (
+        _trace_record(
+            stage=DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
+            diagnostics={"quantitative_meaning": "not_a_supported_meaning"},
+        ),
+    )
+
+    with pytest.raises(DatasetBuildError, match="quantitative_meaning must be one of:"):
         builder.build(
             plan=plan,
             intensity_scale_state=supported_linear_intensity_scale_state(

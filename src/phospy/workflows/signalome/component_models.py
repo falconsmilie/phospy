@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+from phospy.policy_models import DownstreamScoreSource
 from phospy.prediction.scoring import DownstreamScoreSelectionPolicy
 from phospy.signalomes.clustering import (
     SIGNALOME_CANDIDATE_SCORING_APPLIES_TO,
@@ -27,8 +28,18 @@ class SignalomeExecutionMetadata:
     prediction_kinases: int
     downstream_score_sites: int
     downstream_score_kinases: int
-    downstream_score_source: str
+    downstream_score_source: DownstreamScoreSource
     downstream_score_selection_policy: DownstreamScoreSelectionPolicy | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "downstream_score_source",
+            DownstreamScoreSource.parse(
+                self.downstream_score_source,
+                field_name="signalome execution metadata downstream_score_source",
+            ),
+        )
 
 
 @dataclass(frozen=True, slots=True)

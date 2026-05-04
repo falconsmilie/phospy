@@ -7,7 +7,8 @@ from dataclasses import dataclass, field
 from typing import TypeAlias
 
 from phospy.errors.input import PhosPyInputError
-from phospy.transformations.models import IntensityScaleState
+from phospy.policy_models import MissingDataPolicy, TotalProteinCorrectionPolicy
+from phospy.transformations.models import IntensityScaleState, QuantitativeMeaning
 
 JsonPrimitive: TypeAlias = None | str | bool | int | float
 JsonValue: TypeAlias = JsonPrimitive | list["JsonValue"] | dict[str, "JsonValue"]
@@ -321,6 +322,12 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
                 "dataset processing state missing_data.diagnostics.missing_data_policy"
             ),
         )
+        missing_data_policy = MissingDataPolicy.parse(
+            missing_data_policy,
+            field_name=(
+                "dataset processing state missing_data.diagnostics.missing_data_policy"
+            ),
+        ).value
         imputation_method_id = _require_optional_str(
             self.imputation_method_id,
             field_name=(
@@ -805,6 +812,14 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
             self.policy,
             field_name="dataset processing state total_protein_correction.diagnostics.policy",
         )
+        if policy is not None:
+            policy = TotalProteinCorrectionPolicy.parse(
+                policy,
+                field_name=(
+                    "dataset processing state total_protein_correction."
+                    "diagnostics.policy"
+                ),
+            ).value
         requested_policy = _require_optional_str(
             self.requested_policy,
             field_name=(
@@ -812,6 +827,14 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
                 "requested_policy"
             ),
         )
+        if requested_policy is not None:
+            requested_policy = TotalProteinCorrectionPolicy.parse(
+                requested_policy,
+                field_name=(
+                    "dataset processing state total_protein_correction."
+                    "diagnostics.requested_policy"
+                ),
+            ).value
         resolved_policy = _require_optional_str(
             self.resolved_policy,
             field_name=(
@@ -819,6 +842,14 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
                 "resolved_policy"
             ),
         )
+        if resolved_policy is not None:
+            resolved_policy = TotalProteinCorrectionPolicy.parse(
+                resolved_policy,
+                field_name=(
+                    "dataset processing state total_protein_correction."
+                    "diagnostics.resolved_policy"
+                ),
+            ).value
         formula = _require_optional_str(
             self.formula,
             field_name="dataset processing state total_protein_correction.diagnostics.formula",
@@ -844,13 +875,22 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
                 "output_scale"
             ),
         )
-        quantitative_meaning = _require_required_str(
+        quantitative_meaning_raw = _require_required_str(
             self.quantitative_meaning,
             field_name=(
                 "dataset processing state total_protein_correction.diagnostics."
                 "quantitative_meaning"
             ),
         )
+        try:
+            quantitative_meaning = QuantitativeMeaning(quantitative_meaning_raw).value
+        except ValueError as exc:
+            supported = ", ".join(member.value for member in QuantitativeMeaning)
+            raise PhosPyInputError(
+                "dataset processing state total_protein_correction.diagnostics."
+                "quantitative_meaning must be one of: "
+                f"{supported}"
+            ) from exc
         matched_rows = _require_optional_non_negative_int(
             self.matched_rows,
             field_name=(
@@ -1179,13 +1219,21 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
 class MissingDataState:
     """Missing-data policy state at the analysis-ready dataset boundary."""
 
-    policy: str
+    policy: MissingDataPolicy
     min_observed_values: int | None
     complete_matrix: bool
     imputed: bool
     diagnostics: MissingDataDiagnostics | None = None
 
     def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "policy",
+            MissingDataPolicy.parse(
+                self.policy,
+                field_name="dataset processing state missing_data.policy",
+            ),
+        )
         if self.diagnostics is None:
             return
         if isinstance(self.diagnostics, MissingDataDiagnostics):
@@ -1249,16 +1297,38 @@ class SiteSequenceResolutionState:
 class TotalProteinCorrectionState:
     """Total-protein correction state at the analysis-ready dataset boundary."""
 
-    policy: str
+    policy: TotalProteinCorrectionPolicy
     applied: bool
     formula: str | None = None
     requires_log_scale: bool | None = False
     input_scale: str | None = None
     output_scale: str | None = None
-    quantitative_meaning: str | None = None
+    quantitative_meaning: QuantitativeMeaning | None = None
     diagnostics: TotalProteinCorrectionDiagnostics | None = None
 
     def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "policy",
+            TotalProteinCorrectionPolicy.parse(
+                self.policy,
+                field_name="dataset processing state total_protein_correction.policy",
+            ),
+        )
+        quantitative_meaning = self.quantitative_meaning
+        if quantitative_meaning is not None and not isinstance(
+            quantitative_meaning, QuantitativeMeaning
+        ):
+            try:
+                quantitative_meaning = QuantitativeMeaning(str(quantitative_meaning))
+            except ValueError as exc:
+                supported = ", ".join(member.value for member in QuantitativeMeaning)
+                raise PhosPyInputError(
+                    "dataset processing state total_protein_correction."
+                    "quantitative_meaning must be one of: "
+                    f"{supported}"
+                ) from exc
+            object.__setattr__(self, "quantitative_meaning", quantitative_meaning)
         if self.diagnostics is None:
             return
         if isinstance(self.diagnostics, TotalProteinCorrectionDiagnostics):

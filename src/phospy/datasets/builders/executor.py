@@ -365,7 +365,7 @@ def _preprocessing_plan_to_payload(plan: PreprocessingPlan) -> dict[str, object]
         "intensity_transform_policy": plan.intensity_transform_policy,
         "intensity_transform_pseudocount": float(plan.intensity_transform_pseudocount),
         "normalisation_policy": plan.normalisation_policy,
-        "missing_data_policy": plan.missing_data_policy,
+        "missing_data_policy": plan.missing_data_policy.value,
         "missing_data_min_observed_values": plan.missing_data_min_observed_values,
         "missing_data_q": plan.missing_data_q,
         "missing_data_width": plan.missing_data_width,
@@ -389,7 +389,7 @@ def _preprocessing_plan_to_payload(plan: PreprocessingPlan) -> dict[str, object]
         "site_sequence_resolution_site_column": (
             plan.site_sequence_resolution_site_column
         ),
-        "total_protein_correction_policy": plan.total_protein_correction_policy,
+        "total_protein_correction_policy": plan.total_protein_correction_policy.value,
         "total_protein_correction_identity_policy": (
             _total_correction_identity_policy_to_payload(
                 plan.total_protein_correction_identity_policy
