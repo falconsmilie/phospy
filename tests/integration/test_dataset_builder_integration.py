@@ -628,6 +628,54 @@ def test_dataset_builder_runs_site_sequence_resolution_before_minprob_diagnostic
     assert missing_data_diagnostics.get("imputation_method_id") == "minprob"
 
 
+def test_dataset_builder_treats_fasta_resolution_as_authoritative_for_missing_sequences(
+    tmp_path: Path,
+) -> None:
+    fasta_path = tmp_path / "proteins.fasta"
+    fasta_path.write_text(
+        f">P1\n{'A' * 181}Y{'C' * 24}\n",
+        encoding="utf-8",
+    )
+    phospho = pd.DataFrame(
+        {"sample_a": [10.0], "sample_b": [9.0]},
+        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "protein_accession": ["P1"],
+            "site_sequence": [pd.NA],
+        },
+        index=phospho.index.copy(),
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            preprocessing_config=DatasetPreprocessingConfig(
+                site_sequence_resolution=DatasetSiteSequenceResolutionConfig(
+                    fasta_path=str(fasta_path),
+                    flank_size=2,
+                ),
+            ),
+        )
+    )
+
+    assert built.site_metadata.loc["MAPK14;Y182;", "site_sequence"] == "AAYCC"
+    assert built.provenance is not None
+    sequence_stage = next(
+        stage
+        for stage in built.provenance.preprocessing_stages
+        if stage.stage == "site_sequence_resolution"
+    )
+    diagnostics = sequence_stage.diagnostics or {}
+    assert diagnostics.get("filled_missing_count") == 1
+    assert diagnostics.get("existing_sequence_conflict_count") == 0
+
+
 def test_dataset_builder_site_sequence_resolution_processing_state_tracks_diagnostics(
     tmp_path: Path,
 ) -> None:

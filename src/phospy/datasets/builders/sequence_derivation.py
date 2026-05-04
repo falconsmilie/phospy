@@ -29,6 +29,7 @@ class SiteSequenceDeriver:
         *,
         organism: Organism | None,
         allow_partial: bool = False,
+        derive_missing_from_reference: bool = True,
     ) -> pd.DataFrame:
         normalized = site_metadata
         if "site_sequence" in normalized.columns:
@@ -36,7 +37,11 @@ class SiteSequenceDeriver:
                 existing = self._normalized_optional_site_sequence(
                     normalized.loc[:, "site_sequence"]
                 )
-                if organism is not None and bool(existing.isna().any()):
+                if (
+                    derive_missing_from_reference
+                    and organism is not None
+                    and bool(existing.isna().any())
+                ):
                     derived = self._derive_from_bundled_sequences_if_available(
                         site_metadata=normalized,
                         organism=organism,
@@ -52,6 +57,8 @@ class SiteSequenceDeriver:
                 return normalized
             existing = self._validated_existing_site_sequence(normalized)
             normalized.loc[:, "site_sequence"] = existing.astype(str)
+            return normalized
+        if not derive_missing_from_reference:
             return normalized
         if organism is None:
             return normalized

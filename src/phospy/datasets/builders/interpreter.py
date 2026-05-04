@@ -70,6 +70,9 @@ class DatasetBuildRequestInterpreter:
                 original_error=exc,
             )
         preprocessing_plan = PreprocessingPlan.from_config(request.preprocessing_config)
+        defer_missing_site_sequence_fill = (
+            self._should_defer_missing_site_sequence_fill(preprocessing_plan)
+        )
         try:
             enriched_site_metadata = self._site_sequence_deriver.run(
                 normalized.site_metadata,
@@ -79,6 +82,7 @@ class DatasetBuildRequestInterpreter:
                     == DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA
                     or preprocessing_plan.site_sequence_resolution_enabled
                 ),
+                derive_missing_from_reference=not defer_missing_site_sequence_fill,
             )
         except (TypeError, ValueError, KeyError) as exc:
             self._raise_wrapped_input_error(
@@ -99,6 +103,10 @@ class DatasetBuildRequestInterpreter:
             organism=request.organism,
             preprocessing_plan=preprocessing_plan,
         )
+
+    @staticmethod
+    def _should_defer_missing_site_sequence_fill(plan: PreprocessingPlan) -> bool:
+        return bool(plan.site_sequence_resolution_enabled)
 
     @staticmethod
     def _raise_wrapped_input_error(

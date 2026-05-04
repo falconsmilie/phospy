@@ -1964,6 +1964,112 @@ def test_dataset_interpreter_does_not_apply_preprocessing_science() -> None:
     assert interpreted.phospho.index.tolist() == ["MAPK14;Y182;", "GSK3B;S9;"]
 
 
+def test_dataset_interpreter_defers_reference_site_sequence_fill_when_fasta_is_configured() -> (
+    None
+):
+    calls: list[dict[str, object]] = []
+
+    class SiteSequenceDeriverSpy:
+        def run(
+            self,
+            site_metadata: pd.DataFrame,
+            *,
+            organism: Organism | None,
+            allow_partial: bool = False,
+            derive_missing_from_reference: bool = True,
+        ) -> pd.DataFrame:
+            calls.append(
+                {
+                    "organism": organism,
+                    "allow_partial": allow_partial,
+                    "derive_missing_from_reference": derive_missing_from_reference,
+                }
+            )
+            return site_metadata
+
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame(
+            {"sample_a": [1.0]},
+            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+        ),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "protein_accession": ["P1"],
+                "site_sequence": [pd.NA],
+            },
+            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+        ),
+        organism=Organism.RAT,
+        preprocessing_config=DatasetPreprocessingConfig(
+            site_sequence_resolution=DatasetSiteSequenceResolutionConfig(
+                fasta_path="local.fasta",
+                flank_size=2,
+            ),
+        ),
+    )
+
+    interpreted = DatasetBuildRequestInterpreter(
+        site_sequence_deriver=SiteSequenceDeriverSpy()
+    ).run(request)
+
+    assert len(calls) == 1
+    assert calls[0]["organism"] == Organism.RAT
+    assert calls[0]["allow_partial"] is True
+    assert calls[0]["derive_missing_from_reference"] is False
+    assert pd.isna(interpreted.site_metadata.loc["MAPK14;Y182;", "site_sequence"])
+
+
+def test_dataset_interpreter_keeps_reference_site_sequence_fill_enabled_without_fasta() -> (
+    None
+):
+    calls: list[dict[str, object]] = []
+
+    class SiteSequenceDeriverSpy:
+        def run(
+            self,
+            site_metadata: pd.DataFrame,
+            *,
+            organism: Organism | None,
+            allow_partial: bool = False,
+            derive_missing_from_reference: bool = True,
+        ) -> pd.DataFrame:
+            calls.append(
+                {
+                    "organism": organism,
+                    "allow_partial": allow_partial,
+                    "derive_missing_from_reference": derive_missing_from_reference,
+                }
+            )
+            return site_metadata
+
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame(
+            {"sample_a": [1.0]},
+            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+        ),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "protein_accession": ["P1"],
+            },
+            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+        ),
+        organism=Organism.RAT,
+    )
+
+    DatasetBuildRequestInterpreter(site_sequence_deriver=SiteSequenceDeriverSpy()).run(
+        request
+    )
+
+    assert len(calls) == 1
+    assert calls[0]["organism"] == Organism.RAT
+    assert calls[0]["allow_partial"] is False
+    assert calls[0]["derive_missing_from_reference"] is True
+
+
 def test_preprocessing_plan_defaults_keep_identity_transform_and_no_normalisation() -> (
     None
 ):
