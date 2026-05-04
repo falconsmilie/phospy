@@ -29,6 +29,7 @@ from phospy.datasets.preprocessing.stages.site_matrix import SiteMatrixStage
 from phospy.datasets.preprocessing.stages.total_protein_correction import (
     TotalProteinCorrectionStage,
 )
+from phospy.datasets.processing_state import MissingDataDiagnosticsV1
 from phospy.errors.build import DatasetBuildError
 from phospy.errors.input import PhosPyInputError
 from tests.support.intensity_scale_states import supported_linear_intensity_scale_state
@@ -165,6 +166,25 @@ def test_missing_data_stage_forbid_policy_rejects_single_missing_value() -> None
 
     with pytest.raises(PhosPyInputError) as exc_info:
         MissingDataStage().run(state)
+
+    diagnostics = exc_info.value.diagnostics
+    assert isinstance(diagnostics, MissingDataDiagnosticsV1)
+    assert diagnostics.missing_data_policy == "forbid"
+    assert diagnostics.imputation_method_id == "forbid"
+    assert diagnostics.input_missing_cell_count == 1
+    assert diagnostics.output_missing_cell_count == 1
+    assert diagnostics.imputed_cell_count == 0
+    assert diagnostics.affected_row_ids == ("row_a",)
+    assert diagnostics.affected_column_ids == ("sample_a",)
+    assert diagnostics.dropped_row_ids == ()
+    assert diagnostics.random_seed is None
+    assert diagnostics.method_parameters == {}
+    assert diagnostics.matrix_scale_requirement is None
+    assert diagnostics.stage_order == ("missing_data",)
+    assert isinstance(diagnostics.missingness_mask_hash, str)
+    assert diagnostics.missingness_mask_hash
+    assert diagnostics.left_censored_assumption is False
+    assert diagnostics.rows_not_imputable == ("row_a",)
 
     message = str(exc_info.value)
     assert "stage 'missing_data'" in message

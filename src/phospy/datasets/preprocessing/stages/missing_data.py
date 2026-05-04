@@ -25,6 +25,7 @@ from phospy.datasets.preprocessing.report_schema import PreprocessingRowAuditRow
 from phospy.datasets.processing_state import (
     MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
     JsonValue,
+    MissingDataDiagnosticsV1,
 )
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.hashing import hash_table
@@ -50,7 +51,38 @@ class MissingDataStage:
         affected_column_count = int(len(input_affected_column_ids))
         missingness_mask_hash = _hash_missingness_mask(input_missing_mask)
         if state.plan.missing_data_policy == DATASET_MISSING_DATA_POLICY_FORBID:
-            _fail_if_forbid_policy_has_missing_values(state.phospho)
+            forbid_failure_diagnostics = MissingDataDiagnosticsV1.from_mapping(
+                _build_missing_data_diagnostics(
+                    missing_data_policy=state.plan.missing_data_policy,
+                    imputation_method_id="forbid",
+                    imputation_method_family="strict_rejection",
+                    input_missing_cell_count=input_missing_cell_count,
+                    output_missing_cell_count=input_missing_cell_count,
+                    imputed_cell_count=0,
+                    affected_row_ids=input_affected_row_ids,
+                    affected_column_ids=input_affected_column_ids,
+                    imputed_row_ids=(),
+                    imputed_column_ids=(),
+                    dropped_row_ids=(),
+                    random_seed=None,
+                    method_parameters={},
+                    matrix_scale_requirement=None,
+                    stage_order=state.plan.stage_order,
+                    missingness_mask_hash=missingness_mask_hash,
+                    left_censored_assumption=False,
+                    rows_not_imputable=input_affected_row_ids,
+                    row_medians_used={},
+                    per_column_distribution_parameters=None,
+                    dropped_rows_above_max_missing_fraction=(),
+                    neighbour_count=None,
+                    distance_metric=None,
+                ),
+                field_name="dataset preprocessing stage 'missing_data' diagnostics",
+            )
+            _fail_if_forbid_policy_has_missing_values(
+                state.phospho,
+                diagnostics=forbid_failure_diagnostics,
+            )
             diagnostics = _build_missing_data_diagnostics(
                 missing_data_policy=state.plan.missing_data_policy,
                 imputation_method_id=None,
@@ -776,7 +808,11 @@ def _run_minprob_missing_data_stage(
     )
 
 
-def _fail_if_forbid_policy_has_missing_values(phospho: pd.DataFrame) -> None:
+def _fail_if_forbid_policy_has_missing_values(
+    phospho: pd.DataFrame,
+    *,
+    diagnostics: MissingDataDiagnosticsV1 | None = None,
+) -> None:
     missing_mask = phospho.isna()
     missing_cell_count = int(missing_mask.to_numpy().sum())
     if missing_cell_count == 0:
@@ -797,7 +833,8 @@ def _fail_if_forbid_policy_has_missing_values(phospho: pd.DataFrame) -> None:
         f"{affected_row_count} rows and {affected_column_count} columns. "
         f"affected row labels (preview): {affected_row_preview}. "
         f"affected column labels (preview): {affected_column_preview}. "
-        "choose missing_data.policy='impute_row_median' or clean the input data."
+        "choose missing_data.policy='impute_row_median' or clean the input data.",
+        diagnostics=diagnostics,
     )
 
 
