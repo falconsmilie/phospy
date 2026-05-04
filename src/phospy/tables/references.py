@@ -21,8 +21,29 @@ from phospy.validation.common.dataframes import (
     require_dataframe,
     require_non_empty_string_column,
     require_unique_index,
-    require_unique_row_pairs,
 )
+
+
+class ReferenceIdentifierNormalisationValidationError(ReferenceValidationError):
+    """Reference validation error carrying identifier-normalisation provenance."""
+
+    identifier_normalisation_report: ReferenceIdentifierNormalisationReport
+
+    def __init__(
+        self,
+        message: str,
+        report: ReferenceIdentifierNormalisationReport,
+    ) -> None:
+        super().__init__(message)
+        self.identifier_normalisation_report = report
+
+
+def _raise_with_identifier_normalisation_report(
+    *,
+    message: str,
+    report: ReferenceIdentifierNormalisationReport,
+) -> None:
+    raise ReferenceIdentifierNormalisationValidationError(message, report)
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,7 +119,10 @@ class KinaseSubstrateReference(TableSchema):
         object.__setattr__(self, "identifier_normalisation", report)
         invalid_records = [record for record in records if record.status == "invalid"]
         if invalid_records:
-            raise self._error_type(invalid_records[0].reason or "invalid identifier")
+            _raise_with_identifier_normalisation_report(
+                message=invalid_records[0].reason or "invalid identifier",
+                report=report,
+            )
         frame = frame.copy()
         frame.loc[:, "kinase"] = pd.Series(
             [value for value in canonical_kinase if value is not None],
@@ -115,25 +139,46 @@ class KinaseSubstrateReference(TableSchema):
             keep=False,
         )
         if bool(duplicated.any()):
-            duplicate_records = _duplicate_pair_records(
-                frame=frame,
-                duplicated=duplicated,
-                existing_records=records,
-                table_name=self._field_name,
+            duplicate_records, conflict_records, conflicting_pairs = (
+                _classify_duplicate_and_conflicting_pair_records(
+                    frame=frame,
+                    duplicated=duplicated,
+                    existing_records=records,
+                    table_name=self._field_name,
+                )
             )
             report = build_reference_identifier_normalisation_report(
                 original_row_count=int(frame.shape[0]),
                 normalised_row_count=int(frame.shape[0]),
-                records=[*records, *duplicate_records],
+                records=[*records, *duplicate_records, *conflict_records],
                 duplicate_identifier_count=len(duplicate_records),
+                conflict_count=len(conflict_records),
             )
             object.__setattr__(self, "identifier_normalisation", report)
-        require_unique_row_pairs(
-            frame,
-            field_name=self._field_name,
-            column_names=("kinase", "substrate_site"),
-            error_type=self._error_type,
-        )
+            if conflicting_pairs:
+                preview = ", ".join(repr(pair) for pair in conflicting_pairs[:5])
+                suffix = "" if len(conflicting_pairs) <= 5 else " ..."
+                _raise_with_identifier_normalisation_report(
+                    message=(
+                        f"{self._field_name} contains conflicting payload rows for "
+                        f"normalised (kinase, substrate_site) pairs: {preview}{suffix}"
+                    ),
+                    report=report,
+                )
+            duplicate_pairs = list(
+                frame.loc[duplicated, ["kinase", "substrate_site"]]
+                .drop_duplicates()
+                .itertuples(index=False, name=None)
+            )
+            duplicate_preview = ", ".join(repr(pair) for pair in duplicate_pairs[:5])
+            suffix = "" if len(duplicate_pairs) <= 5 else " ..."
+            _raise_with_identifier_normalisation_report(
+                message=(
+                    f"{self._field_name} contains duplicate (kinase, substrate_site) "
+                    f"pairs: {duplicate_preview}{suffix}"
+                ),
+                report=report,
+            )
         return frame
 
 
@@ -193,7 +238,10 @@ class SiteSequenceReference(TableSchema):
         object.__setattr__(self, "identifier_normalisation", report)
         invalid_records = [record for record in records if record.status == "invalid"]
         if invalid_records:
-            raise self._error_type(invalid_records[0].reason or "invalid identifier")
+            _raise_with_identifier_normalisation_report(
+                message=invalid_records[0].reason or "invalid identifier",
+                report=report,
+            )
         frame = frame.copy()
         frame.index = pd.Index(
             [value for value in canonical_index if value is not None],
@@ -205,25 +253,40 @@ class SiteSequenceReference(TableSchema):
             dtype="bool",
         )
         if bool(duplicated.any()):
-            duplicate_records = _duplicate_index_records(
-                frame=frame,
-                duplicated=duplicated,
-                existing_records=records,
-                table_name=self._field_name,
+            duplicate_records, conflict_records, duplicate_values, conflict_values = (
+                _classify_duplicate_and_conflicting_index_records(
+                    frame=frame,
+                    duplicated=duplicated,
+                    existing_records=records,
+                    table_name=self._field_name,
+                )
             )
             report = build_reference_identifier_normalisation_report(
                 original_row_count=int(frame.shape[0]),
                 normalised_row_count=int(frame.shape[0]),
-                records=[*records, *duplicate_records],
+                records=[*records, *duplicate_records, *conflict_records],
                 duplicate_identifier_count=len(duplicate_records),
+                conflict_count=len(conflict_records),
             )
             object.__setattr__(self, "identifier_normalisation", report)
-            duplicate_values = list(dict.fromkeys(frame.index[duplicated].tolist()))
-            preview = ", ".join(duplicate_values[:5])
+            if conflict_values:
+                preview = ", ".join(conflict_values[:5])
+                suffix = "" if len(conflict_values) <= 5 else " ..."
+                _raise_with_identifier_normalisation_report(
+                    message=(
+                        f"{self._field_name}.index contains conflicting site_sequence "
+                        f"values after canonicalization: {preview}{suffix}"
+                    ),
+                    report=report,
+                )
+            duplicate_preview = ", ".join(duplicate_values[:5])
             suffix = "" if len(duplicate_values) <= 5 else " ..."
-            raise self._error_type(
-                f"{self._field_name}.index contains duplicate site identifiers after "
-                f"canonicalization: {preview}{suffix}"
+            _raise_with_identifier_normalisation_report(
+                message=(
+                    f"{self._field_name}.index contains duplicate site identifiers "
+                    f"after canonicalization: {duplicate_preview}{suffix}"
+                ),
+                report=report,
             )
         require_unique_index(
             frame,
@@ -233,37 +296,101 @@ class SiteSequenceReference(TableSchema):
         return frame
 
 
-def _duplicate_pair_records(
+def _classify_duplicate_and_conflicting_pair_records(
     *,
     frame: pd.DataFrame,
     duplicated: pd.Series,
     existing_records: list[ReferenceIdentifierNormalisationRecord],
     table_name: str,
-) -> tuple[ReferenceIdentifierNormalisationRecord, ...]:
-    reasons_by_row: dict[int, str] = {}
-    duplicate_rows = frame.loc[duplicated, ["kinase", "substrate_site"]].copy()
+) -> tuple[
+    tuple[ReferenceIdentifierNormalisationRecord, ...],
+    tuple[ReferenceIdentifierNormalisationRecord, ...],
+    tuple[tuple[str, str], ...],
+]:
+    duplicate_reasons_by_row: dict[int, str] = {}
+    conflict_reasons_by_row: dict[int, str] = {}
+    conflict_pairs: list[tuple[str, str]] = []
+    duplicate_rows = frame.loc[duplicated, :].copy()
     duplicate_rows.loc[:, "_row_position"] = [
         int(position)
         for position, is_duplicate in enumerate(duplicated.tolist())
         if is_duplicate
     ]
+    payload_columns = [
+        column
+        for column in frame.columns.tolist()
+        if column not in ("kinase", "substrate_site")
+    ]
     for _, grouped in duplicate_rows.groupby(["kinase", "substrate_site"], sort=False):
         kinase = str(grouped.iloc[0]["kinase"])
         substrate_site = str(grouped.iloc[0]["substrate_site"])
+        row_positions = grouped.loc[:, "_row_position"].astype(int).tolist()
+        has_conflicting_payload = (
+            _group_has_conflicting_payload_rows(grouped, payload_columns)
+            if payload_columns
+            else False
+        )
+        if has_conflicting_payload:
+            conflict_pairs.append((kinase, substrate_site))
+            reason = (
+                "conflicting payload for (kinase, substrate_site) pair after "
+                f"normalisation: ({kinase!r}, {substrate_site!r})"
+            )
+            for row_position in row_positions:
+                conflict_reasons_by_row[int(row_position)] = reason
+            continue
         reason = (
             "duplicate (kinase, substrate_site) pair after normalisation: "
             f"({kinase!r}, {substrate_site!r})"
         )
-        for row_position in grouped.loc[:, "_row_position"].tolist():
-            reasons_by_row[int(row_position)] = reason
+        for row_position in row_positions:
+            duplicate_reasons_by_row[int(row_position)] = reason
     latest_by_key = {
         (record.row_position, record.column_name): record for record in existing_records
     }
-    duplicate_records: list[ReferenceIdentifierNormalisationRecord] = []
+    duplicate_records = _build_pair_classification_records(
+        reasons_by_row=duplicate_reasons_by_row,
+        existing_records=latest_by_key,
+        table_name=table_name,
+        status="duplicate_after_normalisation",
+    )
+    conflict_records = _build_pair_classification_records(
+        reasons_by_row=conflict_reasons_by_row,
+        existing_records=latest_by_key,
+        table_name=table_name,
+        status="conflict_after_normalisation",
+    )
+    return (
+        duplicate_records,
+        conflict_records,
+        tuple(conflict_pairs),
+    )
+
+
+def _group_has_conflicting_payload_rows(
+    grouped: pd.DataFrame,
+    payload_columns: list[object],
+) -> bool:
+    payload_rows = grouped.loc[:, payload_columns]
+    anchor = payload_rows.iloc[0]
+    for row_position in range(1, int(payload_rows.shape[0])):
+        if not payload_rows.iloc[row_position].equals(anchor):
+            return True
+    return False
+
+
+def _build_pair_classification_records(
+    *,
+    reasons_by_row: dict[int, str],
+    existing_records: dict[tuple[int, str], ReferenceIdentifierNormalisationRecord],
+    table_name: str,
+    status: str,
+) -> tuple[ReferenceIdentifierNormalisationRecord, ...]:
+    classified_records: list[ReferenceIdentifierNormalisationRecord] = []
     for row_position, reason in reasons_by_row.items():
         for column_name in ("kinase", "substrate_site"):
-            source = latest_by_key[(row_position, column_name)]
-            duplicate_records.append(
+            source = existing_records[(row_position, column_name)]
+            classified_records.append(
                 ReferenceIdentifierNormalisationRecord(
                     table_name=table_name,
                     column_name=column_name,
@@ -271,44 +398,104 @@ def _duplicate_pair_records(
                     identifier_kind=source.identifier_kind,
                     original_value=source.original_value,
                     normalised_value=source.normalised_value,
-                    status="duplicate_after_normalisation",
+                    status=status,
                     reason=reason,
                 )
             )
-    return tuple(duplicate_records)
+    return tuple(classified_records)
 
 
-def _duplicate_index_records(
+def _classify_duplicate_and_conflicting_index_records(
     *,
     frame: pd.DataFrame,
     duplicated: pd.Series,
     existing_records: list[ReferenceIdentifierNormalisationRecord],
     table_name: str,
-) -> tuple[ReferenceIdentifierNormalisationRecord, ...]:
-    duplicate_records: list[ReferenceIdentifierNormalisationRecord] = []
+) -> tuple[
+    tuple[ReferenceIdentifierNormalisationRecord, ...],
+    tuple[ReferenceIdentifierNormalisationRecord, ...],
+    tuple[str, ...],
+    tuple[str, ...],
+]:
+    duplicate_reasons_by_row: dict[int, str] = {}
+    conflict_reasons_by_row: dict[int, str] = {}
+    duplicate_values: list[str] = []
+    conflict_values: list[str] = []
+    duplicate_rows = frame.loc[duplicated, ["site_sequence"]].copy()
+    duplicate_rows.loc[:, "_row_position"] = [
+        int(position)
+        for position, is_duplicate in enumerate(duplicated.tolist())
+        if is_duplicate
+    ]
+    duplicate_rows.loc[:, "_site_id"] = frame.index[duplicated].tolist()
+    for site_id, grouped in duplicate_rows.groupby("_site_id", sort=False):
+        row_positions = grouped.loc[:, "_row_position"].astype(int).tolist()
+        site_sequences = grouped.loc[:, "site_sequence"].drop_duplicates().tolist()
+        normalised_site_id = str(site_id)
+        if len(site_sequences) > 1:
+            conflict_values.append(normalised_site_id)
+            reason = (
+                "conflicting site_sequence values for site identifier after "
+                f"normalisation: {normalised_site_id!r}"
+            )
+            for row_position in row_positions:
+                conflict_reasons_by_row[int(row_position)] = reason
+            continue
+        duplicate_values.append(normalised_site_id)
+        reason = (
+            "duplicate site identifier after normalisation with identical "
+            f"site_sequence: {normalised_site_id!r}"
+        )
+        for row_position in row_positions:
+            duplicate_reasons_by_row[int(row_position)] = reason
     latest_by_row = {
         record.row_position: record
         for record in existing_records
         if record.column_name == "index"
     }
-    for row_position, is_duplicate in enumerate(duplicated.tolist()):
-        if not is_duplicate:
-            continue
-        normalised_value = frame.index[row_position]
+    duplicate_records = _build_index_classification_records(
+        reasons_by_row=duplicate_reasons_by_row,
+        latest_by_row=latest_by_row,
+        table_name=table_name,
+        frame=frame,
+        status="duplicate_after_normalisation",
+    )
+    conflict_records = _build_index_classification_records(
+        reasons_by_row=conflict_reasons_by_row,
+        latest_by_row=latest_by_row,
+        table_name=table_name,
+        frame=frame,
+        status="conflict_after_normalisation",
+    )
+    return (
+        duplicate_records,
+        conflict_records,
+        tuple(dict.fromkeys(duplicate_values)),
+        tuple(dict.fromkeys(conflict_values)),
+    )
+
+
+def _build_index_classification_records(
+    *,
+    reasons_by_row: dict[int, str],
+    latest_by_row: dict[int, ReferenceIdentifierNormalisationRecord],
+    table_name: str,
+    frame: pd.DataFrame,
+    status: str,
+) -> tuple[ReferenceIdentifierNormalisationRecord, ...]:
+    classified_records: list[ReferenceIdentifierNormalisationRecord] = []
+    for row_position, reason in reasons_by_row.items():
         source = latest_by_row[row_position]
-        duplicate_records.append(
+        classified_records.append(
             ReferenceIdentifierNormalisationRecord(
                 table_name=table_name,
                 column_name="index",
                 row_position=row_position,
                 identifier_kind="site_id",
                 original_value=source.original_value,
-                normalised_value=str(normalised_value),
-                status="duplicate_after_normalisation",
-                reason=(
-                    "duplicate site identifier after normalisation: "
-                    f"{normalised_value!r}"
-                ),
+                normalised_value=str(frame.index[row_position]),
+                status=status,
+                reason=reason,
             )
         )
-    return tuple(duplicate_records)
+    return tuple(classified_records)

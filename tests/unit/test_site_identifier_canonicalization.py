@@ -87,8 +87,8 @@ def test_builder_rejects_ambiguous_site_ids_after_canonicalization() -> None:
 def test_reference_bundle_rejects_ambiguous_site_sequence_ids() -> None:
     with pytest.raises(
         ReferenceValidationError,
-        match="duplicate site identifiers after canonicalization",
-    ):
+        match="conflicting site_sequence values after canonicalization",
+    ) as exc_info:
         ReferenceBundle(
             organism=Organism.RAT,
             kinase_substrate_map=pd.DataFrame(
@@ -102,6 +102,9 @@ def test_reference_bundle_rejects_ambiguous_site_sequence_ids() -> None:
                 ),
             ),
         )
+    report = getattr(exc_info.value, "identifier_normalisation_report", None)
+    assert report is not None
+    assert report.conflict_count > 0
 
 
 def test_dataset_boundary_rejects_non_canonical_site_ids() -> None:
