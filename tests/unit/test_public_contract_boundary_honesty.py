@@ -79,7 +79,7 @@ def test_dataset_boundary_rejects_site_identity_semantic_disagreement_with_detai
     ) in message
 
 
-def test_dataset_boundary_rejects_unparseable_site_ids_even_when_metadata_is_present() -> (
+def test_dataset_boundary_rejects_unparseable_site_ids_before_coherence_checks() -> (
     None
 ):
     phospho = pd.DataFrame(
@@ -107,6 +107,5 @@ def test_dataset_boundary_rejects_unparseable_site_ids_even_when_metadata_is_pre
         )
 
     message = str(exc_info.value)
-    assert "dataset site-identity coherence failed" in message
-    assert "unparseable site IDs for '<gene_symbol>;<site>;'" in message
+    assert "site identifiers must use 'GENE;SITE;' format" in message
     assert "'MAPK14-Y182'" in message

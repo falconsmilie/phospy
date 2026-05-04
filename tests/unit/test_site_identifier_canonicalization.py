@@ -57,10 +57,39 @@ def test_builder_canonicalizes_site_ids_and_reorders_site_metadata() -> None:
     assert built.site_metadata.loc["AKT1;T308;", "gene_symbol"] == "AKT1"
 
 
+def test_builder_canonicalizes_lowercase_site_ids() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0],
+            "sample_b": [2.0],
+        },
+        index=pd.Index(["mapk14;y182;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "site_id": ["mapk14;y182;"],
+            "gene_symbol": ["mapk14"],
+            "site": ["y182"],
+            "site_sequence": ["A" * 31],
+        }
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+        )
+    )
+
+    assert list(built.phospho.index) == ["MAPK14;Y182;"]
+    assert list(built.site_metadata.index) == ["MAPK14;Y182;"]
+
+
 def test_builder_rejects_ambiguous_site_ids_after_canonicalization() -> None:
     phospho = pd.DataFrame(
         {"sample_a": [1.0, 2.0]},
-        index=pd.Index(["mapk14;s123;", " MAPK14;S123; "], name="site_id"),
+        index=pd.Index(["mapk14;y182;", "MAPK14;Y182;"], name="site_id"),
     )
     site_metadata = pd.DataFrame(
         {
@@ -110,7 +139,7 @@ def test_reference_bundle_rejects_ambiguous_site_sequence_ids() -> None:
 def test_dataset_boundary_rejects_non_canonical_site_ids() -> None:
     with pytest.raises(
         DatasetValidationError,
-        match="dataset\\.phospho\\.index must contain canonical site identifiers",
+        match="site identifiers must use 'GENE;SITE;' format",
     ):
         from phospy.datasets.models import AnalysisReadyPhosphoDataset
 
@@ -138,10 +167,140 @@ def test_dataset_boundary_rejects_non_canonical_site_ids() -> None:
         )
 
 
+def test_dataset_boundary_rejects_lowercase_site_ids() -> None:
+    with pytest.raises(
+        DatasetValidationError,
+        match="dataset\\.phospho\\.index must contain canonical site identifiers",
+    ):
+        from phospy.datasets.models import AnalysisReadyPhosphoDataset
+
+        AnalysisReadyPhosphoDataset(
+            phospho=pd.DataFrame(
+                {
+                    "sample_a": [1.0],
+                    "sample_b": [2.0],
+                },
+                index=pd.Index(["mapk14;y182;"], name="site_id"),
+            ),
+            site_metadata=pd.DataFrame(
+                {
+                    "gene_symbol": ["MAPK14"],
+                    "site": ["Y182"],
+                    "site_sequence": ["A" * 31],
+                },
+                index=pd.Index(["mapk14;y182;"], name="site_id"),
+            ),
+            organism=Organism.RAT,
+            intensity_scale_state=supported_linear_intensity_scale_state(
+                has_total_matrix=False
+            ),
+            processing_state=supported_linear_processing_state(has_total_matrix=False),
+        )
+
+
+def test_dataset_boundary_rejects_whitespace_site_ids() -> None:
+    with pytest.raises(
+        DatasetValidationError,
+        match="dataset\\.phospho\\.index must contain canonical site identifiers",
+    ):
+        from phospy.datasets.models import AnalysisReadyPhosphoDataset
+
+        AnalysisReadyPhosphoDataset(
+            phospho=pd.DataFrame(
+                {
+                    "sample_a": [1.0],
+                    "sample_b": [2.0],
+                },
+                index=pd.Index([" MAPK14;Y182; "], name="site_id"),
+            ),
+            site_metadata=pd.DataFrame(
+                {
+                    "gene_symbol": ["MAPK14"],
+                    "site": ["Y182"],
+                    "site_sequence": ["A" * 31],
+                },
+                index=pd.Index([" MAPK14;Y182; "], name="site_id"),
+            ),
+            organism=Organism.RAT,
+            intensity_scale_state=supported_linear_intensity_scale_state(
+                has_total_matrix=False
+            ),
+            processing_state=supported_linear_processing_state(has_total_matrix=False),
+        )
+
+
+def test_dataset_boundary_rejects_missing_trailing_delimiter_site_ids() -> None:
+    with pytest.raises(
+        DatasetValidationError,
+        match="dataset\\.phospho\\.index must contain canonical site identifiers",
+    ):
+        from phospy.datasets.models import AnalysisReadyPhosphoDataset
+
+        AnalysisReadyPhosphoDataset(
+            phospho=pd.DataFrame(
+                {
+                    "sample_a": [1.0],
+                    "sample_b": [2.0],
+                },
+                index=pd.Index(["MAPK14;Y182"], name="site_id"),
+            ),
+            site_metadata=pd.DataFrame(
+                {
+                    "gene_symbol": ["MAPK14"],
+                    "site": ["Y182"],
+                    "site_sequence": ["A" * 31],
+                },
+                index=pd.Index(["MAPK14;Y182"], name="site_id"),
+            ),
+            organism=Organism.RAT,
+            intensity_scale_state=supported_linear_intensity_scale_state(
+                has_total_matrix=False
+            ),
+            processing_state=supported_linear_processing_state(has_total_matrix=False),
+        )
+
+
+def test_dataset_boundary_rejects_duplicates_after_site_id_canonicalization() -> None:
+    with pytest.raises(
+        DatasetValidationError,
+        match="contains duplicate site identifiers after canonicalization",
+    ):
+        from phospy.datasets.models import AnalysisReadyPhosphoDataset
+
+        AnalysisReadyPhosphoDataset(
+            phospho=pd.DataFrame(
+                {
+                    "sample_a": [1.0, 3.0],
+                    "sample_b": [2.0, 4.0],
+                },
+                index=pd.Index(
+                    ["mapk14;y182;", "MAPK14;Y182;"],
+                    name="site_id",
+                ),
+            ),
+            site_metadata=pd.DataFrame(
+                {
+                    "gene_symbol": ["MAPK14", "MAPK14"],
+                    "site": ["Y182", "Y182"],
+                    "site_sequence": ["A" * 31, "B" * 31],
+                },
+                index=pd.Index(
+                    ["mapk14;y182;", "MAPK14;Y182;"],
+                    name="site_id",
+                ),
+            ),
+            organism=Organism.RAT,
+            intensity_scale_state=supported_linear_intensity_scale_state(
+                has_total_matrix=False
+            ),
+            processing_state=supported_linear_processing_state(has_total_matrix=False),
+        )
+
+
 def test_dataset_boundary_rejects_colliding_dirty_site_ids() -> None:
     with pytest.raises(
         DatasetValidationError,
-        match="contains colliding site identifiers when stripped",
+        match="contains duplicate site identifiers after canonicalization",
     ):
         from phospy.datasets.models import AnalysisReadyPhosphoDataset
 
@@ -173,6 +332,35 @@ def test_dataset_boundary_rejects_colliding_dirty_site_ids() -> None:
             ),
             processing_state=supported_linear_processing_state(has_total_matrix=False),
         )
+
+
+def test_dataset_boundary_accepts_strict_canonical_site_ids() -> None:
+    from phospy.datasets.models import AnalysisReadyPhosphoDataset
+
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=pd.DataFrame(
+            {
+                "sample_a": [1.0],
+                "sample_b": [2.0],
+            },
+            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+        ),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["A" * 31],
+            },
+            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+        ),
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+
+    assert list(dataset.phospho.index) == ["MAPK14;Y182;"]
 
 
 def test_dataset_boundary_requires_explicit_intensity_and_processing_state() -> None:

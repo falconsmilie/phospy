@@ -63,7 +63,7 @@ class PhosphoIntensityMatrix(TableSchema):
             frame.index,
             field_name=f"{self._field_name}.index",
             error_type=self._error_type,
-            strict_supported_format=False,
+            strict_supported_format=True,
         )
         return frame
 
@@ -88,7 +88,7 @@ class SiteMetadataTable(TableSchema):
             frame.index,
             field_name=f"{self._field_name}.index",
             error_type=self._error_type,
-            strict_supported_format=False,
+            strict_supported_format=True,
         )
         if self.expected_index is not None:
             require_exact_index_match(
