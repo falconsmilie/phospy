@@ -6,7 +6,10 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from phospy.errors.validation import ReferenceValidationError
+from phospy.errors.validation import (
+    ReferenceIdentifierNormalisationValidationError,
+    ReferenceValidationError,
+)
 from phospy.references.identifiers import (
     ReferenceIdentifierNormalisationRecord,
     ReferenceIdentifierNormalisationReport,
@@ -24,26 +27,15 @@ from phospy.validation.common.dataframes import (
 )
 
 
-class ReferenceIdentifierNormalisationValidationError(ReferenceValidationError):
-    """Reference validation error carrying identifier-normalisation provenance."""
-
-    identifier_normalisation_report: ReferenceIdentifierNormalisationReport
-
-    def __init__(
-        self,
-        message: str,
-        report: ReferenceIdentifierNormalisationReport,
-    ) -> None:
-        super().__init__(message)
-        self.identifier_normalisation_report = report
-
-
 def _raise_with_identifier_normalisation_report(
     *,
     message: str,
     report: ReferenceIdentifierNormalisationReport,
 ) -> None:
-    raise ReferenceIdentifierNormalisationValidationError(message, report)
+    raise ReferenceIdentifierNormalisationValidationError(
+        message=message,
+        identifier_normalisation_report=report,
+    )
 
 
 @dataclass(frozen=True, slots=True)

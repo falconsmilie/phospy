@@ -1,6 +1,13 @@
 """Validation exceptions."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from phospy.errors.base import PhosPyError
+
+if TYPE_CHECKING:
+    from phospy.references.identifiers import ReferenceIdentifierNormalisationReport
 
 
 class PhosPyValidationError(PhosPyError):
@@ -13,6 +20,22 @@ class DatasetValidationError(PhosPyValidationError):
 
 class ReferenceValidationError(PhosPyValidationError):
     """Reference contract validation failed."""
+
+
+class ReferenceIdentifierNormalisationValidationError(ReferenceValidationError):
+    """Reference validation error carrying identifier-normalisation provenance."""
+
+    message: str
+    identifier_normalisation_report: ReferenceIdentifierNormalisationReport
+
+    def __init__(
+        self,
+        message: str,
+        identifier_normalisation_report: ReferenceIdentifierNormalisationReport,
+    ) -> None:
+        super().__init__(message)
+        self.message = message
+        self.identifier_normalisation_report = identifier_normalisation_report
 
 
 class TransformationValidationError(PhosPyValidationError):

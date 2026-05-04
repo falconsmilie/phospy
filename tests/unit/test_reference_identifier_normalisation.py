@@ -3,7 +3,10 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.errors.validation import ReferenceValidationError
+from phospy.errors.validation import (
+    ReferenceIdentifierNormalisationValidationError,
+    ReferenceValidationError,
+)
 from phospy.references.identifiers import (
     normalise_reference_kinase_id,
     normalise_reference_site_id,
@@ -84,6 +87,94 @@ def test_reference_bundle_rejects_duplicate_pairs_after_kinase_normalisation() -
                 index=pd.Index(["MAPK1;S123;"], name="site_id"),
             ),
         )
+
+
+def test_invalid_site_identifier_failure_exposes_structured_report() -> None:
+    with pytest.raises(
+        ReferenceIdentifierNormalisationValidationError,
+        match="site identifiers must use 'GENE;SITE;' format",
+    ) as exc_info:
+        SiteSequenceReference(
+            frame=pd.DataFrame(
+                {"site_sequence": ["A" * 31]},
+                index=pd.Index(["MAPK1-S123"], name="site_id"),
+            )
+        )
+
+    report = exc_info.value.identifier_normalisation_report
+    assert report.original_row_count == 1
+    assert report.normalised_row_count == 0
+    assert report.invalid_identifier_count == 1
+    assert report.changed_identifier_count == 0
+    assert report.duplicate_identifier_count == 0
+    assert report.conflict_count == 0
+    assert len(report.records) == 1
+    assert report.records[0].original_value == "MAPK1-S123"
+    assert report.records[0].normalised_value is None
+    assert report.records[0].status == "invalid"
+
+
+def test_duplicate_kinase_identifier_failure_exposes_structured_report() -> None:
+    with pytest.raises(
+        ReferenceIdentifierNormalisationValidationError,
+        match="contains duplicate \\(kinase, substrate_site\\) pairs",
+    ) as exc_info:
+        KinaseSubstrateReference(
+            frame=pd.DataFrame(
+                {
+                    "kinase": ["akt1", "AKT1"],
+                    "substrate_site": ["MAPK1;S123;", "MAPK1;S123;"],
+                }
+            )
+        )
+
+    report = exc_info.value.identifier_normalisation_report
+    assert report.invalid_identifier_count == 0
+    assert report.changed_identifier_count == 1
+    assert report.duplicate_identifier_count == 4
+    assert report.conflict_count == 0
+    assert any(
+        record.original_value == "akt1" and record.normalised_value == "AKT1"
+        for record in report.records
+    )
+    duplicate_records = [
+        record
+        for record in report.records
+        if record.status == "duplicate_after_normalisation"
+    ]
+    assert duplicate_records
+
+
+def test_conflict_after_normalisation_failure_exposes_structured_report() -> None:
+    with pytest.raises(
+        ReferenceIdentifierNormalisationValidationError,
+        match="contains conflicting payload rows for normalised",
+    ) as exc_info:
+        KinaseSubstrateReference(
+            frame=pd.DataFrame(
+                {
+                    "kinase": ["akt1", "AKT1"],
+                    "substrate_site": ["MAPK1;S123;", "MAPK1;S123;"],
+                    "source_db": ["db_a", "db_b"],
+                }
+            )
+        )
+
+    report = exc_info.value.identifier_normalisation_report
+    assert report.invalid_identifier_count == 0
+    assert report.changed_identifier_count == 1
+    assert report.duplicate_identifier_count == 0
+    assert report.conflict_count == 4
+    assert any(
+        record.original_value == "akt1" and record.normalised_value == "AKT1"
+        for record in report.records
+    )
+    conflict_records = [
+        record
+        for record in report.records
+        if record.status == "conflict_after_normalisation"
+    ]
+    assert conflict_records
 
 
 def test_site_sequence_duplicate_after_normalisation_reports_duplicate_status() -> None:

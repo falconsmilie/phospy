@@ -18,6 +18,7 @@ from phospy.errors.transformations import (
 from phospy.errors.validation import (
     DatasetValidationError,
     PhosPyValidationError,
+    ReferenceIdentifierNormalisationValidationError,
     ReferenceValidationError,
     TransformationValidationError,
     WorkflowValidationError,
@@ -42,6 +43,7 @@ __all__ = [
     "PhosPyValidationError",
     "PhosPyWorkflowError",
     "ReferenceCompatibilityError",
+    "ReferenceIdentifierNormalisationValidationError",
     "ReferenceResolutionError",
     "ReferenceValidationError",
     "SignalomeModuleCountValidationError",
