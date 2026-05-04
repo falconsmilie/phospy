@@ -24,7 +24,16 @@ from phospy.prediction.policies import (
 )
 from phospy.references.models import ReferenceBundle
 from phospy.tables.datasets import PhosphoIntensityMatrix
-from phospy.tables.references import KinaseSubstrateReference, SiteSequenceReference
+from phospy.validation.common.dataframes import (
+    require_canonical_site_index,
+    require_canonical_site_series,
+    require_canonical_string_column,
+    require_columns,
+    require_dataframe,
+    require_non_empty_string_column,
+    require_unique_index,
+    require_unique_row_pairs,
+)
 
 if TYPE_CHECKING:
     from phospy.references.resolution import ReferenceResolverContract
@@ -42,12 +51,12 @@ class ResolvedKinaseWorkflowRequest:
     activity_phospho_matrix: pd.DataFrame
     execution_config: ResolvedKinaseExecutionConfig
     site_sequence_merge_diagnostics: dict[str, object] = field(default_factory=dict)
-    _kinase_substrate_reference: KinaseSubstrateReference = field(
+    _kinase_substrate_reference: pd.DataFrame = field(
         init=False,
         repr=False,
         compare=False,
     )
-    _site_sequence_reference: SiteSequenceReference = field(
+    _site_sequence_reference: pd.DataFrame = field(
         init=False,
         repr=False,
         compare=False,
@@ -59,19 +68,14 @@ class ResolvedKinaseWorkflowRequest:
     )
 
     def __post_init__(self) -> None:
-        kinase_substrate_reference = KinaseSubstrateReference(
-            frame=self.kinase_substrate_map,
-            _assume_owned=True,
+        kinase_substrate_map = self._validate_kinase_substrate_map(
+            self.kinase_substrate_map
         )
-        site_sequence_reference = SiteSequenceReference(
-            frame=self.site_sequences,
-            _assume_owned=True,
+        site_sequences = self._validate_site_sequences(self.site_sequences)
+        activity_phospho_table = self._validate_activity_phospho_table(
+            self.activity_phospho_matrix
         )
-        activity_phospho_table = PhosphoIntensityMatrix(
-            frame=self.activity_phospho_matrix,
-            allow_missing=True,
-            _assume_owned=True,
-        )
+        activity_phospho_matrix = activity_phospho_table.frame
         if not isinstance(self.scoring_site_index, pd.Index):
             raise WorkflowBoundaryError(
                 "kinase workflow boundary validation failed at seam="
@@ -80,7 +84,7 @@ class ResolvedKinaseWorkflowRequest:
                 "next_action=ensure interpreter passes a pandas Index for "
                 "resolved scoring-site alignment"
             )
-        if not activity_phospho_table.frame.index.equals(self.scoring_site_index):
+        if not activity_phospho_matrix.index.equals(self.scoring_site_index):
             raise WorkflowBoundaryError(
                 "kinase workflow boundary validation failed at seam="
                 "kinase.contracts.activity_site_alignment; "
@@ -88,9 +92,7 @@ class ResolvedKinaseWorkflowRequest:
                 "next_action=ensure interpreted activity phospho rows are aligned "
                 "to the resolved scoring-site index"
             )
-        if not kinase_substrate_reference.frame.equals(
-            self.references.kinase_substrate_map
-        ):
+        if not kinase_substrate_map.equals(self.references.kinase_substrate_map):
             raise WorkflowBoundaryError(
                 "kinase workflow boundary validation failed at seam="
                 "kinase.contracts.kinase_substrate_reference_alignment; "
@@ -100,7 +102,7 @@ class ResolvedKinaseWorkflowRequest:
                 "ReferenceBundle without workflow-local identifier cleanup"
             )
         if not self._has_compatible_site_sequence_reference_alignment(
-            merged_site_sequences=site_sequence_reference.frame,
+            merged_site_sequences=site_sequences,
             reference_site_sequences=self.references.site_sequences,
         ):
             raise WorkflowBoundaryError(
@@ -112,35 +114,129 @@ class ResolvedKinaseWorkflowRequest:
                 "reference-provided sequences unchanged and only appends new "
                 "dataset-supported rows"
             )
-        object.__setattr__(
-            self, "kinase_substrate_map", kinase_substrate_reference.frame
+        object.__setattr__(self, "kinase_substrate_map", kinase_substrate_map)
+        object.__setattr__(self, "site_sequences", site_sequences)
+        object.__setattr__(self, "activity_phospho_matrix", activity_phospho_matrix)
+        object.__setattr__(self, "_kinase_substrate_reference", kinase_substrate_map)
+        object.__setattr__(self, "_site_sequence_reference", site_sequences)
+        object.__setattr__(self, "_activity_phospho_table", activity_phospho_table)
+
+    @staticmethod
+    def _validate_kinase_substrate_map(value: object) -> pd.DataFrame:
+        try:
+            frame = require_dataframe(
+                value,
+                field_name="kinase_request.kinase_substrate_map",
+                allow_empty=False,
+                error_type=WorkflowBoundaryError,
+            )
+            require_columns(
+                frame,
+                field_name="kinase_request.kinase_substrate_map",
+                required_columns=("kinase", "substrate_site"),
+                error_type=WorkflowBoundaryError,
+            )
+            require_non_empty_string_column(
+                frame,
+                field_name="kinase_request.kinase_substrate_map",
+                column_name="kinase",
+                error_type=WorkflowBoundaryError,
+            )
+            require_canonical_string_column(
+                frame,
+                field_name="kinase_request.kinase_substrate_map",
+                column_name="kinase",
+                error_type=WorkflowBoundaryError,
+            )
+            substrate_site = frame.loc[:, "substrate_site"]
+            require_canonical_site_series(
+                substrate_site,
+                field_name="kinase_request.kinase_substrate_map.substrate_site",
+                error_type=WorkflowBoundaryError,
+            )
+            require_unique_row_pairs(
+                frame,
+                field_name="kinase_request.kinase_substrate_map",
+                column_names=("kinase", "substrate_site"),
+                error_type=WorkflowBoundaryError,
+            )
+            return frame
+        except WorkflowBoundaryError as exc:
+            raise WorkflowBoundaryError(
+                "kinase workflow boundary validation failed at seam="
+                "kinase.contracts.kinase_substrate_map_schema; "
+                f"{exc}; "
+                "next_action=provide a prepared, already-normalized "
+                "kinase_substrate_map from ReferenceBundle"
+            ) from exc
+
+    @staticmethod
+    def _validate_site_sequences(value: object) -> pd.DataFrame:
+        try:
+            frame = require_dataframe(
+                value,
+                field_name="kinase_request.site_sequences",
+                allow_empty=False,
+                error_type=WorkflowBoundaryError,
+            )
+            require_columns(
+                frame,
+                field_name="kinase_request.site_sequences",
+                required_columns=("site_sequence",),
+                error_type=WorkflowBoundaryError,
+            )
+            require_non_empty_string_column(
+                frame,
+                field_name="kinase_request.site_sequences",
+                column_name="site_sequence",
+                error_type=WorkflowBoundaryError,
+            )
+            require_canonical_string_column(
+                frame,
+                field_name="kinase_request.site_sequences",
+                column_name="site_sequence",
+                error_type=WorkflowBoundaryError,
+            )
+            require_unique_index(
+                frame,
+                field_name="kinase_request.site_sequences",
+                error_type=WorkflowBoundaryError,
+            )
+            require_canonical_site_index(
+                frame.index,
+                field_name="kinase_request.site_sequences.index",
+                error_type=WorkflowBoundaryError,
+            )
+            return frame
+        except WorkflowBoundaryError as exc:
+            raise WorkflowBoundaryError(
+                "kinase workflow boundary validation failed at seam="
+                "kinase.contracts.site_sequence_schema; "
+                f"{exc}; "
+                "next_action=provide prepared, already-normalized "
+                "site_sequences from ReferenceBundle or interpreter merge output"
+            ) from exc
+
+    @staticmethod
+    def _validate_activity_phospho_table(value: object) -> PhosphoIntensityMatrix:
+        frame = require_dataframe(
+            value,
+            field_name="kinase_request.activity_phospho_matrix",
+            allow_empty=False,
+            error_type=WorkflowBoundaryError,
         )
-        object.__setattr__(self, "site_sequences", site_sequence_reference.frame)
-        object.__setattr__(
-            self, "activity_phospho_matrix", activity_phospho_table.frame
-        )
-        object.__setattr__(
-            self,
-            "_kinase_substrate_reference",
-            kinase_substrate_reference,
-        )
-        object.__setattr__(
-            self,
-            "_site_sequence_reference",
-            site_sequence_reference,
-        )
-        object.__setattr__(
-            self,
-            "_activity_phospho_table",
-            activity_phospho_table,
+        return PhosphoIntensityMatrix(
+            frame=frame,
+            allow_missing=True,
+            _assume_owned=True,
         )
 
     @property
-    def kinase_substrate_reference(self) -> KinaseSubstrateReference:
+    def kinase_substrate_reference(self) -> pd.DataFrame:
         return self._kinase_substrate_reference
 
     @property
-    def site_sequence_reference(self) -> SiteSequenceReference:
+    def site_sequence_reference(self) -> pd.DataFrame:
         return self._site_sequence_reference
 
     @property

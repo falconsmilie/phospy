@@ -170,6 +170,75 @@ def _resolved_request(
     )
 
 
+def test_direct_unnormalised_kinase_ids_are_rejected_by_execution_contract() -> None:
+    dataset = _dataset()
+    references = _references()
+
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="kinase.contracts.kinase_substrate_reference_alignment",
+    ):
+        ResolvedKinaseWorkflowRequest(
+            dataset=dataset,
+            references=references,
+            kinase_substrate_map=pd.DataFrame(
+                {
+                    "kinase": ["map2k6", "MAP2K6"],
+                    "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
+                }
+            ),
+            site_sequences=references.site_sequences,
+            scoring_site_index=dataset.phospho.index.copy(),
+            activity_phospho_matrix=dataset.phospho.copy(deep=True),
+            execution_config=_config(),
+        )
+
+
+def test_direct_unnormalised_site_ids_are_rejected_by_execution_contract() -> None:
+    dataset = _dataset()
+    references = _references()
+    unnormalised_site_sequences = references.site_sequences.copy(deep=True)
+    unnormalised_site_sequences.index = pd.Index(
+        [" mapk14 ; y182 ", "GSK3B;S9;"],
+        name=references.site_sequences.index.name,
+    )
+
+    with pytest.raises(
+        WorkflowBoundaryError, match="kinase.contracts.site_sequence_schema"
+    ):
+        ResolvedKinaseWorkflowRequest(
+            dataset=dataset,
+            references=references,
+            kinase_substrate_map=references.kinase_substrate_map,
+            site_sequences=unnormalised_site_sequences,
+            scoring_site_index=dataset.phospho.index.copy(),
+            activity_phospho_matrix=dataset.phospho.copy(deep=True),
+            execution_config=_config(),
+        )
+
+
+def test_already_normalised_execution_inputs_are_accepted() -> None:
+    request = _resolved_request()
+
+    assert request.kinase_substrate_map.equals(request.references.kinase_substrate_map)
+    assert request.site_sequences.loc["MAPK14;Y182;", "site_sequence"] == (
+        "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"
+    )
+
+
+def test_workflow_execution_with_valid_reference_bundle_still_succeeds() -> None:
+    interpreted = KinaseWorkflowInterpreter().run(
+        KinaseWorkflowRequest(dataset=_dataset(), references=_references())
+    )
+    scoring = KinaseScoringRunner().run(
+        request=interpreted,
+        config=interpreted.execution_config,
+    )
+
+    assert not scoring.scoring_result.profile_scores.empty
+    assert scoring.downstream_score_source == "rank_weighted_fusion_scores"
+
+
 def test_interpreter_overlap_uses_normalised_reference_tables_after_bundle_construction() -> (
     None
 ):

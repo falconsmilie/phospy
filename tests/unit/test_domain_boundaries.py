@@ -39,6 +39,7 @@ from tests.support.intensity_scale_states import (
 
 ROOT = Path(__file__).resolve().parents[2]
 _REFERENCE_IDENTIFIER_GUARD_TARGETS = (
+    "src/phospy/workflows/kinase/contracts.py",
     "src/phospy/workflows/kinase/scoring_runner.py",
     "src/phospy/workflows/kinase/prediction_runner.py",
     "src/phospy/workflows/kinase/activity_runner.py",
