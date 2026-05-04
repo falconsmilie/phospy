@@ -14,11 +14,7 @@ from phospy.api.configs import (
 )
 from phospy.datasets.builders.contracts import PreprocessedDatasetBuildTables
 from phospy.datasets.preprocessing.models import (
-    DATASET_PREPROCESSING_STAGE_COMPARISONS,
-    DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
-    DATASET_PREPROCESSING_STAGE_NORMALISATION,
-    DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
     DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
     PreprocessingPlan,
@@ -34,6 +30,9 @@ from phospy.datasets.preprocessing.report_schema import (
     PreprocessingRowCountRow,
     dataframe_from_operation_rows,
     dataframe_from_row_count_rows,
+)
+from phospy.datasets.preprocessing.stage_registry import (
+    resolve_builder_provenance_stage_order,
 )
 from phospy.datasets.processing_state import (
     MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
@@ -59,47 +58,6 @@ from phospy.transformations.models import (
 
 _PREPROCESSING_INPUT_STAGE = "preprocessing_input"
 _PREPROCESSING_COMPLETE_STAGE = "preprocessing_complete"
-_STAGE_LABEL_TO_PARAMETERS: dict[str, tuple[str, ...]] = {
-    DATASET_PREPROCESSING_STAGE_NORMALISATION: (),
-    DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION: (
-        "site_sequence_resolution_enabled",
-        "site_sequence_resolution_fasta_path",
-        "site_sequence_resolution_mode",
-        "site_sequence_resolution_conflict_policy",
-        "site_sequence_resolution_flank_size",
-        "site_sequence_resolution_accession_column",
-        "site_sequence_resolution_site_column",
-    ),
-    DATASET_PREPROCESSING_STAGE_MISSING_DATA: (
-        "missing_data_policy",
-        "missing_data_min_observed_values",
-        "missing_data_q",
-        "missing_data_width",
-        "missing_data_seed",
-        "missing_data_k",
-        "missing_data_distance",
-        "missing_data_max_missing_fraction_per_row",
-    ),
-    DATASET_PREPROCESSING_STAGE_SITE_MATRIX: (
-        "site_matrix_policy",
-        "site_matrix_duplicate_site_policy",
-        "site_matrix_missing_data_policy",
-        "site_matrix_minimum_observed_values",
-    ),
-    DATASET_PREPROCESSING_STAGE_COMPARISONS: (
-        "comparison_building_policy",
-        "comparison_sample_group_column",
-        "comparison_pairs",
-    ),
-}
-_PROVENANCE_CANONICAL_STAGES = (
-    DATASET_PREPROCESSING_STAGE_MISSING_DATA,
-    DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
-    DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
-    DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
-    DATASET_PREPROCESSING_STAGE_NORMALISATION,
-    DATASET_PREPROCESSING_STAGE_COMPARISONS,
-)
 
 
 class DatasetPreprocessor:
@@ -895,15 +853,17 @@ def _build_preprocessing_provenance_tables(
 
     row_cursor = input_row_count
     step_order = 1
-    canonical_stages = _resolve_provenance_canonical_stages(plan)
-    for stage in canonical_stages:
+    canonical_stage_metadata = resolve_builder_provenance_stage_order(plan)
+    for stage_metadata in canonical_stage_metadata:
+        stage = stage_metadata.provenance_stage
+        stage_label = stage_metadata.display_label
         record = trace_by_stage.get(stage)
         if record is None:
             stage_input_rows = row_cursor
             stage_output_rows = row_cursor
             notes = "stage not scheduled in preprocessing plan"
-            operation = _resolve_stage_operation(plan=plan, stage=stage)
-            parameters = _resolve_stage_parameters(plan=plan, stage=stage)
+            operation = stage_metadata.operation_name(plan)
+            parameters = stage_metadata.serialize_parameters(plan)
         else:
             stage_input_rows = int(record.input_rows)
             stage_output_rows = int(record.output_rows)
@@ -915,7 +875,7 @@ def _build_preprocessing_provenance_tables(
         row_cursor = stage_output_rows
         row_count_rows.append(
             PreprocessingRowCountRow(
-                stage=stage,
+                stage=stage_label,
                 input_rows=stage_input_rows,
                 output_rows=stage_output_rows,
                 dropped_rows=(
@@ -928,7 +888,7 @@ def _build_preprocessing_provenance_tables(
         operation_rows.append(
             PreprocessingOperationRow(
                 step_order=step_order,
-                stage=stage,
+                stage=stage_label,
                 operation=operation,
                 parameters=parameters,
                 input_rows=stage_input_rows,
@@ -950,65 +910,3 @@ def _build_preprocessing_provenance_tables(
     row_counts = dataframe_from_row_count_rows(row_count_rows)
     operations = dataframe_from_operation_rows(operation_rows)
     return row_counts, operations
-
-
-def _resolve_provenance_canonical_stages(plan: PreprocessingPlan) -> tuple[str, ...]:
-    if not plan.site_sequence_resolution_enabled:
-        return _PROVENANCE_CANONICAL_STAGES
-    return (
-        DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
-        *_PROVENANCE_CANONICAL_STAGES,
-    )
-
-
-def _resolve_stage_parameters(
-    *, plan: PreprocessingPlan, stage: str
-) -> dict[str, object]:
-    if stage == DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION:
-        return {
-            "enabled": bool(plan.site_sequence_resolution_enabled),
-            "fasta_path": plan.site_sequence_resolution_fasta_path,
-            "mode": plan.site_sequence_resolution_mode,
-            "conflict_policy": plan.site_sequence_resolution_conflict_policy,
-            "flank_size": int(plan.site_sequence_resolution_flank_size),
-            "accession_column": plan.site_sequence_resolution_accession_column,
-            "site_column": plan.site_sequence_resolution_site_column,
-        }
-    if stage == DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION:
-        identity = plan.total_protein_correction_identity_policy
-        return {
-            "total_protein_correction_policy": plan.total_protein_correction_policy,
-            "identity_mode": identity.mode,
-            "phosphosite_key": identity.phosphosite_key,
-            "total_protein_key": identity.total_protein_key,
-            "mapping_phosphosite_key": identity.mapping_phosphosite_key,
-            "mapping_total_protein_key": identity.mapping_total_protein_key,
-            "mapping_table_fingerprint": identity.mapping_table_fingerprint,
-            "mapping_table_row_count": (
-                None if identity.mapping_table is None else len(identity.mapping_table)
-            ),
-            "duplicate_policy": identity.duplicate_policy,
-            "unmatched_policy": identity.unmatched_policy,
-        }
-    if stage == DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM:
-        return {"pseudocount": float(plan.intensity_transform_pseudocount)}
-    parameter_names = _STAGE_LABEL_TO_PARAMETERS.get(stage, ())
-    return {name: getattr(plan, name) for name in parameter_names}
-
-
-def _resolve_stage_operation(*, plan: PreprocessingPlan, stage: str) -> str:
-    if stage == DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION:
-        return plan.site_sequence_resolution_mode
-    if stage == DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM:
-        return plan.intensity_transform_policy
-    if stage == DATASET_PREPROCESSING_STAGE_NORMALISATION:
-        return plan.normalisation_policy
-    if stage == DATASET_PREPROCESSING_STAGE_MISSING_DATA:
-        return plan.missing_data_policy
-    if stage == DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION:
-        return str(plan.total_protein_correction_policy)
-    if stage == DATASET_PREPROCESSING_STAGE_SITE_MATRIX:
-        return plan.site_matrix_policy
-    if stage == DATASET_PREPROCESSING_STAGE_COMPARISONS:
-        return plan.comparison_building_policy
-    return "unsupported_stage"

@@ -19,6 +19,7 @@ from phospy.datasets.preprocessing.models import (
 )
 from phospy.datasets.preprocessing.pipeline import PreprocessingPipeline
 from phospy.datasets.preprocessing.report_schema import PreprocessingRowAuditRow
+from phospy.datasets.preprocessing.stage_registry import PreprocessingStageMetadata
 from phospy.datasets.preprocessing.stages.comparisons import ComparisonsStage
 from phospy.datasets.preprocessing.stages.intensity_transform import (
     IntensityTransformStage,
@@ -70,6 +71,18 @@ def _total(columns: pd.Index) -> pd.DataFrame:
             str(columns[1]): [3.0, 5.0],
         },
         index=pd.Index(["MAPK14", "AKT1"], name="protein_id"),
+    )
+
+
+def _custom_stage_metadata(stage_key: str) -> PreprocessingStageMetadata:
+    return PreprocessingStageMetadata(
+        stage_key=stage_key,
+        display_label=stage_key,
+        provenance_stage=stage_key,
+        operation_name=lambda _plan: stage_key,
+        serialize_parameters=lambda _plan: {},
+        consumed_input_tables=("dataset.phospho",),
+        produced_output_tables=("dataset.phospho",),
     )
 
 
@@ -384,7 +397,8 @@ def test_pipeline_uses_stage_owned_diagnostics_and_report_rows() -> None:
     )
 
     final_state, trace = PreprocessingPipeline(
-        stage_registry=(FakeStage(),)
+        stage_registry=(FakeStage(),),
+        stage_metadata_registry=(_custom_stage_metadata("fake_stage"),),
     ).run_with_trace(state)
 
     assert len(trace) == 1
@@ -434,7 +448,10 @@ def test_pipeline_rejects_unsupported_stage_report_rows() -> None:
         DatasetBuildError,
         match="unsupported table",
     ):
-        PreprocessingPipeline(stage_registry=(FakeStage(),)).run_with_trace(state)
+        PreprocessingPipeline(
+            stage_registry=(FakeStage(),),
+            stage_metadata_registry=(_custom_stage_metadata("fake_stage"),),
+        ).run_with_trace(state)
 
 
 def test_minimal_custom_stage_emits_supported_report_row_into_final_report() -> None:
@@ -481,7 +498,10 @@ def test_minimal_custom_stage_emits_supported_report_row_into_final_report() -> 
     )
     executor = DatasetBuildExecutor(
         preprocessor=DatasetPreprocessor(
-            pipeline=PreprocessingPipeline(stage_registry=(FakeStage(),))
+            pipeline=PreprocessingPipeline(
+                stage_registry=(FakeStage(),),
+                stage_metadata_registry=(_custom_stage_metadata("fake_stage"),),
+            ),
         )
     )
     built = executor.run(

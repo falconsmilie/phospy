@@ -9,14 +9,6 @@ from typing import TypedDict
 import pandas as pd
 
 from phospy.datasets.preprocessing.models import (
-    DATASET_PREPROCESSING_STAGE_COMPARISONS,
-    DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
-    DATASET_PREPROCESSING_STAGE_MISSING_DATA,
-    DATASET_PREPROCESSING_STAGE_NORMALISATION,
-    DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
-    DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
-    DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
-    PreprocessingPlan,
     PreprocessingReportRow,
     PreprocessingStage,
     PreprocessingStageExecution,
@@ -25,6 +17,10 @@ from phospy.datasets.preprocessing.models import (
 )
 from phospy.datasets.preprocessing.report_rows import (
     validate_preprocessing_report_row,
+)
+from phospy.datasets.preprocessing.stage_registry import (
+    PreprocessingStageMetadata,
+    merge_preprocessing_stage_metadata,
 )
 from phospy.datasets.preprocessing.stages.comparisons import ComparisonsStage
 from phospy.datasets.preprocessing.stages.intensity_transform import (
@@ -57,103 +53,6 @@ _RESERVED_DIAGNOSTIC_KEYS = frozenset(
     }
 )
 
-_DEFAULT_STAGE_CONSUMED_TABLES = ("dataset.phospho",)
-_DEFAULT_STAGE_PRODUCED_TABLES = ("dataset.phospho",)
-_STAGE_CONSUMED_TABLES: dict[str, tuple[str, ...]] = {
-    DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION: ("dataset.site_metadata",),
-    DATASET_PREPROCESSING_STAGE_MISSING_DATA: (
-        "dataset.phospho",
-        "dataset.site_metadata",
-    ),
-    DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM: (
-        "dataset.phospho",
-        "dataset.total",
-    ),
-    DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION: (
-        "dataset.phospho",
-        "dataset.total",
-        "dataset.site_metadata",
-    ),
-    DATASET_PREPROCESSING_STAGE_SITE_MATRIX: (
-        "dataset.phospho",
-        "dataset.site_metadata",
-    ),
-    DATASET_PREPROCESSING_STAGE_NORMALISATION: ("dataset.phospho",),
-    DATASET_PREPROCESSING_STAGE_COMPARISONS: (
-        "dataset.phospho",
-        "dataset.sample_metadata",
-    ),
-}
-_STAGE_PRODUCED_TABLES: dict[str, tuple[str, ...]] = {
-    DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION: ("dataset.site_metadata",),
-    DATASET_PREPROCESSING_STAGE_MISSING_DATA: (
-        "dataset.phospho",
-        "dataset.site_metadata",
-        "report.row_audit",
-    ),
-    DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM: (
-        "dataset.phospho",
-        "dataset.total",
-    ),
-    DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION: ("dataset.phospho",),
-    DATASET_PREPROCESSING_STAGE_SITE_MATRIX: (
-        "dataset.phospho",
-        "dataset.site_metadata",
-        "report.duplicate_site_resolution",
-        "report.metadata_conflicts",
-        "report.row_audit",
-    ),
-    DATASET_PREPROCESSING_STAGE_NORMALISATION: ("dataset.phospho",),
-    DATASET_PREPROCESSING_STAGE_COMPARISONS: (
-        "dataset.comparisons",
-        "report.comparison_group_stats",
-        "report.comparison_pair_stats",
-    ),
-}
-_STAGE_BACKENDS: dict[str, str] = {
-    DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION: "phospy.sequences",
-    DATASET_PREPROCESSING_STAGE_MISSING_DATA: "pandas",
-    DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM: "numpy",
-    DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION: "pandas",
-    DATASET_PREPROCESSING_STAGE_SITE_MATRIX: "pandas",
-    DATASET_PREPROCESSING_STAGE_NORMALISATION: "numpy",
-    DATASET_PREPROCESSING_STAGE_COMPARISONS: "pandas",
-}
-
-_STAGE_LABEL_TO_PARAMETERS: dict[str, tuple[str, ...]] = {
-    DATASET_PREPROCESSING_STAGE_NORMALISATION: (),
-    DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION: (
-        "site_sequence_resolution_enabled",
-        "site_sequence_resolution_fasta_path",
-        "site_sequence_resolution_mode",
-        "site_sequence_resolution_conflict_policy",
-        "site_sequence_resolution_flank_size",
-        "site_sequence_resolution_accession_column",
-        "site_sequence_resolution_site_column",
-    ),
-    DATASET_PREPROCESSING_STAGE_MISSING_DATA: (
-        "missing_data_policy",
-        "missing_data_min_observed_values",
-        "missing_data_q",
-        "missing_data_width",
-        "missing_data_seed",
-        "missing_data_k",
-        "missing_data_distance",
-        "missing_data_max_missing_fraction_per_row",
-    ),
-    DATASET_PREPROCESSING_STAGE_SITE_MATRIX: (
-        "site_matrix_policy",
-        "site_matrix_duplicate_site_policy",
-        "site_matrix_missing_data_policy",
-        "site_matrix_minimum_observed_values",
-    ),
-    DATASET_PREPROCESSING_STAGE_COMPARISONS: (
-        "comparison_building_policy",
-        "comparison_sample_group_column",
-        "comparison_pairs",
-    ),
-}
-
 
 class _NormalizedStageDiagnostics(TypedDict):
     dropped_row_ids: tuple[str, ...]
@@ -171,6 +70,7 @@ class PreprocessingPipeline:
         self,
         *,
         stage_registry: tuple[PreprocessingStage, ...] | None = None,
+        stage_metadata_registry: tuple[PreprocessingStageMetadata, ...] | None = None,
     ) -> None:
         stages = stage_registry or (
             SiteSequenceResolutionStage(),
@@ -186,6 +86,9 @@ class PreprocessingPipeline:
             raise DatasetBuildError(
                 "dataset preprocessing stage registry contains duplicate stage keys"
             )
+        self._stage_metadata_by_key = merge_preprocessing_stage_metadata(
+            stage_metadata_registry
+        )
 
     def run(self, state: PreprocessingState) -> PreprocessingState:
         final_state, _ = self.run_with_trace(state)
@@ -227,29 +130,25 @@ class PreprocessingPipeline:
                 previous=previous,
                 current=current,
             )
+            stage_metadata = self._stage_metadata_by_key.get(stage_key)
+            if stage_metadata is None:
+                raise DatasetBuildError(
+                    "dataset preprocessing stage metadata is not registered for "
+                    f"stage {stage_key!r}"
+                )
             consumed_input_tables = _collect_stage_table_fingerprints(
                 state=previous,
-                table_names=_STAGE_CONSUMED_TABLES.get(
-                    stage_key, _DEFAULT_STAGE_CONSUMED_TABLES
-                ),
+                table_names=stage_metadata.consumed_input_tables,
             )
             produced_output_tables = _collect_stage_table_fingerprints(
                 state=current,
-                table_names=_STAGE_PRODUCED_TABLES.get(
-                    stage_key, _DEFAULT_STAGE_PRODUCED_TABLES
-                ),
+                table_names=stage_metadata.produced_output_tables,
             )
             trace.append(
                 PreprocessingStageExecution(
-                    stage=stage_key,
-                    operation=_resolve_stage_operation(
-                        plan=previous.plan,
-                        stage=stage_key,
-                    ),
-                    parameters=_resolve_stage_parameters(
-                        plan=previous.plan,
-                        stage=stage_key,
-                    ),
+                    stage=stage_metadata.provenance_stage,
+                    operation=stage_metadata.operation_name(previous.plan),
+                    parameters=stage_metadata.serialize_parameters(previous.plan),
                     input_shape=(
                         int(previous.phospho.shape[0]),
                         int(previous.phospho.shape[1]),
@@ -265,7 +164,7 @@ class PreprocessingPipeline:
                     schema_version=PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V2,
                     consumed_input_tables=consumed_input_tables,
                     produced_output_tables=produced_output_tables,
-                    backend=_STAGE_BACKENDS.get(stage_key),
+                    backend=stage_metadata.backend,
                     random_seed=_resolve_random_seed(
                         diagnostics=diagnostics["diagnostics"]
                     ),
@@ -279,61 +178,6 @@ class PreprocessingPipeline:
         if report_rows:
             current = replace(current, report_rows=tuple(report_rows))
         return current, tuple(trace)
-
-
-def _resolve_stage_parameters(
-    *,
-    plan: PreprocessingPlan,
-    stage: str,
-) -> dict[str, object]:
-    if stage == DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION:
-        identity = plan.total_protein_correction_identity_policy
-        return {
-            "total_protein_correction_policy": plan.total_protein_correction_policy,
-            "identity_mode": identity.mode,
-            "phosphosite_key": identity.phosphosite_key,
-            "total_protein_key": identity.total_protein_key,
-            "mapping_phosphosite_key": identity.mapping_phosphosite_key,
-            "mapping_total_protein_key": identity.mapping_total_protein_key,
-            "mapping_table_fingerprint": identity.mapping_table_fingerprint,
-            "mapping_table_row_count": (
-                None if identity.mapping_table is None else len(identity.mapping_table)
-            ),
-            "duplicate_policy": identity.duplicate_policy,
-            "unmatched_policy": identity.unmatched_policy,
-        }
-    if stage == DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM:
-        return {"pseudocount": float(plan.intensity_transform_pseudocount)}
-    if stage == DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION:
-        return {
-            "enabled": bool(plan.site_sequence_resolution_enabled),
-            "fasta_path": plan.site_sequence_resolution_fasta_path,
-            "mode": plan.site_sequence_resolution_mode,
-            "conflict_policy": plan.site_sequence_resolution_conflict_policy,
-            "flank_size": int(plan.site_sequence_resolution_flank_size),
-            "accession_column": plan.site_sequence_resolution_accession_column,
-            "site_column": plan.site_sequence_resolution_site_column,
-        }
-    parameter_names = _STAGE_LABEL_TO_PARAMETERS.get(stage, ())
-    return {name: getattr(plan, name) for name in parameter_names}
-
-
-def _resolve_stage_operation(*, plan: PreprocessingPlan, stage: str) -> str:
-    if stage == DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM:
-        return plan.intensity_transform_policy
-    if stage == DATASET_PREPROCESSING_STAGE_NORMALISATION:
-        return plan.normalisation_policy
-    if stage == DATASET_PREPROCESSING_STAGE_MISSING_DATA:
-        return plan.missing_data_policy
-    if stage == DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION:
-        return plan.site_sequence_resolution_mode
-    if stage == DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION:
-        return str(plan.total_protein_correction_policy)
-    if stage == DATASET_PREPROCESSING_STAGE_SITE_MATRIX:
-        return plan.site_matrix_policy
-    if stage == DATASET_PREPROCESSING_STAGE_COMPARISONS:
-        return plan.comparison_building_policy
-    return "unsupported_stage"
 
 
 def _normalize_stage_diagnostics(

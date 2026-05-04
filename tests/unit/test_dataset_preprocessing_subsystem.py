@@ -37,6 +37,7 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingState,
 )
 from phospy.datasets.preprocessing.pipeline import PreprocessingPipeline
+from phospy.datasets.preprocessing.stage_registry import PreprocessingStageMetadata
 from phospy.errors.input import PhosPyInputError
 from phospy.references.models import Organism
 from tests.support.intensity_scale_states import (
@@ -186,6 +187,18 @@ def _total(columns: pd.Index) -> pd.DataFrame:
     )
 
 
+def _custom_stage_metadata(stage_key: str) -> PreprocessingStageMetadata:
+    return PreprocessingStageMetadata(
+        stage_key=stage_key,
+        display_label=stage_key,
+        provenance_stage=stage_key,
+        operation_name=lambda _plan: stage_key,
+        serialize_parameters=lambda _plan: {},
+        consumed_input_tables=("dataset.phospho",),
+        produced_output_tables=("dataset.phospho",),
+    )
+
+
 def test_preprocessing_pipeline_applies_plan_order() -> None:
     calls: list[str] = []
 
@@ -218,7 +231,13 @@ def test_preprocessing_pipeline_applies_plan_order() -> None:
         ),
     )
 
-    pipeline = PreprocessingPipeline(stage_registry=(StageA(), StageB()))
+    pipeline = PreprocessingPipeline(
+        stage_registry=(StageA(), StageB()),
+        stage_metadata_registry=(
+            _custom_stage_metadata("stage_a"),
+            _custom_stage_metadata("stage_b"),
+        ),
+    )
     observed = pipeline.run(state)
 
     assert observed is state
@@ -264,7 +283,13 @@ def test_preprocessing_pipeline_passes_stage_state_forward() -> None:
             stage_order=("add_one", "inspect"),
         ),
     )
-    pipeline = PreprocessingPipeline(stage_registry=(AddOneStage(), InspectStage()))
+    pipeline = PreprocessingPipeline(
+        stage_registry=(AddOneStage(), InspectStage()),
+        stage_metadata_registry=(
+            _custom_stage_metadata("add_one"),
+            _custom_stage_metadata("inspect"),
+        ),
+    )
 
     observed = pipeline.run(state)
 
