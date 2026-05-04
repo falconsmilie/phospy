@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from phospy.api.configs import (
     DatasetPreprocessingConfig,
@@ -54,6 +55,28 @@ def _stage_diagnostics(preprocessed) -> dict[str, object]:
     return dict(matching[0].diagnostics)
 
 
+def _run_site_sequence_resolution(
+    *,
+    tmp_path: Path,
+    site_sequences: list[object],
+    mode: str,
+):
+    config = DatasetPreprocessingConfig(
+        site_sequence_resolution=DatasetSiteSequenceResolutionConfig(
+            fasta_path=_write_fasta(tmp_path),
+            mode=mode,
+            flank_size=2,
+        )
+    )
+    return DatasetPreprocessor().run(
+        phospho=_phospho(),
+        site_metadata=_site_metadata(site_sequences=site_sequences),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan.from_config(config),
+    )
+
+
 def test_fasta_resolution_disabled_preserves_existing_behavior() -> None:
     preprocessed = DatasetPreprocessor().run(
         phospho=_phospho(),
@@ -94,6 +117,48 @@ def test_fasta_resolution_fills_missing_and_validates_existing(tmp_path: Path) -
     assert diagnostics["preserved_existing_count"] == 1
 
 
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "fill_missing_only",
+        "validate_existing_only",
+        "validate_existing_and_fill_missing",
+    ],
+)
+def test_existing_site_sequence_whitespace_is_preserved_exactly_across_non_replace_modes(
+    tmp_path: Path,
+    mode: str,
+) -> None:
+    preprocessed = _run_site_sequence_resolution(
+        tmp_path=tmp_path,
+        site_sequences=["  AASAA  ", "  CCTCC  "],
+        mode=mode,
+    )
+
+    assert preprocessed.site_metadata.loc["MAPK14;S5;", "site_sequence"] == "  AASAA  "
+    assert preprocessed.site_metadata.loc["GSK3B;T6;", "site_sequence"] == "  CCTCC  "
+    diagnostics = _stage_diagnostics(preprocessed)
+    assert diagnostics["filled_missing_count"] == 0
+    assert diagnostics["replaced_existing_count"] == 0
+
+
+def test_validate_existing_and_fill_missing_preserves_existing_whitespace_and_fills_only_missing(
+    tmp_path: Path,
+) -> None:
+    preprocessed = _run_site_sequence_resolution(
+        tmp_path=tmp_path,
+        site_sequences=["  AASAA  ", pd.NA],
+        mode="validate_existing_and_fill_missing",
+    )
+
+    assert preprocessed.site_metadata.loc["MAPK14;S5;", "site_sequence"] == "  AASAA  "
+    assert preprocessed.site_metadata.loc["GSK3B;T6;", "site_sequence"] == "CCTCC"
+    diagnostics = _stage_diagnostics(preprocessed)
+    assert diagnostics["filled_missing_count"] == 1
+    assert diagnostics["preserved_existing_count"] == 1
+    assert diagnostics["replaced_existing_count"] == 0
+
+
 def test_conflicting_existing_sequence_is_preserved_by_default(tmp_path: Path) -> None:
     config = DatasetPreprocessingConfig(
         site_sequence_resolution=DatasetSiteSequenceResolutionConfig(
@@ -118,21 +183,10 @@ def test_conflicting_existing_sequence_is_preserved_by_default(tmp_path: Path) -
 
 
 def test_replace_existing_mode_replaces_conflicting_sequence(tmp_path: Path) -> None:
-    config = DatasetPreprocessingConfig(
-        site_sequence_resolution=DatasetSiteSequenceResolutionConfig(
-            fasta_path=_write_fasta(tmp_path),
-            mode="replace_existing",
-            flank_size=2,
-        )
-    )
-    preprocessed = DatasetPreprocessor().run(
-        phospho=_phospho().iloc[:1, :].copy(deep=True),
-        site_metadata=_site_metadata(site_sequences=["XXXXX", "CCTCC"])
-        .iloc[:1, :]
-        .copy(deep=True),
-        sample_metadata=None,
-        total=None,
-        plan=PreprocessingPlan.from_config(config),
+    preprocessed = _run_site_sequence_resolution(
+        tmp_path=tmp_path,
+        site_sequences=["XXXXX", "CCTCC"],
+        mode="replace_existing",
     )
 
     assert preprocessed.site_metadata.loc["MAPK14;S5;", "site_sequence"] == "AASAA"

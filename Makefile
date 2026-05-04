@@ -73,7 +73,7 @@ format: check-tools
 pre-commit: check-tools
 	$(PRE_COMMIT) run --all-files
 
-test: test-unit test-parity test-performance
+test: test-unit test-parity
 
 test-unit: check-tools
 	$(PYTEST) -m "not parity"

@@ -71,12 +71,15 @@ class SiteSequenceResolutionStage:
         mode = plan.site_sequence_resolution_mode
         flank_size = int(plan.site_sequence_resolution_flank_size)
 
-        normalized_existing = _normalize_optional_site_sequence_series(
+        existing_site_sequence = (
             state.site_metadata.loc[:, "site_sequence"]
             if "site_sequence" in state.site_metadata.columns
             else pd.Series(pd.NA, index=state.site_metadata.index, dtype="string")
         )
-        updated_site_sequence = normalized_existing.copy()
+        normalized_existing = _normalize_optional_site_sequence_series(
+            existing_site_sequence
+        )
+        updated_site_sequence = existing_site_sequence.copy(deep=True)
         updated_site_metadata = state.site_metadata.copy(deep=True)
 
         resolved_site_count = 0
@@ -90,8 +93,8 @@ class SiteSequenceResolutionStage:
 
         for row_id in updated_site_metadata.index.tolist():
             row_key = str(row_id)
-            existing_value = updated_site_sequence.loc[row_id]
-            has_existing = not bool(pd.isna(existing_value))
+            normalized_existing_value = normalized_existing.loc[row_id]
+            has_existing = not bool(pd.isna(normalized_existing_value))
             if (
                 has_existing
                 and mode == DATASET_SITE_SEQUENCE_RESOLUTION_MODE_FILL_MISSING_ONLY
@@ -147,7 +150,7 @@ class SiteSequenceResolutionStage:
                     continue
 
                 if has_existing:
-                    existing_text = str(existing_value)
+                    existing_text = str(normalized_existing_value)
                     if existing_text == resolved_sequence:
                         preserved_existing_count += 1
                         row_status.append(
