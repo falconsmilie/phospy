@@ -37,6 +37,7 @@ _V1_KNOWN_MISSING_DATA_DIAGNOSTICS_FIELDS = frozenset(
         "missingness_mask_hash",
         "left_censored_assumption",
         "rows_not_imputable",
+        "row_medians_used",
         "per_column_distribution_parameters",
         "dropped_rows_above_max_missing_fraction",
         "neighbour_count",
@@ -147,6 +148,7 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
     stage_order: tuple[str, ...]
     missingness_mask_hash: str
     rows_not_imputable: tuple[str, ...]
+    row_medians_used: dict[str, float] = field(default_factory=dict)
     imputation_method_id: str | None = None
     imputation_method_family: str | None = None
     random_seed: int | None = None
@@ -281,6 +283,11 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
                 payload.get("rows_not_imputable"),
                 field_name=f"{field_name}.rows_not_imputable",
             ),
+            row_medians_used=_require_optional_string_to_float_mapping(
+                payload.get("row_medians_used"),
+                field_name=f"{field_name}.row_medians_used",
+            )
+            or {},
             per_column_distribution_parameters=_require_optional_json_mapping(
                 payload.get("per_column_distribution_parameters"),
                 field_name=f"{field_name}.per_column_distribution_parameters",
@@ -430,6 +437,17 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
                 "dataset processing state missing_data.diagnostics.rows_not_imputable"
             ),
         )
+        row_medians_used = (
+            _require_optional_string_to_float_mapping(
+                self.row_medians_used,
+                field_name=(
+                    "dataset processing state missing_data.diagnostics.row_medians_used"
+                ),
+            )
+            or {}
+        )
+        if imputation_method_id != "row_median":
+            row_medians_used = {}
         per_column_distribution_parameters = _require_optional_json_mapping(
             self.per_column_distribution_parameters,
             field_name=(
@@ -478,6 +496,7 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
             "stage_order": list(stage_order),
             "missingness_mask_hash": missingness_mask_hash,
             "rows_not_imputable": list(rows_not_imputable),
+            "row_medians_used": dict(row_medians_used),
         }
         _set_optional_payload_value(
             payload, "imputation_method_id", imputation_method_id
@@ -523,6 +542,7 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
         object.__setattr__(self, "missingness_mask_hash", missingness_mask_hash)
         object.__setattr__(self, "left_censored_assumption", left_censored_assumption)
         object.__setattr__(self, "rows_not_imputable", rows_not_imputable)
+        object.__setattr__(self, "row_medians_used", dict(row_medians_used))
         object.__setattr__(
             self,
             "per_column_distribution_parameters",
@@ -1425,6 +1445,27 @@ def _require_optional_string_to_string_mapping(
             raw_value,
             field_name=f"{field_name}.{key}",
         )
+    return parsed
+
+
+def _require_optional_string_to_float_mapping(
+    value: object,
+    *,
+    field_name: str,
+) -> dict[str, float] | None:
+    if value is None:
+        return None
+    if not isinstance(value, Mapping):
+        raise PhosPyInputError(f"{field_name} must be an object of numeric mappings")
+    parsed: dict[str, float] = {}
+    for raw_key, raw_value in value.items():
+        key = _require_required_str(
+            raw_key,
+            field_name=f"{field_name}.<key>",
+        )
+        if isinstance(raw_value, bool) or not isinstance(raw_value, (int, float)):
+            raise PhosPyInputError(f"{field_name}.{key} must be a float")
+        parsed[key] = float(raw_value)
     return parsed
 
 

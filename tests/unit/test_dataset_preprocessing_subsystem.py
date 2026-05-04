@@ -346,6 +346,88 @@ def test_dataset_preprocessor_regression_impute_row_median_policy() -> None:
     assert "imputed_columns" in imputed.iloc[0]["parameter_snapshot"]
 
 
+def test_build_dataset_processing_state_row_median_diagnostics_include_row_medians_used() -> (
+    None
+):
+    phospho = _phospho()
+    phospho.loc["MAPK14;Y182;", "sample_a"] = float("nan")
+    phospho.loc["GSK3B;S9;", :] = float("nan")
+    preprocessed, state = _build_processing_state_from_preprocessor(
+        phospho=phospho,
+        site_metadata=_site_metadata(),
+        sample_metadata=_sample_metadata(phospho.columns),
+        config=DatasetPreprocessingConfig(
+            missing_data=DatasetMissingDataConfig(
+                policy="impute_row_median",
+                min_observed_values=2,
+            )
+        ),
+    )
+
+    diagnostics = state.missing_data.diagnostics
+    assert diagnostics is not None
+    diagnostics_payload = diagnostics.to_payload()
+    assert diagnostics_payload["imputation_method_id"] == "row_median"
+    assert diagnostics_payload["row_medians_used"] == {"MAPK14;Y182;": 2.5}
+
+    row_median = float(diagnostics_payload["row_medians_used"]["MAPK14;Y182;"])
+    assert state.missing_data.complete_matrix is True
+    assert state.missing_data.imputed is True
+    assert state.missing_data.diagnostics is not None
+
+    imputed_value = float(
+        state.missing_data.diagnostics["row_medians_used"]["MAPK14;Y182;"]
+    )
+    assert imputed_value == pytest.approx(row_median)
+    assert preprocessed.phospho.loc["MAPK14;Y182;", "sample_a"] == pytest.approx(
+        row_median
+    )
+
+
+@pytest.mark.parametrize(
+    "missing_data_config",
+    [
+        DatasetMissingDataConfig(
+            policy="impute_minprob",
+            q=0.01,
+            width=0.3,
+            seed=12345,
+            max_missing_fraction_per_row=0.5,
+        ),
+        DatasetMissingDataConfig(
+            policy="impute_knn",
+            k=1,
+            distance="nan_euclidean",
+            max_missing_fraction_per_row=0.5,
+        ),
+    ],
+)
+def test_build_dataset_processing_state_non_row_median_diagnostics_have_empty_row_medians_used(
+    missing_data_config: DatasetMissingDataConfig,
+) -> None:
+    phospho = _phospho()
+    phospho.loc["MAPK14;Y182;", "sample_a"] = float("nan")
+    phospho.loc["GSK3B;S9;", :] = float("nan")
+    _, state = _build_processing_state_from_preprocessor(
+        phospho=phospho,
+        site_metadata=_site_metadata(),
+        sample_metadata=_sample_metadata(phospho.columns),
+        config=DatasetPreprocessingConfig(
+            intensity_transform=DatasetIntensityTransformConfig(
+                policy="log2",
+                pseudocount=1.0,
+            )
+            if missing_data_config.policy == "impute_minprob"
+            else DatasetIntensityTransformConfig(policy="identity"),
+            missing_data=missing_data_config,
+        ),
+    )
+
+    diagnostics = state.missing_data.diagnostics
+    assert diagnostics is not None
+    assert diagnostics.to_payload()["row_medians_used"] == {}
+
+
 def test_dataset_missing_data_config_rejects_minprob_without_seed() -> None:
     with pytest.raises(
         PhosPyInputError,

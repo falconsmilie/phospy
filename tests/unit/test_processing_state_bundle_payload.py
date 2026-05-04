@@ -469,6 +469,7 @@ def test_processing_state_payload_round_trip_preserves_missing_data_diagnostics(
         "missingness_mask_hash": "abc123",
         "left_censored_assumption": False,
         "rows_not_imputable": [],
+        "row_medians_used": {"row_a": 1.25},
         "neighbour_count": 3,
         "distance_metric": "nan_euclidean",
         "per_column_distribution_parameters": {
@@ -519,6 +520,50 @@ def test_processing_state_payload_without_missing_data_diagnostics_deserializes(
     restored = processing_state_from_payload(payload)
 
     assert restored.missing_data.diagnostics is None
+
+
+def test_processing_state_payload_missing_data_diagnostics_defaults_row_medians_used_for_legacy_payload() -> (
+    None
+):
+    payload = _processing_payload_with_diagnostics(
+        {
+            "diagnostics_schema_version": 1,
+            "policy": "subtract_log_total",
+            "requested_policy": "subtract_log_total",
+            "resolved_policy": "subtract_log_total",
+            "quantitative_meaning": "phospho_total_log_ratio",
+        }
+    )
+    payload["missing_data"]["diagnostics"] = {
+        "diagnostics_schema_version": 1,
+        "missing_data_policy": "impute_row_median",
+        "imputation_method_id": "row_median",
+        "imputation_method_family": "deterministic_row_statistic",
+        "input_missing_cell_count": 1,
+        "output_missing_cell_count": 0,
+        "imputed_cell_count": 1,
+        "affected_row_count": 1,
+        "affected_column_count": 1,
+        "affected_row_ids": ["row_a"],
+        "affected_column_ids": ["sample_1"],
+        "imputed_row_ids": ["row_a"],
+        "imputed_column_ids": ["sample_1"],
+        "dropped_row_ids": [],
+        "method_parameters": {"min_observed_values": 1},
+        "matrix_scale_requirement": None,
+        "stage_order": ["missing_data"],
+        "missingness_mask_hash": "legacy-mask-hash",
+        "left_censored_assumption": False,
+        "rows_not_imputable": [],
+        "dropped_rows_above_max_missing_fraction": [],
+        "neighbour_count": None,
+        "distance_metric": None,
+    }
+
+    restored = processing_state_from_payload(payload)
+
+    assert restored.missing_data.diagnostics is not None
+    assert restored.missing_data.diagnostics.to_payload()["row_medians_used"] == {}
 
 
 def test_processing_state_payload_round_trip_preserves_ruv_readiness() -> None:

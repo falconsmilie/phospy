@@ -70,6 +70,7 @@ class MissingDataStage:
                 missingness_mask_hash=missingness_mask_hash,
                 left_censored_assumption=None,
                 rows_not_imputable=(),
+                row_medians_used={},
                 per_column_distribution_parameters=None,
                 dropped_rows_above_max_missing_fraction=(),
                 neighbour_count=None,
@@ -150,6 +151,9 @@ class MissingDataStage:
 
         imputed_row_flags = imputed_mask.any(axis=1)
         imputed_rows = filtered_phospho.index[imputed_row_flags]
+        row_medians_used = {
+            str(row_id): float(row_medians.loc[row_id]) for row_id in imputed_rows
+        }
         imputed_cell_count = int(imputed_mask.to_numpy().sum())
         imputed_row_ids = tuple(str(row_id) for row_id in imputed_rows.tolist())
         imputed_column_ids = tuple(
@@ -244,6 +248,7 @@ class MissingDataStage:
             missingness_mask_hash=missingness_mask_hash,
             left_censored_assumption=False,
             rows_not_imputable=rows_not_imputable,
+            row_medians_used=row_medians_used,
             per_column_distribution_parameters=None,
             dropped_rows_above_max_missing_fraction=(),
             neighbour_count=None,
@@ -477,6 +482,7 @@ def _run_knn_missing_data_stage(
         missingness_mask_hash=missingness_mask_hash,
         left_censored_assumption=False,
         rows_not_imputable=rows_not_imputable,
+        row_medians_used={},
         per_column_distribution_parameters=None,
         dropped_rows_above_max_missing_fraction=dropped_row_ids,
         neighbour_count=int(k_value),
@@ -746,6 +752,7 @@ def _run_minprob_missing_data_stage(
         missingness_mask_hash=missingness_mask_hash,
         left_censored_assumption=True,
         rows_not_imputable=rows_not_imputable,
+        row_medians_used={},
         per_column_distribution_parameters=per_column_distribution_parameters,
         dropped_rows_above_max_missing_fraction=dropped_row_ids,
         neighbour_count=None,
@@ -833,6 +840,7 @@ def _build_missing_data_diagnostics(
     missingness_mask_hash: str,
     left_censored_assumption: bool | None,
     rows_not_imputable: tuple[str, ...],
+    row_medians_used: dict[str, float],
     per_column_distribution_parameters: dict[str, dict[str, JsonValue]] | None,
     dropped_rows_above_max_missing_fraction: tuple[str, ...],
     neighbour_count: int | None,
@@ -860,6 +868,10 @@ def _build_missing_data_diagnostics(
         "missingness_mask_hash": missingness_mask_hash,
         "left_censored_assumption": left_censored_assumption,
         "rows_not_imputable": list(rows_not_imputable),
+        "row_medians_used": {
+            str(row_id): float(row_median)
+            for row_id, row_median in row_medians_used.items()
+        },
         "dropped_rows_above_max_missing_fraction": list(
             dropped_rows_above_max_missing_fraction
         ),

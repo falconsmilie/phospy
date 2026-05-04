@@ -491,7 +491,7 @@ def _parse_optional_missing_data_diagnostics(
 ) -> MissingDataDiagnostics | None:
     if value is None:
         return None
-    return MissingDataDiagnostics.from_payload(value, field_name=field_name)
+    return _coerce_missing_data_diagnostics(value, field_name=field_name)
 
 
 def _normalize_optional_missing_data_diagnostics(
@@ -499,13 +499,20 @@ def _normalize_optional_missing_data_diagnostics(
     *,
     field_name: str,
 ) -> MissingDataDiagnostics | None:
-    """Normalize versioned missing-data diagnostics payloads for bundle I/O."""
+    """Normalise versioned missing-data diagnostics payloads for bundle I/O."""
 
     if value is None:
         return None
-    if isinstance(value, MissingDataDiagnostics):
-        return value
-    return MissingDataDiagnostics.from_payload(value, field_name=field_name)
+    return _coerce_missing_data_diagnostics(value, field_name=field_name)
+
+
+def _coerce_missing_data_diagnostics(
+    value: object,
+    *,
+    field_name: str,
+) -> MissingDataDiagnostics:
+    payload = value.to_payload() if isinstance(value, MissingDataDiagnostics) else value
+    return MissingDataDiagnostics.from_payload(payload, field_name=field_name)
 
 
 def _parse_optional_pairs(
