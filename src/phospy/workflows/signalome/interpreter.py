@@ -63,12 +63,14 @@ class SignalomeWorkflowInterpreter:
     def run(
         self, request: SignalomeWorkflowRequest
     ) -> ResolvedSignalomeWorkflowRequest:
+        dataset = request.kinase_result.dataset
+        prediction_result = request.kinase_result.prediction_result
         score_selection = self._score_matrix_selector.run(
             request.kinase_result.scoring_result
         )
         aligned_matrices = self._matrix_aligner.run(
-            dataset_sites=request.kinase_result.dataset.phospho.index,
-            prediction_matrix=request.kinase_result.prediction_result.pred_mat,
+            dataset_sites=dataset._borrow_phospho_frame().index,
+            prediction_matrix=prediction_result._borrow_pred_mat_frame(),
             downstream_score_matrix=score_selection.downstream_score_matrix,
             downstream_score_source=score_selection.downstream_score_source,
         )
@@ -101,7 +103,7 @@ class SignalomeWorkflowInterpreter:
             retained_site_index
         ]
         site_to_protein = self._protein_resolver.run(
-            dataset=request.kinase_result.dataset,
+            dataset=dataset,
             site_index=retained_site_index,
             removed_by_score_preconditioning_count=int(
                 aligned_matrices.aligned_site_index.size - retained_site_index.size
@@ -120,7 +122,7 @@ class SignalomeWorkflowInterpreter:
             retained_protein_sites=retained_site_index,
         )
         return ResolvedSignalomeWorkflowRequest(
-            dataset=request.kinase_result.dataset,
+            dataset=dataset,
             kinase_result=request.kinase_result,
             execution_config=execution_config,
             downstream_score_matrix=preconditioning_result.downstream_score_matrix,

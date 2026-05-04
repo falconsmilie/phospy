@@ -74,7 +74,7 @@ class KinaseScoringRunner:
     ) -> KinaseScoringRunResult:
         include_diagnostic_tables = config.include_diagnostic_scoring_tables
         scoring_min_substrates = int(config.scoring_min_substrates)
-        scoring_phospho = request.dataset.phospho.loc[request.scoring_site_index, :]
+        scoring_phospho = request.activity_phospho_matrix
         profile_build = self._build_profiles(
             phospho=scoring_phospho,
             kinase_substrate_map=request.kinase_substrate_map,

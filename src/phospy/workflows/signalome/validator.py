@@ -49,14 +49,17 @@ class SignalomeWorkflowValidator:
                 "signalome workflow request kinase_result must be KinaseWorkflowResult"
             )
         config = self._config_validator.run(request.config)
+        dataset = request.kinase_result.dataset
+        prediction_result = request.kinase_result.prediction_result
+        scoring_result = request.kinase_result.scoring_result
         reject_mixed_total_protein_quantitative_meaning(
-            dataset=request.kinase_result.dataset,
+            dataset=dataset,
             allow_mixed=config.validation.allow_mixed_total_protein_quantitative_meaning,
             context="signalome workflow request kinase_result.dataset",
         )
 
         prediction_matrix = require_dataframe(
-            request.kinase_result.prediction_result.pred_mat,
+            prediction_result._borrow_pred_mat_frame(),
             field_name=(
                 "signalome workflow request kinase_result.prediction_result.pred_mat"
             ),
@@ -105,11 +108,12 @@ class SignalomeWorkflowValidator:
                 "must contain at least one kinase column"
             )
 
-        scoring_result = request.kinase_result.scoring_result
         downstream_score_matrix, downstream_score_source = (
             select_downstream_score_matrix(
-                profile_scores=scoring_result.profile_scores,
-                rank_weighted_fusion_scores=scoring_result.rank_weighted_fusion_scores,
+                profile_scores=scoring_result._borrow_profile_scores_frame(),
+                rank_weighted_fusion_scores=(
+                    scoring_result._borrow_rank_weighted_fusion_scores_frame()
+                ),
             )
         )
         score_field_name = (
@@ -156,8 +160,8 @@ class SignalomeWorkflowValidator:
                 f"{score_field_name} must contain at least one kinase column"
             )
         self._require_explicit_site_metadata_protein_identity(
-            site_metadata=request.kinase_result.dataset.site_metadata,
-            dataset_sites=request.kinase_result.dataset.phospho.index,
+            site_metadata=dataset._borrow_site_metadata_frame(),
+            dataset_sites=dataset._borrow_phospho_frame().index,
         )
         return request
 

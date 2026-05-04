@@ -949,6 +949,50 @@ def test_signalome_validator_does_not_cast_numeric_matrices(
     assert validated is request
 
 
+def test_signalome_validator_uses_internal_borrowed_dataframe_access(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
+    )
+
+    def _blocked_property(name: str) -> property:
+        def _raiser(_self: object) -> object:
+            raise AssertionError(f"validator must not use public property: {name}")
+
+        return property(_raiser)
+
+    monkeypatch.setattr(
+        AnalysisReadyPhosphoDataset,
+        "phospho",
+        _blocked_property("dataset.phospho"),
+    )
+    monkeypatch.setattr(
+        AnalysisReadyPhosphoDataset,
+        "site_metadata",
+        _blocked_property("dataset.site_metadata"),
+    )
+    monkeypatch.setattr(
+        KinasePredictionResult,
+        "pred_mat",
+        _blocked_property("prediction_result.pred_mat"),
+    )
+    monkeypatch.setattr(
+        KinaseScoringResult,
+        "profile_scores",
+        _blocked_property("scoring_result.profile_scores"),
+    )
+    monkeypatch.setattr(
+        KinaseScoringResult,
+        "rank_weighted_fusion_scores",
+        _blocked_property("scoring_result.rank_weighted_fusion_scores"),
+    )
+
+    validated = SignalomeWorkflowValidator().run(request)
+    assert validated is request
+
+
 def test_signalome_validator_allows_prediction_matrix_missingness() -> None:
     kinase_result = _kinase_result()
     prediction_with_missing = kinase_result.prediction_result.pred_mat.copy(deep=True)

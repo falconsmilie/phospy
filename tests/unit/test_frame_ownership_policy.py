@@ -374,6 +374,62 @@ def test_dataset_public_export_copy_default_is_safe() -> None:
     assert float(dataset.phospho.iloc[0, 0]) == 1.0
 
 
+def test_internal_borrowed_dataset_access_aliases_owned_frames_without_copy() -> None:
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=_phospho(),
+        site_metadata=_site_metadata(),
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+
+    with _count_dataframe_deep_copies() as counts:
+        borrowed = dataset._borrow_phospho_frame()
+
+    assert borrowed is dataset._phospho
+    assert counts.dataframe_deep == 0
+    assert not hasattr(dataset, "borrow_phospho_frame")
+
+
+def test_internal_borrowed_prediction_and_scoring_access_aliases_owned_frames() -> None:
+    pred_mat = pd.DataFrame(
+        {
+            "MAP2K6": [0.9, 0.8],
+            "AKT1": [0.2, 0.1],
+        },
+        index=["MAPK14;Y182;", "GSK3B;S9;"],
+    )
+    profile_scores = pd.DataFrame(
+        {"MAP2K6": [0.8, 0.2]},
+        index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"]),
+    )
+    rank_weighted = pd.DataFrame(
+        {"MAP2K6": [0.75, 0.15]},
+        index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"]),
+    )
+    prediction_result = KinasePredictionResult._from_owned(pred_mat=pred_mat)
+    scoring_result = KinaseScoringResult._from_owned(
+        profile_scores=profile_scores,
+        rank_weighted_fusion_scores=rank_weighted,
+    )
+
+    with _count_dataframe_deep_copies() as counts:
+        borrowed_pred = prediction_result._borrow_pred_mat_frame()
+        borrowed_profile = scoring_result._borrow_profile_scores_frame()
+        borrowed_rank_weighted = (
+            scoring_result._borrow_rank_weighted_fusion_scores_frame()
+        )
+
+    assert counts.dataframe_deep == 0
+    assert borrowed_pred is prediction_result._pred_mat
+    assert borrowed_profile is scoring_result._profile_scores
+    assert borrowed_rank_weighted is scoring_result._rank_weighted_fusion_scores
+    assert not hasattr(prediction_result, "borrow_pred_mat_frame")
+    assert not hasattr(scoring_result, "borrow_profile_scores_frame")
+
+
 def test_dataset_public_export_rejects_legacy_copy_keyword() -> None:
     dataset = AnalysisReadyPhosphoDataset(
         phospho=_phospho(),

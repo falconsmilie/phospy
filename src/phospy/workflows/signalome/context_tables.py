@@ -59,7 +59,7 @@ class SignalomeContextTableBuilder:
             site_membership = self._build_site_membership(
                 module_assignments=module_assignments,
                 site_clusters=clustering_result.site_clusters,
-                site_metadata=request.dataset.site_metadata,
+                site_metadata=request.dataset._borrow_site_metadata_frame(),
                 prediction_matrix=request.prediction_matrix,
                 kinase_substrates=support_summary.kinase_substrates,
                 substrate_support_cutoff=config.substrate_support_cutoff,

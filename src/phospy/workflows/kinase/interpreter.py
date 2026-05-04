@@ -63,6 +63,8 @@ class KinaseWorkflowInterpreter:
         )
 
     def run(self, request: KinaseWorkflowRequest) -> ResolvedKinaseWorkflowRequest:
+        dataset_phospho = request.dataset._borrow_phospho_frame()
+        dataset_site_metadata = request.dataset._borrow_site_metadata_frame()
         references = self._reference_resolver.run(
             request.references,
             dataset_organism=request.dataset.organism,
@@ -71,8 +73,8 @@ class KinaseWorkflowInterpreter:
         # boundary. Downstream workflow stages consume these tables as-is.
         kinase_substrate_map = references.kinase_substrate_map
         merge_result = self._site_sequence_support_builder.run(
-            dataset=request.dataset.phospho,
-            site_metadata=request.dataset.site_metadata,
+            dataset=dataset_phospho,
+            site_metadata=dataset_site_metadata,
             reference_site_sequences=references.site_sequences,
             conflict_policy=self._site_sequence_conflict_policy,
         )
@@ -98,7 +100,7 @@ class KinaseWorkflowInterpreter:
             )
         site_sequences = merge_result.site_sequences
         overlap_counts = self._summarize_overlap(
-            dataset=request.dataset.phospho,
+            dataset=dataset_phospho,
             kinase_substrate_map=kinase_substrate_map,
         )
         self._validate_reference_coverage(
@@ -110,15 +112,15 @@ class KinaseWorkflowInterpreter:
             request=request,
         )
         scoring_site_index = self._resolve_scoring_site_index(
-            dataset=request.dataset.phospho,
+            dataset=dataset_phospho,
             site_sequences=site_sequences,
         )
         self._validate_scoring_site_support(
             scoring_site_index=scoring_site_index,
-            dataset=request.dataset.phospho,
+            dataset=dataset_phospho,
             site_sequences=site_sequences,
         )
-        activity_phospho_matrix = request.dataset.phospho.loc[scoring_site_index, :]
+        activity_phospho_matrix = dataset_phospho.loc[scoring_site_index, :]
         execution_config = self._resolve_execution_config(request)
         return ResolvedKinaseWorkflowRequest(
             dataset=request.dataset,

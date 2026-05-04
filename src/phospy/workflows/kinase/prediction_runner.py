@@ -93,6 +93,7 @@ class KinasePredictionRunner:
         config: ResolvedKinaseExecutionConfig,
         scoring_execution: KinaseScoringRunResult,
     ) -> KinasePredictionResult:
+        dataset_sample_count = request.dataset._borrow_phospho_frame().shape[1]
         downstream_score_matrix = scoring_execution.downstream_score_matrix
         candidate_substrates = self._build_candidates(
             scores=downstream_score_matrix,
@@ -128,7 +129,7 @@ class KinasePredictionRunner:
                 ),
                 prediction_config_top_k=config.prediction_top_k,
                 prediction_config_mode=config.prediction_mode,
-                dataset_samples=request.dataset.phospho.shape[1],
+                dataset_samples=dataset_sample_count,
                 downstream_score_source=scoring_execution.downstream_score_source,
                 candidate_qualifying_kinases=candidate_shortfall.qualifying_kinases,
                 candidate_max_qualifying_sites=candidate_shortfall.max_qualifying_sites,
@@ -153,6 +154,7 @@ class KinasePredictionRunner:
         config: ResolvedKinaseExecutionConfig,
         scoring_execution: KinaseScoringRunResult,
     ) -> KinasePredictionResult:
+        dataset_sample_count = request.dataset._borrow_phospho_frame().shape[1]
         downstream_score_matrix = scoring_execution.downstream_score_matrix
         candidate_substrates = self._build_candidates(
             scores=downstream_score_matrix,
@@ -182,7 +184,7 @@ class KinasePredictionRunner:
                     config.prediction_adaptive_ensemble_runs
                 ),
                 prediction_config_n_iterations=config.prediction_n_iterations,
-                dataset_samples=request.dataset.phospho.shape[1],
+                dataset_samples=dataset_sample_count,
                 downstream_score_source=scoring_execution.downstream_score_source,
                 candidate_qualifying_kinases=candidate_shortfall.qualifying_kinases,
                 candidate_max_qualifying_sites=candidate_shortfall.max_qualifying_sites,

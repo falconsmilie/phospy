@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from phospy._frame_ownership import (
+    _borrow_dataframe,
+    _borrow_optional_dataframe,
     export_dataframe,
     export_optional_dataframe,
     own_optional_dataframe,
@@ -118,6 +120,26 @@ class KinaseScoringResult:
     def score_fusion_weights(self) -> pd.DataFrame | None:
         return export_optional_dataframe(self._score_fusion_weights)
 
+    def _borrow_profile_scores_frame(self) -> pd.DataFrame:
+        """Package-private borrowed profile scores for internal workflows."""
+
+        return _borrow_dataframe(self._profile_scores)
+
+    def _borrow_motif_scores_frame(self) -> pd.DataFrame | None:
+        """Package-private borrowed motif scores for internal workflows."""
+
+        return _borrow_optional_dataframe(self._motif_scores)
+
+    def _borrow_rank_weighted_fusion_scores_frame(self) -> pd.DataFrame | None:
+        """Package-private borrowed fusion scores for internal workflows."""
+
+        return _borrow_optional_dataframe(self._rank_weighted_fusion_scores)
+
+    def _borrow_score_fusion_weights_frame(self) -> pd.DataFrame | None:
+        """Package-private borrowed fusion weights for internal workflows."""
+
+        return _borrow_optional_dataframe(self._score_fusion_weights)
+
     @classmethod
     def _from_owned(
         cls,
@@ -194,6 +216,16 @@ class KinasePredictionResult:
     @property
     def substrate_list(self) -> pd.DataFrame | None:
         return export_optional_dataframe(self._substrate_list)
+
+    def _borrow_pred_mat_frame(self) -> pd.DataFrame:
+        """Package-private borrowed prediction matrix for internal workflows."""
+
+        return _borrow_dataframe(self._pred_mat)
+
+    def _borrow_substrate_list_frame(self) -> pd.DataFrame | None:
+        """Package-private borrowed substrate list for internal workflows."""
+
+        return _borrow_optional_dataframe(self._substrate_list)
 
     @classmethod
     def _from_owned(

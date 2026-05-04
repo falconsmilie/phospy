@@ -50,7 +50,7 @@ class KinaseActivityRunner:
             # Prediction matrix kinase columns are expected to already be
             # normalized upstream by the reference-ingestion boundary.
             validated_inputs = self._activity_input_validator.run(
-                pred_mat=prediction_result.pred_mat,
+                pred_mat=prediction_result._borrow_pred_mat_frame(),
                 phospho_matrix=request.activity_phospho_matrix,
                 threshold=activity_config.threshold,
                 min_substrates=activity_config.min_substrates,
@@ -63,7 +63,7 @@ class KinaseActivityRunner:
             ).run(validated_inputs)
         if activity_config.method == KINASE_ACTIVITY_METHOD_KSEA_ZSCORE:
             validated_inputs = self._activity_input_validator.run(
-                pred_mat=prediction_result.pred_mat,
+                pred_mat=prediction_result._borrow_pred_mat_frame(),
                 phospho_matrix=request.activity_phospho_matrix,
                 threshold=activity_config.ksea_evidence_threshold,
                 min_substrates=activity_config.ksea_min_substrates,

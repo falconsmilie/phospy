@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from phospy._frame_ownership import (
+    _borrow_dataframe,
+    _borrow_optional_dataframe,
     export_dataframe,
     export_optional_dataframe,
     own_dataframe,
@@ -244,6 +246,41 @@ class DatasetPreprocessingReport:
     @property
     def comparison_pair_stats(self) -> pd.DataFrame | None:
         return export_optional_dataframe(self._comparison_pair_stats)
+
+    def _borrow_row_counts_frame(self) -> pd.DataFrame:
+        """Package-private borrowed row-count table for internal workflows."""
+
+        return _borrow_dataframe(self._row_counts)
+
+    def _borrow_operations_frame(self) -> pd.DataFrame:
+        """Package-private borrowed operations table for internal workflows."""
+
+        return _borrow_dataframe(self._operations)
+
+    def _borrow_row_audit_frame(self) -> pd.DataFrame:
+        """Package-private borrowed row-audit table for internal workflows."""
+
+        return _borrow_dataframe(self._row_audit)
+
+    def _borrow_duplicate_site_resolution_frame(self) -> pd.DataFrame | None:
+        """Package-private borrowed duplicate-resolution table for internals."""
+
+        return _borrow_optional_dataframe(self._duplicate_site_resolution)
+
+    def _borrow_metadata_conflicts_frame(self) -> pd.DataFrame | None:
+        """Package-private borrowed metadata-conflict table for internals."""
+
+        return _borrow_optional_dataframe(self._metadata_conflicts)
+
+    def _borrow_comparison_group_stats_frame(self) -> pd.DataFrame | None:
+        """Package-private borrowed comparison-group stats for internals."""
+
+        return _borrow_optional_dataframe(self._comparison_group_stats)
+
+    def _borrow_comparison_pair_stats_frame(self) -> pd.DataFrame | None:
+        """Package-private borrowed comparison-pair stats for internals."""
+
+        return _borrow_optional_dataframe(self._comparison_pair_stats)
 
     def row_counts_dataframe(self) -> pd.DataFrame:
         """Return a row-count snapshot; mutating it does not mutate this report."""
@@ -661,6 +698,31 @@ class AnalysisReadyPhosphoDataset:
     @property
     def comparisons(self) -> pd.DataFrame | None:
         return export_optional_dataframe(self._comparisons)
+
+    def _borrow_phospho_frame(self) -> pd.DataFrame:
+        """Package-private borrowed phospho matrix for internal workflows."""
+
+        return _borrow_dataframe(self._phospho)
+
+    def _borrow_site_metadata_frame(self) -> pd.DataFrame:
+        """Package-private borrowed site-metadata table for internals."""
+
+        return _borrow_dataframe(self._site_metadata)
+
+    def _borrow_sample_metadata_frame(self) -> pd.DataFrame | None:
+        """Package-private borrowed sample-metadata table for internals."""
+
+        return _borrow_optional_dataframe(self._sample_metadata)
+
+    def _borrow_total_frame(self) -> pd.DataFrame | None:
+        """Package-private borrowed total-protein table for internals."""
+
+        return _borrow_optional_dataframe(self._total)
+
+    def _borrow_comparisons_frame(self) -> pd.DataFrame | None:
+        """Package-private borrowed comparisons table for internals."""
+
+        return _borrow_optional_dataframe(self._comparisons)
 
     @classmethod
     def _from_owned(

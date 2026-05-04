@@ -49,8 +49,10 @@ class SignalomeScoreMatrixSelector:
 
     def run(self, scoring_result: KinaseScoringResult) -> SignalomeScoreMatrixSelection:
         downstream_score_matrix, downstream_score_source = self._select_matrix(
-            profile_scores=scoring_result.profile_scores,
-            rank_weighted_fusion_scores=scoring_result.rank_weighted_fusion_scores,
+            profile_scores=scoring_result._borrow_profile_scores_frame(),
+            rank_weighted_fusion_scores=(
+                scoring_result._borrow_rank_weighted_fusion_scores_frame()
+            ),
         )
         return SignalomeScoreMatrixSelection(
             downstream_score_matrix=downstream_score_matrix,
