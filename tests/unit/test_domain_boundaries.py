@@ -849,12 +849,15 @@ def test_kinase_reference_identifier_cleanup_is_owned_by_reference_ingestion_bou
     )
 
 
-def test_no_production_reference_table_consumes_protein_accession_yet() -> None:
+def test_production_reference_table_owns_protein_accession_normalisation() -> None:
     source = (ROOT / _PRODUCTION_REFERENCE_TABLES).read_text(encoding="utf-8")
-    assert "protein_accession" not in source, (
-        "production reference table wrappers now consume protein_accession; "
-        "wire that path through reference identifier boundary in "
-        f"{_REFERENCE_IDENTIFIER_BOUNDARY_OWNER}"
+    assert "class ProteinAccessionReference" in source, (
+        "protein accession normalisation must be owned by an explicit production "
+        "reference ingestion boundary in src/phospy/tables/references.py"
+    )
+    assert "normalise_reference_protein_accession" in source, (
+        "production protein accession ingestion must call the reference identifier "
+        f"boundary helper in {_REFERENCE_IDENTIFIER_BOUNDARY_OWNER}"
     )
 
 
@@ -877,7 +880,7 @@ def test_non_reference_domains_do_not_call_reference_protein_accession_normalise
     )
 
 
-def test_sequence_domain_does_not_upper_or_lower_accession_values() -> None:
+def test_sequence_domain_does_not_apply_accession_case_cleanup() -> None:
     violations: list[str] = []
     for path in (ROOT / "src/phospy/sequences").rglob("*.py"):
         source = path.read_text(encoding="utf-8")

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import NoReturn
 
 import pandas as pd
 
@@ -15,6 +16,7 @@ from phospy.references.identifiers import (
     ReferenceIdentifierNormalisationReport,
     build_reference_identifier_normalisation_report,
     normalise_reference_kinase_id,
+    normalise_reference_protein_accession,
     normalise_reference_site_id,
 )
 from phospy.tables.base import TableSchema
@@ -31,7 +33,7 @@ def _raise_with_identifier_normalisation_report(
     *,
     message: str,
     report: ReferenceIdentifierNormalisationReport,
-) -> None:
+) -> NoReturn:
     raise ReferenceIdentifierNormalisationValidationError(
         message=message,
         identifier_normalisation_report=report,
@@ -288,6 +290,97 @@ class SiteSequenceReference(TableSchema):
         return frame
 
 
+@dataclass(frozen=True, slots=True)
+class ProteinAccessionReference(TableSchema):
+    """Schema wrapper for ``references.protein_accessions``."""
+
+    _field_name = "references.protein_accessions"
+    _error_type = ReferenceValidationError
+    identifier_normalisation: ReferenceIdentifierNormalisationReport | None = field(
+        init=False,
+        default=None,
+    )
+
+    def _validate_frame(self, frame: pd.DataFrame) -> pd.DataFrame:
+        require_dataframe(
+            frame,
+            field_name=self._field_name,
+            allow_empty=False,
+            error_type=self._error_type,
+        )
+        require_columns(
+            frame,
+            field_name=self._field_name,
+            required_columns=("protein_accession",),
+            error_type=self._error_type,
+        )
+        records: list[ReferenceIdentifierNormalisationRecord] = []
+        canonical_accessions: list[str | None] = []
+        for row_position, raw_value in enumerate(
+            frame.loc[:, "protein_accession"].tolist()
+        ):
+            record = normalise_reference_protein_accession(
+                raw_value,
+                table_name=self._field_name,
+                column_name="protein_accession",
+                row_position=row_position,
+            )
+            records.append(record)
+            canonical_accessions.append(record.normalised_value)
+        valid_rows = int(sum(1 for value in canonical_accessions if value is not None))
+        report = build_reference_identifier_normalisation_report(
+            original_row_count=int(frame.shape[0]),
+            normalised_row_count=valid_rows,
+            records=records,
+        )
+        object.__setattr__(self, "identifier_normalisation", report)
+        invalid_records = [record for record in records if record.status == "invalid"]
+        if invalid_records:
+            _raise_with_identifier_normalisation_report(
+                message=invalid_records[0].reason or "invalid identifier",
+                report=report,
+            )
+        frame = frame.copy(deep=True)
+        frame.loc[:, "protein_accession"] = pd.Series(
+            [value for value in canonical_accessions if value is not None],
+            index=frame.index.copy(),
+            dtype="string",
+        )
+
+        duplicated = frame.duplicated(
+            subset=["protein_accession"],
+            keep=False,
+        )
+        if not bool(duplicated.any()):
+            return frame
+
+        duplicate_records, conflict_records = (
+            _classify_duplicate_and_conflicting_protein_accession_records(
+                frame=frame,
+                duplicated=duplicated,
+                existing_records=records,
+                table_name=self._field_name,
+            )
+        )
+        report = build_reference_identifier_normalisation_report(
+            original_row_count=int(frame.shape[0]),
+            normalised_row_count=int(frame.shape[0]),
+            records=[*records, *duplicate_records, *conflict_records],
+            duplicate_identifier_count=len(duplicate_records),
+            conflict_count=len(conflict_records),
+        )
+        object.__setattr__(self, "identifier_normalisation", report)
+        if conflict_records:
+            _raise_with_identifier_normalisation_report(
+                message=conflict_records[0].reason or "conflicting payload",
+                report=report,
+            )
+        _raise_with_identifier_normalisation_report(
+            message=duplicate_records[0].reason or "duplicate identifier",
+            report=report,
+        )
+
+
 def _classify_duplicate_and_conflicting_pair_records(
     *,
     frame: pd.DataFrame,
@@ -486,6 +579,96 @@ def _build_index_classification_records(
                 identifier_kind="site_id",
                 original_value=source.original_value,
                 normalised_value=str(frame.index[row_position]),
+                status=status,
+                reason=reason,
+            )
+        )
+    return tuple(classified_records)
+
+
+def _classify_duplicate_and_conflicting_protein_accession_records(
+    *,
+    frame: pd.DataFrame,
+    duplicated: pd.Series,
+    existing_records: list[ReferenceIdentifierNormalisationRecord],
+    table_name: str,
+) -> tuple[
+    tuple[ReferenceIdentifierNormalisationRecord, ...],
+    tuple[ReferenceIdentifierNormalisationRecord, ...],
+]:
+    duplicate_reasons_by_row: dict[int, str] = {}
+    conflict_reasons_by_row: dict[int, str] = {}
+    duplicate_rows = frame.loc[duplicated, :].copy()
+    duplicate_rows.loc[:, "_row_position"] = [
+        int(position)
+        for position, is_duplicate in enumerate(duplicated.tolist())
+        if is_duplicate
+    ]
+    payload_columns = [
+        column for column in frame.columns.tolist() if column != "protein_accession"
+    ]
+    for accession_value, grouped in duplicate_rows.groupby(
+        "protein_accession",
+        sort=False,
+    ):
+        row_positions = grouped.loc[:, "_row_position"].astype(int).tolist()
+        has_conflicting_payload = (
+            _group_has_conflicting_payload_rows(grouped, payload_columns)
+            if payload_columns
+            else False
+        )
+        if has_conflicting_payload:
+            reason = (
+                "conflicting payload for protein_accession after normalisation: "
+                f"{str(accession_value)!r}"
+            )
+            for row_position in row_positions:
+                conflict_reasons_by_row[int(row_position)] = reason
+            continue
+        reason = (
+            f"duplicate protein_accession after normalisation: {str(accession_value)!r}"
+        )
+        for row_position in row_positions:
+            duplicate_reasons_by_row[int(row_position)] = reason
+
+    latest_by_row = {
+        record.row_position: record
+        for record in existing_records
+        if record.column_name == "protein_accession"
+    }
+    duplicate_records = _build_protein_accession_classification_records(
+        reasons_by_row=duplicate_reasons_by_row,
+        latest_by_row=latest_by_row,
+        table_name=table_name,
+        status="duplicate_after_normalisation",
+    )
+    conflict_records = _build_protein_accession_classification_records(
+        reasons_by_row=conflict_reasons_by_row,
+        latest_by_row=latest_by_row,
+        table_name=table_name,
+        status="conflict_after_normalisation",
+    )
+    return duplicate_records, conflict_records
+
+
+def _build_protein_accession_classification_records(
+    *,
+    reasons_by_row: dict[int, str],
+    latest_by_row: dict[int, ReferenceIdentifierNormalisationRecord],
+    table_name: str,
+    status: str,
+) -> tuple[ReferenceIdentifierNormalisationRecord, ...]:
+    classified_records: list[ReferenceIdentifierNormalisationRecord] = []
+    for row_position, reason in reasons_by_row.items():
+        source = latest_by_row[row_position]
+        classified_records.append(
+            ReferenceIdentifierNormalisationRecord(
+                table_name=table_name,
+                column_name="protein_accession",
+                row_position=row_position,
+                identifier_kind=source.identifier_kind,
+                original_value=source.original_value,
+                normalised_value=source.normalised_value,
                 status=status,
                 reason=reason,
             )

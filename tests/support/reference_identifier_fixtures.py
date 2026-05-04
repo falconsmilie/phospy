@@ -30,10 +30,9 @@ def normalise_explicit_reference_protein_accession_fixture(
 ) -> ProteinAccessionReferenceFixtureResult:
     """Test-only explicit-reference fixture for protein accession identifiers.
 
-    No production `phospy.tables.references` schema currently consumes
-    `protein_accession` columns. This fixture exists to keep the normalization
-    boundary explicit and provenance-backed until a production table adds that
-    identifier kind.
+    Production ingestion is owned by ``ProteinAccessionReference`` in
+    ``phospy.tables.references``. This fixture remains for focused collaborator
+    tests that need direct helper-path control.
     """
 
     records: list[ReferenceIdentifierNormalisationRecord] = []

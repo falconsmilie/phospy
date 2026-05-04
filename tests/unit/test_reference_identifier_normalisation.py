@@ -14,15 +14,15 @@ from phospy.provenance.models import (
 )
 from phospy.provenance.serialization import from_payload, to_payload
 from phospy.references.identifiers import (
-    build_reference_identifier_normalisation_report,
     normalise_reference_kinase_id,
     normalise_reference_protein_accession,
     normalise_reference_site_id,
 )
 from phospy.references.models import Organism, ReferenceBundle
-from phospy.tables.references import KinaseSubstrateReference, SiteSequenceReference
-from tests.support.reference_identifier_fixtures import (
-    normalise_explicit_reference_protein_accession_fixture,
+from phospy.tables.references import (
+    KinaseSubstrateReference,
+    ProteinAccessionReference,
+    SiteSequenceReference,
 )
 
 
@@ -347,13 +347,13 @@ def test_protein_accession_normaliser_trims_whitespace_only() -> None:
     assert mixed_case.status == "normalised"
 
 
-def test_protein_accession_fixture_reports_duplicates_after_trim() -> None:
+def test_protein_accession_reference_reports_duplicates_after_trim() -> None:
     with pytest.raises(
         ReferenceIdentifierNormalisationValidationError,
         match="duplicate protein_accession after normalisation",
     ) as exc_info:
-        normalise_explicit_reference_protein_accession_fixture(
-            pd.DataFrame(
+        ProteinAccessionReference(
+            frame=pd.DataFrame(
                 {
                     "protein_accession": [" P28482 ", "P28482"],
                 }
@@ -371,15 +371,45 @@ def test_protein_accession_fixture_reports_duplicates_after_trim() -> None:
     ]
     assert len(duplicate_records) == 2
     assert {record.normalised_value for record in duplicate_records} == {"P28482"}
+    provenance = ReferenceProvenance(
+        source_type="explicit",
+        organism="rat",
+        bundle_id=None,
+        table_fingerprints=(),
+        identifier_normalisation=report,
+    )
+    payload = to_payload(
+        RunProvenance(
+            environment=EnvironmentProvenance(
+                package_name="phospy",
+                package_version="test",
+                python_version="3.13",
+                dependency_versions={},
+                platform={},
+            ),
+            input_tables=(),
+            preprocessing_stages=(),
+            reference=provenance,
+            workflow_name="unit_test",
+            workflow_parameters={},
+            random_state=None,
+            random_seed_policy=None,
+            output_tables=(),
+        )
+    )
+    restored = from_payload(payload)
+    assert restored.reference is not None
+    assert restored.reference.identifier_normalisation is not None
+    assert restored.reference.identifier_normalisation.duplicate_identifier_count == 2
 
 
-def test_protein_accession_fixture_reports_conflicts_after_trim() -> None:
+def test_protein_accession_reference_reports_conflicts_after_trim() -> None:
     with pytest.raises(
         ReferenceIdentifierNormalisationValidationError,
         match="conflicting payload for protein_accession after normalisation",
     ) as exc_info:
-        normalise_explicit_reference_protein_accession_fixture(
-            pd.DataFrame(
+        ProteinAccessionReference(
+            frame=pd.DataFrame(
                 {
                     "protein_accession": [" P28482 ", "P28482"],
                     "source_db": ["db_a", "db_b"],
@@ -399,26 +429,37 @@ def test_protein_accession_fixture_reports_conflicts_after_trim() -> None:
     assert len(conflict_records) == 2
 
 
+def test_protein_accession_production_ingestion_normalises_values() -> None:
+    reference = ProteinAccessionReference(
+        frame=pd.DataFrame(
+            {
+                "protein_accession": [" P28482 "],
+                "source_db": ["phosphositeplus"],
+            }
+        )
+    )
+
+    assert reference.frame.loc[0, "protein_accession"] == "P28482"
+    report = reference.identifier_normalisation
+    assert report is not None
+    accession_records = [
+        record for record in report.records if record.column_name == "protein_accession"
+    ]
+    assert len(accession_records) == 1
+    assert accession_records[0].status == "normalised"
+
+
 def test_protein_accession_normalisation_records_are_serialisable() -> None:
-    records = (
-        normalise_reference_protein_accession(
-            " P28482 ",
-            table_name="tests.reference.protein_accession_fixture",
-            column_name="protein_accession",
-            row_position=0,
-        ),
-        normalise_reference_protein_accession(
-            "p28482",
-            table_name="tests.reference.protein_accession_fixture",
-            column_name="protein_accession",
-            row_position=1,
-        ),
+    reference = ProteinAccessionReference(
+        frame=pd.DataFrame(
+            {
+                "protein_accession": [" P28482 ", "p28482"],
+                "source_db": ["db_a", "db_b"],
+            }
+        )
     )
-    report = build_reference_identifier_normalisation_report(
-        original_row_count=2,
-        normalised_row_count=2,
-        records=records,
-    )
+    report = reference.identifier_normalisation
+    assert report is not None
     provenance = ReferenceProvenance(
         source_type="explicit",
         organism="rat",
