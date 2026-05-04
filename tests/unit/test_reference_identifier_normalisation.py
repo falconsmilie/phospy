@@ -100,6 +100,123 @@ def test_reference_bundle_rejects_duplicate_pairs_after_kinase_normalisation() -
         )
 
 
+def test_reference_bundle_kinase_substrate_conflict_preserves_structured_report() -> (
+    None
+):
+    frame = pd.DataFrame(
+        {
+            "kinase": ["akt1", "AKT1"],
+            "substrate_site": ["MAPK1;S123;", "MAPK1;S123;"],
+            "source_db": ["db_a", "db_b"],
+        }
+    )
+    with pytest.raises(
+        ReferenceIdentifierNormalisationValidationError,
+        match="contains conflicting payload rows for normalised",
+    ) as direct_exc:
+        KinaseSubstrateReference(frame=frame)
+    with pytest.raises(
+        ReferenceValidationError,
+        match="contains conflicting payload rows for normalised",
+    ) as bundle_exc:
+        ReferenceBundle(
+            organism=Organism.RAT,
+            kinase_substrate_map=frame,
+            site_sequences=pd.DataFrame(
+                {"site_sequence": ["A" * 31]},
+                index=pd.Index(["MAPK1;S123;"], name="site_id"),
+            ),
+        )
+
+    direct_report = direct_exc.value.identifier_normalisation_report
+    report = getattr(bundle_exc.value, "identifier_normalisation_report", None)
+    assert report is not None
+    assert report == direct_report
+    assert report.conflict_count == 4
+    assert report.duplicate_identifier_count == 0
+    assert any(
+        record.table_name == "references.kinase_substrate_map"
+        and record.status == "conflict_after_normalisation"
+        for record in report.records
+    )
+
+
+def test_reference_bundle_site_sequence_conflict_preserves_structured_report() -> None:
+    frame = pd.DataFrame(
+        {"site_sequence": ["A" * 31, "B" * 31]},
+        index=pd.Index(["mapk1;s123", "MAPK1;S123;"], name="site_id"),
+    )
+    with pytest.raises(
+        ReferenceIdentifierNormalisationValidationError,
+        match="conflicting site_sequence values after canonicalization",
+    ) as direct_exc:
+        SiteSequenceReference(frame=frame)
+    with pytest.raises(
+        ReferenceValidationError,
+        match="conflicting site_sequence values after canonicalization",
+    ) as bundle_exc:
+        ReferenceBundle(
+            organism=Organism.RAT,
+            kinase_substrate_map=pd.DataFrame(
+                {"kinase": ["AKT1"], "substrate_site": ["MAPK1;S123;"]}
+            ),
+            site_sequences=frame,
+        )
+
+    direct_report = direct_exc.value.identifier_normalisation_report
+    report = getattr(bundle_exc.value, "identifier_normalisation_report", None)
+    assert report is not None
+    assert report == direct_report
+    assert report.conflict_count == 2
+    assert report.duplicate_identifier_count == 0
+    assert any(
+        record.table_name == "references.site_sequences"
+        and record.status == "conflict_after_normalisation"
+        and record.column_name == "index"
+        for record in report.records
+    )
+
+
+def test_reference_bundle_duplicate_after_normalisation_preserves_structured_report() -> (
+    None
+):
+    frame = pd.DataFrame(
+        {
+            "kinase": ["akt1", "AKT1"],
+            "substrate_site": ["MAPK1;S123;", "MAPK1;S123;"],
+        }
+    )
+    with pytest.raises(
+        ReferenceIdentifierNormalisationValidationError,
+        match="contains duplicate \\(kinase, substrate_site\\) pairs",
+    ) as direct_exc:
+        KinaseSubstrateReference(frame=frame)
+    with pytest.raises(
+        ReferenceValidationError,
+        match="contains duplicate \\(kinase, substrate_site\\) pairs",
+    ) as bundle_exc:
+        ReferenceBundle(
+            organism=Organism.RAT,
+            kinase_substrate_map=frame,
+            site_sequences=pd.DataFrame(
+                {"site_sequence": ["A" * 31]},
+                index=pd.Index(["MAPK1;S123;"], name="site_id"),
+            ),
+        )
+
+    direct_report = direct_exc.value.identifier_normalisation_report
+    report = getattr(bundle_exc.value, "identifier_normalisation_report", None)
+    assert report is not None
+    assert report == direct_report
+    assert report.duplicate_identifier_count == 4
+    assert report.conflict_count == 0
+    assert any(
+        record.table_name == "references.kinase_substrate_map"
+        and record.status == "duplicate_after_normalisation"
+        for record in report.records
+    )
+
+
 def test_invalid_site_identifier_failure_exposes_structured_report() -> None:
     with pytest.raises(
         ReferenceIdentifierNormalisationValidationError,
