@@ -104,7 +104,7 @@ class TotalProteinCorrectionDiagnostics(Mapping[str, JsonValue]):
         )
 
     def to_payload(self) -> dict[str, JsonValue]:
-        """Return normalized diagnostics payload suitable for bundle JSON."""
+        """Return normalised diagnostics payload suitable for bundle JSON."""
 
         raise NotImplementedError
 

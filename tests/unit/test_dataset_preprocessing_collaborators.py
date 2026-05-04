@@ -16,6 +16,7 @@ from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
     PreprocessingPlan,
     PreprocessingStageExecution,
+    PreprocessingStageResult,
     PreprocessingState,
 )
 from phospy.datasets.preprocessing.pipeline import PreprocessingPipeline
@@ -80,17 +81,20 @@ def test_diagnostics_collaborator_parses_stage_payloads_and_row_diagnostics() ->
         ),
         _trace_record(
             stage=DATASET_PREPROCESSING_STAGE_MISSING_DATA,
-            diagnostics={"imputed_cell_count": "2", "output_missing_cell_count": 0},
+            diagnostics={"imputed_cell_count": 2, "output_missing_cell_count": 0},
         ),
         _trace_record(
             stage=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
             diagnostics={
                 "configured": True,
-                "unresolved_counts_by_reason": {"missing_accession": "2"},
+                "unresolved_counts_by_reason": {"missing_accession": 2},
                 "row_diagnostics": [
-                    {"row_index": 0, "row_id": "MAPK14;Y182;", "action": "filled"},
-                    {"row_index": -1, "row_id": "bad"},
-                    {"row_index": 2},
+                    {
+                        "row_index": 0,
+                        "row_id": "MAPK14;Y182;",
+                        "status": "resolved",
+                        "action": "filled",
+                    },
                 ],
             },
         ),
@@ -104,6 +108,7 @@ def test_diagnostics_collaborator_parses_stage_payloads_and_row_diagnostics() ->
     assert (
         ProcessingTraceDiagnostics.resolve_optional_int(
             parsed.missing_data,
+            stage=DATASET_PREPROCESSING_STAGE_MISSING_DATA,
             key="imputed_cell_count",
             default=0,
         )
@@ -111,6 +116,7 @@ def test_diagnostics_collaborator_parses_stage_payloads_and_row_diagnostics() ->
     )
     assert ProcessingTraceDiagnostics.resolve_optional_mapping_int(
         parsed.site_sequence_resolution,
+        stage=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
         key="unresolved_counts_by_reason",
     ) == {"missing_accession": 2}
     row_diagnostics = ProcessingTraceDiagnostics.resolve_site_sequence_row_diagnostics(
@@ -119,6 +125,69 @@ def test_diagnostics_collaborator_parses_stage_payloads_and_row_diagnostics() ->
     assert len(row_diagnostics) == 1
     assert row_diagnostics[0].row_id == "MAPK14;Y182;"
     assert row_diagnostics[0].action == "filled"
+
+
+@pytest.mark.parametrize("invalid_value", [True, False, 1.5, "1"])
+def test_integer_count_field_rejects_non_int_values(invalid_value: object) -> None:
+    with pytest.raises(
+        DatasetBuildError,
+        match=(
+            f"stage={DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION!r}.*"
+            "resolved_site_count"
+        ),
+    ):
+        ProcessingTraceDiagnostics.resolve_optional_int(
+            {"resolved_site_count": invalid_value},
+            stage=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
+            key="resolved_site_count",
+            default=0,
+        )
+
+
+def test_site_sequence_row_diagnostics_reject_missing_required_row_id() -> None:
+    with pytest.raises(
+        DatasetBuildError,
+        match=(
+            f"stage={DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION!r}.*"
+            "row_diagnostics\\[0\\]\\.row_id"
+        ),
+    ):
+        ProcessingTraceDiagnostics.resolve_site_sequence_row_diagnostics(
+            {"row_diagnostics": [{"row_index": 0}]}
+        )
+
+
+def test_site_sequence_diagnostics_reject_unknown_fields() -> None:
+    with pytest.raises(
+        DatasetBuildError,
+        match=(
+            f"stage {DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION!r}: "
+            "unexpected_count"
+        ),
+    ):
+        ProcessingTraceDiagnostics.validate_site_sequence_resolution_payload(
+            {"configured": True, "unexpected_count": 1}
+        )
+
+
+def test_integer_count_field_accepts_valid_int() -> None:
+    resolved = ProcessingTraceDiagnostics.resolve_optional_int(
+        {"resolved_site_count": 4},
+        stage=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
+        key="resolved_site_count",
+        default=0,
+    )
+    assert resolved == 4
+
+
+def test_optional_field_defaults_remain_for_missing_site_sequence_count() -> None:
+    resolved = ProcessingTraceDiagnostics.resolve_optional_int(
+        {},
+        stage=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
+        key="resolved_site_count",
+        default=0,
+    )
+    assert resolved == 0
 
 
 def test_processing_state_builder_surfaces_invalid_diagnostics_clearly() -> None:
@@ -149,7 +218,10 @@ def test_processing_state_builder_rejects_unknown_quantitative_meaning_without_d
     trace = (
         _trace_record(
             stage=DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
-            diagnostics={"quantitative_meaning": "not_a_supported_meaning"},
+            diagnostics={
+                "diagnostics_schema_version": 1,
+                "quantitative_meaning": "not_a_supported_meaning",
+            },
         ),
     )
 
@@ -161,6 +233,64 @@ def test_processing_state_builder_rejects_unknown_quantitative_meaning_without_d
             ),
             preprocessing_trace=trace,
         )
+
+
+def test_processing_state_builder_emits_default_total_correction_diagnostics_when_stage_absent() -> (
+    None
+):
+    plan = PreprocessingPlan.default()
+    builder = DatasetProcessingStateBuilder()
+
+    state = builder.build(
+        plan=plan,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        preprocessing_trace=None,
+    )
+
+    diagnostics = state.total_protein_correction.diagnostics
+    assert diagnostics is not None
+    assert diagnostics.get("diagnostics_schema_version") == 1
+    assert diagnostics.get("policy") == "none"
+    assert diagnostics.get("requested_policy") == "none"
+    assert diagnostics.get("resolved_policy") == "none"
+    assert diagnostics.get("quantitative_meaning") == "phosphosite_abundance"
+
+
+def test_pipeline_rejects_malformed_stage_diagnostics_before_trace_is_recorded() -> (
+    None
+):
+    class MalformedMissingDataStage:
+        stage_key = DATASET_PREPROCESSING_STAGE_MISSING_DATA
+
+        def run(self, state: PreprocessingState) -> PreprocessingStageResult:
+            return PreprocessingStageResult(
+                state=state,
+                diagnostics={
+                    "dropped_row_ids": (),
+                    "dropped_row_count": 0,
+                    "imputed_cell_count": "1",
+                    "imputed_row_ids": (),
+                    "notes": "stage executed",
+                    "diagnostics": {"random_seed": 7},
+                },
+            )
+
+    pipeline = PreprocessingPipeline(stage_registry=(MalformedMissingDataStage(),))
+    state = PreprocessingState(
+        phospho=_phospho(),
+        site_metadata=_site_metadata(_phospho().index),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan.default(),
+    )
+
+    with pytest.raises(
+        DatasetBuildError,
+        match=f"stage={DATASET_PREPROCESSING_STAGE_MISSING_DATA!r}.*imputed_cell_count",
+    ):
+        pipeline.run_with_trace(state)
 
 
 def test_provenance_adapter_builds_row_counts_and_operations() -> None:

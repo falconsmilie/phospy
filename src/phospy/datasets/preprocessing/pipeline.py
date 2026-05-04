@@ -126,6 +126,7 @@ class PreprocessingPipeline:
                 name=f"{stage_key}.output.phospho",
             )
             diagnostics = _normalize_stage_diagnostics(
+                stage_key=stage_key,
                 raw=stage_result.diagnostics,
                 previous=previous,
                 current=current,
@@ -166,7 +167,7 @@ class PreprocessingPipeline:
                     produced_output_tables=produced_output_tables,
                     backend=stage_metadata.backend,
                     random_seed=_resolve_random_seed(
-                        diagnostics=diagnostics["diagnostics"]
+                        stage_key=stage_key, diagnostics=diagnostics["diagnostics"]
                     ),
                     is_deterministic=True,
                     imputed_cell_count=int(diagnostics["imputed_cell_count"]),
@@ -182,6 +183,7 @@ class PreprocessingPipeline:
 
 def _normalize_stage_diagnostics(
     *,
+    stage_key: str,
     raw: Mapping[str, object],
     previous: PreprocessingState,
     current: PreprocessingState,
@@ -191,10 +193,14 @@ def _normalize_stage_diagnostics(
         after=current.phospho.index,
     )
     dropped_row_ids = _coerce_string_tuple(
-        raw.get("dropped_row_ids", default_dropped_row_ids)
+        raw.get("dropped_row_ids", default_dropped_row_ids),
+        stage_key=stage_key,
+        field_name="dropped_row_ids",
     )
     dropped_row_count = _coerce_int(
         raw.get("dropped_row_count"),
+        stage_key=stage_key,
+        field_name="dropped_row_count",
         default=len(dropped_row_ids),
     )
 
@@ -203,25 +209,58 @@ def _normalize_stage_diagnostics(
         after=current.phospho,
     )
     imputed_row_ids = _coerce_string_tuple(
-        raw.get("imputed_row_ids", default_imputed_row_ids)
+        raw.get("imputed_row_ids", default_imputed_row_ids),
+        stage_key=stage_key,
+        field_name="imputed_row_ids",
     )
     imputed_cell_count = _coerce_int(
         raw.get("imputed_cell_count"),
+        stage_key=stage_key,
+        field_name="imputed_cell_count",
         default=default_imputed_cell_count,
     )
 
     notes_raw = raw.get("notes", "stage executed")
-    notes = None if notes_raw is None else str(notes_raw)
+    if notes_raw is None:
+        notes = None
+    elif isinstance(notes_raw, str):
+        notes = notes_raw
+    else:
+        raise DatasetBuildError(
+            "dataset preprocessing stage diagnostics parse error: "
+            f"stage={stage_key!r}, field='notes', expected string or null, got "
+            f"{notes_raw!r} ({type(notes_raw).__name__})"
+        )
 
     nested_diagnostics = raw.get("diagnostics")
     if isinstance(nested_diagnostics, Mapping):
-        diagnostics = {str(key): value for key, value in nested_diagnostics.items()}
+        diagnostics: dict[str, object] = {}
+        for key, value in nested_diagnostics.items():
+            if not isinstance(key, str):
+                raise DatasetBuildError(
+                    "dataset preprocessing stage diagnostics parse error: "
+                    f"stage={stage_key!r}, field='diagnostics.<key>', expected "
+                    f"string, got {key!r} ({type(key).__name__})"
+                )
+            diagnostics[key] = value
+    elif "diagnostics" in raw:
+        raise DatasetBuildError(
+            "dataset preprocessing stage diagnostics parse error: "
+            f"stage={stage_key!r}, field='diagnostics', expected object, got "
+            f"{nested_diagnostics!r} ({type(nested_diagnostics).__name__})"
+        )
     else:
-        diagnostics = {
-            str(key): value
-            for key, value in raw.items()
-            if key not in _RESERVED_DIAGNOSTIC_KEYS
-        }
+        diagnostics = {}
+        for key, value in raw.items():
+            if key in _RESERVED_DIAGNOSTIC_KEYS:
+                continue
+            if not isinstance(key, str):
+                raise DatasetBuildError(
+                    "dataset preprocessing stage diagnostics parse error: "
+                    f"stage={stage_key!r}, field='diagnostics.<key>', expected "
+                    f"string, got {key!r} ({type(key).__name__})"
+                )
+            diagnostics[key] = value
 
     return {
         "dropped_row_ids": dropped_row_ids,
@@ -233,26 +272,83 @@ def _normalize_stage_diagnostics(
     }
 
 
-def _coerce_string_tuple(value: object) -> tuple[str, ...]:
+def _coerce_string_tuple(
+    value: object,
+    *,
+    stage_key: str,
+    field_name: str,
+) -> tuple[str, ...]:
     if isinstance(value, tuple):
-        return tuple(str(item) for item in value)
+        return _require_string_sequence(
+            value,
+            stage_key=stage_key,
+            field_name=field_name,
+        )
     if isinstance(value, list):
-        return tuple(str(item) for item in value)
-    return ()
+        return _require_string_sequence(
+            value,
+            stage_key=stage_key,
+            field_name=field_name,
+        )
+    raise DatasetBuildError(
+        "dataset preprocessing stage diagnostics parse error: "
+        f"stage={stage_key!r}, field={field_name!r}, expected array of strings, "
+        f"got {value!r} ({type(value).__name__})"
+    )
 
 
-def _coerce_int(value: object, *, default: int) -> int:
+def _require_string_sequence(
+    value: tuple[object, ...] | list[object],
+    *,
+    stage_key: str,
+    field_name: str,
+) -> tuple[str, ...]:
+    resolved: list[str] = []
+    for index, item in enumerate(value):
+        if not isinstance(item, str):
+            raise DatasetBuildError(
+                "dataset preprocessing stage diagnostics parse error: "
+                f"stage={stage_key!r}, field={field_name!r}[{index}], expected "
+                f"string, got {item!r} ({type(item).__name__})"
+            )
+        resolved.append(item)
+    return tuple(resolved)
+
+
+def _coerce_int(
+    value: object,
+    *,
+    stage_key: str,
+    field_name: str,
+    default: int,
+) -> int:
     if value is None:
-        return int(default)
+        return default
     if isinstance(value, bool):
-        return int(value)
+        raise DatasetBuildError(
+            "dataset preprocessing stage diagnostics parse error: "
+            f"stage={stage_key!r}, field={field_name!r}, expected int (bool is not "
+            f"accepted), got {value!r} (bool)"
+        )
     if isinstance(value, int):
         return value
     if isinstance(value, float):
-        return int(value)
+        raise DatasetBuildError(
+            "dataset preprocessing stage diagnostics parse error: "
+            f"stage={stage_key!r}, field={field_name!r}, expected int (floats are "
+            f"not accepted), got {value!r} (float)"
+        )
     if isinstance(value, str):
-        return int(value.strip())
-    return int(default)
+        raise DatasetBuildError(
+            "dataset preprocessing stage diagnostics parse error: "
+            f"stage={stage_key!r}, field={field_name!r}, expected int, got "
+            f"{value!r} (str)"
+        )
+    raise DatasetBuildError(
+        "dataset preprocessing stage diagnostics parse error: "
+        f"stage={stage_key!r}, field={field_name!r}, expected int, got "
+        f"{value!r} ({type(value).__name__})"
+    )
 
 
 def _normalize_report_rows(
@@ -292,13 +388,20 @@ def _resolve_imputation_summary(
     return row_ids, imputed_cell_count
 
 
-def _resolve_random_seed(*, diagnostics: Mapping[str, object]) -> int | None:
+def _resolve_random_seed(
+    *,
+    stage_key: str,
+    diagnostics: Mapping[str, object],
+) -> int | None:
     value = diagnostics.get("random_seed")
-    if value is None or isinstance(value, bool):
+    if value is None:
         return None
-    if isinstance(value, int):
-        return value
-    return None
+    return _coerce_int(
+        value,
+        stage_key=stage_key,
+        field_name="diagnostics.random_seed",
+        default=0,
+    )
 
 
 def _collect_stage_table_fingerprints(

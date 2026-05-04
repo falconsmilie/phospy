@@ -222,7 +222,7 @@ def _build_candidate_correlations(
             VALID_OBSERVATIONS_COLUMN: "int64",
         }
     )
-    # Normalize missing reasons to NaN so CSV/parquet round-trips preserve equality.
+    # Normalise missing reasons to NaN so CSV/parquet round-trips preserve equality.
     reasons = candidates.loc[:, CORRELATION_REASON_COLUMN]
     candidates.loc[:, CORRELATION_REASON_COLUMN] = reasons.where(
         ~reasons.isna(),

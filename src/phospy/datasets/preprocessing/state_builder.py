@@ -10,11 +10,13 @@ from phospy.api.configs import (
 )
 from phospy.datasets.preprocessing.diagnostics import ProcessingTraceDiagnostics
 from phospy.datasets.preprocessing.models import (
+    DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+    DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
+    DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
     PreprocessingPlan,
     PreprocessingStageExecution,
 )
 from phospy.datasets.processing_state import (
-    MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
     TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1,
     ComparisonState,
     DatasetProcessingState,
@@ -65,6 +67,7 @@ class DatasetProcessingStateBuilder:
         site_sequence_resolution_configured = bool(
             parsed.resolve_optional_bool(
                 site_sequence_resolution_diagnostics,
+                stage=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
                 key="configured",
                 default=bool(plan.site_sequence_resolution_enabled),
             )
@@ -111,27 +114,19 @@ class DatasetProcessingStateBuilder:
                 "intensity-scale state is missing quantitative meaning"
             )
         default_quantitative_meaning = quantitative_meaning.value
-        correction_diagnostics = parsed.with_default_string(
-            correction_diagnostics,
-            key="quantitative_meaning",
-            default=default_quantitative_meaning,
+        if correction_diagnostics is None:
+            correction_diagnostics = {
+                "diagnostics_schema_version": (
+                    TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1
+                ),
+                "policy": resolved_total_policy.value,
+                "requested_policy": resolved_total_policy.value,
+                "resolved_policy": resolved_total_policy.value,
+                "quantitative_meaning": default_quantitative_meaning,
+            }
+        parsed.validate_site_sequence_resolution_payload(
+            site_sequence_resolution_diagnostics
         )
-        correction_diagnostics = parsed.with_default_int(
-            correction_diagnostics,
-            key="diagnostics_schema_version",
-            default=TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1,
-        )
-        if missing_data_diagnostics is not None:
-            missing_data_diagnostics = parsed.with_default_int(
-                missing_data_diagnostics,
-                key="diagnostics_schema_version",
-                default=MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
-            )
-            missing_data_diagnostics = parsed.with_default_string(
-                missing_data_diagnostics,
-                key="missing_data_policy",
-                default=plan.missing_data_policy.value,
-            )
         typed_correction_diagnostics = (
             None
             if correction_diagnostics is None
@@ -152,11 +147,13 @@ class DatasetProcessingStateBuilder:
         )
         output_missing_cell_count = parsed.resolve_optional_int(
             missing_data_diagnostics,
+            stage=DATASET_PREPROCESSING_STAGE_MISSING_DATA,
             key="output_missing_cell_count",
             default=0,
         )
         imputed_cell_count = parsed.resolve_optional_int(
             missing_data_diagnostics,
+            stage=DATASET_PREPROCESSING_STAGE_MISSING_DATA,
             key="imputed_cell_count",
             default=0,
         )
@@ -174,70 +171,84 @@ class DatasetProcessingStateBuilder:
                 configured=site_sequence_resolution_configured,
                 mode=parsed.resolve_optional_string(
                     site_sequence_resolution_diagnostics,
+                    stage=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
                     key="mode",
                     default=site_sequence_resolution_mode_default,
                 ),
                 flank_size=parsed.resolve_optional_nullable_int(
                     site_sequence_resolution_diagnostics,
+                    stage=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
                     key="flank_size",
                     default=site_sequence_resolution_flank_size_default,
                 ),
                 fasta_source_path=parsed.resolve_optional_string(
                     site_sequence_resolution_diagnostics,
+                    stage=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
                     key="fasta_source_path",
                     default=None,
                 ),
                 fasta_source_label=parsed.resolve_optional_string(
                     site_sequence_resolution_diagnostics,
+                    stage=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
                     key="fasta_source_label",
                     default=None,
                 ),
                 fasta_sha256=parsed.resolve_optional_string(
                     site_sequence_resolution_diagnostics,
+                    stage=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
                     key="fasta_sha256",
                     default=None,
                 ),
                 resolver_version=parsed.resolve_optional_string(
                     site_sequence_resolution_diagnostics,
+                    stage=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
                     key="resolver_version",
                     default=None,
                 ),
                 resolved_site_count=parsed.resolve_optional_int(
                     site_sequence_resolution_diagnostics,
+                    stage=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
                     key="resolved_site_count",
                     default=0,
                 ),
                 unresolved_site_count=parsed.resolve_optional_int(
                     site_sequence_resolution_diagnostics,
+                    stage=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
                     key="unresolved_site_count",
                     default=0,
                 ),
                 unresolved_counts_by_reason=parsed.resolve_optional_mapping_int(
                     site_sequence_resolution_diagnostics,
+                    stage=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
                     key="unresolved_counts_by_reason",
                 ),
                 filled_missing_count=parsed.resolve_optional_int(
                     site_sequence_resolution_diagnostics,
+                    stage=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
                     key="filled_missing_count",
                     default=0,
                 ),
                 replaced_existing_count=parsed.resolve_optional_int(
                     site_sequence_resolution_diagnostics,
+                    stage=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
                     key="replaced_existing_count",
                     default=0,
                 ),
                 preserved_existing_count=parsed.resolve_optional_int(
                     site_sequence_resolution_diagnostics,
+                    stage=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
                     key="preserved_existing_count",
                     default=0,
                 ),
                 existing_sequence_conflict_count=parsed.resolve_optional_int(
                     site_sequence_resolution_diagnostics,
+                    stage=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
                     key="existing_sequence_conflict_count",
                     default=0,
                 ),
                 conflict_policy=parsed.resolve_optional_string(
                     site_sequence_resolution_diagnostics,
+                    stage=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
                     key="conflict_policy",
                     default=site_sequence_resolution_conflict_policy_default,
                 ),
@@ -258,27 +269,32 @@ class DatasetProcessingStateBuilder:
                 applied=total_correction_applied,
                 formula=parsed.resolve_optional_string(
                     correction_diagnostics,
+                    stage=DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
                     key="formula",
                     default=default_formula,
                 ),
                 requires_log_scale=parsed.resolve_optional_bool(
                     correction_diagnostics,
+                    stage=DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
                     key="requires_log_scale",
                     default=default_requires_log_scale,
                 ),
                 input_scale=parsed.resolve_optional_string(
                     correction_diagnostics,
+                    stage=DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
                     key="input_scale",
                     default=default_input_scale,
                 ),
                 output_scale=parsed.resolve_optional_string(
                     correction_diagnostics,
+                    stage=DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
                     key="output_scale",
                     default=default_output_scale,
                 ),
                 quantitative_meaning=_resolve_total_correction_quantitative_meaning(
                     parsed.resolve_optional_string(
                         correction_diagnostics,
+                        stage=DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
                         key="quantitative_meaning",
                         default=default_quantitative_meaning,
                     )
@@ -317,6 +333,7 @@ def _resolve_quantitative_meaning_state(
 ) -> IntensityScaleState:
     quantitative_meaning = ProcessingTraceDiagnostics.resolve_optional_string(
         correction_diagnostics,
+        stage=DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
         key="quantitative_meaning",
         default=None,
     )
@@ -384,11 +401,13 @@ def _resolve_ruv_readiness_state(
 
     imputation_method_id = ProcessingTraceDiagnostics.resolve_optional_string(
         missing_data_diagnostics,
+        stage=DATASET_PREPROCESSING_STAGE_MISSING_DATA,
         key="imputation_method_id",
         default=None,
     )
     missingness_mask_hash = ProcessingTraceDiagnostics.resolve_optional_string(
         missing_data_diagnostics,
+        stage=DATASET_PREPROCESSING_STAGE_MISSING_DATA,
         key="missingness_mask_hash",
         default=None,
     )
