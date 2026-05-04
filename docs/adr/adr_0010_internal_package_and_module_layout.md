@@ -11,9 +11,8 @@
 ## Abstract
 
 This ADR defines module-splitting governance and compatibility-shim governance
-for internal PhosPy packages. The architecture now uses split component modules
-and explicit compatibility layers in selected places. These are intentional
-rules, not temporary style choices.
+for internal PhosPy packages. The architecture uses split component modules and
+keeps compatibility layers limited to explicit serialization/bundle concerns.
 
 ## Status
 
@@ -25,22 +24,20 @@ This ADR supersedes earlier high-level package-layout guidance.
 
 Internal workflow code has been split into focused modules (validators,
 interpreters, executors, provenance builders, result assembly, exporters) while
-keeping public workflow classes stable. At the same time, compatibility modules
-exist to preserve internal import continuity and bundle-format replay behavior.
+keeping public workflow classes stable. Bundle-format replay still requires
+explicit compatibility adapters in selected IO paths.
 
 Without governance:
 
 - file-size-driven splits create incoherent module boundaries
-- compatibility shims can accumulate business logic
+- compatibility adapters can accumulate business logic
 - compatibility names can leak into accidental public API
 
 ## Decision Drivers
 
 1. Keep internal modules aligned to responsibility, not file length.
 2. Preserve workflow public contracts while allowing internal movement.
-3. Allow thin compatibility shims only when they solve explicit compatibility
-   concerns.
-4. Prevent compatibility modules from becoming new logic owners.
+3. Prevent compatibility modules from becoming new logic owners.
 
 ## Decision
 
@@ -50,11 +47,11 @@ Without governance:
 2. Workflow public classes remain orchestration shells.
 3. Validators, interpreters, executors, provenance builders, result models, and
    exporters remain separate responsibilities.
-4. New behavior is implemented in owning modules, not in compatibility modules.
+4. New behavior is implemented in owning modules.
 
 ### Compatibility-Shim Governance
 
-1. Compatibility shims are allowed only when thin and internal.
+1. Workflow packages must not expose compatibility re-export modules.
 2. Compatibility shims must not own logic.
 3. Compatibility shims must not become public API unless exported through
    `phospy.api`.
@@ -63,8 +60,6 @@ Without governance:
 
 ### Acceptable Compatibility Shim Examples
 
-- import-only re-export modules created during internal splitting
-  (for example `workflows/*/components.py` shims)
 - bundle-format compatibility adapters where the compatibility concern is
   explicit (for example payload normalization/parsing modules under
   `io/bundles/.../compatibility/`)
@@ -75,6 +70,7 @@ Without governance:
 - generic `helpers.py`, `utils.py`, or `compatibility.py` modules containing
   new domain logic
 - public aliases added only to avoid updating internal imports
+- `workflows/*/components.py` compatibility re-export modules
 
 ## Consequences
 
@@ -91,8 +87,6 @@ Without governance:
 
 ## Affected Modules
 
-- `src/phospy/workflows/kinase/components.py`
-- `src/phospy/workflows/signalome/components.py`
 - `src/phospy/workflows/kinase/validator.py`
 - `src/phospy/workflows/kinase/interpreter.py`
 - `src/phospy/workflows/kinase/executor.py`

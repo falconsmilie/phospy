@@ -1,4 +1,7 @@
-"""Workflow domain package."""
+"""Public workflow entrypoints.
+
+Only workflow orchestrator classes are public from this package.
+"""
 
 from phospy.workflows.kinase.public import KinaseWorkflow
 from phospy.workflows.signalome.public import SignalomeWorkflow
