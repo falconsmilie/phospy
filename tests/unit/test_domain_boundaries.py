@@ -50,6 +50,18 @@ _REFERENCE_IDENTIFIER_COLUMN_HINT = re.compile(
     r"['\"](?:kinase|substrate_site)['\"]",
     re.IGNORECASE,
 )
+_REFERENCE_IDENTIFIER_BOUNDARY_OWNER = "src/phospy/references/identifiers.py"
+_PRODUCTION_REFERENCE_TABLES = "src/phospy/tables/references.py"
+_FORBIDDEN_PROTEIN_ACCESSION_BOUNDARY_LEAK_TARGETS = (
+    "src/phospy/sequences",
+    "src/phospy/scoring",
+    "src/phospy/workflows",
+    "src/phospy/datasets/preprocessing",
+)
+_FORBIDDEN_ACCESSION_CASE_NORMALISATION = re.compile(
+    r"accession[^\n]{0,120}\.(?:upper|lower)\(",
+    re.IGNORECASE,
+)
 
 
 def _phospho() -> pd.DataFrame:
@@ -833,4 +845,48 @@ def test_kinase_reference_identifier_cleanup_is_owned_by_reference_ingestion_bou
     assert not violations, (
         "identifier normalisation must stay inside reference ingestion; "
         "forbidden workflow-local cleanup detected:\n" + "\n".join(violations)
+    )
+
+
+def test_no_production_reference_table_consumes_protein_accession_yet() -> None:
+    source = (ROOT / _PRODUCTION_REFERENCE_TABLES).read_text(encoding="utf-8")
+    assert "protein_accession" not in source, (
+        "production reference table wrappers now consume protein_accession; "
+        "wire that path through reference identifier boundary in "
+        f"{_REFERENCE_IDENTIFIER_BOUNDARY_OWNER}"
+    )
+
+
+def test_non_reference_domains_do_not_call_reference_protein_accession_normaliser() -> (
+    None
+):
+    violations: list[str] = []
+    for relative_dir in _FORBIDDEN_PROTEIN_ACCESSION_BOUNDARY_LEAK_TARGETS:
+        directory = ROOT / relative_dir
+        for path in directory.rglob("*.py"):
+            source = path.read_text(encoding="utf-8")
+            if "normalise_reference_protein_accession(" not in source:
+                continue
+            relative_path = path.relative_to(ROOT).as_posix()
+            violations.append(relative_path)
+
+    assert not violations, (
+        "protein accession normalisation belongs to reference identifier boundary; "
+        "forbidden calls found outside reference ingestion:\n" + "\n".join(violations)
+    )
+
+
+def test_sequence_domain_does_not_upper_or_lower_accession_values() -> None:
+    violations: list[str] = []
+    for path in (ROOT / "src/phospy/sequences").rglob("*.py"):
+        source = path.read_text(encoding="utf-8")
+        for match in _FORBIDDEN_ACCESSION_CASE_NORMALISATION.finditer(source):
+            line_number = source.count("\n", 0, match.start()) + 1
+            line = source.splitlines()[line_number - 1].strip()
+            relative_path = path.relative_to(ROOT).as_posix()
+            violations.append(f"{relative_path}:{line_number}: {line}")
+
+    assert not violations, (
+        "sequence-domain code must not apply reference-style accession casing "
+        "normalisation:\n" + "\n".join(violations)
     )
