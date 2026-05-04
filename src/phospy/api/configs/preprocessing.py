@@ -153,6 +153,21 @@ DATASET_SITE_SEQUENCE_RESOLUTION_MODES = frozenset(
         DATASET_SITE_SEQUENCE_RESOLUTION_MODE_REPLACE_EXISTING,
     }
 )
+DATASET_SITE_SEQUENCE_CONFLICT_POLICY_ERROR = "error"
+DATASET_SITE_SEQUENCE_CONFLICT_POLICY_PRESERVE_EXISTING = "preserve_existing"
+DATASET_SITE_SEQUENCE_CONFLICT_POLICY_REPLACE_EXISTING = "replace_existing"
+DatasetSiteSequenceConflictPolicy = Literal[
+    "error",
+    "preserve_existing",
+    "replace_existing",
+]
+DATASET_SITE_SEQUENCE_CONFLICT_POLICIES = frozenset(
+    {
+        DATASET_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,
+        DATASET_SITE_SEQUENCE_CONFLICT_POLICY_PRESERVE_EXISTING,
+        DATASET_SITE_SEQUENCE_CONFLICT_POLICY_REPLACE_EXISTING,
+    }
+)
 
 _INCOMPATIBLE_SITE_MATRIX_MISSING_DATA_POLICIES = frozenset(
     {"retain_missing", "require_min_observed_values"}
@@ -870,6 +885,7 @@ class DatasetSiteSequenceResolutionConfig:
     mode: DatasetSiteSequenceResolutionMode = (
         DATASET_SITE_SEQUENCE_RESOLUTION_MODE_VALIDATE_EXISTING_AND_FILL_MISSING
     )
+    conflict_policy: DatasetSiteSequenceConflictPolicy | None = None
     flank_size: int = 7
     accession_column: str = "protein_accession"
     site_column: str = "site"
@@ -881,6 +897,16 @@ class DatasetSiteSequenceResolutionConfig:
             raise PhosPyInputError(
                 "dataset build request preprocessing_config.site_sequence_resolution."
                 f"mode must be one of: {supported}"
+            )
+        conflict_policy = self.conflict_policy
+        if (
+            conflict_policy is not None
+            and conflict_policy not in DATASET_SITE_SEQUENCE_CONFLICT_POLICIES
+        ):
+            supported = ", ".join(sorted(DATASET_SITE_SEQUENCE_CONFLICT_POLICIES))
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.site_sequence_resolution."
+                f"conflict_policy must be one of: {supported}"
             )
 
         accession_column = self.accession_column
@@ -957,6 +983,10 @@ __all__ = [
     "DATASET_SITE_SEQUENCE_RESOLUTION_MODE_REPLACE_EXISTING",
     "DATASET_SITE_SEQUENCE_RESOLUTION_MODE_VALIDATE_EXISTING_AND_FILL_MISSING",
     "DATASET_SITE_SEQUENCE_RESOLUTION_MODE_VALIDATE_EXISTING_ONLY",
+    "DATASET_SITE_SEQUENCE_CONFLICT_POLICIES",
+    "DATASET_SITE_SEQUENCE_CONFLICT_POLICY_ERROR",
+    "DATASET_SITE_SEQUENCE_CONFLICT_POLICY_PRESERVE_EXISTING",
+    "DATASET_SITE_SEQUENCE_CONFLICT_POLICY_REPLACE_EXISTING",
     "DATASET_TOTAL_PROTEIN_CORRECTION_POLICIES",
     "DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE",
     "DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL",
@@ -984,6 +1014,7 @@ __all__ = [
     "DatasetSiteMatrixPolicy",
     "DatasetSiteSequenceResolutionConfig",
     "DatasetSiteSequenceResolutionMode",
+    "DatasetSiteSequenceConflictPolicy",
     "DatasetTotalProteinCorrectionIdentityConfig",
     "DatasetTotalProteinCorrectionIdentityMode",
     "DatasetTotalProteinCorrectionDuplicatePolicy",

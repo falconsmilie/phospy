@@ -45,6 +45,7 @@ from phospy.datasets.processing_state import (
     NormalisationState,
     RuvReadinessState,
     SiteMatrixState,
+    SiteSequenceResolutionRowDiagnostic,
     SiteSequenceResolutionState,
     TotalProteinCorrectionDiagnostics,
     TotalProteinCorrectionState,
@@ -64,6 +65,7 @@ _STAGE_LABEL_TO_PARAMETERS: dict[str, tuple[str, ...]] = {
         "site_sequence_resolution_enabled",
         "site_sequence_resolution_fasta_path",
         "site_sequence_resolution_mode",
+        "site_sequence_resolution_conflict_policy",
         "site_sequence_resolution_flank_size",
         "site_sequence_resolution_accession_column",
         "site_sequence_resolution_site_column",
@@ -196,6 +198,11 @@ def build_dataset_processing_state(
     )
     site_sequence_resolution_flank_size_default = (
         int(plan.site_sequence_resolution_flank_size)
+        if site_sequence_resolution_configured
+        else None
+    )
+    site_sequence_resolution_conflict_policy_default = (
+        str(plan.site_sequence_resolution_conflict_policy).strip()
         if site_sequence_resolution_configured
         else None
     )
@@ -351,6 +358,14 @@ def build_dataset_processing_state(
                 site_sequence_resolution_diagnostics,
                 key="existing_sequence_conflict_count",
                 default=0,
+            ),
+            conflict_policy=_resolve_optional_string_diagnostic(
+                site_sequence_resolution_diagnostics,
+                key="conflict_policy",
+                default=site_sequence_resolution_conflict_policy_default,
+            ),
+            row_diagnostics=_resolve_site_sequence_row_diagnostics(
+                site_sequence_resolution_diagnostics,
             ),
         ),
         missing_data=MissingDataState(
@@ -556,6 +571,98 @@ def _resolve_optional_mapping_int_diagnostic(
             resolved[normalized_key] = int(stripped)
             continue
     return resolved
+
+
+def _resolve_site_sequence_row_diagnostics(
+    diagnostics: Mapping[str, object] | None,
+) -> tuple[SiteSequenceResolutionRowDiagnostic, ...]:
+    if diagnostics is None:
+        return ()
+    raw_value = diagnostics.get("row_diagnostics")
+    if not isinstance(raw_value, list):
+        return ()
+    resolved: list[SiteSequenceResolutionRowDiagnostic] = []
+    for raw_row in raw_value:
+        if not isinstance(raw_row, Mapping):
+            continue
+        row_index = _resolve_optional_int_diagnostic(
+            raw_row,
+            key="row_index",
+            default=-1,
+        )
+        if row_index < 0:
+            continue
+        row_id = _resolve_optional_string_diagnostic(
+            raw_row,
+            key="row_id",
+            default=None,
+        )
+        if row_id is None:
+            continue
+        resolved.append(
+            SiteSequenceResolutionRowDiagnostic(
+                row_index=row_index,
+                row_id=row_id,
+                site_id=_resolve_optional_string_diagnostic(
+                    raw_row,
+                    key="site_id",
+                    default=None,
+                ),
+                status=_resolve_optional_string_diagnostic(
+                    raw_row,
+                    key="status",
+                    default="unknown",
+                )
+                or "unknown",
+                existing_site_sequence=_resolve_optional_string_diagnostic(
+                    raw_row,
+                    key="existing_site_sequence",
+                    default=None,
+                ),
+                fasta_site_sequence=_resolve_optional_string_diagnostic(
+                    raw_row,
+                    key="fasta_site_sequence",
+                    default=None,
+                ),
+                resolved_site_sequence=_resolve_optional_string_diagnostic(
+                    raw_row,
+                    key="resolved_site_sequence",
+                    default=None,
+                ),
+                action=_resolve_optional_string_diagnostic(
+                    raw_row,
+                    key="action",
+                    default="unknown",
+                )
+                or "unknown",
+                reason=_resolve_optional_string_diagnostic(
+                    raw_row,
+                    key="reason",
+                    default=None,
+                ),
+                conflict_policy=_resolve_optional_string_diagnostic(
+                    raw_row,
+                    key="conflict_policy",
+                    default=None,
+                ),
+                resolver_version=_resolve_optional_string_diagnostic(
+                    raw_row,
+                    key="resolver_version",
+                    default=None,
+                ),
+                fasta_source_path=_resolve_optional_string_diagnostic(
+                    raw_row,
+                    key="fasta_source_path",
+                    default=None,
+                ),
+                fasta_sha256=_resolve_optional_string_diagnostic(
+                    raw_row,
+                    key="fasta_sha256",
+                    default=None,
+                ),
+            )
+        )
+    return tuple(resolved)
 
 
 def _with_default_string_diagnostic(
@@ -862,6 +969,7 @@ def _resolve_stage_parameters(
             "enabled": bool(plan.site_sequence_resolution_enabled),
             "fasta_path": plan.site_sequence_resolution_fasta_path,
             "mode": plan.site_sequence_resolution_mode,
+            "conflict_policy": plan.site_sequence_resolution_conflict_policy,
             "flank_size": int(plan.site_sequence_resolution_flank_size),
             "accession_column": plan.site_sequence_resolution_accession_column,
             "site_column": plan.site_sequence_resolution_site_column,

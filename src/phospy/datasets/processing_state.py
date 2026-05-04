@@ -1205,6 +1205,25 @@ class NormalisationState:
 
 
 @dataclass(frozen=True, slots=True)
+class SiteSequenceResolutionRowDiagnostic:
+    """Durable per-row site-sequence resolution diagnostic record."""
+
+    row_index: int
+    row_id: str
+    site_id: str | None
+    status: str
+    existing_site_sequence: str | None
+    fasta_site_sequence: str | None
+    resolved_site_sequence: str | None
+    action: str
+    reason: str | None
+    conflict_policy: str | None
+    resolver_version: str | None
+    fasta_source_path: str | None
+    fasta_sha256: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class SiteSequenceResolutionState:
     """Dataset site-sequence FASTA-resolution state at preprocessing boundary."""
 
@@ -1222,6 +1241,8 @@ class SiteSequenceResolutionState:
     replaced_existing_count: int
     preserved_existing_count: int
     existing_sequence_conflict_count: int
+    conflict_policy: str | None = None
+    row_diagnostics: tuple[SiteSequenceResolutionRowDiagnostic, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

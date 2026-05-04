@@ -14,6 +14,7 @@ from phospy.datasets.builders.preprocessing import (
     build_dataset_processing_state,
 )
 from phospy.datasets.preprocessing.models import PreprocessingPlan
+from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.intensity_scale_state import (
     intensity_scale_state_from_payload,
 )
@@ -60,11 +61,13 @@ def _run_site_sequence_resolution(
     tmp_path: Path,
     site_sequences: list[object],
     mode: str,
+    conflict_policy: str | None = None,
 ):
     config = DatasetPreprocessingConfig(
         site_sequence_resolution=DatasetSiteSequenceResolutionConfig(
             fasta_path=_write_fasta(tmp_path),
             mode=mode,
+            conflict_policy=conflict_policy,
             flank_size=2,
         )
     )
@@ -178,8 +181,59 @@ def test_conflicting_existing_sequence_is_preserved_by_default(tmp_path: Path) -
 
     assert preprocessed.site_metadata.loc["MAPK14;S5;", "site_sequence"] == "XXXXX"
     diagnostics = _stage_diagnostics(preprocessed)
+    assert diagnostics["conflict_policy"] == "preserve_existing"
     assert diagnostics["existing_sequence_conflict_count"] == 1
     assert diagnostics["replaced_existing_count"] == 0
+    assert diagnostics["row_diagnostics"][0]["action"] == "preserve_existing"
+
+
+def test_preserve_existing_conflict_policy_is_durable_in_processing_state(
+    tmp_path: Path,
+) -> None:
+    config = DatasetPreprocessingConfig(
+        site_sequence_resolution=DatasetSiteSequenceResolutionConfig(
+            fasta_path=_write_fasta(tmp_path),
+            mode="validate_existing_and_fill_missing",
+            conflict_policy="preserve_existing",
+            flank_size=2,
+        )
+    )
+    plan = PreprocessingPlan.from_config(config)
+    preprocessed = DatasetPreprocessor().run(
+        phospho=_phospho().iloc[:1, :].copy(deep=True),
+        site_metadata=_site_metadata(site_sequences=["XXXXX", "CCTCC"])
+        .iloc[:1, :]
+        .copy(deep=True),
+        sample_metadata=None,
+        total=None,
+        plan=plan,
+    )
+
+    processing_state = build_dataset_processing_state(
+        plan=plan,
+        intensity_scale_state=intensity_scale_state_from_payload(
+            {
+                "phospho": {
+                    "kind": "linear",
+                    "transformed": False,
+                    "established_by": "bundle.fixture",
+                },
+                "total": None,
+                "quantity": "phosphosite_abundance",
+            }
+        ),
+        preprocessing_trace=preprocessed.preprocessing_trace,
+        final_phospho=preprocessed.phospho,
+        final_site_metadata=preprocessed.site_metadata,
+        final_sample_metadata=preprocessed.sample_metadata,
+    )
+
+    resolution = processing_state.site_sequence_resolution
+    assert resolution.conflict_policy == "preserve_existing"
+    assert resolution.existing_sequence_conflict_count == 1
+    assert len(resolution.row_diagnostics) == 1
+    assert resolution.row_diagnostics[0].action == "preserve_existing"
+    assert resolution.row_diagnostics[0].fasta_site_sequence == "AASAA"
 
 
 def test_replace_existing_mode_replaces_conflicting_sequence(tmp_path: Path) -> None:
@@ -187,12 +241,59 @@ def test_replace_existing_mode_replaces_conflicting_sequence(tmp_path: Path) -> 
         tmp_path=tmp_path,
         site_sequences=["XXXXX", "CCTCC"],
         mode="replace_existing",
+        conflict_policy="replace_existing",
     )
 
     assert preprocessed.site_metadata.loc["MAPK14;S5;", "site_sequence"] == "AASAA"
     diagnostics = _stage_diagnostics(preprocessed)
+    assert diagnostics["conflict_policy"] == "replace_existing"
     assert diagnostics["existing_sequence_conflict_count"] == 1
     assert diagnostics["replaced_existing_count"] == 1
+    assert diagnostics["row_diagnostics"][0]["action"] == "replace_existing"
+
+
+def test_error_conflict_policy_raises_with_structured_row_diagnostics(
+    tmp_path: Path,
+) -> None:
+    config = DatasetPreprocessingConfig(
+        site_sequence_resolution=DatasetSiteSequenceResolutionConfig(
+            fasta_path=_write_fasta(tmp_path),
+            mode="validate_existing_and_fill_missing",
+            conflict_policy="error",
+            flank_size=2,
+        )
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="conflict_policy='error'",
+    ) as caught:
+        DatasetPreprocessor().run(
+            phospho=_phospho().iloc[:1, :].copy(deep=True),
+            site_metadata=_site_metadata(site_sequences=["XXXXX", "CCTCC"])
+            .iloc[:1, :]
+            .copy(deep=True),
+            sample_metadata=None,
+            total=None,
+            plan=PreprocessingPlan.from_config(config),
+        )
+
+    diagnostics = caught.value.diagnostics
+    assert isinstance(diagnostics, dict)
+    row_diagnostics = diagnostics.get("row_diagnostics")
+    assert isinstance(row_diagnostics, list)
+    assert len(row_diagnostics) == 1
+    assert row_diagnostics[0]["row_index"] == 0
+    assert row_diagnostics[0]["site_id"] == "MAPK14;S5;"
+    assert row_diagnostics[0]["existing_site_sequence"] == "XXXXX"
+    assert row_diagnostics[0]["fasta_site_sequence"] == "AASAA"
+    assert row_diagnostics[0]["action"] == "error"
+    assert row_diagnostics[0]["conflict_policy"] == "error"
+    assert row_diagnostics[0]["resolver_version"] == "phospy.sequences.resolver.v1"
+    assert row_diagnostics[0]["fasta_source_path"] == diagnostics.get(
+        "fasta_source_path"
+    )
+    assert row_diagnostics[0]["fasta_sha256"] == diagnostics.get("fasta_sha256")
 
 
 def test_unresolved_reason_counts_are_reported(tmp_path: Path) -> None:
@@ -241,6 +342,7 @@ def test_site_sequence_resolution_processing_state_populates_fasta_provenance(
         site_sequence_resolution=DatasetSiteSequenceResolutionConfig(
             fasta_path=_write_fasta(tmp_path),
             mode="replace_existing",
+            conflict_policy="replace_existing",
             flank_size=2,
         )
     )
@@ -296,3 +398,6 @@ def test_site_sequence_resolution_processing_state_populates_fasta_provenance(
     assert resolution.existing_sequence_conflict_count == diagnostics.get(
         "existing_sequence_conflict_count"
     )
+    assert resolution.conflict_policy == "replace_existing"
+    assert len(resolution.row_diagnostics) == 2
+    assert resolution.row_diagnostics[1].action == "replace_existing"

@@ -221,6 +221,10 @@ def test_dataset_comparison_building_config_self_validates(
             "site_sequence_resolution.mode must be one of",
         ),
         (
+            {"conflict_policy": "invalid"},
+            "site_sequence_resolution.conflict_policy must be one of",
+        ),
+        (
             {"fasta_path": "https://example.org/test.fasta"},
             "fasta_path must be a local filesystem path",
         ),

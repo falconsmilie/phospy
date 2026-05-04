@@ -12,6 +12,7 @@ from phospy.datasets.processing_state import (
     NormalisationState,
     RuvReadinessState,
     SiteMatrixState,
+    SiteSequenceResolutionRowDiagnostic,
     SiteSequenceResolutionState,
     TotalProteinCorrectionDiagnostics,
     TotalProteinCorrectionState,
@@ -75,6 +76,11 @@ def processing_state_to_payload(state: DatasetProcessingState) -> dict[str, obje
             "existing_sequence_conflict_count": int(
                 state.site_sequence_resolution.existing_sequence_conflict_count
             ),
+            "conflict_policy": state.site_sequence_resolution.conflict_policy,
+            "row_diagnostics": [
+                _site_sequence_row_diagnostic_to_payload(item)
+                for item in state.site_sequence_resolution.row_diagnostics
+            ],
         },
         "missing_data": {
             "policy": state.missing_data.policy,
@@ -326,6 +332,20 @@ def processing_state_from_payload(
                 field_name=(
                     "dataset.metadata.processing_state.site_sequence_resolution."
                     "existing_sequence_conflict_count"
+                ),
+            ),
+            conflict_policy=_require_optional_str(
+                site_sequence_resolution_payload.get("conflict_policy"),
+                field_name=(
+                    "dataset.metadata.processing_state.site_sequence_resolution."
+                    "conflict_policy"
+                ),
+            ),
+            row_diagnostics=_parse_optional_site_sequence_row_diagnostics(
+                site_sequence_resolution_payload.get("row_diagnostics"),
+                field_name=(
+                    "dataset.metadata.processing_state.site_sequence_resolution."
+                    "row_diagnostics"
                 ),
             ),
         ),
@@ -679,6 +699,98 @@ def _parse_optional_string_int_mapping(
         key = require_str(raw_key, field_name=f"{field_name}.<key>")
         parsed[key] = require_int(raw_value, field_name=f"{field_name}.{key}")
     return parsed
+
+
+def _site_sequence_row_diagnostic_to_payload(
+    item: SiteSequenceResolutionRowDiagnostic,
+) -> dict[str, object]:
+    return {
+        "row_index": int(item.row_index),
+        "row_id": item.row_id,
+        "site_id": item.site_id,
+        "status": item.status,
+        "existing_site_sequence": item.existing_site_sequence,
+        "fasta_site_sequence": item.fasta_site_sequence,
+        "resolved_site_sequence": item.resolved_site_sequence,
+        "action": item.action,
+        "reason": item.reason,
+        "conflict_policy": item.conflict_policy,
+        "resolver_version": item.resolver_version,
+        "fasta_source_path": item.fasta_source_path,
+        "fasta_sha256": item.fasta_sha256,
+    }
+
+
+def _parse_optional_site_sequence_row_diagnostics(
+    value: object,
+    *,
+    field_name: str,
+) -> tuple[SiteSequenceResolutionRowDiagnostic, ...]:
+    if value is None:
+        return ()
+    if not isinstance(value, list):
+        raise PhosPyInputError(f"{field_name} must be an array of diagnostic objects")
+    parsed: list[SiteSequenceResolutionRowDiagnostic] = []
+    for position, item in enumerate(value):
+        entry_field = f"{field_name}[{position}]"
+        payload = require_mapping(item, field_name=entry_field)
+        parsed.append(
+            SiteSequenceResolutionRowDiagnostic(
+                row_index=require_int(
+                    payload.get("row_index"),
+                    field_name=f"{entry_field}.row_index",
+                ),
+                row_id=require_str(
+                    payload.get("row_id"),
+                    field_name=f"{entry_field}.row_id",
+                ),
+                site_id=_require_optional_str(
+                    payload.get("site_id"),
+                    field_name=f"{entry_field}.site_id",
+                ),
+                status=require_str(
+                    payload.get("status"),
+                    field_name=f"{entry_field}.status",
+                ),
+                existing_site_sequence=_require_optional_str(
+                    payload.get("existing_site_sequence"),
+                    field_name=f"{entry_field}.existing_site_sequence",
+                ),
+                fasta_site_sequence=_require_optional_str(
+                    payload.get("fasta_site_sequence"),
+                    field_name=f"{entry_field}.fasta_site_sequence",
+                ),
+                resolved_site_sequence=_require_optional_str(
+                    payload.get("resolved_site_sequence"),
+                    field_name=f"{entry_field}.resolved_site_sequence",
+                ),
+                action=require_str(
+                    payload.get("action"),
+                    field_name=f"{entry_field}.action",
+                ),
+                reason=_require_optional_str(
+                    payload.get("reason"),
+                    field_name=f"{entry_field}.reason",
+                ),
+                conflict_policy=_require_optional_str(
+                    payload.get("conflict_policy"),
+                    field_name=f"{entry_field}.conflict_policy",
+                ),
+                resolver_version=_require_optional_str(
+                    payload.get("resolver_version"),
+                    field_name=f"{entry_field}.resolver_version",
+                ),
+                fasta_source_path=_require_optional_str(
+                    payload.get("fasta_source_path"),
+                    field_name=f"{entry_field}.fasta_source_path",
+                ),
+                fasta_sha256=_require_optional_str(
+                    payload.get("fasta_sha256"),
+                    field_name=f"{entry_field}.fasta_sha256",
+                ),
+            )
+        )
+    return tuple(parsed)
 
 
 def _parse_required_string_tuple(

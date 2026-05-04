@@ -19,6 +19,9 @@ from phospy.api.configs import (
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
     DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
     DATASET_SITE_MATRIX_POLICY_AS_INPUT,
+    DATASET_SITE_SEQUENCE_CONFLICT_POLICY_PRESERVE_EXISTING,
+    DATASET_SITE_SEQUENCE_CONFLICT_POLICY_REPLACE_EXISTING,
+    DATASET_SITE_SEQUENCE_RESOLUTION_MODE_REPLACE_EXISTING,
     DATASET_SITE_SEQUENCE_RESOLUTION_MODE_VALIDATE_EXISTING_AND_FILL_MISSING,
     DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICY_ERROR,
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT,
@@ -34,6 +37,7 @@ from phospy.api.configs import (
     DatasetSiteMatrixDuplicateSitePolicy,
     DatasetSiteMatrixMissingDataPolicy,
     DatasetSiteMatrixPolicy,
+    DatasetSiteSequenceConflictPolicy,
     DatasetSiteSequenceResolutionMode,
     DatasetTotalProteinCorrectionDuplicatePolicy,
     DatasetTotalProteinCorrectionIdentityConfig,
@@ -112,6 +116,9 @@ class PreprocessingPlan:
     site_sequence_resolution_fasta_path: str | None = None
     site_sequence_resolution_mode: DatasetSiteSequenceResolutionMode = (
         DATASET_SITE_SEQUENCE_RESOLUTION_MODE_VALIDATE_EXISTING_AND_FILL_MISSING
+    )
+    site_sequence_resolution_conflict_policy: DatasetSiteSequenceConflictPolicy = (
+        DATASET_SITE_SEQUENCE_CONFLICT_POLICY_PRESERVE_EXISTING
     )
     site_sequence_resolution_flank_size: int = 7
     site_sequence_resolution_accession_column: str = "protein_accession"
@@ -220,6 +227,12 @@ class PreprocessingPlan:
             site_sequence_resolution_enabled=site_sequence_resolution_enabled,
             site_sequence_resolution_fasta_path=config.site_sequence_resolution.fasta_path,
             site_sequence_resolution_mode=config.site_sequence_resolution.mode,
+            site_sequence_resolution_conflict_policy=(
+                _resolve_site_sequence_resolution_conflict_policy(
+                    mode=config.site_sequence_resolution.mode,
+                    conflict_policy=config.site_sequence_resolution.conflict_policy,
+                )
+            ),
             site_sequence_resolution_flank_size=int(
                 config.site_sequence_resolution.flank_size
             ),
@@ -497,3 +510,15 @@ def _resolve_total_correction_identity_policy(
             name="total_protein_correction.identity.mapping_table",
         ),
     )
+
+
+def _resolve_site_sequence_resolution_conflict_policy(
+    *,
+    mode: DatasetSiteSequenceResolutionMode,
+    conflict_policy: DatasetSiteSequenceConflictPolicy | None,
+) -> DatasetSiteSequenceConflictPolicy:
+    if conflict_policy is not None:
+        return conflict_policy
+    if mode == DATASET_SITE_SEQUENCE_RESOLUTION_MODE_REPLACE_EXISTING:
+        return DATASET_SITE_SEQUENCE_CONFLICT_POLICY_REPLACE_EXISTING
+    return DATASET_SITE_SEQUENCE_CONFLICT_POLICY_PRESERVE_EXISTING
