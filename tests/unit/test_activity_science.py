@@ -15,6 +15,7 @@ from phospy.activities.scoring import (
     SimplifiedWeightedSubstrateActivityPolicy,
     compute_activity_from_inputs,
 )
+from phospy.activities.threshold_membership import THRESHOLD_MEMBERSHIP_RULE
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.scientific_policies import ScientificPolicyId
 
@@ -178,6 +179,56 @@ def test_ksea_evidence_threshold_is_inclusive_and_ignores_missing_values() -> No
     assert stats is not None
     assert stats.at[0, "n_substrates"] == 1
     assert stats.at[0, "computability_status"] == KSEA_STATUS_COMPUTED
+
+
+def test_activity_threshold_membership_policy_is_explicit_and_inclusive() -> None:
+    assert THRESHOLD_MEMBERSHIP_RULE == "score >= threshold"
+
+
+def test_weighted_and_ksea_share_boundary_threshold_membership_and_counts() -> None:
+    pred_mat = pd.DataFrame(
+        {"K1": [0.49, 0.5, 0.51]},
+        index=["S1;S1;", "S2;S2;", "S3;S3;"],
+    )
+    phospho = pd.DataFrame({"c1": [1.0, 2.0, 3.0]}, index=pred_mat.index.copy())
+
+    weighted = compute_activity_from_inputs(
+        _inputs(
+            pred_mat=pred_mat,
+            phospho_matrix=phospho,
+            threshold=0.5,
+            min_substrates=1,
+            top_n_substrates=3,
+        )
+    )
+    ksea = _ksea_result(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho,
+        evidence_threshold=0.5,
+        min_substrates=1,
+    )
+
+    expected_sites = {"S2;S2;", "S3;S3;"}
+    assert weighted.thresholded_substrate_counts.to_dict() == {"K1": 2}
+    assert weighted.target_counts.to_dict() == {"K1": 2}
+    assert ksea.thresholded_substrate_counts.to_dict() == {"K1": 2}
+    assert ksea.target_counts.to_dict() == {"K1": 2}
+
+    weighted_sites = set(weighted.target_table.loc[:, "site_id"].astype(str))
+    ksea_sites = set(ksea.target_table.loc[:, "site_id"].astype(str))
+    assert weighted_sites == expected_sites
+    assert ksea_sites == expected_sites
+    assert weighted_sites == ksea_sites
+    assert "S1;S1;" not in weighted_sites
+
+    assert weighted.thresholded_substrate_mean_activity.at["K1", "c1"] == pytest.approx(
+        2.5
+    )
+    assert ksea.activity_substrate_counts is not None
+    assert ksea.activity_substrate_counts.at["K1", "c1"] == 2
+    stats = ksea.statistics_table
+    assert stats is not None
+    assert stats.at[0, "n_substrates"] == 2
 
 
 def test_ksea_reports_zero_background_variance_as_not_computable() -> None:

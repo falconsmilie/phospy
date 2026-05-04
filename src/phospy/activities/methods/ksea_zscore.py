@@ -17,6 +17,10 @@ from phospy.activities.statistics import (
     benjamini_hochberg_q_values,
     two_sided_normal_p_value,
 )
+from phospy.activities.threshold_membership import (
+    threshold_membership_filtered_frame,
+    threshold_membership_mask_array,
+)
 
 KSEA_STATUS_COMPUTED = "computed"
 KSEA_STATUS_INSUFFICIENT_SUBSTRATES = "insufficient_substrates"
@@ -52,8 +56,9 @@ class KseaZScoreActivityMethod:
 
         evidence_values = aligned_pred_mat.to_numpy(dtype=float, copy=False)
         phospho_values = aligned_matrix.to_numpy(dtype=float, copy=False)
-        membership_mask = np.isfinite(evidence_values) & (
-            evidence_values >= float(self.evidence_threshold)
+        membership_mask = threshold_membership_mask_array(
+            evidence_values,
+            threshold=float(self.evidence_threshold),
         )
         finite_phospho_mask = np.isfinite(phospho_values)
 
@@ -276,8 +281,10 @@ def _build_target_table(
     pred_mat: pd.DataFrame,
     evidence_threshold: float,
 ) -> pd.DataFrame:
-    filtered = pred_mat.where(pred_mat >= evidence_threshold)
-    filtered = filtered.where(np.isfinite(filtered))
+    filtered = threshold_membership_filtered_frame(
+        pred_mat,
+        threshold=evidence_threshold,
+    )
     try:
         edges = filtered.stack(future_stack=True).rename("score").reset_index()
         edges = edges.loc[edges["score"].notna()]

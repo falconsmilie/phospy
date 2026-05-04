@@ -13,6 +13,11 @@ from phospy.activities.models import (
     KinaseActivityInputs,
     KinaseActivityResult,
 )
+from phospy.activities.threshold_membership import (
+    threshold_membership_filtered_frame,
+    threshold_membership_mask_array,
+    threshold_membership_mask_frame,
+)
 from phospy.errors.workflows import WorkflowBoundaryError
 
 _SITE_ID_COLUMN = "site_id"
@@ -225,7 +230,7 @@ def _build_kinase_target_table(
     pred_mat: pd.DataFrame,
     threshold: float,
 ) -> pd.DataFrame:
-    filtered = pred_mat.where(pred_mat > threshold)
+    filtered = threshold_membership_filtered_frame(pred_mat, threshold=threshold)
     try:
         edges = filtered.stack(future_stack=True).rename("score").reset_index()
         edges = edges.loc[edges["score"].notna()]
@@ -236,11 +241,14 @@ def _build_kinase_target_table(
 
 
 def _prediction_mask(pred_mat: pd.DataFrame, threshold: float) -> pd.DataFrame:
-    return pred_mat.gt(threshold)
+    return threshold_membership_mask_frame(pred_mat, threshold=threshold)
 
 
 def _prediction_mask_array(pred_mat: pd.DataFrame, threshold: float) -> np.ndarray:
-    return pred_mat.to_numpy(copy=False) > threshold
+    return threshold_membership_mask_array(
+        pred_mat.to_numpy(dtype=float, copy=False),
+        threshold=threshold,
+    )
 
 
 def _align_activity_inputs(
