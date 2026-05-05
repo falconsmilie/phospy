@@ -7,20 +7,13 @@ from dataclasses import replace
 
 import pandas as pd
 
-from phospy.api.configs import (
-    DATASET_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,
-    DATASET_SITE_SEQUENCE_CONFLICT_POLICY_PRESERVE_EXISTING,
-    DATASET_SITE_SEQUENCE_CONFLICT_POLICY_REPLACE_EXISTING,
-    DATASET_SITE_SEQUENCE_RESOLUTION_MODE_FILL_MISSING_ONLY,
-    DATASET_SITE_SEQUENCE_RESOLUTION_MODE_REPLACE_EXISTING,
-    DATASET_SITE_SEQUENCE_RESOLUTION_MODE_VALIDATE_EXISTING_ONLY,
-)
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
     PreprocessingStageResult,
     PreprocessingState,
 )
 from phospy.errors.input import PhosPyInputError, UnsupportedInputFormatError
+from phospy.policy_models import SiteSequenceConflictPolicy, SiteSequenceResolutionMode
 from phospy.sequences import FastaProteinSequenceRepository
 from phospy.sequences.resolver import (
     RESOLUTION_STATUS_RESOLVED,
@@ -74,13 +67,12 @@ class SiteSequenceResolutionStage:
         mode = plan.site_sequence_resolution_mode
         conflict_policy = plan.site_sequence_resolution_conflict_policy
         if (
-            mode == DATASET_SITE_SEQUENCE_RESOLUTION_MODE_REPLACE_EXISTING
-            and conflict_policy
-            == DATASET_SITE_SEQUENCE_CONFLICT_POLICY_PRESERVE_EXISTING
+            mode is SiteSequenceResolutionMode.REPLACE_EXISTING
+            and conflict_policy is SiteSequenceConflictPolicy.PRESERVE_EXISTING
         ):
             # Backward-compatible behavior for legacy plans that used mode-only
             # replacement semantics before explicit conflict-policy support.
-            conflict_policy = DATASET_SITE_SEQUENCE_CONFLICT_POLICY_REPLACE_EXISTING
+            conflict_policy = SiteSequenceConflictPolicy.REPLACE_EXISTING
         flank_size = int(plan.site_sequence_resolution_flank_size)
 
         existing_site_sequence = (
@@ -112,10 +104,7 @@ class SiteSequenceResolutionStage:
             normalized_existing_value = normalized_existing.loc[row_id]
             has_existing = not bool(pd.isna(normalized_existing_value))
             site_id = row_key
-            if (
-                has_existing
-                and mode == DATASET_SITE_SEQUENCE_RESOLUTION_MODE_FILL_MISSING_ONLY
-            ):
+            if has_existing and mode is SiteSequenceResolutionMode.FILL_MISSING_ONLY:
                 preserved_existing_count += 1
                 status = "preserved_existing"
                 reason = "existing site_sequence preserved (fill_missing_only)"
@@ -141,7 +130,7 @@ class SiteSequenceResolutionStage:
                         ),
                         "action": "preserve_existing",
                         "reason": reason,
-                        "conflict_policy": conflict_policy,
+                        "conflict_policy": conflict_policy.value,
                         "resolver_version": self._RESOLVER_VERSION,
                         "fasta_source_path": fasta_source_path,
                         "fasta_sha256": fasta_sha256,
@@ -150,7 +139,7 @@ class SiteSequenceResolutionStage:
                 continue
             if (
                 not has_existing
-            ) and mode == DATASET_SITE_SEQUENCE_RESOLUTION_MODE_VALIDATE_EXISTING_ONLY:
+            ) and mode is SiteSequenceResolutionMode.VALIDATE_EXISTING_ONLY:
                 status = "missing_existing_sequence"
                 reason = "missing site_sequence preserved (validate_existing_only)"
                 row_status.append(
@@ -171,7 +160,7 @@ class SiteSequenceResolutionStage:
                         "resolved_site_sequence": None,
                         "action": "skip_missing_existing",
                         "reason": reason,
-                        "conflict_policy": conflict_policy,
+                        "conflict_policy": conflict_policy.value,
                         "resolver_version": self._RESOLVER_VERSION,
                         "fasta_source_path": fasta_source_path,
                         "fasta_sha256": fasta_sha256,
@@ -227,7 +216,7 @@ class SiteSequenceResolutionStage:
                                 "preserve_existing" if has_existing else "unresolved"
                             ),
                             "reason": reason,
-                            "conflict_policy": conflict_policy,
+                            "conflict_policy": conflict_policy.value,
                             "resolver_version": self._RESOLVER_VERSION,
                             "fasta_source_path": fasta_source_path,
                             "fasta_sha256": fasta_sha256,
@@ -261,7 +250,7 @@ class SiteSequenceResolutionStage:
                                 "resolved_site_sequence": existing_text,
                                 "action": "validate_existing",
                                 "reason": reason,
-                                "conflict_policy": conflict_policy,
+                                "conflict_policy": conflict_policy.value,
                                 "resolver_version": self._RESOLVER_VERSION,
                                 "fasta_source_path": fasta_source_path,
                                 "fasta_sha256": fasta_sha256,
@@ -269,7 +258,7 @@ class SiteSequenceResolutionStage:
                         )
                         continue
                     existing_sequence_conflict_count += 1
-                    if conflict_policy == DATASET_SITE_SEQUENCE_CONFLICT_POLICY_ERROR:
+                    if conflict_policy is SiteSequenceConflictPolicy.ERROR:
                         preserved_existing_count += 1
                         status = "existing_sequence_conflict"
                         reason = (
@@ -293,7 +282,7 @@ class SiteSequenceResolutionStage:
                             "resolved_site_sequence": existing_text,
                             "action": "error",
                             "reason": reason,
-                            "conflict_policy": conflict_policy,
+                            "conflict_policy": conflict_policy.value,
                             "resolver_version": self._RESOLVER_VERSION,
                             "fasta_source_path": fasta_source_path,
                             "fasta_sha256": fasta_sha256,
@@ -301,17 +290,13 @@ class SiteSequenceResolutionStage:
                         row_diagnostics.append(conflict_row)
                         conflict_error_rows.append(conflict_row)
                         continue
-                    if (
-                        conflict_policy
-                        == DATASET_SITE_SEQUENCE_CONFLICT_POLICY_REPLACE_EXISTING
-                    ):
+                    if conflict_policy is SiteSequenceConflictPolicy.REPLACE_EXISTING:
                         updated_site_sequence.at[row_id] = resolved_sequence
                         replaced_existing_count += 1
                         resolved_site_sequence = resolved_sequence
                         action = "replace_existing"
                     elif (
-                        conflict_policy
-                        == DATASET_SITE_SEQUENCE_CONFLICT_POLICY_PRESERVE_EXISTING
+                        conflict_policy is SiteSequenceConflictPolicy.PRESERVE_EXISTING
                     ):
                         preserved_existing_count += 1
                         resolved_site_sequence = existing_text
@@ -344,7 +329,7 @@ class SiteSequenceResolutionStage:
                             "resolved_site_sequence": resolved_site_sequence,
                             "action": action,
                             "reason": reason,
-                            "conflict_policy": conflict_policy,
+                            "conflict_policy": conflict_policy.value,
                             "resolver_version": self._RESOLVER_VERSION,
                             "fasta_source_path": fasta_source_path,
                             "fasta_sha256": fasta_sha256,
@@ -374,7 +359,7 @@ class SiteSequenceResolutionStage:
                         "resolved_site_sequence": resolved_sequence,
                         "action": "fill_missing",
                         "reason": reason,
-                        "conflict_policy": conflict_policy,
+                        "conflict_policy": conflict_policy.value,
                         "resolver_version": self._RESOLVER_VERSION,
                         "fasta_source_path": fasta_source_path,
                         "fasta_sha256": fasta_sha256,
@@ -415,7 +400,7 @@ class SiteSequenceResolutionStage:
                     ),
                     "action": "preserve_existing" if has_existing else "unresolved",
                     "reason": reason,
-                    "conflict_policy": conflict_policy,
+                    "conflict_policy": conflict_policy.value,
                     "resolver_version": self._RESOLVER_VERSION,
                     "fasta_source_path": fasta_source_path,
                     "fasta_sha256": fasta_sha256,
@@ -428,8 +413,8 @@ class SiteSequenceResolutionStage:
             "fasta_sha256": repository.metadata.sha256,
             "resolver_version": self._RESOLVER_VERSION,
             "flank_size": flank_size,
-            "mode": mode,
-            "conflict_policy": conflict_policy,
+            "mode": mode.value,
+            "conflict_policy": conflict_policy.value,
             "accession_column": accession_column,
             "site_column": site_column,
             "resolved_site_count": int(resolved_site_count),

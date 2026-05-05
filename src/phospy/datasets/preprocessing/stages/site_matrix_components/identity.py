@@ -4,17 +4,11 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from phospy.api.configs import (
-    DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
-)
 from phospy.datasets.preprocessing.models import DuplicateSiteResolutionResult
 from phospy.errors.input import PhosPyInputError
+from phospy.policy_models import SiteMatrixMissingDataPolicy
 
 _SITE_SEQUENCE_COLUMN = "site_sequence"
-_INTERNAL_SITE_MATRIX_MISSING_DATA_POLICY_RETAIN_MISSING = "retain_missing"
-_INTERNAL_SITE_MATRIX_MISSING_DATA_POLICY_REQUIRE_MIN_OBSERVED_VALUES = (
-    "require_min_observed_values"
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,26 +86,21 @@ class MissingDataSiteFilter:
         *,
         phospho: pd.DataFrame,
         constructed_site_id: pd.Series,
-        missing_data_policy: str,
+        missing_data_policy: SiteMatrixMissingDataPolicy | str,
         minimum_observed_values: int | None,
     ) -> MissingDataSiteFilterResult:
+        resolved_policy = SiteMatrixMissingDataPolicy.parse(
+            missing_data_policy,
+            field_name="site_matrix.missing_data_policy",
+        )
         observed_counts = phospho.notna().sum(axis=1)
-        if (
-            missing_data_policy
-            == DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING
-        ):
+        if resolved_policy is SiteMatrixMissingDataPolicy.DROP_ANY_MISSING:
             retained_mask = phospho.notna().all(axis=1)
             required_observed_count = phospho.shape[1]
-        elif (
-            missing_data_policy
-            == _INTERNAL_SITE_MATRIX_MISSING_DATA_POLICY_RETAIN_MISSING
-        ):
+        elif resolved_policy is SiteMatrixMissingDataPolicy.RETAIN_MISSING:
             retained_mask = pd.Series(True, index=phospho.index)
             required_observed_count = 0
-        elif (
-            missing_data_policy
-            == _INTERNAL_SITE_MATRIX_MISSING_DATA_POLICY_REQUIRE_MIN_OBSERVED_VALUES
-        ):
+        elif resolved_policy is SiteMatrixMissingDataPolicy.REQUIRE_MIN_OBSERVED_VALUES:
             if minimum_observed_values is None:
                 raise PhosPyInputError(
                     "dataset build request preprocessing site-matrix construction "

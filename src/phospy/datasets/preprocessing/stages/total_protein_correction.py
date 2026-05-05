@@ -7,7 +7,6 @@ from dataclasses import dataclass, replace
 import pandas as pd
 
 from phospy.api.configs import (
-    DATASET_INTENSITY_TRANSFORM_POLICY_LOG2,
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT,
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_MAPPING_TABLE,
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
@@ -23,7 +22,7 @@ from phospy.datasets.processing_state import (
     TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1,
 )
 from phospy.errors.input import PhosPyInputError
-from phospy.policy_models import TotalProteinCorrectionPolicy
+from phospy.policy_models import IntensityTransformPolicy, TotalProteinCorrectionPolicy
 from phospy.provenance.hashing import hash_table
 from phospy.transformations.models import QuantitativeMeaning
 
@@ -86,10 +85,7 @@ class TotalProteinCorrectionStage:
                 "dataset build request preprocessing_config contains an unsupported "
                 "total_protein_correction.policy"
             )
-        if (
-            state.plan.intensity_transform_policy
-            != DATASET_INTENSITY_TRANSFORM_POLICY_LOG2
-        ):
+        if state.plan.intensity_transform_policy is not IntensityTransformPolicy.LOG2:
             raise PhosPyInputError(
                 "dataset build request "
                 "preprocessing_config.total_protein_correction."

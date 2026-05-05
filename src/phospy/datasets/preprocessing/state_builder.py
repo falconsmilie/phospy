@@ -4,10 +4,6 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.api.configs import (
-    DATASET_COMPARISON_BUILDING_POLICY_NONE,
-    DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA,
-)
 from phospy.datasets.preprocessing.diagnostics import ProcessingTraceDiagnostics
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
@@ -30,7 +26,11 @@ from phospy.datasets.processing_state import (
     TotalProteinCorrectionState,
 )
 from phospy.errors.build import DatasetBuildError
-from phospy.policy_models import TotalProteinCorrectionPolicy
+from phospy.policy_models import (
+    ComparisonBuildingPolicy,
+    SiteMatrixPolicy,
+    TotalProteinCorrectionPolicy,
+)
 from phospy.transformations.models import (
     IntensityScaleKind,
     IntensityScaleState,
@@ -73,7 +73,7 @@ class DatasetProcessingStateBuilder:
             )
         )
         site_sequence_resolution_mode_default = (
-            str(plan.site_sequence_resolution_mode).strip()
+            plan.site_sequence_resolution_mode.value
             if site_sequence_resolution_configured
             else None
         )
@@ -83,7 +83,7 @@ class DatasetProcessingStateBuilder:
             else None
         )
         site_sequence_resolution_conflict_policy_default = (
-            str(plan.site_sequence_resolution_conflict_policy).strip()
+            plan.site_sequence_resolution_conflict_policy.value
             if site_sequence_resolution_configured
             else None
         )
@@ -263,7 +263,7 @@ class DatasetProcessingStateBuilder:
                 imputed=(imputed_cell_count > 0),
                 diagnostics=typed_missing_data_diagnostics,
             ),
-            normalisation=NormalisationState(policy=plan.normalisation_policy),
+            normalisation=NormalisationState(policy=plan.normalisation_policy.value),
             total_protein_correction=TotalProteinCorrectionState(
                 policy=resolved_total_policy,
                 applied=total_correction_applied,
@@ -302,22 +302,20 @@ class DatasetProcessingStateBuilder:
                 diagnostics=typed_correction_diagnostics,
             ),
             site_matrix=SiteMatrixState(
-                policy=plan.site_matrix_policy,
+                policy=plan.site_matrix_policy.value,
                 constructed=(
-                    plan.site_matrix_policy
-                    == DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA
+                    plan.site_matrix_policy is SiteMatrixPolicy.BUILD_FROM_METADATA
                 ),
-                missing_data_policy=plan.site_matrix_missing_data_policy,
+                missing_data_policy=plan.site_matrix_missing_data_policy.value,
                 minimum_observed_values=plan.site_matrix_minimum_observed_values,
-                duplicate_site_policy=plan.site_matrix_duplicate_site_policy,
+                duplicate_site_policy=plan.site_matrix_duplicate_site_policy.value,
             ),
             comparisons=ComparisonState(
-                policy=plan.comparison_building_policy,
+                policy=plan.comparison_building_policy.value,
                 sample_group_column=plan.comparison_sample_group_column,
                 pairs=(
                     None
-                    if plan.comparison_building_policy
-                    == DATASET_COMPARISON_BUILDING_POLICY_NONE
+                    if plan.comparison_building_policy is ComparisonBuildingPolicy.NONE
                     else comparison_pairs
                 ),
             ),

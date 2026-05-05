@@ -11,6 +11,7 @@ import numpy as np
 from phospy.datasets.preprocessing.models import PreprocessingState
 from phospy.datasets.processing_state import JsonValue
 from phospy.errors.input import PhosPyInputError
+from phospy.policy_models import IntensityTransformPolicy
 
 from .models import MinProbPolicyOutcome, RowImputationRecord
 
@@ -80,7 +81,7 @@ def _stable_column_label_seed(base_seed: int, column_label: object) -> int:
 def run_minprob_policy(state: PreprocessingState) -> MinProbPolicyOutcome:
     """Apply minprob policy numerical transformation."""
 
-    if state.plan.intensity_transform_policy != "log2":
+    if state.plan.intensity_transform_policy is not IntensityTransformPolicy.LOG2:
         raise PhosPyInputError(
             "dataset build request preprocessing_config.missing_data.policy="
             "'impute_minprob' requires log2-scale values. Configure "

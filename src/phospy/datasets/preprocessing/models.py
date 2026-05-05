@@ -10,31 +10,13 @@ import pandas as pd
 
 from phospy.api.configs import (
     DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN,
-    DATASET_COMPARISON_BUILDING_POLICY_NONE,
-    DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY,
-    DATASET_INTENSITY_TRANSFORM_POLICY_LOG2,
-    DATASET_NORMALISATION_POLICY_NONE,
-    DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
-    DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
-    DATASET_SITE_MATRIX_POLICY_AS_INPUT,
-    DATASET_SITE_SEQUENCE_CONFLICT_POLICY_PRESERVE_EXISTING,
-    DATASET_SITE_SEQUENCE_CONFLICT_POLICY_REPLACE_EXISTING,
-    DATASET_SITE_SEQUENCE_RESOLUTION_MODE_REPLACE_EXISTING,
-    DATASET_SITE_SEQUENCE_RESOLUTION_MODE_VALIDATE_EXISTING_AND_FILL_MISSING,
     DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICY_ERROR,
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT,
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_MAPPING_TABLE,
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ERROR,
-    DatasetComparisonBuildingPolicy,
     DatasetComparisonPair,
-    DatasetIntensityTransformPolicy,
-    DatasetNormalisationPolicy,
     DatasetPreprocessingConfig,
-    DatasetSiteMatrixDuplicateSitePolicy,
-    DatasetSiteMatrixMissingDataPolicy,
-    DatasetSiteMatrixPolicy,
     DatasetSiteSequenceConflictPolicy,
-    DatasetSiteSequenceResolutionMode,
     DatasetTotalProteinCorrectionDuplicatePolicy,
     DatasetTotalProteinCorrectionIdentityConfig,
     DatasetTotalProteinCorrectionIdentityMode,
@@ -51,7 +33,18 @@ from phospy.datasets.preprocessing.report_schema import (
     reorder_columns,
 )
 from phospy.errors.input import PhosPyInputError
-from phospy.policy_models import MissingDataPolicy, TotalProteinCorrectionPolicy
+from phospy.policy_models import (
+    ComparisonBuildingPolicy,
+    IntensityTransformPolicy,
+    MissingDataPolicy,
+    NormalisationPolicy,
+    SiteMatrixDuplicateSitePolicy,
+    SiteMatrixMissingDataPolicy,
+    SiteMatrixPolicy,
+    SiteSequenceConflictPolicy,
+    SiteSequenceResolutionMode,
+    TotalProteinCorrectionPolicy,
+)
 from phospy.provenance.hashing import hash_table
 from phospy.provenance.models import (
     PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V2,
@@ -95,11 +88,11 @@ class TotalProteinCorrectionIdentityPolicy:
 class PreprocessingPlan:
     """Execution-ready internal preprocessing plan derived from public config."""
 
-    intensity_transform_policy: DatasetIntensityTransformPolicy = (
-        DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY
+    intensity_transform_policy: IntensityTransformPolicy = (
+        IntensityTransformPolicy.IDENTITY
     )
     intensity_transform_pseudocount: float = 1.0
-    normalisation_policy: DatasetNormalisationPolicy = DATASET_NORMALISATION_POLICY_NONE
+    normalisation_policy: NormalisationPolicy = NormalisationPolicy.NONE
     missing_data_policy: MissingDataPolicy = MissingDataPolicy.FORBID
     missing_data_min_observed_values: int | None = None
     missing_data_q: float | None = None
@@ -110,11 +103,11 @@ class PreprocessingPlan:
     missing_data_max_missing_fraction_per_row: float | None = None
     site_sequence_resolution_enabled: bool = False
     site_sequence_resolution_fasta_path: str | None = None
-    site_sequence_resolution_mode: DatasetSiteSequenceResolutionMode = (
-        DATASET_SITE_SEQUENCE_RESOLUTION_MODE_VALIDATE_EXISTING_AND_FILL_MISSING
+    site_sequence_resolution_mode: SiteSequenceResolutionMode = (
+        SiteSequenceResolutionMode.VALIDATE_EXISTING_AND_FILL_MISSING
     )
-    site_sequence_resolution_conflict_policy: DatasetSiteSequenceConflictPolicy = (
-        DATASET_SITE_SEQUENCE_CONFLICT_POLICY_PRESERVE_EXISTING
+    site_sequence_resolution_conflict_policy: SiteSequenceConflictPolicy = (
+        SiteSequenceConflictPolicy.PRESERVE_EXISTING
     )
     site_sequence_resolution_flank_size: int = 7
     site_sequence_resolution_accession_column: str = "protein_accession"
@@ -135,15 +128,13 @@ class PreprocessingPlan:
             mapping_table_fingerprint=None,
         )
     )
-    site_matrix_policy: DatasetSiteMatrixPolicy = DATASET_SITE_MATRIX_POLICY_AS_INPUT
-    comparison_building_policy: DatasetComparisonBuildingPolicy = (
-        DATASET_COMPARISON_BUILDING_POLICY_NONE
+    site_matrix_policy: SiteMatrixPolicy = SiteMatrixPolicy.AS_INPUT
+    comparison_building_policy: ComparisonBuildingPolicy = ComparisonBuildingPolicy.NONE
+    site_matrix_duplicate_site_policy: SiteMatrixDuplicateSitePolicy = (
+        SiteMatrixDuplicateSitePolicy.MAX_MEAN_SIGNAL
     )
-    site_matrix_duplicate_site_policy: DatasetSiteMatrixDuplicateSitePolicy = (
-        DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL
-    )
-    site_matrix_missing_data_policy: DatasetSiteMatrixMissingDataPolicy = (
-        DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING
+    site_matrix_missing_data_policy: SiteMatrixMissingDataPolicy = (
+        SiteMatrixMissingDataPolicy.DROP_ANY_MISSING
     )
     site_matrix_minimum_observed_values: int | None = None
     comparison_sample_group_column: str = (
@@ -159,11 +150,95 @@ class PreprocessingPlan:
     def __post_init__(self) -> None:
         object.__setattr__(
             self,
+            "intensity_transform_policy",
+            IntensityTransformPolicy.parse(
+                self.intensity_transform_policy,
+                field_name=(
+                    "dataset preprocessing plan intensity_transform_policy "
+                    "(internal model)"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "normalisation_policy",
+            NormalisationPolicy.parse(
+                self.normalisation_policy,
+                field_name=(
+                    "dataset preprocessing plan normalisation_policy (internal model)"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
             "missing_data_policy",
             MissingDataPolicy.parse(
                 self.missing_data_policy,
                 field_name=(
                     "dataset preprocessing plan missing_data_policy (internal model)"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "site_sequence_resolution_mode",
+            SiteSequenceResolutionMode.parse(
+                self.site_sequence_resolution_mode,
+                field_name=(
+                    "dataset preprocessing plan site_sequence_resolution_mode "
+                    "(internal model)"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "site_sequence_resolution_conflict_policy",
+            SiteSequenceConflictPolicy.parse(
+                self.site_sequence_resolution_conflict_policy,
+                field_name=(
+                    "dataset preprocessing plan "
+                    "site_sequence_resolution_conflict_policy (internal model)"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "site_matrix_policy",
+            SiteMatrixPolicy.parse(
+                self.site_matrix_policy,
+                field_name="dataset preprocessing plan site_matrix_policy (internal model)",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "comparison_building_policy",
+            ComparisonBuildingPolicy.parse(
+                self.comparison_building_policy,
+                field_name=(
+                    "dataset preprocessing plan comparison_building_policy "
+                    "(internal model)"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "site_matrix_duplicate_site_policy",
+            SiteMatrixDuplicateSitePolicy.parse(
+                self.site_matrix_duplicate_site_policy,
+                field_name=(
+                    "dataset preprocessing plan site_matrix_duplicate_site_policy "
+                    "(internal model)"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "site_matrix_missing_data_policy",
+            SiteMatrixMissingDataPolicy.parse(
+                self.site_matrix_missing_data_policy,
+                field_name=(
+                    "dataset preprocessing plan site_matrix_missing_data_policy "
+                    "(internal model)"
                 ),
             ),
         )
@@ -185,6 +260,34 @@ class PreprocessingPlan:
         site_sequence_resolution_enabled = (
             config.site_sequence_resolution.fasta_path is not None
         )
+        intensity_transform_policy = IntensityTransformPolicy.parse(
+            config.intensity_transform.policy,
+            field_name="preprocessing_config.intensity_transform.policy",
+        )
+        normalisation_policy = NormalisationPolicy.parse(
+            config.normalisation.policy,
+            field_name="preprocessing_config.normalisation.policy",
+        )
+        site_matrix_policy = SiteMatrixPolicy.parse(
+            config.site_matrix.policy,
+            field_name="preprocessing_config.site_matrix.policy",
+        )
+        site_matrix_duplicate_site_policy = SiteMatrixDuplicateSitePolicy.parse(
+            config.site_matrix.duplicate_site_policy,
+            field_name="preprocessing_config.site_matrix.duplicate_site_policy",
+        )
+        site_matrix_missing_data_policy = SiteMatrixMissingDataPolicy.parse(
+            config.site_matrix.missing_data_policy,
+            field_name="preprocessing_config.site_matrix.missing_data_policy",
+        )
+        comparison_building_policy = ComparisonBuildingPolicy.parse(
+            config.comparisons.policy,
+            field_name="preprocessing_config.comparisons.policy",
+        )
+        site_sequence_resolution_mode = SiteSequenceResolutionMode.parse(
+            config.site_sequence_resolution.mode,
+            field_name="preprocessing_config.site_sequence_resolution.mode",
+        )
         if site_sequence_resolution_enabled:
             stage_order.append(DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION)
         missing_data_policy = MissingDataPolicy.parse(
@@ -196,10 +299,7 @@ class PreprocessingPlan:
             field_name="preprocessing_config.total_protein_correction.policy",
         )
         if missing_data_policy is MissingDataPolicy.IMPUTE_MINPROB:
-            if (
-                config.intensity_transform.policy
-                != DATASET_INTENSITY_TRANSFORM_POLICY_LOG2
-            ):
+            if intensity_transform_policy is not IntensityTransformPolicy.LOG2:
                 raise PhosPyInputError(
                     "dataset build request preprocessing_config.missing_data.policy="
                     "'impute_minprob' requires "
@@ -211,25 +311,22 @@ class PreprocessingPlan:
             stage_order.append(DATASET_PREPROCESSING_STAGE_MISSING_DATA)
         else:
             stage_order.append(DATASET_PREPROCESSING_STAGE_MISSING_DATA)
-            if (
-                config.intensity_transform.policy
-                != DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY
-            ):
+            if intensity_transform_policy is not IntensityTransformPolicy.IDENTITY:
                 stage_order.append(DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM)
         if total_correction_policy is not TotalProteinCorrectionPolicy.NONE:
             stage_order.append(DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION)
-        if config.site_matrix.policy != DATASET_SITE_MATRIX_POLICY_AS_INPUT:
+        if site_matrix_policy is not SiteMatrixPolicy.AS_INPUT:
             stage_order.append(DATASET_PREPROCESSING_STAGE_SITE_MATRIX)
-        if config.normalisation.policy != DATASET_NORMALISATION_POLICY_NONE:
+        if normalisation_policy is not NormalisationPolicy.NONE:
             stage_order.append(DATASET_PREPROCESSING_STAGE_NORMALISATION)
-        if config.comparisons.policy != DATASET_COMPARISON_BUILDING_POLICY_NONE:
+        if comparison_building_policy is not ComparisonBuildingPolicy.NONE:
             stage_order.append(DATASET_PREPROCESSING_STAGE_COMPARISONS)
         return cls(
-            intensity_transform_policy=config.intensity_transform.policy,
+            intensity_transform_policy=intensity_transform_policy,
             intensity_transform_pseudocount=float(
                 config.intensity_transform.pseudocount
             ),
-            normalisation_policy=config.normalisation.policy,
+            normalisation_policy=normalisation_policy,
             missing_data_policy=missing_data_policy,
             missing_data_min_observed_values=config.missing_data.min_observed_values,
             missing_data_q=(
@@ -250,10 +347,10 @@ class PreprocessingPlan:
             ),
             site_sequence_resolution_enabled=site_sequence_resolution_enabled,
             site_sequence_resolution_fasta_path=config.site_sequence_resolution.fasta_path,
-            site_sequence_resolution_mode=config.site_sequence_resolution.mode,
+            site_sequence_resolution_mode=site_sequence_resolution_mode,
             site_sequence_resolution_conflict_policy=(
                 _resolve_site_sequence_resolution_conflict_policy(
-                    mode=config.site_sequence_resolution.mode,
+                    mode=site_sequence_resolution_mode,
                     conflict_policy=config.site_sequence_resolution.conflict_policy,
                 )
             ),
@@ -270,11 +367,11 @@ class PreprocessingPlan:
             total_protein_correction_identity_policy=_resolve_total_correction_identity_policy(
                 config.total_protein_correction.identity
             ),
-            site_matrix_policy=config.site_matrix.policy,
-            site_matrix_duplicate_site_policy=config.site_matrix.duplicate_site_policy,
-            site_matrix_missing_data_policy=config.site_matrix.missing_data_policy,
+            site_matrix_policy=site_matrix_policy,
+            site_matrix_duplicate_site_policy=site_matrix_duplicate_site_policy,
+            site_matrix_missing_data_policy=site_matrix_missing_data_policy,
             site_matrix_minimum_observed_values=config.site_matrix.minimum_observed_values,
-            comparison_building_policy=config.comparisons.policy,
+            comparison_building_policy=comparison_building_policy,
             comparison_sample_group_column=config.comparisons.sample_group_column,
             comparison_pairs=(
                 None
@@ -538,11 +635,14 @@ def _resolve_total_correction_identity_policy(
 
 def _resolve_site_sequence_resolution_conflict_policy(
     *,
-    mode: DatasetSiteSequenceResolutionMode,
+    mode: SiteSequenceResolutionMode,
     conflict_policy: DatasetSiteSequenceConflictPolicy | None,
-) -> DatasetSiteSequenceConflictPolicy:
+) -> SiteSequenceConflictPolicy:
     if conflict_policy is not None:
-        return conflict_policy
-    if mode == DATASET_SITE_SEQUENCE_RESOLUTION_MODE_REPLACE_EXISTING:
-        return DATASET_SITE_SEQUENCE_CONFLICT_POLICY_REPLACE_EXISTING
-    return DATASET_SITE_SEQUENCE_CONFLICT_POLICY_PRESERVE_EXISTING
+        return SiteSequenceConflictPolicy.parse(
+            conflict_policy,
+            field_name="preprocessing_config.site_sequence_resolution.conflict_policy",
+        )
+    if mode is SiteSequenceResolutionMode.REPLACE_EXISTING:
+        return SiteSequenceConflictPolicy.REPLACE_EXISTING
+    return SiteSequenceConflictPolicy.PRESERVE_EXISTING

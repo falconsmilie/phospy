@@ -4,13 +4,6 @@ from typing import cast
 
 import pandas as pd
 
-from phospy.api.configs import (
-    DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
-    DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
-    DATASET_SITE_MATRIX_DUPLICATE_POLICY_ERROR,
-    DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST,
-    DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
-)
 from phospy.datasets.preprocessing.models import DuplicateSiteResolutionResult
 from phospy.datasets.preprocessing.report_schema import (
     DUPLICATE_SITE_RESOLUTION_COLUMNS,
@@ -23,14 +16,15 @@ from phospy.datasets.preprocessing.stages.site_matrix_components.metadata import
     resolve_aggregate_site_metadata,
 )
 from phospy.errors.input import PhosPyInputError
+from phospy.policy_models import SiteMatrixDuplicateSitePolicy
 
 _SITE_ID_COLUMN = "site_id"
 _SUPPORTED_DUPLICATE_SITE_POLICIES = {
-    DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
-    DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST,
-    DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
-    DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
-    DATASET_SITE_MATRIX_DUPLICATE_POLICY_ERROR,
+    SiteMatrixDuplicateSitePolicy.MAX_MEAN_SIGNAL,
+    SiteMatrixDuplicateSitePolicy.FIRST,
+    SiteMatrixDuplicateSitePolicy.AGGREGATE_MEAN,
+    SiteMatrixDuplicateSitePolicy.AGGREGATE_MEDIAN,
+    SiteMatrixDuplicateSitePolicy.ERROR,
 }
 
 
@@ -54,9 +48,13 @@ class DuplicateSiteResolver:
         phospho: pd.DataFrame,
         site_metadata: pd.DataFrame,
         constructed_site_id: pd.Series,
-        duplicate_site_policy: str,
+        duplicate_site_policy: SiteMatrixDuplicateSitePolicy | str,
     ) -> DuplicateSiteResolutionResult:
-        if duplicate_site_policy not in _SUPPORTED_DUPLICATE_SITE_POLICIES:
+        resolved_policy = SiteMatrixDuplicateSitePolicy.parse(
+            duplicate_site_policy,
+            field_name="site_matrix.duplicate_site_policy",
+        )
+        if resolved_policy not in _SUPPORTED_DUPLICATE_SITE_POLICIES:
             raise PhosPyInputError(
                 "dataset build request preprocessing_config contains an unsupported "
                 "site_matrix.duplicate_site_policy"
@@ -116,7 +114,7 @@ class DuplicateSiteResolver:
         )
         conflict_site_ids = set(metadata_conflicts.loc[:, "site_id"].astype(str))
 
-        if duplicate_site_policy == DATASET_SITE_MATRIX_DUPLICATE_POLICY_ERROR:
+        if resolved_policy is SiteMatrixDuplicateSitePolicy.ERROR:
             duplicate_sites = (
                 constructed_site_id.loc[duplicate_mask]
                 .astype(str)
@@ -132,7 +130,7 @@ class DuplicateSiteResolver:
                 "resolution and metadata-conflict diagnostics."
             )
 
-        if duplicate_site_policy == DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST:
+        if resolved_policy is SiteMatrixDuplicateSitePolicy.FIRST:
             selected_rows = (
                 pd.DataFrame(
                     {_SITE_ID_COLUMN: constructed_site_id}, index=phospho.index
@@ -152,7 +150,7 @@ class DuplicateSiteResolver:
                 duplicate_work=duplicate_work,
                 site_metadata=site_metadata,
                 selected_rows=selected_rows,
-                duplicate_site_policy=duplicate_site_policy,
+                duplicate_site_policy=resolved_policy,
                 retained_reason="selected first row by input order",
                 dropped_reason=(
                     "dropped because another row was selected first by input order"
@@ -167,10 +165,7 @@ class DuplicateSiteResolver:
                 metadata_conflicts=metadata_conflicts,
             )
 
-        if (
-            duplicate_site_policy
-            == DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL
-        ):
+        if resolved_policy is SiteMatrixDuplicateSitePolicy.MAX_MEAN_SIGNAL:
             value_columns = list(phospho.columns)
             dedupe_work = pd.DataFrame(
                 {
@@ -207,7 +202,7 @@ class DuplicateSiteResolver:
                 duplicate_work=duplicate_work,
                 site_metadata=site_metadata,
                 selected_rows=selected_rows,
-                duplicate_site_policy=duplicate_site_policy,
+                duplicate_site_policy=resolved_policy,
                 retained_reason=(
                     "selected row with highest mean signal under max_mean_signal criteria"
                 ),
@@ -224,9 +219,9 @@ class DuplicateSiteResolver:
                 metadata_conflicts=metadata_conflicts,
             )
 
-        if duplicate_site_policy in {
-            DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
-            DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
+        if resolved_policy in {
+            SiteMatrixDuplicateSitePolicy.AGGREGATE_MEAN,
+            SiteMatrixDuplicateSitePolicy.AGGREGATE_MEDIAN,
         }:
             grouped_metadata = resolve_aggregate_site_metadata(
                 site_metadata=site_metadata,
@@ -234,10 +229,7 @@ class DuplicateSiteResolver:
                 metadata_conflicts=metadata_conflicts,
             )
             grouped_values = phospho.groupby(constructed_site_id, sort=False)
-            if (
-                duplicate_site_policy
-                == DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN
-            ):
+            if resolved_policy is SiteMatrixDuplicateSitePolicy.AGGREGATE_MEAN:
                 grouped_phospho = cast(pd.DataFrame, grouped_values.mean())
             else:
                 grouped_phospho = cast(pd.DataFrame, grouped_values.median())
@@ -248,7 +240,7 @@ class DuplicateSiteResolver:
                 duplicate_work=duplicate_work,
                 site_metadata=site_metadata,
                 selected_rows=duplicate_work.index,
-                duplicate_site_policy=duplicate_site_policy,
+                duplicate_site_policy=resolved_policy,
                 retained_reason=(
                     "contributed to site-level aggregate from duplicate source rows"
                 ),
@@ -272,7 +264,7 @@ class DuplicateSiteResolver:
         duplicate_work: pd.DataFrame,
         site_metadata: pd.DataFrame,
         selected_rows: pd.Index,
-        duplicate_site_policy: str,
+        duplicate_site_policy: SiteMatrixDuplicateSitePolicy,
         retained_reason: str,
         dropped_reason: str | None,
         conflict_site_ids: set[str],
@@ -290,7 +282,7 @@ class DuplicateSiteResolver:
                 .astype(str)
                 .tolist(),
                 "retained": duplicate_work.index.astype(str).isin(selected_row_ids),
-                "resolution_policy": duplicate_site_policy,
+                "resolution_policy": duplicate_site_policy.value,
                 "observed_values": duplicate_work.loc[:, "observed_values"].to_numpy(),
                 "mean_signal": duplicate_work.loc[:, "mean_signal"].to_numpy(),
                 "n_source_rows": duplicate_work.loc[:, "n_source_rows"].to_numpy(),

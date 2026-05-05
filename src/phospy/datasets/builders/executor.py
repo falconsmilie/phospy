@@ -10,7 +10,6 @@ from collections.abc import Mapping
 
 import pandas as pd
 
-from phospy.api.configs import DATASET_INTENSITY_TRANSFORM_POLICY_LOG2
 from phospy.datasets.builders.contracts import (
     DatasetPreprocessorContract,
     InterpretedDatasetBuildRequest,
@@ -55,6 +54,7 @@ from phospy.errors.build import DatasetBuildError
 from phospy.errors.transformations import (
     TransformationStateEstablishmentError,
 )
+from phospy.policy_models import IntensityTransformPolicy
 from phospy.provenance.environment import collect_environment_provenance
 from phospy.provenance.hashing import fingerprint_optional_table
 from phospy.provenance.models import (
@@ -246,10 +246,7 @@ def _build_dataset_preprocessing_report(
 def _resolve_expected_intensity_scale_kind(
     preprocessing_plan: PreprocessingPlan,
 ) -> IntensityScaleKind:
-    if (
-        preprocessing_plan.intensity_transform_policy
-        == DATASET_INTENSITY_TRANSFORM_POLICY_LOG2
-    ):
+    if preprocessing_plan.intensity_transform_policy is IntensityTransformPolicy.LOG2:
         return IntensityScaleKind.LOG2
     return IntensityScaleKind.LINEAR
 
@@ -362,9 +359,9 @@ def _to_json_value(value: object) -> JsonValue:
 
 def _preprocessing_plan_to_payload(plan: PreprocessingPlan) -> dict[str, object]:
     payload: dict[str, object] = {
-        "intensity_transform_policy": plan.intensity_transform_policy,
+        "intensity_transform_policy": plan.intensity_transform_policy.value,
         "intensity_transform_pseudocount": float(plan.intensity_transform_pseudocount),
-        "normalisation_policy": plan.normalisation_policy,
+        "normalisation_policy": plan.normalisation_policy.value,
         "missing_data_policy": plan.missing_data_policy.value,
         "missing_data_min_observed_values": plan.missing_data_min_observed_values,
         "missing_data_q": plan.missing_data_q,
@@ -379,7 +376,7 @@ def _preprocessing_plan_to_payload(plan: PreprocessingPlan) -> dict[str, object]
         "site_sequence_resolution_fasta_path": (
             plan.site_sequence_resolution_fasta_path
         ),
-        "site_sequence_resolution_mode": plan.site_sequence_resolution_mode,
+        "site_sequence_resolution_mode": plan.site_sequence_resolution_mode.value,
         "site_sequence_resolution_flank_size": int(
             plan.site_sequence_resolution_flank_size
         ),
@@ -395,10 +392,10 @@ def _preprocessing_plan_to_payload(plan: PreprocessingPlan) -> dict[str, object]
                 plan.total_protein_correction_identity_policy
             )
         ),
-        "site_matrix_policy": plan.site_matrix_policy,
-        "comparison_building_policy": plan.comparison_building_policy,
-        "site_matrix_duplicate_site_policy": plan.site_matrix_duplicate_site_policy,
-        "site_matrix_missing_data_policy": plan.site_matrix_missing_data_policy,
+        "site_matrix_policy": plan.site_matrix_policy.value,
+        "comparison_building_policy": plan.comparison_building_policy.value,
+        "site_matrix_duplicate_site_policy": plan.site_matrix_duplicate_site_policy.value,
+        "site_matrix_missing_data_policy": plan.site_matrix_missing_data_policy.value,
         "site_matrix_minimum_observed_values": plan.site_matrix_minimum_observed_values,
         "comparison_sample_group_column": plan.comparison_sample_group_column,
         "comparison_pairs": (
@@ -421,7 +418,7 @@ def _total_correction_identity_policy_to_payload(
     policy: TotalProteinCorrectionIdentityPolicy,
 ) -> dict[str, object]:
     return {
-        "mode": policy.mode,
+        "mode": str(policy.mode),
         "phosphosite_key": policy.phosphosite_key,
         "total_protein_key": policy.total_protein_key,
         "mapping_phosphosite_key": policy.mapping_phosphosite_key,
@@ -430,8 +427,8 @@ def _total_correction_identity_policy_to_payload(
         "mapping_table_row_count": (
             None if policy.mapping_table is None else int(len(policy.mapping_table))
         ),
-        "duplicate_policy": policy.duplicate_policy,
-        "unmatched_policy": policy.unmatched_policy,
+        "duplicate_policy": str(policy.duplicate_policy),
+        "unmatched_policy": str(policy.unmatched_policy),
     }
 
 
@@ -452,8 +449,8 @@ def _dataset_scientific_policies(
     if DATASET_PREPROCESSING_STAGE_SITE_MATRIX in preprocessing_plan.stage_order:
         policies.append(
             build_duplicate_site_resolution_policy(
-                duplicate_site_policy=str(
-                    preprocessing_plan.site_matrix_duplicate_site_policy
+                duplicate_site_policy=(
+                    preprocessing_plan.site_matrix_duplicate_site_policy.value
                 )
             )
         )

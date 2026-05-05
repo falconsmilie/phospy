@@ -6,10 +6,6 @@ from dataclasses import replace
 
 import pandas as pd
 
-from phospy.api.configs import (
-    DATASET_SITE_MATRIX_POLICY_AS_INPUT,
-    DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA,
-)
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
     DuplicateSiteResolutionResult,
@@ -35,6 +31,11 @@ from phospy.datasets.preprocessing.stages.site_matrix_components import (
     SiteMatrixRowAuditBuilder,
 )
 from phospy.errors.input import PhosPyInputError
+from phospy.policy_models import (
+    SiteMatrixDuplicateSitePolicy,
+    SiteMatrixMissingDataPolicy,
+    SiteMatrixPolicy,
+)
 from phospy.site_ids import canonicalize_site_components_series
 
 _GENE_SYMBOL_COLUMN = "gene_symbol"
@@ -105,7 +106,7 @@ class SiteMatrixStage:
 
     def run(self, state: PreprocessingState) -> PreprocessingStageResult:
         policy = state.plan.site_matrix_policy
-        if policy == DATASET_SITE_MATRIX_POLICY_AS_INPUT:
+        if policy is SiteMatrixPolicy.AS_INPUT:
             return PreprocessingStageResult(
                 state=state,
                 diagnostics={
@@ -117,7 +118,7 @@ class SiteMatrixStage:
                     "diagnostics": {},
                 },
             )
-        if policy != DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA:
+        if policy is not SiteMatrixPolicy.BUILD_FROM_METADATA:
             raise PhosPyInputError(
                 "dataset build request preprocessing_config contains an unsupported "
                 "site_matrix.policy"
@@ -307,7 +308,7 @@ def _apply_missing_data_policy(
     *,
     phospho: pd.DataFrame,
     constructed_site_id: pd.Series,
-    missing_data_policy: str,
+    missing_data_policy: SiteMatrixMissingDataPolicy,
     minimum_observed_values: int | None,
 ) -> tuple[pd.DataFrame, int, int, tuple[tuple[str, str, int], ...]]:
     result = MissingDataSiteFilter().filter(
@@ -357,7 +358,7 @@ def _apply_duplicate_site_policy(
     phospho: pd.DataFrame,
     site_metadata: pd.DataFrame,
     constructed_site_id: pd.Series,
-    duplicate_site_policy: str,
+    duplicate_site_policy: SiteMatrixDuplicateSitePolicy,
 ) -> DuplicateSiteResolutionResult:
     """Compatibility wrapper for legacy direct tests of duplicate policy logic."""
 
@@ -387,9 +388,9 @@ def _build_site_matrix_row_audit_records(
     dropped_missing_sequence_rows: tuple[tuple[str, str], ...],
     dropped_incomplete_rows: tuple[tuple[str, str, int], ...],
     duplicate_site_resolution: pd.DataFrame,
-    site_matrix_policy: str,
-    site_matrix_missing_data_policy: str,
-    site_matrix_duplicate_site_policy: str,
+    site_matrix_policy: SiteMatrixPolicy,
+    site_matrix_missing_data_policy: SiteMatrixMissingDataPolicy,
+    site_matrix_duplicate_site_policy: SiteMatrixDuplicateSitePolicy,
     required_observed_count: int,
 ) -> list[PreprocessingRowAuditRow]:
     """Compatibility wrapper for legacy row-audit construction tests."""

@@ -8,8 +8,6 @@ from itertools import combinations
 import pandas as pd
 
 from phospy.api.configs import (
-    DATASET_COMPARISON_BUILDING_POLICY_NONE,
-    DATASET_COMPARISON_BUILDING_POLICY_SAMPLE_METADATA_PAIRS,
     DatasetComparisonPair,
 )
 from phospy.datasets.preprocessing.models import (
@@ -27,6 +25,7 @@ from phospy.datasets.preprocessing.report_schema import (
     COMPARISON_PAIR_STATS_COLUMNS,
 )
 from phospy.errors.input import PhosPyInputError
+from phospy.policy_models import ComparisonBuildingPolicy
 from phospy.provenance.hashing import hash_table
 
 _COMPARISON_OUTPUT_PREFIX = "p_"
@@ -39,7 +38,7 @@ class ComparisonsStage:
 
     def run(self, state: PreprocessingState) -> PreprocessingStageResult:
         policy = state.plan.comparison_building_policy
-        if policy == DATASET_COMPARISON_BUILDING_POLICY_NONE:
+        if policy is ComparisonBuildingPolicy.NONE:
             return PreprocessingStageResult(
                 state=state,
                 diagnostics={
@@ -49,7 +48,7 @@ class ComparisonsStage:
                     "imputed_row_ids": (),
                     "notes": "stage executed",
                     "diagnostics": {
-                        "policy": policy,
+                        "policy": policy.value,
                         "sample_group_column": state.plan.comparison_sample_group_column,
                         "resolved_comparison_pairs": [],
                         "group_labels": [],
@@ -57,7 +56,7 @@ class ComparisonsStage:
                     },
                 },
             )
-        if policy != DATASET_COMPARISON_BUILDING_POLICY_SAMPLE_METADATA_PAIRS:
+        if policy is not ComparisonBuildingPolicy.SAMPLE_METADATA_PAIRS:
             raise PhosPyInputError(
                 "dataset build request preprocessing_config contains an unsupported "
                 "comparisons.policy"
@@ -121,7 +120,7 @@ class ComparisonsStage:
                 "imputed_row_ids": (),
                 "notes": "stage executed",
                 "diagnostics": {
-                    "policy": policy,
+                    "policy": policy.value,
                     "sample_group_column": state.plan.comparison_sample_group_column,
                     "resolved_comparison_pairs": _resolve_comparison_pairs(next_state),
                     "group_labels": _resolve_group_labels_from_stats(next_state),

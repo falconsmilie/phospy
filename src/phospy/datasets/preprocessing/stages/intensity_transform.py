@@ -7,16 +7,13 @@ from dataclasses import replace
 import numpy as np
 import pandas as pd
 
-from phospy.api.configs import (
-    DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY,
-    DATASET_INTENSITY_TRANSFORM_POLICY_LOG2,
-)
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
     PreprocessingStageResult,
     PreprocessingState,
 )
 from phospy.errors.input import PhosPyInputError
+from phospy.policy_models import IntensityTransformPolicy
 from phospy.provenance.hashing import hash_table
 
 
@@ -27,9 +24,9 @@ class IntensityTransformStage:
 
     def run(self, state: PreprocessingState) -> PreprocessingStageResult:
         policy = state.plan.intensity_transform_policy
-        if policy == DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY:
+        if policy is IntensityTransformPolicy.IDENTITY:
             identity_diagnostics: dict[str, object] = {
-                "policy": policy,
+                "policy": policy.value,
                 "pseudocount": float(state.plan.intensity_transform_pseudocount),
                 "affected_matrices": ["phospho"],
                 "input_phospho_hash": hash_table(
@@ -62,7 +59,7 @@ class IntensityTransformStage:
                     "diagnostics": identity_diagnostics,
                 },
             )
-        if policy != DATASET_INTENSITY_TRANSFORM_POLICY_LOG2:
+        if policy is not IntensityTransformPolicy.LOG2:
             raise PhosPyInputError(
                 "dataset build request preprocessing_config contains an unsupported "
                 "intensity_transform.policy"
@@ -110,7 +107,7 @@ class IntensityTransformStage:
             total=transformed_total,
         )
         diagnostics: dict[str, object] = {
-            "policy": policy,
+            "policy": policy.value,
             "pseudocount": pseudocount,
             "affected_matrices": affected_matrices,
             "input_phospho_hash": hash_table(

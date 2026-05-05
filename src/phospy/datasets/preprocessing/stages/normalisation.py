@@ -7,17 +7,13 @@ from dataclasses import replace
 import numpy as np
 import pandas as pd
 
-from phospy.api.configs import (
-    DATASET_NORMALISATION_POLICY_MEDIAN_CENTER,
-    DATASET_NORMALISATION_POLICY_NONE,
-    DATASET_NORMALISATION_POLICY_QUANTILE,
-)
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_NORMALISATION,
     PreprocessingStageResult,
     PreprocessingState,
 )
 from phospy.errors.input import PhosPyInputError
+from phospy.policy_models import NormalisationPolicy
 from phospy.provenance.hashing import hash_table
 
 
@@ -28,7 +24,7 @@ class NormalisationStage:
 
     def run(self, state: PreprocessingState) -> PreprocessingStageResult:
         policy = state.plan.normalisation_policy
-        if policy == DATASET_NORMALISATION_POLICY_NONE:
+        if policy is NormalisationPolicy.NONE:
             return PreprocessingStageResult(
                 state=state,
                 diagnostics={
@@ -38,7 +34,7 @@ class NormalisationStage:
                     "imputed_row_ids": (),
                     "notes": "stage executed",
                     "diagnostics": {
-                        "policy": policy,
+                        "policy": policy.value,
                         "affected_columns": [
                             str(column) for column in state.phospho.columns.tolist()
                         ],
@@ -54,10 +50,10 @@ class NormalisationStage:
                 },
             )
 
-        _require_non_empty_matrix(state.phospho, policy_name=policy)
-        _require_numeric_columns(state.phospho, policy_name=policy)
+        _require_non_empty_matrix(state.phospho, policy_name=policy.value)
+        _require_numeric_columns(state.phospho, policy_name=policy.value)
 
-        if policy == DATASET_NORMALISATION_POLICY_MEDIAN_CENTER:
+        if policy is NormalisationPolicy.MEDIAN_CENTER:
             normalised = _median_center(state.phospho)
             next_state = replace(state, phospho=normalised)
             return PreprocessingStageResult(
@@ -75,7 +71,7 @@ class NormalisationStage:
                     ),
                 },
             )
-        if policy == DATASET_NORMALISATION_POLICY_QUANTILE:
+        if policy is NormalisationPolicy.QUANTILE:
             normalised = _quantile_normalise(state.phospho)
             next_state = replace(state, phospho=normalised)
             return PreprocessingStageResult(
@@ -101,12 +97,12 @@ class NormalisationStage:
 
 def _build_diagnostics(
     *,
-    policy: str,
+    policy: NormalisationPolicy,
     before: pd.DataFrame,
     after: pd.DataFrame,
 ) -> dict[str, object]:
     diagnostics: dict[str, object] = {
-        "policy": policy,
+        "policy": policy.value,
         "affected_columns": [str(column) for column in after.columns.tolist()],
         "input_phospho_hash": hash_table(
             before,
@@ -117,10 +113,10 @@ def _build_diagnostics(
             name="normalisation.output.phospho",
         ),
     }
-    if policy != DATASET_NORMALISATION_POLICY_NONE:
+    if policy is not NormalisationPolicy.NONE:
         diagnostics["note"] = (
             "quantile normalisation used"
-            if policy == DATASET_NORMALISATION_POLICY_QUANTILE
+            if policy is NormalisationPolicy.QUANTILE
             else "median centering used"
         )
     return diagnostics

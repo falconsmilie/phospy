@@ -49,6 +49,54 @@ class TotalProteinCorrectionPolicy(_PolicyEnum):
     SUBTRACT_LOG_TOTAL = "subtract_log_total"
 
 
+class IntensityTransformPolicy(_PolicyEnum):
+    IDENTITY = "identity"
+    LOG2 = "log2"
+
+
+class NormalisationPolicy(_PolicyEnum):
+    NONE = "none"
+    MEDIAN_CENTER = "median_center"
+    QUANTILE = "quantile"
+
+
+class SiteMatrixPolicy(_PolicyEnum):
+    AS_INPUT = "as_input"
+    BUILD_FROM_METADATA = "build_from_metadata"
+
+
+class SiteMatrixDuplicateSitePolicy(_PolicyEnum):
+    MAX_MEAN_SIGNAL = "max_mean_signal"
+    FIRST = "first"
+    AGGREGATE_MEAN = "aggregate_mean"
+    AGGREGATE_MEDIAN = "aggregate_median"
+    ERROR = "error"
+
+
+class SiteMatrixMissingDataPolicy(_PolicyEnum):
+    DROP_ANY_MISSING = "drop_any_missing"
+    RETAIN_MISSING = "retain_missing"
+    REQUIRE_MIN_OBSERVED_VALUES = "require_min_observed_values"
+
+
+class SiteSequenceResolutionMode(_PolicyEnum):
+    VALIDATE_EXISTING_AND_FILL_MISSING = "validate_existing_and_fill_missing"
+    FILL_MISSING_ONLY = "fill_missing_only"
+    VALIDATE_EXISTING_ONLY = "validate_existing_only"
+    REPLACE_EXISTING = "replace_existing"
+
+
+class SiteSequenceConflictPolicy(_PolicyEnum):
+    ERROR = "error"
+    PRESERVE_EXISTING = "preserve_existing"
+    REPLACE_EXISTING = "replace_existing"
+
+
+class ComparisonBuildingPolicy(_PolicyEnum):
+    NONE = "none"
+    SAMPLE_METADATA_PAIRS = "sample_metadata_pairs"
+
+
 class DownstreamScoreSource(_PolicyEnum):
     PROFILE_SCORES = "profile_scores"
     RANK_WEIGHTED_FUSION_SCORES = "rank_weighted_fusion_scores"
@@ -60,8 +108,16 @@ class ThresholdMode(_PolicyEnum):
 
 
 __all__ = [
+    "ComparisonBuildingPolicy",
     "DownstreamScoreSource",
+    "IntensityTransformPolicy",
     "MissingDataPolicy",
+    "NormalisationPolicy",
+    "SiteMatrixDuplicateSitePolicy",
+    "SiteMatrixMissingDataPolicy",
+    "SiteMatrixPolicy",
+    "SiteSequenceConflictPolicy",
+    "SiteSequenceResolutionMode",
     "ThresholdMode",
     "TotalProteinCorrectionPolicy",
 ]

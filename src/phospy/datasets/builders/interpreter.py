@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import NoReturn
 
-from phospy.api.configs import DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA
 from phospy.api.requests import DatasetBuildRequest
 from phospy.datasets.builders.contracts import InterpretedDatasetBuildRequest
 from phospy.datasets.builders.normalizer import DatasetConventionNormalizer
@@ -12,6 +11,7 @@ from phospy.datasets.builders.reader import DatasetInputReader
 from phospy.datasets.builders.sequence_derivation import SiteSequenceDeriver
 from phospy.datasets.preprocessing.models import PreprocessingPlan
 from phospy.errors.input import PhosPyInputError
+from phospy.policy_models import SiteMatrixPolicy
 
 
 class DatasetBuildRequestInterpreter:
@@ -79,7 +79,7 @@ class DatasetBuildRequestInterpreter:
                 organism=request.organism,
                 allow_partial=(
                     preprocessing_plan.site_matrix_policy
-                    == DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA
+                    is SiteMatrixPolicy.BUILD_FROM_METADATA
                     or preprocessing_plan.site_sequence_resolution_enabled
                 ),
                 derive_missing_from_reference=not defer_missing_site_sequence_fill,

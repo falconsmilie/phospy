@@ -9,6 +9,11 @@ from phospy.datasets.preprocessing.report_schema import (
     METADATA_CONFLICT_COLUMNS,
     dataframe_from_metadata_conflict_rows,
 )
+from phospy.policy_models import (
+    SiteMatrixDuplicateSitePolicy,
+    SiteMatrixMissingDataPolicy,
+    SiteMatrixPolicy,
+)
 
 _DEFAULT_METADATA_CONFLICT_FIELDS = (
     "protein_id",
@@ -55,39 +60,55 @@ class SiteMatrixProvenanceBuilder:
         input_rows: int,
         dropped_missing_sequence: int,
         dropped_incomplete_values: int,
-        missing_data_policy: str,
+        missing_data_policy: SiteMatrixMissingDataPolicy | str,
         required_observed_count: int,
         deduplicated_site_rows: int,
-        duplicate_site_policy: str,
-        site_matrix_policy: str,
+        duplicate_site_policy: SiteMatrixDuplicateSitePolicy | str,
+        site_matrix_policy: SiteMatrixPolicy | str,
         dropped_missing_sequence_row_ids: tuple[str, ...],
         dropped_incomplete_row_ids: tuple[str, ...],
         dropped_row_ids: tuple[str, ...],
         duplicate_site_resolution: pd.DataFrame | None,
     ) -> SiteMatrixProvenanceResult:
+        resolved_missing_data_policy = SiteMatrixMissingDataPolicy.parse(
+            missing_data_policy,
+            field_name="site_matrix.missing_data_policy",
+        )
+        resolved_duplicate_site_policy = SiteMatrixDuplicateSitePolicy.parse(
+            duplicate_site_policy,
+            field_name="site_matrix.duplicate_site_policy",
+        )
+        resolved_site_matrix_policy = SiteMatrixPolicy.parse(
+            site_matrix_policy,
+            field_name="site_matrix.policy",
+        )
         row_drop_stats = {
             "input_rows": int(input_rows),
             "dropped_missing_sequence": dropped_missing_sequence,
             "dropped_incomplete_values": dropped_incomplete_values,
-            "missing_data_policy": missing_data_policy,
+            "missing_data_policy": resolved_missing_data_policy.value,
             "required_observed_count": required_observed_count,
             "deduplicated_site_rows": deduplicated_site_rows,
-            "duplicate_site_policy": duplicate_site_policy,
+            "duplicate_site_policy": resolved_duplicate_site_policy.value,
             "retained_rows": int(len(phospho.index)),
         }
         final_phospho = phospho.copy()
         final_site_metadata = site_metadata.copy()
         final_phospho.attrs[self._row_drop_stats_attr] = row_drop_stats.copy()
         final_site_metadata.attrs[self._row_drop_stats_attr] = row_drop_stats.copy()
-        final_phospho.attrs[self._site_matrix_policy_attr] = site_matrix_policy
-        final_site_metadata.attrs[self._site_matrix_policy_attr] = site_matrix_policy
+        final_phospho.attrs[self._site_matrix_policy_attr] = (
+            resolved_site_matrix_policy.value
+        )
+        final_site_metadata.attrs[self._site_matrix_policy_attr] = (
+            resolved_site_matrix_policy.value
+        )
 
         site_matrix_provenance = {
             "dropped_missing_sequence_row_ids": dropped_missing_sequence_row_ids,
             "dropped_incomplete_row_ids": dropped_incomplete_row_ids,
             "dropped_row_ids": dropped_row_ids,
-            "duplicate_site_policy": duplicate_site_policy,
-            "missing_data_policy": missing_data_policy,
+            "duplicate_site_policy": resolved_duplicate_site_policy.value,
+            "missing_data_policy": resolved_missing_data_policy.value,
             "required_observed_count": required_observed_count,
             "final_constructed_site_ids": tuple(
                 str(site_id) for site_id in final_phospho.index.tolist()

@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.api.configs import (
-    DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
-    DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
-)
 from phospy.datasets.preprocessing.models import DATASET_PREPROCESSING_STAGE_SITE_MATRIX
 from phospy.datasets.preprocessing.report_schema import PreprocessingRowAuditRow
 from phospy.datasets.preprocessing.stages.site_matrix_components.metadata import (
     _is_missing_scalar,
+)
+from phospy.policy_models import (
+    SiteMatrixDuplicateSitePolicy,
+    SiteMatrixMissingDataPolicy,
+    SiteMatrixPolicy,
 )
 
 
@@ -22,11 +23,25 @@ class SiteMatrixRowAuditBuilder:
         dropped_missing_sequence_rows: tuple[tuple[str, str], ...],
         dropped_incomplete_rows: tuple[tuple[str, str, int], ...],
         duplicate_site_resolution: pd.DataFrame,
-        site_matrix_policy: str,
-        site_matrix_missing_data_policy: str,
-        site_matrix_duplicate_site_policy: str,
+        site_matrix_policy: SiteMatrixPolicy | str,
+        site_matrix_missing_data_policy: SiteMatrixMissingDataPolicy | str,
+        site_matrix_duplicate_site_policy: SiteMatrixDuplicateSitePolicy | str,
         required_observed_count: int,
     ) -> list[PreprocessingRowAuditRow]:
+        resolved_site_matrix_policy = SiteMatrixPolicy.parse(
+            site_matrix_policy,
+            field_name="site_matrix.policy",
+        )
+        resolved_site_matrix_missing_data_policy = SiteMatrixMissingDataPolicy.parse(
+            site_matrix_missing_data_policy,
+            field_name="site_matrix.missing_data_policy",
+        )
+        resolved_site_matrix_duplicate_site_policy = (
+            SiteMatrixDuplicateSitePolicy.parse(
+                site_matrix_duplicate_site_policy,
+                field_name="site_matrix.duplicate_site_policy",
+            )
+        )
         records: list[PreprocessingRowAuditRow] = []
         for source_row_id, site_id in dropped_missing_sequence_rows:
             records.append(
@@ -43,10 +58,12 @@ class SiteMatrixRowAuditBuilder:
                     source_rows=(source_row_id,),
                     retained_row=pd.NA,
                     parameter_snapshot={
-                        "site_matrix_policy": site_matrix_policy,
-                        "site_matrix_missing_data_policy": site_matrix_missing_data_policy,
+                        "site_matrix_policy": resolved_site_matrix_policy.value,
+                        "site_matrix_missing_data_policy": (
+                            resolved_site_matrix_missing_data_policy.value
+                        ),
                         "site_matrix_duplicate_site_policy": (
-                            site_matrix_duplicate_site_policy
+                            resolved_site_matrix_duplicate_site_policy.value
                         ),
                     },
                 )
@@ -64,10 +81,12 @@ class SiteMatrixRowAuditBuilder:
                     source_rows=(source_row_id,),
                     retained_row=pd.NA,
                     parameter_snapshot={
-                        "site_matrix_policy": site_matrix_policy,
-                        "site_matrix_missing_data_policy": site_matrix_missing_data_policy,
+                        "site_matrix_policy": resolved_site_matrix_policy.value,
+                        "site_matrix_missing_data_policy": (
+                            resolved_site_matrix_missing_data_policy.value
+                        ),
                         "site_matrix_duplicate_site_policy": (
-                            site_matrix_duplicate_site_policy
+                            resolved_site_matrix_duplicate_site_policy.value
                         ),
                         "observed_values": int(observed_value_count),
                         "required_observed_count": int(required_observed_count),
@@ -77,8 +96,8 @@ class SiteMatrixRowAuditBuilder:
         records.extend(
             self._build_duplicate_site_row_audit_records(
                 duplicate_site_resolution=duplicate_site_resolution,
-                site_matrix_policy=site_matrix_policy,
-                site_matrix_duplicate_site_policy=site_matrix_duplicate_site_policy,
+                site_matrix_policy=resolved_site_matrix_policy,
+                site_matrix_duplicate_site_policy=resolved_site_matrix_duplicate_site_policy,
             )
         )
         return records
@@ -87,8 +106,8 @@ class SiteMatrixRowAuditBuilder:
     def _build_duplicate_site_row_audit_records(
         *,
         duplicate_site_resolution: pd.DataFrame,
-        site_matrix_policy: str,
-        site_matrix_duplicate_site_policy: str,
+        site_matrix_policy: SiteMatrixPolicy,
+        site_matrix_duplicate_site_policy: SiteMatrixDuplicateSitePolicy,
     ) -> list[PreprocessingRowAuditRow]:
         if duplicate_site_resolution.empty:
             return []
@@ -106,8 +125,8 @@ class SiteMatrixRowAuditBuilder:
             .to_dict()
         )
         aggregated = site_matrix_duplicate_site_policy in {
-            DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
-            DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
+            SiteMatrixDuplicateSitePolicy.AGGREGATE_MEAN,
+            SiteMatrixDuplicateSitePolicy.AGGREGATE_MEDIAN,
         }
         records: list[PreprocessingRowAuditRow] = []
         for row in duplicate_site_resolution.to_dict(orient="records"):
@@ -150,10 +169,10 @@ class SiteMatrixRowAuditBuilder:
                     source_rows=source_rows,
                     retained_row=retained_row,
                     parameter_snapshot={
-                        "site_matrix_policy": site_matrix_policy,
-                        "duplicate_site_policy": site_matrix_duplicate_site_policy,
+                        "site_matrix_policy": site_matrix_policy.value,
+                        "duplicate_site_policy": site_matrix_duplicate_site_policy.value,
                         "site_matrix_duplicate_site_policy": (
-                            site_matrix_duplicate_site_policy
+                            site_matrix_duplicate_site_policy.value
                         ),
                         "observed_values": _optional_int(row.get("observed_values")),
                         "mean_signal": _optional_float(row.get("mean_signal")),

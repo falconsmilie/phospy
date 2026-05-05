@@ -148,7 +148,7 @@ def _resolve_total_protein_parameters(plan: PreprocessingPlan) -> dict[str, obje
     identity = plan.total_protein_correction_identity_policy
     return {
         "total_protein_correction_policy": plan.total_protein_correction_policy.value,
-        "identity_mode": identity.mode,
+        "identity_mode": str(identity.mode),
         "phosphosite_key": identity.phosphosite_key,
         "total_protein_key": identity.total_protein_key,
         "mapping_phosphosite_key": identity.mapping_phosphosite_key,
@@ -157,8 +157,8 @@ def _resolve_total_protein_parameters(plan: PreprocessingPlan) -> dict[str, obje
         "mapping_table_row_count": (
             None if identity.mapping_table is None else len(identity.mapping_table)
         ),
-        "duplicate_policy": identity.duplicate_policy,
-        "unmatched_policy": identity.unmatched_policy,
+        "duplicate_policy": str(identity.duplicate_policy),
+        "unmatched_policy": str(identity.unmatched_policy),
     }
 
 
@@ -172,8 +172,8 @@ def _resolve_site_sequence_parameters(plan: PreprocessingPlan) -> dict[str, obje
     return {
         "enabled": bool(plan.site_sequence_resolution_enabled),
         "fasta_path": plan.site_sequence_resolution_fasta_path,
-        "mode": plan.site_sequence_resolution_mode,
-        "conflict_policy": plan.site_sequence_resolution_conflict_policy,
+        "mode": plan.site_sequence_resolution_mode.value,
+        "conflict_policy": plan.site_sequence_resolution_conflict_policy.value,
         "flank_size": int(plan.site_sequence_resolution_flank_size),
         "accession_column": plan.site_sequence_resolution_accession_column,
         "site_column": plan.site_sequence_resolution_site_column,
@@ -197,16 +197,16 @@ def _resolve_missing_data_parameters(plan: PreprocessingPlan) -> dict[str, objec
 
 def _resolve_site_matrix_parameters(plan: PreprocessingPlan) -> dict[str, object]:
     return {
-        "site_matrix_policy": plan.site_matrix_policy,
-        "site_matrix_duplicate_site_policy": plan.site_matrix_duplicate_site_policy,
-        "site_matrix_missing_data_policy": plan.site_matrix_missing_data_policy,
+        "site_matrix_policy": plan.site_matrix_policy.value,
+        "site_matrix_duplicate_site_policy": plan.site_matrix_duplicate_site_policy.value,
+        "site_matrix_missing_data_policy": plan.site_matrix_missing_data_policy.value,
         "site_matrix_minimum_observed_values": plan.site_matrix_minimum_observed_values,
     }
 
 
 def _resolve_comparisons_parameters(plan: PreprocessingPlan) -> dict[str, object]:
     return {
-        "comparison_building_policy": plan.comparison_building_policy,
+        "comparison_building_policy": plan.comparison_building_policy.value,
         "comparison_sample_group_column": plan.comparison_sample_group_column,
         "comparison_pairs": plan.comparison_pairs,
     }
@@ -221,7 +221,7 @@ def _resolve_missing_data_operation(plan: PreprocessingPlan) -> str:
 
 
 def _resolve_intensity_transform_operation(plan: PreprocessingPlan) -> str:
-    return plan.intensity_transform_policy
+    return plan.intensity_transform_policy.value
 
 
 def _resolve_total_protein_operation(plan: PreprocessingPlan) -> str:
@@ -229,19 +229,19 @@ def _resolve_total_protein_operation(plan: PreprocessingPlan) -> str:
 
 
 def _resolve_site_matrix_operation(plan: PreprocessingPlan) -> str:
-    return plan.site_matrix_policy
+    return plan.site_matrix_policy.value
 
 
 def _resolve_normalisation_operation(plan: PreprocessingPlan) -> str:
-    return plan.normalisation_policy
+    return plan.normalisation_policy.value
 
 
 def _resolve_comparisons_operation(plan: PreprocessingPlan) -> str:
-    return plan.comparison_building_policy
+    return plan.comparison_building_policy.value
 
 
 def _resolve_site_sequence_operation(plan: PreprocessingPlan) -> str:
-    return plan.site_sequence_resolution_mode
+    return plan.site_sequence_resolution_mode.value
 
 
 def _include_when_site_sequence_enabled(plan: PreprocessingPlan) -> bool:
