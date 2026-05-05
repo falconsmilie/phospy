@@ -15,6 +15,7 @@ from phospy import (
     AnalysisReadyPhosphoDataset,
     KinaseWorkflow,
 )
+from phospy.activities.threshold_membership import THRESHOLD_MEMBERSHIP_OPERATOR
 from phospy.api import (
     DatasetBuildRequest,
     KinaseActivityConfig,
@@ -296,6 +297,11 @@ def test_kinase_activity_method_identity_is_present_in_result_and_provenance() -
     )
     assert method_metadata["is_ksea"] is False
     assert method_metadata["is_phosr_kinase_activity_equivalent"] is False
+    threshold_diagnostics = activity_config["threshold_membership_diagnostics"]
+    assert isinstance(threshold_diagnostics, Mapping)
+    assert threshold_diagnostics["threshold_parameter"] == "threshold"
+    assert threshold_diagnostics["threshold_value"] == pytest.approx(0.6)
+    assert threshold_diagnostics["operator"] == THRESHOLD_MEMBERSHIP_OPERATOR
 
 
 def test_kinase_workflow_supports_ksea_activity_method_with_statistics_output() -> None:
@@ -349,6 +355,8 @@ def test_kinase_workflow_supports_ksea_activity_method_with_statistics_output() 
         "n_substrates",
         "n_background_sites",
         "evidence_threshold",
+        "evidence_threshold_operator",
+        "evidence_threshold_description",
         "min_substrates",
         "computability_status",
         "reason",
@@ -388,6 +396,11 @@ def test_kinase_workflow_supports_ksea_activity_method_with_statistics_output() 
     summary = activity_config["activity_method_summary"]
     assert isinstance(summary, Mapping)
     assert int(summary["kinases_evaluated"]) >= 1
+    threshold_diagnostics = activity_config["threshold_membership_diagnostics"]
+    assert isinstance(threshold_diagnostics, Mapping)
+    assert threshold_diagnostics["threshold_parameter"] == "evidence_threshold"
+    assert threshold_diagnostics["threshold_value"] == pytest.approx(0.6)
+    assert threshold_diagnostics["operator"] == THRESHOLD_MEMBERSHIP_OPERATOR
     policy_ids = {policy.id.value for policy in result.provenance.scientific_policies}
     assert "ksea_zscore_activity_v1" in policy_ids
     scoring_diagnostics = result.provenance.workflow_parameters["scoring_diagnostics"]

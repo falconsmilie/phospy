@@ -263,6 +263,8 @@ class ActivityStatisticsTable(TableSchema):
                 "n_substrates",
                 "n_background_sites",
                 "evidence_threshold",
+                "evidence_threshold_operator",
+                "evidence_threshold_description",
                 "min_substrates",
                 "computability_status",
                 "reason",
@@ -272,7 +274,14 @@ class ActivityStatisticsTable(TableSchema):
         if frame.empty:
             return frame
 
-        for column_name in ("kinase", "condition", "computability_status", "reason"):
+        for column_name in (
+            "kinase",
+            "condition",
+            "evidence_threshold_operator",
+            "evidence_threshold_description",
+            "computability_status",
+            "reason",
+        ):
             values = _column_series(frame, column_name)
             if values.isna().any():
                 raise self._error_type(

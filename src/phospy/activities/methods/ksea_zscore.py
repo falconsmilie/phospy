@@ -18,6 +18,8 @@ from phospy.activities.statistics import (
     two_sided_normal_p_value,
 )
 from phospy.activities.threshold_membership import (
+    build_activity_threshold_membership_diagnostics,
+    resolve_activity_threshold_membership_policy,
     threshold_membership_filtered_frame,
     threshold_membership_mask_array,
 )
@@ -56,6 +58,11 @@ class KseaZScoreActivityMethod:
 
         evidence_values = aligned_pred_mat.to_numpy(dtype=float, copy=False)
         phospho_values = aligned_matrix.to_numpy(dtype=float, copy=False)
+        threshold_diagnostics = build_activity_threshold_membership_diagnostics(
+            threshold_parameter="evidence_threshold",
+            threshold_value=float(self.evidence_threshold),
+        )
+        threshold_policy = resolve_activity_threshold_membership_policy()
         membership_mask = threshold_membership_mask_array(
             evidence_values,
             threshold=float(self.evidence_threshold),
@@ -162,6 +169,10 @@ class KseaZScoreActivityMethod:
                         "n_substrates": int(n_substrates),
                         "n_background_sites": int(n_background),
                         "evidence_threshold": float(self.evidence_threshold),
+                        "evidence_threshold_operator": threshold_policy.operator,
+                        "evidence_threshold_description": (
+                            threshold_policy.description
+                        ),
                         "min_substrates": int(self.min_substrates),
                         "computability_status": status,
                         "reason": reason,
@@ -179,6 +190,8 @@ class KseaZScoreActivityMethod:
                 "n_substrates",
                 "n_background_sites",
                 "evidence_threshold",
+                "evidence_threshold_operator",
+                "evidence_threshold_description",
                 "min_substrates",
                 "computability_status",
                 "reason",
@@ -244,6 +257,7 @@ class KseaZScoreActivityMethod:
             activity_substrate_counts=substrate_count_table,
             target_counts=target_counts,
             target_table=target_table,
+            threshold_membership_diagnostics=threshold_diagnostics,
             statistics_table=statistics_table,
             method_summary=summary,
             activity_method=KSEA_ZSCORE_ACTIVITY_METHOD,

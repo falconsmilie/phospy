@@ -15,7 +15,12 @@ from phospy.activities.scoring import (
     SimplifiedWeightedSubstrateActivityPolicy,
     compute_activity_from_inputs,
 )
-from phospy.activities.threshold_membership import THRESHOLD_MEMBERSHIP_RULE
+from phospy.activities.threshold_membership import (
+    THRESHOLD_MEMBERSHIP_DESCRIPTION,
+    THRESHOLD_MEMBERSHIP_OPERATOR,
+    THRESHOLD_MEMBERSHIP_RULE,
+    threshold_membership_mask_array,
+)
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.scientific_policies import ScientificPolicyId
 
@@ -183,6 +188,82 @@ def test_ksea_evidence_threshold_is_inclusive_and_ignores_missing_values() -> No
 
 def test_activity_threshold_membership_policy_is_explicit_and_inclusive() -> None:
     assert THRESHOLD_MEMBERSHIP_RULE == "score >= threshold"
+    assert THRESHOLD_MEMBERSHIP_OPERATOR == ">="
+    assert (
+        THRESHOLD_MEMBERSHIP_DESCRIPTION
+        == "scores greater than or equal to the threshold are included"
+    )
+
+
+def test_activity_threshold_membership_boundary_below_equal_above_is_centralised() -> (
+    None
+):
+    mask = threshold_membership_mask_array(
+        pd.Series([0.49, 0.5, 0.51], dtype=float).to_numpy(dtype=float, copy=False),
+        threshold=0.5,
+    )
+    assert mask.tolist() == [False, True, True]
+
+
+def test_ksea_diagnostics_report_threshold_operator_and_description() -> None:
+    pred_mat = pd.DataFrame(
+        {"K1": [0.49, 0.5, 0.51]},
+        index=["S1;S1;", "S2;S2;", "S3;S3;"],
+    )
+    phospho = pd.DataFrame({"c1": [1.0, 2.0, 3.0]}, index=pred_mat.index.copy())
+
+    result = _ksea_result(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho,
+        evidence_threshold=0.5,
+        min_substrates=1,
+    )
+
+    assert result.threshold_membership_diagnostics is not None
+    assert result.threshold_membership_diagnostics.threshold_parameter == (
+        "evidence_threshold"
+    )
+    assert result.threshold_membership_diagnostics.threshold_value == pytest.approx(0.5)
+    assert result.threshold_membership_diagnostics.operator == (
+        THRESHOLD_MEMBERSHIP_OPERATOR
+    )
+
+    stats = result.statistics_table
+    assert stats is not None
+    assert stats.at[0, "evidence_threshold_operator"] == THRESHOLD_MEMBERSHIP_OPERATOR
+    assert (
+        stats.at[0, "evidence_threshold_description"]
+        == THRESHOLD_MEMBERSHIP_DESCRIPTION
+    )
+
+
+def test_weighted_diagnostics_report_threshold_operator_and_description() -> None:
+    pred_mat = pd.DataFrame(
+        {"K1": [0.49, 0.5, 0.51]},
+        index=["S1;S1;", "S2;S2;", "S3;S3;"],
+    )
+    phospho = pd.DataFrame({"c1": [1.0, 2.0, 3.0]}, index=pred_mat.index.copy())
+
+    result = compute_activity_from_inputs(
+        _inputs(
+            pred_mat=pred_mat,
+            phospho_matrix=phospho,
+            threshold=0.5,
+            min_substrates=1,
+            top_n_substrates=3,
+        )
+    )
+
+    assert result.threshold_membership_diagnostics is not None
+    assert result.threshold_membership_diagnostics.threshold_parameter == "threshold"
+    assert result.threshold_membership_diagnostics.threshold_value == pytest.approx(0.5)
+    assert result.threshold_membership_diagnostics.operator == (
+        THRESHOLD_MEMBERSHIP_OPERATOR
+    )
+    assert (
+        result.threshold_membership_diagnostics.description
+        == THRESHOLD_MEMBERSHIP_DESCRIPTION
+    )
 
 
 def test_weighted_and_ksea_share_boundary_threshold_membership_and_counts() -> None:
@@ -229,6 +310,11 @@ def test_weighted_and_ksea_share_boundary_threshold_membership_and_counts() -> N
     stats = ksea.statistics_table
     assert stats is not None
     assert stats.at[0, "n_substrates"] == 2
+    assert stats.at[0, "evidence_threshold_operator"] == THRESHOLD_MEMBERSHIP_OPERATOR
+    assert (
+        stats.at[0, "evidence_threshold_description"]
+        == THRESHOLD_MEMBERSHIP_DESCRIPTION
+    )
 
 
 def test_ksea_reports_zero_background_variance_as_not_computable() -> None:

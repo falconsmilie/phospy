@@ -280,6 +280,12 @@ class KinaseProvenanceBuilder:
                             or activity_result.method_summary is None
                             else activity_result.method_summary.to_payload()
                         ),
+                        "threshold_membership_diagnostics": (
+                            None
+                            if activity_result is None
+                            or activity_result.threshold_membership_diagnostics is None
+                            else activity_result.threshold_membership_diagnostics.to_payload()
+                        ),
                     }
                 ),
             },

@@ -202,6 +202,12 @@ def publish_kinase_workflow(
                 or result.activity_result.method_summary is None
                 else result.activity_result.method_summary.to_payload()
             ),
+            "activity_threshold_membership_diagnostics": (
+                None
+                if result.activity_result is None
+                or result.activity_result.threshold_membership_diagnostics is None
+                else result.activity_result.threshold_membership_diagnostics.to_payload()
+            ),
             "activity_count_field_semantics": (
                 None
                 if result.activity_result is None

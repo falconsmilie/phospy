@@ -14,6 +14,7 @@ from phospy.activities.models import (
     KinaseActivityResult,
 )
 from phospy.activities.threshold_membership import (
+    build_activity_threshold_membership_diagnostics,
     threshold_membership_filtered_frame,
     threshold_membership_mask_array,
     threshold_membership_mask_frame,
@@ -37,6 +38,10 @@ class SimplifiedWeightedSubstrateActivityMethod:
             phospho_matrix=inputs.phospho_matrix,
             top_n_substrates=self.top_n_substrates,
             min_substrates=self.min_substrates,
+        )
+        threshold_diagnostics = build_activity_threshold_membership_diagnostics(
+            threshold_parameter="threshold",
+            threshold_value=float(self.threshold),
         )
         (
             thresholded_substrate_mean_activity,
@@ -91,6 +96,7 @@ class SimplifiedWeightedSubstrateActivityMethod:
             thresholded_substrate_counts=thresholded_substrate_counts,
             target_counts=target_counts,
             target_table=target_table,
+            threshold_membership_diagnostics=threshold_diagnostics,
             statistics_table=None,
             method_summary=summary,
             activity_method=SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY_METHOD,

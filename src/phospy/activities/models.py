@@ -12,6 +12,9 @@ from phospy._frame_ownership import (
     export_optional_dataframe,
     export_series,
 )
+from phospy.activities.threshold_membership import (
+    ActivityThresholdMembershipDiagnostics,
+)
 from phospy.errors.validation import PhosPyValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.tables.activity import (
@@ -219,6 +222,8 @@ class KinaseActivityResult:
       for finite substrates used per kinase-condition score when defined
     - ``target_counts``: thresholded predicted target counts per kinase
     - ``target_table``: thresholded kinase-target edge table
+    - ``threshold_membership_diagnostics``: threshold inclusion rule metadata used
+      by thresholded substrate membership diagnostics
     - ``activity_method``: stable method identity metadata for these outputs
     """
 
@@ -230,6 +235,7 @@ class KinaseActivityResult:
     _target_counts: pd.Series = field(init=False, repr=False)
     _target_table: pd.DataFrame = field(init=False, repr=False)
     _statistics_table: pd.DataFrame | None = field(init=False, repr=False)
+    threshold_membership_diagnostics: ActivityThresholdMembershipDiagnostics | None
     method_summary: ActivityMethodSummary | None
 
     def __init__(
@@ -239,6 +245,8 @@ class KinaseActivityResult:
         thresholded_substrate_counts: pd.Series,
         target_counts: pd.Series,
         target_table: pd.DataFrame,
+        threshold_membership_diagnostics: ActivityThresholdMembershipDiagnostics
+        | None = None,
         activity_substrate_counts: pd.DataFrame | None = None,
         statistics_table: pd.DataFrame | None = None,
         method_summary: ActivityMethodSummary | None = None,
@@ -292,6 +300,14 @@ class KinaseActivityResult:
             raise WorkflowBoundaryError(
                 "activity_result.method_summary must be ActivityMethodSummary or None"
             )
+        if threshold_membership_diagnostics is not None and not isinstance(
+            threshold_membership_diagnostics,
+            ActivityThresholdMembershipDiagnostics,
+        ):
+            raise WorkflowBoundaryError(
+                "activity_result.threshold_membership_diagnostics must be "
+                "ActivityThresholdMembershipDiagnostics or None"
+            )
         object.__setattr__(self, "_weighted_activity", weighted_activity)
         object.__setattr__(
             self,
@@ -312,6 +328,11 @@ class KinaseActivityResult:
         object.__setattr__(self, "activity_method", activity_method)
         object.__setattr__(self, "_target_table", target_table)
         object.__setattr__(self, "_statistics_table", statistics_table)
+        object.__setattr__(
+            self,
+            "threshold_membership_diagnostics",
+            threshold_membership_diagnostics,
+        )
         object.__setattr__(self, "method_summary", method_summary)
 
     @property
@@ -382,6 +403,8 @@ class KinaseActivityResult:
         thresholded_substrate_counts: pd.Series,
         target_counts: pd.Series,
         target_table: pd.DataFrame,
+        threshold_membership_diagnostics: ActivityThresholdMembershipDiagnostics
+        | None = None,
         activity_substrate_counts: pd.DataFrame | None = None,
         statistics_table: pd.DataFrame | None = None,
         method_summary: ActivityMethodSummary | None = None,
@@ -396,6 +419,7 @@ class KinaseActivityResult:
             activity_substrate_counts=activity_substrate_counts,
             target_counts=target_counts,
             target_table=target_table,
+            threshold_membership_diagnostics=threshold_membership_diagnostics,
             statistics_table=statistics_table,
             method_summary=method_summary,
             activity_method=activity_method,
