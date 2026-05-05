@@ -8,6 +8,9 @@ import pandas as pd
 
 from phospy.errors.input import UnsupportedInputFormatError
 from phospy.site_ids import (
+    SiteIdentifierNormalisationRecord,
+    SiteIdentifierNormalisationReport,
+    build_site_identifier_normalisation_report,
     canonicalize_site_components_series,
     canonicalize_site_index,
     parse_canonical_site_identifier,
@@ -27,6 +30,7 @@ class NormalizedDatasetInputs:
     site_metadata: pd.DataFrame
     sample_metadata: pd.DataFrame | None
     total: pd.DataFrame | None
+    site_identifier_normalisation: SiteIdentifierNormalisationReport | None = None
 
 
 class DatasetConventionNormalizer:
@@ -44,18 +48,23 @@ class DatasetConventionNormalizer:
         sample_metadata: pd.DataFrame | None,
         total: pd.DataFrame | None,
     ) -> NormalizedDatasetInputs:
+        site_identifier_records: list[SiteIdentifierNormalisationRecord] = []
         normalized_phospho = phospho.copy(deep=True)
         normalized_phospho.index = _normalize_supported_site_index_if_present(
             normalized_phospho.index,
             field_name="dataset build request phospho.index",
+            site_identifier_records=site_identifier_records,
         )
-        normalized_phospho.columns = _normalized_string_index(
-            normalized_phospho.columns
+        normalized_phospho.columns = _normalize_index_labels(
+            normalized_phospho.columns,
+            field_name="dataset build request phospho.columns",
+            policy=_SAMPLE_LABEL_INDEX_POLICY,
         )
 
         normalized_site_metadata = self._normalize_site_metadata(
             site_metadata.copy(deep=True),
             phospho_index=normalized_phospho.index,
+            site_identifier_records=site_identifier_records,
         )
 
         normalized_sample_metadata = self._normalize_sample_metadata(
@@ -71,6 +80,9 @@ class DatasetConventionNormalizer:
             site_metadata=normalized_site_metadata,
             sample_metadata=normalized_sample_metadata,
             total=normalized_total,
+            site_identifier_normalisation=build_site_identifier_normalisation_report(
+                site_identifier_records
+            ),
         )
 
     def _normalize_site_metadata(
@@ -78,9 +90,12 @@ class DatasetConventionNormalizer:
         site_metadata: pd.DataFrame,
         *,
         phospho_index: pd.Index,
+        site_identifier_records: list[SiteIdentifierNormalisationRecord],
     ) -> pd.DataFrame:
         normalized = site_metadata
-        normalized = self._normalize_site_metadata_index(normalized)
+        normalized = self._normalize_site_metadata_index(
+            normalized, site_identifier_records=site_identifier_records
+        )
         normalized = self._normalize_site_metadata_columns(normalized)
         normalized = self._derive_site_fields_from_index(normalized)
         normalized = self._normalize_site_metadata_site_identity_fields(normalized)
@@ -93,25 +108,30 @@ class DatasetConventionNormalizer:
         return normalized
 
     @staticmethod
-    def _normalize_site_metadata_index(site_metadata: pd.DataFrame) -> pd.DataFrame:
+    def _normalize_site_metadata_index(
+        site_metadata: pd.DataFrame,
+        *,
+        site_identifier_records: list[SiteIdentifierNormalisationRecord],
+    ) -> pd.DataFrame:
         normalized = site_metadata
         index_name = (
             str(normalized.index.name).strip().lower() if normalized.index.name else ""
         )
         has_site_id_column = "site_id" in normalized.columns
         if has_site_id_column and isinstance(normalized.index, pd.RangeIndex):
-            normalized["site_id"] = canonicalize_site_index(
+            normalized_site_id = _canonicalize_site_index_with_label_validation(
                 pd.Index(normalized.loc[:, "site_id"], name="site_id"),
                 field_name="dataset build request site_metadata.site_id",
-                error_type=UnsupportedInputFormatError,
+                site_identifier_records=site_identifier_records,
                 index_name="site_id",
-            ).tolist()
+            )
+            normalized["site_id"] = normalized_site_id.tolist()
             normalized = normalized.set_index("site_id", drop=True)
         elif has_site_id_column:
-            column_as_site_id = canonicalize_site_index(
+            column_as_site_id = _canonicalize_site_index_with_label_validation(
                 pd.Index(normalized.loc[:, "site_id"], name="site_id"),
                 field_name="dataset build request site_metadata.site_id",
-                error_type=UnsupportedInputFormatError,
+                site_identifier_records=site_identifier_records,
             )
             if not _has_site_like_tokens(normalized.index):
                 normalized = normalized.copy()
@@ -119,10 +139,10 @@ class DatasetConventionNormalizer:
                 normalized = normalized.set_index("site_id", drop=True)
                 normalized.index = pd.Index(normalized.index.tolist(), name="site_id")
                 return normalized
-            index_as_site_id = canonicalize_site_index(
+            index_as_site_id = _canonicalize_site_index_with_label_validation(
                 normalized.index,
                 field_name="dataset build request site_metadata.index",
-                error_type=UnsupportedInputFormatError,
+                site_identifier_records=site_identifier_records,
             )
             if not index_as_site_id.equals(column_as_site_id):
                 raise UnsupportedInputFormatError(
@@ -138,6 +158,7 @@ class DatasetConventionNormalizer:
         normalized.index = _normalize_supported_site_index_if_present(
             normalized.index,
             field_name="dataset build request site_metadata.index",
+            site_identifier_records=site_identifier_records,
         )
         return normalized
 
@@ -262,7 +283,11 @@ class DatasetConventionNormalizer:
         if sample_metadata is None:
             return None
         normalized = sample_metadata
-        normalized.index = _normalized_string_index(normalized.index)
+        normalized.index = _normalize_index_labels(
+            normalized.index,
+            field_name="dataset build request sample_metadata.index",
+            policy=_SAMPLE_LABEL_INDEX_POLICY,
+        )
         if (
             not normalized.index.equals(phospho_columns)
             and normalized.index.isin(phospho_columns).all()
@@ -280,8 +305,16 @@ class DatasetConventionNormalizer:
         if total is None:
             return None
         normalized = total
-        normalized.index = _normalized_string_index(normalized.index)
-        normalized.columns = _normalized_string_index(normalized.columns)
+        normalized.index = _normalize_index_labels(
+            normalized.index,
+            field_name="dataset build request total.index",
+            policy=_SAMPLE_LABEL_INDEX_POLICY,
+        )
+        normalized.columns = _normalize_index_labels(
+            normalized.columns,
+            field_name="dataset build request total.columns",
+            policy=_SAMPLE_LABEL_INDEX_POLICY,
+        )
         if (
             not normalized.columns.equals(phospho_columns)
             and normalized.columns.isin(phospho_columns).all()
@@ -291,8 +324,40 @@ class DatasetConventionNormalizer:
         return normalized
 
 
-def _normalized_string_index(index: pd.Index) -> pd.Index:
-    return pd.Index(index.astype(str).str.strip(), name=index.name)
+@dataclass(frozen=True, slots=True)
+class _IndexLabelNormalizationPolicy:
+    allow_non_string_labels: bool = True
+    detect_duplicate_labels_after_normalisation: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class _NormalizedIndexLabels:
+    index: pd.Index
+    raw_labels: tuple[str, ...]
+
+
+_SITE_IDENTIFIER_INDEX_POLICY = _IndexLabelNormalizationPolicy(
+    allow_non_string_labels=True,
+    detect_duplicate_labels_after_normalisation=True,
+)
+_SAMPLE_LABEL_INDEX_POLICY = _IndexLabelNormalizationPolicy(
+    allow_non_string_labels=True,
+    detect_duplicate_labels_after_normalisation=True,
+)
+
+
+def _normalize_index_labels(
+    index: pd.Index,
+    *,
+    field_name: str,
+    policy: _IndexLabelNormalizationPolicy,
+) -> pd.Index:
+    normalized = _validate_and_normalize_index_labels(
+        index,
+        field_name=field_name,
+        policy=policy,
+    )
+    return normalized.index
 
 
 def _resolve_alias(
@@ -377,15 +442,182 @@ def _normalize_supported_site_index_if_present(
     index: pd.Index,
     *,
     field_name: str,
+    site_identifier_records: list[SiteIdentifierNormalisationRecord],
 ) -> pd.Index:
-    normalized = _normalized_string_index(index)
-    if not _has_site_like_tokens(normalized):
-        return normalized
-    return canonicalize_site_index(
-        normalized,
+    normalized = _validate_and_normalize_index_labels(
+        index,
+        field_name=field_name,
+        policy=_SITE_IDENTIFIER_INDEX_POLICY,
+    )
+    if not _has_site_like_tokens(normalized.index):
+        return normalized.index
+    canonical = canonicalize_site_index(
+        normalized.index,
         field_name=field_name,
         error_type=UnsupportedInputFormatError,
     )
+    site_identifier_records.extend(
+        _site_identifier_normalisation_changes(
+            raw_labels=normalized.raw_labels,
+            normalized_labels=canonical,
+            field_name=field_name,
+        )
+    )
+    return canonical
+
+
+def _canonicalize_site_index_with_label_validation(
+    index: pd.Index,
+    *,
+    field_name: str,
+    site_identifier_records: list[SiteIdentifierNormalisationRecord],
+    index_name: str | None = None,
+) -> pd.Index:
+    normalized = _validate_and_normalize_index_labels(
+        index,
+        field_name=field_name,
+        policy=_SITE_IDENTIFIER_INDEX_POLICY,
+    )
+    canonical = canonicalize_site_index(
+        normalized.index,
+        field_name=field_name,
+        error_type=UnsupportedInputFormatError,
+        index_name=index_name,
+    )
+    site_identifier_records.extend(
+        _site_identifier_normalisation_changes(
+            raw_labels=normalized.raw_labels,
+            normalized_labels=canonical,
+            field_name=field_name,
+        )
+    )
+    return canonical
+
+
+def _validate_and_normalize_index_labels(
+    index: pd.Index,
+    *,
+    field_name: str,
+    policy: _IndexLabelNormalizationPolicy,
+) -> _NormalizedIndexLabels:
+    raw_objects = index.tolist()
+    if not raw_objects:
+        return _NormalizedIndexLabels(index=index.copy(), raw_labels=())
+
+    raw_labels: list[str] = []
+    normalized_labels: list[str] = []
+    missing_positions: list[int] = []
+    blank_positions: list[int] = []
+    non_string_positions: list[int] = []
+
+    for position, value in enumerate(raw_objects):
+        if _is_missing_label(value):
+            missing_positions.append(position)
+            continue
+        if not isinstance(value, str) and not policy.allow_non_string_labels:
+            non_string_positions.append(position)
+            continue
+        raw_label = str(value)
+        normalized_label = raw_label.strip()
+        if normalized_label == "":
+            blank_positions.append(position)
+            continue
+        raw_labels.append(raw_label)
+        normalized_labels.append(normalized_label)
+
+    if missing_positions:
+        raise UnsupportedInputFormatError(
+            f"{field_name} must not contain missing labels; found missing labels at "
+            f"positions: {_position_preview(missing_positions)}"
+        )
+    if non_string_positions:
+        raise UnsupportedInputFormatError(
+            f"{field_name} must contain string labels; found non-string labels at "
+            f"positions: {_position_preview(non_string_positions)}"
+        )
+    if blank_positions:
+        raise UnsupportedInputFormatError(
+            f"{field_name} must contain non-blank labels; found blank labels at "
+            f"positions: {_position_preview(blank_positions)}"
+        )
+
+    normalized_index = pd.Index(normalized_labels, name=index.name)
+    if policy.detect_duplicate_labels_after_normalisation:
+        _raise_if_duplicate_labels_introduced_by_normalisation(
+            raw_labels=raw_labels,
+            normalized_labels=normalized_labels,
+            field_name=field_name,
+        )
+    return _NormalizedIndexLabels(
+        index=normalized_index,
+        raw_labels=tuple(raw_labels),
+    )
+
+
+def _raise_if_duplicate_labels_introduced_by_normalisation(
+    *,
+    raw_labels: list[str],
+    normalized_labels: list[str],
+    field_name: str,
+) -> None:
+    normalized_index = pd.Index(normalized_labels)
+    if normalized_index.is_unique:
+        return
+    duplicate_labels = list(
+        dict.fromkeys(normalized_index[normalized_index.duplicated()])
+    )
+    introduced_by_normalisation: list[str] = []
+    for label in duplicate_labels:
+        raw_variants = {
+            raw_label
+            for raw_label, normalized_label in zip(
+                raw_labels, normalized_labels, strict=False
+            )
+            if normalized_label == label
+        }
+        if raw_variants != {label}:
+            introduced_by_normalisation.append(label)
+    if not introduced_by_normalisation:
+        return
+    preview = ", ".join(repr(label) for label in introduced_by_normalisation[:5])
+    suffix = "" if len(introduced_by_normalisation) <= 5 else " ..."
+    raise UnsupportedInputFormatError(
+        f"{field_name} contains duplicate labels introduced by normalization: "
+        f"{preview}{suffix}. Provide unique labels after trimming whitespace."
+    )
+
+
+def _site_identifier_normalisation_changes(
+    *,
+    raw_labels: tuple[str, ...],
+    normalized_labels: pd.Index,
+    field_name: str,
+) -> tuple[SiteIdentifierNormalisationRecord, ...]:
+    records: list[SiteIdentifierNormalisationRecord] = []
+    for position, (raw_label, normalized_label) in enumerate(
+        zip(raw_labels, normalized_labels.tolist(), strict=False)
+    ):
+        if raw_label == normalized_label:
+            continue
+        records.append(
+            SiteIdentifierNormalisationRecord(
+                field_name=field_name,
+                row_position=position,
+                original_value=raw_label,
+                normalised_value=str(normalized_label),
+            )
+        )
+    return tuple(records)
+
+
+def _position_preview(positions: list[int]) -> str:
+    preview = ", ".join(str(position) for position in positions[:8])
+    suffix = "" if len(positions) <= 8 else ", ..."
+    return f"[{preview}{suffix}]"
+
+
+def _is_missing_label(value: object) -> bool:
+    return bool(pd.Series((value,), dtype="object").isna().iat[0])
 
 
 def _has_site_like_tokens(index: pd.Index) -> bool:

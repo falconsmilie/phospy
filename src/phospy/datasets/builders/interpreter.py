@@ -102,6 +102,7 @@ class DatasetBuildRequestInterpreter:
             total=normalized.total,
             organism=request.organism,
             preprocessing_plan=preprocessing_plan,
+            site_identifier_normalisation=normalized.site_identifier_normalisation,
         )
 
     @staticmethod

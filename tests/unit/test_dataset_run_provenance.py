@@ -119,6 +119,44 @@ def test_dataset_builder_emits_run_provenance_and_stage_details() -> None:
     assert ScientificPolicyId.PREPROCESSING_STAGE_ORDER in policy_ids
 
 
+def test_dataset_builder_provenance_records_site_identifier_normalisation_changes() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {" sample_a ": [1.0], " sample_b ": [2.0]},
+        index=pd.Index([" mapk14 ; y182 "], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["mapk14"],
+            "site": ["y182"],
+            "site_sequence": ["SEQ_A"],
+        },
+        index=pd.Index([" mapk14 ; y182 "], name="site_id"),
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+        )
+    )
+
+    assert built.provenance is not None
+    normalisation_payload = built.provenance.workflow_parameters.get(
+        "site_identifier_normalisation"
+    )
+    assert isinstance(normalisation_payload, dict)
+    assert normalisation_payload["changed_identifier_count"] >= 2
+    records = normalisation_payload["records"]
+    assert isinstance(records, list)
+    fields = {record["field_name"] for record in records}
+    assert "dataset build request phospho.index" in fields
+    assert "dataset build request site_metadata.index" in fields
+    assert all(record["normalised_value"] == "MAPK14;Y182;" for record in records)
+
+
 def test_dataset_stage_order_policy_changes_with_preprocessing_plan() -> None:
     phospho = pd.DataFrame(
         {"sample_a": [1.0], "sample_b": [2.0]},

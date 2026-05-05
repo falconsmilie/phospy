@@ -239,3 +239,130 @@ def test_normalizer_owns_copies_and_does_not_mutate_inputs() -> None:
     assert list(normalized.site_metadata.index) == ["MAPK14;Y182;"]
     assert list(normalized.sample_metadata.index) == ["sample_a", "sample_b"]
     assert list(normalized.total.columns) == ["sample_a", "sample_b"]
+
+
+def test_normalizer_rejects_missing_sample_labels_before_stringification() -> None:
+    with pytest.raises(
+        UnsupportedInputFormatError,
+        match=(
+            "dataset build request sample_metadata.index must not contain missing "
+            "labels"
+        ),
+    ):
+        DatasetConventionNormalizer().run(
+            phospho=_phospho(),
+            site_metadata=pd.DataFrame(
+                {
+                    "gene_symbol": ["MAPK14"],
+                    "site": ["Y182"],
+                    "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+                },
+                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            ),
+            sample_metadata=pd.DataFrame(
+                {"group": ["g1", "g2"]},
+                index=pd.Index(["sample_a", pd.NA], name="sample_id"),
+            ),
+            total=None,
+        )
+
+
+def test_normalizer_rejects_missing_site_labels_before_stringification() -> None:
+    with pytest.raises(
+        UnsupportedInputFormatError,
+        match="dataset build request phospho.index must not contain missing labels",
+    ):
+        DatasetConventionNormalizer().run(
+            phospho=pd.DataFrame(
+                {"sample_a": [1.0]},
+                index=pd.Index([pd.NA], name="site_id"),
+            ),
+            site_metadata=pd.DataFrame(
+                {
+                    "gene_symbol": ["MAPK14"],
+                    "site": ["Y182"],
+                    "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+                },
+                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            ),
+            sample_metadata=None,
+            total=None,
+        )
+
+
+def test_normalizer_rejects_blank_labels_with_field_name() -> None:
+    with pytest.raises(
+        UnsupportedInputFormatError,
+        match=("dataset build request phospho.columns must contain non-blank labels"),
+    ):
+        DatasetConventionNormalizer().run(
+            phospho=pd.DataFrame(
+                {"   ": [1.0]},
+                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            ),
+            site_metadata=pd.DataFrame(
+                {
+                    "gene_symbol": ["MAPK14"],
+                    "site": ["Y182"],
+                    "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+                },
+                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            ),
+            sample_metadata=None,
+            total=None,
+        )
+
+
+def test_normalizer_rejects_duplicate_labels_introduced_by_trimming() -> None:
+    with pytest.raises(
+        UnsupportedInputFormatError,
+        match=(
+            "dataset build request sample_metadata.index contains duplicate labels "
+            "introduced by normalization"
+        ),
+    ):
+        DatasetConventionNormalizer().run(
+            phospho=_phospho(),
+            site_metadata=pd.DataFrame(
+                {
+                    "gene_symbol": ["MAPK14"],
+                    "site": ["Y182"],
+                    "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+                },
+                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            ),
+            sample_metadata=pd.DataFrame(
+                {"group": ["g1", "g2"]},
+                index=pd.Index(["sample_a", " sample_a "], name="sample_id"),
+            ),
+            total=None,
+        )
+
+
+def test_normalizer_rejects_duplicate_site_ids_introduced_by_canonicalization() -> None:
+    with pytest.raises(
+        UnsupportedInputFormatError,
+        match="contains duplicate site identifiers after canonicalization",
+    ):
+        DatasetConventionNormalizer().run(
+            phospho=pd.DataFrame(
+                {"sample_a": [1.0, 2.0]},
+                index=pd.Index(
+                    ["mapk14;y182", " MAPK14 ; Y182 ;"],
+                    name="site_id",
+                ),
+            ),
+            site_metadata=pd.DataFrame(
+                {
+                    "gene_symbol": ["MAPK14", "MAPK14"],
+                    "site": ["Y182", "Y182"],
+                    "site_sequence": ["SEQ_A", "SEQ_B"],
+                },
+                index=pd.Index(
+                    ["mapk14;y182", " MAPK14 ; Y182 ;"],
+                    name="site_id",
+                ),
+            ),
+            sample_metadata=None,
+            total=None,
+        )

@@ -292,6 +292,11 @@ def _build_dataset_run_provenance(
             ),
             "intensity_scale_label": intensity_scale_label,
             "quantitative_meaning": quantitative_meaning,
+            "site_identifier_normalisation": (
+                None
+                if request.site_identifier_normalisation is None
+                else request.site_identifier_normalisation.to_payload()
+            ),
         },
         random_state=None,
         random_seed_policy=None,

@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
+from dataclasses import dataclass
 from typing import TypeVar
 
 import pandas as pd
 
 ErrorType = TypeVar("ErrorType", bound=Exception)
+SITE_IDENTIFIER_NORMALISATION_SCHEMA_VERSION = 1
 _SITE_IDENTIFIER_PATTERN = re.compile(
     r"^\s*(?P<gene_symbol>[^;]+?)\s*;\s*(?P<site>[^;]+?)\s*;?\s*$"
 )
@@ -16,6 +19,53 @@ _SITE_TOKEN_PATTERN = re.compile(r"^[^;\s]+$")
 _SITE_IDENTIFIER_EXPECTATION = (
     "site identifiers must use 'GENE;SITE;' format (example: 'MAPK1;S123;')"
 )
+
+
+@dataclass(frozen=True, slots=True)
+class SiteIdentifierNormalisationRecord:
+    """One site-identifier normalisation change record."""
+
+    field_name: str
+    row_position: int
+    original_value: str
+    normalised_value: str
+
+
+@dataclass(frozen=True, slots=True)
+class SiteIdentifierNormalisationReport:
+    """Structured report of site-identifier normalisation changes."""
+
+    schema_version: int
+    changed_identifier_count: int
+    records: tuple[SiteIdentifierNormalisationRecord, ...]
+
+    def to_payload(self) -> dict[str, object]:
+        return {
+            "schema_version": int(self.schema_version),
+            "changed_identifier_count": int(self.changed_identifier_count),
+            "records": [
+                {
+                    "field_name": record.field_name,
+                    "row_position": int(record.row_position),
+                    "original_value": record.original_value,
+                    "normalised_value": record.normalised_value,
+                }
+                for record in self.records
+            ],
+        }
+
+
+def build_site_identifier_normalisation_report(
+    records: Iterable[SiteIdentifierNormalisationRecord],
+) -> SiteIdentifierNormalisationReport | None:
+    resolved_records = tuple(records)
+    if not resolved_records:
+        return None
+    return SiteIdentifierNormalisationReport(
+        schema_version=SITE_IDENTIFIER_NORMALISATION_SCHEMA_VERSION,
+        changed_identifier_count=len(resolved_records),
+        records=resolved_records,
+    )
 
 
 def canonicalize_site_index(

@@ -166,3 +166,69 @@ def test_builder_site_sequence_mixed_support_keeps_resolvable_rows_and_excludes_
     ]
     assert set(dropped.loc[:, "source_row_id"].astype(str)) == {"row_c", "row_d"}
     assert "missing or blank" in str(dropped.iloc[0]["reason"])
+
+
+def test_builder_rejects_missing_sample_label_before_stringification() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0],
+            "sample_b": [2.0],
+        },
+        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "site_sequence": ["SEQ_A"],
+        },
+        index=phospho.index.copy(),
+    )
+    sample_metadata = pd.DataFrame(
+        {"comparison_group": ["group_1", "group_2"]},
+        index=pd.Index(["sample_a", pd.NA], name="sample_id"),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="sample_metadata.index must not contain missing labels",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                sample_metadata=sample_metadata,
+                organism=Organism.RAT,
+            )
+        )
+
+
+def test_builder_provenance_exposes_site_identifier_normalisation_records() -> None:
+    phospho = pd.DataFrame(
+        {
+            " sample_a ": [1.0],
+            " sample_b ": [2.0],
+        },
+        index=pd.Index([" mapk14 ; y182 "], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["mapk14"],
+            "site": ["y182"],
+            "site_sequence": ["SEQ_A"],
+        },
+        index=pd.Index([" mapk14 ; y182 "], name="site_id"),
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+        )
+    )
+
+    assert built.provenance is not None
+    payload = built.provenance.workflow_parameters.get("site_identifier_normalisation")
+    assert isinstance(payload, dict)
+    assert payload["changed_identifier_count"] >= 2

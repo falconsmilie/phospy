@@ -14,6 +14,7 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingStageExecution,
 )
 from phospy.references.models import Organism
+from phospy.site_ids import SiteIdentifierNormalisationReport
 
 if TYPE_CHECKING:
     from phospy.api.requests import DatasetBuildRequest
@@ -34,6 +35,7 @@ class InterpretedDatasetBuildRequest:
     preprocessing_plan: PreprocessingPlan = field(
         default_factory=PreprocessingPlan.default
     )
+    site_identifier_normalisation: SiteIdentifierNormalisationReport | None = None
 
 
 @dataclass(frozen=True, slots=True)
