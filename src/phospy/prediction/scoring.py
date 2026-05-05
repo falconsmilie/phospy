@@ -20,6 +20,26 @@ DOWNSTREAM_SCORE_SOURCE_PROFILE = DownstreamScoreSource.PROFILE_SCORES.value
 DOWNSTREAM_SCORE_SOURCE_RANK_WEIGHTED_FUSION = (
     DownstreamScoreSource.RANK_WEIGHTED_FUSION_SCORES.value
 )
+KINASE_SCORE_SOURCE_FUSED_MOTIF_PROFILE_EVIDENCE = "fused_motif_profile_evidence"
+KINASE_SCORE_SOURCE_PROFILE_ONLY_MOTIF_MISSING_OR_CONSTANT = (
+    "profile_only_motif_missing_or_constant"
+)
+KINASE_SCORE_SOURCE_PROFILE_ONLY_NO_MOTIF_OVERLAP = "profile_only_no_motif_overlap"
+KINASE_SCORE_SOURCE_UNAVAILABLE_NO_SCORE = "unavailable_no_score"
+KINASE_SCORE_SOURCE_VALUES: tuple[str, ...] = (
+    KINASE_SCORE_SOURCE_FUSED_MOTIF_PROFILE_EVIDENCE,
+    KINASE_SCORE_SOURCE_PROFILE_ONLY_MOTIF_MISSING_OR_CONSTANT,
+    KINASE_SCORE_SOURCE_PROFILE_ONLY_NO_MOTIF_OVERLAP,
+    KINASE_SCORE_SOURCE_UNAVAILABLE_NO_SCORE,
+)
+KINASE_SCORE_SOURCE_SUMMARY_COLUMNS: tuple[str, ...] = (
+    "fused_motif_profile_evidence_count",
+    "profile_only_motif_missing_or_constant_count",
+    "profile_only_no_motif_overlap_count",
+    "unavailable_no_score_count",
+    "sites_with_score_count",
+    "total_sites_count",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,6 +106,97 @@ def select_downstream_score_matrix(
             DownstreamScoreSource.RANK_WEIGHTED_FUSION_SCORES,
         )
     return profile_scores, DownstreamScoreSource.PROFILE_SCORES
+
+
+def build_kinase_score_source_diagnostics(
+    *,
+    motif_scores: pd.DataFrame,
+    profile_scores: pd.DataFrame,
+    rank_weighted_fusion_scores: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Label per-cell downstream score evidence and summarize per kinase."""
+
+    if not rank_weighted_fusion_scores.index.equals(profile_scores.index):
+        raise ValueError(
+            "rank_weighted_fusion_scores.index must match profile_scores.index"
+        )
+    missing_profile_kinases = [
+        kinase
+        for kinase in rank_weighted_fusion_scores.columns
+        if kinase not in profile_scores.columns
+    ]
+    if missing_profile_kinases:
+        raise ValueError(
+            "rank_weighted_fusion_scores contains kinases missing from "
+            f"profile_scores: {', '.join(map(str, missing_profile_kinases))}"
+        )
+
+    source_matrix = pd.DataFrame(
+        KINASE_SCORE_SOURCE_UNAVAILABLE_NO_SCORE,
+        index=rank_weighted_fusion_scores.index.copy(),
+        columns=rank_weighted_fusion_scores.columns.copy(),
+        dtype=object,
+    )
+    motif_columns = set(motif_scores.columns.astype(str))
+    for kinase in rank_weighted_fusion_scores.columns.astype(str):
+        profile_column = profile_scores.loc[:, kinase]
+        fused_column = rank_weighted_fusion_scores.loc[:, kinase]
+        available_profile = profile_column.notna()
+        available_fused = fused_column.notna()
+        if kinase in motif_columns:
+            motif_column = motif_scores.loc[:, kinase].reindex(
+                rank_weighted_fusion_scores.index
+            )
+            fused_mask = motif_column.notna() & available_profile & available_fused
+            profile_only_missing_motif_mask = (
+                motif_column.isna() & available_profile & available_fused
+            )
+            source_matrix.loc[fused_mask, kinase] = (
+                KINASE_SCORE_SOURCE_FUSED_MOTIF_PROFILE_EVIDENCE
+            )
+            source_matrix.loc[profile_only_missing_motif_mask, kinase] = (
+                KINASE_SCORE_SOURCE_PROFILE_ONLY_MOTIF_MISSING_OR_CONSTANT
+            )
+            continue
+        no_overlap_mask = available_profile & available_fused
+        source_matrix.loc[no_overlap_mask, kinase] = (
+            KINASE_SCORE_SOURCE_PROFILE_ONLY_NO_MOTIF_OVERLAP
+        )
+
+    summary_columns = {
+        "fused_motif_profile_evidence_count": (
+            source_matrix == KINASE_SCORE_SOURCE_FUSED_MOTIF_PROFILE_EVIDENCE
+        ),
+        "profile_only_motif_missing_or_constant_count": (
+            source_matrix == KINASE_SCORE_SOURCE_PROFILE_ONLY_MOTIF_MISSING_OR_CONSTANT
+        ),
+        "profile_only_no_motif_overlap_count": (
+            source_matrix == KINASE_SCORE_SOURCE_PROFILE_ONLY_NO_MOTIF_OVERLAP
+        ),
+        "unavailable_no_score_count": (
+            source_matrix == KINASE_SCORE_SOURCE_UNAVAILABLE_NO_SCORE
+        ),
+    }
+    score_source_summary = pd.DataFrame(
+        {
+            column: mask.sum(axis=0).astype("int64")
+            for column, mask in summary_columns.items()
+        },
+        index=rank_weighted_fusion_scores.columns.copy(),
+    )
+    score_source_summary.loc[:, "sites_with_score_count"] = (
+        score_source_summary.loc[:, "fused_motif_profile_evidence_count"]
+        + score_source_summary.loc[:, "profile_only_motif_missing_or_constant_count"]
+        + score_source_summary.loc[:, "profile_only_no_motif_overlap_count"]
+    ).astype("int64")
+    score_source_summary.loc[:, "total_sites_count"] = int(
+        rank_weighted_fusion_scores.shape[0]
+    )
+    score_source_summary.index.name = "kinase"
+    score_source_summary = score_source_summary.loc[
+        :, list(KINASE_SCORE_SOURCE_SUMMARY_COLUMNS)
+    ]
+    return source_matrix, score_source_summary
 
 
 def resolve_downstream_score_matrix(
@@ -276,11 +387,18 @@ def _profile_only_weights(kinases: Sequence[str]) -> pd.DataFrame:
 
 
 __all__ = [
+    "KINASE_SCORE_SOURCE_FUSED_MOTIF_PROFILE_EVIDENCE",
+    "KINASE_SCORE_SOURCE_PROFILE_ONLY_MOTIF_MISSING_OR_CONSTANT",
+    "KINASE_SCORE_SOURCE_PROFILE_ONLY_NO_MOTIF_OVERLAP",
+    "KINASE_SCORE_SOURCE_SUMMARY_COLUMNS",
+    "KINASE_SCORE_SOURCE_UNAVAILABLE_NO_SCORE",
+    "KINASE_SCORE_SOURCE_VALUES",
     "DOWNSTREAM_SCORE_SOURCE_RANK_WEIGHTED_FUSION",
     "DOWNSTREAM_SCORE_SOURCE_PROFILE",
     "DownstreamScoreSelectionPolicy",
     "MotifProfileRankFusionPolicy",
     "SIGNALOME_DOWNSTREAM_SCORE_RANK_WEIGHTED_PREFERRED_POLICY",
+    "build_kinase_score_source_diagnostics",
     "fuse_profile_and_motif_scores_by_rank_weight",
     "resolve_downstream_score_matrix",
     "select_downstream_score_matrix",

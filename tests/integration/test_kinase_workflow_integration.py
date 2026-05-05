@@ -830,8 +830,12 @@ def test_diagnostic_scoring_tables_are_opt_in_without_changing_supported_lane() 
 
     assert default_result.scoring_result.motif_scores is None
     assert default_result.scoring_result.score_fusion_weights is None
+    assert default_result.scoring_result.score_source_summary is not None
+    assert default_result.scoring_result.score_source_matrix is None
     assert diagnostics_result.scoring_result.motif_scores is not None
     assert diagnostics_result.scoring_result.score_fusion_weights is not None
+    assert diagnostics_result.scoring_result.score_source_summary is not None
+    assert diagnostics_result.scoring_result.score_source_matrix is not None
 
     pd.testing.assert_frame_equal(
         default_result.scoring_result.profile_scores,
@@ -850,6 +854,16 @@ def test_diagnostic_scoring_tables_are_opt_in_without_changing_supported_lane() 
         diagnostics_result.prediction_result.pred_mat,
         check_dtype=False,
     )
+    assert default_result.provenance is not None
+    scoring_diagnostics = default_result.provenance.workflow_parameters[
+        "scoring_diagnostics"
+    ]
+    assert isinstance(scoring_diagnostics, Mapping)
+    by_kinase = scoring_diagnostics["kinase_score_source_counts_by_kinase"]
+    totals = scoring_diagnostics["kinase_score_source_counts_total"]
+    assert isinstance(by_kinase, Mapping)
+    assert isinstance(totals, Mapping)
+    assert int(totals["total_sites_count"]) > 0
 
 
 def test_profile_missing_value_strategy_flows_from_request_to_science(

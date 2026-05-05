@@ -118,6 +118,8 @@ def test_kinase_result_stays_nested_and_honest_for_supported_lane() -> None:
     assert result.scoring_result.motif_scores is None
     assert result.scoring_result.rank_weighted_fusion_scores is not None
     assert result.scoring_result.score_fusion_weights is None
+    assert result.scoring_result.score_source_summary is not None
+    assert result.scoring_result.score_source_matrix is None
     assert result.activity_result is None
     assert result.prediction_result.substrate_list is not None
     assert set(result.prediction_result.substrate_list.columns) == {
@@ -238,6 +240,8 @@ def test_kinase_result_can_include_opt_in_diagnostic_scoring_tables() -> None:
 
     assert result.scoring_result.motif_scores is not None
     assert result.scoring_result.score_fusion_weights is not None
+    assert result.scoring_result.score_source_summary is not None
+    assert result.scoring_result.score_source_matrix is not None
     assert hasattr(result.scoring_result, "rank_weighted_fusion_scores")
     assert hasattr(result.scoring_result, "score_fusion_weights")
     assert not hasattr(result.scoring_result, "combined_scores")

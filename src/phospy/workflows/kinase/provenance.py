@@ -158,6 +158,18 @@ class KinaseProvenanceBuilder:
             scoring_diagnostics["motif_library_validation"] = (
                 scoring_result.motif_library_validation.summary()
             )
+        if scoring_result.score_source_summary is not None:
+            score_source_summary = scoring_result.score_source_summary
+            by_kinase: dict[str, dict[str, int]] = {}
+            for kinase, row in score_source_summary.iterrows():
+                by_kinase[str(kinase)] = {
+                    str(column): int(value) for column, value in row.items()
+                }
+            scoring_diagnostics["kinase_score_source_counts_by_kinase"] = by_kinase
+            scoring_diagnostics["kinase_score_source_counts_total"] = {
+                str(column): int(value)
+                for column, value in score_source_summary.sum(axis=0).items()
+            }
         if request.site_sequence_merge_diagnostics:
             scoring_diagnostics["site_sequence_merge"] = dict(
                 request.site_sequence_merge_diagnostics

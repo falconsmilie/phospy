@@ -7,7 +7,13 @@ from phospy.prediction.candidates import build_candidate_substrate_list
 from phospy.prediction.scoring import (
     DOWNSTREAM_SCORE_SOURCE_PROFILE,
     DOWNSTREAM_SCORE_SOURCE_RANK_WEIGHTED_FUSION,
+    KINASE_SCORE_SOURCE_FUSED_MOTIF_PROFILE_EVIDENCE,
+    KINASE_SCORE_SOURCE_PROFILE_ONLY_MOTIF_MISSING_OR_CONSTANT,
+    KINASE_SCORE_SOURCE_PROFILE_ONLY_NO_MOTIF_OVERLAP,
+    KINASE_SCORE_SOURCE_SUMMARY_COLUMNS,
+    KINASE_SCORE_SOURCE_UNAVAILABLE_NO_SCORE,
     MotifProfileRankFusionPolicy,
+    build_kinase_score_source_diagnostics,
     fuse_profile_and_motif_scores_by_rank_weight,
     select_downstream_score_matrix,
 )
@@ -152,3 +158,93 @@ def test_fuse_profile_and_motif_scores_policy_metadata_and_default_behavior() ->
     assert policy_weights is not None
     pd.testing.assert_frame_equal(wrapper_weights, policy_weights)
     assert policy.record.id == ScientificPolicyId.MOTIF_PROFILE_RANK_FUSION
+
+
+def test_build_kinase_score_source_diagnostics_tracks_fused_and_profile_fallback() -> (
+    None
+):
+    profile_scores = pd.DataFrame(
+        {"K1": [0.9, 0.6, float("nan")]},
+        index=["S1", "S2", "S3"],
+    )
+    motif_scores = pd.DataFrame(
+        {"K1": [0.2, float("nan"), 0.5]},
+        index=profile_scores.index.copy(),
+    )
+    rank_weighted_fusion_scores = pd.DataFrame(
+        {"K1": [0.55, 0.6, float("nan")]},
+        index=profile_scores.index.copy(),
+    )
+
+    source_matrix, source_summary = build_kinase_score_source_diagnostics(
+        motif_scores=motif_scores,
+        profile_scores=profile_scores,
+        rank_weighted_fusion_scores=rank_weighted_fusion_scores,
+    )
+
+    assert (
+        source_matrix.at["S1", "K1"] == KINASE_SCORE_SOURCE_FUSED_MOTIF_PROFILE_EVIDENCE
+    )
+    assert source_matrix.at["S2", "K1"] == (
+        KINASE_SCORE_SOURCE_PROFILE_ONLY_MOTIF_MISSING_OR_CONSTANT
+    )
+    assert source_matrix.at["S3", "K1"] == KINASE_SCORE_SOURCE_UNAVAILABLE_NO_SCORE
+    assert (
+        tuple(source_summary.columns.astype(str)) == KINASE_SCORE_SOURCE_SUMMARY_COLUMNS
+    )
+    assert source_summary.at["K1", "fused_motif_profile_evidence_count"] == 1
+    assert source_summary.at["K1", "profile_only_motif_missing_or_constant_count"] == 1
+    assert source_summary.at["K1", "profile_only_no_motif_overlap_count"] == 0
+    assert source_summary.at["K1", "unavailable_no_score_count"] == 1
+    assert source_summary.at["K1", "sites_with_score_count"] == 2
+    assert source_summary.at["K1", "total_sites_count"] == 3
+
+
+def test_build_kinase_score_source_diagnostics_tracks_profile_only_no_overlap() -> None:
+    profile_scores = pd.DataFrame(
+        {"K_PROFILE_ONLY": [0.3, float("nan")]},
+        index=["S1", "S2"],
+    )
+    motif_scores = pd.DataFrame(index=profile_scores.index.copy())
+    rank_weighted_fusion_scores = profile_scores.copy(deep=True)
+
+    source_matrix, source_summary = build_kinase_score_source_diagnostics(
+        motif_scores=motif_scores,
+        profile_scores=profile_scores,
+        rank_weighted_fusion_scores=rank_weighted_fusion_scores,
+    )
+
+    assert source_matrix.at["S1", "K_PROFILE_ONLY"] == (
+        KINASE_SCORE_SOURCE_PROFILE_ONLY_NO_MOTIF_OVERLAP
+    )
+    assert source_matrix.at["S2", "K_PROFILE_ONLY"] == (
+        KINASE_SCORE_SOURCE_UNAVAILABLE_NO_SCORE
+    )
+    assert (
+        source_summary.at["K_PROFILE_ONLY", "profile_only_no_motif_overlap_count"] == 1
+    )
+    assert source_summary.at["K_PROFILE_ONLY", "unavailable_no_score_count"] == 1
+
+
+def test_build_kinase_score_source_diagnostics_marks_all_nan_motif_column_as_profile_only() -> (
+    None
+):
+    profile_scores = pd.DataFrame({"K1": [0.4, 0.7]}, index=["S1", "S2"])
+    motif_scores = pd.DataFrame(
+        {"K1": [float("nan"), float("nan")]},
+        index=profile_scores.index.copy(),
+    )
+    rank_weighted_fusion_scores = profile_scores.copy(deep=True)
+
+    source_matrix, source_summary = build_kinase_score_source_diagnostics(
+        motif_scores=motif_scores,
+        profile_scores=profile_scores,
+        rank_weighted_fusion_scores=rank_weighted_fusion_scores,
+    )
+
+    assert (
+        source_matrix.loc[:, "K1"]
+        == KINASE_SCORE_SOURCE_PROFILE_ONLY_MOTIF_MISSING_OR_CONSTANT
+    ).all()
+    assert source_summary.at["K1", "fused_motif_profile_evidence_count"] == 0
+    assert source_summary.at["K1", "profile_only_motif_missing_or_constant_count"] == 2
