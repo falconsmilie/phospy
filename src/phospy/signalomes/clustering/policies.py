@@ -170,5 +170,4 @@ __all__ = [
     "SignalomeClusteringScoringMode",
     "SignalomeTreeEngine",
     "resolve_candidate_scoring_policy_definition",
-    "_CandidateScoringMode",
 ]

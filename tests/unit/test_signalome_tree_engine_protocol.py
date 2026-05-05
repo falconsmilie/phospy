@@ -11,7 +11,9 @@ from phospy.signalomes.clustering.contracts import ClusterTreeEngine
 from phospy.signalomes.clustering.models import (
     SignalomeClusteringEngineRequest,
 )
-from phospy.signalomes.clustering.orchestration import run_clustering_with_tree_engine
+from phospy.signalomes.clustering.tree_engine_adapter import (
+    run_clustering_with_tree_engine,
+)
 
 
 def _scoring_matrix() -> pd.DataFrame:
@@ -115,4 +117,16 @@ def test_shared_orchestration_runs_with_either_tree_engine() -> None:
     assert _same_partition(
         exact_result.protein_modules.to_numpy(dtype=int, copy=False),
         scipy_result.protein_modules.to_numpy(dtype=int, copy=False),
+    )
+    assert exact_result.tree_implementation == "exact_python_tree"
+    assert scipy_result.tree_implementation == "scipy_hierarchical_tree"
+    assert exact_result.backend_diagnostics is not None
+    assert scipy_result.backend_diagnostics is not None
+    assert (
+        exact_result.backend_diagnostics["tree_implementation"]
+        == exact_result.tree_implementation
+    )
+    assert (
+        scipy_result.backend_diagnostics["tree_implementation"]
+        == scipy_result.tree_implementation
     )

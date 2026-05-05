@@ -24,9 +24,11 @@ from phospy.signalomes.clustering.exact_python import (
     SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
     SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
     SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
-    _CandidateScoringMode,
 )
 from phospy.signalomes.clustering.models import SignalomeClusteringEngineResult
+from phospy.signalomes.clustering.policies import (
+    _CandidateScoringMode,
+)
 from phospy.signalomes.clustering.validation import validate_requested_module_count
 from phospy.workflows.signalome.component_helpers import (
     raise_boundary_error,

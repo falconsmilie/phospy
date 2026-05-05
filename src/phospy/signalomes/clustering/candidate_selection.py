@@ -240,7 +240,6 @@ def select_threshold_candidate(
 
 
 __all__ = [
-    "_ModuleSelectionComputation",
     "build_module_selection_result",
     "filter_cluster_candidates",
     "resolve_pre_scoring_module_selection",

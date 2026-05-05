@@ -4,9 +4,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from phospy.signalomes.clustering.backends.exact_python import (
-    ExactPythonTreeEngine,
-    ExactWardClusterTree,
+from phospy.signalomes.clustering.backends.exact_python import ExactPythonTreeEngine
+from phospy.signalomes.clustering.candidate_scoring import (
+    build_correlation_exclusion_note,
+    build_correlation_matrix_with_exclusions,
+    cluster_median_correlation,
+    cluster_median_correlation_approximate,
+    summarize_profile_degeneracy,
+)
+from phospy.signalomes.clustering.candidate_selection import (
+    filter_cluster_candidates,
 )
 from phospy.signalomes.clustering.diagnostic_schemas import (
     build_tree_engine_diagnostics,
@@ -18,6 +25,13 @@ from phospy.signalomes.clustering.models import (
     SignalomeClusteringEngineResult,
 )
 from phospy.signalomes.clustering.orchestration import (
+    ClusterSitesResult,
+    cluster_sites,
+    cluster_sites_with_diagnostics,
+    select_module_count,
+    select_module_count_with_diagnostics,
+)
+from phospy.signalomes.clustering.policies import (
     MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER,
     MAX_FULL_CORRELATION_SITE_COUNT,
     NEAR_CONSTANT_PROFILE_VARIANCE_TOLERANCE,
@@ -37,37 +51,20 @@ from phospy.signalomes.clustering.orchestration import (
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE,
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_SINGLE_MODULE,
     SIGNALOME_TREE_ENGINE_EXACT,
-    ClusterSitesResult,
-    ClusterTreeOperations,
     SignalomeCandidateScoringPolicy,
     SignalomeClusteringMissingValuePolicy,
     SignalomeClusteringScoringMode,
     SignalomeTreeEngine,
-    _build_cluster_tree,
-    _CandidateClusterScoreResult,
-    _CandidateScoringMode,
-    _compute_candidate_cluster_scores,
-    _compute_module_selection,
-    _prepare_scoring_values_for_clustering,
-    _ProfileDegeneracySummary,
-    _resolve_pre_scoring_module_selection,
-    build_cluster_labels_from_tree,
-    build_correlation_exclusion_note,
-    build_correlation_matrix_with_exclusions,
-    cluster_median_correlation,
-    cluster_median_correlation_approximate,
-    cluster_sites,
-    cluster_sites_with_diagnostics,
-    derive_protein_modules,
-    filter_cluster_candidates,
-    fit_cluster_labels,
-    run_clustering_with_tree_engine,
-    select_module_count,
-    select_module_count_with_diagnostics,
-    summarize_profile_degeneracy,
 )
-
-_WardClusterTree = ExactWardClusterTree
+from phospy.signalomes.clustering.protein_modules import derive_protein_modules
+from phospy.signalomes.clustering.tree_building import (
+    ClusterTreeOperations,
+    build_cluster_labels_from_tree,
+    fit_cluster_labels,
+)
+from phospy.signalomes.clustering.tree_engine_adapter import (
+    run_clustering_with_tree_engine,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,15 +118,6 @@ __all__ = [
     "SignalomeClusteringMissingValuePolicy",
     "SignalomeTreeEngine",
     "SignalomeClusteringScoringMode",
-    "_CandidateClusterScoreResult",
-    "_CandidateScoringMode",
-    "_ProfileDegeneracySummary",
-    "_WardClusterTree",
-    "_build_cluster_tree",
-    "_compute_candidate_cluster_scores",
-    "_compute_module_selection",
-    "_prepare_scoring_values_for_clustering",
-    "_resolve_pre_scoring_module_selection",
     "build_cluster_labels_from_tree",
     "build_correlation_exclusion_note",
     "build_correlation_matrix_with_exclusions",

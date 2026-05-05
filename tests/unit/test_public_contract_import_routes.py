@@ -116,6 +116,13 @@ def test_public_signalome_clustering_exports_do_not_expose_exact_tree_builders()
     assert public_tree_builders == {"build_cluster_labels_from_tree"}
 
 
+def test_public_signalome_clustering_exports_do_not_expose_internal_helpers() -> None:
+    internal_exports = {
+        name for name in signalome_clustering.__all__ if name.startswith("_")
+    }
+    assert internal_exports == set()
+
+
 def test_public_signalome_docs_do_not_reference_raw_build_cluster_tree() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     docs_markdown_files = sorted((ROOT / "docs").rglob("*.md"))

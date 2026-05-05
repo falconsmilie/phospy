@@ -16,6 +16,7 @@ from phospy.signalomes.clustering.diagnostic_schemas import (
     validate_limit_metadata,
     validate_threshold_metadata,
 )
+from phospy.signalomes.clustering.policies import SignalomeCandidateScoringPolicy
 from phospy.signalomes.models import SignalomeModuleSelectionDiagnostics
 
 SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON = "exact_python"
@@ -34,7 +35,7 @@ class SignalomeClusteringEngineRequest:
     primary_threshold: float
     fallback_threshold: float
     max_clusters: int
-    candidate_scoring_policy: str | None
+    candidate_scoring_policy: SignalomeCandidateScoringPolicy | None
     max_exact_tree_sites: int | None
     max_full_candidate_scoring_sites: int
 

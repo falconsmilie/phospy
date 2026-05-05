@@ -16,7 +16,9 @@ from phospy.signalomes.clustering.models import (
     SignalomeClusteringEngineRequest,
     SignalomeClusteringEngineResult,
 )
-from phospy.signalomes.clustering.orchestration import run_clustering_with_tree_engine
+from phospy.signalomes.clustering.tree_engine_adapter import (
+    run_clustering_with_tree_engine,
+)
 
 
 @dataclass(frozen=True, slots=True)

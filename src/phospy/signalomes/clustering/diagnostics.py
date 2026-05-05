@@ -5,8 +5,14 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd  # pyright: ignore[reportMissingTypeStubs]
 
+from phospy.signalomes.clustering.contracts import ClusterTreeEngine
 from phospy.signalomes.clustering.diagnostic_schemas import (
+    SignalomeBackendDiagnostics,
     SignalomeCandidateScoringSamplingDiagnostics,
+    SignalomeClusteringLimitMetadata,
+    SignalomeClusteringThresholdMetadata,
+    SignalomeTreeEngineDiagnostics,
+    build_backend_diagnostics,
     candidate_scoring_sampling_diagnostics_to_payload,
     validate_candidate_scoring_sampling_diagnostics,
 )
@@ -135,7 +141,57 @@ def candidate_scoring_sampling_provenance_to_payload(
     return candidate_scoring_sampling_diagnostics_to_payload(payload)
 
 
+class SignalomeEngineDiagnosticsBuilder:
+    """Build backend diagnostics and typed metadata for engine results."""
+
+    def backend_diagnostics(
+        self,
+        *,
+        clustering_engine: str,
+        backend_version: str,
+        tree_engine: ClusterTreeEngine,
+        tree_engine_diagnostics: SignalomeTreeEngineDiagnostics,
+        selected_module_count: int,
+        input_site_count: int,
+        exact_tree_path_used: bool,
+    ) -> SignalomeBackendDiagnostics:
+        return build_backend_diagnostics(
+            backend_name=str(clustering_engine),
+            backend_version=str(backend_version),
+            tree_engine=str(tree_engine.name),
+            tree_engine_version=str(tree_engine.version),
+            tree_engine_diagnostics=tree_engine_diagnostics,
+            selected_module_count=selected_module_count,
+            input_site_count=input_site_count,
+            exact_tree_path_used=exact_tree_path_used,
+        )
+
+    def threshold_metadata(
+        self, *, primary_threshold: float, fallback_threshold: float
+    ) -> SignalomeClusteringThresholdMetadata:
+        return {
+            "primary_threshold": float(primary_threshold),
+            "fallback_threshold": float(fallback_threshold),
+        }
+
+    def limit_metadata(
+        self,
+        *,
+        max_exact_tree_sites: int | None,
+        max_full_candidate_scoring_sites: int,
+        max_clusters: int,
+    ) -> SignalomeClusteringLimitMetadata:
+        return {
+            "max_exact_tree_sites": (
+                None if max_exact_tree_sites is None else int(max_exact_tree_sites)
+            ),
+            "max_full_candidate_scoring_sites": int(max_full_candidate_scoring_sites),
+            "max_clusters": int(max_clusters),
+        }
+
+
 __all__ = [
+    "SignalomeEngineDiagnosticsBuilder",
     "approximation_used_from_candidate_mode",
     "build_candidate_scoring_sampling_provenance",
     "build_module_selection_diagnostics",

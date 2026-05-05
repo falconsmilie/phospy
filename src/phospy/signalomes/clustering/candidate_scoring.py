@@ -500,8 +500,6 @@ def compute_candidate_cluster_scores(
 
 
 __all__ = [
-    "_CandidateClusterScoreResult",
-    "_ProfileDegeneracySummary",
     "build_correlation_exclusion_note",
     "build_correlation_matrix_with_exclusions",
     "cluster_median_correlation",

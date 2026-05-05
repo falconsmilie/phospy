@@ -17,6 +17,11 @@ from phospy.signalomes.clustering import (
     select_module_count_with_diagnostics,
 )
 from phospy.signalomes.clustering import exact_python as exact_clustering
+from phospy.signalomes.clustering.candidate_scoring import (
+    _CandidateClusterScoreResult,
+    compute_candidate_cluster_scores,
+    summarize_profile_degeneracy,
+)
 from phospy.signalomes.clustering.tree_building import (
     prepare_scoring_values_for_clustering,
     summarize_clustering_missing_value_diagnostics,
@@ -304,8 +309,8 @@ def test_candidate_scoring_helper_returns_stable_shape_across_all_branches() -> 
         ],
         dtype=float,
     )
-    profile_degeneracy = clustering_module.summarize_profile_degeneracy(values)
-    clustering_values = clustering_module._prepare_scoring_values_for_clustering(values)
+    profile_degeneracy = summarize_profile_degeneracy(values)
+    clustering_values = prepare_scoring_values_for_clustering(values)
 
     common_kwargs = {
         "clustering_values": clustering_values,
@@ -318,25 +323,25 @@ def test_candidate_scoring_helper_returns_stable_shape_across_all_branches() -> 
         "max_full_candidate_scoring_sites": 10,
     }
 
-    empty_result = clustering_module._compute_candidate_cluster_scores(
+    empty_result = compute_candidate_cluster_scores(
         candidate_range=range(2, 2),
         candidate_scoring_policy=clustering_module.SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
         **common_kwargs,
     )
-    full_result = clustering_module._compute_candidate_cluster_scores(
+    full_result = compute_candidate_cluster_scores(
         candidate_range=range(2, 3),
         candidate_scoring_policy=clustering_module.SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
         **common_kwargs,
     )
-    sampled_result = clustering_module._compute_candidate_cluster_scores(
+    sampled_result = compute_candidate_cluster_scores(
         candidate_range=range(2, 3),
         candidate_scoring_policy=clustering_module.SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
         **common_kwargs,
     )
 
-    assert isinstance(empty_result, clustering_module._CandidateClusterScoreResult)
-    assert isinstance(full_result, clustering_module._CandidateClusterScoreResult)
-    assert isinstance(sampled_result, clustering_module._CandidateClusterScoreResult)
+    assert isinstance(empty_result, _CandidateClusterScoreResult)
+    assert isinstance(full_result, _CandidateClusterScoreResult)
+    assert isinstance(sampled_result, _CandidateClusterScoreResult)
 
     assert empty_result.candidate_scores == {}
     assert empty_result.candidate_labels == {}
