@@ -32,6 +32,8 @@ from phospy.datasets.builders.preprocessing import (
 )
 from phospy.datasets.builders.transformation_resolver import ResolvedIntensityScale
 from phospy.datasets.preprocessing.models import (
+    PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA,
+    PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_MISSING_DATA,
     PreprocessingPlan,
     PreprocessingStageResult,
     PreprocessingState,
@@ -766,6 +768,45 @@ def test_preprocessing_plan_orders_minprob_after_intensity_transform() -> None:
         "missing_data",
         "total_protein_correction",
         "site_matrix",
+    )
+    assert plan.stage_order_resolution[0].stage == "intensity_transform"
+    assert plan.stage_order_resolution[1].stage == "missing_data"
+    assert (
+        plan.stage_order_resolution[1].rationale
+        == PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA
+    )
+
+
+@pytest.mark.parametrize(
+    "missing_data",
+    (
+        DatasetMissingDataConfig(policy="impute_row_median", min_observed_values=1),
+        DatasetMissingDataConfig(
+            policy="impute_knn",
+            k=1,
+            distance="nan_euclidean",
+            max_missing_fraction_per_row=0.5,
+        ),
+    ),
+)
+def test_preprocessing_plan_orders_non_minprob_before_log2_transform(
+    missing_data: DatasetMissingDataConfig,
+) -> None:
+    plan = PreprocessingPlan.from_config(
+        DatasetPreprocessingConfig(
+            intensity_transform=DatasetIntensityTransformConfig(
+                policy="log2",
+                pseudocount=1.0,
+            ),
+            missing_data=missing_data,
+        )
+    )
+
+    assert plan.stage_order[:2] == ("missing_data", "intensity_transform")
+    assert plan.stage_order_resolution[0].stage == "missing_data"
+    assert (
+        plan.stage_order_resolution[0].rationale
+        == PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_MISSING_DATA
     )
 
 

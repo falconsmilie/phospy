@@ -37,6 +37,7 @@ from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
     PreprocessingPlan,
     PreprocessingStageExecution,
+    PreprocessingStageOrderResolution,
     TotalProteinCorrectionIdentityPolicy,
 )
 from phospy.datasets.preprocessing.report_schema import (
@@ -410,8 +411,24 @@ def _preprocessing_plan_to_payload(plan: PreprocessingPlan) -> dict[str, object]
         ),
         "ruv_readiness_batch_column": plan.ruv_readiness_batch_column,
         "stage_order": list(plan.stage_order),
+        "resolved_stage_order": _stage_order_resolution_to_payload(
+            plan.stage_order_resolution
+        ),
     }
     return payload
+
+
+def _stage_order_resolution_to_payload(
+    stage_order_resolution: tuple[PreprocessingStageOrderResolution, ...],
+) -> list[dict[str, object]]:
+    return [
+        {
+            "stage": item.stage,
+            "order_index": int(item.order_index),
+            "rationale": str(item.rationale),
+        }
+        for item in stage_order_resolution
+    ]
 
 
 def _total_correction_identity_policy_to_payload(

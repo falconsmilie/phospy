@@ -60,6 +60,23 @@ DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM = "intensity_transform"
 DATASET_PREPROCESSING_STAGE_NORMALISATION = "normalisation"
 DATASET_PREPROCESSING_STAGE_COMPARISONS = "comparisons"
 DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT = (DATASET_PREPROCESSING_STAGE_MISSING_DATA,)
+PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_INTENSITY_TRANSFORM = (
+    "impute_minprob requires log2 intensity space, so intensity_transform runs "
+    "before missing_data."
+)
+PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA = (
+    "impute_minprob is applied after log2 transformation because its left-censored "
+    "sampling model operates on log2 intensities."
+)
+PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_MISSING_DATA = (
+    "non-minprob missing-data policies run before optional log2 transformation."
+)
+PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_INTENSITY_TRANSFORM = (
+    "optional log2 transformation runs after non-minprob missing-data handling."
+)
+PREPROCESSING_STAGE_ORDER_RATIONALE_CONFIGURED_STAGE = (
+    "stage included because preprocessing configuration enables it."
+)
 
 StageOwnedPreprocessingReportValue = (
     PreprocessingRowAuditRow
@@ -97,6 +114,15 @@ class TotalProteinCorrectionIdentityPolicy:
                 ),
             ),
         )
+
+
+@dataclass(frozen=True, slots=True)
+class PreprocessingStageOrderResolution:
+    """Structured explanation of resolved preprocessing stage order."""
+
+    stage: str
+    order_index: int
+    rationale: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -162,6 +188,7 @@ class PreprocessingPlan:
     ruv_readiness_replicate_group_column: str = "replicate_group"
     ruv_readiness_batch_column: str | None = "batch"
     stage_order: tuple[str, ...] = DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT
+    stage_order_resolution: tuple[PreprocessingStageOrderResolution, ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -269,10 +296,30 @@ class PreprocessingPlan:
                 ),
             ),
         )
+        object.__setattr__(
+            self,
+            "stage_order_resolution",
+            _normalize_stage_order_resolution(
+                stage_order=self.stage_order,
+                stage_order_resolution=self.stage_order_resolution,
+            ),
+        )
 
     @classmethod
     def from_config(cls, config: DatasetPreprocessingConfig) -> PreprocessingPlan:
         stage_order: list[str] = []
+        stage_order_resolution: list[PreprocessingStageOrderResolution] = []
+
+        def _append_stage(stage: str, *, rationale: str) -> None:
+            stage_order.append(stage)
+            stage_order_resolution.append(
+                PreprocessingStageOrderResolution(
+                    stage=stage,
+                    order_index=len(stage_order) - 1,
+                    rationale=rationale,
+                )
+            )
+
         site_sequence_resolution_enabled = (
             config.site_sequence_resolution.fasta_path is not None
         )
@@ -305,7 +352,10 @@ class PreprocessingPlan:
             field_name="preprocessing_config.site_sequence_resolution.mode",
         )
         if site_sequence_resolution_enabled:
-            stage_order.append(DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION)
+            _append_stage(
+                DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
+                rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_CONFIGURED_STAGE,
+            )
         missing_data_policy = MissingDataPolicy.parse(
             config.missing_data.policy,
             field_name="preprocessing_config.missing_data.policy",
@@ -323,20 +373,48 @@ class PreprocessingPlan:
                     "Set intensity_transform.policy='log2' or choose a different "
                     "missing_data policy."
                 )
-            stage_order.append(DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM)
-            stage_order.append(DATASET_PREPROCESSING_STAGE_MISSING_DATA)
+            _append_stage(
+                DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
+                rationale=(
+                    PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_INTENSITY_TRANSFORM
+                ),
+            )
+            _append_stage(
+                DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+                rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA,
+            )
         else:
-            stage_order.append(DATASET_PREPROCESSING_STAGE_MISSING_DATA)
+            _append_stage(
+                DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+                rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_MISSING_DATA,
+            )
             if intensity_transform_policy is not IntensityTransformPolicy.IDENTITY:
-                stage_order.append(DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM)
+                _append_stage(
+                    DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
+                    rationale=(
+                        PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_INTENSITY_TRANSFORM
+                    ),
+                )
         if total_correction_policy is not TotalProteinCorrectionPolicy.NONE:
-            stage_order.append(DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION)
+            _append_stage(
+                DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
+                rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_CONFIGURED_STAGE,
+            )
         if site_matrix_policy is not SiteMatrixPolicy.AS_INPUT:
-            stage_order.append(DATASET_PREPROCESSING_STAGE_SITE_MATRIX)
+            _append_stage(
+                DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
+                rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_CONFIGURED_STAGE,
+            )
         if normalisation_policy is not NormalisationPolicy.NONE:
-            stage_order.append(DATASET_PREPROCESSING_STAGE_NORMALISATION)
+            _append_stage(
+                DATASET_PREPROCESSING_STAGE_NORMALISATION,
+                rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_CONFIGURED_STAGE,
+            )
         if comparison_building_policy is not ComparisonBuildingPolicy.NONE:
-            stage_order.append(DATASET_PREPROCESSING_STAGE_COMPARISONS)
+            _append_stage(
+                DATASET_PREPROCESSING_STAGE_COMPARISONS,
+                rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_CONFIGURED_STAGE,
+            )
         return cls(
             intensity_transform_policy=intensity_transform_policy,
             intensity_transform_pseudocount=float(
@@ -403,6 +481,7 @@ class PreprocessingPlan:
             ),
             ruv_readiness_batch_column=config.ruv_readiness.batch_column,
             stage_order=tuple(stage_order),
+            stage_order_resolution=tuple(stage_order_resolution),
         )
 
     @classmethod
@@ -548,6 +627,7 @@ __all__ = [
     "append_row_audit_records",
     "empty_preprocessing_row_audit",
     "PreprocessingPlan",
+    "PreprocessingStageOrderResolution",
     "PreprocessingReportRow",
     "PreprocessingStageResult",
     "PreprocessingStageExecution",
@@ -556,6 +636,38 @@ __all__ = [
     "StageOwnedPreprocessingReportValue",
     "TotalProteinCorrectionIdentityPolicy",
 ]
+
+
+def _normalize_stage_order_resolution(
+    *,
+    stage_order: tuple[str, ...],
+    stage_order_resolution: tuple[PreprocessingStageOrderResolution, ...],
+) -> tuple[PreprocessingStageOrderResolution, ...]:
+    if not stage_order:
+        return ()
+    if (
+        len(stage_order_resolution) == len(stage_order)
+        and tuple(item.stage for item in stage_order_resolution) == stage_order
+    ):
+        return tuple(
+            PreprocessingStageOrderResolution(
+                stage=stage,
+                order_index=index,
+                rationale=(
+                    str(stage_order_resolution[index].rationale).strip()
+                    or PREPROCESSING_STAGE_ORDER_RATIONALE_CONFIGURED_STAGE
+                ),
+            )
+            for index, stage in enumerate(stage_order)
+        )
+    return tuple(
+        PreprocessingStageOrderResolution(
+            stage=stage,
+            order_index=index,
+            rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_CONFIGURED_STAGE,
+        )
+        for index, stage in enumerate(stage_order)
+    )
 
 
 def _resolve_total_correction_identity_policy(

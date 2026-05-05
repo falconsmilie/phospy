@@ -13,6 +13,10 @@ from phospy.api import (
     DatasetPreprocessingConfig,
     Organism,
 )
+from phospy.datasets.preprocessing.models import (
+    PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA,
+    PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_MISSING_DATA,
+)
 from phospy.provenance import environment as provenance_environment
 from phospy.provenance.environment import collect_environment_provenance
 from phospy.provenance.serialization import from_payload, to_payload
@@ -159,6 +163,107 @@ def test_dataset_stage_order_policy_changes_with_preprocessing_plan() -> None:
     assert default_policy.parameters["configured_stage_order"] == "missing_data"
     assert transformed_policy.parameters["configured_stage_order"] == (
         "missing_data -> intensity_transform"
+    )
+
+
+def test_run_provenance_serializes_resolved_stage_order_for_minprob_with_log2() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, float("nan"), 2.0],
+            "sample_b": [2.0, 3.0, float("nan")],
+            "sample_c": [4.0, 5.0, 6.0],
+        },
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;", "GSK3B;S9;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
+            "site": ["Y182", "T308", "S9"],
+            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+        },
+        index=phospho.index.copy(),
+    )
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            preprocessing_config=DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="log2",
+                    pseudocount=1.0,
+                ),
+                missing_data=DatasetMissingDataConfig(
+                    policy="impute_minprob",
+                    q=0.01,
+                    width=0.3,
+                    seed=123,
+                    max_missing_fraction_per_row=0.5,
+                ),
+            ),
+        )
+    )
+    assert built.provenance is not None
+    preprocessing_plan = built.provenance.workflow_parameters["preprocessing_plan"]
+    assert isinstance(preprocessing_plan, dict)
+    resolved_stage_order = preprocessing_plan["resolved_stage_order"]
+    assert isinstance(resolved_stage_order, list)
+    assert [item["stage"] for item in resolved_stage_order[:2]] == [
+        "intensity_transform",
+        "missing_data",
+    ]
+    assert resolved_stage_order[1]["rationale"] == (
+        PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA
+    )
+
+
+def test_run_provenance_serializes_resolved_stage_order_for_non_minprob_with_log2() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, float("nan"), 2.0],
+            "sample_b": [2.0, 3.0, 4.0],
+            "sample_c": [4.0, 5.0, 6.0],
+        },
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;", "GSK3B;S9;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
+            "site": ["Y182", "T308", "S9"],
+            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+        },
+        index=phospho.index.copy(),
+    )
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            preprocessing_config=DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="log2",
+                    pseudocount=1.0,
+                ),
+                missing_data=DatasetMissingDataConfig(
+                    policy="impute_row_median",
+                    min_observed_values=1,
+                ),
+            ),
+        )
+    )
+    assert built.provenance is not None
+    preprocessing_plan = built.provenance.workflow_parameters["preprocessing_plan"]
+    assert isinstance(preprocessing_plan, dict)
+    resolved_stage_order = preprocessing_plan["resolved_stage_order"]
+    assert isinstance(resolved_stage_order, list)
+    assert [item["stage"] for item in resolved_stage_order[:2]] == [
+        "missing_data",
+        "intensity_transform",
+    ]
+    assert resolved_stage_order[0]["rationale"] == (
+        PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_MISSING_DATA
     )
 
 
