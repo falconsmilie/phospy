@@ -86,6 +86,66 @@ def test_builder_canonicalizes_lowercase_site_ids() -> None:
     assert list(built.site_metadata.index) == ["MAPK14;Y182;"]
 
 
+def test_builder_does_not_mutate_caller_owned_phospho_frame() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a ": [1.0],
+            " sample_b": [2.0],
+        },
+        index=pd.Index([" mapk14 ; y182 "], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "site_id": ["MAPK14;Y182;"],
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "site_sequence": ["A" * 31],
+        }
+    )
+    original = phospho.copy(deep=True)
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+        )
+    )
+
+    pd.testing.assert_frame_equal(phospho, original)
+    assert list(built.phospho.index) == ["MAPK14;Y182;"]
+    assert list(built.phospho.columns) == ["sample_a", "sample_b"]
+
+
+def test_builder_does_not_mutate_caller_owned_site_metadata_frame() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0]},
+        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "site_id": [" mapk14 ; y182 "],
+            "gene_symbol": ["mapk14"],
+            "site": ["y182"],
+            "site_sequence": ["A" * 31],
+        }
+    )
+    original = site_metadata.copy(deep=True)
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+        )
+    )
+
+    pd.testing.assert_frame_equal(site_metadata, original)
+    assert list(built.site_metadata.index) == ["MAPK14;Y182;"]
+    assert built.site_metadata.loc["MAPK14;Y182;", "gene_symbol"] == "MAPK14"
+    assert built.site_metadata.loc["MAPK14;Y182;", "site"] == "Y182"
+
+
 def test_builder_rejects_ambiguous_site_ids_after_canonicalization() -> None:
     phospho = pd.DataFrame(
         {"sample_a": [1.0, 2.0]},
@@ -98,6 +158,33 @@ def test_builder_rejects_ambiguous_site_ids_after_canonicalization() -> None:
             "site_sequence": ["A" * 31, "B" * 31],
         },
         index=phospho.index.copy(),
+    )
+
+    with pytest.raises(
+        UnsupportedInputFormatError,
+        match="duplicate site identifiers after canonicalization",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                organism=Organism.RAT,
+            )
+        )
+
+
+def test_builder_rejects_colliding_dirty_site_ids_after_canonicalization() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0, 2.0]},
+        index=pd.Index(["MAPK14;Y182;", " mapk14 ; y182 "], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "site_id": ["MAPK14;Y182;", "mapk14;y182"],
+            "gene_symbol": ["MAPK14", "MAPK14"],
+            "site": ["Y182", "Y182"],
+            "site_sequence": ["A" * 31, "B" * 31],
+        }
     )
 
     with pytest.raises(

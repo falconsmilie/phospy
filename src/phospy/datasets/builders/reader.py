@@ -23,7 +23,7 @@ class DatasetInputReader:
     def run(self, source: DatasetInput, *, field_name: str) -> pd.DataFrame:
         validated_source = self._source_validator.run(source, field_name=field_name)
         if isinstance(validated_source, pd.DataFrame):
-            return validated_source.copy(deep=True)
+            return validated_source
         if not isinstance(validated_source, (str, Path, PathLike)):
             raise PhosPyInputError(
                 f"dataset build request {field_name} source validator produced "

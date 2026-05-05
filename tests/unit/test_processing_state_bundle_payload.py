@@ -492,6 +492,78 @@ def test_processing_state_from_payload_rejects_unknown_missing_data_policy() -> 
         processing_state_from_payload(payload)
 
 
+def test_processing_state_from_payload_rejects_unknown_missing_data_diagnostics_fields() -> (
+    None
+):
+    payload = _processing_payload_with_diagnostics(
+        {
+            "diagnostics_schema_version": 1,
+            "policy": "subtract_log_total",
+            "requested_policy": "subtract_log_total",
+            "resolved_policy": "subtract_log_total",
+            "quantitative_meaning": "phospho_total_log_ratio",
+        },
+        missing_data_diagnostics={
+            "diagnostics_schema_version": 1,
+            "missing_data_policy": "forbid",
+            "input_missing_cell_count": 0,
+            "output_missing_cell_count": 0,
+            "imputed_cell_count": 0,
+            "affected_row_count": 0,
+            "affected_column_count": 0,
+            "affected_row_ids": [],
+            "affected_column_ids": [],
+            "imputed_row_ids": [],
+            "imputed_column_ids": [],
+            "dropped_row_ids": [],
+            "method_parameters": {},
+            "stage_order": ["missing_data"],
+            "missingness_mask_hash": "hash",
+            "rows_not_imputable": [],
+            "legacy_debug_note": "unsupported",
+        },
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="contains unsupported field\\(s\\): legacy_debug_note",
+    ):
+        processing_state_from_payload(payload)
+
+
+def test_missing_data_diagnostics_json_round_trip_stays_stable() -> None:
+    payload = {
+        "diagnostics_schema_version": 1,
+        "missing_data_policy": "impute_row_median",
+        "imputation_method_id": "row_median",
+        "imputation_method_family": "deterministic_row_statistic",
+        "input_missing_cell_count": 2,
+        "output_missing_cell_count": 0,
+        "imputed_cell_count": 2,
+        "affected_row_count": 1,
+        "affected_column_count": 1,
+        "affected_row_ids": ["row_a"],
+        "affected_column_ids": ["sample_1"],
+        "imputed_row_ids": ["row_a"],
+        "imputed_column_ids": ["sample_1"],
+        "dropped_row_ids": [],
+        "method_parameters": {"min_observed_values": 1},
+        "stage_order": ["missing_data"],
+        "missingness_mask_hash": "mask-hash",
+        "rows_not_imputable": [],
+    }
+
+    diagnostics = MissingDataDiagnostics.from_payload(
+        payload,
+        field_name="dataset.metadata.processing_state.missing_data.diagnostics",
+    )
+
+    assert diagnostics.to_payload() == {
+        **payload,
+        "row_medians_used": {},
+    }
+
+
 def test_processing_state_from_payload_rejects_applied_total_correction_with_null_diagnostics() -> (
     None
 ):

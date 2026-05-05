@@ -44,7 +44,7 @@ class DatasetConventionNormalizer:
         sample_metadata: pd.DataFrame | None,
         total: pd.DataFrame | None,
     ) -> NormalizedDatasetInputs:
-        normalized_phospho = phospho
+        normalized_phospho = phospho.copy(deep=True)
         normalized_phospho.index = _normalize_supported_site_index_if_present(
             normalized_phospho.index,
             field_name="dataset build request phospho.index",
@@ -54,16 +54,16 @@ class DatasetConventionNormalizer:
         )
 
         normalized_site_metadata = self._normalize_site_metadata(
-            site_metadata,
+            site_metadata.copy(deep=True),
             phospho_index=normalized_phospho.index,
         )
 
         normalized_sample_metadata = self._normalize_sample_metadata(
-            sample_metadata,
+            None if sample_metadata is None else sample_metadata.copy(deep=True),
             phospho_columns=normalized_phospho.columns,
         )
         normalized_total = self._normalize_total(
-            total,
+            None if total is None else total.copy(deep=True),
             phospho_columns=normalized_phospho.columns,
         )
         return NormalizedDatasetInputs(

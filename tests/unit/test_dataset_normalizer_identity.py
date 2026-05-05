@@ -193,3 +193,49 @@ def test_normalizer_requires_exact_index_derivation_convention() -> None:
             sample_metadata=None,
             total=None,
         )
+
+
+def test_normalizer_owns_copies_and_does_not_mutate_inputs() -> None:
+    phospho = pd.DataFrame(
+        {" sample_a ": [1.0], " sample_b ": [2.0]},
+        index=pd.Index([" mapk14 ; y182 "], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "site_id": [" mapk14 ; y182 "],
+            "gene_symbol": ["mapk14"],
+            "site": ["y182"],
+            "site_sequence": ["A" * 31],
+        }
+    )
+    sample_metadata = pd.DataFrame(
+        {"group": ["g1", "g1"]},
+        index=pd.Index([" sample_a ", " sample_b "], name="sample_id"),
+    )
+    total = pd.DataFrame(
+        {" sample_a ": [5.0], " sample_b ": [6.0]},
+        index=pd.Index(["P28482-2"], name="protein_id"),
+    )
+
+    phospho_original = phospho.copy(deep=True)
+    site_metadata_original = site_metadata.copy(deep=True)
+    sample_metadata_original = sample_metadata.copy(deep=True)
+    total_original = total.copy(deep=True)
+
+    normalized = DatasetConventionNormalizer().run(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=sample_metadata,
+        total=total,
+    )
+
+    pd.testing.assert_frame_equal(phospho, phospho_original)
+    pd.testing.assert_frame_equal(site_metadata, site_metadata_original)
+    pd.testing.assert_frame_equal(sample_metadata, sample_metadata_original)
+    pd.testing.assert_frame_equal(total, total_original)
+
+    assert list(normalized.phospho.index) == ["MAPK14;Y182;"]
+    assert list(normalized.phospho.columns) == ["sample_a", "sample_b"]
+    assert list(normalized.site_metadata.index) == ["MAPK14;Y182;"]
+    assert list(normalized.sample_metadata.index) == ["sample_a", "sample_b"]
+    assert list(normalized.total.columns) == ["sample_a", "sample_b"]

@@ -1,0 +1,451 @@
+"""Missing-data diagnostics models and parsing contracts."""
+
+from __future__ import annotations
+
+from collections.abc import Iterator, Mapping
+from dataclasses import dataclass, field
+
+from phospy.errors.input import PhosPyInputError
+from phospy.policy_models import MissingDataPolicy
+
+from .json_contracts import (
+    MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
+    V1_KNOWN_MISSING_DATA_DIAGNOSTICS_FIELDS,
+    JsonValue,
+    require_int,
+    require_json_mapping,
+    require_mapping,
+    require_optional_bool,
+    require_optional_int,
+    require_optional_json_mapping,
+    require_optional_str,
+    require_optional_string_to_float_mapping,
+    require_optional_string_tuple,
+    require_required_non_negative_int,
+    require_required_str,
+    require_required_string_tuple,
+    require_string_keys,
+    set_optional_payload_value,
+)
+
+
+class MissingDataDiagnostics(Mapping[str, JsonValue]):
+    """Typed diagnostics contract for missing-data preprocessing state."""
+
+    diagnostics_schema_version: int
+
+    @classmethod
+    def from_payload(
+        cls,
+        payload: object,
+        *,
+        field_name: str,
+    ) -> MissingDataDiagnostics:
+        mapping = require_mapping(payload, field_name=field_name)
+        return MissingDataDiagnosticsV1.from_mapping(mapping, field_name=field_name)
+
+    def to_payload(self) -> dict[str, JsonValue]:
+        """Return normalized diagnostics payload suitable for bundle JSON."""
+
+        raise NotImplementedError
+
+
+@dataclass(frozen=True, slots=True, eq=False)
+class MissingDataDiagnosticsV1(MissingDataDiagnostics):
+    """Versioned missing-data diagnostics payload (schema v1)."""
+
+    missing_data_policy: str
+    input_missing_cell_count: int
+    output_missing_cell_count: int
+    imputed_cell_count: int
+    affected_row_count: int
+    affected_column_count: int
+    affected_row_ids: tuple[str, ...]
+    affected_column_ids: tuple[str, ...]
+    imputed_row_ids: tuple[str, ...]
+    imputed_column_ids: tuple[str, ...]
+    dropped_row_ids: tuple[str, ...]
+    method_parameters: dict[str, JsonValue]
+    stage_order: tuple[str, ...]
+    missingness_mask_hash: str
+    rows_not_imputable: tuple[str, ...]
+    row_medians_used: dict[str, float] = field(default_factory=dict)
+    imputation_method_id: str | None = None
+    imputation_method_family: str | None = None
+    random_seed: int | None = None
+    matrix_scale_requirement: str | None = None
+    left_censored_assumption: bool | None = None
+    per_column_distribution_parameters: dict[str, JsonValue] | None = None
+    dropped_rows_above_max_missing_fraction: tuple[str, ...] | None = None
+    neighbour_count: int | None = None
+    distance_metric: str | None = None
+    diagnostics_schema_version: int = MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1
+    _payload: dict[str, JsonValue] = field(init=False, repr=False, compare=False)
+
+    @classmethod
+    def from_mapping(
+        cls,
+        payload: Mapping[str, object],
+        *,
+        field_name: str,
+    ) -> MissingDataDiagnosticsV1:
+        if "diagnostics_schema_version" not in payload:
+            raise PhosPyInputError(
+                f"{field_name}.diagnostics_schema_version is required"
+            )
+        return cls._from_versioned_payload(payload, field_name=field_name)
+
+    @classmethod
+    def _from_versioned_payload(
+        cls,
+        payload: Mapping[str, object],
+        *,
+        field_name: str,
+    ) -> MissingDataDiagnosticsV1:
+        require_string_keys(payload, field_name=field_name)
+        version = require_int(
+            payload.get("diagnostics_schema_version"),
+            field_name=f"{field_name}.diagnostics_schema_version",
+        )
+        if version != MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1:
+            raise PhosPyInputError(
+                f"{field_name}.diagnostics_schema_version={version!r} is unsupported; "
+                f"expected {MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1}"
+            )
+        unknown_fields = sorted(
+            key
+            for key in payload
+            if key not in V1_KNOWN_MISSING_DATA_DIAGNOSTICS_FIELDS
+        )
+        if unknown_fields:
+            raise PhosPyInputError(
+                f"{field_name} contains unsupported field(s): "
+                + ", ".join(unknown_fields)
+            )
+        return cls(
+            diagnostics_schema_version=version,
+            missing_data_policy=require_required_str(
+                payload.get("missing_data_policy"),
+                field_name=f"{field_name}.missing_data_policy",
+            ),
+            imputation_method_id=require_optional_str(
+                payload.get("imputation_method_id"),
+                field_name=f"{field_name}.imputation_method_id",
+            ),
+            imputation_method_family=require_optional_str(
+                payload.get("imputation_method_family"),
+                field_name=f"{field_name}.imputation_method_family",
+            ),
+            input_missing_cell_count=require_required_non_negative_int(
+                payload.get("input_missing_cell_count"),
+                field_name=f"{field_name}.input_missing_cell_count",
+            ),
+            output_missing_cell_count=require_required_non_negative_int(
+                payload.get("output_missing_cell_count"),
+                field_name=f"{field_name}.output_missing_cell_count",
+            ),
+            imputed_cell_count=require_required_non_negative_int(
+                payload.get("imputed_cell_count"),
+                field_name=f"{field_name}.imputed_cell_count",
+            ),
+            affected_row_count=require_required_non_negative_int(
+                payload.get("affected_row_count"),
+                field_name=f"{field_name}.affected_row_count",
+            ),
+            affected_column_count=require_required_non_negative_int(
+                payload.get("affected_column_count"),
+                field_name=f"{field_name}.affected_column_count",
+            ),
+            affected_row_ids=require_required_string_tuple(
+                payload.get("affected_row_ids"),
+                field_name=f"{field_name}.affected_row_ids",
+            ),
+            affected_column_ids=require_required_string_tuple(
+                payload.get("affected_column_ids"),
+                field_name=f"{field_name}.affected_column_ids",
+            ),
+            imputed_row_ids=require_required_string_tuple(
+                payload.get("imputed_row_ids"),
+                field_name=f"{field_name}.imputed_row_ids",
+            ),
+            imputed_column_ids=require_required_string_tuple(
+                payload.get("imputed_column_ids"),
+                field_name=f"{field_name}.imputed_column_ids",
+            ),
+            dropped_row_ids=require_required_string_tuple(
+                payload.get("dropped_row_ids"),
+                field_name=f"{field_name}.dropped_row_ids",
+            ),
+            random_seed=require_optional_int(
+                payload.get("random_seed"),
+                field_name=f"{field_name}.random_seed",
+            ),
+            method_parameters=require_json_mapping(
+                payload.get("method_parameters"),
+                field_name=f"{field_name}.method_parameters",
+            ),
+            matrix_scale_requirement=require_optional_str(
+                payload.get("matrix_scale_requirement"),
+                field_name=f"{field_name}.matrix_scale_requirement",
+            ),
+            stage_order=require_required_string_tuple(
+                payload.get("stage_order"),
+                field_name=f"{field_name}.stage_order",
+            ),
+            missingness_mask_hash=require_required_str(
+                payload.get("missingness_mask_hash"),
+                field_name=f"{field_name}.missingness_mask_hash",
+            ),
+            left_censored_assumption=require_optional_bool(
+                payload.get("left_censored_assumption"),
+                field_name=f"{field_name}.left_censored_assumption",
+            ),
+            rows_not_imputable=require_required_string_tuple(
+                payload.get("rows_not_imputable"),
+                field_name=f"{field_name}.rows_not_imputable",
+            ),
+            row_medians_used=require_optional_string_to_float_mapping(
+                payload.get("row_medians_used"),
+                field_name=f"{field_name}.row_medians_used",
+            )
+            or {},
+            per_column_distribution_parameters=require_optional_json_mapping(
+                payload.get("per_column_distribution_parameters"),
+                field_name=f"{field_name}.per_column_distribution_parameters",
+            ),
+            dropped_rows_above_max_missing_fraction=require_optional_string_tuple(
+                payload.get("dropped_rows_above_max_missing_fraction"),
+                field_name=f"{field_name}.dropped_rows_above_max_missing_fraction",
+            ),
+            neighbour_count=require_optional_int(
+                payload.get("neighbour_count"),
+                field_name=f"{field_name}.neighbour_count",
+            ),
+            distance_metric=require_optional_str(
+                payload.get("distance_metric"),
+                field_name=f"{field_name}.distance_metric",
+            ),
+        )
+
+    def __post_init__(self) -> None:
+        if (
+            self.diagnostics_schema_version
+            != MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1
+        ):
+            raise PhosPyInputError(
+                "dataset processing state missing_data diagnostics schema version "
+                f"must be {MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1}"
+            )
+        missing_data_policy = require_required_str(
+            self.missing_data_policy,
+            field_name="dataset processing state missing_data.diagnostics.missing_data_policy",
+        )
+        missing_data_policy = MissingDataPolicy.parse(
+            missing_data_policy,
+            field_name="dataset processing state missing_data.diagnostics.missing_data_policy",
+        ).value
+        imputation_method_id = require_optional_str(
+            self.imputation_method_id,
+            field_name="dataset processing state missing_data.diagnostics.imputation_method_id",
+        )
+        imputation_method_family = require_optional_str(
+            self.imputation_method_family,
+            field_name="dataset processing state missing_data.diagnostics.imputation_method_family",
+        )
+        input_missing_cell_count = require_required_non_negative_int(
+            self.input_missing_cell_count,
+            field_name="dataset processing state missing_data.diagnostics.input_missing_cell_count",
+        )
+        output_missing_cell_count = require_required_non_negative_int(
+            self.output_missing_cell_count,
+            field_name="dataset processing state missing_data.diagnostics.output_missing_cell_count",
+        )
+        imputed_cell_count = require_required_non_negative_int(
+            self.imputed_cell_count,
+            field_name="dataset processing state missing_data.diagnostics.imputed_cell_count",
+        )
+        affected_row_count = require_required_non_negative_int(
+            self.affected_row_count,
+            field_name="dataset processing state missing_data.diagnostics.affected_row_count",
+        )
+        affected_column_count = require_required_non_negative_int(
+            self.affected_column_count,
+            field_name="dataset processing state missing_data.diagnostics.affected_column_count",
+        )
+        affected_row_ids = require_required_string_tuple(
+            self.affected_row_ids,
+            field_name="dataset processing state missing_data.diagnostics.affected_row_ids",
+        )
+        affected_column_ids = require_required_string_tuple(
+            self.affected_column_ids,
+            field_name="dataset processing state missing_data.diagnostics.affected_column_ids",
+        )
+        imputed_row_ids = require_required_string_tuple(
+            self.imputed_row_ids,
+            field_name="dataset processing state missing_data.diagnostics.imputed_row_ids",
+        )
+        imputed_column_ids = require_required_string_tuple(
+            self.imputed_column_ids,
+            field_name="dataset processing state missing_data.diagnostics.imputed_column_ids",
+        )
+        dropped_row_ids = require_required_string_tuple(
+            self.dropped_row_ids,
+            field_name="dataset processing state missing_data.diagnostics.dropped_row_ids",
+        )
+        random_seed = require_optional_int(
+            self.random_seed,
+            field_name="dataset processing state missing_data.diagnostics.random_seed",
+        )
+        method_parameters = require_json_mapping(
+            self.method_parameters,
+            field_name="dataset processing state missing_data.diagnostics.method_parameters",
+        )
+        matrix_scale_requirement = require_optional_str(
+            self.matrix_scale_requirement,
+            field_name="dataset processing state missing_data.diagnostics.matrix_scale_requirement",
+        )
+        stage_order = require_required_string_tuple(
+            self.stage_order,
+            field_name="dataset processing state missing_data.diagnostics.stage_order",
+        )
+        missingness_mask_hash = require_required_str(
+            self.missingness_mask_hash,
+            field_name="dataset processing state missing_data.diagnostics.missingness_mask_hash",
+        )
+        left_censored_assumption = require_optional_bool(
+            self.left_censored_assumption,
+            field_name="dataset processing state missing_data.diagnostics.left_censored_assumption",
+        )
+        rows_not_imputable = require_required_string_tuple(
+            self.rows_not_imputable,
+            field_name="dataset processing state missing_data.diagnostics.rows_not_imputable",
+        )
+        row_medians_used = (
+            require_optional_string_to_float_mapping(
+                self.row_medians_used,
+                field_name="dataset processing state missing_data.diagnostics.row_medians_used",
+            )
+            or {}
+        )
+        if imputation_method_id != "row_median":
+            row_medians_used = {}
+        per_column_distribution_parameters = require_optional_json_mapping(
+            self.per_column_distribution_parameters,
+            field_name=(
+                "dataset processing state missing_data.diagnostics."
+                "per_column_distribution_parameters"
+            ),
+        )
+        dropped_rows_above_max_missing_fraction = require_optional_string_tuple(
+            self.dropped_rows_above_max_missing_fraction,
+            field_name=(
+                "dataset processing state missing_data.diagnostics."
+                "dropped_rows_above_max_missing_fraction"
+            ),
+        )
+        neighbour_count = require_optional_int(
+            self.neighbour_count,
+            field_name="dataset processing state missing_data.diagnostics.neighbour_count",
+        )
+        if neighbour_count is not None and neighbour_count < 1:
+            raise PhosPyInputError(
+                "dataset processing state missing_data.diagnostics."
+                "neighbour_count must be >= 1"
+            )
+        distance_metric = require_optional_str(
+            self.distance_metric,
+            field_name="dataset processing state missing_data.diagnostics.distance_metric",
+        )
+        payload: dict[str, JsonValue] = {
+            "diagnostics_schema_version": self.diagnostics_schema_version,
+            "missing_data_policy": missing_data_policy,
+            "input_missing_cell_count": input_missing_cell_count,
+            "output_missing_cell_count": output_missing_cell_count,
+            "imputed_cell_count": imputed_cell_count,
+            "affected_row_count": affected_row_count,
+            "affected_column_count": affected_column_count,
+            "affected_row_ids": list(affected_row_ids),
+            "affected_column_ids": list(affected_column_ids),
+            "imputed_row_ids": list(imputed_row_ids),
+            "imputed_column_ids": list(imputed_column_ids),
+            "dropped_row_ids": list(dropped_row_ids),
+            "method_parameters": dict(method_parameters),
+            "stage_order": list(stage_order),
+            "missingness_mask_hash": missingness_mask_hash,
+            "rows_not_imputable": list(rows_not_imputable),
+            "row_medians_used": dict(row_medians_used),
+        }
+        set_optional_payload_value(
+            payload, "imputation_method_id", imputation_method_id
+        )
+        set_optional_payload_value(
+            payload, "imputation_method_family", imputation_method_family
+        )
+        set_optional_payload_value(payload, "random_seed", random_seed)
+        set_optional_payload_value(
+            payload, "matrix_scale_requirement", matrix_scale_requirement
+        )
+        set_optional_payload_value(
+            payload, "left_censored_assumption", left_censored_assumption
+        )
+        if per_column_distribution_parameters is not None:
+            payload["per_column_distribution_parameters"] = dict(
+                per_column_distribution_parameters
+            )
+        if dropped_rows_above_max_missing_fraction is not None:
+            payload["dropped_rows_above_max_missing_fraction"] = list(
+                dropped_rows_above_max_missing_fraction
+            )
+        set_optional_payload_value(payload, "neighbour_count", neighbour_count)
+        set_optional_payload_value(payload, "distance_metric", distance_metric)
+
+        object.__setattr__(self, "missing_data_policy", missing_data_policy)
+        object.__setattr__(self, "imputation_method_id", imputation_method_id)
+        object.__setattr__(self, "imputation_method_family", imputation_method_family)
+        object.__setattr__(self, "input_missing_cell_count", input_missing_cell_count)
+        object.__setattr__(self, "output_missing_cell_count", output_missing_cell_count)
+        object.__setattr__(self, "imputed_cell_count", imputed_cell_count)
+        object.__setattr__(self, "affected_row_count", affected_row_count)
+        object.__setattr__(self, "affected_column_count", affected_column_count)
+        object.__setattr__(self, "affected_row_ids", affected_row_ids)
+        object.__setattr__(self, "affected_column_ids", affected_column_ids)
+        object.__setattr__(self, "imputed_row_ids", imputed_row_ids)
+        object.__setattr__(self, "imputed_column_ids", imputed_column_ids)
+        object.__setattr__(self, "dropped_row_ids", dropped_row_ids)
+        object.__setattr__(self, "random_seed", random_seed)
+        object.__setattr__(self, "method_parameters", dict(method_parameters))
+        object.__setattr__(self, "matrix_scale_requirement", matrix_scale_requirement)
+        object.__setattr__(self, "stage_order", stage_order)
+        object.__setattr__(self, "missingness_mask_hash", missingness_mask_hash)
+        object.__setattr__(self, "left_censored_assumption", left_censored_assumption)
+        object.__setattr__(self, "rows_not_imputable", rows_not_imputable)
+        object.__setattr__(self, "row_medians_used", dict(row_medians_used))
+        object.__setattr__(
+            self,
+            "per_column_distribution_parameters",
+            (
+                None
+                if per_column_distribution_parameters is None
+                else dict(per_column_distribution_parameters)
+            ),
+        )
+        object.__setattr__(
+            self,
+            "dropped_rows_above_max_missing_fraction",
+            dropped_rows_above_max_missing_fraction,
+        )
+        object.__setattr__(self, "neighbour_count", neighbour_count)
+        object.__setattr__(self, "distance_metric", distance_metric)
+        object.__setattr__(self, "_payload", payload)
+
+    def __getitem__(self, key: str) -> JsonValue:
+        return self._payload[key]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._payload)
+
+    def __len__(self) -> int:
+        return len(self._payload)
+
+    def to_payload(self) -> dict[str, JsonValue]:
+        return dict(self._payload)
