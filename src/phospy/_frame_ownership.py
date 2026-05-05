@@ -1,10 +1,11 @@
 """Internal pandas ownership helpers.
 
-PhosPy ownership policy:
-- internal objects own mutable DataFrame/Series state;
-- public DataFrame exports are defensive snapshots;
-- provenance fingerprints describe owned internal state at creation time;
-- borrowed DataFrame access is private/internal only.
+PhosPy frame ownership policy:
+- `_frame_ownership` and dataset/result models own DataFrame/Series policy.
+- public properties/export helpers always return defensive copies.
+- internal borrowed access is explicit (`_borrow_*`) and internal-only.
+- borrowed frames are read-only by convention for validators/workflow read paths.
+- mutation is allowed only in owned construction/transformation code paths.
 """
 
 from __future__ import annotations
@@ -37,7 +38,14 @@ def export_dataframe(value: pd.DataFrame) -> pd.DataFrame:
 
 
 def _borrow_dataframe(value: pd.DataFrame) -> pd.DataFrame:
-    """Return internal borrowed DataFrame access without copying."""
+    """Return internal borrowed DataFrame access without copying.
+
+    Borrowed access is read-only by convention for validators and workflow read
+    logic. Only trusted owned construction/transformation code may mutate.
+    """
+
+    if not isinstance(value, pd.DataFrame):
+        raise TypeError("borrowed frame access requires a pandas DataFrame")
 
     return value
 
@@ -68,6 +76,11 @@ def export_optional_dataframe(value: pd.DataFrame | None) -> pd.DataFrame | None
 def _borrow_optional_dataframe(value: pd.DataFrame | None) -> pd.DataFrame | None:
     """Return internal borrowed optional DataFrame access without copying."""
 
+    if value is not None and not isinstance(value, pd.DataFrame):
+        raise TypeError(
+            "borrowed optional frame access requires a pandas DataFrame or None"
+        )
+
     return value
 
 
@@ -95,6 +108,9 @@ def export_series(value: pd.Series) -> pd.Series:
 
 def _borrow_series(value: pd.Series) -> pd.Series:
     """Return internal borrowed Series access without copying."""
+
+    if not isinstance(value, pd.Series):
+        raise TypeError("borrowed series access requires a pandas Series")
 
     return value
 
@@ -125,4 +141,22 @@ def export_optional_series(value: pd.Series | None) -> pd.Series | None:
 def _borrow_optional_series(value: pd.Series | None) -> pd.Series | None:
     """Return internal borrowed optional Series access without copying."""
 
+    if value is not None and not isinstance(value, pd.Series):
+        raise TypeError(
+            "borrowed optional series access requires a pandas Series or None"
+        )
+
     return value
+
+
+__all__ = [
+    "ExceptionType",
+    "export_dataframe",
+    "export_optional_dataframe",
+    "export_optional_series",
+    "export_series",
+    "own_dataframe",
+    "own_optional_dataframe",
+    "own_optional_series",
+    "own_series",
+]

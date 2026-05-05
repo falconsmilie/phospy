@@ -77,7 +77,12 @@ class PreprocessingSiteAttritionSummary:
 
 @dataclass(frozen=True, slots=True, init=False)
 class DatasetPreprocessingReport:
-    """Public provenance report for dataset preprocessing."""
+    """Public provenance report for dataset preprocessing.
+
+    Internal `_borrow_*` accessors expose borrowed tables for trusted internal
+    read paths only; validators/workflow reads must treat borrowed frames as
+    read-only.
+    """
 
     _row_counts: pd.DataFrame = field(init=False, repr=False)
     _operations: pd.DataFrame = field(init=False, repr=False)
@@ -449,6 +454,8 @@ class AnalysisReadyPhosphoDataset:
     Provenance in this object describes owned internal state at creation time.
     Public export helpers return defensive snapshots; mutating exports does not
     mutate this owning dataset.
+    Internal `_borrow_*` accessors are reserved for trusted internal paths;
+    validators/workflow reads must not mutate borrowed frames.
     """
 
     intensity_scale_state: IntensityScaleState

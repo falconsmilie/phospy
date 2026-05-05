@@ -28,7 +28,11 @@ from phospy.api import (
     ReferenceBundle,
     SignalomeWorkflowRequest,
 )
-from phospy.api.results import KinasePredictionResult, SignalomeWorkflowResult
+from phospy.api.results import (
+    KinasePredictionResult,
+    KinaseWorkflowResult,
+    SignalomeWorkflowResult,
+)
 from phospy.datasets.builders.executor import DatasetBuildExecutor
 from phospy.datasets.builders.interpreter import DatasetBuildRequestInterpreter
 from phospy.datasets.models import DatasetPreprocessingReport
@@ -50,6 +54,8 @@ from phospy.signalomes.models import (
 )
 from phospy.tables.base import TableSchema
 from phospy.tables.datasets import PhosphoIntensityMatrix
+from phospy.workflows.signalome.interpreter import SignalomeWorkflowInterpreter
+from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -161,6 +167,45 @@ def _kinase_result():
             ),
             activity_config=None,
         )
+    )
+
+
+def _signalome_request_with_borrowed_frames() -> SignalomeWorkflowRequest:
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=_phospho(),
+        site_metadata=_site_metadata(),
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+    prediction_matrix = pd.DataFrame(
+        {
+            "MAP2K6": [0.9, 0.8],
+            "AKT1": [0.1, 0.2],
+        },
+        index=dataset._borrow_phospho_frame().index.copy(),
+    )
+    score_matrix = pd.DataFrame(
+        {
+            "MAP2K6": [1.5, 1.2],
+            "AKT1": [0.6, 0.7],
+        },
+        index=dataset._borrow_phospho_frame().index.copy(),
+    )
+    return SignalomeWorkflowRequest(
+        kinase_result=KinaseWorkflowResult(
+            dataset=dataset,
+            references=_references(),
+            scoring_result=KinaseScoringResult(
+                profile_scores=score_matrix,
+                rank_weighted_fusion_scores=score_matrix,
+            ),
+            prediction_result=KinasePredictionResult(pred_mat=prediction_matrix),
+            activity_result=None,
+        ),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
     )
 
 
@@ -428,6 +473,135 @@ def test_internal_borrowed_prediction_and_scoring_access_aliases_owned_frames() 
     assert borrowed_rank_weighted is scoring_result._rank_weighted_fusion_scores
     assert not hasattr(prediction_result, "borrow_pred_mat_frame")
     assert not hasattr(scoring_result, "borrow_profile_scores_frame")
+
+
+def test_signalome_validator_borrowed_reads_do_not_mutate_internal_frames() -> None:
+    request = _signalome_request_with_borrowed_frames()
+    dataset = request.kinase_result.dataset
+    prediction_result = request.kinase_result.prediction_result
+    scoring_result = request.kinase_result.scoring_result
+
+    dataset_phospho_before = fingerprint_table(
+        dataset._borrow_phospho_frame(),
+        name="dataset.phospho",
+    )
+    dataset_site_metadata_before = fingerprint_table(
+        dataset._borrow_site_metadata_frame(),
+        name="dataset.site_metadata",
+    )
+    prediction_before = fingerprint_table(
+        prediction_result._borrow_pred_mat_frame(),
+        name="prediction_result.pred_mat",
+    )
+    score_before = fingerprint_table(
+        scoring_result._borrow_profile_scores_frame(),
+        name="scoring_result.profile_scores",
+    )
+    assert scoring_result._borrow_rank_weighted_fusion_scores_frame() is not None
+    rank_weighted_before = fingerprint_table(
+        scoring_result._borrow_rank_weighted_fusion_scores_frame(),
+        name="scoring_result.rank_weighted_fusion_scores",
+    )
+
+    validated = SignalomeWorkflowValidator().run(request)
+    assert validated is request
+
+    dataset_phospho_after = fingerprint_table(
+        dataset._borrow_phospho_frame(),
+        name="dataset.phospho",
+    )
+    dataset_site_metadata_after = fingerprint_table(
+        dataset._borrow_site_metadata_frame(),
+        name="dataset.site_metadata",
+    )
+    prediction_after = fingerprint_table(
+        prediction_result._borrow_pred_mat_frame(),
+        name="prediction_result.pred_mat",
+    )
+    score_after = fingerprint_table(
+        scoring_result._borrow_profile_scores_frame(),
+        name="scoring_result.profile_scores",
+    )
+    assert scoring_result._borrow_rank_weighted_fusion_scores_frame() is not None
+    rank_weighted_after = fingerprint_table(
+        scoring_result._borrow_rank_weighted_fusion_scores_frame(),
+        name="scoring_result.rank_weighted_fusion_scores",
+    )
+
+    assert dataset_phospho_before.hash_value == dataset_phospho_after.hash_value
+    assert (
+        dataset_site_metadata_before.hash_value
+        == dataset_site_metadata_after.hash_value
+    )
+    assert prediction_before.hash_value == prediction_after.hash_value
+    assert score_before.hash_value == score_after.hash_value
+    assert rank_weighted_before.hash_value == rank_weighted_after.hash_value
+
+
+def test_signalome_interpreter_read_path_does_not_mutate_borrowed_dataset_frames() -> (
+    None
+):
+    request = _signalome_request_with_borrowed_frames()
+    dataset = request.kinase_result.dataset
+
+    phospho_before = fingerprint_table(
+        dataset._borrow_phospho_frame(),
+        name="dataset.phospho",
+    )
+    site_metadata_before = fingerprint_table(
+        dataset._borrow_site_metadata_frame(),
+        name="dataset.site_metadata",
+    )
+
+    SignalomeWorkflowInterpreter().run(request)
+
+    phospho_after = fingerprint_table(
+        dataset._borrow_phospho_frame(),
+        name="dataset.phospho",
+    )
+    site_metadata_after = fingerprint_table(
+        dataset._borrow_site_metadata_frame(),
+        name="dataset.site_metadata",
+    )
+
+    assert phospho_before.hash_value == phospho_after.hash_value
+    assert site_metadata_before.hash_value == site_metadata_after.hash_value
+
+
+def test_owned_construction_frames_can_be_mutated_after_owned_transfer() -> None:
+    phospho = _phospho()
+    site_metadata = _site_metadata()
+    dataset = AnalysisReadyPhosphoDataset._from_owned(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+
+    phospho.iloc[0, 0] = 321.0
+    site_metadata.iloc[0, 0] = "UPDATED_GENE"
+    assert float(dataset._borrow_phospho_frame().iloc[0, 0]) == 321.0
+    assert str(dataset._borrow_site_metadata_frame().iloc[0, 0]) == "UPDATED_GENE"
+
+    public_snapshot = dataset.phospho
+    public_snapshot.iloc[0, 0] = 123.0
+    assert float(dataset._borrow_phospho_frame().iloc[0, 0]) == 321.0
+
+
+def test_internal_borrowed_accessors_are_not_public_api_exports() -> None:
+    import phospy
+    import phospy._frame_ownership as frame_ownership
+    import phospy.datasets as datasets
+
+    assert not any("borrow" in name for name in phospy.__all__)
+    assert not any("borrow" in name for name in datasets.__all__)
+    assert not any("borrow" in name for name in frame_ownership.__all__)
+    assert not hasattr(AnalysisReadyPhosphoDataset, "borrow_phospho_frame")
+    assert not hasattr(AnalysisReadyPhosphoDataset, "borrow_site_metadata_frame")
+    assert not hasattr(DatasetPreprocessingReport, "borrow_row_counts_frame")
 
 
 def test_dataset_public_export_rejects_legacy_copy_keyword() -> None:
