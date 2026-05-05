@@ -19,8 +19,10 @@ from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
     DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
+    PREPROCESSING_STATE_TABLE_KEYS,
     PreprocessingPlan,
     PreprocessingStage,
+    PreprocessingStateTableKey,
 )
 from phospy.datasets.preprocessing.stages.comparisons import ComparisonsStage
 from phospy.datasets.preprocessing.stages.intensity_transform import (
@@ -54,14 +56,36 @@ class PreprocessingStageMetadata:
     display_label: str
     operation_name: _OperationResolver
     serialize_parameters: _ParameterSerializer
-    consumed_input_tables: tuple[str, ...]
-    produced_output_tables: tuple[str, ...]
+    consumed_input_tables: tuple[PreprocessingStateTableKey, ...]
+    produced_output_tables: tuple[PreprocessingStateTableKey, ...]
     stage_factory: _StageFactory | None = None
     provenance_stage: str | None = None
     backend: str | None = None
     include_in_builder_provenance: bool = True
     include_when: Callable[[PreprocessingPlan], bool] = field(default=_always_include)
     diagnostics_metadata: Mapping[str, object] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        normalized_stage_key = str(self.stage_key).strip()
+        object.__setattr__(self, "stage_key", normalized_stage_key)
+        object.__setattr__(
+            self,
+            "consumed_input_tables",
+            _normalize_stage_table_keys(
+                stage_key=normalized_stage_key,
+                table_keys=self.consumed_input_tables,
+                role="consumed_input_tables",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "produced_output_tables",
+            _normalize_stage_table_keys(
+                stage_key=normalized_stage_key,
+                table_keys=self.produced_output_tables,
+                role="produced_output_tables",
+            ),
+        )
 
     @property
     def provenance_stage_key(self) -> str:
@@ -249,6 +273,35 @@ def _include_when_site_sequence_enabled(plan: PreprocessingPlan) -> bool:
     return bool(plan.site_sequence_resolution_enabled)
 
 
+def _normalize_stage_table_keys(
+    *,
+    stage_key: str,
+    table_keys: tuple[PreprocessingStateTableKey, ...],
+    role: str,
+) -> tuple[PreprocessingStateTableKey, ...]:
+    normalized: list[PreprocessingStateTableKey] = []
+    for index, table_key in enumerate(table_keys):
+        if isinstance(table_key, PreprocessingStateTableKey):
+            normalized.append(table_key)
+            continue
+        if not isinstance(table_key, str):
+            raise DatasetBuildError(
+                "dataset preprocessing stage metadata contains non-string table key: "
+                f"stage={stage_key or '<empty>'!r}, field={role!r}[{index}], "
+                f"got {table_key!r} ({type(table_key).__name__})"
+            )
+        try:
+            normalized.append(PreprocessingStateTableKey(table_key))
+        except ValueError as exc:
+            supported = ", ".join(key.value for key in PREPROCESSING_STATE_TABLE_KEYS)
+            raise DatasetBuildError(
+                "dataset preprocessing stage metadata contains unknown table key: "
+                f"stage={stage_key or '<empty>'!r}, field={role!r}[{index}], "
+                f"table={table_key!r}, supported tables: {supported}"
+            ) from exc
+    return tuple(normalized)
+
+
 PREPROCESSING_STAGE_REGISTRY: tuple[PreprocessingStageMetadata, ...] = (
     PreprocessingStageMetadata(
         stage_key=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
@@ -256,8 +309,8 @@ PREPROCESSING_STAGE_REGISTRY: tuple[PreprocessingStageMetadata, ...] = (
         provenance_stage=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
         operation_name=_resolve_site_sequence_operation,
         serialize_parameters=_resolve_site_sequence_parameters,
-        consumed_input_tables=("dataset.site_metadata",),
-        produced_output_tables=("dataset.site_metadata",),
+        consumed_input_tables=(PreprocessingStateTableKey.DATASET_SITE_METADATA,),
+        produced_output_tables=(PreprocessingStateTableKey.DATASET_SITE_METADATA,),
         stage_factory=SiteSequenceResolutionStage,
         backend="phospy.sequences",
         include_when=_include_when_site_sequence_enabled,
@@ -273,11 +326,14 @@ PREPROCESSING_STAGE_REGISTRY: tuple[PreprocessingStageMetadata, ...] = (
         provenance_stage=DATASET_PREPROCESSING_STAGE_MISSING_DATA,
         operation_name=_resolve_missing_data_operation,
         serialize_parameters=_resolve_missing_data_parameters,
-        consumed_input_tables=("dataset.phospho", "dataset.site_metadata"),
+        consumed_input_tables=(
+            PreprocessingStateTableKey.DATASET_PHOSPHO,
+            PreprocessingStateTableKey.DATASET_SITE_METADATA,
+        ),
         produced_output_tables=(
-            "dataset.phospho",
-            "dataset.site_metadata",
-            "report.row_audit",
+            PreprocessingStateTableKey.DATASET_PHOSPHO,
+            PreprocessingStateTableKey.DATASET_SITE_METADATA,
+            PreprocessingStateTableKey.REPORT_ROW_AUDIT,
         ),
         stage_factory=MissingDataStage,
         backend="pandas",
@@ -294,8 +350,14 @@ PREPROCESSING_STAGE_REGISTRY: tuple[PreprocessingStageMetadata, ...] = (
         provenance_stage=DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
         operation_name=_resolve_intensity_transform_operation,
         serialize_parameters=_resolve_intensity_transform_parameters,
-        consumed_input_tables=("dataset.phospho", "dataset.total"),
-        produced_output_tables=("dataset.phospho", "dataset.total"),
+        consumed_input_tables=(
+            PreprocessingStateTableKey.DATASET_PHOSPHO,
+            PreprocessingStateTableKey.DATASET_TOTAL,
+        ),
+        produced_output_tables=(
+            PreprocessingStateTableKey.DATASET_PHOSPHO,
+            PreprocessingStateTableKey.DATASET_TOTAL,
+        ),
         stage_factory=IntensityTransformStage,
         backend="numpy",
         diagnostics_metadata={
@@ -309,11 +371,11 @@ PREPROCESSING_STAGE_REGISTRY: tuple[PreprocessingStageMetadata, ...] = (
         operation_name=_resolve_total_protein_operation,
         serialize_parameters=_resolve_total_protein_parameters,
         consumed_input_tables=(
-            "dataset.phospho",
-            "dataset.total",
-            "dataset.site_metadata",
+            PreprocessingStateTableKey.DATASET_PHOSPHO,
+            PreprocessingStateTableKey.DATASET_TOTAL,
+            PreprocessingStateTableKey.DATASET_SITE_METADATA,
         ),
-        produced_output_tables=("dataset.phospho",),
+        produced_output_tables=(PreprocessingStateTableKey.DATASET_PHOSPHO,),
         stage_factory=TotalProteinCorrectionStage,
         backend="pandas",
         diagnostics_metadata={
@@ -331,13 +393,16 @@ PREPROCESSING_STAGE_REGISTRY: tuple[PreprocessingStageMetadata, ...] = (
         provenance_stage=DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
         operation_name=_resolve_site_matrix_operation,
         serialize_parameters=_resolve_site_matrix_parameters,
-        consumed_input_tables=("dataset.phospho", "dataset.site_metadata"),
+        consumed_input_tables=(
+            PreprocessingStateTableKey.DATASET_PHOSPHO,
+            PreprocessingStateTableKey.DATASET_SITE_METADATA,
+        ),
         produced_output_tables=(
-            "dataset.phospho",
-            "dataset.site_metadata",
-            "report.duplicate_site_resolution",
-            "report.metadata_conflicts",
-            "report.row_audit",
+            PreprocessingStateTableKey.DATASET_PHOSPHO,
+            PreprocessingStateTableKey.DATASET_SITE_METADATA,
+            PreprocessingStateTableKey.REPORT_DUPLICATE_SITE_RESOLUTION,
+            PreprocessingStateTableKey.REPORT_METADATA_CONFLICTS,
+            PreprocessingStateTableKey.REPORT_ROW_AUDIT,
         ),
         stage_factory=SiteMatrixStage,
         backend="pandas",
@@ -351,8 +416,8 @@ PREPROCESSING_STAGE_REGISTRY: tuple[PreprocessingStageMetadata, ...] = (
         provenance_stage=DATASET_PREPROCESSING_STAGE_NORMALISATION,
         operation_name=_resolve_normalisation_operation,
         serialize_parameters=_resolve_normalisation_parameters,
-        consumed_input_tables=("dataset.phospho",),
-        produced_output_tables=("dataset.phospho",),
+        consumed_input_tables=(PreprocessingStateTableKey.DATASET_PHOSPHO,),
+        produced_output_tables=(PreprocessingStateTableKey.DATASET_PHOSPHO,),
         stage_factory=NormalisationStage,
         backend="numpy",
         diagnostics_metadata={
@@ -365,11 +430,14 @@ PREPROCESSING_STAGE_REGISTRY: tuple[PreprocessingStageMetadata, ...] = (
         provenance_stage=DATASET_PREPROCESSING_STAGE_COMPARISONS,
         operation_name=_resolve_comparisons_operation,
         serialize_parameters=_resolve_comparisons_parameters,
-        consumed_input_tables=("dataset.phospho", "dataset.sample_metadata"),
+        consumed_input_tables=(
+            PreprocessingStateTableKey.DATASET_PHOSPHO,
+            PreprocessingStateTableKey.DATASET_SAMPLE_METADATA,
+        ),
         produced_output_tables=(
-            "dataset.comparisons",
-            "report.comparison_group_stats",
-            "report.comparison_pair_stats",
+            PreprocessingStateTableKey.DATASET_COMPARISONS,
+            PreprocessingStateTableKey.REPORT_COMPARISON_GROUP_STATS,
+            PreprocessingStateTableKey.REPORT_COMPARISON_PAIR_STATS,
         ),
         stage_factory=ComparisonsStage,
         backend="pandas",
@@ -404,6 +472,24 @@ def _build_stage_metadata_by_key(
             raise DatasetBuildError(
                 f"{context} contains stage {stage_key!r} without parameter serializer"
             )
+        object.__setattr__(
+            metadata,
+            "consumed_input_tables",
+            _normalize_stage_table_keys(
+                stage_key=stage_key,
+                table_keys=metadata.consumed_input_tables,
+                role="consumed_input_tables",
+            ),
+        )
+        object.__setattr__(
+            metadata,
+            "produced_output_tables",
+            _normalize_stage_table_keys(
+                stage_key=stage_key,
+                table_keys=metadata.produced_output_tables,
+                role="produced_output_tables",
+            ),
+        )
         if not isinstance(metadata.diagnostics_metadata, Mapping):
             raise DatasetBuildError(
                 f"{context} contains stage {stage_key!r} with invalid diagnostics metadata"

@@ -19,7 +19,10 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingStageResult,
     PreprocessingState,
 )
-from phospy.datasets.preprocessing.pipeline import PreprocessingPipeline
+from phospy.datasets.preprocessing.pipeline import (
+    PreprocessingPipeline,
+    _resolve_state_table,
+)
 from phospy.datasets.preprocessing.provenance_adapter import (
     PreprocessingProvenanceAdapter,
 )
@@ -291,6 +294,22 @@ def test_pipeline_rejects_malformed_stage_diagnostics_before_trace_is_recorded()
         match=f"stage={DATASET_PREPROCESSING_STAGE_MISSING_DATA!r}.*imputed_cell_count",
     ):
         pipeline.run_with_trace(state)
+
+
+def test_pipeline_table_resolution_rejects_unknown_table_key() -> None:
+    state = PreprocessingState(
+        phospho=_phospho(),
+        site_metadata=_site_metadata(_phospho().index),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan.default(),
+    )
+
+    with pytest.raises(DatasetBuildError, match="unknown table key"):
+        _resolve_state_table(
+            state=state,
+            table_name="dataset.sampl_metadata",
+        )
 
 
 def test_provenance_adapter_builds_row_counts_and_operations() -> None:

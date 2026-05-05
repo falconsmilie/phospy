@@ -14,6 +14,7 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingStageExecution,
     PreprocessingStageResult,
     PreprocessingState,
+    PreprocessingStateTableKey,
 )
 from phospy.datasets.preprocessing.report_rows import (
     validate_preprocessing_report_row,
@@ -392,12 +393,12 @@ def _resolve_random_seed(
 def _collect_stage_table_fingerprints(
     *,
     state: PreprocessingState,
-    table_names: tuple[str, ...],
+    table_names: tuple[PreprocessingStateTableKey, ...],
 ) -> tuple[TableFingerprint, ...]:
     fingerprints: list[TableFingerprint] = []
     for table_name in table_names:
         table = _resolve_state_table(state=state, table_name=table_name)
-        fingerprint = fingerprint_optional_table(table, name=table_name)
+        fingerprint = fingerprint_optional_table(table, name=table_name.value)
         if fingerprint is None:
             continue
         fingerprints.append(fingerprint)
@@ -407,29 +408,44 @@ def _collect_stage_table_fingerprints(
 def _resolve_state_table(
     *,
     state: PreprocessingState,
-    table_name: str,
+    table_name: PreprocessingStateTableKey | str,
 ) -> pd.DataFrame | None:
-    if table_name == "dataset.phospho":
+    try:
+        key = (
+            table_name
+            if isinstance(table_name, PreprocessingStateTableKey)
+            else PreprocessingStateTableKey(str(table_name))
+        )
+    except ValueError as exc:
+        supported = ", ".join(item.value for item in PreprocessingStateTableKey)
+        raise DatasetBuildError(
+            "dataset preprocessing stage metadata contains unknown table key: "
+            f"{table_name!r}; supported tables: {supported}"
+        ) from exc
+    if key is PreprocessingStateTableKey.DATASET_PHOSPHO:
         return state.phospho
-    if table_name == "dataset.site_metadata":
+    if key is PreprocessingStateTableKey.DATASET_SITE_METADATA:
         return state.site_metadata
-    if table_name == "dataset.sample_metadata":
+    if key is PreprocessingStateTableKey.DATASET_SAMPLE_METADATA:
         return state.sample_metadata
-    if table_name == "dataset.total":
+    if key is PreprocessingStateTableKey.DATASET_TOTAL:
         return state.total
-    if table_name == "dataset.comparisons":
+    if key is PreprocessingStateTableKey.DATASET_COMPARISONS:
         return state.comparisons
-    if table_name == "report.comparison_group_stats":
+    if key is PreprocessingStateTableKey.REPORT_COMPARISON_GROUP_STATS:
         return state.comparison_group_stats
-    if table_name == "report.comparison_pair_stats":
+    if key is PreprocessingStateTableKey.REPORT_COMPARISON_PAIR_STATS:
         return state.comparison_pair_stats
-    if table_name == "report.duplicate_site_resolution":
+    if key is PreprocessingStateTableKey.REPORT_DUPLICATE_SITE_RESOLUTION:
         return state.duplicate_site_resolution
-    if table_name == "report.metadata_conflicts":
+    if key is PreprocessingStateTableKey.REPORT_METADATA_CONFLICTS:
         return state.metadata_conflicts
-    if table_name == "report.row_audit":
+    if key is PreprocessingStateTableKey.REPORT_ROW_AUDIT:
         return state.row_audit
-    return None
+    raise DatasetBuildError(
+        "dataset preprocessing stage metadata references an unsupported table key: "
+        f"{key.value!r}"
+    )
 
 
 __all__ = ["PreprocessingPipeline"]

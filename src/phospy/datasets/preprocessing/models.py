@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
+from enum import Enum
 from typing import Protocol
 
 import pandas as pd
@@ -50,6 +51,26 @@ from phospy.provenance.hashing import hash_table
 from phospy.provenance.models import (
     PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V2,
     TableFingerprint,
+)
+
+
+class PreprocessingStateTableKey(str, Enum):
+    """Supported preprocessing state/report tables addressable in stage metadata."""
+
+    DATASET_PHOSPHO = "dataset.phospho"
+    DATASET_SITE_METADATA = "dataset.site_metadata"
+    DATASET_SAMPLE_METADATA = "dataset.sample_metadata"
+    DATASET_TOTAL = "dataset.total"
+    DATASET_COMPARISONS = "dataset.comparisons"
+    REPORT_COMPARISON_GROUP_STATS = "report.comparison_group_stats"
+    REPORT_COMPARISON_PAIR_STATS = "report.comparison_pair_stats"
+    REPORT_DUPLICATE_SITE_RESOLUTION = "report.duplicate_site_resolution"
+    REPORT_METADATA_CONFLICTS = "report.metadata_conflicts"
+    REPORT_ROW_AUDIT = "report.row_audit"
+
+
+PREPROCESSING_STATE_TABLE_KEYS: tuple[PreprocessingStateTableKey, ...] = tuple(
+    PreprocessingStateTableKey
 )
 
 DATASET_PREPROCESSING_STAGE_MISSING_DATA = "missing_data"
@@ -622,10 +643,12 @@ __all__ = [
     "DATASET_PREPROCESSING_STAGE_SITE_MATRIX",
     "DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION",
     "DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION",
+    "PREPROCESSING_STATE_TABLE_KEYS",
     "ComparisonBuildResult",
     "DuplicateSiteResolutionResult",
     "append_row_audit_records",
     "empty_preprocessing_row_audit",
+    "PreprocessingStateTableKey",
     "PreprocessingPlan",
     "PreprocessingStageOrderResolution",
     "PreprocessingReportRow",

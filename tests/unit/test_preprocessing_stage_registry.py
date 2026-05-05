@@ -151,6 +151,69 @@ def test_duplicate_override_stage_keys_fail_registry_resolution() -> None:
         resolve_registered_preprocessing_stages(duplicate_entries)
 
 
+def test_stage_metadata_rejects_unknown_consumed_table_key() -> None:
+    with pytest.raises(DatasetBuildError, match="unknown table key"):
+        PreprocessingStageMetadata(
+            stage_key="custom_stage",
+            display_label="custom_stage",
+            operation_name=lambda _plan: "custom_stage",
+            serialize_parameters=lambda _plan: {},
+            consumed_input_tables=("dataset.sampl_metadata",),
+            produced_output_tables=("dataset.phospho",),
+            diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
+        )
+
+
+def test_stage_metadata_rejects_unknown_produced_table_key() -> None:
+    with pytest.raises(DatasetBuildError, match="unknown table key"):
+        PreprocessingStageMetadata(
+            stage_key="custom_stage",
+            display_label="custom_stage",
+            operation_name=lambda _plan: "custom_stage",
+            serialize_parameters=lambda _plan: {},
+            consumed_input_tables=("dataset.phospho",),
+            produced_output_tables=("report.row_audt",),
+            diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
+        )
+
+
+def test_known_optional_missing_table_is_skipped_in_trace_fingerprints() -> None:
+    class _OptionalSampleMetadataStage:
+        stage_key = "optional_sample_metadata_stage"
+
+        def run(self, state: PreprocessingState) -> PreprocessingStageResult:
+            return PreprocessingStageResult(state=state)
+
+    phospho = _phospho()
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=_site_metadata(phospho.index),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan(stage_order=("optional_sample_metadata_stage",)),
+    )
+    metadata = PreprocessingStageMetadata(
+        stage_key="optional_sample_metadata_stage",
+        display_label="optional_sample_metadata_stage",
+        operation_name=lambda _plan: "optional_sample_metadata_stage",
+        serialize_parameters=lambda _plan: {},
+        consumed_input_tables=("dataset.sample_metadata",),
+        produced_output_tables=("dataset.phospho",),
+        diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
+    )
+
+    _, trace = PreprocessingPipeline(
+        stage_registry=(_OptionalSampleMetadataStage(),),
+        stage_metadata_registry=(metadata,),
+    ).run_with_trace(state)
+
+    assert len(trace) == 1
+    assert trace[0].consumed_input_tables == ()
+    assert tuple(item.name for item in trace[0].produced_output_tables) == (
+        "dataset.phospho",
+    )
+
+
 def test_pipeline_trace_parameters_and_operation_come_from_registry() -> None:
     phospho = _phospho()
     plan = _plan_with_multiple_stages()
