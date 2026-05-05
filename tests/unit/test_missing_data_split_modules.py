@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import inspect
+
 import pandas as pd
+import pandas.testing as pdt
 import pytest
 
 from phospy.datasets.preprocessing.models import PreprocessingPlan, PreprocessingState
+from phospy.datasets.preprocessing.stages.missing_data import minprob as minprob_module
 from phospy.datasets.preprocessing.stages.missing_data.audit import (
     build_knn_audit_records,
     build_minprob_audit_records,
@@ -33,6 +37,35 @@ def _site_metadata(index: pd.Index) -> pd.DataFrame:
             "site_sequence": [f"SEQ_{i}" for i in range(len(index))],
         },
         index=index.copy(),
+    )
+
+
+def _minprob_phospho() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "sample_a": [10.0, float("nan"), 12.0, 4.0],
+            "sample_b": [9.0, 8.0, float("nan"), 6.0],
+            "sample_c": [11.0, 7.0, 5.0, float("nan")],
+        },
+        index=pd.Index(["row_keep", "row_impute_a", "row_impute_b", "row_impute_c"]),
+    )
+
+
+def _minprob_state(phospho: pd.DataFrame, *, seed: int = 12345) -> PreprocessingState:
+    return PreprocessingState(
+        phospho=phospho,
+        site_metadata=_site_metadata(phospho.index),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan(
+            intensity_transform_policy="log2",
+            missing_data_policy="impute_minprob",
+            missing_data_q=0.01,
+            missing_data_width=0.3,
+            missing_data_seed=seed,
+            missing_data_max_missing_fraction_per_row=1.0,
+            stage_order=("intensity_transform", "missing_data"),
+        ),
     )
 
 
@@ -136,6 +169,77 @@ def test_minprob_policy_is_independently_testable() -> None:
     assert int(outcome.phospho.isna().to_numpy().sum()) == 0
     assert outcome.dropped_row_ids == ("row_drop",)
     assert "sample_a" in outcome.per_column_distribution_parameters
+
+
+def test_minprob_policy_is_deterministic_for_fixed_seed() -> None:
+    first = run_minprob_policy(_minprob_state(_minprob_phospho().copy(deep=True)))
+    second = run_minprob_policy(_minprob_state(_minprob_phospho().copy(deep=True)))
+
+    pdt.assert_frame_equal(first.phospho, second.phospho)
+
+
+def test_minprob_policy_is_stable_under_column_reordering_after_realignment() -> None:
+    baseline = run_minprob_policy(_minprob_state(_minprob_phospho().copy(deep=True)))
+
+    reordered_input = (
+        _minprob_phospho().loc[:, ["sample_c", "sample_a", "sample_b"]].copy(deep=True)
+    )
+    reordered = run_minprob_policy(_minprob_state(reordered_input))
+    reordered_realigned = reordered.phospho.loc[:, baseline.phospho.columns]
+
+    pdt.assert_frame_equal(baseline.phospho, reordered_realigned)
+
+
+def test_minprob_policy_is_stable_for_existing_columns_when_unrelated_column_is_inserted() -> (
+    None
+):
+    baseline = run_minprob_policy(_minprob_state(_minprob_phospho().copy(deep=True)))
+
+    with_extra = _minprob_phospho().copy(deep=True)
+    with_extra.loc[:, "sample_extra"] = [13.0, 12.0, float("nan"), 11.0]
+    with_extra = with_extra.loc[:, ["sample_a", "sample_extra", "sample_b", "sample_c"]]
+    with_extra_outcome = run_minprob_policy(_minprob_state(with_extra))
+    existing_only = with_extra_outcome.phospho.drop(columns=["sample_extra"]).loc[
+        :, baseline.phospho.columns
+    ]
+
+    pdt.assert_frame_equal(baseline.phospho, existing_only)
+
+
+def test_minprob_policy_changes_imputed_values_when_seed_changes() -> None:
+    first = run_minprob_policy(
+        _minprob_state(_minprob_phospho().copy(deep=True), seed=12345)
+    )
+    second = run_minprob_policy(
+        _minprob_state(_minprob_phospho().copy(deep=True), seed=54321)
+    )
+
+    assert float(first.phospho.loc["row_impute_a", "sample_a"]) != pytest.approx(
+        float(second.phospho.loc["row_impute_a", "sample_a"])
+    )
+
+
+def test_minprob_policy_changes_column_rng_stream_when_column_label_changes() -> None:
+    baseline = run_minprob_policy(_minprob_state(_minprob_phospho().copy(deep=True)))
+    renamed_input = _minprob_phospho().rename(columns={"sample_a": "sample_a_renamed"})
+    renamed = run_minprob_policy(_minprob_state(renamed_input))
+
+    assert float(baseline.phospho.loc["row_impute_a", "sample_a"]) != pytest.approx(
+        float(renamed.phospho.loc["row_impute_a", "sample_a_renamed"])
+    )
+
+
+def test_minprob_stage_diagnostics_include_configured_seed() -> None:
+    result = MissingDataStage().run(_minprob_state(_minprob_phospho().copy(deep=True)))
+    diagnostics = result.diagnostics["diagnostics"]
+
+    assert diagnostics["random_seed"] == 12345
+    assert diagnostics["method_parameters"]["seed"] == 12345
+
+
+def test_minprob_implementation_does_not_call_python_builtin_hash() -> None:
+    source = inspect.getsource(minprob_module)
+    assert "hash(" not in source
 
 
 def test_diagnostics_builder_supports_each_policy_shape() -> None:

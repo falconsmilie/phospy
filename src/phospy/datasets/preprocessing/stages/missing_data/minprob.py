@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import datetime as dt
+import hashlib
+import json
+
 import numpy as np
 
 from phospy.datasets.preprocessing.models import PreprocessingState
@@ -9,6 +13,68 @@ from phospy.datasets.processing_state import JsonValue
 from phospy.errors.input import PhosPyInputError
 
 from .models import MinProbPolicyOutcome, RowImputationRecord
+
+
+def _normalise_column_label_value(label: object) -> object:
+    """Return a deterministic, JSON-serialisable representation for a label."""
+
+    if isinstance(label, np.generic):
+        return _normalise_column_label_value(label.item())
+    if label is None:
+        return {"kind": "none"}
+    if isinstance(label, bool):
+        return {"kind": "bool", "value": bool(label)}
+    if isinstance(label, int):
+        return {"kind": "int", "value": int(label)}
+    if isinstance(label, float):
+        value = float(label)
+        if np.isnan(value):
+            return {"kind": "float", "value": "nan"}
+        if np.isposinf(value):
+            return {"kind": "float", "value": "inf"}
+        if np.isneginf(value):
+            return {"kind": "float", "value": "-inf"}
+        return {"kind": "float", "value": value.hex()}
+    if isinstance(label, str):
+        return {"kind": "str", "value": label}
+    if isinstance(label, bytes):
+        return {"kind": "bytes", "value": label.hex()}
+    if isinstance(label, dt.datetime):
+        return {"kind": "datetime", "value": label.isoformat()}
+    if isinstance(label, dt.date):
+        return {"kind": "date", "value": label.isoformat()}
+    if isinstance(label, dt.time):
+        return {"kind": "time", "value": label.isoformat()}
+    if isinstance(label, dt.timedelta):
+        return {"kind": "timedelta", "value": str(label)}
+    if isinstance(label, tuple):
+        return {
+            "kind": "tuple",
+            "value": [_normalise_column_label_value(item) for item in label],
+        }
+    return {
+        "kind": "fallback",
+        "type": f"{type(label).__module__}.{type(label).__qualname__}",
+        "repr": repr(label),
+    }
+
+
+def _stable_column_label_seed(base_seed: int, column_label: object) -> int:
+    """Derive a deterministic per-column seed from base seed + label digest."""
+
+    label_payload = _normalise_column_label_value(column_label)
+    label_bytes = json.dumps(
+        label_payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    digest = hashlib.blake2b(
+        label_bytes,
+        digest_size=16,
+        person=b"phospy-minprob",
+    ).digest()
+    return int(base_seed) + int.from_bytes(digest, byteorder="big", signed=False)
 
 
 def run_minprob_policy(state: PreprocessingState) -> MinProbPolicyOutcome:
@@ -49,7 +115,7 @@ def run_minprob_policy(state: PreprocessingState) -> MinProbPolicyOutcome:
 
     eps = float(np.finfo(float).eps)
     per_column_distribution_parameters: dict[str, dict[str, JsonValue]] = {}
-    for column_index, column_name in enumerate(filtered_phospho.columns):
+    for column_name in filtered_phospho.columns:
         column_label = str(column_name)
         column = filtered_phospho.loc[:, column_name]
         missing_mask = column.isna().to_numpy(dtype=bool, copy=False)
@@ -103,7 +169,9 @@ def run_minprob_policy(state: PreprocessingState) -> MinProbPolicyOutcome:
 
         if missing_count == 0:
             continue
-        column_rng = np.random.default_rng(seed_value + column_index)
+        column_rng = np.random.default_rng(
+            _stable_column_label_seed(seed_value, column_name)
+        )
         draws = column_rng.normal(
             loc=imputation_mean,
             scale=imputation_sd,
