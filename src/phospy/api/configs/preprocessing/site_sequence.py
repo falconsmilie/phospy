@@ -6,6 +6,9 @@ from dataclasses import dataclass
 from typing import Literal
 
 from phospy.errors.input import PhosPyInputError
+from phospy.validation.configs.preprocessing import (
+    validate_site_sequence_resolution_config,
+)
 
 DATASET_SITE_SEQUENCE_RESOLUTION_MODE_VALIDATE_EXISTING_AND_FILL_MISSING = (
     "validate_existing_and_fill_missing"
@@ -102,63 +105,16 @@ class DatasetSiteSequenceResolutionConfig:
     site_column: str = "site"
 
     def __post_init__(self) -> None:
-        mode = self.mode
-        if mode not in DATASET_SITE_SEQUENCE_RESOLUTION_MODES:
-            supported = ", ".join(sorted(DATASET_SITE_SEQUENCE_RESOLUTION_MODES))
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.site_sequence_resolution."
-                f"mode must be one of: {supported}"
-            )
-        conflict_policy = self.conflict_policy
-        if (
-            conflict_policy is not None
-            and conflict_policy not in DATASET_SITE_SEQUENCE_CONFLICT_POLICIES
-        ):
-            supported = ", ".join(sorted(DATASET_SITE_SEQUENCE_CONFLICT_POLICIES))
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.site_sequence_resolution."
-                f"conflict_policy must be one of: {supported}"
-            )
-
-        accession_column = self.accession_column
-        if not isinstance(accession_column, str) or not accession_column.strip():
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.site_sequence_resolution."
-                "accession_column must be a non-empty string"
-            )
-        site_column = self.site_column
-        if not isinstance(site_column, str) or not site_column.strip():
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.site_sequence_resolution."
-                "site_column must be a non-empty string"
-            )
-
-        fasta_path = self.fasta_path
-        if fasta_path is None:
-            return
-        if not isinstance(fasta_path, str) or not fasta_path.strip():
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.site_sequence_resolution."
-                "fasta_path must be a non-empty string when provided"
-            )
-        if "://" in fasta_path.lower():
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.site_sequence_resolution."
-                "fasta_path must be a local filesystem path; remote URLs are not "
-                "supported"
-            )
-        flank_size = self.flank_size
-        if isinstance(flank_size, bool) or not isinstance(flank_size, int):
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.site_sequence_resolution."
-                "flank_size must be an int when fasta_path is provided"
-            )
-        if flank_size < 1:
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.site_sequence_resolution."
-                "flank_size must be greater than or equal to 1 when fasta_path is "
-                "provided"
-            )
+        validate_site_sequence_resolution_config(
+            mode=self.mode,
+            conflict_policy=self.conflict_policy,
+            flank_size=self.flank_size,
+            accession_column=self.accession_column,
+            site_column=self.site_column,
+            fasta_path=self.fasta_path,
+            supported_modes=DATASET_SITE_SEQUENCE_RESOLUTION_MODES,
+            supported_conflict_policies=DATASET_SITE_SEQUENCE_CONFLICT_POLICIES,
+        )
 
 
 __all__ = [

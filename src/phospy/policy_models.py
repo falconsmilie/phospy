@@ -6,6 +6,7 @@ from enum import Enum
 from typing import TypeVar
 
 from phospy.errors.input import PhosPyInputError
+from phospy.validation.common.config_values import coerce_policy_enum
 
 _PolicyEnumT = TypeVar("_PolicyEnumT", bound="_PolicyEnum")
 
@@ -23,17 +24,11 @@ class _PolicyEnum(str, Enum):
         *,
         field_name: str,
     ) -> _PolicyEnumT:
-        if isinstance(value, cls):
-            return value
-        if isinstance(value, str):
-            normalized = value.strip()
-            try:
-                return cls(normalized)
-            except ValueError:
-                pass
-        supported = ", ".join(member.value for member in cls)
-        raise PhosPyInputError(
-            f"{field_name} must be one of: {supported}; got {value!r}"
+        return coerce_policy_enum(
+            cls,
+            value,
+            field_name=field_name,
+            error_type=PhosPyInputError,
         )
 
 

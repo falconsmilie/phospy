@@ -16,6 +16,9 @@ from phospy.api.configs import (
     DatasetTotalProteinCorrectionConfig,
 )
 from phospy.errors.input import PhosPyInputError
+from phospy.validation.configs.preprocessing import (
+    validate_preprocessing_section_type,
+)
 
 
 class DatasetPreprocessingConfigValidator:
@@ -41,48 +44,50 @@ class DatasetPreprocessingConfigValidator:
     def _validate_intensity_transform(
         self, config: DatasetIntensityTransformConfig
     ) -> None:
-        if not isinstance(config, DatasetIntensityTransformConfig):
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.intensity_transform "
-                "must be a DatasetIntensityTransformConfig"
-            )
+        validate_preprocessing_section_type(
+            config,
+            field_name="dataset build request preprocessing_config.intensity_transform",
+            expected_type=DatasetIntensityTransformConfig,
+        )
 
     def _validate_normalisation(self, config: DatasetNormalisationConfig) -> None:
-        if not isinstance(config, DatasetNormalisationConfig):
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.normalisation must be a "
-                "DatasetNormalisationConfig"
-            )
+        validate_preprocessing_section_type(
+            config,
+            field_name="dataset build request preprocessing_config.normalisation",
+            expected_type=DatasetNormalisationConfig,
+        )
 
     def _validate_missing_data(self, config: DatasetMissingDataConfig) -> None:
-        if not isinstance(config, DatasetMissingDataConfig):
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.missing_data must be a "
-                "DatasetMissingDataConfig"
-            )
+        validate_preprocessing_section_type(
+            config,
+            field_name="dataset build request preprocessing_config.missing_data",
+            expected_type=DatasetMissingDataConfig,
+        )
 
     def _validate_total_protein_correction(
         self, config: DatasetTotalProteinCorrectionConfig
     ) -> None:
-        if not isinstance(config, DatasetTotalProteinCorrectionConfig):
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.total_protein_correction "
-                "must be a DatasetTotalProteinCorrectionConfig"
-            )
+        validate_preprocessing_section_type(
+            config,
+            field_name=(
+                "dataset build request preprocessing_config.total_protein_correction"
+            ),
+            expected_type=DatasetTotalProteinCorrectionConfig,
+        )
 
     def _validate_site_matrix(self, config: DatasetSiteMatrixConfig) -> None:
-        if not isinstance(config, DatasetSiteMatrixConfig):
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.site_matrix must be a "
-                "DatasetSiteMatrixConfig"
-            )
+        validate_preprocessing_section_type(
+            config,
+            field_name="dataset build request preprocessing_config.site_matrix",
+            expected_type=DatasetSiteMatrixConfig,
+        )
 
     def _validate_comparisons(self, config: DatasetComparisonBuildingConfig) -> None:
-        if not isinstance(config, DatasetComparisonBuildingConfig):
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.comparisons must be a "
-                "DatasetComparisonBuildingConfig"
-            )
+        validate_preprocessing_section_type(
+            config,
+            field_name="dataset build request preprocessing_config.comparisons",
+            expected_type=DatasetComparisonBuildingConfig,
+        )
 
     def _validate_total_protein_correction_scale_contract(
         self,

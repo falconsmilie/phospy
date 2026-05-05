@@ -26,7 +26,9 @@ from phospy.api.configs.preprocessing import (
     DatasetSiteSequenceResolutionConfig,
     DatasetTotalProteinCorrectionConfig,
 )
-from phospy.errors.input import PhosPyInputError
+from phospy.validation.configs.preprocessing import (
+    validate_preprocessing_section_type,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,51 +76,52 @@ class DatasetPreprocessingConfig:
     )
 
     def __post_init__(self) -> None:
-        if not isinstance(self.intensity_transform, DatasetIntensityTransformConfig):
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.intensity_transform "
-                "must be a DatasetIntensityTransformConfig"
-            )
-        if not isinstance(self.normalisation, DatasetNormalisationConfig):
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.normalisation must be a "
-                "DatasetNormalisationConfig"
-            )
-        if not isinstance(self.missing_data, DatasetMissingDataConfig):
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.missing_data must be a "
-                "DatasetMissingDataConfig"
-            )
-        if not isinstance(
-            self.total_protein_correction, DatasetTotalProteinCorrectionConfig
-        ):
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.total_protein_correction "
-                "must be a DatasetTotalProteinCorrectionConfig"
-            )
-        if not isinstance(self.site_matrix, DatasetSiteMatrixConfig):
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.site_matrix must be a "
-                "DatasetSiteMatrixConfig"
-            )
-        if not isinstance(
+        validate_preprocessing_section_type(
+            self.intensity_transform,
+            field_name=(
+                "dataset build request preprocessing_config.intensity_transform"
+            ),
+            expected_type=DatasetIntensityTransformConfig,
+        )
+        validate_preprocessing_section_type(
+            self.normalisation,
+            field_name="dataset build request preprocessing_config.normalisation",
+            expected_type=DatasetNormalisationConfig,
+        )
+        validate_preprocessing_section_type(
+            self.missing_data,
+            field_name="dataset build request preprocessing_config.missing_data",
+            expected_type=DatasetMissingDataConfig,
+        )
+        validate_preprocessing_section_type(
+            self.total_protein_correction,
+            field_name=(
+                "dataset build request preprocessing_config.total_protein_correction"
+            ),
+            expected_type=DatasetTotalProteinCorrectionConfig,
+        )
+        validate_preprocessing_section_type(
+            self.site_matrix,
+            field_name="dataset build request preprocessing_config.site_matrix",
+            expected_type=DatasetSiteMatrixConfig,
+        )
+        validate_preprocessing_section_type(
             self.site_sequence_resolution,
-            DatasetSiteSequenceResolutionConfig,
-        ):
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.site_sequence_resolution "
-                "must be a DatasetSiteSequenceResolutionConfig"
-            )
-        if not isinstance(self.comparisons, DatasetComparisonBuildingConfig):
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.comparisons must be a "
-                "DatasetComparisonBuildingConfig"
-            )
-        if not isinstance(self.ruv_readiness, DatasetRuvReadinessConfig):
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.ruv_readiness must be a "
-                "DatasetRuvReadinessConfig"
-            )
+            field_name=(
+                "dataset build request preprocessing_config.site_sequence_resolution"
+            ),
+            expected_type=DatasetSiteSequenceResolutionConfig,
+        )
+        validate_preprocessing_section_type(
+            self.comparisons,
+            field_name="dataset build request preprocessing_config.comparisons",
+            expected_type=DatasetComparisonBuildingConfig,
+        )
+        validate_preprocessing_section_type(
+            self.ruv_readiness,
+            field_name="dataset build request preprocessing_config.ruv_readiness",
+            expected_type=DatasetRuvReadinessConfig,
+        )
 
     @classmethod
     def default(cls) -> DatasetPreprocessingConfig:

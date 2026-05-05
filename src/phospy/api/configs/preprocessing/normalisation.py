@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from phospy.errors.input import PhosPyInputError
+from phospy.validation.configs.preprocessing import validate_normalisation_config
 
 DATASET_NORMALISATION_POLICY_NONE = "none"
 DATASET_NORMALISATION_POLICY_MEDIAN_CENTER = "median_center"
@@ -32,13 +32,10 @@ class DatasetNormalisationConfig:
     policy: DatasetNormalisationPolicy = DATASET_NORMALISATION_POLICY_NONE
 
     def __post_init__(self) -> None:
-        policy = self.policy
-        if policy not in DATASET_NORMALISATION_POLICIES:
-            supported = ", ".join(sorted(DATASET_NORMALISATION_POLICIES))
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.normalisation.policy "
-                f"must be one of: {supported}"
-            )
+        validate_normalisation_config(
+            policy=self.policy,
+            supported_policies=DATASET_NORMALISATION_POLICIES,
+        )
 
 
 __all__ = [

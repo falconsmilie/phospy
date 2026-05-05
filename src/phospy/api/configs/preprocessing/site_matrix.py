@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from phospy.errors.input import PhosPyInputError
+from phospy.validation.configs.preprocessing import validate_site_matrix_config
 
 DATASET_SITE_MATRIX_POLICY_AS_INPUT = "as_input"
 DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA = "build_from_metadata"
@@ -43,13 +43,6 @@ DATASET_SITE_MATRIX_MISSING_DATA_POLICIES = frozenset(
     {
         DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
     }
-)
-
-_INCOMPATIBLE_SITE_MATRIX_MISSING_DATA_POLICIES = frozenset(
-    {"retain_missing", "require_min_observed_values"}
-)
-_SUPPORTED_SITE_MATRIX_MISSING_DATA_POLICY = (
-    DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING
 )
 
 
@@ -104,62 +97,18 @@ class DatasetSiteMatrixConfig:
     minimum_observed_values: int | None = None
 
     def __post_init__(self) -> None:
-        policy = self.policy
-        if policy not in DATASET_SITE_MATRIX_POLICIES:
-            supported = ", ".join(sorted(DATASET_SITE_MATRIX_POLICIES))
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.site_matrix.policy "
-                f"must be one of: {supported}"
-            )
-
-        duplicate_site_policy = self.duplicate_site_policy
-        if duplicate_site_policy not in DATASET_SITE_MATRIX_DUPLICATE_POLICIES:
-            supported_duplicates = ", ".join(
-                sorted(DATASET_SITE_MATRIX_DUPLICATE_POLICIES)
-            )
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.site_matrix."
-                "duplicate_site_policy must be one of: "
-                f"{supported_duplicates}"
-            )
-
-        missing_data_policy = self.missing_data_policy
-        if missing_data_policy not in DATASET_SITE_MATRIX_MISSING_DATA_POLICIES:
-            if missing_data_policy in _INCOMPATIBLE_SITE_MATRIX_MISSING_DATA_POLICIES:
-                raise PhosPyInputError(
-                    "dataset build request preprocessing_config.site_matrix."
-                    f"missing_data_policy='{missing_data_policy}' is not supported "
-                    "for strict AnalysisReadyPhosphoDataset construction in the "
-                    "public complete-case builder lane. Use "
-                    "site_matrix.missing_data_policy="
-                    f"'{_SUPPORTED_SITE_MATRIX_MISSING_DATA_POLICY}'."
-                )
-            supported_missing_policies = ", ".join(
-                sorted(DATASET_SITE_MATRIX_MISSING_DATA_POLICIES)
-            )
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.site_matrix."
-                "missing_data_policy must be one of: "
-                f"{supported_missing_policies}"
-            )
-
-        minimum_observed_values = self.minimum_observed_values
-        if minimum_observed_values is not None:
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.site_matrix."
-                "minimum_observed_values is not supported for strict "
-                "AnalysisReadyPhosphoDataset construction and must be None"
-            )
-
-        if policy == DATASET_SITE_MATRIX_POLICY_AS_INPUT and (
-            duplicate_site_policy
-            != DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL
-        ):
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.site_matrix."
-                "duplicate_site_policy is only valid when "
-                "site_matrix.policy='build_from_metadata'"
-            )
+        validate_site_matrix_config(
+            policy=self.policy,
+            duplicate_site_policy=self.duplicate_site_policy,
+            missing_data_policy=self.missing_data_policy,
+            minimum_observed_values=self.minimum_observed_values,
+            supported_policies=DATASET_SITE_MATRIX_POLICIES,
+            supported_duplicate_policies=DATASET_SITE_MATRIX_DUPLICATE_POLICIES,
+            supported_missing_data_policies=DATASET_SITE_MATRIX_MISSING_DATA_POLICIES,
+            policy_as_input=DATASET_SITE_MATRIX_POLICY_AS_INPUT,
+            duplicate_policy_default=DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
+            supported_missing_data_policy=DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
+        )
 
 
 __all__ = [

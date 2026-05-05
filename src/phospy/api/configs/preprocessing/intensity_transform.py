@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
 from typing import Literal
 
-from phospy.errors.input import PhosPyInputError
+from phospy.validation.configs.preprocessing import (
+    validate_intensity_transform_config,
+)
 
 DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY = "identity"
 DATASET_INTENSITY_TRANSFORM_POLICY_LOG2 = "log2"
@@ -35,30 +36,11 @@ class DatasetIntensityTransformConfig:
     pseudocount: float = 1.0
 
     def __post_init__(self) -> None:
-        policy = self.policy
-        if policy not in DATASET_INTENSITY_TRANSFORM_POLICIES:
-            supported = ", ".join(sorted(DATASET_INTENSITY_TRANSFORM_POLICIES))
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.intensity_transform."
-                f"policy must be one of: {supported}"
-            )
-
-        pseudocount = self.pseudocount
-        if isinstance(pseudocount, bool) or not isinstance(pseudocount, (int, float)):
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.intensity_transform."
-                "pseudocount must be a float or int"
-            )
-        if not math.isfinite(float(pseudocount)):
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.intensity_transform."
-                "pseudocount must be finite"
-            )
-        if pseudocount < 0:
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.intensity_transform."
-                "pseudocount must be greater than or equal to 0"
-            )
+        validate_intensity_transform_config(
+            policy=self.policy,
+            pseudocount=self.pseudocount,
+            supported_policies=DATASET_INTENSITY_TRANSFORM_POLICIES,
+        )
 
 
 __all__ = [

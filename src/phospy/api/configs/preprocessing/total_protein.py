@@ -7,7 +7,10 @@ from typing import Literal
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.validation.configs.preprocessing import (
+    validate_total_protein_correction_config,
+    validate_total_protein_correction_identity_config,
+)
 
 DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE = "none"
 DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL = "subtract_log_total"
@@ -100,142 +103,34 @@ class DatasetTotalProteinCorrectionIdentityConfig:
     )
 
     def __post_init__(self) -> None:
-        mode = self.mode
-        if mode not in DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODES:
-            supported = ", ".join(
-                sorted(DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODES)
-            )
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.total_protein_correction."
-                f"identity.mode must be one of: {supported}"
-            )
-
-        phosphosite_key = self.phosphosite_key
-        if not isinstance(phosphosite_key, str) or not phosphosite_key.strip():
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.total_protein_correction."
-                "identity.phosphosite_key must be a non-empty string"
-            )
-        total_protein_key = self.total_protein_key
-        if not isinstance(total_protein_key, str) or not total_protein_key.strip():
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.total_protein_correction."
-                "identity.total_protein_key must be a non-empty string"
-            )
-        matching_policy = self.matching_policy
-        if (
-            matching_policy
-            not in DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICIES
-        ):
-            supported = ", ".join(
-                sorted(DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICIES)
-            )
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.total_protein_correction."
-                f"identity.matching_policy must be one of: {supported}"
-            )
-
-        duplicate_policy = self.duplicate_policy
-        if duplicate_policy not in DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICIES:
-            supported = ", ".join(
-                sorted(DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICIES)
-            )
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.total_protein_correction."
-                f"identity.duplicate_policy must be one of: {supported}"
-            )
-        unmatched_policy = self.unmatched_policy
-        if unmatched_policy not in DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICIES:
-            supported = ", ".join(
-                sorted(DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICIES)
-            )
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.total_protein_correction."
-                f"identity.unmatched_policy must be one of: {supported}"
-            )
-
-        mapping_table = self.mapping_table
-        mapping_phosphosite_key = self.mapping_phosphosite_key
-        mapping_total_protein_key = self.mapping_total_protein_key
-        uses_gene_symbol_keys = "gene_symbol" in {
-            str(phosphosite_key).strip().lower(),
-            str(total_protein_key).strip().lower(),
-            (
-                ""
-                if mapping_phosphosite_key is None
-                else str(mapping_phosphosite_key).strip().lower()
+        validate_total_protein_correction_identity_config(
+            mode=self.mode,
+            phosphosite_key=self.phosphosite_key,
+            total_protein_key=self.total_protein_key,
+            mapping_table=self.mapping_table,
+            mapping_phosphosite_key=self.mapping_phosphosite_key,
+            mapping_total_protein_key=self.mapping_total_protein_key,
+            matching_policy=self.matching_policy,
+            duplicate_policy=self.duplicate_policy,
+            unmatched_policy=self.unmatched_policy,
+            supported_modes=DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODES,
+            supported_matching_policies=(
+                DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICIES
             ),
-            (
-                ""
-                if mapping_total_protein_key is None
-                else str(mapping_total_protein_key).strip().lower()
+            supported_duplicate_policies=(
+                DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICIES
             ),
-        }
-        if (
-            matching_policy
-            == DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICY_GENE_SYMBOL_NORMALISED
-            and not uses_gene_symbol_keys
-        ):
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.total_protein_correction."
-                "identity.matching_policy='gene_symbol_normalised' requires at "
-                "least one gene_symbol identity key "
-                "(phosphosite_key/total_protein_key/mapping keys)"
-            )
-
-        if mode == DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT:
-            if mapping_table is not None:
-                raise PhosPyInputError(
-                    "dataset build request preprocessing_config.total_protein_correction."
-                    "identity.mapping_table must be None when identity.mode='direct'"
-                )
-            if mapping_phosphosite_key is not None:
-                raise PhosPyInputError(
-                    "dataset build request preprocessing_config.total_protein_correction."
-                    "identity.mapping_phosphosite_key must be None when "
-                    "identity.mode='direct'"
-                )
-            if mapping_total_protein_key is not None:
-                raise PhosPyInputError(
-                    "dataset build request preprocessing_config.total_protein_correction."
-                    "identity.mapping_total_protein_key must be None when "
-                    "identity.mode='direct'"
-                )
-            return
-
-        if mode != DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_MAPPING_TABLE:
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.total_protein_correction."
-                "identity contains an unsupported mode"
-            )
-        if mapping_table is None:
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.total_protein_correction."
-                "identity.mapping_table is required when identity.mode='mapping_table'"
-            )
-        if not isinstance(mapping_table, pd.DataFrame):
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.total_protein_correction."
-                "identity.mapping_table must be a pandas DataFrame"
-            )
-        if (
-            not isinstance(mapping_phosphosite_key, str)
-            or not mapping_phosphosite_key.strip()
-        ):
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.total_protein_correction."
-                "identity.mapping_phosphosite_key must be a non-empty string when "
-                "identity.mode='mapping_table'"
-            )
-        if (
-            not isinstance(mapping_total_protein_key, str)
-            or not mapping_total_protein_key.strip()
-        ):
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.total_protein_correction."
-                "identity.mapping_total_protein_key must be a non-empty string when "
-                "identity.mode='mapping_table'"
-            )
+            supported_unmatched_policies=(
+                DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICIES
+            ),
+            mode_direct=DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT,
+            mode_mapping_table=(
+                DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_MAPPING_TABLE
+            ),
+            matching_policy_gene_symbol_normalised=(
+                DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICY_GENE_SYMBOL_NORMALISED
+            ),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -256,18 +151,12 @@ class DatasetTotalProteinCorrectionConfig:
     )
 
     def __post_init__(self) -> None:
-        policy = self.policy
-        if policy not in DATASET_TOTAL_PROTEIN_CORRECTION_POLICIES:
-            supported = ", ".join(sorted(DATASET_TOTAL_PROTEIN_CORRECTION_POLICIES))
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.total_protein_correction."
-                f"policy must be one of: {supported}"
-            )
-        if not isinstance(self.identity, DatasetTotalProteinCorrectionIdentityConfig):
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.total_protein_correction."
-                "identity must be a DatasetTotalProteinCorrectionIdentityConfig"
-            )
+        validate_total_protein_correction_config(
+            policy=self.policy,
+            identity=self.identity,
+            supported_policies=DATASET_TOTAL_PROTEIN_CORRECTION_POLICIES,
+            identity_type=DatasetTotalProteinCorrectionIdentityConfig,
+        )
 
 
 __all__ = [
