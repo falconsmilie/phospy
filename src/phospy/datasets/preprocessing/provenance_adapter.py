@@ -48,15 +48,15 @@ class PreprocessingProvenanceAdapter:
         step_order = 1
         canonical_stage_metadata = resolve_builder_provenance_stage_order(plan)
         for stage_metadata in canonical_stage_metadata:
-            stage = stage_metadata.provenance_stage
+            stage = stage_metadata.provenance_stage_key
             stage_label = stage_metadata.display_label
             record = trace_by_stage.get(stage)
+            operation = stage_metadata.operation_name(plan)
+            parameters = stage_metadata.serialize_parameters(plan)
             if record is None:
                 stage_input_rows = row_cursor
                 stage_output_rows = row_cursor
                 notes = "stage not scheduled in preprocessing plan"
-                operation = stage_metadata.operation_name(plan)
-                parameters = stage_metadata.serialize_parameters(plan)
             else:
                 stage_input_rows = int(record.input_rows)
                 stage_output_rows = int(record.output_rows)
@@ -65,8 +65,6 @@ class PreprocessingProvenanceAdapter:
                     if record.notes is None
                     else str(record.notes).strip()
                 )
-                operation = record.operation
-                parameters = dict(record.parameters)
             row_cursor = stage_output_rows
             row_count_rows.append(
                 PreprocessingRowCountRow(

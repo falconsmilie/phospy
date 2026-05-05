@@ -12,50 +12,13 @@ from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
     PreprocessingStageExecution,
 )
+from phospy.datasets.preprocessing.stage_registry import (
+    get_preprocessing_stage_metadata,
+)
 from phospy.datasets.processing_state import SiteSequenceResolutionRowDiagnostic
 from phospy.errors.build import DatasetBuildError
 
 _MISSING: Final = object()
-_SITE_SEQUENCE_ALLOWED_FIELDS = frozenset(
-    {
-        "configured",
-        "mode",
-        "flank_size",
-        "fasta_source_path",
-        "fasta_source_label",
-        "fasta_sha256",
-        "resolver_version",
-        "resolved_site_count",
-        "unresolved_site_count",
-        "unresolved_counts_by_reason",
-        "filled_missing_count",
-        "replaced_existing_count",
-        "preserved_existing_count",
-        "existing_sequence_conflict_count",
-        "conflict_policy",
-        "accession_column",
-        "site_column",
-        "row_status",
-        "row_diagnostics",
-    }
-)
-_SITE_SEQUENCE_ROW_DIAGNOSTIC_ALLOWED_FIELDS = frozenset(
-    {
-        "row_index",
-        "row_id",
-        "site_id",
-        "status",
-        "existing_site_sequence",
-        "fasta_site_sequence",
-        "resolved_site_sequence",
-        "action",
-        "reason",
-        "conflict_policy",
-        "resolver_version",
-        "fasta_source_path",
-        "fasta_sha256",
-    }
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -419,6 +382,45 @@ def _resolve_stage_diagnostics(
                 resolved[raw_key] = raw_value
             return resolved
     return None
+
+
+def _resolve_known_diagnostics_fields(
+    *,
+    stage: str,
+    field_name: str,
+) -> frozenset[str]:
+    metadata = get_preprocessing_stage_metadata(stage)
+    raw_value = metadata.diagnostics_metadata.get(field_name, ())
+    if not isinstance(raw_value, (list, tuple, frozenset, set)):
+        raise DatasetBuildError(
+            "dataset preprocessing stage diagnostics metadata is invalid for "
+            f"stage {stage!r}: {field_name!r} must be a string sequence"
+        )
+    resolved: list[str] = []
+    for raw_item in raw_value:
+        if not isinstance(raw_item, str):
+            raise DatasetBuildError(
+                "dataset preprocessing stage diagnostics metadata is invalid for "
+                f"stage {stage!r}: {field_name!r} contains non-string items"
+            )
+        normalized = raw_item.strip()
+        if not normalized:
+            raise DatasetBuildError(
+                "dataset preprocessing stage diagnostics metadata is invalid for "
+                f"stage {stage!r}: {field_name!r} contains an empty field name"
+            )
+        resolved.append(normalized)
+    return frozenset(resolved)
+
+
+_SITE_SEQUENCE_ALLOWED_FIELDS = _resolve_known_diagnostics_fields(
+    stage=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
+    field_name="known_diagnostics_fields",
+)
+_SITE_SEQUENCE_ROW_DIAGNOSTIC_ALLOWED_FIELDS = _resolve_known_diagnostics_fields(
+    stage=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
+    field_name="known_row_diagnostic_fields",
+)
 
 
 def _require_int(*, stage: str, field: str, value: object) -> int:

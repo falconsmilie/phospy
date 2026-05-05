@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 
+from phospy.datasets._processing_state.json_contracts import (
+    MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
+    TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1,
+    V1_KNOWN_MISSING_DATA_DIAGNOSTICS_FIELDS,
+    V1_KNOWN_TOTAL_PROTEIN_DIAGNOSTICS_FIELDS,
+)
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
@@ -14,11 +20,26 @@ from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
     PreprocessingPlan,
+    PreprocessingStage,
+)
+from phospy.datasets.preprocessing.stages.comparisons import ComparisonsStage
+from phospy.datasets.preprocessing.stages.intensity_transform import (
+    IntensityTransformStage,
+)
+from phospy.datasets.preprocessing.stages.missing_data import MissingDataStage
+from phospy.datasets.preprocessing.stages.normalisation import NormalisationStage
+from phospy.datasets.preprocessing.stages.site_matrix import SiteMatrixStage
+from phospy.datasets.preprocessing.stages.site_sequence_resolution import (
+    SiteSequenceResolutionStage,
+)
+from phospy.datasets.preprocessing.stages.total_protein_correction import (
+    TotalProteinCorrectionStage,
 )
 from phospy.errors.build import DatasetBuildError
 
 _ParameterSerializer = Callable[[PreprocessingPlan], dict[str, object]]
 _OperationResolver = Callable[[PreprocessingPlan], str]
+_StageFactory = Callable[[], PreprocessingStage]
 
 
 def _always_include(_plan: PreprocessingPlan) -> bool:
@@ -31,15 +52,96 @@ class PreprocessingStageMetadata:
 
     stage_key: str
     display_label: str
-    provenance_stage: str
     operation_name: _OperationResolver
     serialize_parameters: _ParameterSerializer
     consumed_input_tables: tuple[str, ...]
     produced_output_tables: tuple[str, ...]
+    stage_factory: _StageFactory | None = None
+    provenance_stage: str | None = None
     backend: str | None = None
     include_in_builder_provenance: bool = True
     include_when: Callable[[PreprocessingPlan], bool] = field(default=_always_include)
     diagnostics_metadata: Mapping[str, object] = field(default_factory=dict)
+
+    @property
+    def provenance_stage_key(self) -> str:
+        if self.provenance_stage is None:
+            return self.stage_key
+        normalized = self.provenance_stage.strip()
+        if not normalized:
+            return self.stage_key
+        return normalized
+
+
+_SITE_SEQUENCE_DIAGNOSTICS_FIELDS = (
+    "configured",
+    "mode",
+    "flank_size",
+    "fasta_source_path",
+    "fasta_source_label",
+    "fasta_sha256",
+    "resolver_version",
+    "resolved_site_count",
+    "unresolved_site_count",
+    "unresolved_counts_by_reason",
+    "filled_missing_count",
+    "replaced_existing_count",
+    "preserved_existing_count",
+    "existing_sequence_conflict_count",
+    "conflict_policy",
+    "accession_column",
+    "site_column",
+    "row_status",
+    "row_diagnostics",
+)
+_SITE_SEQUENCE_ROW_DIAGNOSTIC_FIELDS = (
+    "row_index",
+    "row_id",
+    "site_id",
+    "status",
+    "existing_site_sequence",
+    "fasta_site_sequence",
+    "resolved_site_sequence",
+    "action",
+    "reason",
+    "conflict_policy",
+    "resolver_version",
+    "fasta_source_path",
+    "fasta_sha256",
+)
+_INTENSITY_TRANSFORM_DIAGNOSTICS_FIELDS = (
+    "policy",
+    "pseudocount",
+    "affected_matrices",
+    "input_phospho_hash",
+    "output_phospho_hash",
+    "input_total_hash",
+    "output_total_hash",
+)
+_NORMALISATION_DIAGNOSTICS_FIELDS = (
+    "policy",
+    "affected_columns",
+    "input_phospho_hash",
+    "output_phospho_hash",
+    "note",
+)
+_COMPARISONS_DIAGNOSTICS_FIELDS = (
+    "policy",
+    "sample_group_column",
+    "resolved_comparison_pairs",
+    "group_labels",
+    "output_comparison_hash",
+)
+_SITE_MATRIX_DIAGNOSTICS_FIELDS = (
+    "dropped_missing_sequence_row_ids",
+    "dropped_incomplete_row_ids",
+    "dropped_row_ids",
+    "duplicate_site_policy",
+    "missing_data_policy",
+    "required_observed_count",
+    "final_constructed_site_ids",
+    "duplicate_site_decisions",
+)
 
 
 def _resolve_total_protein_parameters(plan: PreprocessingPlan) -> dict[str, object]:
@@ -155,9 +257,14 @@ PREPROCESSING_STAGE_REGISTRY: tuple[PreprocessingStageMetadata, ...] = (
         serialize_parameters=_resolve_site_sequence_parameters,
         consumed_input_tables=("dataset.site_metadata",),
         produced_output_tables=("dataset.site_metadata",),
+        stage_factory=SiteSequenceResolutionStage,
         backend="phospy.sequences",
         include_when=_include_when_site_sequence_enabled,
-        diagnostics_metadata={"diagnostics_version": 1},
+        diagnostics_metadata={
+            "diagnostics_schema_version": 1,
+            "known_diagnostics_fields": _SITE_SEQUENCE_DIAGNOSTICS_FIELDS,
+            "known_row_diagnostic_fields": _SITE_SEQUENCE_ROW_DIAGNOSTIC_FIELDS,
+        },
     ),
     PreprocessingStageMetadata(
         stage_key=DATASET_PREPROCESSING_STAGE_MISSING_DATA,
@@ -171,8 +278,14 @@ PREPROCESSING_STAGE_REGISTRY: tuple[PreprocessingStageMetadata, ...] = (
             "dataset.site_metadata",
             "report.row_audit",
         ),
+        stage_factory=MissingDataStage,
         backend="pandas",
-        diagnostics_metadata={"diagnostics_version": 1},
+        diagnostics_metadata={
+            "diagnostics_schema_version": MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
+            "known_diagnostics_fields": tuple(
+                sorted(V1_KNOWN_MISSING_DATA_DIAGNOSTICS_FIELDS)
+            ),
+        },
     ),
     PreprocessingStageMetadata(
         stage_key=DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
@@ -182,7 +295,11 @@ PREPROCESSING_STAGE_REGISTRY: tuple[PreprocessingStageMetadata, ...] = (
         serialize_parameters=_resolve_intensity_transform_parameters,
         consumed_input_tables=("dataset.phospho", "dataset.total"),
         produced_output_tables=("dataset.phospho", "dataset.total"),
+        stage_factory=IntensityTransformStage,
         backend="numpy",
+        diagnostics_metadata={
+            "known_diagnostics_fields": _INTENSITY_TRANSFORM_DIAGNOSTICS_FIELDS
+        },
     ),
     PreprocessingStageMetadata(
         stage_key=DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
@@ -196,8 +313,16 @@ PREPROCESSING_STAGE_REGISTRY: tuple[PreprocessingStageMetadata, ...] = (
             "dataset.site_metadata",
         ),
         produced_output_tables=("dataset.phospho",),
+        stage_factory=TotalProteinCorrectionStage,
         backend="pandas",
-        diagnostics_metadata={"diagnostics_version": 1},
+        diagnostics_metadata={
+            "diagnostics_schema_version": (
+                TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1
+            ),
+            "known_diagnostics_fields": tuple(
+                sorted(V1_KNOWN_TOTAL_PROTEIN_DIAGNOSTICS_FIELDS)
+            ),
+        },
     ),
     PreprocessingStageMetadata(
         stage_key=DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
@@ -213,7 +338,11 @@ PREPROCESSING_STAGE_REGISTRY: tuple[PreprocessingStageMetadata, ...] = (
             "report.metadata_conflicts",
             "report.row_audit",
         ),
+        stage_factory=SiteMatrixStage,
         backend="pandas",
+        diagnostics_metadata={
+            "known_diagnostics_fields": _SITE_MATRIX_DIAGNOSTICS_FIELDS
+        },
     ),
     PreprocessingStageMetadata(
         stage_key=DATASET_PREPROCESSING_STAGE_NORMALISATION,
@@ -223,7 +352,11 @@ PREPROCESSING_STAGE_REGISTRY: tuple[PreprocessingStageMetadata, ...] = (
         serialize_parameters=_resolve_normalisation_parameters,
         consumed_input_tables=("dataset.phospho",),
         produced_output_tables=("dataset.phospho",),
+        stage_factory=NormalisationStage,
         backend="numpy",
+        diagnostics_metadata={
+            "known_diagnostics_fields": _NORMALISATION_DIAGNOSTICS_FIELDS
+        },
     ),
     PreprocessingStageMetadata(
         stage_key=DATASET_PREPROCESSING_STAGE_COMPARISONS,
@@ -237,13 +370,55 @@ PREPROCESSING_STAGE_REGISTRY: tuple[PreprocessingStageMetadata, ...] = (
             "report.comparison_group_stats",
             "report.comparison_pair_stats",
         ),
+        stage_factory=ComparisonsStage,
         backend="pandas",
+        diagnostics_metadata={
+            "known_diagnostics_fields": _COMPARISONS_DIAGNOSTICS_FIELDS
+        },
     ),
 )
 
-_STAGE_METADATA_BY_KEY = {
-    metadata.stage_key: metadata for metadata in PREPROCESSING_STAGE_REGISTRY
-}
+
+def _build_stage_metadata_by_key(
+    registry: Sequence[PreprocessingStageMetadata],
+    *,
+    context: str,
+) -> dict[str, PreprocessingStageMetadata]:
+    by_key: dict[str, PreprocessingStageMetadata] = {}
+    for metadata in registry:
+        stage_key = metadata.stage_key.strip()
+        if not stage_key:
+            raise DatasetBuildError(
+                f"{context} includes a stage with an empty stage key"
+            )
+        if not metadata.display_label.strip():
+            raise DatasetBuildError(
+                f"{context} contains stage {stage_key!r} with empty display label"
+            )
+        if not callable(metadata.operation_name):
+            raise DatasetBuildError(
+                f"{context} contains stage {stage_key!r} without operation resolver"
+            )
+        if not callable(metadata.serialize_parameters):
+            raise DatasetBuildError(
+                f"{context} contains stage {stage_key!r} without parameter serializer"
+            )
+        if not isinstance(metadata.diagnostics_metadata, Mapping):
+            raise DatasetBuildError(
+                f"{context} contains stage {stage_key!r} with invalid diagnostics metadata"
+            )
+        if stage_key in by_key:
+            raise DatasetBuildError(
+                f"{context} contains duplicate stage key {stage_key!r}"
+            )
+        by_key[stage_key] = metadata
+    return by_key
+
+
+_STAGE_METADATA_BY_KEY = _build_stage_metadata_by_key(
+    PREPROCESSING_STAGE_REGISTRY,
+    context="dataset preprocessing stage registry",
+)
 
 
 def get_preprocessing_stage_metadata(stage_key: str) -> PreprocessingStageMetadata:
@@ -277,6 +452,27 @@ def list_registered_preprocessing_stages() -> tuple[PreprocessingStageMetadata, 
     return PREPROCESSING_STAGE_REGISTRY
 
 
+def resolve_registered_preprocessing_stages(
+    overrides: tuple[PreprocessingStageMetadata, ...] | None = None,
+) -> tuple[PreprocessingStageMetadata, ...]:
+    """Return ordered registry entries with optional metadata overrides applied."""
+
+    if overrides is None:
+        return PREPROCESSING_STAGE_REGISTRY
+
+    override_by_key = _build_stage_metadata_by_key(
+        overrides,
+        context="dataset preprocessing stage metadata overrides",
+    )
+    resolved: list[PreprocessingStageMetadata] = []
+    for metadata in PREPROCESSING_STAGE_REGISTRY:
+        replacement = override_by_key.pop(metadata.stage_key, None)
+        resolved.append(metadata if replacement is None else replacement)
+    for metadata in override_by_key.values():
+        resolved.append(metadata)
+    return tuple(resolved)
+
+
 def merge_preprocessing_stage_metadata(
     overrides: tuple[PreprocessingStageMetadata, ...] | None,
 ) -> dict[str, PreprocessingStageMetadata]:
@@ -285,15 +481,34 @@ def merge_preprocessing_stage_metadata(
     merged = dict(_STAGE_METADATA_BY_KEY)
     if overrides is None:
         return merged
-    for metadata in overrides:
-        merged[metadata.stage_key] = metadata
+    override_by_key = _build_stage_metadata_by_key(
+        overrides,
+        context="dataset preprocessing stage metadata overrides",
+    )
+    merged.update(override_by_key)
     return merged
+
+
+def build_registered_preprocessing_stage_instances(
+    metadata_registry: Sequence[PreprocessingStageMetadata],
+) -> tuple[PreprocessingStage, ...]:
+    """Construct stage instances from registry-owned stage factories."""
+
+    instances: list[PreprocessingStage] = []
+    for metadata in metadata_registry:
+        factory = metadata.stage_factory
+        if factory is None:
+            continue
+        instances.append(factory())
+    return tuple(instances)
 
 
 __all__ = [
     "PreprocessingStageMetadata",
     "get_preprocessing_stage_metadata",
+    "build_registered_preprocessing_stage_instances",
     "list_registered_preprocessing_stages",
     "merge_preprocessing_stage_metadata",
+    "resolve_registered_preprocessing_stages",
     "resolve_builder_provenance_stage_order",
 ]

@@ -20,20 +20,8 @@ from phospy.datasets.preprocessing.report_rows import (
 )
 from phospy.datasets.preprocessing.stage_registry import (
     PreprocessingStageMetadata,
-    merge_preprocessing_stage_metadata,
-)
-from phospy.datasets.preprocessing.stages.comparisons import ComparisonsStage
-from phospy.datasets.preprocessing.stages.intensity_transform import (
-    IntensityTransformStage,
-)
-from phospy.datasets.preprocessing.stages.missing_data import MissingDataStage
-from phospy.datasets.preprocessing.stages.normalisation import NormalisationStage
-from phospy.datasets.preprocessing.stages.site_matrix import SiteMatrixStage
-from phospy.datasets.preprocessing.stages.site_sequence_resolution import (
-    SiteSequenceResolutionStage,
-)
-from phospy.datasets.preprocessing.stages.total_protein_correction import (
-    TotalProteinCorrectionStage,
+    build_registered_preprocessing_stage_instances,
+    resolve_registered_preprocessing_stages,
 )
 from phospy.errors.build import DatasetBuildError
 from phospy.provenance.hashing import fingerprint_optional_table, hash_table
@@ -72,23 +60,20 @@ class PreprocessingPipeline:
         stage_registry: tuple[PreprocessingStage, ...] | None = None,
         stage_metadata_registry: tuple[PreprocessingStageMetadata, ...] | None = None,
     ) -> None:
-        stages = stage_registry or (
-            SiteSequenceResolutionStage(),
-            MissingDataStage(),
-            IntensityTransformStage(),
-            TotalProteinCorrectionStage(),
-            SiteMatrixStage(),
-            NormalisationStage(),
-            ComparisonsStage(),
+        resolved_metadata_registry = resolve_registered_preprocessing_stages(
+            stage_metadata_registry
+        )
+        stages = stage_registry or build_registered_preprocessing_stage_instances(
+            resolved_metadata_registry
         )
         self._stages_by_key = {stage.stage_key: stage for stage in stages}
         if len(self._stages_by_key) != len(stages):
             raise DatasetBuildError(
                 "dataset preprocessing stage registry contains duplicate stage keys"
             )
-        self._stage_metadata_by_key = merge_preprocessing_stage_metadata(
-            stage_metadata_registry
-        )
+        self._stage_metadata_by_key = {
+            metadata.stage_key: metadata for metadata in resolved_metadata_registry
+        }
 
     def run(self, state: PreprocessingState) -> PreprocessingState:
         final_state, _ = self.run_with_trace(state)
@@ -147,7 +132,7 @@ class PreprocessingPipeline:
             )
             trace.append(
                 PreprocessingStageExecution(
-                    stage=stage_metadata.provenance_stage,
+                    stage=stage_metadata.provenance_stage_key,
                     operation=stage_metadata.operation_name(previous.plan),
                     parameters=stage_metadata.serialize_parameters(previous.plan),
                     input_shape=(

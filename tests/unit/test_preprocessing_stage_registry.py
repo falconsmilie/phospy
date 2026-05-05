@@ -25,8 +25,11 @@ from phospy.datasets.preprocessing.models import (
 )
 from phospy.datasets.preprocessing.pipeline import PreprocessingPipeline
 from phospy.datasets.preprocessing.stage_registry import (
+    PreprocessingStageMetadata,
     get_preprocessing_stage_metadata,
     list_registered_preprocessing_stages,
+    resolve_builder_provenance_stage_order,
+    resolve_registered_preprocessing_stages,
 )
 from phospy.errors.build import DatasetBuildError
 
@@ -87,6 +90,67 @@ def test_every_preprocessing_stage_has_registry_metadata() -> None:
     assert observed == expected
 
 
+def test_registered_stage_keys_are_unique() -> None:
+    registered = list_registered_preprocessing_stages()
+    stage_keys = [metadata.stage_key for metadata in registered]
+    assert len(stage_keys) == len(set(stage_keys))
+
+
+def test_registered_stage_order_is_stable() -> None:
+    observed = tuple(
+        metadata.stage_key for metadata in list_registered_preprocessing_stages()
+    )
+    assert observed == (
+        DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
+        DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+        DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
+        DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
+        DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
+        DATASET_PREPROCESSING_STAGE_NORMALISATION,
+        DATASET_PREPROCESSING_STAGE_COMPARISONS,
+    )
+
+
+def test_every_registered_stage_has_required_metadata_contract_fields() -> None:
+    plan = _plan_with_multiple_stages()
+    for metadata in list_registered_preprocessing_stages():
+        assert metadata.stage_key
+        assert metadata.display_label
+        assert metadata.provenance_stage_key
+        assert callable(metadata.operation_name)
+        assert callable(metadata.serialize_parameters)
+        assert isinstance(metadata.serialize_parameters(plan), dict)
+        assert isinstance(metadata.diagnostics_metadata, dict)
+        assert metadata.diagnostics_metadata
+
+
+def test_duplicate_override_stage_keys_fail_registry_resolution() -> None:
+    duplicate_key = DATASET_PREPROCESSING_STAGE_MISSING_DATA
+    duplicate_entries = (
+        PreprocessingStageMetadata(
+            stage_key=duplicate_key,
+            display_label="missing_data_override_a",
+            operation_name=lambda _plan: "forbid",
+            serialize_parameters=lambda _plan: {},
+            consumed_input_tables=("dataset.phospho",),
+            produced_output_tables=("dataset.phospho",),
+            diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
+        ),
+        PreprocessingStageMetadata(
+            stage_key=duplicate_key,
+            display_label="missing_data_override_b",
+            operation_name=lambda _plan: "forbid",
+            serialize_parameters=lambda _plan: {},
+            consumed_input_tables=("dataset.phospho",),
+            produced_output_tables=("dataset.phospho",),
+            diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
+        ),
+    )
+
+    with pytest.raises(DatasetBuildError, match="duplicate stage key"):
+        resolve_registered_preprocessing_stages(duplicate_entries)
+
+
 def test_pipeline_trace_parameters_and_operation_come_from_registry() -> None:
     phospho = _phospho()
     plan = _plan_with_multiple_stages()
@@ -125,6 +189,30 @@ def test_pipeline_and_builder_use_same_stage_labels_and_operations() -> None:
         matching = operations.loc[operations.loc[:, "stage"] == metadata.display_label]
         assert matching.shape[0] == 1
         assert str(matching.iloc[0]["operation"]) == entry.operation
+
+
+def test_provenance_operations_are_resolved_from_registry_metadata() -> None:
+    phospho = _phospho()
+    plan = _plan_with_multiple_stages()
+    preprocessed = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=_site_metadata(phospho.index),
+        sample_metadata=_sample_metadata(phospho.columns),
+        total=None,
+        plan=plan,
+    )
+    operations = preprocessed.preprocessing_operations
+    assert operations is not None
+
+    expected_metadata = {
+        metadata.display_label: metadata
+        for metadata in resolve_builder_provenance_stage_order(plan)
+    }
+    for record in operations.to_dict(orient="records"):
+        label = str(record["stage"])
+        metadata = expected_metadata.get(label)
+        assert metadata is not None
+        assert str(record["operation"]) == metadata.operation_name(plan)
 
 
 def test_unknown_stage_metadata_fails_with_clear_error() -> None:
