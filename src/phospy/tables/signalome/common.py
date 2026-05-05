@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -10,13 +9,11 @@ from phospy.tables.base import ValidationErrorType
 
 
 def _column_series(frame: pd.DataFrame, column_name: str) -> pd.Series:
-    return cast(pd.Series, frame.loc[:, column_name])
+    return frame.loc[:, column_name]
 
 
 def _numeric_series(frame: pd.DataFrame, column_name: str) -> pd.Series:
-    return cast(
-        pd.Series, pd.to_numeric(_column_series(frame, column_name), errors="coerce")
-    )
+    return pd.to_numeric(_column_series(frame, column_name), errors="coerce")
 
 
 def _require_string_column(
@@ -138,10 +135,7 @@ def _require_integer_compatible_index(
     field_name: str,
     error_type: ValidationErrorType,
 ) -> None:
-    numeric = cast(
-        pd.Series,
-        pd.to_numeric(index.to_series(index=index), errors="coerce"),
-    )
+    numeric = pd.to_numeric(index.to_series(index=index), errors="coerce")
     if numeric.isna().any():
         raise error_type(f"{field_name} must contain integer-compatible labels")
     values = numeric.to_numpy(dtype="float64", copy=False)
@@ -157,10 +151,7 @@ def _require_non_negative_integer_index(
     field_name: str,
     error_type: ValidationErrorType,
 ) -> None:
-    numeric = cast(
-        pd.Series,
-        pd.to_numeric(index.to_series(index=index), errors="coerce"),
-    )
+    numeric = pd.to_numeric(index.to_series(index=index), errors="coerce")
     values = numeric.to_numpy(dtype="float64", copy=False)
     if (values < 0.0).any():
         raise error_type(f"{field_name} must contain non-negative integer labels")

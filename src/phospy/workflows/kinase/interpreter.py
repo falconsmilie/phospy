@@ -262,7 +262,7 @@ class KinaseWorkflowInterpreter:
                 f"got {type(per_kinase_quantified).__name__}"
             )
         eligible_mask = per_kinase_quantified >= request.scoring_config.min_substrates
-        eligible_kinases = cast(pd.Series, per_kinase_quantified[eligible_mask])
+        eligible_kinases = per_kinase_quantified[eligible_mask]
         if not eligible_kinases.empty:
             return
         self._raise_boundary_error(

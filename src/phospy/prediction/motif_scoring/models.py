@@ -154,11 +154,8 @@ class ExplicitMotifSequence:
 def _normalize_sequence_value(value: object) -> object:
     if value is None:
         return np.nan
-    try:
-        if bool(pd.isna(value)):
-            return np.nan
-    except (TypeError, ValueError):
-        pass
+    if bool(pd.Series((value,), dtype="object").isna().iat[0]):
+        return np.nan
     if not isinstance(value, str):
         return value
     sequence = value.strip().upper()
@@ -170,10 +167,7 @@ def _normalize_sequence_value(value: object) -> object:
 def _is_missing_scalar(value: object) -> bool:
     if value is None:
         return True
-    try:
-        return bool(pd.isna(value))
-    except (TypeError, ValueError):
-        return False
+    return bool(pd.Series((value,), dtype="object").isna().iat[0])
 
 
 def _extract_sequence_window(value: object, flank_size: int | None) -> object:

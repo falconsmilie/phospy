@@ -154,12 +154,12 @@ def _apply_log2(
         first_row, first_col = invalid_positions[0]
         row_label = str(matrix.index[first_row])
         column_label = str(matrix.columns[first_col])
-        offending_value = float(matrix.iat[int(first_row), int(first_col)])
+        offending_value = matrix.iat[int(first_row), int(first_col)]
         raise PhosPyInputError(
             "dataset build request preprocessing intensity_transform.policy='log2' "
             "requires all non-missing values plus pseudocount to be greater than 0. "
             f"First invalid value at {field_name}[{row_label!r}, {column_label!r}]="
-            f"{offending_value} with pseudocount={pseudocount}. Increase pseudocount "
+            f"{offending_value!r} with pseudocount={pseudocount}. Increase pseudocount "
             "or adjust/remove non-positive values before applying log2."
         )
     transformed = np.log2(adjusted)

@@ -67,7 +67,7 @@ class ActivityThresholdMembershipDiagnostics:
         operator = str(payload.get("operator", "")).strip()
         rule = str(payload.get("rule", "")).strip()
         description = str(payload.get("description", "")).strip()
-        threshold_value = float(payload.get("threshold_value", float("nan")))
+        threshold_value = _resolve_threshold_value(payload)
         if not threshold_parameter:
             raise ValueError("threshold_parameter must be a non-empty string")
         if not operator:
@@ -162,7 +162,11 @@ def threshold_membership_mask_frame(
         threshold=threshold,
         threshold_mode=threshold_mode,
     )
-    return pd.DataFrame(mask, index=scores.index.copy(), columns=scores.columns.copy())
+    return pd.DataFrame(
+        mask,
+        index=pd.Index(scores.index),
+        columns=pd.Index(scores.columns),
+    )
 
 
 def threshold_membership_filtered_frame(
@@ -173,13 +177,32 @@ def threshold_membership_filtered_frame(
 ) -> pd.DataFrame:
     """Return score values for members and NaN for non-members."""
 
-    return scores.where(
-        threshold_membership_mask_frame(
-            scores,
-            threshold=threshold,
-            threshold_mode=threshold_mode,
-        )
+    score_values = scores.to_numpy(dtype=float, copy=False)
+    mask_values = threshold_membership_mask_array(
+        score_values,
+        threshold=threshold,
+        threshold_mode=threshold_mode,
     )
+    filtered_values = np.where(mask_values, score_values, np.nan)
+    return pd.DataFrame(
+        filtered_values,
+        index=pd.Index(scores.index),
+        columns=pd.Index(scores.columns),
+    )
+
+
+def _resolve_threshold_value(payload: Mapping[str, object]) -> float:
+    raw_value = payload.get("threshold_value")
+    if raw_value is None:
+        return float("nan")
+    if isinstance(raw_value, (int, float)):
+        return float(raw_value)
+    if isinstance(raw_value, str):
+        try:
+            return float(raw_value)
+        except ValueError as exc:
+            raise ValueError("threshold_value must be numeric") from exc
+    raise ValueError("threshold_value must be numeric")
 
 
 def _threshold_comparison_mask(

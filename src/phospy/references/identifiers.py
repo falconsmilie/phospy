@@ -283,10 +283,7 @@ def _stringify_identifier(value: object) -> str:
 
 
 def _is_missing(value: object) -> bool:
-    try:
-        return bool(pd.isna(value))
-    except (TypeError, ValueError):
-        return False
+    return bool(pd.Series((value,), dtype="object").isna().iat[0])
 
 
 __all__ = [

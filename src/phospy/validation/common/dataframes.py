@@ -508,10 +508,7 @@ def _require_stripped_site_identifiers(
 
 
 def _is_missing_site_identifier(value: object) -> bool:
-    try:
-        return bool(pd.isna(value))
-    except (TypeError, ValueError):
-        return False
+    return bool(pd.Series((value,), dtype="object").isna().iat[0])
 
 
 def _invalid_location_preview(mask: pd.DataFrame, *, max_items: int = 3) -> str:

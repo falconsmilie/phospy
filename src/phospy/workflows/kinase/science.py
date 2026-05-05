@@ -240,7 +240,7 @@ def build_prediction_outputs(
         score_column_position = prediction_score_matrix.columns.get_loc(kinase)
 
         if use_vectorized_site_indexer:
-            site_positions = score_index.get_indexer(candidate_sites)
+            site_positions = score_index.get_indexer(pd.Index(candidate_sites))
             available_positions = site_positions[site_positions >= 0]
             if available_positions.size == 0:
                 continue

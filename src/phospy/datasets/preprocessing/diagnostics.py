@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Final, NoReturn
+from typing import Final, NoReturn, cast
 
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
@@ -161,8 +161,9 @@ class ProcessingTraceDiagnostics:
                 value=value,
                 expected="object mapping string keys to int values",
             )
+        value_mapping = cast(Mapping[object, object], value)
         resolved: dict[str, int] = {}
-        for raw_key, raw_value in value.items():
+        for raw_key, raw_value in value_mapping.items():
             if not isinstance(raw_key, str):
                 _raise_diagnostics_error(
                     stage=stage,
@@ -211,8 +212,9 @@ class ProcessingTraceDiagnostics:
                 expected="array of row-diagnostic objects",
             )
             return ()
+        raw_rows = cast(list[object], raw_value)
         resolved: list[SiteSequenceResolutionRowDiagnostic] = []
-        for row_position, raw_row in enumerate(raw_value):
+        for row_position, raw_row in enumerate(raw_rows):
             if not isinstance(raw_row, Mapping):
                 _raise_diagnostics_error(
                     stage=stage,
@@ -220,9 +222,20 @@ class ProcessingTraceDiagnostics:
                     value=raw_row,
                     expected="object",
                 )
+            raw_row_mapping = cast(Mapping[object, object], raw_row)
+            typed_row: dict[str, object] = {}
+            for row_key, row_value in raw_row_mapping.items():
+                if not isinstance(row_key, str):
+                    _raise_diagnostics_error(
+                        stage=stage,
+                        field=f"row_diagnostics[{row_position}].<key>",
+                        value=row_key,
+                        expected="string",
+                    )
+                typed_row[row_key] = row_value
             unsupported_row_fields = sorted(
                 key
-                for key in raw_row
+                for key in typed_row
                 if key not in _SITE_SEQUENCE_ROW_DIAGNOSTIC_ALLOWED_FIELDS
             )
             if unsupported_row_fields:
@@ -231,7 +244,7 @@ class ProcessingTraceDiagnostics:
                     f"stage {stage!r}, row_diagnostics[{row_position}]: "
                     f"{', '.join(unsupported_row_fields)}"
                 )
-            row_index_raw = raw_row.get("row_index", _MISSING)
+            row_index_raw = typed_row.get("row_index", _MISSING)
             if row_index_raw is _MISSING:
                 _raise_diagnostics_error(
                     stage=stage,
@@ -251,7 +264,7 @@ class ProcessingTraceDiagnostics:
                     value=row_index,
                     expected="int >= 0",
                 )
-            row_id_raw = raw_row.get("row_id", _MISSING)
+            row_id_raw = typed_row.get("row_id", _MISSING)
             if row_id_raw is _MISSING:
                 _raise_diagnostics_error(
                     stage=stage,
@@ -271,14 +284,14 @@ class ProcessingTraceDiagnostics:
                     row_index=row_index,
                     row_id=row_id_raw,
                     site_id=ProcessingTraceDiagnostics.resolve_optional_string(
-                        raw_row,
+                        typed_row,
                         stage=stage,
                         key="site_id",
                         default=None,
                     ),
                     status=(
                         ProcessingTraceDiagnostics.resolve_optional_string(
-                            raw_row,
+                            typed_row,
                             stage=stage,
                             key="status",
                             default="unknown",
@@ -287,7 +300,7 @@ class ProcessingTraceDiagnostics:
                     ),
                     existing_site_sequence=(
                         ProcessingTraceDiagnostics.resolve_optional_string(
-                            raw_row,
+                            typed_row,
                             stage=stage,
                             key="existing_site_sequence",
                             default=None,
@@ -295,7 +308,7 @@ class ProcessingTraceDiagnostics:
                     ),
                     fasta_site_sequence=(
                         ProcessingTraceDiagnostics.resolve_optional_string(
-                            raw_row,
+                            typed_row,
                             stage=stage,
                             key="fasta_site_sequence",
                             default=None,
@@ -303,7 +316,7 @@ class ProcessingTraceDiagnostics:
                     ),
                     resolved_site_sequence=(
                         ProcessingTraceDiagnostics.resolve_optional_string(
-                            raw_row,
+                            typed_row,
                             stage=stage,
                             key="resolved_site_sequence",
                             default=None,
@@ -311,7 +324,7 @@ class ProcessingTraceDiagnostics:
                     ),
                     action=(
                         ProcessingTraceDiagnostics.resolve_optional_string(
-                            raw_row,
+                            typed_row,
                             stage=stage,
                             key="action",
                             default="unknown",
@@ -319,31 +332,31 @@ class ProcessingTraceDiagnostics:
                         or "unknown"
                     ),
                     reason=ProcessingTraceDiagnostics.resolve_optional_string(
-                        raw_row,
+                        typed_row,
                         stage=stage,
                         key="reason",
                         default=None,
                     ),
                     conflict_policy=ProcessingTraceDiagnostics.resolve_optional_string(
-                        raw_row,
+                        typed_row,
                         stage=stage,
                         key="conflict_policy",
                         default=None,
                     ),
                     resolver_version=ProcessingTraceDiagnostics.resolve_optional_string(
-                        raw_row,
+                        typed_row,
                         stage=stage,
                         key="resolver_version",
                         default=None,
                     ),
                     fasta_source_path=ProcessingTraceDiagnostics.resolve_optional_string(
-                        raw_row,
+                        typed_row,
                         stage=stage,
                         key="fasta_source_path",
                         default=None,
                     ),
                     fasta_sha256=ProcessingTraceDiagnostics.resolve_optional_string(
-                        raw_row,
+                        typed_row,
                         stage=stage,
                         key="fasta_sha256",
                         default=None,
@@ -362,14 +375,7 @@ def _resolve_stage_diagnostics(
         return None
     for item in preprocessing_trace:
         if item.stage == stage:
-            diagnostics = item.diagnostics
-            if not isinstance(diagnostics, Mapping):
-                _raise_diagnostics_error(
-                    stage=stage,
-                    field="diagnostics",
-                    value=diagnostics,
-                    expected="object",
-                )
+            diagnostics = cast(Mapping[object, object], item.diagnostics)
             resolved: dict[str, object] = {}
             for raw_key, raw_value in diagnostics.items():
                 if not isinstance(raw_key, str):
@@ -390,14 +396,18 @@ def _resolve_known_diagnostics_fields(
     field_name: str,
 ) -> frozenset[str]:
     metadata = get_preprocessing_stage_metadata(stage)
-    raw_value = metadata.diagnostics_metadata.get(field_name, ())
+    raw_value: object = metadata.diagnostics_metadata.get(field_name, ())
     if not isinstance(raw_value, (list, tuple, frozenset, set)):
         raise DatasetBuildError(
             "dataset preprocessing stage diagnostics metadata is invalid for "
             f"stage {stage!r}: {field_name!r} must be a string sequence"
         )
+    raw_items = cast(
+        list[object] | tuple[object, ...] | frozenset[object] | set[object],
+        raw_value,
+    )
     resolved: list[str] = []
-    for raw_item in raw_value:
+    for raw_item in raw_items:
         if not isinstance(raw_item, str):
             raise DatasetBuildError(
                 "dataset preprocessing stage diagnostics metadata is invalid for "

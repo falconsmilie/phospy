@@ -125,8 +125,9 @@ class SignalomeScorePreconditioner:
                 downstream_score_matrix=score_matrix,
                 diagnostics=diagnostics,
             )
+        retained_index = score_matrix.index[supported_row_mask]
         return SignalomeScorePreconditioningResult(
-            downstream_score_matrix=score_matrix.iloc[supported_row_mask, :],
+            downstream_score_matrix=score_matrix.reindex(index=retained_index),
             diagnostics=diagnostics,
         )
 

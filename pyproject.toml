@@ -136,6 +136,11 @@ include = [
   "src/phospy/workflows",
 ]
 strict = [
+  "src/phospy/datasets/preprocessing/diagnostics.py",
+  "src/phospy/datasets/preprocessing/stages/missing_data/models.py",
+  "src/phospy/activities/methods/__init__.py",
+  "src/phospy/activities/threshold_membership.py",
+  "src/phospy/signalomes/clustering/selection.py",
   "src/phospy/tables/__init__.py",
   "src/phospy/validation/common/__init__.py",
   "src/phospy/validation/common/numbers.py",

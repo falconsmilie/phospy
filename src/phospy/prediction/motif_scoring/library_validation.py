@@ -290,11 +290,8 @@ def _coerce_identifier(value: object, *, fallback: str) -> str:
 def _coerce_optional_identifier(value: object) -> str | None:
     if value is None:
         return None
-    try:
-        if bool(pd.isna(value)):
-            return None
-    except (TypeError, ValueError):
-        pass
+    if bool(pd.Series((value,), dtype="object").isna().iat[0]):
+        return None
     text = str(value).strip()
     if text == "":
         return None

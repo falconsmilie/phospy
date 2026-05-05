@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import NoReturn
 
@@ -454,7 +455,7 @@ def _classify_duplicate_and_conflicting_pair_records(
 
 def _group_has_conflicting_payload_rows(
     grouped: pd.DataFrame,
-    payload_columns: list[object],
+    payload_columns: Sequence[str],
 ) -> bool:
     payload_rows = grouped.loc[:, payload_columns]
     anchor = payload_rows.iloc[0]

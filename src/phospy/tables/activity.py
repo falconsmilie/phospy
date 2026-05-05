@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import InitVar, dataclass, field
-from typing import ClassVar, cast
+from typing import ClassVar
 
 import numpy as np
 import pandas as pd
@@ -217,9 +217,9 @@ class ActivityTargetTable(TableSchema):
             column_name="score",
             error_type=self._error_type,
         )
-        score_values = cast(
-            pd.Series,
-            pd.to_numeric(_column_series(frame, "score"), errors="coerce"),
+        score_values = pd.to_numeric(
+            _column_series(frame, "score"),
+            errors="coerce",
         ).to_numpy(
             dtype="float64",
             copy=False,
@@ -416,7 +416,7 @@ class ActivityCountSeries(SeriesSchema):
             field_name=f"{self.field_name}.index",
             error_type=self._error_type,
         )
-        coerced = cast(pd.Series, pd.to_numeric(series, errors="coerce"))
+        coerced = pd.to_numeric(series, errors="coerce")
         if coerced.isna().any():
             raise self._error_type(
                 f"{self.field_name} must contain integer-compatible counts"
@@ -447,9 +447,7 @@ def _require_numeric_column(
     column_name: str,
     error_type: type[PhosPyValidationError],
 ) -> None:
-    values = cast(
-        pd.Series, pd.to_numeric(_column_series(frame, column_name), errors="coerce")
-    )
+    values = pd.to_numeric(_column_series(frame, column_name), errors="coerce")
     if values.isna().any():
         raise error_type(f"{field_name}.{column_name} must contain numeric values")
     if not np.isfinite(values.to_numpy(dtype="float64", copy=False)).all():
@@ -466,7 +464,7 @@ def _require_numeric_column_allowing_missing(
     error_type: type[PhosPyValidationError],
 ) -> np.ndarray:
     raw_values = _column_series(frame, column_name)
-    values = cast(pd.Series, pd.to_numeric(raw_values, errors="coerce"))
+    values = pd.to_numeric(raw_values, errors="coerce")
     coerced_missing = values.isna() & raw_values.notna()
     if coerced_missing.any():
         raise error_type(
@@ -489,9 +487,7 @@ def _require_integer_compatible_column(
     column_name: str,
     error_type: type[PhosPyValidationError],
 ) -> np.ndarray:
-    values = cast(
-        pd.Series, pd.to_numeric(_column_series(frame, column_name), errors="coerce")
-    )
+    values = pd.to_numeric(_column_series(frame, column_name), errors="coerce")
     if values.isna().any():
         raise error_type(f"{field_name}.{column_name} must be integer-compatible")
     array = values.to_numpy(dtype="float64", copy=False)
@@ -503,4 +499,4 @@ def _require_integer_compatible_column(
 
 
 def _column_series(frame: pd.DataFrame, column_name: str) -> pd.Series:
-    return cast(pd.Series, frame.loc[:, column_name])
+    return frame.loc[:, column_name]

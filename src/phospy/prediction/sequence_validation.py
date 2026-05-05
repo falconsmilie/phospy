@@ -398,11 +398,8 @@ class MotifSequenceValidator:
 def _coerce_sequence(value: object) -> str | None:
     if value is None:
         return None
-    try:
-        if bool(pd.isna(value)):
-            return None
-    except (TypeError, ValueError):
-        pass
+    if bool(pd.Series((value,), dtype="object").isna().iat[0]):
+        return None
     if not isinstance(value, str):
         return None
     sequence = value.strip().upper()
@@ -414,11 +411,8 @@ def _coerce_sequence(value: object) -> str | None:
 def _coerce_site_identity(value: object) -> str | None:
     if value is None:
         return None
-    try:
-        if bool(pd.isna(value)):
-            return None
-    except (TypeError, ValueError):
-        pass
+    if bool(pd.Series((value,), dtype="object").isna().iat[0]):
+        return None
     site_identity = str(value).strip()
     if site_identity == "":
         return None

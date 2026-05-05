@@ -619,10 +619,7 @@ def _resolve_total_correction_identity_policy(
     )
 
     def _is_missing_mapping_value(value: object) -> bool:
-        try:
-            return bool(pd.isna(value))
-        except TypeError:
-            return False
+        return bool(pd.Series((value,), dtype="object").isna().iat[0])
 
     mapping_rows = tuple(
         (

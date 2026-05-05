@@ -240,11 +240,8 @@ def _resolve_source_metadata_column(
 
 
 def _normalize_metadata_value(value: object) -> str:
-    try:
-        if bool(pd.isna(value)):
-            return "<NA>"
-    except TypeError:
-        pass
+    if bool(pd.Series((value,), dtype="object").isna().iat[0]):
+        return "<NA>"
     if isinstance(value, str):
         trimmed = value.strip()
         return trimmed if trimmed else "<EMPTY>"
@@ -256,10 +253,7 @@ def _is_missing_scalar(value: object) -> bool:
         return True
     if isinstance(value, (list, tuple, dict)):
         return False
-    try:
-        return bool(pd.isna(value))
-    except TypeError:
-        return False
+    return bool(pd.Series((value,), dtype="object").isna().iat[0])
 
 
 def _records_from_frame(frame: pd.DataFrame) -> list[dict[str, object]]:

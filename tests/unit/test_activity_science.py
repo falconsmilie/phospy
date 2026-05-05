@@ -19,6 +19,7 @@ from phospy.activities.threshold_membership import (
     THRESHOLD_MEMBERSHIP_DESCRIPTION,
     THRESHOLD_MEMBERSHIP_OPERATOR,
     THRESHOLD_MEMBERSHIP_RULE,
+    ActivityThresholdMembershipDiagnostics,
     threshold_membership_mask_array,
 )
 from phospy.errors.workflows import WorkflowBoundaryError
@@ -203,6 +204,36 @@ def test_activity_threshold_membership_boundary_below_equal_above_is_centralised
         threshold=0.5,
     )
     assert mask.tolist() == [False, True, True]
+
+
+def test_activity_threshold_membership_diagnostics_from_payload_parses_numeric_values() -> (
+    None
+):
+    diagnostics = ActivityThresholdMembershipDiagnostics.from_payload(
+        {
+            "threshold_parameter": "threshold",
+            "threshold_value": "0.5",
+            "operator": ">=",
+            "rule": "score >= threshold",
+            "description": "scores greater than or equal to the threshold are included",
+        }
+    )
+    assert diagnostics.threshold_value == pytest.approx(0.5)
+
+
+def test_activity_threshold_membership_diagnostics_from_payload_preserves_float_coercion() -> (
+    None
+):
+    diagnostics = ActivityThresholdMembershipDiagnostics.from_payload(
+        {
+            "threshold_parameter": "threshold",
+            "threshold_value": True,
+            "operator": ">=",
+            "rule": "score >= threshold",
+            "description": "scores greater than or equal to the threshold are included",
+        }
+    )
+    assert diagnostics.threshold_value == pytest.approx(1.0)
 
 
 def test_ksea_diagnostics_report_threshold_operator_and_description() -> None:

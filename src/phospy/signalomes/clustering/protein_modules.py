@@ -24,8 +24,8 @@ def derive_protein_modules(
         name=SITE_ID_COLUMN,
     )
     cluster_index = pd.Index(site_clusters.index.astype(str), name=SITE_ID_COLUMN)
-    missing_sites = [
-        site_id
+    missing_sites: list[str] = [
+        str(site_id)
         for site_id in cluster_index
         if site_id not in aligned_site_to_protein.index
     ]
