@@ -26,6 +26,12 @@ from phospy.api import (
     ReferenceBundle,
     ReferencePreset,
 )
+from phospy.api.configs import (
+    KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,
+    KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET,
+    KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE,
+)
+from phospy.errors import WorkflowBoundaryError
 from phospy.io.publishers.workflows import publish_kinase_workflow
 from tests.support.rewrite_fixture_data import (
     build_rat_l6_dataset,
@@ -188,6 +194,96 @@ def test_kinase_workflow_uses_dataset_site_sequences_without_mutating_references
         result.references.site_sequences,
         original_reference_sequences,
     )
+
+
+@pytest.mark.parametrize(
+    ("conflict_policy", "expect_error", "expected_selected_source"),
+    [
+        (KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE, False, "reference"),
+        (KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET, False, "dataset"),
+        (KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR, True, None),
+    ],
+)
+def test_kinase_workflow_site_sequence_conflict_policy_is_public_request_option(
+    conflict_policy: str,
+    expect_error: bool,
+    expected_selected_source: str | None,
+) -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0, 2.0], "sample_b": [1.5, 2.5]},
+        index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "GSK3B"],
+            "site": ["Y182", "S9"],
+            "site_sequence": [
+                "AAAAAAAYAAAAAAAAAAAAAAAAAAAAAAA",
+                "AAAAAAASAAAAAAAAAAAAAAAAAAAAAAA",
+            ],
+        },
+        index=phospho.index.copy(),
+    )
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+        )
+    )
+    references = ReferenceBundle(
+        organism=Organism.RAT,
+        kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["MAP2K6", "MAP2K6"],
+                "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
+            }
+        ),
+        site_sequences=pd.DataFrame(
+            {
+                "site_sequence": [
+                    "AAAAAAATTTTTTTTTTTTTTTTTTTTTTTT",
+                    "AAAAAAASAAAAAAAAAAAAAAAAAAAAAAA",
+                ]
+            },
+            index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
+        ),
+    )
+    request = KinaseWorkflowRequest(
+        dataset=dataset,
+        references=references,
+        scoring_config=KinaseScoringConfig(min_substrates=2),
+        prediction_config=KinasePredictionConfig(
+            top_k=2,
+            deterministic_max_selected_kinases=2,
+            adaptive_ensemble_runs=2,
+        ),
+        activity_config=None,
+        site_sequence_conflict_policy=conflict_policy,
+    )
+
+    if expect_error:
+        with pytest.raises(WorkflowBoundaryError) as exc_info:
+            KinaseWorkflow().run(request)
+        error = exc_info.value
+        assert error.seam == "kinase.interpreter.site_sequence_conflict"
+        assert isinstance(error.next_action, str)
+        assert "KinaseWorkflowRequest" in error.next_action
+        assert error.details["conflict_policy"] == conflict_policy
+        assert int(error.details["dataset_reference_conflict_count"]) == 1
+        return
+
+    result = KinaseWorkflow().run(request)
+    assert result.provenance is not None
+    scoring_diagnostics = result.provenance.workflow_parameters["scoring_diagnostics"]
+    assert isinstance(scoring_diagnostics, Mapping)
+    site_sequence_merge = scoring_diagnostics["site_sequence_merge"]
+    assert isinstance(site_sequence_merge, Mapping)
+    assert site_sequence_merge["conflict_policy"] == conflict_policy
+    conflict_rows = site_sequence_merge["conflict_diagnostics"]
+    assert isinstance(conflict_rows, list)
+    assert len(conflict_rows) == 1
+    assert conflict_rows[0]["selected_sequence_source"] == expected_selected_source
 
 
 def test_kinase_workflow_runs_dataset_to_kinase_path() -> None:

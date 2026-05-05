@@ -108,6 +108,11 @@ approximation behavior, and failure modes), see `docs/performance.md`.
 - Quantified phosphosite IDs must align with reference `substrate_site` and `site_sequences` indices.
 - Sample columns are used as provided by the dataset; scoring compares site profiles across these aligned samples.
 - Reference resolution can come from `ReferencePreset` or explicit `ReferenceBundle`.
+- Dataset `site_metadata.site_sequence` values can supplement missing reference sequences.
+- When a dataset sequence conflicts with a reference sequence for the same site, behavior is controlled by `KinaseWorkflowRequest.site_sequence_conflict_policy`:
+  - `"prefer_reference"` (default): keep the reference sequence
+  - `"prefer_dataset"`: override with the dataset sequence
+  - `"error"`: fail fast with conflict diagnostics and a clear next action
 
 ### Missing-Value Policy
 

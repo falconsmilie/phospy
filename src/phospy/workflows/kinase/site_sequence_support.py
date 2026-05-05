@@ -7,23 +7,15 @@ from typing import Literal
 
 import pandas as pd
 
+from phospy.api.configs.kinase import (
+    KINASE_SITE_SEQUENCE_CONFLICT_POLICIES,
+    KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,
+    KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET,
+    KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE,
+    KinaseSiteSequenceConflictPolicy,
+)
 from phospy.errors.workflows import WorkflowBoundaryError
 
-KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR = "error"
-KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE = "prefer_reference"
-KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET = "prefer_dataset"
-KinaseSiteSequenceConflictPolicy = Literal[
-    "error",
-    "prefer_reference",
-    "prefer_dataset",
-]
-KINASE_SITE_SEQUENCE_CONFLICT_POLICIES = frozenset(
-    {
-        KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,
-        KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE,
-        KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET,
-    }
-)
 _SITE_SEQUENCE_COLUMN = "site_sequence"
 _INTERPRETER_VERSION = "phospy.workflows.kinase.site_sequence_support_builder.v1"
 

@@ -21,8 +21,6 @@ from phospy.workflows.kinase.contracts import (
 )
 from phospy.workflows.kinase.site_sequence_support import (
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,
-    KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE,
-    KinaseSiteSequenceConflictPolicy,
     KinaseSiteSequenceSupportBuilder,
 )
 
@@ -48,9 +46,6 @@ class KinaseWorkflowInterpreter:
         *,
         reference_resolver: ReferenceResolverContract | None = None,
         site_sequence_support_builder: KinaseSiteSequenceSupportBuilder | None = None,
-        site_sequence_conflict_policy: KinaseSiteSequenceConflictPolicy = (
-            KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE
-        ),
     ) -> None:
         self._reference_resolver = reference_resolver or ReferenceResolver(
             provider=BundledReferenceProvider()
@@ -58,13 +53,11 @@ class KinaseWorkflowInterpreter:
         self._site_sequence_support_builder = (
             site_sequence_support_builder or KinaseSiteSequenceSupportBuilder()
         )
-        self._site_sequence_conflict_policy: KinaseSiteSequenceConflictPolicy = (
-            site_sequence_conflict_policy
-        )
 
     def run(self, request: KinaseWorkflowRequest) -> ResolvedKinaseWorkflowRequest:
         dataset_phospho = request.dataset._borrow_phospho_frame()
         dataset_site_metadata = request.dataset._borrow_site_metadata_frame()
+        site_sequence_conflict_policy = request.site_sequence_conflict_policy
         references = self._reference_resolver.run(
             request.references,
             dataset_organism=request.dataset.organism,
@@ -76,11 +69,11 @@ class KinaseWorkflowInterpreter:
             dataset=dataset_phospho,
             site_metadata=dataset_site_metadata,
             reference_site_sequences=references.site_sequences,
-            conflict_policy=self._site_sequence_conflict_policy,
+            conflict_policy=site_sequence_conflict_policy,
         )
         if (
             merge_result.dataset_reference_conflict_count > 0
-            and self._site_sequence_conflict_policy
+            and site_sequence_conflict_policy
             == KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR
         ):
             self._raise_boundary_error(
@@ -88,9 +81,9 @@ class KinaseWorkflowInterpreter:
                 next_action=(
                     "fix dataset site_sequence values for conflicting sites or use "
                     "site_sequence_conflict_policy='prefer_reference' or "
-                    "'prefer_dataset' when constructing KinaseWorkflowInterpreter"
+                    "'prefer_dataset' on KinaseWorkflowRequest"
                 ),
-                conflict_policy=self._site_sequence_conflict_policy,
+                conflict_policy=site_sequence_conflict_policy,
                 dataset_reference_conflict_count=int(
                     merge_result.dataset_reference_conflict_count
                 ),

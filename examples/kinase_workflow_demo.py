@@ -56,6 +56,7 @@ def run_demo() -> KinaseWorkflowResult:
             dataset=dataset,
             references=ReferencePreset.AUTO,
             activity_config=None,
+            site_sequence_conflict_policy="prefer_reference",
         )
     )
 

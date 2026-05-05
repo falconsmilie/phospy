@@ -6,10 +6,12 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from phospy.api.configs import (
+    KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE,
     DatasetPreprocessingConfig,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
+    KinaseSiteSequenceConflictPolicy,
     SignalomeConfig,
 )
 from phospy.datasets.builders.contracts import DatasetInput
@@ -42,7 +44,11 @@ class DatasetBuildRequest:
 
 @dataclass(frozen=True, slots=True)
 class KinaseWorkflowRequest:
-    """Request for the public kinase workflow."""
+    """Request for the public kinase workflow.
+
+    `site_sequence_conflict_policy` controls how dataset and reference
+    site-sequence disagreements are handled during interpretation.
+    """
 
     dataset: AnalysisReadyPhosphoDataset
     references: ReferencePreset | ReferenceBundle = ReferencePreset.AUTO
@@ -52,6 +58,9 @@ class KinaseWorkflowRequest:
     )
     activity_config: KinaseActivityConfig | None = field(
         default_factory=KinaseActivityConfig
+    )
+    site_sequence_conflict_policy: KinaseSiteSequenceConflictPolicy = (
+        KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE
     )
 
 

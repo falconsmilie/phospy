@@ -78,6 +78,7 @@ The builder may derive `gene_symbol` and `site` from index values formatted like
 | `scoring_config` | `KinaseScoringConfig` |
 | `prediction_config` | `KinasePredictionConfig` |
 | `activity_config` | `KinaseActivityConfig` or `None`; `None` disables activity output |
+| `site_sequence_conflict_policy` | `"prefer_reference"` (default), `"prefer_dataset"`, or `"error"` for dataset-vs-reference site-sequence conflicts |
 
 ### `SignalomeWorkflowRequest`
 

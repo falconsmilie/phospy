@@ -25,7 +25,6 @@ from phospy.workflows.kinase.scoring_runner import KinaseScoringRunner
 from phospy.workflows.kinase.site_sequence_support import (
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET,
-    KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE,
     KinaseSiteSequenceSupportBuilder,
 )
 from tests.support.intensity_scale_states import (
@@ -178,14 +177,13 @@ def test_interpreter_conflict_error_policy_fails_before_executor_runs() -> None:
             adaptive_ensemble_runs=2,
         ),
         activity_config=None,
+        site_sequence_conflict_policy=KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,
     )
     executor = _ExecutorSentinel()
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
         KinaseWorkflow(
-            interpreter=KinaseWorkflowInterpreter(
-                site_sequence_conflict_policy=KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR
-            ),
+            interpreter=KinaseWorkflowInterpreter(),
             executor=cast(KinaseWorkflowExecutorContract, executor),
         ).run(request)
 
@@ -196,10 +194,13 @@ def test_interpreter_conflict_error_policy_fails_before_executor_runs() -> None:
     assert diagnostics[0]["site_id"] == "MAPK14;Y182;"
     assert diagnostics[0]["dataset_sequence"] == "AAAAAAAYAAAAAAAAAAAAAAAAAAAAAAA"
     assert diagnostics[0]["reference_sequence"] == "AAAAAAATTTTTTTTTTTTTTTTTTTTTTTT"
+    assert isinstance(error.next_action, str)
+    assert "site_sequence_conflict_policy='prefer_reference'" in error.next_action
+    assert "KinaseWorkflowRequest" in error.next_action
     assert executor.called is False
 
 
-def test_interpreter_prefer_reference_records_conflict_diagnostics_in_provenance() -> (
+def test_interpreter_default_prefer_reference_records_conflict_diagnostics_in_provenance() -> (
     None
 ):
     dataset = _dataset(
@@ -214,13 +215,7 @@ def test_interpreter_prefer_reference_records_conflict_diagnostics_in_provenance
             "GSK3B;S9;": "AAAAAAASAAAAAAAAAAAAAAAAAAAAAAA",
         }
     )
-    result = KinaseWorkflow(
-        interpreter=KinaseWorkflowInterpreter(
-            site_sequence_conflict_policy=(
-                KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE
-            )
-        )
-    ).run(
+    result = KinaseWorkflow(interpreter=KinaseWorkflowInterpreter()).run(
         KinaseWorkflowRequest(
             dataset=dataset,
             references=references,
@@ -276,11 +271,10 @@ def test_interpreter_prefer_dataset_selects_dataset_sequence_and_contract_accept
             adaptive_ensemble_runs=2,
         ),
         activity_config=None,
+        site_sequence_conflict_policy=KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET,
     )
 
-    interpreted = KinaseWorkflowInterpreter(
-        site_sequence_conflict_policy=KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET
-    ).run(request)
+    interpreted = KinaseWorkflowInterpreter().run(request)
 
     assert interpreted.site_sequences.at["MAPK14;Y182;", "site_sequence"] == (
         "AAAAAAAYAAAAAAAAAAAAAAAAAAAAAAA"

@@ -89,6 +89,7 @@ kinase_result = KinaseWorkflow().run(
         scoring_config=KinaseScoringConfig.default(),
         prediction_config=KinasePredictionConfig.deterministic(),
         activity_config=None,
+        site_sequence_conflict_policy="prefer_reference",
     )
 )
 
