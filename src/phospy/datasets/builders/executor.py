@@ -59,6 +59,7 @@ from phospy.policy_models import IntensityTransformPolicy
 from phospy.provenance.environment import collect_environment_provenance
 from phospy.provenance.hashing import fingerprint_optional_table
 from phospy.provenance.models import (
+    PREPROCESSING_STAGE_DETERMINISM_PURE,
     JsonValue,
     PreprocessingStageProvenance,
     RunProvenance,
@@ -325,6 +326,8 @@ def _stage_trace_to_provenance(
             output_shape=item.output_shape,
             input_hash=item.input_hash,
             output_hash=item.output_hash,
+            phospho_input_hash=item.phospho_input_hash,
+            phospho_output_hash=item.phospho_output_hash,
             dropped_row_ids=item.dropped_row_ids,
             dropped_row_count=int(item.dropped_row_count),
             schema_version=int(item.schema_version),
@@ -332,6 +335,11 @@ def _stage_trace_to_provenance(
             produced_output_tables=tuple(item.produced_output_tables),
             backend=item.backend,
             random_seed=item.random_seed,
+            determinism=(
+                str(item.determinism).strip()
+                if str(item.determinism).strip()
+                else PREPROCESSING_STAGE_DETERMINISM_PURE
+            ),
             is_deterministic=bool(item.is_deterministic),
             imputed_cell_count=int(item.imputed_cell_count),
             imputed_row_ids=item.imputed_row_ids,

@@ -7,6 +7,9 @@ from typing import TYPE_CHECKING, cast
 
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.models import (
+    PREPROCESSING_STAGE_DETERMINISM_EXTERNAL_DEPENDENCY,
+    PREPROCESSING_STAGE_DETERMINISM_PURE,
+    PREPROCESSING_STAGE_DETERMINISM_SEEDED_STOCHASTIC,
     EnvironmentProvenance,
     JsonValue,
     PreprocessingStageProvenance,
@@ -282,6 +285,10 @@ def _environment_from_payload(payload: Mapping[str, object]) -> EnvironmentProve
 
 
 def _stage_to_payload(stage: PreprocessingStageProvenance) -> dict[str, object]:
+    determinism = _resolve_determinism(
+        stage.determinism,
+        field_name="preprocessing_stage.determinism",
+    )
     return {
         "stage": stage.stage,
         "operation": stage.operation,
@@ -290,6 +297,16 @@ def _stage_to_payload(stage: PreprocessingStageProvenance) -> dict[str, object]:
         "output_shape": [int(stage.output_shape[0]), int(stage.output_shape[1])],
         "input_hash": stage.input_hash,
         "output_hash": stage.output_hash,
+        "phospho_input_hash": (
+            stage.input_hash
+            if stage.phospho_input_hash is None
+            else stage.phospho_input_hash
+        ),
+        "phospho_output_hash": (
+            stage.output_hash
+            if stage.phospho_output_hash is None
+            else stage.phospho_output_hash
+        ),
         "schema_version": int(stage.schema_version),
         "consumed_input_tables": [
             _table_fingerprint_to_payload(item) for item in stage.consumed_input_tables
@@ -299,7 +316,8 @@ def _stage_to_payload(stage: PreprocessingStageProvenance) -> dict[str, object]:
         ],
         "backend": stage.backend,
         "random_seed": stage.random_seed,
-        "is_deterministic": bool(stage.is_deterministic),
+        "determinism": determinism,
+        "is_deterministic": _determinism_is_deterministic(determinism),
         "dropped_row_ids": list(stage.dropped_row_ids),
         "dropped_row_count": int(stage.dropped_row_count),
         "imputed_cell_count": int(stage.imputed_cell_count),
@@ -358,6 +376,43 @@ def _stage_from_payload(payload: Mapping[str, object]) -> PreprocessingStageProv
         payload.get("produced_output_tables"),
         field_name="preprocessing_stage.produced_output_tables",
     )
+    random_seed = _optional_int(
+        payload.get("random_seed"),
+        field_name="preprocessing_stage.random_seed",
+    )
+    deterministic_alias_raw = payload.get("is_deterministic")
+    deterministic_alias = (
+        None
+        if deterministic_alias_raw is None
+        else _require_bool(
+            deterministic_alias_raw,
+            field_name="preprocessing_stage.is_deterministic",
+        )
+    )
+    determinism = _resolve_stage_determinism_from_payload(
+        payload=payload,
+        random_seed=random_seed,
+        is_deterministic=deterministic_alias,
+    )
+    is_deterministic = _determinism_is_deterministic(determinism)
+    input_hash = _resolve_primary_hash(
+        payload=payload,
+        primary_field_name="input_hash",
+        alias_field_name="phospho_input_hash",
+    )
+    output_hash = _resolve_primary_hash(
+        payload=payload,
+        primary_field_name="output_hash",
+        alias_field_name="phospho_output_hash",
+    )
+    phospho_input_hash = _optional_str(
+        payload.get("phospho_input_hash"),
+        field_name="preprocessing_stage.phospho_input_hash",
+    )
+    phospho_output_hash = _optional_str(
+        payload.get("phospho_output_hash"),
+        field_name="preprocessing_stage.phospho_output_hash",
+    )
     return PreprocessingStageProvenance(
         stage=_require_str(
             payload.get("stage"), field_name="preprocessing_stage.stage"
@@ -371,13 +426,13 @@ def _stage_from_payload(payload: Mapping[str, object]) -> PreprocessingStageProv
         },
         input_shape=input_shape,
         output_shape=output_shape,
-        input_hash=_require_str(
-            payload.get("input_hash"),
-            field_name="preprocessing_stage.input_hash",
+        input_hash=input_hash,
+        output_hash=output_hash,
+        phospho_input_hash=(
+            input_hash if phospho_input_hash is None else phospho_input_hash
         ),
-        output_hash=_require_str(
-            payload.get("output_hash"),
-            field_name="preprocessing_stage.output_hash",
+        phospho_output_hash=(
+            output_hash if phospho_output_hash is None else phospho_output_hash
         ),
         dropped_row_ids=dropped_row_ids,
         dropped_row_count=_require_int(
@@ -394,14 +449,9 @@ def _stage_from_payload(payload: Mapping[str, object]) -> PreprocessingStageProv
             payload.get("backend"),
             field_name="preprocessing_stage.backend",
         ),
-        random_seed=_optional_int(
-            payload.get("random_seed"),
-            field_name="preprocessing_stage.random_seed",
-        ),
-        is_deterministic=_require_bool(
-            payload.get("is_deterministic", True),
-            field_name="preprocessing_stage.is_deterministic",
-        ),
+        random_seed=random_seed,
+        determinism=determinism,
+        is_deterministic=is_deterministic,
         imputed_cell_count=_require_int(
             payload.get("imputed_cell_count", 0),
             field_name="preprocessing_stage.imputed_cell_count",
@@ -700,6 +750,63 @@ def _optional_table_fingerprints(
         )
         for position, item in enumerate(payload)
     )
+
+
+def _resolve_primary_hash(
+    *,
+    payload: Mapping[str, object],
+    primary_field_name: str,
+    alias_field_name: str,
+) -> str:
+    raw_value = payload.get(primary_field_name)
+    if raw_value is None:
+        raw_value = payload.get(alias_field_name)
+        if raw_value is None:
+            raise PhosPyInputError(
+                f"preprocessing_stage.{primary_field_name} is required"
+            )
+    return _require_str(
+        raw_value, field_name=f"preprocessing_stage.{primary_field_name}"
+    )
+
+
+def _resolve_stage_determinism_from_payload(
+    *,
+    payload: Mapping[str, object],
+    random_seed: int | None,
+    is_deterministic: bool | None,
+) -> str:
+    determinism_raw = payload.get("determinism")
+    if determinism_raw is None:
+        if random_seed is not None:
+            return PREPROCESSING_STAGE_DETERMINISM_SEEDED_STOCHASTIC
+        if is_deterministic is False:
+            return PREPROCESSING_STAGE_DETERMINISM_EXTERNAL_DEPENDENCY
+        return PREPROCESSING_STAGE_DETERMINISM_PURE
+    return _resolve_determinism(
+        determinism_raw,
+        field_name="preprocessing_stage.determinism",
+    )
+
+
+def _resolve_determinism(value: object, *, field_name: str) -> str:
+    normalized = _require_str(value, field_name=field_name)
+    if normalized not in {
+        PREPROCESSING_STAGE_DETERMINISM_PURE,
+        PREPROCESSING_STAGE_DETERMINISM_SEEDED_STOCHASTIC,
+        PREPROCESSING_STAGE_DETERMINISM_EXTERNAL_DEPENDENCY,
+    }:
+        raise PhosPyInputError(
+            f"{field_name} must be one of: "
+            f"{PREPROCESSING_STAGE_DETERMINISM_PURE!r}, "
+            f"{PREPROCESSING_STAGE_DETERMINISM_SEEDED_STOCHASTIC!r}, "
+            f"{PREPROCESSING_STAGE_DETERMINISM_EXTERNAL_DEPENDENCY!r}"
+        )
+    return normalized
+
+
+def _determinism_is_deterministic(determinism: str) -> bool:
+    return determinism == PREPROCESSING_STAGE_DETERMINISM_PURE
 
 
 def _require_shape(value: object, *, field_name: str) -> tuple[int, int]:

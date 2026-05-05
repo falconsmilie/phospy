@@ -1678,8 +1678,13 @@ def test_dataset_builder_emits_machine_readable_run_provenance() -> None:
     assert "dataset.site_metadata" in consumed_names
     assert "dataset.phospho" in produced_names
     assert missing_stage.backend in {"pandas", "numpy", None}
+    assert missing_stage.determinism == "pure"
     assert missing_stage.is_deterministic is True
     assert missing_stage.random_seed is None
+    assert isinstance(missing_stage.phospho_input_hash, str)
+    assert isinstance(missing_stage.phospho_output_hash, str)
+    assert missing_stage.input_hash != missing_stage.phospho_input_hash
+    assert missing_stage.output_hash != missing_stage.phospho_output_hash
     assert set(missing_stage.dropped_row_ids) == {"row_d"}
     assert missing_stage.imputed_cell_count == 1
     assert set(missing_stage.imputed_row_ids) == {"row_b"}
@@ -1695,3 +1700,54 @@ def test_dataset_builder_emits_machine_readable_run_provenance() -> None:
     assert diagnostics["duplicate_site_policy"] == "max_mean_signal"
     assert diagnostics["missing_data_policy"] == "drop_any_missing"
     assert "MAPK14;Y182;" in set(diagnostics["final_constructed_site_ids"])
+
+
+def test_dataset_builder_marks_minprob_stage_as_seeded_stochastic() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [10.0, float("nan"), 4.0],
+            "sample_b": [9.0, 8.0, float("nan")],
+            "sample_c": [11.0, 7.0, 5.0],
+        },
+        index=pd.Index(
+            ["MAPK14;Y182;", "AKT1;T308;", "PRKACA;S339;"],
+            name="site_id",
+        ),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1", "PRKACA"],
+            "site": ["Y182", "T308", "S339"],
+            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+        },
+        index=phospho.index.copy(),
+    )
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            preprocessing_config=DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="log2",
+                    pseudocount=1.0,
+                ),
+                missing_data=DatasetMissingDataConfig(
+                    policy="impute_minprob",
+                    q=0.01,
+                    width=0.3,
+                    seed=123,
+                    max_missing_fraction_per_row=0.75,
+                ),
+            ),
+        )
+    )
+    assert built.provenance is not None
+    missing_stage = next(
+        stage
+        for stage in built.provenance.preprocessing_stages
+        if stage.stage == "missing_data"
+    )
+    assert missing_stage.determinism == "seeded_stochastic"
+    assert missing_stage.is_deterministic is False
+    assert missing_stage.random_seed == 123

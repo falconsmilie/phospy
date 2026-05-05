@@ -13,6 +13,10 @@ if TYPE_CHECKING:
 
 PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V1 = 1
 PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V2 = 2
+PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3 = 3
+PREPROCESSING_STAGE_DETERMINISM_PURE = "pure"
+PREPROCESSING_STAGE_DETERMINISM_SEEDED_STOCHASTIC = "seeded_stochastic"
+PREPROCESSING_STAGE_DETERMINISM_EXTERNAL_DEPENDENCY = "external_dependency"
 
 JsonPrimitive = str | int | float | bool | None
 JsonValue = (
@@ -64,11 +68,14 @@ class PreprocessingStageProvenance:
     output_hash: str
     dropped_row_ids: tuple[str, ...]
     dropped_row_count: int
-    schema_version: int = PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V1
+    phospho_input_hash: str | None = None
+    phospho_output_hash: str | None = None
+    schema_version: int = PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3
     consumed_input_tables: tuple[TableFingerprint, ...] = ()
     produced_output_tables: tuple[TableFingerprint, ...] = ()
     backend: str | None = None
     random_seed: int | None = None
+    determinism: str = PREPROCESSING_STAGE_DETERMINISM_PURE
     is_deterministic: bool = True
     imputed_cell_count: int = 0
     imputed_row_ids: tuple[str, ...] = ()

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from typing import TypedDict
@@ -27,7 +29,9 @@ from phospy.datasets.preprocessing.stage_registry import (
 from phospy.errors.build import DatasetBuildError
 from phospy.provenance.hashing import fingerprint_optional_table, hash_table
 from phospy.provenance.models import (
-    PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V2,
+    PREPROCESSING_STAGE_DETERMINISM_PURE,
+    PREPROCESSING_STAGE_DETERMINISM_SEEDED_STOCHASTIC,
+    PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
     TableFingerprint,
 )
 
@@ -103,11 +107,11 @@ class PreprocessingPipeline:
                 )
             current = stage_result.state
             report_rows.extend(_normalize_report_rows(stage_result.report_rows))
-            input_hash = hash_table(
+            phospho_input_hash = hash_table(
                 previous.phospho,
                 name=f"{stage_key}.input.phospho",
             )
-            output_hash = hash_table(
+            phospho_output_hash = hash_table(
                 current.phospho,
                 name=f"{stage_key}.output.phospho",
             )
@@ -131,6 +135,10 @@ class PreprocessingPipeline:
                 state=current,
                 table_names=stage_metadata.produced_output_tables,
             )
+            random_seed = _resolve_random_seed(
+                stage_key=stage_key, diagnostics=diagnostics["diagnostics"]
+            )
+            determinism = _resolve_stage_determinism(random_seed=random_seed)
             trace.append(
                 PreprocessingStageExecution(
                     stage=stage_metadata.provenance_stage_key,
@@ -144,18 +152,28 @@ class PreprocessingPipeline:
                         int(current.phospho.shape[0]),
                         int(current.phospho.shape[1]),
                     ),
-                    input_hash=input_hash,
-                    output_hash=output_hash,
+                    input_hash=_hash_stage_table_fingerprints(
+                        stage_key=stage_key,
+                        direction="input",
+                        table_fingerprints=consumed_input_tables,
+                    ),
+                    output_hash=_hash_stage_table_fingerprints(
+                        stage_key=stage_key,
+                        direction="output",
+                        table_fingerprints=produced_output_tables,
+                    ),
+                    phospho_input_hash=phospho_input_hash,
+                    phospho_output_hash=phospho_output_hash,
                     dropped_row_ids=tuple(diagnostics["dropped_row_ids"]),
                     dropped_row_count=int(diagnostics["dropped_row_count"]),
-                    schema_version=PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V2,
+                    schema_version=PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
                     consumed_input_tables=consumed_input_tables,
                     produced_output_tables=produced_output_tables,
                     backend=stage_metadata.backend,
-                    random_seed=_resolve_random_seed(
-                        stage_key=stage_key, diagnostics=diagnostics["diagnostics"]
-                    ),
-                    is_deterministic=True,
+                    random_seed=random_seed,
+                    determinism=determinism,
+                    is_deterministic=determinism
+                    == PREPROCESSING_STAGE_DETERMINISM_PURE,
                     imputed_cell_count=int(diagnostics["imputed_cell_count"]),
                     imputed_row_ids=tuple(diagnostics["imputed_row_ids"]),
                     notes=diagnostics["notes"],
@@ -388,6 +406,42 @@ def _resolve_random_seed(
         field_name="diagnostics.random_seed",
         default=0,
     )
+
+
+def _resolve_stage_determinism(*, random_seed: int | None) -> str:
+    if random_seed is None:
+        return PREPROCESSING_STAGE_DETERMINISM_PURE
+    return PREPROCESSING_STAGE_DETERMINISM_SEEDED_STOCHASTIC
+
+
+def _hash_stage_table_fingerprints(
+    *,
+    stage_key: str,
+    direction: str,
+    table_fingerprints: tuple[TableFingerprint, ...],
+) -> str:
+    payload = {
+        "stage": stage_key,
+        "direction": direction,
+        "tables": [
+            {
+                "name": item.name,
+                "rows": int(item.rows),
+                "columns": int(item.columns),
+                "hash_algorithm": item.hash_algorithm,
+                "hash_value": item.hash_value,
+            }
+            for item in table_fingerprints
+        ],
+    }
+    encoded = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def _collect_stage_table_fingerprints(

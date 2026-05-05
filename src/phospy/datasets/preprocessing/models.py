@@ -49,7 +49,8 @@ from phospy.policy_models import (
 )
 from phospy.provenance.hashing import hash_table
 from phospy.provenance.models import (
-    PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V2,
+    PREPROCESSING_STAGE_DETERMINISM_PURE,
+    PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
     TableFingerprint,
 )
 
@@ -604,13 +605,16 @@ class PreprocessingStageExecution:
     output_shape: tuple[int, int]
     input_hash: str
     output_hash: str
+    phospho_input_hash: str | None = None
+    phospho_output_hash: str | None = None
     dropped_row_ids: tuple[str, ...] = ()
     dropped_row_count: int = 0
-    schema_version: int = PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V2
+    schema_version: int = PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3
     consumed_input_tables: tuple[TableFingerprint, ...] = ()
     produced_output_tables: tuple[TableFingerprint, ...] = ()
     backend: str | None = None
     random_seed: int | None = None
+    determinism: str = PREPROCESSING_STAGE_DETERMINISM_PURE
     is_deterministic: bool = True
     imputed_cell_count: int = 0
     imputed_row_ids: tuple[str, ...] = ()

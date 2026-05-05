@@ -105,8 +105,13 @@ def test_dataset_builder_emits_run_provenance_and_stage_details() -> None:
     assert "dataset.site_metadata" in consumed_names
     assert "dataset.phospho" in produced_names
     assert missing_stage.backend in {"pandas", "numpy", None}
+    assert missing_stage.determinism == "pure"
     assert missing_stage.is_deterministic is True
     assert missing_stage.random_seed is None
+    assert isinstance(missing_stage.phospho_input_hash, str)
+    assert isinstance(missing_stage.phospho_output_hash, str)
+    assert missing_stage.input_hash != missing_stage.phospho_input_hash
+    assert missing_stage.output_hash != missing_stage.phospho_output_hash
     assert "GSK3B;S9;" in set(missing_stage.dropped_row_ids)
     assert missing_stage.imputed_cell_count >= 1
     assert "AKT1;T308;" in set(missing_stage.imputed_row_ids)
@@ -215,6 +220,14 @@ def test_run_provenance_serializes_resolved_stage_order_for_minprob_with_log2() 
     assert resolved_stage_order[1]["rationale"] == (
         PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA
     )
+    missing_stage = next(
+        stage
+        for stage in built.provenance.preprocessing_stages
+        if stage.stage == "missing_data"
+    )
+    assert missing_stage.determinism == "seeded_stochastic"
+    assert missing_stage.is_deterministic is False
+    assert missing_stage.random_seed == 123
 
 
 def test_run_provenance_serializes_resolved_stage_order_for_non_minprob_with_log2() -> (
@@ -334,7 +347,9 @@ def test_run_provenance_from_payload_accepts_legacy_stage_shape() -> None:
         stage.pop("produced_output_tables", None)
         stage.pop("backend", None)
         stage.pop("random_seed", None)
-        stage.pop("is_deterministic", None)
+        stage.pop("determinism", None)
+        stage.pop("phospho_input_hash", None)
+        stage.pop("phospho_output_hash", None)
     payload.pop("scientific_policies", None)
 
     restored = from_payload(payload)
@@ -344,5 +359,8 @@ def test_run_provenance_from_payload_accepts_legacy_stage_shape() -> None:
     assert stage.produced_output_tables == ()
     assert stage.backend is None
     assert stage.random_seed is None
+    assert stage.determinism == "pure"
     assert stage.is_deterministic is True
+    assert stage.phospho_input_hash == stage.input_hash
+    assert stage.phospho_output_hash == stage.output_hash
     assert restored.scientific_policies == ()
