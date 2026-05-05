@@ -6,7 +6,10 @@ from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 
 from phospy.errors.input import PhosPyInputError
-from phospy.policy_models import TotalProteinCorrectionPolicy
+from phospy.policy_models import (
+    TotalProteinCorrectionIdentityMatchingPolicy,
+    TotalProteinCorrectionPolicy,
+)
 from phospy.transformations.models import QuantitativeMeaning
 
 from .json_contracts import (
@@ -64,6 +67,7 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
     quantitative_meaning: str | None = None
     matched_rows: int | None = None
     identity_mode: str | None = None
+    identity_matching_policy: str | None = None
     phosphosite_key: str | None = None
     total_protein_key: str | None = None
     mapping_phosphosite_key: str | None = None
@@ -172,6 +176,10 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
             identity_mode=require_optional_str(
                 payload.get("identity_mode"),
                 field_name=f"{field_name}.identity_mode",
+            ),
+            identity_matching_policy=require_optional_str(
+                payload.get("identity_matching_policy"),
+                field_name=f"{field_name}.identity_matching_policy",
             ),
             phosphosite_key=require_optional_str(
                 payload.get("phosphosite_key"),
@@ -350,6 +358,23 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
             self.identity_mode,
             field_name="dataset processing state total_protein_correction.diagnostics.identity_mode",
         )
+        identity_matching_policy = require_optional_str(
+            self.identity_matching_policy,
+            field_name=(
+                "dataset processing state total_protein_correction.diagnostics."
+                "identity_matching_policy"
+            ),
+        )
+        if identity_matching_policy is not None:
+            identity_matching_policy = (
+                TotalProteinCorrectionIdentityMatchingPolicy.parse(
+                    identity_matching_policy,
+                    field_name=(
+                        "dataset processing state total_protein_correction."
+                        "diagnostics.identity_matching_policy"
+                    ),
+                ).value
+            )
         phosphosite_key = require_optional_str(
             self.phosphosite_key,
             field_name="dataset processing state total_protein_correction.diagnostics.phosphosite_key",
@@ -494,6 +519,11 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
         payload["quantitative_meaning"] = quantitative_meaning
         set_optional_payload_value(payload, "matched_rows", matched_rows)
         set_optional_payload_value(payload, "identity_mode", identity_mode)
+        set_optional_payload_value(
+            payload,
+            "identity_matching_policy",
+            identity_matching_policy,
+        )
         set_optional_payload_value(payload, "phosphosite_key", phosphosite_key)
         set_optional_payload_value(payload, "total_protein_key", total_protein_key)
         set_optional_payload_value(
@@ -563,6 +593,7 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
         object.__setattr__(self, "quantitative_meaning", quantitative_meaning)
         object.__setattr__(self, "matched_rows", matched_rows)
         object.__setattr__(self, "identity_mode", identity_mode)
+        object.__setattr__(self, "identity_matching_policy", identity_matching_policy)
         object.__setattr__(self, "phosphosite_key", phosphosite_key)
         object.__setattr__(self, "total_protein_key", total_protein_key)
         object.__setattr__(self, "mapping_phosphosite_key", mapping_phosphosite_key)

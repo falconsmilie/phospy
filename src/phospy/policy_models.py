@@ -49,6 +49,11 @@ class TotalProteinCorrectionPolicy(_PolicyEnum):
     SUBTRACT_LOG_TOTAL = "subtract_log_total"
 
 
+class TotalProteinCorrectionIdentityMatchingPolicy(_PolicyEnum):
+    STRICT = "strict"
+    GENE_SYMBOL_NORMALISED = "gene_symbol_normalised"
+
+
 class IntensityTransformPolicy(_PolicyEnum):
     IDENTITY = "identity"
     LOG2 = "log2"
@@ -119,5 +124,6 @@ __all__ = [
     "SiteSequenceConflictPolicy",
     "SiteSequenceResolutionMode",
     "ThresholdMode",
+    "TotalProteinCorrectionIdentityMatchingPolicy",
     "TotalProteinCorrectionPolicy",
 ]

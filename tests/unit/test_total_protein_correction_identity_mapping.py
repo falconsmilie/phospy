@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import pytest
 
 from phospy.api.configs import (
+    DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICY_GENE_SYMBOL_NORMALISED,
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
     DatasetIntensityTransformConfig,
     DatasetPreprocessingConfig,
@@ -96,11 +98,38 @@ def test_total_correction_direct_accession_mapping_succeeds() -> None:
         total=total,
     )
     assert diagnostics["identity_mode"] == "direct"
+    assert diagnostics["identity_matching_policy"] == "strict"
     assert diagnostics["corrected_row_count"] == 3
     assert diagnostics["quantitative_meaning"] == "phospho_total_log_ratio"
     assert diagnostics["total_rows_used_by_multiple_phosphosites"] == 1
     assert diagnostics["gene_symbol_matching_used"] is False
     assert corrected.shape == _phospho().shape
+
+
+def test_total_correction_exact_match_values_unchanged() -> None:
+    total = _total_with_index(["P53778", "P31749"])
+    corrected, _ = _run_preprocessor(
+        identity=DatasetTotalProteinCorrectionIdentityConfig(
+            mode="direct",
+            phosphosite_key="protein_accession",
+            total_protein_key="__index__",
+            matching_policy="strict",
+        ),
+        total=total,
+    )
+    phospho = _phospho()
+    expected = phospho.copy(deep=True)
+    expected.loc[:, :] = np.log2(expected.to_numpy(copy=False) + 1.0)
+    expected.loc["MAPK14;Y182;", :] = (
+        expected.loc["MAPK14;Y182;", :] - np.log2(total.loc["P53778", :] + 1.0)
+    ).to_numpy(copy=False)
+    expected.loc["MAPK14;T180;", :] = (
+        expected.loc["MAPK14;T180;", :] - np.log2(total.loc["P53778", :] + 1.0)
+    ).to_numpy(copy=False)
+    expected.loc["AKT1;T308;", :] = (
+        expected.loc["AKT1;T308;", :] - np.log2(total.loc["P31749", :] + 1.0)
+    ).to_numpy(copy=False)
+    pd.testing.assert_frame_equal(corrected, expected)
 
 
 def test_total_correction_direct_protein_group_mapping_succeeds() -> None:
@@ -114,6 +143,7 @@ def test_total_correction_direct_protein_group_mapping_succeeds() -> None:
         total=total,
     )
     assert diagnostics["corrected_row_count"] == 3
+    assert diagnostics["identity_matching_policy"] == "strict"
     assert diagnostics["gene_symbol_matching_used"] is False
 
 
@@ -124,11 +154,79 @@ def test_total_correction_explicit_gene_symbol_mapping_succeeds() -> None:
             mode="direct",
             phosphosite_key="gene_symbol",
             total_protein_key="__index__",
+            matching_policy=DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICY_GENE_SYMBOL_NORMALISED,
         ),
         total=total,
     )
     assert diagnostics["gene_symbol_matching_used"] is True
     assert diagnostics["gene_symbol_identity_warning"] is not None
+    assert diagnostics["identity_matching_policy"] == "gene_symbol_normalised"
+
+
+def test_total_correction_strict_gene_symbol_identity_match_succeeds() -> None:
+    total = _total_with_index(["MAPK14", "AKT1"])
+    _, diagnostics = _run_preprocessor(
+        identity=DatasetTotalProteinCorrectionIdentityConfig(
+            mode="direct",
+            phosphosite_key="gene_symbol",
+            total_protein_key="__index__",
+            matching_policy="strict",
+        ),
+        total=total,
+    )
+    assert diagnostics["corrected_row_count"] == 3
+    assert diagnostics["identity_matching_policy"] == "strict"
+    assert diagnostics["gene_symbol_matching_used"] is False
+    assert diagnostics["gene_symbol_identity_warning"] is None
+
+
+def test_total_correction_strict_rejects_case_only_gene_symbol_matches() -> None:
+    total = _total_with_index(["mapk14", "akt1"])
+    with pytest.raises(
+        PhosPyInputError,
+        match="requires complete phosphosite-to-total mapping",
+    ):
+        _run_preprocessor(
+            identity=DatasetTotalProteinCorrectionIdentityConfig(
+                mode="direct",
+                phosphosite_key="gene_symbol",
+                total_protein_key="__index__",
+                matching_policy="strict",
+            ),
+            total=total,
+        )
+
+
+def test_total_correction_lossy_gene_symbol_normalised_accepts_case_only_matches() -> (
+    None
+):
+    total = _total_with_index(["mapk14", "akt1"])
+    _, diagnostics = _run_preprocessor(
+        identity=DatasetTotalProteinCorrectionIdentityConfig(
+            mode="direct",
+            phosphosite_key="gene_symbol",
+            total_protein_key="__index__",
+            matching_policy=DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICY_GENE_SYMBOL_NORMALISED,
+        ),
+        total=total,
+    )
+    assert diagnostics["corrected_row_count"] == 3
+    assert diagnostics["identity_matching_policy"] == "gene_symbol_normalised"
+    assert diagnostics["gene_symbol_matching_used"] is True
+
+
+def test_total_correction_ambiguous_lossy_gene_symbol_matching_fails() -> None:
+    total = _total_with_index(["MAPK14", "mapk14", "AKT1"])
+    with pytest.raises(PhosPyInputError, match="duplicate keys"):
+        _run_preprocessor(
+            identity=DatasetTotalProteinCorrectionIdentityConfig(
+                mode="direct",
+                phosphosite_key="gene_symbol",
+                total_protein_key="__index__",
+                matching_policy=DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICY_GENE_SYMBOL_NORMALISED,
+            ),
+            total=total,
+        )
 
 
 def test_total_correction_does_not_fallback_to_gene_symbol_implicitly() -> None:
@@ -144,6 +242,19 @@ def test_total_correction_does_not_fallback_to_gene_symbol_implicitly() -> None:
                 total_protein_key="__index__",
             ),
             total=total,
+        )
+
+
+def test_total_correction_gene_symbol_normalised_requires_gene_symbol_keys() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="matching_policy='gene_symbol_normalised' requires at least one gene_symbol identity key",
+    ):
+        DatasetTotalProteinCorrectionIdentityConfig(
+            mode="direct",
+            phosphosite_key="protein_accession",
+            total_protein_key="__index__",
+            matching_policy=DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICY_GENE_SYMBOL_NORMALISED,
         )
 
 
@@ -167,6 +278,7 @@ def test_total_correction_mapping_table_mode_succeeds() -> None:
         total=total,
     )
     assert diagnostics["identity_mode"] == "mapping_table"
+    assert diagnostics["identity_matching_policy"] == "strict"
     assert isinstance(diagnostics.get("mapping_table_fingerprint"), str)
 
 
@@ -300,20 +412,21 @@ def test_total_correction_duplicate_mapping_rows_fail() -> None:
             total=total,
         )
 
-    def test_total_correction_null_or_empty_identity_keys_fail() -> None:
-        total = _total_with_index(["P53778", "P31749"])
-        bad_metadata = _site_metadata()
-        bad_metadata.loc["MAPK14;T180;", "protein_accession"] = ""
-        with pytest.raises(PhosPyInputError, match="contains null/empty identifiers"):
-            _run_preprocessor(
-                identity=DatasetTotalProteinCorrectionIdentityConfig(
-                    mode="direct",
-                    phosphosite_key="protein_accession",
-                    total_protein_key="__index__",
-                ),
-                total=total,
-                site_metadata=bad_metadata,
-            )
+
+def test_total_correction_null_or_empty_identity_keys_fail() -> None:
+    total = _total_with_index(["P53778", "P31749"])
+    bad_metadata = _site_metadata()
+    bad_metadata.loc["MAPK14;T180;", "protein_accession"] = ""
+    with pytest.raises(PhosPyInputError, match="contains null/empty identifiers"):
+        _run_preprocessor(
+            identity=DatasetTotalProteinCorrectionIdentityConfig(
+                mode="direct",
+                phosphosite_key="protein_accession",
+                total_protein_key="__index__",
+            ),
+            total=total,
+            site_metadata=bad_metadata,
+        )
 
 
 def test_total_correction_unmatched_rows_can_be_retained_when_configured() -> None:
@@ -434,6 +547,7 @@ def test_total_correction_provenance_records_identity_policy() -> None:
     )
     assert stage.diagnostics is not None
     assert stage.diagnostics["identity_mode"] == "direct"
+    assert stage.diagnostics["identity_matching_policy"] == "strict"
     assert stage.diagnostics["phosphosite_key"] == "protein_accession"
     assert stage.diagnostics["total_protein_key"] == "__index__"
     preprocessing_plan = built.provenance.workflow_parameters["preprocessing_plan"]
@@ -441,3 +555,4 @@ def test_total_correction_provenance_records_identity_policy() -> None:
     identity_payload = preprocessing_plan["total_protein_correction_identity_policy"]
     assert isinstance(identity_payload, dict)
     assert identity_payload["mode"] == "direct"
+    assert identity_payload["matching_policy"] == "strict"

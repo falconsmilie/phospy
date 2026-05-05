@@ -57,6 +57,7 @@ V1_KNOWN_TOTAL_PROTEIN_DIAGNOSTICS_FIELDS = frozenset(
         "quantitative_meaning",
         "matched_rows",
         "identity_mode",
+        "identity_matching_policy",
         "phosphosite_key",
         "total_protein_key",
         "mapping_phosphosite_key",

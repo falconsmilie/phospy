@@ -419,6 +419,7 @@ def _total_correction_identity_policy_to_payload(
 ) -> dict[str, object]:
     return {
         "mode": str(policy.mode),
+        "matching_policy": str(policy.matching_policy),
         "phosphosite_key": policy.phosphosite_key,
         "total_protein_key": policy.total_protein_key,
         "mapping_phosphosite_key": policy.mapping_phosphosite_key,

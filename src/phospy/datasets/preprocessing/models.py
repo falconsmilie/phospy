@@ -43,6 +43,7 @@ from phospy.policy_models import (
     SiteMatrixPolicy,
     SiteSequenceConflictPolicy,
     SiteSequenceResolutionMode,
+    TotalProteinCorrectionIdentityMatchingPolicy,
     TotalProteinCorrectionPolicy,
 )
 from phospy.provenance.hashing import hash_table
@@ -76,12 +77,26 @@ class TotalProteinCorrectionIdentityPolicy:
     mode: DatasetTotalProteinCorrectionIdentityMode
     phosphosite_key: str
     total_protein_key: str
+    matching_policy: TotalProteinCorrectionIdentityMatchingPolicy
     duplicate_policy: DatasetTotalProteinCorrectionDuplicatePolicy
     unmatched_policy: DatasetTotalProteinCorrectionUnmatchedPolicy
     mapping_table: tuple[tuple[str, str], ...] | None = None
     mapping_phosphosite_key: str | None = None
     mapping_total_protein_key: str | None = None
     mapping_table_fingerprint: str | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "matching_policy",
+            TotalProteinCorrectionIdentityMatchingPolicy.parse(
+                self.matching_policy,
+                field_name=(
+                    "dataset preprocessing plan total_protein_correction "
+                    "identity matching_policy (internal model)"
+                ),
+            ),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,6 +135,7 @@ class PreprocessingPlan:
             mode=DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT,
             phosphosite_key="gene_symbol",
             total_protein_key="__index__",
+            matching_policy=TotalProteinCorrectionIdentityMatchingPolicy.STRICT,
             duplicate_policy=DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICY_ERROR,
             unmatched_policy=DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ERROR,
             mapping_table=None,
@@ -550,6 +566,13 @@ def _resolve_total_correction_identity_policy(
             mode=config.mode,
             phosphosite_key=str(config.phosphosite_key).strip(),
             total_protein_key=str(config.total_protein_key).strip(),
+            matching_policy=TotalProteinCorrectionIdentityMatchingPolicy.parse(
+                config.matching_policy,
+                field_name=(
+                    "preprocessing_config.total_protein_correction.identity."
+                    "matching_policy"
+                ),
+            ),
             duplicate_policy=config.duplicate_policy,
             unmatched_policy=config.unmatched_policy,
             mapping_table=None,
@@ -621,6 +644,12 @@ def _resolve_total_correction_identity_policy(
         mode=config.mode,
         phosphosite_key=str(config.phosphosite_key).strip(),
         total_protein_key=str(config.total_protein_key).strip(),
+        matching_policy=TotalProteinCorrectionIdentityMatchingPolicy.parse(
+            config.matching_policy,
+            field_name=(
+                "preprocessing_config.total_protein_correction.identity.matching_policy"
+            ),
+        ),
         duplicate_policy=config.duplicate_policy,
         unmatched_policy=config.unmatched_policy,
         mapping_table=mapping_rows,

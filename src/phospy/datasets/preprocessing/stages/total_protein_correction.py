@@ -22,12 +22,15 @@ from phospy.datasets.processing_state import (
     TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1,
 )
 from phospy.errors.input import PhosPyInputError
-from phospy.policy_models import IntensityTransformPolicy, TotalProteinCorrectionPolicy
+from phospy.policy_models import (
+    IntensityTransformPolicy,
+    TotalProteinCorrectionIdentityMatchingPolicy,
+    TotalProteinCorrectionPolicy,
+)
 from phospy.provenance.hashing import hash_table
 from phospy.transformations.models import QuantitativeMeaning
 
 _INDEX_IDENTITY_KEY = "__index__"
-_GENE_SYMBOL_COLUMN = "gene_symbol"
 _PHOSPHO_TOTAL_LOG_RATIO_QUANTITATIVE_MEANING = (
     QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO
 )
@@ -73,6 +76,9 @@ class TotalProteinCorrectionStage:
                         "requested_policy": requested_policy.value,
                         "resolved_policy": requested_policy.value,
                         "identity_mode": str(identity_policy.mode),
+                        "identity_matching_policy": str(
+                            identity_policy.matching_policy
+                        ),
                         "phosphosite_key": str(identity_policy.phosphosite_key),
                         "total_protein_key": str(identity_policy.total_protein_key),
                         "duplicate_policy": str(identity_policy.duplicate_policy),
@@ -194,6 +200,7 @@ def _build_diagnostics(
         "quantitative_meaning": quantitative_meaning.value,
         "matched_rows": corrected_rows,
         "identity_mode": str(identity_policy.mode),
+        "identity_matching_policy": str(identity_policy.matching_policy),
         "phosphosite_key": str(identity_policy.phosphosite_key),
         "total_protein_key": str(identity_policy.total_protein_key),
         "mapping_phosphosite_key": identity_policy.mapping_phosphosite_key,
@@ -245,7 +252,10 @@ def _resolve_identity_mapping(
         key_name=identity_policy.phosphosite_key,
     )
 
-    gene_symbol_matching_used = _is_gene_symbol_identity_policy(identity_policy)
+    gene_symbol_matching_used = (
+        identity_policy.matching_policy
+        is TotalProteinCorrectionIdentityMatchingPolicy.GENE_SYMBOL_NORMALISED
+    )
     normalize_gene = bool(gene_symbol_matching_used)
     normalized_total_key = _normalize_identifier_series(
         total_key, gene_symbol=normalize_gene
@@ -292,6 +302,7 @@ def _resolve_identity_mapping(
             normalized_phosphosite_key=normalized_phosphosite_key,
             total_key_to_row=total_key_to_row,
             identity_policy=identity_policy,
+            normalize_gene=normalize_gene,
         )
     else:  # pragma: no cover - guarded by config validation
         raise PhosPyInputError(
@@ -389,6 +400,7 @@ def _resolve_mapping_table_mode_mapping(
     normalized_phosphosite_key: pd.Series,
     total_key_to_row: dict[str, str],
     identity_policy: TotalProteinCorrectionIdentityPolicy,
+    normalize_gene: bool,
 ) -> dict[str, str]:
     mapping_rows = identity_policy.mapping_table
     if mapping_rows is None:
@@ -406,11 +418,13 @@ def _resolve_mapping_table_mode_mapping(
         mapping_rows,
         columns=pd.Index(["mapping_phosphosite_key", "mapping_total_protein_key"]),
     )
-    mapping_table.loc[:, "mapping_phosphosite_key"] = (
-        mapping_table.loc[:, "mapping_phosphosite_key"].astype("string").str.strip()
+    mapping_table.loc[:, "mapping_phosphosite_key"] = _normalize_identifier_series(
+        mapping_table.loc[:, "mapping_phosphosite_key"],
+        gene_symbol=normalize_gene,
     )
-    mapping_table.loc[:, "mapping_total_protein_key"] = (
-        mapping_table.loc[:, "mapping_total_protein_key"].astype("string").str.strip()
+    mapping_table.loc[:, "mapping_total_protein_key"] = _normalize_identifier_series(
+        mapping_table.loc[:, "mapping_total_protein_key"],
+        gene_symbol=normalize_gene,
     )
     _require_non_empty_keys(
         mapping_table.loc[:, "mapping_phosphosite_key"],
@@ -570,34 +584,6 @@ def _normalize_identifier_series(series: pd.Series, *, gene_symbol: bool) -> pd.
     if gene_symbol:
         return normalized.str.upper()
     return normalized
-
-
-def _is_gene_symbol_identity_policy(
-    identity_policy: TotalProteinCorrectionIdentityPolicy,
-) -> bool:
-    phosphosite_key = str(identity_policy.phosphosite_key).strip().lower()
-    total_key = str(identity_policy.total_protein_key).strip().lower()
-    if (
-        identity_policy.mode
-        == DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_MAPPING_TABLE
-    ):
-        mapping_total_key = (
-            ""
-            if identity_policy.mapping_total_protein_key is None
-            else str(identity_policy.mapping_total_protein_key).strip().lower()
-        )
-        mapping_site_key = (
-            ""
-            if identity_policy.mapping_phosphosite_key is None
-            else str(identity_policy.mapping_phosphosite_key).strip().lower()
-        )
-        return "gene_symbol" in {
-            phosphosite_key,
-            total_key,
-            mapping_site_key,
-            mapping_total_key,
-        }
-    return "gene_symbol" in {phosphosite_key, total_key}
 
 
 def _unique_preview(series: pd.Series, *, limit: int = 5) -> str:

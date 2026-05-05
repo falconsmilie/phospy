@@ -69,6 +69,20 @@ DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODES = frozenset(
         DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_MAPPING_TABLE,
     }
 )
+DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICY_STRICT = "strict"
+DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICY_GENE_SYMBOL_NORMALISED = (
+    "gene_symbol_normalised"
+)
+DatasetTotalProteinCorrectionIdentityMatchingPolicy = Literal[
+    "strict",
+    "gene_symbol_normalised",
+]
+DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICIES = frozenset(
+    {
+        DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICY_STRICT,
+        DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICY_GENE_SYMBOL_NORMALISED,
+    }
+)
 DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICY_ERROR = "error"
 DatasetTotalProteinCorrectionDuplicatePolicy = Literal["error"]
 DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICIES = frozenset(
@@ -479,6 +493,13 @@ class DatasetTotalProteinCorrectionIdentityConfig:
       total-protein table (currently resolved from `total.index`).
     - `"mapping_table"`: map phosphosite keys to total-protein keys through an
       explicit two-column mapping table.
+
+    Supported matching policies:
+
+    - `"strict"`: compare identity keys exactly (after trimming surrounding
+      whitespace only).
+    - `"gene_symbol_normalised"`: compare gene-symbol identity keys after
+      uppercasing, which is biologically lossy and must be explicitly chosen.
     """
 
     mode: DatasetTotalProteinCorrectionIdentityMode = (
@@ -489,6 +510,9 @@ class DatasetTotalProteinCorrectionIdentityConfig:
     mapping_table: pd.DataFrame | None = None
     mapping_phosphosite_key: str | None = None
     mapping_total_protein_key: str | None = None
+    matching_policy: DatasetTotalProteinCorrectionIdentityMatchingPolicy = (
+        DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICY_STRICT
+    )
     duplicate_policy: DatasetTotalProteinCorrectionDuplicatePolicy = (
         DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICY_ERROR
     )
@@ -519,6 +543,18 @@ class DatasetTotalProteinCorrectionIdentityConfig:
                 "dataset build request preprocessing_config.total_protein_correction."
                 "identity.total_protein_key must be a non-empty string"
             )
+        matching_policy = self.matching_policy
+        if (
+            matching_policy
+            not in DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICIES
+        ):
+            supported = ", ".join(
+                sorted(DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICIES)
+            )
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.total_protein_correction."
+                f"identity.matching_policy must be one of: {supported}"
+            )
 
         duplicate_policy = self.duplicate_policy
         if duplicate_policy not in DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICIES:
@@ -542,6 +578,31 @@ class DatasetTotalProteinCorrectionIdentityConfig:
         mapping_table = self.mapping_table
         mapping_phosphosite_key = self.mapping_phosphosite_key
         mapping_total_protein_key = self.mapping_total_protein_key
+        uses_gene_symbol_keys = "gene_symbol" in {
+            str(phosphosite_key).strip().lower(),
+            str(total_protein_key).strip().lower(),
+            (
+                ""
+                if mapping_phosphosite_key is None
+                else str(mapping_phosphosite_key).strip().lower()
+            ),
+            (
+                ""
+                if mapping_total_protein_key is None
+                else str(mapping_total_protein_key).strip().lower()
+            ),
+        }
+        if (
+            matching_policy
+            == DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICY_GENE_SYMBOL_NORMALISED
+            and not uses_gene_symbol_keys
+        ):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.total_protein_correction."
+                "identity.matching_policy='gene_symbol_normalised' requires at "
+                "least one gene_symbol identity key "
+                "(phosphosite_key/total_protein_key/mapping keys)"
+            )
 
         if mode == DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT:
             if mapping_table is not None:
@@ -993,6 +1054,9 @@ __all__ = [
     "DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT",
     "DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_MAPPING_TABLE",
     "DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODES",
+    "DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICY_STRICT",
+    "DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICY_GENE_SYMBOL_NORMALISED",
+    "DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICIES",
     "DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICY_ERROR",
     "DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICIES",
     "DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ERROR",
@@ -1017,6 +1081,7 @@ __all__ = [
     "DatasetSiteSequenceConflictPolicy",
     "DatasetTotalProteinCorrectionIdentityConfig",
     "DatasetTotalProteinCorrectionIdentityMode",
+    "DatasetTotalProteinCorrectionIdentityMatchingPolicy",
     "DatasetTotalProteinCorrectionDuplicatePolicy",
     "DatasetTotalProteinCorrectionConfig",
     "DatasetTotalProteinCorrectionPolicy",

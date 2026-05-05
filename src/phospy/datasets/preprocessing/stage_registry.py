@@ -149,6 +149,7 @@ def _resolve_total_protein_parameters(plan: PreprocessingPlan) -> dict[str, obje
     return {
         "total_protein_correction_policy": plan.total_protein_correction_policy.value,
         "identity_mode": str(identity.mode),
+        "identity_matching_policy": str(identity.matching_policy),
         "phosphosite_key": identity.phosphosite_key,
         "total_protein_key": identity.total_protein_key,
         "mapping_phosphosite_key": identity.mapping_phosphosite_key,
