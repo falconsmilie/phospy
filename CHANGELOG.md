@@ -2,6 +2,45 @@
 
 All notable changes to this project are documented here.
 
+## [1.5.2] - 2026-05-06
+
+### Added
+
+- explicit KSEA z-score activity scoring, shared threshold-membership policy handling, and condition-specific
+  `activity_substrate_counts` reporting.
+- FASTA-backed site-sequence resolution components with configurable conflict policies and durable preprocessing/kinase
+  provenance reporting.
+- opt-in missing-data preprocessing policies for MinProb and KNN imputation, plus explicit forbid-path diagnostics and
+  preprocessing readiness reporting.
+- structured identifier normalisation provenance and conflict diagnostics across dataset ingestion and reference-table
+  boundaries.
+- expanded signalome clustering components (candidate scoring/selection, module selection, tree building, scale guards,
+  and backend diagnostics schemas) with explicit policy records.
+- docs and governance additions including ADR-0016/ADR-0017, contributor guidance, workflow contracts, and consolidated
+  release-notes pages.
+
+### Changed
+
+- split preprocessing configuration and processing-state responsibilities into focused modules/packages, with an
+  authoritative stage registry and stricter diagnostics parsing.
+- refactored kinase and signalome workflow orchestration into dedicated runner/result/provenance collaborators for
+  clearer ownership boundaries.
+- promoted high-impact scientific/workflow behaviour toggles to explicit enum-backed policy models with stricter public
+  validation boundaries.
+- expanded strict typing and CI quality gates (Pyright coverage, benchmark/performance contracts, and broader boundary
+  contract tests).
+- refreshed docs, CLI docs, examples, and MkDocs structure/styling to match the current public API surfaces.
+
+### Fixed
+
+- deterministic provenance hashing with typed label/index handling, explicit structure hashing, and composite
+  stage-hash compatibility support.
+- MinProb preprocessing stability by column identity plus preserved stage ordering and row-median provenance persistence.
+- duplicate/conflict handling for site identifiers and reference accession normalisation, including explicit
+  post-normalisation conflict/duplicate reporting.
+- stricter scientific matrix guard behaviour (forbid-policy enforcement, bool-frame rejection, and fail-fast invalid
+  preprocessing metadata handling).
+
 ## [1.5.1] - 2026-04-29
 
 ### Added
