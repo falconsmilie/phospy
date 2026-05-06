@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import pandas as pd
 
 from phospy.datasets.processing_state import MissingDataDiagnosticsV1
@@ -25,10 +27,16 @@ def fail_if_forbid_policy_has_missing_values(
     affected_row_count = int(missing_mask.any(axis=1).sum())
     affected_column_count = int(missing_mask.any(axis=0).sum())
     affected_row_preview = label_preview(
-        phospho.index[missing_mask.any(axis=1)].tolist()
+        [
+            cast(object, str(label))
+            for label in phospho.index[missing_mask.any(axis=1)].tolist()
+        ]
     )
     affected_column_preview = label_preview(
-        phospho.columns[missing_mask.any(axis=0)].tolist()
+        [
+            cast(object, str(label))
+            for label in phospho.columns[missing_mask.any(axis=0)].tolist()
+        ]
     )
     raise PhosPyInputError(
         "dataset preprocessing stage 'missing_data' rejected missing values because "

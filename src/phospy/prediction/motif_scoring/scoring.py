@@ -219,7 +219,11 @@ def _materialize_scoring_windows(
     flank_size: int,
     sequence_semantics: SequenceSemantics,
 ) -> pd.Series:
-    windows = pd.Series(np.nan, index=raw_sequences.index.copy(), dtype=object)
+    windows = pd.Series(
+        [None] * len(raw_sequences),
+        index=raw_sequences.index.copy(),
+        dtype=object,
+    )
     for row in validation.rows:
         if row.sequence is None:
             continue

@@ -162,10 +162,12 @@ def _apply_log2(
             f"{offending_value!r} with pseudocount={pseudocount}. Increase pseudocount "
             "or adjust/remove non-positive values before applying log2."
         )
-    transformed = np.log2(adjusted)
-    transformed.index = matrix.index.copy()
-    transformed.columns = matrix.columns.copy()
-    return transformed
+    transformed_values = np.log2(adjusted.to_numpy(dtype=float, copy=False))
+    return pd.DataFrame(
+        transformed_values,
+        index=matrix.index.copy(),
+        columns=matrix.columns.copy(),
+    )
 
 
 def _require_numeric_columns(

@@ -93,14 +93,14 @@ class SignalomeMatrixAligner:
             score_kinases=resolved_downstream_score_matrix.columns,
         )
         try:
-            aligned_prediction_matrix = resolved_prediction_matrix.loc[
-                aligned_site_index,
-                aligned_kinase_index,
-            ]
-            aligned_downstream_score_matrix = resolved_downstream_score_matrix.loc[
-                aligned_site_index,
-                aligned_kinase_index,
-            ]
+            aligned_prediction_matrix = resolved_prediction_matrix.reindex(
+                index=aligned_site_index,
+                columns=aligned_kinase_index,
+            )
+            aligned_downstream_score_matrix = resolved_downstream_score_matrix.reindex(
+                index=aligned_site_index,
+                columns=aligned_kinase_index,
+            )
             require_aligned_dataframe_shape(
                 left=aligned_prediction_matrix,
                 right=aligned_downstream_score_matrix,

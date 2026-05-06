@@ -263,7 +263,7 @@ def rows_from_dataframe(
     if frame.empty:
         return ()
     records = frame.loc[:, list(columns)].to_dict(orient="records")
-    return tuple(row_type(**record) for record in records)
+    return tuple(row_type(**cast(dict[str, object], record)) for record in records)
 
 
 def dataframe_from_row_count_rows(

@@ -139,12 +139,12 @@ def build_kinase_score_source_diagnostics(
     )
     motif_columns = set(motif_scores.columns.astype(str))
     for kinase in rank_weighted_fusion_scores.columns.astype(str):
-        profile_column = profile_scores.loc[:, kinase]
-        fused_column = rank_weighted_fusion_scores.loc[:, kinase]
+        profile_column = _column_series(profile_scores, kinase)
+        fused_column = _column_series(rank_weighted_fusion_scores, kinase)
         available_profile = profile_column.notna()
         available_fused = fused_column.notna()
         if kinase in motif_columns:
-            motif_column = motif_scores.loc[:, kinase].reindex(
+            motif_column = _column_series(motif_scores, kinase).reindex(
                 rank_weighted_fusion_scores.index
             )
             fused_mask = motif_column.notna() & available_profile & available_fused
@@ -215,6 +215,17 @@ def resolve_downstream_score_matrix(
         source,
         SIGNALOME_DOWNSTREAM_SCORE_RANK_WEIGHTED_PREFERRED_POLICY,
     )
+
+
+def _column_series(frame: pd.DataFrame, column_name: str) -> pd.Series:
+    values = frame.loc[:, column_name]
+    if isinstance(values, pd.DataFrame):
+        if values.shape[1] != 1:
+            raise ValueError(
+                f"expected one column for {column_name!r}; got {values.shape[1]}"
+            )
+        return values[values.columns[0]]
+    return values
 
 
 def fuse_profile_and_motif_scores_by_rank_weight(

@@ -92,7 +92,7 @@ def build_kinase_profiles(
 
     if profile_rows:
         profile_matrix = pd.DataFrame.from_dict(profile_rows, orient="index")
-        profile_matrix = profile_matrix.loc[:, phospho.columns.copy()]
+        profile_matrix = profile_matrix.reindex(columns=phospho.columns.copy())
     else:
         profile_matrix = pd.DataFrame(columns=phospho.columns.copy(), dtype=float)
 
@@ -129,7 +129,7 @@ def score_profile_correlations(
             "phospho sample columns must match kinase profile columns"
         )
     aligned_phospho = _require_numeric_matrix(
-        phospho.loc[:, profile_matrix.columns],
+        phospho.reindex(columns=profile_matrix.columns),
         field_name="kinase.workflow.scoring_phospho",
     )
     profile_matrix = _require_numeric_matrix(
@@ -211,7 +211,9 @@ def build_prediction_outputs(
         if not candidate_sites:
             continue
         if retain_full_scores:
-            full_scores = prediction_score_matrix.loc[:, kinase].astype(float)
+            full_scores = _column_series(prediction_score_matrix, str(kinase)).astype(
+                float
+            )
             pred_mat.iloc[:, kinase_position] = full_scores.to_numpy(
                 dtype=float,
                 copy=False,
@@ -220,7 +222,7 @@ def build_prediction_outputs(
             if not available_sites:
                 continue
             ranked_sites = (
-                full_scores.loc[available_sites]
+                full_scores.reindex(available_sites)
                 .dropna()
                 .nlargest(
                     top_k,
@@ -286,7 +288,8 @@ def build_prediction_outputs(
         if not available_sites:
             continue
         ranked_sites = (
-            prediction_score_matrix.loc[available_sites, kinase]
+            _column_series(prediction_score_matrix, str(kinase))
+            .reindex(available_sites)
             .astype(float)
             .dropna()
             .nlargest(top_k, keep="first")
@@ -349,3 +352,16 @@ def _require_numeric_matrix(
             f"{field_name} must not contain infinite numeric values"
         )
     return numeric
+
+
+def _column_series(frame: pd.DataFrame, column_name: str) -> pd.Series:
+    values = frame.loc[:, column_name]
+    if isinstance(values, pd.DataFrame):
+        if values.shape[1] != 1:
+            raise WorkflowStageError(
+                "kinase workflow internal invariant failed at "
+                "seam=kinase.science.unique_kinase_columns; "
+                f"expected one column for kinase '{column_name}'"
+            )
+        return values[values.columns[0]]
+    return values
