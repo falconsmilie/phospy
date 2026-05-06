@@ -17,6 +17,7 @@ from phospy.provenance.models import JsonValue, TableFingerprint
 
 DEFAULT_TABLE_HASH_ALGORITHM = "sha256"
 _MISSING_SENTINEL = "<MISSING>"
+_FLOAT_HASH_SIGNIFICANT_DIGITS = 12
 _PANDAS_MISSING_SCALAR_TYPES = (
     str,
     bytes,
@@ -120,7 +121,7 @@ def _normalize_value(value: object) -> JsonValue:
                 "kind": "float",
                 "value": "Infinity" if numeric > 0.0 else "-Infinity",
             }
-        return {"kind": "float", "value": format(numeric, ".17g")}
+        return {"kind": "float", "value": _normalize_float_string(numeric)}
     if isinstance(value, np.floating):
         numeric = float(cast(float, value))
         if math.isnan(numeric):
@@ -130,7 +131,7 @@ def _normalize_value(value: object) -> JsonValue:
                 "kind": "float",
                 "value": "Infinity" if numeric > 0.0 else "-Infinity",
             }
-        return {"kind": "float", "value": format(numeric, ".17g")}
+        return {"kind": "float", "value": _normalize_float_string(numeric)}
     if isinstance(value, Decimal):
         return {"kind": "decimal", "value": format(value, "f")}
     if isinstance(value, str):
@@ -203,6 +204,14 @@ def _is_missing_scalar(value: object) -> bool:
     except Exception:
         return False
     return isinstance(missing, (bool, np.bool_)) and bool(missing)
+
+
+def _normalize_float_string(value: float) -> str:
+    # Use a stable significant-digit canonicalisation so tiny platform/parser
+    # ULP differences do not produce different provenance fingerprints.
+    if value == 0.0:
+        return "0"
+    return format(value, f".{_FLOAT_HASH_SIGNIFICANT_DIGITS}g")
 
 
 __all__ = [
