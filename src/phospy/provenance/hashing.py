@@ -17,7 +17,6 @@ from phospy.provenance.models import JsonValue, TableFingerprint
 
 DEFAULT_TABLE_HASH_ALGORITHM = "sha256"
 _MISSING_SENTINEL = "<MISSING>"
-_FLOAT_HASH_SIGNIFICANT_DIGITS = 12
 _PANDAS_MISSING_SCALAR_TYPES = (
     str,
     bytes,
@@ -207,11 +206,11 @@ def _is_missing_scalar(value: object) -> bool:
 
 
 def _normalize_float_string(value: float) -> str:
-    # Use a stable significant-digit canonicalisation so tiny platform/parser
-    # ULP differences do not produce different provenance fingerprints.
+    # Hex form is an exact IEEE-754 representation and remains stable across
+    # Python versions/platforms for the same float payload.
     if value == 0.0:
         return "0"
-    return format(value, f".{_FLOAT_HASH_SIGNIFICANT_DIGITS}g")
+    return value.hex()
 
 
 __all__ = [
