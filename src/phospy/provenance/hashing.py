@@ -198,7 +198,10 @@ def _index_structure(index: pd.Index) -> dict[str, JsonValue]:
 def _is_missing_scalar(value: object) -> bool:
     if not isinstance(value, _PANDAS_MISSING_SCALAR_TYPES):
         return False
-    missing = pd.Series((value,), dtype="object").isna().iat[0]
+    try:
+        missing = pd.isna(value)
+    except Exception:
+        return False
     return isinstance(missing, (bool, np.bool_)) and bool(missing)
 
 

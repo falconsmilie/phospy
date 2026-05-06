@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from phospy.signalomes.clustering.backends.exact_python import ExactPythonTreeEngine
+from phospy.signalomes.clustering.backends.exact_python import (
+    ExactPythonTreeEngine,
+    ExactWardClusterTree,
+)
 from phospy.signalomes.clustering.candidate_scoring import (
     build_correlation_exclusion_note,
     build_correlation_matrix_with_exclusions,
@@ -62,9 +65,16 @@ from phospy.signalomes.clustering.tree_building import (
     build_cluster_labels_from_tree,
     fit_cluster_labels,
 )
+from phospy.signalomes.clustering.tree_building import (
+    build_cluster_tree as _compat_build_cluster_tree,
+)
 from phospy.signalomes.clustering.tree_engine_adapter import (
     run_clustering_with_tree_engine,
 )
+
+# Backward-compatible private aliases used by performance/benchmark contracts.
+_WardClusterTree = ExactWardClusterTree
+_build_cluster_tree = _compat_build_cluster_tree
 
 
 @dataclass(frozen=True, slots=True)

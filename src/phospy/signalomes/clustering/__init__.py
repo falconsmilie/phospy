@@ -50,7 +50,12 @@ from phospy.signalomes.clustering.policies import (
     SignalomeClusteringMissingValuePolicy,
 )
 from phospy.signalomes.clustering.protocol import SignalomeClusteringEngine
-from phospy.signalomes.clustering.tree_building import build_cluster_labels_from_tree
+from phospy.signalomes.clustering.tree_building import (
+    build_cluster_labels_from_tree,
+)
+
+# Backward-compatible private alias for older internal callers/tests.
+_build_cluster_tree = _exact._build_cluster_tree
 
 
 def run_signalome_clustering_engine(

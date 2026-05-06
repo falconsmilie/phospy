@@ -24,7 +24,7 @@ ACTIVE_SCRIPTS_DIR ?= scripts/active
 	check-tools check-r-tools fixtures-dirs \
 	install install-dev lint format type-check pre-commit test test-unit test-parity test-seams build clean \
 	fixtures fixtures-r-l6 traces-r \
-	fixtures-public-workflow-reference fixtures-all \
+	fixtures-public-workflow-reference fixtures-provenance-goldens fixtures-all \
 	dataset-builder-demo kinase-workflow-demo signalome-workflow-demo demo-all
 
 help:
@@ -47,6 +47,7 @@ help:
 	@echo   make fixtures-r-l6                 Generate the main L6 R-backed fixture family
 	@echo   make traces-r                      Regenerate the committed R L6 prediction trace
 	@echo   make fixtures-public-workflow-reference Regenerate public workflow signalome fixtures
+	@echo   make fixtures-provenance-goldens   Regenerate provenance golden hash fixtures
 	@echo   make fixtures-all                  Bootstrap active maintainer fixture families from scratch
 	@echo   make fixtures                      Alias for fixtures-all
 
@@ -109,6 +110,9 @@ traces-r: check-r-tools fixtures-dirs
 
 fixtures-public-workflow-reference: check-tools fixtures-dirs
 	$(PYTHON) $(ACTIVE_SCRIPTS_DIR)/generate_signalome_public_workflow_reference.py --outdir "$(PUBLIC_WORKFLOW_OUTDIR)"
+
+fixtures-provenance-goldens: check-tools fixtures-dirs
+	$(PYTHON) $(ACTIVE_SCRIPTS_DIR)/generate_provenance_goldens.py
 
 test-seams: check-tools
 	$(PYTEST) -q \

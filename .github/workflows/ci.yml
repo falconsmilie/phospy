@@ -92,8 +92,7 @@ jobs:
       - name: Run Pyright
         run: |
           source .venv/bin/activate
-          PYTHON_BIN="$(python -c 'import sys; print(sys.executable)')"
-          pyright --warnings --pythonpath "$PYTHON_BIN"
+          python scripts/run_pyright.py
 
   benchmark-smoke:
     needs: repo-hygiene
