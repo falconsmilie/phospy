@@ -1,33 +1,58 @@
 # PhosPy Release Notes
 
+## Version 1.5.2 (2026-05-06)
+
 ## Release Overview
 
 PhosPy keeps the supported public shape clear: build an
 `AnalysisReadyPhosphoDataset`, run `KinaseWorkflow`, and optionally run
 `SignalomeWorkflow` when protein identifiers are available.
 
-This release strengthens preprocessing provenance, signalome clustering
-configuration, activity-method reporting, and performance guardrail
-communication.
+This release focuses on stricter preprocessing/scientific boundaries, expanded
+signalome and kinase workflow components, and stronger provenance and typing
+guarantees.
 
 ## Added
 
-- KSEA-style kinase activity inference through `KinaseActivityConfig(method="ksea_zscore")`.
-- Grouped public configuration models for dataset preprocessing, kinase scoring and prediction, and signalome workflows.
-- Explicit signalome clustering engine selection with `"scipy_hierarchical"` as the production default and `"exact_python"` for reference/debug checks.
-- Public output and bundle metadata for activity method identity, quantitative meaning, preprocessing state, and signalome scale guards.
+- Explicit KSEA z-score activity scoring, shared threshold-membership policy
+  handling, and condition-specific `activity_substrate_counts` reporting.
+- FASTA-backed site-sequence resolution components with configurable conflict
+  policies and durable preprocessing/kinase provenance reporting.
+- Opt-in missing-data preprocessing policies for MinProb and KNN imputation,
+  plus explicit forbid-path diagnostics and preprocessing readiness reporting.
+- Structured identifier normalisation provenance and conflict diagnostics across
+  dataset ingestion and reference-table boundaries.
+- Expanded signalome clustering components (candidate scoring/selection, module
+  selection, tree building, scale guards, and backend diagnostics schemas) with
+  explicit policy records.
+- Docs and governance additions including ADR-0016/ADR-0017, contributor
+  guidance, workflow contracts, and consolidated release-notes pages.
 
 ## Changed
 
-- User-facing documentation now describes the current API and CLI option names.
-- Signalome candidate scoring is documented separately from tree construction so `candidate_scoring_policy="sampled"` is not mistaken for a general large-input bypass.
-- Public output guidance distinguishes simple CLI/publisher directories from reloadable workflow bundles.
+- Split preprocessing configuration and processing-state responsibilities into
+  focused modules/packages, with an authoritative stage registry and stricter
+  diagnostics parsing.
+- Refactored kinase and signalome workflow orchestration into dedicated
+  runner/result/provenance collaborators for clearer ownership boundaries.
+- Promoted high-impact scientific/workflow behaviour toggles to explicit
+  enum-backed policy models with stricter public validation boundaries.
+- Expanded strict typing and CI quality gates (Pyright coverage,
+  benchmark/performance contracts, and broader boundary contract tests).
+- Refreshed docs, CLI docs, examples, and MkDocs structure/styling to match
+  the current public API surfaces.
 
 ## Fixed
 
-- Documentation links now point to the current release notes page.
-- The CLI guide now documents the current `--clustering-engine` option.
-- Citation metadata now matches the package version in `pyproject.toml`.
+- Deterministic provenance hashing with typed label/index handling, explicit
+  structure hashing, and composite stage-hash compatibility support.
+- MinProb preprocessing stability by column identity plus preserved stage
+  ordering and row-median provenance persistence.
+- Duplicate/conflict handling for site identifiers and reference accession
+  normalisation, including explicit post-normalisation conflict/duplicate
+  reporting.
+- Stricter scientific matrix guard behaviour (forbid-policy enforcement,
+  bool-frame rejection, and fail-fast invalid preprocessing metadata handling).
 
 ## Scientific Scope
 
@@ -35,7 +60,8 @@ Bundled runtime references in this release are rat-only. Human and mouse remain
 valid enum values, but they require a caller-supplied `ReferenceBundle` for
 workflow execution.
 
-KSEA-style activity output is supported as a PhosPy activity method, but it is
-not reported as equivalent to PhosR kinase activity inference.
+KSEA-style activity output is supported as a PhosPy activity method and is
+reported as an explicit PhosPy method variant, not as a claim of PhosR
+equivalence.
 
 Next: [Quickstart](quickstart.md) or [API Guide](api.md).
