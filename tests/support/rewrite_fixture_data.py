@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import csv
 import json
 from functools import lru_cache
 from pathlib import Path
@@ -154,7 +155,7 @@ SIGNALOME_L6_PROVENANCE_GOLDEN = (
 
 @lru_cache(maxsize=1)
 def load_rat_l6_phospho() -> pd.DataFrame:
-    return pd.read_csv(RAT_L6_PHOSPHO, index_col=0)
+    return _read_float_matrix_csv(RAT_L6_PHOSPHO)
 
 
 @lru_cache(maxsize=1)
@@ -465,9 +466,9 @@ def load_signalome_l6_provenance_golden() -> dict[str, object]:
 
 @lru_cache(maxsize=1)
 def load_public_predmat_input_phospho() -> pd.DataFrame:
-    frame = pd.read_csv(PUBLIC_PREDMAT_INPUT_PHOSPHO).set_index("phosphosite")
+    frame = _read_float_matrix_csv(PUBLIC_PREDMAT_INPUT_PHOSPHO)
     frame.index = pd.Index(frame.index.astype(str), name="phosphosite")
-    return frame.astype(float)
+    return frame
 
 
 @lru_cache(maxsize=1)
@@ -824,3 +825,42 @@ def build_rat_l6_dataset(
         organism=Organism.RAT,
     )
     return AnalysisReadyDatasetBuilder().run(request)
+
+
+def _read_float_matrix_csv(path: Path) -> pd.DataFrame:
+    with path.open("r", encoding="utf-8-sig", newline="") as handle:
+        reader = csv.reader(handle)
+        try:
+            header = next(reader)
+        except StopIteration:
+            return pd.DataFrame()
+        if len(header) < 2:
+            raise ValueError(f"expected indexed matrix CSV with >=2 columns: {path}")
+        index_name = str(header[0]).strip() or None
+        column_names = [str(name) for name in header[1:]]
+        index_values: list[str] = []
+        matrix_values: list[list[float]] = []
+        for row in reader:
+            if not row:
+                continue
+            if len(row) < len(column_names) + 1:
+                row = row + [""] * ((len(column_names) + 1) - len(row))
+            index_values.append(str(row[0]))
+            matrix_values.append([_parse_float_cell(value) for value in row[1:]])
+    frame = pd.DataFrame(
+        matrix_values,
+        index=pd.Index(index_values, name=index_name),
+        columns=pd.Index(column_names),
+        dtype="float64",
+    )
+    return frame
+
+
+def _parse_float_cell(raw_value: object) -> float:
+    text = str(raw_value).strip()
+    if text == "":
+        return float("nan")
+    lowered = text.lower()
+    if lowered in {"na", "nan", "null", "none"}:
+        return float("nan")
+    return float(text)
