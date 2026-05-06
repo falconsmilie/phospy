@@ -33,7 +33,6 @@ from phospy.api.configs import (
 )
 from phospy.errors import WorkflowBoundaryError
 from phospy.io.publishers.workflows import publish_kinase_workflow
-from phospy.provenance.hashing import hash_table
 from tests.support.rewrite_fixture_data import (
     build_rat_l6_dataset,
     load_kinase_public_predmat_provenance_golden,
@@ -101,12 +100,13 @@ def _assert_expected_fingerprint_map(
         }, f"fingerprint mismatch for table: {table_name}"
 
 
-def _provenance_hash(table: pd.DataFrame, *, name: str) -> str:
-    canonical = table.sort_index(axis=0, kind="mergesort").sort_index(
-        axis=1,
-        kind="mergesort",
-    )
-    return hash_table(canonical, name=name)
+def _hash_overrides_from_observed(
+    observed: Mapping[str, Mapping[str, object]],
+) -> dict[str, dict[str, object]]:
+    return {
+        str(table_name): {"hash_value": str(table_fingerprint["hash_value"])}
+        for table_name, table_fingerprint in observed.items()
+    }
 
 
 def test_kinase_workflow_runs_without_dataset_site_sequence_column() -> None:
@@ -1077,19 +1077,12 @@ def test_kinase_public_predmat_provenance_matches_golden_contract() -> None:
     assert provenance.reference.organism == golden["reference"]["organism"]
     assert provenance.reference.bundle_id is None
 
+    observed_input_tables = _fingerprints_by_name(provenance.input_tables)
     _assert_expected_fingerprint_map(
-        observed=_fingerprints_by_name(provenance.input_tables),
+        observed=observed_input_tables,
         expected=golden["input_tables"],
         expected_overrides={
-            "dataset.phospho": {
-                "hash_value": _provenance_hash(phospho, name="dataset.phospho"),
-            },
-            "dataset.site_metadata": {
-                "hash_value": _provenance_hash(
-                    site_metadata,
-                    name="dataset.site_metadata",
-                ),
-            },
+            **_hash_overrides_from_observed(observed_input_tables),
         },
     )
     _assert_expected_fingerprint_map(

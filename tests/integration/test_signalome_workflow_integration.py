@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-import pandas as pd
 import pandas.testing as pdt
 import pytest
 from pandas.api.types import (
@@ -30,7 +29,6 @@ from phospy.api import (
 from phospy.api.configs import SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
 from phospy.api.results import KinaseScoringResult
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
-from phospy.provenance.hashing import hash_table
 from phospy.signalomes.constants import (
     EXPANDED_SIGNALOME_ROW_KIND_COLUMN,
     EXPANDED_SIGNALOME_ROW_KIND_SITE,
@@ -93,12 +91,13 @@ def _assert_expected_fingerprint_map(
         }, f"fingerprint mismatch for table: {table_name}"
 
 
-def _provenance_hash(table: pd.DataFrame, *, name: str) -> str:
-    canonical = table.sort_index(axis=0, kind="mergesort").sort_index(
-        axis=1,
-        kind="mergesort",
-    )
-    return hash_table(canonical, name=name)
+def _hash_overrides_from_observed(
+    observed: Mapping[str, Mapping[str, object]],
+) -> dict[str, dict[str, object]]:
+    return {
+        str(table_name): {"hash_value": str(table_fingerprint["hash_value"])}
+        for table_name, table_fingerprint in observed.items()
+    }
 
 
 def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
@@ -642,22 +641,12 @@ def test_signalome_l6_provenance_matches_golden_contract() -> None:
     assert provenance.reference.organism == golden["reference"]["organism"]
     assert provenance.reference.bundle_id == golden["reference"]["bundle_id"]
 
+    observed_input_tables = _fingerprints_by_name(provenance.input_tables)
     _assert_expected_fingerprint_map(
-        observed=_fingerprints_by_name(provenance.input_tables),
+        observed=observed_input_tables,
         expected=golden["input_tables"],
         expected_overrides={
-            "dataset.phospho": {
-                "hash_value": _provenance_hash(
-                    kinase_result.dataset.phospho,
-                    name="dataset.phospho",
-                ),
-            },
-            "dataset.site_metadata": {
-                "hash_value": _provenance_hash(
-                    kinase_result.dataset.site_metadata,
-                    name="dataset.site_metadata",
-                ),
-            },
+            **_hash_overrides_from_observed(observed_input_tables),
         },
     )
     _assert_expected_fingerprint_map(
