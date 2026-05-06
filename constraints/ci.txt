@@ -18,6 +18,7 @@ tomli==2.2.1 ; python_version < "3.11"
 pytest==8.3.5
 pre-commit==4.1.0
 pyright==1.1.409
+pandas-stubs==3.0.0.260204
 ruff==0.15.7
 
 build==1.2.2.post1

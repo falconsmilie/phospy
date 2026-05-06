@@ -72,6 +72,7 @@ test = [
 
 dev = [
   "hypothesis>=6",
+  "pandas-stubs>=3.0.0.260204",
   "pre-commit>=4.0",
   "pyright>=1.1.409",
   "pytest>=8.0",
