@@ -9,7 +9,10 @@ from phospy.tables.base import ValidationErrorType
 
 
 def _column_series(frame: pd.DataFrame, column_name: str) -> pd.Series:
-    return frame.loc[:, column_name]
+    values = frame.loc[:, column_name]
+    if not isinstance(values, pd.Series):
+        raise ValueError(f"Expected '{column_name}' column lookup to return a Series")
+    return values
 
 
 def _numeric_series(frame: pd.DataFrame, column_name: str) -> pd.Series:

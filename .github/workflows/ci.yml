@@ -60,14 +60,14 @@ jobs:
           cache-dependency-path: |
             pyproject.toml
             constraints/ci.txt
-      - name: Install Ruff
+      - name: Install pre-commit
         run: |
           python -m pip install --upgrade pip
-          pip install ruff
-      - name: Run Ruff checks
+          pip install pre-commit
+      - name: Run Ruff hooks
         run: |
-          ruff check .
-          ruff format --check .
+          pre-commit run ruff-check --all-files
+          pre-commit run ruff-format --all-files
 
   type-check:
     needs: repo-hygiene

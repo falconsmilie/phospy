@@ -22,7 +22,7 @@ ACTIVE_SCRIPTS_DIR ?= scripts/active
 
 .PHONY: help \
 	check-tools check-r-tools fixtures-dirs \
-	install install-dev lint format pre-commit test test-unit test-parity test-seams build clean \
+	install install-dev lint format type-check pre-commit test test-unit test-parity test-seams build clean \
 	fixtures fixtures-r-l6 traces-r \
 	fixtures-public-workflow-reference fixtures-all \
 	dataset-builder-demo kinase-workflow-demo signalome-workflow-demo demo-all
@@ -33,6 +33,7 @@ help:
 	@echo   make install-dev                   Install editable package with dev and test extras
 	@echo   make lint                          Run Ruff checks
 	@echo   make format                        Run Ruff formatter
+	@echo   make type-check                    Run Pyright with the active Python interpreter
 	@echo   make pre-commit                    Run all pre-commit hooks
 	@echo   make test-unit                     Run the non-parity pytest suite
 	@echo   make test-parity                   Run the parity pytest suite
@@ -72,6 +73,9 @@ format: check-tools
 
 pre-commit: check-tools
 	$(PRE_COMMIT) run --all-files
+
+type-check: check-tools
+	$(PYTHON) -m pyright --warnings
 
 test: test-unit test-parity
 
