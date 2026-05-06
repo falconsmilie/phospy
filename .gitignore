@@ -28,6 +28,5 @@ tmp_edge_trace/
 # Local benchmark reports
 benchmarks/reports/
 
-docs/stylesheets/
-
 site/
+main.py
