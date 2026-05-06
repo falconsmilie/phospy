@@ -65,7 +65,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install pre-commit
       - name: Run Ruff hooks
-        run: pre-commit run --all-files
+        run: |
+          pre-commit run ruff-check --all-files
+          pre-commit run ruff-format --all-files
 
   type-check:
     needs: repo-hygiene
