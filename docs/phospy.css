@@ -1,0 +1,620 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Outfit:wght@500;600&display=swap");
+
+/* --------------------------------------------------------------------------
+   PhosPy Design Tokens for Material for MkDocs
+   -------------------------------------------------------------------------- */
+
+:root {
+  --phospy-radius-sm: 12px;
+  --phospy-radius-md: 20px;
+  --phospy-radius-lg: 28px;
+  --phospy-radius-pill: 9999px;
+
+  --phospy-brand: #3daeff;
+  --phospy-brand-strong: #60a5fa;
+  --phospy-brand-deep: #1456f0;
+  --phospy-violet: #7c5cff;
+  --phospy-pink: #ea5ec1;
+  --phospy-orange: #ff8f4d;
+
+  --phospy-shadow: 0 22px 56px rgba(0, 0, 0, 0.3);
+  --phospy-shadow-soft: 0 10px 24px rgba(0, 0, 0, 0.18);
+  --phospy-shadow-brand: 0 0 24px rgba(44, 30, 116, 0.24);
+}
+
+/* --------------------------------------------------------------------------
+   Dark Theme: PhosPy Default
+   -------------------------------------------------------------------------- */
+
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color: #0b1018;
+  --md-default-fg-color: #e8eef9;
+  --md-default-fg-color--light: #bcc7d9;
+  --md-default-fg-color--lighter: #8894ab;
+  --md-default-fg-color--lightest: rgba(136, 148, 171, 0.45);
+
+  --md-primary-fg-color: #101726;
+  --md-primary-fg-color--light: #121a2b;
+  --md-primary-fg-color--dark: #0b1018;
+  --md-primary-bg-color: #ffffff;
+  --md-primary-bg-color--light: rgba(255, 255, 255, 0.72);
+
+  --md-accent-fg-color: #3daeff;
+  --md-accent-fg-color--transparent: rgba(61, 174, 255, 0.16);
+
+  --md-typeset-color: #e8eef9;
+  --md-typeset-a-color: #3daeff;
+
+  --md-code-fg-color: #eef4ff;
+  --md-code-bg-color: #0d1523;
+  --md-code-hl-color: rgba(61, 174, 255, 0.2);
+
+  --md-code-hl-keyword-color: #7cc7ff;
+  --md-code-hl-string-color: #4ade80;
+  --md-code-hl-number-color: #ff9f68;
+  --md-code-hl-function-color: #3daeff;
+  --md-code-hl-constant-color: #a78bfa;
+  --md-code-hl-special-color: #ea5ec1;
+  --md-code-hl-operator-color: #f472b6;
+  --md-code-hl-punctuation-color: #cbd5e1;
+  --md-code-hl-comment-color: #8894ab;
+  --md-code-hl-name-color: #eef4ff;
+  --md-code-hl-variable-color: #ffffff;
+  --md-code-hl-generic-color: #bcc7d9;
+
+  --md-footer-bg-color: #181e25;
+  --md-footer-bg-color--dark: #111722;
+
+  --md-admonition-bg-color: rgba(18, 24, 39, 0.78);
+}
+
+/* --------------------------------------------------------------------------
+   Light Theme
+   -------------------------------------------------------------------------- */
+
+[data-md-color-scheme="default"] {
+  --md-default-bg-color: #ffffff;
+  --md-default-fg-color: #243041;
+  --md-default-fg-color--light: #45515e;
+  --md-default-fg-color--lighter: #7d8793;
+  --md-default-fg-color--lightest: rgba(24, 30, 37, 0.18);
+
+  --md-primary-fg-color: #ffffff;
+  --md-primary-fg-color--light: #f7f9fe;
+  --md-primary-fg-color--dark: #f0f0f0;
+  --md-primary-bg-color: #18181b;
+  --md-primary-bg-color--light: rgba(24, 24, 27, 0.72);
+
+  --md-accent-fg-color: #2563eb;
+  --md-accent-fg-color--transparent: rgba(37, 99, 235, 0.1);
+
+  --md-typeset-color: #243041;
+  --md-typeset-a-color: #1456f0;
+
+  --md-code-fg-color: #eef4ff;
+  --md-code-bg-color: #181e25;
+  --md-code-hl-color: rgba(61, 174, 255, 0.2);
+
+  --md-code-hl-keyword-color: #93c5fd;
+  --md-code-hl-string-color: #4ade80;
+  --md-code-hl-number-color: #fb923c;
+  --md-code-hl-function-color: #60a5fa;
+  --md-code-hl-constant-color: #c4b5fd;
+  --md-code-hl-special-color: #f472b6;
+  --md-code-hl-operator-color: #f472b6;
+  --md-code-hl-punctuation-color: #dbeafe;
+  --md-code-hl-comment-color: #94a3b8;
+  --md-code-hl-name-color: #eef4ff;
+  --md-code-hl-variable-color: #ffffff;
+  --md-code-hl-generic-color: #cbd5e1;
+
+  --md-footer-bg-color: #181e25;
+  --md-footer-bg-color--dark: #111722;
+
+  --md-admonition-bg-color: #ffffff;
+}
+
+/* --------------------------------------------------------------------------
+   Page Background
+   -------------------------------------------------------------------------- */
+
+body {
+  font-family: "DM Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+}
+
+[data-md-color-scheme="slate"] body {
+  background:
+    radial-gradient(circle at 6% 6%, rgba(59, 130, 246, 0.22), transparent 18%),
+    radial-gradient(circle at 92% 8%, rgba(234, 94, 193, 0.16), transparent 15%),
+    radial-gradient(circle at 96% 28%, rgba(255, 143, 77, 0.12), transparent 14%),
+    radial-gradient(circle at 84% 44%, rgba(124, 92, 255, 0.14), transparent 18%),
+    linear-gradient(180deg, rgba(8, 12, 20, 0.98), rgba(11, 16, 24, 1)),
+    #0b1018;
+}
+
+[data-md-color-scheme="default"] body {
+  background:
+    radial-gradient(circle at 6% 6%, rgba(59, 130, 246, 0.08), transparent 18%),
+    radial-gradient(circle at 92% 8%, rgba(234, 94, 193, 0.08), transparent 14%),
+    radial-gradient(circle at 96% 28%, rgba(249, 115, 22, 0.08), transparent 14%),
+    radial-gradient(circle at 84% 44%, rgba(106, 76, 255, 0.07), transparent 18%),
+    linear-gradient(180deg, #ffffff, #f7f9fe),
+    #ffffff;
+}
+
+/* --------------------------------------------------------------------------
+   Header and Navigation
+   -------------------------------------------------------------------------- */
+
+.md-header {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(16, 23, 38, 0.86);
+  backdrop-filter: blur(16px);
+  box-shadow: none;
+}
+
+[data-md-color-scheme="default"] .md-header {
+  border-bottom-color: rgba(24, 30, 37, 0.08);
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.md-header__title,
+.md-tabs__link,
+.md-nav__title,
+.md-nav__link {
+  font-family: "DM Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.md-tabs {
+  background: transparent;
+}
+
+.md-tabs__link {
+  opacity: 0.86;
+  font-weight: 500;
+}
+
+.md-tabs__link--active,
+.md-tabs__link:hover,
+.md-nav__link--active,
+.md-nav__link:hover {
+  color: var(--md-accent-fg-color);
+}
+
+/* --------------------------------------------------------------------------
+   Typography
+   -------------------------------------------------------------------------- */
+
+.md-typeset {
+  font-family: "DM Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 0.82rem;
+  line-height: 1.65;
+}
+
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3,
+.md-typeset h4 {
+  font-family: "Outfit", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  color: var(--md-default-fg-color);
+  letter-spacing: -0.035em;
+}
+
+.md-typeset h1 {
+  margin-bottom: 1.2rem;
+  font-size: clamp(1.4rem, 6vw, 3.4rem);
+  line-height: 0.98;
+  font-weight: 500;
+}
+
+.md-typeset h2 {
+  margin-top: 2.4rem;
+  font-size: clamp(1.65rem, 3vw, 2.4rem);
+  line-height: 1.08;
+  font-weight: 500;
+}
+
+.md-typeset h3 {
+  margin-top: 1.8rem;
+  font-size: 1.25rem;
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+.md-typeset h4 {
+  font-weight: 600;
+}
+
+.md-typeset p,
+.md-typeset li {
+  color: var(--md-default-fg-color--light);
+}
+
+.md-typeset strong {
+  color: var(--md-default-fg-color);
+  font-weight: 700;
+}
+
+.md-typeset a {
+  font-weight: 500;
+}
+
+/* --------------------------------------------------------------------------
+   Main Content Panel
+   -------------------------------------------------------------------------- */
+
+.md-main__inner {
+  margin-top: 1.3rem;
+}
+
+.md-content__inner {
+  padding-bottom: 3rem;
+}
+
+@media screen and (min-width: 76.25em) {
+  .md-content__inner {
+    padding: 2rem 2.3rem 3rem;
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    border-radius: var(--phospy-radius-lg);
+    background:
+      linear-gradient(135deg, rgba(20, 86, 240, 0.06), transparent 34%),
+      linear-gradient(225deg, rgba(234, 94, 193, 0.05), transparent 30%),
+      rgba(18, 24, 39, 0.64);
+    box-shadow: var(--phospy-shadow-soft), var(--phospy-shadow-brand);
+    backdrop-filter: blur(16px);
+  }
+
+  [data-md-color-scheme="default"] .md-content__inner {
+    border-color: rgba(24, 30, 37, 0.08);
+    background:
+      linear-gradient(135deg, rgba(20, 86, 240, 0.05), transparent 34%),
+      linear-gradient(225deg, rgba(234, 94, 193, 0.04), transparent 30%),
+      rgba(255, 255, 255, 0.9);
+    box-shadow:
+      0 22px 56px rgba(31, 41, 55, 0.1),
+      0 0 20px rgba(44, 30, 116, 0.1);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Code Blocks and Inline Code
+   -------------------------------------------------------------------------- */
+
+.md-typeset code,
+.md-typeset pre,
+.md-typeset kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+/* Inline code: blue text only, no rounded background */
+.md-typeset :not(pre) > code {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #3daeff;
+  font-size: 0.92em;
+  box-shadow: none;
+}
+
+[data-md-color-scheme="default"] .md-typeset :not(pre) > code {
+  background: transparent;
+  color: #1456f0;
+}
+
+.md-typeset pre {
+  margin: 1.2rem 0;
+}
+
+.md-typeset pre > code {
+  max-height: 42rem;
+  padding: 1rem 1.1rem;
+  border-radius: var(--phospy-radius-md);
+  font-size: 0.76rem;
+  font-weight: 400;
+  line-height: 1.6;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.md-typeset .highlight {
+  border-radius: var(--phospy-radius-md);
+}
+
+.md-typeset .highlighttable {
+  border-radius: var(--phospy-radius-md);
+  overflow: hidden;
+}
+
+.md-typeset .filename {
+  border-top-left-radius: var(--phospy-radius-md);
+  border-top-right-radius: var(--phospy-radius-md);
+  font-family: "DM Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.md-clipboard {
+  border-radius: 8px;
+}
+
+/* --------------------------------------------------------------------------
+   Buttons
+   -------------------------------------------------------------------------- */
+
+.md-button {
+  min-height: 44px;
+  padding: 0.65rem 1rem;
+  border-radius: 8px;
+  font-family: "DM Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 0.86rem;
+  font-weight: 600;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.md-button:hover,
+.md-button:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: var(--phospy-shadow-soft);
+}
+
+.md-button--primary {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--phospy-brand-deep), var(--phospy-brand-strong));
+  color: #ffffff;
+  box-shadow: var(--phospy-shadow-soft), var(--phospy-shadow-brand);
+}
+
+/* --------------------------------------------------------------------------
+   Search
+   -------------------------------------------------------------------------- */
+
+.md-search__form {
+  border-radius: var(--phospy-radius-pill);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+[data-md-color-scheme="default"] .md-search__form {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.md-search__input {
+  font-family: "DM Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+/*!* --------------------------------------------------------------------------*/
+/*   Tables*/
+/*   -------------------------------------------------------------------------- *!*/
+
+/*.md-typeset table:not([class]) {*/
+/*  border-radius: var(--phospy-radius-sm);*/
+/*  overflow: hidden;*/
+/*  box-shadow: var(--phospy-shadow-soft);*/
+/*}*/
+
+/*.md-typeset table:not([class]) th {*/
+/*  background: rgba(61, 174, 255, 0.14);*/
+/*  color: var(--md-default-fg-color);*/
+/*  font-weight: 700;*/
+/*}*/
+
+/*[data-md-color-scheme="default"] .md-typeset table:not([class]) th {*/
+/*  background: rgba(20, 86, 240, 0.08);*/
+/*}*/
+/* --------------------------------------------------------------------------
+   Tables
+   -------------------------------------------------------------------------- */
+
+.md-typeset table:not([class]) {
+  border-radius: var(--phospy-radius-sm);
+  overflow: hidden;
+  box-shadow: var(--phospy-shadow-soft);
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.md-typeset table:not([class]) th,
+.md-typeset table:not([class]) td {
+  padding: 0.7rem 0.85rem;
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.md-typeset table:not([class]) th {
+  background: rgba(61, 174, 255, 0.14);
+  color: var(--md-default-fg-color);
+  font-weight: 700;
+}
+
+[data-md-color-scheme="default"] .md-typeset table:not([class]) th {
+  background: rgba(20, 86, 240, 0.08);
+}
+/* --------------------------------------------------------------------------
+   Admonitions
+   -------------------------------------------------------------------------- */
+
+.md-typeset .admonition,
+.md-typeset details {
+  border-radius: var(--phospy-radius-md);
+  border-color: rgba(61, 174, 255, 0.32);
+  background: rgba(18, 24, 39, 0.62);
+  box-shadow: var(--phospy-shadow-soft);
+}
+
+[data-md-color-scheme="default"] .md-typeset .admonition,
+[data-md-color-scheme="default"] .md-typeset details {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+/* --------------------------------------------------------------------------
+   Footer
+   -------------------------------------------------------------------------- */
+
+.md-footer {
+  background: #181e25;
+}
+
+.md-footer-meta {
+  background: #111722;
+}
+
+/* --------------------------------------------------------------------------
+   PhosPy Code Highlighting — Final Pygments Token Overrides
+   -------------------------------------------------------------------------- */
+
+/* Base code block */
+.md-typeset pre code {
+  background: #0d1523 !important;
+  color: #eef4ff !important;
+}
+
+/* Plain wrapper spans */
+.md-typeset pre code span:not([class]) {
+  color: #eef4ff !important;
+}
+
+/* Whitespace */
+.md-typeset pre code span.w {
+  color: inherit !important;
+}
+
+/* import / from */
+.md-typeset pre code span.kn {
+  color: #3daeff !important;
+  font-weight: 700;
+}
+
+/* Other keywords: as, if, for, return, class, def, None, etc. */
+.md-typeset pre code span.k,
+.md-typeset pre code span.kc,
+.md-typeset pre code span.kd,
+.md-typeset pre code span.kp,
+.md-typeset pre code span.kr,
+.md-typeset pre code span.kt {
+  color: #a78bfa !important;
+  font-weight: 700;
+}
+
+/* Namespaces/modules: pandas, phospy, phospy.api */
+.md-typeset pre code span.nn {
+  color: #c4b5fd !important;
+  font-weight: 700;
+}
+
+/*
+   Main identifier colour.
+   Pygments often uses .n for variables, parameters, imported class names,
+   method-like names, and many ordinary identifiers in Python.
+*/
+.md-typeset pre code span.n {
+  color: #bfdbfe !important;
+  font-weight: 600;
+}
+
+/* Built-ins and pseudo-built-ins: self, cls, list, dict, len, print, etc. */
+.md-typeset pre code span.nb,
+.md-typeset pre code span.bp {
+  color: #7cc7ff !important;
+  font-weight: 700;
+}
+
+/* Function names when separately detected */
+.md-typeset pre code span.nf,
+.md-typeset pre code span.fm {
+  color: #3daeff !important;
+  font-weight: 700;
+}
+
+/* Class names when separately detected */
+.md-typeset pre code span.nc {
+  color: #c4b5fd !important;
+  font-weight: 700;
+}
+
+/* Attributes when separately detected */
+.md-typeset pre code span.na {
+  color: #7cc7ff !important;
+  font-weight: 700;
+}
+
+/* Constants and decorators */
+.md-typeset pre code span.no,
+.md-typeset pre code span.nd {
+  color: #c4b5fd !important;
+  font-weight: 700;
+}
+
+/* Strings: soft PhosPy pink */
+.md-typeset pre code span.s,
+.md-typeset pre code span.sa,
+.md-typeset pre code span.sb,
+.md-typeset pre code span.sc,
+.md-typeset pre code span.dl,
+.md-typeset pre code span.sd,
+.md-typeset pre code span.s2,
+.md-typeset pre code span.se,
+.md-typeset pre code span.sh,
+.md-typeset pre code span.si,
+.md-typeset pre code span.sx,
+.md-typeset pre code span.sr,
+.md-typeset pre code span.s1,
+.md-typeset pre code span.ss {
+  color: #f9c2e7 !important;
+}
+
+/* Numbers */
+.md-typeset pre code span.m,
+.md-typeset pre code span.mb,
+.md-typeset pre code span.mf,
+.md-typeset pre code span.mh,
+.md-typeset pre code span.mi,
+.md-typeset pre code span.mo,
+.md-typeset pre code span.il {
+  color: #ffb86b !important;
+  font-weight: 600;
+}
+
+/* Operators */
+.md-typeset pre code span.o,
+.md-typeset pre code span.ow {
+  color: #ea5ec1 !important;
+  font-weight: 700;
+}
+
+/* Punctuation */
+.md-typeset pre code span.p {
+  color: #b8c5d9 !important;
+}
+
+/* Comments */
+.md-typeset pre code span.c,
+.md-typeset pre code span.ch,
+.md-typeset pre code span.cm,
+.md-typeset pre code span.cpf,
+.md-typeset pre code span.c1,
+.md-typeset pre code span.cs {
+  color: #8894ab !important;
+  font-style: italic;
+}
+
+/* Errors / tracebacks */
+.md-typeset pre code span.err,
+.md-typeset pre code span.gr,
+.md-typeset pre code span.gt {
+  color: #fca5a5 !important;
+}
+
+/* Inserted / success-like diff lines */
+.md-typeset pre code span.gi {
+  color: #86efac !important;
+}
+
+/* Deleted / warning-like diff lines */
+.md-typeset pre code span.gd {
+  color: #fb7185 !important;
+}

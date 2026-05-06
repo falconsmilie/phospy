@@ -72,13 +72,18 @@ Kinase-specific options:
 | `--prediction-n-iterations` | `5` | adaptive sampling iterations |
 | `--prediction-random-state` | none | optional random state |
 | `--skip-activity` | false | disable activity outputs |
+| `--activity-method` | `simplified_weighted_substrate_activity` | `simplified_weighted_substrate_activity` or `ksea_zscore` |
 | `--activity-threshold` | `0.6` | prediction-score threshold for activity |
 | `--activity-min-substrates` | `3` | minimum selected substrates per kinase |
 | `--activity-top-n-substrates` | `20` | top predicted substrates for weighted activity |
+| `--activity-ksea-min-substrates` | `5` | minimum substrate support per kinase and condition for KSEA |
+| `--activity-ksea-evidence-threshold` | none | optional KSEA membership threshold (defaults to `--activity-threshold`) |
+| `--activity-ksea-p-value-method` | `normal_approximation` | KSEA p-value method |
+| `--activity-ksea-no-adjust-p-values` | false | disable Benjamini-Hochberg q-value adjustment for KSEA |
 
 `ReferencePreset.AUTO` works with bundled rat references when the dataset
 organism is rat. Human and mouse reference presets are enum values, but bundled
-runtime data is not shipped for them in `1.5.0`; use the Python API with an
+runtime data is not shipped for them in the current release; use the Python API with an
 explicit `ReferenceBundle` for those organisms.
 
 ## `signalome`
@@ -105,7 +110,7 @@ Signalome-specific options:
 | `--network-policy` | `signed` | `positive_only`, `absolute_threshold`, or `signed` |
 | `--assignment-policy` | `cutoff_binary` | `cutoff_binary` or `weighted_top` |
 | `--score-preconditioning-policy` | `error_on_drop` | strict default (fail when all-missing rows would be dropped); set `allow_and_report` to proceed and record diagnostics |
-| `--tree-engine` | `exact` | exact tree construction; only supported value |
+| `--clustering-engine` | `scipy_hierarchical` | `scipy_hierarchical` (production default) or `exact_python` (reference/debug checks) |
 | `--candidate-scoring-policy` | `full` | `full` or `sampled` candidate module-count scoring |
 | `--max-exact-tree-sites` | `2000` | hard guard for exact tree construction |
 | `--max-full-candidate-scoring-sites` | `2000` | hard guard for full candidate scoring |

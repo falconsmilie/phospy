@@ -87,7 +87,7 @@ Common cross-field checks:
 - `site_sequences` indexed by site ID with non-empty `site_sequence`
 - no duplicate `(kinase, substrate_site)` pairs
 
-`ReferencePreset.AUTO` uses `dataset.organism`. In `1.5.0`, bundled runtime
+`ReferencePreset.AUTO` uses `dataset.organism`. In the current release, bundled runtime
 references are rat-only.
 
 ## Workflow Validation

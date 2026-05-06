@@ -11,7 +11,7 @@ interfaces are:
 - the Python API
 - the `phospy` command-line interface
 
-## Documentation
+## Recommended Reading
 You can view the full documentation here: [Phospy Docs](https://phospy.com/docs)
 
 ## Install
@@ -51,7 +51,7 @@ The smallest supported lane is:
 2. run kinase with `references=ReferencePreset.AUTO`
 3. run signalome only when `site_metadata.protein_id` is present
 
-Bundled runtime references in `1.5.0` are rat-only. For human or mouse work,
+Bundled runtime references in the current release are rat-only. For human or mouse work,
 create and pass an explicit `ReferenceBundle` in Python instead of using
 `ReferencePreset.AUTO`.
 

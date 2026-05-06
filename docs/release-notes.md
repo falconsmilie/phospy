@@ -1,8 +1,8 @@
-# PhosPy 1.5.1 Release Notes
+# PhosPy Release Notes
 
 ## Release Overview
 
-PhosPy `1.5.1` keeps the supported public shape clear: build an
+PhosPy keeps the supported public shape clear: build an
 `AnalysisReadyPhosphoDataset`, run `KinaseWorkflow`, and optionally run
 `SignalomeWorkflow` when protein identifiers are available.
 
@@ -19,7 +19,7 @@ communication.
 
 ## Changed
 
-- User-facing documentation now describes the current `1.5.1` API and CLI option names.
+- User-facing documentation now describes the current API and CLI option names.
 - Signalome candidate scoring is documented separately from tree construction so `candidate_scoring_policy="sampled"` is not mistaken for a general large-input bypass.
 - Public output guidance distinguishes simple CLI/publisher directories from reloadable workflow bundles.
 

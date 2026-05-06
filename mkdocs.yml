@@ -33,7 +33,7 @@ theme:
         name: Switch to dark mode
 
 extra_css:
-  - stylesheets/phospy.css
+  - phospy.css
 
 markdown_extensions:
   - toc:
@@ -67,5 +67,5 @@ nav:
       - Contributing: contributing.md
   - Project:
       - Maintenance: maintenance.md
-      - Release Notes 1.5.0: release-notes-1.5.0.md
+      - Release Notes: release-notes.md
       - ADR Index: adr/index.md

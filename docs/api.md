@@ -39,7 +39,7 @@ All public executors use `run(request)`.
 
 3. `SignalomeWorkflowRequest` -> `SignalomeWorkflow.run(...)` -> `SignalomeWorkflowResult`
 
-The beginner lane is rat-first because bundled runtime references in `1.5.0` are
+The beginner lane is rat-first because bundled runtime references in the current release are
 rat-only. Human and mouse workflows need an explicit `ReferenceBundle`.
 
 For concise scientist-facing assumptions and interpretation notes, see
@@ -92,7 +92,7 @@ interpreted sites.
 
 ## Dataset Preprocessing Configs
 
-`DatasetPreprocessingConfig` groups six areas.
+`DatasetPreprocessingConfig` groups eight areas.
 
 For most users, start with intent presets and only drop to low-level policy
 constants when you need fine-grained control:
@@ -111,7 +111,9 @@ raw_table = DatasetPreprocessingConfig.from_raw_phosphosite_table()
 | `missing_data` | `DatasetMissingDataConfig` | `policy="forbid"` |
 | `total_protein_correction` | `DatasetTotalProteinCorrectionConfig` | `policy="none"` |
 | `site_matrix` | `DatasetSiteMatrixConfig` | `policy="as_input"` |
+| `site_sequence_resolution` | `DatasetSiteSequenceResolutionConfig` | `mode="validate_existing_only"` |
 | `comparisons` | `DatasetComparisonBuildingConfig` | `policy="none"` |
+| `ruv_readiness` | `DatasetRuvReadinessConfig` | `enabled=False` |
 
 ### Intensity Transform
 
@@ -140,7 +142,14 @@ distributions are scientifically appropriate.
 
 - `policy="forbid"`
 - `policy="impute_row_median"`
+- `policy="impute_minprob"`
+- `policy="impute_knn"`
 - `min_observed_values`, used with row-median imputation
+
+Additional required fields for advanced policies:
+
+- `impute_minprob`: `q`, `width`, `seed`, `max_missing_fraction_per_row`
+- `impute_knn`: `k`, `distance="nan_euclidean"`, `max_missing_fraction_per_row`
 
 The dataset that leaves the builder must be missing-value-free.
 

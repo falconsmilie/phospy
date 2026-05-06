@@ -11,7 +11,7 @@ The supported public lane is:
 2. run kinase scoring and prediction
 3. optionally run signalome analysis from the kinase result
 
-Bundled runtime references in `1.5.0` are rat-only. Human and mouse analysis can
+Bundled runtime references in the current release are rat-only. Human and mouse analysis can
 be run by passing an explicit `ReferenceBundle` in Python.
 
 ## Scientific Confidence Labels

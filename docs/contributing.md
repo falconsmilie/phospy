@@ -60,7 +60,8 @@ ruff check --fix
 ruff format
 ```
 
-For a more detailed implementation guide please review the [Internal Workflow Architecture](../adr/adr_0002_internal_workflow_architecture/#decision)
+For a deeper architecture rationale, review
+[ADR 0002: Internal Workflow Architecture for PhosPy](adr/adr_0002_internal_workflow_architecture.md).
 
 ## Type Checking
 

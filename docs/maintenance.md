@@ -104,9 +104,9 @@ Exposure categories:
 
 ## Release Notes
 
-- Current release notes: [PhosPy 1.5.0](release-notes-1.5.0.md)
-- Changelog: [`CHANGELOG.md`](../CHANGELOG.md)
-- Citation metadata: [`CITATION.cff`](../CITATION.cff)
+- Current release notes: [PhosPy Release Notes](release-notes.md)
+- Changelog: [`CHANGELOG.md`](https://github.com/falconsmilie/phospy/blob/main/CHANGELOG.md)
+- Citation metadata: [`CITATION.cff`](https://github.com/falconsmilie/phospy/blob/main/CITATION.cff)
 
 ## ADRs
 
