@@ -1083,7 +1083,13 @@ def test_kinase_public_predmat_provenance_matches_golden_contract() -> None:
         expected_overrides={
             "dataset.phospho": {
                 "hash_value": _provenance_hash(phospho, name="dataset.phospho"),
-            }
+            },
+            "dataset.site_metadata": {
+                "hash_value": _provenance_hash(
+                    site_metadata,
+                    name="dataset.site_metadata",
+                ),
+            },
         },
     )
     _assert_expected_fingerprint_map(
