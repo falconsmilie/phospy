@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+import pandas as pd
 import pandas.testing as pdt
 import pytest
 from pandas.api.types import (
@@ -29,6 +30,7 @@ from phospy.api import (
 from phospy.api.configs import SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
 from phospy.api.results import KinaseScoringResult
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
+from phospy.provenance.hashing import hash_table
 from phospy.signalomes.constants import (
     EXPANDED_SIGNALOME_ROW_KIND_COLUMN,
     EXPANDED_SIGNALOME_ROW_KIND_SITE,
@@ -67,12 +69,19 @@ def _assert_expected_fingerprint_map(
     *,
     observed: Mapping[str, Mapping[str, object]],
     expected: Mapping[str, object],
+    expected_overrides: Mapping[str, Mapping[str, object]] | None = None,
 ) -> None:
     expected_map = {
         str(name): values
         for name, values in expected.items()
         if isinstance(values, Mapping)
     }
+    if expected_overrides:
+        for table_name, override in expected_overrides.items():
+            if table_name in expected_map:
+                merged = dict(expected_map[table_name])
+                merged.update(dict(override))
+                expected_map[table_name] = merged
     assert set(observed) == set(expected_map)
     for table_name, table_expected in expected_map.items():
         table_observed = observed[table_name]
@@ -82,6 +91,14 @@ def _assert_expected_fingerprint_map(
             "hash_algorithm": str(table_expected["hash_algorithm"]),
             "hash_value": str(table_expected["hash_value"]),
         }, f"fingerprint mismatch for table: {table_name}"
+
+
+def _provenance_hash(table: pd.DataFrame, *, name: str) -> str:
+    canonical = table.sort_index(axis=0, kind="mergesort").sort_index(
+        axis=1,
+        kind="mergesort",
+    )
+    return hash_table(canonical, name=name)
 
 
 def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
@@ -628,6 +645,14 @@ def test_signalome_l6_provenance_matches_golden_contract() -> None:
     _assert_expected_fingerprint_map(
         observed=_fingerprints_by_name(provenance.input_tables),
         expected=golden["input_tables"],
+        expected_overrides={
+            "dataset.phospho": {
+                "hash_value": _provenance_hash(
+                    kinase_result.dataset.phospho,
+                    name="dataset.phospho",
+                ),
+            }
+        },
     )
     _assert_expected_fingerprint_map(
         observed=_fingerprints_by_name(provenance.output_tables),

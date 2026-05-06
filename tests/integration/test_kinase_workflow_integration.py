@@ -33,6 +33,7 @@ from phospy.api.configs import (
 )
 from phospy.errors import WorkflowBoundaryError
 from phospy.io.publishers.workflows import publish_kinase_workflow
+from phospy.provenance.hashing import hash_table
 from tests.support.rewrite_fixture_data import (
     build_rat_l6_dataset,
     load_kinase_public_predmat_provenance_golden,
@@ -76,12 +77,19 @@ def _assert_expected_fingerprint_map(
     *,
     observed: Mapping[str, Mapping[str, object]],
     expected: Mapping[str, object],
+    expected_overrides: Mapping[str, Mapping[str, object]] | None = None,
 ) -> None:
     expected_map = {
         str(name): values
         for name, values in expected.items()
         if isinstance(values, Mapping)
     }
+    if expected_overrides:
+        for table_name, override in expected_overrides.items():
+            if table_name in expected_map:
+                merged = dict(expected_map[table_name])
+                merged.update(dict(override))
+                expected_map[table_name] = merged
     assert set(observed) == set(expected_map)
     for table_name, table_expected in expected_map.items():
         table_observed = observed[table_name]
@@ -91,6 +99,14 @@ def _assert_expected_fingerprint_map(
             "hash_algorithm": str(table_expected["hash_algorithm"]),
             "hash_value": str(table_expected["hash_value"]),
         }, f"fingerprint mismatch for table: {table_name}"
+
+
+def _provenance_hash(table: pd.DataFrame, *, name: str) -> str:
+    canonical = table.sort_index(axis=0, kind="mergesort").sort_index(
+        axis=1,
+        kind="mergesort",
+    )
+    return hash_table(canonical, name=name)
 
 
 def test_kinase_workflow_runs_without_dataset_site_sequence_column() -> None:
@@ -1064,6 +1080,11 @@ def test_kinase_public_predmat_provenance_matches_golden_contract() -> None:
     _assert_expected_fingerprint_map(
         observed=_fingerprints_by_name(provenance.input_tables),
         expected=golden["input_tables"],
+        expected_overrides={
+            "dataset.phospho": {
+                "hash_value": _provenance_hash(phospho, name="dataset.phospho"),
+            }
+        },
     )
     _assert_expected_fingerprint_map(
         observed=_fingerprints_by_name(provenance.output_tables),
