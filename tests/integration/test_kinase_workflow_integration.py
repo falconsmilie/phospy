@@ -90,7 +90,7 @@ def _assert_expected_fingerprint_map(
             "columns": int(table_expected["columns"]),
             "hash_algorithm": str(table_expected["hash_algorithm"]),
             "hash_value": str(table_expected["hash_value"]),
-        }
+        }, f"fingerprint mismatch for table: {table_name}"
 
 
 def test_kinase_workflow_runs_without_dataset_site_sequence_column() -> None:

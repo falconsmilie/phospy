@@ -356,11 +356,29 @@ class KinaseProvenanceBuilder:
     ) -> tuple[TableFingerprint, ...]:
         fingerprints: list[TableFingerprint] = []
         for name, table in entries:
-            fingerprint = fingerprint_optional_table(table, name=name)
+            canonical_table = _canonicalise_for_provenance_fingerprint(table)
+            fingerprint = fingerprint_optional_table(canonical_table, name=name)
             if fingerprint is None:
                 continue
             fingerprints.append(fingerprint)
         return tuple(fingerprints)
+
+
+def _canonicalise_for_provenance_fingerprint(
+    table: pd.DataFrame | None,
+) -> pd.DataFrame | None:
+    if table is None:
+        return None
+    canonical = table
+    try:
+        canonical = canonical.sort_index(axis=0, kind="mergesort")
+    except Exception:
+        pass
+    try:
+        canonical = canonical.sort_index(axis=1, kind="mergesort")
+    except Exception:
+        pass
+    return canonical
 
 
 __all__ = ["KinaseProvenanceBuilder"]
