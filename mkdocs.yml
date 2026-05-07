@@ -8,7 +8,7 @@ theme:
   name: material
   font: false
   features:
-    - navigation.sections
+#    - navigation.sections
     - navigation.top
     - navigation.footer
     - search.highlight
@@ -32,6 +32,10 @@ theme:
         icon: material/brightness-7
         name: Switch to dark mode
 
+plugins:
+  - search
+  - meta
+
 extra_css:
   - phospy.css
 
@@ -53,10 +57,13 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Getting Started:
-      - Quickstart: quickstart.md
-      - API Guide: api.md
-      - CLI Guide: cli.md
+  - Quickstart: quickstart.md
+  - API:
+      - API Guide: api/guide.md
+      - Dataset Build Workflow: api/dataset-build-workflow.md
+      - Kinase Workflow: api/kinase-workflow.md
+      - Signalome Workflow: api/signalome-workflow.md
+  - CLI Guide: cli.md
   - User Guides:
       - Workflow Contracts: workflow_contracts.md
       - Validation Guide: validation.md

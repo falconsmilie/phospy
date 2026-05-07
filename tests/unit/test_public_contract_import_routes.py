@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 USER_FACING_IMPORT_FILES = (
     ROOT / "README.md",
-    ROOT / "docs" / "api.md",
+    ROOT / "docs" / "guide.md",
     ROOT / "examples" / "dataset_builder_demo.py",
     ROOT / "examples" / "kinase_workflow_demo.py",
     ROOT / "examples" / "signalome_workflow_demo.py",
@@ -67,7 +67,7 @@ def test_top_level_package_exports_only_curated_convenience_surface() -> None:
 
 def test_readme_and_api_guide_document_import_contract() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    api_guide = (ROOT / "docs" / "api.md").read_text(encoding="utf-8")
+    api_guide = (ROOT / "docs" / "guide.md").read_text(encoding="utf-8")
 
     assert "Use `phospy.api`" in readme
     assert "Use `phospy.api`" in api_guide
@@ -87,7 +87,7 @@ def test_user_facing_guides_and_examples_use_phospy_api_for_contract_types() -> 
 def test_public_docs_present_analysis_ready_builder_lane_as_missing_value_free() -> (
     None
 ):
-    api_guide = (ROOT / "docs" / "api.md").read_text(encoding="utf-8")
+    api_guide = (ROOT / "docs" / "guide.md").read_text(encoding="utf-8")
     validation_guide = (ROOT / "docs" / "validation.md").read_text(encoding="utf-8")
     quickstart = _read_first_existing(*QUICKSTART_CANDIDATES)
 

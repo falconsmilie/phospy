@@ -10,7 +10,7 @@ def _user_facing_doc_paths() -> tuple[Path, ...]:
     docs: list[Path] = [
         ROOT / "README.md",
         ROOT / "docs" / "index.md",
-        ROOT / "docs" / "api.md",
+        ROOT / "docs" / "guide.md",
         ROOT / "docs" / "cli.md",
         ROOT / "docs" / "validation.md",
         ROOT / "docs" / "output_bundles.md",

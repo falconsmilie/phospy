@@ -64,4 +64,4 @@ KSEA-style activity output is supported as a PhosPy activity method and is
 reported as an explicit PhosPy method variant, not as a claim of PhosR
 equivalence.
 
-Next: [Quickstart](quickstart.md) or [API Guide](api.md).
+Next: [Quickstart](quickstart.md) or [API Guide](api/guide.md).

@@ -2,7 +2,7 @@
 
 Architecture Decision Records explain why major design choices were made.
 
-Use the [API Guide](../api.md) and [Validation Guide](../validation.md) for current behaviour.
+Use the [API Guide](../api/guide.md) and [Validation Guide](../validation.md) for current behaviour.
 Use these ADRs when you need rationale and tradeoffs.
 
 ## ADRs
