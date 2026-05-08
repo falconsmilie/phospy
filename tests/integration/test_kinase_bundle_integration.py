@@ -326,12 +326,91 @@ def test_kinase_bundle_round_trip_supports_disabled_activity(
     }
 
 
-def test_kinase_bundle_rejects_manifest_without_provenance(
+@pytest.mark.parametrize(
+    (
+        "scenario_name",
+        "requires_total_correction_payload",
+        "mutation_kind",
+        "pattern",
+    ),
+    [
+        pytest.param(
+            "missing_provenance",
+            False,
+            "missing_provenance",
+            (
+                "bundle manifest is missing required field\\(s\\): provenance.*"
+                "Regenerate this bundle with the current PhosPy version"
+            ),
+            id="missing-provenance",
+        ),
+        pytest.param(
+            "null_provenance",
+            False,
+            "null_provenance",
+            (
+                "bundle manifest.provenance is required.*"
+                "Regenerate this bundle with the current PhosPy version"
+            ),
+            id="null-provenance",
+        ),
+        pytest.param(
+            "missing_activity_enabled",
+            False,
+            "missing_activity_enabled",
+            (
+                "bundle manifest.outputs.activity is missing required field\\(s\\): "
+                "enabled.*Regenerate this bundle with the current PhosPy version"
+            ),
+            id="missing-activity-enabled",
+        ),
+        pytest.param(
+            "legacy_minimal_total_correction",
+            True,
+            "legacy_minimal_total_correction",
+            (
+                "dataset.metadata.processing_state.total_protein_correction."
+                "requires_log_scale is required"
+            ),
+            id="total-correction-legacy-minimal",
+        ),
+        pytest.param(
+            "missing_total_correction_quantitative_meaning",
+            True,
+            "missing_total_correction_quantitative_meaning",
+            (
+                "dataset.metadata.processing_state.total_protein_correction."
+                "quantitative_meaning is required"
+            ),
+            id="total-correction-missing-quantitative-meaning",
+        ),
+        pytest.param(
+            "missing_total_correction_diagnostics_schema_version",
+            True,
+            "missing_total_correction_diagnostics_schema_version",
+            (
+                "dataset.metadata.processing_state.total_protein_correction."
+                "diagnostics.diagnostics_schema_version is required"
+            ),
+            id="total-correction-missing-diagnostics-schema-version",
+        ),
+    ],
+)
+def test_kinase_bundle_contract_rejection_matrix(
     tmp_path: Path,
+    scenario_name: str,
+    requires_total_correction_payload: bool,
+    mutation_kind: str,
+    pattern: str,
 ) -> None:
-    request = _build_request(activity=False)
+    # Bundle contract matrix keeps missing/legacy payload failures explicit.
+    request = (
+        _build_request_with_subtract_log_total(activity=False)
+        if requires_total_correction_payload
+        else _build_request(activity=False)
+    )
     result = KinaseWorkflow().run(request)
-    bundle_root = tmp_path / "kinase_bundle_legacy"
+    bundle_root = tmp_path / f"kinase_bundle_contract_{scenario_name}"
 
     save_kinase_workflow_bundle(
         result,
@@ -340,176 +419,42 @@ def test_kinase_bundle_rejects_manifest_without_provenance(
     )
     manifest_path = bundle_root / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest.pop("provenance", None)
+
+    if mutation_kind == "missing_provenance":
+        manifest.pop("provenance", None)
+    elif mutation_kind == "null_provenance":
+        manifest["provenance"] = None
+    elif mutation_kind == "missing_activity_enabled":
+        manifest["outputs"]["activity"].pop("enabled", None)
+    elif mutation_kind == "legacy_minimal_total_correction":
+        correction_payload = manifest["dataset"]["metadata"]["processing_state"][
+            "total_protein_correction"
+        ]
+        manifest["dataset"]["metadata"]["processing_state"][
+            "total_protein_correction"
+        ] = {
+            "policy": correction_payload["policy"],
+            "applied": correction_payload["applied"],
+        }
+    elif mutation_kind == "missing_total_correction_quantitative_meaning":
+        manifest["dataset"]["metadata"]["processing_state"][
+            "total_protein_correction"
+        ].pop("quantitative_meaning", None)
+    elif mutation_kind == "missing_total_correction_diagnostics_schema_version":
+        correction_payload = manifest["dataset"]["metadata"]["processing_state"][
+            "total_protein_correction"
+        ]
+        diagnostics_payload = dict(correction_payload["diagnostics"])
+        diagnostics_payload.pop("diagnostics_schema_version", None)
+        correction_payload["diagnostics"] = diagnostics_payload
+    else:
+        raise AssertionError(f"Unknown mutation scenario: {mutation_kind}")
+
     manifest_path.write_text(
         json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
     )
 
-    with pytest.raises(
-        PhosPyInputError,
-        match=(
-            "bundle manifest is missing required field\\(s\\): provenance.*"
-            "Regenerate this bundle with the current PhosPy version"
-        ),
-    ):
-        load_kinase_workflow_bundle(bundle_root)
-
-
-def test_kinase_bundle_rejects_manifest_with_null_provenance(
-    tmp_path: Path,
-) -> None:
-    request = _build_request(activity=False)
-    result = KinaseWorkflow().run(request)
-    bundle_root = tmp_path / "kinase_bundle_null_provenance"
-
-    save_kinase_workflow_bundle(
-        result,
-        bundle_root,
-        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
-    )
-    manifest_path = bundle_root / "manifest.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest["provenance"] = None
-    manifest_path.write_text(
-        json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
-    )
-
-    with pytest.raises(
-        PhosPyInputError,
-        match=(
-            "bundle manifest.provenance is required.*"
-            "Regenerate this bundle with the current PhosPy version"
-        ),
-    ):
-        load_kinase_workflow_bundle(bundle_root)
-
-
-def test_kinase_bundle_rejects_manifest_without_activity_enabled_marker(
-    tmp_path: Path,
-) -> None:
-    request = _build_request(activity=False)
-    result = KinaseWorkflow().run(request)
-    bundle_root = tmp_path / "kinase_bundle_missing_activity_enabled"
-
-    save_kinase_workflow_bundle(
-        result,
-        bundle_root,
-        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
-    )
-    manifest_path = bundle_root / "manifest.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest["outputs"]["activity"].pop("enabled", None)
-    manifest_path.write_text(
-        json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
-    )
-
-    with pytest.raises(
-        PhosPyInputError,
-        match=(
-            "bundle manifest.outputs.activity is missing required field\\(s\\): "
-            "enabled.*Regenerate this bundle with the current PhosPy version"
-        ),
-    ):
-        load_kinase_workflow_bundle(bundle_root)
-
-
-def test_kinase_bundle_rejects_legacy_minimal_total_correction_state(
-    tmp_path: Path,
-) -> None:
-    request = _build_request_with_subtract_log_total(activity=False)
-    result = KinaseWorkflow().run(request)
-    bundle_root = tmp_path / "kinase_bundle_total_correction_legacy"
-
-    save_kinase_workflow_bundle(
-        result,
-        bundle_root,
-        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
-    )
-    manifest_path = bundle_root / "manifest.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    correction_payload = manifest["dataset"]["metadata"]["processing_state"][
-        "total_protein_correction"
-    ]
-    manifest["dataset"]["metadata"]["processing_state"]["total_protein_correction"] = {
-        "policy": correction_payload["policy"],
-        "applied": correction_payload["applied"],
-    }
-    manifest_path.write_text(
-        json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
-    )
-
-    with pytest.raises(
-        PhosPyInputError,
-        match=(
-            "dataset.metadata.processing_state.total_protein_correction."
-            "requires_log_scale is required"
-        ),
-    ):
-        load_kinase_workflow_bundle(bundle_root)
-
-
-def test_kinase_bundle_rejects_total_correction_payload_without_quantitative_meaning(
-    tmp_path: Path,
-) -> None:
-    request = _build_request_with_subtract_log_total(activity=False)
-    result = KinaseWorkflow().run(request)
-    bundle_root = tmp_path / "kinase_bundle_legacy_quantity"
-
-    save_kinase_workflow_bundle(
-        result,
-        bundle_root,
-        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
-    )
-    manifest_path = bundle_root / "manifest.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest["dataset"]["metadata"]["processing_state"]["total_protein_correction"].pop(
-        "quantitative_meaning", None
-    )
-    manifest_path.write_text(
-        json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
-    )
-
-    with pytest.raises(
-        PhosPyInputError,
-        match=(
-            "dataset.metadata.processing_state.total_protein_correction."
-            "quantitative_meaning is required"
-        ),
-    ):
-        load_kinase_workflow_bundle(bundle_root)
-
-
-def test_kinase_bundle_rejects_unversioned_total_correction_diagnostics(
-    tmp_path: Path,
-) -> None:
-    request = _build_request_with_subtract_log_total(activity=False)
-    result = KinaseWorkflow().run(request)
-    bundle_root = tmp_path / "kinase_bundle_total_correction_legacy_diagnostics"
-
-    save_kinase_workflow_bundle(
-        result,
-        bundle_root,
-        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
-    )
-    manifest_path = bundle_root / "manifest.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    correction_payload = manifest["dataset"]["metadata"]["processing_state"][
-        "total_protein_correction"
-    ]
-    diagnostics_payload = dict(correction_payload["diagnostics"])
-    diagnostics_payload.pop("diagnostics_schema_version", None)
-    correction_payload["diagnostics"] = diagnostics_payload
-    manifest_path.write_text(
-        json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
-    )
-
-    with pytest.raises(
-        PhosPyInputError,
-        match=(
-            "dataset.metadata.processing_state.total_protein_correction."
-            "diagnostics.diagnostics_schema_version is required"
-        ),
-    ):
+    with pytest.raises(PhosPyInputError, match=pattern):
         load_kinase_workflow_bundle(bundle_root)
 
 

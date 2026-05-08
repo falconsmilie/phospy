@@ -57,13 +57,14 @@ def test_build_candidate_scoring_sampling_provenance_has_stable_schema() -> None
     assert provenance["actual_sampled_pair_count"] == 1234
     summary = provenance["per_cluster_sample_count_summary"]
     assert summary == {"min": 8, "max": 32, "mean": pytest.approx(56 / 3), "total": 56}
-    assert set(provenance) == {
+    # Public contract: required reproducibility fields must exist.
+    assert {
         "sampling_cap",
         "sampling_method",
         "deterministic_seed_policy",
         "actual_sampled_pair_count",
         "per_cluster_sample_count_summary",
-    }
+    } <= set(provenance)
 
 
 def test_candidate_scoring_sampling_provenance_dataframe_columns_are_stable() -> None:

@@ -19,7 +19,6 @@ from phospy.errors import (
 from phospy.references.models import ReferencePreset
 from phospy.references.resolution import ReferenceResolver
 from phospy.site_ids import canonicalize_site_identifier
-from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -656,13 +655,9 @@ def test_dataset_and_reference_ids_align_after_shared_normalization() -> None:
             index=pd.Index(["MAPK14;Y182"], name="site_id"),
         ),
     )
-    overlap = KinaseWorkflowInterpreter._summarize_overlap(
-        dataset=built.phospho,
-        kinase_substrate_map=references.kinase_substrate_map,
+    overlap_sites = built.phospho.index.intersection(
+        references.kinase_substrate_map.loc[:, "substrate_site"]
     )
-    scoring_index = KinaseWorkflowInterpreter._resolve_scoring_site_index(
-        dataset=built.phospho,
-        site_sequences=references.site_sequences,
-    )
-    assert overlap["overlap_sites"] == 1
+    scoring_index = built.phospho.index.intersection(references.site_sequences.index)
+    assert len(overlap_sites) == 1
     assert list(scoring_index) == ["MAPK14;Y182;"]

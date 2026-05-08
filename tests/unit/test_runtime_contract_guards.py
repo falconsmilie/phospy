@@ -102,6 +102,8 @@ def test_kinase_interpreter_rejects_invalid_overlap_summary_state() -> None:
         PhosPyWorkflowError,
         match="overlap_counts\\['per_kinase_quantified'\\] to be a pandas Series",
     ):
+        # Intentional private-seam guard: this validates a defensive contract on the
+        # internal overlap summary shape, which cannot be reached via public requests.
         interpreter._validate_eligible_kinases(
             overlap_counts={"per_kinase_quantified": []},  # type: ignore[arg-type]
             request=request,

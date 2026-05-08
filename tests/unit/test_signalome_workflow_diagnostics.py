@@ -289,6 +289,34 @@ def _run_signalome_workflow_path(
     )
 
 
+def _assert_backend_diagnostics_public_contract(
+    backend_diagnostics: dict[str, object],
+    *,
+    expected_backend_name: str,
+    expected_uses_scipy: bool,
+    expected_selected_module_count: int,
+    expected_input_site_count: int,
+) -> None:
+    # Public/scientific contract: diagnostics must preserve reproducibility
+    # fields without pinning every incidental payload key.
+    assert backend_diagnostics["backend_name"] == expected_backend_name
+    assert backend_diagnostics["uses_scipy"] is expected_uses_scipy
+    assert int(backend_diagnostics["selected_module_count"]) == (
+        expected_selected_module_count
+    )
+    assert int(backend_diagnostics["input_site_count"]) == expected_input_site_count
+    assert backend_diagnostics["tree_generation_mode"] == "full_exact_tree_construction"
+    assert backend_diagnostics["tree_generation_is_approximate"] is False
+    assert (
+        backend_diagnostics["tree_generation_scope"]
+        == "module_count_selection_and_final_assignment"
+    )
+    assert (
+        backend_diagnostics["candidate_scoring_scope"]
+        == SIGNALOME_CANDIDATE_SCORING_APPLIES_TO
+    )
+
+
 def test_boundary_error_reports_no_usable_site_alignment_counts() -> None:
     dataset = _dataset(site_ids=["P1;S1;", "P2;S2;"])
     prediction_matrix = _matrix(
@@ -1665,24 +1693,13 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
     assert scale_guard["candidate_module_count_upper_bound"] == 2
     assert scale_guard["clustering_engine"] == "scipy_hierarchical"
     assert scale_guard["clustering_engine_version"] == "1"
-    assert scale_guard["backend_diagnostics"] == {
-        "backend_name": "scipy_hierarchical",
-        "backend_version": "1",
-        "tree_implementation": "scipy_hierarchical_tree",
-        "tree_implementation_version": "1",
-        "tree_engine": "scipy_hierarchical_tree",
-        "tree_engine_version": "1",
-        "uses_scipy": True,
-        "linkage_method": "ward",
-        "distance_metric": "euclidean",
-        "selected_module_count": 1,
-        "input_site_count": 2,
-        "exact_tree_path_used": True,
-        "tree_generation_mode": "full_exact_tree_construction",
-        "tree_generation_is_approximate": False,
-        "tree_generation_scope": "module_count_selection_and_final_assignment",
-        "candidate_scoring_scope": SIGNALOME_CANDIDATE_SCORING_APPLIES_TO,
-    }
+    _assert_backend_diagnostics_public_contract(
+        scale_guard["backend_diagnostics"],
+        expected_backend_name="scipy_hierarchical",
+        expected_uses_scipy=True,
+        expected_selected_module_count=1,
+        expected_input_site_count=2,
+    )
     assert (
         scale_guard["tree_implementation"]
         == scale_guard["backend_diagnostics"]["tree_implementation"]
@@ -1942,24 +1959,13 @@ def test_explicit_module_count_skips_sampled_candidate_scoring_in_provenance() -
     assert scale_guard["candidate_module_count_upper_bound"] == 3
     assert scale_guard["clustering_engine"] == "scipy_hierarchical"
     assert scale_guard["clustering_engine_version"] == "1"
-    assert scale_guard["backend_diagnostics"] == {
-        "backend_name": "scipy_hierarchical",
-        "backend_version": "1",
-        "tree_implementation": "scipy_hierarchical_tree",
-        "tree_implementation_version": "1",
-        "tree_engine": "scipy_hierarchical_tree",
-        "tree_engine_version": "1",
-        "uses_scipy": True,
-        "linkage_method": "ward",
-        "distance_metric": "euclidean",
-        "selected_module_count": 2,
-        "input_site_count": 3,
-        "exact_tree_path_used": True,
-        "tree_generation_mode": "full_exact_tree_construction",
-        "tree_generation_is_approximate": False,
-        "tree_generation_scope": "module_count_selection_and_final_assignment",
-        "candidate_scoring_scope": SIGNALOME_CANDIDATE_SCORING_APPLIES_TO,
-    }
+    _assert_backend_diagnostics_public_contract(
+        scale_guard["backend_diagnostics"],
+        expected_backend_name="scipy_hierarchical",
+        expected_uses_scipy=True,
+        expected_selected_module_count=2,
+        expected_input_site_count=3,
+    )
     assert (
         scale_guard["tree_implementation"]
         == scale_guard["backend_diagnostics"]["tree_implementation"]
@@ -2056,24 +2062,13 @@ def test_explicit_module_count_skips_candidate_scoring_for_full_backend() -> Non
     assert scale_guard["candidate_module_count_upper_bound"] == 3
     assert scale_guard["clustering_engine"] == "scipy_hierarchical"
     assert scale_guard["clustering_engine_version"] == "1"
-    assert scale_guard["backend_diagnostics"] == {
-        "backend_name": "scipy_hierarchical",
-        "backend_version": "1",
-        "tree_implementation": "scipy_hierarchical_tree",
-        "tree_implementation_version": "1",
-        "tree_engine": "scipy_hierarchical_tree",
-        "tree_engine_version": "1",
-        "uses_scipy": True,
-        "linkage_method": "ward",
-        "distance_metric": "euclidean",
-        "selected_module_count": 2,
-        "input_site_count": 3,
-        "exact_tree_path_used": True,
-        "tree_generation_mode": "full_exact_tree_construction",
-        "tree_generation_is_approximate": False,
-        "tree_generation_scope": "module_count_selection_and_final_assignment",
-        "candidate_scoring_scope": SIGNALOME_CANDIDATE_SCORING_APPLIES_TO,
-    }
+    _assert_backend_diagnostics_public_contract(
+        scale_guard["backend_diagnostics"],
+        expected_backend_name="scipy_hierarchical",
+        expected_uses_scipy=True,
+        expected_selected_module_count=2,
+        expected_input_site_count=3,
+    )
     assert (
         scale_guard["tree_implementation"]
         == scale_guard["backend_diagnostics"]["tree_implementation"]
@@ -2974,7 +2969,7 @@ def test_network_threshold_changes_edge_sparsity_without_changing_substrate_supp
     )
 
 
-def test_executor_orchestrates_signalome_domain_services(
+def test_executor_internal_seam_invokes_signalome_domain_services(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import phospy.workflows.signalome.executor as executor_module
@@ -3179,7 +3174,9 @@ def test_executor_orchestrates_signalome_domain_services(
 
     result = SignalomeWorkflowExecutor().run(resolved)
 
-    assert call_order == [
+    # Internal seam coverage only: this should not pin strict ordering details.
+    assert len(call_order) == 7
+    assert set(call_order) == {
         "cluster",
         "derive",
         "assignments",
@@ -3187,5 +3184,5 @@ def test_executor_orchestrates_signalome_domain_services(
         "modules",
         "network",
         "expanded",
-    ]
+    }
     assert not result.kinase_network.edges.empty

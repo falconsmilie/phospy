@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import inspect
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 
@@ -232,42 +232,103 @@ def _count_dataframe_deep_copies() -> Iterator[_CopyCounts]:
         pd.DataFrame.copy = original_copy
 
 
-def test_public_dataset_isolated_from_caller_mutation() -> None:
-    phospho = _phospho()
-    site_metadata = _site_metadata()
-    dataset = AnalysisReadyPhosphoDataset(
-        phospho=phospho,
-        site_metadata=site_metadata,
-        organism=Organism.RAT,
-        intensity_scale_state=supported_linear_intensity_scale_state(
-            has_total_matrix=False
+def _mutate_first_frame_cell(frame: pd.DataFrame) -> None:
+    if pd.api.types.is_numeric_dtype(frame.dtypes.iloc[0]):
+        frame.iloc[0, 0] = float(frame.iloc[0, 0]) + 1.0
+    else:
+        frame.iloc[0, 0] = f"{frame.iloc[0, 0]}_changed"
+
+
+def _assert_dataframe_getter_defensive_snapshot(
+    getter: Callable[[], pd.DataFrame],
+) -> None:
+    exported = getter()
+    _mutate_first_frame_cell(exported)
+    reread = getter()
+    assert exported is not reread
+    assert exported.iloc[0, 0] != reread.iloc[0, 0]
+
+
+def _assert_optional_dataframe_getter_defensive_snapshot(
+    getter: Callable[[], pd.DataFrame | None],
+) -> None:
+    exported = getter()
+    assert exported is not None
+    _mutate_first_frame_cell(exported)
+    reread = getter()
+    assert reread is not None
+    assert exported is not reread
+    assert exported.iloc[0, 0] != reread.iloc[0, 0]
+
+
+@pytest.mark.parametrize(
+    (
+        "builder",
+        "mutated_phospho",
+        "mutated_site_metadata",
+        "expected_phospho",
+        "expected_gene",
+    ),
+    [
+        pytest.param(
+            lambda p, s: AnalysisReadyPhosphoDataset(
+                phospho=p,
+                site_metadata=s,
+                organism=Organism.RAT,
+                intensity_scale_state=supported_linear_intensity_scale_state(
+                    has_total_matrix=False
+                ),
+                processing_state=supported_linear_processing_state(
+                    has_total_matrix=False
+                ),
+            ),
+            (0, 0, 999.0),
+            (0, 0, "CHANGED"),
+            1.0,
+            "MAPK14",
+            id="public-constructor-copies-caller-inputs",
         ),
-        processing_state=supported_linear_processing_state(has_total_matrix=False),
-    )
-
-    phospho.iloc[0, 0] = 999.0
-    site_metadata.iloc[0, 0] = "CHANGED"
-
-    assert float(dataset.phospho.iloc[0, 0]) == 1.0
-    assert str(dataset.site_metadata.iloc[0, 0]) == "MAPK14"
-
-
-def test_builder_result_isolated_from_caller_mutation_after_build() -> None:
+        pytest.param(
+            lambda p, s: AnalysisReadyDatasetBuilder().run(
+                DatasetBuildRequest(
+                    phospho=p,
+                    site_metadata=s,
+                    organism=Organism.RAT,
+                )
+            ),
+            (1, 1, 777.0),
+            (1, 0, "CHANGED"),
+            1.0,
+            "GSK3B",
+            id="builder-result-copies-caller-inputs",
+        ),
+    ],
+)
+def test_public_constructor_copy_contract_matrix(
+    builder: Callable[[pd.DataFrame, pd.DataFrame], AnalysisReadyPhosphoDataset],
+    mutated_phospho: tuple[int, int, float],
+    mutated_site_metadata: tuple[int, int, str],
+    expected_phospho: float,
+    expected_gene: str,
+) -> None:
     phospho = _phospho()
     site_metadata = _site_metadata()
-    built = AnalysisReadyDatasetBuilder().run(
-        DatasetBuildRequest(
-            phospho=phospho,
-            site_metadata=site_metadata,
-            organism=Organism.RAT,
-        )
+    built = builder(phospho, site_metadata)
+
+    phospho.iloc[mutated_phospho[0], mutated_phospho[1]] = mutated_phospho[2]
+    site_metadata.iloc[mutated_site_metadata[0], mutated_site_metadata[1]] = (
+        mutated_site_metadata[2]
     )
 
-    phospho.iloc[1, 1] = 777.0
-    site_metadata.iloc[1, 0] = "CHANGED"
-
-    assert float(built.phospho.iloc[1, 1]) == 1.0
-    assert str(built.site_metadata.iloc[1, 0]) == "GSK3B"
+    assert float(built.phospho.iloc[mutated_phospho[0], mutated_phospho[1]]) == (
+        expected_phospho
+    )
+    assert (
+        str(
+            built.site_metadata.iloc[mutated_site_metadata[0], mutated_site_metadata[1]]
+        )
+        == expected_gene
+    )
 
 
 def test_builder_stage_handoff_transfers_owned_frames_without_recopies() -> None:
@@ -400,23 +461,6 @@ def test_public_dataframe_accessors_do_not_accept_copy_keyword() -> None:
     for owner, method_name in public_accessors:
         signature = inspect.signature(getattr(owner, method_name))
         assert "copy" not in signature.parameters
-
-
-def test_dataset_public_export_copy_default_is_safe() -> None:
-    dataset = AnalysisReadyPhosphoDataset(
-        phospho=_phospho(),
-        site_metadata=_site_metadata(),
-        organism=Organism.RAT,
-        intensity_scale_state=supported_linear_intensity_scale_state(
-            has_total_matrix=False
-        ),
-        processing_state=supported_linear_processing_state(has_total_matrix=False),
-    )
-
-    exported = dataset.to_dataframe()
-    exported.iloc[0, 0] = 999.0
-
-    assert float(dataset.phospho.iloc[0, 0]) == 1.0
 
 
 def test_internal_borrowed_dataset_access_aliases_owned_frames_without_copy() -> None:
@@ -604,21 +648,6 @@ def test_internal_borrowed_accessors_are_not_public_api_exports() -> None:
     assert not hasattr(DatasetPreprocessingReport, "borrow_row_counts_frame")
 
 
-def test_dataset_public_export_rejects_legacy_copy_keyword() -> None:
-    dataset = AnalysisReadyPhosphoDataset(
-        phospho=_phospho(),
-        site_metadata=_site_metadata(),
-        organism=Organism.RAT,
-        intensity_scale_state=supported_linear_intensity_scale_state(
-            has_total_matrix=False
-        ),
-        processing_state=supported_linear_processing_state(has_total_matrix=False),
-    )
-
-    with pytest.raises(TypeError, match="unexpected keyword argument"):
-        dataset.to_dataframe(copy=False)  # type: ignore[call-arg]
-
-
 def test_prediction_result_public_export_copy_default_is_safe() -> None:
     pred_mat = pd.DataFrame(
         {
@@ -633,20 +662,6 @@ def test_prediction_result_public_export_copy_default_is_safe() -> None:
     exported.iloc[0, 0] = 0.0
 
     assert float(result.pred_mat.iloc[0, 0]) == 0.9
-
-
-def test_prediction_result_public_export_rejects_legacy_copy_keyword() -> None:
-    pred_mat = pd.DataFrame(
-        {
-            "MAP2K6": [0.9, 0.8],
-            "AKT1": [0.2, 0.1],
-        },
-        index=["MAPK14;Y182;", "GSK3B;S9;"],
-    )
-    result = KinasePredictionResult._from_owned(pred_mat=pred_mat)
-
-    with pytest.raises(TypeError, match="unexpected keyword argument"):
-        result.to_dataframe(copy=False)  # type: ignore[call-arg]
 
 
 def test_safe_public_export_does_not_change_owned_provenance_state() -> None:
@@ -666,16 +681,60 @@ def test_safe_public_export_does_not_change_owned_provenance_state() -> None:
     assert fingerprint_before.hash_value == fingerprint_after.hash_value
 
 
-def test_public_export_rejects_legacy_copy_keyword_for_dataset_builder_output() -> None:
-    built = AnalysisReadyDatasetBuilder().run(
-        DatasetBuildRequest(
-            phospho=_phospho(),
-            site_metadata=_site_metadata(),
-            organism=Organism.RAT,
-        )
-    )
+@pytest.mark.parametrize(
+    ("export_factory",),
+    [
+        pytest.param(
+            lambda: (
+                AnalysisReadyPhosphoDataset(
+                    phospho=_phospho(),
+                    site_metadata=_site_metadata(),
+                    organism=Organism.RAT,
+                    intensity_scale_state=supported_linear_intensity_scale_state(
+                        has_total_matrix=False
+                    ),
+                    processing_state=supported_linear_processing_state(
+                        has_total_matrix=False
+                    ),
+                ).to_dataframe
+            ),
+            id="dataset-export-rejects-copy-keyword",
+        ),
+        pytest.param(
+            lambda: (
+                AnalysisReadyDatasetBuilder()
+                .run(
+                    DatasetBuildRequest(
+                        phospho=_phospho(),
+                        site_metadata=_site_metadata(),
+                        organism=Organism.RAT,
+                    )
+                )
+                .to_dataframe
+            ),
+            id="builder-output-export-rejects-copy-keyword",
+        ),
+        pytest.param(
+            lambda: (
+                KinasePredictionResult._from_owned(
+                    pred_mat=pd.DataFrame(
+                        {
+                            "MAP2K6": [0.9, 0.8],
+                            "AKT1": [0.2, 0.1],
+                        },
+                        index=["MAPK14;Y182;", "GSK3B;S9;"],
+                    )
+                ).to_dataframe
+            ),
+            id="prediction-export-rejects-copy-keyword",
+        ),
+    ],
+)
+def test_public_export_copy_keyword_rejection_contract_matrix(
+    export_factory: Callable[[], Callable[..., object]],
+) -> None:
     with pytest.raises(TypeError, match="unexpected keyword argument"):
-        built.to_dataframe(copy=False)  # type: ignore[call-arg]
+        export_factory()(copy=False)  # type: ignore[call-arg]
 
 
 def test_public_reference_export_isolated_from_mutation() -> None:
@@ -694,17 +753,13 @@ def test_public_signalome_exports_isolated_from_mutation() -> None:
         )
     )
 
-    assignments_export = result.module_assignments.to_pandas()
-    assignments_export.iloc[0, 0] = "CHANGED"
-    assert assignments_export.iloc[0, 0] != result.module_assignments.table.iloc[0, 0]
-
-    modules_export = result.signalome_modules.to_pandas()
-    modules_export.iloc[0, 0] = float(modules_export.iloc[0, 0]) + 1.0
-    assert modules_export.iloc[0, 0] != result.signalome_modules.table.iloc[0, 0]
-
-    network_export = result.kinase_network.to_pandas()
-    network_export.iloc[0, 0] = "CHANGED"
-    assert network_export.iloc[0, 0] != result.kinase_network.edges.iloc[0, 0]
+    # Public exports must be defensive snapshots across representative result types.
+    for getter in (
+        result.module_assignments.to_pandas,
+        result.signalome_modules.to_pandas,
+        result.kinase_network.to_pandas,
+    ):
+        _assert_dataframe_getter_defensive_snapshot(getter)
 
 
 def test_public_signalome_and_table_exports_reject_legacy_copy_keyword() -> None:
@@ -729,6 +784,51 @@ def test_public_signalome_and_table_exports_reject_legacy_copy_keyword() -> None
         table.to_pandas(copy=False)  # type: ignore[call-arg]
 
 
+@pytest.mark.parametrize(
+    ("getter_factory",),
+    [
+        pytest.param(
+            lambda: (
+                AnalysisReadyPhosphoDataset(
+                    phospho=_phospho(),
+                    site_metadata=_site_metadata(),
+                    organism=Organism.RAT,
+                    intensity_scale_state=supported_linear_intensity_scale_state(
+                        has_total_matrix=False
+                    ),
+                    processing_state=supported_linear_processing_state(
+                        has_total_matrix=False
+                    ),
+                ).to_dataframe
+            ),
+            id="dataset-export-snapshot",
+        ),
+        pytest.param(
+            lambda: (
+                KinasePredictionResult._from_owned(
+                    pred_mat=pd.DataFrame(
+                        {
+                            "MAP2K6": [0.9, 0.8],
+                            "AKT1": [0.2, 0.1],
+                        },
+                        index=["MAPK14;Y182;", "GSK3B;S9;"],
+                    )
+                ).to_dataframe
+            ),
+            id="prediction-export-snapshot",
+        ),
+        pytest.param(
+            lambda: _references().kinase_substrate_map_dataframe,
+            id="reference-export-snapshot",
+        ),
+    ],
+)
+def test_public_export_snapshot_contract_matrix(
+    getter_factory: Callable[[], Callable[[], pd.DataFrame]],
+) -> None:
+    _assert_dataframe_getter_defensive_snapshot(getter_factory())
+
+
 def test_dataset_dataframe_properties_are_defensive_snapshots() -> None:
     sample_metadata = pd.DataFrame(
         {"batch": [1, 2]},
@@ -745,20 +845,11 @@ def test_dataset_dataframe_properties_are_defensive_snapshots() -> None:
         processing_state=supported_linear_processing_state(has_total_matrix=False),
     )
 
-    exported_phospho = dataset.phospho
-    exported_phospho.iloc[0, 0] = 999.0
-    assert float(dataset.phospho.iloc[0, 0]) == 1.0
-
-    exported_site_metadata = dataset.site_metadata
-    exported_site_metadata.iloc[0, 0] = "CHANGED"
-    assert str(dataset.site_metadata.iloc[0, 0]) == "MAPK14"
-
-    exported_sample_metadata = dataset.sample_metadata
-    assert exported_sample_metadata is not None
-    exported_sample_metadata.iloc[0, 0] = 999
-    current_sample_metadata = dataset.sample_metadata
-    assert current_sample_metadata is not None
-    assert int(current_sample_metadata.iloc[0, 0]) == 1
+    _assert_dataframe_getter_defensive_snapshot(lambda: dataset.phospho)
+    _assert_dataframe_getter_defensive_snapshot(lambda: dataset.site_metadata)
+    _assert_optional_dataframe_getter_defensive_snapshot(
+        lambda: dataset.sample_metadata
+    )
 
 
 def test_preprocessing_report_dataframe_properties_are_defensive_snapshots() -> None:
@@ -863,45 +954,20 @@ def test_preprocessing_report_dataframe_properties_are_defensive_snapshots() -> 
         ),
     )
 
-    row_counts = report.row_counts
-    row_counts.iloc[0, 1] = 999
-    assert int(report.row_counts.iloc[0, 1]) == 2
+    for getter in (
+        lambda: report.row_counts,
+        lambda: report.operations,
+        lambda: report.row_audit,
+    ):
+        _assert_dataframe_getter_defensive_snapshot(getter)
 
-    operations = report.operations
-    operations.iloc[0, 2] = "changed"
-    assert str(report.operations.iloc[0, 2]) == "forbid"
-
-    row_audit = report.row_audit
-    row_audit.iloc[0, 1] = "changed"
-    assert str(report.row_audit.iloc[0, 1]) == "retained"
-
-    duplicate_site_resolution = report.duplicate_site_resolution
-    assert duplicate_site_resolution is not None
-    duplicate_site_resolution.iloc[0, 0] = "changed"
-    reread_duplicate = report.duplicate_site_resolution
-    assert reread_duplicate is not None
-    assert str(reread_duplicate.iloc[0, 0]) == "MAPK14;Y182;"
-
-    metadata_conflicts = report.metadata_conflicts
-    assert metadata_conflicts is not None
-    metadata_conflicts.iloc[0, 0] = "changed"
-    reread_conflicts = report.metadata_conflicts
-    assert reread_conflicts is not None
-    assert str(reread_conflicts.iloc[0, 0]) == "MAPK14;Y182;"
-
-    comparison_group_stats = report.comparison_group_stats
-    assert comparison_group_stats is not None
-    comparison_group_stats.iloc[0, 2] = 999
-    reread_group_stats = report.comparison_group_stats
-    assert reread_group_stats is not None
-    assert int(reread_group_stats.iloc[0, 2]) == 1
-
-    comparison_pair_stats = report.comparison_pair_stats
-    assert comparison_pair_stats is not None
-    comparison_pair_stats.iloc[0, 1] = "changed"
-    reread_pair_stats = report.comparison_pair_stats
-    assert reread_pair_stats is not None
-    assert str(reread_pair_stats.iloc[0, 1]) == "p_group_a_group_b"
+    for optional_getter in (
+        lambda: report.duplicate_site_resolution,
+        lambda: report.metadata_conflicts,
+        lambda: report.comparison_group_stats,
+        lambda: report.comparison_pair_stats,
+    ):
+        _assert_optional_dataframe_getter_defensive_snapshot(optional_getter)
 
 
 def test_kinase_result_table_properties_are_defensive_snapshots() -> None:

@@ -67,16 +67,53 @@ def test_require_local_filesystem_path_rejects_remote_urls() -> None:
         )
 
 
-def test_optional_numeric_primitives_accept_none_and_validate_ranges() -> None:
-    assert (
-        require_optional_int_at_least(
+@pytest.mark.parametrize(
+    ("value", "minimum", "expected", "pattern"),
+    [
+        pytest.param(None, 1, None, None, id="none-allowed"),
+        pytest.param(True, 1, None, "config.seed must be an int", id="wrong-type-bool"),
+        pytest.param(
+            0, 1, None, "config.seed must be greater than or equal to 1", id="zero"
+        ),
+        pytest.param(
+            -1,
+            1,
             None,
+            "config.seed must be greater than or equal to 1",
+            id="negative",
+        ),
+        pytest.param(5, 1, 5, None, id="valid-positive"),
+    ],
+)
+def test_require_optional_int_at_least_matrix(
+    value: object,
+    minimum: int,
+    expected: int | None,
+    pattern: str | None,
+) -> None:
+    # Matrix keeps before/after coverage obvious for optional-positive integer cases.
+    if pattern is None:
+        assert (
+            require_optional_int_at_least(
+                value,
+                field_name="config.seed",
+                minimum=minimum,
+                error_type=PhosPyInputError,
+            )
+            == expected
+        )
+        return
+
+    with pytest.raises(PhosPyInputError, match=pattern):
+        require_optional_int_at_least(
+            value,
             field_name="config.seed",
-            minimum=0,
+            minimum=minimum,
             error_type=PhosPyInputError,
         )
-        is None
-    )
+
+
+def test_optional_numeric_primitives_accept_none_and_validate_ranges() -> None:
     assert (
         require_optional_real_between(
             None,
@@ -87,13 +124,6 @@ def test_optional_numeric_primitives_accept_none_and_validate_ranges() -> None:
         )
         is None
     )
-    with pytest.raises(PhosPyInputError, match="config.seed must be an int"):
-        require_optional_int_at_least(
-            True,
-            field_name="config.seed",
-            minimum=0,
-            error_type=PhosPyInputError,
-        )
 
 
 def test_validate_preprocessing_section_type_reuses_field_specific_message() -> None:

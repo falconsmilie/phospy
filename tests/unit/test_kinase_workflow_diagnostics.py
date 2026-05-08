@@ -218,7 +218,7 @@ def test_interpreter_merges_dataset_site_sequences_without_mutating_references()
     assert interpreted.site_sequence_merge_diagnostics["dataset_sequences_added"] == 1
 
 
-def test_scoring_stage_is_reference_input_form_invariant_for_equivalent_content() -> (
+def test_scoring_results_are_reference_input_form_invariant_for_equivalent_content() -> (
     None
 ):
     dataset = build_rat_l6_dataset(n_sites=220)
@@ -248,18 +248,8 @@ def test_scoring_stage_is_reference_input_form_invariant_for_equivalent_content(
         ),
         activity_config=None,
     )
-    interpreter = KinaseWorkflowInterpreter()
-    executor = KinaseWorkflowExecutor()
-    interpreted_preset = interpreter.run(preset_request)
-    interpreted_bundle = interpreter.run(bundle_request)
-    from_preset = executor._run_scoring_stage(
-        request=interpreted_preset,
-        config=interpreted_preset.execution_config,
-    )
-    from_bundle = executor._run_scoring_stage(
-        request=interpreted_bundle,
-        config=interpreted_bundle.execution_config,
-    )
+    from_preset = KinaseWorkflow().run(preset_request)
+    from_bundle = KinaseWorkflow().run(bundle_request)
 
     pd.testing.assert_frame_equal(
         from_preset.scoring_result.profile_scores,
@@ -273,8 +263,11 @@ def test_scoring_stage_is_reference_input_form_invariant_for_equivalent_content(
         from_bundle.scoring_result.rank_weighted_fusion_scores,
         check_dtype=False,
     )
-    assert from_preset.downstream_score_source == "rank_weighted_fusion_scores"
-    assert from_preset.downstream_score_source == from_bundle.downstream_score_source
+    pd.testing.assert_frame_equal(
+        from_preset.prediction_result.pred_mat,
+        from_bundle.prediction_result.pred_mat,
+        check_dtype=False,
+    )
 
 
 def test_workflow_uses_execution_time_merged_site_sequences() -> None:

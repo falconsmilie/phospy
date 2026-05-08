@@ -31,8 +31,8 @@ from phospy.prediction.sequence_validation import (
     MotifSequenceValidator,
     SequenceValidationInput,
 )
-from phospy.workflows.kinase.executor import KinaseWorkflowExecutor
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
+from phospy.workflows.kinase.scoring_runner import KinaseScoringRunner
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -423,11 +423,14 @@ def test_kinase_workflow_exposes_sequence_validation_diagnostics() -> None:
         activity_config=None,
     )
     interpreted = KinaseWorkflowInterpreter().run(request)
-    scoring_execution = KinaseWorkflowExecutor()._run_scoring_stage(
-        request=interpreted,
-        config=interpreted.execution_config,
+    scoring_result = (
+        KinaseScoringRunner()
+        .run(
+            request=interpreted,
+            config=interpreted.execution_config,
+        )
+        .scoring_result
     )
-    scoring_result = scoring_execution.scoring_result
 
     assert scoring_result.motif_sequence_validation is not None
     summary = scoring_result.motif_sequence_validation.summary()

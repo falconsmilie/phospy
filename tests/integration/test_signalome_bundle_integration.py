@@ -294,11 +294,69 @@ def test_signalome_bundle_manifest_tracks_absent_expanded_output_when_none(
     assert loaded.result.expanded_signalome is None
 
 
-def test_signalome_bundle_rejects_manifest_without_provenance(
+@pytest.mark.parametrize(
+    ("scenario_name", "mutation_kind", "pattern"),
+    [
+        pytest.param(
+            "missing_provenance",
+            "missing_provenance",
+            (
+                "bundle manifest is missing required field\\(s\\): provenance.*"
+                "Regenerate this bundle with the current PhosPy version"
+            ),
+            id="missing-provenance",
+        ),
+        pytest.param(
+            "null_provenance",
+            "null_provenance",
+            (
+                "bundle manifest.provenance is required.*"
+                "Regenerate this bundle with the current PhosPy version"
+            ),
+            id="null-provenance",
+        ),
+        pytest.param(
+            "missing_candidate_correlations",
+            "missing_candidate_correlations",
+            (
+                "bundle manifest.signalome_outputs.tables is missing required field\\(s\\): "
+                "kinase_network_candidate_correlations.*"
+                "Regenerate this bundle with the current PhosPy version"
+            ),
+            id="missing-candidate-correlations",
+        ),
+        pytest.param(
+            "missing_site_membership",
+            "missing_site_membership",
+            (
+                "bundle manifest.signalome_outputs.tables is missing required field\\(s\\): "
+                "site_membership.*Regenerate this bundle with the current PhosPy version"
+            ),
+            id="missing-site-membership",
+        ),
+        pytest.param(
+            "malformed_site_membership_entry",
+            "malformed_site_membership_entry",
+            "bundle manifest.signalome_outputs.tables.site_membership must be a string",
+            id="malformed-site-membership-entry",
+        ),
+        pytest.param(
+            "missing_site_membership_payload",
+            "missing_site_membership_payload",
+            "input file does not exist: .*site_membership\\.csv",
+            id="missing-site-membership-payload",
+        ),
+    ],
+)
+def test_signalome_bundle_contract_rejection_matrix(
     tmp_path: Path,
+    scenario_name: str,
+    mutation_kind: str,
+    pattern: str,
 ) -> None:
+    # Bundle compatibility matrix keeps legacy/malformed payload boundaries explicit.
     request, result = _build_signalome_request_and_result()
-    bundle_root = tmp_path / "signalome_bundle_legacy"
+    bundle_root = tmp_path / f"signalome_bundle_contract_{scenario_name}"
 
     save_signalome_workflow_bundle(
         result,
@@ -307,80 +365,35 @@ def test_signalome_bundle_rejects_manifest_without_provenance(
     )
     manifest_path = bundle_root / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest.pop("provenance", None)
+
+    if mutation_kind == "missing_provenance":
+        manifest.pop("provenance", None)
+    elif mutation_kind == "null_provenance":
+        manifest["provenance"] = None
+    elif mutation_kind == "missing_candidate_correlations":
+        manifest["signalome_outputs"]["tables"].pop(
+            "kinase_network_candidate_correlations", None
+        )
+    elif mutation_kind == "missing_site_membership":
+        manifest["signalome_outputs"]["tables"].pop("site_membership", None)
+    elif mutation_kind == "malformed_site_membership_entry":
+        manifest["signalome_outputs"]["tables"]["site_membership"] = {
+            "path": "signalome/site_membership.csv"
+        }
+    elif mutation_kind == "missing_site_membership_payload":
+        site_membership_path = Path(
+            manifest["signalome_outputs"]["tables"]["site_membership"]
+        )
+        (bundle_root / site_membership_path).unlink()
+    else:
+        raise AssertionError(f"Unknown mutation scenario: {mutation_kind}")
+
     manifest_path.write_text(
         json.dumps(manifest, indent=2, sort_keys=True),
         encoding="utf-8",
     )
 
-    with pytest.raises(
-        PhosPyInputError,
-        match=(
-            "bundle manifest is missing required field\\(s\\): provenance.*"
-            "Regenerate this bundle with the current PhosPy version"
-        ),
-    ):
-        load_signalome_workflow_bundle(bundle_root)
-
-
-def test_signalome_bundle_rejects_manifest_with_null_provenance(
-    tmp_path: Path,
-) -> None:
-    request, result = _build_signalome_request_and_result()
-    bundle_root = tmp_path / "signalome_bundle_null_provenance"
-
-    save_signalome_workflow_bundle(
-        result,
-        bundle_root,
-        config_snapshot=SignalomeWorkflowConfigSnapshot.from_request(request),
-    )
-    manifest_path = bundle_root / "manifest.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest["provenance"] = None
-    manifest_path.write_text(
-        json.dumps(manifest, indent=2, sort_keys=True),
-        encoding="utf-8",
-    )
-
-    with pytest.raises(
-        PhosPyInputError,
-        match=(
-            "bundle manifest.provenance is required.*"
-            "Regenerate this bundle with the current PhosPy version"
-        ),
-    ):
-        load_signalome_workflow_bundle(bundle_root)
-
-
-def test_signalome_bundle_rejects_manifest_without_candidate_correlations_marker(
-    tmp_path: Path,
-) -> None:
-    request, result = _build_signalome_request_and_result()
-    bundle_root = tmp_path / "signalome_bundle_missing_candidate_correlations"
-
-    save_signalome_workflow_bundle(
-        result,
-        bundle_root,
-        config_snapshot=SignalomeWorkflowConfigSnapshot.from_request(request),
-    )
-    manifest_path = bundle_root / "manifest.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest["signalome_outputs"]["tables"].pop(
-        "kinase_network_candidate_correlations", None
-    )
-    manifest_path.write_text(
-        json.dumps(manifest, indent=2, sort_keys=True),
-        encoding="utf-8",
-    )
-
-    with pytest.raises(
-        PhosPyInputError,
-        match=(
-            "bundle manifest.signalome_outputs.tables is missing required field\\(s\\): "
-            "kinase_network_candidate_correlations.*"
-            "Regenerate this bundle with the current PhosPy version"
-        ),
-    ):
+    with pytest.raises(PhosPyInputError, match=pattern):
         load_signalome_workflow_bundle(bundle_root)
 
 
@@ -431,87 +444,6 @@ def test_signalome_bundle_round_trip_handles_optional_sidecar_presence(
         loaded.result.protein_site_context,
         variant.protein_site_context,
     )
-
-
-def test_signalome_bundle_rejects_manifest_without_site_membership_marker(
-    tmp_path: Path,
-) -> None:
-    request, result = _build_signalome_request_and_result()
-    bundle_root = tmp_path / "signalome_bundle_missing_site_membership"
-
-    save_signalome_workflow_bundle(
-        result,
-        bundle_root,
-        config_snapshot=SignalomeWorkflowConfigSnapshot.from_request(request),
-    )
-    manifest_path = bundle_root / "manifest.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest["signalome_outputs"]["tables"].pop("site_membership", None)
-    manifest_path.write_text(
-        json.dumps(manifest, indent=2, sort_keys=True),
-        encoding="utf-8",
-    )
-
-    with pytest.raises(
-        PhosPyInputError,
-        match=(
-            "bundle manifest.signalome_outputs.tables is missing required field\\(s\\): "
-            "site_membership.*Regenerate this bundle with the current PhosPy version"
-        ),
-    ):
-        load_signalome_workflow_bundle(bundle_root)
-
-
-def test_signalome_bundle_rejects_malformed_site_membership_manifest_entry(
-    tmp_path: Path,
-) -> None:
-    request, result = _build_signalome_request_and_result()
-    bundle_root = tmp_path / "signalome_bundle_malformed_site_membership_entry"
-
-    save_signalome_workflow_bundle(
-        result,
-        bundle_root,
-        config_snapshot=SignalomeWorkflowConfigSnapshot.from_request(request),
-    )
-    manifest_path = bundle_root / "manifest.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest["signalome_outputs"]["tables"]["site_membership"] = {
-        "path": "signalome/site_membership.csv"
-    }
-    manifest_path.write_text(
-        json.dumps(manifest, indent=2, sort_keys=True),
-        encoding="utf-8",
-    )
-
-    with pytest.raises(
-        PhosPyInputError,
-        match="bundle manifest.signalome_outputs.tables.site_membership must be a string",
-    ):
-        load_signalome_workflow_bundle(bundle_root)
-
-
-def test_signalome_bundle_rejects_missing_declared_site_membership_payload(
-    tmp_path: Path,
-) -> None:
-    request, result = _build_signalome_request_and_result()
-    bundle_root = tmp_path / "signalome_bundle_missing_site_membership_payload"
-
-    save_signalome_workflow_bundle(
-        result,
-        bundle_root,
-        config_snapshot=SignalomeWorkflowConfigSnapshot.from_request(request),
-    )
-    manifest = json.loads((bundle_root / "manifest.json").read_text(encoding="utf-8"))
-    site_membership_path = Path(
-        manifest["signalome_outputs"]["tables"]["site_membership"]
-    )
-    (bundle_root / site_membership_path).unlink()
-
-    with pytest.raises(
-        PhosPyInputError,
-        match="input file does not exist: .*site_membership\\.csv",
-    ):
-        load_signalome_workflow_bundle(bundle_root)
 
 
 @pytest.mark.parametrize(

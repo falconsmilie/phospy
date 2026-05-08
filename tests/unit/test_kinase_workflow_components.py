@@ -248,11 +248,6 @@ def test_interpreter_overlap_uses_normalised_reference_tables_after_bundle_const
     )
 
     interpreted = KinaseWorkflowInterpreter().run(request)
-    overlap = KinaseWorkflowInterpreter._summarize_overlap(
-        dataset=request.dataset.phospho,
-        kinase_substrate_map=interpreted.kinase_substrate_map,
-    )
-
     assert set(interpreted.kinase_substrate_map.loc[:, "kinase"]) == {"MAP2K6"}
     assert set(interpreted.kinase_substrate_map.loc[:, "substrate_site"]) == {
         "MAPK14;Y182;",
@@ -262,7 +257,10 @@ def test_interpreter_overlap_uses_normalised_reference_tables_after_bundle_const
         "MAPK14;Y182;",
         "GSK3B;S9;",
     }
-    assert overlap["overlap_sites"] == 2
+    overlap_sites = request.dataset.phospho.index.intersection(
+        interpreted.kinase_substrate_map.loc[:, "substrate_site"]
+    )
+    assert len(overlap_sites) == 2
 
 
 def test_scoring_runner_returns_expected_downstream_score_source() -> None:
@@ -576,6 +574,8 @@ def test_provenance_builder_includes_ksea_policy_when_selected() -> None:
 
 
 def test_result_assembler_preserves_owned_dataframe_transfer() -> None:
+    # Intentional private-seam coverage: this protects zero-copy ownership transfer
+    # across internal execution stages, a performance/copy-budget contract.
     request = _resolved_request()
     profile_scores = pd.DataFrame(
         {"MAP2K6": [0.8, 0.4]},

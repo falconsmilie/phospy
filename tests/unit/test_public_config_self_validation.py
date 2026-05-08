@@ -86,22 +86,6 @@ def test_dataset_missing_data_config_self_validates(
             {"policy": "unsupported", "pseudocount": 1.0},
             "preprocessing_config.intensity_transform.policy must be one of",
         ),
-        (
-            {"policy": "log2", "pseudocount": "1.0"},
-            "intensity_transform.pseudocount must be a float or int",
-        ),
-        (
-            {"policy": "log2", "pseudocount": True},
-            "intensity_transform.pseudocount must be a float or int",
-        ),
-        (
-            {"policy": "log2", "pseudocount": float("nan")},
-            "intensity_transform.pseudocount must be finite",
-        ),
-        (
-            {"policy": "log2", "pseudocount": -0.1},
-            "intensity_transform.pseudocount must be greater than or equal to 0",
-        ),
     ],
 )
 def test_dataset_intensity_transform_config_self_validates(
@@ -111,20 +95,72 @@ def test_dataset_intensity_transform_config_self_validates(
         DatasetIntensityTransformConfig(**kwargs)  # type: ignore[arg-type]
 
 
-def test_dataset_normalisation_config_rejects_unknown_policy() -> None:
-    with pytest.raises(
-        PhosPyInputError,
-        match="preprocessing_config.normalisation.policy must be one of",
-    ):
-        DatasetNormalisationConfig(policy="unsupported")  # type: ignore[arg-type]
+@pytest.mark.parametrize(
+    ("pseudocount", "pattern"),
+    [
+        pytest.param(
+            -0.1,
+            "intensity_transform.pseudocount must be greater than or equal to 0",
+            id="below-min",
+        ),
+        pytest.param(0.0, None, id="at-min-valid"),
+        pytest.param(1.0, None, id="inside-valid"),
+        pytest.param(
+            True,
+            "intensity_transform.pseudocount must be a float or int",
+            id="wrong-type",
+        ),
+        pytest.param(
+            float("nan"), "intensity_transform.pseudocount must be finite", id="nan"
+        ),
+        pytest.param(
+            float("inf"), "intensity_transform.pseudocount must be finite", id="inf"
+        ),
+    ],
+)
+def test_dataset_intensity_transform_pseudocount_range_matrix(
+    pseudocount: object, pattern: str | None
+) -> None:
+    if pattern is None:
+        config = DatasetIntensityTransformConfig(
+            policy="log2",
+            pseudocount=pseudocount,  # type: ignore[arg-type]
+        )
+        assert config.pseudocount == pseudocount
+        return
+
+    with pytest.raises(PhosPyInputError, match=pattern):
+        DatasetIntensityTransformConfig(
+            policy="log2",
+            pseudocount=pseudocount,  # type: ignore[arg-type]
+        )
 
 
-def test_dataset_total_protein_correction_config_rejects_unknown_policy() -> None:
-    with pytest.raises(
-        PhosPyInputError,
-        match="preprocessing_config.total_protein_correction.policy must be one of",
-    ):
-        DatasetTotalProteinCorrectionConfig(policy="unsupported")  # type: ignore[arg-type]
+@pytest.mark.parametrize(
+    ("factory", "pattern"),
+    [
+        pytest.param(
+            lambda: DatasetNormalisationConfig(
+                policy="unsupported"  # type: ignore[arg-type]
+            ),
+            "preprocessing_config.normalisation.policy must be one of",
+            id="normalisation-policy-unsupported",
+        ),
+        pytest.param(
+            lambda: DatasetTotalProteinCorrectionConfig(
+                policy="unsupported"  # type: ignore[arg-type]
+            ),
+            "preprocessing_config.total_protein_correction.policy must be one of",
+            id="total-protein-correction-policy-unsupported",
+        ),
+    ],
+)
+def test_dataset_preprocessing_literal_policies_reject_unsupported_values(
+    factory: object, pattern: str
+) -> None:
+    assert callable(factory)
+    with pytest.raises(PhosPyInputError, match=pattern):
+        factory()
 
 
 @pytest.mark.parametrize(
@@ -388,14 +424,6 @@ def test_kinase_scoring_config_presets_return_expected_values() -> None:
             {"n_iterations": 0},
             "prediction_config.n_iterations must be greater than or equal to 1",
         ),
-        (
-            {"random_state": -1},
-            "prediction_config.random_state must be greater than or equal to 0",
-        ),
-        (
-            {"random_state": True},
-            "prediction_config.random_state must be an int",
-        ),
     ],
 )
 def test_kinase_prediction_config_self_validates(
@@ -403,6 +431,91 @@ def test_kinase_prediction_config_self_validates(
 ) -> None:
     with pytest.raises(WorkflowValidationError, match=pattern):
         KinasePredictionConfig(**kwargs)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("factory", "value", "attribute_name", "pattern"),
+    [
+        pytest.param(
+            KinasePredictionConfig,
+            None,
+            "random_state",
+            None,
+            id="kinase-random-state-none",
+        ),
+        pytest.param(
+            KinasePredictionConfig,
+            True,
+            "random_state",
+            "prediction_config.random_state must be an int",
+            id="kinase-random-state-wrong-type",
+        ),
+        pytest.param(
+            KinasePredictionConfig,
+            -1,
+            "random_state",
+            "prediction_config.random_state must be greater than or equal to 0",
+            id="kinase-random-state-negative",
+        ),
+        pytest.param(
+            KinasePredictionConfig,
+            1,
+            "random_state",
+            None,
+            id="kinase-random-state-valid-positive",
+        ),
+        pytest.param(
+            SignalomeClusteringConfig,
+            None,
+            "module_count",
+            None,
+            id="signalome-module-count-none",
+        ),
+        pytest.param(
+            SignalomeClusteringConfig,
+            True,
+            "module_count",
+            "signalome workflow request config.clustering.module_count must be an int",
+            id="signalome-module-count-wrong-type",
+        ),
+        pytest.param(
+            SignalomeClusteringConfig,
+            0,
+            "module_count",
+            "signalome workflow request config.clustering.module_count",
+            id="signalome-module-count-zero",
+        ),
+        pytest.param(
+            SignalomeClusteringConfig,
+            -1,
+            "module_count",
+            "signalome workflow request config.clustering.module_count",
+            id="signalome-module-count-negative",
+        ),
+        pytest.param(
+            SignalomeClusteringConfig,
+            1,
+            "module_count",
+            None,
+            id="signalome-module-count-valid-positive",
+        ),
+    ],
+)
+def test_optional_positive_integer_config_fields_self_validate(
+    factory: type[KinasePredictionConfig] | type[SignalomeClusteringConfig],
+    value: object,
+    attribute_name: str,
+    pattern: str | None,
+) -> None:
+    # Consolidated matrix for optional integer boundaries keeps field-level messages explicit.
+    kwargs = {attribute_name: value}
+    if pattern is None:
+        config = factory(**kwargs)  # type: ignore[arg-type]
+        assert getattr(config, attribute_name) == value
+        return
+
+    with pytest.raises(WorkflowValidationError, match=pattern):
+        factory(**kwargs)  # type: ignore[arg-type]
 
 
 def test_kinase_prediction_config_has_explicit_mode_specific_sizes() -> None:
@@ -453,14 +566,6 @@ def test_kinase_prediction_config_rejects_removed_ensemble_size_alias() -> None:
             "activity_config.method must be one of",
         ),
         (
-            {"threshold": 1.2},
-            "activity_config.threshold must be between 0.0 and 1.0",
-        ),
-        (
-            {"threshold": True},
-            "activity_config.threshold must be a float between 0.0 and 1.0",
-        ),
-        (
             {"min_substrates": 0},
             "activity_config.min_substrates must be greater than or equal to 1",
         ),
@@ -471,10 +576,6 @@ def test_kinase_prediction_config_rejects_removed_ensemble_size_alias() -> None:
         (
             {"ksea_min_substrates": 0},
             "activity_config.ksea_min_substrates must be greater than or equal to 1",
-        ),
-        (
-            {"ksea_evidence_threshold": 1.2},
-            "activity_config.ksea_evidence_threshold must be between 0.0 and 1.0",
         ),
         (
             {"ksea_p_value_method": "invalid"},
@@ -497,18 +598,6 @@ def test_kinase_activity_config_self_validates(
     ("factory", "pattern"),
     [
         (
-            lambda: SignalomeScientificConfig(substrate_support_cutoff=1.5),
-            "signalome workflow request config.scientific.substrate_support_cutoff",
-        ),
-        (
-            lambda: SignalomeScientificConfig(substrate_support_cutoff=True),  # type: ignore[arg-type]
-            "signalome workflow request config.scientific.substrate_support_cutoff",
-        ),
-        (
-            lambda: SignalomeOutputConfig(network_correlation_threshold=-0.1),
-            "signalome workflow request config.output.network_correlation_threshold",
-        ),
-        (
             lambda: SignalomeOutputConfig(network_policy="invalid"),  # type: ignore[arg-type]
             "signalome workflow request config.output.network_policy",
         ),
@@ -527,34 +616,6 @@ def test_kinase_activity_config_self_validates(
                 allow_mixed_total_protein_quantitative_meaning="yes"  # type: ignore[arg-type]
             ),
             "signalome workflow request config.validation.allow_mixed_total_protein_quantitative_meaning",
-        ),
-        (
-            lambda: SignalomeClusteringConfig(module_count=0),
-            "signalome workflow request config.clustering.module_count",
-        ),
-        (
-            lambda: SignalomeClusteringConfig(module_count=-1),
-            "signalome workflow request config.clustering.module_count",
-        ),
-        (
-            lambda: SignalomeClusteringConfig(module_count=True),  # type: ignore[arg-type]
-            "signalome workflow request config.clustering.module_count must be an int",
-        ),
-        (
-            lambda: SignalomeClusteringConfig(module_count=2.5),  # type: ignore[arg-type]
-            "signalome workflow request config.clustering.module_count must be an int",
-        ),
-        (
-            lambda: SignalomeClusteringConfig(
-                module_selection_primary_correlation_threshold=1.2
-            ),
-            "module_selection_primary_correlation_threshold",
-        ),
-        (
-            lambda: SignalomeClusteringConfig(
-                module_selection_fallback_correlation_threshold=-0.1
-            ),
-            "module_selection_fallback_correlation_threshold",
         ),
         (
             lambda: SignalomeClusteringConfig(module_selection_max_clusters=0),
@@ -585,6 +646,82 @@ def test_signalome_config_self_validates(factory: object, pattern: str) -> None:
     assert callable(factory)
     with pytest.raises(WorkflowValidationError, match=pattern):
         factory()
+
+
+@pytest.mark.parametrize(
+    ("factory", "invalid_pattern", "wrong_type_pattern"),
+    [
+        pytest.param(
+            lambda value: KinaseActivityConfig(threshold=value),
+            "activity_config.threshold must be between 0.0 and 1.0",
+            "activity_config.threshold must be a float between 0.0 and 1.0",
+            id="activity-threshold",
+        ),
+        pytest.param(
+            lambda value: KinaseActivityConfig(ksea_evidence_threshold=value),
+            "activity_config.ksea_evidence_threshold must be between 0.0 and 1.0",
+            "activity_config.ksea_evidence_threshold must be a float between 0.0 and 1.0",
+            id="activity-ksea-evidence-threshold",
+        ),
+        pytest.param(
+            lambda value: SignalomeScientificConfig(substrate_support_cutoff=value),
+            "signalome workflow request config.scientific.substrate_support_cutoff must be between 0.0 and 1.0",
+            "signalome workflow request config.scientific.substrate_support_cutoff must be a float between 0.0 and 1.0",
+            id="signalome-substrate-support-cutoff",
+        ),
+        pytest.param(
+            lambda value: SignalomeOutputConfig(network_correlation_threshold=value),
+            "signalome workflow request config.output.network_correlation_threshold must be between 0.0 and 1.0",
+            "signalome workflow request config.output.network_correlation_threshold must be a float between 0.0 and 1.0",
+            id="signalome-network-correlation-threshold",
+        ),
+        pytest.param(
+            lambda value: SignalomeClusteringConfig(
+                module_selection_primary_correlation_threshold=value
+            ),
+            "signalome workflow request config.clustering.module_selection_primary_correlation_threshold must be between 0.0 and 1.0",
+            "signalome workflow request config.clustering.module_selection_primary_correlation_threshold must be a float between 0.0 and 1.0",
+            id="signalome-module-selection-primary-correlation-threshold",
+        ),
+        pytest.param(
+            lambda value: SignalomeClusteringConfig(
+                module_selection_fallback_correlation_threshold=value
+            ),
+            "signalome workflow request config.clustering.module_selection_fallback_correlation_threshold must be between 0.0 and 1.0",
+            "signalome workflow request config.clustering.module_selection_fallback_correlation_threshold must be a float between 0.0 and 1.0",
+            id="signalome-module-selection-fallback-correlation-threshold",
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    ("value", "expectation"),
+    [
+        pytest.param(-0.1, "invalid-range", id="below-min"),
+        pytest.param(0.0, "valid", id="at-min"),
+        pytest.param(0.5, "valid", id="inside-range"),
+        pytest.param(1.0, "valid", id="at-max"),
+        pytest.param(1.2, "invalid-range", id="above-max"),
+        pytest.param(True, "wrong-type", id="wrong-type"),
+        pytest.param(float("nan"), "invalid-range", id="nan"),
+        pytest.param(float("inf"), "invalid-range", id="infinite"),
+    ],
+)
+def test_probability_like_range_fields_self_validate(
+    factory: object,
+    value: object,
+    expectation: str,
+    invalid_pattern: str,
+    wrong_type_pattern: str,
+) -> None:
+    assert callable(factory)
+    if expectation == "valid":
+        config = factory(value)  # type: ignore[misc]
+        assert config is not None
+        return
+
+    pattern = wrong_type_pattern if expectation == "wrong-type" else invalid_pattern
+    with pytest.raises(WorkflowValidationError, match=pattern):
+        factory(value)  # type: ignore[misc]
 
 
 def test_signalome_config_accepts_supported_clustering_engine_names() -> None:

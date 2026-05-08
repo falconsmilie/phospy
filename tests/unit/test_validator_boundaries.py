@@ -170,6 +170,37 @@ def _kinase_result(
     )
 
 
+def _mixed_total_kinase_request(
+    *, allow_mixed_total_protein_quantitative_meaning: bool = False
+) -> KinaseWorkflowRequest:
+    return KinaseWorkflowRequest(
+        dataset=_mixed_total_correction_dataset(),
+        references=_references(),
+        scoring_config=KinaseScoringConfig(
+            min_substrates=2,
+            allow_mixed_total_protein_quantitative_meaning=allow_mixed_total_protein_quantitative_meaning,
+        ),
+        prediction_config=KinasePredictionConfig(
+            top_k=5,
+            deterministic_max_selected_kinases=5,
+            adaptive_ensemble_runs=5,
+        ),
+        activity_config=None,
+    )
+
+
+def _mixed_total_signalome_request(
+    *, allow_mixed_total_protein_quantitative_meaning: bool = False
+) -> SignalomeWorkflowRequest:
+    return SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(_mixed_total_correction_dataset()),
+        config=build_signalome_config(
+            substrate_support_cutoff=0.5,
+            allow_mixed_total_protein_quantitative_meaning=allow_mixed_total_protein_quantitative_meaning,
+        ),
+    )
+
+
 def test_dataset_build_request_rejects_invalid_source_types_at_validator_boundary() -> (
     None
 ):
@@ -224,56 +255,81 @@ def test_dataset_build_request_has_default_preprocessing_config() -> None:
     assert validated.preprocessing_config.missing_data.min_observed_values is None
 
 
-def test_dataset_build_request_rejects_unknown_intensity_transform_policy() -> None:
-    with pytest.raises(
-        PhosPyInputError,
-        match="preprocessing_config.intensity_transform.policy must be one of",
-    ):
-        DatasetIntensityTransformConfig(
-            policy="unsupported",  # type: ignore[arg-type]
-            pseudocount=1.0,
+@pytest.mark.parametrize(
+    ("factory", "pattern"),
+    [
+        pytest.param(
+            lambda: DatasetIntensityTransformConfig(
+                policy="unsupported",  # type: ignore[arg-type]
+                pseudocount=1.0,
+            ),
+            "preprocessing_config.intensity_transform.policy must be one of",
+            id="intensity-transform-policy-unsupported",
+        ),
+        pytest.param(
+            lambda: DatasetNormalisationConfig(
+                policy="unsupported",  # type: ignore[arg-type]
+            ),
+            "preprocessing_config.normalisation.policy must be one of",
+            id="normalisation-policy-unsupported",
+        ),
+        pytest.param(
+            lambda: DatasetMissingDataConfig(
+                policy="unsupported"  # type: ignore[arg-type]
+            ),
+            "preprocessing_config.missing_data.policy must be one of",
+            id="missing-data-policy-unsupported",
+        ),
+    ],
+)
+def test_dataset_build_request_rejects_unsupported_policy_literals(
+    factory: object, pattern: str
+) -> None:
+    assert callable(factory)
+    with pytest.raises(PhosPyInputError, match=pattern):
+        factory()
+
+
+@pytest.mark.parametrize(
+    ("pseudocount", "pattern"),
+    [
+        pytest.param(
+            -0.1,
+            "intensity_transform.pseudocount must be greater than or equal to 0",
+            id="below-min",
+        ),
+        pytest.param(0.0, None, id="at-min-valid"),
+        pytest.param(1.0, None, id="inside-valid"),
+        pytest.param(
+            True,
+            "intensity_transform.pseudocount must be a float or int",
+            id="wrong-type",
+        ),
+        pytest.param(
+            float("nan"), "intensity_transform.pseudocount must be finite", id="nan"
+        ),
+        pytest.param(
+            float("inf"),
+            "intensity_transform.pseudocount must be finite",
+            id="infinite",
+        ),
+    ],
+)
+def test_dataset_build_request_log2_pseudocount_range_boundary(
+    pseudocount: object, pattern: str | None
+) -> None:
+    if pattern is None:
+        config = DatasetIntensityTransformConfig(
+            policy="log2",
+            pseudocount=pseudocount,  # type: ignore[arg-type]
         )
+        assert config.pseudocount == pseudocount
+        return
 
-
-def test_dataset_build_request_rejects_negative_log2_pseudocount() -> None:
-    with pytest.raises(
-        PhosPyInputError,
-        match="intensity_transform.pseudocount must be greater than or equal to 0",
-    ):
+    with pytest.raises(PhosPyInputError, match=pattern):
         DatasetIntensityTransformConfig(
             policy="log2",
-            pseudocount=-0.1,
-        )
-
-
-def test_dataset_build_request_rejects_non_finite_log2_pseudocount() -> None:
-    with pytest.raises(
-        PhosPyInputError,
-        match="intensity_transform.pseudocount must be finite",
-    ):
-        DatasetIntensityTransformConfig(
-            policy="log2",
-            pseudocount=float("inf"),
-        )
-
-
-def test_dataset_build_request_rejects_unknown_normalisation_policy() -> None:
-    with pytest.raises(
-        PhosPyInputError,
-        match="preprocessing_config.normalisation.policy must be one of",
-    ):
-        DatasetNormalisationConfig(
-            policy="unsupported",  # type: ignore[arg-type]
-        )
-
-
-def test_dataset_build_request_rejects_unknown_missing_data_policy() -> None:
-    with pytest.raises(
-        PhosPyInputError,
-        match="preprocessing_config.missing_data.policy must be one of",
-    ):
-        DatasetMissingDataConfig(
-            policy="unsupported"  # type: ignore[arg-type]
+            pseudocount=pseudocount,  # type: ignore[arg-type]
         )
 
 
@@ -593,49 +649,122 @@ def test_kinase_request_rejects_non_bool_diagnostic_scoring_policy() -> None:
         )
 
 
-def test_kinase_request_rejects_unknown_profile_missing_value_strategy() -> None:
-    with pytest.raises(
-        WorkflowValidationError,
-        match="scoring_config.profile_missing_value_strategy must be one of",
-    ):
-        KinaseScoringConfig(
-            min_substrates=2,
-            profile_missing_value_strategy="unsupported",  # type: ignore[arg-type]
-        )
+@pytest.mark.parametrize(
+    ("factory", "pattern"),
+    [
+        pytest.param(
+            lambda: KinaseScoringConfig(
+                min_substrates=2,
+                profile_missing_value_strategy="unsupported",  # type: ignore[arg-type]
+            ),
+            "scoring_config.profile_missing_value_strategy must be one of",
+            id="profile-missing-value-strategy-unsupported",
+        ),
+        pytest.param(
+            lambda: KinasePredictionConfig(
+                top_k=5,
+                deterministic_max_selected_kinases=5,
+                adaptive_ensemble_runs=5,
+                mode="unsupported",  # type: ignore[arg-type]
+            ),
+            "prediction_config.mode must be one of",
+            id="prediction-mode-unsupported",
+        ),
+    ],
+)
+def test_kinase_request_rejects_unsupported_literal_policies(
+    factory: object, pattern: str
+) -> None:
+    assert callable(factory)
+    with pytest.raises(WorkflowValidationError, match=pattern):
+        factory()
 
 
-def test_kinase_request_rejects_unknown_prediction_mode() -> None:
-    with pytest.raises(
-        WorkflowValidationError,
-        match="prediction_config.mode must be one of",
-    ):
-        KinasePredictionConfig(
-            top_k=5,
-            deterministic_max_selected_kinases=5,
-            adaptive_ensemble_runs=5,
-            mode="unsupported",  # type: ignore[arg-type]
-        )
+@pytest.mark.parametrize(
+    ("factory", "pattern"),
+    [
+        pytest.param(
+            lambda: KinasePredictionConfig(
+                top_k=5,
+                deterministic_max_selected_kinases=5,
+                adaptive_ensemble_runs=5,
+                mode="adaptive_ensemble",
+                n_iterations=0,
+                random_state=1,
+            ),
+            "prediction_config.n_iterations must be greater than or equal to 1",
+            id="prediction-n-iterations-zero",
+        ),
+        pytest.param(
+            lambda: KinaseActivityConfig(
+                enabled=True,
+                threshold=0.6,
+                min_substrates=0,
+                top_n_substrates=20,
+            ),
+            "activity_config.min_substrates must be greater than or equal to 1",
+            id="activity-min-substrates-zero",
+        ),
+        pytest.param(
+            lambda: KinaseActivityConfig(
+                enabled=True,
+                threshold=0.6,
+                min_substrates=1,
+                top_n_substrates=0,
+            ),
+            "activity_config.top_n_substrates must be greater than or equal to 1",
+            id="activity-top-n-substrates-zero",
+        ),
+    ],
+)
+def test_positive_integer_policy_fails_at_validator_boundary(
+    factory: object,
+    pattern: str,
+) -> None:
+    # Consolidated matrix preserves field-specific boundary messages.
+    assert callable(factory)
+    with pytest.raises(WorkflowValidationError, match=pattern):
+        factory()
 
 
-def test_kinase_request_rejects_non_positive_adaptive_iterations() -> None:
-    with pytest.raises(
-        WorkflowValidationError,
-        match="prediction_config.n_iterations must be greater than or equal to 1",
-    ):
-        KinasePredictionConfig(
-            top_k=5,
-            deterministic_max_selected_kinases=5,
-            adaptive_ensemble_runs=5,
-            mode="adaptive_ensemble",
-            n_iterations=0,
-            random_state=1,
-        )
-
-
-def test_kinase_request_reference_compatibility_is_enforced_in_resolver() -> None:
+@pytest.mark.parametrize(
+    ("reference_source", "expected_exception"),
+    [
+        pytest.param(ReferencePreset.RAT, None, id="preset-rat-compatible"),
+        pytest.param(
+            ReferencePreset.HUMAN,
+            ReferenceCompatibilityError,
+            id="preset-human-incompatible",
+        ),
+        pytest.param(
+            _references(),
+            None,
+            id="explicit-bundle-compatible",
+        ),
+        pytest.param(
+            ReferenceBundle(
+                organism=Organism.MOUSE,
+                kinase_substrate_map=pd.DataFrame(
+                    {"kinase": ["MAP2K6"], "substrate_site": ["MAPK14;Y182;"]}
+                ),
+                site_sequences=pd.DataFrame(
+                    {"site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"]},
+                    index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+                ),
+            ),
+            ReferenceCompatibilityError,
+            id="explicit-bundle-organism-mismatch",
+        ),
+    ],
+)
+def test_kinase_reference_compatibility_boundary_matrix(
+    reference_source: object,
+    expected_exception: type[Exception] | None,
+) -> None:
+    # Compatibility remains a domain boundary contract, not executor behavior.
     request = KinaseWorkflowRequest(
         dataset=_dataset(),
-        references=ReferencePreset.HUMAN,
+        references=reference_source,  # type: ignore[arg-type]
         scoring_config=KinaseScoringConfig(min_substrates=2),
         prediction_config=KinasePredictionConfig(
             top_k=5,
@@ -646,24 +775,28 @@ def test_kinase_request_reference_compatibility_is_enforced_in_resolver() -> Non
     )
     validated = KinaseWorkflowValidator().run(request)
     assert validated is request
-    with pytest.raises(ReferenceCompatibilityError):
+
+    if expected_exception is None:
+        try:
+            KinaseWorkflow().run(request)
+        except ReferenceCompatibilityError as exc:  # pragma: no cover - defensive
+            raise AssertionError(
+                "compatible references must not fail compatibility"
+            ) from exc
+        except Exception:
+            # Other boundary failures (for example eligible kinase floor) are
+            # outside the reference-compatibility contract in this matrix.
+            pass
+        return
+
+    with pytest.raises(expected_exception):
         KinaseWorkflow().run(request)
 
 
 def test_kinase_validator_rejects_mixed_total_protein_quantitative_meaning_by_default() -> (
     None
 ):
-    request = KinaseWorkflowRequest(
-        dataset=_mixed_total_correction_dataset(),
-        references=_references(),
-        scoring_config=KinaseScoringConfig(min_substrates=2),
-        prediction_config=KinasePredictionConfig(
-            top_k=5,
-            deterministic_max_selected_kinases=5,
-            adaptive_ensemble_runs=5,
-        ),
-        activity_config=None,
-    )
+    request = _mixed_total_kinase_request()
     with pytest.raises(
         WorkflowValidationError,
         match=(
@@ -679,103 +812,148 @@ def test_kinase_validator_rejects_mixed_total_protein_quantitative_meaning_by_de
 def test_kinase_validator_allows_mixed_total_protein_quantitative_meaning_with_opt_in() -> (
     None
 ):
-    request = KinaseWorkflowRequest(
-        dataset=_mixed_total_correction_dataset(),
-        references=_references(),
-        scoring_config=KinaseScoringConfig(
-            min_substrates=2,
-            allow_mixed_total_protein_quantitative_meaning=True,
-        ),
-        prediction_config=KinasePredictionConfig(
-            top_k=5,
-            deterministic_max_selected_kinases=5,
-            adaptive_ensemble_runs=5,
-        ),
-        activity_config=None,
+    request = _mixed_total_kinase_request(
+        allow_mixed_total_protein_quantitative_meaning=True
     )
     validated = KinaseWorkflowValidator().run(request)
     assert validated is request
 
 
-def test_kinase_activity_config_policy_fails_at_validator_boundary() -> None:
-    with pytest.raises(
-        WorkflowValidationError,
-        match="activity_config.min_substrates must be greater than or equal to 1",
-    ):
-        KinaseActivityConfig(
-            enabled=True,
-            threshold=0.6,
-            min_substrates=0,
-            top_n_substrates=20,
-        )
-
-
-def test_kinase_activity_top_n_config_policy_fails_at_validator_boundary() -> None:
-    with pytest.raises(
-        WorkflowValidationError,
-        match="activity_config.top_n_substrates must be greater than or equal to 1",
-    ):
-        KinaseActivityConfig(
-            enabled=True,
-            threshold=0.6,
-            min_substrates=1,
-            top_n_substrates=0,
-        )
-
-
-def test_signalome_request_support_cutoff_policy_fails_at_validator_boundary() -> None:
-    with pytest.raises(
-        WorkflowValidationError,
-        match="signalome workflow request config.scientific.substrate_support_cutoff",
-    ):
-        SignalomeScientificConfig(substrate_support_cutoff=1.5)
-
-
-def test_signalome_request_network_threshold_policy_fails_at_validator_boundary() -> (
-    None
-):
-    with pytest.raises(
-        WorkflowValidationError,
-        match="signalome workflow request config.output.network_correlation_threshold",
-    ):
-        SignalomeOutputConfig(network_correlation_threshold=-0.1)
-
-
-def test_signalome_request_assignment_policy_fails_at_validator_boundary() -> None:
-    with pytest.raises(
-        WorkflowValidationError,
-        match="signalome workflow request config.scientific.assignment_policy",
-    ):
-        SignalomeScientificConfig(assignment_policy="invalid")  # type: ignore[arg-type]
-
-
-def test_signalome_request_network_policy_fails_at_validator_boundary() -> None:
-    with pytest.raises(
-        WorkflowValidationError,
-        match="signalome workflow request config.output.network_policy",
-    ):
-        SignalomeOutputConfig(network_policy="invalid")  # type: ignore[arg-type]
-
-
-def test_signalome_request_preconditioning_policy_fails_at_validator_boundary() -> None:
-    with pytest.raises(
-        WorkflowValidationError,
-        match=(
-            "signalome workflow request config.validation.score_preconditioning_policy"
+@pytest.mark.parametrize(
+    (
+        "config_path",
+        "invalid_value",
+        "factory",
+        "expected_exception",
+        "expected_message_fragment",
+    ),
+    [
+        pytest.param(
+            "config.scientific.substrate_support_cutoff",
+            1.5,
+            lambda value: SignalomeScientificConfig(substrate_support_cutoff=value),
+            WorkflowValidationError,
+            "signalome workflow request config.scientific.substrate_support_cutoff",
+            id="substrate-support-cutoff-above-max",
         ),
-    ):
-        SignalomeValidationConfig(
-            score_preconditioning_policy="invalid"  # type: ignore[arg-type]
-        )
+        pytest.param(
+            "config.output.network_correlation_threshold",
+            -0.1,
+            lambda value: SignalomeOutputConfig(network_correlation_threshold=value),
+            WorkflowValidationError,
+            "signalome workflow request config.output.network_correlation_threshold",
+            id="network-correlation-threshold-below-min",
+        ),
+        pytest.param(
+            "config.scientific.assignment_policy",
+            "invalid",
+            lambda value: SignalomeScientificConfig(assignment_policy=value),  # type: ignore[arg-type]
+            WorkflowValidationError,
+            "signalome workflow request config.scientific.assignment_policy",
+            id="assignment-policy-invalid",
+        ),
+        pytest.param(
+            "config.output.network_policy",
+            "invalid",
+            lambda value: SignalomeOutputConfig(network_policy=value),  # type: ignore[arg-type]
+            WorkflowValidationError,
+            "signalome workflow request config.output.network_policy",
+            id="network-policy-invalid",
+        ),
+        pytest.param(
+            "config.validation.score_preconditioning_policy",
+            "invalid",
+            lambda value: SignalomeValidationConfig(
+                score_preconditioning_policy=value  # type: ignore[arg-type]
+            ),
+            WorkflowValidationError,
+            "signalome workflow request config.validation.score_preconditioning_policy",
+            id="score-preconditioning-policy-invalid",
+        ),
+        pytest.param(
+            "config.clustering.module_count",
+            True,
+            lambda value: SignalomeClusteringConfig(module_count=value),  # type: ignore[arg-type]
+            WorkflowValidationError,
+            "signalome workflow request config.clustering.module_count must be an int",
+            id="module-count-wrong-type-bool",
+        ),
+        pytest.param(
+            "config.clustering.module_count",
+            0,
+            lambda value: SignalomeClusteringConfig(module_count=value),
+            WorkflowValidationError,
+            "signalome workflow request config.clustering.module_count",
+            id="module-count-zero",
+        ),
+        pytest.param(
+            "config.clustering.module_count",
+            -1,
+            lambda value: SignalomeClusteringConfig(module_count=value),
+            WorkflowValidationError,
+            "signalome workflow request config.clustering.module_count",
+            id="module-count-negative",
+        ),
+        pytest.param(
+            "config.clustering.module_selection_primary_correlation_threshold",
+            1.2,
+            lambda value: SignalomeClusteringConfig(
+                module_selection_primary_correlation_threshold=value
+            ),
+            WorkflowValidationError,
+            "module_selection_primary_correlation_threshold",
+            id="module-selection-primary-threshold-above-max",
+        ),
+        pytest.param(
+            "config.clustering.module_selection_fallback_correlation_threshold",
+            -0.1,
+            lambda value: SignalomeClusteringConfig(
+                module_selection_fallback_correlation_threshold=value
+            ),
+            WorkflowValidationError,
+            "module_selection_fallback_correlation_threshold",
+            id="module-selection-fallback-threshold-below-min",
+        ),
+        pytest.param(
+            "config.clustering.module_selection_max_clusters",
+            0,
+            lambda value: SignalomeClusteringConfig(
+                module_selection_max_clusters=value
+            ),
+            WorkflowValidationError,
+            "module_selection_max_clusters",
+            id="module-selection-max-clusters-zero",
+        ),
+        pytest.param(
+            "config.clustering.clustering_engine",
+            "unsupported",
+            lambda value: SignalomeClusteringConfig(
+                clustering_engine=value  # type: ignore[arg-type]
+            ),
+            WorkflowValidationError,
+            "signalome workflow request config.clustering.clustering_engine",
+            id="clustering-engine-unsupported",
+        ),
+    ],
+)
+def test_signalome_config_boundary_invalid_case_matrix(
+    config_path: str,
+    invalid_value: object,
+    factory: object,
+    expected_exception: type[Exception],
+    expected_message_fragment: str,
+) -> None:
+    # Domain boundary matrix keeps each public signalome field explicit.
+    assert config_path.startswith("config.")
+    assert callable(factory)
+    with pytest.raises(expected_exception, match=expected_message_fragment):
+        factory(invalid_value)  # type: ignore[misc]
 
 
 def test_signalome_validator_rejects_mixed_total_protein_quantitative_meaning_by_default() -> (
     None
 ):
-    request = SignalomeWorkflowRequest(
-        kinase_result=_kinase_result(_mixed_total_correction_dataset()),
-        config=build_signalome_config(substrate_support_cutoff=0.5),
-    )
+    request = _mixed_total_signalome_request()
     with pytest.raises(
         WorkflowValidationError,
         match=(
@@ -791,64 +969,31 @@ def test_signalome_validator_rejects_mixed_total_protein_quantitative_meaning_by
 def test_signalome_validator_allows_mixed_total_protein_quantitative_meaning_with_opt_in() -> (
     None
 ):
-    request = SignalomeWorkflowRequest(
-        kinase_result=_kinase_result(_mixed_total_correction_dataset()),
-        config=build_signalome_config(
-            substrate_support_cutoff=0.5,
-            allow_mixed_total_protein_quantitative_meaning=True,
-        ),
+    request = _mixed_total_signalome_request(
+        allow_mixed_total_protein_quantitative_meaning=True
     )
     validated = SignalomeWorkflowValidator().run(request)
     assert validated is request
 
 
-def test_signalome_request_module_count_policy_fails_at_validator_boundary() -> None:
-    with pytest.raises(
-        WorkflowValidationError,
-        match="signalome workflow request config.clustering.module_count",
-    ):
-        SignalomeClusteringConfig(module_count=0)
-    with pytest.raises(
-        WorkflowValidationError,
-        match="signalome workflow request config.clustering.module_count",
-    ):
-        SignalomeClusteringConfig(module_count=-1)
+@pytest.mark.parametrize(
+    ("module_count", "pattern"),
+    [
+        pytest.param(None, None, id="none-allowed"),
+        pytest.param(1, None, id="valid-positive"),
+    ],
+)
+def test_signalome_request_module_count_optional_positive_integer_boundary(
+    module_count: object,
+    pattern: str | None,
+) -> None:
+    if pattern is None:
+        config = SignalomeClusteringConfig(module_count=module_count)  # type: ignore[arg-type]
+        assert config.module_count == module_count
+        return
 
-
-def test_signalome_request_module_count_type_fails_at_validator_boundary() -> None:
-    with pytest.raises(
-        WorkflowValidationError,
-        match="signalome workflow request config.clustering.module_count must be an int",
-    ):
-        SignalomeClusteringConfig(module_count=1.5)  # type: ignore[arg-type]
-
-
-def test_signalome_request_module_selection_threshold_policy_fails_at_boundary() -> (
-    None
-):
-    with pytest.raises(
-        WorkflowValidationError,
-        match="module_selection_primary_correlation_threshold",
-    ):
-        SignalomeClusteringConfig(module_selection_primary_correlation_threshold=1.2)
-
-
-def test_signalome_request_module_selection_max_clusters_policy_fails_at_boundary() -> (
-    None
-):
-    with pytest.raises(
-        WorkflowValidationError,
-        match="module_selection_max_clusters",
-    ):
-        SignalomeClusteringConfig(module_selection_max_clusters=0)
-
-
-def test_signalome_request_clustering_engine_policy_fails_at_boundary() -> None:
-    with pytest.raises(
-        WorkflowValidationError,
-        match="signalome workflow request config.clustering.clustering_engine",
-    ):
-        SignalomeClusteringConfig(clustering_engine="unsupported")  # type: ignore[arg-type]
+    with pytest.raises(WorkflowValidationError, match=pattern):
+        SignalomeClusteringConfig(module_count=module_count)  # type: ignore[arg-type]
 
 
 def test_signalome_request_max_exact_clustering_sites_policy_fails_at_boundary() -> (

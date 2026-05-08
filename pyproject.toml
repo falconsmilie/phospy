@@ -92,9 +92,12 @@ exclude = ["phospy_legacy", "phospy_legacy.*"]
 testpaths = ["tests/unit", "tests/integration", "tests/parity"]
 addopts = "-m \"not parity\""
 markers = [
+  "unit: focused tests for a single module/function contract with isolated collaborators",
   "integration: multi-component rewrite workflow tests",
   "performance: lightweight performance contract tests for key scientific hot paths",
   "parity: compare Python outputs against R/PhosR reference fixtures",
+  "slow: long-running tests that are useful for local confidence but not required in default fast loops",
+  "release_gate: tests intended for release sign-off gates (typically parity/performance critical paths)",
   "activity_parity: hard regression gate for activity-stage parity fixtures and kernels",
   "parity_diagnostic: informational parity reporting tests (not threshold-bearing release gates)",
 ]
