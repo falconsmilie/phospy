@@ -3,8 +3,9 @@
 This page gives scientist-facing contracts for each public workflow lane:
 
 1. `AnalysisReadyDatasetBuilder`
-2. `KinaseWorkflow`
-3. `SignalomeWorkflow`
+2. `DifferentialAnalysis`
+3. `KinaseWorkflow`
+4. `SignalomeWorkflow`
 
 For executable usage, see:
 
@@ -93,6 +94,29 @@ approximation behavior, and failure modes), see `docs/performance.md`.
 - `dataset.site_metadata`
 - optional `dataset.sample_metadata`, `dataset.total`, `dataset.comparisons`
 - optional preprocessing report tables (`row_counts`, `operations`, `row_audit`, and sidecars)
+
+## DifferentialAnalysis Contract
+
+### Required Input Tables
+
+- `matrix`: numeric feature-by-sample table.
+- `design`: numeric full-rank design matrix aligned to `matrix.columns`.
+- `contrasts`: numeric contrast matrix aligned to `design.columns`.
+
+### Empirical-Bayes Moderation Policy
+
+- `empirical_bayes.method="standard"` applies limma-style moderated variance.
+- `empirical_bayes.method="robust"` applies winsorized robust hyperparameter estimation and outlier-aware prior-df shrinkage.
+- `empirical_bayes.trend=True` enables mean-intensity-dependent prior variance (limma-trend style).
+- `empirical_bayes.winsor_tail_p` controls robust winsor tail clipping; this is used only when `method="robust"`.
+- Moderation changes residual variance estimates, moderated t-statistics, and p-values.
+- Moderation does not alter `logFC`; fold-change estimates remain OLS contrast estimates.
+
+### Diagnostics and Provenance
+
+- Result output includes method/trend flags and prior-parameter diagnostics.
+- Trend mode includes mean-intensity vs residual-variance trend diagnostics as typed data objects.
+- Core differential output does not require plotting; plotting adapters are out of scope for this core contract.
 
 ## KinaseWorkflow Contract
 
