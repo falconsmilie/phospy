@@ -115,6 +115,38 @@ jobs:
       - name: Run benchmark script smoke checks
         run: pytest tests/unit/test_benchmark_scripts_smoke.py
 
+  testing-audit-freshness:
+    needs: repo-hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+      - name: Regenerate testing audit docs
+        run: |
+          python tools/testing/generate_test_inventory.py
+          python tools/testing/find_validator_test_patterns.py
+          python tools/testing/find_dataframe_ownership_tests.py
+          python tools/testing/find_diagnostic_assertion_clusters.py
+          python tools/testing/find_orchestration_test_candidates.py
+          python tools/testing/generate_test_inventory.py
+          python tools/testing/find_validator_test_patterns.py
+          python tools/testing/find_dataframe_ownership_tests.py
+          python tools/testing/find_diagnostic_assertion_clusters.py
+          python tools/testing/find_orchestration_test_candidates.py
+      - name: Fail if generated testing audit docs are stale
+        run: |
+          git diff --exit-code -- \
+            docs/testing/test_inventory.csv \
+            docs/testing/test_inventory.md \
+            docs/testing/validator_test_pattern_report.md \
+            docs/testing/dataframe_ownership_test_report.md \
+            docs/testing/diagnostic_payload_test_report.md \
+            docs/testing/orchestration_test_candidates.md
+
   performance-contracts:
     needs: repo-hygiene
     runs-on: ubuntu-latest

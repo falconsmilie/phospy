@@ -38,6 +38,14 @@ def _read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="replace")
 
 
+def _normalize_field_name(name: str) -> str:
+    return name.lstrip("\ufeff").strip()
+
+
+def _normalize_path_key(path_value: str) -> str:
+    return path_value.strip().replace("\\", "/")
+
+
 def _scan_test_file(path: Path) -> TestFileInventory:
     content = _read_text(path)
     relative_path = path.relative_to(REPO_ROOT).as_posix()
@@ -62,20 +70,35 @@ def _load_existing_manual_values() -> dict[str, dict[str, str]]:
     if not CSV_OUTPUT.exists():
         return {}
 
-    with CSV_OUTPUT.open("r", encoding="utf-8", newline="") as handle:
+    with CSV_OUTPUT.open("r", encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle)
         if reader.fieldnames is None:
             return {}
-        if "path" not in reader.fieldnames:
+        normalized_field_map = {
+            _normalize_field_name(field_name): field_name
+            for field_name in reader.fieldnames
+            if field_name is not None
+        }
+        path_field = normalized_field_map.get("path")
+        if path_field is None:
             return {}
 
         values: dict[str, dict[str, str]] = {}
+        manual_field_names = {
+            column: normalized_field_map.get(column) for column in MANUAL_COLUMNS
+        }
         for row in reader:
-            row_path = row.get("path")
+            row_path_raw = row.get(path_field, "")
+            if not row_path_raw:
+                continue
+            row_path = _normalize_path_key(row_path_raw)
             if not row_path:
                 continue
             values[row_path] = {
-                column: row.get(column, "") for column in MANUAL_COLUMNS
+                column: row.get(manual_field_names[column], "")
+                if manual_field_names[column] is not None
+                else ""
+                for column in MANUAL_COLUMNS
             }
         return values
 
