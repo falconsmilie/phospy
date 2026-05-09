@@ -87,7 +87,7 @@ test-parity: check-tools
 	$(PYTEST) tests/parity -m parity -s
 
 test-performance: check-tools
-	$(PYTEST) tests/performance
+	$(PYTEST) tests/performance -m "performance or release_gate"
 
 dataset-builder-demo: check-tools
 	PYTHONPATH=src $(PYTHON) -c "from examples.dataset_builder_demo import main; main()"

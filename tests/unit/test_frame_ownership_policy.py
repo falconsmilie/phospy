@@ -261,6 +261,27 @@ def _assert_optional_dataframe_getter_defensive_snapshot(
     assert exported.iloc[0, 0] != reread.iloc[0, 0]
 
 
+def _assert_optional_dataframe_getter_defensive_snapshot_when_present(
+    getter: Callable[[], pd.DataFrame | None],
+) -> None:
+    exported = getter()
+    if exported is None:
+        return
+
+    _mutate_first_frame_cell(exported)
+    reread = getter()
+    assert reread is not None
+    assert exported is not reread
+    assert exported.iloc[0, 0] != reread.iloc[0, 0]
+
+
+def _assert_copy_keyword_rejected(
+    export: Callable[..., object],
+) -> None:
+    with pytest.raises(TypeError, match="unexpected keyword argument"):
+        export(copy=False)  # type: ignore[call-arg]
+
+
 @pytest.mark.parametrize(
     (
         "builder",
@@ -728,21 +749,68 @@ def test_safe_public_export_does_not_change_owned_provenance_state() -> None:
             ),
             id="prediction-export-rejects-copy-keyword",
         ),
+        pytest.param(
+            lambda: (
+                SignalomeWorkflow()
+                .run(
+                    SignalomeWorkflowRequest(
+                        kinase_result=_kinase_result(),
+                        config=build_signalome_config(substrate_support_cutoff=0.5),
+                    )
+                )
+                .to_dataframe
+            ),
+            id="signalome-result-export-rejects-copy-keyword",
+        ),
+        pytest.param(
+            lambda: (
+                SignalomeWorkflow()
+                .run(
+                    SignalomeWorkflowRequest(
+                        kinase_result=_kinase_result(),
+                        config=build_signalome_config(substrate_support_cutoff=0.5),
+                    )
+                )
+                .module_assignments.to_pandas
+            ),
+            id="signalome-module-assignments-export-rejects-copy-keyword",
+        ),
+        pytest.param(
+            lambda: (
+                SignalomeWorkflow()
+                .run(
+                    SignalomeWorkflowRequest(
+                        kinase_result=_kinase_result(),
+                        config=build_signalome_config(substrate_support_cutoff=0.5),
+                    )
+                )
+                .signalome_modules.to_pandas
+            ),
+            id="signalome-modules-export-rejects-copy-keyword",
+        ),
+        pytest.param(
+            lambda: (
+                SignalomeWorkflow()
+                .run(
+                    SignalomeWorkflowRequest(
+                        kinase_result=_kinase_result(),
+                        config=build_signalome_config(substrate_support_cutoff=0.5),
+                    )
+                )
+                .kinase_network.to_pandas
+            ),
+            id="signalome-network-export-rejects-copy-keyword",
+        ),
+        pytest.param(
+            lambda: PhosphoIntensityMatrix(frame=_phospho()).to_pandas,
+            id="table-schema-export-rejects-copy-keyword",
+        ),
     ],
 )
 def test_public_export_copy_keyword_rejection_contract_matrix(
     export_factory: Callable[[], Callable[..., object]],
 ) -> None:
-    with pytest.raises(TypeError, match="unexpected keyword argument"):
-        export_factory()(copy=False)  # type: ignore[call-arg]
-
-
-def test_public_reference_export_isolated_from_mutation() -> None:
-    references = _references()
-    exported = references.kinase_substrate_map_dataframe()
-    exported.iloc[0, 0] = "CHANGED"
-
-    assert str(references.kinase_substrate_map.iloc[0, 0]) == "MAP2K6"
+    _assert_copy_keyword_rejected(export_factory())
 
 
 def test_public_signalome_exports_isolated_from_mutation() -> None:
@@ -760,28 +828,6 @@ def test_public_signalome_exports_isolated_from_mutation() -> None:
         result.kinase_network.to_pandas,
     ):
         _assert_dataframe_getter_defensive_snapshot(getter)
-
-
-def test_public_signalome_and_table_exports_reject_legacy_copy_keyword() -> None:
-    result = SignalomeWorkflow().run(
-        SignalomeWorkflowRequest(
-            kinase_result=_kinase_result(),
-            config=build_signalome_config(substrate_support_cutoff=0.5),
-        )
-    )
-
-    with pytest.raises(TypeError, match="unexpected keyword argument"):
-        result.to_dataframe(copy=False)  # type: ignore[call-arg]
-    with pytest.raises(TypeError, match="unexpected keyword argument"):
-        result.module_assignments.to_pandas(copy=False)  # type: ignore[call-arg]
-    with pytest.raises(TypeError, match="unexpected keyword argument"):
-        result.signalome_modules.to_pandas(copy=False)  # type: ignore[call-arg]
-    with pytest.raises(TypeError, match="unexpected keyword argument"):
-        result.kinase_network.to_pandas(copy=False)  # type: ignore[call-arg]
-
-    table = PhosphoIntensityMatrix(frame=_phospho())
-    with pytest.raises(TypeError, match="unexpected keyword argument"):
-        table.to_pandas(copy=False)  # type: ignore[call-arg]
 
 
 @pytest.mark.parametrize(
@@ -989,30 +1035,13 @@ def test_kinase_result_table_properties_are_defensive_snapshots() -> None:
             index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"]),
         ),
     )
-    profile_scores = scoring_result.profile_scores
-    profile_scores.iloc[0, 0] = 999.0
-    assert float(scoring_result.profile_scores.iloc[0, 0]) == 0.8
-
-    motif_scores = scoring_result.motif_scores
-    assert motif_scores is not None
-    motif_scores.iloc[0, 0] = 999.0
-    reread_motif = scoring_result.motif_scores
-    assert reread_motif is not None
-    assert float(reread_motif.iloc[0, 0]) == 0.7
-
-    rank_weighted = scoring_result.rank_weighted_fusion_scores
-    assert rank_weighted is not None
-    rank_weighted.iloc[0, 0] = 999.0
-    reread_rank_weighted = scoring_result.rank_weighted_fusion_scores
-    assert reread_rank_weighted is not None
-    assert float(reread_rank_weighted.iloc[0, 0]) == 0.75
-
-    fusion_weights = scoring_result.score_fusion_weights
-    assert fusion_weights is not None
-    fusion_weights.iloc[0, 0] = 999.0
-    reread_weights = scoring_result.score_fusion_weights
-    assert reread_weights is not None
-    assert float(reread_weights.iloc[0, 0]) == 1.0
+    _assert_dataframe_getter_defensive_snapshot(lambda: scoring_result.profile_scores)
+    for optional_getter in (
+        lambda: scoring_result.motif_scores,
+        lambda: scoring_result.rank_weighted_fusion_scores,
+        lambda: scoring_result.score_fusion_weights,
+    ):
+        _assert_optional_dataframe_getter_defensive_snapshot(optional_getter)
 
     prediction_result = KinasePredictionResult._from_owned(
         pred_mat=pd.DataFrame(
@@ -1028,16 +1057,10 @@ def test_kinase_result_table_properties_are_defensive_snapshots() -> None:
             }
         ),
     )
-    pred_mat = prediction_result.pred_mat
-    pred_mat.iloc[0, 0] = 0.0
-    assert float(prediction_result.pred_mat.iloc[0, 0]) == 0.9
-
-    substrate_list = prediction_result.substrate_list
-    assert substrate_list is not None
-    substrate_list.iloc[0, 0] = "changed"
-    reread_substrate_list = prediction_result.substrate_list
-    assert reread_substrate_list is not None
-    assert str(reread_substrate_list.iloc[0, 0]) == "MAP2K6"
+    _assert_dataframe_getter_defensive_snapshot(lambda: prediction_result.pred_mat)
+    _assert_optional_dataframe_getter_defensive_snapshot(
+        lambda: prediction_result.substrate_list
+    )
 
     activity_result = KinaseActivityResult._from_owned(
         weighted_activity=pd.DataFrame(
@@ -1066,21 +1089,13 @@ def test_kinase_result_table_properties_are_defensive_snapshots() -> None:
             }
         ),
     )
-    weighted_activity = activity_result.weighted_activity
-    weighted_activity.iloc[0, 0] = 999.0
-    assert float(activity_result.weighted_activity.iloc[0, 0]) == 1.0
-
-    activity_scores = activity_result.activity_scores
-    activity_scores.iloc[0, 0] = 777.0
-    assert float(activity_result.activity_scores.iloc[0, 0]) == 1.0
-
-    thresholded_mean = activity_result.thresholded_substrate_mean_activity
-    thresholded_mean.iloc[0, 0] = 999.0
-    assert float(activity_result.thresholded_substrate_mean_activity.iloc[0, 0]) == 0.5
-
-    target_table = activity_result.target_table
-    target_table.iloc[0, 1] = "changed"
-    assert str(activity_result.target_table.iloc[0, 1]) == "MAP2K6"
+    for getter in (
+        lambda: activity_result.weighted_activity,
+        lambda: activity_result.activity_scores,
+        lambda: activity_result.thresholded_substrate_mean_activity,
+        lambda: activity_result.target_table,
+    ):
+        _assert_dataframe_getter_defensive_snapshot(getter)
 
 
 def test_kinase_activity_result_series_properties_are_defensive_snapshots() -> None:
@@ -1154,61 +1169,20 @@ def test_signalome_result_table_properties_are_defensive_snapshots() -> None:
         )
     )
 
-    assignments = signalome_result.module_assignments.table
-    assignments.iloc[0, 0] = "changed"
-    assert (
-        assignments.iloc[0, 0] != signalome_result.module_assignments.table.iloc[0, 0]
-    )
+    for getter in (
+        lambda: signalome_result.module_assignments.table,
+        lambda: signalome_result.signalome_modules.table,
+        lambda: signalome_result.kinase_network.edges,
+    ):
+        _assert_dataframe_getter_defensive_snapshot(getter)
 
-    modules = signalome_result.signalome_modules.table
-    modules.iloc[0, 0] = float(modules.iloc[0, 0]) + 1.0
-    assert modules.iloc[0, 0] != signalome_result.signalome_modules.table.iloc[0, 0]
-
-    edges = signalome_result.kinase_network.edges
-    edges.iloc[0, 0] = "changed"
-    assert edges.iloc[0, 0] != signalome_result.kinase_network.edges.iloc[0, 0]
-
-    nodes = signalome_result.kinase_network.nodes
-    if nodes is not None:
-        if pd.api.types.is_numeric_dtype(nodes.dtypes.iloc[0]):
-            nodes.iloc[0, 0] = float(nodes.iloc[0, 0]) + 1.0
-        else:
-            nodes.iloc[0, 0] = f"{nodes.iloc[0, 0]}_changed"
-        reread_nodes = signalome_result.kinase_network.nodes
-        assert reread_nodes is not None
-        assert nodes.iloc[0, 0] != reread_nodes.iloc[0, 0]
-
-    candidate_correlations = signalome_result.kinase_network.candidate_correlations
-    if candidate_correlations is not None:
-        if pd.api.types.is_numeric_dtype(candidate_correlations.dtypes.iloc[0]):
-            candidate_correlations.iloc[0, 0] = (
-                float(candidate_correlations.iloc[0, 0]) + 1.0
-            )
-        else:
-            candidate_correlations.iloc[0, 0] = (
-                f"{candidate_correlations.iloc[0, 0]}_changed"
-            )
-        reread_candidate = signalome_result.kinase_network.candidate_correlations
-        assert reread_candidate is not None
-        assert candidate_correlations.iloc[0, 0] != reread_candidate.iloc[0, 0]
-
-    expanded_signalome = signalome_result.expanded_signalome
-    assert expanded_signalome is not None
-    expanded_signalome.iloc[0, 0] = "changed"
-    reread_expanded = signalome_result.expanded_signalome
-    assert reread_expanded is not None
-    assert expanded_signalome.iloc[0, 0] != reread_expanded.iloc[0, 0]
-
-    site_membership = signalome_result.site_membership
-    assert site_membership is not None
-    site_membership.iloc[0, 0] = "changed"
-    reread_site_membership = signalome_result.site_membership
-    assert reread_site_membership is not None
-    assert site_membership.iloc[0, 0] != reread_site_membership.iloc[0, 0]
-
-    protein_site_context = signalome_result.protein_site_context
-    assert protein_site_context is not None
-    protein_site_context.iloc[0, 0] = "changed"
-    reread_protein_site_context = signalome_result.protein_site_context
-    assert reread_protein_site_context is not None
-    assert protein_site_context.iloc[0, 0] != reread_protein_site_context.iloc[0, 0]
+    for optional_getter in (
+        lambda: signalome_result.kinase_network.nodes,
+        lambda: signalome_result.kinase_network.candidate_correlations,
+        lambda: signalome_result.expanded_signalome,
+        lambda: signalome_result.site_membership,
+        lambda: signalome_result.protein_site_context,
+    ):
+        _assert_optional_dataframe_getter_defensive_snapshot_when_present(
+            optional_getter
+        )

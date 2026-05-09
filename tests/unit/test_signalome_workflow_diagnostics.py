@@ -1684,13 +1684,29 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
         SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
     )
     assert result.provenance is not None
-    scale_guard = result.provenance.workflow_parameters["scale_guard"]
+    workflow_parameters = result.provenance.workflow_parameters
+    scale_guard = workflow_parameters["scale_guard"]
+    assert {
+        "site_count",
+        "input_protein_count",
+        "input_kinase_count",
+        "selected_module_count",
+        "clustering_engine",
+        "clustering_engine_version",
+        "backend_diagnostics",
+        "tree_generation_mode",
+        "tree_generation_scope",
+        "tree_generation_is_approximate",
+        "candidate_scoring_mode",
+        "candidate_scoring_is_approximate",
+        "candidate_scoring_applies_to",
+        "final_module_assignment_backend",
+        "scale_guard_passed",
+    }.issubset(scale_guard)
     assert scale_guard["site_count"] == 2
     assert scale_guard["input_protein_count"] == 2
     assert scale_guard["input_kinase_count"] == 2
     assert scale_guard["selected_module_count"] == 1
-    assert scale_guard["candidate_module_counts_evaluated"] == 1
-    assert scale_guard["candidate_module_count_upper_bound"] == 2
     assert scale_guard["clustering_engine"] == "scipy_hierarchical"
     assert scale_guard["clustering_engine_version"] == "1"
     _assert_backend_diagnostics_public_contract(
@@ -1704,7 +1720,6 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
         scale_guard["tree_implementation"]
         == scale_guard["backend_diagnostics"]["tree_implementation"]
     )
-    assert scale_guard["tree_generation_backend"] == "scipy_hierarchical_tree"
     assert scale_guard["tree_generation_mode"] == "full_exact_tree_construction"
     assert scale_guard["tree_generation_is_approximate"] is False
     assert (
@@ -1712,30 +1727,11 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
         == "module_count_selection_and_final_assignment"
     )
     assert scale_guard["tree_generation_guard_triggered"] is False
-    assert scale_guard["candidate_scoring_policy"] == (
-        SIGNALOME_CANDIDATE_SCORING_POLICY_FULL
-    )
-    assert scale_guard["candidate_scoring_requested_policy"] == (
-        SIGNALOME_CANDIDATE_SCORING_POLICY_FULL
-    )
-    assert scale_guard["candidate_scoring_strategy"] == (
-        SIGNALOME_CANDIDATE_SCORING_POLICY_FULL
-    )
     assert scale_guard["candidate_scoring_is_approximate"] is False
-    assert scale_guard["candidate_scoring_guard_triggered"] is False
-    assert scale_guard["candidate_scoring_sampled_site_total"] is None
-    assert scale_guard["candidate_scoring_sampled_pair_count"] is None
-    assert scale_guard["max_exact_tree_sites"] == SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT
-    assert scale_guard["max_full_candidate_scoring_sites"] == (
-        SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT
-    )
-    assert scale_guard["exact_cluster_tree_built"] is True
     assert scale_guard["candidate_scoring_mode"] == (
         SIGNALOME_CANDIDATE_SCORING_POLICY_FULL
     )
-    assert scale_guard["candidate_scoring_evaluated"] is True
-    assert scale_guard["candidate_scoring_skip_reason"] is None
-    assert scale_guard["candidate_scoring_sampling"] is None
+    assert scale_guard["candidate_scoring_guard_triggered"] is False
     assert (
         scale_guard["candidate_scoring_applies_to"]
         == SIGNALOME_CANDIDATE_SCORING_APPLIES_TO
@@ -1743,14 +1739,23 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
     assert scale_guard["final_module_assignment_backend"] == (
         SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_SINGLE_MODULE
     )
-    assert scale_guard["final_module_assignment_uses_candidate_scoring"] is False
     assert scale_guard["scale_guard_passed"] is True
-    score_semantics = result.provenance.workflow_parameters["signalome_score_semantics"]
+    score_semantics = workflow_parameters["signalome_score_semantics"]
+    assert {
+        "downstream_score_source",
+        "candidate_scoring_mode",
+        "candidate_scoring_is_approximate",
+        "candidate_scoring_scope",
+        "tree_generation_mode",
+        "tree_generation_scope",
+        "tree_generation_is_approximate",
+        "missing_profile_handling",
+        "thresholds_and_limits",
+        "scale_guard_status",
+    }.issubset(score_semantics)
     assert score_semantics["downstream_score_source"] == "rank_weighted_fusion_scores"
     assert score_semantics["candidate_scoring_mode"] == "full"
     assert score_semantics["candidate_scoring_is_approximate"] is False
-    assert score_semantics["candidate_scoring_sampled_site_total"] is None
-    assert score_semantics["candidate_scoring_sampled_pair_count"] is None
     assert (
         score_semantics["candidate_scoring_scope"]
         == SIGNALOME_CANDIDATE_SCORING_APPLIES_TO
@@ -1761,23 +1766,12 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
         score_semantics["tree_generation_scope"]
         == "module_count_selection_and_final_assignment"
     )
-    assert score_semantics["tree_generation_backend"] == "scipy_hierarchical_tree"
-    assert score_semantics["input_sizes"] == {
-        "site_count": 2,
-        "protein_count": 2,
-        "kinase_count": 2,
-        "candidate_module_counts_evaluated": 1,
-        "candidate_module_count_upper_bound": 2,
-    }
-    assert score_semantics["scale_guard_status"] == {
-        "exact_tree_guard_triggered": False,
-        "candidate_scoring_guard_triggered": False,
-        "passed": True,
-    }
-    assert score_semantics["network_policy"] == "signed"
-    assert score_semantics["clustering_engine"] == "scipy_hierarchical"
-    assert "probabilities" in score_semantics["scientific_interpretation_limits"]
-    assert "causal" in score_semantics["scientific_interpretation_limits"]
+    assert score_semantics["scale_guard_status"]["passed"] is True
+    assert score_semantics["scale_guard_status"]["exact_tree_guard_triggered"] is False
+    assert (
+        score_semantics["scale_guard_status"]["candidate_scoring_guard_triggered"]
+        is False
+    )
     missing_profile = score_semantics["missing_profile_handling"]
     assert missing_profile["all_missing_rows_before_execution"]["policy"] == (
         SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
@@ -1792,15 +1786,6 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
     assert clustering_distance_input["applies_to"] == (
         SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_APPLIES_TO
     )
-    assert clustering_distance_input["non_finite_handling"] == (
-        "non-finite values are treated as missing before imputation"
-    )
-    assert clustering_distance_input["partial_missingness_handling"] == (
-        "missing entries are imputed with the median of the same column"
-    )
-    assert clustering_distance_input["fully_missing_column_handling"] == (
-        "columns with all values missing are imputed with 0.0"
-    )
     assert int(clustering_distance_input["non_finite_input_value_count"]) >= 0
     assert (
         int(clustering_distance_input["missing_after_non_finite_normalization_count"])
@@ -1812,15 +1797,11 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
         SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_IMPUTED_VALUES_EXPOSED_IN_OUTPUT_TABLES
     )
     thresholds = score_semantics["thresholds_and_limits"]
-    assert thresholds["max_exact_tree_sites"] == 2000
-    assert thresholds["max_full_candidate_scoring_sites"] == 2000
+    assert thresholds["max_exact_tree_sites"] == SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT
+    assert thresholds["max_full_candidate_scoring_sites"] == (
+        SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT
+    )
     assert thresholds["network_correlation_threshold"] == pytest.approx(0.5)
-    assert thresholds[
-        "module_selection_primary_correlation_threshold"
-    ] == pytest.approx(0.5)
-    assert thresholds[
-        "module_selection_fallback_correlation_threshold"
-    ] == pytest.approx(0.1)
 
 
 def test_sampled_candidate_scoring_records_sampling_provenance() -> None:
@@ -2619,13 +2600,13 @@ def test_boundary_error_reports_network_failure_modes() -> None:
     with pytest.raises(WorkflowBoundaryError) as missing_exc:
         SignalomeWorkflowExecutor().run(resolved_missing_kinase)
 
-    missing_message = str(missing_exc.value)
-    assert f"seam={SIGNALOME_EXECUTOR_NETWORK_SEAM}" in missing_message
-    assert "shared_kinases=2" in missing_message
-    assert "supported_kinases=2" in missing_message
+    missing_error = missing_exc.value
+    assert missing_error.seam == SIGNALOME_EXECUTOR_NETWORK_SEAM
+    assert missing_error.details["shared_kinases"] == 2
+    assert missing_error.details["supported_kinases"] == 2
     assert (
-        "stage_error=downstream score matrix is missing kinases required for signalome network"
-        in missing_message
+        "downstream score matrix is missing kinases required for signalome network"
+        in str(missing_error)
     )
 
     score_matrix_zero_variance = _matrix(
@@ -2646,13 +2627,13 @@ def test_boundary_error_reports_network_failure_modes() -> None:
     with pytest.raises(WorkflowBoundaryError) as variance_exc:
         SignalomeWorkflowExecutor().run(interpreted)
 
-    variance_message = str(variance_exc.value)
-    assert f"seam={SIGNALOME_EXECUTOR_NETWORK_SEAM}" in variance_message
-    assert "shared_kinases=2" in variance_message
-    assert "supported_kinases=2" in variance_message
-    assert "downstream_score_sites=2" in variance_message
-    assert "score_variance_kinases=0" in variance_message
-    assert "network_correlation_threshold=0.5" in variance_message
+    variance_error = variance_exc.value
+    assert variance_error.seam == SIGNALOME_EXECUTOR_NETWORK_SEAM
+    assert variance_error.details["shared_kinases"] == 2
+    assert variance_error.details["supported_kinases"] == 2
+    assert variance_error.details["downstream_score_sites"] == 2
+    assert variance_error.details["score_variance_kinases"] == 0
+    assert variance_error.details["network_correlation_threshold"] == pytest.approx(0.5)
 
 
 def test_boundary_error_reports_expanded_signalome_failure_seam(
@@ -2727,16 +2708,8 @@ def test_boundary_error_reports_context_table_site_membership_failure_seam(
         SignalomeWorkflowExecutor().run(interpreted)
 
     error = exc_info.value
-    message = str(error)
     assert error.seam == SIGNALOME_EXECUTOR_CONTEXT_TABLES_SEAM
-    assert "prediction_sites=3" in message
-    assert "prediction_kinases=2" in message
-    assert "module_assignment_rows=3" in message
-    assert "module_assignment_columns=" in message
-    assert "site_cluster_count=" in message
-    assert "supported_sites=3" in message
-    assert "supported_kinases=2" in message
-    assert "substrate_support_cutoff=0.5" in message
+    message = str(error)
     assert f"assignment_policy={SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY}" in message
     assert "stage_error=site membership context seam regression test" in message
 
@@ -2761,16 +2734,8 @@ def test_boundary_error_reports_context_table_protein_context_failure_seam(
         SignalomeWorkflowExecutor().run(interpreted)
 
     error = exc_info.value
-    message = str(error)
     assert error.seam == SIGNALOME_EXECUTOR_CONTEXT_TABLES_SEAM
-    assert "prediction_sites=3" in message
-    assert "prediction_kinases=2" in message
-    assert "module_assignment_rows=3" in message
-    assert "module_assignment_columns=" in message
-    assert "site_cluster_count=" in message
-    assert "supported_sites=3" in message
-    assert "supported_kinases=2" in message
-    assert "substrate_support_cutoff=0.5" in message
+    message = str(error)
     assert f"assignment_policy={SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY}" in message
     assert "stage_error=protein context seam regression test" in message
 

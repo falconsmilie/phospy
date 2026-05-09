@@ -1,3 +1,5 @@
+"""Shared dataset builders for active public-workflow reference generators."""
+
 from __future__ import annotations
 
 from pathlib import Path
