@@ -31,6 +31,8 @@ class QuantitativeMeaning(str, Enum):
     PHOSPHOSITE_ABUNDANCE = "phosphosite_abundance"
     PHOSPHOSITE_LOG_ABUNDANCE = "phosphosite_log_abundance"
     PHOSPHO_TOTAL_LOG_RATIO = "phospho_total_log_ratio"
+    CONTRAST_LOG2_FOLD_CHANGE = "contrast_log2_fold_change"
+    DIFFERENTIAL_EFFECT_SIZE = "differential_effect_size"
     MIXED_PHOSPHO_TOTAL_LOG_RATIO_AND_PHOSPHOSITE_LOG_ABUNDANCE = (
         "mixed_phospho_total_log_ratio_and_phosphosite_log_abundance"
     )

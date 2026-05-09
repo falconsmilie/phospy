@@ -33,6 +33,7 @@ from phospy.datasets.preprocessing.stages.total_protein_correction import (
 from phospy.datasets.processing_state import MissingDataDiagnosticsV1
 from phospy.errors.build import DatasetBuildError
 from phospy.errors.input import PhosPyInputError
+from phospy.transformations.models import QuantitativeMeaning
 from tests.support.intensity_scale_states import supported_linear_intensity_scale_state
 
 
@@ -523,6 +524,60 @@ def test_minimal_custom_stage_emits_supported_report_row_into_final_report() -> 
     assert row_audit.iloc[0]["source_row_id"] == "MAPK14;Y182;"
     assert "final_dataset_construction" in set(report.row_counts.loc[:, "stage"])
     assert "final_dataset_construction" in set(report.operations.loc[:, "stage"])
+
+
+def test_executor_applies_explicit_quantitative_meaning_to_dataset_and_provenance() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [0.5, -0.2],
+            "sample_b": [1.1, 0.0],
+        },
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1"],
+            "site": ["Y182", "T308"],
+            "site_sequence": ["SEQ_A", "SEQ_B"],
+        },
+        index=phospho.index.copy(),
+    )
+    built = DatasetBuildExecutor().run(
+        InterpretedDatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            sample_metadata=None,
+            total=None,
+            organism=None,
+            preprocessing_plan=PreprocessingPlan.default(),
+            quantitative_meaning=QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE,
+        )
+    )
+
+    assert built.intensity_scale_state.quantity is not None
+    assert (
+        built.intensity_scale_state.quantity.value
+        == QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE.value
+    )
+    assert (
+        built.processing_state.total_protein_correction.quantitative_meaning
+        == QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE.value
+    )
+    assert built.preprocessing_report is not None
+    final_operation = built.preprocessing_report.operations.loc[
+        built.preprocessing_report.operations.loc[:, "stage"]
+        == "final_dataset_construction"
+    ].iloc[0]
+    assert final_operation["parameters"]["quantitative_meaning"] == (
+        QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE.value
+    )
+    assert built.provenance is not None
+    assert (
+        built.provenance.workflow_parameters["quantitative_meaning"]
+        == QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE.value
+    )
 
 
 def test_pipeline_trace_preserves_intensity_transform_diagnostics() -> None:

@@ -17,6 +17,7 @@ from phospy.api.configs import (
 from phospy.datasets.builders.contracts import DatasetInput
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
+from phospy.transformations.models import QuantitativeMeaning
 
 if TYPE_CHECKING:
     from phospy.api.results import KinaseWorkflowResult
@@ -40,6 +41,7 @@ class DatasetBuildRequest:
     preprocessing_config: DatasetPreprocessingConfig = field(
         default_factory=DatasetPreprocessingConfig
     )
+    quantitative_meaning: QuantitativeMeaning | str | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -135,6 +135,7 @@ class DatasetBuildExecutor:
         processing_state = build_dataset_processing_state(
             plan=request.preprocessing_plan,
             intensity_scale_state=resolved.intensity_scale_state,
+            explicit_quantitative_meaning=request.quantitative_meaning,
             preprocessing_trace=preprocessed.preprocessing_trace,
             final_phospho=resolved.phospho,
             final_site_metadata=preprocessed.site_metadata,

@@ -46,6 +46,7 @@ class DatasetProcessingStateBuilder:
         *,
         plan: PreprocessingPlan,
         intensity_scale_state: IntensityScaleState,
+        explicit_quantitative_meaning: QuantitativeMeaning | None = None,
         preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None = None,
         final_phospho: pd.DataFrame | None = None,
         final_site_metadata: pd.DataFrame | None = None,
@@ -91,6 +92,7 @@ class DatasetProcessingStateBuilder:
             intensity_scale_state=intensity_scale_state,
             total_correction_policy=resolved_total_policy,
             correction_diagnostics=correction_diagnostics,
+            explicit_quantitative_meaning=explicit_quantitative_meaning,
         )
         default_formula = (
             "log2_phospho - log2_total"
@@ -328,7 +330,12 @@ def _resolve_quantitative_meaning_state(
     intensity_scale_state: IntensityScaleState,
     total_correction_policy: TotalProteinCorrectionPolicy,
     correction_diagnostics: dict[str, object] | None,
+    explicit_quantitative_meaning: QuantitativeMeaning | None = None,
 ) -> IntensityScaleState:
+    if explicit_quantitative_meaning is not None:
+        return intensity_scale_state.with_quantitative_meaning(
+            explicit_quantitative_meaning
+        )
     quantitative_meaning = ProcessingTraceDiagnostics.resolve_optional_string(
         correction_diagnostics,
         stage=DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,

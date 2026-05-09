@@ -12,6 +12,7 @@ from phospy.datasets.builders.sequence_derivation import SiteSequenceDeriver
 from phospy.datasets.preprocessing.models import PreprocessingPlan
 from phospy.errors.input import PhosPyInputError
 from phospy.policy_models import SiteMatrixPolicy
+from phospy.transformations.models import QuantitativeMeaning
 
 
 class DatasetBuildRequestInterpreter:
@@ -103,6 +104,9 @@ class DatasetBuildRequestInterpreter:
             organism=request.organism,
             preprocessing_plan=preprocessing_plan,
             site_identifier_normalisation=normalized.site_identifier_normalisation,
+            quantitative_meaning=_resolve_quantitative_meaning(
+                request.quantitative_meaning
+            ),
         )
 
     @staticmethod
@@ -124,3 +128,19 @@ class DatasetBuildRequestInterpreter:
             f"Original error: {type(original_error).__name__}: {original_message}. "
             f"Next action: {next_action}"
         ) from original_error
+
+
+def _resolve_quantitative_meaning(
+    quantitative_meaning: QuantitativeMeaning | str | None,
+) -> QuantitativeMeaning | None:
+    if quantitative_meaning is None:
+        return None
+    if isinstance(quantitative_meaning, QuantitativeMeaning):
+        return quantitative_meaning
+    try:
+        return QuantitativeMeaning(str(quantitative_meaning))
+    except ValueError as exc:
+        supported = ", ".join(member.value for member in QuantitativeMeaning)
+        raise PhosPyInputError(
+            f"dataset build request quantitative_meaning must be one of: {supported}"
+        ) from exc

@@ -9,6 +9,7 @@ from phospy.api.configs import (
 from phospy.api.requests import DatasetBuildRequest
 from phospy.errors.input import PhosPyInputError
 from phospy.references.models import Organism
+from phospy.transformations.models import QuantitativeMeaning
 from phospy.validation.datasets.inputs import DatasetInputSourceValidator
 from phospy.validation.datasets.preprocessing import DatasetPreprocessingConfigValidator
 
@@ -38,6 +39,7 @@ class DatasetBuildRequestValidator:
         self._source_validator.run(request.total, field_name="total", allow_none=True)
         if request.organism is not None and not isinstance(request.organism, Organism):
             raise PhosPyInputError("dataset build request organism must be an Organism")
+        _validate_quantitative_meaning(request.quantitative_meaning)
         self._preprocessing_validator.run(request.preprocessing_config)
         requested_total_policy = (
             request.preprocessing_config.total_protein_correction.policy
@@ -61,3 +63,19 @@ class DatasetBuildRequestValidator:
                 "policy='sample_metadata_pairs' requires sample_metadata input data"
             )
         return request
+
+
+def _validate_quantitative_meaning(
+    quantitative_meaning: QuantitativeMeaning | str | None,
+) -> None:
+    if quantitative_meaning is None or isinstance(
+        quantitative_meaning, QuantitativeMeaning
+    ):
+        return
+    try:
+        QuantitativeMeaning(str(quantitative_meaning))
+    except ValueError as exc:
+        supported = ", ".join(member.value for member in QuantitativeMeaning)
+        raise PhosPyInputError(
+            f"dataset build request quantitative_meaning must be one of: {supported}"
+        ) from exc

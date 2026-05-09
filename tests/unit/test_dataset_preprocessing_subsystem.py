@@ -42,6 +42,7 @@ from phospy.datasets.preprocessing.pipeline import PreprocessingPipeline
 from phospy.datasets.preprocessing.stage_registry import PreprocessingStageMetadata
 from phospy.errors.input import PhosPyInputError
 from phospy.references.models import Organism
+from phospy.transformations.models import QuantitativeMeaning
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
 )
@@ -2028,6 +2029,39 @@ def test_dataset_interpreter_does_not_apply_preprocessing_science() -> None:
 
     assert interpreted.phospho.isna().to_numpy().sum() == 2
     assert interpreted.phospho.index.tolist() == ["MAPK14;Y182;", "GSK3B;S9;"]
+
+
+def test_dataset_builder_request_quantitative_meaning_propagates_to_provenance() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {"sample_a": [0.25, -0.5], "sample_b": [1.0, 0.0]},
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1"],
+            "site": ["Y182", "T308"],
+            "site_sequence": ["SEQ_A", "SEQ_B"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    built = DatasetBuildExecutor().run(
+        DatasetBuildRequestInterpreter().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                quantitative_meaning=QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE.value,
+            )
+        )
+    )
+
+    expected = QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE.value
+    assert built.intensity_scale_state.quantity is not None
+    assert built.intensity_scale_state.quantity.value == expected
+    assert built.provenance is not None
+    assert built.provenance.workflow_parameters["quantitative_meaning"] == expected
 
 
 def test_dataset_interpreter_defers_reference_site_sequence_fill_when_fasta_is_configured() -> (

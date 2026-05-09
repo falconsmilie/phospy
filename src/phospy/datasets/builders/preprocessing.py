@@ -19,7 +19,7 @@ from phospy.datasets.preprocessing.report_rows import (
 )
 from phospy.datasets.preprocessing.state_builder import DatasetProcessingStateBuilder
 from phospy.datasets.processing_state import DatasetProcessingState
-from phospy.transformations.models import IntensityScaleState
+from phospy.transformations.models import IntensityScaleState, QuantitativeMeaning
 
 
 class DatasetPreprocessor:
@@ -88,6 +88,7 @@ def build_dataset_processing_state(
     *,
     plan: PreprocessingPlan,
     intensity_scale_state: IntensityScaleState,
+    explicit_quantitative_meaning: QuantitativeMeaning | None = None,
     preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None = None,
     final_phospho: pd.DataFrame | None = None,
     final_site_metadata: pd.DataFrame | None = None,
@@ -98,6 +99,7 @@ def build_dataset_processing_state(
     return _PROCESSING_STATE_BUILDER.build(
         plan=plan,
         intensity_scale_state=intensity_scale_state,
+        explicit_quantitative_meaning=explicit_quantitative_meaning,
         preprocessing_trace=preprocessing_trace,
         final_phospho=final_phospho,
         final_site_metadata=final_site_metadata,

@@ -9,6 +9,9 @@ from phospy.datasets.builders.preprocessing import (
     DatasetPreprocessor,
     build_dataset_processing_state,
 )
+from phospy.datasets.builders.transformation_resolver import (
+    DatasetIntensityScaleResolver,
+)
 from phospy.datasets.preprocessing.diagnostics import ProcessingTraceDiagnostics
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
@@ -29,6 +32,8 @@ from phospy.datasets.preprocessing.provenance_adapter import (
 from phospy.datasets.preprocessing.state_builder import DatasetProcessingStateBuilder
 from phospy.errors.build import DatasetBuildError
 from phospy.errors.input import PhosPyInputError
+from phospy.transformations.models import IntensityScaleKind, QuantitativeMeaning
+from phospy.transformations.transformers import IdentityTransformer
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
 )
@@ -73,6 +78,24 @@ def _trace_record(
         dropped_row_count=dropped_row_count,
         notes=notes,
         diagnostics={} if diagnostics is None else dict(diagnostics),
+    )
+
+
+def _supported_log2_intensity_scale_state(*, has_total_matrix: bool):
+    phospho = pd.DataFrame({"sample_a": [1.0]}, index=["GENEA;S1;"])
+    total = (
+        None
+        if not has_total_matrix
+        else pd.DataFrame({"sample_a": [1.0]}, index=["GENEA"])
+    )
+    return (
+        DatasetIntensityScaleResolver(transformer=IdentityTransformer())
+        .run(
+            phospho=phospho,
+            total=total,
+            expected_scale_kind=IntensityScaleKind.LOG2,
+        )
+        .intensity_scale_state
     )
 
 
@@ -259,6 +282,63 @@ def test_processing_state_builder_emits_default_total_correction_diagnostics_whe
     assert diagnostics.get("requested_policy") == "none"
     assert diagnostics.get("resolved_policy") == "none"
     assert diagnostics.get("quantitative_meaning") == "phosphosite_abundance"
+
+
+@pytest.mark.parametrize(
+    ("plan", "state", "explicit_quantitative_meaning", "expected"),
+    [
+        pytest.param(
+            PreprocessingPlan.default(),
+            supported_linear_intensity_scale_state(has_total_matrix=False),
+            None,
+            QuantitativeMeaning.PHOSPHOSITE_ABUNDANCE.value,
+            id="raw-abundance-default",
+        ),
+        pytest.param(
+            PreprocessingPlan.default(),
+            _supported_log2_intensity_scale_state(has_total_matrix=False),
+            None,
+            QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE.value,
+            id="log-abundance-default",
+        ),
+        pytest.param(
+            PreprocessingPlan(
+                intensity_transform_policy="log2",
+                total_protein_correction_policy="subtract_log_total",
+            ),
+            _supported_log2_intensity_scale_state(has_total_matrix=True),
+            None,
+            QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO.value,
+            id="phospho-total-ratio-default",
+        ),
+        pytest.param(
+            PreprocessingPlan.default(),
+            supported_linear_intensity_scale_state(has_total_matrix=False),
+            QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE,
+            QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE.value,
+            id="contrast-logfc-explicit",
+        ),
+    ],
+)
+def test_processing_state_builder_quantitative_meaning_matrix(
+    plan: PreprocessingPlan,
+    state,
+    explicit_quantitative_meaning: QuantitativeMeaning | None,
+    expected: str,
+) -> None:
+    built = DatasetProcessingStateBuilder().build(
+        plan=plan,
+        intensity_scale_state=state,
+        explicit_quantitative_meaning=explicit_quantitative_meaning,
+        preprocessing_trace=None,
+    )
+    assert built.intensity_scale.quantity is not None
+    assert built.intensity_scale.quantity.value == expected
+    assert built.total_protein_correction.quantitative_meaning == expected
+    assert built.total_protein_correction.diagnostics is not None
+    assert built.total_protein_correction.diagnostics.get("quantitative_meaning") == (
+        expected
+    )
 
 
 def test_pipeline_rejects_malformed_stage_diagnostics_before_trace_is_recorded() -> (

@@ -42,6 +42,7 @@ from phospy.errors import (
 )
 from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
+from phospy.transformations.models import QuantitativeMeaning
 from phospy.validation.datasets.preprocessing import (
     DatasetPreprocessingConfigValidator,
 )
@@ -253,6 +254,52 @@ def test_dataset_build_request_has_default_preprocessing_config() -> None:
     assert validated.preprocessing_config.normalisation.policy == "none"
     assert validated.preprocessing_config.missing_data.policy == "forbid"
     assert validated.preprocessing_config.missing_data.min_observed_values is None
+
+
+@pytest.mark.parametrize(
+    "quantitative_meaning",
+    [
+        QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE.value,
+        QuantitativeMeaning.DIFFERENTIAL_EFFECT_SIZE.value,
+    ],
+)
+def test_dataset_build_request_allows_supported_quantitative_meaning_literal(
+    quantitative_meaning: str,
+) -> None:
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["MAPK14;Y182;"],
+        ),
+        quantitative_meaning=quantitative_meaning,
+    )
+    validated = DatasetBuildRequestValidator().run(request)
+    assert validated is request
+
+
+def test_dataset_build_request_rejects_unknown_quantitative_meaning_literal() -> None:
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["MAPK14;Y182;"],
+        ),
+        quantitative_meaning="not_a_supported_meaning",
+    )
+    with pytest.raises(
+        PhosPyInputError,
+        match="dataset build request quantitative_meaning must be one of:",
+    ):
+        DatasetBuildRequestValidator().run(request)
 
 
 @pytest.mark.parametrize(

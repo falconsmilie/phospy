@@ -8,7 +8,7 @@ __pycache__/
 .coverage
 coverage.xml
 
-# Packaging artefacts
+# Packaging
 *.egg-info/
 build/
 dist/
@@ -17,6 +17,7 @@ dist/
 .venv/
 venv/
 .idea/
+.hypothesis/
 
 # OS cruft
 .DS_Store
@@ -25,6 +26,7 @@ Thumbs.db
 # Local trace scratch space
 tmp_trace_*/
 tmp_edge_trace/
+
 # Local benchmark reports
 benchmarks/reports/
 
