@@ -16,6 +16,12 @@ from phospy.api.configs import (
 )
 from phospy.datasets.builders.contracts import DatasetInput
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.differential.models import (
+    ContrastMatrix,
+    DesignMatrix,
+    DifferentialAnalysisRequest,
+    EmpiricalBayesConfig,
+)
 from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
 from phospy.transformations.models import QuantitativeMeaning
 
@@ -79,7 +85,11 @@ class SignalomeWorkflowRequest:
 
 
 __all__ = [
+    "ContrastMatrix",
+    "DesignMatrix",
     "DatasetBuildRequest",
+    "DifferentialAnalysisRequest",
+    "EmpiricalBayesConfig",
     "KinaseWorkflowRequest",
     "SignalomeWorkflowRequest",
 ]

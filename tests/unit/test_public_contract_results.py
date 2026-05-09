@@ -101,6 +101,7 @@ def _kinase_result() -> KinaseWorkflowResult:
 
 def test_public_result_exports_match_contract() -> None:
     assert set(result_models.__all__) == {
+        "DifferentialAnalysisResult",
         "KinaseActivityResult",
         "KinasePredictionResult",
         "KinaseScoringResult",

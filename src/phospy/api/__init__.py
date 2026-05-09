@@ -43,18 +43,23 @@ from phospy.api.datasets import (
 )
 from phospy.api.enums import Organism, ReferencePreset
 from phospy.api.requests import (
+    ContrastMatrix,
     DatasetBuildRequest,
+    DesignMatrix,
+    DifferentialAnalysisRequest,
+    EmpiricalBayesConfig,
     KinaseWorkflowRequest,
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import (
+    DifferentialAnalysisResult,
     KinaseActivityResult,
     KinasePredictionResult,
     KinaseScoringResult,
     KinaseWorkflowResult,
     SignalomeWorkflowResult,
 )
-from phospy.api.workflows import KinaseWorkflow, SignalomeWorkflow
+from phospy.api.workflows import DifferentialAnalysis, KinaseWorkflow, SignalomeWorkflow
 from phospy.errors import (
     DatasetBuildError,
     DatasetValidationError,
@@ -104,6 +109,8 @@ __all__ = [
     "TotalProteinCorrectionState",
     "DatasetComparisonBuildingConfig",
     "DatasetIntensityTransformConfig",
+    "DesignMatrix",
+    "ContrastMatrix",
     "DatasetBuildRequest",
     "DatasetMissingDataConfig",
     "DatasetNormalisationConfig",
@@ -114,6 +121,10 @@ __all__ = [
     "DatasetTotalProteinCorrectionIdentityConfig",
     "DatasetTotalProteinCorrectionConfig",
     "DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED",
+    "DifferentialAnalysis",
+    "DifferentialAnalysisRequest",
+    "DifferentialAnalysisResult",
+    "EmpiricalBayesConfig",
     "KinaseActivityConfig",
     "KinaseActivityResult",
     "KinasePredictionConfig",

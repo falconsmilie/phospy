@@ -11,6 +11,7 @@ import pandas as pd
 from phospy._frame_ownership import export_optional_dataframe, own_optional_dataframe
 from phospy.activities.models import KinaseActivityResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.differential.models import DifferentialAnalysisResult
 from phospy.errors.validation import WorkflowValidationError
 from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.provenance.models import RunProvenance
@@ -293,6 +294,7 @@ class SignalomeWorkflowResult:
 
 
 __all__ = [
+    "DifferentialAnalysisResult",
     "KinaseActivityResult",
     "KinasePredictionResult",
     "KinaseScoringResult",
