@@ -28,6 +28,9 @@ Supported input formats are `.csv`, `.tsv`, `.txt` as tab-separated text, and
 | `--output-format` | no | `csv`, `tsv`, or `parquet`; default `csv` |
 
 CSV/TSV/TXT inputs are read with the first column as the row index.
+`phospho`/`total` are parsed as numeric matrices with strict cell validation,
+while `site_metadata`/`sample_metadata` are parsed as string-preserving metadata
+tables (for example, `"NA"` and `"01"` remain literal strings).
 
 ## `dataset-build`
 

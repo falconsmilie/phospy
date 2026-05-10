@@ -56,6 +56,16 @@ Supported file suffixes are `.csv`, `.tsv`, `.txt` as tab-separated text, and
 `.parquet`. CSV, TSV, and TXT inputs are read with the first column as the row
 index.
 
+Parsing is table-role aware:
+
+- `phospho` and `total` are parsed as numeric matrices with string-preserved row
+  and column identifiers. Non-numeric cells fail fast with row/column context.
+- `site_metadata` and `sample_metadata` are parsed as string-preserving metadata
+  tables (`"NA"` stays the literal string `"NA"`; leading-zero IDs are
+  preserved).
+- Missing-value interpretation is explicit per table role; dataset loading does
+  not rely on pandas default NA inference for metadata.
+
 ```python
 request = DatasetBuildRequest(
     phospho="./input/phospho.csv",

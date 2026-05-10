@@ -36,11 +36,25 @@ class DatasetInputReader:
     def _read_from_path(
         source: str | Path | PathLike, *, field_name: str
     ) -> pd.DataFrame:
-        from phospy.io.readers.tables import read_table, supported_table_input_formats
+        from phospy.io.readers.tables import (
+            read_phospho_matrix,
+            read_sample_metadata,
+            read_site_metadata,
+            read_table,
+            read_total_matrix,
+            supported_table_input_formats,
+        )
 
         path = Path(source.strip()) if isinstance(source, str) else Path(source)
+        reader_by_field = {
+            "phospho": read_phospho_matrix,
+            "site_metadata": read_site_metadata,
+            "sample_metadata": read_sample_metadata,
+            "total": read_total_matrix,
+        }
+        read_from_path = reader_by_field.get(field_name, read_table)
         try:
-            return read_table(path)
+            return read_from_path(path)
         except UnsupportedInputFormatError as exc:
             raise UnsupportedInputFormatError(
                 f"dataset build request {field_name} has unsupported file format at "
