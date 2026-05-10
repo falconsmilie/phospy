@@ -153,3 +153,50 @@ def test_scientific_policy_metadata_warns_for_compatibility_min_p_mode() -> None
     assert result.warnings
     assert policy.parameters["compatibility_mode_warning"] is True
     assert policy.parameters["strategy"] == PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE
+    assert "multi_site_handling" in result.provenance
+    handling = result.provenance["multi_site_handling"]
+    assert isinstance(handling, dict)
+    assert handling["statistical_modeling_policy"] == "keep_joint"
+
+
+def test_aggregation_preserves_joint_multi_site_ids_by_default() -> None:
+    multi_frame = pd.DataFrame(
+        {
+            "peptide_row_id": ["pep_joint"],
+            "site_id": ["MAPK1;S10;"],
+            "unique_feature_id": ["feat_joint"],
+            "gene_symbol": ["MAPK1"],
+            "protein_accession": ["P28482"],
+            "site_string": ["S10,T12"],
+            "sample_a": [10.0],
+            "sample_b": [11.0],
+            "peptide_sequence": ["AAAAA"],
+            "modified_peptide_sequence": ["AA[+80]AAA"],
+            "multi_site": [True],
+            "provenance_source": ["maxquant"],
+        }
+    )
+    evidence = PeptideEvidenceTable(
+        frame=multi_frame,
+        sample_intensity_columns=("sample_a", "sample_b"),
+    )
+    differential = pd.DataFrame(
+        {
+            "logFC": [0.75],
+            "t": [4.0],
+            "P.Value": [0.01],
+            "adj.P.Val": [0.01],
+        },
+        index=pd.Index(["feat_joint"], name="feature_id"),
+    )
+
+    result = PeptideToSiteAggregator().run_table(
+        peptide_differential_table=differential,
+        evidence=evidence,
+        config=PeptideToSiteAggregationConfig(
+            strategy=PEPTIDE_TO_SITE_STRATEGY_FIXED_EFFECT_META
+        ),
+        contrast_name="B_vs_A",
+    )
+    table = result.to_dataframe()
+    assert list(table.index.tolist()) == ["MAPK1;S10,T12;"]

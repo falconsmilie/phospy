@@ -14,6 +14,12 @@ from phospy._frame_ownership import (
     own_series,
 )
 from phospy.errors.input import PhosPyInputError
+from phospy.evidence.multi_site import (
+    MultiSiteHandlingConfig,
+    MultiSiteObservation,
+    build_multi_site_observation,
+    resolve_site_mapping_frame,
+)
 from phospy.site_ids import canonicalize_site_identifier
 from phospy.validation.common.dataframes import (
     require_columns,
@@ -271,6 +277,8 @@ class PeptideEvidenceTable:
     _frame: pd.DataFrame
     _sample_intensity_columns: tuple[str, ...]
     _site_mapping: SiteEvidenceMapping
+    _multi_site_observations: tuple[MultiSiteObservation, ...]
+    _multi_site_handling_config: MultiSiteHandlingConfig
 
     def __init__(
         self,
@@ -278,6 +286,7 @@ class PeptideEvidenceTable:
         frame: pd.DataFrame,
         sample_intensity_columns: Sequence[str],
         site_mapping: SiteEvidenceMapping | pd.DataFrame | None = None,
+        multi_site_handling_config: MultiSiteHandlingConfig | None = None,
         _assume_owned: bool = False,
     ) -> None:
         frame = own_dataframe(
@@ -382,21 +391,38 @@ class PeptideEvidenceTable:
         sample_view = canonical.loc[:, list(sample_columns)]
         _validate_sample_intensity_frame(sample_view)
 
+        multi_site_config = (
+            MultiSiteHandlingConfig()
+            if multi_site_handling_config is None
+            else multi_site_handling_config
+        )
+        if not isinstance(multi_site_config, MultiSiteHandlingConfig):
+            raise PhosPyInputError(
+                "peptide_evidence_table.multi_site_handling_config must be "
+                "a MultiSiteHandlingConfig or None"
+            )
+        observations = _build_multi_site_observations(canonical)
+
         mapping = _resolve_mapping(
             canonical,
+            observations=observations,
             site_mapping=site_mapping,
+            multi_site_handling_config=multi_site_config,
         )
         mapping.validate_peptide_row_ids(
             canonical.loc[:, "peptide_row_id"].tolist(),
             field_name="peptide_evidence_table.peptide_row_id",
         )
-        _validate_default_site_links(
-            canonical=canonical,
-            mapping=mapping,
-        )
+        if site_mapping is not None:
+            _validate_default_site_links(
+                canonical=canonical,
+                mapping=mapping,
+            )
         object.__setattr__(self, "_frame", canonical)
         object.__setattr__(self, "_sample_intensity_columns", sample_columns)
         object.__setattr__(self, "_site_mapping", mapping)
+        object.__setattr__(self, "_multi_site_observations", observations)
+        object.__setattr__(self, "_multi_site_handling_config", multi_site_config)
 
     @property
     def sample_intensity_columns(self) -> tuple[str, ...]:
@@ -405,6 +431,36 @@ class PeptideEvidenceTable:
     @property
     def site_mapping(self) -> SiteEvidenceMapping:
         return self._site_mapping
+
+    @property
+    def multi_site_handling_config(self) -> MultiSiteHandlingConfig:
+        return self._multi_site_handling_config
+
+    def multi_site_observations(self) -> tuple[MultiSiteObservation, ...]:
+        return self._multi_site_observations
+
+    def kinase_sequence_site_mapping(self) -> pd.DataFrame:
+        resolved = resolve_site_mapping_frame(
+            observations=self._multi_site_observations,
+            policy=self._multi_site_handling_config.kinase_sequence_scoring_policy,
+        )
+        return export_dataframe(resolved)
+
+    def multi_site_policy_provenance(self) -> dict[str, object]:
+        return {
+            "statistical_modeling_policy": (
+                self._multi_site_handling_config.statistical_modeling_policy
+            ),
+            "kinase_sequence_scoring_policy": (
+                self._multi_site_handling_config.kinase_sequence_scoring_policy
+            ),
+            "multi_site_rows": int(
+                sum(1 for row in self._multi_site_observations if row.is_multi_site)
+            ),
+            "single_site_rows": int(
+                sum(1 for row in self._multi_site_observations if not row.is_multi_site)
+            ),
+        }
 
     def to_dataframe(self) -> pd.DataFrame:
         return export_dataframe(self._frame)
@@ -546,14 +602,28 @@ def _validate_sample_intensity_series(series: pd.Series, *, field_name: str) -> 
 def _resolve_mapping(
     canonical: pd.DataFrame,
     *,
+    observations: tuple[MultiSiteObservation, ...],
     site_mapping: SiteEvidenceMapping | pd.DataFrame | None,
+    multi_site_handling_config: MultiSiteHandlingConfig,
 ) -> SiteEvidenceMapping:
     if site_mapping is None:
-        resolved = canonical.loc[
-            canonical.loc[:, "site_id"].notna(),
-            ["peptide_row_id", "site_id"],
+        resolved = resolve_site_mapping_frame(
+            observations=observations,
+            policy=multi_site_handling_config.statistical_modeling_policy,
+        )
+        default_linkable = set(
+            canonical.loc[canonical.loc[:, "site_id"].notna(), "peptide_row_id"].astype(
+                str
+            )
+        )
+        filtered = resolved.loc[
+            resolved.loc[:, "peptide_row_id"].astype(str).isin(default_linkable),
+            :,
         ].copy(deep=True)
-        return SiteEvidenceMapping(resolved, _assume_owned=True)
+        resolved_mapping = filtered.loc[:, ["peptide_row_id", "site_id"]].copy(
+            deep=True
+        )
+        return SiteEvidenceMapping(resolved_mapping, _assume_owned=True)
     if isinstance(site_mapping, pd.DataFrame):
         return SiteEvidenceMapping(site_mapping)
     if isinstance(site_mapping, SiteEvidenceMapping):
@@ -596,6 +666,23 @@ def _validate_default_site_links(
         "peptide_evidence_table.site_mapping must include each non-missing default "
         f"(peptide_row_id, site_id) pair from peptide_evidence_table: {preview}{suffix}"
     )
+
+
+def _build_multi_site_observations(
+    canonical: pd.DataFrame,
+) -> tuple[MultiSiteObservation, ...]:
+    observations: list[MultiSiteObservation] = []
+    for _, row in canonical.iterrows():
+        observations.append(
+            build_multi_site_observation(
+                peptide_row_id=str(row.loc["peptide_row_id"]),
+                gene_symbol=str(row.loc["gene_symbol"]),
+                site_string=str(row.loc["site_string"]),
+                declared_multi_site=bool(row.loc["multi_site"]),
+                field_name=("peptide_evidence_table.site_string"),
+            )
+        )
+    return tuple(observations)
 
 
 def _validate_bool_value(value: object) -> bool:

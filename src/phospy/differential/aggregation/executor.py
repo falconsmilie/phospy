@@ -135,6 +135,7 @@ class PeptideToSiteAggregationExecutor:
             "missing_variance_policy": config.missing_variance_policy,
             "stouffer_weighting": config.stouffer_weighting,
             "random_effect_tau2_floor": float(config.random_effect_tau2_floor),
+            "multi_site_handling": evidence.multi_site_policy_provenance(),
             "input_peptide_rows": int(merged.shape[0]),
             "output_site_rows": int(site_table.shape[0]),
             "dropped_missing_variance_rows": int(dropped_missing_variance),
