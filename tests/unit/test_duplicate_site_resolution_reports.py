@@ -261,3 +261,189 @@ def test_duplicate_site_policy_preserves_existing_outputs_for_current_policies(
 
     pdt.assert_frame_equal(result.phospho, expected_phospho)
     pdt.assert_frame_equal(result.site_metadata, expected_site_metadata)
+
+
+@pytest.mark.parametrize(
+    "policy",
+    [
+        DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
+        DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
+    ],
+)
+def test_duplicate_site_aggregate_complete_observations_preserve_values(
+    policy: str,
+) -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [2.0, 4.0],
+            "sample_b": [6.0, 8.0],
+        },
+        index=pd.Index(["row_a", "row_b"], name="source_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "MAPK14"],
+            "site": ["Y182", "Y182"],
+            "site_sequence": ["SEQ_A", "SEQ_A"],
+        },
+        index=phospho.index.copy(),
+    )
+    constructed_site_id = pd.Series(
+        ["MAPK14;Y182;", "MAPK14;Y182;"],
+        index=phospho.index.copy(),
+        name="site_id",
+    )
+
+    result = _apply_duplicate_site_policy(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        constructed_site_id=constructed_site_id,
+        duplicate_site_policy=policy,
+    )
+
+    assert result.phospho.shape == (1, 2)
+    assert result.phospho.loc["MAPK14;Y182;", "sample_a"] == pytest.approx(3.0)
+    assert result.phospho.loc["MAPK14;Y182;", "sample_b"] == pytest.approx(7.0)
+    assert result.duplicate_aggregation_diagnostics["missing_value_policy"] == (
+        "skip_missing_values"
+    )
+    assert (
+        result.duplicate_aggregation_diagnostics["missing_cells_before_aggregation"]
+        == 0
+    )
+    assert (
+        result.duplicate_aggregation_diagnostics["missing_cells_after_aggregation"] == 0
+    )
+
+
+@pytest.mark.parametrize(
+    ("policy", "expected_sample_a", "expected_sample_b"),
+    [
+        (DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN, 1.0, 2.0),
+        (DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN, 1.0, 2.0),
+    ],
+)
+def test_duplicate_site_aggregate_partial_missing_uses_explicit_skip_missing_policy(
+    policy: str,
+    expected_sample_a: float,
+    expected_sample_b: float,
+) -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, float("nan"), 5.0],
+            "sample_b": [float("nan"), 2.0, 7.0],
+        },
+        index=pd.Index(["row_a", "row_b", "row_c"], name="source_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "MAPK14", "AKT1"],
+            "site": ["Y182", "Y182", "T308"],
+            "site_sequence": ["SEQ_A", "SEQ_A", "SEQ_C"],
+        },
+        index=phospho.index.copy(),
+    )
+    constructed_site_id = pd.Series(
+        ["MAPK14;Y182;", "MAPK14;Y182;", "AKT1;T308;"],
+        index=phospho.index.copy(),
+        name="site_id",
+    )
+
+    result = _apply_duplicate_site_policy(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        constructed_site_id=constructed_site_id,
+        duplicate_site_policy=policy,
+    )
+
+    assert result.phospho.loc["MAPK14;Y182;", "sample_a"] == pytest.approx(
+        expected_sample_a
+    )
+    assert result.phospho.loc["MAPK14;Y182;", "sample_b"] == pytest.approx(
+        expected_sample_b
+    )
+    assert result.duplicate_aggregation_diagnostics["missing_value_policy"] == (
+        "skip_missing_values"
+    )
+    assert (
+        result.duplicate_aggregation_diagnostics["aggregation_reduced_missingness"]
+        is True
+    )
+
+
+@pytest.mark.parametrize(
+    "policy",
+    [
+        DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
+        DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
+    ],
+)
+def test_duplicate_site_aggregate_one_source_row_all_missing_is_not_dropped(
+    policy: str,
+) -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [float("nan"), 4.0],
+            "sample_b": [float("nan"), 6.0],
+        },
+        index=pd.Index(["row_all_missing", "row_observed"], name="source_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "MAPK14"],
+            "site": ["Y182", "Y182"],
+            "site_sequence": ["SEQ_A", "SEQ_A"],
+        },
+        index=phospho.index.copy(),
+    )
+    constructed_site_id = pd.Series(
+        ["MAPK14;Y182;", "MAPK14;Y182;"],
+        index=phospho.index.copy(),
+        name="site_id",
+    )
+
+    result = _apply_duplicate_site_policy(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        constructed_site_id=constructed_site_id,
+        duplicate_site_policy=policy,
+    )
+
+    assert result.phospho.shape[0] == 1
+    assert result.phospho.loc["MAPK14;Y182;", "sample_a"] == pytest.approx(4.0)
+    assert result.phospho.loc["MAPK14;Y182;", "sample_b"] == pytest.approx(6.0)
+    assert result.duplicate_aggregation_diagnostics["rows_collapsed_count"] == 1
+
+
+def test_duplicate_site_aggregate_all_missing_duplicates_keep_group_row() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [float("nan"), float("nan")],
+            "sample_b": [float("nan"), float("nan")],
+        },
+        index=pd.Index(["row_a", "row_b"], name="source_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "MAPK14"],
+            "site": ["Y182", "Y182"],
+            "site_sequence": ["SEQ_A", "SEQ_A"],
+        },
+        index=phospho.index.copy(),
+    )
+    constructed_site_id = pd.Series(
+        ["MAPK14;Y182;", "MAPK14;Y182;"],
+        index=phospho.index.copy(),
+        name="site_id",
+    )
+
+    result = _apply_duplicate_site_policy(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        constructed_site_id=constructed_site_id,
+        duplicate_site_policy=DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
+    )
+
+    assert result.phospho.shape == (1, 2)
+    assert result.phospho.index.tolist() == ["MAPK14;Y182;"]
+    assert result.duplicate_aggregation_diagnostics["duplicate_group_count"] == 1

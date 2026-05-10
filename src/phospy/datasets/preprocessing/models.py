@@ -575,6 +575,7 @@ class DuplicateSiteResolutionResult:
     dropped_row_count: int
     duplicate_site_resolution: pd.DataFrame
     metadata_conflicts: pd.DataFrame
+    duplicate_aggregation_diagnostics: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)

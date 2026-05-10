@@ -263,6 +263,16 @@ def test_site_matrix_provenance_builder_preserves_fields_and_diagnostics() -> No
         dropped_incomplete_row_ids=("row_incomplete",),
         dropped_row_ids=("row_missing", "row_incomplete", "row_b"),
         duplicate_site_resolution=duplicate_resolution,
+        duplicate_aggregation_diagnostics={
+            "aggregation_method": "first",
+            "missing_value_policy": "not_applicable_row_selection",
+            "duplicate_group_count": 1,
+            "rows_collapsed_count": 1,
+            "missing_cells_before_aggregation": 0,
+            "missing_cells_after_aggregation": 0,
+            "aggregation_reduced_missingness": False,
+            "metadata_resolution_policy": "retain_earliest_input_row_per_site",
+        },
     )
 
     assert result.row_drop_stats == {
@@ -283,6 +293,16 @@ def test_site_matrix_provenance_builder_preserves_fields_and_diagnostics() -> No
         "missing_data_policy": "drop_any_missing",
         "required_observed_count": 2,
         "final_constructed_site_ids": ("AKT1;T308;", "MAPK14;Y182;"),
+        "duplicate_aggregation": {
+            "aggregation_method": "first",
+            "missing_value_policy": "not_applicable_row_selection",
+            "duplicate_group_count": 1,
+            "rows_collapsed_count": 1,
+            "missing_cells_before_aggregation": 0,
+            "missing_cells_after_aggregation": 0,
+            "aggregation_reduced_missingness": False,
+            "metadata_resolution_policy": "retain_earliest_input_row_per_site",
+        },
     }
     assert result.diagnostics["final_constructed_site_ids"] == [
         "AKT1;T308;",
@@ -291,6 +311,11 @@ def test_site_matrix_provenance_builder_preserves_fields_and_diagnostics() -> No
     duplicate_decisions = result.diagnostics["duplicate_site_decisions"]
     assert duplicate_decisions[0]["source_rows"] == ["row_a", "row_b"]
     assert duplicate_decisions[0]["dropped_reason"] is None
+    assert result.diagnostics["duplicate_aggregation"]["aggregation_method"] == "first"
+    assert (
+        result.diagnostics["duplicate_aggregation"]["missing_value_policy"]
+        == "not_applicable_row_selection"
+    )
     assert result.phospho.attrs["site_matrix_policy"] == "build_from_metadata"
     assert result.site_metadata.attrs["site_matrix_policy"] == "build_from_metadata"
 
@@ -654,3 +679,48 @@ def test_site_matrix_stage_orchestration_remains_stable_for_representative_fixtu
     ]
     assert site_matrix_audit.shape[0] == 4
     assert set(site_matrix_audit["action"]) == {"dropped", "retained", "collapsed"}
+
+
+def test_site_matrix_stage_records_explicit_duplicate_missing_value_policy() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, float("nan"), 4.0],
+            "sample_b": [float("nan"), 3.0, 6.0],
+        },
+        index=pd.Index(["row_a", "row_b", "row_c"], name="src"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "MAPK14", "AKT1"],
+            "site": ["Y182", "Y182", "T308"],
+            "site_sequence": ["SEQ_A", "SEQ_A", "SEQ_C"],
+            "protein_id": ["P_A", "P_A", "P_C"],
+        },
+        index=phospho.index.copy(),
+    )
+    plan = PreprocessingPlan(
+        stage_order=("site_matrix",),
+        site_matrix_policy=DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA,
+        site_matrix_duplicate_site_policy=DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
+        site_matrix_missing_data_policy="retain_missing",
+    )
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=None,
+        total=None,
+        plan=plan,
+    )
+
+    result = SiteMatrixStage().run(state)
+    diagnostics = result.diagnostics["diagnostics"]
+    duplicate_aggregation = diagnostics["duplicate_aggregation"]
+    assert duplicate_aggregation["aggregation_method"] == "aggregate_mean"
+    assert duplicate_aggregation["missing_value_policy"] == "skip_missing_values"
+    assert duplicate_aggregation["aggregation_reduced_missingness"] is True
+    assert (
+        result.state.phospho.attrs["site_matrix_provenance"]["duplicate_aggregation"][
+            "missing_value_policy"
+        ]
+        == "skip_missing_values"
+    )

@@ -69,6 +69,7 @@ class SiteMatrixProvenanceBuilder:
         dropped_incomplete_row_ids: tuple[str, ...],
         dropped_row_ids: tuple[str, ...],
         duplicate_site_resolution: pd.DataFrame | None,
+        duplicate_aggregation_diagnostics: dict[str, object] | None,
     ) -> SiteMatrixProvenanceResult:
         resolved_missing_data_policy = SiteMatrixMissingDataPolicy.parse(
             missing_data_policy,
@@ -114,6 +115,10 @@ class SiteMatrixProvenanceBuilder:
                 str(site_id) for site_id in final_phospho.index.tolist()
             ),
         }
+        if duplicate_aggregation_diagnostics is not None:
+            site_matrix_provenance["duplicate_aggregation"] = dict(
+                duplicate_aggregation_diagnostics
+            )
         final_phospho.attrs[self._site_matrix_provenance_attr] = site_matrix_provenance
         final_site_metadata.attrs[self._site_matrix_provenance_attr] = (
             site_matrix_provenance.copy()
@@ -123,6 +128,10 @@ class SiteMatrixProvenanceBuilder:
         diagnostics["final_constructed_site_ids"] = [
             str(site_id) for site_id in final_phospho.index.tolist()
         ]
+        if duplicate_aggregation_diagnostics is not None:
+            diagnostics["duplicate_aggregation"] = dict(
+                duplicate_aggregation_diagnostics
+            )
         if duplicate_site_resolution is not None:
             diagnostics["duplicate_site_decisions"] = _records_from_frame(
                 duplicate_site_resolution

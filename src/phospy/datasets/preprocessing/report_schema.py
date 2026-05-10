@@ -82,6 +82,9 @@ class DuplicateSiteResolutionRow:
     source_row_id: str
     retained: bool
     resolution_policy: str
+    aggregation_method: str
+    missing_value_policy: object
+    metadata_resolution_policy: object
     retained_reason: object
     dropped_reason: object
     observed_values: object

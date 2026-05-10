@@ -164,6 +164,7 @@ _SITE_MATRIX_DIAGNOSTICS_FIELDS = (
     "missing_data_policy",
     "required_observed_count",
     "final_constructed_site_ids",
+    "duplicate_aggregation",
     "duplicate_site_decisions",
 )
 

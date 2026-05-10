@@ -197,6 +197,9 @@ class SiteMatrixStage:
             dropped_incomplete_row_ids=assembled.dropped_incomplete_row_ids,
             dropped_row_ids=assembled.dropped_row_ids,
             duplicate_site_resolution=duplicate_site_result.duplicate_site_resolution,
+            duplicate_aggregation_diagnostics=(
+                duplicate_site_result.duplicate_aggregation_diagnostics
+            ),
         )
         if provenance.phospho.empty:
             diagnostics = _format_row_drop_diagnostics(provenance.row_drop_stats)
