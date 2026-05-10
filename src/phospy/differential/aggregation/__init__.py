@@ -1,6 +1,6 @@
-"""Differential-analysis domain exports."""
+"""Peptide-to-site aggregation exports for differential workflows."""
 
-from phospy.differential.aggregation import (
+from phospy.differential.aggregation.models import (
     PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE,
     PEPTIDE_TO_SITE_STRATEGY_FIXED_EFFECT_META,
     PEPTIDE_TO_SITE_STRATEGY_INVERSE_VARIANCE_WEIGHTED,
@@ -8,24 +8,10 @@ from phospy.differential.aggregation import (
     PEPTIDE_TO_SITE_STRATEGY_STOUFFER_Z,
     PeptideToSiteAggregationConfig,
     PeptideToSiteAggregationResult,
-    PeptideToSiteAggregator,
 )
-from phospy.differential.models import (
-    ContrastMatrix,
-    DesignMatrix,
-    DifferentialAnalysisRequest,
-    DifferentialAnalysisResult,
-    EmpiricalBayesConfig,
-)
-from phospy.differential.public import DifferentialAnalysis
+from phospy.differential.aggregation.public import PeptideToSiteAggregator
 
 __all__ = [
-    "ContrastMatrix",
-    "DesignMatrix",
-    "DifferentialAnalysis",
-    "DifferentialAnalysisRequest",
-    "DifferentialAnalysisResult",
-    "EmpiricalBayesConfig",
     "PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE",
     "PEPTIDE_TO_SITE_STRATEGY_FIXED_EFFECT_META",
     "PEPTIDE_TO_SITE_STRATEGY_INVERSE_VARIANCE_WEIGHTED",

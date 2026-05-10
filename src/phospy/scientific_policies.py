@@ -32,6 +32,7 @@ class ScientificPolicyId(str, Enum):
     SIGNALOME_CANDIDATE_SCORING = "signalome_candidate_scoring_v1"
     SIGNALOME_ASSIGNMENT_POLICY = "signalome_assignment_policy_v1"
     SIGNALOME_NETWORK_POLICY = "signalome_network_policy_v1"
+    PEPTIDE_TO_SITE_AGGREGATION = "peptide_to_site_aggregation_v1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -729,6 +730,49 @@ def build_duplicate_site_resolution_policy(
     )
 
 
+def build_peptide_to_site_aggregation_policy(
+    *,
+    strategy: str,
+    min_peptides_per_site: int,
+    missing_variance_policy: str,
+    stouffer_weighting: str,
+    random_effect_tau2_floor: float,
+    compatibility_mode_warning: bool,
+) -> ScientificPolicyRecord:
+    assumptions = [
+        "Aggregation consumes peptide-level differential model outputs without "
+        "refitting the upstream differential model.",
+        "Site-level uncertainty is derived from peptide-level uncertainty statistics.",
+        "Minimum-p compatibility mode is intended only for historical reproducibility "
+        "and can bias significance.",
+    ]
+    if compatibility_mode_warning:
+        assumptions.append(
+            "Compatibility warning: minimum peptide p-value selection treats "
+            "peptides as competitors rather than combined evidence."
+        )
+    return ScientificPolicyRecord(
+        id=ScientificPolicyId.PEPTIDE_TO_SITE_AGGREGATION,
+        name=f"peptide_to_site_aggregation_{strategy}_v1",
+        version="1",
+        description=(
+            "Aggregates peptide-level differential statistics into site-level "
+            "summaries with an explicit strategy."
+        ),
+        parameters={
+            "strategy": str(strategy),
+            "min_peptides_per_site": int(min_peptides_per_site),
+            "missing_variance_policy": str(missing_variance_policy),
+            "stouffer_weighting": str(stouffer_weighting),
+            "random_effect_tau2_floor": float(random_effect_tau2_floor),
+            "compatibility_mode_warning": bool(compatibility_mode_warning),
+        },
+        assumptions=tuple(assumptions),
+        output_scale="Site-level log fold-change and uncertainty summaries.",
+        quantitative_meaning="site_level_differential_summary",
+    )
+
+
 def _threshold_operator_token(mode: ThresholdMode) -> str:
     if mode is ThresholdMode.GREATER_THAN:
         return ">"
@@ -755,6 +799,7 @@ __all__ = [
     "build_ksea_zscore_activity_policy",
     "build_kinase_profile_scoring_policy",
     "build_motif_profile_rank_fusion_policy",
+    "build_peptide_to_site_aggregation_policy",
     "build_preprocessing_stage_order_policy",
     "build_score_preconditioning_policy",
     "build_signalome_missing_value_clustering_policy",
