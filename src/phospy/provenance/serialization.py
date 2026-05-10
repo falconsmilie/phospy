@@ -151,6 +151,36 @@ def from_payload(payload: Mapping[str, object]) -> RunProvenance:
 
 
 def _table_fingerprint_to_payload(fingerprint: TableFingerprint) -> dict[str, object]:
+    legacy_hash_algorithm = (
+        fingerprint.tolerance_hash_algorithm
+        if fingerprint.hash_algorithm is None
+        else fingerprint.hash_algorithm
+    )
+    legacy_hash_value = (
+        fingerprint.tolerance_hash_value
+        if fingerprint.hash_value is None
+        else fingerprint.hash_value
+    )
+    exact_hash_algorithm = (
+        fingerprint.hash_algorithm
+        if fingerprint.exact_hash_algorithm is None
+        else fingerprint.exact_hash_algorithm
+    )
+    exact_hash_value = (
+        fingerprint.hash_value
+        if fingerprint.exact_hash_value is None
+        else fingerprint.exact_hash_value
+    )
+    tolerance_hash_algorithm = (
+        fingerprint.hash_algorithm
+        if fingerprint.tolerance_hash_algorithm is None
+        else fingerprint.tolerance_hash_algorithm
+    )
+    tolerance_hash_value = (
+        fingerprint.hash_value
+        if fingerprint.tolerance_hash_value is None
+        else fingerprint.tolerance_hash_value
+    )
     return {
         "name": fingerprint.name,
         "rows": int(fingerprint.rows),
@@ -158,8 +188,13 @@ def _table_fingerprint_to_payload(fingerprint: TableFingerprint) -> dict[str, ob
         "index_name": fingerprint.index_name,
         "column_names": list(fingerprint.column_names),
         "dtypes": list(fingerprint.dtypes),
-        "hash_algorithm": fingerprint.hash_algorithm,
-        "hash_value": fingerprint.hash_value,
+        # Compatibility aliases retained for existing consumers.
+        "hash_algorithm": legacy_hash_algorithm,
+        "hash_value": legacy_hash_value,
+        "exact_hash_algorithm": exact_hash_algorithm,
+        "exact_hash_value": exact_hash_value,
+        "tolerance_hash_algorithm": tolerance_hash_algorithm,
+        "tolerance_hash_value": tolerance_hash_value,
         "index_structure": (
             None
             if fingerprint.index_structure is None
@@ -181,6 +216,72 @@ def _table_fingerprint_from_payload(payload: Mapping[str, object]) -> TableFinge
     column_index_structure = _optional_mapping(
         payload.get("column_index_structure"),
         field_name="table_fingerprint.column_index_structure",
+    )
+    hash_algorithm = _optional_str(
+        payload.get("hash_algorithm"),
+        field_name="table_fingerprint.hash_algorithm",
+    )
+    hash_value = _optional_str(
+        payload.get("hash_value"),
+        field_name="table_fingerprint.hash_value",
+    )
+    exact_hash_algorithm = _optional_str(
+        payload.get("exact_hash_algorithm"),
+        field_name="table_fingerprint.exact_hash_algorithm",
+    )
+    exact_hash_value = _optional_str(
+        payload.get("exact_hash_value"),
+        field_name="table_fingerprint.exact_hash_value",
+    )
+    tolerance_hash_algorithm = _optional_str(
+        payload.get("tolerance_hash_algorithm"),
+        field_name="table_fingerprint.tolerance_hash_algorithm",
+    )
+    tolerance_hash_value = _optional_str(
+        payload.get("tolerance_hash_value"),
+        field_name="table_fingerprint.tolerance_hash_value",
+    )
+    resolved_tolerance_hash_algorithm = _resolve_fingerprint_hash_field(
+        primary=tolerance_hash_algorithm,
+        fallback=(
+            hash_algorithm if hash_algorithm is not None else exact_hash_algorithm
+        ),
+        field_name="table_fingerprint.tolerance_hash_algorithm",
+    )
+    resolved_tolerance_hash_value = _resolve_fingerprint_hash_field(
+        primary=tolerance_hash_value,
+        fallback=(hash_value if hash_value is not None else exact_hash_value),
+        field_name="table_fingerprint.tolerance_hash_value",
+    )
+    resolved_exact_hash_algorithm = _resolve_fingerprint_hash_field(
+        primary=exact_hash_algorithm,
+        fallback=(
+            hash_algorithm if hash_algorithm is not None else tolerance_hash_algorithm
+        ),
+        field_name="table_fingerprint.exact_hash_algorithm",
+    )
+    resolved_exact_hash_value = _resolve_fingerprint_hash_field(
+        primary=exact_hash_value,
+        fallback=(hash_value if hash_value is not None else tolerance_hash_value),
+        field_name="table_fingerprint.exact_hash_value",
+    )
+    resolved_hash_algorithm = _resolve_fingerprint_hash_field(
+        primary=hash_algorithm,
+        fallback=(
+            tolerance_hash_algorithm
+            if tolerance_hash_algorithm is not None
+            else exact_hash_algorithm
+        ),
+        field_name="table_fingerprint.hash_algorithm",
+    )
+    resolved_hash_value = _resolve_fingerprint_hash_field(
+        primary=hash_value,
+        fallback=(
+            tolerance_hash_value
+            if tolerance_hash_value is not None
+            else exact_hash_value
+        ),
+        field_name="table_fingerprint.hash_value",
     )
     return TableFingerprint(
         name=_require_str(payload.get("name"), field_name="table_fingerprint.name"),
@@ -207,14 +308,12 @@ def _table_fingerprint_from_payload(payload: Mapping[str, object]) -> TableFinge
                 field_name="table_fingerprint.dtypes",
             )
         ),
-        hash_algorithm=_require_str(
-            payload.get("hash_algorithm"),
-            field_name="table_fingerprint.hash_algorithm",
-        ),
-        hash_value=_require_str(
-            payload.get("hash_value"),
-            field_name="table_fingerprint.hash_value",
-        ),
+        hash_algorithm=resolved_hash_algorithm,
+        hash_value=resolved_hash_value,
+        exact_hash_algorithm=resolved_exact_hash_algorithm,
+        exact_hash_value=resolved_exact_hash_value,
+        tolerance_hash_algorithm=resolved_tolerance_hash_algorithm,
+        tolerance_hash_value=resolved_tolerance_hash_value,
         index_structure=None
         if index_structure is None
         else {
@@ -227,6 +326,19 @@ def _table_fingerprint_from_payload(payload: Mapping[str, object]) -> TableFinge
             for key, value in column_index_structure.items()
         },
     )
+
+
+def _resolve_fingerprint_hash_field(
+    *,
+    primary: str | None,
+    fallback: str | None,
+    field_name: str,
+) -> str:
+    if primary is not None:
+        return primary
+    if fallback is not None:
+        return fallback
+    raise PhosPyInputError(f"{field_name} must be provided")
 
 
 def _environment_to_payload(environment: EnvironmentProvenance) -> dict[str, object]:

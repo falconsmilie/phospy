@@ -91,6 +91,15 @@ def test_dataset_builder_emits_run_provenance_and_stage_details() -> None:
     assert provenance.workflow_name == "dataset_builder"
     assert len(provenance.input_tables) >= 2
     assert len(provenance.output_tables) >= 2
+    first_input_fingerprint = provenance.input_tables[0]
+    assert first_input_fingerprint.exact_hash_algorithm == "sha256-stable-json-v1"
+    assert isinstance(first_input_fingerprint.exact_hash_value, str)
+    assert len(first_input_fingerprint.exact_hash_value) == 64
+    assert (
+        first_input_fingerprint.tolerance_hash_algorithm == "sha256-float-round-8dp-v1"
+    )
+    assert isinstance(first_input_fingerprint.tolerance_hash_value, str)
+    assert len(first_input_fingerprint.tolerance_hash_value) == 64
     assert provenance.preprocessing_stages
     missing_stage = next(
         stage
@@ -340,6 +349,15 @@ def test_run_provenance_serialization_round_trip_preserves_payload() -> None:
     )
     assert built.provenance is not None
     payload = to_payload(built.provenance)
+    input_tables_payload = payload["input_tables"]
+    assert isinstance(input_tables_payload, list)
+    assert input_tables_payload
+    first_input = input_tables_payload[0]
+    assert isinstance(first_input, dict)
+    assert first_input["exact_hash_algorithm"] == "sha256-stable-json-v1"
+    assert first_input["tolerance_hash_algorithm"] == "sha256-float-round-8dp-v1"
+    assert isinstance(first_input["exact_hash_value"], str)
+    assert isinstance(first_input["tolerance_hash_value"], str)
     json.dumps(payload)
     restored = from_payload(payload)
     assert to_payload(restored) == payload

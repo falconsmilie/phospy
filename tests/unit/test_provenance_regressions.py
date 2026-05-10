@@ -443,6 +443,10 @@ def test_workflow_provenance_fingerprints_and_policy_versions_are_stable() -> No
         for fingerprint in (*provenance.input_tables, *provenance.output_tables):
             assert fingerprint.hash_algorithm == "sha256"
             assert len(fingerprint.hash_value) == 64
+            assert fingerprint.exact_hash_algorithm == "sha256-stable-json-v1"
+            assert len(str(fingerprint.exact_hash_value)) == 64
+            assert fingerprint.tolerance_hash_algorithm == "sha256-float-round-8dp-v1"
+            assert len(str(fingerprint.tolerance_hash_value)) == 64
         for policy in provenance.scientific_policies:
             assert policy.name
             assert policy.version

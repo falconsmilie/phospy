@@ -3,7 +3,12 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from phospy.provenance.hashing import fingerprint_table, hash_table
+from phospy.provenance.hashing import (
+    fingerprint_table,
+    hash_table,
+    hash_table_exact,
+    hash_table_tolerance,
+)
 
 
 def _base_table() -> pd.DataFrame:
@@ -194,3 +199,70 @@ def test_fingerprint_captures_structural_metadata() -> None:
     assert fingerprint.hash_algorithm == "sha256"
     assert isinstance(fingerprint.hash_value, str)
     assert len(fingerprint.hash_value) == 64
+    assert fingerprint.exact_hash_algorithm == "sha256-stable-json-v1"
+    assert isinstance(fingerprint.exact_hash_value, str)
+    assert len(fingerprint.exact_hash_value) == 64
+    assert fingerprint.tolerance_hash_algorithm == "sha256-float-round-8dp-v1"
+    assert isinstance(fingerprint.tolerance_hash_value, str)
+    assert len(fingerprint.tolerance_hash_value) == 64
+
+
+def test_exact_hash_changes_for_sub_8dp_float_differences() -> None:
+    first = pd.DataFrame(
+        {"sample_a": [1.123456781]},
+        index=pd.Index(["A;S1;"], name="site_id"),
+    )
+    second = pd.DataFrame(
+        {"sample_a": [1.123456784]},
+        index=pd.Index(["A;S1;"], name="site_id"),
+    )
+    assert hash_table_exact(first, name="dataset.phospho") != hash_table_exact(
+        second,
+        name="dataset.phospho",
+    )
+
+
+def test_tolerance_hash_can_stay_stable_for_sub_8dp_float_differences() -> None:
+    first = pd.DataFrame(
+        {"sample_a": [1.123456781]},
+        index=pd.Index(["A;S1;"], name="site_id"),
+    )
+    second = pd.DataFrame(
+        {"sample_a": [1.123456784]},
+        index=pd.Index(["A;S1;"], name="site_id"),
+    )
+    assert hash_table_tolerance(first, name="dataset.phospho") == hash_table_tolerance(
+        second,
+        name="dataset.phospho",
+    )
+
+
+def test_exact_hash_changes_when_row_order_changes() -> None:
+    table = _base_table()
+    reordered = table.iloc[[2, 1, 0], :]
+    assert hash_table_exact(table, name="dataset.phospho") != hash_table_exact(
+        reordered,
+        name="dataset.phospho",
+    )
+
+
+def test_exact_hash_changes_when_column_order_changes() -> None:
+    table = _base_table()
+    reordered = table.loc[:, ["sample_b", "sample_a"]]
+    assert hash_table_exact(table, name="dataset.phospho") != hash_table_exact(
+        reordered,
+        name="dataset.phospho",
+    )
+
+
+def test_exact_hash_changes_when_index_labels_change() -> None:
+    first = pd.DataFrame(
+        {"x": [1.0, 2.0]},
+        index=pd.Index(["A", "B"], name="row_id"),
+    )
+    second = first.copy(deep=True)
+    second.index = pd.Index(["A", "B_CHANGED"], name="row_id")
+    assert hash_table_exact(first, name="table") != hash_table_exact(
+        second,
+        name="table",
+    )

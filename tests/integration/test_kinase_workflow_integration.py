@@ -67,6 +67,10 @@ def _fingerprints_by_name(
             "columns": int(item.columns),
             "hash_algorithm": str(item.hash_algorithm),
             "hash_value": str(item.hash_value),
+            "exact_hash_algorithm": str(item.exact_hash_algorithm),
+            "exact_hash_value": str(item.exact_hash_value),
+            "tolerance_hash_algorithm": str(item.tolerance_hash_algorithm),
+            "tolerance_hash_value": str(item.tolerance_hash_value),
         }
         for item in fingerprints
     }
@@ -100,9 +104,10 @@ def _assert_expected_fingerprint_map(
         }
         if compare_hash_values:
             expected_payload["hash_value"] = str(table_expected["hash_value"])
-            assert table_observed == expected_payload, (
-                f"fingerprint mismatch for table: {table_name}"
-            )
+            for key, value in expected_payload.items():
+                assert table_observed[key] == value, (
+                    f"fingerprint mismatch for table: {table_name}, key={key}"
+                )
             continue
         assert int(table_observed["rows"]) == expected_payload["rows"], (
             f"row-count mismatch for table: {table_name}"
@@ -113,6 +118,13 @@ def _assert_expected_fingerprint_map(
         assert (
             str(table_observed["hash_algorithm"]) == expected_payload["hash_algorithm"]
         ), f"hash-algorithm mismatch for table: {table_name}"
+        assert str(table_observed["exact_hash_algorithm"]) == "sha256-stable-json-v1"
+        assert len(str(table_observed["exact_hash_value"])) == 64
+        assert (
+            str(table_observed["tolerance_hash_algorithm"])
+            == "sha256-float-round-8dp-v1"
+        )
+        assert len(str(table_observed["tolerance_hash_value"])) == 64
 
 
 def _hash_overrides_from_observed(

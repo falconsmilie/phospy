@@ -40,6 +40,10 @@ class TableFingerprint:
     dtypes: tuple[str, ...]
     hash_algorithm: str
     hash_value: str
+    exact_hash_algorithm: str | None = None
+    exact_hash_value: str | None = None
+    tolerance_hash_algorithm: str | None = None
+    tolerance_hash_value: str | None = None
     index_structure: Mapping[str, JsonValue] | None = None
     column_index_structure: Mapping[str, JsonValue] | None = None
 

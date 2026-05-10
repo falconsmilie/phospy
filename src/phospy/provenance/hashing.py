@@ -16,6 +16,8 @@ import pandas as pd
 from phospy.provenance.models import JsonValue, TableFingerprint
 
 DEFAULT_TABLE_HASH_ALGORITHM = "sha256"
+DEFAULT_EXACT_TABLE_HASH_ALGORITHM = "sha256-stable-json-v1"
+DEFAULT_TOLERANCE_TABLE_HASH_ALGORITHM = "sha256-float-round-8dp-v1"
 _MISSING_SENTINEL = "<MISSING>"
 _FLOAT_HASH_DECIMAL_PLACES = 8
 _PANDAS_MISSING_SCALAR_TYPES = (
@@ -41,18 +43,56 @@ def hash_table(
     name: str,
     algorithm: str = DEFAULT_TABLE_HASH_ALGORITHM,
 ) -> str:
+    """Return a deterministic tolerance-oriented digest for a table.
+
+    This is preserved as a compatibility alias for the historical provenance
+    digest behavior (float rounding before hashing).
+    """
+
+    return hash_table_tolerance(table, name=name, algorithm=algorithm)
+
+
+def hash_table_exact(
+    table: pd.DataFrame,
+    *,
+    name: str,
+    algorithm: str = DEFAULT_TABLE_HASH_ALGORITHM,
+) -> str:
+    """Return an exact deterministic digest for a table and full structure."""
+
+    return _hash_table(table, name=name, algorithm=algorithm, round_floats=False)
+
+
+def hash_table_tolerance(
+    table: pd.DataFrame,
+    *,
+    name: str,
+    algorithm: str = DEFAULT_TABLE_HASH_ALGORITHM,
+) -> str:
+    """Return a tolerance-oriented deterministic digest for a table."""
+
+    return _hash_table(table, name=name, algorithm=algorithm, round_floats=True)
+
+
+def _hash_table(
+    table: pd.DataFrame,
+    *,
+    name: str,
+    algorithm: str,
+    round_floats: bool,
+) -> str:
     """Return a deterministic digest for a table and its full structure."""
 
     hasher = hashlib.new(algorithm)
     _update(hasher, name)
     _update(hasher, [int(table.shape[0]), int(table.shape[1])])
-    _update(hasher, _index_structure(table.index))
-    _update(hasher, _index_structure(table.columns))
+    _update(hasher, _index_structure(table.index, round_floats=round_floats))
+    _update(hasher, _index_structure(table.columns, round_floats=round_floats))
     _update(hasher, [str(dtype) for dtype in table.dtypes.tolist()])
     values = table.to_numpy(dtype=object, copy=False)
     for row in values:
         for value in row:
-            _update(hasher, _normalize_value(value))
+            _update(hasher, _normalize_value(value, round_floats=round_floats))
     return hasher.hexdigest()
 
 
@@ -64,6 +104,11 @@ def fingerprint_table(
 ) -> TableFingerprint:
     """Build a typed deterministic table fingerprint."""
 
+    exact_hash_algorithm = _exact_hash_algorithm_name(algorithm)
+    tolerance_hash_algorithm = _tolerance_hash_algorithm_name(algorithm)
+    exact_hash = hash_table_exact(table, name=name, algorithm=algorithm)
+    tolerance_hash = hash_table_tolerance(table, name=name, algorithm=algorithm)
+
     return TableFingerprint(
         name=name,
         rows=int(table.shape[0]),
@@ -72,9 +117,13 @@ def fingerprint_table(
         column_names=tuple(str(label) for label in table.columns.tolist()),
         dtypes=tuple(str(dtype) for dtype in table.dtypes.tolist()),
         hash_algorithm=algorithm,
-        hash_value=hash_table(table, name=name, algorithm=algorithm),
-        index_structure=_index_structure(table.index),
-        column_index_structure=_index_structure(table.columns),
+        hash_value=tolerance_hash,
+        exact_hash_algorithm=exact_hash_algorithm,
+        exact_hash_value=exact_hash,
+        tolerance_hash_algorithm=tolerance_hash_algorithm,
+        tolerance_hash_value=tolerance_hash,
+        index_structure=_index_structure(table.index, round_floats=False),
+        column_index_structure=_index_structure(table.columns, round_floats=False),
     )
 
 
@@ -103,7 +152,7 @@ def _update(hasher: hashlib._Hash, payload: Any) -> None:  # type: ignore[attr-d
     hasher.update(b"\n")
 
 
-def _normalize_value(value: object) -> JsonValue:
+def _normalize_value(value: object, *, round_floats: bool) -> JsonValue:
     if value is None or _is_missing_scalar(value):
         return {"kind": "missing", "value": _MISSING_SENTINEL}
     if isinstance(value, bool):
@@ -121,7 +170,14 @@ def _normalize_value(value: object) -> JsonValue:
                 "kind": "float",
                 "value": "Infinity" if numeric > 0.0 else "-Infinity",
             }
-        return {"kind": "float", "value": _normalize_float_string(numeric)}
+        return {
+            "kind": "float",
+            "value": (
+                _normalize_float_string(numeric)
+                if round_floats
+                else _normalize_exact_float_string(numeric)
+            ),
+        }
     if isinstance(value, np.floating):
         numeric = float(cast(float, value))
         if math.isnan(numeric):
@@ -131,7 +187,14 @@ def _normalize_value(value: object) -> JsonValue:
                 "kind": "float",
                 "value": "Infinity" if numeric > 0.0 else "-Infinity",
             }
-        return {"kind": "float", "value": _normalize_float_string(numeric)}
+        return {
+            "kind": "float",
+            "value": (
+                _normalize_float_string(numeric)
+                if round_floats
+                else _normalize_exact_float_string(numeric)
+            ),
+        }
     if isinstance(value, Decimal):
         return {"kind": "decimal", "value": format(value, "f")}
     if isinstance(value, str):
@@ -146,7 +209,7 @@ def _normalize_value(value: object) -> JsonValue:
         return {"kind": "timedelta64", "value": str(pd.Timedelta(value))}
     if isinstance(value, Mapping):
         normalized_pairs: list[list[JsonValue]] = [
-            [str(key), _normalize_value(item)]
+            [str(key), _normalize_value(item, round_floats=round_floats)]
             for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
         ]
         return cast(
@@ -154,26 +217,37 @@ def _normalize_value(value: object) -> JsonValue:
             {"kind": "mapping", "value": normalized_pairs},
         )
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
-        return {"kind": "sequence", "value": [_normalize_value(item) for item in value]}
+        return {
+            "kind": "sequence",
+            "value": [
+                _normalize_value(item, round_floats=round_floats) for item in value
+            ],
+        }
     return {"kind": "repr", "value": repr(value)}
 
 
-def _normalize_axis_name(value: object) -> JsonValue:
+def _normalize_axis_name(value: object, *, round_floats: bool) -> JsonValue:
     if value is None:
         return {"kind": "none", "value": None}
-    return _normalize_value(value)
+    return _normalize_value(value, round_floats=round_floats)
 
 
-def _index_structure(index: pd.Index) -> dict[str, JsonValue]:
+def _index_structure(index: pd.Index, *, round_floats: bool) -> dict[str, JsonValue]:
     if isinstance(index, pd.MultiIndex):
         return {
             "type": "multi_index",
             "index_class": type(index).__name__,
             "nlevels": int(index.nlevels),
-            "names": [_normalize_axis_name(name) for name in index.names],
+            "names": [
+                _normalize_axis_name(name, round_floats=round_floats)
+                for name in index.names
+            ],
             "level_dtypes": [str(level.dtype) for level in index.levels],
             "values": [
-                [_normalize_value(component) for component in tuple(value)]
+                [
+                    _normalize_value(component, round_floats=round_floats)
+                    for component in tuple(value)
+                ]
                 for value in index.tolist()
             ],
         }
@@ -181,7 +255,7 @@ def _index_structure(index: pd.Index) -> dict[str, JsonValue]:
         return {
             "type": "range_index",
             "index_class": type(index).__name__,
-            "name": _normalize_axis_name(index.name),
+            "name": _normalize_axis_name(index.name, round_floats=round_floats),
             "start": int(index.start),
             "stop": int(index.stop),
             "step": int(index.step),
@@ -190,9 +264,12 @@ def _index_structure(index: pd.Index) -> dict[str, JsonValue]:
     return {
         "type": "index",
         "index_class": type(index).__name__,
-        "name": _normalize_axis_name(index.name),
+        "name": _normalize_axis_name(index.name, round_floats=round_floats),
         "dtype": str(index.dtype),
-        "values": [_normalize_value(label) for label in index.tolist()],
+        "values": [
+            _normalize_value(label, round_floats=round_floats)
+            for label in index.tolist()
+        ],
     }
 
 
@@ -217,9 +294,29 @@ def _normalize_float_string(value: float) -> str:
     return format(rounded, f".{_FLOAT_HASH_DECIMAL_PLACES}f").rstrip("0").rstrip(".")
 
 
+def _normalize_exact_float_string(value: float) -> str:
+    return value.hex()
+
+
+def _exact_hash_algorithm_name(algorithm: str) -> str:
+    if algorithm == DEFAULT_TABLE_HASH_ALGORITHM:
+        return DEFAULT_EXACT_TABLE_HASH_ALGORITHM
+    return f"{algorithm}-stable-json-v1"
+
+
+def _tolerance_hash_algorithm_name(algorithm: str) -> str:
+    if algorithm == DEFAULT_TABLE_HASH_ALGORITHM:
+        return DEFAULT_TOLERANCE_TABLE_HASH_ALGORITHM
+    return f"{algorithm}-float-round-{_FLOAT_HASH_DECIMAL_PLACES}dp-v1"
+
+
 __all__ = [
+    "DEFAULT_EXACT_TABLE_HASH_ALGORITHM",
     "DEFAULT_TABLE_HASH_ALGORITHM",
+    "DEFAULT_TOLERANCE_TABLE_HASH_ALGORITHM",
     "fingerprint_optional_table",
     "fingerprint_table",
     "hash_table",
+    "hash_table_exact",
+    "hash_table_tolerance",
 ]

@@ -75,6 +75,7 @@ approximation behavior, and failure modes), see `docs/performance.md`.
 ### Provenance Guarantees
 
 - Dataset provenance records preprocessing-stage execution and table fingerprints.
+- Each table fingerprint carries both `exact_hash_*` (audit/regression) and `tolerance_hash_*` (cross-platform tolerant comparison) metadata; legacy `hash_*` fields are compatibility aliases of the tolerance hash.
 - `provenance.workflow_parameters["preprocessing_plan"]` includes both `stage_order` and
   `resolved_stage_order` with per-stage order index and rationale.
 - `intensity_scale_state` and `processing_state` are attached and validated at boundary.
@@ -177,6 +178,7 @@ approximation behavior, and failure modes), see `docs/performance.md`.
 ### Provenance Guarantees
 
 - Provenance includes input/output table fingerprints, environment, resolved reference provenance, and active scientific policy records.
+- Fingerprints expose explicit exact-vs-tolerance hash metadata; use exact hashes for scientific audit and tolerance hashes only for tolerant comparisons.
 - Workflow parameters for scoring, prediction, and optional activity are serialized in provenance.
 - `workflow_parameters.scoring_diagnostics` includes motif sequence-validation
   counts and motif site-sequence coverage diagnostics (for example
@@ -251,6 +253,7 @@ approximation behavior, and failure modes), see `docs/performance.md`.
 ### Provenance Guarantees
 
 - Provenance includes upstream kinase provenance payload, input/output table fingerprints, resolved configuration, scale-guard diagnostics, and scientific policy records.
+- Table fingerprints include explicit exact and tolerance hash metadata; exact hashes are the canonical audit trail fingerprints.
 - Alignment and score-preconditioning diagnostics are included for interpretability and audit.
 
 ### Known Limitations

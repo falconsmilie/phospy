@@ -430,6 +430,26 @@ def _hash_stage_table_fingerprints(
                 "columns": int(item.columns),
                 "hash_algorithm": item.hash_algorithm,
                 "hash_value": item.hash_value,
+                "exact_hash_algorithm": (
+                    item.hash_algorithm
+                    if item.exact_hash_algorithm is None
+                    else item.exact_hash_algorithm
+                ),
+                "exact_hash_value": (
+                    item.hash_value
+                    if item.exact_hash_value is None
+                    else item.exact_hash_value
+                ),
+                "tolerance_hash_algorithm": (
+                    item.hash_algorithm
+                    if item.tolerance_hash_algorithm is None
+                    else item.tolerance_hash_algorithm
+                ),
+                "tolerance_hash_value": (
+                    item.hash_value
+                    if item.tolerance_hash_value is None
+                    else item.tolerance_hash_value
+                ),
             }
             for item in table_fingerprints
         ],
