@@ -383,8 +383,16 @@ def test_site_metadata_property_removing_required_column_fails(
 def test_dataset_schema_site_metadata_index_mismatch_fails() -> None:
     phospho = PhosphoIntensityMatrix(frame=_phospho_frame())
     bad = _site_metadata_frame(pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"))
-    with pytest.raises(DatasetValidationError, match="must exactly match"):
+    with pytest.raises(DatasetValidationError) as exc_info:
         SiteMetadataTable(frame=bad, expected_index=phospho.frame.index)
+    message = str(exc_info.value)
+    assert (
+        "dataset.site_metadata.index must exactly match dataset.phospho.index"
+        in message
+    )
+    assert "Only in dataset.site_metadata.index: 'GSK3B;S9;'" in message
+    assert "Only in dataset.phospho.index: 'AKT1;T308;'" in message
+    assert "First positional mismatch: position 1" in message
 
 
 def test_dataset_schema_site_metadata_identity_mismatch_fails() -> None:
@@ -411,8 +419,13 @@ def test_dataset_schema_total_matrix_column_mismatch_fails() -> None:
         {"sample_a": [1.0], "sample_x": [2.0]},
         index=pd.Index(["P28482"], name="protein_id"),
     )
-    with pytest.raises(DatasetValidationError, match="must exactly match"):
+    with pytest.raises(DatasetValidationError) as exc_info:
         TotalProteinMatrix(frame=total, expected_sample_index=phospho.frame.columns)
+    message = str(exc_info.value)
+    assert "dataset.total.columns must exactly match dataset.phospho.columns" in message
+    assert "Only in dataset.total.columns: 'sample_x'" in message
+    assert "Only in dataset.phospho.columns: 'sample_b'" in message
+    assert "First positional mismatch: position 1" in message
 
 
 def test_reference_schema_valid_kinase_substrate_reference_passes() -> None:

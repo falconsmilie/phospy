@@ -15,6 +15,7 @@ from phospy.site_ids import (
 )
 
 ValidationErrorType = type[PhosPyValidationError]
+_ALIGNMENT_EXAMPLE_LIMIT = 5
 
 
 def require_dataframe(
@@ -177,10 +178,96 @@ def require_exact_index_match(
     """Require two indexes to be exactly equal (labels and order)."""
 
     if not left.equals(right):
+        summariser = (
+            summarise_column_mismatch
+            if left_name.endswith(".columns") and right_name.endswith(".columns")
+            else summarise_index_mismatch
+        )
+        detail = summariser(
+            left=left,
+            right=right,
+            left_name=left_name,
+            right_name=right_name,
+            max_examples=_ALIGNMENT_EXAMPLE_LIMIT,
+        )
         raise error_type(
             f"{left_name} must exactly match {right_name}; "
-            f"{left_name}_count={int(left.size)}, {right_name}_count={int(right.size)}"
+            f"expected_length={int(right.size)}, actual_length={int(left.size)}; "
+            f"{left_name}_count={int(left.size)}, {right_name}_count={int(right.size)}; "
+            f"{detail}"
         )
+
+
+def summarise_index_mismatch(
+    *,
+    left: pd.Index,
+    right: pd.Index,
+    left_name: str,
+    right_name: str,
+    max_examples: int = _ALIGNMENT_EXAMPLE_LIMIT,
+) -> str:
+    """Summarise one index alignment mismatch without dumping full label sets."""
+
+    left_only, right_only = _labels_only_in_each_side(left=left, right=right)
+    first_mismatch = _first_positional_mismatch(left=left, right=right)
+    labels_match_set_order_differs = (
+        not left_only and not right_only and not left.equals(right)
+    )
+    mismatch_text = (
+        f"position {first_mismatch[0]}, "
+        f"{left_name}={_format_label(first_mismatch[1])}, "
+        f"{right_name}={_format_label(first_mismatch[2])}"
+        if first_mismatch is not None
+        else "none"
+    )
+    return "; ".join(
+        (
+            f"Only in {left_name}: {format_label_examples(left_only, max_examples=max_examples)}",
+            f"Only in {right_name}: {format_label_examples(right_only, max_examples=max_examples)}",
+            f"First positional mismatch: {mismatch_text}",
+            (
+                "Labels match as a set but order differs: "
+                f"{str(labels_match_set_order_differs).lower()}"
+            ),
+        )
+    )
+
+
+def summarise_column_mismatch(
+    *,
+    left: pd.Index,
+    right: pd.Index,
+    left_name: str,
+    right_name: str,
+    max_examples: int = _ALIGNMENT_EXAMPLE_LIMIT,
+) -> str:
+    """Summarise one column-label mismatch between two aligned tables."""
+
+    return summarise_index_mismatch(
+        left=left,
+        right=right,
+        left_name=left_name,
+        right_name=right_name,
+        max_examples=max_examples,
+    )
+
+
+def format_label_examples(
+    labels: Iterable[object],
+    *,
+    max_examples: int = _ALIGNMENT_EXAMPLE_LIMIT,
+) -> str:
+    """Format capped label examples for mismatch diagnostics."""
+
+    values = list(labels)
+    if not values:
+        return "(none)"
+    preview_count = max(int(max_examples), 1)
+    preview = ", ".join(_format_label(value) for value in values[:preview_count])
+    remaining = len(values) - preview_count
+    if remaining > 0:
+        return f"{preview}, +{remaining} more"
+    return preview
 
 
 def require_non_empty_index_intersection(
@@ -509,6 +596,45 @@ def _require_stripped_site_identifiers(
 
 def _is_missing_site_identifier(value: object) -> bool:
     return bool(pd.Series((value,), dtype="object").isna().iat[0])
+
+
+def _labels_only_in_each_side(
+    *, left: pd.Index, right: pd.Index
+) -> tuple[list[object], list[object]]:
+    left_values = left.tolist()
+    right_values = right.tolist()
+    try:
+        right_lookup = set(right_values)
+        left_lookup = set(left_values)
+        left_only = [label for label in left_values if label not in right_lookup]
+        right_only = [label for label in right_values if label not in left_lookup]
+    except TypeError:
+        left_only = [label for label in left_values if label not in right_values]
+        right_only = [label for label in right_values if label not in left_values]
+    return left_only, right_only
+
+
+def _first_positional_mismatch(
+    *,
+    left: pd.Index,
+    right: pd.Index,
+) -> tuple[int, object, object] | None:
+    shared_length = min(int(left.size), int(right.size))
+    for position in range(shared_length):
+        left_label = left[position]
+        right_label = right[position]
+        if left_label != right_label:
+            return position, left_label, right_label
+    if left.size == right.size:
+        return None
+    missing = "<missing>"
+    if left.size > right.size:
+        return shared_length, left[shared_length], missing
+    return shared_length, missing, right[shared_length]
+
+
+def _format_label(label: object) -> str:
+    return repr(label)
 
 
 def _invalid_location_preview(mask: pd.DataFrame, *, max_items: int = 3) -> str:

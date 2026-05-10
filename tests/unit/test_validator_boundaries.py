@@ -1084,6 +1084,36 @@ def test_signalome_validator_requires_explicit_site_metadata_protein_id_column()
         SignalomeWorkflowValidator().run(request)
 
 
+def test_signalome_validator_reports_site_metadata_index_alignment_details() -> None:
+    kinase_result = _kinase_result()
+    kinase_result.dataset._site_metadata.index = pd.Index(
+        ["MAPK14;Y182;_mismatch"], name="site_id"
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=kinase_result,
+        config=build_signalome_config(substrate_support_cutoff=0.5),
+    )
+
+    with pytest.raises(WorkflowValidationError) as exc_info:
+        SignalomeWorkflowValidator().run(request)
+
+    message = str(exc_info.value)
+    assert (
+        "signalome workflow request kinase_result.dataset.site_metadata.index "
+        "must exactly match signalome workflow request "
+        "kinase_result.dataset.phospho.index"
+    ) in message
+    assert (
+        "Only in signalome workflow request kinase_result.dataset.site_metadata.index: "
+        "'MAPK14;Y182;_mismatch'"
+    ) in message
+    assert (
+        "Only in signalome workflow request kinase_result.dataset.phospho.index: "
+        "'MAPK14;Y182;'"
+    ) in message
+    assert "First positional mismatch: position 0" in message
+
+
 def test_signalome_validator_rejects_empty_site_metadata_protein_id_values() -> None:
     kinase_result = _kinase_result()
     site_metadata = kinase_result.dataset.site_metadata.copy(deep=True)
