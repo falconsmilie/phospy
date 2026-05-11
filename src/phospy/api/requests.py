@@ -5,8 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-import pandas as pd
-
 from phospy.api.configs import (
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE,
     DatasetPreprocessingConfig,
@@ -18,6 +16,7 @@ from phospy.api.configs import (
 )
 from phospy.datasets.builders.contracts import DatasetInput
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.design.models import Contrast, ExperimentalDesign, SampleDesignRecord
 from phospy.differential.models import (
     ContrastMatrix,
     DesignMatrix,
@@ -112,8 +111,10 @@ class DifferentialAnalysisRequest:
     """Request for the public differential workflow."""
 
     dataset: AnalysisReadyPhosphoDataset
-    design: DesignMatrix | pd.DataFrame
-    contrasts: ContrastMatrix | pd.DataFrame
+    design: ExperimentalDesign
+    contrasts: tuple[Contrast, ...]
+    allow_design_subset: bool = False
+    minimum_condition_replicates: int = 2
     empirical_bayes: EmpiricalBayesConfig = field(default_factory=EmpiricalBayesConfig)
     multiple_testing: MultipleTestingConfig = field(
         default_factory=MultipleTestingConfig
@@ -121,18 +122,33 @@ class DifferentialAnalysisRequest:
 
     def __post_init__(self) -> None:
         design = self.design
-        if isinstance(design, pd.DataFrame):
-            design = DesignMatrix(design)
-        if not isinstance(design, DesignMatrix):
+        if not isinstance(design, ExperimentalDesign):
             raise WorkflowValidationError(
-                "differential workflow request design must be DesignMatrix or pandas DataFrame"
+                "differential workflow request design must be ExperimentalDesign"
             )
         contrasts = self.contrasts
-        if isinstance(contrasts, pd.DataFrame):
-            contrasts = ContrastMatrix(contrasts)
-        if not isinstance(contrasts, ContrastMatrix):
+        if not isinstance(contrasts, tuple):
+            contrasts = tuple(contrasts)  # type: ignore[arg-type]
+        if not contrasts:
             raise WorkflowValidationError(
-                "differential workflow request contrasts must be ContrastMatrix or pandas DataFrame"
+                "differential workflow request contrasts must include at least one Contrast"
+            )
+        for contrast in contrasts:
+            if not isinstance(contrast, Contrast):
+                raise WorkflowValidationError(
+                    "differential workflow request contrasts must contain Contrast values"
+                )
+        if not isinstance(self.allow_design_subset, bool):
+            raise WorkflowValidationError(
+                "differential workflow request allow_design_subset must be a bool"
+            )
+        if not isinstance(self.minimum_condition_replicates, int):
+            raise WorkflowValidationError(
+                "differential workflow request minimum_condition_replicates must be an int"
+            )
+        if self.minimum_condition_replicates < 1:
+            raise WorkflowValidationError(
+                "differential workflow request minimum_condition_replicates must be >= 1"
             )
         if not isinstance(self.empirical_bayes, EmpiricalBayesConfig):
             raise WorkflowValidationError(
@@ -150,6 +166,9 @@ __all__ = [
     "ContrastMatrix",
     "DesignMatrix",
     "DatasetBuildRequest",
+    "SampleDesignRecord",
+    "ExperimentalDesign",
+    "Contrast",
     "DifferentialAnalysisRequest",
     "EmpiricalBayesConfig",
     "KinaseWorkflowRequest",

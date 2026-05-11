@@ -46,6 +46,9 @@ exceptions:
 ```python
 from phospy.api import (
     DatasetBuildRequest,
+    ExperimentalDesign,
+    Contrast,
+    SampleDesignRecord,
     DatasetPreprocessingConfig,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,

@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-from typing import cast
-
-import pandas as pd
-
 from phospy.api.requests import DifferentialAnalysisRequest
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.differential.models import ContrastMatrix, DesignMatrix
 from phospy.errors.validation import WorkflowValidationError
+from phospy.validation.workflows.differential import (
+    ExperimentalDesignContractValidator,
+)
 from phospy.workflows.differential.models import (
     ValidatedDifferentialAnalysisRequest,
 )
@@ -17,6 +16,15 @@ from phospy.workflows.differential.models import (
 
 class DifferentialAnalysisValidator:
     """Validate `DifferentialAnalysisRequest` before interpretation."""
+
+    def __init__(
+        self,
+        *,
+        design_validator: ExperimentalDesignContractValidator | None = None,
+    ) -> None:
+        self._design_validator = (
+            design_validator or ExperimentalDesignContractValidator()
+        )
 
     def run(self, request: object) -> ValidatedDifferentialAnalysisRequest:
         if not isinstance(request, DifferentialAnalysisRequest):
@@ -27,37 +35,23 @@ class DifferentialAnalysisValidator:
             raise WorkflowValidationError(
                 "differential workflow request dataset must be AnalysisReadyPhosphoDataset"
             )
-        design = request.design
-        if not isinstance(design, DesignMatrix):
-            raise WorkflowValidationError(
-                "differential workflow request design must resolve to DesignMatrix"
-            )
-        contrasts = request.contrasts
-        if not isinstance(contrasts, ContrastMatrix):
-            raise WorkflowValidationError(
-                "differential workflow request contrasts must resolve to ContrastMatrix"
-            )
-        design_terms = pd.Index(design.frame.columns)
-        contrast_terms = pd.Index(contrasts.frame.index)
-        if not design_terms.equals(contrast_terms):
-            if (
-                not design_terms.isin(contrast_terms).all()
-                or not contrast_terms.isin(design_terms).all()
-            ):
-                raise WorkflowValidationError(
-                    "differential workflow request contrasts.index must match "
-                    "differential workflow request design.columns exactly as "
-                    "design-term labels"
-                )
-        if int(contrasts.frame.shape[1]) < 1:
-            raise WorkflowValidationError(
-                "differential workflow request contrasts must contain at least one "
-                "contrast column"
-            )
+        validated_design_contract = self._design_validator.run(
+            dataset=request.dataset,
+            design=request.design,
+            contrasts=request.contrasts,
+            allow_design_subset=request.allow_design_subset,
+            minimum_condition_replicates=request.minimum_condition_replicates,
+        )
+
+        design_matrix = DesignMatrix(validated_design_contract.design_frame)
+        contrast_matrix = ContrastMatrix(validated_design_contract.contrast_frame)
         return ValidatedDifferentialAnalysisRequest(
             dataset=request.dataset,
-            design=cast(DesignMatrix, design),
-            contrasts=cast(ContrastMatrix, contrasts),
+            design=validated_design_contract.design,
+            contrasts=validated_design_contract.contrasts,
+            analysis_sample_ids=validated_design_contract.analysis_sample_ids,
+            design_matrix=design_matrix,
+            contrast_matrix=contrast_matrix,
             empirical_bayes=request.empirical_bayes,
             multiple_testing=request.multiple_testing,
         )

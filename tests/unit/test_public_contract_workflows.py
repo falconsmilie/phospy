@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import inspect
-from typing import get_args, get_type_hints
+from typing import get_args, get_origin, get_type_hints
 
 import pytest
 
@@ -15,11 +15,11 @@ from phospy.api.configs import (
     SignalomeOutputConfig,
 )
 from phospy.api.requests import (
-    ContrastMatrix,
+    Contrast,
     DatasetBuildRequest,
-    DesignMatrix,
     DifferentialAnalysisRequest,
     EmpiricalBayesConfig,
+    ExperimentalDesign,
     KinaseWorkflowRequest,
     MultipleTestingConfig,
     SignalomeWorkflowRequest,
@@ -44,13 +44,16 @@ def _public_methods(cls: type[object]) -> set[str]:
 
 def test_public_workflow_and_request_exports_match_contract() -> None:
     assert set(request_models.__all__) == {
+        "Contrast",
         "ContrastMatrix",
         "DesignMatrix",
         "DatasetBuildRequest",
         "DifferentialAnalysisRequest",
         "EmpiricalBayesConfig",
+        "ExperimentalDesign",
         "KinaseWorkflowRequest",
         "MultipleTestingConfig",
+        "SampleDesignRecord",
         "SignalomeWorkflowRequest",
     }
     assert set(workflow_models.__all__) == {
@@ -101,8 +104,10 @@ def test_workflow_requests_keep_ingestion_outside_workflows() -> None:
             "KinaseWorkflowResult": KinaseWorkflowResult,
         },
     )
-    assert DesignMatrix in get_args(differential_request_hints["design"])
-    assert ContrastMatrix in get_args(differential_request_hints["contrasts"])
+    assert differential_request_hints["design"] is ExperimentalDesign
+    contrasts_hint = differential_request_hints["contrasts"]
+    assert get_origin(contrasts_hint) is tuple
+    assert get_args(contrasts_hint) == (Contrast, Ellipsis)
     assert differential_request_hints["empirical_bayes"] is EmpiricalBayesConfig
     assert differential_request_hints["multiple_testing"] is MultipleTestingConfig
     assert kinase_request_hints["dataset"] is AnalysisReadyPhosphoDataset

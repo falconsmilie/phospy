@@ -44,13 +44,16 @@ from phospy.api.datasets import (
 )
 from phospy.api.enums import Organism, ReferencePreset
 from phospy.api.requests import (
+    Contrast,
     ContrastMatrix,
     DatasetBuildRequest,
     DesignMatrix,
     DifferentialAnalysisRequest,
     EmpiricalBayesConfig,
+    ExperimentalDesign,
     KinaseWorkflowRequest,
     MultipleTestingConfig,
+    SampleDesignRecord,
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import (
@@ -115,6 +118,9 @@ __all__ = [
     "TotalProteinCorrectionState",
     "DatasetComparisonBuildingConfig",
     "DatasetIntensityTransformConfig",
+    "SampleDesignRecord",
+    "ExperimentalDesign",
+    "Contrast",
     "DesignMatrix",
     "ContrastMatrix",
     "DatasetBuildRequest",

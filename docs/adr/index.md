@@ -25,3 +25,4 @@ Use these ADRs when you need rationale and tradeoffs.
 - [ADR 0016: DataFrame and Series Ownership at Public Boundaries](adr_0016_dataframe_and_series_ownership_at_public_boundaries.md)
 - [ADR 0017: Stochastic Reproducibility and Adaptive Prediction Seed Governance](adr_0017_stochastic_reproducibility_and_adaptive_prediction_seed_governance.md)
 - [ADR 0018: Phosphosite Identity and Localisation Policy](adr_0018_phosphosite_identity_and_localisation_policy.md)
+- [ADR 0019: Experimental Design and Contrast Contract](adr_0019_experimental_design_and_contrast_contract.md)

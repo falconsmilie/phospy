@@ -105,8 +105,21 @@ identical numeric outputs across different machines or dependency builds.
 ### Required Input Tables
 
 - `dataset.phospho`: numeric feature-by-sample table from `AnalysisReadyPhosphoDataset`.
-- `design`: numeric full-rank design matrix aligned to `dataset.phospho.columns`.
-- `contrasts`: numeric contrast matrix aligned to `design.columns`.
+- `design`: typed `ExperimentalDesign` sample records aligned to dataset sample
+  IDs (`sample_id`, `condition`, optional replicate/batch/block metadata).
+- `contrasts`: typed `Contrast` condition-vs-condition definitions.
+
+### Experimental-Design Contract Policy
+
+- Differential workflows do not infer conditions from sample names.
+- Sample/design alignment is validated before statistical execution.
+- By default, dataset and design must reference the same sample set.
+- `allow_design_subset=True` is the only supported path to analyze an explicit
+  subset of samples.
+- Duplicate design sample IDs, missing condition labels, and unknown contrast
+  conditions are hard validation errors.
+- Batch and blocking metadata are represented in the contract for forward
+  compatibility but are not yet executable in this release.
 
 ### Empirical-Bayes Moderation Policy
 

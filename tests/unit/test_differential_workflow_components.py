@@ -8,9 +8,12 @@ import pytest
 
 from phospy import AnalysisReadyPhosphoDataset
 from phospy.api import (
+    Contrast,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
+    ExperimentalDesign,
     Organism,
+    SampleDesignRecord,
 )
 from phospy.api.results import DifferentialAnalysisResult
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
@@ -60,16 +63,36 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
 def _request() -> DifferentialAnalysisRequest:
     return DifferentialAnalysisRequest(
         dataset=_dataset(),
-        design=pd.DataFrame(
-            {
-                "A": [1.0, 1.0, 0.0, 0.0],
-                "B": [0.0, 0.0, 1.0, 1.0],
-            },
-            index=pd.Index(["A_1", "A_2", "B_1", "B_2"], name="sample"),
+        design=ExperimentalDesign(
+            samples=(
+                SampleDesignRecord(
+                    sample_id="A_1",
+                    condition="A",
+                    biological_replicate_id="A_r1",
+                ),
+                SampleDesignRecord(
+                    sample_id="A_2",
+                    condition="A",
+                    biological_replicate_id="A_r2",
+                ),
+                SampleDesignRecord(
+                    sample_id="B_1",
+                    condition="B",
+                    biological_replicate_id="B_r1",
+                ),
+                SampleDesignRecord(
+                    sample_id="B_2",
+                    condition="B",
+                    biological_replicate_id="B_r2",
+                ),
+            )
         ),
-        contrasts=pd.DataFrame(
-            {"B_vs_A": [-1.0, 1.0]},
-            index=pd.Index(["A", "B"], name="coefficient"),
+        contrasts=(
+            Contrast(
+                name="B_vs_A",
+                numerator_condition="B",
+                denominator_condition="A",
+            ),
         ),
     )
 
@@ -150,7 +173,13 @@ def test_differential_validator_rejects_unknown_contrast_term_before_interpretat
     None
 ):
     request = _request()
-    bad_contrasts = request.contrasts.to_dataframe().rename(index={"A": "A_bad"})
+    bad_contrasts = (
+        Contrast(
+            name="B_vs_A",
+            numerator_condition="B",
+            denominator_condition="A_bad",
+        ),
+    )
     bad_request = DifferentialAnalysisRequest(
         dataset=request.dataset,
         design=request.design,
@@ -158,21 +187,15 @@ def test_differential_validator_rejects_unknown_contrast_term_before_interpretat
     )
     with pytest.raises(
         WorkflowValidationError,
-        match="contrasts.index must match differential workflow request design.columns",
+        match="unknown denominator condition",
     ):
         DifferentialAnalysisValidator().run(bad_request)
 
 
 def test_differential_interpreter_checks_sample_to_design_alignment() -> None:
     request = _request()
-    validated = ValidatedDifferentialAnalysisRequest(
-        dataset=request.dataset,
-        design=request.design,
-        contrasts=request.contrasts,
-        empirical_bayes=request.empirical_bayes,
-        multiple_testing=request.multiple_testing,
-    )
-    misaligned_design = validated.design.to_dataframe()
+    validated = DifferentialAnalysisValidator().run(request)
+    misaligned_design = validated.design_matrix.to_dataframe()
     misaligned_design.index = pd.Index(["x1", "x2", "x3", "x4"], name="sample")
     with pytest.raises(
         WorkflowBoundaryError,
@@ -181,8 +204,11 @@ def test_differential_interpreter_checks_sample_to_design_alignment() -> None:
         DifferentialAnalysisInterpreter().run(
             ValidatedDifferentialAnalysisRequest(
                 dataset=validated.dataset,
-                design=type(validated.design)(misaligned_design),
+                design=validated.design,
                 contrasts=validated.contrasts,
+                analysis_sample_ids=validated.analysis_sample_ids,
+                design_matrix=type(validated.design_matrix)(misaligned_design),
+                contrast_matrix=validated.contrast_matrix,
                 empirical_bayes=validated.empirical_bayes,
                 multiple_testing=validated.multiple_testing,
             )
@@ -209,7 +235,13 @@ def test_differential_invalid_contrast_fails_before_executor() -> None:
     bad_request = DifferentialAnalysisRequest(
         dataset=request.dataset,
         design=request.design,
-        contrasts=request.contrasts.to_dataframe().rename(index={"A": "A_bad"}),
+        contrasts=(
+            Contrast(
+                name="B_vs_A",
+                numerator_condition="B",
+                denominator_condition="A_bad",
+            ),
+        ),
     )
 
     workflow = DifferentialAnalysisWorkflow(executor=_ExecutorSpy())  # type: ignore[arg-type]
@@ -227,11 +259,17 @@ def test_differential_misaligned_design_fails_before_executor() -> None:
             raise AssertionError("executor should not be called")
 
     request = _request()
-    design = request.design.to_dataframe()
-    design.index = pd.Index(["x1", "x2", "x3", "x4"], name="sample")
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="x1", condition="A"),
+            SampleDesignRecord(sample_id="x2", condition="A"),
+            SampleDesignRecord(sample_id="x3", condition="B"),
+            SampleDesignRecord(sample_id="x4", condition="B"),
+        )
+    )
 
     workflow = DifferentialAnalysisWorkflow(executor=_ExecutorSpy())  # type: ignore[arg-type]
-    with pytest.raises(WorkflowBoundaryError):
+    with pytest.raises(WorkflowValidationError):
         workflow.run(
             DifferentialAnalysisRequest(
                 dataset=request.dataset,

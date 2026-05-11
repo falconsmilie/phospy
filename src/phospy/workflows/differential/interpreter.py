@@ -27,48 +27,29 @@ class DifferentialAnalysisInterpreter:
     def run(
         self, request: ValidatedDifferentialAnalysisRequest
     ) -> InterpretedDifferentialAnalysisRequest:
-        matrix = request.dataset._borrow_phospho_frame()
-        design_frame = request.design.frame
-        contrast_frame = request.contrasts.frame
+        analysis_sample_ids = request.analysis_sample_ids
+        matrix = request.dataset._borrow_phospho_frame().loc[
+            :, list(analysis_sample_ids)
+        ]
+        design_aligned = request.design_matrix.frame
+        contrasts_aligned = request.contrast_matrix.frame
 
         matrix_samples = pd.Index(matrix.columns)
-        design_samples = pd.Index(design_frame.index)
-        if int(matrix_samples.size) != int(design_samples.size):
+        design_samples = pd.Index(design_aligned.index)
+        if not matrix_samples.equals(design_samples):
             raise WorkflowBoundaryError(
-                seam="differential.interpreter.sample_count_alignment",
+                seam="differential.interpreter.sample_label_alignment",
                 next_action=(
-                    "ensure dataset sample columns and differential design rows use "
-                    "the same sample set"
+                    "ensure validated design sample IDs exactly match the "
+                    "analysis matrix sample order"
                 ),
                 details={
-                    "dataset_sample_count": int(matrix_samples.size),
-                    "design_sample_count": int(design_samples.size),
+                    "matrix_samples": matrix_samples.astype(str).tolist(),
+                    "design_samples": design_samples.astype(str).tolist(),
                 },
                 message_prefix="differential workflow boundary validation failed",
             )
-        if not matrix_samples.equals(design_samples):
-            if (
-                not matrix_samples.isin(design_samples).all()
-                or not design_samples.isin(matrix_samples).all()
-            ):
-                raise WorkflowBoundaryError(
-                    seam="differential.interpreter.sample_label_alignment",
-                    next_action=(
-                        "align differential design index labels to dataset sample "
-                        "column labels"
-                    ),
-                    details={
-                        "dataset_samples": matrix_samples.astype(str).tolist(),
-                        "design_samples": design_samples.astype(str).tolist(),
-                    },
-                    message_prefix="differential workflow boundary validation failed",
-                )
-
-        design_aligned = cast(pd.DataFrame, design_frame.loc[matrix_samples, :])
-        matrix_aligned = cast(pd.DataFrame, matrix.loc[:, design_aligned.index])
-        contrasts_aligned = cast(
-            pd.DataFrame, contrast_frame.loc[design_aligned.columns, :]
-        )
+        matrix_aligned = cast(pd.DataFrame, matrix.copy(deep=True))
 
         design_values = design_aligned.to_numpy(dtype=float)
         design_shape = cast(tuple[int, int], design_values.shape)

@@ -7,6 +7,7 @@ from typing import Protocol
 
 from phospy.api.requests import MultipleTestingConfig
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.design.models import Contrast, ExperimentalDesign
 from phospy.differential.models import (
     ContrastMatrix,
     DesignMatrix,
@@ -23,8 +24,11 @@ class ValidatedDifferentialAnalysisRequest:
     """Validated differential request passed to interpretation."""
 
     dataset: AnalysisReadyPhosphoDataset
-    design: DesignMatrix
-    contrasts: ContrastMatrix
+    design: ExperimentalDesign
+    contrasts: tuple[Contrast, ...]
+    analysis_sample_ids: tuple[str, ...]
+    design_matrix: DesignMatrix
+    contrast_matrix: ContrastMatrix
     empirical_bayes: EmpiricalBayesConfig
     multiple_testing: MultipleTestingConfig
 

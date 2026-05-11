@@ -1,17 +1,20 @@
 from __future__ import annotations
 
+from collections import defaultdict
+
 import numpy as np
 import pandas as pd
 import pandas.testing as pdt
 import pytest
 
 from phospy.api import (
-    ContrastMatrix,
-    DesignMatrix,
+    Contrast,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
     EmpiricalBayesConfig,
+    ExperimentalDesign,
     Organism,
+    SampleDesignRecord,
 )
 from phospy.errors import (
     PhosPyInputError,
@@ -77,42 +80,64 @@ def supported_dataset(*, phospho: pd.DataFrame, site_metadata: pd.DataFrame):
     )
 
 
-def _design() -> DesignMatrix:
-    return DesignMatrix(
-        pd.DataFrame(
-            {
-                "A": [1.0, 1.0, 0.0, 0.0, 0.0, 0.0],
-                "B": [0.0, 0.0, 1.0, 1.0, 0.0, 0.0],
-                "C": [0.0, 0.0, 0.0, 0.0, 1.0, 1.0],
-            },
-            index=pd.Index(["A_1", "A_2", "B_1", "B_2", "C_1", "C_2"], name="sample"),
+def _design_from_conditions(
+    entries: tuple[tuple[str, str], ...],
+) -> ExperimentalDesign:
+    replicate_counts: defaultdict[str, int] = defaultdict(int)
+    records: list[SampleDesignRecord] = []
+    for sample_id, condition in entries:
+        replicate_counts[condition] += 1
+        records.append(
+            SampleDesignRecord(
+                sample_id=sample_id,
+                condition=condition,
+                biological_replicate_id=(f"{condition}_r{replicate_counts[condition]}"),
+            )
+        )
+    return ExperimentalDesign(samples=tuple(records))
+
+
+def _design() -> ExperimentalDesign:
+    return _design_from_conditions(
+        (
+            ("A_1", "A"),
+            ("A_2", "A"),
+            ("B_1", "B"),
+            ("B_2", "B"),
+            ("C_1", "C"),
+            ("C_2", "C"),
         )
     )
 
 
-def _contrasts() -> ContrastMatrix:
-    return ContrastMatrix(
-        pd.DataFrame(
-            {
-                "B_vs_A": [-1.0, 1.0, 0.0],
-                "C_vs_A": [-1.0, 0.0, 1.0],
-            },
-            index=pd.Index(["A", "B", "C"], name="coefficient"),
-        )
+def _contrasts() -> tuple[Contrast, ...]:
+    return (
+        Contrast(
+            name="B_vs_A",
+            numerator_condition="B",
+            denominator_condition="A",
+        ),
+        Contrast(
+            name="C_vs_A",
+            numerator_condition="C",
+            denominator_condition="A",
+        ),
     )
 
 
 def _request(
     *,
     dataset=None,
-    design: DesignMatrix | pd.DataFrame | None = None,
-    contrasts: ContrastMatrix | pd.DataFrame | None = None,
+    design: ExperimentalDesign | None = None,
+    contrasts: tuple[Contrast, ...] | None = None,
     empirical_bayes: EmpiricalBayesConfig | None = None,
+    minimum_condition_replicates: int = 2,
 ) -> DifferentialAnalysisRequest:
     return DifferentialAnalysisRequest(
         dataset=_dataset() if dataset is None else dataset,
         design=_design() if design is None else design,
         contrasts=_contrasts() if contrasts is None else contrasts,
+        minimum_condition_replicates=minimum_condition_replicates,
         empirical_bayes=(
             EmpiricalBayesConfig(method="standard")
             if empirical_bayes is None
@@ -213,16 +238,20 @@ def test_low_replicate_mode_remains_stable_with_robust_and_trend() -> None:
             name="site_id",
         ),
     )
-    design = pd.DataFrame(
-        {
-            "A": [1.0, 1.0, 0.0, 0.0],
-            "B": [0.0, 0.0, 1.0, 1.0],
-        },
-        index=pd.Index(["A_1", "A_2", "B_1", "B_2"], name="sample"),
+    design = _design_from_conditions(
+        (
+            ("A_1", "A"),
+            ("A_2", "A"),
+            ("B_1", "B"),
+            ("B_2", "B"),
+        )
     )
-    contrasts = pd.DataFrame(
-        {"B_vs_A": [-1.0, 1.0]},
-        index=pd.Index(["A", "B"], name="coefficient"),
+    contrasts = (
+        Contrast(
+            name="B_vs_A",
+            numerator_condition="B",
+            denominator_condition="A",
+        ),
     )
 
     result = DifferentialAnalysisWorkflow().run(
@@ -245,50 +274,56 @@ def test_low_replicate_mode_remains_stable_with_robust_and_trend() -> None:
 
 
 def test_differential_analysis_fails_on_sample_design_mismatch() -> None:
-    design = _design().to_dataframe()
-    design.index = pd.Index(["X1", "X2", "X3", "X4", "X5", "X6"], name="sample")
+    design = _design_from_conditions(
+        (
+            ("X1", "A"),
+            ("X2", "A"),
+            ("X3", "B"),
+            ("X4", "B"),
+            ("X5", "C"),
+            ("X6", "C"),
+        )
+    )
     with pytest.raises(
-        WorkflowBoundaryError,
-        match="differential.interpreter.sample_label_alignment",
+        WorkflowValidationError,
+        match="samples not present in dataset",
     ):
         DifferentialAnalysisWorkflow().run(_request(design=design))
 
 
 def test_differential_analysis_fails_on_contrast_design_term_mismatch() -> None:
-    contrasts = _contrasts().to_dataframe().rename(index={"A": "A_wrong"})
+    contrasts = (
+        Contrast(
+            name="B_vs_A",
+            numerator_condition="B",
+            denominator_condition="A_wrong",
+        ),
+    )
     with pytest.raises(
         WorkflowValidationError,
-        match="contrasts.index must match differential workflow request design.columns",
+        match="unknown denominator condition",
     ):
         DifferentialAnalysisWorkflow().run(_request(contrasts=contrasts))
 
 
 def test_differential_analysis_fails_when_residual_dof_is_non_positive() -> None:
-    matrix = _matrix()
-    identity_design = pd.DataFrame(
-        {
-            "A_1": [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            "A_2": [0.0, 1.0, 0.0, 0.0, 0.0, 0.0],
-            "B_1": [0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
-            "B_2": [0.0, 0.0, 0.0, 1.0, 0.0, 0.0],
-            "C_1": [0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
-            "C_2": [0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
-        },
-        index=matrix.columns.copy(),
+    matrix = _matrix().loc[:, ["A_1", "B_1", "C_1"]]
+    design = _design_from_conditions(
+        (
+            ("A_1", "A"),
+            ("B_1", "B"),
+            ("C_1", "C"),
+        )
     )
-    identity_contrasts = pd.DataFrame(
-        {"A_1_vs_A_2": [1.0, -1.0, 0.0, 0.0, 0.0, 0.0]},
-        index=identity_design.columns.copy(),
-    )
-
     with pytest.raises(
-        WorkflowBoundaryError, match="differential.interpreter.residual_dof"
+        WorkflowBoundaryError,
+        match="differential.interpreter.residual_dof",
     ):
         DifferentialAnalysisWorkflow().run(
             _request(
                 dataset=_dataset(matrix),
-                design=identity_design,
-                contrasts=identity_contrasts,
+                design=design,
+                minimum_condition_replicates=1,
             )
         )
 
@@ -303,16 +338,20 @@ def test_differential_analysis_handles_zero_variance_features() -> None:
         },
         index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
     )
-    design = pd.DataFrame(
-        {
-            "A": [1.0, 1.0, 0.0, 0.0],
-            "B": [0.0, 0.0, 1.0, 1.0],
-        },
-        index=pd.Index(["A_1", "A_2", "B_1", "B_2"], name="sample"),
+    design = _design_from_conditions(
+        (
+            ("A_1", "A"),
+            ("A_2", "A"),
+            ("B_1", "B"),
+            ("B_2", "B"),
+        )
     )
-    contrasts = pd.DataFrame(
-        {"B_vs_A": [-1.0, 1.0]},
-        index=pd.Index(["A", "B"], name="coefficient"),
+    contrasts = (
+        Contrast(
+            name="B_vs_A",
+            numerator_condition="B",
+            denominator_condition="A",
+        ),
     )
 
     result = DifferentialAnalysisWorkflow().run(
@@ -331,37 +370,19 @@ def test_differential_analysis_handles_zero_variance_features() -> None:
     assert np.isfinite(table.loc[:, "P.Value"]).all()
 
 
-def test_differential_analysis_rejects_missing_group_labels_in_design() -> None:
-    matrix = pd.DataFrame(
-        {
-            "A_1": [1.0],
-            "A_2": [1.1],
-            "B_1": [2.0],
-            "B_2": [2.1],
-        },
-        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
-    )
-    design = pd.DataFrame(
-        {
-            "A": [1.0, 1.0, 0.0, 0.0],
-            "B": [0.0, float("nan"), 1.0, 1.0],
-        },
-        index=pd.Index(["A_1", "A_2", "B_1", "B_2"], name="sample"),
-    )
-    contrasts = pd.DataFrame(
-        {"B_vs_A": [-1.0, 1.0]},
-        index=pd.Index(["A", "B"], name="coefficient"),
-    )
-
+def test_differential_analysis_rejects_empty_condition_labels() -> None:
     with pytest.raises(
-        PhosPyInputError,
-        match="differential.design must not contain missing values",
+        WorkflowValidationError,
+        match="condition",
     ):
-        DifferentialAnalysisWorkflow().run(
-            _request(
-                dataset=_dataset(matrix),
-                design=design,
-                contrasts=contrasts,
+        _request(
+            design=ExperimentalDesign(
+                samples=(
+                    SampleDesignRecord(sample_id="A_1", condition="A"),
+                    SampleDesignRecord(sample_id="A_2", condition=""),
+                    SampleDesignRecord(sample_id="B_1", condition="B"),
+                    SampleDesignRecord(sample_id="B_2", condition="B"),
+                )
             )
         )
 
@@ -376,18 +397,30 @@ def test_differential_analysis_sample_order_mismatch_is_resolved_by_label() -> N
         },
         index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
     )
-    design = pd.DataFrame(
-        {
-            "A": [1.0, 1.0, 0.0, 0.0],
-            "B": [0.0, 0.0, 1.0, 1.0],
-        },
-        index=pd.Index(["A_1", "A_2", "B_1", "B_2"], name="sample"),
+    design = _design_from_conditions(
+        (
+            ("A_1", "A"),
+            ("A_2", "A"),
+            ("B_1", "B"),
+            ("B_2", "B"),
+        )
     )
-    contrasts = pd.DataFrame(
-        {"B_vs_A": [-1.0, 1.0]},
-        index=pd.Index(["A", "B"], name="coefficient"),
+    contrasts = (
+        Contrast(
+            name="B_vs_A",
+            numerator_condition="B",
+            denominator_condition="A",
+        ),
     )
     reordered_samples = ["B_2", "A_1", "B_1", "A_2"]
+    reordered_design = _design_from_conditions(
+        (
+            ("B_2", "B"),
+            ("A_1", "A"),
+            ("B_1", "B"),
+            ("A_2", "A"),
+        )
+    )
 
     aligned = (
         DifferentialAnalysisWorkflow()
@@ -405,7 +438,7 @@ def test_differential_analysis_sample_order_mismatch_is_resolved_by_label() -> N
         .run(
             _request(
                 dataset=_dataset(matrix.loc[:, reordered_samples]),
-                design=design.loc[reordered_samples, :],
+                design=reordered_design,
                 contrasts=contrasts,
             )
         )

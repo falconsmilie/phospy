@@ -6,8 +6,8 @@ first-class downstream workflow over `AnalysisReadyPhosphoDataset`.
 ## Purpose
 
 `DifferentialAnalysisWorkflow` runs moderated differential analysis from an
-analysis-ready phosphosite matrix plus an explicit design and contrast
-definition.
+analysis-ready phosphosite matrix plus an explicit, typed experimental design
+contract and typed contrast definitions.
 
 It is separate from kinase and signalome workflows. Differential results can be
 consumed by downstream workflows where explicitly supported.
@@ -26,12 +26,13 @@ differential_result = DifferentialAnalysisWorkflow().run(
 
 ```python
 from phospy.api import (
-    ContrastMatrix,
-    DesignMatrix,
+    Contrast,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
     EmpiricalBayesConfig,
+    ExperimentalDesign,
     MultipleTestingConfig,
+    SampleDesignRecord,
 )
 ```
 
@@ -40,19 +41,26 @@ from phospy.api import (
 | Parameter | Type | Default | Required | How to Use It |
 | --- | --- | --- | --- | --- |
 | `dataset` | `AnalysisReadyPhosphoDataset` | None | Yes | Dataset returned by `AnalysisReadyDatasetBuilder.run(...)`. Differential analysis consumes `dataset.phospho` as the quantitative matrix. |
-| `design` | `DesignMatrix` or `pandas.DataFrame` | None | Yes | Sample-by-term design matrix. Rows are samples and must align to `dataset.phospho.columns` by sample labels. |
-| `contrasts` | `ContrastMatrix` or `pandas.DataFrame` | None | Yes | Design-term-by-contrast matrix. Rows must align to `design.columns`. |
+| `design` | `ExperimentalDesign` | None | Yes | Typed sample-level design records (`sample_id`, `condition`, and optional replicate/batch/block fields). |
+| `contrasts` | `tuple[Contrast, ...]` | None | Yes | Typed condition-vs-condition contrasts. |
+| `allow_design_subset` | `bool` | `False` | No | If `True`, design sample IDs may be a strict subset of dataset samples. |
+| `minimum_condition_replicates` | `int` | `2` | No | Minimum required replicate count per contrast condition. |
 | `empirical_bayes` | `EmpiricalBayesConfig` | `EmpiricalBayesConfig()` | No | Moderation policy (`standard` or `robust`) and optional trend settings. |
 | `multiple_testing` | `MultipleTestingConfig` | `MultipleTestingConfig(method="benjamini_hochberg")` | No | Multiple-testing adjustment policy. Current release supports Benjamini-Hochberg. |
 
 ## Design and Contrast Requirements
 
-- `design.index` must represent the same sample set as `dataset.phospho.columns`.
-- Sample order may differ; labels must still match as a set.
-- `design` must be full column rank.
-- Residual degrees of freedom must be positive.
-- `contrasts.index` must match `design.columns`.
-- Each contrast vector must be estimable under the resolved design.
+- Conditions are never inferred from sample names.
+- `ExperimentalDesign.samples[].sample_id` must align to dataset sample IDs.
+- By default, every dataset sample must appear in design.
+- Duplicate design sample IDs are rejected.
+- Empty condition labels are rejected.
+- Contrast conditions must exist in the design.
+- Each contrast must satisfy minimum replicate counts for numerator and
+  denominator conditions.
+- Batch/block metadata is modeled in the contract but not yet executable in the
+  differential engine; such requests fail with explicit unsupported-feature
+  errors.
 
 ## Empirical-Bayes Settings
 
@@ -61,12 +69,6 @@ from phospy.api import (
 | `method` | `str` | `"standard"` | `"standard"`, `"robust"` | `standard` applies limma-style moderation. `robust` applies winsorized robust hyperparameter estimation. |
 | `trend` | `bool` | `False` | `True`, `False` | Enables mean-intensity trend fitting (`limma-trend` style). |
 | `winsor_tail_p` | `tuple[float, float]` | `(0.05, 0.1)` | Two probabilities in `[0, 1)` summing to `< 1.0` | Tail clipping parameters used by robust moderation. |
-
-## Multiple-Testing Settings
-
-| Parameter | Type | Default | Allowed Values | How to Use It |
-| --- | --- | --- | --- | --- |
-| `method` | `str` | `"benjamini_hochberg"` | `"benjamini_hochberg"` | Adjusts per-contrast p-values as FDR q-values. |
 
 ## Public Workflow Shape
 
@@ -77,8 +79,8 @@ workflows:
 2. `interpreted = interpreter.run(validated)`
 3. `result = executor.run(interpreted)`
 
-The interpreter stage prepares the statistical execution plan (alignment,
-resolved design/contrast, and executability checks) before computation.
+The design contract is validated before statistical execution. The interpreter
+receives resolved matrix-ready design/contrast structures.
 
 ## Output Model
 
@@ -94,34 +96,18 @@ Common outputs include:
 - `result.prior_diagnostics`
 - `result.mean_variance_trend_diagnostics` (when trend is enabled)
 
-## Validation Behaviour
-
-- Invalid request types fail at validator stage.
-- Unknown contrast terms fail at validator stage.
-- Sample/design misalignment fails at interpreter stage.
-- Non-estimable contrast definitions fail at interpreter stage.
-- Execution receives interpreted inputs only.
-
-## Scientific Assumptions and Interpretation Notes
-
-- `logFC` values are OLS contrast estimates.
-- Moderation changes variance, t-statistics, and p-values, not fold-change
-  estimates.
-- `adj.P.Val` reports Benjamini-Hochberg adjusted p-values per contrast.
-- Differential scores are statistical associations under the supplied design and
-  contrast definitions; they are not direct evidence of causal regulation.
-
 ## Minimal Example
 
 ```python
-import pandas as pd
-
 from phospy import AnalysisReadyDatasetBuilder
 from phospy.api import (
+    Contrast,
     DatasetBuildRequest,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
+    ExperimentalDesign,
     Organism,
+    SampleDesignRecord,
 )
 
 dataset = AnalysisReadyDatasetBuilder().run(
@@ -132,11 +118,37 @@ dataset = AnalysisReadyDatasetBuilder().run(
     )
 )
 
-design = pd.DataFrame(
-    {"A": [1.0, 1.0, 0.0, 0.0], "B": [0.0, 0.0, 1.0, 1.0]},
-    index=["A_1", "A_2", "B_1", "B_2"],
+design = ExperimentalDesign(
+    samples=(
+        SampleDesignRecord(
+            sample_id="A_1",
+            condition="A",
+            biological_replicate_id="A_r1",
+        ),
+        SampleDesignRecord(
+            sample_id="A_2",
+            condition="A",
+            biological_replicate_id="A_r2",
+        ),
+        SampleDesignRecord(
+            sample_id="B_1",
+            condition="B",
+            biological_replicate_id="B_r1",
+        ),
+        SampleDesignRecord(
+            sample_id="B_2",
+            condition="B",
+            biological_replicate_id="B_r2",
+        ),
+    )
 )
-contrasts = pd.DataFrame({"B_vs_A": [-1.0, 1.0]}, index=["A", "B"])
+contrasts = (
+    Contrast(
+        name="B_vs_A",
+        numerator_condition="B",
+        denominator_condition="A",
+    ),
+)
 
 result = DifferentialAnalysisWorkflow().run(
     DifferentialAnalysisRequest(
