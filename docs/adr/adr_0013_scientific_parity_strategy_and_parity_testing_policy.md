@@ -84,6 +84,8 @@ It should not ask:
 
 For PhosPy, parity means that the new implementation reproduces the intended scientific behaviour of the target analysis flow closely enough to be considered faithful to the PhosR-style workflow.
 
+Parity is feature-specific, not global.
+
 Parity does not mean exact preservation of:
 
 - internal package layout
@@ -92,6 +94,28 @@ Parity does not mean exact preservation of:
 - legacy result aliases
 - historical orchestration layers
 - accidental implementation details of the previous application
+
+## Compatibility Matrix Governance
+
+PhosPy must maintain a PhosR compatibility and scope matrix in:
+
+- `docs/scientific-coverage.md`
+
+That matrix is the required, user-visible compatibility ledger and must:
+
+1. classify each comparison area honestly as one of:
+   - Required parity
+   - Deliberate scope difference
+   - Useful future extension
+   - Unnecessary feature creep
+2. avoid global "PhosR parity" claims
+3. make unsupported areas explicit rather than implicit
+4. distinguish gap classes (scientific, architectural, implementation, UX/documentation)
+5. list evidence for "supported" and "partially supported" statements
+6. require parity-fixture evidence before claiming PhosR-equivalent behaviour
+
+Parity claims must be source-labelled at fixture level. A parity claim without
+source-labelled fixture provenance is not accepted as a PhosR-equivalence claim.
 
 ## Primary Parity Target
 
