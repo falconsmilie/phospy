@@ -22,7 +22,7 @@ ACTIVE_SCRIPTS_DIR ?= scripts/active
 
 .PHONY: help \
 	check-tools check-r-tools fixtures-dirs \
-	install install-dev lint format type-check pre-commit test test-unit test-parity test-seams build clean \
+	install install-dev lint format type-check pre-commit test tests-all test-unit test-parity test-seams build clean \
 	fixtures fixtures-r-l6 traces-r \
 	fixtures-public-workflow-reference fixtures-provenance-goldens fixtures-all \
 	dataset-builder-demo kinase-workflow-demo signalome-workflow-demo demo-all
@@ -38,6 +38,7 @@ help:
 	@echo   make test-unit                     Run the non-parity pytest suite
 	@echo   make test-parity                   Run the parity pytest suite
 	@echo   make test                          Run unit and parity tests
+	@echo   make tests-all                     Alias for all-tests
 	@echo   make test-seams                    Run seam-focused rewrite parity tests
 	@echo   make dataset-builder-demo          Run examples.dataset_builder_demo.main()
 	@echo   make kinase-workflow-demo          Run examples.kinase_workflow_demo.main()
@@ -79,6 +80,9 @@ type-check: check-tools
 	$(PYTHON) -m pyright --warnings
 
 test: test-unit test-parity
+
+tests-all: check-tools
+	$(PYTEST) -o addopts= tests/
 
 test-unit: check-tools
 	$(PYTEST) -m "not parity"
