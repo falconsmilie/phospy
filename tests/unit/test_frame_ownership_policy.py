@@ -484,7 +484,9 @@ def test_public_dataframe_accessors_do_not_accept_copy_keyword() -> None:
         assert "copy" not in signature.parameters
 
 
-def test_internal_borrowed_dataset_access_aliases_owned_frames_without_copy() -> None:
+def test_internal_borrowed_dataset_access_is_mutation_isolated_without_deep_copy() -> (
+    None
+):
     dataset = AnalysisReadyPhosphoDataset(
         phospho=_phospho(),
         site_metadata=_site_metadata(),
@@ -497,13 +499,17 @@ def test_internal_borrowed_dataset_access_aliases_owned_frames_without_copy() ->
 
     with _count_dataframe_deep_copies() as counts:
         borrowed = dataset._borrow_phospho_frame()
+        borrowed.iloc[0, 0] = 999.0
+        borrowed.loc[:, "borrowed_only"] = [1.0, 2.0]
 
-    assert borrowed is dataset._phospho
+    assert borrowed is not dataset._phospho
     assert counts.dataframe_deep == 0
     assert not hasattr(dataset, "borrow_phospho_frame")
+    assert float(dataset._phospho.iloc[0, 0]) == 1.0
+    assert "borrowed_only" not in dataset._phospho.columns
 
 
-def test_internal_borrowed_prediction_and_scoring_access_aliases_owned_frames() -> None:
+def test_internal_borrowed_prediction_and_scoring_access_is_mutation_isolated() -> None:
     pred_mat = pd.DataFrame(
         {
             "MAP2K6": [0.9, 0.8],
@@ -531,11 +537,19 @@ def test_internal_borrowed_prediction_and_scoring_access_aliases_owned_frames() 
         borrowed_rank_weighted = (
             scoring_result._borrow_rank_weighted_fusion_scores_frame()
         )
+        borrowed_pred.iloc[0, 0] = 99.0
+        borrowed_profile.iloc[0, 0] = 88.0
+        assert borrowed_rank_weighted is not None
+        borrowed_rank_weighted.iloc[0, 0] = 77.0
 
     assert counts.dataframe_deep == 0
-    assert borrowed_pred is prediction_result._pred_mat
-    assert borrowed_profile is scoring_result._profile_scores
-    assert borrowed_rank_weighted is scoring_result._rank_weighted_fusion_scores
+    assert borrowed_pred is not prediction_result._pred_mat
+    assert borrowed_profile is not scoring_result._profile_scores
+    assert borrowed_rank_weighted is not scoring_result._rank_weighted_fusion_scores
+    assert float(prediction_result._pred_mat.iloc[0, 0]) == 0.9
+    assert float(scoring_result._profile_scores.iloc[0, 0]) == 0.8
+    assert scoring_result._rank_weighted_fusion_scores is not None
+    assert float(scoring_result._rank_weighted_fusion_scores.iloc[0, 0]) == 0.75
     assert not hasattr(prediction_result, "borrow_pred_mat_frame")
     assert not hasattr(scoring_result, "borrow_profile_scores_frame")
 
