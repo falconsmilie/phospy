@@ -1,0 +1,25 @@
+{
+  "bundle_id": "l6_native",
+  "organism": "Rattus norvegicus",
+  "organism_common_name": "rat",
+  "identifier_namespace": "site_id (GENE_SYMBOL;RESIDUE;)",
+  "source_name": "PhosR bundled reference resources (PhosphoSite.mouse, motif.mouse.list, phospho.L6.ratio.pe-derived lane)",
+  "source_version": null,
+  "retrieved_at": "2026-04-16",
+  "license": "Derived from PhosR resources; refer to upstream licenses and terms.",
+  "redistribution_status": "Bundled in PhosPy for runtime reference resolution under upstream attribution and redistribution terms.",
+  "sequence_window": {
+    "upstream_residues": 15,
+    "downstream_residues": 15,
+    "central_residue_required": true
+  },
+  "supports": [
+    "site_sequence_derivation",
+    "kinase_substrate_mapping",
+    "signalome_reference_mapping"
+  ],
+  "limitations": [
+    "Rat-only bundled reference lane in this release.",
+    "Not suitable for unsupported organisms unless caller supplies an explicit external ReferenceBundle."
+  ]
+}

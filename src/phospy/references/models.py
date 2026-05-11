@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import InitVar, dataclass
+from datetime import date
 from enum import Enum
 
 import pandas as pd
@@ -10,7 +11,7 @@ import pandas as pd
 from phospy._frame_ownership import export_dataframe, own_dataframe
 from phospy.errors.validation import ReferenceValidationError
 from phospy.provenance.hashing import fingerprint_table
-from phospy.provenance.models import ReferenceProvenance
+from phospy.provenance.models import JsonValue, ReferenceProvenance
 from phospy.references.identifiers import (
     merge_reference_identifier_normalisation_reports,
 )
@@ -43,6 +44,62 @@ class ReferencePreset(str, Enum):
 
 
 @dataclass(frozen=True, slots=True)
+class SequenceWindowDefinition:
+    """Reference sequence-window definition for centralized site sequences."""
+
+    upstream_residues: int
+    downstream_residues: int
+    central_residue_required: bool
+
+    def to_payload(self) -> dict[str, JsonValue]:
+        return {
+            "upstream_residues": int(self.upstream_residues),
+            "downstream_residues": int(self.downstream_residues),
+            "central_residue_required": bool(self.central_residue_required),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ReferenceManifest:
+    """Machine-readable metadata describing one runtime reference bundle."""
+
+    bundle_id: str
+    organism: str
+    organism_common_name: str | None
+    identifier_namespace: str
+    source_name: str
+    source_version: str | None
+    retrieved_at: date | None
+    license: str | None
+    redistribution_status: str | None
+    sequence_window: SequenceWindowDefinition | None
+    supports: tuple[str, ...]
+    limitations: tuple[str, ...]
+
+    def to_payload(self) -> dict[str, JsonValue]:
+        return {
+            "bundle_id": self.bundle_id,
+            "organism": self.organism,
+            "organism_common_name": self.organism_common_name,
+            "identifier_namespace": self.identifier_namespace,
+            "source_name": self.source_name,
+            "source_version": self.source_version,
+            "retrieved_at": (
+                None if self.retrieved_at is None else self.retrieved_at.isoformat()
+            ),
+            "license": self.license,
+            "redistribution_status": self.redistribution_status,
+            "sequence_window": (
+                None
+                if self.sequence_window is None
+                else self.sequence_window.to_payload()
+            ),
+            "supports": self.supports,
+            "limitations": self.limitations,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class ReferenceBundle:
     """Resolved workflow reference resources.
 
@@ -55,6 +112,7 @@ class ReferenceBundle:
     kinase_substrate_map: pd.DataFrame
     site_sequences: pd.DataFrame
     provenance: ReferenceProvenance | None = None
+    manifest: ReferenceManifest | None = None
     _assume_owned: InitVar[bool] = False
 
     def __post_init__(self, _assume_owned: bool) -> None:
@@ -131,8 +189,19 @@ class ReferenceBundle:
                 source_type=provenance.source_type,
                 organism=provenance.organism,
                 bundle_id=provenance.bundle_id,
+                source_name=provenance.source_name,
+                source_version=provenance.source_version,
+                retrieved_at=provenance.retrieved_at,
+                identifier_namespace=provenance.identifier_namespace,
+                sequence_window=provenance.sequence_window,
+                manifest=provenance.manifest,
                 table_fingerprints=provenance.table_fingerprints,
                 identifier_normalisation=identifier_normalisation,
+            )
+        manifest = self.manifest
+        if manifest is not None and not isinstance(manifest, ReferenceManifest):
+            raise ReferenceValidationError(
+                "references.manifest must be ReferenceManifest or None"
             )
         object.__setattr__(
             self,
@@ -145,6 +214,7 @@ class ReferenceBundle:
             site_sequence_reference.frame,
         )
         object.__setattr__(self, "provenance", provenance)
+        object.__setattr__(self, "manifest", manifest)
 
     @classmethod
     def _from_owned(
@@ -154,12 +224,14 @@ class ReferenceBundle:
         kinase_substrate_map: pd.DataFrame,
         site_sequences: pd.DataFrame,
         provenance: ReferenceProvenance | None = None,
+        manifest: ReferenceManifest | None = None,
     ) -> ReferenceBundle:
         return cls(
             organism=organism,
             kinase_substrate_map=kinase_substrate_map,
             site_sequences=site_sequences,
             provenance=provenance,
+            manifest=manifest,
             _assume_owned=True,
         )
 

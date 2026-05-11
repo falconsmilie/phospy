@@ -2,17 +2,25 @@
 
 from __future__ import annotations
 
+import json
+from datetime import date
+from functools import cache
 from importlib import resources
 
 import pandas as pd
 
 from phospy.errors.references import ReferenceResolutionError, UnsupportedOrganismError
-from phospy.references.models import Organism
+from phospy.references.models import (
+    Organism,
+    ReferenceManifest,
+    SequenceWindowDefinition,
+)
 from phospy.site_ids import canonicalize_site_index, canonicalize_site_series
 
 _BUNDLED_DEFAULTS: dict[Organism, str] = {
     Organism.RAT: "l6_native",
 }
+_MANIFEST_FILENAME = "manifest.json"
 _NON_BUNDLED_GUIDANCE = (
     "non-bundled organism lanes require a caller-supplied ReferenceBundle"
 )
@@ -38,9 +46,42 @@ def bundled_reference_name_for_organism(organism: Organism) -> str:
     )
 
 
+def clear_bundled_reference_manifest_cache() -> None:
+    """Clear cached bundled manifest parsing (primarily for tests)."""
+
+    _load_bundled_reference_manifest_cached.cache_clear()
+
+
+def load_bundled_reference_manifest(organism: Organism) -> ReferenceManifest:
+    """Load and validate the machine-readable bundled manifest for an organism."""
+
+    return _load_bundled_reference_manifest_cached(organism)
+
+
+@cache
+def _load_bundled_reference_manifest_cached(organism: Organism) -> ReferenceManifest:
+    reference_name = bundled_reference_name_for_organism(organism)
+    payload = _read_json_resource(
+        organism=organism,
+        reference_name=reference_name,
+        filename=_MANIFEST_FILENAME,
+    )
+    if not isinstance(payload, dict):
+        raise ReferenceResolutionError(
+            "bundled reference manifest must decode to an object for "
+            f"{organism.value}/{reference_name}: {_MANIFEST_FILENAME}"
+        )
+    return _parse_reference_manifest_payload(
+        payload=payload,
+        organism=organism,
+        reference_name=reference_name,
+    )
+
+
 def load_bundled_kinase_substrate_map(organism: Organism) -> pd.DataFrame:
     """Load the packaged kinase-substrate map for one supported organism."""
 
+    load_bundled_reference_manifest(organism)
     reference_name = bundled_reference_name_for_organism(organism)
     frame = _read_csv_resource(
         organism=organism,
@@ -80,6 +121,7 @@ def load_bundled_kinase_substrate_map(organism: Organism) -> pd.DataFrame:
 def load_bundled_site_sequences(organism: Organism) -> pd.DataFrame:
     """Load the packaged site-sequence table for one supported organism."""
 
+    load_bundled_reference_manifest(organism)
     reference_name = bundled_reference_name_for_organism(organism)
     frame = _read_csv_resource(
         organism=organism,
@@ -121,6 +163,7 @@ def load_bundled_site_sequences(organism: Organism) -> pd.DataFrame:
 def load_bundled_motif_scores(organism: Organism) -> pd.DataFrame | None:
     """Load optional bundled motif-score table for one supported organism."""
 
+    load_bundled_reference_manifest(organism)
     reference_name = bundled_reference_name_for_organism(organism)
     frame = _read_optional_csv_resource(
         organism=organism,
@@ -159,6 +202,7 @@ def load_bundled_motif_scores(organism: Organism) -> pd.DataFrame | None:
 def load_bundled_motif_sizes(organism: Organism) -> pd.Series | None:
     """Load optional bundled motif-size metadata for one supported organism."""
 
+    load_bundled_reference_manifest(organism)
     reference_name = bundled_reference_name_for_organism(organism)
     frame = _read_optional_csv_resource(
         organism=organism,
@@ -194,19 +238,233 @@ def load_bundled_motif_sizes(organism: Organism) -> pd.Series | None:
     return sizes
 
 
+def _parse_reference_manifest_payload(
+    *,
+    payload: dict[str, object],
+    organism: Organism,
+    reference_name: str,
+) -> ReferenceManifest:
+    context = f"{organism.value}/{reference_name}/{_MANIFEST_FILENAME}"
+    bundle_id = _require_manifest_string(payload, key="bundle_id", context=context)
+    manifest_organism = _require_manifest_string(
+        payload,
+        key="organism",
+        context=context,
+    )
+    organism_common_name = _optional_manifest_string(
+        payload,
+        key="organism_common_name",
+        context=context,
+    )
+    identifier_namespace = _require_manifest_string(
+        payload,
+        key="identifier_namespace",
+        context=context,
+    )
+    source_name = _require_manifest_string(
+        payload,
+        key="source_name",
+        context=context,
+    )
+    source_version = _optional_manifest_string(
+        payload,
+        key="source_version",
+        context=context,
+    )
+    retrieved_at_raw = payload.get("retrieved_at")
+    retrieved_at = _parse_manifest_date(
+        value=retrieved_at_raw,
+        key="retrieved_at",
+        context=context,
+    )
+    license_name = _optional_manifest_string(
+        payload,
+        key="license",
+        context=context,
+    )
+    redistribution_status = _optional_manifest_string(
+        payload,
+        key="redistribution_status",
+        context=context,
+    )
+    sequence_window = _parse_sequence_window(
+        value=payload.get("sequence_window"),
+        context=context,
+    )
+    supports = _require_manifest_string_list(
+        payload,
+        key="supports",
+        context=context,
+    )
+    limitations = _require_manifest_string_list(
+        payload,
+        key="limitations",
+        context=context,
+    )
+    expected_organism = organism.value
+    declared_organism_tokens = {manifest_organism.strip().lower()}
+    if organism_common_name is not None:
+        declared_organism_tokens.add(organism_common_name.strip().lower())
+    if expected_organism not in declared_organism_tokens:
+        raise ReferenceResolutionError(
+            "bundled reference manifest organism does not match runtime lane for "
+            f"{context}: expected token {expected_organism!r}, got "
+            f"organism={manifest_organism!r}, "
+            f"organism_common_name={organism_common_name!r}"
+        )
+    return ReferenceManifest(
+        bundle_id=bundle_id,
+        organism=manifest_organism,
+        organism_common_name=organism_common_name,
+        identifier_namespace=identifier_namespace,
+        source_name=source_name,
+        source_version=source_version,
+        retrieved_at=retrieved_at,
+        license=license_name,
+        redistribution_status=redistribution_status,
+        sequence_window=sequence_window,
+        supports=supports,
+        limitations=limitations,
+    )
+
+
+def _parse_sequence_window(
+    *,
+    value: object,
+    context: str,
+) -> SequenceWindowDefinition:
+    if not isinstance(value, dict):
+        raise ReferenceResolutionError(
+            "bundled reference manifest sequence_window must be an object for "
+            f"{context}"
+        )
+    upstream = _require_manifest_int(
+        value,
+        key="upstream_residues",
+        context=context,
+    )
+    downstream = _require_manifest_int(
+        value,
+        key="downstream_residues",
+        context=context,
+    )
+    central_required_raw = value.get("central_residue_required")
+    if not isinstance(central_required_raw, bool):
+        raise ReferenceResolutionError(
+            "bundled reference manifest sequence_window.central_residue_required "
+            f"must be boolean for {context}"
+        )
+    if upstream < 0 or downstream < 0:
+        raise ReferenceResolutionError(
+            "bundled reference manifest sequence_window residue counts must be >= 0 "
+            f"for {context}"
+        )
+    return SequenceWindowDefinition(
+        upstream_residues=upstream,
+        downstream_residues=downstream,
+        central_residue_required=central_required_raw,
+    )
+
+
+def _parse_manifest_date(*, value: object, key: str, context: str) -> date | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ReferenceResolutionError(
+            f"bundled reference manifest {key} must be YYYY-MM-DD or null for {context}"
+        )
+    normalized = value.strip()
+    if not normalized:
+        return None
+    try:
+        return date.fromisoformat(normalized)
+    except ValueError as exc:
+        raise ReferenceResolutionError(
+            f"bundled reference manifest {key} must be YYYY-MM-DD for {context}"
+        ) from exc
+
+
+def _require_manifest_string(
+    payload: dict[str, object],
+    *,
+    key: str,
+    context: str,
+) -> str:
+    value = payload.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise ReferenceResolutionError(
+            f"bundled reference manifest {key} must be a non-empty string for {context}"
+        )
+    return value.strip()
+
+
+def _optional_manifest_string(
+    payload: dict[str, object],
+    *,
+    key: str,
+    context: str,
+) -> str | None:
+    value = payload.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ReferenceResolutionError(
+            f"bundled reference manifest {key} must be a string or null for {context}"
+        )
+    normalized = value.strip()
+    return normalized if normalized else None
+
+
+def _require_manifest_string_list(
+    payload: dict[str, object],
+    *,
+    key: str,
+    context: str,
+) -> tuple[str, ...]:
+    value = payload.get(key)
+    if not isinstance(value, list):
+        raise ReferenceResolutionError(
+            f"bundled reference manifest {key} must be an array of strings for {context}"
+        )
+    resolved: list[str] = []
+    for index, item in enumerate(value):
+        if not isinstance(item, str) or not item.strip():
+            raise ReferenceResolutionError(
+                "bundled reference manifest "
+                f"{key}[{index}] must be a non-empty string for {context}"
+            )
+        resolved.append(item.strip())
+    if not resolved:
+        raise ReferenceResolutionError(
+            f"bundled reference manifest {key} must not be empty for {context}"
+        )
+    return tuple(resolved)
+
+
+def _require_manifest_int(
+    payload: dict[str, object],
+    *,
+    key: str,
+    context: str,
+) -> int:
+    value = payload.get(key)
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ReferenceResolutionError(
+            f"bundled reference manifest {key} must be an integer for {context}"
+        )
+    return int(value)
+
+
 def _read_csv_resource(
     *,
     organism: Organism,
     reference_name: str,
     filename: str,
 ) -> pd.DataFrame:
-    package_root = resources.files("phospy")
-    resource = (
-        package_root.joinpath("data")
-        .joinpath("reference_bundles")
-        .joinpath(organism.value)
-        .joinpath(reference_name)
-        .joinpath(filename)
+    resource = _bundled_reference_resource(
+        organism=organism,
+        reference_name=reference_name,
+        filename=filename,
     )
     if not resource.is_file():
         raise ReferenceResolutionError(
@@ -223,15 +481,54 @@ def _read_optional_csv_resource(
     reference_name: str,
     filename: str,
 ) -> pd.DataFrame | None:
+    resource = _bundled_reference_resource(
+        organism=organism,
+        reference_name=reference_name,
+        filename=filename,
+    )
+    if not resource.is_file():
+        return None
+    with resources.as_file(resource) as resolved_path:
+        return pd.read_csv(resolved_path)
+
+
+def _read_json_resource(
+    *,
+    organism: Organism,
+    reference_name: str,
+    filename: str,
+) -> object:
+    resource = _bundled_reference_resource(
+        organism=organism,
+        reference_name=reference_name,
+        filename=filename,
+    )
+    if not resource.is_file():
+        raise ReferenceResolutionError(
+            "bundled reference resource is missing for "
+            f"{organism.value}/{reference_name}: {filename}"
+        )
+    with resources.as_file(resource) as resolved_path:
+        try:
+            return json.loads(resolved_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise ReferenceResolutionError(
+                "bundled reference manifest is not valid JSON for "
+                f"{organism.value}/{reference_name}: {filename}"
+            ) from exc
+
+
+def _bundled_reference_resource(
+    *,
+    organism: Organism,
+    reference_name: str,
+    filename: str,
+):
     package_root = resources.files("phospy")
-    resource = (
+    return (
         package_root.joinpath("data")
         .joinpath("reference_bundles")
         .joinpath(organism.value)
         .joinpath(reference_name)
         .joinpath(filename)
     )
-    if not resource.is_file():
-        return None
-    with resources.as_file(resource) as resolved_path:
-        return pd.read_csv(resolved_path)

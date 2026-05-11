@@ -11,6 +11,7 @@ from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
 from phospy.references.resources import (
     bundled_reference_name_for_organism,
     load_bundled_kinase_substrate_map,
+    load_bundled_reference_manifest,
     load_bundled_site_sequences,
 )
 from phospy.validation.references.compatibility import ReferenceCompatibilityValidator
@@ -45,12 +46,33 @@ class BundledReferenceProvider:
 
     def run(self, organism: Organism) -> ReferenceBundle:
         bundle_id = bundled_reference_name_for_organism(organism)
+        manifest = load_bundled_reference_manifest(organism)
+        if manifest.bundle_id != bundle_id:
+            raise ReferenceResolutionError(
+                "bundled reference manifest bundle_id does not match bundled lane name "
+                f"for organism '{organism.value}': expected '{bundle_id}', "
+                f"got '{manifest.bundle_id}'"
+            )
         kinase_substrate_map = load_bundled_kinase_substrate_map(organism)
         site_sequences = load_bundled_site_sequences(organism)
         provenance = ReferenceProvenance(
             source_type="bundled",
             organism=organism.value,
             bundle_id=bundle_id,
+            source_name=manifest.source_name,
+            source_version=manifest.source_version,
+            retrieved_at=(
+                None
+                if manifest.retrieved_at is None
+                else manifest.retrieved_at.isoformat()
+            ),
+            identifier_namespace=manifest.identifier_namespace,
+            sequence_window=(
+                None
+                if manifest.sequence_window is None
+                else manifest.sequence_window.to_payload()
+            ),
+            manifest=manifest.to_payload(),
             table_fingerprints=(
                 fingerprint_table(
                     kinase_substrate_map,
@@ -67,6 +89,7 @@ class BundledReferenceProvider:
             kinase_substrate_map=kinase_substrate_map,
             site_sequences=site_sequences,
             provenance=provenance,
+            manifest=manifest,
         )
 
 

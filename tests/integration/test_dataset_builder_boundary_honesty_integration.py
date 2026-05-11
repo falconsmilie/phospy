@@ -14,6 +14,7 @@ from phospy.api import (
     PhosPyInputError,
 )
 from phospy.api.configs import DATASET_SITE_MATRIX_MISSING_DATA_POLICIES
+from phospy.errors.references import UnsupportedOrganismError
 
 pytestmark = pytest.mark.integration
 
@@ -294,6 +295,9 @@ def test_builder_derives_missing_site_sequence_before_analysis_ready_constructio
     assert derivation["derived_sequence_count"] == 2
     assert derivation["unresolved_sequence_count"] == 0
     assert derivation["reference_support"] == "available"
+    assert derivation["reference_bundle_id"] == "l6_native"
+    assert isinstance(derivation["reference_manifest"], dict)
+    assert derivation["reference_manifest"]["bundle_id"] == "l6_native"
     assert str(derivation["reference_source"]).startswith("bundled_reference:rat/")
 
 
@@ -329,3 +333,30 @@ def test_builder_fails_when_site_sequence_cannot_be_derived_before_dataset_const
     assert "gene_symbol='FAKE1'" in message
     assert "site='S1'" in message
     assert "failure_category='missing_reference_support'" in message
+
+
+def test_builder_fails_clearly_for_unsupported_organism_when_site_sequences_need_derivation() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0], "sample_b": [1.5]},
+        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    with pytest.raises(
+        UnsupportedOrganismError, match="supported bundled organisms: rat"
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                organism=Organism.HUMAN,
+            )
+        )

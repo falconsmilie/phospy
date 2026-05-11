@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 import pandas as pd
 
 from phospy.errors.input import UnsupportedInputFormatError
-from phospy.errors.references import ReferenceResolutionError, UnsupportedOrganismError
 from phospy.references.models import Organism
 from phospy.references.resources import (
     bundled_reference_name_for_organism,
+    load_bundled_reference_manifest,
     load_bundled_site_sequences,
 )
 from phospy.site_ids import (
@@ -33,6 +34,8 @@ class SiteSequenceDerivationReport:
     unresolved_sequence_count: int
     derivation_attempted: bool
     reference_source: str | None
+    reference_bundle_id: str | None
+    reference_manifest: Mapping[str, object] | None
     reference_support: str
 
     def to_payload(self) -> dict[str, object]:
@@ -46,6 +49,12 @@ class SiteSequenceDerivationReport:
             "unresolved_sequence_count": int(self.unresolved_sequence_count),
             "derivation_attempted": bool(self.derivation_attempted),
             "reference_source": self.reference_source,
+            "reference_bundle_id": self.reference_bundle_id,
+            "reference_manifest": (
+                None
+                if self.reference_manifest is None
+                else dict(self.reference_manifest)
+            ),
             "reference_support": str(self.reference_support),
         }
 
@@ -54,6 +63,8 @@ class SiteSequenceDerivationReport:
 class _BundledDerivationAttempt:
     derived: pd.Series | None
     reference_source: str | None
+    reference_bundle_id: str | None
+    reference_manifest: Mapping[str, object] | None
     reference_support: str
 
 
@@ -84,6 +95,8 @@ class SiteSequenceDeriver:
             derive_missing_from_reference and organism is not None
         )
         reference_source: str | None = None
+        reference_bundle_id: str | None = None
+        reference_manifest: Mapping[str, object] | None = None
         reference_support = "not_attempted"
 
         if "site_sequence" in normalized.columns and not allow_partial:
@@ -97,6 +110,8 @@ class SiteSequenceDeriver:
                 unresolved_sequence_count=0,
                 derivation_attempted=derivation_attempted,
                 reference_source=None,
+                reference_bundle_id=None,
+                reference_manifest=None,
                 reference_support=(
                     "not_attempted"
                     if not derivation_attempted
@@ -121,6 +136,8 @@ class SiteSequenceDeriver:
                     organism=organism,
                 )
                 reference_source = attempt.reference_source
+                reference_bundle_id = attempt.reference_bundle_id
+                reference_manifest = attempt.reference_manifest
                 reference_support = attempt.reference_support
                 if attempt.derived is not None:
                     derived_optional = self._normalized_optional_site_sequence(
@@ -142,6 +159,8 @@ class SiteSequenceDeriver:
                 unresolved_sequence_count=unresolved_count,
                 derivation_attempted=derivation_attempted,
                 reference_source=reference_source,
+                reference_bundle_id=reference_bundle_id,
+                reference_manifest=reference_manifest,
                 reference_support=reference_support,
             )
             return normalized
@@ -155,6 +174,8 @@ class SiteSequenceDeriver:
                 unresolved_sequence_count=row_count,
                 derivation_attempted=derivation_attempted,
                 reference_source=None,
+                reference_bundle_id=None,
+                reference_manifest=None,
                 reference_support="not_attempted",
             )
             return normalized
@@ -164,6 +185,8 @@ class SiteSequenceDeriver:
             organism=organism,
         )
         reference_source = attempt.reference_source
+        reference_bundle_id = attempt.reference_bundle_id
+        reference_manifest = attempt.reference_manifest
         reference_support = attempt.reference_support
         if attempt.derived is None:
             self._last_report = SiteSequenceDerivationReport(
@@ -174,6 +197,8 @@ class SiteSequenceDeriver:
                 unresolved_sequence_count=row_count,
                 derivation_attempted=derivation_attempted,
                 reference_source=reference_source,
+                reference_bundle_id=reference_bundle_id,
+                reference_manifest=reference_manifest,
                 reference_support=reference_support,
             )
             return normalized
@@ -190,6 +215,8 @@ class SiteSequenceDeriver:
                 unresolved_sequence_count=unresolved_count,
                 derivation_attempted=derivation_attempted,
                 reference_source=reference_source,
+                reference_bundle_id=reference_bundle_id,
+                reference_manifest=reference_manifest,
                 reference_support=reference_support,
             )
             return normalized
@@ -203,6 +230,8 @@ class SiteSequenceDeriver:
                 unresolved_sequence_count=int(unresolved.sum()),
                 derivation_attempted=derivation_attempted,
                 reference_source=reference_source,
+                reference_bundle_id=reference_bundle_id,
+                reference_manifest=reference_manifest,
                 reference_support=reference_support,
             )
             return normalized
@@ -215,6 +244,8 @@ class SiteSequenceDeriver:
             unresolved_sequence_count=0,
             derivation_attempted=derivation_attempted,
             reference_source=reference_source,
+            reference_bundle_id=reference_bundle_id,
+            reference_manifest=reference_manifest,
             reference_support=reference_support,
         )
         return normalized
@@ -247,30 +278,9 @@ class SiteSequenceDeriver:
         site_metadata: pd.DataFrame,
         organism: Organism,
     ) -> _BundledDerivationAttempt:
-        reference_name: str | None = None
-        try:
-            reference_name = bundled_reference_name_for_organism(organism)
-            bundled_sequences = load_bundled_site_sequences(organism)
-        except UnsupportedOrganismError:
-            return _BundledDerivationAttempt(
-                derived=None,
-                reference_source=None,
-                reference_support="unsupported_organism",
-            )
-        except ReferenceResolutionError:
-            source = (
-                None
-                if reference_name is None
-                else (
-                    f"bundled_reference:{organism.value}/{reference_name}"
-                    "/site_sequences.csv"
-                )
-            )
-            return _BundledDerivationAttempt(
-                derived=None,
-                reference_source=source,
-                reference_support="reference_resolution_error",
-            )
+        reference_name = bundled_reference_name_for_organism(organism)
+        bundled_sequences = load_bundled_site_sequences(organism)
+        manifest = load_bundled_reference_manifest(organism)
         sequence_map = bundled_sequences.loc[:, "site_sequence"]
         sequence_map.index = canonicalize_site_index(
             sequence_map.index,
@@ -289,6 +299,8 @@ class SiteSequenceDeriver:
                 f"bundled_reference:{organism.value}/{reference_name}"
                 "/site_sequences.csv"
             ),
+            reference_bundle_id=manifest.bundle_id,
+            reference_manifest=manifest.to_payload(),
             reference_support="available",
         )
 

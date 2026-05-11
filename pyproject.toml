@@ -162,4 +162,7 @@ exclude = [
 reportMissingTypeStubs = "none"
 
 [tool.setuptools.package-data]
-phospy = ["data/reference_bundles/*/*/*.csv"]
+phospy = [
+  "data/reference_bundles/*/*/*.csv",
+  "data/reference_bundles/*/*/*.json",
+]

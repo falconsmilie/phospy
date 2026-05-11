@@ -5,6 +5,7 @@ import pytest
 
 from phospy.datasets.builders.sequence_derivation import SiteSequenceDeriver
 from phospy.errors.input import UnsupportedInputFormatError
+from phospy.errors.references import UnsupportedOrganismError
 from phospy.references.models import Organism
 
 
@@ -58,6 +59,9 @@ def test_site_sequence_deriver_derives_missing_sequences_from_supported_referenc
     assert report.unresolved_sequence_count == 0
     assert report.reference_support == "available"
     assert report.reference_source is not None
+    assert report.reference_bundle_id == "l6_native"
+    assert report.reference_manifest is not None
+    assert report.reference_manifest["bundle_id"] == "l6_native"
 
 
 def test_site_sequence_deriver_fails_clearly_for_blank_provided_sequence() -> None:
@@ -72,6 +76,21 @@ def test_site_sequence_deriver_fails_clearly_for_blank_provided_sequence() -> No
         deriver.run(
             site_metadata.copy(deep=True),
             organism=Organism.RAT,
+            allow_partial=False,
+            derive_missing_from_reference=True,
+        )
+
+
+def test_site_sequence_deriver_fails_for_unsupported_organism_when_derivation_is_required() -> (
+    None
+):
+    deriver = SiteSequenceDeriver()
+    with pytest.raises(
+        UnsupportedOrganismError, match="supported bundled organisms: rat"
+    ):
+        deriver.run(
+            _site_metadata_without_sequences().copy(deep=True),
+            organism=Organism.HUMAN,
             allow_partial=False,
             derive_missing_from_reference=True,
         )

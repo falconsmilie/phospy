@@ -655,6 +655,18 @@ def _reference_to_payload(reference: ReferenceProvenance) -> dict[str, object]:
         "source_type": reference.source_type,
         "organism": reference.organism,
         "bundle_id": reference.bundle_id,
+        "source_name": reference.source_name,
+        "source_version": reference.source_version,
+        "retrieved_at": reference.retrieved_at,
+        "identifier_namespace": reference.identifier_namespace,
+        "sequence_window": (
+            None
+            if reference.sequence_window is None
+            else _to_json_safe(reference.sequence_window)
+        ),
+        "manifest": (
+            None if reference.manifest is None else _to_json_safe(reference.manifest)
+        ),
         "table_fingerprints": [
             _table_fingerprint_to_payload(item) for item in reference.table_fingerprints
         ],
@@ -673,6 +685,14 @@ def _reference_from_payload(payload: Mapping[str, object]) -> ReferenceProvenanc
         payload.get("table_fingerprints"),
         field_name="reference_provenance.table_fingerprints",
     )
+    sequence_window_payload = _optional_mapping(
+        payload.get("sequence_window"),
+        field_name="reference_provenance.sequence_window",
+    )
+    manifest_payload = _optional_mapping(
+        payload.get("manifest"),
+        field_name="reference_provenance.manifest",
+    )
     return ReferenceProvenance(
         source_type=_require_str(
             payload.get("source_type"),
@@ -686,6 +706,33 @@ def _reference_from_payload(payload: Mapping[str, object]) -> ReferenceProvenanc
             payload.get("bundle_id"),
             field_name="reference_provenance.bundle_id",
         ),
+        source_name=_optional_str(
+            payload.get("source_name"),
+            field_name="reference_provenance.source_name",
+        ),
+        source_version=_optional_str(
+            payload.get("source_version"),
+            field_name="reference_provenance.source_version",
+        ),
+        retrieved_at=_optional_str(
+            payload.get("retrieved_at"),
+            field_name="reference_provenance.retrieved_at",
+        ),
+        identifier_namespace=_optional_str(
+            payload.get("identifier_namespace"),
+            field_name="reference_provenance.identifier_namespace",
+        ),
+        sequence_window=None
+        if sequence_window_payload is None
+        else {
+            str(key): _to_json_value(value)
+            for key, value in sequence_window_payload.items()
+        },
+        manifest=None
+        if manifest_payload is None
+        else {
+            str(key): _to_json_value(value) for key, value in manifest_payload.items()
+        },
         table_fingerprints=tuple(
             _table_fingerprint_from_payload(
                 _require_mapping(

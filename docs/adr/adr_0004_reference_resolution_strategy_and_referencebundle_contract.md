@@ -14,6 +14,8 @@ This Architecture Decision Record defines how reference resources are represente
 
 The decision is to define a single public `ReferenceBundle` contract and a simple reference resolution strategy based on either an explicit bundle or a reference preset. Public workflows should not assemble references ad hoc. Instead, they should delegate reference resolution to a dedicated reference provider path during interpretation, with shared validation handled in the validation domain.
 
+Bundled runtime references are scientific inputs. Each bundled runtime lane must therefore include a machine-readable manifest (reference data card) and bundled resolution must expose that manifest through programmatic provenance.
+
 ## Status
 
 Accepted.
@@ -137,6 +139,8 @@ interpreter resolves that preset to a bundled `ReferenceBundle` only when that
 organism has packaged bundled support in the current release. Otherwise it fails
 explicitly.
 
+Bundled loading must fail clearly when the bundled manifest is missing or malformed.
+
 ### Rule 3: `AUTO` Resolves From Dataset Organism
 
 If the user supplies `ReferencePreset.AUTO`, resolution should use the dataset organism.
@@ -152,6 +156,23 @@ The proposed rule is:
 ### Rule 4: Unsupported Organism Fails Explicitly
 
 If organism is missing, unsupported, or incompatible with the requested preset, PhosPy should fail with a clear validation error.
+
+This includes `AUTO`: unsupported organisms must not silently fall back to another bundled lane.
+
+## Runtime Manifest and Provenance Requirements
+
+Each bundled runtime reference lane must declare, in a machine-readable manifest:
+
+- organism and organism common name
+- identifier namespace
+- source name
+- source version or retrieval date
+- license and/or redistribution status
+- sequence-window definition
+- supported workflows
+- known limitations
+
+Reference provenance emitted by workflows should carry, at minimum, bundle ID, organism, source metadata, and sequence-window metadata for reference-derived outputs.
 
 ## Organism Compatibility Rules
 

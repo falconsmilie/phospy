@@ -47,6 +47,13 @@ def test_bundled_reference_resolution_sets_bundled_provenance() -> None:
         Organism.RAT
     )
     assert resolved.provenance.organism == Organism.RAT.value
+    assert resolved.provenance.source_name is not None
+    assert resolved.provenance.identifier_namespace is not None
+    assert resolved.provenance.sequence_window is not None
+    assert resolved.provenance.manifest is not None
+    assert (
+        resolved.provenance.manifest.get("bundle_id") == resolved.provenance.bundle_id
+    )
 
 
 def test_reference_resolver_keeps_explicit_bundle_identity_and_provenance() -> None:
@@ -68,6 +75,42 @@ def test_reference_resolver_keeps_explicit_bundle_identity_and_provenance() -> N
     assert resolved is bundle
     assert resolved.provenance is not None
     assert resolved.provenance.source_type == "explicit"
+
+
+def test_bundled_reference_provenance_serialization_round_trip_preserves_manifest_fields() -> (
+    None
+):
+    resolved = ReferenceResolver().run(
+        ReferencePreset.RAT,
+        dataset_organism=Organism.RAT,
+    )
+    assert resolved.provenance is not None
+
+    run_provenance = RunProvenance(
+        environment=EnvironmentProvenance(
+            package_name="phospy",
+            package_version="test",
+            python_version="3.13",
+            dependency_versions={},
+            platform={},
+        ),
+        input_tables=(),
+        preprocessing_stages=(),
+        reference=resolved.provenance,
+        workflow_name="unit_test",
+        workflow_parameters={},
+        random_state=None,
+        random_seed_policy=None,
+        output_tables=(),
+    )
+
+    payload = to_payload(run_provenance)
+    restored = from_payload(payload)
+    assert restored.reference is not None
+    assert restored.reference.manifest is not None
+    assert restored.reference.manifest.get("bundle_id") == "l6_native"
+    assert restored.reference.source_name is not None
+    assert restored.reference.identifier_namespace is not None
 
 
 def test_explicit_reference_bundle_provenance_includes_identifier_normalisation() -> (

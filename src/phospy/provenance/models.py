@@ -103,6 +103,12 @@ class ReferenceProvenance:
     organism: str
     bundle_id: str | None
     table_fingerprints: tuple[TableFingerprint, ...]
+    source_name: str | None = None
+    source_version: str | None = None
+    retrieved_at: str | None = None
+    identifier_namespace: str | None = None
+    sequence_window: Mapping[str, JsonValue] | None = None
+    manifest: Mapping[str, JsonValue] | None = None
     identifier_normalisation: ReferenceIdentifierNormalisationReport | None = None
 
 

@@ -101,12 +101,15 @@ Bundled runtime reference data should:
 - be versioned as part of the package source
 - be used only for supported runtime scenarios
 - remain as small and explicit as practical
+- include a machine-readable manifest (reference data card) per bundled runtime lane
 
 ### Authority
 
 Bundled runtime reference data is authoritative for PhosPy’s bundled reference behaviour.
 
 It is not automatically authoritative for parity expectations unless explicitly used as part of a parity fixture definition.
+
+Each runtime manifest should declare organism scope, identifier namespace, source metadata, license or redistribution status, supported workflows, sequence-window definition, and known limitations.
 
 ## Category 2: Test Fixture Data
 
@@ -192,6 +195,8 @@ This captures the intended separation while keeping future runtime data needs op
 - bundled runtime reference data may live under the runtime reference system and a broader runtime data area where justified later
 - ordinary fixtures live with tests
 - parity outputs live with the parity suite
+
+Runtime resolution code must not treat files under `tests/fixtures/` as bundled runtime references.
 
 A broader runtime `data/` area is acceptable if future package needs go beyond the current reference-resource model.
 
