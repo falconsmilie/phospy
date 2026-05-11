@@ -39,7 +39,7 @@ def _site_metadata() -> pd.DataFrame:
             "protein_accession": ["P53778", "P53778", "P31749"],
             "protein_group_id": ["PG_A", "PG_A", "PG_B"],
             "site": ["Y182", "T180", "T308"],
-            "site_sequence": ["SEQ1", "SEQ2", "SEQ3"],
+            "site_sequence": ["AAAAAYAAAAA", "AAAAATAAAAA", "AAAAATAAAAA"],
         },
         index=_phospho().index.copy(),
     )

@@ -219,6 +219,7 @@ That means parity should compare outcomes such as:
 - required fields present
 - metadata alignment
 - derived `site_sequence`
+- strict `site_sequence` completeness and validity before workflow execution
 - established transformation state
 - final analysis-ready structure
 

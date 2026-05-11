@@ -273,7 +273,7 @@ site_metadata = pd.DataFrame(
         "site": ["S939", "S9"],
         "site_sequence": [
             "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
-            "_______MSGRPRTTSFAESCKPVQQPSAFG",
+            "ATMSGRPRTTSFAESCKPVQQPSAFGQAAAL",
         ],
         "protein_id": ["TSC2", "GSK3B"],
     },

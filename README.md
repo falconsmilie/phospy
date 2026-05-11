@@ -64,7 +64,7 @@ PhosPy site IDs such as `TSC2;S939;`.
 
 - `gene_symbol`
 - `site`
-- `site_sequence` when you want motif-based scoring
+- `site_sequence` (required at the analysis-ready dataset boundary)
 - `protein_id` when you want signalome analysis
 
 ## Minimal Python Example
@@ -95,7 +95,7 @@ site_metadata = pd.DataFrame(
         "site": ["S939", "S9"],
         "site_sequence": [
             "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
-            "_______MSGRPRTTSFAESCKPVQQPSAFG",
+            "ATMSGRPRTTSFAESCKPVQQPSAFGQAAAL",
         ],
         "protein_id": ["TSC2", "GSK3B"],
     },

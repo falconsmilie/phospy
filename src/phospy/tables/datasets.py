@@ -23,6 +23,7 @@ from phospy.validation.common.dataframes import (
 from phospy.validation.datasets.site_metadata import (
     validate_localisation_probability_column,
     validate_site_identity_metadata,
+    validate_site_sequence_column,
 )
 
 
@@ -77,7 +78,6 @@ class SiteMetadataTable(TableSchema):
     """Schema wrapper for ``dataset.site_metadata``."""
 
     expected_index: pd.Index | None = field(default=None, repr=False, compare=False)
-    require_site_sequence: bool = field(default=False, repr=False, compare=False)
     allow_opaque_site_values: bool = field(default=False, repr=False, compare=False)
 
     _field_name = "dataset.site_metadata"
@@ -107,16 +107,9 @@ class SiteMetadataTable(TableSchema):
         require_columns(
             frame,
             field_name=self._field_name,
-            required_columns=("gene_symbol", "site"),
+            required_columns=("gene_symbol", "site", "site_sequence"),
             error_type=self._error_type,
         )
-        if self.require_site_sequence:
-            require_columns(
-                frame,
-                field_name=self._field_name,
-                required_columns=("site_sequence",),
-                error_type=self._error_type,
-            )
         require_non_empty_string_column(
             frame,
             field_name=self._field_name,
@@ -129,13 +122,18 @@ class SiteMetadataTable(TableSchema):
             column_name="site",
             error_type=self._error_type,
         )
-        if "site_sequence" in frame.columns:
-            require_non_empty_string_column(
-                frame,
-                field_name=self._field_name,
-                column_name="site_sequence",
-                error_type=self._error_type,
-            )
+        require_non_empty_string_column(
+            frame,
+            field_name=self._field_name,
+            column_name="site_sequence",
+            error_type=self._error_type,
+        )
+        validate_site_sequence_column(
+            site_metadata=frame,
+            field_name=self._field_name,
+            error_type=self._error_type,
+            column_name="site_sequence",
+        )
         if "protein_id" in frame.columns:
             require_non_empty_string_column(
                 frame,

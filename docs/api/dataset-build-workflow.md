@@ -46,7 +46,7 @@ from phospy.api import (
 | Parameter | Type | Default | Required | How to Use It |
 | --- | --- | --- | --- | --- |
 | `phospho` | `pandas.DataFrame`, `str`, or `pathlib.Path` | None | Yes | Site-by-sample intensity matrix. Rows are phosphosites and columns are samples. |
-| `site_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path` | None | Yes | Row metadata aligned to `phospho.index`. Include `gene_symbol`, `site`, and `site_sequence` for kinase scoring; include `protein_id` for signalome. |
+| `site_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path` | None | Yes | Row metadata aligned to `phospho.index`. `gene_symbol`, `site`, and `site_sequence` are required at the analysis-ready boundary; include `protein_id` for signalome. |
 | `sample_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Sample metadata aligned to phospho columns. Required when comparison building uses `sample_metadata_pairs`. |
 | `total` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Total-protein matrix used only when total-protein correction is enabled. Columns must align to phospho sample columns. |
 | `organism` | `Organism` or `None` | `None` | No | Species identity for the dataset. Use `Organism.RAT` for the bundled beginner lane. |
@@ -100,7 +100,7 @@ site_metadata = pd.DataFrame(
         "site": ["S939", "S9"],
         "site_sequence": [
             "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
-            "_______MSGRPRTTSFAESCKPVQQPSAFG",
+            "ATMSGRPRTTSFAESCKPVQQPSAFGQAAAL",
         ],
         "protein_id": ["TSC2", "GSK3B"],
     },
@@ -439,7 +439,7 @@ site_metadata = pd.DataFrame(
         "site": ["S939", "S9"],
         "site_sequence": [
             "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
-            "_______MSGRPRTTSFAESCKPVQQPSAFG",
+            "ATMSGRPRTTSFAESCKPVQQPSAFGQAAAL",
         ],
         "protein_id": ["TSC2", "GSK3B"],
     },

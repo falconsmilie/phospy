@@ -10,8 +10,9 @@ Rows are phosphosites and columns are samples. The index must use standard site
 IDs such as `MAPK14;Y182;`. Missing values are rejected by default.
 
 `site_metadata` must be a non-empty table aligned to `phospho.index`. It must
-include non-empty `gene_symbol` and `site` columns. `site_sequence` is optional
-but needed for motif-based scoring. `protein_id` is optional for kinase but
+include non-empty `gene_symbol`, `site`, and `site_sequence` columns.
+`site_sequence` may be omitted at ingestion only when preprocessing can derive
+it before final dataset construction. `protein_id` is optional for kinase but
 required for signalome.
 
 `sample_metadata`, when provided, must align to the phospho sample columns.
@@ -39,7 +40,7 @@ A built `AnalysisReadyPhosphoDataset` must have:
 - unique sample columns
 - unique site IDs
 - `site_metadata.index` exactly matching `phospho.index`
-- required non-empty `gene_symbol` and `site`
+- required non-empty `gene_symbol`, `site`, and `site_sequence`
 - `sample_metadata.index` exactly matching `phospho.columns` when provided
 - `total.columns` exactly matching `phospho.columns` when provided
 - an `Organism` enum value or `None`

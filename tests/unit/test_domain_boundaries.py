@@ -214,6 +214,21 @@ def test_dataset_rejects_blank_site_sequence_values() -> None:
         )
 
 
+def test_dataset_rejects_null_site_sequence_values() -> None:
+    bad_site_metadata = _site_metadata().copy(deep=True)
+    bad_site_metadata.loc[:, "site_sequence"] = [None]
+    with pytest.raises(
+        DatasetValidationError,
+        match="dataset.site_metadata.site_sequence must not contain missing values",
+    ):
+        AnalysisReadyPhosphoDataset(
+            phospho=_phospho(),
+            site_metadata=bad_site_metadata,
+            organism=Organism.RAT,
+            **_supported_dataset_state(has_total_matrix=False),
+        )
+
+
 def test_dataset_rejects_empty_phospho_matrix() -> None:
     with pytest.raises(DatasetValidationError):
         AnalysisReadyPhosphoDataset(

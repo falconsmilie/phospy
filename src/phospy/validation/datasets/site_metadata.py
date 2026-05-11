@@ -298,6 +298,44 @@ def enforce_required_non_empty_string_column(
     )
 
 
+def validate_site_sequence_column(
+    *,
+    site_metadata: pd.DataFrame,
+    field_name: str,
+    error_type: type[ErrorType],
+    column_name: str = "site_sequence",
+) -> None:
+    """Validate site-sequence strings as plausible amino-acid contexts."""
+
+    if column_name not in site_metadata.columns:
+        return
+    invalid_rows: list[str] = []
+    values = site_metadata.loc[:, column_name]
+    for site_id, raw_value in values.items():
+        if not isinstance(raw_value, str):
+            invalid_rows.append(f"{site_id!r}:{raw_value!r}")
+            continue
+        sequence = raw_value.strip().upper()
+        if len(sequence) < 3:
+            invalid_rows.append(f"{site_id!r}:{raw_value!r}:sequence_too_short")
+            continue
+        if not any(character.isalpha() for character in sequence):
+            invalid_rows.append(f"{site_id!r}:{raw_value!r}:no_residue_letters")
+            continue
+        if any(
+            (not character.isalpha()) and character != "_" for character in sequence
+        ):
+            invalid_rows.append(
+                f"{site_id!r}:{raw_value!r}:unsupported_sequence_characters"
+            )
+    if not invalid_rows:
+        return
+    raise error_type(
+        f"{field_name}.{column_name} must be plausible amino-acid context strings; "
+        + _summarise_examples(invalid_rows)
+    )
+
+
 def assess_localisation_probability_column(
     *,
     site_metadata: pd.DataFrame,
@@ -491,6 +529,7 @@ __all__ = [
     "assess_localisation_probability_column",
     "enforce_required_non_empty_string_column",
     "enforce_localisation_requirement",
+    "validate_site_sequence_column",
     "validate_localisation_probability_column",
     "validate_site_identity_metadata",
 ]

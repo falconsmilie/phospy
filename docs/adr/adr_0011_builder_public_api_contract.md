@@ -22,6 +22,11 @@ This ADR defines the public builder contract that sits above the internal
 builder architecture established in ADR-0008 and below the dataset boundary
 defined in ADR-0003.
 
+Update note (2026-05-11): the builder contract is derive-or-fail for
+`site_metadata.site_sequence` at the analysis-ready boundary. Ingestion may
+omit sequences, but final dataset construction must not proceed unless every
+row has a valid non-empty `site_sequence`.
+
 ## Context and Problem Statement
 
 Earlier ADRs established two important truths:

@@ -329,27 +329,14 @@ def test_dataset_schema_site_metadata_missing_required_columns_fails() -> None:
         SiteMetadataTable(frame=bad, expected_index=phospho.frame.index)
 
 
-def test_site_metadata_table_permissive_mode_allows_missing_site_sequence_column() -> (
-    None
-):
-    phospho = PhosphoIntensityMatrix(frame=_phospho_frame())
-    frame = _site_metadata_frame(phospho.frame.index).drop(columns=["site_sequence"])
-    wrapped = SiteMetadataTable(frame=frame, expected_index=phospho.frame.index)
-    assert "site_sequence" not in wrapped.frame.columns
-
-
-def test_site_metadata_table_strict_mode_requires_site_sequence_column() -> None:
+def test_site_metadata_table_requires_site_sequence_column() -> None:
     phospho = PhosphoIntensityMatrix(frame=_phospho_frame())
     frame = _site_metadata_frame(phospho.frame.index).drop(columns=["site_sequence"])
     with pytest.raises(
         DatasetValidationError,
         match="dataset.site_metadata is missing required columns: site_sequence",
     ):
-        SiteMetadataTable(
-            frame=frame,
-            expected_index=phospho.frame.index,
-            require_site_sequence=True,
-        )
+        SiteMetadataTable(frame=frame, expected_index=phospho.frame.index)
 
 
 @given(data=st.data())
@@ -385,7 +372,7 @@ def test_site_metadata_property_required_columns_allow_extra_columns(
 
 @given(
     site_ids=_canonical_site_ids(min_size=1),
-    missing_column=st.sampled_from(("gene_symbol", "site")),
+    missing_column=st.sampled_from(("gene_symbol", "site", "site_sequence")),
 )
 @_PROPERTY_SETTINGS
 def test_site_metadata_property_removing_required_column_fails(
@@ -494,6 +481,20 @@ def test_site_metadata_rejects_site_sequence_centre_residue_mismatch() -> None:
     with pytest.raises(
         DatasetValidationError,
         match="site_sequence central residue must agree with site/residue metadata",
+    ):
+        SiteMetadataTable(frame=frame, expected_index=phospho.frame.index)
+
+
+@pytest.mark.parametrize("invalid_value", ["A1A", "AA AA", "**", "S"])
+def test_site_metadata_rejects_implausible_site_sequence_values(
+    invalid_value: str,
+) -> None:
+    phospho = PhosphoIntensityMatrix(frame=_phospho_frame())
+    frame = _site_metadata_frame(phospho.frame.index).copy(deep=True)
+    frame.loc["MAPK14;Y182;", "site_sequence"] = invalid_value
+    with pytest.raises(
+        DatasetValidationError,
+        match="dataset.site_metadata.site_sequence must be plausible amino-acid context strings",
     ):
         SiteMetadataTable(frame=frame, expected_index=phospho.frame.index)
 

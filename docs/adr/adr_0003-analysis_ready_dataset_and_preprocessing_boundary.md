@@ -25,6 +25,10 @@ is mandatory at the `AnalysisReadyPhosphoDataset` boundary. Builder
 preprocessing owns the derive-or-fail transition before final dataset
 construction.
 
+Update note (2026-05-11, contract correction): final dataset construction must
+reject any row with missing, blank, or invalid `site_sequence` values before
+workflow execution.
+
 ## Context and Problem Statement
 
 PhosPy is intended to expose one public dataset model and three primary
@@ -112,7 +116,8 @@ The dataset is expected to enforce the following invariants at construction time
 - required columns must be present:
   - `gene_symbol`
   - `site`
-- `site_sequence` is required and must contain non-empty strings
+- `site_sequence` is required and must contain non-empty plausible sequence
+  strings
 
 ### Sample Metadata Invariants
 
