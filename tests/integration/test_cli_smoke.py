@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pandas as pd
 import pytest
 
 from phospy.api.configs import (
@@ -240,6 +241,44 @@ def test_cli_reports_input_format_errors(
 
     assert exit_code == 2
     assert "UnsupportedInputFormatError" in captured.err
+
+
+def test_cli_reports_site_sequence_resolution_failures_with_row_context(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0], "sample_b": [1.5]},
+        index=pd.Index(["FAKE1;S1;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {"gene_symbol": ["FAKE1"], "site": ["S1"]},
+        index=phospho.index.copy(),
+    )
+    phospho_path = tmp_path / "phospho.csv"
+    site_metadata_path = tmp_path / "site_metadata.csv"
+    phospho.to_csv(phospho_path)
+    site_metadata.to_csv(site_metadata_path)
+
+    exit_code = cli_main(
+        [
+            "dataset-build",
+            "--phospho",
+            str(phospho_path),
+            "--site-metadata",
+            str(site_metadata_path),
+            "--organism",
+            "rat",
+            "--outdir",
+            str(tmp_path / "out"),
+        ]
+    )
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert "PhosPyInputError" in captured.err
+    assert "cannot construct AnalysisReadyPhosphoDataset" in captured.err
+    assert "site_id='FAKE1;S1;'" in captured.err
+    assert "failure_category='missing_reference_support'" in captured.err
 
 
 def test_cli_dataset_build_fails_clearly_when_state_cannot_be_established(

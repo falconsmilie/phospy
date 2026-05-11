@@ -20,10 +20,9 @@ Accepted.
 
 This ADR defines the builder and ingestion architecture that supports the dataset boundary established in ADR-003, the transformation-state contract established in ADR-006, and the validation-domain architecture established in ADR-007.
 
-Update note (2026-04-19): the supported public kinase lane now treats
-`dataset.site_metadata.site_sequence` as optional at the final dataset boundary.
-When present, it is validated for non-empty values; motif scoring depends on
-`references.site_sequences` from the resolved reference bundle.
+Update note (2026-05-11): `site_sequence` may be omitted at ingestion, but it
+is mandatory at the `AnalysisReadyPhosphoDataset` boundary. The builder owns
+the derive-or-fail transition before final dataset construction.
 
 ## Context and Problem Statement
 
@@ -31,7 +30,7 @@ Earlier ADRs established a clear direction:
 
 - workflows should accept only `AnalysisReadyPhosphoDataset`
 - datasets should enforce a strict analysis-ready boundary
-- `site_sequence` is optional in the final dataset contract (validated when present)
+- `site_sequence` is mandatory in the final dataset contract
 - transformation state must be established through PhosPy
 - validation remains private and belongs to its own internal domain
 
@@ -59,7 +58,8 @@ This builder path is responsible for:
 - accepting user-friendly raw or semi-structured inputs
 - normalising column naming and input conventions
 - shaping site and sample metadata
-- preserving or deriving `site_sequence` before final dataset construction when useful
+- preserving valid `site_sequence` values and deriving missing values before
+  final dataset construction when supported
 - invoking transformation handling through the supported transformer path
 - composing shared validation-domain components
 - returning a validated, missing-value-free `AnalysisReadyPhosphoDataset` in the supported public lane
@@ -93,7 +93,8 @@ This includes:
 - accepting optional site and sample metadata
 - normalising supported input column naming conventions
 - shaping site metadata into the required public fields
-- deriving `site_sequence` before final dataset construction when possible
+- deriving `site_sequence` before final dataset construction when possible, and
+  failing clearly when it cannot be resolved
 - establishing transformation state through the supported transformer path
 - composing shared validation-domain components
 - constructing the final `AnalysisReadyPhosphoDataset`
@@ -171,7 +172,7 @@ That output must already satisfy the dataset boundary defined in ADR-003.
 In particular, the final dataset must already contain:
 
 - required site metadata fields
-- optional `site_sequence` (validated when present)
+- required `site_sequence` (validated as non-empty strings)
 - established transformation state
 - validated alignment across its components
 

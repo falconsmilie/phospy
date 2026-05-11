@@ -20,10 +20,10 @@ Accepted.
 
 This ADR defines the dataset and preprocessing boundary that supports the public API and internal workflow architecture established by earlier ADRs.
 
-Update note (2026-04-19): the supported public kinase lane treats
-`dataset.site_metadata.site_sequence` as optional at the final dataset boundary.
-When present, it is validated for non-empty values; motif sequence support comes
-from `references.site_sequences`.
+Update note (2026-05-11): `site_sequence` may be omitted at ingestion, but it
+is mandatory at the `AnalysisReadyPhosphoDataset` boundary. Builder
+preprocessing owns the derive-or-fail transition before final dataset
+construction.
 
 ## Context and Problem Statement
 
@@ -108,7 +108,7 @@ The dataset is expected to enforce the following invariants at construction time
 - required columns must be present:
   - `gene_symbol`
   - `site`
-- `site_sequence` is optional and must contain non-empty strings when present
+- `site_sequence` is required and must contain non-empty strings
 
 ### Sample Metadata Invariants
 
@@ -143,9 +143,9 @@ For the purposes of PhosPy, a dataset is analysis-ready when the following are t
 
 This does not necessarily mean that every possible scientific normalisation or filtering decision has already occurred. It means the dataset has crossed the public boundary from raw or semi-structured input into a stable, validated analysis object.
 
-For the primary PhosR-style kinase workflow in the current supported lane,
-`dataset.site_metadata.site_sequence` is optional at this boundary.
-Motif sequence support is resolved from `references.site_sequences`.
+For the primary supported lane, `dataset.site_metadata.site_sequence` is
+required at this boundary. Ingestion may remain permissive, but unresolved
+sequence context must not pass through this boundary.
 
 ## Preprocessing Responsibility
 
@@ -188,7 +188,7 @@ The required columns are:
 
 - `gene_symbol`
 - `site`
-- optional `site_sequence` (validated when present)
+- required `site_sequence`
 
 Additional metadata columns are allowed, but workflows should depend only on documented public fields unless they introduce a separate and explicit requirement.
 
@@ -200,9 +200,8 @@ This decision means public workflow requests should not accept repeated argument
 
 Those concerns belong to preprocessing, not workflow execution.
 
-`site_sequence` is optional in the final analysis-ready dataset contract. A
-preprocessing path may derive it from another source before final dataset
-construction when useful.
+`site_sequence` may be optional at ingestion, but preprocessing must derive it
+or fail before final dataset construction.
 
 ## Construction and Validation Strategy
 
@@ -284,8 +283,8 @@ This option was rejected because the package needs a reliable and testable bound
 
 The following decisions are now resolved for this ADR.
 
-1. `site_sequence` is optional in the final `AnalysisReadyPhosphoDataset` contract and is validated when present.
-2. A preprocessing path may derive `site_sequence` before final dataset construction when useful, but workflow lanes should only require it where the science actually consumes dataset-provided sequence.
+1. `site_sequence` is mandatory in the final `AnalysisReadyPhosphoDataset` contract.
+2. A preprocessing path may accept missing `site_sequence` at ingestion, but it must derive it or fail before final dataset construction.
 3. A simple declared `intensity_scale` label is not sufficient on its own; the dataset boundary should carry stronger guarantees about transformation state through a transformer-oriented design.
 4. Public dataset construction should support a flexible builder path so users do not have to manually normalise difficult phosphoproteomics input formats or column naming schemes.
 5. Dataset validation should remain private and should not become a standalone public surface.

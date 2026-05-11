@@ -73,6 +73,7 @@ class SiteMetadataTable(TableSchema):
     """Schema wrapper for ``dataset.site_metadata``."""
 
     expected_index: pd.Index | None = field(default=None, repr=False, compare=False)
+    require_site_sequence: bool = field(default=False, repr=False, compare=False)
 
     _field_name = "dataset.site_metadata"
     _error_type = DatasetValidationError
@@ -104,6 +105,13 @@ class SiteMetadataTable(TableSchema):
             required_columns=("gene_symbol", "site"),
             error_type=self._error_type,
         )
+        if self.require_site_sequence:
+            require_columns(
+                frame,
+                field_name=self._field_name,
+                required_columns=("site_sequence",),
+                error_type=self._error_type,
+            )
         require_non_empty_string_column(
             frame,
             field_name=self._field_name,

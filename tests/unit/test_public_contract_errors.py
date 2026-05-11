@@ -421,20 +421,23 @@ def test_dataset_constructor_rejects_when_one_row_has_site_identity_mismatch() -
         )
 
 
-def test_dataset_constructor_allows_missing_site_sequence_column() -> None:
-    dataset = AnalysisReadyPhosphoDataset(
-        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
-        site_metadata=pd.DataFrame(
-            {
-                "gene_symbol": ["MAPK14"],
-                "site": ["Y182"],
-            },
-            index=["MAPK14;Y182;"],
-        ),
-        organism=Organism.RAT,
-        **_supported_dataset_state(has_total_matrix=False),
-    )
-    assert "site_sequence" not in dataset.site_metadata.columns
+def test_dataset_constructor_rejects_missing_site_sequence_column() -> None:
+    with pytest.raises(
+        DatasetValidationError,
+        match="dataset.site_metadata is missing required columns: site_sequence",
+    ):
+        AnalysisReadyPhosphoDataset(
+            phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+            site_metadata=pd.DataFrame(
+                {
+                    "gene_symbol": ["MAPK14"],
+                    "site": ["Y182"],
+                },
+                index=["MAPK14;Y182;"],
+            ),
+            organism=Organism.RAT,
+            **_supported_dataset_state(has_total_matrix=False),
+        )
 
 
 def test_dataset_constructor_rejects_blank_site_sequence_values() -> None:

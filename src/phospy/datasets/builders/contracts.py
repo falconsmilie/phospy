@@ -37,6 +37,7 @@ class InterpretedDatasetBuildRequest:
         default_factory=PreprocessingPlan.default
     )
     site_identifier_normalisation: SiteIdentifierNormalisationReport | None = None
+    site_sequence_derivation: dict[str, object] | None = None
     quantitative_meaning: QuantitativeMeaning | None = None
 
 

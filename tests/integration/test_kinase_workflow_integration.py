@@ -31,7 +31,7 @@ from phospy.api.configs import (
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET,
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE,
 )
-from phospy.errors import WorkflowBoundaryError
+from phospy.errors import DatasetValidationError, WorkflowBoundaryError
 from phospy.io.publishers.workflows import publish_kinase_workflow
 from tests.support.rewrite_fixture_data import (
     build_rat_l6_dataset,
@@ -136,34 +136,21 @@ def _hash_overrides_from_observed(
     }
 
 
-def test_kinase_workflow_runs_without_dataset_site_sequence_column() -> None:
+def test_analysis_ready_dataset_boundary_rejects_missing_site_sequence_column() -> None:
     dataset = build_rat_l6_dataset(n_sites=220)
-    dataset_without_sequence = AnalysisReadyPhosphoDataset(
-        phospho=dataset.phospho,
-        site_metadata=dataset.site_metadata.drop(columns=["site_sequence"]),
-        intensity_scale_state=dataset.intensity_scale_state,
-        processing_state=dataset.processing_state,
-        sample_metadata=dataset.sample_metadata,
-        total=dataset.total,
-        organism=dataset.organism,
-    )
-    result = KinaseWorkflow().run(
-        KinaseWorkflowRequest(
-            dataset=dataset_without_sequence,
-            references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
-            prediction_config=KinasePredictionConfig(
-                top_k=6,
-                deterministic_max_selected_kinases=8,
-                adaptive_ensemble_runs=8,
-            ),
-            activity_config=None,
+    with pytest.raises(
+        DatasetValidationError,
+        match="dataset.site_metadata is missing required columns: site_sequence",
+    ):
+        AnalysisReadyPhosphoDataset(
+            phospho=dataset.phospho,
+            site_metadata=dataset.site_metadata.drop(columns=["site_sequence"]),
+            intensity_scale_state=dataset.intensity_scale_state,
+            processing_state=dataset.processing_state,
+            sample_metadata=dataset.sample_metadata,
+            total=dataset.total,
+            organism=dataset.organism,
         )
-    )
-    assert not result.scoring_result.profile_scores.empty
-    assert result.scoring_result.motif_scores is None
-    assert result.scoring_result.score_fusion_weights is None
-    assert not result.prediction_result.pred_mat.empty
 
 
 def test_kinase_workflow_uses_dataset_site_sequences_without_mutating_references() -> (

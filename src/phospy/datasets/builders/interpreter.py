@@ -96,6 +96,9 @@ class DatasetBuildRequestInterpreter:
                 ),
                 original_error=exc,
             )
+        site_sequence_derivation_payload = _resolve_site_sequence_derivation_payload(
+            self._site_sequence_deriver
+        )
         return InterpretedDatasetBuildRequest(
             phospho=normalized.phospho,
             site_metadata=enriched_site_metadata,
@@ -104,6 +107,7 @@ class DatasetBuildRequestInterpreter:
             organism=request.organism,
             preprocessing_plan=preprocessing_plan,
             site_identifier_normalisation=normalized.site_identifier_normalisation,
+            site_sequence_derivation=site_sequence_derivation_payload,
             quantitative_meaning=_resolve_quantitative_meaning(
                 request.quantitative_meaning
             ),
@@ -144,3 +148,17 @@ def _resolve_quantitative_meaning(
         raise PhosPyInputError(
             f"dataset build request quantitative_meaning must be one of: {supported}"
         ) from exc
+
+
+def _resolve_site_sequence_derivation_payload(
+    site_sequence_deriver: object,
+) -> dict[str, object] | None:
+    report = getattr(site_sequence_deriver, "last_report", None)
+    if report is None:
+        return None
+    to_payload = getattr(report, "to_payload", None)
+    if callable(to_payload):
+        payload = to_payload()
+        if isinstance(payload, dict):
+            return payload
+    return None

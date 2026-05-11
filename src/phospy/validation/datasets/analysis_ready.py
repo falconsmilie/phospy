@@ -42,6 +42,7 @@ class AnalysisReadyDatasetValidator:
         SiteMetadataTable(
             frame=site_metadata,
             expected_index=phospho_frame.index,
+            require_site_sequence=True,
             _assume_owned=True,
         )
 

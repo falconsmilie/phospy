@@ -326,6 +326,29 @@ def test_dataset_schema_site_metadata_missing_required_columns_fails() -> None:
         SiteMetadataTable(frame=bad, expected_index=phospho.frame.index)
 
 
+def test_site_metadata_table_permissive_mode_allows_missing_site_sequence_column() -> (
+    None
+):
+    phospho = PhosphoIntensityMatrix(frame=_phospho_frame())
+    frame = _site_metadata_frame(phospho.frame.index).drop(columns=["site_sequence"])
+    wrapped = SiteMetadataTable(frame=frame, expected_index=phospho.frame.index)
+    assert "site_sequence" not in wrapped.frame.columns
+
+
+def test_site_metadata_table_strict_mode_requires_site_sequence_column() -> None:
+    phospho = PhosphoIntensityMatrix(frame=_phospho_frame())
+    frame = _site_metadata_frame(phospho.frame.index).drop(columns=["site_sequence"])
+    with pytest.raises(
+        DatasetValidationError,
+        match="dataset.site_metadata is missing required columns: site_sequence",
+    ):
+        SiteMetadataTable(
+            frame=frame,
+            expected_index=phospho.frame.index,
+            require_site_sequence=True,
+        )
+
+
 @given(data=st.data())
 @_PROPERTY_SETTINGS
 def test_site_metadata_property_required_columns_allow_extra_columns(

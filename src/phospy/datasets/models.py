@@ -563,6 +563,7 @@ class AnalysisReadyPhosphoDataset:
         site_metadata_table = SiteMetadataTable(
             frame=site_metadata,
             expected_index=phospho_table.frame.index,
+            require_site_sequence=True,
             _assume_owned=True,
         )
         sample_metadata_table = (

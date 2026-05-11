@@ -118,15 +118,18 @@ def _supported_dataset_state(*, has_total_matrix: bool) -> dict[str, object]:
     }
 
 
-def test_dataset_allows_missing_site_sequence_column() -> None:
+def test_dataset_rejects_missing_site_sequence_column() -> None:
     bad_site_metadata = _site_metadata().drop(columns=["site_sequence"])
-    dataset = AnalysisReadyPhosphoDataset(
-        phospho=_phospho(),
-        site_metadata=bad_site_metadata,
-        organism=Organism.RAT,
-        **_supported_dataset_state(has_total_matrix=False),
-    )
-    assert "site_sequence" not in dataset.site_metadata.columns
+    with pytest.raises(
+        DatasetValidationError,
+        match="dataset.site_metadata is missing required columns: site_sequence",
+    ):
+        AnalysisReadyPhosphoDataset(
+            phospho=_phospho(),
+            site_metadata=bad_site_metadata,
+            organism=Organism.RAT,
+            **_supported_dataset_state(has_total_matrix=False),
+        )
 
 
 def test_analysis_ready_dataset_still_exposes_pandas_frames_after_schema_wrappers() -> (
@@ -708,15 +711,18 @@ def test_builder_fails_when_missing_gene_or_site_cannot_be_derived_from_index() 
         )
 
 
-def test_builder_allows_missing_site_sequence_when_not_provided_or_derivable() -> None:
-    built = AnalysisReadyDatasetBuilder().run(
-        DatasetBuildRequest(
-            phospho=_phospho(),
-            site_metadata=_site_metadata().drop(columns=["site_sequence"]),
-            organism=None,
+def test_builder_rejects_missing_site_sequence_when_not_provided_or_derivable() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="cannot construct AnalysisReadyPhosphoDataset",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=_phospho(),
+                site_metadata=_site_metadata().drop(columns=["site_sequence"]),
+                organism=None,
+            )
         )
-    )
-    assert "site_sequence" not in built.site_metadata.columns
 
 
 def test_builder_site_matrix_excludes_only_unresolved_rows_in_mixed_support_case() -> (

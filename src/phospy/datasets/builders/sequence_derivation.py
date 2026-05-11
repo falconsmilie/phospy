@@ -2,26 +2,70 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import pandas as pd
 
 from phospy.errors.input import UnsupportedInputFormatError
 from phospy.errors.references import ReferenceResolutionError, UnsupportedOrganismError
 from phospy.references.models import Organism
-from phospy.references.resources import load_bundled_site_sequences
+from phospy.references.resources import (
+    bundled_reference_name_for_organism,
+    load_bundled_site_sequences,
+)
 from phospy.site_ids import (
     canonicalize_site_components_series,
     canonicalize_site_index,
     canonicalize_site_series,
 )
 
+_SITE_SEQUENCE_DERIVATION_SCHEMA_VERSION = 1
+
+
+@dataclass(frozen=True, slots=True)
+class SiteSequenceDerivationReport:
+    """Structured summary for builder-owned site-sequence derivation."""
+
+    schema_version: int
+    input_site_sequence_column_present: bool
+    provided_sequence_count: int
+    derived_sequence_count: int
+    unresolved_sequence_count: int
+    derivation_attempted: bool
+    reference_source: str | None
+    reference_support: str
+
+    def to_payload(self) -> dict[str, object]:
+        return {
+            "schema_version": int(self.schema_version),
+            "input_site_sequence_column_present": bool(
+                self.input_site_sequence_column_present
+            ),
+            "provided_sequence_count": int(self.provided_sequence_count),
+            "derived_sequence_count": int(self.derived_sequence_count),
+            "unresolved_sequence_count": int(self.unresolved_sequence_count),
+            "derivation_attempted": bool(self.derivation_attempted),
+            "reference_source": self.reference_source,
+            "reference_support": str(self.reference_support),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class _BundledDerivationAttempt:
+    derived: pd.Series | None
+    reference_source: str | None
+    reference_support: str
+
 
 class SiteSequenceDeriver:
-    """Validate/provision `site_sequence` as optional builder enrichment.
+    """Validate/provision `site_sequence` as optional builder enrichment."""
 
-    In partial mode (`allow_partial=True`), enrichment is row-wise:
-    rows with supplied or derivable sequence support keep their values, while
-    unresolved rows remain missing for downstream policy-specific exclusion.
-    """
+    def __init__(self) -> None:
+        self._last_report: SiteSequenceDerivationReport | None = None
+
+    @property
+    def last_report(self) -> SiteSequenceDerivationReport | None:
+        return self._last_report
 
     def run(
         self,
@@ -32,51 +76,147 @@ class SiteSequenceDeriver:
         derive_missing_from_reference: bool = True,
     ) -> pd.DataFrame:
         normalized = site_metadata
-        if "site_sequence" in normalized.columns:
-            if allow_partial:
-                existing = self._normalized_optional_site_sequence(
-                    normalized.loc[:, "site_sequence"]
-                )
-                if (
-                    derive_missing_from_reference
-                    and organism is not None
-                    and bool(existing.isna().any())
-                ):
-                    derived = self._derive_from_bundled_sequences_if_available(
-                        site_metadata=normalized,
-                        organism=organism,
-                    )
-                    if derived is not None:
-                        derived_optional = self._normalized_optional_site_sequence(
-                            derived
-                        )
-                        existing = existing.where(
-                            existing.notna(), other=derived_optional
-                        )
-                normalized.loc[:, "site_sequence"] = existing.astype("string")
-                return normalized
+        row_count = int(len(normalized.index))
+        input_has_site_sequence = "site_sequence" in normalized.columns
+        provided_sequence_count = 0
+        derived_sequence_count = 0
+        derivation_attempted = bool(
+            derive_missing_from_reference and organism is not None
+        )
+        reference_source: str | None = None
+        reference_support = "not_attempted"
+
+        if "site_sequence" in normalized.columns and not allow_partial:
             existing = self._validated_existing_site_sequence(normalized)
             normalized.loc[:, "site_sequence"] = existing.astype(str)
+            self._last_report = SiteSequenceDerivationReport(
+                schema_version=_SITE_SEQUENCE_DERIVATION_SCHEMA_VERSION,
+                input_site_sequence_column_present=input_has_site_sequence,
+                provided_sequence_count=int(existing.shape[0]),
+                derived_sequence_count=0,
+                unresolved_sequence_count=0,
+                derivation_attempted=derivation_attempted,
+                reference_source=None,
+                reference_support=(
+                    "not_attempted"
+                    if not derivation_attempted
+                    else "available_without_missing_rows"
+                ),
+            )
             return normalized
-        if not derive_missing_from_reference:
+
+        if "site_sequence" in normalized.columns:
+            existing = self._normalized_optional_site_sequence(
+                normalized.loc[:, "site_sequence"]
+            )
+            provided_sequence_count = int(existing.notna().sum())
+            final_sequences = existing.copy(deep=True)
+            if (
+                derive_missing_from_reference
+                and organism is not None
+                and bool(existing.isna().any())
+            ):
+                attempt = self._derive_from_bundled_sequences_if_available(
+                    site_metadata=normalized,
+                    organism=organism,
+                )
+                reference_source = attempt.reference_source
+                reference_support = attempt.reference_support
+                if attempt.derived is not None:
+                    derived_optional = self._normalized_optional_site_sequence(
+                        attempt.derived
+                    )
+                    derived_mask = existing.isna() & derived_optional.notna()
+                    derived_sequence_count = int(derived_mask.sum())
+                    final_sequences = existing.where(
+                        existing.notna(),
+                        other=derived_optional,
+                    )
+            normalized.loc[:, "site_sequence"] = final_sequences.astype("string")
+            unresolved_count = int(final_sequences.isna().sum())
+            self._last_report = SiteSequenceDerivationReport(
+                schema_version=_SITE_SEQUENCE_DERIVATION_SCHEMA_VERSION,
+                input_site_sequence_column_present=input_has_site_sequence,
+                provided_sequence_count=provided_sequence_count,
+                derived_sequence_count=derived_sequence_count,
+                unresolved_sequence_count=unresolved_count,
+                derivation_attempted=derivation_attempted,
+                reference_source=reference_source,
+                reference_support=reference_support,
+            )
             return normalized
-        if organism is None:
+
+        if not derive_missing_from_reference or organism is None:
+            self._last_report = SiteSequenceDerivationReport(
+                schema_version=_SITE_SEQUENCE_DERIVATION_SCHEMA_VERSION,
+                input_site_sequence_column_present=input_has_site_sequence,
+                provided_sequence_count=0,
+                derived_sequence_count=0,
+                unresolved_sequence_count=row_count,
+                derivation_attempted=derivation_attempted,
+                reference_source=None,
+                reference_support="not_attempted",
+            )
             return normalized
-        derived = self._derive_from_bundled_sequences_if_available(
+
+        attempt = self._derive_from_bundled_sequences_if_available(
             site_metadata=normalized,
             organism=organism,
         )
-        if derived is None:
-            return normalized
-        if allow_partial:
-            normalized.loc[:, "site_sequence"] = (
-                self._normalized_optional_site_sequence(derived).astype("string")
+        reference_source = attempt.reference_source
+        reference_support = attempt.reference_support
+        if attempt.derived is None:
+            self._last_report = SiteSequenceDerivationReport(
+                schema_version=_SITE_SEQUENCE_DERIVATION_SCHEMA_VERSION,
+                input_site_sequence_column_present=input_has_site_sequence,
+                provided_sequence_count=0,
+                derived_sequence_count=0,
+                unresolved_sequence_count=row_count,
+                derivation_attempted=derivation_attempted,
+                reference_source=reference_source,
+                reference_support=reference_support,
             )
             return normalized
-        unresolved = derived.isna() | (derived == "")
-        if unresolved.any():
+        if allow_partial:
+            derived_optional = self._normalized_optional_site_sequence(attempt.derived)
+            derived_sequence_count = int(derived_optional.notna().sum())
+            unresolved_count = int(derived_optional.isna().sum())
+            normalized.loc[:, "site_sequence"] = derived_optional.astype("string")
+            self._last_report = SiteSequenceDerivationReport(
+                schema_version=_SITE_SEQUENCE_DERIVATION_SCHEMA_VERSION,
+                input_site_sequence_column_present=input_has_site_sequence,
+                provided_sequence_count=0,
+                derived_sequence_count=derived_sequence_count,
+                unresolved_sequence_count=unresolved_count,
+                derivation_attempted=derivation_attempted,
+                reference_source=reference_source,
+                reference_support=reference_support,
+            )
             return normalized
-        normalized.loc[:, "site_sequence"] = derived.astype(str)
+        unresolved = attempt.derived.isna() | (attempt.derived == "")
+        if unresolved.any():
+            self._last_report = SiteSequenceDerivationReport(
+                schema_version=_SITE_SEQUENCE_DERIVATION_SCHEMA_VERSION,
+                input_site_sequence_column_present=input_has_site_sequence,
+                provided_sequence_count=0,
+                derived_sequence_count=int((~unresolved).sum()),
+                unresolved_sequence_count=int(unresolved.sum()),
+                derivation_attempted=derivation_attempted,
+                reference_source=reference_source,
+                reference_support=reference_support,
+            )
+            return normalized
+        normalized.loc[:, "site_sequence"] = attempt.derived.astype(str)
+        self._last_report = SiteSequenceDerivationReport(
+            schema_version=_SITE_SEQUENCE_DERIVATION_SCHEMA_VERSION,
+            input_site_sequence_column_present=input_has_site_sequence,
+            provided_sequence_count=0,
+            derived_sequence_count=int(attempt.derived.shape[0]),
+            unresolved_sequence_count=0,
+            derivation_attempted=derivation_attempted,
+            reference_source=reference_source,
+            reference_support=reference_support,
+        )
         return normalized
 
     @staticmethod
@@ -106,11 +246,31 @@ class SiteSequenceDeriver:
         *,
         site_metadata: pd.DataFrame,
         organism: Organism,
-    ) -> pd.Series | None:
+    ) -> _BundledDerivationAttempt:
+        reference_name: str | None = None
         try:
+            reference_name = bundled_reference_name_for_organism(organism)
             bundled_sequences = load_bundled_site_sequences(organism)
-        except (UnsupportedOrganismError, ReferenceResolutionError):
-            return None
+        except UnsupportedOrganismError:
+            return _BundledDerivationAttempt(
+                derived=None,
+                reference_source=None,
+                reference_support="unsupported_organism",
+            )
+        except ReferenceResolutionError:
+            source = (
+                None
+                if reference_name is None
+                else (
+                    f"bundled_reference:{organism.value}/{reference_name}"
+                    "/site_sequences.csv"
+                )
+            )
+            return _BundledDerivationAttempt(
+                derived=None,
+                reference_source=source,
+                reference_support="reference_resolution_error",
+            )
         sequence_map = bundled_sequences.loc[:, "site_sequence"]
         sequence_map.index = canonicalize_site_index(
             sequence_map.index,
@@ -123,7 +283,14 @@ class SiteSequenceDeriver:
         )
         derived.index = site_metadata.index.copy()
         derived.name = "site_sequence"
-        return derived
+        return _BundledDerivationAttempt(
+            derived=derived,
+            reference_source=(
+                f"bundled_reference:{organism.value}/{reference_name}"
+                "/site_sequences.csv"
+            ),
+            reference_support="available",
+        )
 
 
 def _resolve_row_level_site_lookup_index(site_metadata: pd.DataFrame) -> pd.Series:
@@ -142,7 +309,6 @@ def _resolve_site_ids_from_metadata_columns(site_metadata: pd.DataFrame) -> pd.S
     site = site_metadata.loc[:, "site"].astype("string")
     normalized_gene_symbol = gene_symbol.str.strip()
     normalized_site = site.str.strip()
-    has_tokens = gene_symbol.notna() & site.notna() & (gene_symbol != "") & (site != "")
     has_tokens = (
         normalized_gene_symbol.notna()
         & normalized_site.notna()
