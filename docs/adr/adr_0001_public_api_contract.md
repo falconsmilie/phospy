@@ -65,6 +65,9 @@ types such as:
 - Kinase lane: `KinaseWorkflowRequest`, `KinaseWorkflowResult`,
   `KinaseScoringConfig`, `KinasePredictionConfig`, `KinaseActivityConfig`,
   `KinaseWorkflow`
+- Differential lane: `DifferentialAnalysisRequest`,
+  `DifferentialAnalysisResult`, `EmpiricalBayesConfig`,
+  `MultipleTestingConfig`, `DifferentialAnalysisWorkflow`
 - Signalome lane: `SignalomeWorkflowRequest`, `SignalomeWorkflowResult`,
   `SignalomeConfig`, `SignalomeScientificConfig`,
   `SignalomeClusteringConfig`, `SignalomeValidationConfig`,

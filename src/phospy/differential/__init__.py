@@ -17,12 +17,10 @@ from phospy.differential.models import (
     DifferentialAnalysisResult,
     EmpiricalBayesConfig,
 )
-from phospy.differential.public import DifferentialAnalysis
 
 __all__ = [
     "ContrastMatrix",
     "DesignMatrix",
-    "DifferentialAnalysis",
     "DifferentialAnalysisRequest",
     "DifferentialAnalysisResult",
     "EmpiricalBayesConfig",

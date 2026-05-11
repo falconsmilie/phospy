@@ -87,7 +87,8 @@ class KinaseWorkflow:
         return self._executor.run(interpreted)
 ```
 
-The same pattern applies to `SignalomeWorkflow`.
+The same pattern applies to `DifferentialAnalysisWorkflow` and
+`SignalomeWorkflow`.
 
 ## Method Naming Convention
 
@@ -412,7 +413,10 @@ This ADR complements ADR-001, which defines the public API contract for PhosPy.
 ADR-001 defines what PhosPy exposes.
 ADR-002 defines how the internal workflow architecture should deliver that public contract.
 
-The public API remains centred on one dataset model and two primary workflows. The internal architecture defined here is the implementation discipline that supports that public shape.
+The public API remains centred on one dataset model and three primary
+downstream workflows (differential, kinase, signalome). The internal
+architecture defined here is the implementation discipline that supports that
+public shape.
 
 ## References
 

@@ -3,7 +3,7 @@
 This page gives scientist-facing contracts for each public workflow lane:
 
 1. `AnalysisReadyDatasetBuilder`
-2. `DifferentialAnalysis`
+2. `DifferentialAnalysisWorkflow`
 3. `KinaseWorkflow`
 4. `SignalomeWorkflow`
 
@@ -100,12 +100,12 @@ identical numeric outputs across different machines or dependency builds.
 - optional `dataset.sample_metadata`, `dataset.total`, `dataset.comparisons`
 - optional preprocessing report tables (`row_counts`, `operations`, `row_audit`, and sidecars)
 
-## DifferentialAnalysis Contract
+## DifferentialAnalysisWorkflow Contract
 
 ### Required Input Tables
 
-- `matrix`: numeric feature-by-sample table.
-- `design`: numeric full-rank design matrix aligned to `matrix.columns`.
+- `dataset.phospho`: numeric feature-by-sample table from `AnalysisReadyPhosphoDataset`.
+- `design`: numeric full-rank design matrix aligned to `dataset.phospho.columns`.
 - `contrasts`: numeric contrast matrix aligned to `design.columns`.
 
 ### Empirical-Bayes Moderation Policy

@@ -21,6 +21,7 @@ from phospy.api.requests import (
     DifferentialAnalysisRequest,
     EmpiricalBayesConfig,
     KinaseWorkflowRequest,
+    MultipleTestingConfig,
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import (
@@ -28,7 +29,7 @@ from phospy.api.results import (
     KinaseWorkflowResult,
     SignalomeWorkflowResult,
 )
-from phospy.api.workflows import DifferentialAnalysis
+from phospy.api.workflows import DifferentialAnalysisWorkflow
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import WorkflowValidationError
 
@@ -49,10 +50,11 @@ def test_public_workflow_and_request_exports_match_contract() -> None:
         "DifferentialAnalysisRequest",
         "EmpiricalBayesConfig",
         "KinaseWorkflowRequest",
+        "MultipleTestingConfig",
         "SignalomeWorkflowRequest",
     }
     assert set(workflow_models.__all__) == {
-        "DifferentialAnalysis",
+        "DifferentialAnalysisWorkflow",
         "KinaseWorkflow",
         "SignalomeWorkflow",
     }
@@ -68,17 +70,17 @@ def test_public_workflow_and_request_exports_match_contract() -> None:
 def test_public_workflows_expose_run_only() -> None:
     assert _public_methods(KinaseWorkflow) == {"run"}
     assert _public_methods(SignalomeWorkflow) == {"run"}
-    assert _public_methods(DifferentialAnalysis) == {"run"}
+    assert _public_methods(DifferentialAnalysisWorkflow) == {"run"}
     assert not hasattr(KinaseWorkflow, "execute")
     assert not hasattr(SignalomeWorkflow, "execute")
-    assert not hasattr(DifferentialAnalysis, "execute")
+    assert not hasattr(DifferentialAnalysisWorkflow, "execute")
     assert not hasattr(KinaseWorkflow, "run_from_analysis_ready")
     assert not hasattr(SignalomeWorkflow, "run_from_analysis_ready")
-    assert not hasattr(DifferentialAnalysis, "run_from_analysis_ready")
+    assert not hasattr(DifferentialAnalysisWorkflow, "run_from_analysis_ready")
 
 
 def test_workflow_run_type_contracts_are_request_to_result() -> None:
-    differential_hints = get_type_hints(DifferentialAnalysis.run)
+    differential_hints = get_type_hints(DifferentialAnalysisWorkflow.run)
     kinase_hints = get_type_hints(KinaseWorkflow.run)
     signalome_hints = get_type_hints(SignalomeWorkflow.run)
     assert differential_hints["request"] is DifferentialAnalysisRequest
@@ -102,6 +104,7 @@ def test_workflow_requests_keep_ingestion_outside_workflows() -> None:
     assert DesignMatrix in get_args(differential_request_hints["design"])
     assert ContrastMatrix in get_args(differential_request_hints["contrasts"])
     assert differential_request_hints["empirical_bayes"] is EmpiricalBayesConfig
+    assert differential_request_hints["multiple_testing"] is MultipleTestingConfig
     assert kinase_request_hints["dataset"] is AnalysisReadyPhosphoDataset
     assert signalome_request_hints["kinase_result"] is KinaseWorkflowResult
     assert kinase_request_hints["dataset"] is not DatasetBuildRequest

@@ -3,7 +3,8 @@
 Only workflow orchestrator classes are public from this package.
 """
 
+from phospy.workflows.differential.public import DifferentialAnalysisWorkflow
 from phospy.workflows.kinase.public import KinaseWorkflow
 from phospy.workflows.signalome.public import SignalomeWorkflow
 
-__all__ = ["SignalomeWorkflow", "KinaseWorkflow"]
+__all__ = ["DifferentialAnalysisWorkflow", "SignalomeWorkflow", "KinaseWorkflow"]

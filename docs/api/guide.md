@@ -14,6 +14,7 @@ The workflow documentation is split into dedicated pages:
 | Workflow | Page | Description |
 | --- | --- | --- |
 | Dataset | [Dataset Workflow](dataset-build-workflow.md) | Start here when you have phosphosite intensity data and want a strict `AnalysisReadyPhosphoDataset` for kinase and signalome analysis.|
+| Differential | [Differential Workflow](differential-workflow.md) | `DifferentialAnalysisWorkflow` runs moderated differential analysis over an `AnalysisReadyPhosphoDataset` using explicit design and contrast definitions. |
 | Kinase | [Kinase Workflow](kinase-workflow.md) | `KinaseWorkflow` resolves references, scores kinase-substrate evidence, predicts candidate kinase regulation, and can optionally compute kinase activity tables. |
 | Signalome | [Signalome Workflow](signalome-workflow.md) | `SignalomeWorkflow` interprets kinase score profiles into module assignments, signalome module summaries, kinase networks, and protein-site context tables |
 
@@ -21,6 +22,7 @@ The usual order is:
 
 ```python
 dataset = AnalysisReadyDatasetBuilder().run(dataset_request)
+differential_result = DifferentialAnalysisWorkflow().run(differential_request)
 kinase_result = KinaseWorkflow().run(kinase_request)
 signalome_result = SignalomeWorkflow().run(signalome_request)
 ```
@@ -45,6 +47,8 @@ exceptions:
 from phospy.api import (
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
+    DifferentialAnalysisRequest,
+    DifferentialAnalysisWorkflow,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
@@ -61,8 +65,9 @@ All public executors use `run(request)`.
 ## Public Workflow Shape
 
 1. `DatasetBuildRequest` -> `AnalysisReadyDatasetBuilder.run(...)` -> `AnalysisReadyPhosphoDataset`
-2. `KinaseWorkflowRequest` -> `KinaseWorkflow.run(...)` -> `KinaseWorkflowResult`
-3. `SignalomeWorkflowRequest` -> `SignalomeWorkflow.run(...)` -> `SignalomeWorkflowResult`
+2. `DifferentialAnalysisRequest` -> `DifferentialAnalysisWorkflow.run(...)` -> `DifferentialAnalysisResult`
+3. `KinaseWorkflowRequest` -> `KinaseWorkflow.run(...)` -> `KinaseWorkflowResult`
+4. `SignalomeWorkflowRequest` -> `SignalomeWorkflow.run(...)` -> `SignalomeWorkflowResult`
 
 The beginner lane is rat first because bundled runtime references in the current
 release are rat only. Human and mouse workflows need an explicit

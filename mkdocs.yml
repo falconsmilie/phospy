@@ -61,6 +61,7 @@ nav:
   - API:
       - API Guide: api/guide.md
       - Dataset Build Workflow: api/dataset-build-workflow.md
+      - Differential Workflow: api/differential-workflow.md
       - Kinase Workflow: api/kinase-workflow.md
       - Signalome Workflow: api/signalome-workflow.md
   - CLI Guide: cli.md

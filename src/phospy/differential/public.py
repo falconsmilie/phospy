@@ -1,27 +1,21 @@
-"""Public differential-analysis shell."""
+"""Compatibility wrapper for differential workflow execution."""
 
 from __future__ import annotations
 
-from phospy.differential.executor import DifferentialAnalysisExecutor
-from phospy.differential.models import (
-    DifferentialAnalysisRequest,
-    DifferentialAnalysisResult,
-)
-from phospy.differential.validator import DifferentialAnalysisRequestValidator
+from phospy.api.requests import DifferentialAnalysisRequest
+from phospy.differential.models import DifferentialAnalysisResult
+from phospy.workflows.differential.public import DifferentialAnalysisWorkflow
 
 
 class DifferentialAnalysis:
-    """Public entrypoint for limma-style moderated differential analysis."""
+    """Compatibility alias for `DifferentialAnalysisWorkflow`."""
 
     def __init__(
         self,
         *,
-        validator: DifferentialAnalysisRequestValidator | None = None,
-        executor: DifferentialAnalysisExecutor | None = None,
+        workflow: DifferentialAnalysisWorkflow | None = None,
     ) -> None:
-        self._validator = validator or DifferentialAnalysisRequestValidator()
-        self._executor = executor or DifferentialAnalysisExecutor()
+        self._workflow = workflow or DifferentialAnalysisWorkflow()
 
     def run(self, request: DifferentialAnalysisRequest) -> DifferentialAnalysisResult:
-        validated = self._validator.run(request)
-        return self._executor.run(validated)
+        return self._workflow.run(request)

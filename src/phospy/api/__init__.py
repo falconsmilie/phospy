@@ -50,6 +50,7 @@ from phospy.api.requests import (
     DifferentialAnalysisRequest,
     EmpiricalBayesConfig,
     KinaseWorkflowRequest,
+    MultipleTestingConfig,
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import (
@@ -60,7 +61,11 @@ from phospy.api.results import (
     KinaseWorkflowResult,
     SignalomeWorkflowResult,
 )
-from phospy.api.workflows import DifferentialAnalysis, KinaseWorkflow, SignalomeWorkflow
+from phospy.api.workflows import (
+    DifferentialAnalysisWorkflow,
+    KinaseWorkflow,
+    SignalomeWorkflow,
+)
 from phospy.errors import (
     DatasetBuildError,
     DatasetValidationError,
@@ -122,7 +127,7 @@ __all__ = [
     "DatasetTotalProteinCorrectionIdentityConfig",
     "DatasetTotalProteinCorrectionConfig",
     "DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED",
-    "DifferentialAnalysis",
+    "DifferentialAnalysisWorkflow",
     "DifferentialAnalysisRequest",
     "DifferentialAnalysisResult",
     "EmpiricalBayesConfig",
@@ -135,6 +140,7 @@ __all__ = [
     "KinaseScoringResult",
     "KinaseWorkflowRequest",
     "KinaseWorkflowResult",
+    "MultipleTestingConfig",
     "Organism",
     "IntensityScaleKind",
     "IntensityScaleState",

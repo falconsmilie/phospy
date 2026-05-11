@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+import pandas as pd
+
 from phospy.api.configs import (
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE,
     DatasetPreprocessingConfig,
@@ -19,14 +21,35 @@ from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.differential.models import (
     ContrastMatrix,
     DesignMatrix,
-    DifferentialAnalysisRequest,
     EmpiricalBayesConfig,
 )
+from phospy.errors.validation import WorkflowValidationError
 from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
 from phospy.transformations.models import QuantitativeMeaning
 
 if TYPE_CHECKING:
     from phospy.api.results import KinaseWorkflowResult
+
+MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG = "benjamini_hochberg"
+SUPPORTED_MULTIPLE_TESTING_METHODS: tuple[str, ...] = (
+    MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG,
+)
+
+
+@dataclass(frozen=True, slots=True)
+class MultipleTestingConfig:
+    """Public multiple-testing policy for differential analysis."""
+
+    method: str = MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG
+
+    def __post_init__(self) -> None:
+        if self.method not in SUPPORTED_MULTIPLE_TESTING_METHODS:
+            supported = ", ".join(
+                repr(value) for value in SUPPORTED_MULTIPLE_TESTING_METHODS
+            )
+            raise WorkflowValidationError(
+                f"differential.multiple_testing.method must be one of: {supported}"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,6 +107,45 @@ class SignalomeWorkflowRequest:
     config: SignalomeConfig = field(default_factory=SignalomeConfig)
 
 
+@dataclass(frozen=True, slots=True)
+class DifferentialAnalysisRequest:
+    """Request for the public differential workflow."""
+
+    dataset: AnalysisReadyPhosphoDataset
+    design: DesignMatrix | pd.DataFrame
+    contrasts: ContrastMatrix | pd.DataFrame
+    empirical_bayes: EmpiricalBayesConfig = field(default_factory=EmpiricalBayesConfig)
+    multiple_testing: MultipleTestingConfig = field(
+        default_factory=MultipleTestingConfig
+    )
+
+    def __post_init__(self) -> None:
+        design = self.design
+        if isinstance(design, pd.DataFrame):
+            design = DesignMatrix(design)
+        if not isinstance(design, DesignMatrix):
+            raise WorkflowValidationError(
+                "differential workflow request design must be DesignMatrix or pandas DataFrame"
+            )
+        contrasts = self.contrasts
+        if isinstance(contrasts, pd.DataFrame):
+            contrasts = ContrastMatrix(contrasts)
+        if not isinstance(contrasts, ContrastMatrix):
+            raise WorkflowValidationError(
+                "differential workflow request contrasts must be ContrastMatrix or pandas DataFrame"
+            )
+        if not isinstance(self.empirical_bayes, EmpiricalBayesConfig):
+            raise WorkflowValidationError(
+                "differential workflow request empirical_bayes must be EmpiricalBayesConfig"
+            )
+        if not isinstance(self.multiple_testing, MultipleTestingConfig):
+            raise WorkflowValidationError(
+                "differential workflow request multiple_testing must be MultipleTestingConfig"
+            )
+        object.__setattr__(self, "design", design)
+        object.__setattr__(self, "contrasts", contrasts)
+
+
 __all__ = [
     "ContrastMatrix",
     "DesignMatrix",
@@ -91,5 +153,6 @@ __all__ = [
     "DifferentialAnalysisRequest",
     "EmpiricalBayesConfig",
     "KinaseWorkflowRequest",
+    "MultipleTestingConfig",
     "SignalomeWorkflowRequest",
 ]
