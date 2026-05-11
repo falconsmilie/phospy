@@ -2,7 +2,7 @@
 
 ## Document Control
 
-- **ADR ID:** ADR-008
+- **ADR ID:** ADR-0008
 - **Title:** Analysis-Ready Dataset Builder Architecture for PhosPy
 - **Status:** Accepted
 - **Date:** 2026-04-16
@@ -18,7 +18,10 @@ The decision is to introduce a dedicated analysis-ready dataset builder path tha
 
 Accepted.
 
-This ADR defines the builder and ingestion architecture that supports the dataset boundary established in ADR-003, the transformation-state contract established in ADR-006, and the validation-domain architecture established in ADR-007.
+This ADR defines the builder and ingestion architecture that supports the
+dataset boundary established in ADR-0003, the transformation-state contract
+established in ADR-0006, and the validation-domain architecture established in
+ADR-0007.
 
 Update note (2026-05-11): `site_sequence` may be omitted at ingestion, but it
 is mandatory at the `AnalysisReadyPhosphoDataset` boundary. The builder owns
@@ -49,7 +52,7 @@ The decision is driven by the following considerations:
 5. **Validation discipline.** Flexible ingestion must still converge on one strict validated dataset model.
 6. **Extensibility.** New input conventions and data sources should be addable without reshaping workflow contracts.
 
-## Proposed Decision
+## Decision
 
 PhosPy will provide a dedicated builder-oriented path for producing `AnalysisReadyPhosphoDataset` from flexible user inputs.
 
@@ -110,7 +113,7 @@ The builder should accept either:
 
 This keeps the builder practical for both programmatic and file-driven usage.
 
-File-reading support should exist only to the extent that it supports the builder’s primary job of constructing the analysis-ready dataset. It should not turn the builder into a general-purpose file-ingestion framework.
+File-reading support should exist only to the extent that it supports the builder's primary job of constructing the analysis-ready dataset. It should not turn the builder into a general-purpose file-ingestion framework.
 
 ## Input Flexibility Policy
 
@@ -167,7 +170,7 @@ The builder returns exactly one primary public product:
 
 - `AnalysisReadyPhosphoDataset`
 
-That output must already satisfy the dataset boundary defined in ADR-003.
+That output must already satisfy the dataset boundary defined in ADR-0003.
 
 In particular, the final dataset must already contain:
 
@@ -202,7 +205,8 @@ If derivation cannot be completed from the available supported inputs and resour
 
 ## Transformation Direction
 
-The builder path must establish transformation state through the supported transformer path defined by ADR-006.
+The builder path must establish transformation state through the supported
+transformer path defined by ADR-0006.
 
 Transformation should not be exposed as a prominent public ingestion choice. It should follow preprocessing policy and keep the public surface small.
 
@@ -312,7 +316,7 @@ This ADR defines the analysis-ready dataset builder architecture only.
 
 It does not define:
 
-- the exact dataset contract beyond what ADR-003 already establishes
+- the exact dataset contract beyond what ADR-0003 already establishes
 - the full file-IO strategy for the package
 - reference resolution strategy
 - workflow result design
@@ -322,7 +326,7 @@ Those concerns should be addressed separately.
 
 ## Validation and Review Criteria
 
-Future code and review work should check proposed changes against the following questions:
+Future code and review work should check future changes against the following questions:
 
 1. Does this keep ingestion flexibility below the dataset boundary?
 2. Does this reduce or increase manual user burden for messy input formats?
@@ -336,19 +340,23 @@ If the answers are weak or negative, the design should be reconsidered.
 
 This ADR complements the earlier architecture decisions.
 
-- ADR-001 defines the intended public API contract.
-- ADR-002 defines the internal workflow architecture.
-- ADR-003 defines the dataset and preprocessing boundary.
-- ADR-004 defines the reference resolution strategy and `ReferenceBundle` contract.
-- ADR-005 defines result-model design.
-- ADR-006 defines the transformation-state and transformer contract.
-- ADR-007 defines the validation-domain architecture.
-- ADR-008 defines how messy inputs are converted into `AnalysisReadyPhosphoDataset`.
+- ADR-0001 defines the intended public API contract.
+- ADR-0002 defines the internal workflow architecture.
+- ADR-0003 defines the dataset and preprocessing boundary.
+- ADR-0004 defines the reference resolution strategy and `ReferenceBundle`
+  contract.
+- ADR-0005 defines result-model design.
+- ADR-0006 defines the transformation-state and transformer contract.
+- ADR-0007 defines the validation-domain architecture.
+- ADR-0008 defines how messy inputs are converted into
+  `AnalysisReadyPhosphoDataset`.
+- ADR-0018 defines the phosphosite identity/localisation policy that the
+  builder must satisfy at the analysis-ready boundary.
 
 Together, these ADRs establish:
 
 - one public dataset model
-- two public workflows
+- three public workflows
 - one strict dataset boundary
 - one flexible builder path below that boundary
 - one consistent internal workflow pattern
@@ -358,4 +366,4 @@ Together, these ADRs establish:
 
 Yang, P., Patrick, E., Humphrey, S. J., Ghazanfar, S., James, D. E., Jothi, R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14), i349-i356.
 
-YangLab. (n.d.). *PhosR*. GitHub repository. https://github.com/PYangLab/PhosR
+YangLab. (n.d.). *PhosR* [Computer software]. GitHub. https://github.com/PYangLab/PhosR

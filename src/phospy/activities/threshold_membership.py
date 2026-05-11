@@ -21,7 +21,7 @@ THRESHOLD_MEMBERSHIP_MODE = ThresholdMode.GREATER_THAN_OR_EQUAL
 
 @dataclass(frozen=True, slots=True)
 class ActivityThresholdMembershipPolicy:
-    """Canonical activity threshold-membership policy metadata."""
+    """Standard activity threshold-membership policy metadata."""
 
     mode: ThresholdMode
     operator: str
@@ -139,7 +139,7 @@ def threshold_membership_mask_array(
     threshold: float,
     threshold_mode: ThresholdMode | str = THRESHOLD_MEMBERSHIP_MODE,
 ) -> np.ndarray:
-    """Return membership mask using the canonical activity threshold rule."""
+    """Return membership mask using the standard activity-threshold rule."""
 
     threshold_value = float(threshold)
     return _threshold_comparison_mask(
@@ -155,7 +155,7 @@ def threshold_membership_mask_frame(
     threshold: float,
     threshold_mode: ThresholdMode | str = THRESHOLD_MEMBERSHIP_MODE,
 ) -> pd.DataFrame:
-    """Return a DataFrame mask using the canonical activity threshold rule."""
+    """Return a DataFrame mask using the standard activity-threshold rule."""
 
     mask = threshold_membership_mask_array(
         scores.to_numpy(dtype=float, copy=False),

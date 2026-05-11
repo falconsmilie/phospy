@@ -69,7 +69,7 @@ as scientific-output policy.
 
 This ADR governs stochastic reproducibility and seed-policy provenance for
 adaptive prediction. It does not define general test suite structure
-(ADR-014) or public namespace governance (ADR-001).
+(ADR-0014) or public namespace governance (ADR-0001).
 
 ## Validation and Review Criteria
 
@@ -89,5 +89,5 @@ R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative
 phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14),
 i349-i356.
 
-YangLab. (n.d.). *PhosR*. GitHub repository.
+YangLab. (n.d.). *PhosR* [Computer software]. GitHub.
 https://github.com/PYangLab/PhosR

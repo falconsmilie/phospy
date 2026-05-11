@@ -2,7 +2,7 @@
 
 ## Document Control
 
-- **ADR ID:** ADR-002
+- **ADR ID:** ADR-0002
 - **Title:** Internal Workflow Architecture for PhosPy
 - **Status:** Accepted
 - **Date:** 2026-04-16
@@ -395,7 +395,7 @@ Those concerns should be handled in separate ADRs or implementation plans.
 
 ## Validation and Review Criteria
 
-Future code and review work should check proposed changes against the following questions:
+Future code and review work should check future changes against the following questions:
 
 1. Does this class clearly belong to validation, interpretation, execution, or data modelling?
 2. Does this change make the request-to-result path clearer?
@@ -406,12 +406,12 @@ Future code and review work should check proposed changes against the following 
 
 If the answers are weak, the design should be reconsidered.
 
-## Relationship to ADR-001
+## Relationship to ADR-0001
 
-This ADR complements ADR-001, which defines the public API contract for PhosPy.
+This ADR complements ADR-0001, which defines the public API contract for PhosPy.
 
-ADR-001 defines what PhosPy exposes.
-ADR-002 defines how the internal workflow architecture should deliver that public contract.
+ADR-0001 defines what PhosPy exposes.
+ADR-0002 defines how the internal workflow architecture should deliver that public contract.
 
 The public API remains centred on one dataset model and three primary
 downstream workflows (differential, kinase, signalome). The internal
@@ -422,4 +422,4 @@ public shape.
 
 Yang, P., Patrick, E., Humphrey, S. J., Ghazanfar, S., James, D. E., Jothi, R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14), i349-i356.
 
-YangLab. (n.d.). *PhosR*. GitHub repository. https://github.com/PYangLab/PhosR
+YangLab. (n.d.). *PhosR* [Computer software]. GitHub. https://github.com/PYangLab/PhosR

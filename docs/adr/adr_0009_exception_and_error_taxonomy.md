@@ -2,7 +2,7 @@
 
 ## Document Control
 
-- **ADR ID:** ADR-009
+- **ADR ID:** ADR-0009
 - **Title:** Exception and Error Taxonomy for PhosPy
 - **Status:** Accepted
 - **Date:** 2026-04-16
@@ -51,7 +51,7 @@ The decision is driven by the following considerations:
 5. **Testability.** Failure modes should be explicit enough to assert cleanly in tests.
 6. **Privacy of implementation.** Internal library and framework exceptions should not define the public failure story by default.
 
-## Proposed Decision
+## Decision
 
 PhosPy will use a small, explicit exception taxonomy with one package-level base exception and a limited number of meaningful domain-level base exceptions.
 
@@ -95,7 +95,8 @@ Validation-domain failures should derive from:
 
 - `PhosPyValidationError`
 
-This aligns with ADR-007, which already established that the validation domain should have a shared base validation exception type.
+This aligns with ADR-0007, which already established that the validation domain
+should have a shared base validation exception type.
 
 Validation failures include cases such as:
 
@@ -152,7 +153,8 @@ These failures include cases such as:
 - malformed `ReferenceBundle`
 - unresolved preset-to-bundle mapping
 
-This aligns with ADR-004 and keeps reference failures clearly separate from general workflow failures.
+This aligns with ADR-0004 and keeps reference failures clearly separate from
+general workflow failures.
 
 ## Transformation Exceptions
 
@@ -167,7 +169,8 @@ These failures include cases such as:
 - transformer failure to establish supported transformation state
 - inconsistent transformation assumptions during dataset build
 
-This aligns with ADR-006 and keeps transformation concerns explicitly identifiable.
+This aligns with ADR-0006 and keeps transformation concerns explicitly
+identifiable.
 
 ## Workflow Exceptions
 
@@ -389,7 +392,7 @@ Those concerns should be addressed separately.
 
 ## Validation and Review Criteria
 
-Future code and review work should check proposed changes against the following questions:
+Future code and review work should check future changes against the following questions:
 
 1. Does this failure use the most appropriate domain exception type?
 2. Does this translate a low-level exception at the right boundary?
@@ -403,20 +406,22 @@ If the answers are weak or negative, the design should be reconsidered.
 
 This ADR complements the earlier architecture decisions.
 
-- ADR-001 defines the intended public API contract.
-- ADR-002 defines the internal workflow architecture.
-- ADR-003 defines the dataset and preprocessing boundary.
-- ADR-004 defines the reference resolution strategy and `ReferenceBundle` contract.
-- ADR-005 defines result-model design.
-- ADR-006 defines the transformation-state and transformer contract.
-- ADR-007 defines the validation-domain architecture.
-- ADR-008 defines the analysis-ready dataset builder architecture.
-- ADR-009 defines how failures are classified and communicated across the package.
+- ADR-0001 defines the intended public API contract.
+- ADR-0002 defines the internal workflow architecture.
+- ADR-0003 defines the dataset and preprocessing boundary.
+- ADR-0004 defines the reference resolution strategy and `ReferenceBundle`
+  contract.
+- ADR-0005 defines result-model design.
+- ADR-0006 defines the transformation-state and transformer contract.
+- ADR-0007 defines the validation-domain architecture.
+- ADR-0008 defines the analysis-ready dataset builder architecture.
+- ADR-0009 defines how failures are classified and communicated across the
+  package.
 
 Together, these ADRs establish:
 
 - one public dataset model
-- two public workflows
+- three public workflows
 - one strict dataset boundary
 - one flexible builder path below that boundary
 - one private validation domain
@@ -427,4 +432,4 @@ Together, these ADRs establish:
 
 Yang, P., Patrick, E., Humphrey, S. J., Ghazanfar, S., James, D. E., Jothi, R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14), i349-i356.
 
-YangLab. (n.d.). *PhosR*. GitHub repository. https://github.com/PYangLab/PhosR
+YangLab. (n.d.). *PhosR* [Computer software]. GitHub. https://github.com/PYangLab/PhosR

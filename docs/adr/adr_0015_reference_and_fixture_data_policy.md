@@ -2,7 +2,7 @@
 
 ## Document Control
 
-- **ADR ID:** ADR-015
+- **ADR ID:** ADR-0015
 - **Title:** Reference and Fixture Data Policy for PhosPy
 - **Status:** Accepted
 - **Date:** 2026-04-16
@@ -18,13 +18,15 @@ The decision is to adopt an explicit data policy with three distinct categories:
 - non-runtime test fixtures
 - parity reference outputs
 
-Each category should have a clear purpose, location, update rule, and authority level. Runtime reference data exists to support the package’s actual scientific workflows. Test fixtures exist to support validation of behaviour. Parity reference outputs exist to support explicit scientific comparison, primarily against PhosR outputs. These categories must not be mixed casually.
+Each category should have a clear purpose, location, update rule, and authority level. Runtime reference data exists to support the package's actual scientific workflows. Test fixtures exist to support validation of behaviour. Parity reference outputs exist to support explicit scientific comparison, primarily against PhosR outputs. These categories must not be mixed casually.
 
 ## Status
 
 Accepted.
 
-This ADR defines the data policy that supports the reference-resolution architecture in ADR-004, the parity strategy in ADR-013, the test structure in ADR-014, and the broader fresh-start rewrite defined in ADR-012.
+This ADR defines the data policy that supports the reference-resolution
+architecture in ADR-0004, the parity strategy in ADR-0013, the test structure
+in ADR-0014, and the broader fresh-start rewrite defined in ADR-0012.
 
 ## Context and Problem Statement
 
@@ -56,7 +58,7 @@ The decision is driven by the following considerations:
 5. **Parity integrity.** Scientific comparison outputs should remain explicit and reviewable.
 6. **Fresh-start discipline.** Data policy should support the new architecture rather than preserve accidental patterns from the previous application.
 
-## Proposed Decision
+## Decision
 
 PhosPy will classify reference and fixture data into three explicit categories:
 
@@ -105,11 +107,24 @@ Bundled runtime reference data should:
 
 ### Authority
 
-Bundled runtime reference data is authoritative for PhosPy’s bundled reference behaviour.
+Bundled runtime reference data is authoritative for PhosPy's bundled reference behaviour.
 
 It is not automatically authoritative for parity expectations unless explicitly used as part of a parity fixture definition.
 
 Each runtime manifest should declare organism scope, identifier namespace, source metadata, license or redistribution status, supported workflows, sequence-window definition, and known limitations.
+
+### Runtime Reference Data Card Requirements
+
+Every bundled runtime lane must include a machine-readable manifest (reference
+data card) that is treated as runtime governance metadata, not optional notes.
+At minimum, the card must include:
+
+- artifact identity and version
+- organism and identifier namespace
+- source provenance and redistribution/license metadata
+- supported workflow lanes and explicit exclusions
+- sequence-window and schema assumptions
+- known limitations and reviewer notes
 
 ## Category 2: Test Fixture Data
 
@@ -170,6 +185,15 @@ Stale parity fixtures should not exist. Removed or superseded parity fixtures sh
 The primary authority for parity reference outputs should be PhosR outputs where available and appropriate.
 
 Selected outputs from the old application may still be used as secondary reference material where scientifically helpful, but they are not the primary authority.
+
+## Non-Interchangeability Rules
+
+The three categories are intentionally non-interchangeable:
+
+1. Runtime reference loaders must not read test fixture or parity-output trees.
+2. Test fixtures must not be promoted to runtime references without data-card
+   review.
+3. Parity outputs must never be treated as runtime lookup resources.
 
 ## Physical Layout Direction
 
@@ -261,7 +285,7 @@ Bundled runtime reference updates and parity-output updates should be called out
 
 ## Relationship to Reference Resolution
 
-ADR-004 defines how references are resolved at runtime.
+ADR-0004 defines how references are resolved at runtime.
 
 This ADR defines how the data underpinning that system is classified and managed.
 
@@ -273,7 +297,7 @@ In particular:
 
 ## Relationship to Parity Policy
 
-ADR-013 defines what parity means.
+ADR-0013 defines what parity means.
 
 This ADR defines how the data used for parity should be handled.
 
@@ -369,7 +393,7 @@ Those concerns should be addressed separately.
 
 ## Validation and Review Criteria
 
-Future code and review work should check proposed changes against the following questions:
+Future code and review work should check future changes against the following questions:
 
 1. What category of data is this artefact?
 2. Is it stored in the right place for that category?
@@ -383,11 +407,15 @@ If the answers are weak or negative, the design should be reconsidered.
 
 This ADR complements the earlier architecture decisions.
 
-- ADR-004 defines the reference resolution strategy and `ReferenceBundle` contract.
-- ADR-008 defines the builder architecture below the dataset boundary.
-- ADR-013 defines scientific parity strategy and parity-testing policy.
-- ADR-014 defines the overall test suite structure and policy.
-- ADR-015 defines how reference data and fixture data should be classified and managed.
+- ADR-0004 defines the reference resolution strategy and `ReferenceBundle`
+  contract.
+- ADR-0008 defines the builder architecture below the dataset boundary.
+- ADR-0013 defines scientific parity strategy and parity-testing policy.
+- ADR-0014 defines the overall test suite structure and policy.
+- ADR-0015 defines how reference data and fixture data should be classified and
+  managed.
+- ADR-0016, ADR-0017, ADR-0018, and ADR-0019 introduce feature lanes that
+  require explicit fixture-vs-runtime governance and category boundaries.
 
 Together, these ADRs establish:
 
@@ -400,5 +428,5 @@ Together, these ADRs establish:
 
 Yang, P., Patrick, E., Humphrey, S. J., Ghazanfar, S., James, D. E., Jothi, R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14), i349-i356.
 
-YangLab. (n.d.). *PhosR*. GitHub repository. https://github.com/PYangLab/PhosR
+YangLab. (n.d.). *PhosR* [Computer software]. GitHub. https://github.com/PYangLab/PhosR
 

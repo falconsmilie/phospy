@@ -2,7 +2,7 @@
 
 ## Document Control
 
-- **ADR ID:** ADR-010
+- **ADR ID:** ADR-0010
 - **Title:** Internal Package and Module Layout for PhosPy
 - **Status:** Accepted
 - **Date:** 2026-05-02
@@ -101,14 +101,14 @@ Without governance:
 ## Scope Boundaries
 
 This ADR governs internal module boundaries and compatibility shim usage. It
-does not change public API export policy (ADR-001), validation ownership
-(ADR-007), or test/performance governance (ADR-014).
+does not change public API export policy (ADR-0001), validation ownership
+(ADR-0007), or test/performance governance (ADR-0014).
 
 ## Validation and Review Criteria
 
 Future changes must satisfy all of the following:
 
-1. Is the proposed split responsibility-driven?
+1. Is the split responsibility-driven?
 2. Does the public workflow class stay orchestration-only?
 3. Is a compatibility shim thin, internal, and justified?
 4. Is any new behavior added only in owning modules?
@@ -122,5 +122,5 @@ R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative
 phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14),
 i349-i356.
 
-YangLab. (n.d.). *PhosR*. GitHub repository.
+YangLab. (n.d.). *PhosR* [Computer software]. GitHub.
 https://github.com/PYangLab/PhosR

@@ -2,7 +2,7 @@
 
 ## Document Control
 
-- **ADR ID:** ADR-004
+- **ADR ID:** ADR-0004
 - **Title:** Reference Resolution Strategy and `ReferenceBundle` Contract for PhosPy
 - **Status:** Accepted
 - **Date:** 2026-04-16
@@ -48,7 +48,7 @@ The decision is driven by the following considerations:
 5. **Extensibility.** The design should allow bundled references and user-supplied references without fragmenting the workflow contract.
 6. **Clarity of responsibility.** Reference resolution belongs in interpretation; shared reference validity rules belong in the validation domain.
 
-## Proposed Decision
+## Decision
 
 PhosPy will support two public reference input forms for the kinase workflow:
 
@@ -67,7 +67,7 @@ Reference validation will remain private and will live in the validation domain.
 
 `ReferencePreset` is a public enum-like input that allows users to request built-in references without supplying a full bundle manually.
 
-The proposed public values are:
+The public values are:
 
 - `AUTO`
 - `HUMAN`
@@ -87,9 +87,9 @@ It represents a fully materialised reference package suitable for kinase scoring
 
 A workflow that receives a `ReferenceBundle` should not need to perform further discovery or resource assembly.
 
-## Proposed `ReferenceBundle` Contract
+## `ReferenceBundle` Contract
 
-The proposed public `ReferenceBundle` contains:
+The public `ReferenceBundle` contains:
 
 - `organism`
 - `kinase_substrate_map`
@@ -113,7 +113,7 @@ A non-empty structured sequence resource required for the motif-aware scoring pa
 
 ## Bundle Invariants
 
-The proposed `ReferenceBundle` invariants are:
+The `ReferenceBundle` invariants are:
 
 - `kinase_substrate_map` must be non-empty
 - `site_sequences` must be non-empty
@@ -145,7 +145,7 @@ Bundled loading must fail clearly when the bundled manifest is missing or malfor
 
 If the user supplies `ReferencePreset.AUTO`, resolution should use the dataset organism.
 
-The proposed rule is:
+The rule is:
 
 - if `dataset.organism` is present and has bundled support in the current
   release, resolve to the matching bundled reference bundle
@@ -176,7 +176,7 @@ Reference provenance emitted by workflows should carry, at minimum, bundle ID, o
 
 ## Organism Compatibility Rules
 
-The following compatibility rules are proposed.
+The following compatibility rules apply.
 
 ### Explicit Bundle With Organism
 
@@ -230,7 +230,7 @@ The executor consumes a fully resolved `ReferenceBundle` and should not perform 
 
 ## Reference Provider Direction
 
-The proposed internal direction is to introduce a dedicated reference provider seam.
+The internal direction is to introduce a dedicated reference provider seam.
 
 A likely shape is:
 
@@ -338,7 +338,7 @@ Those concerns should be addressed separately.
 
 ## Validation and Review Criteria
 
-Future code and review work should check proposed changes against the following questions:
+Future code and review work should check future changes against the following questions:
 
 1. Does this preserve a single clear path from reference input to concrete `ReferenceBundle`?
 2. Does this keep `AUTO` explicit rather than heuristic?
@@ -352,15 +352,16 @@ If the answers are weak or negative, the design should be reconsidered.
 
 This ADR complements the earlier architecture decisions.
 
-- ADR-001 defines the intended public API contract.
-- ADR-002 defines the internal workflow architecture.
-- ADR-003 defines the dataset and preprocessing boundary.
-- ADR-004 defines how references are selected, resolved, and validated for workflow use.
+- ADR-0001 defines the intended public API contract.
+- ADR-0002 defines the internal workflow architecture.
+- ADR-0003 defines the dataset and preprocessing boundary.
+- ADR-0004 defines how references are selected, resolved, and validated for
+  workflow use.
 
 Together, these ADRs establish:
 
 - one public dataset model
-- two public workflows
+- three public workflows
 - one consistent internal workflow pattern
 - one explicit path from reference request to resolved bundle
 
@@ -368,4 +369,4 @@ Together, these ADRs establish:
 
 Yang, P., Patrick, E., Humphrey, S. J., Ghazanfar, S., James, D. E., Jothi, R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14), i349-i356.
 
-YangLab. (n.d.). *PhosR*. GitHub repository. https://github.com/PYangLab/PhosR
+YangLab. (n.d.). *PhosR* [Computer software]. GitHub. https://github.com/PYangLab/PhosR

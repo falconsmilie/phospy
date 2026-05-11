@@ -2,7 +2,7 @@
 
 ## Document Control
 
-- **ADR ID:** ADR-011
+- **ADR ID:** ADR-0011
 - **Title:** Builder Public API Contract for PhosPy
 - **Status:** Accepted
 - **Date:** 2026-04-16
@@ -18,7 +18,9 @@ The decision is to provide one consistent public builder story backed by a small
 
 Accepted.
 
-This ADR defines the public builder contract that sits above the internal builder architecture established in ADR-008 and below the dataset boundary defined in ADR-003.
+This ADR defines the public builder contract that sits above the internal
+builder architecture established in ADR-0008 and below the dataset boundary
+defined in ADR-0003.
 
 ## Context and Problem Statement
 
@@ -27,7 +29,9 @@ Earlier ADRs established two important truths:
 - the public workflow boundary must stay strict and accept only `AnalysisReadyPhosphoDataset`
 - users should not be forced to manually normalise ugly phosphoproteomics inputs before using the package
 
-ADR-008 established that the package should provide a builder-oriented path below the strict dataset boundary. However, that ADR mainly defined the architectural role of the builder layer, not its public contract.
+ADR-0008 established that the package should provide a builder-oriented path
+below the strict dataset boundary. However, that ADR mainly defined the
+architectural role of the builder layer, not its public contract.
 
 Without an explicit public builder contract, several problems are likely:
 
@@ -49,7 +53,7 @@ The decision is driven by the following considerations:
 5. **PhosR alignment.** The product should feel like a scientific workflow package, not a general ingestion framework.
 6. **Failure quality.** Unsupported input should fail early and clearly rather than being guessed into acceptance.
 
-## Proposed Decision
+## Decision
 
 PhosPy will expose one consistent public builder route for constructing `AnalysisReadyPhosphoDataset`.
 
@@ -295,8 +299,8 @@ This ADR defines the public builder API contract only.
 
 It does not define:
 
-- the full internal builder architecture beyond ADR-008
-- the full dataset contract beyond ADR-003
+- the full internal builder architecture beyond ADR-0008
+- the full dataset contract beyond ADR-0003
 - the full IO subsystem design beyond what is needed for the builder contract
 - reference resolution strategy
 - migration strategy from current code
@@ -305,7 +309,7 @@ Those concerns should be addressed separately.
 
 ## Validation and Review Criteria
 
-Future code and review work should check proposed changes against the following questions:
+Future code and review work should check future changes against the following questions:
 
 1. Does this keep the public builder story coherent and singular?
 2. Does this keep the builder flexible enough for real-world inputs without becoming magical?
@@ -319,22 +323,24 @@ If the answers are weak or negative, the design should be reconsidered.
 
 This ADR complements the earlier architecture decisions.
 
-- ADR-001 defines the intended public API contract.
-- ADR-002 defines the internal workflow architecture.
-- ADR-003 defines the dataset and preprocessing boundary.
-- ADR-004 defines the reference resolution strategy and `ReferenceBundle` contract.
-- ADR-005 defines result-model design.
-- ADR-006 defines the transformation-state and transformer contract.
-- ADR-007 defines the validation-domain architecture.
-- ADR-008 defines the internal analysis-ready dataset builder architecture.
-- ADR-009 defines the exception and error taxonomy.
-- ADR-010 defines the internal package and module layout.
-- ADR-011 defines the public builder API contract that exposes the builder story coherently.
+- ADR-0001 defines the intended public API contract.
+- ADR-0002 defines the internal workflow architecture.
+- ADR-0003 defines the dataset and preprocessing boundary.
+- ADR-0004 defines the reference resolution strategy and `ReferenceBundle`
+  contract.
+- ADR-0005 defines result-model design.
+- ADR-0006 defines the transformation-state and transformer contract.
+- ADR-0007 defines the validation-domain architecture.
+- ADR-0008 defines the internal analysis-ready dataset builder architecture.
+- ADR-0009 defines the exception and error taxonomy.
+- ADR-0010 defines the internal package and module layout.
+- ADR-0011 defines the public builder API contract that exposes the builder
+  story coherently.
 
 Together, these ADRs establish:
 
 - one public dataset model
-- two public workflows
+- three public workflows
 - one strict dataset boundary
 - one flexible builder path below that boundary
 - one coherent public builder story above that boundary
@@ -345,4 +351,4 @@ Together, these ADRs establish:
 
 Yang, P., Patrick, E., Humphrey, S. J., Ghazanfar, S., James, D. E., Jothi, R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14), i349-i356.
 
-YangLab. (n.d.). *PhosR*. GitHub repository. https://github.com/PYangLab/PhosR
+YangLab. (n.d.). *PhosR* [Computer software]. GitHub. https://github.com/PYangLab/PhosR

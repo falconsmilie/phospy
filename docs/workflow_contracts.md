@@ -32,7 +32,7 @@ identical numeric outputs across different machines or dependency builds.
 ### Identifiers and Alignment Assumptions
 
 - `site_metadata.index` must exactly match `phospho.index`.
-- Site IDs are expected in canonical phosphosite form (for example `TSC2;S939;`).
+- Site IDs are expected in standard phosphosite form (for example `TSC2;S939;`).
 - `sample_metadata.index` and `total` sample index must match `phospho.columns` when provided.
 - If site-matrix construction is enabled, `site_metadata` must provide the required site-identity fields.
 
@@ -270,7 +270,7 @@ identical numeric outputs across different machines or dependency builds.
 ### Provenance Guarantees
 
 - Provenance includes upstream kinase provenance payload, input/output table fingerprints, resolved configuration, scale-guard diagnostics, and scientific policy records.
-- Table fingerprints include explicit exact and tolerance hash metadata; exact hashes are the canonical audit trail fingerprints.
+- Table fingerprints include explicit exact and tolerance hash metadata; exact hashes are the authoritative audit-trail fingerprints.
 - Alignment and score-preconditioning diagnostics are included for interpretability and audit.
 
 ### Known Limitations

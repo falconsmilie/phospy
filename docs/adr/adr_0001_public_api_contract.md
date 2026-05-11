@@ -2,7 +2,7 @@
 
 ## Document Control
 
-- **ADR ID:** ADR-001
+- **ADR ID:** ADR-0001
 - **Title:** Public API Contract for PhosPy
 - **Status:** Accepted
 - **Date:** 2026-05-02
@@ -134,7 +134,7 @@ Advanced configuration remains available through explicit config objects.
 
 This ADR defines public API governance and namespace ownership. It does not
 define internal package splitting, validation-domain ownership, or test policy
-details (covered by ADR-007, ADR-010, ADR-014, and ADR-0017).
+details (covered by ADR-0007, ADR-0010, ADR-0014, ADR-0016, and ADR-0017).
 
 ## Validation and Review Criteria
 
@@ -153,5 +153,5 @@ R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative
 phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14),
 i349-i356.
 
-YangLab. (n.d.). *PhosR*. GitHub repository.
+YangLab. (n.d.). *PhosR* [Computer software]. GitHub.
 https://github.com/PYangLab/PhosR

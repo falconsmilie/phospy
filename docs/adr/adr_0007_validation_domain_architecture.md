@@ -2,7 +2,7 @@
 
 ## Document Control
 
-- **ADR ID:** ADR-007
+- **ADR ID:** ADR-0007
 - **Title:** Validation Domain Architecture for PhosPy
 - **Status:** Accepted
 - **Date:** 2026-05-02
@@ -116,7 +116,7 @@ Workflow validators must not:
 ## Scope Boundaries
 
 This ADR defines validation ownership and composition governance. It does not
-define module-splitting rules (ADR-010) or stochastic reproducibility policy
+define module-splitting rules (ADR-0010) or stochastic reproducibility policy
 (ADR-0017).
 
 ## Validation and Review Criteria
@@ -136,5 +136,5 @@ R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative
 phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14),
 i349-i356.
 
-YangLab. (n.d.). *PhosR*. GitHub repository.
+YangLab. (n.d.). *PhosR* [Computer software]. GitHub.
 https://github.com/PYangLab/PhosR

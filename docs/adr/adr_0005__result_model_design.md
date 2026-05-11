@@ -2,7 +2,7 @@
 
 ## Document Control
 
-- **ADR ID:** ADR-005
+- **ADR ID:** ADR-0005
 - **Title:** Result Model Design for PhosPy
 - **Status:** Accepted
 - **Date:** 2026-04-16
@@ -12,7 +12,7 @@
 
 This Architecture Decision Record defines how public and internal result models should be designed in PhosPy. The package is being developed as a maintainable Python port of PhosR. To support that goal, result objects must remain honest, small, and aligned with the real scientific stages of the workflows.
 
-The decision is that result objects should be primarily typed data containers. Public workflow results should expose nested stage results directly rather than duplicating them through mirrored convenience accessors. Export logic, plotting logic, compatibility façades, and broad ownership-management APIs should remain outside the core result contract unless a very strong product reason emerges.
+The decision is that result objects should be primarily typed data containers. Public workflow results should expose nested stage results directly rather than duplicating them through mirrored convenience accessors. Export logic, plotting logic, compatibility facades, and broad ownership-management APIs should remain outside the core result contract unless a very strong product reason emerges.
 
 ## Status
 
@@ -33,7 +33,9 @@ Result models are a common place for architectural drift. Once a workflow produc
 
 These additions usually begin as convenience, but they quickly make result objects larger, harder to document, and harder to maintain. They also obscure the true scientific structure of the workflow by training users to depend on shortcuts instead of understanding what the workflow actually produced.
 
-PhosPy is intended to expose one analysis-ready dataset model and two primary workflows. Its result models should reinforce that workflow story rather than becoming secondary service layers.
+PhosPy is intended to expose one analysis-ready dataset model and three primary
+workflows (differential, kinase, signalome). Its result models should
+reinforce that workflow story rather than becoming secondary service layers.
 
 ## Decision Drivers
 
@@ -46,7 +48,7 @@ The decision is driven by the following considerations:
 5. **PhosR alignment.** Workflow outputs should map clearly onto the scientific stages users expect.
 6. **Freedom from backwards-compatibility burden.** Historical result shapes and convenience mirrors do not need to be preserved.
 
-## Proposed Decision
+## Decision
 
 Public result models in PhosPy will be designed as typed data containers that expose the real workflow structure directly.
 
@@ -95,7 +97,7 @@ Result models should not grow broad families of near-duplicate accessors purely 
 
 ### Kinase Workflow Result
 
-The proposed public `KinaseWorkflowResult` should contain:
+The public `KinaseWorkflowResult` should contain:
 
 - `dataset`
 - `references`
@@ -117,7 +119,7 @@ The top-level result should not mirror these through repeated aliases.
 
 ### Signalome Workflow Result
 
-The proposed public `SignalomeWorkflowResult` should contain:
+The public `SignalomeWorkflowResult` should contain:
 
 - `dataset`
 - `kinase_result`
@@ -166,7 +168,7 @@ This result should hold activity-stage outputs such as:
 - `target_counts`
 - `target_table`
 
-These stage models should remain narrow and should not be wrapped repeatedly by additional façade types without a strong reason.
+These stage models should remain narrow and should not be wrapped repeatedly by additional facade types without a strong reason.
 
 ## Convenience Accessor Policy
 
@@ -244,7 +246,7 @@ The public result story must remain smaller than the internal implementation.
 - The workflow structure remains visible and honest.
 - Documentation becomes easier because there are fewer duplicate access paths.
 - Export and plotting concerns stay decoupled from scientific data modelling.
-- Maintenance burden is reduced because there are fewer mirrored fields and fewer façade layers.
+- Maintenance burden is reduced because there are fewer mirrored fields and fewer facade layers.
 
 ### Negative Consequences
 
@@ -311,7 +313,7 @@ Those concerns should be addressed separately.
 
 ## Validation and Review Criteria
 
-Future code and review work should check proposed changes against the following questions:
+Future code and review work should check future changes against the following questions:
 
 1. Does this result model expose the real workflow structure honestly?
 2. Does this change add a real result concept, or just a duplicate access path?
@@ -325,16 +327,19 @@ If the answers are weak or negative, the design should be reconsidered.
 
 This ADR complements the earlier architecture decisions.
 
-- ADR-001 defines the intended public API contract.
-- ADR-002 defines the internal workflow architecture.
-- ADR-003 defines the dataset and preprocessing boundary.
-- ADR-004 defines the reference resolution strategy and `ReferenceBundle` contract.
-- ADR-005 defines how workflow and stage results should be modelled.
+- ADR-0001 defines the intended public API contract.
+- ADR-0002 defines the internal workflow architecture.
+- ADR-0003 defines the dataset and preprocessing boundary.
+- ADR-0004 defines the reference resolution strategy and `ReferenceBundle`
+  contract.
+- ADR-0005 defines how workflow and stage results should be modelled.
+- ADR-0016 defines DataFrame/Series ownership behavior at public result and
+  dataset boundaries.
 
 Together, these ADRs establish:
 
 - one public dataset model
-- two public workflows
+- three public workflows
 - one consistent internal workflow pattern
 - one explicit reference-resolution path
 - one disciplined approach to result-model design
@@ -343,4 +348,4 @@ Together, these ADRs establish:
 
 Yang, P., Patrick, E., Humphrey, S. J., Ghazanfar, S., James, D. E., Jothi, R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14), i349-i356.
 
-YangLab. (n.d.). *PhosR*. GitHub repository. https://github.com/PYangLab/PhosR
+YangLab. (n.d.). *PhosR* [Computer software]. GitHub. https://github.com/PYangLab/PhosR

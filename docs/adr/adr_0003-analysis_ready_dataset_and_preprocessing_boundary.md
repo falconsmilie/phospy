@@ -2,7 +2,7 @@
 
 ## Document Control
 
-- **ADR ID:** ADR-003
+- **ADR ID:** ADR-0003
 - **Title:** Analysis-Ready Dataset and Preprocessing Boundary for PhosPy
 - **Status:** Accepted
 - **Date:** 2026-04-16
@@ -27,11 +27,15 @@ construction.
 
 ## Context and Problem Statement
 
-PhosPy is intended to expose one public dataset model and two primary workflows. Both workflows depend on a stable and well-understood input boundary. Without a strict dataset contract, workflows become polluted with repeated checks, fallback logic, column-name plumbing, and interpretation of partially prepared data.
+PhosPy is intended to expose one public dataset model and three primary
+workflows (differential, kinase, signalome). All three depend on a stable and
+well-understood input boundary. Without a strict dataset contract, workflows
+become polluted with repeated checks, fallback logic, column-name plumbing, and
+interpretation of partially prepared data.
 
 Historically, phosphoproteomics pipelines often allow flexible input structures during import and preprocessing. That flexibility is useful at the ingestion boundary, but it becomes harmful if it leaks into workflow execution. When workflows are required to interpret raw or semi-prepared inputs, the public API becomes harder to use, internal validation becomes repetitive, and the software becomes harder to maintain.
 
-PhosPy therefore needs an explicit decision on what “analysis-ready” means and where that state is established.
+PhosPy therefore needs an explicit decision on what "analysis-ready" means and where that state is established.
 
 ## Decision Drivers
 
@@ -44,7 +48,7 @@ The decision is driven by the following considerations:
 5. **Usability.** Users should know when their data is considered analysis-ready and what that implies.
 6. **Extensibility.** Additional preprocessing paths should still converge on the same dataset contract.
 
-## Proposed Decision
+## Decision
 
 `AnalysisReadyPhosphoDataset` will be the only public dataset model accepted by public workflows.
 
@@ -56,7 +60,7 @@ Public workflows must not accept raw phospho tables, raw metadata tables, or loo
 
 ## Dataset Contract
 
-The proposed public dataset model contains:
+The public dataset model contains:
 
 - `phospho`
 - `site_metadata`
@@ -131,7 +135,7 @@ If `total` is provided:
 - the dataset must expose a validated transformation state rather than relying on an informal free-text label alone
 - any remaining public scale label, if retained, must be derived from that stronger transformation state
 
-## Meaning of “Analysis-Ready”
+## Meaning of "Analysis-Ready"
 
 For the purposes of PhosPy, a dataset is analysis-ready when the following are true:
 
@@ -205,7 +209,8 @@ or fail before final dataset construction.
 
 ## Construction and Validation Strategy
 
-The proposed design is that `AnalysisReadyPhosphoDataset` validates its own public invariants at construction time.
+The design is that `AnalysisReadyPhosphoDataset` validates its own public
+invariants at construction time.
 
 This keeps the public dataset boundary honest and makes invalid datasets harder to construct accidentally.
 
@@ -215,7 +220,7 @@ Preprocessing services or builders may perform additional shaping before constru
 
 ## Optionality Rules
 
-The following optionality rules are proposed.
+The following optionality rules apply.
 
 ### Required
 
@@ -334,7 +339,7 @@ Those concerns should be addressed separately.
 
 ## Validation and Review Criteria
 
-Future code and review work should check proposed changes against the following questions:
+Future code and review work should check future changes against the following questions:
 
 1. Does this change preserve a single public analysis-ready dataset model?
 2. Does this move raw-input interpretation into the correct boundary, or does it leak into workflows?
@@ -348,18 +353,21 @@ If the answers are weak or negative, the design should be reconsidered.
 
 This ADR complements the earlier architecture decisions.
 
-- ADR-001 defines the intended public API contract.
-- ADR-002 defines the internal workflow architecture.
-- ADR-003 defines the dataset and preprocessing boundary that those workflows depend on.
+- ADR-0001 defines the intended public API contract.
+- ADR-0002 defines the internal workflow architecture.
+- ADR-0003 defines the dataset and preprocessing boundary that those workflows
+  depend on.
+- ADR-0018 defines phosphosite identity/localisation policy at the same
+  analysis-ready boundary.
 
 Together, these ADRs establish:
 
 - one public dataset model
-- two public workflows
+- three public workflows
 - one consistent internal workflow pattern
 
 ## References
 
 Yang, P., Patrick, E., Humphrey, S. J., Ghazanfar, S., James, D. E., Jothi, R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14), i349-i356.
 
-YangLab. (n.d.). *PhosR*. GitHub repository. https://github.com/PYangLab/PhosR
+YangLab. (n.d.). *PhosR* [Computer software]. GitHub. https://github.com/PYangLab/PhosR

@@ -2,7 +2,7 @@
 
 ## Document Control
 
-- **ADR ID:** ADR-014
+- **ADR ID:** ADR-0014
 - **Title:** Test Suite Structure and Policy for PhosPy
 - **Status:** Accepted
 - **Date:** 2026-05-02
@@ -130,12 +130,12 @@ PhosPy test categories remain:
 ## Scope Boundaries
 
 This ADR governs testing and release-gate policy. It does not define public
-API namespace ownership (ADR-001), validation ownership (ADR-007), or internal
-module-splitting governance (ADR-010).
+API namespace ownership (ADR-0001), validation ownership (ADR-0007), or
+internal module-splitting governance (ADR-0010).
 
 ## Validation and Review Criteria
 
-Future changes must satisfy all of the following:
+Future changes must satisfy all the following:
 
 1. Is this test in the correct category for its purpose?
 2. Does the change preserve golden vs parity separation?
@@ -150,5 +150,5 @@ R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative
 phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14),
 i349-i356.
 
-YangLab. (n.d.). *PhosR*. GitHub repository.
+YangLab. (n.d.). *PhosR* [Computer software]. GitHub.
 https://github.com/PYangLab/PhosR

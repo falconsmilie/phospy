@@ -19,8 +19,8 @@ reproducibility guarantees, and expected copying costs.
 
 Accepted.
 
-This ADR is aligned with ADR-003 (dataset boundary), ADR-005 (result model
-design), ADR-006 (dataset state contract), and ADR-014 (test policy).
+This ADR is aligned with ADR-0003 (dataset boundary), ADR-0005 (result model
+design), ADR-0006 (dataset state contract), and ADR-0014 (test policy).
 
 ## Context and Problem Statement
 

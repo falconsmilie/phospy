@@ -2,7 +2,7 @@
 
 ## Document Control
 
-- **ADR ID:** ADR-013
+- **ADR ID:** ADR-0013
 - **Title:** Scientific Parity Strategy and Parity-Testing Policy for PhosPy
 - **Status:** Accepted
 - **Date:** 2026-04-16
@@ -18,7 +18,10 @@ The decision is that PhosPy should pursue scientific parity, not structural or l
 
 Accepted.
 
-This ADR defines the parity strategy that supports the fresh-start rewrite defined in ADR-012 and the broader architectural decisions already established for the public API, workflows, dataset boundary, references, transformation state, validation, builders, and exceptions.
+This ADR defines the parity strategy that supports the fresh-start rewrite
+defined in ADR-0012 and the broader architectural decisions already established
+for the public API, workflows, dataset boundary, references, transformation
+state, validation, builders, and exceptions.
 
 ## Context and Problem Statement
 
@@ -50,7 +53,7 @@ The decision is driven by the following considerations:
 5. **Maintainability.** The parity policy must stay focused on meaningful outputs, not every incidental intermediate detail.
 6. **Confidence during rewrite.** Selective parity checks can reduce risk while scientific logic is reintroduced.
 
-## Proposed Decision
+## Decision
 
 PhosPy will pursue **scientific parity** rather than **structural parity**.
 
@@ -116,6 +119,20 @@ That matrix is the required, user-visible compatibility ledger and must:
 
 Parity claims must be source-labelled at fixture level. A parity claim without
 source-labelled fixture provenance is not accepted as a PhosR-equivalence claim.
+
+## Parity Claim Granularity
+
+Parity claims must be feature-scoped unless a global claim is explicitly
+justified.
+
+- **Feature-specific parity claim (allowed):** a claim tied to one workflow or
+  one defined output family, with fixture provenance and comparison policy.
+- **Global PhosR parity claim (disallowed by default):** any claim that implies
+  end-to-end equivalence across PhosR behavior.
+
+A global claim is allowed only if all required feature lanes have explicit
+feature-level evidence and all known exclusions are published in
+`docs/scientific-coverage.md`.
 
 ## Primary Parity Target
 
@@ -396,13 +413,13 @@ It does not define:
 - the detailed implementation of the scientific algorithms
 - the exact file layout of the test suite beyond the high-level separation policy
 - release or acceptance thresholds for versions
-- the detailed migration/removal timing of every old module beyond ADR-012
+- the detailed migration/removal timing of every old module beyond ADR-0012
 
 Those concerns should be addressed separately.
 
 ## Validation and Review Criteria
 
-Future code and review work should check proposed changes against the following questions:
+Future code and review work should check future changes against the following questions:
 
 1. Does this parity check validate a scientifically meaningful outcome?
 2. Does this avoid binding the rewrite to legacy structure?
@@ -416,24 +433,28 @@ If the answers are weak or negative, the design should be reconsidered.
 
 This ADR complements the earlier architecture decisions.
 
-- ADR-001 defines the intended public API contract.
-- ADR-002 defines the internal workflow architecture.
-- ADR-003 defines the dataset and preprocessing boundary.
-- ADR-004 defines the reference resolution strategy and `ReferenceBundle` contract.
-- ADR-005 defines result-model design.
-- ADR-006 defines the transformation-state and transformer contract.
-- ADR-007 defines the validation-domain architecture.
-- ADR-008 defines the internal analysis-ready dataset builder architecture.
-- ADR-009 defines the exception and error taxonomy.
-- ADR-010 defines the internal package and module layout.
-- ADR-011 defines the public builder API contract.
-- ADR-012 defines the fresh-start rewrite roadmap.
-- ADR-013 defines what scientific parity means and how parity testing should be applied during the rewrite.
+- ADR-0001 defines the intended public API contract.
+- ADR-0002 defines the internal workflow architecture.
+- ADR-0003 defines the dataset and preprocessing boundary.
+- ADR-0004 defines the reference resolution strategy and `ReferenceBundle`
+  contract.
+- ADR-0005 defines result-model design.
+- ADR-0006 defines the transformation-state and transformer contract.
+- ADR-0007 defines the validation-domain architecture.
+- ADR-0008 defines the internal analysis-ready dataset builder architecture.
+- ADR-0009 defines the exception and error taxonomy.
+- ADR-0010 defines the internal package and module layout.
+- ADR-0011 defines the public builder API contract.
+- ADR-0012 defines the fresh-start rewrite roadmap.
+- ADR-0013 defines what scientific parity means and how parity testing should be
+  applied during the rewrite.
+- ADR-0016, ADR-0017, ADR-0018, and ADR-0019 define feature-specific
+  governance whose outputs require feature-scoped parity claims.
 
 Together, these ADRs establish:
 
 - one public dataset model
-- two public workflows
+- three public workflows
 - one strict dataset boundary
 - one coherent builder story
 - one fresh-start rewrite strategy
@@ -443,4 +464,4 @@ Together, these ADRs establish:
 
 Yang, P., Patrick, E., Humphrey, S. J., Ghazanfar, S., James, D. E., Jothi, R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14), i349-i356.
 
-YangLab. (n.d.). *PhosR*. GitHub repository. https://github.com/PYangLab/PhosR
+YangLab. (n.d.). *PhosR* [Computer software]. GitHub. https://github.com/PYangLab/PhosR

@@ -32,7 +32,7 @@ Legend:
 | `tests/unit/test_runtime_contract_guards.py` | keep | Defensive internal contract guard not reachable via public request path. |
 | `tests/unit/test_signalome_bundle_compatibility.py` | keep | Signalome bundle compatibility payload contract seam. |
 | `tests/unit/test_signalome_workflow_diagnostics.py` | keep | Boundary/seam diagnostics for scientific and workflow failure modes. |
-| `tests/unit/test_site_identifier_canonicalization.py` | rewrite | Replaced private overlap/index helper usage with interpreter/public contract assertions. |
+| `tests/unit/test_site_identifier_*.py` | rewrite | Replaced private overlap/index helper usage with interpreter/public contract assertions. |
 | `tests/unit/test_validation_ownership.py` | keep | Validation ownership architecture contract (single-owner policy). |
 | `tests/unit/test_validator_boundaries.py` | keep | Boundary-layer validation behavior (targeted setup for missing protein mapping cases). |
 
@@ -41,7 +41,7 @@ Legend:
 1. `tests/unit/test_prediction_sequence_validation.py`
    - Replaced `KinaseWorkflowExecutor()._run_scoring_stage(...)` with
      `KinaseWorkflow().run(request).scoring_result`.
-2. `tests/unit/test_site_identifier_canonicalization.py`
+2. `tests/unit/test_site_identifier_*.py`
    - Replaced private interpreter helper calls with `KinaseWorkflowInterpreter().run(...)`
      and public/interpreted overlap/index assertions.
 3. `tests/unit/test_kinase_workflow_components.py`

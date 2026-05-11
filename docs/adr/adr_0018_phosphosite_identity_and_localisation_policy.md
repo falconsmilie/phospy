@@ -111,4 +111,4 @@ Macek, B., Mann, M., & Olsen, J. V. (2009). Global and site-specific quantitativ
 
 Olsen, J. V., Blagoev, B., Gnad, F., Macek, B., Kumar, C., Mortensen, P., & Mann, M. (2006). Global, in vivo, and site-specific phosphorylation dynamics in signaling networks. *Cell, 127*(3), 635-648.
 
-Sharma, K., D’Souza, R. C. J., Tyanova, S., Schaab, C., Wiśniewski, J. R., Cox, J., & Mann, M. (2014). Ultradeep human phosphoproteome reveals a distinct regulatory nature of Tyr and Ser/Thr-based signaling. *Cell Reports, 8*(5), 1583-1594.
+Sharma, K., D'Souza, R. C. J., Tyanova, S., Schaab, C., Wisniewski, J. R., Cox, J., & Mann, M. (2014). Ultradeep human phosphoproteome reveals a distinct regulatory nature of Tyr and Ser/Thr-based signaling. *Cell Reports, 8*(5), 1583-1594.

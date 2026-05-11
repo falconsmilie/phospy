@@ -2,9 +2,9 @@
 
 ## Document Control
 
-- **ADR ID:** ADR-006
+- **ADR ID:** ADR-0006
 - **Title:** Intensity-Scale and Processing-State Contract for PhosPy Datasets
-- **Status:** Accepted (supersedes earlier transformation-state wording)
+- **Status:** Accepted
 - **Date:** 2026-04-26
 - **Decision Type:** Architecture Decision Record
 
@@ -28,8 +28,9 @@ PhosPy now separates these concerns explicitly:
 
 Accepted.
 
-This ADR remains aligned with ADR-003 (dataset boundary), ADR-007 (validation
-architecture), and ADR-011 (builder public contract).
+This ADR remains aligned with ADR-0003 (dataset boundary), ADR-0007
+(validation architecture), and ADR-0011 (builder public contract). It
+supersedes earlier transformation-state wording.
 
 ## Context and Problem Statement
 
@@ -199,5 +200,5 @@ Yang, P., Patrick, E., Humphrey, S. J., Ghazanfar, S., James, D. E., Jothi, R.,
 phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14),
 i349-i356.
 
-YangLab. (n.d.). *PhosR*. GitHub repository.
+YangLab. (n.d.). *PhosR* [Computer software]. GitHub.
 https://github.com/PYangLab/PhosR

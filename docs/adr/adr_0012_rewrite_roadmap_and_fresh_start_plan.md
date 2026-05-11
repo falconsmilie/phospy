@@ -2,9 +2,10 @@
 
 ## Document Control
 
-- **ADR ID:** ADR-012
+- **ADR ID:** ADR-0012
 - **Title:** Rewrite Roadmap and Fresh-Start Plan for PhosPy
-- **Status:** Accepted
+- **Status:** Superseded
+- **Superseded By:** ADR-0013, ADR-0016, ADR-0017, ADR-0018, ADR-0019
 - **Date:** 2026-04-16
 - **Decision Type:** Architecture Decision Record
 
@@ -16,16 +17,18 @@ The decision is to treat the rewrite as a fresh start. The existing application 
 
 ## Status
 
-Accepted.
+Superseded.
 
-This ADR defines the rewrite execution strategy that follows the architectural decisions already made for the public API, workflows, dataset boundary, references, results, transformation state, validation, builders, exceptions, and package layout.
+This ADR is retained as historical roadmap context for the early rewrite phase.
+Current architecture governance is carried by the accepted ADR set, including
+ADR-0013 and ADR-0016 through ADR-0019.
 
 ## Context and Problem Statement
 
 The ADR set now defines a clear target architecture for PhosPy:
 
 - one public analysis-ready dataset model
-- two public workflows
+- three public workflows
 - workflow stages built around validator, interpreter, and executor
 - strict dataset boundary
 - flexible builder path below that boundary
@@ -59,7 +62,7 @@ The decision is driven by the following considerations:
 5. **Execution discipline.** The team needs a clear rule for what is reused and what is discarded.
 6. **Avoiding pseudo-migration.** The project should not drift into carrying old architecture forward under the label of a rewrite.
 
-## Proposed Decision
+## Decision
 
 PhosPy will be rewritten as a fresh-start implementation.
 
@@ -143,7 +146,8 @@ Any carryover of these patterns requires a positive architectural justification,
 
 ## Rewrite Outcome Target
 
-The rewrite should converge directly on the architecture already defined by ADRs 001 through 011.
+The rewrite should converge directly on the architecture already defined by
+ADR-0001 through ADR-0011.
 
 In practical terms, the target is:
 
@@ -243,7 +247,7 @@ After the main paths work, tighten the implementation:
 - collapse any accidental wrapper drift
 - improve error messaging
 - align tests to the new contracts
-- confirm package layout matches ADR-010
+- confirm package layout matches ADR-0010
 
 This stage exists to keep the rewrite from accumulating transitional clutter.
 
@@ -265,7 +269,9 @@ Parity should be considered separately as its own architectural/testing question
 
 ## Completion Rule
 
-The rewrite should be considered complete enough to remove any remaining temporary bridging code or reference scaffolding once the proposed functionality exists.
+The rewrite should be considered complete enough to remove any remaining
+temporary bridging code or reference scaffolding once the intended
+functionality exists.
 
 For PhosPy, that means:
 
@@ -376,7 +382,7 @@ Those concerns should be addressed separately.
 
 ## Validation and Review Criteria
 
-Future code and review work should check proposed changes against the following questions:
+Future code and review work should check future changes against the following questions:
 
 1. Does this implementation follow the ADR-defined target architecture directly?
 2. Is this reusing old logic, or accidentally preserving old structure?
@@ -390,23 +396,25 @@ If the answers are weak or negative, the design should be reconsidered.
 
 This ADR complements the earlier architecture decisions.
 
-- ADR-001 defines the intended public API contract.
-- ADR-002 defines the internal workflow architecture.
-- ADR-003 defines the dataset and preprocessing boundary.
-- ADR-004 defines the reference resolution strategy and `ReferenceBundle` contract.
-- ADR-005 defines result-model design.
-- ADR-006 defines the transformation-state and transformer contract.
-- ADR-007 defines the validation-domain architecture.
-- ADR-008 defines the internal analysis-ready dataset builder architecture.
-- ADR-009 defines the exception and error taxonomy.
-- ADR-010 defines the internal package and module layout.
-- ADR-011 defines the public builder API contract.
-- ADR-012 defines how the rewrite should be executed as a fresh-start implementation.
+- ADR-0001 defines the intended public API contract.
+- ADR-0002 defines the internal workflow architecture.
+- ADR-0003 defines the dataset and preprocessing boundary.
+- ADR-0004 defines the reference resolution strategy and `ReferenceBundle`
+  contract.
+- ADR-0005 defines result-model design.
+- ADR-0006 defines the transformation-state and transformer contract.
+- ADR-0007 defines the validation-domain architecture.
+- ADR-0008 defines the internal analysis-ready dataset builder architecture.
+- ADR-0009 defines the exception and error taxonomy.
+- ADR-0010 defines the internal package and module layout.
+- ADR-0011 defines the public builder API contract.
+- ADR-0012 defines how the rewrite should be executed as a fresh-start
+  implementation.
 
 Together, these ADRs establish:
 
 - one public dataset model
-- two public workflows
+- three public workflows
 - one strict dataset boundary
 - one coherent builder story
 - one private validation domain
@@ -418,5 +426,5 @@ Together, these ADRs establish:
 
 Yang, P., Patrick, E., Humphrey, S. J., Ghazanfar, S., James, D. E., Jothi, R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14), i349-i356.
 
-YangLab. (n.d.). *PhosR*. GitHub repository. https://github.com/PYangLab/PhosR
+YangLab. (n.d.). *PhosR* [Computer software]. GitHub. https://github.com/PYangLab/PhosR
 
