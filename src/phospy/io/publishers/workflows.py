@@ -233,6 +233,14 @@ def publish_kinase_workflow(
                         "output_rows": int(
                             result.site_attrition_summary.preprocessing.output_rows
                         ),
+                        "sequence_complete_sites": (
+                            None
+                            if result.site_attrition_summary.preprocessing.sequence_complete_sites
+                            is None
+                            else int(
+                                result.site_attrition_summary.preprocessing.sequence_complete_sites
+                            )
+                        ),
                     },
                     "scoring": {
                         "rows_removed_invalid_or_missing_site_identifiers": int(

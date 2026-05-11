@@ -25,6 +25,7 @@ from phospy.datasets.builders.transformation_resolver import (
 from phospy.datasets.models import (
     AnalysisReadyPhosphoDataset,
     DatasetPreprocessingReport,
+    SiteSequenceResolutionReport,
 )
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
@@ -90,6 +91,7 @@ _SITE_SEQUENCE_RESOLUTION_STAGE = DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESO
 _SITE_SEQUENCE_FAILURE_CATEGORY_MISSING_REFERENCE_SUPPORT = "missing_reference_support"
 _SITE_SEQUENCE_FAILURE_CATEGORY_AMBIGUOUS_MAPPING = "ambiguous_mapping"
 _SITE_SEQUENCE_FAILURE_CATEGORY_INVALID_METADATA = "invalid_metadata"
+_SITE_SEQUENCE_CONFLICT_POLICY_NOT_APPLIED = "not_applied"
 
 
 class DatasetBuildExecutor:
@@ -165,6 +167,9 @@ class DatasetBuildExecutor:
             metadata_conflicts=preprocessed.metadata_conflicts,
             comparison_group_stats=preprocessed.comparison_group_stats,
             comparison_pair_stats=preprocessed.comparison_pair_stats,
+            preprocessing_trace=preprocessed.preprocessing_trace,
+            site_sequence_derivation=request.site_sequence_derivation,
+            input_site_count=int(request.site_metadata.shape[0]),
             final_dataset_rows=int(len(resolved.phospho.index)),
             intensity_scale_label=intensity_scale_state.label,
             quantitative_meaning=quantitative_meaning.value,
@@ -415,6 +420,9 @@ def _build_dataset_preprocessing_report(
     metadata_conflicts: pd.DataFrame | None,
     comparison_group_stats: pd.DataFrame | None,
     comparison_pair_stats: pd.DataFrame | None,
+    preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
+    site_sequence_derivation: dict[str, object] | None,
+    input_site_count: int,
     final_dataset_rows: int,
     intensity_scale_label: str,
     quantitative_meaning: str,
@@ -459,6 +467,12 @@ def _build_dataset_preprocessing_report(
             notes="analysis-ready dataset boundary construction",
         )
     )
+    site_sequence_resolution = _build_site_sequence_resolution_report(
+        preprocessing_trace=preprocessing_trace,
+        site_sequence_derivation=site_sequence_derivation,
+        total_sites=int(input_site_count),
+        final_sequence_complete_sites=int(final_dataset_rows),
+    )
     return DatasetPreprocessingReport.from_rows(
         row_count_rows=tuple(row_count_rows),
         operation_rows=tuple(operation_rows),
@@ -467,7 +481,163 @@ def _build_dataset_preprocessing_report(
         metadata_conflict_rows=metadata_conflict_rows,
         comparison_group_stats_rows=comparison_group_stats_rows,
         comparison_pair_stats_rows=comparison_pair_stats_rows,
+        site_sequence_resolution=site_sequence_resolution,
     )
+
+
+def _build_site_sequence_resolution_report(
+    *,
+    preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
+    site_sequence_derivation: dict[str, object] | None,
+    total_sites: int,
+    final_sequence_complete_sites: int,
+) -> SiteSequenceResolutionReport:
+    stage_diagnostics = _resolve_site_sequence_stage_diagnostics(preprocessing_trace)
+    if stage_diagnostics is not None:
+        (
+            provided_by_input,
+            resolved_from_fasta,
+            unresolved,
+        ) = _summarize_stage_sequence_origins(stage_diagnostics)
+        conflicts = _coerce_non_negative_int(
+            stage_diagnostics.get("existing_sequence_conflict_count"),
+            default=0,
+        )
+        conflict_policy = _resolve_conflict_policy(
+            stage_diagnostics.get("conflict_policy")
+        )
+        return SiteSequenceResolutionReport(
+            total_sites=int(max(total_sites, 0)),
+            provided_by_input=int(max(provided_by_input, 0)),
+            resolved_from_fasta=int(max(resolved_from_fasta, 0)),
+            resolved_from_reference=0,
+            unresolved=int(max(unresolved, 0)),
+            conflicts=int(max(conflicts, 0)),
+            conflict_policy=conflict_policy,
+            final_sequence_complete_sites=int(max(final_sequence_complete_sites, 0)),
+        )
+
+    derivation = (
+        {}
+        if not isinstance(site_sequence_derivation, Mapping)
+        else site_sequence_derivation
+    )
+    provided_by_input = _coerce_non_negative_int(
+        derivation.get("provided_sequence_count"),
+        default=0,
+    )
+    resolved_from_reference = _coerce_non_negative_int(
+        derivation.get("derived_sequence_count"),
+        default=0,
+    )
+    unresolved = _coerce_non_negative_int(
+        derivation.get("unresolved_sequence_count"),
+        default=max(total_sites - provided_by_input - resolved_from_reference, 0),
+    )
+    conflicts = _coerce_non_negative_int(
+        derivation.get("existing_sequence_conflict_count"),
+        default=0,
+    )
+    return SiteSequenceResolutionReport(
+        total_sites=int(max(total_sites, 0)),
+        provided_by_input=int(max(provided_by_input, 0)),
+        resolved_from_fasta=0,
+        resolved_from_reference=int(max(resolved_from_reference, 0)),
+        unresolved=int(max(unresolved, 0)),
+        conflicts=int(max(conflicts, 0)),
+        conflict_policy=_SITE_SEQUENCE_CONFLICT_POLICY_NOT_APPLIED,
+        final_sequence_complete_sites=int(max(final_sequence_complete_sites, 0)),
+    )
+
+
+def _resolve_site_sequence_stage_diagnostics(
+    preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
+) -> dict[str, object] | None:
+    if preprocessing_trace is None:
+        return None
+    for stage in preprocessing_trace:
+        if stage.stage == _SITE_SEQUENCE_RESOLUTION_STAGE:
+            return (
+                {}
+                if not isinstance(stage.diagnostics, Mapping)
+                else dict(stage.diagnostics)
+            )
+    return None
+
+
+def _summarize_stage_sequence_origins(
+    stage_diagnostics: Mapping[str, object],
+) -> tuple[int, int, int]:
+    row_diagnostics = stage_diagnostics.get("row_diagnostics")
+    if not isinstance(row_diagnostics, list):
+        provided_by_input = _coerce_non_negative_int(
+            stage_diagnostics.get("preserved_existing_count"),
+            default=0,
+        )
+        resolved_from_fasta = _coerce_non_negative_int(
+            stage_diagnostics.get("filled_missing_count"),
+            default=0,
+        ) + _coerce_non_negative_int(
+            stage_diagnostics.get("replaced_existing_count"),
+            default=0,
+        )
+        unresolved = _coerce_non_negative_int(
+            stage_diagnostics.get("unresolved_site_count"),
+            default=0,
+        )
+        return (provided_by_input, resolved_from_fasta, unresolved)
+
+    provided_by_input = 0
+    resolved_from_fasta = 0
+    unresolved = 0
+    for row in row_diagnostics:
+        if not isinstance(row, Mapping):
+            continue
+        action = str(row.get("action", "")).strip().lower()
+        existing_site_sequence = row.get("existing_site_sequence")
+        resolved_site_sequence = row.get("resolved_site_sequence")
+        has_existing = _has_resolved_site_sequence(existing_site_sequence)
+        has_resolved = _has_resolved_site_sequence(resolved_site_sequence)
+
+        if action in {"fill_missing", "replace_existing"} and has_resolved:
+            resolved_from_fasta += 1
+            continue
+        if not has_resolved:
+            unresolved += 1
+            continue
+        if has_existing:
+            provided_by_input += 1
+            continue
+        if action in {"validate_existing", "preserve_existing"}:
+            provided_by_input += 1
+            continue
+        resolved_from_fasta += 1
+    return (provided_by_input, resolved_from_fasta, unresolved)
+
+
+def _resolve_conflict_policy(value: object) -> str:
+    if isinstance(value, str):
+        normalized = value.strip()
+        if normalized:
+            return normalized
+    return _SITE_SEQUENCE_CONFLICT_POLICY_NOT_APPLIED
+
+
+def _has_resolved_site_sequence(value: object) -> bool:
+    if value is None:
+        return False
+    text = str(value).strip()
+    if not text:
+        return False
+    return text.lower() != "none"
+
+
+def _coerce_non_negative_int(value: object, *, default: int) -> int:
+    if isinstance(value, bool):
+        return int(default)
+    if isinstance(value, int):
+        return max(int(value), 0)
+    return int(max(default, 0))
 
 
 def _resolve_expected_intensity_scale_kind(

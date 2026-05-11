@@ -29,6 +29,13 @@ Update note (2026-05-11, contract correction): final dataset construction must
 reject any row with missing, blank, or invalid `site_sequence` values before
 workflow execution.
 
+Update note (2026-05-11, provenance correction): preprocessing now emits a
+structured `SiteSequenceResolutionReport` that audits sequence origin and loss
+(`provided_by_input`, `resolved_from_reference`, `resolved_from_fasta`,
+`unresolved`, `conflicts`, `conflict_policy`,
+`final_sequence_complete_sites`). Sequence-loss decisions are preprocessing
+responsibility and must not be deferred to workflow scoring.
+
 ## Context and Problem Statement
 
 PhosPy is intended to expose one public dataset model and three primary

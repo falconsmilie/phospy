@@ -165,6 +165,7 @@ def test_kinase_workflow_exposes_compact_site_attrition_summary() -> None:
     assert preprocessing.rows_removed_invalid_or_missing_site_identifiers == 0
     assert preprocessing.duplicate_sites_merged_or_resolved == 1
     assert preprocessing.output_rows == 6
+    assert preprocessing.sequence_complete_sites == 6
 
     assert scoring.rows_removed_invalid_or_missing_site_identifiers == 1
     assert scoring.final_quantitative_sites_entering_scoring == 6
@@ -234,4 +235,5 @@ def test_published_kinase_manifest_includes_site_attrition_summary(
     assert payload["preprocessing"]["input_rows"] == 8
     assert payload["preprocessing"]["rows_removed_during_preprocessing"] == 2
     assert payload["preprocessing"]["duplicate_sites_merged_or_resolved"] == 1
+    assert payload["preprocessing"]["sequence_complete_sites"] == 6
     assert payload["scoring"]["final_quantitative_sites_entering_scoring"] == 6

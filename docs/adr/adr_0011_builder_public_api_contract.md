@@ -27,6 +27,12 @@ Update note (2026-05-11): the builder contract is derive-or-fail for
 omit sequences, but final dataset construction must not proceed unless every
 row has a valid non-empty `site_sequence`.
 
+Update note (2026-05-11, provenance addition): successful builds attach a
+structured preprocessing sequence-resolution summary
+(`SiteSequenceResolutionReport`) so callers can audit sequence origin,
+conflicts, applied conflict policy, unresolved counts, and final
+sequence-complete site totals.
+
 ## Context and Problem Statement
 
 Earlier ADRs established two important truths:

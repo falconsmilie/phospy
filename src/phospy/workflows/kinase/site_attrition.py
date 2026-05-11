@@ -9,7 +9,10 @@ from phospy.api.results import (
     KinaseWorkflowScoringAttritionSummary,
     KinaseWorkflowSiteAttritionSummary,
 )
-from phospy.datasets.models import PreprocessingSiteAttritionSummary
+from phospy.datasets.models import (
+    PreprocessingSiteAttritionSummary,
+    SiteSequenceResolutionReport,
+)
 from phospy.errors.validation import WorkflowValidationError
 from phospy.prediction.models import KinasePredictionResult
 from phospy.prediction.sequence_validation import (
@@ -60,8 +63,17 @@ class KinaseSiteAttritionSummaryComposer:
                 rows_removed_invalid_or_missing_site_identifiers=0,
                 duplicate_sites_merged_or_resolved=0,
                 output_rows=output_rows,
+                sequence_complete_sites=output_rows,
             )
         summary: PreprocessingSiteAttritionSummary = report.site_attrition_summary()
+        sequence_summary: SiteSequenceResolutionReport | None = (
+            report.site_sequence_resolution_summary()
+        )
+        sequence_complete_sites = (
+            int(sequence_summary.final_sequence_complete_sites)
+            if sequence_summary is not None
+            else int(summary.output_rows)
+        )
         return KinaseWorkflowPreprocessingAttritionSummary(
             input_rows=int(summary.input_rows),
             rows_removed_during_preprocessing=int(
@@ -74,6 +86,7 @@ class KinaseSiteAttritionSummaryComposer:
                 summary.duplicate_sites_merged_or_resolved
             ),
             output_rows=int(summary.output_rows),
+            sequence_complete_sites=sequence_complete_sites,
         )
 
     def _resolve_scoring_summary(

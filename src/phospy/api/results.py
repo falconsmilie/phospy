@@ -42,6 +42,7 @@ class KinaseWorkflowPreprocessingAttritionSummary:
     rows_removed_invalid_or_missing_site_identifiers: int
     duplicate_sites_merged_or_resolved: int
     output_rows: int
+    sequence_complete_sites: int | None = None
 
 
 @dataclass(frozen=True, slots=True)

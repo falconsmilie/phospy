@@ -75,6 +75,20 @@ class PreprocessingSiteAttritionSummary:
     duplicate_sites_merged_or_resolved: int
 
 
+@dataclass(frozen=True, slots=True)
+class SiteSequenceResolutionReport:
+    """Structured provenance summary for site-sequence origin and loss."""
+
+    total_sites: int
+    provided_by_input: int
+    resolved_from_fasta: int
+    resolved_from_reference: int
+    unresolved: int
+    conflicts: int
+    conflict_policy: str
+    final_sequence_complete_sites: int
+
+
 @dataclass(frozen=True, slots=True, init=False)
 class DatasetPreprocessingReport:
     """Public provenance report for dataset preprocessing.
@@ -90,6 +104,10 @@ class DatasetPreprocessingReport:
     _metadata_conflicts: pd.DataFrame | None = field(init=False, repr=False)
     _comparison_group_stats: pd.DataFrame | None = field(init=False, repr=False)
     _comparison_pair_stats: pd.DataFrame | None = field(init=False, repr=False)
+    _site_sequence_resolution: SiteSequenceResolutionReport | None = field(
+        init=False,
+        repr=False,
+    )
 
     def __init__(
         self,
@@ -100,6 +118,7 @@ class DatasetPreprocessingReport:
         metadata_conflicts: pd.DataFrame | None = None,
         comparison_group_stats: pd.DataFrame | None = None,
         comparison_pair_stats: pd.DataFrame | None = None,
+        site_sequence_resolution: SiteSequenceResolutionReport | None = None,
         _assume_owned: bool = False,
     ) -> None:
         row_counts = own_dataframe(
@@ -213,6 +232,13 @@ class DatasetPreprocessingReport:
                 comparison_pair_stats,
                 expected_columns=COMPARISON_PAIR_STATS_COLUMNS,
             )
+        if site_sequence_resolution is not None and not isinstance(
+            site_sequence_resolution, SiteSequenceResolutionReport
+        ):
+            raise DatasetValidationError(
+                "dataset.preprocessing_report.site_sequence_resolution must be "
+                "SiteSequenceResolutionReport or None"
+            )
         object.__setattr__(self, "_row_counts", row_counts)
         object.__setattr__(self, "_operations", operations)
         object.__setattr__(self, "_row_audit", row_audit)
@@ -222,6 +248,7 @@ class DatasetPreprocessingReport:
         object.__setattr__(self, "_metadata_conflicts", metadata_conflicts)
         object.__setattr__(self, "_comparison_group_stats", comparison_group_stats)
         object.__setattr__(self, "_comparison_pair_stats", comparison_pair_stats)
+        object.__setattr__(self, "_site_sequence_resolution", site_sequence_resolution)
 
     @property
     def row_counts(self) -> pd.DataFrame:
@@ -250,6 +277,10 @@ class DatasetPreprocessingReport:
     @property
     def comparison_pair_stats(self) -> pd.DataFrame | None:
         return export_optional_dataframe(self._comparison_pair_stats)
+
+    @property
+    def site_sequence_resolution(self) -> SiteSequenceResolutionReport | None:
+        return self._site_sequence_resolution
 
     def _borrow_row_counts_frame(self) -> pd.DataFrame:
         """Package-private borrowed row-count table for internal workflows."""
@@ -321,6 +352,11 @@ class DatasetPreprocessingReport:
 
         return export_optional_dataframe(self._comparison_pair_stats)
 
+    def site_sequence_resolution_summary(self) -> SiteSequenceResolutionReport | None:
+        """Return structured site-sequence provenance summary when available."""
+
+        return self._site_sequence_resolution
+
     def site_attrition_summary(self) -> PreprocessingSiteAttritionSummary:
         """Return compact preprocessing-owned site attrition counters."""
 
@@ -363,6 +399,7 @@ class DatasetPreprocessingReport:
         metadata_conflict_rows: Sequence[MetadataConflictRow] = (),
         comparison_group_stats_rows: Sequence[ComparisonGroupStatsRow] = (),
         comparison_pair_stats_rows: Sequence[ComparisonPairStatsRow] = (),
+        site_sequence_resolution: SiteSequenceResolutionReport | None = None,
     ) -> DatasetPreprocessingReport:
         return cls._from_owned(
             row_counts=dataframe_from_row_count_rows(row_count_rows),
@@ -380,6 +417,7 @@ class DatasetPreprocessingReport:
             comparison_pair_stats=dataframe_from_comparison_pair_stats_rows(
                 comparison_pair_stats_rows
             ),
+            site_sequence_resolution=site_sequence_resolution,
         )
 
     @classmethod
@@ -393,6 +431,7 @@ class DatasetPreprocessingReport:
         metadata_conflicts: pd.DataFrame | None = None,
         comparison_group_stats: pd.DataFrame | None = None,
         comparison_pair_stats: pd.DataFrame | None = None,
+        site_sequence_resolution: SiteSequenceResolutionReport | None = None,
     ) -> DatasetPreprocessingReport:
         return cls(
             row_counts=row_counts,
@@ -402,6 +441,7 @@ class DatasetPreprocessingReport:
             metadata_conflicts=metadata_conflicts,
             comparison_group_stats=comparison_group_stats,
             comparison_pair_stats=comparison_pair_stats,
+            site_sequence_resolution=site_sequence_resolution,
             _assume_owned=True,
         )
 

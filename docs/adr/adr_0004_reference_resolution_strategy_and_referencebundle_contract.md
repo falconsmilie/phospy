@@ -22,6 +22,11 @@ Accepted.
 
 This ADR defines the reference boundary that supports the public API, dataset boundary, and internal workflow architecture established by earlier ADRs.
 
+Update note (2026-05-11): bundled-reference sequence support used during
+dataset building must remain auditable through structured preprocessing
+sequence provenance. Workflow stages consume already-resolved dataset state and
+must not introduce workflow-local sequence-source fallback or repair logic.
+
 ## Context and Problem Statement
 
 The kinase workflow depends on reference resources such as kinase-substrate relationships and sequence-oriented assets used in scoring and prediction. These resources are central to the scientific behaviour of the package, but they are also a source of ambiguity if their resolution is not explicitly defined.
