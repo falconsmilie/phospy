@@ -13,8 +13,10 @@ from phospy.api.configs import (
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
     ComparisonBuildResult,
+    PreprocessingPlan,
     PreprocessingStageResult,
     PreprocessingState,
+    PreprocessingStateTableKey,
 )
 from phospy.datasets.preprocessing.report_rows import (
     report_rows_from_comparison_group_stats_dataframe,
@@ -24,6 +26,7 @@ from phospy.datasets.preprocessing.report_schema import (
     COMPARISON_GROUP_STATS_COLUMNS,
     COMPARISON_PAIR_STATS_COLUMNS,
 )
+from phospy.datasets.preprocessing.stage_contract import PreprocessingStageContract
 from phospy.errors.input import PhosPyInputError
 from phospy.policy_models import ComparisonBuildingPolicy
 from phospy.provenance.hashing import hash_table
@@ -398,4 +401,45 @@ def _resolve_group_labels_from_stats(state: PreprocessingState) -> list[str]:
     return [str(label) for label in labels]
 
 
-__all__ = ["ComparisonsStage"]
+def _resolve_operation(plan: PreprocessingPlan) -> str:
+    return plan.comparison_building_policy.value
+
+
+def _resolve_parameters(plan: PreprocessingPlan) -> dict[str, object]:
+    return {
+        "comparison_building_policy": plan.comparison_building_policy.value,
+        "comparison_sample_group_column": plan.comparison_sample_group_column,
+        "comparison_pairs": plan.comparison_pairs,
+    }
+
+
+COMPARISONS_STAGE_CONTRACT = PreprocessingStageContract(
+    stage_key=DATASET_PREPROCESSING_STAGE_COMPARISONS,
+    display_label=DATASET_PREPROCESSING_STAGE_COMPARISONS,
+    provenance_stage=DATASET_PREPROCESSING_STAGE_COMPARISONS,
+    operation_name=_resolve_operation,
+    serialize_parameters=_resolve_parameters,
+    consumed_input_tables=(
+        PreprocessingStateTableKey.DATASET_PHOSPHO,
+        PreprocessingStateTableKey.DATASET_SAMPLE_METADATA,
+    ),
+    produced_output_tables=(
+        PreprocessingStateTableKey.DATASET_COMPARISONS,
+        PreprocessingStateTableKey.REPORT_COMPARISON_GROUP_STATS,
+        PreprocessingStateTableKey.REPORT_COMPARISON_PAIR_STATS,
+    ),
+    stage_factory=ComparisonsStage,
+    backend="pandas",
+    diagnostics_metadata={
+        "known_diagnostics_fields": (
+            "policy",
+            "sample_group_column",
+            "resolved_comparison_pairs",
+            "group_labels",
+            "output_comparison_hash",
+        )
+    },
+)
+
+
+__all__ = ["COMPARISONS_STAGE_CONTRACT", "ComparisonsStage"]

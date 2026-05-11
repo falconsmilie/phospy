@@ -299,3 +299,55 @@ def test_unknown_stage_metadata_fails_with_clear_error() -> None:
         match="metadata is not registered for stage 'unknown_stage'",
     ):
         PreprocessingPipeline(stage_registry=(_UnknownStage(),)).run_with_trace(state)
+
+
+def test_registered_stage_factories_expose_run_method() -> None:
+    for metadata in list_registered_preprocessing_stages():
+        if metadata.stage_factory is None:
+            continue
+        stage = metadata.stage_factory()
+        run_method = getattr(stage, "run", None)
+        assert callable(run_method)
+
+
+def test_custom_stage_registration_is_stage_owned() -> None:
+    class FakeStage:
+        stage_key = "fake_stage"
+
+        def run(self, state: PreprocessingState) -> PreprocessingStageResult:
+            return PreprocessingStageResult(
+                state=state,
+                diagnostics={
+                    "notes": "stage executed",
+                    "diagnostics": {"policy": "fake"},
+                },
+            )
+
+    fake_contract = PreprocessingStageMetadata(
+        stage_key="fake_stage",
+        display_label="fake_stage",
+        provenance_stage="fake_stage",
+        operation_name=lambda _plan: "fake",
+        serialize_parameters=lambda _plan: {"mode": "test"},
+        consumed_input_tables=("dataset.phospho",),
+        produced_output_tables=("dataset.phospho",),
+        stage_factory=FakeStage,
+        diagnostics_metadata={"known_diagnostics_fields": ("policy",)},
+    )
+    state = PreprocessingState(
+        phospho=_phospho(),
+        site_metadata=_site_metadata(_phospho().index),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan(stage_order=("fake_stage",)),
+    )
+
+    _, trace = PreprocessingPipeline(
+        stage_contract_registry=(fake_contract,),
+    ).run_with_trace(state)
+
+    assert len(trace) == 1
+    assert trace[0].stage == "fake_stage"
+    assert trace[0].operation == "fake"
+    assert trace[0].parameters == {"mode": "test"}
+    assert trace[0].diagnostics["policy"] == "fake"

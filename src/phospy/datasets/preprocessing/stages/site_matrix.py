@@ -9,8 +9,10 @@ import pandas as pd
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
     DuplicateSiteResolutionResult,
+    PreprocessingPlan,
     PreprocessingStageResult,
     PreprocessingState,
+    PreprocessingStateTableKey,
     append_row_audit_records,
 )
 from phospy.datasets.preprocessing.report_rows import (
@@ -21,6 +23,7 @@ from phospy.datasets.preprocessing.report_rows import (
 from phospy.datasets.preprocessing.report_schema import (
     PreprocessingRowAuditRow,
 )
+from phospy.datasets.preprocessing.stage_contract import PreprocessingStageContract
 from phospy.datasets.preprocessing.stages.site_matrix_components import (
     DuplicateSiteResolver,
     MetadataConflictDetector,
@@ -409,4 +412,52 @@ def _build_site_matrix_row_audit_records(
     )
 
 
-__all__ = ["SiteMatrixStage"]
+def _resolve_operation(plan: PreprocessingPlan) -> str:
+    return plan.site_matrix_policy.value
+
+
+def _resolve_parameters(plan: PreprocessingPlan) -> dict[str, object]:
+    return {
+        "site_matrix_policy": plan.site_matrix_policy.value,
+        "site_matrix_duplicate_site_policy": plan.site_matrix_duplicate_site_policy.value,
+        "site_matrix_missing_data_policy": plan.site_matrix_missing_data_policy.value,
+        "site_matrix_minimum_observed_values": plan.site_matrix_minimum_observed_values,
+    }
+
+
+SITE_MATRIX_STAGE_CONTRACT = PreprocessingStageContract(
+    stage_key=DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
+    display_label=DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
+    provenance_stage=DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
+    operation_name=_resolve_operation,
+    serialize_parameters=_resolve_parameters,
+    consumed_input_tables=(
+        PreprocessingStateTableKey.DATASET_PHOSPHO,
+        PreprocessingStateTableKey.DATASET_SITE_METADATA,
+    ),
+    produced_output_tables=(
+        PreprocessingStateTableKey.DATASET_PHOSPHO,
+        PreprocessingStateTableKey.DATASET_SITE_METADATA,
+        PreprocessingStateTableKey.REPORT_DUPLICATE_SITE_RESOLUTION,
+        PreprocessingStateTableKey.REPORT_METADATA_CONFLICTS,
+        PreprocessingStateTableKey.REPORT_ROW_AUDIT,
+    ),
+    stage_factory=SiteMatrixStage,
+    backend="pandas",
+    diagnostics_metadata={
+        "known_diagnostics_fields": (
+            "dropped_missing_sequence_row_ids",
+            "dropped_incomplete_row_ids",
+            "dropped_row_ids",
+            "duplicate_site_policy",
+            "missing_data_policy",
+            "required_observed_count",
+            "final_constructed_site_ids",
+            "duplicate_aggregation",
+            "duplicate_site_decisions",
+        )
+    },
+)
+
+
+__all__ = ["SITE_MATRIX_STAGE_CONTRACT", "SiteMatrixStage"]

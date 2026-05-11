@@ -9,9 +9,12 @@ import pandas as pd
 
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
+    PreprocessingPlan,
     PreprocessingStageResult,
     PreprocessingState,
+    PreprocessingStateTableKey,
 )
+from phospy.datasets.preprocessing.stage_contract import PreprocessingStageContract
 from phospy.errors.input import PhosPyInputError
 from phospy.policy_models import IntensityTransformPolicy
 from phospy.provenance.hashing import hash_table
@@ -192,4 +195,42 @@ def _require_numeric_columns(
         )
 
 
-__all__ = ["IntensityTransformStage"]
+def _resolve_operation(plan: PreprocessingPlan) -> str:
+    return plan.intensity_transform_policy.value
+
+
+def _resolve_parameters(plan: PreprocessingPlan) -> dict[str, object]:
+    return {"pseudocount": float(plan.intensity_transform_pseudocount)}
+
+
+INTENSITY_TRANSFORM_STAGE_CONTRACT = PreprocessingStageContract(
+    stage_key=DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
+    display_label=DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
+    provenance_stage=DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
+    operation_name=_resolve_operation,
+    serialize_parameters=_resolve_parameters,
+    consumed_input_tables=(
+        PreprocessingStateTableKey.DATASET_PHOSPHO,
+        PreprocessingStateTableKey.DATASET_TOTAL,
+    ),
+    produced_output_tables=(
+        PreprocessingStateTableKey.DATASET_PHOSPHO,
+        PreprocessingStateTableKey.DATASET_TOTAL,
+    ),
+    stage_factory=IntensityTransformStage,
+    backend="numpy",
+    diagnostics_metadata={
+        "known_diagnostics_fields": (
+            "policy",
+            "pseudocount",
+            "affected_matrices",
+            "input_phospho_hash",
+            "output_phospho_hash",
+            "input_total_hash",
+            "output_total_hash",
+        )
+    },
+)
+
+
+__all__ = ["INTENSITY_TRANSFORM_STAGE_CONTRACT", "IntensityTransformStage"]

@@ -1,25 +1,47 @@
 """Dataset preprocessing stages."""
 
-from phospy.datasets.preprocessing.stages.comparisons import ComparisonsStage
+from phospy.datasets.preprocessing.stages.comparisons import (
+    COMPARISONS_STAGE_CONTRACT,
+    ComparisonsStage,
+)
 from phospy.datasets.preprocessing.stages.intensity_transform import (
+    INTENSITY_TRANSFORM_STAGE_CONTRACT,
     IntensityTransformStage,
 )
-from phospy.datasets.preprocessing.stages.missing_data import MissingDataStage
-from phospy.datasets.preprocessing.stages.normalisation import NormalisationStage
-from phospy.datasets.preprocessing.stages.site_matrix import SiteMatrixStage
+from phospy.datasets.preprocessing.stages.missing_data import (
+    MISSING_DATA_STAGE_CONTRACT,
+    MissingDataStage,
+)
+from phospy.datasets.preprocessing.stages.normalisation import (
+    NORMALISATION_STAGE_CONTRACT,
+    NormalisationStage,
+)
+from phospy.datasets.preprocessing.stages.site_matrix import (
+    SITE_MATRIX_STAGE_CONTRACT,
+    SiteMatrixStage,
+)
 from phospy.datasets.preprocessing.stages.site_sequence_resolution import (
+    SITE_SEQUENCE_RESOLUTION_STAGE_CONTRACT,
     SiteSequenceResolutionStage,
 )
 from phospy.datasets.preprocessing.stages.total_protein_correction import (
+    TOTAL_PROTEIN_CORRECTION_STAGE_CONTRACT,
     TotalProteinCorrectionStage,
 )
 
 __all__ = [
+    "COMPARISONS_STAGE_CONTRACT",
     "ComparisonsStage",
+    "INTENSITY_TRANSFORM_STAGE_CONTRACT",
     "IntensityTransformStage",
+    "MISSING_DATA_STAGE_CONTRACT",
     "MissingDataStage",
+    "NORMALISATION_STAGE_CONTRACT",
     "NormalisationStage",
+    "SITE_MATRIX_STAGE_CONTRACT",
     "SiteMatrixStage",
+    "SITE_SEQUENCE_RESOLUTION_STAGE_CONTRACT",
     "SiteSequenceResolutionStage",
+    "TOTAL_PROTEIN_CORRECTION_STAGE_CONTRACT",
     "TotalProteinCorrectionStage",
 ]

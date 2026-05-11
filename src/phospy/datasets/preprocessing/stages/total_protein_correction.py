@@ -14,10 +14,13 @@ from phospy.api.configs import (
 )
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
+    PreprocessingPlan,
     PreprocessingStageResult,
     PreprocessingState,
+    PreprocessingStateTableKey,
     TotalProteinCorrectionIdentityPolicy,
 )
+from phospy.datasets.preprocessing.stage_contract import PreprocessingStageContract
 from phospy.datasets.processing_state import (
     TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1,
 )
@@ -610,4 +613,86 @@ def _require_numeric_matrix(frame: pd.DataFrame, *, field_name: str) -> None:
         )
 
 
-__all__ = ["TotalProteinCorrectionStage"]
+def _resolve_operation(plan: PreprocessingPlan) -> str:
+    return plan.total_protein_correction_policy.value
+
+
+def _resolve_parameters(plan: PreprocessingPlan) -> dict[str, object]:
+    identity = plan.total_protein_correction_identity_policy
+    return {
+        "total_protein_correction_policy": plan.total_protein_correction_policy.value,
+        "identity_mode": str(identity.mode),
+        "identity_matching_policy": str(identity.matching_policy),
+        "phosphosite_key": identity.phosphosite_key,
+        "total_protein_key": identity.total_protein_key,
+        "mapping_phosphosite_key": identity.mapping_phosphosite_key,
+        "mapping_total_protein_key": identity.mapping_total_protein_key,
+        "mapping_table_fingerprint": identity.mapping_table_fingerprint,
+        "mapping_table_row_count": (
+            None if identity.mapping_table is None else len(identity.mapping_table)
+        ),
+        "duplicate_policy": str(identity.duplicate_policy),
+        "unmatched_policy": str(identity.unmatched_policy),
+    }
+
+
+TOTAL_PROTEIN_CORRECTION_STAGE_CONTRACT = PreprocessingStageContract(
+    stage_key=DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
+    display_label=DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
+    provenance_stage=DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
+    operation_name=_resolve_operation,
+    serialize_parameters=_resolve_parameters,
+    consumed_input_tables=(
+        PreprocessingStateTableKey.DATASET_PHOSPHO,
+        PreprocessingStateTableKey.DATASET_TOTAL,
+        PreprocessingStateTableKey.DATASET_SITE_METADATA,
+    ),
+    produced_output_tables=(PreprocessingStateTableKey.DATASET_PHOSPHO,),
+    stage_factory=TotalProteinCorrectionStage,
+    backend="pandas",
+    diagnostics_metadata={
+        "diagnostics_schema_version": (
+            TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1
+        ),
+        "known_diagnostics_fields": (
+            "diagnostics_schema_version",
+            "policy",
+            "requested_policy",
+            "resolved_policy",
+            "formula",
+            "requires_log_scale",
+            "input_scale",
+            "output_scale",
+            "quantitative_meaning",
+            "matched_rows",
+            "identity_mode",
+            "identity_matching_policy",
+            "phosphosite_key",
+            "total_protein_key",
+            "mapping_phosphosite_key",
+            "mapping_total_protein_key",
+            "mapping_table_fingerprint",
+            "duplicate_policy",
+            "unmatched_policy",
+            "phosphosite_row_count",
+            "total_protein_row_count",
+            "corrected_row_count",
+            "uncorrected_row_count",
+            "unused_total_protein_row_count",
+            "total_rows_used_by_multiple_phosphosites",
+            "corrected_phosphosite_row_ids",
+            "corrected_phosphosite_to_total_protein_row_id",
+            "unmatched_phosphosite_row_ids",
+            "uncorrected_phosphosite_row_reasons",
+            "unused_total_protein_row_ids",
+            "gene_symbol_matching_used",
+            "gene_symbol_identity_warning",
+            "total_table_hash",
+            "input_phospho_hash",
+            "output_phospho_hash",
+        ),
+    },
+)
+
+
+__all__ = ["TOTAL_PROTEIN_CORRECTION_STAGE_CONTRACT", "TotalProteinCorrectionStage"]

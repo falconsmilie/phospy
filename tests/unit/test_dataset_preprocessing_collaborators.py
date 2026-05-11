@@ -478,3 +478,32 @@ def test_builder_integration_assembles_pipeline_outputs_through_collaborators() 
     )
     assert preprocessed.preprocessing_trace == expected_trace
     assert wrapper_state == direct_state
+
+
+def test_disabled_site_sequence_stage_does_not_emit_stage_diagnostics() -> None:
+    phospho = _phospho()
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=_site_metadata(phospho.index),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan.default(),
+    )
+
+    _, trace = PreprocessingPipeline().run_with_trace(state)
+    parsed = ProcessingTraceDiagnostics.from_trace(trace)
+
+    assert parsed.site_sequence_resolution is None
+
+    processing_state = DatasetProcessingStateBuilder().build(
+        plan=state.plan,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        preprocessing_trace=trace,
+        final_phospho=state.phospho,
+        final_site_metadata=state.site_metadata,
+        final_sample_metadata=state.sample_metadata,
+    )
+    assert processing_state.site_sequence_resolution.configured is False
+    assert processing_state.site_sequence_resolution.mode is None

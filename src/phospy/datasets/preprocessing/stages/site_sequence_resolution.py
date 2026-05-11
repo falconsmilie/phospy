@@ -9,9 +9,12 @@ import pandas as pd
 
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
+    PreprocessingPlan,
     PreprocessingStageResult,
     PreprocessingState,
+    PreprocessingStateTableKey,
 )
+from phospy.datasets.preprocessing.stage_contract import PreprocessingStageContract
 from phospy.errors.input import PhosPyInputError, UnsupportedInputFormatError
 from phospy.policy_models import SiteSequenceConflictPolicy, SiteSequenceResolutionMode
 from phospy.sequences import FastaProteinSequenceRepository
@@ -480,4 +483,77 @@ def _normalize_optional_site_sequence_series(column: pd.Series) -> pd.Series:
     return as_string.where(~missing, other=pd.NA)
 
 
-__all__ = ["SiteSequenceResolutionStage"]
+def _resolve_operation(plan: PreprocessingPlan) -> str:
+    return plan.site_sequence_resolution_mode.value
+
+
+def _resolve_parameters(plan: PreprocessingPlan) -> dict[str, object]:
+    return {
+        "enabled": bool(plan.site_sequence_resolution_enabled),
+        "fasta_path": plan.site_sequence_resolution_fasta_path,
+        "mode": plan.site_sequence_resolution_mode.value,
+        "conflict_policy": plan.site_sequence_resolution_conflict_policy.value,
+        "flank_size": int(plan.site_sequence_resolution_flank_size),
+        "accession_column": plan.site_sequence_resolution_accession_column,
+        "site_column": plan.site_sequence_resolution_site_column,
+    }
+
+
+def _include_when_enabled(plan: PreprocessingPlan) -> bool:
+    return bool(plan.site_sequence_resolution_enabled)
+
+
+SITE_SEQUENCE_RESOLUTION_STAGE_CONTRACT = PreprocessingStageContract(
+    stage_key=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
+    display_label=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
+    provenance_stage=DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
+    operation_name=_resolve_operation,
+    serialize_parameters=_resolve_parameters,
+    consumed_input_tables=(PreprocessingStateTableKey.DATASET_SITE_METADATA,),
+    produced_output_tables=(PreprocessingStateTableKey.DATASET_SITE_METADATA,),
+    stage_factory=SiteSequenceResolutionStage,
+    backend="phospy.sequences",
+    include_when=_include_when_enabled,
+    diagnostics_metadata={
+        "diagnostics_schema_version": 1,
+        "known_diagnostics_fields": (
+            "configured",
+            "mode",
+            "flank_size",
+            "fasta_source_path",
+            "fasta_source_label",
+            "fasta_sha256",
+            "resolver_version",
+            "resolved_site_count",
+            "unresolved_site_count",
+            "unresolved_counts_by_reason",
+            "filled_missing_count",
+            "replaced_existing_count",
+            "preserved_existing_count",
+            "existing_sequence_conflict_count",
+            "conflict_policy",
+            "accession_column",
+            "site_column",
+            "row_status",
+            "row_diagnostics",
+        ),
+        "known_row_diagnostic_fields": (
+            "row_index",
+            "row_id",
+            "site_id",
+            "status",
+            "existing_site_sequence",
+            "fasta_site_sequence",
+            "resolved_site_sequence",
+            "action",
+            "reason",
+            "conflict_policy",
+            "resolver_version",
+            "fasta_source_path",
+            "fasta_sha256",
+        ),
+    },
+)
+
+
+__all__ = ["SITE_SEQUENCE_RESOLUTION_STAGE_CONTRACT", "SiteSequenceResolutionStage"]

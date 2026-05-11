@@ -63,10 +63,16 @@ class PreprocessingPipeline:
         self,
         *,
         stage_registry: tuple[PreprocessingStage, ...] | None = None,
+        stage_contract_registry: tuple[PreprocessingStageMetadata, ...] | None = None,
         stage_metadata_registry: tuple[PreprocessingStageMetadata, ...] | None = None,
     ) -> None:
-        resolved_metadata_registry = resolve_registered_preprocessing_stages(
+        contract_overrides = (
             stage_metadata_registry
+            if stage_contract_registry is None
+            else stage_contract_registry
+        )
+        resolved_metadata_registry = resolve_registered_preprocessing_stages(
+            contract_overrides
         )
         stages = stage_registry or build_registered_preprocessing_stage_instances(
             resolved_metadata_registry
@@ -76,7 +82,7 @@ class PreprocessingPipeline:
             raise DatasetBuildError(
                 "dataset preprocessing stage registry contains duplicate stage keys"
             )
-        self._stage_metadata_by_key = {
+        self._stage_contract_by_key = {
             metadata.stage_key: metadata for metadata in resolved_metadata_registry
         }
 
@@ -98,7 +104,14 @@ class PreprocessingPipeline:
                     "dataset preprocessing plan references an unsupported stage: "
                     f"{stage_key}"
                 )
+            contract = self._stage_contract_by_key.get(stage_key)
+            if contract is None:
+                raise DatasetBuildError(
+                    "dataset preprocessing stage metadata is not registered for "
+                    f"stage {stage_key!r}"
+                )
             previous = current
+            interpreted_contract = contract.interpret(previous.plan)
             stage_result = stage.run(current)
             if not isinstance(stage_result, PreprocessingStageResult):
                 raise DatasetBuildError(
@@ -121,29 +134,26 @@ class PreprocessingPipeline:
                 previous=previous,
                 current=current,
             )
-            stage_metadata = self._stage_metadata_by_key.get(stage_key)
-            if stage_metadata is None:
-                raise DatasetBuildError(
-                    "dataset preprocessing stage metadata is not registered for "
-                    f"stage {stage_key!r}"
-                )
             consumed_input_tables = _collect_stage_table_fingerprints(
                 state=previous,
-                table_names=stage_metadata.consumed_input_tables,
+                table_names=interpreted_contract.consumed_input_tables,
             )
             produced_output_tables = _collect_stage_table_fingerprints(
                 state=current,
-                table_names=stage_metadata.produced_output_tables,
+                table_names=interpreted_contract.produced_output_tables,
             )
             random_seed = _resolve_random_seed(
-                stage_key=stage_key, diagnostics=diagnostics["diagnostics"]
+                stage_key=stage_key,
+                value=contract.resolve_random_seed(
+                    diagnostics["diagnostics"], stage_key
+                ),
             )
             determinism = _resolve_stage_determinism(random_seed=random_seed)
             trace.append(
                 PreprocessingStageExecution(
-                    stage=stage_metadata.provenance_stage_key,
-                    operation=stage_metadata.operation_name(previous.plan),
-                    parameters=stage_metadata.serialize_parameters(previous.plan),
+                    stage=interpreted_contract.stage,
+                    operation=interpreted_contract.operation,
+                    parameters=interpreted_contract.parameters,
                     input_shape=(
                         int(previous.phospho.shape[0]),
                         int(previous.phospho.shape[1]),
@@ -169,7 +179,7 @@ class PreprocessingPipeline:
                     schema_version=PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
                     consumed_input_tables=consumed_input_tables,
                     produced_output_tables=produced_output_tables,
-                    backend=stage_metadata.backend,
+                    backend=interpreted_contract.backend,
                     random_seed=random_seed,
                     determinism=determinism,
                     is_deterministic=determinism
@@ -395,9 +405,8 @@ def _resolve_imputation_summary(
 def _resolve_random_seed(
     *,
     stage_key: str,
-    diagnostics: Mapping[str, object],
+    value: object,
 ) -> int | None:
-    value = diagnostics.get("random_seed")
     if value is None:
         return None
     return _coerce_int(

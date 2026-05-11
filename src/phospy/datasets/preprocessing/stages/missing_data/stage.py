@@ -5,14 +5,21 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 
+from phospy.datasets._processing_state.json_contracts import (
+    MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
+    V1_KNOWN_MISSING_DATA_DIAGNOSTICS_FIELDS,
+)
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+    PreprocessingPlan,
     PreprocessingStageResult,
     PreprocessingState,
+    PreprocessingStateTableKey,
     append_row_audit_records,
 )
 from phospy.datasets.preprocessing.report_rows import report_rows_from_row_audit_rows
 from phospy.datasets.preprocessing.report_schema import PreprocessingRowAuditRow
+from phospy.datasets.preprocessing.stage_contract import PreprocessingStageContract
 from phospy.datasets.processing_state import JsonValue, MissingDataDiagnosticsV1
 from phospy.errors.input import PhosPyInputError
 from phospy.policy_models import MissingDataPolicy
@@ -313,3 +320,51 @@ def _stage_diagnostics_payload(
         "notes": "stage executed",
         "diagnostics": diagnostics,
     }
+
+
+def _resolve_operation(plan: PreprocessingPlan) -> str:
+    return plan.missing_data_policy.value
+
+
+def _resolve_parameters(plan: PreprocessingPlan) -> dict[str, object]:
+    return {
+        "missing_data_policy": plan.missing_data_policy.value,
+        "missing_data_min_observed_values": plan.missing_data_min_observed_values,
+        "missing_data_q": plan.missing_data_q,
+        "missing_data_width": plan.missing_data_width,
+        "missing_data_seed": plan.missing_data_seed,
+        "missing_data_k": plan.missing_data_k,
+        "missing_data_distance": plan.missing_data_distance,
+        "missing_data_max_missing_fraction_per_row": (
+            plan.missing_data_max_missing_fraction_per_row
+        ),
+    }
+
+
+MISSING_DATA_STAGE_CONTRACT = PreprocessingStageContract(
+    stage_key=DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+    display_label=DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+    provenance_stage=DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+    operation_name=_resolve_operation,
+    serialize_parameters=_resolve_parameters,
+    consumed_input_tables=(
+        PreprocessingStateTableKey.DATASET_PHOSPHO,
+        PreprocessingStateTableKey.DATASET_SITE_METADATA,
+    ),
+    produced_output_tables=(
+        PreprocessingStateTableKey.DATASET_PHOSPHO,
+        PreprocessingStateTableKey.DATASET_SITE_METADATA,
+        PreprocessingStateTableKey.REPORT_ROW_AUDIT,
+    ),
+    stage_factory=MissingDataStage,
+    backend="pandas",
+    diagnostics_metadata={
+        "diagnostics_schema_version": MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
+        "known_diagnostics_fields": tuple(
+            sorted(V1_KNOWN_MISSING_DATA_DIAGNOSTICS_FIELDS)
+        ),
+    },
+)
+
+
+__all__ = ["MISSING_DATA_STAGE_CONTRACT", "MissingDataStage"]

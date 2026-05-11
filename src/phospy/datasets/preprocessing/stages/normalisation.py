@@ -9,9 +9,12 @@ import pandas as pd
 
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_NORMALISATION,
+    PreprocessingPlan,
     PreprocessingStageResult,
     PreprocessingState,
+    PreprocessingStateTableKey,
 )
+from phospy.datasets.preprocessing.stage_contract import PreprocessingStageContract
 from phospy.errors.input import PhosPyInputError
 from phospy.policy_models import NormalisationPolicy
 from phospy.provenance.hashing import hash_table
@@ -215,4 +218,34 @@ def _assign_quantile_values_with_deterministic_ties(
     return assigned
 
 
-__all__ = ["NormalisationStage"]
+def _resolve_operation(plan: PreprocessingPlan) -> str:
+    return plan.normalisation_policy.value
+
+
+def _resolve_parameters(_plan: PreprocessingPlan) -> dict[str, object]:
+    return {}
+
+
+NORMALISATION_STAGE_CONTRACT = PreprocessingStageContract(
+    stage_key=DATASET_PREPROCESSING_STAGE_NORMALISATION,
+    display_label=DATASET_PREPROCESSING_STAGE_NORMALISATION,
+    provenance_stage=DATASET_PREPROCESSING_STAGE_NORMALISATION,
+    operation_name=_resolve_operation,
+    serialize_parameters=_resolve_parameters,
+    consumed_input_tables=(PreprocessingStateTableKey.DATASET_PHOSPHO,),
+    produced_output_tables=(PreprocessingStateTableKey.DATASET_PHOSPHO,),
+    stage_factory=NormalisationStage,
+    backend="numpy",
+    diagnostics_metadata={
+        "known_diagnostics_fields": (
+            "policy",
+            "affected_columns",
+            "input_phospho_hash",
+            "output_phospho_hash",
+            "note",
+        )
+    },
+)
+
+
+__all__ = ["NORMALISATION_STAGE_CONTRACT", "NormalisationStage"]
