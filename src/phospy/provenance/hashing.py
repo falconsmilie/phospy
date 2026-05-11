@@ -276,11 +276,15 @@ def _index_structure(index: pd.Index, *, round_floats: bool) -> dict[str, JsonVa
 def _is_missing_scalar(value: object) -> bool:
     if not isinstance(value, _PANDAS_MISSING_SCALAR_TYPES):
         return False
-    try:
-        missing = pd.isna(value)
-    except Exception:
-        return False
-    return isinstance(missing, (bool, np.bool_)) and bool(missing)
+    if isinstance(value, float):
+        return math.isnan(value)
+    if isinstance(value, np.floating):
+        return bool(np.isnan(value))
+    if value is pd.NA or value is pd.NaT:
+        return True
+    if isinstance(value, np.datetime64 | np.timedelta64):
+        return bool(np.isnat(value))
+    return False
 
 
 def _normalize_float_string(value: float) -> str:

@@ -7,14 +7,14 @@ from collections.abc import Iterable
 import numpy as np
 import pandas as pd
 
-from phospy.errors.validation import PhosPyValidationError
+from phospy.errors.base import PhosPyError
 from phospy.site_ids import (
     canonicalize_site_index,
     canonicalize_site_series,
     parse_canonical_site_identifier,
 )
 
-ValidationErrorType = type[PhosPyValidationError]
+ValidationErrorType = type[PhosPyError]
 _ALIGNMENT_EXAMPLE_LIMIT = 5
 
 

@@ -135,26 +135,42 @@ class ActivityMethodSummary:
         payload: Mapping[str, object],
     ) -> ActivityMethodSummary:
         return cls(
-            kinases_evaluated=int(payload.get("kinases_evaluated", 0)),
-            kinase_condition_pairs_evaluated=int(
-                payload.get("kinase_condition_pairs_evaluated", 0)
+            kinases_evaluated=_coerce_payload_int(
+                payload=payload,
+                field_name="kinases_evaluated",
             ),
-            kinase_condition_pairs_computed=int(
-                payload.get("kinase_condition_pairs_computed", 0)
+            kinase_condition_pairs_evaluated=_coerce_payload_int(
+                payload=payload,
+                field_name="kinase_condition_pairs_evaluated",
             ),
-            kinase_condition_pairs_insufficient_substrates=int(
-                payload.get("kinase_condition_pairs_insufficient_substrates", 0)
+            kinase_condition_pairs_computed=_coerce_payload_int(
+                payload=payload,
+                field_name="kinase_condition_pairs_computed",
             ),
-            kinase_condition_pairs_invalid_background_variance=int(
-                payload.get("kinase_condition_pairs_invalid_background_variance", 0)
+            kinase_condition_pairs_insufficient_substrates=_coerce_payload_int(
+                payload=payload,
+                field_name="kinase_condition_pairs_insufficient_substrates",
             ),
-            kinase_condition_pairs_no_finite_background_values=int(
-                payload.get("kinase_condition_pairs_no_finite_background_values", 0)
+            kinase_condition_pairs_invalid_background_variance=_coerce_payload_int(
+                payload=payload,
+                field_name="kinase_condition_pairs_invalid_background_variance",
             ),
-            kinase_condition_pairs_no_finite_substrate_values=int(
-                payload.get("kinase_condition_pairs_no_finite_substrate_values", 0)
+            kinase_condition_pairs_no_finite_background_values=_coerce_payload_int(
+                payload=payload,
+                field_name="kinase_condition_pairs_no_finite_background_values",
+            ),
+            kinase_condition_pairs_no_finite_substrate_values=_coerce_payload_int(
+                payload=payload,
+                field_name="kinase_condition_pairs_no_finite_substrate_values",
             ),
         )
+
+
+def _coerce_payload_int(*, payload: Mapping[str, object], field_name: str) -> int:
+    value = payload.get(field_name, 0)
+    if isinstance(value, bool | int | float | str | bytes | bytearray):
+        return int(value)
+    raise ValueError(f"{field_name} must be int-compatible")
 
 
 @dataclass(frozen=True, slots=True)

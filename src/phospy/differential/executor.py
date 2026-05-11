@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import numpy as np
 import pandas as pd
 from scipy import stats
@@ -30,7 +32,11 @@ class DifferentialAnalysisExecutor:
         contrast_aligned = contrast_frame.loc[design_aligned.columns]
 
         design_values = design_aligned.to_numpy(dtype=float)
-        sample_count, coefficient_count = design_values.shape
+        if design_values.ndim != 2:
+            raise PhosPyInputError("differential.design must be two-dimensional")
+        design_shape = cast(tuple[int, int], design_values.shape)
+        sample_count = int(design_shape[0])
+        coefficient_count = int(design_shape[1])
         rank = int(np.linalg.matrix_rank(design_values))
         if rank < coefficient_count:
             raise PhosPyInputError(
@@ -105,13 +111,16 @@ class DifferentialAnalysisExecutor:
             log_fc = contrast_effects[:, column_idx]
             standard_error = posterior_sd * contrast_scale[column_idx]
             moderated_t = log_fc / standard_error
-            p_values = 2.0 * stats.t.sf(np.abs(moderated_t), df=moderated_dof)
+            p_values = np.asarray(
+                2.0 * stats.t.sf(np.abs(moderated_t), df=moderated_dof),
+                dtype=float,
+            )
             adjusted = benjamini_hochberg(p_values)
             contrast_tables[str(contrast_name)] = pd.DataFrame(
                 {
                     "logFC": log_fc.astype(float),
                     "t": moderated_t.astype(float),
-                    "P.Value": p_values.astype(float),
+                    "P.Value": p_values,
                     "adj.P.Val": adjusted.astype(float),
                 },
                 index=row_index.copy(),

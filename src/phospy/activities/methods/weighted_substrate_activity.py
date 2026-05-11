@@ -190,13 +190,13 @@ def _compute_thresholded_substrate_mean_activity(
     counts: dict[str, int] = {}
 
     for kinase_position in candidate_kinase_positions:
-        selected_row_positions = np.flatnonzero(substrate_mask[:, kinase_position])
+        selected_row_positions = np.flatnonzero(substrate_mask[:, int(kinase_position)])
         kinase_values = matrix_values[selected_row_positions, :]
         kinase_scores = _nan_aware_mean_array(kinase_values)
         if np.isnan(kinase_scores).all():
             continue
 
-        kinase_name = str(aligned_pred_mat.columns[kinase_position])
+        kinase_name = str(aligned_pred_mat.columns[int(kinase_position)])
         counts[kinase_name] = int(selected_row_positions.size)
         score_index.append(kinase_name)
         score_rows.append(kinase_scores)
@@ -239,9 +239,9 @@ def _build_kinase_target_table(
     filtered = threshold_membership_filtered_frame(pred_mat, threshold=threshold)
     try:
         edges = filtered.stack(future_stack=True).rename("score").reset_index()
-        edges = edges.loc[edges["score"].notna()]
     except TypeError:
-        edges = filtered.stack(dropna=True).rename("score").reset_index()
+        edges = filtered.stack().rename("score").reset_index()
+    edges = edges.loc[edges["score"].notna()]
     edges.columns = [_SITE_ID_COLUMN, "kinase", "score"]
     return edges.sort_values(["kinase", "score"], ascending=[True, False])
 

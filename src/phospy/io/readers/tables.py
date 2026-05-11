@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 import pandas as pd
 
@@ -336,7 +336,7 @@ def _raise_numeric_cell_error(
     offending_value: str,
     allow_missing: bool,
     original_error: Exception,
-) -> None:
+) -> NoReturn:
     expected_type = "finite numeric value"
     if allow_missing:
         expected_type = (

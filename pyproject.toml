@@ -131,10 +131,17 @@ venvPath = "."
 venv = ".venv"
 typeCheckingMode = "standard"
 include = [
+  "src/phospy/activities",
   "src/phospy/api",
   "src/phospy/datasets",
+  "src/phospy/differential",
+  "src/phospy/io",
   "src/phospy/prediction",
+  "src/phospy/provenance",
+  "src/phospy/references",
   "src/phospy/signalomes/clustering",
+  "src/phospy/tables",
+  "src/phospy/validation",
   "src/phospy/workflows",
 ]
 strict = [

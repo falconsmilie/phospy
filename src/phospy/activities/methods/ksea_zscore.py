@@ -301,9 +301,9 @@ def _build_target_table(
     )
     try:
         edges = filtered.stack(future_stack=True).rename("score").reset_index()
-        edges = edges.loc[edges["score"].notna()]
     except TypeError:
-        edges = filtered.stack(dropna=True).rename("score").reset_index()
+        edges = filtered.stack().rename("score").reset_index()
+    edges = edges.loc[edges["score"].notna()]
     edges.columns = ["site_id", "kinase", "score"]
     return edges.sort_values(["kinase", "score"], ascending=[True, False])
 
