@@ -253,7 +253,7 @@ def test_cli_dataset_build_fails_clearly_when_state_cannot_be_established(
         )
     )
     monkeypatch.setattr(
-        "phospy.io.cli.AnalysisReadyDatasetBuilder",
+        "phospy.io.cli_runner.AnalysisReadyDatasetBuilder",
         lambda: failing_builder,
     )
 
