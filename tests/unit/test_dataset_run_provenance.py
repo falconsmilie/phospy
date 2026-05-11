@@ -24,18 +24,36 @@ from phospy.scientific_policies import ScientificPolicyId
 
 
 def test_collect_environment_provenance_reports_expected_keys() -> None:
-    environment = collect_environment_provenance()
+    provenance_environment.clear_environment_provenance_cache()
+    environment = collect_environment_provenance(use_cache=False)
     dependency_names = set(environment.dependency_versions)
     assert environment.package_name == "phospy"
     assert environment.python_version
     assert {"numpy", "pandas", "scipy", "scikit-learn"}.issubset(dependency_names)
     assert {"pyarrow", "openpyxl"}.issubset(dependency_names)
     assert {"platform", "system", "machine"}.issubset(set(environment.platform))
+    assert environment.schema_version >= 2
+    assert {
+        "blas_name",
+        "lapack_name",
+        "blas_version",
+        "lapack_version",
+    }.issubset(set(environment.blas_lapack))
+    assert set(environment.thread_environment) == set(
+        provenance_environment.THREAD_ENVIRONMENT_VARIABLES
+    )
+    assert {"language_code", "encoding", "lc_all", "preferred_encoding"}.issubset(
+        set(environment.locale)
+    )
+    assert {"algorithm", "value", "sources"}.issubset(
+        set(environment.constraints_fingerprint)
+    )
 
 
 def test_collect_environment_provenance_tolerates_missing_optional_engines(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    provenance_environment.clear_environment_provenance_cache()
     optional_dependencies = {"pyarrow", "openpyxl"}
     real_lookup = provenance_environment._distribution_version
 
@@ -47,11 +65,122 @@ def test_collect_environment_provenance_tolerates_missing_optional_engines(
     monkeypatch.setattr(
         provenance_environment, "_distribution_version", _version_lookup
     )
-    environment = collect_environment_provenance()
+    environment = collect_environment_provenance(use_cache=False)
 
     for dependency_name in optional_dependencies:
         assert dependency_name in environment.dependency_versions
         assert environment.dependency_versions[dependency_name] is None
+
+
+def test_collect_environment_provenance_tolerates_missing_optional_backend_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provenance_environment.clear_environment_provenance_cache()
+    monkeypatch.setattr(
+        provenance_environment,
+        "_blas_lapack_provenance",
+        lambda: {
+            "source": "numpy_backend_unavailable",
+            "blas_name": None,
+            "blas_version": None,
+            "blas_detection_method": None,
+            "blas_openblas_configuration": None,
+            "lapack_name": None,
+            "lapack_version": None,
+            "lapack_detection_method": None,
+            "lapack_openblas_configuration": None,
+        },
+    )
+    environment = collect_environment_provenance(use_cache=False)
+    assert environment.blas_lapack["source"] == "numpy_backend_unavailable"
+    assert environment.blas_lapack["blas_name"] is None
+    assert environment.blas_lapack["lapack_name"] is None
+
+
+def test_collect_environment_provenance_captures_thread_environment_variables(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provenance_environment.clear_environment_provenance_cache()
+    monkeypatch.setenv("OMP_NUM_THREADS", "2")
+    monkeypatch.setenv("OPENBLAS_NUM_THREADS", "3")
+    monkeypatch.setenv("MKL_NUM_THREADS", "4")
+    monkeypatch.setenv("NUMEXPR_NUM_THREADS", "5")
+
+    environment = collect_environment_provenance(use_cache=False)
+
+    assert environment.thread_environment == {
+        "OMP_NUM_THREADS": "2",
+        "OPENBLAS_NUM_THREADS": "3",
+        "MKL_NUM_THREADS": "4",
+        "NUMEXPR_NUM_THREADS": "5",
+    }
+
+
+def test_environment_provenance_payload_serializes_extended_metadata() -> None:
+    provenance_environment.clear_environment_provenance_cache()
+    environment = collect_environment_provenance(use_cache=False)
+    payload = to_payload(
+        from_payload(
+            {
+                "environment": {
+                    "schema_version": environment.schema_version,
+                    "package_name": environment.package_name,
+                    "package_version": environment.package_version,
+                    "python_version": environment.python_version,
+                    "dependency_versions": environment.dependency_versions,
+                    "platform": environment.platform,
+                    "blas_lapack": environment.blas_lapack,
+                    "thread_environment": environment.thread_environment,
+                    "timezone": environment.timezone,
+                    "locale": environment.locale,
+                    "constraints_fingerprint": environment.constraints_fingerprint,
+                },
+                "input_tables": [],
+                "preprocessing_stages": [],
+                "reference": None,
+                "workflow_name": None,
+                "workflow_parameters": {},
+                "random_state": None,
+                "random_seed_policy": None,
+                "output_tables": [],
+                "scientific_policies": [],
+            }
+        )
+    )
+    environment_payload = payload["environment"]
+    assert isinstance(environment_payload, dict)
+    assert environment_payload["schema_version"] >= 2
+    assert "blas_lapack" in environment_payload
+    assert "thread_environment" in environment_payload
+    assert "timezone" in environment_payload
+    assert "locale" in environment_payload
+    assert "constraints_fingerprint" in environment_payload
+
+
+def test_collect_environment_provenance_uses_process_cache(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provenance_environment.clear_environment_provenance_cache()
+    real_collector = provenance_environment._collect_environment_provenance_uncached
+    invocation_count = 0
+
+    def _counting_collector(*, package_name: str, dependency_names: tuple[str, ...]):
+        nonlocal invocation_count
+        invocation_count += 1
+        return real_collector(
+            package_name=package_name,
+            dependency_names=dependency_names,
+        )
+
+    monkeypatch.setattr(
+        provenance_environment,
+        "_collect_environment_provenance_uncached",
+        _counting_collector,
+    )
+    first = collect_environment_provenance()
+    second = collect_environment_provenance()
+    assert invocation_count == 1
+    assert first == second
 
 
 def test_dataset_builder_emits_run_provenance_and_stage_details() -> None:
@@ -393,7 +522,13 @@ def test_run_provenance_from_payload_accepts_legacy_stage_shape() -> None:
     payload = to_payload(built.provenance)
     environment_payload = payload["environment"]
     assert isinstance(environment_payload, dict)
+    environment_payload.pop("schema_version", None)
     environment_payload.pop("platform", None)
+    environment_payload.pop("blas_lapack", None)
+    environment_payload.pop("thread_environment", None)
+    environment_payload.pop("timezone", None)
+    environment_payload.pop("locale", None)
+    environment_payload.pop("constraints_fingerprint", None)
     stages = payload["preprocessing_stages"]
     assert isinstance(stages, list)
     for stage in stages:
@@ -410,6 +545,12 @@ def test_run_provenance_from_payload_accepts_legacy_stage_shape() -> None:
 
     restored = from_payload(payload)
     stage = next(item for item in restored.preprocessing_stages if item.stage)
+    assert restored.environment.schema_version == 1
+    assert restored.environment.blas_lapack == {}
+    assert restored.environment.thread_environment == {}
+    assert restored.environment.timezone is None
+    assert restored.environment.locale == {}
+    assert restored.environment.constraints_fingerprint == {}
     assert stage.schema_version == 1
     assert stage.consumed_input_tables == ()
     assert stage.produced_output_tables == ()

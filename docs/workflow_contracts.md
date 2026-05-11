@@ -16,6 +16,10 @@ For executable usage, see:
 For explicit performance and scale contracts (input sizes, guardrails,
 approximation behavior, and failure modes), see `docs/performance.md`.
 
+Environment provenance supports reproducibility audits (runtime versions,
+platform, backend, and execution settings), but it does not guarantee bitwise
+identical numeric outputs across different machines or dependency builds.
+
 ## AnalysisReadyDatasetBuilder Contract
 
 ### Required Input Tables

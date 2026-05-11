@@ -14,6 +14,8 @@ if TYPE_CHECKING:
 PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V1 = 1
 PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V2 = 2
 PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3 = 3
+ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V1 = 1
+ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V2 = 2
 PREPROCESSING_STAGE_DETERMINISM_PURE = "pure"
 PREPROCESSING_STAGE_DETERMINISM_SEEDED_STOCHASTIC = "seeded_stochastic"
 PREPROCESSING_STAGE_DETERMINISM_EXTERNAL_DEPENDENCY = "external_dependency"
@@ -56,7 +58,13 @@ class EnvironmentProvenance:
     package_version: str
     python_version: str
     dependency_versions: dict[str, str | None]
+    schema_version: int = ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V2
     platform: dict[str, str] = field(default_factory=_empty_platform_provenance)
+    blas_lapack: dict[str, JsonValue] = field(default_factory=dict)
+    thread_environment: dict[str, str | None] = field(default_factory=dict)
+    timezone: str | None = None
+    locale: dict[str, str | None] = field(default_factory=dict)
+    constraints_fingerprint: dict[str, str | None] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)

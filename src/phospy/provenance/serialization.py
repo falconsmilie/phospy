@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, cast
 
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.models import (
+    ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V1,
     PREPROCESSING_STAGE_DETERMINISM_EXTERNAL_DEPENDENCY,
     PREPROCESSING_STAGE_DETERMINISM_PURE,
     PREPROCESSING_STAGE_DETERMINISM_SEEDED_STOCHASTIC,
@@ -343,11 +344,17 @@ def _resolve_fingerprint_hash_field(
 
 def _environment_to_payload(environment: EnvironmentProvenance) -> dict[str, object]:
     return {
+        "schema_version": int(environment.schema_version),
         "package_name": environment.package_name,
         "package_version": environment.package_version,
         "python_version": environment.python_version,
         "dependency_versions": _to_json_safe(environment.dependency_versions),
         "platform": _to_json_safe(environment.platform),
+        "blas_lapack": _to_json_safe(environment.blas_lapack),
+        "thread_environment": _to_json_safe(environment.thread_environment),
+        "timezone": environment.timezone,
+        "locale": _to_json_safe(environment.locale),
+        "constraints_fingerprint": _to_json_safe(environment.constraints_fingerprint),
     }
 
 
@@ -360,7 +367,30 @@ def _environment_from_payload(payload: Mapping[str, object]) -> EnvironmentProve
         payload.get("platform", {}),
         field_name="provenance.environment.platform",
     )
+    blas_lapack_payload = _require_mapping(
+        payload.get("blas_lapack", {}),
+        field_name="provenance.environment.blas_lapack",
+    )
+    thread_environment_payload = _require_mapping(
+        payload.get("thread_environment", {}),
+        field_name="provenance.environment.thread_environment",
+    )
+    locale_payload = _require_mapping(
+        payload.get("locale", {}),
+        field_name="provenance.environment.locale",
+    )
+    constraints_fingerprint_payload = _require_mapping(
+        payload.get("constraints_fingerprint", {}),
+        field_name="provenance.environment.constraints_fingerprint",
+    )
     return EnvironmentProvenance(
+        schema_version=_require_int(
+            payload.get(
+                "schema_version",
+                ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V1,
+            ),
+            field_name="provenance.environment.schema_version",
+        ),
         package_name=_require_str(
             payload.get("package_name"),
             field_name="provenance.environment.package_name",
@@ -392,6 +422,49 @@ def _environment_from_payload(payload: Mapping[str, object]) -> EnvironmentProve
                 field_name=f"provenance.environment.platform['{str(key)}']",
             )
             for key, value in platform_payload.items()
+        },
+        blas_lapack={
+            str(key): _to_json_value(value)
+            for key, value in blas_lapack_payload.items()
+        },
+        thread_environment={
+            str(key): (
+                None
+                if value is None
+                else _require_str(
+                    value,
+                    field_name=f"provenance.environment.thread_environment['{str(key)}']",
+                )
+            )
+            for key, value in thread_environment_payload.items()
+        },
+        timezone=_optional_str(
+            payload.get("timezone"),
+            field_name="provenance.environment.timezone",
+        ),
+        locale={
+            str(key): (
+                None
+                if value is None
+                else _require_str(
+                    value,
+                    field_name=f"provenance.environment.locale['{str(key)}']",
+                )
+            )
+            for key, value in locale_payload.items()
+        },
+        constraints_fingerprint={
+            str(key): (
+                None
+                if value is None
+                else _require_str(
+                    value,
+                    field_name=(
+                        f"provenance.environment.constraints_fingerprint['{str(key)}']"
+                    ),
+                )
+            )
+            for key, value in constraints_fingerprint_payload.items()
         },
     )
 
