@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import pandas.testing as pdt
 import pytest
 
 from phospy.api import (
@@ -249,3 +250,125 @@ def test_differential_analysis_fails_when_residual_dof_is_non_positive() -> None
                 contrasts=identity_contrasts,
             )
         )
+
+
+def test_differential_analysis_handles_zero_variance_features() -> None:
+    matrix = pd.DataFrame(
+        {
+            "A_1": [5.0, 1.0],
+            "A_2": [5.0, 1.2],
+            "B_1": [5.0, 2.1],
+            "B_2": [5.0, 2.2],
+        },
+        index=pd.Index(["SITE_CONST", "SITE_VAR"], name="site_id"),
+    )
+    design = pd.DataFrame(
+        {
+            "A": [1.0, 1.0, 0.0, 0.0],
+            "B": [0.0, 0.0, 1.0, 1.0],
+        },
+        index=pd.Index(["A_1", "A_2", "B_1", "B_2"], name="sample"),
+    )
+    contrasts = pd.DataFrame(
+        {"B_vs_A": [-1.0, 1.0]},
+        index=pd.Index(["A", "B"], name="coefficient"),
+    )
+
+    result = DifferentialAnalysis().run(
+        DifferentialAnalysisRequest(
+            matrix=matrix,
+            design=design,
+            contrasts=contrasts,
+        )
+    )
+    table = result.table_for("B_vs_A")
+
+    assert table.at["SITE_CONST", "logFC"] == pytest.approx(0.0)
+    assert table.at["SITE_CONST", "t"] == pytest.approx(0.0)
+    assert table.at["SITE_CONST", "P.Value"] == pytest.approx(1.0)
+    assert np.isfinite(table.loc[:, "t"]).all()
+    assert np.isfinite(table.loc[:, "P.Value"]).all()
+
+
+def test_differential_analysis_rejects_missing_group_labels_in_design() -> None:
+    matrix = pd.DataFrame(
+        {
+            "A_1": [1.0],
+            "A_2": [1.1],
+            "B_1": [2.0],
+            "B_2": [2.1],
+        },
+        index=pd.Index(["SITE_1"], name="site_id"),
+    )
+    design = pd.DataFrame(
+        {
+            "A": [1.0, 1.0, 0.0, 0.0],
+            "B": [0.0, float("nan"), 1.0, 1.0],
+        },
+        index=pd.Index(["A_1", "A_2", "B_1", "B_2"], name="sample"),
+    )
+    contrasts = pd.DataFrame(
+        {"B_vs_A": [-1.0, 1.0]},
+        index=pd.Index(["A", "B"], name="coefficient"),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="differential.design must not contain missing values",
+    ):
+        DifferentialAnalysis().run(
+            DifferentialAnalysisRequest(
+                matrix=matrix,
+                design=design,
+                contrasts=contrasts,
+            )
+        )
+
+
+def test_differential_analysis_sample_order_mismatch_is_resolved_by_label() -> None:
+    matrix = pd.DataFrame(
+        {
+            "A_1": [1.0, 2.0],
+            "A_2": [1.1, 2.1],
+            "B_1": [2.0, 1.9],
+            "B_2": [2.2, 2.2],
+        },
+        index=pd.Index(["SITE_1", "SITE_2"], name="site_id"),
+    )
+    design = pd.DataFrame(
+        {
+            "A": [1.0, 1.0, 0.0, 0.0],
+            "B": [0.0, 0.0, 1.0, 1.0],
+        },
+        index=pd.Index(["A_1", "A_2", "B_1", "B_2"], name="sample"),
+    )
+    contrasts = pd.DataFrame(
+        {"B_vs_A": [-1.0, 1.0]},
+        index=pd.Index(["A", "B"], name="coefficient"),
+    )
+    reordered_samples = ["B_2", "A_1", "B_1", "A_2"]
+
+    aligned = (
+        DifferentialAnalysis()
+        .run(
+            DifferentialAnalysisRequest(
+                matrix=matrix,
+                design=design,
+                contrasts=contrasts,
+            )
+        )
+        .table_for("B_vs_A")
+    )
+    reordered = (
+        DifferentialAnalysis()
+        .run(
+            DifferentialAnalysisRequest(
+                matrix=matrix.loc[:, reordered_samples],
+                design=design.loc[reordered_samples, :],
+                contrasts=contrasts,
+            )
+        )
+        .table_for("B_vs_A")
+    )
+
+    pdt.assert_frame_equal(aligned, reordered, check_exact=False, rtol=1e-12, atol=0.0)

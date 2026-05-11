@@ -5,6 +5,7 @@ import pandas as pd
 from phospy import AnalysisReadyDatasetBuilder, AnalysisReadyPhosphoDataset
 from phospy.api import (
     DatasetBuildRequest,
+    DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
@@ -22,7 +23,11 @@ from phospy.api import (
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
-from phospy.provenance.hashing import hash_table
+from phospy.io.bundles._shared.processing_state import (
+    processing_state_from_payload,
+    processing_state_to_payload,
+)
+from phospy.provenance.hashing import hash_table, hash_table_exact, hash_table_tolerance
 from phospy.scientific_policies import ScientificPolicyId
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
@@ -142,6 +147,144 @@ def test_table_hash_changes_when_axis_names_change() -> None:
     third = first.copy(deep=True)
     third.columns = third.columns.rename("sample_id")
     assert hash_table(first, name="table") != hash_table(third, name="table")
+
+
+def test_dataset_output_fingerprints_match_observed_numeric_outputs() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0],
+            "sample_b": [3.0, 4.0],
+        },
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1"],
+            "site": ["Y182", "T308"],
+            "site_sequence": ["SEQ_A", "SEQ_B"],
+        },
+        index=phospho.index.copy(),
+    )
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+        )
+    )
+
+    output_fingerprint = next(
+        item
+        for item in built.provenance.output_tables
+        if item.name == "dataset.phospho"
+    )
+
+    assert output_fingerprint.hash_value == hash_table(
+        built.phospho,
+        name="dataset.phospho",
+    )
+    assert output_fingerprint.exact_hash_value == hash_table_exact(
+        built.phospho,
+        name="dataset.phospho",
+    )
+    assert output_fingerprint.tolerance_hash_value == hash_table_tolerance(
+        built.phospho,
+        name="dataset.phospho",
+    )
+
+
+def test_dataset_provenance_exact_hash_changes_for_tiny_shift_but_tolerance_hash_can_stay_stable() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.123456781, 2.0],
+            "sample_b": [3.0, 4.0],
+        },
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+    )
+    changed = phospho.copy(deep=True)
+    changed.at["MAPK14;Y182;", "sample_a"] = 1.123456784
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1"],
+            "site": ["Y182", "T308"],
+            "site_sequence": ["SEQ_A", "SEQ_B"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    first = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+        )
+    )
+    second = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=changed,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+        )
+    )
+    first_fingerprint = next(
+        item
+        for item in first.provenance.output_tables
+        if item.name == "dataset.phospho"
+    )
+    second_fingerprint = next(
+        item
+        for item in second.provenance.output_tables
+        if item.name == "dataset.phospho"
+    )
+
+    assert first_fingerprint.exact_hash_value != second_fingerprint.exact_hash_value
+    assert (
+        first_fingerprint.tolerance_hash_value
+        == second_fingerprint.tolerance_hash_value
+    )
+
+
+def test_processing_state_bundle_round_trip_from_real_preprocessing_output() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, float("nan")],
+            "sample_b": [2.0, 3.0],
+            "sample_c": [3.0, 5.0],
+        },
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1"],
+            "site": ["Y182", "T308"],
+            "site_sequence": ["SEQ_A", "SEQ_B"],
+        },
+        index=phospho.index.copy(),
+    )
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            preprocessing_config=DatasetPreprocessingConfig(
+                missing_data=DatasetMissingDataConfig(
+                    policy="impute_row_median",
+                    min_observed_values=2,
+                ),
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="log2",
+                    pseudocount=1.0,
+                ),
+            ),
+        )
+    )
+
+    payload = processing_state_to_payload(built.processing_state)
+    restored = processing_state_from_payload(payload)
+
+    assert processing_state_to_payload(restored) == payload
 
 
 def test_preprocessing_policy_changes_are_visible_in_provenance() -> None:

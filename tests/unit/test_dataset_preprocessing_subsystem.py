@@ -2358,6 +2358,141 @@ def test_dataset_preprocessor_quantile_normalisation_is_deterministic_with_ties_
     assert pd.isna(first.phospho.loc["D;S1;", "sample_a"])
 
 
+def test_dataset_preprocessor_site_matrix_min_observed_filter_can_keep_all_rows() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 10.0],
+            "sample_b": [2.0, float("nan")],
+            "sample_c": [float("nan"), 12.0],
+        },
+        index=pd.Index(["row_a", "row_b"], name="input_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1"],
+            "site": ["Y182", "T308"],
+            "site_sequence": ["SEQ_A", "SEQ_B"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    preprocessed = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=None,
+        total=None,
+        plan=_plan_without_missing_stage(
+            DatasetPreprocessingConfig(
+                site_matrix=_internal_site_matrix_config(
+                    policy="build_from_metadata",
+                    missing_data_policy="require_min_observed_values",
+                    minimum_observed_values=2,
+                    duplicate_site_policy="aggregate_mean",
+                )
+            )
+        ),
+    )
+
+    assert preprocessed.phospho.index.tolist() == ["AKT1;T308;", "MAPK14;Y182;"]
+    dropped = preprocessed.row_audit.loc[
+        (preprocessed.row_audit.loc[:, "stage"] == "site_matrix")
+        & (preprocessed.row_audit.loc[:, "action"] == "dropped")
+    ]
+    assert dropped.empty
+
+
+def test_dataset_preprocessor_site_matrix_min_observed_filter_can_remove_all_rows() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, float("nan")],
+            "sample_b": [float("nan"), 5.0],
+            "sample_c": [float("nan"), float("nan")],
+        },
+        index=pd.Index(["row_a", "row_b"], name="input_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1"],
+            "site": ["Y182", "T308"],
+            "site_sequence": ["SEQ_A", "SEQ_B"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="site-matrix construction produced no retained rows after filtering",
+    ):
+        DatasetPreprocessor().run(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            sample_metadata=None,
+            total=None,
+            plan=_plan_without_missing_stage(
+                DatasetPreprocessingConfig(
+                    site_matrix=_internal_site_matrix_config(
+                        policy="build_from_metadata",
+                        missing_data_policy="require_min_observed_values",
+                        minimum_observed_values=2,
+                        duplicate_site_policy="aggregate_mean",
+                    )
+                )
+            ),
+        )
+
+
+def test_dataset_preprocessor_trace_tracks_stagewise_transform_progression() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, float("nan"), 4.0],
+            "sample_b": [2.0, 3.0, 5.0],
+            "sample_c": [3.0, 5.0, 6.0],
+        },
+        index=pd.Index(["SITE_A", "SITE_B", "SITE_C"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
+            "site": ["Y182", "T308", "S9"],
+            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    preprocessed = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan.from_config(
+            DatasetPreprocessingConfig(
+                missing_data=DatasetMissingDataConfig(
+                    policy="impute_row_median",
+                    min_observed_values=2,
+                ),
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="log2",
+                    pseudocount=1.0,
+                ),
+                normalisation=DatasetNormalisationConfig(policy="median_center"),
+            )
+        ),
+    )
+
+    stage_names = [stage.stage for stage in preprocessed.preprocessing_trace]
+    assert stage_names == ["missing_data", "intensity_transform", "normalisation"]
+    for stage in preprocessed.preprocessing_trace:
+        assert isinstance(stage.phospho_input_hash, str)
+        assert isinstance(stage.phospho_output_hash, str)
+        assert len(stage.phospho_input_hash) == 64
+        assert len(stage.phospho_output_hash) == 64
+        assert stage.phospho_input_hash != stage.phospho_output_hash
+
+
 @pytest.mark.parametrize(
     ("intensity_transform", "normalisation", "expected"),
     [

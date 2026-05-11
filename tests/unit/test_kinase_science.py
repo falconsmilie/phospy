@@ -258,3 +258,124 @@ def test_profile_correlation_scores_use_shifted_unit_transform() -> None:
     assert scores.at["SITE_POS", "KINASE_NEG"] == pytest.approx(0.0)
     assert scores.at["SITE_NEG", "KINASE_POS"] == pytest.approx(1.0)
     assert scores.at["SITE_NEG", "KINASE_NEG"] == pytest.approx(0.0)
+
+
+def test_profile_correlation_single_sample_returns_missing_support() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0, 2.0]},
+        index=pd.Index(["SITE1", "SITE2"], name="site_id"),
+    )
+    profile_matrix = pd.DataFrame(
+        {"sample_a": [3.0, 4.0]},
+        index=pd.Index(["KINASE1", "KINASE2"], name="kinase"),
+    )
+
+    scores = score_profile_correlations(
+        phospho=phospho,
+        profile_matrix=profile_matrix,
+    )
+
+    assert scores.shape == (2, 2)
+    assert scores.isna().to_numpy().all()
+
+
+def test_profile_correlation_constant_and_all_zero_profiles_remain_nan() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [0.0, 5.0],
+            "sample_b": [0.0, 5.0],
+            "sample_c": [0.0, 5.0],
+        },
+        index=pd.Index(["SITE_ZERO", "SITE_CONST"], name="site_id"),
+    )
+    profile_matrix = pd.DataFrame(
+        {
+            "sample_a": [0.0, 1.0],
+            "sample_b": [0.0, 1.0],
+            "sample_c": [0.0, 1.0],
+        },
+        index=pd.Index(["KINASE_ZERO", "KINASE_CONST"], name="kinase"),
+    )
+
+    scores = score_profile_correlations(
+        phospho=phospho,
+        profile_matrix=profile_matrix,
+    )
+
+    assert scores.shape == (2, 2)
+    assert scores.isna().to_numpy().all()
+
+
+def test_profile_correlation_near_constant_profiles_remain_finite() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0],
+            "sample_b": [1.0000001],
+            "sample_c": [1.0000002],
+        },
+        index=pd.Index(["SITE_NEAR_CONST"], name="site_id"),
+    )
+    profile_matrix = pd.DataFrame(
+        {
+            "sample_a": [1.0, 1.0000002],
+            "sample_b": [1.0000001001, 1.0000001],
+            "sample_c": [1.0000001999, 1.0],
+        },
+        index=pd.Index(["KINASE_MATCH", "KINASE_ANTI"], name="kinase"),
+    )
+
+    scores = score_profile_correlations(
+        phospho=phospho,
+        profile_matrix=profile_matrix,
+    )
+
+    match_score = float(scores.at["SITE_NEAR_CONST", "KINASE_MATCH"])
+    anti_score = float(scores.at["SITE_NEAR_CONST", "KINASE_ANTI"])
+    assert pd.notna(match_score)
+    assert pd.notna(anti_score)
+    assert 0.999 <= match_score <= 1.0
+    assert 0.0 <= anti_score <= 0.001
+
+
+def test_build_kinase_profiles_deduplicates_and_filters_missing_substrates() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 5.0],
+            "sample_b": [3.0, 7.0],
+        },
+        index=pd.Index(["SITE1", "SITE2"], name="site_id"),
+    )
+    kinase_substrate_map = pd.DataFrame(
+        {
+            "kinase": [
+                "K1",
+                "K1",
+                "K1",
+                "K1",
+                "K2",
+                "K2",
+                "K2",
+            ],
+            "substrate_site": [
+                "SITE1",
+                "SITE1",
+                "MISSING",
+                "SITE2",
+                "MISSING",
+                "SITE2",
+                "SITE2",
+            ],
+        }
+    )
+
+    result = build_kinase_profiles(
+        phospho=phospho,
+        kinase_substrate_map=kinase_substrate_map,
+        min_substrates=2,
+    )
+
+    assert list(result.profile_matrix.index) == ["K1"]
+    assert result.quantified_substrates == {"K1": ["SITE1", "SITE2"]}
+    assert result.substrate_counts.to_dict() == {"K1": 2, "K2": 1}
+    assert result.profile_matrix.at["K1", "sample_a"] == pytest.approx(3.0)
+    assert result.profile_matrix.at["K1", "sample_b"] == pytest.approx(5.0)
