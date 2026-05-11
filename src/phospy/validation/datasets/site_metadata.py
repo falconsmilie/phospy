@@ -193,13 +193,17 @@ def enforce_localisation_requirement(
     workflow_name: str,
     requirement: LocalisationRequirement,
     error_type: type[ErrorType],
-    column_name: str = "localisation_probability",
+    column_name: str = "localisation_confidence",
 ) -> None:
     """Enforce workflow-level localisation policy using row-context diagnostics."""
 
     if not requirement.requires_probability_column:
         return
-    if column_name not in site_metadata.columns:
+    resolved_column_name = _resolve_localisation_column_name(
+        site_metadata=site_metadata,
+        requested_column_name=column_name,
+    )
+    if resolved_column_name is None:
         site_examples = _site_id_examples(site_metadata.index)
         raise error_type(
             f"{workflow_name} requires localisation metadata policy={requirement.policy}; "
@@ -212,7 +216,7 @@ def enforce_localisation_requirement(
         site_metadata=site_metadata,
         field_name=field_name,
         error_type=error_type,
-        column_name=column_name,
+        column_name=resolved_column_name,
     )
     if assessment is None:  # pragma: no cover - defensive guard
         return
@@ -222,7 +226,7 @@ def enforce_localisation_requirement(
         )
         raise error_type(
             f"{workflow_name} requires localisation metadata policy={requirement.policy}; "
-            f"invalid values in {field_name}.{column_name}; "
+            f"invalid values in {field_name}.{resolved_column_name}; "
             f"affected_rows={assessment.invalid_count}; "
             f"example_site_ids={invalid_sites}; "
             f"example_values={_summarise_examples(list(assessment.invalid_examples), limit=3)}"
@@ -233,7 +237,7 @@ def enforce_localisation_requirement(
         )
         raise error_type(
             f"{workflow_name} requires localisation metadata policy={requirement.policy}; "
-            f"missing values in {field_name}.{column_name}; "
+            f"missing values in {field_name}.{resolved_column_name}; "
             f"affected_rows={assessment.missing_count}; "
             f"example_site_ids={missing_sites}"
         )
@@ -251,7 +255,7 @@ def enforce_localisation_requirement(
     threshold = float(requirement.minimum_probability)
     raise error_type(
         f"{workflow_name} requires localisation metadata policy={requirement.policy}; "
-        f"{field_name}.{column_name} must be >= {threshold:.3f}; "
+        f"{field_name}.{resolved_column_name} must be >= {threshold:.3f}; "
         f"affected_rows={below_threshold_count}; "
         f"example_site_ids={below_threshold_sites}"
     )
@@ -375,6 +379,40 @@ def assess_localisation_probability_column(
         missing_mask=missing_mask,
         invalid_mask=invalid_mask,
         invalid_examples=tuple(invalid_examples),
+    )
+
+
+def validate_localisation_confidence_column(
+    *,
+    site_metadata: pd.DataFrame,
+    field_name: str,
+    error_type: type[ErrorType],
+    column_name: str = "localisation_confidence",
+) -> None:
+    """Validate optional localisation-confidence values when the column exists."""
+
+    validate_localisation_probability_column(
+        site_metadata=site_metadata,
+        field_name=field_name,
+        error_type=error_type,
+        column_name=column_name,
+    )
+
+
+def assess_localisation_confidence_column(
+    *,
+    site_metadata: pd.DataFrame,
+    field_name: str,
+    error_type: type[ErrorType],
+    column_name: str = "localisation_confidence",
+) -> LocalisationProbabilityAssessment | None:
+    """Parse optional localisation-confidence values with diagnostics."""
+
+    return assess_localisation_probability_column(
+        site_metadata=site_metadata,
+        field_name=field_name,
+        error_type=error_type,
+        column_name=column_name,
     )
 
 
@@ -503,6 +541,21 @@ def _parse_localisation_probability(value: object) -> float | str | None:
     return float(numeric_value)
 
 
+def _resolve_localisation_column_name(
+    *,
+    site_metadata: pd.DataFrame,
+    requested_column_name: str,
+) -> str | None:
+    if requested_column_name in site_metadata.columns:
+        return requested_column_name
+    if (
+        requested_column_name == "localisation_confidence"
+        and "localisation_probability" in site_metadata.columns
+    ):
+        return "localisation_probability"
+    return None
+
+
 def _site_id_examples(index: pd.Index, *, limit: int = _EXAMPLE_LIMIT) -> str:
     labels = [str(value) for value in index.tolist()]
     if not labels:
@@ -526,9 +579,11 @@ def _is_missing(value: object) -> bool:
 
 __all__ = [
     "LocalisationProbabilityAssessment",
+    "assess_localisation_confidence_column",
     "assess_localisation_probability_column",
     "enforce_required_non_empty_string_column",
     "enforce_localisation_requirement",
+    "validate_localisation_confidence_column",
     "validate_site_sequence_column",
     "validate_localisation_probability_column",
     "validate_site_identity_metadata",

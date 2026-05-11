@@ -169,6 +169,7 @@ def test_kinase_workflow_uses_dataset_site_sequences_without_mutating_references
                 "AAAAAAASAAAAAAA",
                 "AAAAAAASAAAAAAA",
             ],
+            "localisation_confidence": [0.95] * phospho.shape[0],
         },
         index=phospho.index.copy(),
     )
@@ -251,6 +252,7 @@ def test_kinase_workflow_site_sequence_conflict_policy_is_public_request_option(
                 "AAAAAAAYAAAAAAAAAAAAAAAAAAAAAAA",
                 "AAAAAAASAAAAAAAAAAAAAAAAAAAAAAA",
             ],
+            "localisation_confidence": [0.95] * phospho.shape[0],
         },
         index=phospho.index.copy(),
     )
@@ -713,6 +715,7 @@ def test_explicit_mixed_case_references_align_and_emit_normalised_identifiers() 
             "gene_symbol": ["MAPK1", "MAPK1"],
             "site": ["S123", "T185"],
             "site_sequence": [sequence_a, sequence_b],
+            "localisation_confidence": [0.95] * phospho.shape[0],
         },
         index=phospho.index.copy(),
     )
@@ -1014,6 +1017,7 @@ def test_kinase_public_predmat_provenance_matches_golden_contract() -> None:
                 str(site_sequences[str(site_id).strip()])
                 for site_id in input_phospho.index.astype(str)
             ],
+            "localisation_confidence": [0.95] * phospho.shape[0],
         },
         index=phospho.index.copy(),
     )

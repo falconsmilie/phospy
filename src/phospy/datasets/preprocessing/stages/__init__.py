@@ -8,6 +8,10 @@ from phospy.datasets.preprocessing.stages.intensity_transform import (
     INTENSITY_TRANSFORM_STAGE_CONTRACT,
     IntensityTransformStage,
 )
+from phospy.datasets.preprocessing.stages.localisation import (
+    LOCALISATION_CONFIDENCE_STAGE_CONTRACT,
+    LocalisationConfidenceStage,
+)
 from phospy.datasets.preprocessing.stages.missing_data import (
     MISSING_DATA_STAGE_CONTRACT,
     MissingDataStage,
@@ -34,6 +38,8 @@ __all__ = [
     "ComparisonsStage",
     "INTENSITY_TRANSFORM_STAGE_CONTRACT",
     "IntensityTransformStage",
+    "LOCALISATION_CONFIDENCE_STAGE_CONTRACT",
+    "LocalisationConfidenceStage",
     "MISSING_DATA_STAGE_CONTRACT",
     "MissingDataStage",
     "NORMALISATION_STAGE_CONTRACT",

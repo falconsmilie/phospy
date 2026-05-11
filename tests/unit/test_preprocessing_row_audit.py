@@ -31,6 +31,7 @@ def test_missing_data_stage_audits_rows_dropped_below_min_observed_values() -> N
             "gene_symbol": ["A", "B", "C"],
             "site": ["S1", "S2", "S3"],
             "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            "localisation_confidence": [0.95, 0.9, 0.92],
         },
         index=phospho.index.copy(),
     )
@@ -68,7 +69,10 @@ def test_missing_data_stage_audits_rows_dropped_below_min_observed_values() -> N
     assert snapshot["affected_row_count"] == 2
     assert snapshot["affected_column_count"] == 2
     assert isinstance(snapshot["missingness_mask_hash"], str)
-    assert tuple(snapshot["stage_order"]) == ("missing_data",)
+    assert tuple(snapshot["stage_order"]) == (
+        "localisation_confidence",
+        "missing_data",
+    )
 
 
 def test_missing_data_stage_audits_row_median_imputation() -> None:
@@ -85,6 +89,7 @@ def test_missing_data_stage_audits_row_median_imputation() -> None:
             "gene_symbol": ["A", "B"],
             "site": ["S1", "S2"],
             "site_sequence": ["SEQ_A", "SEQ_B"],
+            "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
     )
@@ -119,7 +124,10 @@ def test_missing_data_stage_audits_row_median_imputation() -> None:
     assert snapshot["input_missing_cell_count"] == 2
     assert snapshot["output_missing_cell_count"] == 0
     assert isinstance(snapshot["missingness_mask_hash"], str)
-    assert tuple(snapshot["stage_order"]) == ("missing_data",)
+    assert tuple(snapshot["stage_order"]) == (
+        "localisation_confidence",
+        "missing_data",
+    )
 
 
 def test_site_matrix_stage_audits_missing_sequence_drops() -> None:
@@ -135,6 +143,7 @@ def test_site_matrix_stage_audits_missing_sequence_drops() -> None:
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": ["", "SEQ_B"],
+            "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
     )
@@ -177,6 +186,7 @@ def test_site_matrix_stage_audits_incomplete_value_drops() -> None:
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": ["SEQ_A", "SEQ_B"],
+            "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
     )
@@ -219,6 +229,7 @@ def test_site_matrix_stage_audits_duplicate_resolution_first_policy() -> None:
             "gene_symbol": ["MAPK14", "MAPK14"],
             "site": ["Y182", "Y182"],
             "site_sequence": ["SEQ_A", "SEQ_B"],
+            "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
     )
@@ -267,6 +278,7 @@ def test_site_matrix_stage_audits_duplicate_resolution_max_mean_signal_policy() 
             "gene_symbol": ["MAPK14", "MAPK14"],
             "site": ["Y182", "Y182"],
             "site_sequence": ["SEQ_A", "SEQ_B"],
+            "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
     )
@@ -315,6 +327,7 @@ def test_site_matrix_stage_audits_aggregate_duplicate_contributors(
             "gene_symbol": ["MAPK14", "MAPK14"],
             "site": ["Y182", "Y182"],
             "site_sequence": ["SEQ_A", "SEQ_B"],
+            "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
     )
@@ -356,6 +369,7 @@ def test_empty_row_audit_has_stable_schema() -> None:
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
             "site_sequence": ["SEQ_A"],
+            "localisation_confidence": [0.95],
         },
         index=phospho.index.copy(),
     )

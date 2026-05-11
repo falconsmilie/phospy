@@ -32,6 +32,7 @@ def _base_site_metadata(index: pd.Index) -> pd.DataFrame:
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": ["SEQ_A", "SEQ_B"],
+            "localisation_confidence": [0.95, 0.9],
         },
         index=index.copy(),
     )

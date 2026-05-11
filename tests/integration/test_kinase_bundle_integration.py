@@ -475,6 +475,7 @@ def _build_request(*, activity: bool) -> KinaseWorkflowRequest:
                 "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
                 "MDFGLCKEGIKDGATMKLCKRERANWQPWQ",
             ],
+            "localisation_confidence": [0.95] * phospho.shape[0],
         },
         index=phospho.index.copy(),
     )
@@ -556,6 +557,7 @@ def _build_request_with_subtract_log_total_and_uncorrected_rows(
                 "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
                 "MDFGLCKEGIKDGATMKLCKRERANWQPWQ",
             ],
+            "localisation_confidence": [0.95] * phospho.shape[0],
             "protein_id": ["MAPK14", "AKT1"],
         },
         index=phospho.index.copy(),
@@ -649,6 +651,7 @@ def _build_request_with_subtract_log_total(*, activity: bool) -> KinaseWorkflowR
                 "MDFGLCKEGIKDGATMKLCKRERANWQPWQ",
                 "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
             ],
+            "localisation_confidence": [0.95] * phospho.shape[0],
         },
         index=phospho.index.copy(),
     )

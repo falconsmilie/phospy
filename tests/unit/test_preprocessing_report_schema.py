@@ -156,6 +156,7 @@ def test_preprocessing_report_integration_preserves_representative_values() -> N
             "gene_symbol": ["MAPK14", "MAPK14", "AKT1"],
             "site": ["Y182", "Y182", "T308"],
             "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            "localisation_confidence": [0.95, 0.9, 0.92],
         },
         index=phospho.index.copy(),
     )
@@ -228,6 +229,7 @@ def test_report_schema_stable_with_missing_data_diagnostics_enabled() -> None:
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": ["SEQ_A", "SEQ_B"],
+            "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
     )

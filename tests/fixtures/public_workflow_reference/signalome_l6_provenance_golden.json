@@ -68,7 +68,7 @@
     },
     "dataset.site_metadata": {
       "rows": 260,
-      "columns": 4,
+      "columns": 5,
       "hash_algorithm": "sha256",
       "hash_value": "a41816c53798c1588f7f846926af04184beded52b60d9c64f1d8e4a8483caa46"
     },

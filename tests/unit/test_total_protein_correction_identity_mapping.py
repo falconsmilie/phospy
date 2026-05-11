@@ -40,6 +40,7 @@ def _site_metadata() -> pd.DataFrame:
             "protein_group_id": ["PG_A", "PG_A", "PG_B"],
             "site": ["Y182", "T180", "T308"],
             "site_sequence": ["AAAAAYAAAAA", "AAAAATAAAAA", "AAAAATAAAAA"],
+            "localisation_confidence": [0.95, 0.94, 0.93],
         },
         index=_phospho().index.copy(),
     )

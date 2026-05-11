@@ -85,6 +85,64 @@ def validate_normalisation_config(
     )
 
 
+def validate_localisation_config(
+    *,
+    mode: object,
+    min_confidence: object,
+    confidence_column: object,
+    waiver_reason: object | None,
+    supported_modes: Collection[str],
+    mode_allow_missing_with_waiver: str,
+) -> None:
+    """Validate public localisation-confidence config fields."""
+
+    resolved_mode = require_supported_literal(
+        mode,
+        field_name="dataset build request preprocessing_config.localisation.mode",
+        supported_values=supported_modes,
+        error_type=PhosPyInputError,
+    )
+    if isinstance(min_confidence, bool) or not isinstance(min_confidence, (int, float)):
+        raise PhosPyInputError(
+            "dataset build request preprocessing_config.localisation.min_confidence "
+            "must be a float between 0.0 and 1.0"
+        )
+    min_confidence_value = float(min_confidence)
+    if not math.isfinite(min_confidence_value) or not (
+        0.0 <= min_confidence_value <= 1.0
+    ):
+        raise PhosPyInputError(
+            "dataset build request preprocessing_config.localisation.min_confidence "
+            "must be between 0.0 and 1.0"
+        )
+
+    require_non_empty_string(
+        confidence_column,
+        field_name=(
+            "dataset build request preprocessing_config.localisation.confidence_column"
+        ),
+        error_type=PhosPyInputError,
+    )
+
+    if resolved_mode != mode_allow_missing_with_waiver:
+        if waiver_reason is not None:
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.localisation."
+                "waiver_reason must be None unless "
+                "localisation.mode='allow_missing_with_waiver'"
+            )
+        return
+
+    require_non_empty_string(
+        waiver_reason,
+        field_name=(
+            "dataset build request preprocessing_config.localisation.waiver_reason"
+        ),
+        error_type=PhosPyInputError,
+        when_provided=True,
+    )
+
+
 def validate_missing_data_config(
     *,
     policy: object,

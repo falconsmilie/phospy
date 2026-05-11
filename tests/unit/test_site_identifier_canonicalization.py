@@ -39,6 +39,7 @@ def test_builder_canonicalizes_site_ids_and_reorders_site_metadata() -> None:
             "gene_symbol": ["AKT1", "MAPK14"],
             "site": ["T308", "Y182"],
             "site_sequence": ["A" * 31, "B" * 31],
+            "localisation_confidence": [0.95, 0.9],
         }
     )
 
@@ -70,6 +71,7 @@ def test_builder_canonicalizes_lowercase_site_ids() -> None:
             "gene_symbol": ["mapk14"],
             "site": ["y182"],
             "site_sequence": ["A" * 31],
+            "localisation_confidence": [0.95],
         }
     )
 
@@ -99,6 +101,7 @@ def test_builder_does_not_mutate_caller_owned_phospho_frame() -> None:
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
             "site_sequence": ["A" * 31],
+            "localisation_confidence": [0.95],
         }
     )
     original = phospho.copy(deep=True)
@@ -127,6 +130,7 @@ def test_builder_does_not_mutate_caller_owned_site_metadata_frame() -> None:
             "gene_symbol": ["mapk14"],
             "site": ["y182"],
             "site_sequence": ["A" * 31],
+            "localisation_confidence": [0.95],
         }
     )
     original = site_metadata.copy(deep=True)
@@ -155,6 +159,7 @@ def test_builder_rejects_ambiguous_site_ids_after_canonicalization() -> None:
             "gene_symbol": ["MAPK14", "MAPK14"],
             "site": ["Y182", "Y182"],
             "site_sequence": ["A" * 31, "B" * 31],
+            "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
     )
@@ -183,6 +188,7 @@ def test_builder_rejects_colliding_dirty_site_ids_after_canonicalization() -> No
             "gene_symbol": ["MAPK14", "MAPK14"],
             "site": ["Y182", "Y182"],
             "site_sequence": ["A" * 31, "B" * 31],
+            "localisation_confidence": [0.95, 0.9],
         }
     )
 
@@ -640,6 +646,7 @@ def test_dataset_and_reference_ids_align_after_shared_normalization() -> None:
                     "gene_symbol": ["mapk14"],
                     "site": ["y182"],
                     "site_sequence": ["A" * 31],
+                    "localisation_confidence": [0.95],
                 }
             ),
             organism=Organism.RAT,

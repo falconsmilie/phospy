@@ -55,6 +55,7 @@ def _site_metadata(index: pd.Index) -> pd.DataFrame:
             "gene_symbol": ["MAPK14", "GSK3B", "AKT1"],
             "site": ["Y182", "S9", "T308"],
             "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            "localisation_confidence": [0.95, 0.9, 0.92],
         },
         index=index.copy(),
     )
@@ -366,7 +367,10 @@ def test_pipeline_rejects_malformed_stage_diagnostics_before_trace_is_recorded()
         site_metadata=_site_metadata(_phospho().index),
         sample_metadata=None,
         total=None,
-        plan=PreprocessingPlan.default(),
+        plan=PreprocessingPlan(
+            localisation_mode="ignore",
+            stage_order=(DATASET_PREPROCESSING_STAGE_MISSING_DATA,),
+        ),
     )
 
     with pytest.raises(
@@ -413,7 +417,9 @@ def test_provenance_adapter_builds_row_counts_and_operations() -> None:
 
     assert row_counts.iloc[0]["stage"] == "preprocessing_input"
     assert row_counts.iloc[-1]["stage"] == "preprocessing_complete"
-    assert int(row_counts.iloc[1]["dropped_rows"]) == 1
+    missing_data_rows = row_counts.loc[row_counts.loc[:, "stage"] == "missing_data", :]
+    assert missing_data_rows.shape[0] == 1
+    assert int(missing_data_rows.iloc[0]["dropped_rows"]) == 1
     assert "stage not scheduled in preprocessing plan" in set(
         operations.loc[:, "notes"].astype(str).tolist()
     )

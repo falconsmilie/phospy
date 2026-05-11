@@ -21,6 +21,7 @@ from phospy.validation.common.dataframes import (
     require_unique_index,
 )
 from phospy.validation.datasets.site_metadata import (
+    validate_localisation_confidence_column,
     validate_localisation_probability_column,
     validate_site_identity_metadata,
     validate_site_sequence_column,
@@ -146,6 +147,12 @@ class SiteMetadataTable(TableSchema):
             field_name=self._field_name,
             error_type=self._error_type,
             column_name="localisation_probability",
+        )
+        validate_localisation_confidence_column(
+            site_metadata=frame,
+            field_name=self._field_name,
+            error_type=self._error_type,
+            column_name="localisation_confidence",
         )
         validate_site_identity_metadata(
             site_metadata=frame,

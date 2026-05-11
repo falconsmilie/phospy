@@ -228,6 +228,7 @@ def test_profile_missing_value_policy_changes_downstream_lane_for_mixed_missing_
             "gene_symbol": ["GENEA", "GENEA", "GENEB", "GENEB"],
             "site": ["S1", "S2", "S3", "S4"],
             "site_sequence": ["A" * 31, "B" * 31, "C" * 31, "D" * 31],
+            "localisation_confidence": [0.95] * phospho.shape[0],
         },
         index=phospho.index.copy(),
     )

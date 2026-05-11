@@ -19,6 +19,7 @@ from phospy.api.configs.preprocessing import (
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
+    DatasetLocalisationConfig,
     DatasetMissingDataConfig,
     DatasetNormalisationConfig,
     DatasetRuvReadinessConfig,
@@ -46,6 +47,7 @@ class DatasetPreprocessingConfig:
     - `site_sequence_resolution`: optional local FASTA-backed site-sequence
       resolution policy.
     - `comparisons`: comparison-building policy.
+    - `localisation`: phosphosite-localisation eligibility policy.
     - `ruv_readiness`: readiness reporting contract for future RUV-compatible
       preprocessing (report-only; no correction).
     """
@@ -70,6 +72,9 @@ class DatasetPreprocessingConfig:
     )
     comparisons: DatasetComparisonBuildingConfig = field(
         default_factory=DatasetComparisonBuildingConfig
+    )
+    localisation: DatasetLocalisationConfig = field(
+        default_factory=DatasetLocalisationConfig
     )
     ruv_readiness: DatasetRuvReadinessConfig = field(
         default_factory=DatasetRuvReadinessConfig
@@ -116,6 +121,11 @@ class DatasetPreprocessingConfig:
             self.comparisons,
             field_name="dataset build request preprocessing_config.comparisons",
             expected_type=DatasetComparisonBuildingConfig,
+        )
+        validate_preprocessing_section_type(
+            self.localisation,
+            field_name="dataset build request preprocessing_config.localisation",
+            expected_type=DatasetLocalisationConfig,
         )
         validate_preprocessing_section_type(
             self.ruv_readiness,

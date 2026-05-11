@@ -72,6 +72,7 @@ def _build_dataset_with_attrition_mix() -> object:
                 _centred_sequence("S"),
                 _centred_sequence("T"),
             ],
+            "localisation_confidence": [0.95] * phospho.shape[0],
         },
         index=phospho.index.copy(),
     )

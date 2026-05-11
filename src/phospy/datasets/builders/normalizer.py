@@ -20,11 +20,11 @@ _GENE_SYMBOL_ALIASES = ("gene_symbol", "gene_name")
 _PROTEIN_ID_ALIASES = ("protein_id",)
 _SITE_ALIASES = ("site",)
 _SITE_SEQUENCE_ALIASES = ("site_sequence", "centralized_sequence")
-_LOCALISATION_PROBABILITY_ALIASES = (
-    "localisation_probability",
-    "localization_probability",
+_LOCALISATION_CONFIDENCE_ALIASES = (
     "localisation_confidence",
     "localization_confidence",
+    "localisation_probability",
+    "localization_probability",
 )
 
 
@@ -200,16 +200,16 @@ class DatasetConventionNormalizer:
         )
         if site_sequence_column is not None and site_sequence_column != "site_sequence":
             rename_map[site_sequence_column] = "site_sequence"
-        localisation_probability_column = _resolve_alias(
+        localisation_confidence_column = _resolve_alias(
             site_metadata.columns,
-            target_column="localisation_probability",
-            aliases=_LOCALISATION_PROBABILITY_ALIASES,
+            target_column="localisation_confidence",
+            aliases=_LOCALISATION_CONFIDENCE_ALIASES,
         )
         if (
-            localisation_probability_column is not None
-            and localisation_probability_column != "localisation_probability"
+            localisation_confidence_column is not None
+            and localisation_confidence_column != "localisation_confidence"
         ):
-            rename_map[localisation_probability_column] = "localisation_probability"
+            rename_map[localisation_confidence_column] = "localisation_confidence"
         if not rename_map:
             return site_metadata
         return site_metadata.rename(columns=rename_map)

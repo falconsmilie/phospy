@@ -37,6 +37,7 @@ def _dataset_request() -> DatasetBuildRequest:
                 "gene_symbol": ["MAPK14"],
                 "site": ["Y182"],
                 "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+                "localisation_confidence": [0.95],
             },
             index=pd.Index(["MAPK14;Y182;"], name="site_id"),
         ),

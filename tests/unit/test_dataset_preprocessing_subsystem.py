@@ -9,8 +9,10 @@ import pandas.testing as pdt
 import pytest
 
 from phospy.api.configs import (
+    DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER,
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
+    DatasetLocalisationConfig,
     DatasetMissingDataConfig,
     DatasetNormalisationConfig,
     DatasetPreprocessingConfig,
@@ -32,6 +34,7 @@ from phospy.datasets.builders.preprocessing import (
 )
 from phospy.datasets.builders.transformation_resolver import ResolvedIntensityScale
 from phospy.datasets.preprocessing.models import (
+    DATASET_PREPROCESSING_STAGE_LOCALISATION,
     PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA,
     PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_MISSING_DATA,
     PreprocessingPlan,
@@ -71,6 +74,7 @@ def _site_metadata(index: pd.Index | None = None) -> pd.DataFrame:
                 "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
                 "RPHFPQFSYSASGTA",
             ],
+            "localisation_confidence": [0.95, 0.9, 0.92],
         },
         index=["MAPK14;Y182;", "GSK3B;S9;", "AKT1;T308;"],
     )
@@ -125,6 +129,14 @@ def _build_processing_state_from_preprocessor(
     sample_metadata: pd.DataFrame | None,
     config: DatasetPreprocessingConfig,
 ):
+    if config.localisation.mode == "require_threshold":
+        config = replace(
+            config,
+            localisation=DatasetLocalisationConfig(
+                mode=DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER,
+                waiver_reason="test helper waiver",
+            ),
+        )
     plan = PreprocessingPlan.from_config(config)
     preprocessed = DatasetPreprocessor().run(
         phospho=phospho,
@@ -170,11 +182,21 @@ def _internal_site_matrix_config(
 def _plan_without_missing_stage(
     config: DatasetPreprocessingConfig,
 ) -> PreprocessingPlan:
+    if config.localisation.mode == "require_threshold":
+        config = replace(
+            config,
+            localisation=DatasetLocalisationConfig(
+                mode=DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER,
+                waiver_reason="test helper waiver",
+            ),
+        )
     plan = PreprocessingPlan.from_config(config)
     return replace(
         plan,
         stage_order=tuple(
-            stage for stage in plan.stage_order if stage != "missing_data"
+            stage
+            for stage in plan.stage_order
+            if stage not in {"missing_data", DATASET_PREPROCESSING_STAGE_LOCALISATION}
         ),
     )
 
@@ -680,6 +702,7 @@ def test_dataset_preprocessor_knn_imputes_expected_values_and_preserves_labels()
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B", "PRKACA"],
             "site": ["Y182", "T308", "S9", "S339"],
             "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+            "localisation_confidence": [0.95, 0.96, 0.9, 0.88],
         },
         index=phospho.index.copy(),
     )
@@ -765,15 +788,16 @@ def test_preprocessing_plan_orders_minprob_after_intensity_transform() -> None:
     )
 
     assert plan.stage_order == (
+        "localisation_confidence",
         "intensity_transform",
         "missing_data",
         "total_protein_correction",
         "site_matrix",
     )
-    assert plan.stage_order_resolution[0].stage == "intensity_transform"
-    assert plan.stage_order_resolution[1].stage == "missing_data"
+    assert plan.stage_order_resolution[1].stage == "intensity_transform"
+    assert plan.stage_order_resolution[2].stage == "missing_data"
     assert (
-        plan.stage_order_resolution[1].rationale
+        plan.stage_order_resolution[2].rationale
         == PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA
     )
 
@@ -803,10 +827,14 @@ def test_preprocessing_plan_orders_non_minprob_before_log2_transform(
         )
     )
 
-    assert plan.stage_order[:2] == ("missing_data", "intensity_transform")
-    assert plan.stage_order_resolution[0].stage == "missing_data"
+    assert plan.stage_order[:3] == (
+        "localisation_confidence",
+        "missing_data",
+        "intensity_transform",
+    )
+    assert plan.stage_order_resolution[1].stage == "missing_data"
     assert (
-        plan.stage_order_resolution[0].rationale
+        plan.stage_order_resolution[1].rationale
         == PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_MISSING_DATA
     )
 
@@ -838,6 +866,7 @@ def test_preprocessing_plan_orders_fasta_resolution_before_minprob_with_log2(
 
     assert plan.stage_order == (
         "site_sequence_resolution",
+        "localisation_confidence",
         "intensity_transform",
         "missing_data",
     )
@@ -879,6 +908,7 @@ def test_dataset_preprocessor_minprob_is_deterministic_for_same_seed() -> None:
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B", "PRKACA"],
             "site": ["Y182", "T308", "S9", "S339"],
             "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+            "localisation_confidence": [0.95, 0.96, 0.9, 0.88],
         },
         index=phospho.index.copy(),
     )
@@ -930,6 +960,7 @@ def test_dataset_preprocessor_minprob_changes_with_seed() -> None:
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B", "PRKACA"],
             "site": ["Y182", "T308", "S9", "S339"],
             "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+            "localisation_confidence": [0.95, 0.96, 0.9, 0.88],
         },
         index=phospho.index.copy(),
     )
@@ -1002,6 +1033,7 @@ def test_preprocessing_plan_orders_intensity_transform_before_total_correction()
         )
     )
     assert plan.stage_order == (
+        "localisation_confidence",
         "missing_data",
         "intensity_transform",
         "total_protein_correction",
@@ -1024,6 +1056,7 @@ def test_preprocessing_plan_orders_comparisons_after_upstream_stages() -> None:
         )
     )
     assert plan.stage_order == (
+        "localisation_confidence",
         "missing_data",
         "intensity_transform",
         "total_protein_correction",
@@ -1085,6 +1118,7 @@ def test_dataset_preprocessor_total_correction_uses_log_ratio_formula() -> None:
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
             "site_sequence": ["SEQ_A"],
+            "localisation_confidence": [0.95],
         },
         index=phospho.index.copy(),
     )
@@ -1129,6 +1163,7 @@ def test_dataset_preprocessor_builds_site_matrix_from_metadata_policy() -> None:
             "site": ["Y182", "Y182", "T308", "S9"],
             "site_sequence": ["SEQ_A", "SEQ_B", "", "SEQ_D"],
             "source_uid": ["UID_A", "UID_B", "UID_C", "UID_D"],
+            "localisation_confidence": [0.95, 0.92, 0.91, 0.9],
         },
         index=phospho.index.copy(),
     )
@@ -1158,6 +1193,7 @@ def test_dataset_preprocessor_builds_site_matrix_from_metadata_policy() -> None:
             "site": ["Y182"],
             "site_sequence": ["SEQ_B"],
             "source_uid": ["UID_B"],
+            "localisation_confidence": [0.92],
         },
         index=expected_phospho.index.copy(),
     )
@@ -1181,6 +1217,7 @@ def test_dataset_preprocessor_site_matrix_retain_missing_policy_keeps_partial_ro
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": ["SEQ_A", "SEQ_B"],
+            "localisation_confidence": [0.95, 0.96],
         },
         index=phospho.index.copy(),
     )
@@ -1226,6 +1263,7 @@ def test_dataset_preprocessor_site_matrix_supports_min_observed_and_duplicate_ag
             "site": ["Y182", "Y182", "T308"],
             "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
             "uid": ["A", "B", "C"],
+            "localisation_confidence": [0.95, 0.92, 0.97],
         },
         index=phospho.index.copy(),
     )
@@ -1270,6 +1308,7 @@ def test_dataset_preprocessor_site_matrix_duplicate_first_policy_keeps_first_row
             "site": ["Y182", "Y182"],
             "site_sequence": ["SEQ_A", "SEQ_B"],
             "uid": ["A", "B"],
+            "localisation_confidence": [0.95, 0.92],
         },
         index=phospho.index.copy(),
     )
@@ -1309,6 +1348,7 @@ def test_dataset_preprocessor_site_matrix_duplicate_aggregate_median_policy() ->
             "site": ["Y182", "Y182", "T308"],
             "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
             "uid": ["A", "B", "C"],
+            "localisation_confidence": [0.95, 0.92, 0.97],
         },
         index=phospho.index.copy(),
     )
@@ -1347,6 +1387,7 @@ def test_dataset_preprocessor_rejects_site_matrix_min_observed_above_sample_coun
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
             "site_sequence": ["SEQ_A"],
+            "localisation_confidence": [0.95],
         },
         index=phospho.index.copy(),
     )
@@ -1384,6 +1425,7 @@ def test_dataset_preprocessor_rejects_site_matrix_duplicate_rows_in_error_mode()
             "gene_symbol": ["MAPK14", "MAPK14"],
             "site": ["Y182", "Y182"],
             "site_sequence": ["SEQ_A", "SEQ_B"],
+            "localisation_confidence": [0.95, 0.92],
         },
         index=phospho.index.copy(),
     )
@@ -1614,6 +1656,7 @@ def test_dataset_preprocessor_site_matrix_build_matches_historical_baseline_fixt
             "site_sequence": corrected_fixture.loc[:, "centralized_sequence"]
             .astype(str)
             .tolist(),
+            "localisation_confidence": [0.95] * len(phospho.index),
         },
         index=phospho.index.copy(),
     )
@@ -1647,6 +1690,7 @@ def test_dataset_preprocessor_site_matrix_build_matches_historical_baseline_fixt
             "site_sequence": expected_input_fixture.loc[:, "centralized_sequence"]
             .astype(str)
             .tolist(),
+            "localisation_confidence": [0.95] * int(expected_input_fixture.shape[0]),
         },
         index=pd.Index(
             expected_input_fixture.loc[:, "site_id"].astype(str),
@@ -1656,8 +1700,12 @@ def test_dataset_preprocessor_site_matrix_build_matches_historical_baseline_fixt
 
     pdt.assert_frame_equal(preprocessed.phospho, expected_phospho)
     pdt.assert_frame_equal(
-        preprocessed.site_metadata.loc[:, ["gene_symbol", "site", "site_sequence"]],
-        expected_site_metadata,
+        preprocessed.site_metadata.loc[
+            :, ["gene_symbol", "site", "site_sequence", "localisation_confidence"]
+        ],
+        expected_site_metadata.loc[
+            :, ["gene_symbol", "site", "site_sequence", "localisation_confidence"]
+        ],
     )
 
 
@@ -1795,6 +1843,7 @@ def test_dataset_preprocessor_comparison_building_matches_reference_pairwise_exp
             "gene_symbol": ["PRKACA"],
             "site": ["S339"],
             "site_sequence": ["AAAAAA"],
+            "localisation_confidence": [0.95],
         },
         index=phospho.index.copy(),
     )
@@ -2011,6 +2060,7 @@ def test_dataset_interpreter_does_not_apply_preprocessing_science() -> None:
                 "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
                 "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
             ],
+            "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index,
     )
@@ -2043,6 +2093,7 @@ def test_dataset_builder_request_quantitative_meaning_propagates_to_provenance()
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": ["SEQ_A", "SEQ_B"],
+            "localisation_confidence": [0.95, 0.96],
         },
         index=phospho.index.copy(),
     )
@@ -2287,6 +2338,7 @@ def test_dataset_preprocessor_quantile_normalisation_equalises_column_distributi
             "gene_symbol": ["A", "B", "C", "D"],
             "site": ["S1", "S1", "S1", "S1"],
             "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+            "localisation_confidence": [0.95, 0.94, 0.93, 0.92],
         },
         index=phospho.index.copy(),
     )
@@ -2329,6 +2381,7 @@ def test_dataset_preprocessor_quantile_normalisation_is_deterministic_with_ties_
             "gene_symbol": ["A", "B", "C", "D"],
             "site": ["S1", "S1", "S1", "S1"],
             "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+            "localisation_confidence": [0.95, 0.94, 0.93, 0.92],
         },
         index=phospho.index.copy(),
     )
@@ -2374,6 +2427,7 @@ def test_dataset_preprocessor_site_matrix_min_observed_filter_can_keep_all_rows(
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": ["SEQ_A", "SEQ_B"],
+            "localisation_confidence": [0.95, 0.96],
         },
         index=phospho.index.copy(),
     )
@@ -2419,6 +2473,7 @@ def test_dataset_preprocessor_site_matrix_min_observed_filter_can_remove_all_row
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": ["SEQ_A", "SEQ_B"],
+            "localisation_confidence": [0.95, 0.96],
         },
         index=phospho.index.copy(),
     )
@@ -2459,6 +2514,7 @@ def test_dataset_preprocessor_trace_tracks_stagewise_transform_progression() -> 
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
             "site": ["Y182", "T308", "S9"],
             "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            "localisation_confidence": [0.95, 0.96, 0.9],
         },
         index=phospho.index.copy(),
     )
@@ -2484,7 +2540,12 @@ def test_dataset_preprocessor_trace_tracks_stagewise_transform_progression() -> 
     )
 
     stage_names = [stage.stage for stage in preprocessed.preprocessing_trace]
-    assert stage_names == ["missing_data", "intensity_transform", "normalisation"]
+    assert stage_names == [
+        "localisation_confidence",
+        "missing_data",
+        "intensity_transform",
+        "normalisation",
+    ]
     for stage in preprocessed.preprocessing_trace:
         assert isinstance(stage.phospho_input_hash, str)
         assert isinstance(stage.phospho_output_hash, str)
@@ -2525,6 +2586,7 @@ def test_dataset_preprocessor_rejects_non_numeric_phospho_columns_for_new_method
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": ["SEQ_A", "SEQ_B"],
+            "localisation_confidence": [0.95, 0.96],
         },
         index=phospho.index.copy(),
     )

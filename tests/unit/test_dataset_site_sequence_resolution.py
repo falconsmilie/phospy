@@ -34,6 +34,7 @@ def _site_metadata(*, site_sequences: list[object]) -> pd.DataFrame:
             "site": ["S5", "T6"],
             "protein_accession": ["P1", "P2"],
             "site_sequence": site_sequences,
+            "localisation_confidence": [0.95, 0.9],
         },
         index=_phospho().index.copy(),
     )
@@ -307,6 +308,7 @@ def test_unresolved_reason_counts_are_reported(tmp_path: Path) -> None:
             "site": ["S5", "S5", "T5"],
             "protein_accession": [pd.NA, "P404", "P1"],
             "site_sequence": [pd.NA, pd.NA, pd.NA],
+            "localisation_confidence": [0.95, 0.9, 0.92],
         },
         index=phospho.index.copy(),
     )

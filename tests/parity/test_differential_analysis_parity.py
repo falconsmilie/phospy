@@ -133,6 +133,7 @@ def _dataset_from_matrix(matrix: pd.DataFrame) -> AnalysisReadyPhosphoDataset:
             "gene_symbol": [parts[0] for parts in parsed],
             "site": [parts[1] for parts in parsed],
             "site_sequence": ["A" * 31 for _ in parsed],
+            "localisation_confidence": [0.95] * len(parsed),
             "protein_id": [parts[0] for parts in parsed],
         },
         index=matrix.index.copy(),

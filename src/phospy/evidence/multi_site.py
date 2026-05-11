@@ -70,7 +70,7 @@ class MultiSiteObservation:
 
 @dataclass(frozen=True, slots=True)
 class MultiSiteHandlingConfig:
-    """Config for explicit multi-site behavior by workflow purpose."""
+    """Config for explicit multi-site behaviour by workflow purpose."""
 
     statistical_modeling_policy: str = MULTI_SITE_POLICY_KEEP_JOINT
     kinase_sequence_scoring_policy: str = (

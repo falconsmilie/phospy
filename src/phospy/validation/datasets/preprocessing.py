@@ -9,6 +9,7 @@ from phospy.api.configs import (
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL,
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
+    DatasetLocalisationConfig,
     DatasetMissingDataConfig,
     DatasetNormalisationConfig,
     DatasetPreprocessingConfig,
@@ -37,6 +38,7 @@ class DatasetPreprocessingConfigValidator:
         self._validate_total_protein_correction(config.total_protein_correction)
         self._validate_site_matrix(config.site_matrix)
         self._validate_comparisons(config.comparisons)
+        self._validate_localisation(config.localisation)
         self._validate_total_protein_correction_scale_contract(config)
         self._validate_minprob_scale_contract(config)
         return config
@@ -87,6 +89,13 @@ class DatasetPreprocessingConfigValidator:
             config,
             field_name="dataset build request preprocessing_config.comparisons",
             expected_type=DatasetComparisonBuildingConfig,
+        )
+
+    def _validate_localisation(self, config: DatasetLocalisationConfig) -> None:
+        validate_preprocessing_section_type(
+            config,
+            field_name="dataset build request preprocessing_config.localisation",
+            expected_type=DatasetLocalisationConfig,
         )
 
     def _validate_total_protein_correction_scale_contract(

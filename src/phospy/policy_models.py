@@ -97,6 +97,12 @@ class ComparisonBuildingPolicy(_PolicyEnum):
     SAMPLE_METADATA_PAIRS = "sample_metadata_pairs"
 
 
+class LocalisationEligibilityMode(_PolicyEnum):
+    REQUIRE_THRESHOLD = "require_threshold"
+    ALLOW_MISSING_WITH_WAIVER = "allow_missing_with_waiver"
+    IGNORE = "ignore"
+
+
 class DownstreamScoreSource(_PolicyEnum):
     PROFILE_SCORES = "profile_scores"
     RANK_WEIGHTED_FUSION_SCORES = "rank_weighted_fusion_scores"
@@ -111,6 +117,7 @@ __all__ = [
     "ComparisonBuildingPolicy",
     "DownstreamScoreSource",
     "IntensityTransformPolicy",
+    "LocalisationEligibilityMode",
     "MissingDataPolicy",
     "NormalisationPolicy",
     "SiteMatrixDuplicateSitePolicy",

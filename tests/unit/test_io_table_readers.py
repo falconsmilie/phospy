@@ -34,6 +34,7 @@ def test_site_metadata_reader_preserves_na_like_identifiers(
             "site": ["S1", "T308"],
             "site_sequence": ["A" * 31, "B" * 31],
             "protein_id": ["00123", "1E10"],
+            "localisation_confidence": [0.95, 0.9],
         },
         index=pd.Index(["NA", "P00001"], name="site_id"),
     )
@@ -123,6 +124,7 @@ def test_dataset_build_from_file_paths_uses_schema_aware_readers(
             "gene_symbol": ["NA"],
             "site": ["S1"],
             "site_sequence": ["A" * 31],
+            "localisation_confidence": [0.95],
         },
         index=pd.Index(["NA;S1;"], name="site_id"),
     )
@@ -162,6 +164,7 @@ def test_dataset_build_from_file_paths_reports_invalid_numeric_cell_context(
             "gene_symbol": ["P00001"],
             "site": ["S1"],
             "site_sequence": ["A" * 31],
+            "localisation_confidence": [0.95],
         },
         index=pd.Index(["P00001;S1;"], name="site_id"),
     )

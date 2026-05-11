@@ -75,6 +75,7 @@ def _site_metadata() -> pd.DataFrame:
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
             "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            "localisation_confidence": [0.95],
         },
         index=["MAPK14;Y182;"],
     )
@@ -352,6 +353,7 @@ def test_builder_rejects_sparse_missingness_in_phospho_matrix() -> None:
                 "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
                 "RPHFPQFSYSASGTA",
             ],
+            "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index,
     )
@@ -562,7 +564,10 @@ def test_builder_derives_gene_symbol_and_site_from_supported_index_convention() 
         DatasetBuildRequest(
             phospho=_phospho(),
             site_metadata=pd.DataFrame(
-                {"site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"]},
+                {
+                    "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+                    "localisation_confidence": [0.95],
+                },
                 index=["MAPK14;Y182;"],
             ),
             organism=Organism.RAT,
@@ -718,7 +723,10 @@ def test_builder_fails_when_missing_gene_or_site_cannot_be_derived_from_index() 
             DatasetBuildRequest(
                 phospho=_phospho(),
                 site_metadata=pd.DataFrame(
-                    {"site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"]},
+                    {
+                        "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+                        "localisation_confidence": [0.95],
+                    },
                     index=["MAPK14"],
                 ),
                 organism=Organism.RAT,
@@ -754,6 +762,7 @@ def test_builder_site_matrix_excludes_only_unresolved_rows_in_mixed_support_case
         {
             "gene_symbol": ["MAPK14", "FAKE1", "GSK3B"],
             "site": ["Y182", "S1", "S9"],
+            "localisation_confidence": [0.95, 0.9, 0.92],
         },
         index=phospho.index.copy(),
     )
@@ -793,6 +802,7 @@ def test_builder_site_matrix_reports_no_retained_rows_when_all_rows_lack_sequenc
         {
             "gene_symbol": ["FAKE1", "FAKE2"],
             "site": ["S1", "T2"],
+            "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
     )

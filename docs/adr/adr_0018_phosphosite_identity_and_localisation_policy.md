@@ -1,114 +1,105 @@
-# ADR: Phosphosite Identity and Localisation Policy
+# ADR: Localisation Confidence and Site-Level Eligibility Policy
 
 ## Document Control
 
 - **ADR ID:** ADR-0018
-- **Title:** Phosphosite Identity and Localisation Policy
+- **Title:** Localisation Confidence and Site-Level Eligibility Policy
 - **Status:** Accepted
 - **Date:** 2026-05-11
 - **Decision Type:** Architecture Decision Record
 
 ## Context
 
-Phosphoproteomics tables frequently provide `gene_symbol` and a site token (for
-example, `S123`). Those fields are necessary, but not always sufficient for
-biological interpretation at the site level. Ambiguous protein mapping,
-site-token inconsistencies, and uncertain phosphosite localisation can produce
-apparently precise rows that carry different confidence levels.
+Site-level phosphoproteomics interpretation depends on confidence that the
+reported modified residue is correctly localised on the peptide. Ambiguous
+localisation can materially change biological interpretation at both kinase and
+signalome levels. If low-confidence or unknown localisation is allowed to enter
+site-level pipelines silently, downstream analyses can look precise while
+including uncertain site assignments.
 
-PhosPy already enforces an analysis-ready boundary with required
-`site_sequence`. This ADR extends that boundary by making identity assumptions
-and localisation confidence explicit and policy-visible.
+PhosPy needs an explicit, auditable policy for localisation confidence at
+dataset construction time so workflow components consume already eligible data.
 
 ## Decision
 
-PhosPy adopts a two-layer phosphosite policy:
+PhosPy enforces localisation eligibility at the dataset preprocessing/validation
+boundary using an explicit dataset policy:
 
-1. **Analysis-ready dataset identity contract** in dataset/table validation.
-2. **Workflow-specific strictness policy** in workflow validators (not executors).
+- `require_threshold`
+- `allow_missing_with_waiver`
+- `ignore`
 
-### Analysis-Ready Metadata Classes
+Default analysis-ready behavior is conservative:
 
-At `AnalysisReadyPhosphoDataset` boundary:
+- `mode="require_threshold"`
+- `min_confidence=0.75`
+- `confidence_column="localisation_confidence"`
 
-- **Required:** `gene_symbol`, `site`, `site_sequence`
-- **Strongly recommended (optional):** `protein_id`, `residue`,
-  `site_position` (or legacy `position`), `localisation_probability`
+### Enforcement Boundary
 
-### Identity Rules at Analysis-Ready Boundary
+Localisation confidence rules are enforced in:
 
-For `dataset.site_metadata`:
+- preprocessing configuration validation
+- preprocessing-stage execution
+- dataset/site-metadata validation and evidence-model range checks
 
-- `site` must be parseable as `<residue><position>` by default.
-- `residue` and `site_position`/`position`, when provided, must agree with
-  parsed `site`.
-- `site_sequence`, when sequence-format checks are possible, must have a
-  central phosphorylatable residue (`S`, `T`, or `Y`) compatible with site
-  residue metadata.
-- Duplicate rows remain governed by existing duplicate-resolution policy;
-  identity validation does not introduce silent row dropping.
+Localisation filtering or correction is **not** introduced in kinase or
+signalome executors.
 
-### Localisation Representation
+### Waiver Rules
 
-`localisation_probability` is modeled as optional numeric metadata:
+`allow_missing_with_waiver` is acceptable only when an explicit waiver reason is
+provided. Waiver mode can retain missing or below-threshold localisation
+entries, but invalid confidence values remain rejected.
 
-- valid values: `0.0 <= x <= 1.0`
-- unknown values: missing (`NA`/blank)
-- invalid values (for example `-0.1`, `1.2`, `"high"`, `"unknown"`) are rejected
+### Provenance and Reporting
 
-Unknown localisation is not interpreted as high confidence.
+When localisation validation is waived, PhosPy records this decision in:
 
-### Workflow Policy Object
-
-Workflow validation uses explicit `LocalisationRequirement`:
-
-- `allow_unknown` (default)
-- `require_present`
-- `require_threshold` (via `minimum_probability`)
-
-This allows statements like:
-
-- dataset is analysis-ready, localisation unknown
-- workflow requires localisation present
-- workflow requires localisation >= threshold
-
-### Workflow Responsibilities
-
-- Workflow validators enforce workflow-required metadata (`protein_id`,
-  localisation policy).
-- Executors do not repair identity metadata late.
-- Signalome/kinase execution consumes already validated assumptions.
+- preprocessing trace diagnostics (mode, threshold, waiver reason, counts)
+- row-audit/report rows for retained-with-waiver sites
+- preprocessing operations/provenance payload (`localisation_mode`,
+  `localisation_min_confidence`, `localisation_confidence_column`,
+  `localisation_waiver_reason`)
 
 ## Consequences
 
 ### Positive
 
-- Preserves permissive ingestion while strengthening analysis-ready integrity.
-- Makes localisation uncertainty explicit instead of implicit.
-- Keeps biologically meaningful strictness where it belongs: validator boundary.
-- Produces row-context diagnostics for missing/invalid localisation metadata.
+- Prevents silent inclusion of unknown/low-confidence localisation in
+  site-level dataset construction.
+- Makes relaxation of localisation rules explicit and reviewable.
+- Preserves clear separation of responsibilities: dataset preprocessing validates
+  eligibility; workflows consume prepared datasets.
 
 ### Tradeoffs
 
-- Some legacy placeholder sequences/site tokens that are not biologically
-  interpretable now fail earlier at validation boundaries.
-- Workflows that need strict localisation/protein identity must opt into policy
-  and handle validation failures explicitly.
+- Some legacy datasets now require additional metadata or explicit waiver
+  configuration.
+- Users must choose policy intentionally for exploratory vs. analysis-ready
+  builds.
 
 ## Scope Boundaries
 
 This ADR does not:
 
-- force every raw input file to provide all recommended metadata columns
-- add organism-specific hard-coded phosphosite rules to generic DataFrame helpers
-- introduce implicit filtering based on localisation thresholds
-
-If filtering is later introduced, it must be explicit and provenance-recorded.
+- move localisation eligibility into kinase workflow execution
+- move localisation eligibility into signalome clustering execution
+- apply hidden default filtering without provenance
 
 ## References
 
-Macek, B., Mann, M., & Olsen, J. V. (2009). Global and site-specific quantitative phosphoproteomics: Principles and applications. *Annual Review of Pharmacology and Toxicology, 49*, 199-221.
+Cox, J., & Mann, M. (2008). MaxQuant enables high peptide identification rates,
+individualized p.p.b.-range mass accuracies and proteome-wide protein
+quantification. *Nature Biotechnology, 26*(12), 1367-1372.
+https://doi.org/10.1038/nbt.1511
 
-Olsen, J. V., Blagoev, B., Gnad, F., Macek, B., Kumar, C., Mortensen, P., & Mann, M. (2006). Global, in vivo, and site-specific phosphorylation dynamics in signaling networks. *Cell, 127*(3), 635-648.
+Olsen, J. V., Blagoev, B., Gnad, F., Macek, B., Kumar, C., Mortensen, P., &
+Mann, M. (2006). Global, in vivo, and site-specific phosphorylation dynamics in
+signaling networks. *Cell, 127*(3), 635-648.
+https://doi.org/10.1016/j.cell.2006.09.026
 
-Sharma, K., D'Souza, R. C. J., Tyanova, S., Schaab, C., Wisniewski, J. R., Cox, J., & Mann, M. (2014). Ultradeep human phosphoproteome reveals a distinct regulatory nature of Tyr and Ser/Thr-based signaling. *Cell Reports, 8*(5), 1583-1594.
+Sharma, K., D'Souza, R. C. J., Tyanova, S., Schaab, C., Wisniewski, J. R., Cox,
+J., & Mann, M. (2014). Ultradeep human phosphoproteome reveals a distinct
+regulatory nature of Tyr and Ser/Thr-based signaling. *Cell Reports, 8*(5),
+1583-1594. https://doi.org/10.1016/j.celrep.2014.07.036

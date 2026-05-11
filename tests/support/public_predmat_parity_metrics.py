@@ -114,6 +114,7 @@ def _build_public_predmat_dataset():
             "site_sequence": [
                 str(site_sequences[str(site_id).strip()]) for site_id in raw_site_ids
             ],
+            "localisation_confidence": [0.95] * phospho.shape[0],
         },
         index=phospho.index.copy(),
     )

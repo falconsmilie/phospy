@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from enum import Enum
@@ -37,6 +38,7 @@ from phospy.errors.input import PhosPyInputError
 from phospy.policy_models import (
     ComparisonBuildingPolicy,
     IntensityTransformPolicy,
+    LocalisationEligibilityMode,
     MissingDataPolicy,
     NormalisationPolicy,
     SiteMatrixDuplicateSitePolicy,
@@ -75,13 +77,17 @@ PREPROCESSING_STATE_TABLE_KEYS: tuple[PreprocessingStateTableKey, ...] = tuple(
 )
 
 DATASET_PREPROCESSING_STAGE_MISSING_DATA = "missing_data"
+DATASET_PREPROCESSING_STAGE_LOCALISATION = "localisation_confidence"
 DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION = "site_sequence_resolution"
 DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION = "total_protein_correction"
 DATASET_PREPROCESSING_STAGE_SITE_MATRIX = "site_matrix"
 DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM = "intensity_transform"
 DATASET_PREPROCESSING_STAGE_NORMALISATION = "normalisation"
 DATASET_PREPROCESSING_STAGE_COMPARISONS = "comparisons"
-DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT = (DATASET_PREPROCESSING_STAGE_MISSING_DATA,)
+DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT = (
+    DATASET_PREPROCESSING_STAGE_LOCALISATION,
+    DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+)
 PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_INTENSITY_TRANSFORM = (
     "impute_minprob requires log2 intensity space, so intensity_transform runs "
     "before missing_data."
@@ -164,6 +170,12 @@ class PreprocessingPlan:
     missing_data_k: int | None = None
     missing_data_distance: str | None = None
     missing_data_max_missing_fraction_per_row: float | None = None
+    localisation_mode: LocalisationEligibilityMode = (
+        LocalisationEligibilityMode.REQUIRE_THRESHOLD
+    )
+    localisation_min_confidence: float = 0.75
+    localisation_confidence_column: str = "localisation_confidence"
+    localisation_waiver_reason: str | None = None
     site_sequence_resolution_enabled: bool = False
     site_sequence_resolution_fasta_path: str | None = None
     site_sequence_resolution_mode: SiteSequenceResolutionMode = (
@@ -244,6 +256,56 @@ class PreprocessingPlan:
                 ),
             ),
         )
+        object.__setattr__(
+            self,
+            "localisation_mode",
+            LocalisationEligibilityMode.parse(
+                self.localisation_mode,
+                field_name=(
+                    "dataset preprocessing plan localisation_mode (internal model)"
+                ),
+            ),
+        )
+        min_confidence = float(self.localisation_min_confidence)
+        if not math.isfinite(min_confidence) or not (0.0 <= min_confidence <= 1.0):
+            raise PhosPyInputError(
+                "dataset preprocessing plan localisation_min_confidence "
+                "(internal model) must be between 0.0 and 1.0"
+            )
+        object.__setattr__(self, "localisation_min_confidence", min_confidence)
+        confidence_column = str(self.localisation_confidence_column).strip()
+        if confidence_column == "":
+            raise PhosPyInputError(
+                "dataset preprocessing plan localisation_confidence_column "
+                "(internal model) must be a non-empty string"
+            )
+        object.__setattr__(self, "localisation_confidence_column", confidence_column)
+        if (
+            self.localisation_mode
+            is not LocalisationEligibilityMode.ALLOW_MISSING_WITH_WAIVER
+            and self.localisation_waiver_reason is not None
+        ):
+            raise PhosPyInputError(
+                "dataset preprocessing plan localisation_waiver_reason "
+                "(internal model) must be None unless localisation_mode="
+                "'allow_missing_with_waiver'"
+            )
+        if (
+            self.localisation_mode
+            is LocalisationEligibilityMode.ALLOW_MISSING_WITH_WAIVER
+        ):
+            waiver_reason = (
+                ""
+                if self.localisation_waiver_reason is None
+                else self.localisation_waiver_reason
+            ).strip()
+            if waiver_reason == "":
+                raise PhosPyInputError(
+                    "dataset preprocessing plan localisation_waiver_reason "
+                    "(internal model) must be provided when localisation_mode="
+                    "'allow_missing_with_waiver'"
+                )
+            object.__setattr__(self, "localisation_waiver_reason", waiver_reason)
         object.__setattr__(
             self,
             "site_sequence_resolution_mode",
@@ -378,6 +440,15 @@ class PreprocessingPlan:
                 DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
                 rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_CONFIGURED_STAGE,
             )
+        localisation_mode = LocalisationEligibilityMode.parse(
+            config.localisation.mode,
+            field_name="preprocessing_config.localisation.mode",
+        )
+        if localisation_mode is not LocalisationEligibilityMode.IGNORE:
+            _append_stage(
+                DATASET_PREPROCESSING_STAGE_LOCALISATION,
+                rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_CONFIGURED_STAGE,
+            )
         missing_data_policy = MissingDataPolicy.parse(
             config.missing_data.policy,
             field_name="preprocessing_config.missing_data.policy",
@@ -460,6 +531,16 @@ class PreprocessingPlan:
                 None
                 if config.missing_data.max_missing_fraction_per_row is None
                 else float(config.missing_data.max_missing_fraction_per_row)
+            ),
+            localisation_mode=localisation_mode,
+            localisation_min_confidence=float(config.localisation.min_confidence),
+            localisation_confidence_column=str(
+                config.localisation.confidence_column
+            ).strip(),
+            localisation_waiver_reason=(
+                None
+                if config.localisation.waiver_reason is None
+                else str(config.localisation.waiver_reason).strip()
             ),
             site_sequence_resolution_enabled=site_sequence_resolution_enabled,
             site_sequence_resolution_fasta_path=config.site_sequence_resolution.fasta_path,
@@ -642,6 +723,7 @@ class PreprocessingStage(Protocol):
 __all__ = [
     "DATASET_PREPROCESSING_STAGE_COMPARISONS",
     "DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM",
+    "DATASET_PREPROCESSING_STAGE_LOCALISATION",
     "DATASET_PREPROCESSING_STAGE_MISSING_DATA",
     "DATASET_PREPROCESSING_STAGE_NORMALISATION",
     "DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT",

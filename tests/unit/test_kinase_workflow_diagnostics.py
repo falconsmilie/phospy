@@ -53,6 +53,7 @@ def _dataset(
             "gene_symbol": [site.split(";", 1)[0] for site in site_ids],
             "site": [site.split(";")[1] for site in site_ids],
             "site_sequence": ["A" * 31 for _ in site_ids],
+            "localisation_confidence": [0.95 for _ in site_ids],
         },
         index=site_ids,
     )

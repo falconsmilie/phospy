@@ -43,6 +43,7 @@ def _site_metadata_from_site_ids(site_ids: pd.Index) -> pd.DataFrame:
             "gene_symbol": [row[0] for row in rows],
             "site": [row[1] for row in rows],
             "site_sequence": [row[2] for row in rows],
+            "localisation_confidence": [0.95] * len(rows),
         },
         index=site_ids.copy(),
     )
@@ -77,6 +78,7 @@ def test_row_median_missing_data_policy_is_deterministic_and_provenance_backed(
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
             "site": ["Y182", "T308", "S9"],
             "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            "localisation_confidence": [0.95] * phospho.shape[0],
         },
         index=phospho.index.copy(),
     )
@@ -135,7 +137,10 @@ def test_row_median_missing_data_policy_is_deterministic_and_provenance_backed(
     assert diagnostics["affected_row_count"] == 2
     assert diagnostics["affected_column_count"] == 3
     assert diagnostics["dropped_row_ids"] == ["row_drop"]
-    assert diagnostics["stage_order"] == ["missing_data"]
+    assert diagnostics["stage_order"] == [
+        "localisation_confidence",
+        "missing_data",
+    ]
     assert isinstance(diagnostics["missingness_mask_hash"], str)
 
     record_parity_metrics(
@@ -169,6 +174,7 @@ def test_minprob_missing_data_policy_is_deterministic_and_seeded(
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B", "PRKACA"],
             "site": ["Y182", "T308", "S9", "S339"],
             "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+            "localisation_confidence": [0.95] * phospho.shape[0],
         },
         index=phospho.index.copy(),
     )
@@ -239,6 +245,10 @@ def test_subtract_log_total_total_protein_correction_matches_rewrite_reference_f
     site_metadata = pd.read_csv(
         PROTEIN_CORRECTION_FIXTURES / "reference_input_site_metadata.csv"
     ).set_index("site_id")
+    if "localisation_confidence" not in site_metadata.columns:
+        site_metadata.loc[:, "localisation_confidence"] = [0.95] * int(
+            site_metadata.shape[0]
+        )
     total = pd.read_csv(
         PROTEIN_CORRECTION_FIXTURES / "reference_input_total.csv"
     ).set_index("protein_id")
@@ -324,6 +334,7 @@ def test_site_matrix_build_from_metadata_matches_rewrite_reference_fixture(
             "site_sequence": corrected_fixture.loc[:, "centralized_sequence"]
             .astype(str)
             .tolist(),
+            "localisation_confidence": [0.95] * phospho.shape[0],
         },
         index=phospho.index.copy(),
     )
@@ -357,6 +368,7 @@ def test_site_matrix_build_from_metadata_matches_rewrite_reference_fixture(
             "site_sequence": expected_input_fixture.loc[:, "centralized_sequence"]
             .astype(str)
             .tolist(),
+            "localisation_confidence": [0.95] * expected_input_fixture.shape[0],
         },
         index=pd.Index(
             expected_input_fixture.loc[:, "site_id"].astype(str),
@@ -366,8 +378,12 @@ def test_site_matrix_build_from_metadata_matches_rewrite_reference_fixture(
 
     pdt.assert_frame_equal(preprocessed.phospho, expected_phospho)
     pdt.assert_frame_equal(
-        preprocessed.site_metadata.loc[:, ["gene_symbol", "site", "site_sequence"]],
-        expected_site_metadata,
+        preprocessed.site_metadata.loc[
+            :, ["gene_symbol", "site", "site_sequence", "localisation_confidence"]
+        ],
+        expected_site_metadata.loc[
+            :, ["gene_symbol", "site", "site_sequence", "localisation_confidence"]
+        ],
     )
 
     dropped = preprocessed.row_audit.loc[

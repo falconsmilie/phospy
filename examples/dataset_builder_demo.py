@@ -26,6 +26,7 @@ def _example_tables() -> tuple[pd.DataFrame, pd.DataFrame]:
                 "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
                 "_______MSGRPRTTSFAESCKPVQQPSAFG",
             ],
+            "localisation_confidence": [0.95] * phospho.shape[0],
             "protein_id": ["TSC2", "GSK3B"],
         },
         index=phospho.index.copy(),

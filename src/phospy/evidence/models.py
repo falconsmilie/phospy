@@ -134,6 +134,8 @@ class PeptideEvidenceRecord:
         localisation_confidence_value = _canonical_optional_float(
             localisation_confidence,
             field_name="peptide_evidence_record.localisation_confidence",
+            minimum=0.0,
+            maximum=1.0,
         )
         missingness_flags_value = _canonical_flag_values(
             missingness_flags,
@@ -368,6 +370,8 @@ class PeptideEvidenceTable:
                     lambda value: _canonical_optional_float(
                         value,
                         field_name="peptide_evidence_table.localisation_confidence",
+                        minimum=0.0,
+                        maximum=1.0,
                     )
                 )
                 continue
@@ -718,7 +722,13 @@ def _canonical_optional_string(value: object, *, field_name: str) -> str | None:
     return stripped
 
 
-def _canonical_optional_float(value: object, *, field_name: str) -> float | None:
+def _canonical_optional_float(
+    value: object,
+    *,
+    field_name: str,
+    minimum: float | None = None,
+    maximum: float | None = None,
+) -> float | None:
     if _is_missing(value):
         return None
     if isinstance(value, bool) or not isinstance(value, int | float):
@@ -726,6 +736,14 @@ def _canonical_optional_float(value: object, *, field_name: str) -> float | None
     resolved = float(value)
     if resolved in (float("inf"), float("-inf")):
         raise PhosPyInputError(f"{field_name} must be finite when provided")
+    if minimum is not None and resolved < minimum:
+        raise PhosPyInputError(
+            f"{field_name} must be greater than or equal to {minimum} when provided"
+        )
+    if maximum is not None and resolved > maximum:
+        raise PhosPyInputError(
+            f"{field_name} must be less than or equal to {maximum} when provided"
+        )
     return resolved
 
 

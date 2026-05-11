@@ -30,6 +30,7 @@ from phospy.datasets.models import (
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
+    DATASET_PREPROCESSING_STAGE_LOCALISATION,
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
     DATASET_PREPROCESSING_STAGE_NORMALISATION,
     DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT,
@@ -80,6 +81,7 @@ from phospy.transformations.transformers import IdentityTransformer
 _FINAL_DATASET_STAGE = "final_dataset_construction"
 _SUPPORTED_PREPROCESSING_STAGE_ORDER = (
     DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
+    DATASET_PREPROCESSING_STAGE_LOCALISATION,
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
@@ -783,6 +785,10 @@ def _preprocessing_plan_to_payload(plan: PreprocessingPlan) -> dict[str, object]
         "missing_data_max_missing_fraction_per_row": (
             plan.missing_data_max_missing_fraction_per_row
         ),
+        "localisation_mode": plan.localisation_mode.value,
+        "localisation_min_confidence": float(plan.localisation_min_confidence),
+        "localisation_confidence_column": plan.localisation_confidence_column,
+        "localisation_waiver_reason": plan.localisation_waiver_reason,
         "site_sequence_resolution_enabled": plan.site_sequence_resolution_enabled,
         "site_sequence_resolution_fasta_path": (
             plan.site_sequence_resolution_fasta_path

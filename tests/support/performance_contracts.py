@@ -187,6 +187,7 @@ def deterministic_site_metadata(
                 site_ids,
                 window_width=sequence_width,
             ).tolist(),
+            "localisation_confidence": [0.95] * len(genes),
         },
         index=site_ids.copy(),
     )

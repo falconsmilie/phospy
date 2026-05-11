@@ -62,6 +62,10 @@ from phospy.api.configs.preprocessing import (
     DATASET_INTENSITY_TRANSFORM_POLICIES,
     DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY,
     DATASET_INTENSITY_TRANSFORM_POLICY_LOG2,
+    DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER,
+    DATASET_LOCALISATION_MODE_IGNORE,
+    DATASET_LOCALISATION_MODE_REQUIRE_THRESHOLD,
+    DATASET_LOCALISATION_MODES,
     DATASET_MISSING_DATA_POLICIES,
     DATASET_MISSING_DATA_POLICY_FORBID,
     DATASET_MISSING_DATA_POLICY_IMPUTE_KNN,
@@ -110,6 +114,8 @@ from phospy.api.configs.preprocessing import (
     DatasetComparisonPair,
     DatasetIntensityTransformConfig,
     DatasetIntensityTransformPolicy,
+    DatasetLocalisationConfig,
+    DatasetLocalisationMode,
     DatasetMissingDataConfig,
     DatasetMissingDataPolicy,
     DatasetNormalisationConfig,
@@ -171,6 +177,12 @@ from phospy.api.configs.signalome import (
 )
 
 __all__ = [
+    "DATASET_LOCALISATION_MODES",
+    "DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER",
+    "DATASET_LOCALISATION_MODE_IGNORE",
+    "DATASET_LOCALISATION_MODE_REQUIRE_THRESHOLD",
+    "DatasetLocalisationConfig",
+    "DatasetLocalisationMode",
     "LOCALISATION_POLICIES",
     "LOCALISATION_POLICY_ALLOW_UNKNOWN",
     "LOCALISATION_POLICY_REQUIRE_PRESENT",

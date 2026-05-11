@@ -53,6 +53,7 @@ def _site_metadata(index: pd.Index) -> pd.DataFrame:
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": ["SEQ_A", "SEQ_B"],
+            "localisation_confidence": [0.95, 0.9],
         },
         index=index.copy(),
     )
@@ -245,6 +246,7 @@ def test_missing_data_stage_report_rows_appear_in_final_report() -> None:
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": ["SEQ_A", "SEQ_B"],
+            "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
     )
@@ -494,6 +496,7 @@ def test_minimal_custom_stage_emits_supported_report_row_into_final_report() -> 
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": ["SEQ_A", "SEQ_B"],
+            "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
     )
@@ -541,6 +544,7 @@ def test_executor_applies_explicit_quantitative_meaning_to_dataset_and_provenanc
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": ["SEQ_A", "SEQ_B"],
+            "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
     )
@@ -825,6 +829,7 @@ def test_missing_data_stage_minprob_is_deterministic_for_same_seed() -> None:
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B", "PRKACA"],
             "site": ["Y182", "T308", "S9", "S339"],
             "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+            "localisation_confidence": [0.95, 0.9, 0.92, 0.94],
         },
         index=phospho.index.copy(),
     )
@@ -874,6 +879,7 @@ def test_missing_data_stage_minprob_changes_with_seed() -> None:
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B", "PRKACA"],
             "site": ["Y182", "T308", "S9", "S339"],
             "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+            "localisation_confidence": [0.95, 0.9, 0.92, 0.94],
         },
         index=phospho.index.copy(),
     )

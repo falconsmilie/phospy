@@ -34,5 +34,5 @@ Use these ADRs when you need rationale and tradeoffs.
 | ADR-0015 | Reference and Fixture Data Policy for PhosPy | Accepted | 2026-04-16 | [adr_0015_reference_and_fixture_data_policy.md](adr_0015_reference_and_fixture_data_policy.md) |
 | ADR-0016 | DataFrame and Series Ownership at Public Boundaries | Accepted | 2026-05-02 | [adr_0016_dataframe_and_series_ownership_at_public_boundaries.md](adr_0016_dataframe_and_series_ownership_at_public_boundaries.md) |
 | ADR-0017 | Stochastic Reproducibility and Adaptive Prediction Seed Governance | Accepted | 2026-05-02 | [adr_0017_stochastic_reproducibility_and_adaptive_prediction_seed_governance.md](adr_0017_stochastic_reproducibility_and_adaptive_prediction_seed_governance.md) |
-| ADR-0018 | Phosphosite Identity and Localisation Policy | Accepted | 2026-05-11 | [adr_0018_phosphosite_identity_and_localisation_policy.md](adr_0018_phosphosite_identity_and_localisation_policy.md) |
+| ADR-0018 | Localisation Confidence and Site-Level Eligibility Policy | Accepted | 2026-05-11 | [adr_0018_phosphosite_identity_and_localisation_policy.md](adr_0018_phosphosite_identity_and_localisation_policy.md) |
 | ADR-0019 | Experimental Design and Contrast Contract | Accepted | 2026-05-11 | [adr_0019_experimental_design_and_contrast_contract.md](adr_0019_experimental_design_and_contrast_contract.md) |

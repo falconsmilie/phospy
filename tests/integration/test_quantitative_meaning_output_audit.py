@@ -48,6 +48,7 @@ def _build_log2_dataset(*, corrected: bool) -> AnalysisReadyPhosphoDataset:
                 "MDFGLCKEGIKDGATMKLCKRERANWQPWQ",
                 "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
             ],
+            "localisation_confidence": [0.95] * phospho.shape[0],
         },
         index=phospho.index.copy(),
     )

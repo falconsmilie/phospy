@@ -83,6 +83,7 @@ def _site_metadata() -> pd.DataFrame:
                 "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
             ],
             "protein_id": ["MAPK14", "GSK3B"],
+            "localisation_confidence": [0.95, 0.9],
         },
         index=["MAPK14;Y182;", "GSK3B;S9;"],
     )
@@ -124,6 +125,7 @@ def _kinase_result():
             "site": ["Y182", "S9", "T308"],
             "site_sequence": ["A" * 31, "B" * 31, "C" * 31],
             "protein_id": ["MAPK14", "GSK3B", "AKT1"],
+            "localisation_confidence": [0.95, 0.9, 0.92],
         },
         index=site_ids,
     )

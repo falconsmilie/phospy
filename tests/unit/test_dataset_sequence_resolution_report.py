@@ -40,6 +40,7 @@ def _site_metadata(
         "gene_symbol": ["MAPK14", "GSK3B"],
         "site": ["Y182", "S9"],
         "protein_accession": ["P1", "P2"],
+        "localisation_confidence": [0.95, 0.9],
     }
     if with_sequence_column:
         if site_sequences is None:
@@ -150,6 +151,7 @@ def test_sequence_resolution_report_counts_all_sequences_resolved_from_fasta(
                 "site": ["Y5", "S6"],
                 "protein_accession": ["P1", "P2"],
                 "site_sequence": [pd.NA, pd.NA],
+                "localisation_confidence": [0.95, 0.9],
             },
             index=pd.Index(["MAPK14;Y5;", "GSK3B;S6;"], name="site_id"),
         ),
@@ -182,6 +184,7 @@ def test_sequence_resolution_report_counts_conflicts_and_records_policy(
                 "site": ["Y5", "S6"],
                 "protein_accession": ["P1", "P2"],
                 "site_sequence": ["XXXXX", pd.NA],
+                "localisation_confidence": [0.95, 0.9],
             },
             index=pd.Index(["MAPK14;Y5;", "GSK3B;S6;"], name="site_id"),
         ),
@@ -218,6 +221,7 @@ def test_unresolved_sequence_blocks_dataset_creation_when_fasta_resolution_fails
             "site": ["S5"],
             "protein_accession": ["P404"],
             "site_sequence": [pd.NA],
+            "localisation_confidence": [0.95],
         },
         index=phospho.index.copy(),
     )

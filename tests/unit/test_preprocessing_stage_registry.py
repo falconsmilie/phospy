@@ -4,8 +4,10 @@ import pandas as pd
 import pytest
 
 from phospy.api.configs import (
+    DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER,
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
+    DatasetLocalisationConfig,
     DatasetNormalisationConfig,
     DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
@@ -14,6 +16,7 @@ from phospy.datasets.builders.preprocessing import DatasetPreprocessor
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
+    DATASET_PREPROCESSING_STAGE_LOCALISATION,
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
     DATASET_PREPROCESSING_STAGE_NORMALISATION,
     DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
@@ -50,6 +53,7 @@ def _site_metadata(index: pd.Index) -> pd.DataFrame:
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": ["SEQ_A", "SEQ_B"],
+            "localisation_confidence": [0.95, 0.91],
         },
         index=index.copy(),
     )
@@ -72,6 +76,10 @@ def _plan_with_multiple_stages() -> PreprocessingPlan:
             normalisation=DatasetNormalisationConfig(policy="median_center"),
             site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata"),
             comparisons=DatasetComparisonBuildingConfig(policy="sample_metadata_pairs"),
+            localisation=DatasetLocalisationConfig(
+                mode=DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER,
+                waiver_reason="test waiver",
+            ),
         )
     )
 
@@ -79,6 +87,7 @@ def _plan_with_multiple_stages() -> PreprocessingPlan:
 def test_every_preprocessing_stage_has_registry_metadata() -> None:
     expected = {
         DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
+        DATASET_PREPROCESSING_STAGE_LOCALISATION,
         DATASET_PREPROCESSING_STAGE_MISSING_DATA,
         DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
         DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
@@ -102,6 +111,7 @@ def test_registered_stage_order_is_stable() -> None:
     )
     assert observed == (
         DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
+        DATASET_PREPROCESSING_STAGE_LOCALISATION,
         DATASET_PREPROCESSING_STAGE_MISSING_DATA,
         DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
         DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,

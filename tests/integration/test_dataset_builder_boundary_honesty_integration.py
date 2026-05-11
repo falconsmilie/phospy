@@ -50,6 +50,7 @@ def test_builder_supports_all_publicly_advertised_site_matrix_missing_data_modes
             "gene_symbol": ["MAPK14", "GSK3B"],
             "site": ["Y182", "S9"],
             "site_sequence": ["SEQ_A", "SEQ_B"],
+            "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
     )
@@ -95,6 +96,7 @@ def test_builder_rejects_dead_end_site_matrix_missing_data_modes_before_interpre
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
             "site_sequence": ["SEQ_A"],
+            "localisation_confidence": [0.95],
         },
         index=phospho.index.copy(),
     )
@@ -140,6 +142,7 @@ def test_builder_site_sequence_mixed_support_keeps_resolvable_rows_and_excludes_
             "gene_symbol": ["MAPK14", "GSK3B", "FAKE1", "FAKE2"],
             "site": ["Y182", "S9", "S1", "T2"],
             "site_sequence": [pd.NA, "SEQ_MANUAL", pd.NA, "   "],
+            "localisation_confidence": [0.95, 0.9, 0.8, 0.85],
         },
         index=phospho.index.copy(),
     )
@@ -182,6 +185,7 @@ def test_builder_rejects_missing_sample_label_before_stringification() -> None:
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
             "site_sequence": ["SEQ_A"],
+            "localisation_confidence": [0.95],
         },
         index=phospho.index.copy(),
     )
@@ -217,6 +221,7 @@ def test_builder_provenance_exposes_site_identifier_normalisation_records() -> N
             "gene_symbol": ["mapk14"],
             "site": ["y182"],
             "site_sequence": ["SEQ_A"],
+            "localisation_confidence": [0.95],
         },
         index=pd.Index([" mapk14 ; y182 "], name="site_id"),
     )
@@ -247,6 +252,7 @@ def test_builder_succeeds_with_provided_site_sequence_at_analysis_ready_boundary
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
             "site_sequence": ["SEQ_A"],
+            "localisation_confidence": [0.95],
         },
         index=phospho.index.copy(),
     )
@@ -275,6 +281,7 @@ def test_builder_derives_missing_site_sequence_before_analysis_ready_constructio
         {
             "gene_symbol": ["MAPK14", "GSK3B"],
             "site": ["Y182", "S9"],
+            "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
     )
@@ -312,6 +319,7 @@ def test_builder_fails_when_site_sequence_cannot_be_derived_before_dataset_const
         {
             "gene_symbol": ["FAKE1"],
             "site": ["S1"],
+            "localisation_confidence": [0.95],
         },
         index=phospho.index.copy(),
     )
@@ -346,6 +354,7 @@ def test_builder_fails_clearly_for_unsupported_organism_when_site_sequences_need
         {
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
+            "localisation_confidence": [0.95],
         },
         index=phospho.index.copy(),
     )

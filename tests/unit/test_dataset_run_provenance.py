@@ -197,6 +197,7 @@ def test_dataset_builder_emits_run_provenance_and_stage_details() -> None:
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
             "site": ["Y182", "T308", "S9"],
             "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            "localisation_confidence": [0.95, 0.9, 0.92],
         },
         index=phospho.index.copy(),
     )
@@ -269,6 +270,7 @@ def test_dataset_builder_provenance_records_site_identifier_normalisation_change
             "gene_symbol": ["mapk14"],
             "site": ["y182"],
             "site_sequence": ["SEQ_A"],
+            "localisation_confidence": [0.95],
         },
         index=pd.Index([" mapk14 ; y182 "], name="site_id"),
     )
@@ -305,6 +307,7 @@ def test_dataset_stage_order_policy_changes_with_preprocessing_plan() -> None:
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
             "site_sequence": ["SEQ_A"],
+            "localisation_confidence": [0.95],
         },
         index=phospho.index.copy(),
     )
@@ -341,9 +344,12 @@ def test_dataset_stage_order_policy_changes_with_preprocessing_plan() -> None:
         for policy in transformed_result.provenance.scientific_policies
         if policy.id == ScientificPolicyId.PREPROCESSING_STAGE_ORDER
     )
-    assert default_policy.parameters["configured_stage_order"] == "missing_data"
+    assert (
+        default_policy.parameters["configured_stage_order"]
+        == "localisation_confidence -> missing_data"
+    )
     assert transformed_policy.parameters["configured_stage_order"] == (
-        "missing_data -> intensity_transform"
+        "localisation_confidence -> missing_data -> intensity_transform"
     )
 
 
@@ -361,6 +367,7 @@ def test_run_provenance_serializes_resolved_stage_order_for_minprob_with_log2() 
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
             "site": ["Y182", "T308", "S9"],
             "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            "localisation_confidence": [0.95, 0.9, 0.92],
         },
         index=phospho.index.copy(),
     )
@@ -389,11 +396,12 @@ def test_run_provenance_serializes_resolved_stage_order_for_minprob_with_log2() 
     assert isinstance(preprocessing_plan, dict)
     resolved_stage_order = preprocessing_plan["resolved_stage_order"]
     assert isinstance(resolved_stage_order, list)
-    assert [item["stage"] for item in resolved_stage_order[:2]] == [
+    assert [item["stage"] for item in resolved_stage_order[:3]] == [
+        "localisation_confidence",
         "intensity_transform",
         "missing_data",
     ]
-    assert resolved_stage_order[1]["rationale"] == (
+    assert resolved_stage_order[2]["rationale"] == (
         PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA
     )
     missing_stage = next(
@@ -422,6 +430,7 @@ def test_run_provenance_serializes_resolved_stage_order_for_non_minprob_with_log
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
             "site": ["Y182", "T308", "S9"],
             "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            "localisation_confidence": [0.95, 0.9, 0.92],
         },
         index=phospho.index.copy(),
     )
@@ -447,11 +456,12 @@ def test_run_provenance_serializes_resolved_stage_order_for_non_minprob_with_log
     assert isinstance(preprocessing_plan, dict)
     resolved_stage_order = preprocessing_plan["resolved_stage_order"]
     assert isinstance(resolved_stage_order, list)
-    assert [item["stage"] for item in resolved_stage_order[:2]] == [
+    assert [item["stage"] for item in resolved_stage_order[:3]] == [
+        "localisation_confidence",
         "missing_data",
         "intensity_transform",
     ]
-    assert resolved_stage_order[0]["rationale"] == (
+    assert resolved_stage_order[1]["rationale"] == (
         PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_MISSING_DATA
     )
 
@@ -466,6 +476,7 @@ def test_run_provenance_serialization_round_trip_preserves_payload() -> None:
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
             "site_sequence": ["SEQ_A"],
+            "localisation_confidence": [0.95],
         },
         index=phospho.index.copy(),
     )
@@ -502,6 +513,7 @@ def test_run_provenance_from_payload_accepts_legacy_stage_shape() -> None:
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
             "site_sequence": ["SEQ_A"],
+            "localisation_confidence": [0.95],
         },
         index=phospho.index.copy(),
     )

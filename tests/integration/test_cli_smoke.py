@@ -251,7 +251,11 @@ def test_cli_reports_site_sequence_resolution_failures_with_row_context(
         index=pd.Index(["FAKE1;S1;"], name="site_id"),
     )
     site_metadata = pd.DataFrame(
-        {"gene_symbol": ["FAKE1"], "site": ["S1"]},
+        {
+            "gene_symbol": ["FAKE1"],
+            "site": ["S1"],
+            "localisation_confidence": [0.95],
+        },
         index=phospho.index.copy(),
     )
     phospho_path = tmp_path / "phospho.csv"

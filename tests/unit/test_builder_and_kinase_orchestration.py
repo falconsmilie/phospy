@@ -69,6 +69,7 @@ def _site_metadata() -> pd.DataFrame:
                 "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
                 "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
             ],
+            "localisation_confidence": [0.95, 0.9],
         },
         index=["MAPK14;Y182;", "GSK3B;S9;"],
     )

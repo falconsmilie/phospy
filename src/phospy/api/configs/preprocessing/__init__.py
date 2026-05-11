@@ -18,6 +18,14 @@ from phospy.api.configs.preprocessing.intensity_transform import (
     DatasetIntensityTransformConfig,
     DatasetIntensityTransformPolicy,
 )
+from phospy.api.configs.preprocessing.localisation import (
+    DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER,
+    DATASET_LOCALISATION_MODE_IGNORE,
+    DATASET_LOCALISATION_MODE_REQUIRE_THRESHOLD,
+    DATASET_LOCALISATION_MODES,
+    DatasetLocalisationConfig,
+    DatasetLocalisationMode,
+)
 from phospy.api.configs.preprocessing.missing_data import (
     DATASET_MISSING_DATA_POLICIES,
     DATASET_MISSING_DATA_POLICY_FORBID,
@@ -92,6 +100,12 @@ from phospy.api.configs.preprocessing.total_protein import (
 )
 
 __all__ = [
+    "DATASET_LOCALISATION_MODES",
+    "DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER",
+    "DATASET_LOCALISATION_MODE_IGNORE",
+    "DATASET_LOCALISATION_MODE_REQUIRE_THRESHOLD",
+    "DatasetLocalisationConfig",
+    "DatasetLocalisationMode",
     "DATASET_COMPARISON_BUILDING_POLICIES",
     "DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN",
     "DATASET_COMPARISON_BUILDING_POLICY_NONE",

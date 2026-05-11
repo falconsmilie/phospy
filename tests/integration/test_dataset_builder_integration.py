@@ -133,7 +133,12 @@ def test_dataset_builder_builds_analysis_ready_dataset_from_fixture() -> None:
         )
     )
     pdt.assert_frame_equal(built.phospho, phospho)
-    assert list(built.site_metadata.columns) == ["gene_symbol", "site", "site_sequence"]
+    assert list(built.site_metadata.columns) == [
+        "gene_symbol",
+        "site",
+        "site_sequence",
+        "localisation_confidence",
+    ]
     assert built.intensity_scale_state == IntensityScaleState.raw(
         has_total_matrix=False
     )
@@ -254,6 +259,7 @@ def test_dataset_builder_applies_subtract_log_total_after_log2_transform() -> No
         },
         index=phospho.index.copy(),
     )
+    site_metadata.loc[:, "localisation_confidence"] = [0.95] * site_metadata.shape[0]
     gene_symbols = site_metadata.loc[:, "gene_symbol"].astype(str)
     unique_genes = pd.Index(["MAPK14", "AKT1", "GSK3B"], name="protein_id")
     total = pd.DataFrame(
@@ -387,6 +393,7 @@ def test_dataset_builder_marks_mixed_quantitative_meaning_when_uncorrected_rows_
         },
         index=phospho.index.copy(),
     )
+    site_metadata.loc[:, "localisation_confidence"] = [0.95] * site_metadata.shape[0]
     total = pd.DataFrame(
         {
             "sample_a": [3.0],
@@ -494,6 +501,7 @@ def test_dataset_builder_supports_documented_alias_and_index_derivation_conventi
         },
         index=phospho.index.copy(),
     )
+    site_metadata.loc[:, "localisation_confidence"] = [0.95] * site_metadata.shape[0]
     built = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
             phospho=phospho,
@@ -502,7 +510,12 @@ def test_dataset_builder_supports_documented_alias_and_index_derivation_conventi
         )
     )
     assert list(built.phospho.index) == list(phospho.index)
-    assert list(built.site_metadata.columns) == ["site_sequence", "gene_symbol", "site"]
+    assert list(built.site_metadata.columns) == [
+        "site_sequence",
+        "localisation_confidence",
+        "gene_symbol",
+        "site",
+    ]
     assert (
         built.site_metadata.loc[:, "site_sequence"].tolist()
         == canonical_site_metadata.loc[:, "site_sequence"].tolist()
@@ -586,6 +599,7 @@ def test_dataset_builder_runs_site_sequence_resolution_before_minprob_diagnostic
         },
         index=phospho.index.copy(),
     )
+    site_metadata.loc[:, "localisation_confidence"] = [0.95] * site_metadata.shape[0]
 
     built = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
@@ -615,12 +629,17 @@ def test_dataset_builder_runs_site_sequence_resolution_before_minprob_diagnostic
     stage_order = [stage.stage for stage in built.provenance.preprocessing_stages]
     assert stage_order == [
         "site_sequence_resolution",
+        "localisation_confidence",
         "intensity_transform",
         "missing_data",
     ]
 
     sequence_stage = built.provenance.preprocessing_stages[0]
-    missing_data_stage = built.provenance.preprocessing_stages[2]
+    missing_data_stage = next(
+        stage
+        for stage in built.provenance.preprocessing_stages
+        if stage.stage == "missing_data"
+    )
     sequence_diagnostics = sequence_stage.diagnostics or {}
     missing_data_diagnostics = missing_data_stage.diagnostics or {}
     assert sequence_diagnostics.get("resolved_site_count") == 3
@@ -649,6 +668,7 @@ def test_dataset_builder_treats_fasta_resolution_as_authoritative_for_missing_se
         },
         index=phospho.index.copy(),
     )
+    site_metadata.loc[:, "localisation_confidence"] = [0.95] * site_metadata.shape[0]
 
     built = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
@@ -703,6 +723,7 @@ def test_dataset_builder_site_sequence_resolution_processing_state_tracks_diagno
         },
         index=phospho.index.copy(),
     )
+    site_metadata.loc[:, "localisation_confidence"] = [0.95] * site_metadata.shape[0]
 
     built = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
@@ -772,6 +793,7 @@ def test_dataset_builder_supports_site_matrix_build_from_metadata_policy() -> No
         },
         index=phospho.index.copy(),
     )
+    site_metadata.loc[:, "localisation_confidence"] = [0.95] * site_metadata.shape[0]
 
     built = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
@@ -814,6 +836,7 @@ def test_dataset_builder_supports_site_matrix_duplicate_aggregation_policy() -> 
         },
         index=phospho.index.copy(),
     )
+    site_metadata.loc[:, "localisation_confidence"] = [0.95] * site_metadata.shape[0]
 
     built = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
@@ -869,6 +892,7 @@ def test_dataset_builder_site_matrix_derivation_keeps_all_fully_resolvable_rows(
         },
         index=phospho.index.copy(),
     )
+    site_metadata.loc[:, "localisation_confidence"] = [0.95] * site_metadata.shape[0]
 
     built = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
@@ -907,6 +931,7 @@ def test_dataset_builder_site_matrix_derivation_excludes_only_unresolved_rows() 
         },
         index=phospho.index.copy(),
     )
+    site_metadata.loc[:, "localisation_confidence"] = [0.95] * site_metadata.shape[0]
 
     built = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
@@ -947,6 +972,7 @@ def test_dataset_builder_site_matrix_derivation_uses_row_metadata_site_identity(
         },
         index=phospho.index.copy(),
     )
+    site_metadata.loc[:, "localisation_confidence"] = [0.95] * site_metadata.shape[0]
 
     built = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
@@ -987,6 +1013,7 @@ def test_dataset_builder_site_matrix_excludes_unusable_supplied_sequence_rows() 
         },
         index=phospho.index.copy(),
     )
+    site_metadata.loc[:, "localisation_confidence"] = [0.95] * site_metadata.shape[0]
 
     built = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
@@ -1026,6 +1053,7 @@ def test_dataset_builder_site_matrix_derivation_reports_no_rows_when_fully_unres
         },
         index=phospho.index.copy(),
     )
+    site_metadata.loc[:, "localisation_confidence"] = [0.95] * site_metadata.shape[0]
 
     with pytest.raises(
         PhosPyInputError,
@@ -1068,6 +1096,7 @@ def test_dataset_builder_rejects_incompatible_site_matrix_missing_data_modes_ear
         },
         index=phospho.index.copy(),
     )
+    site_metadata.loc[:, "localisation_confidence"] = [0.95] * site_metadata.shape[0]
 
     with pytest.raises(
         PhosPyInputError,
@@ -1110,6 +1139,7 @@ def test_dataset_builder_rejects_dead_end_site_matrix_missing_modes_before_datas
         },
         index=phospho.index.copy(),
     )
+    site_metadata.loc[:, "localisation_confidence"] = [0.95] * site_metadata.shape[0]
 
     with pytest.raises(
         PhosPyInputError,
@@ -1151,6 +1181,7 @@ def test_dataset_builder_builds_inferred_comparisons_from_sample_metadata() -> N
         },
         index=phospho.index.copy(),
     )
+    site_metadata.loc[:, "localisation_confidence"] = [0.95] * site_metadata.shape[0]
     sample_metadata = pd.DataFrame(
         {"comparison_group": ["group1", "group1", "group4", "group4"]},
         index=phospho.columns.copy(),
@@ -1230,6 +1261,7 @@ def test_dataset_builder_rejects_comparison_groups_missing_from_metadata() -> No
         },
         index=phospho.index.copy(),
     )
+    site_metadata.loc[:, "localisation_confidence"] = [0.95] * site_metadata.shape[0]
     sample_metadata = pd.DataFrame(
         {"comparison_group": ["sample_a", "sample_b"]},
         index=phospho.columns.copy(),
@@ -1312,6 +1344,7 @@ def test_dataset_builder_log2_preprocessing_records_operation_and_state() -> Non
         },
         index=phospho.index.copy(),
     )
+    site_metadata.loc[:, "localisation_confidence"] = [0.95] * site_metadata.shape[0]
 
     built = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
@@ -1356,6 +1389,7 @@ def test_dataset_builder_distinguishes_corrected_vs_uncorrected_log2_quantity() 
         },
         index=phospho.index.copy(),
     )
+    site_metadata.loc[:, "localisation_confidence"] = [0.95] * site_metadata.shape[0]
     total = pd.DataFrame(
         {
             "sample_a": [3.0],
@@ -1430,6 +1464,7 @@ def test_dataset_builder_public_payloads_pair_scale_with_quantitative_meaning(
         },
         index=phospho.index.copy(),
     )
+    site_metadata.loc[:, "localisation_confidence"] = [0.95] * site_metadata.shape[0]
     total = pd.DataFrame(
         {
             "sample_a": [3.0],
@@ -1543,6 +1578,7 @@ def test_dataset_builder_median_center_preprocessing_records_operation() -> None
         },
         index=phospho.index.copy(),
     )
+    site_metadata.loc[:, "localisation_confidence"] = [0.95] * site_metadata.shape[0]
 
     built = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
@@ -1582,6 +1618,7 @@ def test_dataset_builder_quantile_preprocessing_records_operation() -> None:
         },
         index=phospho.index.copy(),
     )
+    site_metadata.loc[:, "localisation_confidence"] = [0.95] * site_metadata.shape[0]
 
     built = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
@@ -1634,6 +1671,7 @@ def test_dataset_builder_emits_machine_readable_run_provenance() -> None:
         },
         index=phospho.index.copy(),
     )
+    site_metadata.loc[:, "localisation_confidence"] = [0.95] * site_metadata.shape[0]
 
     built = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
@@ -1722,6 +1760,7 @@ def test_dataset_builder_marks_minprob_stage_as_seeded_stochastic() -> None:
         },
         index=phospho.index.copy(),
     )
+    site_metadata.loc[:, "localisation_confidence"] = [0.95] * site_metadata.shape[0]
     built = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
             phospho=phospho,

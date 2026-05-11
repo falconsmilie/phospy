@@ -38,6 +38,7 @@ def _build_kinase_result() -> KinaseWorkflowResult:
                 "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
                 "_______MSGRPRTTSFAESCKPVQQPSAFG",
             ],
+            "localisation_confidence": [0.95] * phospho.shape[0],
             # Required in the supported signalome lane.
             "protein_id": ["TSC2", "GSK3B"],
         },
