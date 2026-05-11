@@ -32,6 +32,14 @@ from phospy.api.configs.kinase import (
     KinaseScoringConfig,
     KinaseSiteSequenceConflictPolicy,
 )
+from phospy.api.configs.localisation import (
+    LOCALISATION_POLICIES,
+    LOCALISATION_POLICY_ALLOW_UNKNOWN,
+    LOCALISATION_POLICY_REQUIRE_PRESENT,
+    LOCALISATION_POLICY_REQUIRE_THRESHOLD,
+    LocalisationPolicy,
+    LocalisationRequirement,
+)
 from phospy.api.configs.prediction import (
     KINASE_ADAPTIVE_POLICIES,
     KINASE_ADAPTIVE_POLICY_R_PARITY,
@@ -163,6 +171,12 @@ from phospy.api.configs.signalome import (
 )
 
 __all__ = [
+    "LOCALISATION_POLICIES",
+    "LOCALISATION_POLICY_ALLOW_UNKNOWN",
+    "LOCALISATION_POLICY_REQUIRE_PRESENT",
+    "LOCALISATION_POLICY_REQUIRE_THRESHOLD",
+    "LocalisationPolicy",
+    "LocalisationRequirement",
     "KINASE_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT",
     "SIGNALOME_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT",
     "DATASET_COMPARISON_BUILDING_POLICIES",

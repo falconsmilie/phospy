@@ -20,6 +20,12 @@ _GENE_SYMBOL_ALIASES = ("gene_symbol", "gene_name")
 _PROTEIN_ID_ALIASES = ("protein_id",)
 _SITE_ALIASES = ("site",)
 _SITE_SEQUENCE_ALIASES = ("site_sequence", "centralized_sequence")
+_LOCALISATION_PROBABILITY_ALIASES = (
+    "localisation_probability",
+    "localization_probability",
+    "localisation_confidence",
+    "localization_confidence",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -164,7 +170,7 @@ class DatasetConventionNormalizer:
 
     @staticmethod
     def _normalize_site_metadata_columns(site_metadata: pd.DataFrame) -> pd.DataFrame:
-        _reject_unsupported_historical_aliases(site_metadata.columns)
+        _reject_unsupported_historical_aliases(site_metadata)
         rename_map: dict[str, str] = {}
         gene_column = _resolve_alias(
             site_metadata.columns,
@@ -194,6 +200,16 @@ class DatasetConventionNormalizer:
         )
         if site_sequence_column is not None and site_sequence_column != "site_sequence":
             rename_map[site_sequence_column] = "site_sequence"
+        localisation_probability_column = _resolve_alias(
+            site_metadata.columns,
+            target_column="localisation_probability",
+            aliases=_LOCALISATION_PROBABILITY_ALIASES,
+        )
+        if (
+            localisation_probability_column is not None
+            and localisation_probability_column != "localisation_probability"
+        ):
+            rename_map[localisation_probability_column] = "localisation_probability"
         if not rename_map:
             return site_metadata
         return site_metadata.rename(columns=rename_map)
@@ -383,7 +399,8 @@ def _resolve_alias(
     return None
 
 
-def _reject_unsupported_historical_aliases(columns: pd.Index) -> None:
+def _reject_unsupported_historical_aliases(site_metadata: pd.DataFrame) -> None:
+    columns = site_metadata.columns
     present = _normalized_column_lookup(columns)
     unsupported_aliases: dict[str, str] = {
         "sequence": "site_sequence",
@@ -391,10 +408,13 @@ def _reject_unsupported_historical_aliases(columns: pd.Index) -> None:
         "gene": "gene_symbol",
         "residue": "site",
         "phosphosite": "site",
-        "site_position": "site",
     }
     for alias_name, canonical_name in unsupported_aliases.items():
         if alias_name not in present:
+            continue
+        # `residue` can be valid auxiliary metadata when canonical `site` is already
+        # present. It remains unsupported as a substitute for `site`.
+        if alias_name == "residue" and "site" in present:
             continue
         raise UnsupportedInputFormatError(
             f"dataset build request site_metadata column '{alias_name}' is "

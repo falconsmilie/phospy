@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 from phospy.api.configs.common import _require_int_at_least, _require_real_between
+from phospy.api.configs.localisation import LocalisationRequirement
 from phospy.errors.validation import WorkflowValidationError
 
 SIGNALOME_MODULE_COUNT_FLOOR = 1
@@ -186,6 +187,9 @@ class SignalomeValidationConfig:
     score_preconditioning_policy: SignalomeScorePreconditioningPolicy = (
         SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
     )
+    localisation_requirement: LocalisationRequirement = field(
+        default_factory=LocalisationRequirement
+    )
     allow_mixed_total_protein_quantitative_meaning: bool = (
         SIGNALOME_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT
     )
@@ -207,6 +211,11 @@ class SignalomeValidationConfig:
                 "signalome workflow request config.validation."
                 "score_preconditioning_policy "
                 f"must be one of: {allowed_policies}"
+            )
+        if not isinstance(self.localisation_requirement, LocalisationRequirement):
+            raise WorkflowValidationError(
+                "signalome workflow request config.validation."
+                "localisation_requirement must be LocalisationRequirement"
             )
 
 
@@ -375,6 +384,7 @@ __all__ = [
     "SignalomeClusteringEngine",
     "SignalomeConfig",
     "SignalomeKinaseNetworkPolicy",
+    "LocalisationRequirement",
     "SignalomeOutputConfig",
     "SignalomePerformanceConfig",
     "SignalomeScientificConfig",

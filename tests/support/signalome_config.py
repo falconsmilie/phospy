@@ -11,6 +11,7 @@ from phospy.api.configs import (
     SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT,
     SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
+    LocalisationRequirement,
     SignalomeAssignmentPolicy,
     SignalomeCandidateScoringPolicy,
     SignalomeClusteringConfig,
@@ -35,6 +36,7 @@ def build_signalome_config(
         SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
     ),
     allow_mixed_total_protein_quantitative_meaning: bool = False,
+    localisation_requirement: LocalisationRequirement | None = None,
     module_count: int | None = None,
     module_selection_primary_correlation_threshold: float = (
         SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT
@@ -74,6 +76,11 @@ def build_signalome_config(
         ),
         validation=SignalomeValidationConfig(
             score_preconditioning_policy=score_preconditioning_policy,
+            localisation_requirement=(
+                LocalisationRequirement()
+                if localisation_requirement is None
+                else localisation_requirement
+            ),
             allow_mixed_total_protein_quantitative_meaning=(
                 allow_mixed_total_protein_quantitative_meaning
             ),

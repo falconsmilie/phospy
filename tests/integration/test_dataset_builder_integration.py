@@ -983,7 +983,7 @@ def test_dataset_builder_site_matrix_excludes_unusable_supplied_sequence_rows() 
         {
             "gene_symbol": ["MAPK14", "FAKE1"],
             "site": ["Y182", "S1"],
-            "site_sequence": ["RHFSLQERLLGRTKLTDFGLARHTDDEMTGYVA", "  "],
+            "site_sequence": [("A" * 15) + "Y" + ("A" * 15), "  "],
         },
         index=phospho.index.copy(),
     )

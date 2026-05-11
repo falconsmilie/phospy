@@ -18,6 +18,7 @@ from phospy.api.configs import (
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
+    LocalisationRequirement,
     SignalomeClusteringConfig,
     SignalomeConfig,
     SignalomeOutputConfig,
@@ -866,6 +867,71 @@ def test_kinase_validator_allows_mixed_total_protein_quantitative_meaning_with_o
     assert validated is request
 
 
+def test_kinase_validator_allows_unknown_localisation_by_default() -> None:
+    request = KinaseWorkflowRequest(
+        dataset=_dataset(),
+        references=_references(),
+        scoring_config=KinaseScoringConfig(min_substrates=2),
+        prediction_config=KinasePredictionConfig(
+            top_k=5,
+            deterministic_max_selected_kinases=5,
+            adaptive_ensemble_runs=5,
+        ),
+        activity_config=None,
+    )
+    validated = KinaseWorkflowValidator().run(request)
+    assert validated is request
+
+
+def test_kinase_validator_can_require_localisation_probability_presence() -> None:
+    request = KinaseWorkflowRequest(
+        dataset=_dataset(),
+        references=_references(),
+        scoring_config=KinaseScoringConfig(
+            min_substrates=2,
+            localisation_requirement=LocalisationRequirement(require_present=True),
+        ),
+        prediction_config=KinasePredictionConfig(
+            top_k=5,
+            deterministic_max_selected_kinases=5,
+            adaptive_ensemble_runs=5,
+        ),
+        activity_config=None,
+    )
+    with pytest.raises(WorkflowValidationError) as exc_info:
+        KinaseWorkflowValidator().run(request)
+    message = str(exc_info.value)
+    assert "kinase workflow request requires localisation metadata policy" in message
+    assert (
+        "missing required column=kinase workflow request "
+        "dataset.site_metadata.localisation_probability"
+    ) in message
+
+
+def test_kinase_validator_can_require_localisation_probability_threshold() -> None:
+    dataset = _dataset()
+    dataset._site_metadata.loc[:, "localisation_probability"] = [0.6]
+    request = KinaseWorkflowRequest(
+        dataset=dataset,
+        references=_references(),
+        scoring_config=KinaseScoringConfig(
+            min_substrates=2,
+            localisation_requirement=LocalisationRequirement(minimum_probability=0.75),
+        ),
+        prediction_config=KinasePredictionConfig(
+            top_k=5,
+            deterministic_max_selected_kinases=5,
+            adaptive_ensemble_runs=5,
+        ),
+        activity_config=None,
+    )
+    with pytest.raises(WorkflowValidationError) as exc_info:
+        KinaseWorkflowValidator().run(request)
+    message = str(exc_info.value)
+    assert "policy=require_threshold" in message
+    assert "must be >= 0.750" in message
+
+
 @pytest.mark.parametrize(
     (
         "config_path",
@@ -1079,7 +1145,7 @@ def test_signalome_validator_requires_explicit_site_metadata_protein_id_column()
 
     with pytest.raises(
         WorkflowValidationError,
-        match="site_metadata is missing required columns: protein_id",
+        match="requires signalome workflow request kinase_result.dataset.site_metadata.protein_id",
     ):
         SignalomeWorkflowValidator().run(request)
 
@@ -1153,6 +1219,65 @@ def test_signalome_validator_rejects_non_string_site_metadata_protein_id_values(
             intensity_scale_state=kinase_result.dataset.intensity_scale_state,
             processing_state=kinase_result.dataset.processing_state,
         )
+
+
+def test_signalome_validator_can_require_localisation_probability_presence() -> None:
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(),
+        config=build_signalome_config(
+            substrate_support_cutoff=0.5,
+            localisation_requirement=LocalisationRequirement(require_present=True),
+        ),
+    )
+    with pytest.raises(WorkflowValidationError) as exc_info:
+        SignalomeWorkflowValidator().run(request)
+    message = str(exc_info.value)
+    assert "signalome workflow request requires localisation metadata policy" in message
+    assert (
+        "missing required column=signalome workflow request "
+        "kinase_result.dataset.site_metadata.localisation_probability"
+    ) in message
+    assert "affected_rows=1" in message
+    assert "example_site_ids=['MAPK14;Y182;']" in message
+
+
+def test_signalome_validator_can_require_localisation_probability_threshold() -> None:
+    kinase_result = _kinase_result()
+    kinase_result.dataset._site_metadata.loc[:, "localisation_probability"] = [0.5]
+    request = SignalomeWorkflowRequest(
+        kinase_result=kinase_result,
+        config=build_signalome_config(
+            substrate_support_cutoff=0.5,
+            localisation_requirement=LocalisationRequirement(minimum_probability=0.75),
+        ),
+    )
+    with pytest.raises(WorkflowValidationError) as exc_info:
+        SignalomeWorkflowValidator().run(request)
+    message = str(exc_info.value)
+    assert "policy=require_threshold" in message
+    assert "must be >= 0.750" in message
+    assert "example_site_ids=['MAPK14;Y182;']" in message
+
+
+def test_signalome_validator_reports_invalid_localisation_probability_values() -> None:
+    kinase_result = _kinase_result()
+    kinase_result.dataset._site_metadata.loc[:, "localisation_probability"] = ["high"]
+    request = SignalomeWorkflowRequest(
+        kinase_result=kinase_result,
+        config=build_signalome_config(
+            substrate_support_cutoff=0.5,
+            localisation_requirement=LocalisationRequirement(require_present=True),
+        ),
+    )
+    with pytest.raises(WorkflowValidationError) as exc_info:
+        SignalomeWorkflowValidator().run(request)
+    message = str(exc_info.value)
+    assert (
+        "invalid values in signalome workflow request "
+        "kinase_result.dataset.site_metadata.localisation_probability"
+    ) in message
+    assert "affected_rows=1" in message
+    assert "example_site_ids=['MAPK14;Y182;']" in message
 
 
 def test_signalome_validator_does_not_cast_numeric_matrices(
@@ -1260,16 +1385,18 @@ def test_signalome_validator_allows_downstream_score_matrix_missingness() -> Non
     assert validated is request
 
 
-def test_signalome_validator_allows_missing_site_metadata_protein_values() -> None:
+def test_signalome_validator_rejects_missing_site_metadata_protein_values() -> None:
     kinase_result = _kinase_result()
     kinase_result.dataset._site_metadata.loc[:, "protein_id"] = np.nan
     request = SignalomeWorkflowRequest(
         kinase_result=kinase_result,
         config=build_signalome_config(substrate_support_cutoff=0.5),
     )
-
-    validated = SignalomeWorkflowValidator().run(request)
-    assert validated is request
+    with pytest.raises(
+        WorkflowValidationError,
+        match="site_metadata.protein_id to contain non-empty string values",
+    ):
+        SignalomeWorkflowValidator().run(request)
 
 
 def test_signalome_validator_prefers_rank_weighted_fusion_scores_when_available() -> (

@@ -20,6 +20,10 @@ from phospy.validation.common.dataframes import (
     require_unique_columns,
     require_unique_index,
 )
+from phospy.validation.datasets.site_metadata import (
+    validate_localisation_probability_column,
+    validate_site_identity_metadata,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +78,7 @@ class SiteMetadataTable(TableSchema):
 
     expected_index: pd.Index | None = field(default=None, repr=False, compare=False)
     require_site_sequence: bool = field(default=False, repr=False, compare=False)
+    allow_opaque_site_values: bool = field(default=False, repr=False, compare=False)
 
     _field_name = "dataset.site_metadata"
     _error_type = DatasetValidationError
@@ -138,6 +143,18 @@ class SiteMetadataTable(TableSchema):
                 column_name="protein_id",
                 error_type=self._error_type,
             )
+        validate_localisation_probability_column(
+            site_metadata=frame,
+            field_name=self._field_name,
+            error_type=self._error_type,
+            column_name="localisation_probability",
+        )
+        validate_site_identity_metadata(
+            site_metadata=frame,
+            field_name=self._field_name,
+            error_type=self._error_type,
+            allow_opaque_site_values=self.allow_opaque_site_values,
+        )
         require_site_identity_coherence(
             site_index=frame.index,
             site_metadata=frame,

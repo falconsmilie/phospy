@@ -4,10 +4,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 
 from phospy.api.configs.common import _require_int_at_least, _require_real_between
+from phospy.api.configs.localisation import LocalisationRequirement
 from phospy.errors.validation import WorkflowValidationError
 
 KINASE_SCORING_MIN_SUBSTRATES_FLOOR = 2
@@ -96,6 +97,9 @@ class KinaseScoringConfig:
     profile_missing_value_strategy: KinaseProfileMissingValueStrategy = (
         KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
     )
+    localisation_requirement: LocalisationRequirement = field(
+        default_factory=LocalisationRequirement
+    )
     allow_mixed_total_protein_quantitative_meaning: bool = (
         KINASE_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT
     )
@@ -125,6 +129,11 @@ class KinaseScoringConfig:
             minimum=KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
             error_type=WorkflowValidationError,
         )
+        if not isinstance(self.localisation_requirement, LocalisationRequirement):
+            raise WorkflowValidationError(
+                "scoring_config.localisation_requirement must be "
+                "LocalisationRequirement"
+            )
 
     @classmethod
     def default(cls) -> KinaseScoringConfig:
@@ -244,5 +253,6 @@ __all__ = [
     "KinaseActivityPValueMethod",
     "KinaseProfileMissingValueStrategy",
     "KinaseSiteSequenceConflictPolicy",
+    "LocalisationRequirement",
     "KinaseScoringConfig",
 ]

@@ -101,24 +101,22 @@ def test_normalizer_rejects_multiple_alias_matches_for_same_target() -> None:
         )
 
 
-def test_normalizer_rejects_unsupported_historical_site_alias() -> None:
-    with pytest.raises(
-        UnsupportedInputFormatError,
-        match="column 'residue' is unsupported",
-    ):
-        DatasetConventionNormalizer().run(
-            phospho=_phospho(),
-            site_metadata=pd.DataFrame(
-                {
-                    "gene_symbol": ["MAPK14"],
-                    "residue": ["Y182"],
-                    "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
-                },
-                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
-            ),
-            sample_metadata=None,
-            total=None,
-        )
+def test_normalizer_allows_residue_column_without_treating_it_as_site_alias() -> None:
+    normalized = DatasetConventionNormalizer().run(
+        phospho=_phospho(),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "residue": ["Y"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+        ),
+        sample_metadata=None,
+        total=None,
+    )
+    assert normalized.site_metadata.loc["MAPK14;Y182;", "residue"] == "Y"
 
 
 def test_normalizer_rejects_conflicting_site_id_column_and_index() -> None:

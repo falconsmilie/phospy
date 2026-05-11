@@ -16,9 +16,20 @@ _SITE_IDENTIFIER_PATTERN = re.compile(
 )
 _GENE_TOKEN_PATTERN = re.compile(r"^[^;\s]+$")
 _SITE_TOKEN_PATTERN = re.compile(r"^[^;\s]+$")
+_SITE_TOKEN_RESIDUE_POSITION_PATTERN = re.compile(
+    r"^\s*(?P<residue>[A-Za-z])(?P<position>[1-9][0-9]*)\s*$"
+)
 _SITE_IDENTIFIER_EXPECTATION = (
     "site identifiers must use 'GENE;SITE;' format (example: 'MAPK1;S123;')"
 )
+
+
+@dataclass(frozen=True, slots=True)
+class ParsedSiteToken:
+    """Structured phosphosite token parsed from one ``site`` value."""
+
+    residue: str
+    position: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -175,6 +186,20 @@ def parse_canonical_site_identifier(
     )
     gene_symbol, site, _ = canonical.split(";")
     return gene_symbol, site
+
+
+def try_parse_site_token(value: object) -> ParsedSiteToken | None:
+    """Parse a ``site`` token like ``S123`` to structured residue/position."""
+
+    if _is_missing(value):
+        return None
+    match = _SITE_TOKEN_RESIDUE_POSITION_PATTERN.fullmatch(str(value))
+    if match is None:
+        return None
+    return ParsedSiteToken(
+        residue=match.group("residue").upper(),
+        position=int(match.group("position")),
+    )
 
 
 def canonicalize_site_components(

@@ -63,7 +63,10 @@ def _site_metadata_frame(index: pd.Index) -> pd.DataFrame:
         {
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
-            "site_sequence": ["A" * 31, "B" * 31],
+            "site_sequence": [
+                ("A" * 15) + "Y" + ("A" * 15),
+                ("A" * 15) + "T" + ("A" * 15),
+            ],
             "protein_id": ["P28482", "P31749"],
         },
         index=index.copy(),
@@ -369,7 +372,7 @@ def test_site_metadata_property_required_columns_allow_extra_columns(
         {
             "gene_symbol": [gene for gene, _ in parsed],
             "site": [site for _, site in parsed],
-            "site_sequence": ["A" * 31 for _ in site_ids],
+            "site_sequence": [("A" * 15) + site[0] + ("A" * 15) for _, site in parsed],
         },
         index=pd.Index(site_ids, name="site_id"),
     )
@@ -394,7 +397,7 @@ def test_site_metadata_property_removing_required_column_fails(
         {
             "gene_symbol": [gene for gene, _ in parsed],
             "site": [site for _, site in parsed],
-            "site_sequence": ["A" * 31 for _ in site_ids],
+            "site_sequence": [("A" * 15) + site[0] + ("A" * 15) for _, site in parsed],
             "extra_col": ["x" for _ in site_ids],
         },
         index=pd.Index(site_ids, name="site_id"),
@@ -424,6 +427,75 @@ def test_dataset_schema_site_metadata_identity_mismatch_fails() -> None:
     bad.loc["MAPK14;Y182;", "gene_symbol"] = "MAPK1"
     with pytest.raises(DatasetValidationError, match="site-identity coherence failed"):
         SiteMetadataTable(frame=bad, expected_index=phospho.frame.index)
+
+
+@pytest.mark.parametrize("value", [0.0, 0.75, 1.0, "0.5", pd.NA, None, "  "])
+def test_site_metadata_localisation_probability_valid_values_pass(
+    value: object,
+) -> None:
+    phospho = PhosphoIntensityMatrix(frame=_phospho_frame())
+    frame = _site_metadata_frame(phospho.frame.index).copy(deep=True)
+    frame.loc[:, "localisation_probability"] = [value, 0.8]
+    wrapped = SiteMetadataTable(frame=frame, expected_index=phospho.frame.index)
+    assert "localisation_probability" in wrapped.frame.columns
+
+
+@pytest.mark.parametrize("value", [-0.1, 1.2, "high", "unknown", True, float("inf")])
+def test_site_metadata_localisation_probability_invalid_values_fail(
+    value: object,
+) -> None:
+    phospho = PhosphoIntensityMatrix(frame=_phospho_frame())
+    frame = _site_metadata_frame(phospho.frame.index).copy(deep=True)
+    frame.loc[:, "localisation_probability"] = [value, 0.8]
+    with pytest.raises(
+        DatasetValidationError,
+        match="localisation_probability must contain values in \\[0.0, 1.0\\] or missing",
+    ):
+        SiteMetadataTable(frame=frame, expected_index=phospho.frame.index)
+
+
+def test_site_metadata_rejects_malformed_site_tokens_by_default() -> None:
+    phospho = PhosphoIntensityMatrix(frame=_phospho_frame())
+    frame = _site_metadata_frame(phospho.frame.index).copy(deep=True)
+    frame.loc["MAPK14;Y182;", "site"] = "Y18X"
+    with pytest.raises(
+        DatasetValidationError,
+        match="site values must use '<residue><position>'",
+    ):
+        SiteMetadataTable(frame=frame, expected_index=phospho.frame.index)
+
+
+def test_site_metadata_rejects_residue_site_inconsistency() -> None:
+    phospho = PhosphoIntensityMatrix(frame=_phospho_frame())
+    frame = _site_metadata_frame(phospho.frame.index).copy(deep=True)
+    frame.loc[:, "residue"] = ["S", "T"]
+    with pytest.raises(
+        DatasetValidationError,
+        match="residue column must match parsed site residue",
+    ):
+        SiteMetadataTable(frame=frame, expected_index=phospho.frame.index)
+
+
+def test_site_metadata_rejects_site_position_site_inconsistency() -> None:
+    phospho = PhosphoIntensityMatrix(frame=_phospho_frame())
+    frame = _site_metadata_frame(phospho.frame.index).copy(deep=True)
+    frame.loc[:, "site_position"] = [123, 308]
+    with pytest.raises(
+        DatasetValidationError,
+        match="site position column must match parsed site position",
+    ):
+        SiteMetadataTable(frame=frame, expected_index=phospho.frame.index)
+
+
+def test_site_metadata_rejects_site_sequence_centre_residue_mismatch() -> None:
+    phospho = PhosphoIntensityMatrix(frame=_phospho_frame())
+    frame = _site_metadata_frame(phospho.frame.index).copy(deep=True)
+    frame.loc["MAPK14;Y182;", "site_sequence"] = "AAAAASAAAAA"
+    with pytest.raises(
+        DatasetValidationError,
+        match="site_sequence central residue must agree with site/residue metadata",
+    ):
+        SiteMetadataTable(frame=frame, expected_index=phospho.frame.index)
 
 
 def test_dataset_schema_sample_metadata_index_mismatch_fails() -> None:

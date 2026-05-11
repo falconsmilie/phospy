@@ -20,7 +20,9 @@ _DEFAULT_METADATA_CONFLICT_FIELDS = (
     "gene_symbol",
     "site",
     "site_sequence",
+    "localisation_probability",
     "residue",
+    "site_position",
     "position",
 )
 _DEFAULT_ROW_DROP_STATS_ATTR = "site_matrix_row_drop_stats"

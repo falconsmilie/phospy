@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import pandas as pd
 
+from phospy.api.configs.localisation import LocalisationRequirement
 from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.api.results import KinaseWorkflowResult
 from phospy.errors.validation import WorkflowValidationError
 from phospy.prediction.scoring import select_downstream_score_matrix
 from phospy.validation.common.dataframes import (
-    require_columns,
     require_dataframe,
     require_exact_index_match,
     require_finite_numeric_dataframe,
@@ -18,6 +18,10 @@ from phospy.validation.common.dataframes import (
     require_unique_columns,
     require_unique_index,
 )
+from phospy.validation.datasets.site_metadata import (
+    enforce_localisation_requirement,
+    enforce_required_non_empty_string_column,
+)
 from phospy.validation.workflows.configs import (
     SignalomeConfigValidator,
     reject_mixed_total_protein_quantitative_meaning,
@@ -25,6 +29,7 @@ from phospy.validation.workflows.configs import (
 
 SIGNALOME_PROTEIN_IDENTITY_CONTRACT_NOTE = (
     "Signalome execution requires an explicit site_metadata.protein_id column. "
+    "That column must contain explicit non-missing protein_id values for retained sites. "
     "Protein identifiers are resolved for retained signalome sites after "
     "downstream-score preconditioning. "
     "Gene-symbol site-ID prefixes encode site identity, not protein identity."
@@ -162,6 +167,7 @@ class SignalomeWorkflowValidator:
         self._require_explicit_site_metadata_protein_identity(
             site_metadata=dataset._borrow_site_metadata_frame(),
             dataset_sites=dataset._borrow_phospho_frame().index,
+            localisation_requirement=config.validation.localisation_requirement,
         )
         return request
 
@@ -170,6 +176,7 @@ class SignalomeWorkflowValidator:
         *,
         site_metadata: object,
         dataset_sites: pd.Index,
+        localisation_requirement: LocalisationRequirement,
     ) -> None:
         field_name = "signalome workflow request kinase_result.dataset.site_metadata"
         site_metadata_frame = require_dataframe(
@@ -191,10 +198,18 @@ class SignalomeWorkflowValidator:
             error_type=WorkflowValidationError,
         )
         try:
-            require_columns(
-                site_metadata_frame,
+            enforce_required_non_empty_string_column(
+                site_metadata=site_metadata_frame,
                 field_name=field_name,
-                required_columns=("protein_id",),
+                workflow_name="signalome workflow request",
+                column_name="protein_id",
+                error_type=WorkflowValidationError,
+            )
+            enforce_localisation_requirement(
+                site_metadata=site_metadata_frame,
+                field_name=field_name,
+                workflow_name="signalome workflow request",
+                requirement=localisation_requirement,
                 error_type=WorkflowValidationError,
             )
         except WorkflowValidationError as exc:

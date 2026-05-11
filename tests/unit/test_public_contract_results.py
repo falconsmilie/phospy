@@ -45,7 +45,11 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         {
             "gene_symbol": ["MAPK14", "GSK3B", "AKT1"],
             "site": ["Y182", "S9", "T308"],
-            "site_sequence": ["A" * 31, "B" * 31, "C" * 31],
+            "site_sequence": [
+                ("A" * 15) + "Y" + ("A" * 15),
+                ("A" * 15) + "S" + ("A" * 15),
+                ("A" * 15) + "T" + ("A" * 15),
+            ],
             "protein_id": ["MAPK14", "GSK3B", "AKT1"],
         },
         index=site_ids,
@@ -77,7 +81,13 @@ def _references() -> ReferenceBundle:
             }
         ),
         site_sequences=pd.DataFrame(
-            {"site_sequence": ["A" * 31, "B" * 31, "C" * 31]},
+            {
+                "site_sequence": [
+                    ("A" * 15) + "Y" + ("A" * 15),
+                    ("A" * 15) + "S" + ("A" * 15),
+                    ("A" * 15) + "T" + ("A" * 15),
+                ]
+            },
             index=site_ids,
         ),
     )

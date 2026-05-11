@@ -16,12 +16,16 @@ from phospy.api.configs import (
     DatasetSiteMatrixConfig,
     DatasetSiteSequenceResolutionConfig,
     DatasetTotalProteinCorrectionConfig,
+    KinaseScoringConfig,
+    LocalisationRequirement,
+    SignalomeValidationConfig,
 )
 from phospy.datasets.preprocessing.models import PreprocessingPlan
 from phospy.datasets.preprocessing.stage_registry import (
     resolve_builder_provenance_stage_order,
 )
 from phospy.errors.input import PhosPyInputError
+from phospy.errors.validation import WorkflowValidationError
 from phospy.policy_models import (
     ComparisonBuildingPolicy,
     DownstreamScoreSource,
@@ -292,3 +296,45 @@ def test_candidate_selection_rejects_unknown_threshold_mode() -> None:
             inclusion=1,
             threshold_mode="invalid",  # type: ignore[arg-type]
         )
+
+
+def test_localisation_requirement_default_policy_is_allow_unknown() -> None:
+    requirement = LocalisationRequirement()
+    assert requirement.policy == "allow_unknown"
+    assert requirement.requires_probability_column is False
+
+
+def test_localisation_requirement_threshold_policy_requires_probability_column() -> (
+    None
+):
+    requirement = LocalisationRequirement(minimum_probability=0.75)
+    assert requirement.policy == "require_threshold"
+    assert requirement.requires_probability_column is True
+
+
+@pytest.mark.parametrize("invalid_threshold", [-0.1, 1.2, "high"])
+def test_localisation_requirement_rejects_invalid_threshold(
+    invalid_threshold: object,
+) -> None:
+    with pytest.raises(
+        WorkflowValidationError,
+        match="localisation_requirement.minimum_probability",
+    ):
+        LocalisationRequirement(
+            minimum_probability=invalid_threshold  # type: ignore[arg-type]
+        )
+
+
+def test_kinase_scoring_config_accepts_localisation_requirement() -> None:
+    config = KinaseScoringConfig(
+        min_substrates=2,
+        localisation_requirement=LocalisationRequirement(require_present=True),
+    )
+    assert config.localisation_requirement.policy == "require_present"
+
+
+def test_signalome_validation_config_accepts_localisation_requirement() -> None:
+    config = SignalomeValidationConfig(
+        localisation_requirement=LocalisationRequirement(minimum_probability=0.6)
+    )
+    assert config.localisation_requirement.policy == "require_threshold"
