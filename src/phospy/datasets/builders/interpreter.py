@@ -5,12 +5,22 @@ from __future__ import annotations
 from typing import NoReturn
 
 from phospy.api.requests import DatasetBuildRequest
-from phospy.datasets.builders.contracts import InterpretedDatasetBuildRequest
+from phospy.datasets.builders.contracts import (
+    DatasetInput,
+    InterpretedDatasetBuildRequest,
+)
 from phospy.datasets.builders.normalizer import DatasetConventionNormalizer
 from phospy.datasets.builders.reader import DatasetInputReader
 from phospy.datasets.builders.sequence_derivation import SiteSequenceDeriver
 from phospy.datasets.preprocessing.models import PreprocessingPlan
 from phospy.errors.input import PhosPyInputError
+from phospy.evidence.dataset_resolution import (
+    DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+    DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
+    PeptideEvidenceDatasetResolver,
+    build_multi_site_handling_config_for_dataset_policy,
+)
+from phospy.evidence.models import PeptideEvidenceTable
 from phospy.policy_models import SiteMatrixPolicy
 from phospy.transformations.models import QuantitativeMeaning
 
@@ -24,17 +34,16 @@ class DatasetBuildRequestInterpreter:
         reader: DatasetInputReader | None = None,
         normalizer: DatasetConventionNormalizer | None = None,
         site_sequence_deriver: SiteSequenceDeriver | None = None,
+        peptide_evidence_resolver: PeptideEvidenceDatasetResolver | None = None,
     ) -> None:
         self._reader = reader or DatasetInputReader()
         self._normalizer = normalizer or DatasetConventionNormalizer()
         self._site_sequence_deriver = site_sequence_deriver or SiteSequenceDeriver()
+        self._peptide_evidence_resolver = (
+            peptide_evidence_resolver or PeptideEvidenceDatasetResolver()
+        )
 
     def run(self, request: DatasetBuildRequest) -> InterpretedDatasetBuildRequest:
-        phospho = self._reader.run(request.phospho, field_name="phospho")
-        site_metadata = self._reader.run(
-            request.site_metadata,
-            field_name="site_metadata",
-        )
         sample_metadata = (
             None
             if request.sample_metadata is None
@@ -51,6 +60,81 @@ class DatasetBuildRequestInterpreter:
                 field_name="total",
             )
         )
+        site_resolution_mode = str(request.site_resolution_mode).strip()
+        peptide_evidence_resolution_payload: dict[str, object] | None = None
+        multi_site_policy: str | None = None
+        if site_resolution_mode == DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED:
+            phospho = self._reader.run(
+                _require_dataset_input(
+                    request.phospho,
+                    field_name="dataset build request phospho",
+                ),
+                field_name="phospho",
+            )
+            site_metadata = self._reader.run(
+                _require_dataset_input(
+                    request.site_metadata,
+                    field_name="dataset build request site_metadata",
+                ),
+                field_name="site_metadata",
+            )
+        elif site_resolution_mode == DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE:
+            peptide_evidence = self._reader.run(
+                _require_dataset_input(
+                    request.peptide_evidence,
+                    field_name="dataset build request peptide_evidence",
+                ),
+                field_name="peptide_evidence",
+            )
+            peptide_site_mapping = (
+                None
+                if request.peptide_site_mapping is None
+                else self._reader.run(
+                    request.peptide_site_mapping,
+                    field_name="peptide_site_mapping",
+                )
+            )
+            try:
+                evidence = PeptideEvidenceTable(
+                    frame=peptide_evidence,
+                    sample_intensity_columns=(
+                        ()
+                        if request.peptide_evidence_sample_intensity_columns is None
+                        else request.peptide_evidence_sample_intensity_columns
+                    ),
+                    site_mapping=peptide_site_mapping,
+                    multi_site_handling_config=build_multi_site_handling_config_for_dataset_policy(
+                        multi_site_policy=str(request.multi_site_policy)
+                    ),
+                )
+                resolved = self._peptide_evidence_resolver.run(
+                    evidence=evidence,
+                    multi_site_policy=str(request.multi_site_policy),
+                )
+            except (TypeError, ValueError, KeyError, PhosPyInputError) as exc:
+                self._raise_wrapped_input_error(
+                    stage_name="dataset_builder.peptide_evidence_resolution",
+                    field_name="dataset build request peptide_evidence",
+                    operation=(
+                        "resolving peptide evidence into site-level phospho and "
+                        "site_metadata tables"
+                    ),
+                    next_action=(
+                        "provide peptide_evidence with required evidence columns, "
+                        "valid peptide_evidence_sample_intensity_columns, and a "
+                        "compatible multi_site_policy/site mapping"
+                    ),
+                    original_error=exc,
+                )
+            phospho = resolved.phospho
+            site_metadata = resolved.site_metadata
+            multi_site_policy = str(request.multi_site_policy)
+            peptide_evidence_resolution_payload = resolved.summary.to_payload()
+        else:  # pragma: no cover - validator owns this branch; keep defensive.
+            raise PhosPyInputError(
+                "dataset build request site_resolution_mode is unsupported after "
+                "validation"
+            )
         try:
             normalized = self._normalizer.run(
                 phospho=phospho,
@@ -111,6 +195,9 @@ class DatasetBuildRequestInterpreter:
             quantitative_meaning=_resolve_quantitative_meaning(
                 request.quantitative_meaning
             ),
+            site_resolution_mode=site_resolution_mode,
+            multi_site_policy=multi_site_policy,
+            peptide_evidence_resolution=peptide_evidence_resolution_payload,
         )
 
     @staticmethod
@@ -162,3 +249,11 @@ def _resolve_site_sequence_derivation_payload(
         if isinstance(payload, dict):
             return payload
     return None
+
+
+def _require_dataset_input(
+    value: DatasetInput | None, *, field_name: str
+) -> DatasetInput:
+    if value is None:
+        raise PhosPyInputError(f"{field_name} is required")
+    return value

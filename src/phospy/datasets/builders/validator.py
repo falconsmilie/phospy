@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from phospy.api.configs import (
     DATASET_COMPARISON_BUILDING_POLICY_SAMPLE_METADATA_PAIRS,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
 )
 from phospy.api.requests import DatasetBuildRequest
 from phospy.errors.input import PhosPyInputError
+from phospy.evidence.dataset_resolution import (
+    DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
+    SUPPORTED_DATASET_MULTI_SITE_POLICIES,
+    SUPPORTED_DATASET_SITE_RESOLUTION_MODES,
+)
 from phospy.references.models import Organism
 from phospy.transformations.models import QuantitativeMeaning
 from phospy.validation.datasets.inputs import DatasetInputSourceValidator
@@ -31,8 +38,59 @@ class DatasetBuildRequestValidator:
     def run(self, request: DatasetBuildRequest) -> DatasetBuildRequest:
         if not isinstance(request, DatasetBuildRequest):
             raise PhosPyInputError("builder input must be a DatasetBuildRequest")
-        self._source_validator.run(request.phospho, field_name="phospho")
-        self._source_validator.run(request.site_metadata, field_name="site_metadata")
+        site_resolution_mode = _validate_site_resolution_mode(
+            request.site_resolution_mode
+        )
+        if site_resolution_mode == DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED:
+            self._source_validator.run(request.phospho, field_name="phospho")
+            self._source_validator.run(
+                request.site_metadata, field_name="site_metadata"
+            )
+            if request.peptide_evidence is not None:
+                raise PhosPyInputError(
+                    "dataset build request peptide_evidence requires "
+                    "site_resolution_mode='peptide_evidence'"
+                )
+            if request.multi_site_policy is not None:
+                raise PhosPyInputError(
+                    "dataset build request multi_site_policy is only supported when "
+                    "site_resolution_mode='peptide_evidence'"
+                )
+            if request.peptide_evidence_sample_intensity_columns is not None:
+                raise PhosPyInputError(
+                    "dataset build request peptide_evidence_sample_intensity_columns "
+                    "is only supported when site_resolution_mode='peptide_evidence'"
+                )
+            if request.peptide_site_mapping is not None:
+                raise PhosPyInputError(
+                    "dataset build request peptide_site_mapping is only supported "
+                    "when site_resolution_mode='peptide_evidence'"
+                )
+        else:
+            if request.phospho is not None or request.site_metadata is not None:
+                raise PhosPyInputError(
+                    "dataset build request with "
+                    "site_resolution_mode='peptide_evidence' must not provide "
+                    "phospho/site_metadata inputs"
+                )
+            self._source_validator.run(
+                request.peptide_evidence,
+                field_name="peptide_evidence",
+            )
+            self._source_validator.run(
+                request.peptide_site_mapping,
+                field_name="peptide_site_mapping",
+                allow_none=True,
+            )
+            if request.multi_site_policy is None:
+                raise PhosPyInputError(
+                    "dataset build request peptide_evidence input requires "
+                    "multi_site_policy"
+                )
+            _validate_dataset_multi_site_policy(request.multi_site_policy)
+            _validate_peptide_sample_columns(
+                request.peptide_evidence_sample_intensity_columns
+            )
         self._source_validator.run(
             request.sample_metadata, field_name="sample_metadata", allow_none=True
         )
@@ -63,6 +121,71 @@ class DatasetBuildRequestValidator:
                 "policy='sample_metadata_pairs' requires sample_metadata input data"
             )
         return request
+
+
+def _validate_site_resolution_mode(site_resolution_mode: object) -> str:
+    if (
+        isinstance(site_resolution_mode, str)
+        and site_resolution_mode in SUPPORTED_DATASET_SITE_RESOLUTION_MODES
+    ):
+        return site_resolution_mode
+    supported = ", ".join(
+        repr(value) for value in SUPPORTED_DATASET_SITE_RESOLUTION_MODES
+    )
+    raise PhosPyInputError(
+        f"dataset build request site_resolution_mode must be one of: {supported}"
+    )
+
+
+def _validate_dataset_multi_site_policy(multi_site_policy: object) -> None:
+    if (
+        isinstance(multi_site_policy, str)
+        and multi_site_policy in SUPPORTED_DATASET_MULTI_SITE_POLICIES
+    ):
+        return
+    supported = ", ".join(
+        repr(value) for value in SUPPORTED_DATASET_MULTI_SITE_POLICIES
+    )
+    raise PhosPyInputError(
+        f"dataset build request multi_site_policy must be one of: {supported}"
+    )
+
+
+def _validate_peptide_sample_columns(value: object) -> None:
+    if value is None:
+        raise PhosPyInputError(
+            "dataset build request peptide_evidence_sample_intensity_columns "
+            "is required when site_resolution_mode='peptide_evidence'"
+        )
+    if isinstance(value, str) or not isinstance(value, Sequence):
+        raise PhosPyInputError(
+            "dataset build request peptide_evidence_sample_intensity_columns must be "
+            "a sequence of non-empty string column names"
+        )
+    columns = tuple(value)
+    if not columns:
+        raise PhosPyInputError(
+            "dataset build request peptide_evidence_sample_intensity_columns must "
+            "contain at least one column name"
+        )
+    try:
+        has_duplicates = len(set(columns)) != len(columns)
+    except TypeError as exc:
+        raise PhosPyInputError(
+            "dataset build request peptide_evidence_sample_intensity_columns must "
+            "contain hashable string column names"
+        ) from exc
+    if has_duplicates:
+        raise PhosPyInputError(
+            "dataset build request peptide_evidence_sample_intensity_columns must "
+            "not contain duplicate column names"
+        )
+    for column in columns:
+        if not isinstance(column, str) or not column.strip():
+            raise PhosPyInputError(
+                "dataset build request peptide_evidence_sample_intensity_columns "
+                "must contain non-empty string column names"
+            )
 
 
 def _validate_quantitative_meaning(

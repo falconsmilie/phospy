@@ -23,6 +23,9 @@ from phospy.differential.models import (
     EmpiricalBayesConfig,
 )
 from phospy.errors.validation import WorkflowValidationError
+from phospy.evidence.dataset_resolution import (
+    DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
+)
 from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
 from phospy.transformations.models import QuantitativeMeaning
 
@@ -56,15 +59,26 @@ class DatasetBuildRequest:
     """Request for building an ``AnalysisReadyPhosphoDataset``.
 
     Supported public inputs are pandas ``DataFrame`` values or file paths.
+    ``site_resolution_mode`` selects one of two explicit lanes:
+
+    - ``site_level_resolved``: provide ``phospho`` + ``site_metadata``.
+    - ``peptide_evidence``: provide ``peptide_evidence`` plus
+      ``peptide_evidence_sample_intensity_columns`` and ``multi_site_policy``.
+
     Preprocessing policy remains builder owned via ``preprocessing_config`` and
     must still converge on a strict, missing-value-free
     ``AnalysisReadyPhosphoDataset`` boundary.
     """
 
-    phospho: DatasetInput
-    site_metadata: DatasetInput
+    phospho: DatasetInput | None = None
+    site_metadata: DatasetInput | None = None
     sample_metadata: DatasetInput | None = None
     total: DatasetInput | None = None
+    site_resolution_mode: str = DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED
+    peptide_evidence: DatasetInput | None = None
+    peptide_evidence_sample_intensity_columns: tuple[str, ...] | None = None
+    peptide_site_mapping: DatasetInput | None = None
+    multi_site_policy: str | None = None
     organism: Organism | None = None
     preprocessing_config: DatasetPreprocessingConfig = field(
         default_factory=DatasetPreprocessingConfig

@@ -36,3 +36,4 @@ Use these ADRs when you need rationale and tradeoffs.
 | ADR-0017 | Stochastic Reproducibility and Adaptive Prediction Seed Governance | Accepted | 2026-05-02 | [adr_0017_stochastic_reproducibility_and_adaptive_prediction_seed_governance.md](adr_0017_stochastic_reproducibility_and_adaptive_prediction_seed_governance.md) |
 | ADR-0018 | Localisation Confidence and Site-Level Eligibility Policy | Accepted | 2026-05-11 | [adr_0018_phosphosite_identity_and_localisation_policy.md](adr_0018_phosphosite_identity_and_localisation_policy.md) |
 | ADR-0019 | Experimental Design and Contrast Contract | Accepted | 2026-05-11 | [adr_0019_experimental_design_and_contrast_contract.md](adr_0019_experimental_design_and_contrast_contract.md) |
+| ADR-0020 | Peptide Evidence and Site-Level Resolution Policy | Accepted | 2026-05-12 | [adr_0020_peptide_evidence_and_site_level_resolution_policy.md](adr_0020_peptide_evidence_and_site_level_resolution_policy.md) |

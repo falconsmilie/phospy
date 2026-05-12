@@ -79,6 +79,7 @@ from phospy.transformations.models import IntensityScaleKind
 from phospy.transformations.transformers import IdentityTransformer
 
 _FINAL_DATASET_STAGE = "final_dataset_construction"
+_PEPTIDE_EVIDENCE_RESOLUTION_STAGE = "peptide_evidence_resolution"
 _SUPPORTED_PREPROCESSING_STAGE_ORDER = (
     DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
     DATASET_PREPROCESSING_STAGE_LOCALISATION,
@@ -175,6 +176,7 @@ class DatasetBuildExecutor:
             final_dataset_rows=int(len(resolved.phospho.index)),
             intensity_scale_label=intensity_scale_state.label,
             quantitative_meaning=quantitative_meaning.value,
+            peptide_evidence_resolution=request.peptide_evidence_resolution,
         )
         provenance = _build_dataset_run_provenance(
             request=request,
@@ -428,6 +430,7 @@ def _build_dataset_preprocessing_report(
     final_dataset_rows: int,
     intensity_scale_label: str,
     quantitative_meaning: str,
+    peptide_evidence_resolution: dict[str, object] | None,
 ) -> DatasetPreprocessingReport:
     row_count_rows = list(row_count_rows_from_dataframe(row_counts))
     operation_rows = list(operation_rows_from_dataframe(operations))
@@ -442,6 +445,42 @@ def _build_dataset_preprocessing_report(
     comparison_pair_stats_rows = comparison_pair_stats_rows_from_dataframe(
         comparison_pair_stats
     )
+    if peptide_evidence_resolution is not None:
+        peptide_observations = _coerce_non_negative_int(
+            peptide_evidence_resolution.get("peptide_observations_received"),
+            default=0,
+        )
+        unique_site_ids = _coerce_non_negative_int(
+            peptide_evidence_resolution.get("unique_site_ids_produced"),
+            default=0,
+        )
+        excluded_observations = _coerce_non_negative_int(
+            peptide_evidence_resolution.get("excluded_observations"),
+            default=max(peptide_observations - unique_site_ids, 0),
+        )
+        row_count_rows.append(
+            PreprocessingRowCountRow(
+                stage=_PEPTIDE_EVIDENCE_RESOLUTION_STAGE,
+                input_rows=peptide_observations,
+                output_rows=unique_site_ids,
+                dropped_rows=excluded_observations,
+            )
+        )
+        if not operation_rows:
+            step_order = 1
+        else:
+            step_order = int(max(row.step_order for row in operation_rows)) + 1
+        operation_rows.append(
+            PreprocessingOperationRow(
+                step_order=step_order,
+                stage=_PEPTIDE_EVIDENCE_RESOLUTION_STAGE,
+                operation="resolve_peptide_evidence_to_site_level",
+                parameters=dict(peptide_evidence_resolution),
+                input_rows=peptide_observations,
+                output_rows=unique_site_ids,
+                notes=("peptide evidence ambiguity policy and site-resolution summary"),
+            )
+        )
 
     row_count_rows.append(
         PreprocessingRowCountRow(
@@ -696,6 +735,9 @@ def _build_dataset_run_provenance(
                 else request.site_identifier_normalisation.to_payload()
             ),
             "site_sequence_derivation": request.site_sequence_derivation,
+            "site_resolution_mode": request.site_resolution_mode,
+            "multi_site_policy": request.multi_site_policy,
+            "peptide_evidence_resolution": request.peptide_evidence_resolution,
         },
         random_state=None,
         random_seed_policy=None,

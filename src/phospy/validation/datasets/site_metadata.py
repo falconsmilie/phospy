@@ -507,7 +507,7 @@ def _looks_like_site_token(*, raw_value: object) -> bool:
     token = str(raw_value).strip()
     if token == "":
         return False
-    if ";" in token:
+    if ";" in token or "," in token:
         return False
     first = token[0]
     if not first.isalpha():

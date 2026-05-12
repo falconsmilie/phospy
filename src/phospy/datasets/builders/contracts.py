@@ -13,6 +13,9 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingStageExecution,
 )
+from phospy.evidence.dataset_resolution import (
+    DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
+)
 from phospy.references.models import Organism
 from phospy.site_ids import SiteIdentifierNormalisationReport
 from phospy.transformations.models import QuantitativeMeaning
@@ -39,6 +42,9 @@ class InterpretedDatasetBuildRequest:
     site_identifier_normalisation: SiteIdentifierNormalisationReport | None = None
     site_sequence_derivation: dict[str, object] | None = None
     quantitative_meaning: QuantitativeMeaning | None = None
+    site_resolution_mode: str = DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED
+    multi_site_policy: str | None = None
+    peptide_evidence_resolution: dict[str, object] | None = None
 
 
 @dataclass(frozen=True, slots=True)
