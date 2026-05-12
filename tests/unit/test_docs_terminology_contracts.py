@@ -7,11 +7,13 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parents[2]
 _DOCS_ROOT = _ROOT / "docs"
 _SRC_ROOT = _ROOT / "src" / "phospy"
+_README = _ROOT / "README.md"
 
 
 def _public_module_paths() -> tuple[Path, ...]:
     explicit_paths = (
         _SRC_ROOT / "__init__.py",
+        _SRC_ROOT / "cli.py",
         _SRC_ROOT / "datasets" / "models.py",
         _SRC_ROOT / "activities" / "threshold_membership.py",
     )
@@ -25,7 +27,8 @@ def _read_text(path: Path) -> str:
 
 
 def test_docs_markdown_avoids_canonical_term() -> None:
-    for markdown_path in _DOCS_ROOT.rglob("*.md"):
+    markdown_paths = tuple(_DOCS_ROOT.rglob("*.md")) + (_README,)
+    for markdown_path in markdown_paths:
         assert "canonical" not in _read_text(markdown_path).lower(), (
             f"documentation must avoid the term 'canonical': {markdown_path.as_posix()}"
         )

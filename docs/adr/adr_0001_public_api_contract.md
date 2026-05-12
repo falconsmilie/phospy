@@ -50,9 +50,9 @@ redefine the public contract through internal modules and compatibility shims.
    models, enums, references, and exceptions.
 3. `phospy` exposes core workflow entrypoints:
    `AnalysisReadyDatasetBuilder`, `AnalysisReadyPhosphoDataset`,
-   `KinaseWorkflow`, `SignalomeWorkflow`, and `DifferentialAnalysis`.
-4. `DifferentialAnalysis` is intentionally exported from top-level `phospy`.
-   `phospy.api` is not the supported import route for this entrypoint.
+   `KinaseWorkflow`, `SignalomeWorkflow`, and `DifferentialAnalysisWorkflow`.
+4. `DifferentialAnalysisWorkflow` is intentionally exported from top-level
+   `phospy`.
 5. Internal modules remain non-public unless explicitly re-exported from an
    approved public namespace.
 
@@ -68,7 +68,7 @@ types such as:
   `KinaseWorkflow`
 - Differential lane: `DifferentialAnalysisRequest`,
   `DifferentialAnalysisResult`, `EmpiricalBayesConfig`,
-  `MultipleTestingConfig`, `DifferentialAnalysis`,
+  `MultipleTestingConfig`,
   `DifferentialAnalysisWorkflow`
 - Signalome lane: `SignalomeWorkflowRequest`, `SignalomeWorkflowResult`,
   `SignalomeConfig`, `SignalomeScientificConfig`,
@@ -79,17 +79,19 @@ types such as:
 
 This list is intentionally representative rather than an exhaustive import dump.
 
-### DifferentialAnalysis Compatibility Expectations
+### DifferentialAnalysisWorkflow Compatibility Expectations
 
-For `DifferentialAnalysis`, public compatibility includes:
+For `DifferentialAnalysisWorkflow`, public compatibility includes:
 
-1. top-level import path stability (`from phospy import DifferentialAnalysis`)
+1. top-level import path stability
+   (`from phospy import DifferentialAnalysisWorkflow`)
 2. stable request/config contract shape (`run(request)`)
 3. stable documented result object behavior and fields
 4. stable documented error behavior for invalid design/contrast inputs
 5. public README/API examples kept in sync with tests
 
-`from phospy.api import DifferentialAnalysis` is not a supported public route.
+`from phospy.api import DifferentialAnalysisWorkflow` is a supported public
+route.
 
 ### Grouped Public Configuration Governance
 
@@ -138,8 +140,8 @@ Advanced configuration remains available through explicit config objects.
 - `src/phospy/__init__.py`
 - `src/phospy/api/__init__.py`
 - `src/phospy/api/configs/__init__.py`
+- `src/phospy/api/configs/common.py`
 - `src/phospy/api/configs/dataset.py`
-- `src/phospy/api/configs/preprocessing.py`
 - `src/phospy/api/configs/kinase.py`
 - `src/phospy/api/configs/prediction.py`
 - `src/phospy/api/configs/signalome.py`
@@ -156,7 +158,7 @@ Future changes must satisfy all of the following:
 
 1. `phospy` remains the governed top-level public workflow namespace.
 2. `phospy` keeps the governed top-level workflow entrypoints, including
-   `DifferentialAnalysis`.
+   `DifferentialAnalysisWorkflow`.
 3. `phospy.api` remains the stable broader public namespace and is not required
    to mirror every top-level entrypoint.
 4. New public presets encode concrete behavior and still pass validation.

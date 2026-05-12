@@ -19,7 +19,8 @@ The decision is to treat the rewrite as a fresh start. The existing application 
 
 Superseded.
 
-This ADR is retained as historical roadmap context for the early rewrite phase.
+This ADR is retained as historical roadmap context for the early rewrite
+phase only and is not active architecture governance.
 Current architecture governance is carried by the accepted ADR set, including
 ADR-0013 and ADR-0016 through ADR-0019.
 

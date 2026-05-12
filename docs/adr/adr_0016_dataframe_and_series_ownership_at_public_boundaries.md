@@ -10,10 +10,10 @@
 
 ## Abstract
 
-This ADR records the pandas ownership contract at PhosPy public boundaries.
-The contract is already implemented and tested, but it must be explicit at the
-architecture level because it governs API behaviour, provenance validity,
-reproducibility guarantees, and expected copying costs.
+This ADR defines pandas ownership semantics at PhosPy public boundaries.
+The contract is already implemented and tested, but it is architecture-level
+governance because it protects API stability, provenance validity, and replay
+expectations.
 
 ## Status
 
@@ -24,19 +24,26 @@ design), ADR-0006 (dataset state contract), and ADR-0014 (test policy).
 
 ## Context and Problem Statement
 
-PhosPy workflows and datasets carry mutable pandas objects internally.
-Without an explicit architecture rule, contributors can unintentionally weaken
-public defensive-copy behaviour, introduce implicit borrow paths across public
-boundaries, or create provenance drift between owned internal state and public
-mutations.
+PhosPy datasets and workflow results carry mutable pandas objects internally.
+Without explicit boundary rules, public accessor changes can accidentally:
 
-This decision must cover both `DataFrame` and `Series`. A DataFrame-only policy
-is incomplete because activity outputs and related result fields include
-publicly exposed Series values.
+- leak writable references to internal state
+- undermine provenance fingerprint meaning
+- make replay behavior depend on caller mutation order
 
-The architecture must also state that pandas objects are not deeply immutable.
-PhosPy controls ownership and export semantics; it does not claim deep
-immutability of pandas internals.
+The policy must cover both `DataFrame` and `Series`. A DataFrame-only rule is
+incomplete because some public result fields expose `Series` values.
+
+PhosPy also cannot promise deep immutability of pandas internals. It can govern
+ownership and export semantics at package boundaries.
+
+## Decision Drivers
+
+1. Keep public API semantics predictable and easy to reason about.
+2. Preserve provenance and replay meaning after public data export.
+3. Prevent boundary aliasing between caller-owned and package-owned pandas state.
+4. Keep high-volume output workflows explicit rather than implicit borrow paths.
+5. Accept boundary copy cost in exchange for contract clarity.
 
 ## Decision
 
@@ -45,62 +52,71 @@ PhosPy adopts and enforces the following ownership rules:
 1. Internal models and workflow objects own mutable pandas state.
 2. Public pandas accessors return defensive snapshots for both DataFrames and
    Series.
-3. Borrowed (non-copying) access is private/internal only and is permitted only
-   inside controlled implementation boundaries.
+3. Borrowed (non-copying) access is package-private and limited to controlled
+   internal boundaries.
 4. Provenance fingerprints describe owned internal state at result creation
    time.
 5. Mutating pandas objects returned by public accessors must not mutate internal
    dataset/result state.
-6. High-volume persistence is an explicit export/publishing concern, not an
+6. High-volume persistence is an explicit export or publishing concern, not an
    implicit public borrow path.
 7. Defensive-copy cost at public boundaries is accepted by design.
 
+## Boundary Rules
+
+### Public Accessors
+
+Public accessors must expose mutation-isolated snapshots. Public APIs must not
+offer user-facing `copy=False` toggles for owned boundary data.
+
+### Internal Borrow Paths
+
+Package-private borrow helpers are allowed for trusted internal collaboration
+only. They are not part of the public contract and must stay out of public API
+routes.
+
+### Provenance
+
+Provenance fields describe owned state at creation time. Caller mutation of
+exported snapshots must not alter those recorded fingerprints.
+
 ## Consequences
 
-### Positive
+### Positive Consequences
 
-- Public API semantics are stable and explicit across datasets and results.
-- Provenance fingerprint validity is protected from post-export user mutation.
-- Reproducibility assumptions are clearer for users and contributors.
-- Internal mutation and public snapshot semantics remain decoupled.
+- Public API boundary behavior is explicit and consistent.
+- Provenance fingerprint validity is protected from post-export mutation.
+- Replay assumptions are clearer for users and contributors.
+- Internal mutation semantics stay decoupled from caller mutation semantics.
 
-### Negative
+### Negative Consequences
 
-- Public accessor calls allocate copies and increase memory/CPU cost.
+- Public accessor calls allocate copies and add memory/CPU overhead.
 - Contributors must maintain stricter discipline around internal borrow helpers.
-- Some high-throughput user paths need explicit export/publisher use for
-  efficiency.
+- Some high-throughput paths need explicit publisher/export APIs for
+  performance.
 
-### Neutral
+### Neutral Consequences
 
 - Internal owned-state transfer between trusted components remains allowed where
   contractually controlled.
 
-## Trade-offs
+## Rejected Alternatives
 
-- **Safety and reproducibility over boundary performance:** public copies add
-  overhead, but prevent external mutation from corrupting internal state.
-- **Explicit persistence APIs over implicit zero-copy access:** exporting and
-  publishing are clearer, auditable boundaries for high-volume output.
-- **Strict boundary policy over convenience:** removing public `copy=...`
-  toggles avoids drift and keeps one predictable semantics.
+### Alternative 1: Optional Public `copy=False` Escape Hatches
 
-## Alternatives Considered
+Rejected. This weakens contract clarity and increases aliasing risk across
+public boundaries.
 
-### Alternative 1: Optional public `copy=False` escape hatches
+### Alternative 2: Zero-Copy Public Access by Default
 
-Rejected. This weakens contract clarity, complicates provenance expectations,
-and invites accidental state aliasing across boundary calls.
+Rejected. This allows caller mutation to alter internal state and provenance
+assumptions.
 
-### Alternative 2: Zero-copy public access by default
+### Alternative 3: Claim Deep Immutability for Public pandas Objects
 
-Rejected. This breaks isolation guarantees and allows user mutations to alter
-internal state and invalidate provenance assumptions.
-
-### Alternative 3: Claim deep immutability for public pandas objects
-
-Rejected. pandas objects are mutable. PhosPy can enforce snapshot boundaries but
-cannot honestly claim deep immutability.
+Rejected. pandas objects are mutable. PhosPy can enforce snapshot boundaries
+but cannot claim deep immutability.
 
 ## Affected Modules
 
@@ -117,13 +133,53 @@ cannot honestly claim deep immutability.
 
 - `tests/unit/test_frame_ownership_policy.py` is the governance anchor for this
   ADR and must continue to enforce:
-  - dataset DataFrame defensive-copy behaviour;
-  - result DataFrame defensive-copy behaviour;
-  - activity result Series defensive-copy behaviour.
+  - dataset DataFrame defensive-copy behavior
+  - result DataFrame defensive-copy behavior
+  - activity-result Series defensive-copy behavior
 - New or changed public pandas accessors must include boundary-mutation tests
-  showing internal state isolation.
+  that demonstrate internal state isolation.
 - Public accessors must not reintroduce public copy-semantics toggles.
 - Provenance-sensitive tests must continue to validate that public exports do
   not alter owned-state fingerprints.
-- Export/publisher documentation and implementations must remain the preferred
-  persistence boundary for high-volume output.
+- Export/publisher implementations remain the preferred high-volume persistence
+  boundary.
+
+## Scope Boundaries
+
+This ADR defines pandas ownership behavior at public boundaries.
+It does not define:
+
+- scientific scoring rules
+- workflow stage architecture
+- broader performance policy
+
+Those concerns are governed by other ADRs.
+
+## Validation and Review Criteria
+
+Future changes must satisfy all of the following:
+
+1. Do public accessors return mutation-isolated snapshots?
+2. Are package-private borrow paths still private/internal only?
+3. Do provenance-sensitive paths avoid aliasing with exported objects?
+4. Are new accessor behaviors covered by explicit boundary-mutation tests?
+5. Are high-throughput persistence paths kept in explicit publisher/export APIs?
+
+## Relationship to Earlier ADRs
+
+This ADR complements the earlier architecture decisions.
+
+- ADR-0003 defines the dataset boundary where these semantics apply.
+- ADR-0005 defines result-model shape that consumes these semantics.
+- ADR-0006 defines dataset state contracts that rely on stable owned state.
+- ADR-0014 defines the testing policy that enforces these rules.
+
+## References
+
+Yang, P., Patrick, E., Humphrey, S. J., Ghazanfar, S., James, D. E., Jothi,
+R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative
+phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14),
+i349-i356.
+
+YangLab. (n.d.). *PhosR* [Computer software]. GitHub.
+https://github.com/PYangLab/PhosR

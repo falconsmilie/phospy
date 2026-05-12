@@ -20,9 +20,9 @@ Accepted.
 
 This ADR defines the dataset and preprocessing boundary that supports the public API and internal workflow architecture established by earlier ADRs.
 
-Update note (2026-05-11): `site_sequence` may be omitted at ingestion, but it
-is mandatory at the `AnalysisReadyPhosphoDataset` boundary. Builder
-preprocessing owns the derive-or-fail transition before final dataset
+Update note (2026-05-11): raw input can arrive without `site_sequence`, but
+`site_sequence` is mandatory at the `AnalysisReadyPhosphoDataset` boundary.
+Builder preprocessing owns the derive-or-fail transition before final dataset
 construction.
 
 Update note (2026-05-11, contract correction): final dataset construction must
@@ -216,7 +216,7 @@ This decision means public workflow requests should not accept repeated argument
 
 Those concerns belong to preprocessing, not workflow execution.
 
-`site_sequence` may be optional at ingestion, but preprocessing must derive it
+Raw input may arrive without `site_sequence`, but preprocessing must derive it
 or fail before final dataset construction.
 
 ## Construction and Validation Strategy
