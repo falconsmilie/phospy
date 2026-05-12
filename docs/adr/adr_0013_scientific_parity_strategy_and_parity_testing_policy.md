@@ -100,22 +100,25 @@ Parity does not mean exact preservation of:
 
 ## Compatibility Matrix Governance
 
-PhosPy must maintain a PhosR compatibility and scope matrix in:
+PhosPy must maintain its scientific coverage and PhosR parity scope matrix in:
 
 - `docs/scientific-coverage.md`
 
-That matrix is the required, user-visible compatibility ledger and must:
+`docs/scientific-coverage.md` is the maintained user-facing source of truth for:
 
-1. classify each comparison area honestly as one of:
-   - Required parity
-   - Deliberate scope difference
-   - Useful future extension
-   - Unnecessary feature creep
-2. avoid global "PhosR parity" claims
-3. make unsupported areas explicit rather than implicit
-4. distinguish gap classes (scientific, architectural, implementation, UX/documentation)
-5. list evidence for "supported" and "partially supported" statements
-6. require parity-fixture evidence before claiming PhosR-equivalent behaviour
+1. current scientific confidence (`PARITY_GATED_ACTIVE_SCIENCE`,
+   `PHOSPY_VALIDATED_SCIENCE`, `SUPPORTED_CONTRACT_CHANGED`, `OPEN_GAP`)
+2. intended parity scope (`required parity`, `deliberate scope difference`,
+   `useful future extension`, `not planned`)
+3. current supported public lanes and interpretation limits
+
+Governance rules:
+
+1. required-parity rows must include concrete test expectations
+2. scope differences must be documented explicitly, not hidden as gaps
+3. future extensions must not be described as current support
+4. global "full PhosR parity" claims are disallowed unless explicitly proven
+5. detailed fixture mechanics stay in `docs/parity.md`, not duplicated here
 
 Parity claims must be source-labelled at fixture level. A parity claim without
 source-labelled fixture provenance is not accepted as a PhosR-equivalence claim.
@@ -141,6 +144,7 @@ The primary parity target should be PhosR-aligned scientific behaviour.
 In practical terms, this means parity should be judged against outputs that matter scientifically, such as:
 
 - analysis-ready dataset construction outcomes where the contract is stable
+- differential phosphorylation outputs
 - kinase scoring outputs
 - kinase prediction outputs
 - kinase activity outputs

@@ -3,6 +3,13 @@
 PhosPy parity is intentionally narrow and fixture-backed. Passing a parity test
 for one lane does not mean the whole PhosR package is implemented.
 
+Scope ownership split:
+
+- [Scientific Coverage](scientific-coverage.md) owns user-facing coverage status,
+  intended parity scope, and interpretation limits.
+- [Parity](parity.md) owns fixture-level comparison evidence, test locations,
+  and comparison mechanics.
+
 ## What Parity Means Here
 
 A parity claim must say:
@@ -17,9 +24,12 @@ active parity-focused tests in `tests/parity/`.
 
 ## Active Parity Areas
 
-Current active parity coverage focuses on kinase scoring and prediction surfaces,
-including L6-style fixture-backed ranking checks and selected preprocessing or
-activity-stage behaviours where explicit fixtures exist.
+Current active parity coverage includes:
+
+- differential phosphorylation (`tests/parity/test_differential_analysis_parity.py`)
+- kinase scoring and prediction surfaces (L6/public fixture lanes)
+- selected preprocessing and activity-stage behaviours with explicit fixtures
+- signalome workflow and clustering backend fixture lanes
 
 Run the parity suite with:
 

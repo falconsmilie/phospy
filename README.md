@@ -2,8 +2,8 @@
 
 PhosPy is a Python package for selected phosphoproteomics workflows inspired by
 PhosR. It is aimed at scientists who want a clear Python lane from phosphosite
-intensity tables to kinase scoring, kinase prediction, and optional signalome
-analysis.
+intensity tables to differential phosphorylation analysis, kinase scoring,
+kinase prediction, and optional signalome analysis.
 
 PhosPy does **not** provide HTTP endpoints or a web service. The supported user
 interfaces are:
@@ -45,11 +45,12 @@ pytest tests/parity -m parity -s
 
 ## Beginner Lane
 
-The smallest supported lane is:
+The smallest supported public lanes are:
 
 1. build a dataset with `organism=Organism.RAT`
-2. run kinase with `references=ReferencePreset.AUTO`
-3. run signalome only when `site_metadata.protein_id` is present
+2. run `DifferentialAnalysis` with explicit design and contrasts
+3. run kinase with `references=ReferencePreset.AUTO`
+4. run signalome only when `site_metadata.protein_id` is present
 
 Bundled runtime references in the current release are rat-only. For human or mouse work,
 create and pass an explicit `ReferenceBundle` in Python instead of using

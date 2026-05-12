@@ -14,11 +14,12 @@ kinase prediction, and optional signalome analysis in Python.
 
 ## What PhosPy Does
 
-PhosPy supports one clear workflow shape:
+PhosPy supports clear public workflow lanes:
 
 1. build an `AnalysisReadyPhosphoDataset`
-2. run `KinaseWorkflow`
-3. optionally run `SignalomeWorkflow`
+2. run `DifferentialAnalysis` with explicit design and contrasts
+3. run `KinaseWorkflow`
+4. optionally run `SignalomeWorkflow`
 
 The package does not provide HTTP endpoints. Use the Python API for DataFrame
 work and explicit references. Use the CLI for simple file-based runs.
