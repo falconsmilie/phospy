@@ -56,7 +56,7 @@ make test-release-gate
 The smallest supported public lanes are:
 
 1. build a dataset with `organism=Organism.RAT`
-2. run `DifferentialAnalysis` with explicit design and contrasts
+2. run `DifferentialAnalysisWorkflow` with explicit design and contrasts
 3. run kinase with `references=ReferencePreset.AUTO`
 4. run signalome only when `site_metadata.protein_id` is present
 
@@ -83,7 +83,7 @@ import pandas as pd
 
 from phospy import (
     AnalysisReadyDatasetBuilder,
-    DifferentialAnalysis,
+    DifferentialAnalysisWorkflow,
     KinaseWorkflow,
     SignalomeWorkflow,
 )
@@ -154,7 +154,7 @@ contrasts = (
         denominator_condition="A",
     ),
 )
-differential_result = DifferentialAnalysis().run(
+differential_result = DifferentialAnalysisWorkflow().run(
     DifferentialAnalysisRequest(
         dataset=dataset,
         design=design,
@@ -194,7 +194,7 @@ Use top-level `phospy` for the five main entrypoints:
 
 ```python
 from phospy import AnalysisReadyDatasetBuilder, AnalysisReadyPhosphoDataset
-from phospy import DifferentialAnalysis, KinaseWorkflow, SignalomeWorkflow
+from phospy import DifferentialAnalysisWorkflow, KinaseWorkflow, SignalomeWorkflow
 ```
 
 Use `phospy.api` for requests, configs, results, enums, references, and public

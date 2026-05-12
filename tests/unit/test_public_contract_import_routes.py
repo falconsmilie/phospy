@@ -48,6 +48,16 @@ def test_differential_analysis_is_not_supported_from_phospy_api_namespace() -> N
         exec("from phospy.api import DifferentialAnalysis")
 
 
+def test_differential_workflow_supported_import_routes() -> None:
+    namespace: dict[str, object] = {}
+
+    exec("from phospy import DifferentialAnalysisWorkflow", namespace)
+    exec("from phospy.api import DifferentialAnalysisRequest", namespace)
+
+    assert "DifferentialAnalysisWorkflow" in namespace
+    assert "DifferentialAnalysisRequest" in namespace
+
+
 def test_build_cluster_tree_not_exported_from_signalome_public_api() -> None:
     assert "build_cluster_tree" not in public_signalomes.__all__
     assert not hasattr(public_signalomes, "build_cluster_tree")

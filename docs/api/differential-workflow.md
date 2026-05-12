@@ -15,7 +15,8 @@ The supported public import route is:
 from phospy import DifferentialAnalysisWorkflow
 ```
 
-`from phospy.api import DifferentialAnalysis` is not a supported public route.
+`from phospy import DifferentialAnalysis` and
+`from phospy.api import DifferentialAnalysis` are not supported public routes.
 
 Differential analysis is separate from kinase and signalome workflows.
 

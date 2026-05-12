@@ -14,7 +14,7 @@ The workflow documentation is split into dedicated pages:
 | Workflow | Page | Description |
 | --- | --- | --- |
 | Dataset | [Dataset Workflow](dataset-build-workflow.md) | Start here when you have phosphosite intensity data and want a strict `AnalysisReadyPhosphoDataset` for kinase and signalome analysis.|
-| Differential | [Differential Workflow](differential-workflow.md) | `DifferentialAnalysis` runs moderated differential analysis over an `AnalysisReadyPhosphoDataset` using explicit design and contrast definitions. |
+| Differential | [Differential Workflow](differential-workflow.md) | `DifferentialAnalysisWorkflow` runs moderated differential analysis over an `AnalysisReadyPhosphoDataset` using explicit design and contrast definitions. |
 | Kinase | [Kinase Workflow](kinase-workflow.md) | `KinaseWorkflow` resolves references, scores kinase-substrate evidence, predicts candidate kinase regulation, and can optionally compute kinase activity tables. |
 | Signalome | [Signalome Workflow](signalome-workflow.md) | `SignalomeWorkflow` interprets kinase score profiles into module assignments, signalome module summaries, kinase networks, and protein-site context tables |
 
@@ -22,7 +22,7 @@ The usual order is:
 
 ```python
 dataset = AnalysisReadyDatasetBuilder().run(dataset_request)
-differential_result = DifferentialAnalysis().run(differential_request)
+differential_result = DifferentialAnalysisWorkflow().run(differential_request)
 kinase_result = KinaseWorkflow().run(kinase_request)
 signalome_result = SignalomeWorkflow().run(signalome_request)
 ```
@@ -35,7 +35,7 @@ Use top level `phospy` for the main entrypoints:
 from phospy import (
     AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
-    DifferentialAnalysis,
+    DifferentialAnalysisWorkflow,
     KinaseWorkflow,
     SignalomeWorkflow,
 )
@@ -68,7 +68,7 @@ All public executors use `run(request)`.
 ## Public Workflow Shape
 
 1. `DatasetBuildRequest` -> `AnalysisReadyDatasetBuilder.run(...)` -> `AnalysisReadyPhosphoDataset`
-2. `DifferentialAnalysisRequest` -> `DifferentialAnalysis.run(...)` -> `DifferentialAnalysisResult`
+2. `DifferentialAnalysisRequest` -> `DifferentialAnalysisWorkflow.run(...)` -> `DifferentialAnalysisResult`
 3. `KinaseWorkflowRequest` -> `KinaseWorkflow.run(...)` -> `KinaseWorkflowResult`
 4. `SignalomeWorkflowRequest` -> `SignalomeWorkflow.run(...)` -> `SignalomeWorkflowResult`
 

@@ -17,7 +17,7 @@ kinase prediction, and optional signalome analysis in Python.
 PhosPy supports clear public workflow lanes:
 
 1. build an `AnalysisReadyPhosphoDataset`
-2. run `DifferentialAnalysis` with explicit design and contrasts
+2. run `DifferentialAnalysisWorkflow` with explicit design and contrasts
 3. run `KinaseWorkflow`
 4. optionally run `SignalomeWorkflow`
 
