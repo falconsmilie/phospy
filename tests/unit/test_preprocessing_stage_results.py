@@ -705,8 +705,23 @@ def test_pipeline_trace_preserves_normalisation_diagnostics() -> None:
     _, trace = PreprocessingPipeline().run_with_trace(state)
 
     diagnostics = trace[0].diagnostics
+    assert diagnostics["method"] == "median_center"
+    assert diagnostics["parameters"] == {
+        "applied": True,
+        "centering_statistic": "median",
+        "axis": "columns",
+        "skipna": True,
+    }
     assert diagnostics["policy"] == "median_center"
     assert diagnostics["note"] == "median centering used"
+    assert diagnostics["input_matrix_shape"] == {"rows": 2, "columns": 2}
+    assert diagnostics["output_matrix_shape"] == {"rows": 2, "columns": 2}
+    assert diagnostics["rows_dropped"] is False
+    assert diagnostics["columns_dropped"] is False
+    assert diagnostics["dropped_row_count"] == 0
+    assert diagnostics["dropped_column_count"] == 0
+    assert "sample_a" in diagnostics["per_sample_summary_before"]
+    assert "sample_a" in diagnostics["per_sample_summary_after"]
     assert isinstance(diagnostics.get("input_phospho_hash"), str)
     assert isinstance(diagnostics.get("output_phospho_hash"), str)
 

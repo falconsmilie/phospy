@@ -1598,8 +1598,34 @@ def test_dataset_builder_median_center_preprocessing_records_operation() -> None
     ]
     assert normalisation_operation.shape[0] == 1
     assert normalisation_operation.iloc[0]["operation"] == "median_center"
-    assert normalisation_operation.iloc[0]["parameters"] == {}
+    assert normalisation_operation.iloc[0]["parameters"] == {
+        "applied": True,
+        "centering_statistic": "median",
+        "axis": "columns",
+        "skipna": True,
+    }
     assert built.processing_state.normalisation.policy == "median_center"
+    assert built.provenance is not None
+    normalisation_stage = next(
+        stage
+        for stage in built.provenance.preprocessing_stages
+        if stage.stage == "normalisation"
+    )
+    assert normalisation_stage.operation == "median_center"
+    assert dict(normalisation_stage.parameters) == {
+        "applied": True,
+        "centering_statistic": "median",
+        "axis": "columns",
+        "skipna": True,
+    }
+    diagnostics = normalisation_stage.diagnostics or {}
+    assert diagnostics["method"] == "median_center"
+    assert diagnostics["parameters"] == {
+        "applied": True,
+        "centering_statistic": "median",
+        "axis": "columns",
+        "skipna": True,
+    }
 
 
 def test_dataset_builder_quantile_preprocessing_records_operation() -> None:
@@ -1638,7 +1664,12 @@ def test_dataset_builder_quantile_preprocessing_records_operation() -> None:
     ]
     assert normalisation_operation.shape[0] == 1
     assert normalisation_operation.iloc[0]["operation"] == "quantile"
-    assert normalisation_operation.iloc[0]["parameters"] == {}
+    assert normalisation_operation.iloc[0]["parameters"] == {
+        "applied": True,
+        "target_distribution": "mean_rank_distribution",
+        "tie_strategy": "deterministic_rank_average",
+        "dtype": "float64",
+    }
     assert built.processing_state.normalisation.policy == "quantile"
 
 

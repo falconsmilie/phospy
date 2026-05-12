@@ -23,14 +23,27 @@ from phospy.differential.models import (
     EmpiricalBayesConfig,
 )
 from phospy.errors.validation import WorkflowValidationError
-from phospy.evidence.dataset_resolution import (
-    DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
-)
+from phospy.evidence import dataset_resolution as _dataset_resolution
 from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
 from phospy.transformations.models import IntensityScaleKind, QuantitativeMeaning
 
 if TYPE_CHECKING:
     from phospy.api.results import KinaseWorkflowResult
+
+DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING = (
+    _dataset_resolution.DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING
+)
+DATASET_MULTI_SITE_POLICY_KEEP_JOINT = (
+    _dataset_resolution.DATASET_MULTI_SITE_POLICY_KEEP_JOINT
+)
+DATASET_MULTI_SITE_POLICY_REJECT = _dataset_resolution.DATASET_MULTI_SITE_POLICY_REJECT
+DATASET_MULTI_SITE_POLICY_SPLIT = _dataset_resolution.DATASET_MULTI_SITE_POLICY_SPLIT
+DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE = (
+    _dataset_resolution.DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE
+)
+DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED = (
+    _dataset_resolution.DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED
+)
 
 MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG = "benjamini_hochberg"
 SUPPORTED_MULTIPLE_TESTING_METHODS: tuple[str, ...] = (

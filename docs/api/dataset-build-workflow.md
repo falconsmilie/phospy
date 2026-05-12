@@ -192,6 +192,14 @@ distributions are scientifically appropriate.
 normalisation = DatasetNormalisationConfig(policy="median_center")
 ```
 
+Normalisation provenance is explicit in both `dataset.provenance.preprocessing_stages`
+and `dataset.preprocessing_report.operations`. Stage diagnostics include:
+
+- method and resolved parameters
+- input/output matrix shapes
+- per-sample summaries before and after normalisation
+- row/column drop indicators and counts
+
 ## Missing-Data Parameters
 
 | Parameter | Type | Default | Allowed Values | How to Use It |

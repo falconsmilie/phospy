@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from numbers import Real
+from typing import TypedDict
 
 import numpy as np
 import pandas as pd
@@ -20,6 +22,41 @@ from phospy.policy_models import NormalisationPolicy
 from phospy.provenance.hashing import hash_table
 
 
+class _ShapePayload(TypedDict):
+    rows: int
+    columns: int
+
+
+class _SampleSummary(TypedDict):
+    non_missing_count: int
+    missing_count: int
+    mean: float | None
+    median: float | None
+    std: float | None
+    min: float | None
+    max: float | None
+
+
+class _NormalisationDiagnostics(TypedDict):
+    method: str
+    parameters: dict[str, object]
+    policy: str
+    affected_columns: list[str]
+    input_matrix_shape: _ShapePayload
+    output_matrix_shape: _ShapePayload
+    per_sample_summary_before: dict[str, _SampleSummary]
+    per_sample_summary_after: dict[str, _SampleSummary]
+    rows_dropped: bool
+    columns_dropped: bool
+    dropped_row_ids: tuple[str, ...]
+    dropped_column_ids: tuple[str, ...]
+    dropped_row_count: int
+    dropped_column_count: int
+    input_phospho_hash: str
+    output_phospho_hash: str
+    note: str | None
+
+
 class NormalisationStage:
     """Apply configured normalisation policy to phosphosite sample columns."""
 
@@ -27,29 +64,23 @@ class NormalisationStage:
 
     def run(self, state: PreprocessingState) -> PreprocessingStageResult:
         policy = state.plan.normalisation_policy
+        method_parameters = _resolve_method_parameters(policy)
         if policy is NormalisationPolicy.NONE:
+            diagnostics = _build_diagnostics(
+                policy=policy,
+                method_parameters=method_parameters,
+                before=state.phospho,
+                after=state.phospho,
+            )
             return PreprocessingStageResult(
                 state=state,
                 diagnostics={
-                    "dropped_row_ids": (),
-                    "dropped_row_count": 0,
+                    "dropped_row_ids": diagnostics["dropped_row_ids"],
+                    "dropped_row_count": diagnostics["dropped_row_count"],
                     "imputed_cell_count": 0,
                     "imputed_row_ids": (),
                     "notes": "stage executed",
-                    "diagnostics": {
-                        "policy": policy.value,
-                        "affected_columns": [
-                            str(column) for column in state.phospho.columns.tolist()
-                        ],
-                        "input_phospho_hash": hash_table(
-                            state.phospho,
-                            name="normalisation.input.phospho",
-                        ),
-                        "output_phospho_hash": hash_table(
-                            state.phospho,
-                            name="normalisation.output.phospho",
-                        ),
-                    },
+                    "diagnostics": diagnostics,
                 },
             )
 
@@ -59,37 +90,41 @@ class NormalisationStage:
         if policy is NormalisationPolicy.MEDIAN_CENTER:
             normalised = _median_center(state.phospho)
             next_state = replace(state, phospho=normalised)
+            diagnostics = _build_diagnostics(
+                policy=policy,
+                method_parameters=method_parameters,
+                before=state.phospho,
+                after=normalised,
+            )
             return PreprocessingStageResult(
                 state=next_state,
                 diagnostics={
-                    "dropped_row_ids": (),
-                    "dropped_row_count": 0,
+                    "dropped_row_ids": diagnostics["dropped_row_ids"],
+                    "dropped_row_count": diagnostics["dropped_row_count"],
                     "imputed_cell_count": 0,
                     "imputed_row_ids": (),
                     "notes": "stage executed",
-                    "diagnostics": _build_diagnostics(
-                        policy=policy,
-                        before=state.phospho,
-                        after=normalised,
-                    ),
+                    "diagnostics": diagnostics,
                 },
             )
         if policy is NormalisationPolicy.QUANTILE:
             normalised = _quantile_normalise(state.phospho)
             next_state = replace(state, phospho=normalised)
+            diagnostics = _build_diagnostics(
+                policy=policy,
+                method_parameters=method_parameters,
+                before=state.phospho,
+                after=normalised,
+            )
             return PreprocessingStageResult(
                 state=next_state,
                 diagnostics={
-                    "dropped_row_ids": (),
-                    "dropped_row_count": 0,
+                    "dropped_row_ids": diagnostics["dropped_row_ids"],
+                    "dropped_row_count": diagnostics["dropped_row_count"],
                     "imputed_cell_count": 0,
                     "imputed_row_ids": (),
                     "notes": "stage executed",
-                    "diagnostics": _build_diagnostics(
-                        policy=policy,
-                        before=state.phospho,
-                        after=normalised,
-                    ),
+                    "diagnostics": diagnostics,
                 },
             )
         raise PhosPyInputError(
@@ -101,12 +136,27 @@ class NormalisationStage:
 def _build_diagnostics(
     *,
     policy: NormalisationPolicy,
+    method_parameters: dict[str, object],
     before: pd.DataFrame,
     after: pd.DataFrame,
-) -> dict[str, object]:
-    diagnostics: dict[str, object] = {
+) -> _NormalisationDiagnostics:
+    dropped_row_ids = _resolve_dropped_labels(before.index, after.index)
+    dropped_column_ids = _resolve_dropped_labels(before.columns, after.columns)
+    diagnostics: _NormalisationDiagnostics = {
+        "method": policy.value,
+        "parameters": dict(method_parameters),
         "policy": policy.value,
         "affected_columns": [str(column) for column in after.columns.tolist()],
+        "input_matrix_shape": _shape_payload(before),
+        "output_matrix_shape": _shape_payload(after),
+        "per_sample_summary_before": _per_sample_summary(before),
+        "per_sample_summary_after": _per_sample_summary(after),
+        "rows_dropped": bool(dropped_row_ids),
+        "columns_dropped": bool(dropped_column_ids),
+        "dropped_row_ids": dropped_row_ids,
+        "dropped_column_ids": dropped_column_ids,
+        "dropped_row_count": len(dropped_row_ids),
+        "dropped_column_count": len(dropped_column_ids),
         "input_phospho_hash": hash_table(
             before,
             name="normalisation.input.phospho",
@@ -115,6 +165,7 @@ def _build_diagnostics(
             after,
             name="normalisation.output.phospho",
         ),
+        "note": None,
     }
     if policy is not NormalisationPolicy.NONE:
         diagnostics["note"] = (
@@ -123,6 +174,54 @@ def _build_diagnostics(
             else "median centering used"
         )
     return diagnostics
+
+
+def _shape_payload(matrix: pd.DataFrame) -> _ShapePayload:
+    return {
+        "rows": int(matrix.shape[0]),
+        "columns": int(matrix.shape[1]),
+    }
+
+
+def _resolve_dropped_labels(before: pd.Index, after: pd.Index) -> tuple[str, ...]:
+    after_values = {str(value) for value in after.tolist()}
+    return tuple(
+        str(value) for value in before.tolist() if str(value) not in after_values
+    )
+
+
+def _safe_float(value: object) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return None
+    if not isinstance(value, Real):
+        return None
+    resolved = float(value)
+    if not np.isfinite(resolved):
+        return None
+    return resolved
+
+
+def _per_sample_summary(matrix: pd.DataFrame) -> dict[str, _SampleSummary]:
+    summary: dict[str, _SampleSummary] = {}
+    for column in matrix.columns.tolist():
+        series = matrix.loc[:, column]
+        non_missing_count = int(series.notna().sum())
+        missing_count = int(series.isna().sum())
+        observed = series.dropna().astype("float64")
+        summary[str(column)] = {
+            "non_missing_count": non_missing_count,
+            "missing_count": missing_count,
+            "mean": _safe_float(observed.mean()) if non_missing_count > 0 else None,
+            "median": (
+                _safe_float(observed.median()) if non_missing_count > 0 else None
+            ),
+            "std": _safe_float(observed.std(ddof=1)) if non_missing_count > 0 else None,
+            "min": _safe_float(observed.min()) if non_missing_count > 0 else None,
+            "max": _safe_float(observed.max()) if non_missing_count > 0 else None,
+        }
+    return summary
 
 
 def _require_non_empty_matrix(matrix: pd.DataFrame, *, policy_name: str) -> None:
@@ -222,8 +321,31 @@ def _resolve_operation(plan: PreprocessingPlan) -> str:
     return plan.normalisation_policy.value
 
 
-def _resolve_parameters(_plan: PreprocessingPlan) -> dict[str, object]:
-    return {}
+def _resolve_method_parameters(policy: NormalisationPolicy) -> dict[str, object]:
+    if policy is NormalisationPolicy.NONE:
+        return {"applied": False}
+    if policy is NormalisationPolicy.MEDIAN_CENTER:
+        return {
+            "applied": True,
+            "centering_statistic": "median",
+            "axis": "columns",
+            "skipna": True,
+        }
+    if policy is NormalisationPolicy.QUANTILE:
+        return {
+            "applied": True,
+            "target_distribution": "mean_rank_distribution",
+            "tie_strategy": "deterministic_rank_average",
+            "dtype": "float64",
+        }
+    raise PhosPyInputError(
+        "dataset build request preprocessing_config contains an unsupported "
+        "normalisation.policy"
+    )
+
+
+def _resolve_parameters(plan: PreprocessingPlan) -> dict[str, object]:
+    return _resolve_method_parameters(plan.normalisation_policy)
 
 
 NORMALISATION_STAGE_CONTRACT = PreprocessingStageContract(
@@ -238,8 +360,20 @@ NORMALISATION_STAGE_CONTRACT = PreprocessingStageContract(
     backend="numpy",
     diagnostics_metadata={
         "known_diagnostics_fields": (
+            "method",
+            "parameters",
             "policy",
             "affected_columns",
+            "input_matrix_shape",
+            "output_matrix_shape",
+            "per_sample_summary_before",
+            "per_sample_summary_after",
+            "rows_dropped",
+            "columns_dropped",
+            "dropped_row_ids",
+            "dropped_column_ids",
+            "dropped_row_count",
+            "dropped_column_count",
             "input_phospho_hash",
             "output_phospho_hash",
             "note",

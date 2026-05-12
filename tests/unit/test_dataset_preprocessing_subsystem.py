@@ -2232,6 +2232,29 @@ def test_preprocessing_plan_defaults_keep_identity_transform_and_no_normalisatio
     assert "normalisation" not in plan.stage_order
 
 
+def test_default_preprocessing_report_records_noop_normalisation_method() -> None:
+    phospho = _phospho()
+    site_metadata = _site_metadata()
+
+    preprocessed = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan.from_config(DatasetPreprocessingConfig()),
+    )
+
+    normalisation_operation = preprocessed.preprocessing_operations.loc[
+        preprocessed.preprocessing_operations.loc[:, "stage"] == "normalisation"
+    ]
+    assert normalisation_operation.shape[0] == 1
+    assert normalisation_operation.iloc[0]["operation"] == "none"
+    assert normalisation_operation.iloc[0]["parameters"] == {"applied": False}
+    assert normalisation_operation.iloc[0]["notes"] == (
+        "stage not scheduled in preprocessing plan"
+    )
+
+
 def test_dataset_preprocessor_applies_log2_intensity_transform_policy() -> None:
     phospho = _phospho()
     site_metadata = _site_metadata()

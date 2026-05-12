@@ -153,6 +153,43 @@ def test_normalisation_noop_preserves_values_and_hash() -> None:
     )
 
 
+def test_normalisation_noop_records_method_none() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0, 2.0], "sample_b": [3.0, 4.0]},
+        index=pd.Index(["A;S1;", "B;S2;"], name="site_id"),
+    )
+    result = NormalisationStage().run(
+        _normalisation_state(phospho=phospho, policy="none")
+    )
+
+    diagnostics = result.diagnostics["diagnostics"]
+    assert diagnostics["method"] == "none"
+    assert diagnostics["parameters"] == {"applied": False}
+    assert diagnostics["input_matrix_shape"] == {"rows": 2, "columns": 2}
+    assert diagnostics["output_matrix_shape"] == {"rows": 2, "columns": 2}
+
+
+def test_median_centering_records_before_after_sample_summaries() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0, 3.0],
+            "sample_b": [4.0, 2.0, 0.0],
+        },
+        index=pd.Index(["A;S1;", "B;S2;", "C;S3;"], name="site_id"),
+    )
+    result = NormalisationStage().run(
+        _normalisation_state(phospho=phospho, policy="median_center")
+    )
+
+    diagnostics = result.diagnostics["diagnostics"]
+    before = diagnostics["per_sample_summary_before"]["sample_a"]
+    after = diagnostics["per_sample_summary_after"]["sample_a"]
+    assert before["median"] == pytest.approx(2.0)
+    assert after["median"] == pytest.approx(0.0)
+    assert diagnostics["rows_dropped"] is False
+    assert diagnostics["columns_dropped"] is False
+
+
 def test_normalisation_row_reordering_is_semantically_invariant() -> None:
     phospho = pd.DataFrame(
         {
@@ -248,6 +285,40 @@ def test_quantile_normalisation_equalises_sample_distributions() -> None:
         assert sorted(quantile.loc[:, column].tolist()) == pytest.approx(
             expected_sorted_distribution
         )
+
+
+def test_quantile_normalisation_preserves_matrix_shape() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [5.0, 2.0, 3.0, 4.0],
+            "sample_b": [4.0, 1.0, 2.5, 2.0],
+            "sample_c": [8.0, 6.0, 7.0, 9.0],
+        },
+        index=pd.Index(["A;S1;", "B;S2;", "C;S3;", "D;S4;"], name="site_id"),
+    )
+    result = NormalisationStage().run(
+        _normalisation_state(phospho=phospho, policy="quantile")
+    )
+
+    assert result.state.phospho.shape == phospho.shape
+    diagnostics = result.diagnostics["diagnostics"]
+    assert diagnostics["input_matrix_shape"] == {"rows": 4, "columns": 3}
+    assert diagnostics["output_matrix_shape"] == {"rows": 4, "columns": 3}
+
+
+def test_normalisation_stage_does_not_alter_site_metadata_index() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0, 3.0],
+            "sample_b": [4.0, 2.0, 0.0],
+        },
+        index=pd.Index(["A;S1;", "B;S2;", "C;S3;"], name="site_id"),
+    )
+    state = _normalisation_state(phospho=phospho, policy="median_center")
+    before_index = state.site_metadata.index.copy()
+    result = NormalisationStage().run(state)
+
+    assert result.state.site_metadata.index.equals(before_index)
 
 
 def test_duplicate_site_resolution_is_deterministic_for_max_mean_signal_policy() -> (

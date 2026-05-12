@@ -79,6 +79,8 @@ identical numeric outputs across different machines or dependency builds.
 ### Provenance Guarantees
 
 - Dataset provenance records preprocessing-stage execution and table fingerprints.
+- Normalisation provenance is explicit: method, parameters, matrix-shape before/after,
+  per-sample summary before/after, and row/column drop diagnostics.
 - Each table fingerprint carries both `exact_hash_*` (audit/regression) and `tolerance_hash_*` (cross-platform tolerant comparison) metadata; legacy `hash_*` fields are compatibility aliases of the tolerance hash.
 - `provenance.workflow_parameters["preprocessing_plan"]` includes both `stage_order` and
   `resolved_stage_order` with per-stage order index and rationale.
