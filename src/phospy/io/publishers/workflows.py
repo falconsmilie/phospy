@@ -275,6 +275,38 @@ def publish_kinase_workflow(
                     },
                 }
             ),
+            "eligibility_report": (
+                None
+                if result.eligibility_report is None
+                else {
+                    "total_dataset_sites": int(
+                        result.eligibility_report.total_dataset_sites
+                    ),
+                    "sequence_complete_sites": int(
+                        result.eligibility_report.sequence_complete_sites
+                    ),
+                    "localisation_eligible_sites": (
+                        None
+                        if result.eligibility_report.localisation_eligible_sites is None
+                        else int(result.eligibility_report.localisation_eligible_sites)
+                    ),
+                    "reference_overlap_sites": int(
+                        result.eligibility_report.reference_overlap_sites
+                    ),
+                    "excluded_no_reference_match": int(
+                        result.eligibility_report.excluded_no_reference_match
+                    ),
+                    "excluded_low_localisation": (
+                        None
+                        if result.eligibility_report.excluded_low_localisation is None
+                        else int(result.eligibility_report.excluded_low_localisation)
+                    ),
+                    "eligible_kinases": int(result.eligibility_report.eligible_kinases),
+                    "excluded_kinases_below_min_substrates": int(
+                        result.eligibility_report.excluded_kinases_below_min_substrates
+                    ),
+                }
+            ),
             "output_format": output_format,
             "provenance": (
                 None

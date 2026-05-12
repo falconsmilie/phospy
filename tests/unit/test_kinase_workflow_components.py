@@ -13,6 +13,7 @@ from phospy.api.configs import (
 )
 from phospy.api.requests import KinaseWorkflowRequest
 from phospy.api.results import (
+    KinaseEligibilityReport,
     KinaseWorkflowPreprocessingAttritionSummary,
     KinaseWorkflowScoringAttritionSummary,
     KinaseWorkflowSiteAttritionSummary,
@@ -610,6 +611,16 @@ def test_result_assembler_preserves_owned_dataframe_transfer() -> None:
         request=request,
         scoring_result=scoring_result,
         prediction_result=prediction_result,
+        eligibility_report=KinaseEligibilityReport(
+            total_dataset_sites=2,
+            sequence_complete_sites=2,
+            localisation_eligible_sites=None,
+            reference_overlap_sites=2,
+            excluded_no_reference_match=0,
+            excluded_low_localisation=None,
+            eligible_kinases=1,
+            excluded_kinases_below_min_substrates=0,
+        ),
         site_attrition_summary=KinaseWorkflowSiteAttritionSummary(
             preprocessing=KinaseWorkflowPreprocessingAttritionSummary(
                 input_rows=2,

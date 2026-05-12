@@ -68,6 +68,20 @@ class KinaseWorkflowSiteAttritionSummary:
 
 
 @dataclass(frozen=True, slots=True)
+class KinaseEligibilityReport:
+    """Compact, user-facing kinase workflow eligibility counters."""
+
+    total_dataset_sites: int
+    sequence_complete_sites: int
+    localisation_eligible_sites: int | None
+    reference_overlap_sites: int
+    excluded_no_reference_match: int
+    excluded_low_localisation: int | None
+    eligible_kinases: int
+    excluded_kinases_below_min_substrates: int
+
+
+@dataclass(frozen=True, slots=True)
 class KinaseWorkflowResult:
     """Top-level public kinase workflow result."""
 
@@ -75,6 +89,7 @@ class KinaseWorkflowResult:
     references: ReferenceBundle
     scoring_result: KinaseScoringResult
     prediction_result: KinasePredictionResult
+    eligibility_report: KinaseEligibilityReport | None = None
     site_attrition_summary: KinaseWorkflowSiteAttritionSummary | None = None
     activity_result: KinaseActivityResult | None = None
     provenance: RunProvenance | None = None

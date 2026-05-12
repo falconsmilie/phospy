@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 from phospy.activities.models import KinaseActivityResult
-from phospy.api.results import KinaseWorkflowResult, KinaseWorkflowSiteAttritionSummary
+from phospy.api.results import (
+    KinaseEligibilityReport,
+    KinaseWorkflowResult,
+    KinaseWorkflowSiteAttritionSummary,
+)
 from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.provenance.models import RunProvenance
 from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
@@ -18,6 +22,7 @@ class KinaseResultAssembler:
         request: ResolvedKinaseWorkflowRequest,
         scoring_result: KinaseScoringResult,
         prediction_result: KinasePredictionResult,
+        eligibility_report: KinaseEligibilityReport | None,
         site_attrition_summary: KinaseWorkflowSiteAttritionSummary,
         activity_result: KinaseActivityResult | None,
         provenance: RunProvenance,
@@ -27,6 +32,7 @@ class KinaseResultAssembler:
             references=request.references,
             scoring_result=scoring_result,
             prediction_result=prediction_result,
+            eligibility_report=eligibility_report,
             site_attrition_summary=site_attrition_summary,
             activity_result=activity_result,
             provenance=provenance,

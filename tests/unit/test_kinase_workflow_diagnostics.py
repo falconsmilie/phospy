@@ -4,11 +4,13 @@ import pandas as pd
 import pytest
 
 from phospy import (
+    AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     KinaseWorkflow,
 )
 from phospy.activities.models import KinaseActivityInputs, PredMatOverlapSummary
 from phospy.api import (
+    DatasetBuildRequest,
     KinasePredictionConfig,
     KinaseScoringConfig,
     KinaseWorkflowRequest,
@@ -424,6 +426,144 @@ def test_default_scoring_floor_rejects_single_substrate_kinase_profiles() -> Non
     assert "seam=kinase.interpreter.eligible_kinases" in message
     assert "scoring_config_min_substrates=2" in message
     assert "max_quantified_sites_per_kinase=1" in message
+
+
+def test_eligibility_report_full_reference_overlap_counts() -> None:
+    dataset = _dataset(
+        site_ids=["MAPK14;Y182;", "GSK3B;S9;"],
+        sample_names=["sample_a", "sample_b"],
+    )
+    references = _bundle(
+        pd.DataFrame(
+            {
+                "kinase": ["MAP2K6", "MAP2K6", "AKT1", "AKT1"],
+                "substrate_site": [
+                    "MAPK14;Y182;",
+                    "GSK3B;S9;",
+                    "MAPK14;Y182;",
+                    "GSK3B;S9;",
+                ],
+            }
+        )
+    )
+
+    result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=references,
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=2,
+                deterministic_max_selected_kinases=2,
+                adaptive_ensemble_runs=2,
+            ),
+            activity_config=None,
+        )
+    )
+
+    assert result.eligibility_report is not None
+    assert result.eligibility_report.total_dataset_sites == 2
+    assert result.eligibility_report.sequence_complete_sites == 2
+    assert result.eligibility_report.localisation_eligible_sites is None
+    assert result.eligibility_report.reference_overlap_sites == 2
+    assert result.eligibility_report.excluded_no_reference_match == 0
+    assert result.eligibility_report.excluded_low_localisation is None
+    assert result.eligibility_report.eligible_kinases == 2
+    assert result.eligibility_report.excluded_kinases_below_min_substrates == 0
+
+
+def test_eligibility_report_partial_overlap_and_kinase_threshold_shortfall_counts() -> (
+    None
+):
+    dataset = _dataset(
+        site_ids=["MAPK14;Y182;", "GSK3B;S9;", "EXTRA;S1;"],
+        sample_names=["sample_a", "sample_b"],
+    )
+    references = _bundle(
+        pd.DataFrame(
+            {
+                "kinase": ["MAP2K6", "MAP2K6", "AKT1", "ERK1"],
+                "substrate_site": [
+                    "MAPK14;Y182;",
+                    "GSK3B;S9;",
+                    "MAPK14;Y182;",
+                    "OFFSITE;T1;",
+                ],
+            }
+        )
+    )
+
+    result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=references,
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=2,
+                deterministic_max_selected_kinases=2,
+                adaptive_ensemble_runs=2,
+            ),
+            activity_config=None,
+        )
+    )
+
+    assert result.eligibility_report is not None
+    assert result.eligibility_report.total_dataset_sites == 3
+    assert result.eligibility_report.sequence_complete_sites == 3
+    assert result.eligibility_report.reference_overlap_sites == 2
+    assert result.eligibility_report.excluded_no_reference_match == 1
+    assert result.eligibility_report.eligible_kinases == 1
+    assert result.eligibility_report.excluded_kinases_below_min_substrates == 1
+
+
+def test_eligibility_report_includes_localisation_counts_when_policy_available() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0, 2.0], "sample_b": [2.0, 4.0]},
+        index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "GSK3B"],
+            "site": ["Y182", "S9"],
+            "site_sequence": ["A" * 31, "A" * 31],
+            "localisation_confidence": [0.98, 0.97],
+        },
+        index=phospho.index.copy(),
+    )
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+        )
+    )
+
+    result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=_bundle(
+                pd.DataFrame(
+                    {
+                        "kinase": ["MAP2K6", "MAP2K6"],
+                        "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
+                    }
+                )
+            ),
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=2,
+                deterministic_max_selected_kinases=2,
+                adaptive_ensemble_runs=2,
+            ),
+            activity_config=None,
+        )
+    )
+
+    assert result.eligibility_report is not None
+    assert result.eligibility_report.localisation_eligible_sites == 2
+    assert result.eligibility_report.excluded_low_localisation == 0
 
 
 def test_boundary_error_reports_prediction_ensemble_collapse_counts() -> None:

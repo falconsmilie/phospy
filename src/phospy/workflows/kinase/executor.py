@@ -26,6 +26,7 @@ from phospy.workflows.kinase.contracts import (
     ResolvedKinaseExecutionConfig,
     ResolvedKinaseWorkflowRequest,
 )
+from phospy.workflows.kinase.eligibility import KinaseEligibilityReportComposer
 from phospy.workflows.kinase.prediction_runner import KinasePredictionRunner
 from phospy.workflows.kinase.provenance import KinaseProvenanceBuilder
 from phospy.workflows.kinase.result_assembly import KinaseResultAssembler
@@ -50,6 +51,7 @@ class KinaseWorkflowExecutor:
         prediction_runner: KinasePredictionRunner | None = None,
         activity_runner: KinaseActivityRunner | None = None,
         provenance_builder: KinaseProvenanceBuilder | None = None,
+        eligibility_report_composer: KinaseEligibilityReportComposer | None = None,
         site_attrition_summary_composer: KinaseSiteAttritionSummaryComposer
         | None = None,
         result_assembler: KinaseResultAssembler | None = None,
@@ -76,6 +78,9 @@ class KinaseWorkflowExecutor:
             activity_input_validator=activity_input_validator,
         )
         self._provenance_builder = provenance_builder or KinaseProvenanceBuilder()
+        self._eligibility_report_composer = (
+            eligibility_report_composer or KinaseEligibilityReportComposer()
+        )
         self._site_attrition_summary_composer = (
             site_attrition_summary_composer or KinaseSiteAttritionSummaryComposer()
         )
@@ -83,6 +88,10 @@ class KinaseWorkflowExecutor:
 
     def run(self, request: ResolvedKinaseWorkflowRequest) -> KinaseWorkflowResult:
         config = request.execution_config
+        eligibility_report = self._eligibility_report_composer.run(
+            request=request,
+            config=config,
+        )
         scoring_execution = self._scoring_runner.run(
             request=request,
             config=config,
@@ -114,6 +123,7 @@ class KinaseWorkflowExecutor:
             request=request,
             scoring_result=scoring_execution.scoring_result,
             prediction_result=prediction_result,
+            eligibility_report=eligibility_report,
             site_attrition_summary=site_attrition_summary,
             activity_result=activity_result,
             provenance=provenance,

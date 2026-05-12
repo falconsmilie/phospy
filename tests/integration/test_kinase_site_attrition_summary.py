@@ -158,8 +158,10 @@ def test_kinase_workflow_exposes_compact_site_attrition_summary() -> None:
     )
 
     assert result.site_attrition_summary is not None
+    assert result.eligibility_report is not None
     preprocessing = result.site_attrition_summary.preprocessing
     scoring = result.site_attrition_summary.scoring
+    eligibility = result.eligibility_report
 
     assert preprocessing.input_rows == 8
     assert preprocessing.rows_removed_during_preprocessing == 2
@@ -167,6 +169,15 @@ def test_kinase_workflow_exposes_compact_site_attrition_summary() -> None:
     assert preprocessing.duplicate_sites_merged_or_resolved == 1
     assert preprocessing.output_rows == 6
     assert preprocessing.sequence_complete_sites == 6
+
+    assert eligibility.total_dataset_sites == 6
+    assert eligibility.sequence_complete_sites == 6
+    assert eligibility.localisation_eligible_sites == 6
+    assert eligibility.reference_overlap_sites == 3
+    assert eligibility.excluded_no_reference_match == 3
+    assert eligibility.excluded_low_localisation == 0
+    assert eligibility.eligible_kinases == 2
+    assert eligibility.excluded_kinases_below_min_substrates == 0
 
     assert scoring.rows_removed_invalid_or_missing_site_identifiers == 1
     assert scoring.final_quantitative_sites_entering_scoring == 6
@@ -231,10 +242,21 @@ def test_published_kinase_manifest_includes_site_attrition_summary(
     )
     manifest = json.loads(written["kinase.manifest"].read_text(encoding="utf-8"))
     payload = manifest.get("site_attrition_summary")
+    eligibility_payload = manifest.get("eligibility_report")
 
     assert payload is not None
+    assert eligibility_payload is not None
     assert payload["preprocessing"]["input_rows"] == 8
     assert payload["preprocessing"]["rows_removed_during_preprocessing"] == 2
     assert payload["preprocessing"]["duplicate_sites_merged_or_resolved"] == 1
     assert payload["preprocessing"]["sequence_complete_sites"] == 6
     assert payload["scoring"]["final_quantitative_sites_entering_scoring"] == 6
+    assert eligibility_payload["total_dataset_sites"] == 6
+    assert eligibility_payload["sequence_complete_sites"] == 6
+    assert eligibility_payload["localisation_eligible_sites"] == 6
+    assert eligibility_payload["reference_overlap_sites"] == 3
+    assert eligibility_payload["excluded_no_reference_match"] == 3
+    assert eligibility_payload["excluded_low_localisation"] == 0
+    assert eligibility_payload["eligible_kinases"] == 2
+    assert eligibility_payload["excluded_kinases_below_min_substrates"] == 0
+    assert json.loads(json.dumps(eligibility_payload)) == eligibility_payload
