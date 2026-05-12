@@ -18,6 +18,7 @@ from phospy.datasets.preprocessing.stages.site_matrix_components.metadata import
 )
 from phospy.errors.input import PhosPyInputError
 from phospy.policy_models import SiteMatrixDuplicateSitePolicy
+from phospy.sites.identity import validate_no_conflicting_identity_collisions
 
 _SITE_ID_COLUMN = "site_id"
 _AGGREGATE_DUPLICATE_SITE_POLICIES = {
@@ -134,6 +135,15 @@ class DuplicateSiteResolver:
             .size()
             .reindex(duplicate_work.loc[:, _SITE_ID_COLUMN])
             .to_numpy()
+        )
+        validate_no_conflicting_identity_collisions(
+            site_metadata=site_metadata.loc[duplicate_mask],
+            display_ids=constructed_site_id.loc[duplicate_mask],
+            field_name=(
+                "dataset build request preprocessing site-matrix duplicate-site "
+                "identity validation"
+            ),
+            error_type=PhosPyInputError,
         )
         metadata_conflicts = self._metadata_conflict_detector.detect(
             site_metadata=site_metadata.loc[duplicate_mask],

@@ -37,3 +37,4 @@ Use these ADRs when you need rationale and tradeoffs.
 | ADR-0018 | Localisation Confidence and Site-Level Eligibility Policy | Accepted | 2026-05-11 | [adr_0018_phosphosite_identity_and_localisation_policy.md](adr_0018_phosphosite_identity_and_localisation_policy.md) |
 | ADR-0019 | Experimental Design and Contrast Contract | Accepted | 2026-05-11 | [adr_0019_experimental_design_and_contrast_contract.md](adr_0019_experimental_design_and_contrast_contract.md) |
 | ADR-0020 | Peptide Evidence and Site-Level Resolution Policy | Accepted | 2026-05-12 | [adr_0020_peptide_evidence_and_site_level_resolution_policy.md](adr_0020_peptide_evidence_and_site_level_resolution_policy.md) |
+| ADR-0021 | Phosphosite Identity and Protein Context Policy | Accepted | 2026-05-12 | [adr_0021_phosphosite_identity_and_protein_context_policy.md](adr_0021_phosphosite_identity_and_protein_context_policy.md) |

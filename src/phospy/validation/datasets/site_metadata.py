@@ -11,6 +11,7 @@ import pandas as pd
 
 from phospy.api.configs.localisation import LocalisationRequirement
 from phospy.site_ids import ParsedSiteToken, try_parse_site_token
+from phospy.sites.identity import validate_identity_optional_columns
 
 ErrorType = TypeVar("ErrorType", bound=Exception)
 _PHOSPHORYLATABLE_RESIDUES = frozenset({"S", "T", "Y"})
@@ -47,6 +48,12 @@ def validate_site_identity_metadata(
     allow_opaque_site_values: bool = False,
 ) -> None:
     """Validate row-level phosphosite identity coherence metadata."""
+
+    validate_identity_optional_columns(
+        site_metadata=site_metadata,
+        field_name=field_name,
+        error_type=error_type,
+    )
 
     malformed_site_values: list[str] = []
     inconsistent_residue_rows: list[str] = []

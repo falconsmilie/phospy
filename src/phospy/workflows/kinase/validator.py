@@ -8,6 +8,7 @@ from phospy.api.requests import KinaseWorkflowRequest
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.validation import WorkflowValidationError
 from phospy.references.models import ReferenceBundle, ReferencePreset
+from phospy.sites.identity import build_phosphosite_identity
 from phospy.validation.common.dataframes import require_dataframe
 from phospy.validation.datasets.site_metadata import enforce_localisation_requirement
 from phospy.validation.workflows.configs import (
@@ -57,6 +58,25 @@ class KinaseWorkflowValidator:
             allow_empty=False,
             error_type=WorkflowValidationError,
         )
+        for site_id in site_metadata.index.tolist():
+            _ = build_phosphosite_identity(
+                display_id=site_id,
+                gene_symbol=site_metadata.at[site_id, "gene_symbol"],
+                site=site_metadata.at[site_id, "site"],
+                allow_opaque_site_values=True,
+                protein_id=(
+                    site_metadata.at[site_id, "protein_id"]
+                    if "protein_id" in site_metadata.columns
+                    else None
+                ),
+                protein_accession=(
+                    site_metadata.at[site_id, "protein_accession"]
+                    if "protein_accession" in site_metadata.columns
+                    else None
+                ),
+                field_name=f"kinase workflow request dataset.site_metadata[{site_id!r}]",
+                error_type=WorkflowValidationError,
+            )
         enforce_localisation_requirement(
             site_metadata=site_metadata,
             field_name="kinase workflow request dataset.site_metadata",

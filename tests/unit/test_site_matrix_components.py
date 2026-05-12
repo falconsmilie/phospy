@@ -552,6 +552,25 @@ def test_duplicate_site_resolver_error_policy_raises_for_duplicates() -> None:
         )
 
 
+def test_duplicate_site_resolver_rejects_conflicting_protein_identity_collisions() -> (
+    None
+):
+    phospho, site_metadata, constructed_site_id = _duplicate_policy_inputs()
+    site_metadata.loc["row_b", "protein_accession"] = "P28482-2"
+    site_metadata.loc["row_a", "protein_accession"] = "P28482-1"
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="conflicting scientific identities for duplicate display site IDs",
+    ):
+        DuplicateSiteResolver().resolve(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            constructed_site_id=constructed_site_id,
+            duplicate_site_policy=DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST,
+        )
+
+
 def test_metadata_conflict_detector_detects_distinct_values_only() -> None:
     site_metadata = pd.DataFrame(
         {

@@ -9,6 +9,7 @@ from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.api.results import KinaseWorkflowResult
 from phospy.errors.validation import WorkflowValidationError
 from phospy.prediction.scoring import select_downstream_score_matrix
+from phospy.sites.identity import build_phosphosite_identity
 from phospy.validation.common.dataframes import (
     require_dataframe,
     require_exact_index_match,
@@ -198,6 +199,25 @@ class SignalomeWorkflowValidator:
             error_type=WorkflowValidationError,
         )
         try:
+            for site_id in site_metadata_frame.index.tolist():
+                _ = build_phosphosite_identity(
+                    display_id=site_id,
+                    gene_symbol=site_metadata_frame.at[site_id, "gene_symbol"],
+                    site=site_metadata_frame.at[site_id, "site"],
+                    allow_opaque_site_values=True,
+                    protein_id=(
+                        site_metadata_frame.at[site_id, "protein_id"]
+                        if "protein_id" in site_metadata_frame.columns
+                        else None
+                    ),
+                    protein_accession=(
+                        site_metadata_frame.at[site_id, "protein_accession"]
+                        if "protein_accession" in site_metadata_frame.columns
+                        else None
+                    ),
+                    field_name=f"{field_name}[{site_id!r}]",
+                    error_type=WorkflowValidationError,
+                )
             enforce_required_non_empty_string_column(
                 site_metadata=site_metadata_frame,
                 field_name=field_name,
