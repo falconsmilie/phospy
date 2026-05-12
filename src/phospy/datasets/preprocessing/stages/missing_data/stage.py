@@ -29,7 +29,11 @@ from .audit import (
     build_minprob_audit_records,
     build_row_median_audit_records,
 )
-from .diagnostics import build_input_profile, build_missing_data_diagnostics
+from .diagnostics import (
+    build_input_profile,
+    build_missing_data_diagnostics,
+    hash_imputation_mask,
+)
 from .forbid import fail_if_forbid_policy_has_missing_values
 from .knn import run_knn_policy
 from .minprob import run_minprob_policy
@@ -97,6 +101,7 @@ def _run_forbid_policy(
             dropped_rows_above_max_missing_fraction=(),
             neighbour_count=None,
             distance_metric=None,
+            imputation_mask_hash=None,
         ),
         field_name="dataset preprocessing stage 'missing_data' diagnostics",
     )
@@ -128,6 +133,7 @@ def _run_forbid_policy(
         dropped_rows_above_max_missing_fraction=(),
         neighbour_count=None,
         distance_metric=None,
+        imputation_mask_hash=None,
     )
     return PreprocessingStageResult(
         state=state,
@@ -135,6 +141,10 @@ def _run_forbid_policy(
             dropped_row_ids=(),
             imputed_cell_count=0,
             imputed_row_ids=(),
+            notes=(
+                "missing_data policy='forbid'; complete matrix confirmed; "
+                "no imputation applied"
+            ),
             diagnostics=diagnostics,
         ),
     )
@@ -146,6 +156,10 @@ def _run_row_median_policy(
     input_profile: MissingDataInputProfile,
 ) -> PreprocessingStageResult:
     outcome = run_row_median_policy(state)
+    imputation_mask_hash = hash_imputation_mask(
+        before=state.phospho,
+        after=outcome.phospho,
+    )
     row_audit_records = build_row_median_audit_records(
         plan=state.plan,
         input_profile=input_profile,
@@ -175,11 +189,19 @@ def _run_row_median_policy(
         dropped_rows_above_max_missing_fraction=(),
         neighbour_count=None,
         distance_metric=None,
+        imputation_mask_hash=imputation_mask_hash,
     )
     return _finalize_outcome(
         state=state,
         outcome=outcome,
         row_audit_records=row_audit_records,
+        notes=_build_imputation_execution_note(
+            policy=state.plan.missing_data_policy.value,
+            imputed_cell_count=outcome.imputed_cell_count,
+            imputed_row_ids=outcome.imputed_row_ids,
+            dropped_row_ids=outcome.dropped_row_ids,
+            output_missing_cell_count=outcome.output_missing_cell_count,
+        ),
         diagnostics=diagnostics,
     )
 
@@ -190,6 +212,10 @@ def _run_knn_policy(
     input_profile: MissingDataInputProfile,
 ) -> PreprocessingStageResult:
     outcome = run_knn_policy(state)
+    imputation_mask_hash = hash_imputation_mask(
+        before=state.phospho,
+        after=outcome.phospho,
+    )
     row_audit_records = build_knn_audit_records(
         plan=state.plan,
         input_profile=input_profile,
@@ -223,11 +249,19 @@ def _run_knn_policy(
         dropped_rows_above_max_missing_fraction=outcome.dropped_row_ids,
         neighbour_count=int(outcome.k),
         distance_metric=outcome.distance,
+        imputation_mask_hash=imputation_mask_hash,
     )
     return _finalize_outcome(
         state=state,
         outcome=outcome,
         row_audit_records=row_audit_records,
+        notes=_build_imputation_execution_note(
+            policy=state.plan.missing_data_policy.value,
+            imputed_cell_count=outcome.imputed_cell_count,
+            imputed_row_ids=outcome.imputed_row_ids,
+            dropped_row_ids=outcome.dropped_row_ids,
+            output_missing_cell_count=outcome.output_missing_cell_count,
+        ),
         diagnostics=diagnostics,
     )
 
@@ -238,6 +272,10 @@ def _run_minprob_policy(
     input_profile: MissingDataInputProfile,
 ) -> PreprocessingStageResult:
     outcome = run_minprob_policy(state)
+    imputation_mask_hash = hash_imputation_mask(
+        before=state.phospho,
+        after=outcome.phospho,
+    )
     row_audit_records = build_minprob_audit_records(
         plan=state.plan,
         input_profile=input_profile,
@@ -272,11 +310,19 @@ def _run_minprob_policy(
         dropped_rows_above_max_missing_fraction=outcome.dropped_row_ids,
         neighbour_count=None,
         distance_metric=None,
+        imputation_mask_hash=imputation_mask_hash,
     )
     return _finalize_outcome(
         state=state,
         outcome=outcome,
         row_audit_records=row_audit_records,
+        notes=_build_imputation_execution_note(
+            policy=state.plan.missing_data_policy.value,
+            imputed_cell_count=outcome.imputed_cell_count,
+            imputed_row_ids=outcome.imputed_row_ids,
+            dropped_row_ids=outcome.dropped_row_ids,
+            output_missing_cell_count=outcome.output_missing_cell_count,
+        ),
         diagnostics=diagnostics,
     )
 
@@ -286,6 +332,7 @@ def _finalize_outcome(
     state: PreprocessingState,
     outcome: RowMedianPolicyOutcome | KnnPolicyOutcome | MinProbPolicyOutcome,
     row_audit_records: Sequence[PreprocessingRowAuditRow],
+    notes: str,
     diagnostics: Mapping[str, JsonValue],
 ) -> PreprocessingStageResult:
     next_state = append_row_audit_records(state, row_audit_records)
@@ -300,6 +347,7 @@ def _finalize_outcome(
             dropped_row_ids=outcome.dropped_row_ids,
             imputed_cell_count=outcome.imputed_cell_count,
             imputed_row_ids=outcome.imputed_row_ids,
+            notes=notes,
             diagnostics=diagnostics,
         ),
     )
@@ -310,6 +358,7 @@ def _stage_diagnostics_payload(
     dropped_row_ids: tuple[str, ...],
     imputed_cell_count: int,
     imputed_row_ids: tuple[str, ...],
+    notes: str,
     diagnostics: Mapping[str, JsonValue],
 ) -> dict[str, object]:
     return {
@@ -317,9 +366,26 @@ def _stage_diagnostics_payload(
         "dropped_row_count": int(len(dropped_row_ids)),
         "imputed_cell_count": int(imputed_cell_count),
         "imputed_row_ids": imputed_row_ids,
-        "notes": "stage executed",
+        "notes": notes,
         "diagnostics": diagnostics,
     }
+
+
+def _build_imputation_execution_note(
+    *,
+    policy: str,
+    imputed_cell_count: int,
+    imputed_row_ids: tuple[str, ...],
+    dropped_row_ids: tuple[str, ...],
+    output_missing_cell_count: int,
+) -> str:
+    return (
+        f"missing_data policy={policy!r}; "
+        f"imputed_cells={int(imputed_cell_count)}; "
+        f"imputed_rows={int(len(imputed_row_ids))}; "
+        f"dropped_rows={int(len(dropped_row_ids))}; "
+        f"output_missing_cells={int(output_missing_cell_count)}"
+    )
 
 
 def _resolve_operation(plan: PreprocessingPlan) -> str:

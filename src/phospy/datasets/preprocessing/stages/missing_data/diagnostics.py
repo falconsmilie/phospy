@@ -39,6 +39,21 @@ def hash_missingness_mask(mask: pd.DataFrame) -> str:
     )
 
 
+def hash_imputation_mask(
+    *,
+    before: pd.DataFrame,
+    after: pd.DataFrame,
+) -> str:
+    """Return stable fingerprint for observed-vs-imputed cell transitions."""
+
+    aligned_before = before.reindex(index=after.index, columns=after.columns)
+    imputation_mask = aligned_before.isna() & after.notna()
+    return hash_table(
+        imputation_mask.astype("int8"),
+        name="missing_data.imputation_mask",
+    )
+
+
 def label_preview(values: list[object], *, max_items: int = 3) -> str:
     """Render a bounded preview of labels for human-facing error messages."""
 
@@ -76,6 +91,7 @@ def build_missing_data_diagnostics(
     dropped_rows_above_max_missing_fraction: tuple[str, ...],
     neighbour_count: int | None,
     distance_metric: str | None,
+    imputation_mask_hash: str | None,
 ) -> dict[str, JsonValue]:
     diagnostics: dict[str, JsonValue] = {
         "diagnostics_schema_version": MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
@@ -92,6 +108,9 @@ def build_missing_data_diagnostics(
         "imputed_row_ids": list(imputed_row_ids),
         "imputed_column_ids": list(imputed_column_ids),
         "dropped_row_ids": list(dropped_row_ids),
+        "imputed_row_count": int(len(imputed_row_ids)),
+        "imputed_column_count": int(len(imputed_column_ids)),
+        "dropped_row_count": int(len(dropped_row_ids)),
         "random_seed": random_seed,
         "method_parameters": dict(method_parameters),
         "matrix_scale_requirement": matrix_scale_requirement,
@@ -109,6 +128,8 @@ def build_missing_data_diagnostics(
         "neighbour_count": neighbour_count,
         "distance_metric": distance_metric,
     }
+    if imputation_mask_hash is not None:
+        diagnostics["imputation_mask_hash"] = str(imputation_mask_hash)
     if per_column_distribution_parameters is not None:
         per_column_distribution_payload: dict[str, JsonValue] = {
             str(column_name): dict(parameters)

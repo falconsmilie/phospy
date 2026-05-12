@@ -81,6 +81,7 @@ contract model.
 `DatasetProcessingState` answers:
 - Which preprocessing-policy state crossed the analysis-ready boundary?
 - Was imputation applied?
+- Which imputation method/assumptions were used and on which cells/rows?
 - Was total-protein correction applied?
 - Was a site matrix constructed?
 - How were comparisons configured?
@@ -139,6 +140,8 @@ Validation domain responsibilities include:
   `dataset.processing_state.intensity_scale`
 - strict analysis-ready guardrails (for example complete-matrix expectation at
   the public dataset boundary)
+- missing-data/imputation compatibility checks against intensity-scale
+  assumptions (for example MinProb requiring log2-scale state)
 
 ## Bundle and Publisher Contract
 

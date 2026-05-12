@@ -8,7 +8,11 @@ import json
 
 import numpy as np
 
-from phospy.datasets.preprocessing.models import PreprocessingState
+from phospy.datasets.preprocessing.models import (
+    DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
+    DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+    PreprocessingState,
+)
 from phospy.datasets.processing_state import JsonValue
 from phospy.errors.input import PhosPyInputError
 from phospy.policy_models import IntensityTransformPolicy
@@ -87,6 +91,20 @@ def run_minprob_policy(state: PreprocessingState) -> MinProbPolicyOutcome:
             "'impute_minprob' requires log2-scale values. Configure "
             "preprocessing_config.intensity_transform.policy='log2'."
         )
+    stage_order = tuple(state.plan.stage_order)
+    if DATASET_PREPROCESSING_STAGE_MISSING_DATA in stage_order:
+        missing_data_index = stage_order.index(DATASET_PREPROCESSING_STAGE_MISSING_DATA)
+        if (
+            DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM
+            not in stage_order[:missing_data_index]
+        ):
+            raise PhosPyInputError(
+                "dataset preprocessing stage 'missing_data' cannot apply "
+                "missing_data.policy='impute_minprob' because the preprocessing "
+                "plan stage_order is incompatible with minprob intensity-state "
+                "requirements. missing_data must run after intensity_transform "
+                "(log2)."
+            )
 
     q = state.plan.missing_data_q
     width = state.plan.missing_data_width

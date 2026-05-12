@@ -66,6 +66,8 @@ PhosPy test categories remain:
    - policy versions
    - seed strategy where stochastic behavior is used
    - score-preconditioning policy where applicable
+   - missing-data imputation summaries (method, parameters, affected counts,
+     rows removed, final missing count, and intensity-scale assumptions)
 5. Fixture updates require intentional review because they may represent
    scientific-output changes.
 6. Parity tests and golden tests have different purposes and must not be merged
@@ -142,6 +144,8 @@ Future changes must satisfy all the following:
 3. Are provenance golden fields still reproducibility/audit critical?
 4. If performance contracts changed, were both docs and thresholds updated?
 5. Is release-gate semantics preserved (not default local, not manual-only)?
+6. For stochastic preprocessing methods, are seed and imputation provenance
+   fields explicitly tested?
 
 ## References
 

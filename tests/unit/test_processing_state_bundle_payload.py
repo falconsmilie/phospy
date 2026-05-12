@@ -550,6 +550,7 @@ def test_missing_data_diagnostics_json_round_trip_stays_stable() -> None:
         "method_parameters": {"min_observed_values": 1},
         "stage_order": ["missing_data"],
         "missingness_mask_hash": "mask-hash",
+        "imputation_mask_hash": "imputation-mask-hash",
         "rows_not_imputable": [],
     }
 
@@ -602,6 +603,7 @@ def test_processing_state_payload_round_trip_preserves_missing_data_diagnostics(
         "matrix_scale_requirement": None,
         "stage_order": ["missing_data"],
         "missingness_mask_hash": "abc123",
+        "imputation_mask_hash": "imputation-mask-hash",
         "left_censored_assumption": False,
         "rows_not_imputable": [],
         "row_medians_used": {"row_a": 1.25},
@@ -688,6 +690,7 @@ def test_processing_state_payload_missing_data_diagnostics_defaults_row_medians_
         "matrix_scale_requirement": None,
         "stage_order": ["missing_data"],
         "missingness_mask_hash": "legacy-mask-hash",
+        "imputation_mask_hash": "legacy-imputation-mask-hash",
         "left_censored_assumption": False,
         "rows_not_imputable": [],
         "dropped_rows_above_max_missing_fraction": [],

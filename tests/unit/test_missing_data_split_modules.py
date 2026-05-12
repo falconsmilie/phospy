@@ -267,6 +267,7 @@ def test_diagnostics_builder_supports_each_policy_shape() -> None:
         dropped_rows_above_max_missing_fraction=(),
         neighbour_count=None,
         distance_metric=None,
+        imputation_mask_hash=None,
     )
 
     assert diagnostics["missing_data_policy"] == "impute_row_median"

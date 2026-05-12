@@ -14,6 +14,10 @@ This ADR defines governance for stochastic behavior in adaptive kinase
 prediction, including explicit seed requirements, policy metadata provenance,
 and replayability expectations.
 
+This governance also applies to stochastic dataset preprocessing methods (for
+example MinProb missing-data imputation): seed and policy assumptions must be
+explicitly recorded for scientific replayability.
+
 ## Status
 
 Accepted.
@@ -52,6 +56,8 @@ as scientific-output policy.
 3. Policy version changes must be treated as scientific-output changes.
 4. Parity mode exists for parity testing, not as the default recommendation.
 5. Golden/provenance tests must cover seed and policy metadata.
+6. Stochastic imputation paths must serialize seed, method parameters, and
+   imputation summary diagnostics.
 
 ## Affected Modules
 

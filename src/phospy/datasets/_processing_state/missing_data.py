@@ -18,6 +18,7 @@ from .json_contracts import (
     require_optional_bool,
     require_optional_int,
     require_optional_json_mapping,
+    require_optional_non_negative_int,
     require_optional_str,
     require_optional_string_to_float_mapping,
     require_optional_string_tuple,
@@ -70,6 +71,10 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
     missingness_mask_hash: str
     rows_not_imputable: tuple[str, ...]
     row_medians_used: dict[str, float] = field(default_factory=dict)
+    imputed_row_count: int | None = None
+    imputed_column_count: int | None = None
+    dropped_row_count: int | None = None
+    imputation_mask_hash: str | None = None
     imputation_method_id: str | None = None
     imputation_method_family: str | None = None
     random_seed: int | None = None
@@ -176,6 +181,18 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
                 payload.get("dropped_row_ids"),
                 field_name=f"{field_name}.dropped_row_ids",
             ),
+            imputed_row_count=require_optional_non_negative_int(
+                payload.get("imputed_row_count"),
+                field_name=f"{field_name}.imputed_row_count",
+            ),
+            imputed_column_count=require_optional_non_negative_int(
+                payload.get("imputed_column_count"),
+                field_name=f"{field_name}.imputed_column_count",
+            ),
+            dropped_row_count=require_optional_non_negative_int(
+                payload.get("dropped_row_count"),
+                field_name=f"{field_name}.dropped_row_count",
+            ),
             random_seed=require_optional_int(
                 payload.get("random_seed"),
                 field_name=f"{field_name}.random_seed",
@@ -195,6 +212,10 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
             missingness_mask_hash=require_required_str(
                 payload.get("missingness_mask_hash"),
                 field_name=f"{field_name}.missingness_mask_hash",
+            ),
+            imputation_mask_hash=require_optional_str(
+                payload.get("imputation_mask_hash"),
+                field_name=f"{field_name}.imputation_mask_hash",
             ),
             left_censored_assumption=require_optional_bool(
                 payload.get("left_censored_assumption"),
@@ -292,6 +313,20 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
             self.dropped_row_ids,
             field_name="dataset processing state missing_data.diagnostics.dropped_row_ids",
         )
+        imputed_row_count = require_optional_non_negative_int(
+            self.imputed_row_count,
+            field_name="dataset processing state missing_data.diagnostics.imputed_row_count",
+        )
+        imputed_column_count = require_optional_non_negative_int(
+            self.imputed_column_count,
+            field_name=(
+                "dataset processing state missing_data.diagnostics.imputed_column_count"
+            ),
+        )
+        dropped_row_count = require_optional_non_negative_int(
+            self.dropped_row_count,
+            field_name="dataset processing state missing_data.diagnostics.dropped_row_count",
+        )
         random_seed = require_optional_int(
             self.random_seed,
             field_name="dataset processing state missing_data.diagnostics.random_seed",
@@ -311,6 +346,10 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
         missingness_mask_hash = require_required_str(
             self.missingness_mask_hash,
             field_name="dataset processing state missing_data.diagnostics.missingness_mask_hash",
+        )
+        imputation_mask_hash = require_optional_str(
+            self.imputation_mask_hash,
+            field_name="dataset processing state missing_data.diagnostics.imputation_mask_hash",
         )
         left_censored_assumption = require_optional_bool(
             self.left_censored_assumption,
@@ -352,6 +391,35 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
                 "dataset processing state missing_data.diagnostics."
                 "neighbour_count must be >= 1"
             )
+        if imputed_row_count is not None and imputed_row_count != int(
+            len(imputed_row_ids)
+        ):
+            raise PhosPyInputError(
+                "dataset processing state missing_data.diagnostics.imputed_row_count "
+                "must match len(imputed_row_ids)"
+            )
+        if imputed_column_count is not None and imputed_column_count != int(
+            len(imputed_column_ids)
+        ):
+            raise PhosPyInputError(
+                "dataset processing state missing_data.diagnostics."
+                "imputed_column_count must match len(imputed_column_ids)"
+            )
+        if dropped_row_count is not None and dropped_row_count != int(
+            len(dropped_row_ids)
+        ):
+            raise PhosPyInputError(
+                "dataset processing state missing_data.diagnostics.dropped_row_count "
+                "must match len(dropped_row_ids)"
+            )
+        if (
+            imputation_method_id in {"row_median", "knn", "minprob"}
+            and imputation_mask_hash is None
+        ):
+            raise PhosPyInputError(
+                "dataset processing state missing_data.diagnostics."
+                "imputation_mask_hash is required for imputation methods"
+            )
         distance_metric = require_optional_str(
             self.distance_metric,
             field_name="dataset processing state missing_data.diagnostics.distance_metric",
@@ -375,6 +443,11 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
             "rows_not_imputable": list(rows_not_imputable),
             "row_medians_used": dict(row_medians_used),
         }
+        set_optional_payload_value(payload, "imputed_row_count", imputed_row_count)
+        set_optional_payload_value(
+            payload, "imputed_column_count", imputed_column_count
+        )
+        set_optional_payload_value(payload, "dropped_row_count", dropped_row_count)
         set_optional_payload_value(
             payload, "imputation_method_id", imputation_method_id
         )
@@ -387,6 +460,11 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
         )
         set_optional_payload_value(
             payload, "left_censored_assumption", left_censored_assumption
+        )
+        set_optional_payload_value(
+            payload,
+            "imputation_mask_hash",
+            imputation_mask_hash,
         )
         if per_column_distribution_parameters is not None:
             payload["per_column_distribution_parameters"] = dict(
@@ -412,11 +490,15 @@ class MissingDataDiagnosticsV1(MissingDataDiagnostics):
         object.__setattr__(self, "imputed_row_ids", imputed_row_ids)
         object.__setattr__(self, "imputed_column_ids", imputed_column_ids)
         object.__setattr__(self, "dropped_row_ids", dropped_row_ids)
+        object.__setattr__(self, "imputed_row_count", imputed_row_count)
+        object.__setattr__(self, "imputed_column_count", imputed_column_count)
+        object.__setattr__(self, "dropped_row_count", dropped_row_count)
         object.__setattr__(self, "random_seed", random_seed)
         object.__setattr__(self, "method_parameters", dict(method_parameters))
         object.__setattr__(self, "matrix_scale_requirement", matrix_scale_requirement)
         object.__setattr__(self, "stage_order", stage_order)
         object.__setattr__(self, "missingness_mask_hash", missingness_mask_hash)
+        object.__setattr__(self, "imputation_mask_hash", imputation_mask_hash)
         object.__setattr__(self, "left_censored_assumption", left_censored_assumption)
         object.__setattr__(self, "rows_not_imputable", rows_not_imputable)
         object.__setattr__(self, "row_medians_used", dict(row_medians_used))
