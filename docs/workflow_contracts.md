@@ -3,7 +3,7 @@
 This page gives scientist-facing contracts for each public workflow lane:
 
 1. `AnalysisReadyDatasetBuilder`
-2. `DifferentialAnalysisWorkflow`
+2. `DifferentialAnalysis`
 3. `KinaseWorkflow`
 4. `SignalomeWorkflow`
 
@@ -102,7 +102,7 @@ identical numeric outputs across different machines or dependency builds.
 - optional `dataset.sample_metadata`, `dataset.total`, `dataset.comparisons`
 - optional preprocessing report tables (`row_counts`, `operations`, `row_audit`, and sidecars)
 
-## DifferentialAnalysisWorkflow Contract
+## DifferentialAnalysis Contract
 
 ### Required Input Tables
 
@@ -113,7 +113,7 @@ identical numeric outputs across different machines or dependency builds.
 
 ### Experimental-Design Contract Policy
 
-- Differential workflows do not infer conditions from sample names.
+- Differential analysis does not infer conditions from sample names.
 - Sample/design alignment is validated before statistical execution.
 - By default, dataset and design must reference the same sample set.
 - `allow_design_subset=True` is the only supported path to analyze an explicit

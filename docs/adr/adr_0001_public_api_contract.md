@@ -25,8 +25,8 @@ This ADR supersedes earlier narrower descriptions of the public contract.
 
 The codebase now exposes:
 
-- a minimal top-level convenience namespace (`phospy`)
-- a broader stable public namespace (`phospy.api`)
+- a governed top-level public workflow namespace (`phospy`)
+- a broader stable contract namespace (`phospy.api`)
 - grouped configuration objects by user intent rather than one flat config
   surface
 
@@ -45,15 +45,16 @@ redefine the public contract through internal modules and compatibility shims.
 
 ### Public Namespace Ownership
 
-1. phospy remains the minimal top-level convenience API.
-2. phospy.api is the broader stable public API namespace.
-3. `phospy` continues to expose only core entrypoints:
+1. `phospy` is a first-class public workflow namespace.
+2. `phospy.api` is a broader public contract namespace for request/result/config
+   models, enums, references, and exceptions.
+3. `phospy` exposes core workflow entrypoints:
    `AnalysisReadyDatasetBuilder`, `AnalysisReadyPhosphoDataset`,
-   `KinaseWorkflow`, and `SignalomeWorkflow`.
-4. Public contract types (requests, results, configs, enums, references,
-   public exceptions) are owned under `phospy.api`.
-5. Internal modules remain non-public unless explicitly re-exported from
-   `phospy.api`.
+   `KinaseWorkflow`, `SignalomeWorkflow`, and `DifferentialAnalysis`.
+4. `DifferentialAnalysis` is intentionally exported from top-level `phospy`.
+   `phospy.api` is not the supported import route for this entrypoint.
+5. Internal modules remain non-public unless explicitly re-exported from an
+   approved public namespace.
 
 ### Public API Structure
 
@@ -67,7 +68,8 @@ types such as:
   `KinaseWorkflow`
 - Differential lane: `DifferentialAnalysisRequest`,
   `DifferentialAnalysisResult`, `EmpiricalBayesConfig`,
-  `MultipleTestingConfig`, `DifferentialAnalysisWorkflow`
+  `MultipleTestingConfig`, `DifferentialAnalysis`,
+  `DifferentialAnalysisWorkflow`
 - Signalome lane: `SignalomeWorkflowRequest`, `SignalomeWorkflowResult`,
   `SignalomeConfig`, `SignalomeScientificConfig`,
   `SignalomeClusteringConfig`, `SignalomeValidationConfig`,
@@ -76,6 +78,18 @@ types such as:
   public exception families re-exported through `phospy.api`
 
 This list is intentionally representative rather than an exhaustive import dump.
+
+### DifferentialAnalysis Compatibility Expectations
+
+For `DifferentialAnalysis`, public compatibility includes:
+
+1. top-level import path stability (`from phospy import DifferentialAnalysis`)
+2. stable request/config contract shape (`run(request)`)
+3. stable documented result object behavior and fields
+4. stable documented error behavior for invalid design/contrast inputs
+5. public README/API examples kept in sync with tests
+
+`from phospy.api import DifferentialAnalysis` is not a supported public route.
 
 ### Grouped Public Configuration Governance
 
@@ -140,11 +154,14 @@ details (covered by ADR-0007, ADR-0010, ADR-0014, ADR-0016, and ADR-0017).
 
 Future changes must satisfy all of the following:
 
-1. `phospy` remains minimal convenience API.
-2. `phospy.api` remains the stable broader public namespace.
-3. New public presets encode concrete behavior and still pass validation.
-4. Internal modules are not treated as public unless re-exported intentionally.
-5. Public API changes are reviewed as contract changes, not incidental refactors.
+1. `phospy` remains the governed top-level public workflow namespace.
+2. `phospy` keeps the governed top-level workflow entrypoints, including
+   `DifferentialAnalysis`.
+3. `phospy.api` remains the stable broader public namespace and is not required
+   to mirror every top-level entrypoint.
+4. New public presets encode concrete behavior and still pass validation.
+5. Internal modules are not treated as public unless re-exported intentionally.
+6. Public API changes are reviewed as contract changes, not incidental refactors.
 
 ## References
 

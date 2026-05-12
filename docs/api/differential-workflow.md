@@ -1,16 +1,23 @@
 # Differential Workflow
 
-This page explains the differential workflow API. Differential analysis is a
-first-class downstream workflow over `AnalysisReadyPhosphoDataset`.
+This page explains the public differential workflow API.
 
 ## Purpose
 
-`DifferentialAnalysisWorkflow` runs moderated differential analysis from an
-analysis-ready phosphosite matrix plus an explicit, typed experimental design
-contract and typed contrast definitions.
+`DifferentialAnalysisWorkflow` is a first-class PhosPy workflow entrypoint
+exposed from top-level `phospy`. It runs moderated differential analysis from an
+`AnalysisReadyPhosphoDataset` plus explicit experimental design and contrast
+definitions.
 
-It is separate from kinase and signalome workflows. Differential results can be
-consumed by downstream workflows where explicitly supported.
+The supported public import route is:
+
+```python
+from phospy import DifferentialAnalysisWorkflow
+```
+
+`from phospy.api import DifferentialAnalysis` is not a supported public route.
+
+Differential analysis is separate from kinase and signalome workflows.
 
 ```python
 differential_result = DifferentialAnalysisWorkflow().run(
@@ -28,7 +35,6 @@ differential_result = DifferentialAnalysisWorkflow().run(
 from phospy.api import (
     Contrast,
     DifferentialAnalysisRequest,
-    DifferentialAnalysisWorkflow,
     EmpiricalBayesConfig,
     ExperimentalDesign,
     MultipleTestingConfig,
@@ -36,17 +42,58 @@ from phospy.api import (
 )
 ```
 
-## Request Parameters
+## Input Contract
 
-| Parameter | Type | Default | Required | How to Use It |
-| --- | --- | --- | --- | --- |
-| `dataset` | `AnalysisReadyPhosphoDataset` | None | Yes | Dataset returned by `AnalysisReadyDatasetBuilder.run(...)`. Differential analysis consumes `dataset.phospho` as the quantitative matrix. |
-| `design` | `ExperimentalDesign` | None | Yes | Typed sample-level design records (`sample_id`, `condition`, and optional replicate/batch/block fields). |
-| `contrasts` | `tuple[Contrast, ...]` | None | Yes | Typed condition-vs-condition contrasts. |
-| `allow_design_subset` | `bool` | `False` | No | If `True`, design sample IDs may be a strict subset of dataset samples. |
-| `minimum_condition_replicates` | `int` | `2` | No | Minimum required replicate count per contrast condition. |
-| `empirical_bayes` | `EmpiricalBayesConfig` | `EmpiricalBayesConfig()` | No | Moderation policy (`standard` or `robust`) and optional trend settings. |
-| `multiple_testing` | `MultipleTestingConfig` | `MultipleTestingConfig(method="benjamini_hochberg")` | No | Multiple-testing adjustment policy. Current release supports Benjamini-Hochberg. |
+`DifferentialAnalysisWorkflow.run(...)` accepts `DifferentialAnalysisRequest`.
+
+Required inputs:
+
+- `dataset`: `AnalysisReadyPhosphoDataset`
+- `design`: `ExperimentalDesign`
+- `contrasts`: `tuple[Contrast, ...]`
+
+Optional inputs:
+
+- `allow_design_subset` (`False` by default)
+- `minimum_condition_replicates` (`2` by default)
+- `empirical_bayes` (`EmpiricalBayesConfig()` by default)
+- `multiple_testing` (`MultipleTestingConfig()` by default)
+
+### Matrix Shape Expectations
+
+- `dataset.phospho` must be a numeric phosphosite-by-sample matrix.
+- Rows are phosphosite features (site IDs); columns are sample IDs.
+- Values are expected to be finite and analysis-ready (no hidden preprocessing
+  is run inside the differential workflow).
+
+### Design Matrix Expectations
+
+- `ExperimentalDesign.samples[].sample_id` must align to dataset sample IDs.
+- `condition` labels are required and cannot be empty.
+- Duplicate `sample_id` values are rejected.
+- By default, all dataset samples must appear in the design.
+- With `allow_design_subset=True`, design may define a strict sample subset.
+
+### Contrast Expectations
+
+- Contrasts are explicit condition-vs-condition definitions (`numerator` and
+  `denominator`).
+- Contrast conditions must exist in the design.
+- Minimum replicate requirements are enforced per condition.
+- Invalid contrast definitions fail before statistical execution.
+
+### Sample Alignment Rules
+
+- Alignment is label-based on sample IDs, not positional.
+- Reordered sample columns are allowed when labels remain consistent.
+- Design/sample mismatch fails with explicit validation errors.
+
+### Intensity Scale and Missing Values
+
+- Differential analysis assumes valid upstream preprocessing.
+- It does not build datasets, perform sequence resolution, localisation
+  filtering, imputation, normalisation, or batch correction.
+- Missing-value policy is inherited from the analysis-ready dataset boundary.
 
 ## Design and Contrast Requirements
 
@@ -72,8 +119,9 @@ from phospy.api import (
 
 ## Public Workflow Shape
 
-`DifferentialAnalysisWorkflow` follows the same public stage pattern as other
-workflows:
+`DifferentialAnalysisWorkflow` is a thin public shell. Internal execution
+follows the
+same stage pattern as other PhosPy workflows:
 
 1. `validated = validator.run(request)`
 2. `interpreted = interpreter.run(validated)`
@@ -96,15 +144,47 @@ Common outputs include:
 - `result.prior_diagnostics`
 - `result.mean_variance_trend_diagnostics` (when trend is enabled)
 
+Each contrast result table is row-aligned to the input site IDs.
+
+### Statistical Method and Multiple Testing
+
+- Effect estimates are OLS contrast estimates (`logFC`).
+- Test statistics are moderated t-statistics (`t`) using empirical-Bayes
+  variance moderation.
+- Raw p-values are reported in `P.Value`.
+- Multiple-testing-adjusted p-values are reported in `adj.P.Val`.
+- Current multiple-testing policy supports Benjamini-Hochberg adjustment.
+
+### Result Structure and Metadata
+
+- Per-contrast result tables (`result.table_for(contrast_name)`)
+- Prior diagnostics (`result.prior_diagnostics`)
+- Method metadata:
+  - `result.empirical_bayes_method`
+  - `result.empirical_bayes_robust`
+  - `result.empirical_bayes_trend`
+- Trend diagnostics when enabled (`result.mean_variance_trend_diagnostics`)
+
+## Limitations and Non-goals
+
+- Assumes valid upstream preprocessing and quantitative inputs.
+- Assumes valid design matrix, contrast definitions, and replicate structure.
+- Does not resolve peptide/site ambiguity.
+- Does not perform localisation filtering unless explicitly implemented upstream.
+- Does not perform missing-value imputation unless explicitly implemented
+  upstream.
+- Does not perform batch correction unless explicitly implemented upstream.
+- Statistical interpretation depends on design, contrast specification, and
+  replicate structure.
+
 ## Minimal Example
 
 ```python
-from phospy import AnalysisReadyDatasetBuilder
+from phospy import AnalysisReadyDatasetBuilder, DifferentialAnalysisWorkflow
 from phospy.api import (
     Contrast,
     DatasetBuildRequest,
     DifferentialAnalysisRequest,
-    DifferentialAnalysisWorkflow,
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,

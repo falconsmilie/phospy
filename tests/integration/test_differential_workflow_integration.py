@@ -3,11 +3,10 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyPhosphoDataset
+from phospy import AnalysisReadyPhosphoDataset, DifferentialAnalysisWorkflow
 from phospy.api import (
     Contrast,
     DifferentialAnalysisRequest,
-    DifferentialAnalysisWorkflow,
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,

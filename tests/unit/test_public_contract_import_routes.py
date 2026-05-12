@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 import phospy
 import phospy.api as public_api
 import phospy.signalomes as public_signalomes
@@ -8,6 +10,7 @@ import phospy.signalomes.clustering as signalome_clustering
 TOP_LEVEL_CONVENIENCE_SURFACE = {
     "AnalysisReadyDatasetBuilder",
     "AnalysisReadyPhosphoDataset",
+    "DifferentialAnalysisWorkflow",
     "KinaseWorkflow",
     "SignalomeWorkflow",
 }
@@ -38,6 +41,11 @@ def test_top_level_package_exports_only_curated_convenience_surface() -> None:
     for exported in API_ONLY_CONTRACT_TYPES:
         assert exported in public_api.__all__
         assert exported not in phospy.__all__
+
+
+def test_differential_analysis_is_not_supported_from_phospy_api_namespace() -> None:
+    with pytest.raises(ImportError):
+        exec("from phospy.api import DifferentialAnalysis")
 
 
 def test_build_cluster_tree_not_exported_from_signalome_public_api() -> None:

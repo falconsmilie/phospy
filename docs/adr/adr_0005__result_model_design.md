@@ -95,6 +95,29 @@ Result models should not grow broad families of near-duplicate accessors purely 
 
 ## Public Workflow Results
 
+### Differential Analysis Result
+
+The public `DifferentialAnalysisResult` is a data contract for moderated
+contrast outputs. It should expose:
+
+- per-site contrast/effect estimate (for example `logFC`)
+- test statistic when produced (for example moderated `t`)
+- raw p-value
+- adjusted p-value
+- statistical method metadata
+- contrast metadata
+- design metadata or a design fingerprint where appropriate
+- provenance sufficient to interpret the statistical output
+
+Result models must remain data contracts. They must not:
+
+- run additional statistics
+- mutate design matrices
+- mutate contrasts
+- perform hidden filtering
+- perform hidden imputation
+- perform hidden normalisation
+
 ### Kinase Workflow Result
 
 The public `KinaseWorkflowResult` should contain:

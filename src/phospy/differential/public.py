@@ -1,4 +1,4 @@
-"""Compatibility wrapper for differential workflow execution."""
+"""Public differential-analysis entrypoint."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from phospy.workflows.differential.public import DifferentialAnalysisWorkflow
 
 
 class DifferentialAnalysis:
-    """Compatibility alias for `DifferentialAnalysisWorkflow`."""
+    """Thin public shell for differential workflow execution."""
 
     def __init__(
         self,

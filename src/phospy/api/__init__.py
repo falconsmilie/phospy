@@ -1,7 +1,8 @@
 """Authoritative namespace for the supported PhosPy public contract.
 
 `phospy.api` owns the supported package contract: requests, configs, results,
-workflows, dataset/reference entrypoints, and public exception types.
+dataset/reference entrypoints, selected workflow types, and public exception
+types.
 """
 
 from phospy.api.builders import AnalysisReadyDatasetBuilder

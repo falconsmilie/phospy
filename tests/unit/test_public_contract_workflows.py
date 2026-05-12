@@ -8,7 +8,7 @@ import pytest
 import phospy
 import phospy.api.requests as request_models
 import phospy.api.workflows as workflow_models
-from phospy import KinaseWorkflow, SignalomeWorkflow
+from phospy import DifferentialAnalysisWorkflow, KinaseWorkflow, SignalomeWorkflow
 from phospy.api.configs import (
     KinaseScoringConfig,
     SignalomeConfig,
@@ -29,7 +29,6 @@ from phospy.api.results import (
     KinaseWorkflowResult,
     SignalomeWorkflowResult,
 )
-from phospy.api.workflows import DifferentialAnalysisWorkflow
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import WorkflowValidationError
 
@@ -61,7 +60,11 @@ def test_public_workflow_and_request_exports_match_contract() -> None:
         "KinaseWorkflow",
         "SignalomeWorkflow",
     }
-    assert {"KinaseWorkflow", "SignalomeWorkflow"}.issubset(set(phospy.__all__))
+    assert {
+        "DifferentialAnalysisWorkflow",
+        "KinaseWorkflow",
+        "SignalomeWorkflow",
+    }.issubset(set(phospy.__all__))
     assert "KinaseWorkflowRequest" not in phospy.__all__
     assert "SignalomeWorkflowRequest" not in phospy.__all__
     assert "KinaseWorkflowResult" not in phospy.__all__
@@ -83,9 +86,12 @@ def test_public_workflows_expose_run_only() -> None:
 
 
 def test_workflow_run_type_contracts_are_request_to_result() -> None:
+    differential_top_level_hints = get_type_hints(DifferentialAnalysisWorkflow.run)
     differential_hints = get_type_hints(DifferentialAnalysisWorkflow.run)
     kinase_hints = get_type_hints(KinaseWorkflow.run)
     signalome_hints = get_type_hints(SignalomeWorkflow.run)
+    assert differential_top_level_hints["request"] is DifferentialAnalysisRequest
+    assert differential_top_level_hints["return"] is DifferentialAnalysisResult
     assert differential_hints["request"] is DifferentialAnalysisRequest
     assert differential_hints["return"] is DifferentialAnalysisResult
     assert kinase_hints["request"] is KinaseWorkflowRequest

@@ -72,12 +72,21 @@ PhosPy site IDs such as `TSC2;S939;`.
 ```python
 import pandas as pd
 
-from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow, SignalomeWorkflow
+from phospy import (
+    AnalysisReadyDatasetBuilder,
+    DifferentialAnalysis,
+    KinaseWorkflow,
+    SignalomeWorkflow,
+)
 from phospy.api import (
+    Contrast,
     DatasetBuildRequest,
+    DifferentialAnalysisRequest,
+    ExperimentalDesign,
     KinaseWorkflowRequest,
     Organism,
     ReferencePreset,
+    SampleDesignRecord,
     SignalomeWorkflowRequest,
 )
 
@@ -122,7 +131,31 @@ signalome_result = SignalomeWorkflow().run(
     SignalomeWorkflowRequest(kinase_result=kinase_result)
 )
 
+design = ExperimentalDesign(
+    samples=(
+        SampleDesignRecord(sample_id="sample_a", condition="A"),
+        SampleDesignRecord(sample_id="sample_b", condition="A"),
+        SampleDesignRecord(sample_id="sample_c", condition="B"),
+    )
+)
+contrasts = (
+    Contrast(
+        name="B_vs_A",
+        numerator_condition="B",
+        denominator_condition="A",
+    ),
+)
+differential_result = DifferentialAnalysis().run(
+    DifferentialAnalysisRequest(
+        dataset=dataset,
+        design=design,
+        contrasts=contrasts,
+        minimum_condition_replicates=1,
+    )
+)
+
 print(dataset.phospho.shape)
+print(differential_result.table_for("B_vs_A").round(4))
 print(kinase_result.prediction_result.pred_mat.round(4))
 print(signalome_result.signalome_modules.table)
 ```
@@ -148,11 +181,11 @@ paths written.
 
 ## Import Contract
 
-Use top-level `phospy` for the four main entrypoints only:
+Use top-level `phospy` for the five main entrypoints:
 
 ```python
 from phospy import AnalysisReadyDatasetBuilder, AnalysisReadyPhosphoDataset
-from phospy import KinaseWorkflow, SignalomeWorkflow
+from phospy import DifferentialAnalysis, KinaseWorkflow, SignalomeWorkflow
 ```
 
 Use `phospy.api` for requests, configs, results, enums, references, and public
