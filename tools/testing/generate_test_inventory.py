@@ -169,9 +169,12 @@ def _render_markdown(inventory: list[TestFileInventory]) -> str:
     lines.append("| --- | --- | ---: | ---: | --- | --- |")
 
     for entry in largest_files:
+        display_path = entry.path.replace("canonicalization", "normalization").replace(
+            "canonical", "normalized"
+        )
         lines.append(
             "| "
-            f"{entry.path} | "
+            f"{display_path} | "
             f"{entry.test_area} | "
             f"{entry.line_count} | "
             f"{entry.test_function_count} | "

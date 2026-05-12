@@ -14,7 +14,7 @@ from tests.support.performance_contracts import (
     measure_runtime_and_peak_mib,
 )
 
-pytestmark = pytest.mark.performance
+pytestmark = [pytest.mark.performance, pytest.mark.release_gate]
 
 
 def _build_signalome_scoring_matrix(*, n_sites: int, n_kinases: int) -> pd.DataFrame:

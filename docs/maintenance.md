@@ -15,6 +15,15 @@ For CI-aligned dependency resolution:
 pip install -c constraints/ci.txt -e ".[dev,test]"
 ```
 
+For full release-gate validation (includes reproducibility/golden and performance):
+
+```bash
+pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
+```
+
+If `make test-release-gate` fails with import errors for optional engines, install
+the optional extras above and rerun.
+
 ## Common Checks
 
 ```bash
@@ -37,6 +46,15 @@ paths change:
 ```bash
 pytest tests/performance -m performance
 ```
+
+Run full scientific release validation before tagging a release:
+
+```bash
+make test-release-gate
+```
+
+The publish pipeline (`.github/workflows/publish.yml`) runs this same release
+gate before building and uploading tagged distributions.
 
 ## Type Checking
 

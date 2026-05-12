@@ -998,6 +998,9 @@ def test_motif_library_build_is_limited_to_profile_eligible_kinases(
     assert list(result.scoring_result.motif_scores.columns) == ["K_ELIGIBLE"]
 
 
+@pytest.mark.reproducibility
+@pytest.mark.golden
+@pytest.mark.release_gate
 def test_kinase_public_predmat_provenance_matches_golden_contract() -> None:
     input_phospho = load_public_predmat_input_phospho()
     site_sequences = load_public_predmat_input_site_sequences()

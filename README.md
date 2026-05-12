@@ -43,6 +43,14 @@ pip install -c constraints/ci.txt -e ".[dev,test]"
 pytest tests/parity -m parity -s
 ```
 
+For full release-gate validation (unit/integration, reproducibility goldens,
+parity, and performance):
+
+```bash
+pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
+make test-release-gate
+```
+
 ## Beginner Lane
 
 The smallest supported public lanes are:

@@ -90,7 +90,7 @@ from tests.support.performance_contracts import (
 )
 from tests.support.signalome_config import build_signalome_config
 
-pytestmark = pytest.mark.performance
+pytestmark = [pytest.mark.performance, pytest.mark.release_gate]
 
 APPROXIMATION_REASON_TOKEN = "Used sampled within-cluster correlation estimates"
 

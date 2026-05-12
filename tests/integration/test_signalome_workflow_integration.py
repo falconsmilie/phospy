@@ -618,6 +618,9 @@ def test_signalome_workflow_rejects_sparse_missing_rank_weighted_fusion_rows_und
     assert "score_preconditioning_policy=error_on_drop" in message
 
 
+@pytest.mark.reproducibility
+@pytest.mark.golden
+@pytest.mark.release_gate
 def test_signalome_l6_provenance_matches_golden_contract() -> None:
     dataset = build_rat_l6_dataset(n_sites=260)
     kinase_result = KinaseWorkflow().run(

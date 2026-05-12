@@ -51,6 +51,14 @@ Run parity tests when scientific logic or fixture-backed behaviour changes:
 pytest tests/parity -m parity -s
 ```
 
+Run full release validation when changing scientific/parity/provenance/performance
+behavior or before preparing a release:
+
+```bash
+pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
+make test-release-gate
+```
+
 ## Style
 
 Use Ruff for linting and formatting:

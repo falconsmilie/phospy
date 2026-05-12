@@ -37,6 +37,9 @@ Run the parity suite with:
 pytest tests/parity -m parity -s
 ```
 
+Release decisions should run the full release gate (`make test-release-gate`).
+Parity failures in that gate are release-blocking.
+
 Some diagnostic parity tests are informational. Release decisions should use the
 threshold-bearing gates and the documented fixture expectations, not visual
 inspection alone.

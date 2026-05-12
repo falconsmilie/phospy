@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
 from phospy import AnalysisReadyDatasetBuilder, AnalysisReadyPhosphoDataset
 from phospy.api import (
@@ -35,6 +36,8 @@ from tests.support.intensity_scale_states import (
 )
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
 from tests.support.signalome_config import build_signalome_config
+
+pytestmark = [pytest.mark.reproducibility, pytest.mark.release_gate]
 
 
 def _base_table() -> pd.DataFrame:

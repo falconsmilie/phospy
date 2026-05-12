@@ -88,13 +88,27 @@ PhosPy test categories remain:
    unit/integration run.
 3. tests/performance are not manual-only checks.
 4. `tests/performance` run in a dedicated CI/release job or explicit
-   release-validation command.
+   release-validation command (`make test-release-gate`).
 5. Failures in `tests/performance` block release until fixed, waived, or the
    contract is intentionally updated.
 6. Contract updates require updating both `docs/performance.md` and related
    test expectations.
 7. Scale guardrails are part of supported-behavior governance, not incidental
    implementation limits.
+
+### Release Validation Command Policy
+
+1. A documented release-gate command must run:
+   - normal unit tests
+   - integration tests
+   - release-gated reproducibility/golden tests
+   - parity tests
+   - performance contract tests
+2. Fast local defaults may keep parity/performance out of the default marker
+   selection.
+3. Scientific parity failures are release-blocking.
+4. Missing optional dependency failures in release-gate execution must include
+   clear setup guidance in maintainer docs.
 
 ### Why Release-Gate Is the Correct Policy
 
@@ -126,6 +140,10 @@ PhosPy test categories remain:
 - `tests/performance/test_performance_contracts.py`
 - `tests/support/performance_contracts.py`
 - `docs/performance.md`
+- `docs/maintenance.md`
+- `docs/testing/pytest_markers.md`
+- `Makefile` (`test-release-gate`)
+- `.github/workflows/publish.yml` (release-gate enforcement)
 - `src/phospy/signalomes/clustering/scale_guards.py`
 - `pyproject.toml`
 
