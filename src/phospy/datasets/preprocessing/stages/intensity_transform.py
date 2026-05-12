@@ -18,6 +18,7 @@ from phospy.datasets.preprocessing.stage_contract import PreprocessingStageContr
 from phospy.errors.input import PhosPyInputError
 from phospy.policy_models import IntensityTransformPolicy
 from phospy.provenance.hashing import hash_table
+from phospy.transformations.models import IntensityScaleKind
 
 
 class IntensityTransformStage:
@@ -31,6 +32,7 @@ class IntensityTransformStage:
             identity_diagnostics: dict[str, object] = {
                 "policy": policy.value,
                 "pseudocount": float(state.plan.intensity_transform_pseudocount),
+                "output_intensity_scale_kind": IntensityScaleKind.LINEAR.value,
                 "affected_matrices": ["phospho"],
                 "input_phospho_hash": hash_table(
                     state.phospho,
@@ -112,6 +114,7 @@ class IntensityTransformStage:
         diagnostics: dict[str, object] = {
             "policy": policy.value,
             "pseudocount": pseudocount,
+            "output_intensity_scale_kind": IntensityScaleKind.LOG2.value,
             "affected_matrices": affected_matrices,
             "input_phospho_hash": hash_table(
                 state.phospho,
@@ -223,6 +226,7 @@ INTENSITY_TRANSFORM_STAGE_CONTRACT = PreprocessingStageContract(
         "known_diagnostics_fields": (
             "policy",
             "pseudocount",
+            "output_intensity_scale_kind",
             "affected_matrices",
             "input_phospho_hash",
             "output_phospho_hash",

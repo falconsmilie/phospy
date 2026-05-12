@@ -22,7 +22,7 @@ from phospy.evidence.dataset_resolution import (
 )
 from phospy.evidence.models import PeptideEvidenceTable
 from phospy.policy_models import SiteMatrixPolicy
-from phospy.transformations.models import QuantitativeMeaning
+from phospy.transformations.models import IntensityScaleKind, QuantitativeMeaning
 
 
 class DatasetBuildRequestInterpreter:
@@ -190,6 +190,9 @@ class DatasetBuildRequestInterpreter:
             total=normalized.total,
             organism=request.organism,
             preprocessing_plan=preprocessing_plan,
+            declared_input_intensity_scale_kind=_resolve_input_intensity_scale_kind(
+                request.input_intensity_scale
+            ),
             site_identifier_normalisation=normalized.site_identifier_normalisation,
             site_sequence_derivation=site_sequence_derivation_payload,
             quantitative_meaning=_resolve_quantitative_meaning(
@@ -234,6 +237,22 @@ def _resolve_quantitative_meaning(
         supported = ", ".join(member.value for member in QuantitativeMeaning)
         raise PhosPyInputError(
             f"dataset build request quantitative_meaning must be one of: {supported}"
+        ) from exc
+
+
+def _resolve_input_intensity_scale_kind(
+    input_intensity_scale: IntensityScaleKind | str | None,
+) -> IntensityScaleKind | None:
+    if input_intensity_scale is None:
+        return None
+    if isinstance(input_intensity_scale, IntensityScaleKind):
+        return input_intensity_scale
+    try:
+        return IntensityScaleKind(str(input_intensity_scale))
+    except ValueError as exc:
+        supported = ", ".join(member.value for member in IntensityScaleKind)
+        raise PhosPyInputError(
+            f"dataset build request input_intensity_scale must be one of: {supported}"
         ) from exc
 
 

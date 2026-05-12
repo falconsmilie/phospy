@@ -75,7 +75,11 @@ from phospy.scientific_policies import (
 )
 from phospy.site_ids import canonicalize_site_components, canonicalize_site_identifier
 from phospy.transformations.contracts import Transformer
-from phospy.transformations.models import IntensityScaleKind
+from phospy.transformations.models import (
+    IntensityScaleKind,
+    IntensityScaleState,
+    MatrixIntensityScaleState,
+)
 from phospy.transformations.transformers import IdentityTransformer
 
 _FINAL_DATASET_STAGE = "final_dataset_construction"
@@ -134,13 +138,31 @@ class DatasetBuildExecutor:
             site_metadata=preprocessed.site_metadata,
             preprocessing_trace=preprocessed.preprocessing_trace,
         )
-        resolved = self._intensity_scale_resolver.run(
-            phospho=preprocessed.phospho,
-            total=preprocessed.total,
-            expected_scale_kind=_resolve_expected_intensity_scale_kind(
-                request.preprocessing_plan
-            ),
+        declared_input_scale_state = _resolve_declared_input_intensity_scale_state(
+            preprocessing_plan=request.preprocessing_plan,
+            preprocessing_trace=preprocessed.preprocessing_trace,
+            declared_input_scale_kind=request.declared_input_intensity_scale_kind,
+            has_total_matrix=preprocessed.total is not None,
         )
+        expected_scale_kind = _resolve_expected_intensity_scale_kind(
+            request.preprocessing_plan,
+            declared_input_scale_kind=request.declared_input_intensity_scale_kind,
+        )
+        if _resolver_supports_declared_input_scale_state(
+            self._intensity_scale_resolver
+        ):
+            resolved = self._intensity_scale_resolver.run(
+                phospho=preprocessed.phospho,
+                total=preprocessed.total,
+                expected_scale_kind=expected_scale_kind,
+                declared_input_scale_state=declared_input_scale_state,
+            )
+        else:
+            resolved = self._intensity_scale_resolver.run(
+                phospho=preprocessed.phospho,
+                total=preprocessed.total,
+                expected_scale_kind=expected_scale_kind,
+            )
         if not resolved.intensity_scale_state.is_established:
             raise TransformationStateEstablishmentError(
                 "intensity-scale resolver returned a non-established "
@@ -683,10 +705,91 @@ def _coerce_non_negative_int(value: object, *, default: int) -> int:
 
 def _resolve_expected_intensity_scale_kind(
     preprocessing_plan: PreprocessingPlan,
+    *,
+    declared_input_scale_kind: IntensityScaleKind | None = None,
 ) -> IntensityScaleKind:
     if preprocessing_plan.intensity_transform_policy is IntensityTransformPolicy.LOG2:
         return IntensityScaleKind.LOG2
+    if declared_input_scale_kind is not None:
+        return declared_input_scale_kind
     return IntensityScaleKind.LINEAR
+
+
+def _resolve_declared_input_intensity_scale_state(
+    *,
+    preprocessing_plan: PreprocessingPlan,
+    preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
+    declared_input_scale_kind: IntensityScaleKind | None,
+    has_total_matrix: bool,
+) -> IntensityScaleState | None:
+    if declared_input_scale_kind is not None:
+        return _build_declared_intensity_scale_state(
+            kind=declared_input_scale_kind,
+            has_total_matrix=has_total_matrix,
+            established_by="phospy.datasets.builders.executor.input_intensity_scale",
+        )
+    operation = _resolve_intensity_transform_operation(preprocessing_trace)
+    if operation == IntensityTransformPolicy.LOG2.value:
+        return _build_declared_intensity_scale_state(
+            kind=IntensityScaleKind.LOG2,
+            has_total_matrix=has_total_matrix,
+            established_by=(
+                "phospy.datasets.preprocessing.stages.intensity_transform.log2"
+            ),
+        )
+    if (
+        operation is None
+        and preprocessing_plan.intensity_transform_policy
+        is IntensityTransformPolicy.LOG2
+    ):
+        return None
+    return None
+
+
+def _resolve_intensity_transform_operation(
+    preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
+) -> str | None:
+    if preprocessing_trace is None:
+        return None
+    for stage in preprocessing_trace:
+        if stage.stage != DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM:
+            continue
+        operation = str(stage.operation).strip().lower()
+        return operation if operation else None
+    return None
+
+
+def _build_declared_intensity_scale_state(
+    *,
+    kind: IntensityScaleKind,
+    has_total_matrix: bool,
+    established_by: str,
+) -> IntensityScaleState:
+    if kind is IntensityScaleKind.LOG2:
+        phospho_state = MatrixIntensityScaleState.log2(established_by=established_by)
+        if has_total_matrix:
+            return IntensityScaleState(
+                phospho=phospho_state,
+                total=MatrixIntensityScaleState.log2(established_by=established_by),
+            )
+        return IntensityScaleState(phospho=phospho_state, total=None)
+    phospho_state = MatrixIntensityScaleState.linear(established_by=established_by)
+    if has_total_matrix:
+        return IntensityScaleState(
+            phospho=phospho_state,
+            total=MatrixIntensityScaleState.linear(established_by=established_by),
+        )
+    return IntensityScaleState(phospho=phospho_state, total=None)
+
+
+def _resolver_supports_declared_input_scale_state(resolver: object) -> bool:
+    run_method = getattr(resolver, "run", None)
+    if run_method is None:
+        return False
+    code_object = getattr(run_method, "__code__", None)
+    if code_object is None:
+        return False
+    return "declared_input_scale_state" in code_object.co_varnames
 
 
 def _build_dataset_run_provenance(

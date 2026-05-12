@@ -59,6 +59,16 @@ PhosPy uses two distinct state objects on `AnalysisReadyPhosphoDataset`:
 `IntensityScaleState` is authoritative for quantitative scale interpretation.
 `DatasetProcessingState` is authoritative for preprocessing-policy summary.
 
+Intensity-scale establishment is evidence-backed, not expectation-backed.
+Configured target policy alone must never mint a scale label. A `log2` state is
+valid only when backed by either:
+
+- an executed scale-changing transformation path, or
+- an explicit trusted declaration that the incoming matrix is already `log2`.
+
+Identity pass-through may preserve declared state, but it must not upgrade
+unknown/raw input to `log2` solely because a caller expects `log2`.
+
 The old public name `TransformationState` is no longer the preferred dataset
 contract model.
 
@@ -106,6 +116,7 @@ This model is not a replacement for the full preprocessing report.
 Builders and preprocessing paths must:
 
 - establish `IntensityScaleState` via supported establishment paths
+- ensure establishment evidence matches the resulting declared scale
 - construct `DatasetProcessingState` from the active preprocessing plan
 - ensure dataset boundary coherence between both states
 

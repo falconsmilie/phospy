@@ -19,7 +19,6 @@ from phospy.transformations.contracts import Transformer
 from phospy.transformations.models import (
     IntensityScaleKind,
     IntensityScaleState,
-    MatrixIntensityScaleState,
     establish_intensity_scale_state,
 )
 from phospy.transformations.transformers import IdentityTransformer
@@ -55,6 +54,7 @@ class DatasetIntensityScaleResolver:
         phospho: pd.DataFrame,
         total: pd.DataFrame | None,
         expected_scale_kind: IntensityScaleKind | None = None,
+        declared_input_scale_state: IntensityScaleState | None = None,
     ) -> ResolvedIntensityScale:
         if self._transformer is None:
             raise TransformationStateEstablishmentError(
@@ -62,6 +62,15 @@ class DatasetIntensityScaleResolver:
                 "no supported intensity-scale establisher is configured. "
                 "Configure AnalysisReadyDatasetBuilder("
                 "executor=DatasetBuildExecutor(transformer=...))."
+            )
+        if declared_input_scale_state is not None and not isinstance(
+            self._transformer, IdentityTransformer
+        ):
+            raise TransformationStateEstablishmentError(
+                "unsupported identity state establishment: declared input intensity "
+                "scale state can only be preserved by IdentityTransformer. "
+                "Use IdentityTransformer for explicit input declarations, or remove "
+                "the declaration and establish state via a scale-changing transformer."
             )
 
         try:
@@ -82,24 +91,37 @@ class DatasetIntensityScaleResolver:
             )
 
         state = transformed.state
+        if isinstance(self._transformer, IdentityTransformer):
+            if declared_input_scale_state is not None:
+                self._validate_state(
+                    declared_input_scale_state,
+                    has_total_matrix=transformed.total is not None,
+                    source="declared input intensity scale state",
+                )
+                state = declared_input_scale_state
+            elif (
+                expected_scale_kind is IntensityScaleKind.LOG2
+                and state.phospho.kind is not IntensityScaleKind.LOG2
+            ):
+                raise TransformationStateEstablishmentError(
+                    "missing intensity state evidence for expected 'log2': "
+                    "IdentityTransformer preserves declared input state and cannot "
+                    "establish log2 from unknown/raw input without an explicit "
+                    "trusted declaration."
+                )
         if (
             expected_scale_kind is not None
             and state.phospho.kind is not expected_scale_kind
-            and isinstance(self._transformer, IdentityTransformer)
         ):
-            state = _build_identity_state_for_scale_kind(
-                expected_scale_kind=expected_scale_kind,
-                has_total_matrix=transformed.total is not None,
+            source_label = (
+                "declared input intensity state"
+                if declared_input_scale_state is not None
+                else "configured transformer output"
             )
-        if (
-            expected_scale_kind is not None
-            and state.phospho.kind is not expected_scale_kind
-        ):
             raise TransformationStateEstablishmentError(
-                "configured transformer produced an intensity scale that is "
-                "incompatible with the configured preprocessing intensity "
-                f"transform policy; expected '{expected_scale_kind.value}' but "
-                f"received '{state.phospho.kind.value}'"
+                "mismatched expected intensity state: "
+                f"expected '{expected_scale_kind.value}' but {source_label} is "
+                f"'{state.phospho.kind.value}'"
             )
 
         self._validate_state(
@@ -138,27 +160,3 @@ class DatasetIntensityScaleResolver:
             raise TransformationStateEstablishmentError(
                 f"{source} produced an invalid intensity scale state: {exc}"
             ) from exc
-
-
-def _build_identity_state_for_scale_kind(
-    *,
-    expected_scale_kind: IntensityScaleKind,
-    has_total_matrix: bool,
-) -> IntensityScaleState:
-    if expected_scale_kind is IntensityScaleKind.LINEAR:
-        return IntensityScaleState.raw(has_total_matrix=has_total_matrix)
-    if expected_scale_kind is IntensityScaleKind.LOG2:
-        phospho_state = MatrixIntensityScaleState.log2(
-            established_by="phospy.transformations.transformers.identity"
-        )
-        if has_total_matrix:
-            return IntensityScaleState(
-                phospho=phospho_state,
-                total=MatrixIntensityScaleState.log2(
-                    established_by="phospy.transformations.transformers.identity"
-                ),
-            )
-        return IntensityScaleState(phospho=phospho_state, total=None)
-    raise TransformationStateEstablishmentError(
-        f"unsupported expected intensity scale kind for resolver: {expected_scale_kind}"
-    )

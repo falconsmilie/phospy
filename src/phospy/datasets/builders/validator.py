@@ -16,7 +16,7 @@ from phospy.evidence.dataset_resolution import (
     SUPPORTED_DATASET_SITE_RESOLUTION_MODES,
 )
 from phospy.references.models import Organism
-from phospy.transformations.models import QuantitativeMeaning
+from phospy.transformations.models import IntensityScaleKind, QuantitativeMeaning
 from phospy.validation.datasets.inputs import DatasetInputSourceValidator
 from phospy.validation.datasets.preprocessing import DatasetPreprocessingConfigValidator
 
@@ -97,6 +97,7 @@ class DatasetBuildRequestValidator:
         self._source_validator.run(request.total, field_name="total", allow_none=True)
         if request.organism is not None and not isinstance(request.organism, Organism):
             raise PhosPyInputError("dataset build request organism must be an Organism")
+        _validate_input_intensity_scale(request.input_intensity_scale)
         _validate_quantitative_meaning(request.quantitative_meaning)
         self._preprocessing_validator.run(request.preprocessing_config)
         requested_total_policy = (
@@ -201,4 +202,20 @@ def _validate_quantitative_meaning(
         supported = ", ".join(member.value for member in QuantitativeMeaning)
         raise PhosPyInputError(
             f"dataset build request quantitative_meaning must be one of: {supported}"
+        ) from exc
+
+
+def _validate_input_intensity_scale(
+    input_intensity_scale: IntensityScaleKind | str | None,
+) -> None:
+    if input_intensity_scale is None:
+        return
+    if isinstance(input_intensity_scale, IntensityScaleKind):
+        return
+    try:
+        IntensityScaleKind(str(input_intensity_scale))
+    except ValueError as exc:
+        supported = ", ".join(member.value for member in IntensityScaleKind)
+        raise PhosPyInputError(
+            f"dataset build request input_intensity_scale must be one of: {supported}"
         ) from exc

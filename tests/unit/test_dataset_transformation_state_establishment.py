@@ -4,6 +4,14 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
+from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import (
+    DatasetBuildRequest,
+    DatasetIntensityTransformConfig,
+    DatasetPreprocessingConfig,
+)
+from phospy.datasets.builders.contracts import PreprocessedDatasetBuildTables
+from phospy.datasets.builders.executor import DatasetBuildExecutor
 from phospy.datasets.builders.preprocessing import build_dataset_processing_state
 from phospy.datasets.builders.transformation_resolver import (
     DatasetIntensityScaleResolver,
@@ -299,18 +307,179 @@ def test_identity_transformer_is_strict_passthrough_establisher() -> None:
     assert result.state.kind.value == "linear"
 
 
-def test_resolver_can_establish_log2_state_for_identity_transformer_when_expected() -> (
-    None
-):
+def test_identity_transformer_preserves_declared_linear_state() -> None:
     resolver = DatasetIntensityScaleResolver(transformer=IdentityTransformer())
+    declared_linear = IntensityScaleState.raw(has_total_matrix=True)
+    resolved = resolver.run(
+        phospho=_phospho(),
+        total=_total(),
+        expected_scale_kind=IntensityScaleKind.LINEAR,
+        declared_input_scale_state=declared_linear,
+    )
+    assert resolved.intensity_scale_state.kind.value == "linear"
+    assert resolved.intensity_scale_state.total is not None
+    assert resolved.intensity_scale_state.total.kind.value == "linear"
+
+
+def test_identity_transformer_preserves_already_declared_log2_state() -> None:
+    resolver = DatasetIntensityScaleResolver(transformer=IdentityTransformer())
+    declared_log2 = IntensityScaleState(
+        phospho=MatrixIntensityScaleState.log2(established_by="trusted.input"),
+        total=MatrixIntensityScaleState.log2(established_by="trusted.input"),
+    )
     resolved = resolver.run(
         phospho=_phospho(),
         total=_total(),
         expected_scale_kind=IntensityScaleKind.LOG2,
+        declared_input_scale_state=declared_log2,
     )
     assert resolved.intensity_scale_state.phospho.kind.value == "log2"
     assert resolved.intensity_scale_state.total is not None
     assert resolved.intensity_scale_state.total.kind.value == "log2"
+    assert resolved.intensity_scale_state.phospho.established_by == "trusted.input"
+
+
+def test_identity_transformer_cannot_establish_log2_from_unknown_state() -> None:
+    resolver = DatasetIntensityScaleResolver(transformer=IdentityTransformer())
+    with pytest.raises(
+        TransformationStateEstablishmentError,
+        match="missing intensity state evidence for expected 'log2'",
+    ):
+        resolver.run(
+            phospho=_phospho(),
+            total=_total(),
+            expected_scale_kind=IntensityScaleKind.LOG2,
+        )
+
+
+def test_resolver_rejects_declared_state_with_non_identity_transformer() -> None:
+    class DeclaredLog2Transformer:
+        def run(
+            self,
+            phospho: pd.DataFrame,
+            total: pd.DataFrame | None = None,
+        ) -> TransformationResult:
+            return TransformationResult(
+                phospho=phospho,
+                total=total,
+                state=IntensityScaleState(
+                    phospho=MatrixIntensityScaleState.log2(
+                        established_by="test.transformer"
+                    ),
+                    total=(
+                        MatrixIntensityScaleState.log2(
+                            established_by="test.transformer"
+                        )
+                        if total is not None
+                        else None
+                    ),
+                ),
+            )
+
+    resolver = DatasetIntensityScaleResolver(transformer=DeclaredLog2Transformer())
+    with pytest.raises(
+        TransformationStateEstablishmentError,
+        match="unsupported identity state establishment",
+    ):
+        resolver.run(
+            phospho=_phospho(),
+            total=_total(),
+            declared_input_scale_state=IntensityScaleState.raw(has_total_matrix=True),
+        )
+
+
+def test_resolver_distinguishes_mismatched_expected_state() -> None:
+    resolver = DatasetIntensityScaleResolver(transformer=IdentityTransformer())
+    with pytest.raises(
+        TransformationStateEstablishmentError,
+        match="mismatched expected intensity state",
+    ):
+        resolver.run(
+            phospho=_phospho(),
+            total=_total(),
+            expected_scale_kind=IntensityScaleKind.LOG2,
+            declared_input_scale_state=IntensityScaleState.raw(has_total_matrix=True),
+        )
+
+
+def test_builder_succeeds_when_input_explicitly_declares_already_log2_values() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0], "sample_b": [2.0]},
+        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "site_sequence": ["SEQ_A"],
+            "localisation_confidence": [0.95],
+        },
+        index=phospho.index.copy(),
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            input_intensity_scale="log2",
+            preprocessing_config=DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(policy="identity")
+            ),
+        )
+    )
+
+    assert built.intensity_scale_state.kind is IntensityScaleKind.LOG2
+
+
+def test_builder_fails_on_expected_log2_without_transform_or_declaration() -> None:
+    class NoopPreprocessor:
+        def run(
+            self,
+            *,
+            phospho: pd.DataFrame,
+            site_metadata: pd.DataFrame,
+            sample_metadata: pd.DataFrame | None,
+            total: pd.DataFrame | None,
+            plan: PreprocessingPlan,
+        ) -> PreprocessedDatasetBuildTables:
+            return PreprocessedDatasetBuildTables(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                sample_metadata=sample_metadata,
+                total=total,
+                preprocessing_trace=None,
+            )
+
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0], "sample_b": [2.0]},
+        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "site_sequence": ["SEQ_A"],
+            "localisation_confidence": [0.95],
+        },
+        index=phospho.index.copy(),
+    )
+    builder = AnalysisReadyDatasetBuilder(
+        executor=DatasetBuildExecutor(preprocessor=NoopPreprocessor())
+    )
+
+    with pytest.raises(
+        TransformationStateEstablishmentError,
+        match="missing intensity state evidence for expected 'log2'",
+    ):
+        builder.run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                preprocessing_config=DatasetPreprocessingConfig(
+                    intensity_transform=DatasetIntensityTransformConfig(policy="log2")
+                ),
+            )
+        )
 
 
 def test_bundle_reconstruction_lane_establishes_state() -> None:

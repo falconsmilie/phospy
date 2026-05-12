@@ -32,7 +32,12 @@ from phospy.datasets.preprocessing.provenance_adapter import (
 from phospy.datasets.preprocessing.state_builder import DatasetProcessingStateBuilder
 from phospy.errors.build import DatasetBuildError
 from phospy.errors.input import PhosPyInputError
-from phospy.transformations.models import IntensityScaleKind, QuantitativeMeaning
+from phospy.transformations.models import (
+    IntensityScaleKind,
+    IntensityScaleState,
+    MatrixIntensityScaleState,
+    QuantitativeMeaning,
+)
 from phospy.transformations.transformers import IdentityTransformer
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
@@ -89,12 +94,21 @@ def _supported_log2_intensity_scale_state(*, has_total_matrix: bool):
         if not has_total_matrix
         else pd.DataFrame({"sample_a": [1.0]}, index=["GENEA"])
     )
+    declared_log2 = IntensityScaleState(
+        phospho=MatrixIntensityScaleState.log2(established_by="trusted.fixture"),
+        total=(
+            MatrixIntensityScaleState.log2(established_by="trusted.fixture")
+            if has_total_matrix
+            else None
+        ),
+    )
     return (
         DatasetIntensityScaleResolver(transformer=IdentityTransformer())
         .run(
             phospho=phospho,
             total=total,
             expected_scale_kind=IntensityScaleKind.LOG2,
+            declared_input_scale_state=declared_log2,
         )
         .intensity_scale_state
     )

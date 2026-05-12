@@ -18,7 +18,7 @@ from phospy.evidence.dataset_resolution import (
 )
 from phospy.references.models import Organism
 from phospy.site_ids import SiteIdentifierNormalisationReport
-from phospy.transformations.models import QuantitativeMeaning
+from phospy.transformations.models import IntensityScaleKind, QuantitativeMeaning
 
 if TYPE_CHECKING:
     from phospy.api.requests import DatasetBuildRequest
@@ -39,6 +39,7 @@ class InterpretedDatasetBuildRequest:
     preprocessing_plan: PreprocessingPlan = field(
         default_factory=PreprocessingPlan.default
     )
+    declared_input_intensity_scale_kind: IntensityScaleKind | None = None
     site_identifier_normalisation: SiteIdentifierNormalisationReport | None = None
     site_sequence_derivation: dict[str, object] | None = None
     quantitative_meaning: QuantitativeMeaning | None = None

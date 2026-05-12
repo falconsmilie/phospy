@@ -27,7 +27,7 @@ from phospy.evidence.dataset_resolution import (
     DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
 )
 from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
-from phospy.transformations.models import QuantitativeMeaning
+from phospy.transformations.models import IntensityScaleKind, QuantitativeMeaning
 
 if TYPE_CHECKING:
     from phospy.api.results import KinaseWorkflowResult
@@ -83,6 +83,7 @@ class DatasetBuildRequest:
     preprocessing_config: DatasetPreprocessingConfig = field(
         default_factory=DatasetPreprocessingConfig
     )
+    input_intensity_scale: IntensityScaleKind | str | None = None
     quantitative_meaning: QuantitativeMeaning | str | None = None
 
 
