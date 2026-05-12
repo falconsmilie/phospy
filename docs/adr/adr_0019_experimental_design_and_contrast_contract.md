@@ -32,6 +32,10 @@ PhosPy adopts a typed experimental-design contract for differential workflows:
    `denominator_condition`).
 3. Standalone design-contract validation in
    `phospy.validation.workflows.differential`.
+4. Explicit technical-replicate policy in `DifferentialAnalysisRequest`:
+   - default: `technical_replicate_policy='reject'`
+   - supported explicit aggregation: `technical_replicate_policy='mean'` and
+     `technical_replicate_policy='median'`
 
 `DifferentialAnalysisRequest` now requires:
 
@@ -40,6 +44,11 @@ PhosPy adopts a typed experimental-design contract for differential workflows:
 
 The validator resolves validated matrix-ready representations before the
 interpreter/executor stages.
+
+For current differential modeling, biological replicate rows are the statistical
+unit. Technical replicates are not modeled as independent samples; when
+present, they must be explicitly collapsed to one value per
+`condition + biological_replicate_id` group before model fitting.
 
 ## Validation Responsibilities
 
@@ -53,6 +62,8 @@ The design validator owns:
 - optional field alignment checks (`batch`, `block`)
 - explicit unsupported-feature errors for currently non-executable design
   features (batch-aware and block/paired modeling in this release)
+- rejection of repeated biological replicate IDs unless an explicit
+  technical-replicate aggregation policy is selected
 
 Executor logic does not parse or infer design semantics.
 
@@ -87,6 +98,8 @@ This ADR does not:
 - implement batch-adjusted or paired statistical fitting in the current release
 - auto-derive design conditions from sample labels
 - move design parsing into statistical execution stages
+- implement replicate-aware random-effects or repeated-measures modeling; that
+  remains a separate future decision
 
 ## References
 

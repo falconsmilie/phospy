@@ -324,6 +324,7 @@ class DifferentialAnalysisResult:
     empirical_bayes_trend: bool
     prior_diagnostics: EmpiricalBayesPriorDiagnostics
     mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None
+    workflow_provenance: Mapping[str, object] | None
     _contrast_tables: Mapping[str, pd.DataFrame]
 
     def __init__(
@@ -342,6 +343,7 @@ class DifferentialAnalysisResult:
         prior_diagnostics: EmpiricalBayesPriorDiagnostics,
         mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None,
         contrast_tables: Mapping[str, pd.DataFrame],
+        workflow_provenance: Mapping[str, object] | None = None,
         _assume_owned: bool = False,
     ) -> None:
         residual_variance = own_series(
@@ -411,6 +413,13 @@ class DifferentialAnalysisResult:
             raise PhosPyInputError(
                 "differential_result.contrast_tables must include at least one contrast"
             )
+        if workflow_provenance is not None and not isinstance(
+            workflow_provenance,
+            Mapping,
+        ):
+            raise PhosPyInputError(
+                "differential_result.workflow_provenance must be a mapping or None"
+            )
         owned_tables: dict[str, pd.DataFrame] = {}
         for contrast_name, table in contrast_tables.items():
             if not isinstance(contrast_name, str) or not contrast_name:
@@ -468,6 +477,15 @@ class DifferentialAnalysisResult:
             "mean_variance_trend_diagnostics",
             mean_variance_trend_diagnostics,
         )
+        object.__setattr__(
+            self,
+            "workflow_provenance",
+            (
+                None
+                if workflow_provenance is None
+                else {str(key): value for key, value in workflow_provenance.items()}
+            ),
+        )
         object.__setattr__(self, "_contrast_tables", owned_tables)
 
     @property
@@ -514,6 +532,7 @@ class DifferentialAnalysisResult:
         prior_diagnostics: EmpiricalBayesPriorDiagnostics,
         mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None,
         contrast_tables: Mapping[str, pd.DataFrame],
+        workflow_provenance: Mapping[str, object] | None = None,
     ) -> DifferentialAnalysisResult:
         return cls(
             residual_variance=residual_variance,
@@ -529,6 +548,7 @@ class DifferentialAnalysisResult:
             prior_diagnostics=prior_diagnostics,
             mean_variance_trend_diagnostics=mean_variance_trend_diagnostics,
             contrast_tables=contrast_tables,
+            workflow_provenance=workflow_provenance,
             _assume_owned=True,
         )
 

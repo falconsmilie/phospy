@@ -113,6 +113,7 @@ class DifferentialAnalysisInterpreter:
             multiple_testing=request.multiple_testing,
             design_rank=rank,
             residual_degrees_of_freedom=residual_dof,
+            workflow_provenance=request.workflow_provenance,
         )
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import TYPE_CHECKING
 
 from phospy.api.configs import (
@@ -49,6 +50,14 @@ MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG = "benjamini_hochberg"
 SUPPORTED_MULTIPLE_TESTING_METHODS: tuple[str, ...] = (
     MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG,
 )
+
+
+class TechnicalReplicatePolicy(str, Enum):
+    """Policy for handling repeated biological replicate IDs."""
+
+    REJECT = "reject"
+    MEAN = "mean"
+    MEDIAN = "median"
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,6 +150,9 @@ class DifferentialAnalysisRequest:
     dataset: AnalysisReadyPhosphoDataset
     design: ExperimentalDesign
     contrasts: tuple[Contrast, ...]
+    technical_replicate_policy: TechnicalReplicatePolicy | str = (
+        TechnicalReplicatePolicy.REJECT
+    )
     allow_design_subset: bool = False
     minimum_condition_replicates: int = 2
     empirical_bayes: EmpiricalBayesConfig = field(default_factory=EmpiricalBayesConfig)
@@ -166,6 +178,25 @@ class DifferentialAnalysisRequest:
                 raise WorkflowValidationError(
                     "differential workflow request contrasts must contain Contrast values"
                 )
+        technical_replicate_policy = self.technical_replicate_policy
+        if isinstance(technical_replicate_policy, str):
+            try:
+                technical_replicate_policy = TechnicalReplicatePolicy(
+                    technical_replicate_policy
+                )
+            except ValueError as error:
+                supported = ", ".join(
+                    sorted(policy.value for policy in TechnicalReplicatePolicy)
+                )
+                raise WorkflowValidationError(
+                    "differential workflow request technical_replicate_policy must be "
+                    f"one of: {supported}"
+                ) from error
+        if not isinstance(technical_replicate_policy, TechnicalReplicatePolicy):
+            raise WorkflowValidationError(
+                "differential workflow request technical_replicate_policy must be a "
+                "TechnicalReplicatePolicy"
+            )
         if not isinstance(self.allow_design_subset, bool):
             raise WorkflowValidationError(
                 "differential workflow request allow_design_subset must be a bool"
@@ -188,6 +219,11 @@ class DifferentialAnalysisRequest:
             )
         object.__setattr__(self, "design", design)
         object.__setattr__(self, "contrasts", contrasts)
+        object.__setattr__(
+            self,
+            "technical_replicate_policy",
+            technical_replicate_policy,
+        )
 
 
 __all__ = [
@@ -201,5 +237,6 @@ __all__ = [
     "EmpiricalBayesConfig",
     "KinaseWorkflowRequest",
     "MultipleTestingConfig",
+    "TechnicalReplicatePolicy",
     "SignalomeWorkflowRequest",
 ]

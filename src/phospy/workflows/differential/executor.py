@@ -48,7 +48,27 @@ class DifferentialAnalysisExecutor:
                 details={"method": request.multiple_testing.method},
                 message_prefix="differential workflow boundary validation failed",
             )
-        return self._computation_executor.run(request.computation_request)
+        result = self._computation_executor.run(request.computation_request)
+        if request.workflow_provenance is None:
+            return result
+        return DifferentialAnalysisResult._from_owned(
+            residual_variance=result.residual_variance,
+            posterior_residual_variance=result.posterior_residual_variance,
+            prior_residual_variance=result.prior_residual_variance,
+            prior_degrees_of_freedom_series_value=(
+                result.prior_degrees_of_freedom_series_value
+            ),
+            prior_variance=result.prior_variance,
+            prior_degrees_of_freedom=result.prior_degrees_of_freedom,
+            residual_degrees_of_freedom=result.residual_degrees_of_freedom,
+            empirical_bayes_method=result.empirical_bayes_method,
+            empirical_bayes_robust=result.empirical_bayes_robust,
+            empirical_bayes_trend=result.empirical_bayes_trend,
+            prior_diagnostics=result.prior_diagnostics,
+            mean_variance_trend_diagnostics=result.mean_variance_trend_diagnostics,
+            contrast_tables=result._contrast_tables,
+            workflow_provenance=request.workflow_provenance,
+        )
 
 
 __all__ = ["DifferentialAnalysisExecutor"]

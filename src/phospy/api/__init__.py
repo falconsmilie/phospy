@@ -57,6 +57,7 @@ from phospy.api.requests import (
     MultipleTestingConfig,
     SampleDesignRecord,
     SignalomeWorkflowRequest,
+    TechnicalReplicatePolicy,
 )
 from phospy.api.results import (
     DifferentialAnalysisResult,
@@ -150,6 +151,7 @@ __all__ = [
     "KinaseWorkflowRequest",
     "KinaseWorkflowResult",
     "MultipleTestingConfig",
+    "TechnicalReplicatePolicy",
     "Organism",
     "IntensityScaleKind",
     "IntensityScaleState",

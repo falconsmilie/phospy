@@ -54,6 +54,7 @@ def test_public_workflow_and_request_exports_match_contract() -> None:
         "MultipleTestingConfig",
         "SampleDesignRecord",
         "SignalomeWorkflowRequest",
+        "TechnicalReplicatePolicy",
     }
     assert set(workflow_models.__all__) == {
         "DifferentialAnalysisWorkflow",

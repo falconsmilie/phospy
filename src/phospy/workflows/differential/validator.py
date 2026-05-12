@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from phospy.api.requests import DifferentialAnalysisRequest
+from phospy.api.requests import (
+    DifferentialAnalysisRequest,
+    TechnicalReplicatePolicy,
+)
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.differential.models import ContrastMatrix, DesignMatrix
 from phospy.errors.validation import WorkflowValidationError
@@ -12,6 +15,7 @@ from phospy.validation.workflows.differential import (
 from phospy.workflows.differential.models import (
     ValidatedDifferentialAnalysisRequest,
 )
+from phospy.workflows.differential.replicates import TechnicalReplicateResolver
 
 
 class DifferentialAnalysisValidator:
@@ -21,9 +25,13 @@ class DifferentialAnalysisValidator:
         self,
         *,
         design_validator: ExperimentalDesignContractValidator | None = None,
+        technical_replicate_resolver: TechnicalReplicateResolver | None = None,
     ) -> None:
         self._design_validator = (
             design_validator or ExperimentalDesignContractValidator()
+        )
+        self._technical_replicate_resolver = (
+            technical_replicate_resolver or TechnicalReplicateResolver()
         )
 
     def run(self, request: object) -> ValidatedDifferentialAnalysisRequest:
@@ -35,9 +43,20 @@ class DifferentialAnalysisValidator:
             raise WorkflowValidationError(
                 "differential workflow request dataset must be AnalysisReadyPhosphoDataset"
             )
-        validated_design_contract = self._design_validator.run(
+        technical_replicate_policy = request.technical_replicate_policy
+        if not isinstance(technical_replicate_policy, TechnicalReplicatePolicy):
+            raise WorkflowValidationError(
+                "differential workflow request technical_replicate_policy must be "
+                "TechnicalReplicatePolicy"
+            )
+        technical_replicate_resolution = self._technical_replicate_resolver.run(
             dataset=request.dataset,
             design=request.design,
+            technical_replicate_policy=technical_replicate_policy,
+        )
+        validated_design_contract = self._design_validator.run(
+            dataset=technical_replicate_resolution.dataset,
+            design=technical_replicate_resolution.design,
             contrasts=request.contrasts,
             allow_design_subset=request.allow_design_subset,
             minimum_condition_replicates=request.minimum_condition_replicates,
@@ -46,7 +65,7 @@ class DifferentialAnalysisValidator:
         design_matrix = DesignMatrix(validated_design_contract.design_frame)
         contrast_matrix = ContrastMatrix(validated_design_contract.contrast_frame)
         return ValidatedDifferentialAnalysisRequest(
-            dataset=request.dataset,
+            dataset=technical_replicate_resolution.dataset,
             design=validated_design_contract.design,
             contrasts=validated_design_contract.contrasts,
             analysis_sample_ids=validated_design_contract.analysis_sample_ids,
@@ -54,6 +73,7 @@ class DifferentialAnalysisValidator:
             contrast_matrix=contrast_matrix,
             empirical_bayes=request.empirical_bayes,
             multiple_testing=request.multiple_testing,
+            workflow_provenance=technical_replicate_resolution.workflow_provenance,
         )
 
 

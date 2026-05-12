@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -31,6 +32,7 @@ class ValidatedDifferentialAnalysisRequest:
     contrast_matrix: ContrastMatrix
     empirical_bayes: EmpiricalBayesConfig
     multiple_testing: MultipleTestingConfig
+    workflow_provenance: Mapping[str, object] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,6 +43,7 @@ class InterpretedDifferentialAnalysisRequest:
     multiple_testing: MultipleTestingConfig
     design_rank: int
     residual_degrees_of_freedom: float
+    workflow_provenance: Mapping[str, object] | None = None
 
 
 class DifferentialAnalysisValidatorContract(Protocol):
