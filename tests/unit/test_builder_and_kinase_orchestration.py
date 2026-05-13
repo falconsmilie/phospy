@@ -67,7 +67,7 @@ def _site_metadata() -> pd.DataFrame:
             "site": ["Y182", "S9"],
             "site_sequence": [
                 "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
-                "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
+                "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
             ],
             "localisation_confidence": [0.95, 0.9],
         },
@@ -100,7 +100,7 @@ def _bundle() -> ReferenceBundle:
             {
                 "site_sequence": [
                     "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
-                    "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
+                    "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
                 ]
             },
             index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),

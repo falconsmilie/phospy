@@ -60,7 +60,7 @@ def _tiny_inputs() -> tuple[pd.DataFrame, pd.DataFrame]:
             "site": ["S939", "S9"],
             "site_sequence": [
                 "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
-                "ATMSGRPRTTSFAESCKPVQQPSAFGQAAAL",
+                "ATMSGRPRTTSFAESSKPVQQPSAFGQAAAL",
             ],
             "protein_id": ["TSC2", "GSK3B"],
             "localisation_confidence": [0.95, 0.92],

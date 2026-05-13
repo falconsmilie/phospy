@@ -472,7 +472,7 @@ def _build_request(*, activity: bool) -> KinaseWorkflowRequest:
             "site": ["Y182", "S9", "T308"],
             "site_sequence": [
                 "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
-                "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
+                "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
                 "MDFGLCKEGIKDGATMKLCKRERANWQPWQ",
             ],
             "localisation_confidence": [0.95] * phospho.shape[0],
@@ -649,7 +649,7 @@ def _build_request_with_subtract_log_total(*, activity: bool) -> KinaseWorkflowR
             "site_sequence": [
                 "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
                 "MDFGLCKEGIKDGATMKLCKRERANWQPWQ",
-                "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
+                "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
             ],
             "localisation_confidence": [0.95] * phospho.shape[0],
         },

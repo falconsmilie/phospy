@@ -203,7 +203,10 @@ def test_normalizer_owns_copies_and_does_not_mutate_inputs() -> None:
             "site_id": [" mapk14 ; y182 "],
             "gene_symbol": ["mapk14"],
             "site": ["y182"],
-            "site_sequence": ["A" * 31],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["y182"]
+            ],
         }
     )
     sample_metadata = pd.DataFrame(

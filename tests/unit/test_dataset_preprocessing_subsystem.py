@@ -75,7 +75,7 @@ def _site_metadata(index: pd.Index | None = None) -> pd.DataFrame:
             "site": ["Y182", "S9", "T308"],
             "site_sequence": [
                 "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
-                "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
+                "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
                 "RPHFPQFSYSASGTA",
             ],
             "localisation_confidence": [0.95, 0.9, 0.92],
@@ -2062,7 +2062,7 @@ def test_dataset_interpreter_does_not_apply_preprocessing_science() -> None:
             "site": ["Y182", "S9"],
             "site_sequence": [
                 "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
-                "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
+                "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
             ],
             "localisation_confidence": [0.95, 0.9],
         },

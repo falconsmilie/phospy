@@ -116,7 +116,10 @@ def _coherent_site_identity_inputs() -> tuple[pd.DataFrame, pd.DataFrame]:
         {
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
-            "site_sequence": ["A" * 31, "B" * 31],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["Y182", "T308"]
+            ],
             "localisation_confidence": [0.95, 0.9],
         },
         index=index,
@@ -400,7 +403,7 @@ def test_dataset_constructor_rejects_site_identity_site_mismatch() -> None:
     site_metadata.loc["MAPK14;Y182;", "site"] = "T185"
     with pytest.raises(
         DatasetValidationError,
-        match="site-identity coherence failed",
+        match="site_sequence central residue must agree with site/residue metadata",
     ):
         AnalysisReadyPhosphoDataset(
             phospho=phospho,
@@ -415,7 +418,7 @@ def test_dataset_constructor_rejects_when_one_row_has_site_identity_mismatch() -
     site_metadata.loc["AKT1;T308;", "site"] = "S473"
     with pytest.raises(
         DatasetValidationError,
-        match="site-identity coherence failed.*AKT1;T308;",
+        match="site_sequence central residue must agree with site/residue metadata.*AKT1;T308;",
     ):
         AnalysisReadyPhosphoDataset(
             phospho=phospho,

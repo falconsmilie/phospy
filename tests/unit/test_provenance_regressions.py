@@ -64,7 +64,7 @@ def _dataset_for_workflows() -> AnalysisReadyPhosphoDataset:
             "site": ["Y182", "S9"],
             "site_sequence": [
                 "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
-                "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
+                "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
             ],
             "protein_id": ["P28482", "Q9Y243"],
             "localisation_confidence": [0.95, 0.9],
@@ -100,7 +100,7 @@ def _reference_bundle() -> ReferenceBundle:
             {
                 "site_sequence": [
                     "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
-                    "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
+                    "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
                 ]
             },
             index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),

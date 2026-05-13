@@ -59,7 +59,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
                 "site": ["Y182", "S9"],
                 "site_sequence": [
                     "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
-                    "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
+                    "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
                 ],
             },
             index=site_ids,
@@ -85,7 +85,7 @@ def _references() -> ReferenceBundle:
             {
                 "site_sequence": [
                     "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
-                    "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
+                    "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
                 ]
             },
             index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
@@ -106,7 +106,7 @@ def _mixed_case_references() -> ReferenceBundle:
             {
                 "site_sequence": [
                     "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
-                    "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
+                    "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
                 ]
             },
             index=pd.Index(["mapk14 ; y182", "GSK3B;S9"], name="site_id"),

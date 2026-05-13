@@ -25,7 +25,10 @@ def _coherent_site_identity_inputs() -> tuple[pd.DataFrame, pd.DataFrame]:
         {
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
-            "site_sequence": ["A" * 31, "B" * 31],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["Y182", "T308"]
+            ],
         },
         index=index,
     )
@@ -68,15 +71,14 @@ def test_dataset_boundary_rejects_site_identity_semantic_disagreement_with_detai
         )
 
     message = str(exc_info.value)
-    assert "dataset site-identity coherence failed" in message
     assert (
-        "MAPK14;Y182; expected(gene_symbol='MAPK14', site='Y182') "
-        "observed(gene_symbol='MAPK1', site='Y182')"
-    ) in message
+        "dataset.site_metadata phosphosite identity metadata validation failed"
+        in message
+    )
     assert (
-        "AKT1;T308; expected(gene_symbol='AKT1', site='T308') "
-        "observed(gene_symbol='AKT1', site='S473')"
-    ) in message
+        "site_sequence central residue must agree with site/residue metadata" in message
+    )
+    assert "AKT1;T308;" in message
 
 
 def test_dataset_boundary_rejects_unparseable_site_ids_before_coherence_checks() -> (
@@ -90,7 +92,10 @@ def test_dataset_boundary_rejects_unparseable_site_ids_before_coherence_checks()
         {
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
-            "site_sequence": ["A" * 31],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["Y182"]
+            ],
         },
         index=phospho.index.copy(),
     )

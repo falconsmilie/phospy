@@ -485,6 +485,100 @@ def test_site_metadata_rejects_site_sequence_centre_residue_mismatch() -> None:
         SiteMetadataTable(frame=frame, expected_index=phospho.frame.index)
 
 
+@pytest.mark.parametrize("centre_residue", ["S", "T", "Y"])
+def test_site_metadata_accepts_phosphorylatable_site_sequence_centre(
+    centre_residue: str,
+) -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0]},
+        index=pd.Index([f"MAPK14;{centre_residue}182;"], name="site_id"),
+    )
+    frame = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14"],
+            "site": [f"{centre_residue}182"],
+            "site_sequence": [f"AAAAA{centre_residue}AAAAA"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    wrapped = SiteMetadataTable(frame=frame, expected_index=phospho.index.copy())
+    assert (
+        wrapped.frame.loc[phospho.index[0], "site_sequence"]
+        == f"AAAAA{centre_residue}AAAAA"
+    )
+
+
+def test_site_metadata_rejects_non_phosphorylatable_site_sequence_centre() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0]},
+        index=pd.Index(["GSK3B;S9;"], name="site_id"),
+    )
+    frame = pd.DataFrame(
+        {
+            "gene_symbol": ["GSK3B"],
+            "site": ["S9"],
+            "site_sequence": ["AAAAAKAAAAA"],
+        },
+        index=phospho.index.copy(),
+    )
+    with pytest.raises(
+        DatasetValidationError,
+        match="must contain a centred phosphorylatable residue \\(S/T/Y\\)",
+    ):
+        SiteMetadataTable(frame=frame, expected_index=phospho.index.copy())
+
+
+@pytest.mark.parametrize(
+    ("site", "site_sequence"),
+    [
+        ("S10", "AAAAATAAAAA"),
+        ("T10", "AAAAASAAAAA"),
+        ("Y10", "AAAAASAAAAA"),
+        ("Y10", "AAAAATAAAAA"),
+    ],
+)
+def test_site_metadata_rejects_site_sequence_centre_residue_site_mismatch(
+    site: str,
+    site_sequence: str,
+) -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0]},
+        index=pd.Index([f"GENE;{site};"], name="site_id"),
+    )
+    frame = pd.DataFrame(
+        {
+            "gene_symbol": ["GENE"],
+            "site": [site],
+            "site_sequence": [site_sequence],
+        },
+        index=phospho.index.copy(),
+    )
+    with pytest.raises(
+        DatasetValidationError,
+        match="site_sequence central residue must agree with site/residue metadata",
+    ):
+        SiteMetadataTable(frame=frame, expected_index=phospho.index.copy())
+
+
+def test_site_metadata_accepts_lowercase_site_sequence_when_centre_is_valid() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0]},
+        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+    )
+    frame = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "site_sequence": ["aaaaayaaaaa"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    wrapped = SiteMetadataTable(frame=frame, expected_index=phospho.index.copy())
+    assert wrapped.frame.loc["MAPK14;Y182;", "site_sequence"] == "aaaaayaaaaa"
+
+
 @pytest.mark.parametrize("invalid_value", ["A1A", "AA AA", "**", "S"])
 def test_site_metadata_rejects_implausible_site_sequence_values(
     invalid_value: str,

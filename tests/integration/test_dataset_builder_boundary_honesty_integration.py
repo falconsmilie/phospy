@@ -15,6 +15,7 @@ from phospy.api import (
 )
 from phospy.api.configs import DATASET_SITE_MATRIX_MISSING_DATA_POLICIES
 from phospy.errors.references import UnsupportedOrganismError
+from phospy.errors.validation import DatasetValidationError
 
 pytestmark = pytest.mark.integration
 
@@ -268,6 +269,32 @@ def test_builder_succeeds_with_provided_site_sequence_at_analysis_ready_boundary
     assert derivation["provided_sequence_count"] == 1
     assert derivation["derived_sequence_count"] == 0
     assert derivation["unresolved_sequence_count"] == 0
+
+
+def test_builder_rejects_non_phosphorylatable_site_sequence_centre_before_construction() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0], "sample_b": [2.0]},
+        index=pd.Index(["GSK3B;S9;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["GSK3B"],
+            "site": ["S9"],
+            "site_sequence": ["AAAAAKAAAAA"],
+            "localisation_confidence": [0.95],
+        },
+        index=phospho.index.copy(),
+    )
+
+    with pytest.raises(
+        DatasetValidationError,
+        match="must contain a centred phosphorylatable residue \\(S/T/Y\\)",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(phospho=phospho, site_metadata=site_metadata)
+        )
 
 
 def test_builder_derives_missing_site_sequence_before_analysis_ready_construction() -> (

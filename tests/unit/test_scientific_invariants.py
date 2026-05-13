@@ -95,7 +95,10 @@ def _analysis_ready_dataset(site_ids: list[str]) -> AnalysisReadyPhosphoDataset:
         {
             "gene_symbol": [site_id.split(";", 1)[0] for site_id in site_ids],
             "site": [f"S{index + 1}" for index, _ in enumerate(site_ids)],
-            "site_sequence": ["A" * 31 for _ in site_ids],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in [f"S{index + 1}" for index, _ in enumerate(site_ids)]
+            ],
             "protein_id": [f"P{index + 1}" for index, _ in enumerate(site_ids)],
         },
         index=phospho.index.copy(),

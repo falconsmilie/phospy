@@ -48,7 +48,10 @@ def test_builder_rejects_duplicate_display_ids_with_conflicting_protein_identity
         {
             "gene_symbol": ["MAPK14", "MAPK14"],
             "site": ["Y182", "Y182"],
-            "site_sequence": ["A" * 31, "B" * 31],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["Y182", "Y182"]
+            ],
             "localisation_confidence": [0.95, 0.95],
             "protein_id": ["P28482", "P28482"],
             "protein_accession": ["P28482-1", "P28482-2"],
@@ -127,7 +130,10 @@ def test_differential_workflow_accepts_gene_site_only_dataset() -> None:
             {
                 "gene_symbol": ["MAPK14", "AKT1"],
                 "site": ["Y182", "T308"],
-                "site_sequence": ["A" * 31, "B" * 31],
+                "site_sequence": [
+                    ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                    for site in ["Y182", "T308"]
+                ],
                 "localisation_confidence": [0.95, 0.95],
             },
             index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),

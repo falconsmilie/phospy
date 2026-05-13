@@ -43,7 +43,10 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         {
             "gene_symbol": ["GENEA", "GENEA", "GENEB", "GENEB"],
             "site": ["S1", "S2", "S3", "S4"],
-            "site_sequence": ["A" * 31, "B" * 31, "C" * 31, "D" * 31],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["S1", "S2", "S3", "S4"]
+            ],
         },
         index=site_ids,
     )

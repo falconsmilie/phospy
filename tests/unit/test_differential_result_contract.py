@@ -51,7 +51,10 @@ def _build_dataset(matrix: pd.DataFrame):
         {
             "gene_symbol": [parts[0] for parts in parsed],
             "site": [parts[1] for parts in parsed],
-            "site_sequence": ["A" * 31] * matrix.shape[0],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in [parts[1] for parts in parsed]
+            ],
             "protein_id": [parts[0] for parts in parsed],
         },
         index=matrix.index.copy(),

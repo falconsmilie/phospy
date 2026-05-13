@@ -48,7 +48,10 @@ def _dataset_with_technical_replicates() -> AnalysisReadyPhosphoDataset:
         {
             "gene_symbol": ["MAPK14", "GSK3B"],
             "site": ["Y182", "S9"],
-            "site_sequence": ["A" * 31, "B" * 31],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["Y182", "S9"]
+            ],
             "protein_id": ["MAPK14", "GSK3B"],
         },
         index=phospho.index.copy(),
@@ -231,7 +234,10 @@ def test_aggregation_groups_by_condition_plus_biological_replicate_id() -> None:
         {
             "gene_symbol": ["MAPK14", "GSK3B"],
             "site": ["Y182", "S9"],
-            "site_sequence": ["A" * 31, "B" * 31],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["Y182", "S9"]
+            ],
             "protein_id": ["MAPK14", "GSK3B"],
         },
         index=phospho.index.copy(),

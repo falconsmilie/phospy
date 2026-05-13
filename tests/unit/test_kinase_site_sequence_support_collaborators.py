@@ -101,13 +101,13 @@ class _ExecutorSentinel:
 def test_site_sequence_builder_appends_dataset_only_sequences() -> None:
     dataset = _dataset(
         sequences_by_site={
-            "MAPK14;Y182;": "AAAAAAAYAAAAAAAAAAAAAAAAAAAAAAA",
-            "EXTRA;S1;": "AAAAAAASAAAAAAAAAAAAAAAAAAAAAAA",
+            "MAPK14;Y182;": "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
+            "EXTRA;S1;": "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
         }
     )
     references = _references(
         reference_sequences_by_site={
-            "MAPK14;Y182;": "AAAAAAAYAAAAAAAAAAAAAAAAAAAAAAA",
+            "MAPK14;Y182;": "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
         }
     )
 
@@ -121,7 +121,7 @@ def test_site_sequence_builder_appends_dataset_only_sequences() -> None:
     assert "EXTRA;S1;" in result.site_sequences.index
     assert (
         result.site_sequences.at["EXTRA;S1;", "site_sequence"]
-        == "AAAAAAASAAAAAAAAAAAAAAAAAAAAAAA"
+        == "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA"
     )
     assert result.dataset_sequences_added == 1
     assert result.dataset_reference_conflict_count == 0
@@ -131,14 +131,14 @@ def test_site_sequence_builder_appends_dataset_only_sequences() -> None:
 def test_site_sequence_builder_ignores_matching_dataset_reference_sequences() -> None:
     dataset = _dataset(
         sequences_by_site={
-            "MAPK14;Y182;": "AAAAAAAYAAAAAAAAAAAAAAAAAAAAAAA",
-            "GSK3B;S9;": "AAAAAAASAAAAAAAAAAAAAAAAAAAAAAA",
+            "MAPK14;Y182;": "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
+            "GSK3B;S9;": "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
         }
     )
     references = _references(
         reference_sequences_by_site={
-            "MAPK14;Y182;": "AAAAAAAYAAAAAAAAAAAAAAAAAAAAAAA",
-            "GSK3B;S9;": "AAAAAAASAAAAAAAAAAAAAAAAAAAAAAA",
+            "MAPK14;Y182;": "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
+            "GSK3B;S9;": "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
         }
     )
 
@@ -157,14 +157,14 @@ def test_site_sequence_builder_ignores_matching_dataset_reference_sequences() ->
 def test_interpreter_conflict_error_policy_fails_before_executor_runs() -> None:
     dataset = _dataset(
         sequences_by_site={
-            "MAPK14;Y182;": "AAAAAAAYAAAAAAAAAAAAAAAAAAAAAAA",
-            "GSK3B;S9;": "AAAAAAASAAAAAAAAAAAAAAAAAAAAAAA",
+            "MAPK14;Y182;": "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
+            "GSK3B;S9;": "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
         }
     )
     references = _references(
         reference_sequences_by_site={
-            "MAPK14;Y182;": "AAAAAAATTTTTTTTTTTTTTTTTTTTTTTT",
-            "GSK3B;S9;": "AAAAAAASAAAAAAAAAAAAAAAAAAAAAAA",
+            "MAPK14;Y182;": "AAAAAAAAAAAAAAATAAAAAAAAAAAAAAA",
+            "GSK3B;S9;": "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
         }
     )
     request = KinaseWorkflowRequest(
@@ -192,8 +192,8 @@ def test_interpreter_conflict_error_policy_fails_before_executor_runs() -> None:
     diagnostics = cast(list[dict[str, object]], error.details["conflict_diagnostics"])
     assert len(diagnostics) == 1
     assert diagnostics[0]["site_id"] == "MAPK14;Y182;"
-    assert diagnostics[0]["dataset_sequence"] == "AAAAAAAYAAAAAAAAAAAAAAAAAAAAAAA"
-    assert diagnostics[0]["reference_sequence"] == "AAAAAAATTTTTTTTTTTTTTTTTTTTTTTT"
+    assert diagnostics[0]["dataset_sequence"] == "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA"
+    assert diagnostics[0]["reference_sequence"] == "AAAAAAAAAAAAAAATAAAAAAAAAAAAAAA"
     assert isinstance(error.next_action, str)
     assert "site_sequence_conflict_policy='prefer_reference'" in error.next_action
     assert "KinaseWorkflowRequest" in error.next_action
@@ -205,14 +205,14 @@ def test_interpreter_default_prefer_reference_records_conflict_diagnostics_in_pr
 ):
     dataset = _dataset(
         sequences_by_site={
-            "MAPK14;Y182;": "AAAAAAAYAAAAAAAAAAAAAAAAAAAAAAA",
-            "GSK3B;S9;": "AAAAAAASAAAAAAAAAAAAAAAAAAAAAAA",
+            "MAPK14;Y182;": "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
+            "GSK3B;S9;": "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
         }
     )
     references = _references(
         reference_sequences_by_site={
-            "MAPK14;Y182;": "AAAAAAATTTTTTTTTTTTTTTTTTTTTTTT",
-            "GSK3B;S9;": "AAAAAAASAAAAAAAAAAAAAAAAAAAAAAA",
+            "MAPK14;Y182;": "AAAAAAAAAAAAAAATAAAAAAAAAAAAAAA",
+            "GSK3B;S9;": "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
         }
     )
     result = KinaseWorkflow(interpreter=KinaseWorkflowInterpreter()).run(
@@ -243,7 +243,7 @@ def test_interpreter_default_prefer_reference_records_conflict_diagnostics_in_pr
     )
     assert len(conflict_rows) == 1
     assert conflict_rows[0]["selected_sequence_source"] == "reference"
-    assert conflict_rows[0]["selected_sequence"] == "AAAAAAATTTTTTTTTTTTTTTTTTTTTTTT"
+    assert conflict_rows[0]["selected_sequence"] == "AAAAAAAAAAAAAAATAAAAAAAAAAAAAAA"
 
 
 def test_interpreter_prefer_dataset_selects_dataset_sequence_and_contract_accepts_it() -> (
@@ -251,14 +251,14 @@ def test_interpreter_prefer_dataset_selects_dataset_sequence_and_contract_accept
 ):
     dataset = _dataset(
         sequences_by_site={
-            "MAPK14;Y182;": "AAAAAAAYAAAAAAAAAAAAAAAAAAAAAAA",
-            "GSK3B;S9;": "AAAAAAASAAAAAAAAAAAAAAAAAAAAAAA",
+            "MAPK14;Y182;": "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
+            "GSK3B;S9;": "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
         }
     )
     references = _references(
         reference_sequences_by_site={
-            "MAPK14;Y182;": "AAAAAAATTTTTTTTTTTTTTTTTTTTTTTT",
-            "GSK3B;S9;": "AAAAAAASAAAAAAAAAAAAAAAAAAAAAAA",
+            "MAPK14;Y182;": "AAAAAAAAAAAAAAATAAAAAAAAAAAAAAA",
+            "GSK3B;S9;": "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
         }
     )
     request = KinaseWorkflowRequest(
@@ -277,7 +277,7 @@ def test_interpreter_prefer_dataset_selects_dataset_sequence_and_contract_accept
     interpreted = KinaseWorkflowInterpreter().run(request)
 
     assert interpreted.site_sequences.at["MAPK14;Y182;", "site_sequence"] == (
-        "AAAAAAAYAAAAAAAAAAAAAAAAAAAAAAA"
+        "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA"
     )
     diagnostics = interpreted.site_sequence_merge_diagnostics
     assert diagnostics["conflict_policy"] == "prefer_dataset"
@@ -297,14 +297,14 @@ def test_boundary_scoring_runner_contains_no_site_sequence_merge_conflict_logic(
 def test_boundary_contracts_reject_unnormalised_site_identifiers() -> None:
     dataset = _dataset(
         sequences_by_site={
-            "MAPK14;Y182;": "AAAAAAAYAAAAAAAAAAAAAAAAAAAAAAA",
-            "GSK3B;S9;": "AAAAAAASAAAAAAAAAAAAAAAAAAAAAAA",
+            "MAPK14;Y182;": "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
+            "GSK3B;S9;": "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
         }
     )
     references = _references(
         reference_sequences_by_site={
-            "MAPK14;Y182;": "AAAAAAAYAAAAAAAAAAAAAAAAAAAAAAA",
-            "GSK3B;S9;": "AAAAAAASAAAAAAAAAAAAAAAAAAAAAAA",
+            "MAPK14;Y182;": "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
+            "GSK3B;S9;": "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
         }
     )
     unnormalised_sequences = references.site_sequences.copy(deep=True)

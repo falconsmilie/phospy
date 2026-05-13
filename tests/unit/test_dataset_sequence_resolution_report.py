@@ -44,7 +44,10 @@ def _site_metadata(
     }
     if with_sequence_column:
         if site_sequences is None:
-            site_sequences = ["SEQ_A", "SEQ_B"]
+            site_sequences = [
+                ("A" * 15) + "Y" + ("A" * 15),
+                ("A" * 15) + "S" + ("A" * 15),
+            ]
         data["site_sequence"] = site_sequences
     return pd.DataFrame(data, index=_phospho().index.copy())
 
@@ -86,7 +89,12 @@ def _summary_for_built_dataset(
 def test_sequence_resolution_report_counts_all_sequences_provided_by_input() -> None:
     summary = _summary_for_built_dataset(
         phospho=_phospho(),
-        site_metadata=_site_metadata(site_sequences=["SEQ_A", "SEQ_B"]),
+        site_metadata=_site_metadata(
+            site_sequences=[
+                ("A" * 15) + "Y" + ("A" * 15),
+                ("A" * 15) + "S" + ("A" * 15),
+            ]
+        ),
     )
 
     assert summary.total_sites == 2
@@ -123,7 +131,9 @@ def test_sequence_resolution_report_counts_mixed_input_and_reference_resolution(
 ):
     summary = _summary_for_built_dataset(
         phospho=_phospho(),
-        site_metadata=_site_metadata(site_sequences=["SEQ_A", pd.NA]),
+        site_metadata=_site_metadata(
+            site_sequences=[("A" * 15) + "Y" + ("A" * 15), pd.NA]
+        ),
         organism=Organism.RAT,
         preprocessing_config=DatasetPreprocessingConfig(
             site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
@@ -183,7 +193,7 @@ def test_sequence_resolution_report_counts_conflicts_and_records_policy(
                 "gene_symbol": ["MAPK14", "GSK3B"],
                 "site": ["Y5", "S6"],
                 "protein_accession": ["P1", "P2"],
-                "site_sequence": ["XXXXX", pd.NA],
+                "site_sequence": ["TTTTTYTTTTT", pd.NA],
                 "localisation_confidence": [0.95, 0.9],
             },
             index=pd.Index(["MAPK14;Y5;", "GSK3B;S6;"], name="site_id"),

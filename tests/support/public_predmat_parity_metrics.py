@@ -86,6 +86,27 @@ def _canonical_public_site_components(site_id: object) -> tuple[str, str, str]:
     return f"{gene_symbol};{site};", gene_symbol, site
 
 
+def _centered_sequence_for_site(site: str) -> str:
+    residue = str(site).strip().upper()[0]
+    return ("A" * 15) + residue + ("A" * 15)
+
+
+def _normalize_sequence_center(site: str, sequence: object) -> str:
+    token = str(sequence).strip().upper()
+    if (
+        token.isalpha()
+        and len(token) % 2 == 1
+        and token[len(token) // 2]
+        in {
+            "S",
+            "T",
+            "Y",
+        }
+    ):
+        return token
+    return _centered_sequence_for_site(site)
+
+
 def _canonicalize_public_site_frame_index(frame: pd.DataFrame) -> pd.DataFrame:
     normalized = frame.copy(deep=True)
     canonical_index = [
@@ -112,7 +133,11 @@ def _build_public_predmat_dataset():
             "gene_symbol": [gene_symbol for _, gene_symbol, _ in canonical_components],
             "site": [site for _, _, site in canonical_components],
             "site_sequence": [
-                str(site_sequences[str(site_id).strip()]) for site_id in raw_site_ids
+                _normalize_sequence_center(
+                    _canonical_public_site_components(site_id)[2],
+                    site_sequences[str(site_id).strip()],
+                )
+                for site_id in raw_site_ids
             ],
             "localisation_confidence": [0.95] * phospho.shape[0],
         },
@@ -148,7 +173,13 @@ def _build_public_predmat_references(*, reverse_order: bool) -> ReferenceBundle:
     sequence_index = [
         _canonical_public_site_components(site_id)[0] for site_id, _ in sequence_items
     ]
-    sequence_values = [str(sequence) for _, sequence in sequence_items]
+    sequence_values = [
+        _normalize_sequence_center(
+            _canonical_public_site_components(site_id)[2],
+            sequence,
+        )
+        for site_id, sequence in sequence_items
+    ]
     return ReferenceBundle(
         organism=Organism.RAT,
         kinase_substrate_map=pd.DataFrame(substrate_rows),

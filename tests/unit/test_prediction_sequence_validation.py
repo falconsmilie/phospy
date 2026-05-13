@@ -375,7 +375,10 @@ def test_kinase_workflow_exposes_sequence_validation_diagnostics() -> None:
         {
             "gene_symbol": ["MAPK1", "MAPK1", "MAPK1"],
             "site": ["S202", "T205", "S210"],
-            "site_sequence": ["A" * 31, "A" * 31, "A" * 31],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["S202", "T205", "S210"]
+            ],
         },
         index=site_ids,
     )
@@ -527,7 +530,10 @@ def test_kinase_workflow_reports_partial_sequence_coverage_in_provenance() -> No
             {
                 "gene_symbol": ["MAPK1", "MAPK1", "MAPK1"],
                 "site": ["S202", "T205", "S210"],
-                "site_sequence": ["A" * 31, "A" * 31, "A" * 31],
+                "site_sequence": [
+                    ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                    for site in ["S202", "T205", "S210"]
+                ],
             },
             index=site_ids,
         ),
@@ -597,7 +603,10 @@ def test_kinase_workflow_continues_when_no_sites_have_valid_sequence() -> None:
             {
                 "gene_symbol": ["MAPK1", "MAPK1"],
                 "site": ["S202", "T205"],
-                "site_sequence": ["A" * 31, "A" * 31],
+                "site_sequence": [
+                    ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                    for site in ["S202", "T205"]
+                ],
             },
             index=site_ids,
         ),

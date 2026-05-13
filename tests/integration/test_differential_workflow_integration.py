@@ -35,7 +35,10 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         {
             "gene_symbol": ["MAPK14", "GSK3B", "AKT1", "RPS6KB1"],
             "site": ["Y182", "S9", "T308", "T389"],
-            "site_sequence": ["A" * 31, "B" * 31, "C" * 31, "D" * 31],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["Y182", "S9", "T308", "T389"]
+            ],
             "localisation_confidence": [0.95] * phospho.shape[0],
             "protein_id": ["MAPK14", "GSK3B", "AKT1", "RPS6KB1"],
         },

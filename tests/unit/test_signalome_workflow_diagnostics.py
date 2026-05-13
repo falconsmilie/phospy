@@ -114,7 +114,10 @@ def _dataset(
         {
             "gene_symbol": gene_symbols,
             "site": [f"S{index + 1}" for index in range(len(site_ids))],
-            "site_sequence": ["A" * 31 for _ in site_ids],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in [f"S{index + 1}" for index in range(len(site_ids))]
+            ],
             "protein_id": protein_ids,
         },
         index=site_ids,
@@ -138,7 +141,14 @@ def _bundle(site_ids: list[str]) -> ReferenceBundle:
             {"kinase": ["MAP2K6"], "substrate_site": [str(unique_sites[0])]}
         ),
         site_sequences=pd.DataFrame(
-            {"site_sequence": ["A" * 31 for _ in unique_sites]},
+            {
+                "site_sequence": [
+                    ("A" * 15)
+                    + str(site_id).split(";")[1].strip().upper()[0]
+                    + ("A" * 15)
+                    for site_id in unique_sites
+                ]
+            },
             index=unique_sites,
         ),
     )

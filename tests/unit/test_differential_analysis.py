@@ -59,7 +59,10 @@ def _dataset(matrix: pd.DataFrame | None = None):
         {
             "gene_symbol": [parts[0] for parts in gene_site],
             "site": [parts[1] for parts in gene_site],
-            "site_sequence": ["A" * 31 for _ in gene_site],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in [parts[1] for parts in gene_site]
+            ],
             "protein_id": [parts[0] for parts in gene_site],
         },
         index=phospho.index.copy(),

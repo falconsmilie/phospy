@@ -38,7 +38,10 @@ def test_builder_canonicalizes_site_ids_and_reorders_site_metadata() -> None:
             "site_id": ["AKT1;T308;", " MAPK14;Y182; "],
             "gene_symbol": ["AKT1", "MAPK14"],
             "site": ["T308", "Y182"],
-            "site_sequence": ["A" * 31, "B" * 31],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["T308", "Y182"]
+            ],
             "localisation_confidence": [0.95, 0.9],
         }
     )
@@ -70,7 +73,10 @@ def test_builder_canonicalizes_lowercase_site_ids() -> None:
             "site_id": ["mapk14;y182;"],
             "gene_symbol": ["mapk14"],
             "site": ["y182"],
-            "site_sequence": ["A" * 31],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["y182"]
+            ],
             "localisation_confidence": [0.95],
         }
     )
@@ -100,7 +106,10 @@ def test_builder_does_not_mutate_caller_owned_phospho_frame() -> None:
             "site_id": ["MAPK14;Y182;"],
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
-            "site_sequence": ["A" * 31],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["Y182"]
+            ],
             "localisation_confidence": [0.95],
         }
     )
@@ -129,7 +138,10 @@ def test_builder_does_not_mutate_caller_owned_site_metadata_frame() -> None:
             "site_id": [" mapk14 ; y182 "],
             "gene_symbol": ["mapk14"],
             "site": ["y182"],
-            "site_sequence": ["A" * 31],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["y182"]
+            ],
             "localisation_confidence": [0.95],
         }
     )
@@ -158,7 +170,10 @@ def test_builder_rejects_ambiguous_site_ids_after_canonicalization() -> None:
         {
             "gene_symbol": ["MAPK14", "MAPK14"],
             "site": ["Y182", "Y182"],
-            "site_sequence": ["A" * 31, "B" * 31],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["Y182", "Y182"]
+            ],
             "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
@@ -187,7 +202,10 @@ def test_builder_rejects_colliding_dirty_site_ids_after_canonicalization() -> No
             "site_id": ["MAPK14;Y182;", "mapk14;y182"],
             "gene_symbol": ["MAPK14", "MAPK14"],
             "site": ["Y182", "Y182"],
-            "site_sequence": ["A" * 31, "B" * 31],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["Y182", "Y182"]
+            ],
             "localisation_confidence": [0.95, 0.9],
         }
     )
@@ -247,7 +265,10 @@ def test_dataset_boundary_rejects_non_canonical_site_ids() -> None:
                 {
                     "gene_symbol": ["MAPK14", "AKT1"],
                     "site": ["Y182", "T308"],
-                    "site_sequence": ["A" * 31, "B" * 31],
+                    "site_sequence": [
+                        ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                        for site in ["Y182", "T308"]
+                    ],
                 },
                 index=pd.Index([101, 202], name="site_id"),
             ),
@@ -278,7 +299,10 @@ def test_dataset_boundary_rejects_lowercase_site_ids() -> None:
                 {
                     "gene_symbol": ["MAPK14"],
                     "site": ["Y182"],
-                    "site_sequence": ["A" * 31],
+                    "site_sequence": [
+                        ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                        for site in ["Y182"]
+                    ],
                 },
                 index=pd.Index(["mapk14;y182;"], name="site_id"),
             ),
@@ -309,7 +333,10 @@ def test_dataset_boundary_rejects_whitespace_site_ids() -> None:
                 {
                     "gene_symbol": ["MAPK14"],
                     "site": ["Y182"],
-                    "site_sequence": ["A" * 31],
+                    "site_sequence": [
+                        ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                        for site in ["Y182"]
+                    ],
                 },
                 index=pd.Index([" MAPK14;Y182; "], name="site_id"),
             ),
@@ -340,7 +367,10 @@ def test_dataset_boundary_rejects_missing_trailing_delimiter_site_ids() -> None:
                 {
                     "gene_symbol": ["MAPK14"],
                     "site": ["Y182"],
-                    "site_sequence": ["A" * 31],
+                    "site_sequence": [
+                        ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                        for site in ["Y182"]
+                    ],
                 },
                 index=pd.Index(["MAPK14;Y182"], name="site_id"),
             ),
@@ -374,7 +404,10 @@ def test_dataset_boundary_rejects_duplicates_after_site_id_canonicalization() ->
                 {
                     "gene_symbol": ["MAPK14", "MAPK14"],
                     "site": ["Y182", "Y182"],
-                    "site_sequence": ["A" * 31, "B" * 31],
+                    "site_sequence": [
+                        ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                        for site in ["Y182", "Y182"]
+                    ],
                 },
                 index=pd.Index(
                     ["mapk14;y182;", "MAPK14;Y182;"],
@@ -411,7 +444,10 @@ def test_dataset_boundary_rejects_colliding_dirty_site_ids() -> None:
                 {
                     "gene_symbol": ["MAPK14", "MAPK14"],
                     "site": ["Y182", "Y182"],
-                    "site_sequence": ["A" * 31, "B" * 31],
+                    "site_sequence": [
+                        ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                        for site in ["Y182", "Y182"]
+                    ],
                 },
                 index=pd.Index(
                     ["MAPK14;Y182;", " MAPK14;Y182;"],
@@ -441,7 +477,10 @@ def test_dataset_boundary_accepts_strict_canonical_site_ids() -> None:
             {
                 "gene_symbol": ["MAPK14"],
                 "site": ["Y182"],
-                "site_sequence": ["A" * 31],
+                "site_sequence": [
+                    ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                    for site in ["Y182"]
+                ],
             },
             index=pd.Index(["MAPK14;Y182;"], name="site_id"),
         ),
@@ -468,7 +507,10 @@ def test_dataset_boundary_requires_explicit_intensity_and_processing_state() -> 
                 {
                     "gene_symbol": ["MAPK14"],
                     "site": ["Y182"],
-                    "site_sequence": ["A" * 31],
+                    "site_sequence": [
+                        ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                        for site in ["Y182"]
+                    ],
                 },
                 index=pd.Index(["MAPK14;Y182;"], name="site_id"),
             ),
@@ -645,7 +687,10 @@ def test_dataset_and_reference_ids_align_after_shared_normalization() -> None:
                     "site_id": ["MAPK14;Y182"],
                     "gene_symbol": ["mapk14"],
                     "site": ["y182"],
-                    "site_sequence": ["A" * 31],
+                    "site_sequence": [
+                        ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                        for site in ["y182"]
+                    ],
                     "localisation_confidence": [0.95],
                 }
             ),

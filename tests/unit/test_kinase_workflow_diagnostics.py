@@ -54,7 +54,10 @@ def _dataset(
         {
             "gene_symbol": [site.split(";", 1)[0] for site in site_ids],
             "site": [site.split(";")[1] for site in site_ids],
-            "site_sequence": ["A" * 31 for _ in site_ids],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in [site.split(";")[1] for site in site_ids]
+            ],
             "localisation_confidence": [0.95 for _ in site_ids],
         },
         index=site_ids,
@@ -79,7 +82,14 @@ def _bundle(kinase_substrate_map: pd.DataFrame) -> ReferenceBundle:
         organism=Organism.RAT,
         kinase_substrate_map=kinase_substrate_map,
         site_sequences=pd.DataFrame(
-            {"site_sequence": ["A" * 31 for _ in unique_sites]},
+            {
+                "site_sequence": [
+                    ("A" * 15)
+                    + str(site_id).split(";")[1].strip().upper()[0]
+                    + ("A" * 15)
+                    for site_id in unique_sites
+                ]
+            },
             index=unique_sites,
         ),
     )
@@ -527,7 +537,10 @@ def test_eligibility_report_includes_localisation_counts_when_policy_available()
         {
             "gene_symbol": ["MAPK14", "GSK3B"],
             "site": ["Y182", "S9"],
-            "site_sequence": ["A" * 31, "A" * 31],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["Y182", "S9"]
+            ],
             "localisation_confidence": [0.98, 0.97],
         },
         index=phospho.index.copy(),

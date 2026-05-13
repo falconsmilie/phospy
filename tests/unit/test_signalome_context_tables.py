@@ -53,7 +53,10 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         {
             "gene_symbol": ["P1", "P1", "P2", "P3"],
             "site": ["S1", "S2", "S3", "S4"],
-            "site_sequence": ["A" * 31, "B" * 31, "C" * 31, "D" * 31],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["S1", "S2", "S3", "S4"]
+            ],
             "protein_id": ["P1", "P1", "P2", "P3"],
         },
         index=site_ids,
@@ -80,7 +83,14 @@ def _bundle(site_ids: list[str]) -> ReferenceBundle:
             }
         ),
         site_sequences=pd.DataFrame(
-            {"site_sequence": ["A" * 31 for _ in unique_sites]},
+            {
+                "site_sequence": [
+                    ("A" * 15)
+                    + str(site_id).split(";")[1].strip().upper()[0]
+                    + ("A" * 15)
+                    for site_id in unique_sites
+                ]
+            },
             index=unique_sites,
         ),
     )

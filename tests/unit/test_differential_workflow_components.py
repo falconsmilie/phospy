@@ -48,7 +48,10 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         {
             "gene_symbol": ["MAPK14", "GSK3B", "AKT1"],
             "site": ["Y182", "S9", "T308"],
-            "site_sequence": ["A" * 31, "B" * 31, "C" * 31],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["Y182", "S9", "T308"]
+            ],
             "protein_id": ["MAPK14", "GSK3B", "AKT1"],
         },
         index=phospho.index.copy(),

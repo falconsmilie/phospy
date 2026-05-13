@@ -14,7 +14,10 @@ def test_validate_identity_optional_columns_accepts_missing_and_strings() -> Non
         {
             "gene_symbol": ["MAPK14", "MAPK14"],
             "site": ["Y182", "Y182"],
-            "site_sequence": ["A" * 31, "A" * 31],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["Y182", "Y182"]
+            ],
             "protein_id": ["P28482", pd.NA],
             "protein_accession": ["P28482-1", ""],
             "source_namespace": ["uniprot", " "],
@@ -34,7 +37,10 @@ def test_validate_identity_optional_columns_rejects_non_string_values() -> None:
         {
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
-            "site_sequence": ["A" * 31],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["Y182"]
+            ],
             "protein_accession": [123],
         },
         index=pd.Index(["MAPK14;Y182;"], name="site_id"),
@@ -55,7 +61,10 @@ def test_identity_collision_rejects_same_display_id_with_conflicting_protein_con
         {
             "gene_symbol": ["MAPK14", "MAPK14"],
             "site": ["Y182", "Y182"],
-            "site_sequence": ["A" * 31, "A" * 31],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["Y182", "Y182"]
+            ],
             "protein_id": ["P28482", "P28482"],
             "protein_accession": ["P28482-1", "P28482-2"],
         },
@@ -84,7 +93,10 @@ def test_identity_collision_allows_semantically_identical_duplicates() -> None:
         {
             "gene_symbol": ["MAPK14", "MAPK14"],
             "site": ["Y182", "Y182"],
-            "site_sequence": ["A" * 31, "A" * 31],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["Y182", "Y182"]
+            ],
             "protein_id": ["P28482-1", "P28482-1"],
             "protein_accession": ["P28482-1", "P28482-1"],
         },

@@ -58,6 +58,22 @@ def _canonical_public_site_components(site_id: object) -> tuple[str, str, str]:
     return f"{gene_symbol};{site};", gene_symbol, site
 
 
+def _centered_sequence_for_site(site: str) -> str:
+    residue = str(site).strip().upper()[0]
+    return ("A" * 15) + residue + ("A" * 15)
+
+
+def _normalize_sequence_center(site: str, sequence: object) -> str:
+    token = str(sequence).strip().upper()
+    if (
+        token.isalpha()
+        and len(token) % 2 == 1
+        and token[len(token) // 2] in {"S", "T", "Y"}
+    ):
+        return token
+    return _centered_sequence_for_site(site)
+
+
 def _fingerprints_by_name(
     fingerprints: tuple[object, ...],
 ) -> dict[str, Mapping[str, object]]:
@@ -249,8 +265,8 @@ def test_kinase_workflow_site_sequence_conflict_policy_is_public_request_option(
             "gene_symbol": ["MAPK14", "GSK3B"],
             "site": ["Y182", "S9"],
             "site_sequence": [
-                "AAAAAAAYAAAAAAAAAAAAAAAAAAAAAAA",
-                "AAAAAAASAAAAAAAAAAAAAAAAAAAAAAA",
+                _centered_sequence_for_site("Y182"),
+                _centered_sequence_for_site("S9"),
             ],
             "localisation_confidence": [0.95] * phospho.shape[0],
         },
@@ -274,8 +290,8 @@ def test_kinase_workflow_site_sequence_conflict_policy_is_public_request_option(
         site_sequences=pd.DataFrame(
             {
                 "site_sequence": [
-                    "AAAAAAATTTTTTTTTTTTTTTTTTTTTTTT",
-                    "AAAAAAASAAAAAAAAAAAAAAAAAAAAAAA",
+                    _centered_sequence_for_site("T182"),
+                    _centered_sequence_for_site("S9"),
                 ]
             },
             index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
@@ -1017,7 +1033,10 @@ def test_kinase_public_predmat_provenance_matches_golden_contract() -> None:
             "gene_symbol": [gene_symbol for _, gene_symbol, _ in canonical_components],
             "site": [site for _, _, site in canonical_components],
             "site_sequence": [
-                str(site_sequences[str(site_id).strip()])
+                _normalize_sequence_center(
+                    _canonical_public_site_components(site_id)[2],
+                    site_sequences[str(site_id).strip()],
+                )
                 for site_id in input_phospho.index.astype(str)
             ],
             "localisation_confidence": [0.95] * phospho.shape[0],
@@ -1047,7 +1066,11 @@ def test_kinase_public_predmat_provenance_matches_golden_contract() -> None:
         site_sequences=pd.DataFrame(
             {
                 "site_sequence": [
-                    str(sequence) for _, sequence in site_sequences.items()
+                    _normalize_sequence_center(
+                        _canonical_public_site_components(site_id)[2],
+                        sequence,
+                    )
+                    for site_id, sequence in site_sequences.items()
                 ]
             },
             index=pd.Index(

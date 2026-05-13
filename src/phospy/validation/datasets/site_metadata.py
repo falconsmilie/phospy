@@ -120,6 +120,9 @@ def validate_site_identity_metadata(
         if centre_residue is None:
             continue
         if centre_residue not in _PHOSPHORYLATABLE_RESIDUES:
+            non_phospho_centre_rows.append(
+                f"{site_id!r}: centre={centre_residue!r}, sequence={parsed_sequence!r}"
+            )
             continue
         expected_residue = _resolve_expected_residue(parsed_site, explicit_residue)
         if expected_residue is not None and centre_residue != expected_residue:

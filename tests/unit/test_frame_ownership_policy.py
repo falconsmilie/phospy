@@ -93,7 +93,7 @@ def _site_metadata() -> pd.DataFrame:
             "site": ["Y182", "S9"],
             "site_sequence": [
                 "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
-                "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
+                "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
             ],
             "protein_id": ["MAPK14", "GSK3B"],
             "localisation_confidence": [0.95, 0.9],
@@ -115,7 +115,7 @@ def _references() -> ReferenceBundle:
             {
                 "site_sequence": [
                     "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
-                    "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
+                    "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
                 ]
             },
             index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
@@ -136,7 +136,10 @@ def _kinase_result():
         {
             "gene_symbol": ["MAPK14", "GSK3B", "AKT1"],
             "site": ["Y182", "S9", "T308"],
-            "site_sequence": ["A" * 31, "B" * 31, "C" * 31],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["Y182", "S9", "T308"]
+            ],
             "protein_id": ["MAPK14", "GSK3B", "AKT1"],
             "localisation_confidence": [0.95, 0.9, 0.92],
         },

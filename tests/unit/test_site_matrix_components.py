@@ -450,7 +450,10 @@ def test_duplicate_site_resolver_property_outputs_unique_site_ids(
         {
             "gene_symbol": [site_id.split(";")[0] for site_id in constructed_site_ids],
             "site": [site_id.split(";")[1] for site_id in constructed_site_ids],
-            "site_sequence": ["A" * 31 for _ in constructed_site_ids],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in [site_id.split(";")[1] for site_id in constructed_site_ids]
+            ],
             "protein_id": [f"PROT_{idx}" for idx in range(len(constructed_site_ids))],
         },
         index=phospho.index.copy(),

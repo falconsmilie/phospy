@@ -46,7 +46,7 @@ def _build_log2_dataset(*, corrected: bool) -> AnalysisReadyPhosphoDataset:
             "site_sequence": [
                 "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
                 "MDFGLCKEGIKDGATMKLCKRERANWQPWQ",
-                "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
+                "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
             ],
             "localisation_confidence": [0.95] * phospho.shape[0],
         },
