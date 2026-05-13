@@ -24,8 +24,8 @@ from phospy.science.differential.models import (
     DifferentialAnalysisRequest as CoreDiffRequest,
 )
 from tests.support.intensity_scale_states import (
-    supported_linear_intensity_scale_state,
-    supported_linear_processing_state,
+    supported_log2_intensity_scale_state,
+    supported_log2_processing_state,
 )
 
 NEGATIVE_FIXTURE_DIR = (
@@ -76,10 +76,10 @@ def _dataset(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
-        intensity_scale_state=supported_linear_intensity_scale_state(
+        intensity_scale_state=supported_log2_intensity_scale_state(
             has_total_matrix=False
         ),
-        processing_state=supported_linear_processing_state(has_total_matrix=False),
+        processing_state=supported_log2_processing_state(has_total_matrix=False),
     )
 
 

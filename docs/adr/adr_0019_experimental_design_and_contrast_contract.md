@@ -20,6 +20,10 @@ Current parity-protected differential execution remains deliberately narrow:
 two-condition unpaired simple contrasts, with unsupported design features
 rejected at validation boundaries.
 
+Differential outputs include a `logFC` column. That quantitative interpretation
+is only valid when phospho intensities are established as log2-scale before
+differential interpretation/execution.
+
 ## Decision
 
 Differential workflows use a typed contract:
@@ -38,6 +42,16 @@ Differential workflows use a typed contract:
 Technical-replicate resolution runs in
 `phospy.workflows.differential.replicates.TechnicalReplicateResolver` before
 design/contrast validation and matrix assembly.
+
+Differential workflow eligibility requires dataset phospho intensity scale to be
+both:
+
+- established/trusted through supported `IntensityScaleState` establishment, and
+- `IntensityScaleKind.LOG2`.
+
+Raw/linear user input is still supported at dataset-building/preprocessing
+boundaries, where PhosPy may apply log2 transformation and establish scale
+state before differential execution.
 
 Repeated `biological_replicate_id` values within condition groups are treated as
 technical replicates and require explicit aggregation policy. Aggregation also

@@ -21,6 +21,10 @@ from phospy.api import (
 from phospy.api.results import DifferentialAnalysisResult
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
 from phospy.science.differential.models import EmpiricalBayesConfig
+from phospy.science.transformations.models import (
+    IntensityScaleState,
+    MatrixIntensityScaleState,
+)
 from phospy.workflows.differential.executor import DifferentialAnalysisExecutor
 from phospy.workflows.differential.interpreter import DifferentialAnalysisInterpreter
 from phospy.workflows.differential.models import (
@@ -31,6 +35,8 @@ from phospy.workflows.differential.validator import DifferentialAnalysisValidato
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
+    supported_log2_intensity_scale_state,
+    supported_log2_processing_state,
 )
 
 
@@ -60,10 +66,10 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
-        intensity_scale_state=supported_linear_intensity_scale_state(
+        intensity_scale_state=supported_log2_intensity_scale_state(
             has_total_matrix=False
         ),
-        processing_state=supported_linear_processing_state(has_total_matrix=False),
+        processing_state=supported_log2_processing_state(has_total_matrix=False),
     )
 
 
@@ -299,6 +305,82 @@ def test_differential_validator_rejects_non_differential_config_type() -> None:
                 config=object(),  # type: ignore[arg-type]
             )
         )
+
+
+def test_differential_validator_rejects_established_linear_scale() -> None:
+    valid_dataset = _dataset()
+    linear_dataset = AnalysisReadyPhosphoDataset(
+        phospho=valid_dataset.phospho,
+        site_metadata=valid_dataset.site_metadata,
+        organism=valid_dataset.organism,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+    with pytest.raises(
+        WorkflowValidationError,
+        match="requires established log2-scale phospho intensities",
+    ):
+        DifferentialAnalysisValidator().run(
+            DifferentialAnalysisRequest(
+                dataset=linear_dataset,
+                design=_request().design,
+                contrasts=_request().contrasts,
+            )
+        )
+
+
+def test_differential_validator_rejects_declared_but_unestablished_log2_scale() -> None:
+    dataset = _dataset()
+    object.__setattr__(
+        dataset,
+        "intensity_scale_state",
+        IntensityScaleState(
+            phospho=MatrixIntensityScaleState.log2(established_by="test.declaration"),
+            total=None,
+        ),
+    )
+    with pytest.raises(
+        WorkflowValidationError,
+        match="requires established log2-scale phospho intensities",
+    ):
+        DifferentialAnalysisValidator().run(
+            DifferentialAnalysisRequest(
+                dataset=dataset,
+                design=_request().design,
+                contrasts=_request().contrasts,
+            )
+        )
+
+
+def test_differential_invalid_scale_fails_before_executor() -> None:
+    calls = {"executor": 0}
+
+    class _ExecutorSpy:
+        def run(self, request: InterpretedDifferentialAnalysisRequest):
+            calls["executor"] += 1
+            raise AssertionError("executor should not be called")
+
+    valid_dataset = _dataset()
+    linear_dataset = AnalysisReadyPhosphoDataset(
+        phospho=valid_dataset.phospho,
+        site_metadata=valid_dataset.site_metadata,
+        organism=valid_dataset.organism,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+    with pytest.raises(WorkflowValidationError):
+        DifferentialAnalysisWorkflow(executor=_ExecutorSpy()).run(  # type: ignore[arg-type]
+            DifferentialAnalysisRequest(
+                dataset=linear_dataset,
+                design=_request().design,
+                contrasts=_request().contrasts,
+            )
+        )
+    assert calls["executor"] == 0
 
 
 def test_differential_validator_rejects_raw_string_technical_replicate_policy() -> None:

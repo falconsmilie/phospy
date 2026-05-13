@@ -27,8 +27,8 @@ from phospy.api import (
 )
 from phospy.errors import PhosPyInputError, WorkflowValidationError
 from tests.support.intensity_scale_states import (
-    supported_linear_intensity_scale_state,
-    supported_linear_processing_state,
+    supported_log2_intensity_scale_state,
+    supported_log2_processing_state,
 )
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
 from tests.support.signalome_config import build_signalome_config
@@ -139,10 +139,10 @@ def test_differential_workflow_accepts_gene_site_only_dataset() -> None:
             index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
         ),
         organism=Organism.RAT,
-        intensity_scale_state=supported_linear_intensity_scale_state(
+        intensity_scale_state=supported_log2_intensity_scale_state(
             has_total_matrix=False
         ),
-        processing_state=supported_linear_processing_state(has_total_matrix=False),
+        processing_state=supported_log2_processing_state(has_total_matrix=False),
     )
     design = ExperimentalDesign(
         samples=(

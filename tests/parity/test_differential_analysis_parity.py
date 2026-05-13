@@ -18,8 +18,8 @@ from phospy.api import (
 )
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from tests.support.intensity_scale_states import (
-    supported_linear_intensity_scale_state,
-    supported_linear_processing_state,
+    supported_log2_intensity_scale_state,
+    supported_log2_processing_state,
 )
 
 pytestmark = [pytest.mark.parity]
@@ -146,10 +146,10 @@ def _dataset_from_matrix(matrix: pd.DataFrame) -> AnalysisReadyPhosphoDataset:
         phospho=matrix,
         site_metadata=site_metadata,
         organism=Organism.RAT,
-        intensity_scale_state=supported_linear_intensity_scale_state(
+        intensity_scale_state=supported_log2_intensity_scale_state(
             has_total_matrix=False
         ),
-        processing_state=supported_linear_processing_state(has_total_matrix=False),
+        processing_state=supported_log2_processing_state(has_total_matrix=False),
     )
 
 

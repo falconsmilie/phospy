@@ -15,6 +15,14 @@ from phospy.science.design.models import (
     ExperimentalDesign,
     SampleDesignRecord,
 )
+from phospy.science.transformations.models import IntensityScaleKind
+
+_DIFFERENTIAL_LOGFC_SCALE_ERROR_MESSAGE = (
+    "Differential analysis reports logFC and therefore requires established "
+    "log2-scale phospho intensities. Build the dataset with log2 preprocessing "
+    "enabled, or provide an analysis-ready dataset with validated log2 "
+    "intensity-scale state."
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -251,7 +259,24 @@ class ExperimentalDesignContractValidator:
         return frame
 
 
+class DifferentialDatasetEligibilityValidator:
+    """Validate dataset quantitative-scale eligibility for differential logFC."""
+
+    def run(self, *, dataset: AnalysisReadyPhosphoDataset) -> None:
+        if not isinstance(cast(object, dataset), AnalysisReadyPhosphoDataset):
+            raise WorkflowValidationError(
+                "differential workflow request dataset must be AnalysisReadyPhosphoDataset"
+            )
+        phospho_scale = dataset.intensity_scale_state.phospho
+        if (
+            not dataset.intensity_scale_state.is_established
+            or phospho_scale.kind is not IntensityScaleKind.LOG2
+        ):
+            raise WorkflowValidationError(_DIFFERENTIAL_LOGFC_SCALE_ERROR_MESSAGE)
+
+
 __all__ = [
+    "DifferentialDatasetEligibilityValidator",
     "ExperimentalDesignContractValidator",
     "ValidatedExperimentalDesignContract",
 ]

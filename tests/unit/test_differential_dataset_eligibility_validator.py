@@ -1,0 +1,131 @@
+from __future__ import annotations
+
+import pandas as pd
+import pytest
+
+from phospy import AnalysisReadyPhosphoDataset
+from phospy.api import Organism
+from phospy.errors import WorkflowValidationError
+from phospy.science.transformations.models import (
+    IntensityScaleState,
+    MatrixIntensityScaleState,
+    QuantitativeMeaning,
+)
+from phospy.validation.workflows.differential import (
+    DifferentialDatasetEligibilityValidator,
+)
+from tests.support.intensity_scale_states import (
+    supported_linear_intensity_scale_state,
+    supported_linear_processing_state,
+    supported_log2_intensity_scale_state,
+    supported_log2_processing_state,
+)
+
+
+def _frames() -> tuple[pd.DataFrame, pd.DataFrame]:
+    phospho = pd.DataFrame(
+        {
+            "A_1": [1.0, 2.0],
+            "A_2": [1.1, 2.1],
+            "B_1": [2.1, 2.0],
+            "B_2": [2.0, 2.2],
+        },
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1"],
+            "site": ["Y182", "T308"],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["Y182", "T308"]
+            ],
+            "protein_id": ["MAPK14", "AKT1"],
+        },
+        index=phospho.index.copy(),
+    )
+    return phospho, site_metadata
+
+
+def _dataset_with_log2_scale() -> AnalysisReadyPhosphoDataset:
+    phospho, site_metadata = _frames()
+    return AnalysisReadyPhosphoDataset(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        organism=Organism.RAT,
+        intensity_scale_state=supported_log2_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_log2_processing_state(has_total_matrix=False),
+    )
+
+
+def _dataset_with_linear_scale() -> AnalysisReadyPhosphoDataset:
+    phospho, site_metadata = _frames()
+    return AnalysisReadyPhosphoDataset(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+
+
+def test_eligibility_validator_accepts_established_log2_phospho_scale() -> None:
+    DifferentialDatasetEligibilityValidator().run(dataset=_dataset_with_log2_scale())
+
+
+def test_eligibility_validator_rejects_established_linear_phospho_scale() -> None:
+    with pytest.raises(
+        WorkflowValidationError,
+        match="requires established log2-scale phospho intensities",
+    ):
+        DifferentialDatasetEligibilityValidator().run(
+            dataset=_dataset_with_linear_scale()
+        )
+
+
+def test_eligibility_validator_rejects_raw_phospho_scale_if_representable() -> None:
+    dataset = _dataset_with_log2_scale()
+    object.__setattr__(
+        dataset,
+        "intensity_scale_state",
+        IntensityScaleState.raw(has_total_matrix=False),
+    )
+    with pytest.raises(
+        WorkflowValidationError,
+        match="requires established log2-scale phospho intensities",
+    ):
+        DifferentialDatasetEligibilityValidator().run(dataset=dataset)
+
+
+def test_eligibility_validator_rejects_unknown_phospho_scale_if_representable() -> None:
+    dataset = _dataset_with_log2_scale()
+    unknown_state = IntensityScaleState.raw(
+        has_total_matrix=False
+    ).with_quantitative_meaning(QuantitativeMeaning.UNKNOWN)
+    object.__setattr__(dataset, "intensity_scale_state", unknown_state)
+    with pytest.raises(
+        WorkflowValidationError,
+        match="requires established log2-scale phospho intensities",
+    ):
+        DifferentialDatasetEligibilityValidator().run(dataset=dataset)
+
+
+def test_eligibility_validator_rejects_declared_but_unestablished_log2_scale() -> None:
+    dataset = _dataset_with_log2_scale()
+    object.__setattr__(
+        dataset,
+        "intensity_scale_state",
+        IntensityScaleState(
+            phospho=MatrixIntensityScaleState.log2(established_by="test.declaration"),
+            total=None,
+        ),
+    )
+    with pytest.raises(
+        WorkflowValidationError,
+        match="requires established log2-scale phospho intensities",
+    ):
+        DifferentialDatasetEligibilityValidator().run(dataset=dataset)

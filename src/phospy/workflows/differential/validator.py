@@ -15,6 +15,7 @@ from phospy.science.differential.models import (
 )
 from phospy.science.differential.policy_models import TechnicalReplicatePolicy
 from phospy.validation.workflows.differential import (
+    DifferentialDatasetEligibilityValidator,
     ExperimentalDesignContractValidator,
 )
 from phospy.workflows.differential.models import (
@@ -30,10 +31,16 @@ class DifferentialAnalysisValidator:
         self,
         *,
         design_validator: ExperimentalDesignContractValidator | None = None,
+        dataset_eligibility_validator: (
+            DifferentialDatasetEligibilityValidator | None
+        ) = None,
         technical_replicate_resolver: TechnicalReplicateResolver | None = None,
     ) -> None:
         self._design_validator = (
             design_validator or ExperimentalDesignContractValidator()
+        )
+        self._dataset_eligibility_validator = (
+            dataset_eligibility_validator or DifferentialDatasetEligibilityValidator()
         )
         self._technical_replicate_resolver = (
             technical_replicate_resolver or TechnicalReplicateResolver()
@@ -48,6 +55,7 @@ class DifferentialAnalysisValidator:
             raise WorkflowValidationError(
                 "differential workflow request dataset must be AnalysisReadyPhosphoDataset"
             )
+        self._dataset_eligibility_validator.run(dataset=request.dataset)
         config = request.config
         if not isinstance(cast(object, config), DifferentialAnalysisConfig):
             raise WorkflowValidationError(

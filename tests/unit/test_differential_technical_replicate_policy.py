@@ -25,8 +25,8 @@ from phospy.science.differential.models import (
 from phospy.workflows.differential.executor import DifferentialAnalysisExecutor
 from phospy.workflows.differential.validator import DifferentialAnalysisValidator
 from tests.support.intensity_scale_states import (
-    supported_linear_intensity_scale_state,
-    supported_linear_processing_state,
+    supported_log2_intensity_scale_state,
+    supported_log2_processing_state,
 )
 
 
@@ -60,10 +60,10 @@ def _dataset_with_technical_replicates() -> AnalysisReadyPhosphoDataset:
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
-        intensity_scale_state=supported_linear_intensity_scale_state(
+        intensity_scale_state=supported_log2_intensity_scale_state(
             has_total_matrix=False
         ),
-        processing_state=supported_linear_processing_state(has_total_matrix=False),
+        processing_state=supported_log2_processing_state(has_total_matrix=False),
     )
 
 
@@ -246,10 +246,10 @@ def test_aggregation_groups_by_condition_plus_biological_replicate_id() -> None:
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
-        intensity_scale_state=supported_linear_intensity_scale_state(
+        intensity_scale_state=supported_log2_intensity_scale_state(
             has_total_matrix=False
         ),
-        processing_state=supported_linear_processing_state(has_total_matrix=False),
+        processing_state=supported_log2_processing_state(has_total_matrix=False),
     )
     design = ExperimentalDesign(
         samples=(
