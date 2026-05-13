@@ -193,6 +193,11 @@ class DatasetBuildRequestInterpreter:
             declared_input_intensity_scale_kind=_resolve_input_intensity_scale_kind(
                 request.input_intensity_scale
             ),
+            declared_input_intensity_scale_source=(
+                "dataset_build_request.input_intensity_scale"
+                if request.input_intensity_scale is not None
+                else None
+            ),
             site_identifier_normalisation=normalized.site_identifier_normalisation,
             site_sequence_derivation=site_sequence_derivation_payload,
             quantitative_meaning=_resolve_quantitative_meaning(

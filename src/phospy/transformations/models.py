@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Final
@@ -25,6 +26,15 @@ class IntensityScaleKind(str, Enum):
     LOG2 = "log2"
 
 
+class IntensityScaleEstablishmentMode(str, Enum):
+    """How intensity-scale state was established."""
+
+    DECLARED = "declared"
+    TRANSFORMED = "transformed"
+    IDENTITY = "identity"
+    DERIVED = "derived"
+
+
 class QuantitativeMeaning(str, Enum):
     """Scientific interpretation of phospho matrix values."""
 
@@ -37,6 +47,80 @@ class QuantitativeMeaning(str, Enum):
         "mixed_phospho_total_log_ratio_and_phosphosite_log_abundance"
     )
     UNKNOWN = "unknown"
+
+
+@dataclass(frozen=True, slots=True)
+class IntensityScaleEstablishmentProvenance:
+    """Structured provenance for intensity-scale establishment."""
+
+    scale: str
+    mode: IntensityScaleEstablishmentMode
+    transformer_name: str | None = None
+    input_declaration_source: str | None = None
+    parameters: Mapping[str, object] = field(default_factory=dict)
+    trace_id: str | None = None
+    diagnostic_warnings: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        scale = str(self.scale).strip()
+        if not scale:
+            raise InvalidTransformationStateError(
+                "intensity-scale establishment provenance requires non-empty scale"
+            )
+        object.__setattr__(self, "scale", scale)
+        if not isinstance(self.mode, IntensityScaleEstablishmentMode):
+            try:
+                mode = IntensityScaleEstablishmentMode(str(self.mode))
+            except ValueError as exc:
+                supported = ", ".join(
+                    item.value for item in IntensityScaleEstablishmentMode
+                )
+                raise InvalidTransformationStateError(
+                    "unsupported intensity-scale establishment mode "
+                    f"{self.mode!r}; supported: {supported}"
+                ) from exc
+            object.__setattr__(self, "mode", mode)
+        transformer_name = (
+            None
+            if self.transformer_name is None
+            else str(self.transformer_name).strip() or None
+        )
+        object.__setattr__(self, "transformer_name", transformer_name)
+        declaration_source = (
+            None
+            if self.input_declaration_source is None
+            else str(self.input_declaration_source).strip() or None
+        )
+        object.__setattr__(self, "input_declaration_source", declaration_source)
+        trace_id = None if self.trace_id is None else str(self.trace_id).strip() or None
+        object.__setattr__(self, "trace_id", trace_id)
+        object.__setattr__(
+            self,
+            "parameters",
+            {str(key): value for key, value in self.parameters.items()},
+        )
+        object.__setattr__(
+            self,
+            "diagnostic_warnings",
+            tuple(
+                str(item).strip()
+                for item in self.diagnostic_warnings
+                if str(item).strip()
+            ),
+        )
+
+    def to_payload(self) -> dict[str, object]:
+        """Return JSON-safe payload for provenance surfaces."""
+
+        return {
+            "scale": self.scale,
+            "establishment_mode": self.mode.value,
+            "transformer_name": self.transformer_name,
+            "input_declaration_source": self.input_declaration_source,
+            "parameters": dict(self.parameters),
+            "trace_id": self.trace_id,
+            "diagnostic_warnings": list(self.diagnostic_warnings),
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,6 +201,18 @@ class IntensityScaleState:
         repr=False,
         compare=False,
     )
+    _establishment_mode: IntensityScaleEstablishmentMode | None = field(
+        default=None,
+        init=False,
+        repr=False,
+        compare=False,
+    )
+    _establishment_provenance: IntensityScaleEstablishmentProvenance | None = field(
+        default=None,
+        init=False,
+        repr=False,
+        compare=False,
+    )
 
     def __post_init__(self) -> None:
         if not isinstance(self.phospho, MatrixIntensityScaleState):
@@ -169,7 +265,25 @@ class IntensityScaleState:
             self._establishment_marker is _ESTABLISHED_INTENSITY_SCALE_STATE_MARKER
             and self._established_via is not None
             and self._establishment_authority_source is not None
+            and self._establishment_mode is not None
+            and self._establishment_provenance is not None
         )
+
+    @property
+    def establishment_mode(self) -> IntensityScaleEstablishmentMode | None:
+        """Intensity-scale establishment mode for established states."""
+
+        if not self.is_established:
+            return None
+        return self._establishment_mode
+
+    @property
+    def establishment_provenance(self) -> IntensityScaleEstablishmentProvenance | None:
+        """Structured establishment provenance, when state is established."""
+
+        if not self.is_established:
+            return None
+        return self._establishment_provenance
 
     @classmethod
     def raw(cls, *, has_total_matrix: bool = False) -> IntensityScaleState:
@@ -188,6 +302,14 @@ class IntensityScaleState:
         *,
         has_total_matrix: bool = False,
         established_via: str = IDENTITY_INTENSITY_SCALE_ESTABLISHER,
+        establishment_mode: IntensityScaleEstablishmentMode = (
+            IntensityScaleEstablishmentMode.IDENTITY
+        ),
+        transformer_name: str | None = IDENTITY_INTENSITY_SCALE_ESTABLISHER,
+        input_declaration_source: str | None = None,
+        parameters: Mapping[str, object] | None = None,
+        trace_id: str | None = None,
+        diagnostic_warnings: tuple[str, ...] = (),
         _authority: _EstablishmentAuthority | None = None,
     ) -> IntensityScaleState:
         """Create a canonical linear state through an approved internal authority."""
@@ -195,6 +317,12 @@ class IntensityScaleState:
         return cls.raw(has_total_matrix=has_total_matrix)._with_establishment(
             established_via=established_via,
             authority=_authority,
+            establishment_mode=establishment_mode,
+            transformer_name=transformer_name,
+            input_declaration_source=input_declaration_source,
+            parameters={} if parameters is None else parameters,
+            trace_id=trace_id,
+            diagnostic_warnings=diagnostic_warnings,
         )
 
     def _with_establishment(
@@ -202,12 +330,31 @@ class IntensityScaleState:
         *,
         established_via: str,
         authority: _EstablishmentAuthority | None,
+        establishment_mode: IntensityScaleEstablishmentMode,
+        transformer_name: str | None,
+        input_declaration_source: str | None,
+        parameters: Mapping[str, object],
+        trace_id: str | None,
+        diagnostic_warnings: tuple[str, ...],
     ) -> IntensityScaleState:
         source = established_via.strip()
         if not source:
             raise InvalidTransformationStateError(
                 "intensity scale state establishment source must be a non-empty string"
             )
+        if isinstance(establishment_mode, IntensityScaleEstablishmentMode):
+            resolved_mode = establishment_mode
+        else:
+            try:
+                resolved_mode = IntensityScaleEstablishmentMode(str(establishment_mode))
+            except ValueError as exc:
+                supported = ", ".join(
+                    item.value for item in IntensityScaleEstablishmentMode
+                )
+                raise InvalidTransformationStateError(
+                    "unsupported intensity-scale establishment mode "
+                    f"{establishment_mode!r}; supported: {supported}"
+                ) from exc
         authority_source = _resolve_establishment_authority_source(authority)
         established = IntensityScaleState(
             phospho=self.phospho,
@@ -224,6 +371,20 @@ class IntensityScaleState:
             established,
             "_establishment_marker",
             _ESTABLISHED_INTENSITY_SCALE_STATE_MARKER,
+        )
+        object.__setattr__(established, "_establishment_mode", resolved_mode)
+        object.__setattr__(
+            established,
+            "_establishment_provenance",
+            IntensityScaleEstablishmentProvenance(
+                scale=established.label,
+                mode=resolved_mode,
+                transformer_name=transformer_name,
+                input_declaration_source=input_declaration_source,
+                parameters=parameters,
+                trace_id=trace_id,
+                diagnostic_warnings=diagnostic_warnings,
+            ),
         )
         return established
 
@@ -257,6 +418,12 @@ class IntensityScaleState:
             "_establishment_marker",
             _ESTABLISHED_INTENSITY_SCALE_STATE_MARKER,
         )
+        object.__setattr__(updated, "_establishment_mode", self._establishment_mode)
+        object.__setattr__(
+            updated,
+            "_establishment_provenance",
+            self._establishment_provenance,
+        )
         return updated
 
 
@@ -264,6 +431,14 @@ def establish_intensity_scale_state(
     state: IntensityScaleState,
     *,
     established_via: str,
+    establishment_mode: IntensityScaleEstablishmentMode = (
+        IntensityScaleEstablishmentMode.DERIVED
+    ),
+    transformer_name: str | None = None,
+    input_declaration_source: str | None = None,
+    parameters: Mapping[str, object] | None = None,
+    trace_id: str | None = None,
+    diagnostic_warnings: tuple[str, ...] = (),
     _authority: _EstablishmentAuthority | None = None,
 ) -> IntensityScaleState:
     """Return state marked as established through approved internal authority."""
@@ -275,6 +450,12 @@ def establish_intensity_scale_state(
     return state._with_establishment(
         established_via=established_via,
         authority=_authority,
+        establishment_mode=establishment_mode,
+        transformer_name=transformer_name,
+        input_declaration_source=input_declaration_source,
+        parameters={} if parameters is None else parameters,
+        trace_id=trace_id,
+        diagnostic_warnings=diagnostic_warnings,
     )
 
 

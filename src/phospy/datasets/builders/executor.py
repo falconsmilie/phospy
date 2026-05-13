@@ -7,6 +7,8 @@ intensity scale state after applying explicit builder preprocessing policy.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
+from typing import TypedDict
 
 import pandas as pd
 
@@ -76,6 +78,7 @@ from phospy.scientific_policies import (
 from phospy.site_ids import canonicalize_site_components, canonicalize_site_identifier
 from phospy.transformations.contracts import Transformer
 from phospy.transformations.models import (
+    IntensityScaleEstablishmentMode,
     IntensityScaleKind,
     IntensityScaleState,
     MatrixIntensityScaleState,
@@ -99,6 +102,23 @@ _SITE_SEQUENCE_FAILURE_CATEGORY_MISSING_REFERENCE_SUPPORT = "missing_reference_s
 _SITE_SEQUENCE_FAILURE_CATEGORY_AMBIGUOUS_MAPPING = "ambiguous_mapping"
 _SITE_SEQUENCE_FAILURE_CATEGORY_INVALID_METADATA = "invalid_metadata"
 _SITE_SEQUENCE_CONFLICT_POLICY_NOT_APPLIED = "not_applied"
+
+
+@dataclass(frozen=True, slots=True)
+class _DeclaredInputIntensityScaleResolution:
+    state: IntensityScaleState
+    establishment_mode: IntensityScaleEstablishmentMode
+    input_declaration_source: str | None
+    establishment_parameters: Mapping[str, object]
+    establishment_transformer_name: str | None
+
+
+class _DeclaredScaleResolverKwargs(TypedDict, total=False):
+    declared_input_establishment_mode: IntensityScaleEstablishmentMode
+    input_declaration_source: str | None
+    scale_establishment_parameters: Mapping[str, object]
+    establishment_transformer_name: str | None
+    establishment_trace_id: str | None
 
 
 class DatasetBuildExecutor:
@@ -138,15 +158,26 @@ class DatasetBuildExecutor:
             site_metadata=preprocessed.site_metadata,
             preprocessing_trace=preprocessed.preprocessing_trace,
         )
-        declared_input_scale_state = _resolve_declared_input_intensity_scale_state(
+        declared_input_scale_resolution = _resolve_declared_input_intensity_scale_resolution(
             preprocessing_plan=request.preprocessing_plan,
             preprocessing_trace=preprocessed.preprocessing_trace,
             declared_input_scale_kind=request.declared_input_intensity_scale_kind,
+            declared_input_scale_source=request.declared_input_intensity_scale_source,
             has_total_matrix=preprocessed.total is not None,
+        )
+        declared_input_scale_state = (
+            None
+            if declared_input_scale_resolution is None
+            else declared_input_scale_resolution.state
         )
         expected_scale_kind = _resolve_expected_intensity_scale_kind(
             request.preprocessing_plan,
             declared_input_scale_kind=request.declared_input_intensity_scale_kind,
+        )
+        declared_scale_kwargs = _resolve_declared_scale_resolver_kwargs(
+            resolver=self._intensity_scale_resolver,
+            resolution=declared_input_scale_resolution,
+            preprocessing_trace=preprocessed.preprocessing_trace,
         )
         if _resolver_supports_declared_input_scale_state(
             self._intensity_scale_resolver
@@ -156,6 +187,7 @@ class DatasetBuildExecutor:
                 total=preprocessed.total,
                 expected_scale_kind=expected_scale_kind,
                 declared_input_scale_state=declared_input_scale_state,
+                **declared_scale_kwargs,
             )
         else:
             resolved = self._intensity_scale_resolver.run(
@@ -184,6 +216,12 @@ class DatasetBuildExecutor:
             raise DatasetBuildError(
                 "intensity-scale state is missing quantitative meaning"
             )
+        establishment_provenance = intensity_scale_state.establishment_provenance
+        if establishment_provenance is None:
+            raise TransformationStateEstablishmentError(
+                "intensity-scale state is established but missing establishment "
+                "provenance"
+            )
         report = _build_dataset_preprocessing_report(
             row_counts=preprocessed.preprocessing_row_counts,
             operations=preprocessed.preprocessing_operations,
@@ -197,6 +235,7 @@ class DatasetBuildExecutor:
             input_site_count=int(request.site_metadata.shape[0]),
             final_dataset_rows=int(len(resolved.phospho.index)),
             intensity_scale_label=intensity_scale_state.label,
+            intensity_scale_establishment=establishment_provenance.to_payload(),
             quantitative_meaning=quantitative_meaning.value,
             peptide_evidence_resolution=request.peptide_evidence_resolution,
         )
@@ -208,6 +247,7 @@ class DatasetBuildExecutor:
             resolved_total=resolved.total,
             preprocessing_trace=preprocessed.preprocessing_trace,
             intensity_scale_label=intensity_scale_state.label,
+            intensity_scale_establishment=establishment_provenance.to_payload(),
             quantitative_meaning=quantitative_meaning.value,
         )
         return AnalysisReadyPhosphoDataset._from_owned(
@@ -451,6 +491,7 @@ def _build_dataset_preprocessing_report(
     input_site_count: int,
     final_dataset_rows: int,
     intensity_scale_label: str,
+    intensity_scale_establishment: Mapping[str, object],
     quantitative_meaning: str,
     peptide_evidence_resolution: dict[str, object] | None,
 ) -> DatasetPreprocessingReport:
@@ -523,6 +564,7 @@ def _build_dataset_preprocessing_report(
             operation="construct_analysis_ready_dataset",
             parameters={
                 "intensity_scale_label": intensity_scale_label,
+                "intensity_scale_establishment": dict(intensity_scale_establishment),
                 "quantitative_meaning": quantitative_meaning,
             },
             input_rows=final_dataset_rows,
@@ -715,30 +757,59 @@ def _resolve_expected_intensity_scale_kind(
     return IntensityScaleKind.LINEAR
 
 
-def _resolve_declared_input_intensity_scale_state(
+def _resolve_declared_input_intensity_scale_resolution(
     *,
     preprocessing_plan: PreprocessingPlan,
     preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
     declared_input_scale_kind: IntensityScaleKind | None,
+    declared_input_scale_source: str | None,
     has_total_matrix: bool,
-) -> IntensityScaleState | None:
+) -> _DeclaredInputIntensityScaleResolution | None:
     if declared_input_scale_kind is not None:
-        return _build_declared_intensity_scale_state(
-            kind=declared_input_scale_kind,
-            has_total_matrix=has_total_matrix,
-            established_by="phospy.datasets.builders.executor.input_intensity_scale",
+        return _DeclaredInputIntensityScaleResolution(
+            state=_build_declared_intensity_scale_state(
+                kind=declared_input_scale_kind,
+                has_total_matrix=has_total_matrix,
+                established_by=(
+                    "phospy.datasets.builders.executor.input_intensity_scale"
+                ),
+            ),
+            establishment_mode=IntensityScaleEstablishmentMode.DECLARED,
+            input_declaration_source=(
+                declared_input_scale_source
+                or "dataset_build_request.input_intensity_scale"
+            ),
+            establishment_parameters={
+                "declared_scale_kind": declared_input_scale_kind.value,
+            },
+            establishment_transformer_name=None,
         )
-    operation = _resolve_intensity_transform_operation(preprocessing_trace)
-    if operation == IntensityTransformPolicy.LOG2.value:
-        return _build_declared_intensity_scale_state(
-            kind=IntensityScaleKind.LOG2,
-            has_total_matrix=has_total_matrix,
-            established_by=(
+    intensity_transform_stage = _resolve_intensity_transform_stage(preprocessing_trace)
+    if (
+        intensity_transform_stage is not None
+        and str(intensity_transform_stage.operation).strip().lower()
+        == IntensityTransformPolicy.LOG2.value
+    ):
+        return _DeclaredInputIntensityScaleResolution(
+            state=_build_declared_intensity_scale_state(
+                kind=IntensityScaleKind.LOG2,
+                has_total_matrix=has_total_matrix,
+                established_by=(
+                    "phospy.datasets.preprocessing.stages.intensity_transform.log2"
+                ),
+            ),
+            establishment_mode=IntensityScaleEstablishmentMode.TRANSFORMED,
+            input_declaration_source=None,
+            establishment_parameters={
+                "operation": str(intensity_transform_stage.operation),
+                **dict(intensity_transform_stage.parameters),
+            },
+            establishment_transformer_name=(
                 "phospy.datasets.preprocessing.stages.intensity_transform.log2"
             ),
         )
     if (
-        operation is None
+        intensity_transform_stage is None
         and preprocessing_plan.intensity_transform_policy
         is IntensityTransformPolicy.LOG2
     ):
@@ -746,16 +817,15 @@ def _resolve_declared_input_intensity_scale_state(
     return None
 
 
-def _resolve_intensity_transform_operation(
+def _resolve_intensity_transform_stage(
     preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
-) -> str | None:
+) -> PreprocessingStageExecution | None:
     if preprocessing_trace is None:
         return None
     for stage in preprocessing_trace:
         if stage.stage != DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM:
             continue
-        operation = str(stage.operation).strip().lower()
-        return operation if operation else None
+        return stage
     return None
 
 
@@ -792,6 +862,49 @@ def _resolver_supports_declared_input_scale_state(resolver: object) -> bool:
     return "declared_input_scale_state" in code_object.co_varnames
 
 
+def _resolve_declared_scale_resolver_kwargs(
+    *,
+    resolver: object,
+    resolution: _DeclaredInputIntensityScaleResolution | None,
+    preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
+) -> _DeclaredScaleResolverKwargs:
+    run_method = getattr(resolver, "run", None)
+    if run_method is None:
+        return _DeclaredScaleResolverKwargs()
+    code_object = getattr(run_method, "__code__", None)
+    if code_object is None:
+        return _DeclaredScaleResolverKwargs()
+    supported_parameters = set(code_object.co_varnames)
+    kwargs = _DeclaredScaleResolverKwargs()
+    if resolution is not None:
+        if "declared_input_establishment_mode" in supported_parameters:
+            kwargs["declared_input_establishment_mode"] = resolution.establishment_mode
+        if "input_declaration_source" in supported_parameters:
+            kwargs["input_declaration_source"] = resolution.input_declaration_source
+        if "scale_establishment_parameters" in supported_parameters:
+            kwargs["scale_establishment_parameters"] = dict(
+                resolution.establishment_parameters
+            )
+        if "establishment_transformer_name" in supported_parameters:
+            kwargs["establishment_transformer_name"] = (
+                resolution.establishment_transformer_name
+            )
+    if "establishment_trace_id" in supported_parameters:
+        kwargs["establishment_trace_id"] = _resolve_scale_establishment_trace_id(
+            preprocessing_trace
+        )
+    return kwargs
+
+
+def _resolve_scale_establishment_trace_id(
+    preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
+) -> str | None:
+    if preprocessing_trace is None or not preprocessing_trace:
+        return None
+    final_stage = preprocessing_trace[-1]
+    return f"{final_stage.stage}:{final_stage.operation}:{final_stage.output_hash}"
+
+
 def _build_dataset_run_provenance(
     *,
     request: InterpretedDatasetBuildRequest,
@@ -801,6 +914,7 @@ def _build_dataset_run_provenance(
     resolved_total: pd.DataFrame | None,
     preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
     intensity_scale_label: str,
+    intensity_scale_establishment: Mapping[str, object],
     quantitative_meaning: str,
 ) -> RunProvenance:
     input_tables = _collect_fingerprints(
@@ -831,6 +945,7 @@ def _build_dataset_run_provenance(
                 request.preprocessing_plan
             ),
             "intensity_scale_label": intensity_scale_label,
+            "intensity_scale_establishment": dict(intensity_scale_establishment),
             "quantitative_meaning": quantitative_meaning,
             "site_identifier_normalisation": (
                 None

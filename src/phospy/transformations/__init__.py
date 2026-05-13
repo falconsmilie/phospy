@@ -1,6 +1,8 @@
 """Transformation domain package."""
 
 from phospy.transformations.models import (
+    IntensityScaleEstablishmentMode,
+    IntensityScaleEstablishmentProvenance,
     IntensityScaleKind,
     IntensityScaleState,
     MatrixIntensityScaleState,
@@ -9,6 +11,8 @@ from phospy.transformations.models import (
 
 __all__ = [
     "MatrixIntensityScaleState",
+    "IntensityScaleEstablishmentMode",
+    "IntensityScaleEstablishmentProvenance",
     "IntensityScaleKind",
     "IntensityScaleState",
     "QuantitativeMeaning",

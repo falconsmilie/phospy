@@ -40,6 +40,7 @@ class InterpretedDatasetBuildRequest:
         default_factory=PreprocessingPlan.default
     )
     declared_input_intensity_scale_kind: IntensityScaleKind | None = None
+    declared_input_intensity_scale_source: str | None = None
     site_identifier_normalisation: SiteIdentifierNormalisationReport | None = None
     site_sequence_derivation: dict[str, object] | None = None
     quantitative_meaning: QuantitativeMeaning | None = None

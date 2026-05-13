@@ -69,6 +69,17 @@ valid only when backed by either:
 Identity pass-through may preserve declared state, but it must not upgrade
 unknown/raw input to `log2` solely because a caller expects `log2`.
 
+Intensity-scale establishment also records explicit establishment mode:
+
+- `declared`: user declared the incoming scale
+- `transformed`: PhosPy executed a scale-changing transformation
+- `identity`: PhosPy identity pass-through established the state without changing values
+- `derived`: a supported transformer-derived establishment path
+
+Declaration remains auditable metadata, not proof of scientific correctness.
+PhosPy records declaration diagnostics/warnings for suspicious declared scales,
+but does not silently override the user declaration.
+
 The old public name `TransformationState` is no longer the preferred dataset
 contract model.
 
@@ -77,6 +88,7 @@ contract model.
 `IntensityScaleState` answers:
 - Are quantitative values `linear` or `log2`?
 - Was that scale established through a supported path?
+- Which establishment mode produced that state (`declared`/`transformed`/`identity`/`derived`)?
 
 `DatasetProcessingState` answers:
 - Which preprocessing-policy state crossed the analysis-ready boundary?
