@@ -14,9 +14,12 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingState,
     PreprocessingStateTableKey,
 )
+from phospy.datasets.preprocessing.policy_models import (
+    SiteSequenceConflictPolicy,
+    SiteSequenceResolutionMode,
+)
 from phospy.datasets.preprocessing.stage_contract import PreprocessingStageContract
 from phospy.errors.input import PhosPyInputError, UnsupportedInputFormatError
-from phospy.policy_models import SiteSequenceConflictPolicy, SiteSequenceResolutionMode
 from phospy.sequences import FastaProteinSequenceRepository
 from phospy.sequences.resolver import (
     RESOLUTION_STATUS_RESOLVED,

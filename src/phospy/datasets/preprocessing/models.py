@@ -24,18 +24,7 @@ from phospy.api.configs import (
     DatasetTotalProteinCorrectionIdentityMode,
     DatasetTotalProteinCorrectionUnmatchedPolicy,
 )
-from phospy.datasets.preprocessing.report_schema import (
-    ROW_AUDIT_COLUMNS,
-    ComparisonGroupStatsRow,
-    ComparisonPairStatsRow,
-    DuplicateSiteResolutionRow,
-    MetadataConflictRow,
-    PreprocessingRowAuditRow,
-    dataframe_from_row_audit_rows,
-    reorder_columns,
-)
-from phospy.errors.input import PhosPyInputError
-from phospy.policy_models import (
+from phospy.datasets.preprocessing.policy_models import (
     ComparisonBuildingPolicy,
     IntensityTransformPolicy,
     LocalisationEligibilityMode,
@@ -49,6 +38,17 @@ from phospy.policy_models import (
     TotalProteinCorrectionIdentityMatchingPolicy,
     TotalProteinCorrectionPolicy,
 )
+from phospy.datasets.preprocessing.report_schema import (
+    ROW_AUDIT_COLUMNS,
+    ComparisonGroupStatsRow,
+    ComparisonPairStatsRow,
+    DuplicateSiteResolutionRow,
+    MetadataConflictRow,
+    PreprocessingRowAuditRow,
+    dataframe_from_row_audit_rows,
+    reorder_columns,
+)
+from phospy.errors.input import PhosPyInputError
 from phospy.provenance.hashing import hash_table
 from phospy.provenance.models import (
     PREPROCESSING_STAGE_DETERMINISM_PURE,

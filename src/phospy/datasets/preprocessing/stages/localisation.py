@@ -15,11 +15,11 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingStateTableKey,
     append_row_audit_records,
 )
+from phospy.datasets.preprocessing.policy_models import LocalisationEligibilityMode
 from phospy.datasets.preprocessing.report_rows import report_rows_from_row_audit_rows
 from phospy.datasets.preprocessing.report_schema import PreprocessingRowAuditRow
 from phospy.datasets.preprocessing.stage_contract import PreprocessingStageContract
 from phospy.errors.input import PhosPyInputError
-from phospy.policy_models import LocalisationEligibilityMode
 from phospy.validation.datasets.site_metadata import (
     assess_localisation_probability_column,
 )

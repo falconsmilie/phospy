@@ -10,8 +10,8 @@ from phospy.differential.models import (
     DesignMatrix,
     EmpiricalBayesConfig,
 )
+from phospy.differential.policy_models import TechnicalReplicatePolicy
 from phospy.errors.validation import WorkflowValidationError
-from phospy.policy_models import TechnicalReplicatePolicy
 from phospy.validation.workflows.differential import (
     ExperimentalDesignContractValidator,
 )

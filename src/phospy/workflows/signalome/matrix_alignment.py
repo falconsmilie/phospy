@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.errors.validation import WorkflowValidationError
-from phospy.policy_models import DownstreamScoreSource
+from phospy.scoring.policy_models import DownstreamScoreSource
 from phospy.validation.common.dataframes import (
     require_aligned_dataframe_shape,
     require_no_duplicate_labels,

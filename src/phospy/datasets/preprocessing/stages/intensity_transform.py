@@ -14,9 +14,9 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingState,
     PreprocessingStateTableKey,
 )
+from phospy.datasets.preprocessing.policy_models import IntensityTransformPolicy
 from phospy.datasets.preprocessing.stage_contract import PreprocessingStageContract
 from phospy.errors.input import PhosPyInputError
-from phospy.policy_models import IntensityTransformPolicy
 from phospy.provenance.hashing import hash_table
 from phospy.transformations.models import IntensityScaleKind
 

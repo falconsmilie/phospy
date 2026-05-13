@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from phospy.policy_models import ThresholdMode
+from phospy.scoring.policy_models import ThresholdMode
 
 
 @dataclass(frozen=True, slots=True)

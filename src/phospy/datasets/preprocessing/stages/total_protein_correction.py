@@ -20,16 +20,16 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingStateTableKey,
     TotalProteinCorrectionIdentityPolicy,
 )
+from phospy.datasets.preprocessing.policy_models import (
+    IntensityTransformPolicy,
+    TotalProteinCorrectionIdentityMatchingPolicy,
+    TotalProteinCorrectionPolicy,
+)
 from phospy.datasets.preprocessing.stage_contract import PreprocessingStageContract
 from phospy.datasets.processing_state import (
     TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1,
 )
 from phospy.errors.input import PhosPyInputError
-from phospy.policy_models import (
-    IntensityTransformPolicy,
-    TotalProteinCorrectionIdentityMatchingPolicy,
-    TotalProteinCorrectionPolicy,
-)
 from phospy.provenance.hashing import hash_table
 from phospy.transformations.models import QuantitativeMeaning
 

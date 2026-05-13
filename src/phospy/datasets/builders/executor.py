@@ -44,6 +44,7 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingStageOrderResolution,
     TotalProteinCorrectionIdentityPolicy,
 )
+from phospy.datasets.preprocessing.policy_models import IntensityTransformPolicy
 from phospy.datasets.preprocessing.report_schema import (
     PreprocessingOperationRow,
     PreprocessingRowCountRow,
@@ -60,7 +61,6 @@ from phospy.errors.input import PhosPyInputError
 from phospy.errors.transformations import (
     TransformationStateEstablishmentError,
 )
-from phospy.policy_models import IntensityTransformPolicy
 from phospy.provenance.environment import collect_environment_provenance
 from phospy.provenance.hashing import fingerprint_optional_table
 from phospy.provenance.models import (

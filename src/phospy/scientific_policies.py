@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from enum import Enum
 from types import MappingProxyType
 
-from phospy.policy_models import ThresholdMode
+from phospy.scoring.policy_models import ThresholdMode
 
 ScientificPolicyParameter = str | int | float | bool | None
 

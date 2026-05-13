@@ -5,8 +5,8 @@ from __future__ import annotations
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 
+from phospy.datasets.preprocessing.policy_models import MissingDataPolicy
 from phospy.errors.input import PhosPyInputError
-from phospy.policy_models import MissingDataPolicy
 
 from .json_contracts import (
     MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,

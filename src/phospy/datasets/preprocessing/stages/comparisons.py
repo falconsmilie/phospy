@@ -18,6 +18,7 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingState,
     PreprocessingStateTableKey,
 )
+from phospy.datasets.preprocessing.policy_models import ComparisonBuildingPolicy
 from phospy.datasets.preprocessing.report_rows import (
     report_rows_from_comparison_group_stats_dataframe,
     report_rows_from_comparison_pair_stats_dataframe,
@@ -28,7 +29,6 @@ from phospy.datasets.preprocessing.report_schema import (
 )
 from phospy.datasets.preprocessing.stage_contract import PreprocessingStageContract
 from phospy.errors.input import PhosPyInputError
-from phospy.policy_models import ComparisonBuildingPolicy
 from phospy.provenance.hashing import hash_table
 
 _COMPARISON_OUTPUT_PREFIX = "p_"

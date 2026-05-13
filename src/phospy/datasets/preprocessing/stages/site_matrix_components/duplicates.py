@@ -6,6 +6,7 @@ from typing import cast
 import pandas as pd
 
 from phospy.datasets.preprocessing.models import DuplicateSiteResolutionResult
+from phospy.datasets.preprocessing.policy_models import SiteMatrixDuplicateSitePolicy
 from phospy.datasets.preprocessing.report_schema import (
     DUPLICATE_SITE_RESOLUTION_COLUMNS,
     dataframe_from_duplicate_site_resolution_rows,
@@ -17,7 +18,6 @@ from phospy.datasets.preprocessing.stages.site_matrix_components.metadata import
     resolve_aggregate_site_metadata,
 )
 from phospy.errors.input import PhosPyInputError
-from phospy.policy_models import SiteMatrixDuplicateSitePolicy
 from phospy.sites.identity import validate_no_conflicting_identity_collisions
 
 _SITE_ID_COLUMN = "site_id"

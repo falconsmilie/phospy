@@ -5,11 +5,11 @@ from __future__ import annotations
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 
-from phospy.errors.input import PhosPyInputError
-from phospy.policy_models import (
+from phospy.datasets.preprocessing.policy_models import (
     TotalProteinCorrectionIdentityMatchingPolicy,
     TotalProteinCorrectionPolicy,
 )
+from phospy.errors.input import PhosPyInputError
 from phospy.transformations.models import QuantitativeMeaning
 
 from .json_contracts import (

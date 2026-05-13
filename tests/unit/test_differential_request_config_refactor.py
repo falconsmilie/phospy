@@ -10,7 +10,9 @@ from phospy.api import (
     TechnicalReplicatePolicy,
 )
 from phospy.api.configs import DifferentialAnalysisConfig as ConfigFromConfigs
-from phospy.policy_models import TechnicalReplicatePolicy as PolicyFromPolicyModels
+from phospy.differential.policy_models import (
+    TechnicalReplicatePolicy as PolicyFromDifferentialPolicyModels,
+)
 
 
 def test_differential_request_is_thin_shape_without_post_init() -> None:
@@ -42,8 +44,8 @@ def test_api_requests_no_longer_owns_differential_policy_or_testing_config() -> 
     assert not hasattr(request_models, "MultipleTestingConfig")
 
 
-def test_technical_replicate_policy_is_owned_by_policy_models() -> None:
-    assert TechnicalReplicatePolicy is PolicyFromPolicyModels
+def test_technical_replicate_policy_is_owned_by_differential_policy_models() -> None:
+    assert TechnicalReplicatePolicy is PolicyFromDifferentialPolicyModels
 
 
 def test_differential_config_is_exported_from_api_configs() -> None:

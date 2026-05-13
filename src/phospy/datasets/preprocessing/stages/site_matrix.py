@@ -15,6 +15,11 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingStateTableKey,
     append_row_audit_records,
 )
+from phospy.datasets.preprocessing.policy_models import (
+    SiteMatrixDuplicateSitePolicy,
+    SiteMatrixMissingDataPolicy,
+    SiteMatrixPolicy,
+)
 from phospy.datasets.preprocessing.report_rows import (
     report_rows_from_duplicate_site_resolution_dataframe,
     report_rows_from_metadata_conflicts_dataframe,
@@ -34,11 +39,6 @@ from phospy.datasets.preprocessing.stages.site_matrix_components import (
     SiteMatrixRowAuditBuilder,
 )
 from phospy.errors.input import PhosPyInputError
-from phospy.policy_models import (
-    SiteMatrixDuplicateSitePolicy,
-    SiteMatrixMissingDataPolicy,
-    SiteMatrixPolicy,
-)
 from phospy.site_ids import canonicalize_site_components_series
 
 _GENE_SYMBOL_COLUMN = "gene_symbol"

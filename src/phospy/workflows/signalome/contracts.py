@@ -17,9 +17,9 @@ from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.policy_models import DownstreamScoreSource
 from phospy.prediction.scoring import DownstreamScoreSelectionPolicy
 from phospy.scientific_policies import ScientificPolicyRecord
+from phospy.scoring.policy_models import DownstreamScoreSource
 from phospy.signalomes.clustering.models import (
     SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
 )

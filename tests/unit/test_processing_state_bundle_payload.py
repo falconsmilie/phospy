@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import pytest
 
+from phospy.datasets.preprocessing.policy_models import (
+    MissingDataPolicy,
+    TotalProteinCorrectionPolicy,
+)
 from phospy.datasets.processing_state import (
     ComparisonState,
     DatasetProcessingState,
@@ -23,7 +27,6 @@ from phospy.io.bundles._shared.processing_state import (
     processing_state_from_payload,
     processing_state_to_payload,
 )
-from phospy.policy_models import MissingDataPolicy, TotalProteinCorrectionPolicy
 from phospy.transformations.models import QuantitativeMeaning
 
 

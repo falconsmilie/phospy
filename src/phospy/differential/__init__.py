@@ -17,6 +17,7 @@ from phospy.differential.models import (
     DifferentialAnalysisResult,
     EmpiricalBayesConfig,
 )
+from phospy.differential.policy_models import TechnicalReplicatePolicy
 
 __all__ = [
     "ContrastMatrix",
@@ -24,6 +25,7 @@ __all__ = [
     "DifferentialAnalysisRequest",
     "DifferentialAnalysisResult",
     "EmpiricalBayesConfig",
+    "TechnicalReplicatePolicy",
     "PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE",
     "PEPTIDE_TO_SITE_STRATEGY_FIXED_EFFECT_META",
     "PEPTIDE_TO_SITE_STRATEGY_INVERSE_VARIANCE_WEIGHTED",

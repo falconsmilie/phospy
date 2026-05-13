@@ -58,6 +58,13 @@ Without governance:
 4. Compatibility shims require a clear reason to exist.
 5. New code must not add behaviour to compatibility modules.
 
+### Policy-Enum Ownership
+
+1. Policy enums must be defined in the domain that owns the behavior.
+2. Shared policy-enum parsing infrastructure lives under `phospy.policies`.
+3. Root-level dumping-ground modules (for example `phospy.policy_models`) are
+   not allowed.
+
 ### Acceptable Compatibility Shim Examples
 
 - bundle-format compatibility adapters where the compatibility concern is

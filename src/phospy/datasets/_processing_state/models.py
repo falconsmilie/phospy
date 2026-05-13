@@ -4,8 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from phospy.datasets.preprocessing.policy_models import (
+    MissingDataPolicy,
+    TotalProteinCorrectionPolicy,
+)
 from phospy.errors.input import PhosPyInputError
-from phospy.policy_models import MissingDataPolicy, TotalProteinCorrectionPolicy
 from phospy.transformations.models import IntensityScaleState, QuantitativeMeaning
 
 from .missing_data import MissingDataDiagnostics

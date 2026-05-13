@@ -8,9 +8,9 @@ from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
     PreprocessingPlan,
 )
+from phospy.datasets.preprocessing.policy_models import MissingDataPolicy
 from phospy.datasets.preprocessing.report_schema import PreprocessingRowAuditRow
 from phospy.datasets.processing_state import JsonValue
-from phospy.policy_models import MissingDataPolicy
 
 from .models import (
     KnnPolicyOutcome,

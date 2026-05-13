@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from phospy.datasets.preprocessing.policy_models import (
+    MissingDataPolicy,
+    TotalProteinCorrectionPolicy,
+)
 from phospy.datasets.processing_state import (
     ComparisonState,
     DatasetProcessingState,
@@ -29,7 +33,6 @@ from phospy.io.bundles._shared.primitives import (
     require_mapping,
     require_str,
 )
-from phospy.policy_models import MissingDataPolicy, TotalProteinCorrectionPolicy
 from phospy.transformations.models import QuantitativeMeaning
 
 

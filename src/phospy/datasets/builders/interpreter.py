@@ -13,6 +13,7 @@ from phospy.datasets.builders.normalizer import DatasetConventionNormalizer
 from phospy.datasets.builders.reader import DatasetInputReader
 from phospy.datasets.builders.sequence_derivation import SiteSequenceDeriver
 from phospy.datasets.preprocessing.models import PreprocessingPlan
+from phospy.datasets.preprocessing.policy_models import SiteMatrixPolicy
 from phospy.errors.input import PhosPyInputError
 from phospy.evidence.dataset_resolution import (
     DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
@@ -21,7 +22,6 @@ from phospy.evidence.dataset_resolution import (
     build_multi_site_handling_config_for_dataset_policy,
 )
 from phospy.evidence.models import PeptideEvidenceTable
-from phospy.policy_models import SiteMatrixPolicy
 from phospy.transformations.models import IntensityScaleKind, QuantitativeMeaning
 
 

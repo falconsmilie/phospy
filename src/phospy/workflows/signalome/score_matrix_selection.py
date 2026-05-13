@@ -8,12 +8,12 @@ from typing import Protocol
 import pandas as pd
 
 from phospy.api.results import KinaseScoringResult
-from phospy.policy_models import DownstreamScoreSource
 from phospy.prediction.scoring import (
     SIGNALOME_DOWNSTREAM_SCORE_RANK_WEIGHTED_PREFERRED_POLICY,
     DownstreamScoreSelectionPolicy,
     select_downstream_score_matrix,
 )
+from phospy.scoring.policy_models import DownstreamScoreSource
 
 
 @dataclass(frozen=True, slots=True)

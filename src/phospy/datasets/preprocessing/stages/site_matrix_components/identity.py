@@ -5,8 +5,8 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.datasets.preprocessing.models import DuplicateSiteResolutionResult
+from phospy.datasets.preprocessing.policy_models import SiteMatrixMissingDataPolicy
 from phospy.errors.input import PhosPyInputError
-from phospy.policy_models import SiteMatrixMissingDataPolicy
 
 _SITE_SEQUENCE_COLUMN = "site_sequence"
 

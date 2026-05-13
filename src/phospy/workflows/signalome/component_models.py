@@ -6,8 +6,8 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from phospy.policy_models import DownstreamScoreSource
 from phospy.prediction.scoring import DownstreamScoreSelectionPolicy
+from phospy.scoring.policy_models import DownstreamScoreSource
 from phospy.signalomes.clustering import (
     SIGNALOME_CANDIDATE_SCORING_APPLIES_TO,
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE,

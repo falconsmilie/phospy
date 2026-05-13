@@ -25,3 +25,9 @@ Higher-level layers may compose owners, but must not duplicate ownership logic.
 - Dataset validation remains private: there is no public dataset `validate()` API.
 - Workflow validators should compose shared/domain validators instead of duplicating row-level scientific identity checks.
 - Public request dataclasses remain transport objects; boundary ownership sits in validators and domain contracts.
+- Policy enums are owned by behavioural domain modules:
+  - preprocessing: `phospy.datasets.preprocessing.policy_models`
+  - differential: `phospy.differential.policy_models`
+  - shared scoring: `phospy.scoring.policy_models`
+  - shared policy-enum infrastructure: `phospy.policies.policy_base`
+  - root module `phospy.policy_models` has been removed.

@@ -9,12 +9,12 @@ from types import MappingProxyType
 import numpy as np
 import pandas as pd
 
-from phospy.policy_models import DownstreamScoreSource
 from phospy.scientific_policies import (
     ScientificPolicyId,
     ScientificPolicyRecord,
     build_motif_profile_rank_fusion_policy,
 )
+from phospy.scoring.policy_models import DownstreamScoreSource
 
 DOWNSTREAM_SCORE_SOURCE_PROFILE = DownstreamScoreSource.PROFILE_SCORES.value
 DOWNSTREAM_SCORE_SOURCE_RANK_WEIGHTED_FUSION = (

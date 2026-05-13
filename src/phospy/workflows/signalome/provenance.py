@@ -7,7 +7,6 @@ from dataclasses import asdict
 
 import pandas as pd
 
-from phospy.policy_models import DownstreamScoreSource
 from phospy.provenance.environment import collect_environment_provenance
 from phospy.provenance.hashing import fingerprint_optional_table
 from phospy.provenance.models import (
@@ -25,6 +24,7 @@ from phospy.scientific_policies import (
     SignalomeMissingValueClusteringPolicy,
     build_signalome_module_candidate_score_policy,
 )
+from phospy.scoring.policy_models import DownstreamScoreSource
 from phospy.signalomes.clustering import ClusterSitesResult
 from phospy.signalomes.clustering.diagnostic_schemas import (
     backend_diagnostics_to_payload,

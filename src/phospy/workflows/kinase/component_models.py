@@ -6,9 +6,9 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from phospy.policy_models import DownstreamScoreSource
 from phospy.prediction.models import KinaseScoringResult
 from phospy.prediction.scoring import DownstreamScoreSelectionPolicy
+from phospy.scoring.policy_models import DownstreamScoreSource
 
 CANDIDATE_SCORE_THRESHOLD = 0.0
 CANDIDATE_MIN_INCLUSION = 1

@@ -13,9 +13,9 @@ from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
     PreprocessingState,
 )
+from phospy.datasets.preprocessing.policy_models import IntensityTransformPolicy
 from phospy.datasets.processing_state import JsonValue
 from phospy.errors.input import PhosPyInputError
-from phospy.policy_models import IntensityTransformPolicy
 
 from .models import MinProbPolicyOutcome, RowImputationRecord
 

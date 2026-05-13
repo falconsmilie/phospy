@@ -12,6 +12,11 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingStageExecution,
 )
+from phospy.datasets.preprocessing.policy_models import (
+    ComparisonBuildingPolicy,
+    SiteMatrixPolicy,
+    TotalProteinCorrectionPolicy,
+)
 from phospy.datasets.processing_state import (
     TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1,
     ComparisonState,
@@ -26,11 +31,6 @@ from phospy.datasets.processing_state import (
     TotalProteinCorrectionState,
 )
 from phospy.errors.build import DatasetBuildError
-from phospy.policy_models import (
-    ComparisonBuildingPolicy,
-    SiteMatrixPolicy,
-    TotalProteinCorrectionPolicy,
-)
 from phospy.transformations.models import (
     IntensityScaleKind,
     IntensityScaleState,

@@ -21,14 +21,8 @@ from phospy.api.configs import (
     SignalomeValidationConfig,
 )
 from phospy.datasets.preprocessing.models import PreprocessingPlan
-from phospy.datasets.preprocessing.stage_registry import (
-    resolve_builder_provenance_stage_order,
-)
-from phospy.errors.input import PhosPyInputError
-from phospy.errors.validation import WorkflowValidationError
-from phospy.policy_models import (
+from phospy.datasets.preprocessing.policy_models import (
     ComparisonBuildingPolicy,
-    DownstreamScoreSource,
     IntensityTransformPolicy,
     MissingDataPolicy,
     NormalisationPolicy,
@@ -36,11 +30,16 @@ from phospy.policy_models import (
     SiteMatrixPolicy,
     SiteSequenceConflictPolicy,
     SiteSequenceResolutionMode,
-    ThresholdMode,
     TotalProteinCorrectionPolicy,
 )
+from phospy.datasets.preprocessing.stage_registry import (
+    resolve_builder_provenance_stage_order,
+)
+from phospy.errors.input import PhosPyInputError
+from phospy.errors.validation import WorkflowValidationError
 from phospy.prediction.candidates import build_candidate_substrate_list
 from phospy.prediction.scoring import select_downstream_score_matrix
+from phospy.scoring.policy_models import DownstreamScoreSource, ThresholdMode
 
 
 def test_preprocessing_plan_converts_public_strings_to_internal_policy_enums() -> None:
