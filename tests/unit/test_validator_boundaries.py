@@ -31,8 +31,6 @@ from phospy.api.requests import (
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import KinaseWorkflowResult
-from phospy.datasets.builders.validator import DatasetBuildRequestValidator
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import (
     DatasetValidationError,
     PhosPyInputError,
@@ -41,9 +39,11 @@ from phospy.errors import (
     UnsupportedInputFormatError,
     WorkflowValidationError,
 )
-from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
-from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
-from phospy.transformations.models import QuantitativeMeaning
+from phospy.science.datasets.builders.validator import DatasetBuildRequestValidator
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
+from phospy.science.references.models import Organism, ReferenceBundle, ReferencePreset
+from phospy.science.transformations.models import QuantitativeMeaning
 from phospy.validation.datasets.preprocessing import (
     DatasetPreprocessingConfigValidator,
 )

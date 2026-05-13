@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from phospy.signalomes.constants import (
+from phospy.science.signalomes.constants import (
     CORRELATION_COLUMN,
     CORRELATION_REASON_COLUMN,
     CORRELATION_STATUS_COLUMN,

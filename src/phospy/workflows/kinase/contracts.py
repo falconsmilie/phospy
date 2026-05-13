@@ -17,13 +17,13 @@ from phospy.api.configs import (
 )
 from phospy.api.requests import KinaseWorkflowRequest
 from phospy.api.results import KinaseWorkflowResult
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.prediction.policies import (
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.prediction.policies import (
     DEFAULT_PREDICTION_SAMPLING_POLICY,
     PredictionSamplingPolicy,
 )
-from phospy.references.models import ReferenceBundle
+from phospy.science.references.models import ReferenceBundle
 from phospy.tables.datasets import PhosphoIntensityMatrix
 from phospy.validation.common.dataframes import (
     require_canonical_site_index,
@@ -37,7 +37,7 @@ from phospy.validation.common.dataframes import (
 )
 
 if TYPE_CHECKING:
-    from phospy.references.resolution import ReferenceResolverContract
+    from phospy.science.references.resolution import ReferenceResolverContract
 
 
 @dataclass(frozen=True, slots=True)

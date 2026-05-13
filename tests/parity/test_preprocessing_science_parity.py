@@ -16,8 +16,8 @@ from phospy.api.configs import (
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
 )
-from phospy.datasets.builders.preprocessing import DatasetPreprocessor
-from phospy.datasets.preprocessing.models import PreprocessingPlan
+from phospy.science.datasets.builders.preprocessing import DatasetPreprocessor
+from phospy.science.datasets.preprocessing.models import PreprocessingPlan
 from tests.support.parity_reporting import (
     format_fraction,
     format_shape,

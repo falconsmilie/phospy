@@ -8,7 +8,7 @@ from phospy.api.configs.localisation import LocalisationRequirement
 from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.api.results import KinaseWorkflowResult
 from phospy.errors.validation import WorkflowValidationError
-from phospy.prediction.scoring import select_downstream_score_matrix
+from phospy.science.prediction.scoring import select_downstream_score_matrix
 from phospy.validation.common.dataframes import (
     require_dataframe,
     require_exact_index_match,

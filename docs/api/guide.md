@@ -73,17 +73,17 @@ module.
 - Shared policy record models:
   `phospy.provenance.scientific_policy_models`
 - Prediction scientific policies:
-  `phospy.prediction.scientific_policies`
+  `phospy.science.prediction.scientific_policies`
 - Activity scientific policies:
-  `phospy.activities.scientific_policies`
+  `phospy.science.activities.scientific_policies`
 - Preprocessing scientific policies:
-  `phospy.datasets.preprocessing.scientific_policies`
+  `phospy.science.datasets.preprocessing.scientific_policies`
 - Signalome workflow scientific policies:
   `phospy.workflows.signalome.scientific_policies`
 - Signalome clustering scientific policies:
-  `phospy.signalomes.clustering.scientific_policies`
+  `phospy.science.signalomes.clustering.scientific_policies`
 - Differential aggregation scientific policies:
-  `phospy.differential.aggregation.scientific_policies`
+  `phospy.science.differential.aggregation.scientific_policies`
 
 `phospy.scientific_policies` is intentionally not part of the import contract.
 

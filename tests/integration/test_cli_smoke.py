@@ -10,12 +10,12 @@ from phospy.api.configs import (
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
 )
 from phospy.cli import main as cli_main
-from phospy.datasets.builders.executor import DatasetBuildExecutor
-from phospy.datasets.builders.public import AnalysisReadyDatasetBuilder
-from phospy.datasets.builders.transformation_resolver import (
+from phospy.io.cli import build_parser
+from phospy.science.datasets.builders.executor import DatasetBuildExecutor
+from phospy.science.datasets.builders.public import AnalysisReadyDatasetBuilder
+from phospy.science.datasets.builders.transformation_resolver import (
     DatasetIntensityScaleResolver,
 )
-from phospy.io.cli import build_parser
 from tests.support.rewrite_fixture_data import load_rat_l6_phospho, site_metadata_for
 
 pytestmark = pytest.mark.integration

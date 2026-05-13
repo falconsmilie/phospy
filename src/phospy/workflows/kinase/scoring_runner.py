@@ -7,8 +7,8 @@ from collections.abc import Callable
 import pandas as pd
 
 from phospy.errors.workflows import WorkflowStageError
-from phospy.prediction.models import KinaseScoringResult
-from phospy.prediction.motif_scoring import (
+from phospy.science.prediction.models import KinaseScoringResult
+from phospy.science.prediction.motif_scoring import (
     DEFAULT_MOTIF_FLANK_SIZE,
     SEQUENCE_SEMANTICS_CENTRED_SEQUENCE,
     MotifScoringResult,
@@ -16,14 +16,14 @@ from phospy.prediction.motif_scoring import (
     get_motif_library_validation,
     score_phosphosite_motifs,
 )
-from phospy.prediction.scoring import (
+from phospy.science.prediction.scoring import (
     SIGNALOME_DOWNSTREAM_SCORE_RANK_WEIGHTED_PREFERRED_POLICY,
     DownstreamScoreSelectionPolicy,
     build_kinase_score_source_diagnostics,
     fuse_profile_and_motif_scores_by_rank_weight,
     resolve_downstream_score_matrix,
 )
-from phospy.scoring.policy_models import DownstreamScoreSource
+from phospy.science.scoring.policy_models import DownstreamScoreSource
 from phospy.workflows.kinase.component_models import KinaseScoringRunResult
 from phospy.workflows.kinase.contracts import (
     ResolvedKinaseExecutionConfig,

@@ -39,7 +39,7 @@ from phospy.errors import (
     WorkflowValidationError,
 )
 from phospy.errors.workflows import WorkflowStageError
-from phospy.signalomes.clustering import (
+from phospy.science.signalomes.clustering import (
     MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER,
     SIGNALOME_CANDIDATE_SCORING_APPLIES_TO,
     SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
@@ -52,11 +52,11 @@ from phospy.signalomes.clustering import (
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE,
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_SINGLE_MODULE,
 )
-from phospy.signalomes.constants import (
+from phospy.science.signalomes.constants import (
     EXPANDED_SIGNALOME_ROW_KIND_SUMMARY,
     SITE_CLUSTER_COLUMN,
 )
-from phospy.signalomes.models import (
+from phospy.science.signalomes.models import (
     KinaseNetwork,
     SignalomeAssignments,
     SignalomeModules,
@@ -2159,7 +2159,7 @@ def test_explicit_multi_module_invokes_exact_tree_builder_for_final_assignment(
     monkeypatch: pytest.MonkeyPatch,
     execution_path: str,
 ) -> None:
-    from phospy.signalomes.clustering.backends import (
+    from phospy.science.signalomes.clustering.backends import (
         exact_python as exact_tree_backend_module,
     )
 
@@ -2938,8 +2938,10 @@ def test_executor_internal_seam_invokes_signalome_domain_services(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import phospy.workflows.signalome.executor as executor_module
-    from phospy.signalomes.clustering.models import SignalomeClusteringEngineResult
-    from phospy.signalomes.models import (
+    from phospy.science.signalomes.clustering.models import (
+        SignalomeClusteringEngineResult,
+    )
+    from phospy.science.signalomes.models import (
         SignalomeModuleSelectionDiagnostics,
         SignalomeNetworkCorrelationDiagnostics,
     )

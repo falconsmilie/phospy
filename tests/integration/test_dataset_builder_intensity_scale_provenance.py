@@ -102,7 +102,7 @@ def test_builder_log2_transformation_records_transformed_mode_in_provenance() ->
     workflow_payload = _workflow_establishment_payload(built)
     assert workflow_payload["establishment_mode"] == "transformed"
     assert workflow_payload["transformer_name"] == (
-        "phospy.datasets.preprocessing.stages.intensity_transform.log2"
+        "phospy.science.datasets.preprocessing.stages.intensity_transform.log2"
     )
     assert workflow_payload["parameters"]["operation"] == "log2"
     assert workflow_payload["parameters"]["pseudocount"] == 1.0

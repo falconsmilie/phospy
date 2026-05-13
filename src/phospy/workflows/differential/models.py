@@ -7,14 +7,14 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from phospy.api.configs import DifferentialAnalysisConfig
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.design.models import Contrast, ExperimentalDesign
-from phospy.differential.models import (
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.design.models import Contrast, ExperimentalDesign
+from phospy.science.differential.models import (
     ContrastMatrix,
     DesignMatrix,
     DifferentialAnalysisResult,
 )
-from phospy.differential.models import (
+from phospy.science.differential.models import (
     DifferentialAnalysisRequest as DifferentialComputationRequest,
 )
 

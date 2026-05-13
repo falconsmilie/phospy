@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from phospy.errors import PhosPyInputError
-from phospy.evidence import PeptideEvidenceTable
+from phospy.science.evidence import PeptideEvidenceTable
 
 
 def _base_frame() -> pd.DataFrame:

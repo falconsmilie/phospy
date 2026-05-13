@@ -12,8 +12,9 @@ from phospy.api.configs import (
     DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
 )
-from phospy.datasets.builders.preprocessing import DatasetPreprocessor
-from phospy.datasets.preprocessing.models import (
+from phospy.errors.build import DatasetBuildError
+from phospy.science.datasets.builders.preprocessing import DatasetPreprocessor
+from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
     DATASET_PREPROCESSING_STAGE_LOCALISATION,
@@ -26,15 +27,14 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingStageResult,
     PreprocessingState,
 )
-from phospy.datasets.preprocessing.pipeline import PreprocessingPipeline
-from phospy.datasets.preprocessing.stage_registry import (
+from phospy.science.datasets.preprocessing.pipeline import PreprocessingPipeline
+from phospy.science.datasets.preprocessing.stage_registry import (
     PreprocessingStageMetadata,
     get_preprocessing_stage_metadata,
     list_registered_preprocessing_stages,
     resolve_builder_provenance_stage_order,
     resolve_registered_preprocessing_stages,
 )
-from phospy.errors.build import DatasetBuildError
 
 
 def _phospho() -> pd.DataFrame:

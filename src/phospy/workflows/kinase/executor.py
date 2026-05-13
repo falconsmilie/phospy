@@ -2,20 +2,20 @@
 
 from __future__ import annotations
 
-from phospy.activities.models import KinaseActivityResult
 from phospy.api.results import KinaseWorkflowResult
-from phospy.prediction.candidates import (
+from phospy.science.activities.models import KinaseActivityResult
+from phospy.science.prediction.candidates import (
     build_candidate_substrate_list,
     summarize_candidate_shortfall,
 )
-from phospy.prediction.execution import run_adaptive_ensemble_prediction
-from phospy.prediction.models import KinasePredictionResult
-from phospy.prediction.motif_scoring import (
+from phospy.science.prediction.execution import run_adaptive_ensemble_prediction
+from phospy.science.prediction.models import KinasePredictionResult
+from phospy.science.prediction.motif_scoring import (
     build_motif_library,
     get_motif_library_validation,
     score_phosphosite_motifs,
 )
-from phospy.prediction.scoring import (
+from phospy.science.prediction.scoring import (
     fuse_profile_and_motif_scores_by_rank_weight,
     select_downstream_score_matrix,
 )

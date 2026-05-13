@@ -25,7 +25,7 @@ from phospy.io.cli_parser import build_parser
 from phospy.io.cli_publishing import WorkflowOutputPublisher
 from phospy.io.cli_request_factory import build_command
 from phospy.io.cli_runner import CliCommandRunner
-from phospy.references.models import Organism, ReferencePreset
+from phospy.science.references.models import Organism, ReferencePreset
 from tests.support.rewrite_fixture_data import load_rat_l6_phospho, site_metadata_for
 
 

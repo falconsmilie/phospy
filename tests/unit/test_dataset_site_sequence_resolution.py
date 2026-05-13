@@ -9,15 +9,15 @@ from phospy.api.configs import (
     DatasetPreprocessingConfig,
     DatasetSiteSequenceResolutionConfig,
 )
-from phospy.datasets.builders.preprocessing import (
-    DatasetPreprocessor,
-    build_dataset_processing_state,
-)
-from phospy.datasets.preprocessing.models import PreprocessingPlan
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.intensity_scale_state import (
     intensity_scale_state_from_payload,
 )
+from phospy.science.datasets.builders.preprocessing import (
+    DatasetPreprocessor,
+    build_dataset_processing_state,
+)
+from phospy.science.datasets.preprocessing.models import PreprocessingPlan
 
 
 def _phospho() -> pd.DataFrame:
@@ -290,7 +290,9 @@ def test_error_conflict_policy_raises_with_structured_row_diagnostics(
     assert row_diagnostics[0]["fasta_site_sequence"] == "AASAA"
     assert row_diagnostics[0]["action"] == "error"
     assert row_diagnostics[0]["conflict_policy"] == "error"
-    assert row_diagnostics[0]["resolver_version"] == "phospy.sequences.resolver.v1"
+    assert (
+        row_diagnostics[0]["resolver_version"] == "phospy.science.sequences.resolver.v1"
+    )
     assert row_diagnostics[0]["fasta_source_path"] == diagnostics.get(
         "fasta_source_path"
     )

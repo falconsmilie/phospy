@@ -14,8 +14,8 @@ def _public_module_paths() -> tuple[Path, ...]:
     explicit_paths = (
         _SRC_ROOT / "__init__.py",
         _SRC_ROOT / "cli.py",
-        _SRC_ROOT / "datasets" / "models.py",
-        _SRC_ROOT / "activities" / "threshold_membership.py",
+        _SRC_ROOT / "science" / "datasets" / "models.py",
+        _SRC_ROOT / "science" / "activities" / "threshold_membership.py",
     )
     api_paths = tuple((_SRC_ROOT / "api").rglob("*.py"))
     workflow_public_paths = tuple((_SRC_ROOT / "workflows").glob("*/public.py"))

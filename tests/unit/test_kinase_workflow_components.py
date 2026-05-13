@@ -19,7 +19,7 @@ from phospy.api.results import (
     KinaseWorkflowSiteAttritionSummary,
 )
 from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
+from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.validation.workflows.activity import KinaseActivityInputValidator
 from phospy.workflows.kinase.activity_runner import KinaseActivityRunner
 from phospy.workflows.kinase.component_models import KinaseScoringRunResult

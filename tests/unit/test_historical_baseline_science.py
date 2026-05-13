@@ -21,7 +21,7 @@ from phospy.api import (
     SignalomeWorkflowRequest,
 )
 from phospy.api.configs import SignalomeOutputConfig
-from phospy.signalomes.science import (
+from phospy.science.signalomes.science import (
     build_kinase_network,
     build_module_assignments,
 )

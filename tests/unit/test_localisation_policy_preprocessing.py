@@ -11,9 +11,9 @@ from phospy.api.configs import (
     DatasetPreprocessingConfig,
 )
 from phospy.api.requests import DatasetBuildRequest
-from phospy.datasets.builders.preprocessing import DatasetPreprocessor
-from phospy.datasets.preprocessing.models import PreprocessingPlan
 from phospy.errors.input import PhosPyInputError
+from phospy.science.datasets.builders.preprocessing import DatasetPreprocessor
+from phospy.science.datasets.preprocessing.models import PreprocessingPlan
 
 
 def _phospho() -> pd.DataFrame:

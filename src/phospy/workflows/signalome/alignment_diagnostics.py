@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.signalomes.models import (
+from phospy.science.signalomes.models import (
     SignalomeAlignmentDiagnostics,
     SignalomeAlignmentInputDiagnostics,
 )

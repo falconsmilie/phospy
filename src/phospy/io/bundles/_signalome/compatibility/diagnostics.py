@@ -15,7 +15,7 @@ from phospy.io.bundles._signalome.compatibility.primitives import (
     _require_fields,
     _require_int,
 )
-from phospy.signalomes.models import (
+from phospy.science.signalomes.models import (
     SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS,
     SIGNALOME_MODULE_SELECTION_STRATEGY_EXPLICIT_MODULE_COUNT,
     SignalomeAlignmentDiagnostics,

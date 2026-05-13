@@ -3,10 +3,10 @@ from __future__ import annotations
 import pytest
 
 from phospy.errors.references import ReferenceResolutionError, UnsupportedOrganismError
-from phospy.references import resources as reference_resources
-from phospy.references.models import Organism, ReferencePreset
-from phospy.references.resolution import ReferenceResolver
-from phospy.references.resources import load_bundled_reference_manifest
+from phospy.science.references import resources as reference_resources
+from phospy.science.references.models import Organism, ReferencePreset
+from phospy.science.references.resolution import ReferenceResolver
+from phospy.science.references.resources import load_bundled_reference_manifest
 
 
 def test_valid_bundled_manifest_loads_for_supported_runtime_lane() -> None:

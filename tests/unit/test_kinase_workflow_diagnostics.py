@@ -8,7 +8,6 @@ from phospy import (
     AnalysisReadyPhosphoDataset,
     KinaseWorkflow,
 )
-from phospy.activities.models import KinaseActivityInputs, PredMatOverlapSummary
 from phospy.api import (
     DatasetBuildRequest,
     KinasePredictionConfig,
@@ -19,8 +18,9 @@ from phospy.api import (
     ReferencePreset,
 )
 from phospy.errors import WorkflowBoundaryError
-from phospy.prediction.models import KinasePredictionResult
-from phospy.references.resolution import ReferenceResolver
+from phospy.science.activities.models import KinaseActivityInputs, PredMatOverlapSummary
+from phospy.science.prediction.models import KinasePredictionResult
+from phospy.science.references.resolution import ReferenceResolver
 from phospy.workflows.kinase.contracts import (
     ResolvedKinaseActivityExecutionConfig,
     ResolvedKinaseExecutionConfig,

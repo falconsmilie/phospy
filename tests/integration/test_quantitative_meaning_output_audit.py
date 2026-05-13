@@ -19,7 +19,6 @@ from phospy.api import (
     Organism,
     ReferenceBundle,
 )
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.io.bundles._shared.processing_state import processing_state_to_payload
 from phospy.io.bundles.kinase import (
     KinaseWorkflowConfigSnapshot,
@@ -27,6 +26,7 @@ from phospy.io.bundles.kinase import (
 )
 from phospy.io.publishers.workflows import publish_dataset, publish_kinase_workflow
 from phospy.provenance.serialization import to_payload as provenance_to_payload
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
 pytestmark = pytest.mark.integration
 

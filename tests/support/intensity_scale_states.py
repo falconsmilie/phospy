@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.datasets.builders.preprocessing import build_dataset_processing_state
-from phospy.datasets.builders.transformation_resolver import (
+from phospy.science.datasets.builders.preprocessing import (
+    build_dataset_processing_state,
+)
+from phospy.science.datasets.builders.transformation_resolver import (
     DatasetIntensityScaleResolver,
 )
-from phospy.datasets.preprocessing.models import PreprocessingPlan
-from phospy.transformations.models import IntensityScaleState
-from phospy.transformations.transformers import IdentityTransformer
+from phospy.science.datasets.preprocessing.models import PreprocessingPlan
+from phospy.science.transformations.models import IntensityScaleState
+from phospy.science.transformations.transformers import IdentityTransformer
 
 
 def supported_linear_intensity_scale_state(

@@ -6,7 +6,10 @@ import warnings
 import numpy as np
 import pytest
 
-from phospy.prediction.svm import aligned_binary_decision_vector, require_sklearn
+from phospy.science.prediction.svm import (
+    aligned_binary_decision_vector,
+    require_sklearn,
+)
 
 
 def test_require_sklearn_error_reports_broken_standard_install(

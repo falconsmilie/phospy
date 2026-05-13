@@ -28,14 +28,14 @@ from phospy.api.results import (
     KinaseScoringResult,
     SignalomeWorkflowResult,
 )
-from phospy.datasets.builders.validator import DatasetBuildRequestValidator
 from phospy.errors import (
     DatasetValidationError,
     ReferenceValidationError,
     WorkflowValidationError,
 )
 from phospy.io.readers.tables import read_table
-from phospy.signalomes.models import (
+from phospy.science.datasets.builders.validator import DatasetBuildRequestValidator
+from phospy.science.signalomes.models import (
     KinaseNetwork,
     SignalomeAssignments,
     SignalomeModules,

@@ -13,14 +13,14 @@ from phospy.api import (
     DatasetPreprocessingConfig,
     Organism,
 )
-from phospy.datasets.preprocessing.models import (
-    PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA,
-    PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_MISSING_DATA,
-)
 from phospy.provenance import environment as provenance_environment
 from phospy.provenance.environment import collect_environment_provenance
 from phospy.provenance.scientific_policy_models import ScientificPolicyId
 from phospy.provenance.serialization import from_payload, to_payload
+from phospy.science.datasets.preprocessing.models import (
+    PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA,
+    PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_MISSING_DATA,
+)
 
 
 def test_collect_environment_provenance_reports_expected_keys() -> None:

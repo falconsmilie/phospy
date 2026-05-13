@@ -14,12 +14,14 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
-from phospy.differential.executor import DifferentialAnalysisExecutor
-from phospy.differential.models import DifferentialAnalysisRequest as CoreDiffRequest
 from phospy.errors import (
     PhosPyInputError,
     WorkflowBoundaryError,
     WorkflowValidationError,
+)
+from phospy.science.differential.executor import DifferentialAnalysisExecutor
+from phospy.science.differential.models import (
+    DifferentialAnalysisRequest as CoreDiffRequest,
 )
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,

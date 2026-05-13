@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from phospy.api.results import SignalomeWorkflowResult
 from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.signalomes.clustering import (
+from phospy.science.signalomes.clustering import (
     run_signalome_clustering_engine,
 )
-from phospy.signalomes.context import (
+from phospy.science.signalomes.context import (
     build_protein_site_context_table,
     build_site_membership_table,
 )
-from phospy.signalomes.science import (
+from phospy.science.signalomes.science import (
     build_expanded_signalome_table,
     build_kinase_network_with_diagnostics,
     build_module_assignments,

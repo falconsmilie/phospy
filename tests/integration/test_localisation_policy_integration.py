@@ -10,10 +10,10 @@ from phospy.api.configs import (
 )
 from phospy.api.requests import KinaseWorkflowRequest, SignalomeWorkflowRequest
 from phospy.api.results import KinaseWorkflowResult
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.validation import WorkflowValidationError
-from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
-from phospy.references.models import Organism, ReferenceBundle
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
+from phospy.science.references.models import Organism, ReferenceBundle
 from phospy.workflows.kinase.validator import KinaseWorkflowValidator
 from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
 from tests.support.intensity_scale_states import (

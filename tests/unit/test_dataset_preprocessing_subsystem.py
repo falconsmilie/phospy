@@ -22,18 +22,21 @@ from phospy.api.configs import (
     DatasetTotalProteinCorrectionConfig,
 )
 from phospy.api.requests import DatasetBuildRequest
-from phospy.datasets.builders.contracts import (
+from phospy.errors.input import PhosPyInputError
+from phospy.science.datasets.builders.contracts import (
     InterpretedDatasetBuildRequest,
     PreprocessedDatasetBuildTables,
 )
-from phospy.datasets.builders.executor import DatasetBuildExecutor
-from phospy.datasets.builders.interpreter import DatasetBuildRequestInterpreter
-from phospy.datasets.builders.preprocessing import (
+from phospy.science.datasets.builders.executor import DatasetBuildExecutor
+from phospy.science.datasets.builders.interpreter import DatasetBuildRequestInterpreter
+from phospy.science.datasets.builders.preprocessing import (
     DatasetPreprocessor,
     build_dataset_processing_state,
 )
-from phospy.datasets.builders.transformation_resolver import ResolvedIntensityScale
-from phospy.datasets.preprocessing.models import (
+from phospy.science.datasets.builders.transformation_resolver import (
+    ResolvedIntensityScale,
+)
+from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_LOCALISATION,
     PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA,
     PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_MISSING_DATA,
@@ -41,11 +44,12 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingStageResult,
     PreprocessingState,
 )
-from phospy.datasets.preprocessing.pipeline import PreprocessingPipeline
-from phospy.datasets.preprocessing.stage_registry import PreprocessingStageMetadata
-from phospy.errors.input import PhosPyInputError
-from phospy.references.models import Organism
-from phospy.transformations.models import QuantitativeMeaning
+from phospy.science.datasets.preprocessing.pipeline import PreprocessingPipeline
+from phospy.science.datasets.preprocessing.stage_registry import (
+    PreprocessingStageMetadata,
+)
+from phospy.science.references.models import Organism
+from phospy.science.transformations.models import QuantitativeMeaning
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
 )

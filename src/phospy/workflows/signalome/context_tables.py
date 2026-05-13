@@ -7,8 +7,8 @@ from collections.abc import Callable
 import pandas as pd
 
 from phospy.errors.workflows import WorkflowStageError
-from phospy.signalomes.clustering import ClusterSitesResult
-from phospy.signalomes.context import (
+from phospy.science.signalomes.clustering import ClusterSitesResult
+from phospy.science.signalomes.context import (
     build_protein_site_context_table,
     build_site_membership_table,
 )

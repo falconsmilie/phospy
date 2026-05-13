@@ -5,35 +5,39 @@ from collections.abc import Mapping
 import pandas as pd
 import pytest
 
-from phospy.datasets.builders.contracts import InterpretedDatasetBuildRequest
-from phospy.datasets.builders.executor import DatasetBuildExecutor
-from phospy.datasets.builders.preprocessing import (
+from phospy.errors.build import DatasetBuildError
+from phospy.errors.input import PhosPyInputError
+from phospy.science.datasets.builders.contracts import InterpretedDatasetBuildRequest
+from phospy.science.datasets.builders.executor import DatasetBuildExecutor
+from phospy.science.datasets.builders.preprocessing import (
     DatasetPreprocessor,
     build_dataset_processing_state,
 )
-from phospy.datasets.preprocessing.models import (
+from phospy.science.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingReportRow,
     PreprocessingStageResult,
     PreprocessingState,
 )
-from phospy.datasets.preprocessing.pipeline import PreprocessingPipeline
-from phospy.datasets.preprocessing.report_schema import PreprocessingRowAuditRow
-from phospy.datasets.preprocessing.stage_registry import PreprocessingStageMetadata
-from phospy.datasets.preprocessing.stages.comparisons import ComparisonsStage
-from phospy.datasets.preprocessing.stages.intensity_transform import (
+from phospy.science.datasets.preprocessing.pipeline import PreprocessingPipeline
+from phospy.science.datasets.preprocessing.report_schema import PreprocessingRowAuditRow
+from phospy.science.datasets.preprocessing.stage_registry import (
+    PreprocessingStageMetadata,
+)
+from phospy.science.datasets.preprocessing.stages.comparisons import ComparisonsStage
+from phospy.science.datasets.preprocessing.stages.intensity_transform import (
     IntensityTransformStage,
 )
-from phospy.datasets.preprocessing.stages.missing_data import MissingDataStage
-from phospy.datasets.preprocessing.stages.normalisation import NormalisationStage
-from phospy.datasets.preprocessing.stages.site_matrix import SiteMatrixStage
-from phospy.datasets.preprocessing.stages.total_protein_correction import (
+from phospy.science.datasets.preprocessing.stages.missing_data import MissingDataStage
+from phospy.science.datasets.preprocessing.stages.normalisation import (
+    NormalisationStage,
+)
+from phospy.science.datasets.preprocessing.stages.site_matrix import SiteMatrixStage
+from phospy.science.datasets.preprocessing.stages.total_protein_correction import (
     TotalProteinCorrectionStage,
 )
-from phospy.datasets.processing_state import MissingDataDiagnosticsV1
-from phospy.errors.build import DatasetBuildError
-from phospy.errors.input import PhosPyInputError
-from phospy.transformations.models import QuantitativeMeaning
+from phospy.science.datasets.processing_state import MissingDataDiagnosticsV1
+from phospy.science.transformations.models import QuantitativeMeaning
 from tests.support.intensity_scale_states import supported_linear_intensity_scale_state
 
 

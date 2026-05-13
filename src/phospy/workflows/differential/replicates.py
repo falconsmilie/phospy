@@ -8,10 +8,10 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.design.models import ExperimentalDesign, SampleDesignRecord
-from phospy.differential.policy_models import TechnicalReplicatePolicy
 from phospy.errors.validation import WorkflowValidationError
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.design.models import ExperimentalDesign, SampleDesignRecord
+from phospy.science.differential.policy_models import TechnicalReplicatePolicy
 
 
 @dataclass(frozen=True, slots=True)

@@ -12,7 +12,7 @@ from phospy.api.configs import (
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
     SignalomeScorePreconditioningPolicy,
 )
-from phospy.signalomes.models import SignalomeScorePreconditioningDiagnostics
+from phospy.science.signalomes.models import SignalomeScorePreconditioningDiagnostics
 from phospy.workflows.signalome.boundary_errors import (
     raise_signalome_boundary_error,
     raise_wrapped_signalome_boundary_error,

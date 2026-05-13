@@ -15,17 +15,24 @@ from phospy.api.configs import (
     KinaseSiteSequenceConflictPolicy,
     SignalomeConfig,
 )
-from phospy.datasets.builders.contracts import DatasetInput
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.design.models import Contrast, ExperimentalDesign, SampleDesignRecord
-from phospy.differential.models import (
+from phospy.science.datasets.builders.contracts import DatasetInput
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.design.models import (
+    Contrast,
+    ExperimentalDesign,
+    SampleDesignRecord,
+)
+from phospy.science.differential.models import (
     ContrastMatrix,
     DesignMatrix,
     EmpiricalBayesConfig,
 )
-from phospy.evidence import dataset_resolution as _dataset_resolution
-from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
-from phospy.transformations.models import IntensityScaleKind, QuantitativeMeaning
+from phospy.science.evidence import dataset_resolution as _dataset_resolution
+from phospy.science.references.models import Organism, ReferenceBundle, ReferencePreset
+from phospy.science.transformations.models import (
+    IntensityScaleKind,
+    QuantitativeMeaning,
+)
 
 if TYPE_CHECKING:
     from phospy.api.results import KinaseWorkflowResult

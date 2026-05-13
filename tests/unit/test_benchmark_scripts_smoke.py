@@ -18,10 +18,10 @@ BENCHMARK_DIR = REPO_ROOT / "benchmarks"
 BENCHMARK_SCRIPTS = sorted(BENCHMARK_DIR.glob("*.py"))
 LOCAL_IMPORT_ROOTS = {"phospy", "tests"}
 DISALLOWED_SEAM_TOKENS = (
-    "phospy.prediction.aggregation",
-    "phospy.prediction.sampling",
+    "phospy.science.prediction.aggregation",
+    "phospy.science.prediction.sampling",
     "phospy.preprocessing",
-    "phospy.signalomes.analysis",
+    "phospy.science.signalomes.analysis",
     "tests/test_parity-with_metrics.py",
     "tests/test_end_to_end_parity.py",
 )

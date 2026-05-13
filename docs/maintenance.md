@@ -62,12 +62,12 @@ Pyright is the configured type checker. The checked scope is listed in
 `pyproject.toml` under `[tool.pyright]` and includes:
 
 - `src/phospy/api`
-- `src/phospy/datasets`
+- `src/phospy/science/datasets`
 - `src/phospy/io` (including publishing/export paths)
-- `src/phospy/prediction`
+- `src/phospy/science/prediction`
 - `src/phospy/provenance`
-- `src/phospy/references`
-- `src/phospy/signalomes/clustering`
+- `src/phospy/science/references`
+- `src/phospy/science/signalomes/clustering`
 - `src/phospy/tables`
 - `src/phospy/validation`
 - `src/phospy/workflows`
@@ -131,3 +131,4 @@ Exposure categories:
 Architecture and governance decisions live in [ADR Index](adr/index.md). ADRs are
 advanced maintainer documents; day-to-day users should start with the
 [Quickstart](quickstart.md).
+

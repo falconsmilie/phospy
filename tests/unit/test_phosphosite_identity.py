@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from phospy.sites.identity import PhosphositeIdentity, build_phosphosite_identity
+from phospy.science.sites.identity import (
+    PhosphositeIdentity,
+    build_phosphosite_identity,
+)
 
 
 def test_build_phosphosite_identity_parses_canonical_display_id() -> None:

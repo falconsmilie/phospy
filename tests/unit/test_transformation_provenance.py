@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.datasets.builders.transformation_resolver import (
+from phospy.science.datasets.builders.transformation_resolver import (
     DatasetIntensityScaleResolver,
 )
-from phospy.transformations.models import (
+from phospy.science.transformations.models import (
     IntensityScaleEstablishmentMode,
     QuantitativeMeaning,
 )
-from phospy.transformations.transformers import IdentityTransformer
+from phospy.science.transformations.transformers import IdentityTransformer
 
 
 def _phospho() -> pd.DataFrame:

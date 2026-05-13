@@ -3,8 +3,9 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.prediction.candidates import build_candidate_substrate_list
-from phospy.prediction.scoring import (
+from phospy.provenance.scientific_policy_models import ScientificPolicyId
+from phospy.science.prediction.candidates import build_candidate_substrate_list
+from phospy.science.prediction.scoring import (
     DOWNSTREAM_SCORE_SOURCE_PROFILE,
     DOWNSTREAM_SCORE_SOURCE_RANK_WEIGHTED_FUSION,
     KINASE_SCORE_SOURCE_FUSED_MOTIF_PROFILE_EVIDENCE,
@@ -17,7 +18,6 @@ from phospy.prediction.scoring import (
     fuse_profile_and_motif_scores_by_rank_weight,
     select_downstream_score_matrix,
 )
-from phospy.provenance.scientific_policy_models import ScientificPolicyId
 
 
 def test_fuse_profile_and_motif_scores_by_rank_weight_falls_back_when_motif_column_is_all_nan() -> (

@@ -18,7 +18,7 @@ Higher-level layers may compose owners, but must not duplicate ownership logic.
 | Kinase reference compatibility | `phospy.validation.references.compatibility.ReferenceCompatibilityValidator` | Reference resolution/runtime boundary (resolver/workflow entry) | Kinase workflow scientific execution stages | `tests/unit/test_validation_ownership.py`, `tests/unit/test_validator_boundaries.py` |
 | Signalome protein identity | `phospy.validation.datasets.site_metadata.enforce_required_non_empty_string_column` + `enforce_site_identity_rows` | Signalome workflow validator (`SignalomeWorkflowValidator`) | Dataset generic dataframe helpers and signalome science modules | `tests/unit/test_validator_boundaries.py::test_signalome_validator_requires_explicit_site_metadata_protein_id_column`, `tests/unit/test_workflow_boundary_error.py` |
 | Localisation eligibility | `phospy.validation.datasets.site_metadata.enforce_localisation_requirement` | Workflow validators (`KinaseWorkflowValidator`, `SignalomeWorkflowValidator`) with request-configured policy | Dataset structural wrappers and reference validators | `tests/unit/test_validator_boundaries.py`, `tests/integration/test_localisation_policy_integration.py` |
-| Peptide evidence ambiguity | `phospy.evidence.multi_site.resolve_observation_site_rows` + `phospy.evidence.dataset_resolution.PeptideEvidenceDatasetResolver` (+ request mode/policy gate in `DatasetBuildRequestValidator`) | Dataset build preprocessing lane for `site_resolution_mode='peptide_evidence'` | Table schemas for analysis-ready dataset and downstream workflow validators | `tests/unit/test_dataset_peptide_evidence_resolution.py`, `tests/unit/test_evidence_multi_site_handling.py` |
+| Peptide evidence ambiguity | `phospy.science.evidence.multi_site.resolve_observation_site_rows` + `phospy.science.evidence.dataset_resolution.PeptideEvidenceDatasetResolver` (+ request mode/policy gate in `DatasetBuildRequestValidator`) | Dataset build preprocessing lane for `site_resolution_mode='peptide_evidence'` | Table schemas for analysis-ready dataset and downstream workflow validators | `tests/unit/test_dataset_peptide_evidence_resolution.py`, `tests/unit/test_evidence_multi_site_handling.py` |
 
 ## Ownership Notes
 
@@ -26,8 +26,8 @@ Higher-level layers may compose owners, but must not duplicate ownership logic.
 - Workflow validators should compose shared/domain validators instead of duplicating row-level scientific identity checks.
 - Public request dataclasses remain transport objects; boundary ownership sits in validators and domain contracts.
 - Policy enums are owned by behavioural domain modules:
-  - preprocessing: `phospy.datasets.preprocessing.policy_models`
-  - differential: `phospy.differential.policy_models`
-  - shared scoring: `phospy.scoring.policy_models`
+  - preprocessing: `phospy.science.datasets.preprocessing.policy_models`
+  - differential: `phospy.science.differential.policy_models`
+  - shared scoring: `phospy.science.scoring.policy_models`
   - shared policy-enum infrastructure: `phospy.policies.policy_base`
   - root module `phospy.policy_models` has been removed.

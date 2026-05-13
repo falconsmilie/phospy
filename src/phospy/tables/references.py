@@ -12,7 +12,7 @@ from phospy.errors.validation import (
     ReferenceIdentifierNormalisationValidationError,
     ReferenceValidationError,
 )
-from phospy.references.identifiers import (
+from phospy.science.references.identifiers import (
     ReferenceIdentifierNormalisationRecord,
     ReferenceIdentifierNormalisationReport,
     build_reference_identifier_normalisation_report,

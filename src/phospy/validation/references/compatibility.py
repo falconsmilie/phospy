@@ -6,7 +6,7 @@ from phospy.errors.references import (
     ReferenceCompatibilityError,
     ReferenceResolutionError,
 )
-from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
+from phospy.science.references.models import Organism, ReferenceBundle, ReferencePreset
 
 
 class ReferenceCompatibilityValidator:

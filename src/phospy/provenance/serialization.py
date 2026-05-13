@@ -21,7 +21,7 @@ from phospy.provenance.models import (
 from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
 
 if TYPE_CHECKING:
-    from phospy.references.identifiers import (
+    from phospy.science.references.identifiers import (
         ReferenceIdentifierNormalisationRecord,
         ReferenceIdentifierNormalisationReport,
     )
@@ -797,7 +797,9 @@ def _optional_reference_identifier_normalisation_from_payload(
 def _reference_identifier_normalisation_from_payload(
     payload: Mapping[str, object],
 ) -> ReferenceIdentifierNormalisationReport:
-    from phospy.references.identifiers import ReferenceIdentifierNormalisationReport
+    from phospy.science.references.identifiers import (
+        ReferenceIdentifierNormalisationReport,
+    )
 
     records_payload = _require_sequence(
         payload.get("records"),
@@ -851,7 +853,9 @@ def _reference_identifier_normalisation_from_payload(
 def _reference_identifier_normalisation_record_from_payload(
     payload: Mapping[str, object],
 ) -> ReferenceIdentifierNormalisationRecord:
-    from phospy.references.identifiers import ReferenceIdentifierNormalisationRecord
+    from phospy.science.references.identifiers import (
+        ReferenceIdentifierNormalisationRecord,
+    )
 
     return ReferenceIdentifierNormalisationRecord(
         table_name=_require_str(

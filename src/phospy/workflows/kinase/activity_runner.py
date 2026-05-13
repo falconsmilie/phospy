@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
-from phospy.activities.methods import (
-    KSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG,
-    KseaZScoreActivityMethod,
-    SimplifiedWeightedSubstrateActivityMethod,
-)
-from phospy.activities.models import KinaseActivityResult
 from phospy.api.configs import (
     KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
     KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
 )
 from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.prediction.models import KinasePredictionResult
+from phospy.science.activities.methods import (
+    KSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG,
+    KseaZScoreActivityMethod,
+    SimplifiedWeightedSubstrateActivityMethod,
+)
+from phospy.science.activities.models import KinaseActivityResult
+from phospy.science.prediction.models import KinasePredictionResult
 from phospy.validation.workflows.activity import KinaseActivityInputValidator
 from phospy.workflows.kinase.contracts import (
     ResolvedKinaseExecutionConfig,

@@ -18,19 +18,24 @@ from phospy.api import (
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import KinaseScoringResult, KinaseWorkflowResult
-from phospy.datasets.preprocessing.models import PreprocessingPlan, PreprocessingState
-from phospy.datasets.preprocessing.stages.normalisation import NormalisationStage
 from phospy.errors.workflows import SignalomeScaleError
 from phospy.io.bundles._signalome.snapshots import SignalomeWorkflowConfigSnapshot
 from phospy.io.bundles.signalome import save_signalome_workflow_bundle
-from phospy.prediction.execution import run_adaptive_ensemble_prediction
-from phospy.prediction.motif_scoring import (
+from phospy.provenance.hashing import hash_table
+from phospy.science.datasets.preprocessing.models import (
+    PreprocessingPlan,
+    PreprocessingState,
+)
+from phospy.science.datasets.preprocessing.stages.normalisation import (
+    NormalisationStage,
+)
+from phospy.science.prediction.execution import run_adaptive_ensemble_prediction
+from phospy.science.prediction.motif_scoring import (
     DEFAULT_MOTIF_FLANK_SIZE,
     build_motif_library,
     score_phosphosite_motifs,
 )
-from phospy.provenance.hashing import hash_table
-from phospy.signalomes.clustering import (
+from phospy.science.signalomes.clustering import (
     MAX_FULL_CORRELATION_SITE_COUNT,
     SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
     SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
@@ -41,7 +46,7 @@ from phospy.signalomes.clustering import (
     run_signalome_clustering_engine,
     select_module_count_with_diagnostics,
 )
-from phospy.signalomes.models import (
+from phospy.science.signalomes.models import (
     SIGNALOME_MODULE_SELECTION_STRATEGY_EXPLICIT_MODULE_COUNT,
 )
 from tests.support.performance_contracts import (
@@ -98,8 +103,10 @@ APPROXIMATION_REASON_TOKEN = "Used sampled within-cluster correlation estimates"
 def _patch_cluster_tree_build_for_contract_scoring(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from phospy.signalomes.clustering import exact_python as exact_clustering
-    from phospy.signalomes.clustering.backends import exact_python as exact_tree_backend
+    from phospy.science.signalomes.clustering import exact_python as exact_clustering
+    from phospy.science.signalomes.clustering.backends import (
+        exact_python as exact_tree_backend,
+    )
 
     def _stub_build_cluster_tree(scoring_values: np.ndarray) -> object:
         n_sites = int(np.asarray(scoring_values, dtype=float).shape[0])

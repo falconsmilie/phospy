@@ -9,7 +9,9 @@ from typing import TYPE_CHECKING
 from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
 
 if TYPE_CHECKING:
-    from phospy.references.identifiers import ReferenceIdentifierNormalisationReport
+    from phospy.science.references.identifiers import (
+        ReferenceIdentifierNormalisationReport,
+    )
 
 PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V1 = 1
 PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V2 = 2

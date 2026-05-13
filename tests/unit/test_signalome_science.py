@@ -11,12 +11,12 @@ from phospy.api.configs import (
     SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
 )
 from phospy.errors import WorkflowStageError
-from phospy.signalomes.constants import (
+from phospy.science.signalomes.constants import (
     EXPANDED_SIGNALOME_ROW_KIND_COLUMN,
     EXPANDED_SIGNALOME_ROW_KIND_SITE,
     EXPANDED_SIGNALOME_ROW_KIND_SUMMARY,
 )
-from phospy.signalomes.science import (
+from phospy.science.signalomes.science import (
     build_expanded_signalome_table,
     build_kinase_network,
     build_kinase_network_with_diagnostics,

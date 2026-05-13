@@ -19,8 +19,8 @@ from phospy.api import (
     TechnicalReplicatePolicy,
 )
 from phospy.api.results import DifferentialAnalysisResult
-from phospy.differential.models import EmpiricalBayesConfig
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
+from phospy.science.differential.models import EmpiricalBayesConfig
 from phospy.workflows.differential.executor import DifferentialAnalysisExecutor
 from phospy.workflows.differential.interpreter import DifferentialAnalysisInterpreter
 from phospy.workflows.differential.models import (

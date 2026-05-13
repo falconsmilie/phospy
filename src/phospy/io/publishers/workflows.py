@@ -6,11 +6,11 @@ import json
 from pathlib import Path
 
 from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.processing_state import processing_state_to_payload
 from phospy.io.readers.tables import table_suffix_for_format, write_table
 from phospy.provenance.serialization import to_payload as provenance_to_payload
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
 
 def publish_dataset(

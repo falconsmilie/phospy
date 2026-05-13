@@ -13,10 +13,13 @@ from phospy.api.configs import (
     DatasetSiteMatrixConfig,
 )
 from phospy.api.requests import DatasetBuildRequest
-from phospy.datasets.models import DatasetPreprocessingReport
-from phospy.datasets.preprocessing.models import PreprocessingReportRow
-from phospy.datasets.preprocessing.report_rows import validate_preprocessing_report_row
-from phospy.datasets.preprocessing.report_schema import (
+from phospy.errors.build import DatasetBuildError
+from phospy.science.datasets.models import DatasetPreprocessingReport
+from phospy.science.datasets.preprocessing.models import PreprocessingReportRow
+from phospy.science.datasets.preprocessing.report_rows import (
+    validate_preprocessing_report_row,
+)
+from phospy.science.datasets.preprocessing.report_schema import (
     COMPARISON_GROUP_STATS_COLUMNS,
     COMPARISON_PAIR_STATS_COLUMNS,
     DUPLICATE_SITE_RESOLUTION_COLUMNS,
@@ -35,7 +38,6 @@ from phospy.datasets.preprocessing.report_schema import (
     dataframe_from_row_audit_rows,
     dataframe_from_row_count_rows,
 )
-from phospy.errors.build import DatasetBuildError
 
 
 def test_row_count_rows_convert_to_dataframe_with_schema_order() -> None:

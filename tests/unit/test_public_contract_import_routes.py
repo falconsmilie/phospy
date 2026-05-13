@@ -4,8 +4,8 @@ import pytest
 
 import phospy
 import phospy.api as public_api
-import phospy.signalomes as public_signalomes
-import phospy.signalomes.clustering as signalome_clustering
+import phospy.science.signalomes as public_signalomes
+import phospy.science.signalomes.clustering as signalome_clustering
 
 TOP_LEVEL_CONVENIENCE_SURFACE = {
     "AnalysisReadyDatasetBuilder",
@@ -87,7 +87,7 @@ def test_split_module_import_routes_remain_backward_compatible() -> None:
     from phospy.io.bundles._signalome.compatibility import (
         signalome_config_from_payload,
     )
-    from phospy.prediction.motif_scoring import score_phosphosite_motifs
+    from phospy.science.prediction.motif_scoring import score_phosphosite_motifs
     from phospy.tables.signalome import SignalomeSiteContext
 
     assert SignalomeSiteContext.__name__ == "SignalomeSiteContext"

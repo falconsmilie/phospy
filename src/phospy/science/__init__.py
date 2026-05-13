@@ -1,0 +1,33 @@
+"""Scientific domain packages for PhosPy."""
+
+from __future__ import annotations
+
+from . import (
+    activities,
+    datasets,
+    design,
+    differential,
+    evidence,
+    prediction,
+    references,
+    scoring,
+    sequences,
+    signalomes,
+    sites,
+    transformations,
+)
+
+__all__ = [
+    "activities",
+    "datasets",
+    "design",
+    "differential",
+    "evidence",
+    "prediction",
+    "references",
+    "scoring",
+    "sequences",
+    "signalomes",
+    "sites",
+    "transformations",
+]

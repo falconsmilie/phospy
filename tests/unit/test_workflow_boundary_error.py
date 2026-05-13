@@ -14,10 +14,10 @@ from phospy.api.results import (
     KinaseScoringResult,
     KinaseWorkflowResult,
 )
-from phospy.datasets.builders.interpreter import DatasetBuildRequestInterpreter
 from phospy.errors import PhosPyInputError, WorkflowValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.references.models import ReferenceBundle
+from phospy.science.datasets.builders.interpreter import DatasetBuildRequestInterpreter
+from phospy.science.references.models import ReferenceBundle
 from phospy.workflows.signalome.constants import (
     SIGNALOME_INTERPRETER_SITE_ALIGNMENT_SEAM,
 )

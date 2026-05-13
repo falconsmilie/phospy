@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from phospy.api.requests import SignalomeWorkflowRequest
-from phospy.prediction.scoring import select_downstream_score_matrix
-from phospy.signalomes.clustering.policies import (
+from phospy.science.prediction.scoring import select_downstream_score_matrix
+from phospy.science.signalomes.clustering.policies import (
     resolve_candidate_scoring_policy_definition,
 )
 from phospy.workflows.signalome.alignment_diagnostics import (

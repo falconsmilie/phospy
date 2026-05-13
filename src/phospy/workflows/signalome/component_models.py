@@ -6,20 +6,20 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from phospy.prediction.scoring import DownstreamScoreSelectionPolicy
-from phospy.scoring.policy_models import DownstreamScoreSource
-from phospy.signalomes.clustering import (
+from phospy.science.prediction.scoring import DownstreamScoreSelectionPolicy
+from phospy.science.scoring.policy_models import DownstreamScoreSource
+from phospy.science.signalomes.clustering import (
     SIGNALOME_CANDIDATE_SCORING_APPLIES_TO,
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE,
     ClusterSitesResult,
 )
-from phospy.signalomes.clustering.diagnostic_schemas import (
+from phospy.science.signalomes.clustering.diagnostic_schemas import (
     SignalomeBackendDiagnostics,
     SignalomeCandidateScoringSamplingDiagnostics,
     validate_backend_diagnostics,
     validate_candidate_scoring_sampling_diagnostics,
 )
-from phospy.signalomes.models import SignalomeNetworkCorrelationDiagnostics
+from phospy.science.signalomes.models import SignalomeNetworkCorrelationDiagnostics
 
 
 @dataclass(frozen=True, slots=True)

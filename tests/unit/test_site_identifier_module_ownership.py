@@ -4,7 +4,7 @@ import importlib
 
 import pytest
 
-from phospy.sites.identifiers import (
+from phospy.science.sites.identifiers import (
     ParsedSiteToken,
     SiteIdentifierNormalisationRecord,
     SiteIdentifierNormalisationReport,
@@ -15,15 +15,23 @@ from phospy.sites.identifiers import (
 
 
 def test_site_identifier_helpers_are_owned_by_sites_identifiers_module() -> None:
-    assert canonicalize_site_identifier.__module__ == "phospy.sites.identifiers"
-    assert parse_canonical_site_identifier.__module__ == "phospy.sites.identifiers"
-    assert try_parse_site_token.__module__ == "phospy.sites.identifiers"
+    assert canonicalize_site_identifier.__module__ == "phospy.science.sites.identifiers"
+    assert (
+        parse_canonical_site_identifier.__module__ == "phospy.science.sites.identifiers"
+    )
+    assert try_parse_site_token.__module__ == "phospy.science.sites.identifiers"
 
 
 def test_site_identifier_dataclasses_are_owned_by_sites_identifiers_module() -> None:
-    assert ParsedSiteToken.__module__ == "phospy.sites.identifiers"
-    assert SiteIdentifierNormalisationRecord.__module__ == "phospy.sites.identifiers"
-    assert SiteIdentifierNormalisationReport.__module__ == "phospy.sites.identifiers"
+    assert ParsedSiteToken.__module__ == "phospy.science.sites.identifiers"
+    assert (
+        SiteIdentifierNormalisationRecord.__module__
+        == "phospy.science.sites.identifiers"
+    )
+    assert (
+        SiteIdentifierNormalisationReport.__module__
+        == "phospy.science.sites.identifiers"
+    )
 
 
 def test_root_site_ids_module_is_removed() -> None:

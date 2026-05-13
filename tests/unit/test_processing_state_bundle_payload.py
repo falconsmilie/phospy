@@ -2,11 +2,19 @@ from __future__ import annotations
 
 import pytest
 
-from phospy.datasets.preprocessing.policy_models import (
+from phospy.errors.input import PhosPyInputError
+from phospy.io.bundles._shared.intensity_scale_state import (
+    intensity_scale_state_from_payload,
+)
+from phospy.io.bundles._shared.processing_state import (
+    processing_state_from_payload,
+    processing_state_to_payload,
+)
+from phospy.science.datasets.preprocessing.policy_models import (
     MissingDataPolicy,
     TotalProteinCorrectionPolicy,
 )
-from phospy.datasets.processing_state import (
+from phospy.science.datasets.processing_state import (
     ComparisonState,
     DatasetProcessingState,
     MissingDataDiagnostics,
@@ -19,15 +27,7 @@ from phospy.datasets.processing_state import (
     TotalProteinCorrectionDiagnostics,
     TotalProteinCorrectionState,
 )
-from phospy.errors.input import PhosPyInputError
-from phospy.io.bundles._shared.intensity_scale_state import (
-    intensity_scale_state_from_payload,
-)
-from phospy.io.bundles._shared.processing_state import (
-    processing_state_from_payload,
-    processing_state_to_payload,
-)
-from phospy.transformations.models import QuantitativeMeaning
+from phospy.science.transformations.models import QuantitativeMeaning
 
 
 def _intensity_scale_state(*, quantity: str = "phospho_total_log_ratio"):
@@ -784,7 +784,7 @@ def test_processing_state_payload_round_trip_preserves_site_sequence_resolution_
             fasta_source_path="C:/data/proteome.fasta",
             fasta_source_label="dataset.site_sequence_resolution",
             fasta_sha256="abcdef123456",
-            resolver_version="phospy.sequences.resolver.v1",
+            resolver_version="phospy.science.sequences.resolver.v1",
             resolved_site_count=11,
             unresolved_site_count=3,
             unresolved_counts_by_reason={"missing_accession": 2, "site_not_found": 1},
@@ -805,7 +805,7 @@ def test_processing_state_payload_round_trip_preserves_site_sequence_resolution_
                     action="fill_missing",
                     reason="missing site_sequence resolved from FASTA",
                     conflict_policy="replace_existing",
-                    resolver_version="phospy.sequences.resolver.v1",
+                    resolver_version="phospy.science.sequences.resolver.v1",
                     fasta_source_path="C:/data/proteome.fasta",
                     fasta_sha256="abcdef123456",
                 ),
@@ -820,7 +820,7 @@ def test_processing_state_payload_round_trip_preserves_site_sequence_resolution_
                     action="replace_existing",
                     reason="existing site_sequence conflicts with FASTA-derived sequence",
                     conflict_policy="replace_existing",
-                    resolver_version="phospy.sequences.resolver.v1",
+                    resolver_version="phospy.science.sequences.resolver.v1",
                     fasta_source_path="C:/data/proteome.fasta",
                     fasta_sha256="abcdef123456",
                 ),
@@ -843,7 +843,7 @@ def test_processing_state_payload_round_trip_preserves_site_sequence_resolution_
     assert resolution.fasta_source_path == "C:/data/proteome.fasta"
     assert resolution.fasta_source_label == "dataset.site_sequence_resolution"
     assert resolution.fasta_sha256 == "abcdef123456"
-    assert resolution.resolver_version == "phospy.sequences.resolver.v1"
+    assert resolution.resolver_version == "phospy.science.sequences.resolver.v1"
     assert resolution.resolved_site_count == 11
     assert resolution.unresolved_site_count == 3
     assert resolution.unresolved_counts_by_reason == {
@@ -926,7 +926,7 @@ def test_processing_state_payload_with_legacy_site_sequence_resolution_fields_de
                 "action": "preserve_existing",
                 "reason": "existing site_sequence conflicts with FASTA-derived sequence",
                 "conflict_policy": "preserve_existing",
-                "resolver_version": "phospy.sequences.resolver.v1",
+                "resolver_version": "phospy.science.sequences.resolver.v1",
                 "fasta_source_path": "C:/data/proteome.fasta",
                 "fasta_sha256": "legacy_digest",
             }

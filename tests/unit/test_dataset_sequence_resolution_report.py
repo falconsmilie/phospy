@@ -13,7 +13,7 @@ from phospy.api.configs import (
 )
 from phospy.api.requests import DatasetBuildRequest
 from phospy.errors.input import PhosPyInputError
-from phospy.references.models import Organism
+from phospy.science.references.models import Organism
 
 
 def _phospho(index: pd.Index | None = None) -> pd.DataFrame:

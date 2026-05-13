@@ -7,9 +7,9 @@ from collections.abc import Callable
 import pandas as pd
 
 from phospy.errors.workflows import WorkflowStageError
-from phospy.signalomes.clustering import ClusterSitesResult
-from phospy.signalomes.constants import MODULE_ID_COLUMN
-from phospy.signalomes.science import (
+from phospy.science.signalomes.clustering import ClusterSitesResult
+from phospy.science.signalomes.constants import MODULE_ID_COLUMN
+from phospy.science.signalomes.science import (
     build_module_assignments,
     build_signalome_module_table,
     select_kinase_substrates,

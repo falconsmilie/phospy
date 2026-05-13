@@ -5,12 +5,14 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.prediction.candidates import build_candidate_substrate_list
-from phospy.prediction.motif_scoring import (
+from phospy.science.prediction.candidates import build_candidate_substrate_list
+from phospy.science.prediction.motif_scoring import (
     SEQUENCE_SEMANTICS_CENTRED_SEQUENCE,
     score_phosphosite_motifs,
 )
-from phospy.prediction.scoring import fuse_profile_and_motif_scores_by_rank_weight
+from phospy.science.prediction.scoring import (
+    fuse_profile_and_motif_scores_by_rank_weight,
+)
 from tests.support.parity_reporting import (
     format_percent,
     format_shape,

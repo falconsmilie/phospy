@@ -2,10 +2,10 @@
 """Benchmark signalome/prediction science hot paths against historical baselines.
 
 Targets:
-- `phospy.signalomes.science.build_signalome_module_table`
-- `phospy.signalomes.science.build_expanded_signalome_table`
+- `phospy.science.signalomes.science.build_signalome_module_table`
+- `phospy.science.signalomes.science.build_expanded_signalome_table`
 - `phospy.workflows.kinase.science.build_prediction_outputs`
-- `phospy.prediction.execution.run_adaptive_ensemble_prediction`
+- `phospy.science.prediction.execution.run_adaptive_ensemble_prediction`
 """
 
 from __future__ import annotations
@@ -498,8 +498,8 @@ def _build_adaptive_prediction_inputs(
 
 def main() -> None:
     from phospy.api import KinasePredictionConfig
-    from phospy.prediction.execution import run_adaptive_ensemble_prediction
-    from phospy.signalomes.science import (
+    from phospy.science.prediction.execution import run_adaptive_ensemble_prediction
+    from phospy.science.signalomes.science import (
         build_expanded_signalome_table,
         build_signalome_module_table,
     )

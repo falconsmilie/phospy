@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import phospy.signalomes.clustering as clustering
+import phospy.science.signalomes.clustering as clustering
 from tests.support.performance_contracts import (
     SIGNALOME_CLUSTER_TREE_BENCHMARK_N_KINASES,
     SIGNALOME_CLUSTER_TREE_BENCHMARK_N_SITES,

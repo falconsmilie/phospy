@@ -17,7 +17,7 @@ from phospy.api.configs import (
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_PREDICTION_MODES,
 )
-from phospy.references.resolution import ReferenceResolver
+from phospy.science.references.resolution import ReferenceResolver
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
 
 pytestmark = pytest.mark.integration

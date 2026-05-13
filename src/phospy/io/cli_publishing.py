@@ -6,13 +6,13 @@ from pathlib import Path
 from typing import Protocol
 
 from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.io.cli_commands import OutputTarget
 from phospy.io.publishers.workflows import (
     publish_dataset,
     publish_kinase_workflow,
     publish_signalome_workflow,
 )
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
 
 class CliOutputPublisher(Protocol):

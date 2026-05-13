@@ -14,7 +14,6 @@ from phospy.api.requests import (
 )
 from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.api.workflows import KinaseWorkflow, SignalomeWorkflow
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.io.cli_commands import (
     CliCommand,
     DatasetBuildCommand,
@@ -26,6 +25,7 @@ from phospy.io.cli_request_factory import (
     build_kinase_workflow_request,
     build_signalome_workflow_request,
 )
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
 
 class DatasetBuilderLike(Protocol):

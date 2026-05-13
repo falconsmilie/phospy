@@ -144,7 +144,7 @@ PhosPy test categories remain:
 - `docs/testing/pytest_markers.md`
 - `Makefile` (`test-release-gate`)
 - `.github/workflows/publish.yml` (release-gate enforcement)
-- `src/phospy/signalomes/clustering/scale_guards.py`
+- `src/phospy/science/signalomes/clustering/scale_guards.py`
 - `pyproject.toml`
 
 ## Scope Boundaries
@@ -174,3 +174,4 @@ i349-i356.
 
 YangLab. (n.d.). *PhosR* [Computer software]. GitHub.
 https://github.com/PYangLab/PhosR
+

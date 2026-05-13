@@ -9,14 +9,14 @@ import pandas as pd
 from phospy.api.results import SignalomeWorkflowResult
 from phospy.errors.workflows import WorkflowStageError
 from phospy.provenance.models import RunProvenance
-from phospy.signalomes.clustering import ClusterSitesResult
-from phospy.signalomes.models import (
+from phospy.science.signalomes.clustering import ClusterSitesResult
+from phospy.science.signalomes.models import (
     KinaseNetwork,
     SignalomeAssignments,
     SignalomeModules,
     SignalomeNetworkCorrelationDiagnostics,
 )
-from phospy.signalomes.science import build_expanded_signalome_table
+from phospy.science.signalomes.science import build_expanded_signalome_table
 from phospy.workflows.signalome.component_helpers import (
     prediction_shape_details,
     raise_boundary_error,

@@ -3,15 +3,17 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from phospy.signalomes.clustering.backends.exact_python import ExactPythonTreeEngine
-from phospy.signalomes.clustering.backends.scipy_hierarchical import (
+from phospy.science.signalomes.clustering.backends.exact_python import (
+    ExactPythonTreeEngine,
+)
+from phospy.science.signalomes.clustering.backends.scipy_hierarchical import (
     ScipyHierarchicalTreeEngine,
 )
-from phospy.signalomes.clustering.contracts import ClusterTreeEngine
-from phospy.signalomes.clustering.models import (
+from phospy.science.signalomes.clustering.contracts import ClusterTreeEngine
+from phospy.science.signalomes.clustering.models import (
     SignalomeClusteringEngineRequest,
 )
-from phospy.signalomes.clustering.tree_engine_adapter import (
+from phospy.science.signalomes.clustering.tree_engine_adapter import (
     run_clustering_with_tree_engine,
 )
 

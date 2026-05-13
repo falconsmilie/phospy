@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from phospy.errors import PhosPyValidationError
-from phospy.signalomes.models import (
+from phospy.science.signalomes.models import (
     KinaseNetwork,
     SignalomeAssignments,
     SignalomeModules,

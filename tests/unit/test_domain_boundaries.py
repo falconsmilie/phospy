@@ -14,8 +14,6 @@ from phospy.api.configs import (
 )
 from phospy.api.requests import DatasetBuildRequest
 from phospy.api.results import KinasePredictionResult
-from phospy.datasets.builders.public import AnalysisReadyDatasetBuilder
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import (
     DatasetValidationError,
     PhosPyInputError,
@@ -27,9 +25,11 @@ from phospy.errors import (
     UnsupportedInputFormatError,
     UnsupportedOrganismError,
 )
-from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
-from phospy.references.resolution import ReferenceResolver
-from phospy.transformations.models import (
+from phospy.science.datasets.builders.public import AnalysisReadyDatasetBuilder
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.references.models import Organism, ReferenceBundle, ReferencePreset
+from phospy.science.references.resolution import ReferenceResolver
+from phospy.science.transformations.models import (
     MatrixIntensityScaleState,
 )
 from tests.support.intensity_scale_states import (
@@ -43,21 +43,21 @@ _REFERENCE_IDENTIFIER_GUARD_TARGETS = (
     "src/phospy/workflows/kinase/scoring_runner.py",
     "src/phospy/workflows/kinase/prediction_runner.py",
     "src/phospy/workflows/kinase/activity_runner.py",
-    "src/phospy/prediction/scoring.py",
-    "src/phospy/activities/scoring.py",
+    "src/phospy/science/prediction/scoring.py",
+    "src/phospy/science/activities/scoring.py",
 )
 _FORBIDDEN_IDENTIFIER_CLEANUP = re.compile(r"\.(?:upper|lower|strip)\(")
 _REFERENCE_IDENTIFIER_COLUMN_HINT = re.compile(
     r"['\"](?:kinase|substrate_site)['\"]",
     re.IGNORECASE,
 )
-_REFERENCE_IDENTIFIER_BOUNDARY_OWNER = "src/phospy/references/identifiers.py"
+_REFERENCE_IDENTIFIER_BOUNDARY_OWNER = "src/phospy/science/references/identifiers.py"
 _PRODUCTION_REFERENCE_TABLES = "src/phospy/tables/references.py"
 _FORBIDDEN_PROTEIN_ACCESSION_BOUNDARY_LEAK_TARGETS = (
-    "src/phospy/sequences",
-    "src/phospy/scoring",
+    "src/phospy/science/sequences",
+    "src/phospy/science/scoring",
     "src/phospy/workflows",
-    "src/phospy/datasets/preprocessing",
+    "src/phospy/science/datasets/preprocessing",
 )
 _FORBIDDEN_ACCESSION_CASE_NORMALISATION = re.compile(
     r"accession[^\n]{0,120}\.(?:upper|lower)\(",
@@ -852,7 +852,7 @@ def test_builder_establishes_intensity_scale_state_with_supported_path() -> None
     assert built.intensity_scale_state.established_via is not None
     assert (
         built.intensity_scale_state.phospho.established_by
-        == "phospy.transformations.transformers.identity"
+        == "phospy.science.transformations.transformers.identity"
     )
 
 
@@ -913,7 +913,7 @@ def test_non_reference_domains_do_not_call_reference_protein_accession_normalise
 
 def test_sequence_domain_does_not_apply_accession_case_cleanup() -> None:
     violations: list[str] = []
-    for path in (ROOT / "src/phospy/sequences").rglob("*.py"):
+    for path in (ROOT / "src/phospy/science/sequences").rglob("*.py"):
         source = path.read_text(encoding="utf-8")
         for match in _FORBIDDEN_ACCESSION_CASE_NORMALISATION.finditer(source):
             line_number = source.count("\n", 0, match.start()) + 1

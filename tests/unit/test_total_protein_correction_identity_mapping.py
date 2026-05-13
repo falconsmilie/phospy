@@ -12,11 +12,11 @@ from phospy.api.configs import (
     DatasetTotalProteinCorrectionConfig,
     DatasetTotalProteinCorrectionIdentityConfig,
 )
-from phospy.datasets.builders.executor import DatasetBuildExecutor
-from phospy.datasets.builders.interpreter import DatasetBuildRequestInterpreter
-from phospy.datasets.builders.preprocessing import DatasetPreprocessor
-from phospy.datasets.preprocessing.models import PreprocessingPlan
 from phospy.errors.input import PhosPyInputError
+from phospy.science.datasets.builders.executor import DatasetBuildExecutor
+from phospy.science.datasets.builders.interpreter import DatasetBuildRequestInterpreter
+from phospy.science.datasets.builders.preprocessing import DatasetPreprocessor
+from phospy.science.datasets.preprocessing.models import PreprocessingPlan
 
 
 def _phospho() -> pd.DataFrame:

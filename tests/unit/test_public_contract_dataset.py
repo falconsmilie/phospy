@@ -32,7 +32,7 @@ from phospy.api.configs import (
     DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
     DatasetMissingDataConfig,
 )
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
 ROOT = Path(__file__).resolve().parents[2]
 

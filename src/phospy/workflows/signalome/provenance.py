@@ -20,26 +20,26 @@ from phospy.provenance.scientific_policy_models import (
     ScientificPolicyRecord,
 )
 from phospy.provenance.serialization import to_payload as provenance_to_payload
-from phospy.scoring.policy_models import DownstreamScoreSource
-from phospy.signalomes.clustering import ClusterSitesResult
-from phospy.signalomes.clustering.diagnostic_schemas import (
+from phospy.science.scoring.policy_models import DownstreamScoreSource
+from phospy.science.signalomes.clustering import ClusterSitesResult
+from phospy.science.signalomes.clustering.diagnostic_schemas import (
     backend_diagnostics_to_payload,
     candidate_scoring_sampling_diagnostics_to_payload,
 )
-from phospy.signalomes.clustering.policies import (
+from phospy.science.signalomes.clustering.policies import (
     SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_APPLIES_TO,
     SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_IMPUTED_VALUES_EXPOSED_IN_OUTPUT_TABLES,
 )
-from phospy.signalomes.clustering.scientific_policies import (
+from phospy.science.signalomes.clustering.scientific_policies import (
     PROTEIN_MODULE_FROM_SITE_MEMBERSHIP_POLICY,
     SignalomeMissingValueClusteringPolicy,
     build_signalome_module_candidate_score_policy,
 )
-from phospy.signalomes.clustering.tree_building import (
+from phospy.science.signalomes.clustering.tree_building import (
     SignalomeClusteringMissingValueDiagnostics,
     summarize_clustering_missing_value_diagnostics,
 )
-from phospy.signalomes.models import SignalomeNetworkCorrelationDiagnostics
+from phospy.science.signalomes.models import SignalomeNetworkCorrelationDiagnostics
 from phospy.workflows.signalome.component_models import SignalomeScaleGuardDecision
 from phospy.workflows.signalome.contracts import (
     ResolvedSignalomeExecutionConfig,

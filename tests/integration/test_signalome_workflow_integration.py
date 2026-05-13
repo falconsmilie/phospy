@@ -29,7 +29,7 @@ from phospy.api import (
 from phospy.api.configs import SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
 from phospy.api.results import KinaseScoringResult
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
-from phospy.signalomes.constants import (
+from phospy.science.signalomes.constants import (
     EXPANDED_SIGNALOME_ROW_KIND_COLUMN,
     EXPANDED_SIGNALOME_ROW_KIND_SITE,
 )

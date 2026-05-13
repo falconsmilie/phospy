@@ -16,7 +16,7 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,

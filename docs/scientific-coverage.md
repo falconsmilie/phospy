@@ -129,12 +129,12 @@ Each record carries:
 Ownership of scientific policy modules is domain-scoped:
 
 - shared models: `phospy.provenance.scientific_policy_models`
-- prediction: `phospy.prediction.scientific_policies`
-- activities: `phospy.activities.scientific_policies`
-- preprocessing: `phospy.datasets.preprocessing.scientific_policies`
+- prediction: `phospy.science.prediction.scientific_policies`
+- activities: `phospy.science.activities.scientific_policies`
+- preprocessing: `phospy.science.datasets.preprocessing.scientific_policies`
 - signalome workflow: `phospy.workflows.signalome.scientific_policies`
-- signalome clustering: `phospy.signalomes.clustering.scientific_policies`
-- differential aggregation: `phospy.differential.aggregation.scientific_policies`
+- signalome clustering: `phospy.science.signalomes.clustering.scientific_policies`
+- differential aggregation: `phospy.science.differential.aggregation.scientific_policies`
 
 Differential design validation, differential contrast testing, and differential
 multiple-testing correction do not yet have dedicated machine-readable policy

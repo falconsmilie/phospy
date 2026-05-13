@@ -10,11 +10,11 @@ from phospy.api.configs import (
     DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
 )
-from phospy.datasets.builders.preprocessing import DatasetPreprocessor
-from phospy.datasets.models import DatasetPreprocessingReport
-from phospy.datasets.preprocessing.models import PreprocessingPlan
-from phospy.datasets.preprocessing.report_schema import ROW_AUDIT_COLUMNS
 from phospy.errors.validation import DatasetValidationError
+from phospy.science.datasets.builders.preprocessing import DatasetPreprocessor
+from phospy.science.datasets.models import DatasetPreprocessingReport
+from phospy.science.datasets.preprocessing.models import PreprocessingPlan
+from phospy.science.datasets.preprocessing.report_schema import ROW_AUDIT_COLUMNS
 
 
 def test_missing_data_stage_audits_rows_dropped_below_min_observed_values() -> None:

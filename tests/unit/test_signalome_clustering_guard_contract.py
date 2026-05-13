@@ -4,9 +4,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import phospy.signalomes.clustering as clustering_module
+import phospy.science.signalomes.clustering as clustering_module
 from phospy.errors.workflows import SignalomeScaleError
-from phospy.signalomes.clustering import (
+from phospy.science.signalomes.clustering import (
     SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
     SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
     cluster_sites,

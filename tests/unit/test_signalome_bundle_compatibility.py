@@ -24,7 +24,7 @@ from phospy.io.bundles._signalome.compatibility import (
     signalome_score_preconditioning_diagnostics_to_payload,
 )
 from phospy.io.bundles.signalome import SignalomeWorkflowConfigSnapshot
-from phospy.signalomes.models import (
+from phospy.science.signalomes.models import (
     SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,

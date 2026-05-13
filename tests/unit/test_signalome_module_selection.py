@@ -4,25 +4,25 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import phospy.signalomes.clustering as clustering_module
+import phospy.science.signalomes.clustering as clustering_module
 from phospy.errors import SignalomeModuleCountValidationError
 from phospy.provenance.scientific_policy_models import ScientificPolicyId
-from phospy.signalomes.clustering import (
+from phospy.science.signalomes.clustering import (
     SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_COLUMN_MEDIAN_IMPUTATION_WITH_ZERO_FOR_ALL_MISSING_COLUMNS,
     cluster_sites_with_diagnostics,
     fit_cluster_labels,
     select_module_count_with_diagnostics,
 )
-from phospy.signalomes.clustering import exact_python as exact_clustering
-from phospy.signalomes.clustering.candidate_scoring import (
+from phospy.science.signalomes.clustering import exact_python as exact_clustering
+from phospy.science.signalomes.clustering.candidate_scoring import (
     _CandidateClusterScoreResult,
     compute_candidate_cluster_scores,
     summarize_profile_degeneracy,
 )
-from phospy.signalomes.clustering.scientific_policies import (
+from phospy.science.signalomes.clustering.scientific_policies import (
     build_signalome_module_candidate_score_policy,
 )
-from phospy.signalomes.clustering.tree_building import (
+from phospy.science.signalomes.clustering.tree_building import (
     prepare_scoring_values_for_clustering,
     summarize_clustering_missing_value_diagnostics,
 )

@@ -30,7 +30,7 @@ from phospy.io.bundles.signalome import (
     save_signalome_workflow_bundle,
 )
 from phospy.provenance.serialization import to_payload as provenance_to_payload
-from phospy.signalomes.clustering import (
+from phospy.science.signalomes.clustering import (
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE,
 )
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset

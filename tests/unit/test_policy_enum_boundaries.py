@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.activities.threshold_membership import threshold_membership_mask_array
 from phospy.api.configs import (
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
@@ -20,8 +19,13 @@ from phospy.api.configs import (
     LocalisationRequirement,
     SignalomeValidationConfig,
 )
-from phospy.datasets.preprocessing.models import PreprocessingPlan
-from phospy.datasets.preprocessing.policy_models import (
+from phospy.errors.input import PhosPyInputError
+from phospy.errors.validation import WorkflowValidationError
+from phospy.science.activities.threshold_membership import (
+    threshold_membership_mask_array,
+)
+from phospy.science.datasets.preprocessing.models import PreprocessingPlan
+from phospy.science.datasets.preprocessing.policy_models import (
     ComparisonBuildingPolicy,
     IntensityTransformPolicy,
     MissingDataPolicy,
@@ -32,14 +36,12 @@ from phospy.datasets.preprocessing.policy_models import (
     SiteSequenceResolutionMode,
     TotalProteinCorrectionPolicy,
 )
-from phospy.datasets.preprocessing.stage_registry import (
+from phospy.science.datasets.preprocessing.stage_registry import (
     resolve_builder_provenance_stage_order,
 )
-from phospy.errors.input import PhosPyInputError
-from phospy.errors.validation import WorkflowValidationError
-from phospy.prediction.candidates import build_candidate_substrate_list
-from phospy.prediction.scoring import select_downstream_score_matrix
-from phospy.scoring.policy_models import DownstreamScoreSource, ThresholdMode
+from phospy.science.prediction.candidates import build_candidate_substrate_list
+from phospy.science.prediction.scoring import select_downstream_score_matrix
+from phospy.science.scoring.policy_models import DownstreamScoreSource, ThresholdMode
 
 
 def test_preprocessing_plan_converts_public_strings_to_internal_policy_enums() -> None:
@@ -210,12 +212,12 @@ def test_stage_registry_serializes_selected_policy_values_as_stable_strings() ->
 
 def test_selected_internal_policy_branches_do_not_compare_raw_string_literals() -> None:
     targets = (
-        "src/phospy/datasets/preprocessing/stages/intensity_transform.py",
-        "src/phospy/datasets/preprocessing/stages/normalisation.py",
-        "src/phospy/datasets/preprocessing/stages/comparisons.py",
-        "src/phospy/datasets/preprocessing/stages/site_matrix.py",
-        "src/phospy/datasets/preprocessing/stages/site_sequence_resolution.py",
-        "src/phospy/datasets/preprocessing/stages/missing_data/minprob.py",
+        "src/phospy/science/datasets/preprocessing/stages/intensity_transform.py",
+        "src/phospy/science/datasets/preprocessing/stages/normalisation.py",
+        "src/phospy/science/datasets/preprocessing/stages/comparisons.py",
+        "src/phospy/science/datasets/preprocessing/stages/site_matrix.py",
+        "src/phospy/science/datasets/preprocessing/stages/site_sequence_resolution.py",
+        "src/phospy/science/datasets/preprocessing/stages/missing_data/minprob.py",
     )
     forbidden_tokens = (
         '== "identity"',

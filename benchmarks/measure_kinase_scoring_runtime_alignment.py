@@ -79,7 +79,7 @@ def _run_once(
         KinaseWorkflowRequest,
         ReferenceBundle,
     )
-    from phospy.references.resolution import BundledReferenceProvider
+    from phospy.science.references.resolution import BundledReferenceProvider
     from tests.support.rewrite_fixture_data import build_rat_l6_dataset
 
     dataset = build_rat_l6_dataset(n_sites=260)

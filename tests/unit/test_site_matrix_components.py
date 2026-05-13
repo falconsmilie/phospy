@@ -15,13 +15,14 @@ from phospy.api.configs import (
     DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
     DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA,
 )
-from phospy.datasets.preprocessing.models import (
+from phospy.errors.input import PhosPyInputError
+from phospy.science.datasets.preprocessing.models import (
     DuplicateSiteResolutionResult,
     PreprocessingPlan,
     PreprocessingState,
 )
-from phospy.datasets.preprocessing.stages.site_matrix import SiteMatrixStage
-from phospy.datasets.preprocessing.stages.site_matrix_components import (
+from phospy.science.datasets.preprocessing.stages.site_matrix import SiteMatrixStage
+from phospy.science.datasets.preprocessing.stages.site_matrix_components import (
     DuplicateSiteResolver,
     MetadataConflictDetector,
     MissingDataSiteFilter,
@@ -30,7 +31,6 @@ from phospy.datasets.preprocessing.stages.site_matrix_components import (
     SiteMatrixProvenanceBuilder,
     SiteMatrixRowAuditBuilder,
 )
-from phospy.errors.input import PhosPyInputError
 
 _PROPERTY_SETTINGS = settings(
     max_examples=30,

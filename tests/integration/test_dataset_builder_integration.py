@@ -29,8 +29,8 @@ from phospy.api import (
 )
 from phospy.errors import PhosPyInputError
 from phospy.io.publishers.workflows import publish_dataset
-from phospy.references.resolution import ReferenceResolver
-from phospy.transformations.models import IntensityScaleState
+from phospy.science.references.resolution import ReferenceResolver
+from phospy.science.transformations.models import IntensityScaleState
 from tests.support.rewrite_fixture_data import load_rat_l6_phospho, site_metadata_for
 
 pytestmark = pytest.mark.integration
@@ -213,7 +213,7 @@ def test_dataset_builder_establishes_intensity_scale_state_via_supported_path() 
     assert built.intensity_scale_state.established_via is not None
     assert (
         built.intensity_scale_state.phospho.established_by
-        == "phospy.transformations.transformers.identity"
+        == "phospy.science.transformations.transformers.identity"
     )
 
 

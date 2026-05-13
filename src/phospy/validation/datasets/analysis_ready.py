@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 
 from phospy.errors.validation import DatasetValidationError
-from phospy.references.models import Organism
+from phospy.science.references.models import Organism
 from phospy.tables.datasets import (
     PhosphoIntensityMatrix,
     SampleMetadataTable,

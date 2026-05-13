@@ -4,26 +4,26 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.activities.methods.ksea_zscore import (
+from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.provenance.scientific_policy_models import ScientificPolicyId
+from phospy.science.activities.methods.ksea_zscore import (
     KSEA_STATUS_COMPUTED,
     KSEA_STATUS_INSUFFICIENT_SUBSTRATES,
     KSEA_STATUS_ZERO_BACKGROUND_VARIANCE,
     KseaZScoreActivityMethod,
 )
-from phospy.activities.models import KinaseActivityInputs, PredMatOverlapSummary
-from phospy.activities.scoring import (
+from phospy.science.activities.models import KinaseActivityInputs, PredMatOverlapSummary
+from phospy.science.activities.scoring import (
     SimplifiedWeightedSubstrateActivityPolicy,
     compute_activity_from_inputs,
 )
-from phospy.activities.threshold_membership import (
+from phospy.science.activities.threshold_membership import (
     THRESHOLD_MEMBERSHIP_DESCRIPTION,
     THRESHOLD_MEMBERSHIP_OPERATOR,
     THRESHOLD_MEMBERSHIP_RULE,
     ActivityThresholdMembershipDiagnostics,
     threshold_membership_mask_array,
 )
-from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.provenance.scientific_policy_models import ScientificPolicyId
 
 
 def _inputs(

@@ -8,8 +8,8 @@ import pandas as pd
 
 from phospy.api.requests import KinaseWorkflowRequest
 from phospy.errors.workflows import PhosPyWorkflowError, WorkflowBoundaryError
-from phospy.prediction.policies import resolve_prediction_sampling_policy
-from phospy.references.resolution import (
+from phospy.science.prediction.policies import resolve_prediction_sampling_policy
+from phospy.science.references.resolution import (
     BundledReferenceProvider,
     ReferenceResolver,
     ReferenceResolverContract,

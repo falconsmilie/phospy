@@ -29,10 +29,10 @@ from phospy.api.results import (
     KinasePredictionResult,
     KinaseScoringResult,
 )
-from phospy.datasets.builders.contracts import InterpretedDatasetBuildRequest
-from phospy.datasets.preprocessing.models import PreprocessingPlan
-from phospy.prediction.policies import resolve_prediction_sampling_policy
-from phospy.signalomes.models import (
+from phospy.science.datasets.builders.contracts import InterpretedDatasetBuildRequest
+from phospy.science.datasets.preprocessing.models import PreprocessingPlan
+from phospy.science.prediction.policies import resolve_prediction_sampling_policy
+from phospy.science.signalomes.models import (
     KinaseNetwork,
     SignalomeAssignments,
     SignalomeModules,

@@ -4,13 +4,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.signalomes.clustering import (
+from phospy.science.signalomes.clustering import (
     SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
     cluster_sites_with_diagnostics,
     derive_protein_modules,
     run_signalome_clustering_engine,
 )
-from phospy.signalomes.clustering import exact_python as legacy_exact
+from phospy.science.signalomes.clustering import exact_python as legacy_exact
 
 pytestmark = pytest.mark.parity
 

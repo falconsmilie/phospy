@@ -15,10 +15,10 @@ from phospy.api.results import (
     KinaseWorkflowResult,
     SignalomeWorkflowResult,
 )
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import ReferenceCompatibilityError
-from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
-from phospy.references.resolution import ReferenceResolver
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.references.models import Organism, ReferenceBundle, ReferencePreset
+from phospy.science.references.resolution import ReferenceResolver
 from phospy.validation.datasets.analysis_ready import AnalysisReadyDatasetValidator
 from phospy.validation.ownership import VALIDATION_RULE_OWNERS
 from phospy.validation.references.bundle import ReferenceBundleValidator

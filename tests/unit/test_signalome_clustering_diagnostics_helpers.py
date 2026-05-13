@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from phospy.signalomes.clustering.diagnostic_schemas import (
+from phospy.science.signalomes.clustering.diagnostic_schemas import (
     validate_backend_diagnostics,
     validate_candidate_scoring_sampling_diagnostics,
 )
-from phospy.signalomes.clustering.diagnostics import (
+from phospy.science.signalomes.clustering.diagnostics import (
     approximation_used_from_candidate_mode,
     build_candidate_scoring_sampling_provenance,
     build_module_selection_diagnostics,

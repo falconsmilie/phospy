@@ -5,13 +5,13 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.errors.validation import WorkflowValidationError
-from phospy.signalomes.constants import (
+from phospy.science.signalomes.constants import (
     PROTEIN_COLUMN,
     SITE_CLUSTER_COLUMN,
     SITE_ID_COLUMN,
     TOP_KINASE_COLUMN,
 )
-from phospy.signalomes.context import (
+from phospy.science.signalomes.context import (
     PROTEIN_SITE_CONTEXT_AMBIGUOUS_CONTEXT_COLUMN,
     PROTEIN_SITE_CONTEXT_GENE_SYMBOL_COLUMN,
     PROTEIN_SITE_CONTEXT_MODULE_IDS_BY_SITE_COLUMN,

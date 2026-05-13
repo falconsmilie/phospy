@@ -15,11 +15,13 @@ from phospy.api import (
     SampleDesignRecord,
     TechnicalReplicatePolicy,
 )
-from phospy.differential.executor import (
+from phospy.errors import WorkflowValidationError
+from phospy.science.differential.executor import (
     DifferentialAnalysisExecutor as DifferentialComputationExecutor,
 )
-from phospy.differential.models import DifferentialAnalysisRequest as ComputationRequest
-from phospy.errors import WorkflowValidationError
+from phospy.science.differential.models import (
+    DifferentialAnalysisRequest as ComputationRequest,
+)
 from phospy.workflows.differential.executor import DifferentialAnalysisExecutor
 from phospy.workflows.differential.validator import DifferentialAnalysisValidator
 from tests.support.intensity_scale_states import (

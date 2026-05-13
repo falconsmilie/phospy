@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from phospy.errors.validation import TransformationValidationError
-from phospy.transformations.models import IntensityScaleState
+from phospy.science.transformations.models import IntensityScaleState
 
 
 class IntensityScaleStateValidator:

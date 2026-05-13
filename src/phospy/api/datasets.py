@@ -1,10 +1,10 @@
 """Public dataset models."""
 
-from phospy.datasets.models import (
+from phospy.science.datasets.models import (
     AnalysisReadyPhosphoDataset,
     DatasetPreprocessingReport,
 )
-from phospy.datasets.processing_state import (
+from phospy.science.datasets.processing_state import (
     ComparisonState,
     DatasetProcessingState,
     MissingDataState,

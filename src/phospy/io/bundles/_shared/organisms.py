@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.primitives import require_str
-from phospy.references.models import Organism
+from phospy.science.references.models import Organism
 
 
 def parse_optional_organism(value: object, *, field_name: str) -> Organism | None:

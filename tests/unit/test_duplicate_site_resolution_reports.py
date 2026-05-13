@@ -10,8 +10,8 @@ from phospy.api.configs import (
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST,
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
 )
-from phospy.datasets.preprocessing.models import DuplicateSiteResolutionResult
-from phospy.datasets.preprocessing.stages.site_matrix import (
+from phospy.science.datasets.preprocessing.models import DuplicateSiteResolutionResult
+from phospy.science.datasets.preprocessing.stages.site_matrix import (
     _apply_duplicate_site_policy,
 )
 

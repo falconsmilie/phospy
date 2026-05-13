@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.sites.identity import (
+from phospy.science.sites.identity import (
     validate_identity_optional_columns,
     validate_no_conflicting_identity_collisions,
 )

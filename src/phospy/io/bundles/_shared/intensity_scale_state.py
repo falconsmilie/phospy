@@ -10,10 +10,10 @@ from phospy.io.bundles._shared.primitives import (
     require_mapping,
     require_str,
 )
-from phospy.transformations._authority import (
+from phospy.science.transformations._authority import (
     _bundle_reconstruction_establishment_authority,
 )
-from phospy.transformations.models import (
+from phospy.science.transformations.models import (
     IntensityScaleKind,
     IntensityScaleState,
     MatrixIntensityScaleState,

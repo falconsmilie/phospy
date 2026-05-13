@@ -11,7 +11,7 @@ from phospy.errors.validation import (
     ReferenceValidationError,
     WorkflowValidationError,
 )
-from phospy.references.models import Organism, ReferenceBundle
+from phospy.science.references.models import Organism, ReferenceBundle
 from phospy.tables.activity import ActivityMatrix, ActivityTargetTable
 from phospy.tables.datasets import (
     PhosphoIntensityMatrix,

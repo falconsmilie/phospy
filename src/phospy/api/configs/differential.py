@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from phospy.differential.models import EmpiricalBayesConfig
-from phospy.differential.policy_models import TechnicalReplicatePolicy
 from phospy.errors.validation import WorkflowValidationError
+from phospy.science.differential.models import EmpiricalBayesConfig
+from phospy.science.differential.policy_models import TechnicalReplicatePolicy
 
 MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG = "benjamini_hochberg"
 SUPPORTED_MULTIPLE_TESTING_METHODS: tuple[str, ...] = (

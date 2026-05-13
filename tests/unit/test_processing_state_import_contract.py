@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from phospy.datasets import processing_state
-from phospy.datasets.processing_state import (
+from phospy.science.datasets import processing_state
+from phospy.science.datasets.processing_state import (
     DatasetProcessingState,
     JsonValue,
     MissingDataDiagnosticsV1,

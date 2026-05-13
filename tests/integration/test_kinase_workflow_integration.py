@@ -15,7 +15,6 @@ from phospy import (
     AnalysisReadyPhosphoDataset,
     KinaseWorkflow,
 )
-from phospy.activities.threshold_membership import THRESHOLD_MEMBERSHIP_OPERATOR
 from phospy.api import (
     DatasetBuildRequest,
     KinaseActivityConfig,
@@ -33,6 +32,7 @@ from phospy.api.configs import (
 )
 from phospy.errors import DatasetValidationError, WorkflowBoundaryError
 from phospy.io.publishers.workflows import publish_kinase_workflow
+from phospy.science.activities.threshold_membership import THRESHOLD_MEMBERSHIP_OPERATOR
 from tests.support.rewrite_fixture_data import (
     build_rat_l6_dataset,
     load_kinase_public_predmat_provenance_golden,

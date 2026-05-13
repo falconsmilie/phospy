@@ -17,15 +17,15 @@ from phospy.api.results import (
     SignalomeWorkflowResult,
 )
 from phospy.errors.workflows import WorkflowStageError
-from phospy.signalomes.clustering import (
+from phospy.science.signalomes.clustering import (
     cluster_sites_with_diagnostics,
     derive_protein_modules,
 )
-from phospy.signalomes.context import (
+from phospy.science.signalomes.context import (
     build_protein_site_context_table,
     build_site_membership_table,
 )
-from phospy.signalomes.science import (
+from phospy.science.signalomes.science import (
     build_module_assignments,
     build_signalome_module_table,
     select_kinase_substrates,

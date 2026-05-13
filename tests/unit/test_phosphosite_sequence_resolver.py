@@ -5,9 +5,9 @@ from pathlib import Path
 import pytest
 
 from phospy.errors.input import PhosPyInputError
-from phospy.sequences.models import FastaSourceMetadata, ProteinSequenceRecord
-from phospy.sequences.repository import FastaProteinSequenceRepository
-from phospy.sequences.resolver import (
+from phospy.science.sequences.models import FastaSourceMetadata, ProteinSequenceRecord
+from phospy.science.sequences.repository import FastaProteinSequenceRepository
+from phospy.science.sequences.resolver import (
     RESOLUTION_STATUS_ACCESSION_NOT_FOUND,
     RESOLUTION_STATUS_AMBIGUOUS_ACCESSION,
     RESOLUTION_STATUS_INSUFFICIENT_FLANKING_SEQUENCE,

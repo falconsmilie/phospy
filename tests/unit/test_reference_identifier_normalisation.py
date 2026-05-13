@@ -13,12 +13,12 @@ from phospy.provenance.models import (
     RunProvenance,
 )
 from phospy.provenance.serialization import from_payload, to_payload
-from phospy.references.identifiers import (
+from phospy.science.references.identifiers import (
     normalise_reference_kinase_id,
     normalise_reference_protein_accession,
     normalise_reference_site_id,
 )
-from phospy.references.models import Organism, ReferenceBundle
+from phospy.science.references.models import Organism, ReferenceBundle
 from phospy.tables.references import (
     KinaseSubstrateReference,
     ProteinAccessionReference,

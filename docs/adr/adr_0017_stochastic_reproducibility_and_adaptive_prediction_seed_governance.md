@@ -62,10 +62,10 @@ as scientific-output policy.
 ## Affected Modules
 
 - `src/phospy/api/configs/prediction.py`
-- `src/phospy/prediction/policies.py`
-- `src/phospy/prediction/sampling_runtime.py`
-- `src/phospy/prediction/sampling_core.py`
-- `src/phospy/prediction/execution.py`
+- `src/phospy/science/prediction/policies.py`
+- `src/phospy/science/prediction/sampling_runtime.py`
+- `src/phospy/science/prediction/sampling_core.py`
+- `src/phospy/science/prediction/execution.py`
 - `src/phospy/workflows/kinase/provenance.py`
 - `tests/unit/test_prediction_adaptive_sampling.py`
 - `tests/parity/test_adaptive_replay_parity.py`
@@ -97,3 +97,4 @@ i349-i356.
 
 YangLab. (n.d.). *PhosR* [Computer software]. GitHub.
 https://github.com/PYangLab/PhosR
+

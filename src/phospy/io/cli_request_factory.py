@@ -21,7 +21,6 @@ from phospy.api.requests import (
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import KinaseWorkflowResult
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.input import PhosPyInputError
 from phospy.io.cli_commands import (
     CliCommand,
@@ -30,7 +29,8 @@ from phospy.io.cli_commands import (
     OutputTarget,
     SignalomeCommand,
 )
-from phospy.references.models import Organism, ReferencePreset
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.references.models import Organism, ReferencePreset
 
 
 def build_command(args: argparse.Namespace) -> CliCommand:

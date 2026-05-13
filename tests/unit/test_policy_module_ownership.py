@@ -4,33 +4,42 @@ import importlib
 
 import pytest
 
-from phospy.datasets.preprocessing.policy_models import (
+from phospy.errors.input import PhosPyInputError
+from phospy.policies import PolicyEnum
+from phospy.science.datasets.preprocessing.policy_models import (
     MissingDataPolicy,
     SiteMatrixPolicy,
     TotalProteinCorrectionPolicy,
 )
-from phospy.differential.policy_models import TechnicalReplicatePolicy
-from phospy.errors.input import PhosPyInputError
-from phospy.policies import PolicyEnum
-from phospy.scoring.policy_models import DownstreamScoreSource, ThresholdMode
+from phospy.science.differential.policy_models import TechnicalReplicatePolicy
+from phospy.science.scoring.policy_models import DownstreamScoreSource, ThresholdMode
 
 
 def test_preprocessing_policies_are_owned_by_preprocessing_module() -> None:
-    assert MissingDataPolicy.__module__ == "phospy.datasets.preprocessing.policy_models"
-    assert SiteMatrixPolicy.__module__ == "phospy.datasets.preprocessing.policy_models"
+    assert (
+        MissingDataPolicy.__module__
+        == "phospy.science.datasets.preprocessing.policy_models"
+    )
+    assert (
+        SiteMatrixPolicy.__module__
+        == "phospy.science.datasets.preprocessing.policy_models"
+    )
     assert (
         TotalProteinCorrectionPolicy.__module__
-        == "phospy.datasets.preprocessing.policy_models"
+        == "phospy.science.datasets.preprocessing.policy_models"
     )
 
 
 def test_differential_policy_is_owned_by_differential_module() -> None:
-    assert TechnicalReplicatePolicy.__module__ == "phospy.differential.policy_models"
+    assert (
+        TechnicalReplicatePolicy.__module__
+        == "phospy.science.differential.policy_models"
+    )
 
 
 def test_scoring_policies_are_owned_by_scoring_module() -> None:
-    assert ThresholdMode.__module__ == "phospy.scoring.policy_models"
-    assert DownstreamScoreSource.__module__ == "phospy.scoring.policy_models"
+    assert ThresholdMode.__module__ == "phospy.science.scoring.policy_models"
+    assert DownstreamScoreSource.__module__ == "phospy.science.scoring.policy_models"
 
 
 def test_policy_base_is_owned_by_policies_infrastructure_module() -> None:

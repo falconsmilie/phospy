@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.activities.models import (
+from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.science.activities.models import (
     KinaseActivityInputs,
     PredMatOverlapSummary,
 )
-from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.validation.common.dataframes import (
     require_unique_columns,
     require_unique_index,

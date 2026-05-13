@@ -16,9 +16,9 @@ from phospy.errors import (
     ReferenceValidationError,
     UnsupportedInputFormatError,
 )
-from phospy.references.models import ReferencePreset
-from phospy.references.resolution import ReferenceResolver
-from phospy.sites.identifiers import canonicalize_site_identifier
+from phospy.science.references.models import ReferencePreset
+from phospy.science.references.resolution import ReferenceResolver
+from phospy.science.sites.identifiers import canonicalize_site_identifier
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -233,7 +233,7 @@ def test_dataset_boundary_rejects_non_canonical_site_ids() -> None:
         DatasetValidationError,
         match="site identifiers must use 'GENE;SITE;' format",
     ):
-        from phospy.datasets.models import AnalysisReadyPhosphoDataset
+        from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
         AnalysisReadyPhosphoDataset(
             phospho=pd.DataFrame(
@@ -264,7 +264,7 @@ def test_dataset_boundary_rejects_lowercase_site_ids() -> None:
         DatasetValidationError,
         match="dataset\\.phospho\\.index must contain canonical site identifiers",
     ):
-        from phospy.datasets.models import AnalysisReadyPhosphoDataset
+        from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
         AnalysisReadyPhosphoDataset(
             phospho=pd.DataFrame(
@@ -295,7 +295,7 @@ def test_dataset_boundary_rejects_whitespace_site_ids() -> None:
         DatasetValidationError,
         match="dataset\\.phospho\\.index must contain canonical site identifiers",
     ):
-        from phospy.datasets.models import AnalysisReadyPhosphoDataset
+        from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
         AnalysisReadyPhosphoDataset(
             phospho=pd.DataFrame(
@@ -326,7 +326,7 @@ def test_dataset_boundary_rejects_missing_trailing_delimiter_site_ids() -> None:
         DatasetValidationError,
         match="dataset\\.phospho\\.index must contain canonical site identifiers",
     ):
-        from phospy.datasets.models import AnalysisReadyPhosphoDataset
+        from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
         AnalysisReadyPhosphoDataset(
             phospho=pd.DataFrame(
@@ -357,7 +357,7 @@ def test_dataset_boundary_rejects_duplicates_after_site_id_canonicalization() ->
         DatasetValidationError,
         match="contains duplicate site identifiers after canonicalization",
     ):
-        from phospy.datasets.models import AnalysisReadyPhosphoDataset
+        from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
         AnalysisReadyPhosphoDataset(
             phospho=pd.DataFrame(
@@ -394,7 +394,7 @@ def test_dataset_boundary_rejects_colliding_dirty_site_ids() -> None:
         DatasetValidationError,
         match="contains duplicate site identifiers after canonicalization",
     ):
-        from phospy.datasets.models import AnalysisReadyPhosphoDataset
+        from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
         AnalysisReadyPhosphoDataset(
             phospho=pd.DataFrame(
@@ -427,7 +427,7 @@ def test_dataset_boundary_rejects_colliding_dirty_site_ids() -> None:
 
 
 def test_dataset_boundary_accepts_strict_canonical_site_ids() -> None:
-    from phospy.datasets.models import AnalysisReadyPhosphoDataset
+    from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
     dataset = AnalysisReadyPhosphoDataset(
         phospho=pd.DataFrame(
@@ -457,7 +457,7 @@ def test_dataset_boundary_accepts_strict_canonical_site_ids() -> None:
 
 def test_dataset_boundary_requires_explicit_intensity_and_processing_state() -> None:
     with pytest.raises(TypeError, match="missing .* required positional argument"):
-        from phospy.datasets.models import AnalysisReadyPhosphoDataset
+        from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
         AnalysisReadyPhosphoDataset(
             phospho=pd.DataFrame(

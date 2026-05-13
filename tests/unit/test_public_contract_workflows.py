@@ -29,8 +29,8 @@ from phospy.api.results import (
     KinaseWorkflowResult,
     SignalomeWorkflowResult,
 )
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import WorkflowValidationError
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
 
 def _public_methods(cls: type[object]) -> set[str]:

@@ -83,12 +83,12 @@ The checked scope is explicitly configured in `pyproject.toml` under
 `[tool.pyright].include` and covers:
 
 - `src/phospy/api`
-- `src/phospy/datasets`
+- `src/phospy/science/datasets`
 - `src/phospy/io` (including result publishing/export paths)
-- `src/phospy/prediction`
+- `src/phospy/science/prediction`
 - `src/phospy/provenance`
-- `src/phospy/references`
-- `src/phospy/signalomes/clustering`
+- `src/phospy/science/references`
+- `src/phospy/science/signalomes/clustering`
 - `src/phospy/tables`
 - `src/phospy/validation`
 - `src/phospy/workflows`
@@ -102,3 +102,4 @@ Expectations for typing changes:
 Suppression policy:
 
 > Avoid suppressions by default. Use them only when Pyright cannot model correct runtime behaviour. Every suppression must be narrow, error-code-specific, commented, and justified by tests where practical.
+

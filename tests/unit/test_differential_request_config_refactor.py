@@ -10,7 +10,7 @@ from phospy.api import (
     TechnicalReplicatePolicy,
 )
 from phospy.api.configs import DifferentialAnalysisConfig as ConfigFromConfigs
-from phospy.differential.policy_models import (
+from phospy.science.differential.policy_models import (
     TechnicalReplicatePolicy as PolicyFromDifferentialPolicyModels,
 )
 

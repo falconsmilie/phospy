@@ -10,26 +10,28 @@ from phospy.errors.workflows import (
     SignalomeModuleCountValidationError,
     WorkflowStageError,
 )
-from phospy.signalomes.clustering import (
+from phospy.science.signalomes.clustering import (
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE,
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_SINGLE_MODULE,
     ClusterSitesResult,
     run_signalome_clustering_engine,
 )
-from phospy.signalomes.clustering.diagnostic_schemas import (
+from phospy.science.signalomes.clustering.diagnostic_schemas import (
     SignalomeBackendDiagnostics,
     SignalomeCandidateScoringSamplingDiagnostics,
 )
-from phospy.signalomes.clustering.exact_python import (
+from phospy.science.signalomes.clustering.exact_python import (
     SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
     SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
     SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
 )
-from phospy.signalomes.clustering.models import SignalomeClusteringEngineResult
-from phospy.signalomes.clustering.policies import (
+from phospy.science.signalomes.clustering.models import SignalomeClusteringEngineResult
+from phospy.science.signalomes.clustering.policies import (
     _CandidateScoringMode,
 )
-from phospy.signalomes.clustering.validation import validate_requested_module_count
+from phospy.science.signalomes.clustering.validation import (
+    validate_requested_module_count,
+)
 from phospy.workflows.signalome.component_helpers import (
     raise_boundary_error,
     requested_module_count_label,

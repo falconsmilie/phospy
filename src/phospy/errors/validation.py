@@ -7,7 +7,9 @@ from typing import TYPE_CHECKING
 from phospy.errors.base import PhosPyError
 
 if TYPE_CHECKING:
-    from phospy.references.identifiers import ReferenceIdentifierNormalisationReport
+    from phospy.science.references.identifiers import (
+        ReferenceIdentifierNormalisationReport,
+    )
 
 
 class PhosPyValidationError(PhosPyError):

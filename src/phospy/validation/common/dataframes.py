@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from phospy.errors.base import PhosPyError
-from phospy.sites.identifiers import (
+from phospy.science.sites.identifiers import (
     canonicalize_site_index,
     canonicalize_site_series,
     parse_canonical_site_identifier,

@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from phospy.api.configs import DifferentialAnalysisConfig, MultipleTestingConfig
 from phospy.api.requests import DifferentialAnalysisRequest
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.differential.models import (
+from phospy.errors.validation import WorkflowValidationError
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.differential.models import (
     ContrastMatrix,
     DesignMatrix,
     EmpiricalBayesConfig,
 )
-from phospy.differential.policy_models import TechnicalReplicatePolicy
-from phospy.errors.validation import WorkflowValidationError
+from phospy.science.differential.policy_models import TechnicalReplicatePolicy
 from phospy.validation.workflows.differential import (
     ExperimentalDesignContractValidator,
 )

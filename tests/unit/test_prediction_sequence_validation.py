@@ -10,7 +10,7 @@ from phospy.api import (
     Organism,
     ReferenceBundle,
 )
-from phospy.prediction.motif_scoring import (
+from phospy.science.prediction.motif_scoring import (
     DEFAULT_MOTIF_FLANK_SIZE,
     SEQUENCE_SEMANTICS_CENTRED_SEQUENCE,
     SEQUENCE_SEMANTICS_CENTRED_WINDOW,
@@ -20,7 +20,7 @@ from phospy.prediction.motif_scoring import (
     get_motif_library_validation,
     score_phosphosite_motifs,
 )
-from phospy.prediction.sequence_validation import (
+from phospy.science.prediction.sequence_validation import (
     SEQUENCE_VALIDATION_STATUS_INVALID_SITE_ID,
     SEQUENCE_VALIDATION_STATUS_MISSING_SEQUENCE,
     SEQUENCE_VALIDATION_STATUS_NON_PHOSPHO_CENTRE_RESIDUE,

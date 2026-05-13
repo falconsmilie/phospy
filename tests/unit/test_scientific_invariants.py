@@ -6,8 +6,6 @@ import pandas.testing as pdt
 import pytest
 
 from phospy import AnalysisReadyPhosphoDataset, SignalomeWorkflow
-from phospy.activities.models import KinaseActivityInputs, PredMatOverlapSummary
-from phospy.activities.scoring import compute_activity_from_inputs
 from phospy.api import (
     Organism,
     SignalomeWorkflowRequest,
@@ -23,24 +21,33 @@ from phospy.api.results import (
     KinaseScoringResult,
     KinaseWorkflowResult,
 )
-from phospy.datasets.preprocessing.models import PreprocessingPlan, PreprocessingState
-from phospy.datasets.preprocessing.stages.normalisation import NormalisationStage
-from phospy.datasets.preprocessing.stages.site_matrix import (
+from phospy.provenance.hashing import hash_table
+from phospy.science.activities.models import KinaseActivityInputs, PredMatOverlapSummary
+from phospy.science.activities.scoring import compute_activity_from_inputs
+from phospy.science.datasets.preprocessing.models import (
+    PreprocessingPlan,
+    PreprocessingState,
+)
+from phospy.science.datasets.preprocessing.stages.normalisation import (
+    NormalisationStage,
+)
+from phospy.science.datasets.preprocessing.stages.site_matrix import (
     _apply_duplicate_site_policy,
 )
-from phospy.prediction.scoring import fuse_profile_and_motif_scores_by_rank_weight
-from phospy.provenance.hashing import hash_table
-from phospy.references.models import ReferenceBundle
-from phospy.signalomes.assignments import build_module_assignments
-from phospy.signalomes.clustering.candidate_scoring import (
+from phospy.science.prediction.scoring import (
+    fuse_profile_and_motif_scores_by_rank_weight,
+)
+from phospy.science.references.models import ReferenceBundle
+from phospy.science.signalomes.assignments import build_module_assignments
+from phospy.science.signalomes.clustering.candidate_scoring import (
     compute_candidate_cluster_scores,
     summarize_profile_degeneracy,
 )
-from phospy.signalomes.clustering.policies import (
+from phospy.science.signalomes.clustering.policies import (
     SIGNALOME_CLUSTERING_SCORING_MODE_AUTO,
     SIGNALOME_TREE_ENGINE_EXACT,
 )
-from phospy.signalomes.clustering.tree_building import (
+from phospy.science.signalomes.clustering.tree_building import (
     prepare_scoring_values_for_clustering,
 )
 from phospy.workflows.kinase.science import (

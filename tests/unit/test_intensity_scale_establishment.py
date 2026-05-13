@@ -3,19 +3,21 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.datasets.builders.preprocessing import build_dataset_processing_state
-from phospy.datasets.builders.transformation_resolver import (
+from phospy.errors.validation import TransformationValidationError
+from phospy.science.datasets.builders.preprocessing import (
+    build_dataset_processing_state,
+)
+from phospy.science.datasets.builders.transformation_resolver import (
     DatasetIntensityScaleResolver,
 )
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.datasets.preprocessing.models import PreprocessingPlan
-from phospy.errors.validation import TransformationValidationError
-from phospy.transformations.models import (
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.datasets.preprocessing.models import PreprocessingPlan
+from phospy.science.transformations.models import (
     IntensityScaleEstablishmentMode,
     IntensityScaleState,
     MatrixIntensityScaleState,
 )
-from phospy.transformations.transformers import IdentityTransformer
+from phospy.science.transformations.transformers import IdentityTransformer
 
 
 def _phospho(values: list[float]) -> pd.DataFrame:
@@ -98,7 +100,7 @@ def test_transformed_log2_records_transformed_establishment_mode() -> None:
         declared_input_scale_state=_declared_state("log2"),
         declared_input_establishment_mode=IntensityScaleEstablishmentMode.TRANSFORMED,
         establishment_transformer_name=(
-            "phospy.datasets.preprocessing.stages.intensity_transform.log2"
+            "phospy.science.datasets.preprocessing.stages.intensity_transform.log2"
         ),
         scale_establishment_parameters={"operation": "log2", "pseudocount": 1.0},
     )
@@ -111,7 +113,7 @@ def test_transformed_log2_records_transformed_establishment_mode() -> None:
     assert provenance is not None
     assert (
         provenance.transformer_name
-        == "phospy.datasets.preprocessing.stages.intensity_transform.log2"
+        == "phospy.science.datasets.preprocessing.stages.intensity_transform.log2"
     )
     assert provenance.parameters["operation"] == "log2"
 

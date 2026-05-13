@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.workflows.signalome.boundary_errors import raise_signalome_boundary_error
 from phospy.workflows.signalome.constants import (
     SIGNALOME_INTERPRETER_PROTEIN_MAPPING_SEAM,

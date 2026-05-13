@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from phospy.datasets.preprocessing.policy_models import IntensityTransformPolicy
 from phospy.errors.input import PhosPyInputError
+from phospy.science.datasets.preprocessing.policy_models import IntensityTransformPolicy
 from phospy.validation.common.config_values import (
     coerce_policy_enum,
     require_supported_literal,

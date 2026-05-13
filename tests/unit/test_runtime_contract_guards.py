@@ -5,15 +5,15 @@ import pytest
 
 from phospy.api.configs import KinasePredictionConfig, KinaseScoringConfig
 from phospy.api.requests import KinaseWorkflowRequest
-from phospy.datasets.builders.reader import DatasetInputReader
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import (
     PhosPyInputError,
     PhosPyWorkflowError,
     ReferenceResolutionError,
 )
-from phospy.references.models import Organism, ReferencePreset
-from phospy.references.resolution import ReferenceResolver
+from phospy.science.datasets.builders.reader import DatasetInputReader
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.references.models import Organism, ReferencePreset
+from phospy.science.references.resolution import ReferenceResolver
 from phospy.validation.references.compatibility import ReferenceCompatibilityValidator
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
 from tests.support.intensity_scale_states import (

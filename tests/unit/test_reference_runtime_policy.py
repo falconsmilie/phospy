@@ -3,9 +3,9 @@ from __future__ import annotations
 import pytest
 
 from phospy.errors import UnsupportedOrganismError
-from phospy.references.models import Organism, ReferencePreset
-from phospy.references.resolution import ReferenceResolver
-from phospy.references.resources import supported_bundled_organisms
+from phospy.science.references.models import Organism, ReferencePreset
+from phospy.science.references.resolution import ReferenceResolver
+from phospy.science.references.resources import supported_bundled_organisms
 
 
 def test_bundled_runtime_support_is_rat_only() -> None:

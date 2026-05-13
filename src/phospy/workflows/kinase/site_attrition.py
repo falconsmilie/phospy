@@ -9,16 +9,16 @@ from phospy.api.results import (
     KinaseWorkflowScoringAttritionSummary,
     KinaseWorkflowSiteAttritionSummary,
 )
-from phospy.datasets.models import (
+from phospy.errors.validation import WorkflowValidationError
+from phospy.science.datasets.models import (
     PreprocessingSiteAttritionSummary,
     SiteSequenceResolutionReport,
 )
-from phospy.errors.validation import WorkflowValidationError
-from phospy.prediction.models import KinasePredictionResult
-from phospy.prediction.sequence_validation import (
+from phospy.science.prediction.models import KinasePredictionResult
+from phospy.science.prediction.sequence_validation import (
     SEQUENCE_VALIDATION_STATUS_INVALID_SITE_ID,
 )
-from phospy.sites.identifiers import parse_canonical_site_identifier
+from phospy.science.sites.identifiers import parse_canonical_site_identifier
 from phospy.workflows.kinase.component_models import KinaseScoringRunResult
 from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
 

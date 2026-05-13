@@ -13,13 +13,13 @@ from phospy.api.configs import (
     KinasePredictionConfig,
 )
 from phospy.errors.workflows import WorkflowBoundaryError, WorkflowStageError
-from phospy.prediction.candidates import (
+from phospy.science.prediction.candidates import (
     CandidateShortfallDiagnostics,
     build_candidate_substrate_list,
     summarize_candidate_shortfall,
 )
-from phospy.prediction.execution import run_adaptive_ensemble_prediction
-from phospy.prediction.models import KinasePredictionResult
+from phospy.science.prediction.execution import run_adaptive_ensemble_prediction
+from phospy.science.prediction.models import KinasePredictionResult
 from phospy.workflows.kinase.component_models import (
     CANDIDATE_MIN_INCLUSION,
     CANDIDATE_SCORE_THRESHOLD,

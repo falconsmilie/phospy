@@ -15,11 +15,6 @@ from phospy import (
     KinaseWorkflow,
     SignalomeWorkflow,
 )
-from phospy.activities.models import (
-    KinaseActivityInputs,
-    KinaseActivityResult,
-    PredMatOverlapSummary,
-)
 from phospy.api import (
     DatasetBuildRequest,
     KinasePredictionConfig,
@@ -34,18 +29,6 @@ from phospy.api.results import (
     KinaseWorkflowResult,
     SignalomeWorkflowResult,
 )
-from phospy.datasets.builders.executor import DatasetBuildExecutor
-from phospy.datasets.builders.interpreter import DatasetBuildRequestInterpreter
-from phospy.datasets.models import DatasetPreprocessingReport
-from phospy.datasets.preprocessing.report_schema import (
-    ComparisonGroupStatsRow,
-    ComparisonPairStatsRow,
-    DuplicateSiteResolutionRow,
-    MetadataConflictRow,
-    PreprocessingOperationRow,
-    PreprocessingRowAuditRow,
-    PreprocessingRowCountRow,
-)
 from phospy.frames.ownership import (
     _borrow_dataframe,
     _borrow_series,
@@ -58,9 +41,26 @@ from phospy.frames.ownership import (
     own_optional_series,
     own_series,
 )
-from phospy.prediction.models import KinaseScoringResult
 from phospy.provenance.hashing import fingerprint_table
-from phospy.signalomes.models import (
+from phospy.science.activities.models import (
+    KinaseActivityInputs,
+    KinaseActivityResult,
+    PredMatOverlapSummary,
+)
+from phospy.science.datasets.builders.executor import DatasetBuildExecutor
+from phospy.science.datasets.builders.interpreter import DatasetBuildRequestInterpreter
+from phospy.science.datasets.models import DatasetPreprocessingReport
+from phospy.science.datasets.preprocessing.report_schema import (
+    ComparisonGroupStatsRow,
+    ComparisonPairStatsRow,
+    DuplicateSiteResolutionRow,
+    MetadataConflictRow,
+    PreprocessingOperationRow,
+    PreprocessingRowAuditRow,
+    PreprocessingRowCountRow,
+)
+from phospy.science.prediction.models import KinaseScoringResult
+from phospy.science.signalomes.models import (
     KinaseNetwork,
     SignalomeAssignments,
     SignalomeModules,
@@ -687,8 +687,8 @@ def test_owned_construction_frames_can_be_mutated_after_owned_transfer() -> None
 
 def test_internal_borrowed_accessors_are_not_public_api_exports() -> None:
     import phospy
-    import phospy.datasets as datasets
     import phospy.frames.ownership as frame_ownership
+    import phospy.science.datasets as datasets
 
     assert not any("borrow" in name for name in phospy.__all__)
     assert not any("borrow" in name for name in datasets.__all__)

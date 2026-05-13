@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.signalomes.science import (
+from phospy.science.signalomes.science import (
     LEXICOGRAPHIC_TIE_BREAK_POLICY,
     NO_SUPPORT_SELECTION_POLICY,
     UNSUPPORTED_KINASE,

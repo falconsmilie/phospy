@@ -12,7 +12,7 @@ from phospy.api.configs import (
     SignalomeConfig,
 )
 from phospy.api.requests import DatasetBuildRequest
-from phospy.references.models import ReferencePreset
+from phospy.science.references.models import ReferencePreset
 
 
 @dataclass(frozen=True, slots=True)

@@ -5,7 +5,7 @@ import pandas.testing as pdt
 import pytest
 
 from phospy.errors import SignalomeModuleCountValidationError
-from phospy.signalomes.clustering import (
+from phospy.science.signalomes.clustering import (
     SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
     SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON_VERSION,
     SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
@@ -14,10 +14,10 @@ from phospy.signalomes.clustering import (
     resolve_clustering_engine,
     run_signalome_clustering_engine,
 )
-from phospy.signalomes.clustering import exact_python as exact_clustering
-from phospy.signalomes.clustering import scipy_hierarchical as scipy_clustering
-from phospy.signalomes.clustering.models import SignalomeClusteringEngineResult
-from phospy.signalomes.models import SignalomeModuleSelectionDiagnostics
+from phospy.science.signalomes.clustering import exact_python as exact_clustering
+from phospy.science.signalomes.clustering import scipy_hierarchical as scipy_clustering
+from phospy.science.signalomes.clustering.models import SignalomeClusteringEngineResult
+from phospy.science.signalomes.models import SignalomeModuleSelectionDiagnostics
 
 
 def _small_scoring_matrix() -> pd.DataFrame:

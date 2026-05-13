@@ -3,19 +3,19 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from phospy.signalomes.clustering.candidate_scoring import (
+from phospy.science.signalomes.clustering.candidate_scoring import (
     _CandidateClusterScoreResult,
     compute_candidate_cluster_scores,
     resolve_candidate_scoring_policy,
     summarize_profile_degeneracy,
 )
-from phospy.signalomes.clustering.policies import (
+from phospy.science.signalomes.clustering.policies import (
     SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
     SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
     SIGNALOME_CLUSTERING_SCORING_MODE_AUTO,
     SIGNALOME_TREE_ENGINE_EXACT,
 )
-from phospy.signalomes.clustering.tree_building import (
+from phospy.science.signalomes.clustering.tree_building import (
     prepare_scoring_values_for_clustering,
 )
 

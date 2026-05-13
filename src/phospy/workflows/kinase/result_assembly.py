@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from phospy.activities.models import KinaseActivityResult
 from phospy.api.results import (
     KinaseEligibilityReport,
     KinaseWorkflowResult,
     KinaseWorkflowSiteAttritionSummary,
 )
-from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.provenance.models import RunProvenance
+from phospy.science.activities.models import KinaseActivityResult
+from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
 
 

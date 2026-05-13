@@ -5,9 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from pathlib import Path
 
-from phospy.activities.models import KinaseActivityResult
 from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.intensity_scale_state import (
     intensity_scale_state_from_payload,
@@ -33,11 +31,13 @@ from phospy.io.bundles._signalome.compatibility import (
     signalome_score_preconditioning_diagnostics_from_payload,
 )
 from phospy.io.bundles._signalome.manifest import SignalomeManifestSections
-from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.provenance.serialization import from_payload as provenance_from_payload
-from phospy.references.models import ReferenceBundle
-from phospy.signalomes.context import SITE_MEMBERSHIP_EXCLUDED_REASON_COLUMN
-from phospy.signalomes.models import (
+from phospy.science.activities.models import KinaseActivityResult
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
+from phospy.science.references.models import ReferenceBundle
+from phospy.science.signalomes.context import SITE_MEMBERSHIP_EXCLUDED_REASON_COLUMN
+from phospy.science.signalomes.models import (
     KinaseNetwork,
     SignalomeAlignmentDiagnostics,
     SignalomeAssignments,

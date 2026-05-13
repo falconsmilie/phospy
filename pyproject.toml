@@ -133,24 +133,22 @@ venvPath = "."
 venv = ".venv"
 typeCheckingMode = "standard"
 include = [
-  "src/phospy/activities",
   "src/phospy/api",
-  "src/phospy/datasets",
-  "src/phospy/differential",
+  "src/phospy/errors",
+  "src/phospy/frames",
   "src/phospy/io",
-  "src/phospy/prediction",
+  "src/phospy/policies",
   "src/phospy/provenance",
-  "src/phospy/references",
-  "src/phospy/signalomes/clustering",
+  "src/phospy/science",
   "src/phospy/tables",
   "src/phospy/validation",
   "src/phospy/workflows",
 ]
 strict = [
-  "src/phospy/prediction/policies.py",
-  "src/phospy/signalomes/clustering/backend_dispatch.py",
-  "src/phospy/signalomes/clustering/diagnostics.py",
-  "src/phospy/signalomes/clustering/protocol.py",
+  "src/phospy/science/prediction/policies.py",
+  "src/phospy/science/signalomes/clustering/backend_dispatch.py",
+  "src/phospy/science/signalomes/clustering/diagnostics.py",
+  "src/phospy/science/signalomes/clustering/protocol.py",
 ]
 exclude = [
   "**/__pycache__",
@@ -168,3 +166,4 @@ phospy = [
   "data/reference_bundles/*/*/*.csv",
   "data/reference_bundles/*/*/*.json",
 ]
+

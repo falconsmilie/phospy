@@ -8,15 +8,15 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from phospy.activities.models import KinaseActivityResult
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.differential.models import DifferentialAnalysisResult
 from phospy.errors.validation import WorkflowValidationError
 from phospy.frames.ownership import export_optional_dataframe, own_optional_dataframe
-from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.provenance.models import RunProvenance
-from phospy.references.models import ReferenceBundle
-from phospy.signalomes.models import (
+from phospy.science.activities.models import KinaseActivityResult
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.differential.models import DifferentialAnalysisResult
+from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
+from phospy.science.references.models import ReferenceBundle
+from phospy.science.signalomes.models import (
     KinaseNetwork,
     SignalomeAlignmentDiagnostics,
     SignalomeAssignments,

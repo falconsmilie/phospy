@@ -6,7 +6,6 @@ import pandas as pd
 import pytest
 
 from phospy.api.requests import DatasetBuildRequest
-from phospy.datasets.builders.public import AnalysisReadyDatasetBuilder
 from phospy.errors import PhosPyInputError
 from phospy.io.readers.tables import (
     read_contrast_matrix,
@@ -15,6 +14,7 @@ from phospy.io.readers.tables import (
     read_sample_metadata,
     read_site_metadata,
 )
+from phospy.science.datasets.builders.public import AnalysisReadyDatasetBuilder
 
 
 def _write_table(path: Path, frame: pd.DataFrame) -> None:

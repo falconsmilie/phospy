@@ -2,8 +2,8 @@
 """Benchmark preprocessing hot paths used in performance contracts.
 
 Targets:
-- `phospy.datasets.preprocessing.stages.missing_data.MissingDataStage`
-- `phospy.datasets.preprocessing.stages.normalisation.NormalisationStage`
+- `phospy.science.datasets.preprocessing.stages.missing_data.MissingDataStage`
+- `phospy.science.datasets.preprocessing.stages.normalisation.NormalisationStage`
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 
 if TYPE_CHECKING:
-    from phospy.datasets.preprocessing.models import PreprocessingState
+    from phospy.science.datasets.preprocessing.models import PreprocessingState
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
@@ -32,11 +32,13 @@ def _build_base_matrix(*, n_sites: int, n_samples: int) -> pd.DataFrame:
 
 
 def _run_median_center(phospho: pd.DataFrame) -> PreprocessingState:
-    from phospy.datasets.preprocessing.models import (
+    from phospy.science.datasets.preprocessing.models import (
         PreprocessingPlan,
         PreprocessingState,
     )
-    from phospy.datasets.preprocessing.stages.normalisation import NormalisationStage
+    from phospy.science.datasets.preprocessing.stages.normalisation import (
+        NormalisationStage,
+    )
     from tests.support.performance_contracts import deterministic_site_metadata
 
     state = PreprocessingState(
@@ -52,11 +54,13 @@ def _run_median_center(phospho: pd.DataFrame) -> PreprocessingState:
 
 
 def _run_quantile_normalisation(phospho: pd.DataFrame) -> PreprocessingState:
-    from phospy.datasets.preprocessing.models import (
+    from phospy.science.datasets.preprocessing.models import (
         PreprocessingPlan,
         PreprocessingState,
     )
-    from phospy.datasets.preprocessing.stages.normalisation import NormalisationStage
+    from phospy.science.datasets.preprocessing.stages.normalisation import (
+        NormalisationStage,
+    )
     from tests.support.performance_contracts import deterministic_site_metadata
 
     state = PreprocessingState(
@@ -72,11 +76,13 @@ def _run_quantile_normalisation(phospho: pd.DataFrame) -> PreprocessingState:
 
 
 def _run_missing_data_imputation(phospho: pd.DataFrame) -> PreprocessingState:
-    from phospy.datasets.preprocessing.models import (
+    from phospy.science.datasets.preprocessing.models import (
         PreprocessingPlan,
         PreprocessingState,
     )
-    from phospy.datasets.preprocessing.stages.missing_data import MissingDataStage
+    from phospy.science.datasets.preprocessing.stages.missing_data import (
+        MissingDataStage,
+    )
     from tests.support.performance_contracts import deterministic_site_metadata
 
     state = PreprocessingState(

@@ -10,14 +10,6 @@ from phospy.api import (
     DatasetIntensityTransformConfig,
     DatasetPreprocessingConfig,
 )
-from phospy.datasets.builders.contracts import PreprocessedDatasetBuildTables
-from phospy.datasets.builders.executor import DatasetBuildExecutor
-from phospy.datasets.builders.preprocessing import build_dataset_processing_state
-from phospy.datasets.builders.transformation_resolver import (
-    DatasetIntensityScaleResolver,
-)
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.datasets.preprocessing.models import PreprocessingPlan
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.transformations import (
     InvalidTransformationStateError,
@@ -31,15 +23,25 @@ from phospy.io.bundles._shared.intensity_scale_state import (
 from phospy.io.bundles._shared.processing_state import (
     processing_state_from_payload,
 )
-from phospy.references.models import Organism
-from phospy.transformations.contracts import TransformationResult
-from phospy.transformations.models import (
+from phospy.science.datasets.builders.contracts import PreprocessedDatasetBuildTables
+from phospy.science.datasets.builders.executor import DatasetBuildExecutor
+from phospy.science.datasets.builders.preprocessing import (
+    build_dataset_processing_state,
+)
+from phospy.science.datasets.builders.transformation_resolver import (
+    DatasetIntensityScaleResolver,
+)
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.datasets.preprocessing.models import PreprocessingPlan
+from phospy.science.references.models import Organism
+from phospy.science.transformations.contracts import TransformationResult
+from phospy.science.transformations.models import (
     IntensityScaleKind,
     IntensityScaleState,
     MatrixIntensityScaleState,
     establish_intensity_scale_state,
 )
-from phospy.transformations.transformers import IdentityTransformer
+from phospy.science.transformations.transformers import IdentityTransformer
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
 )
@@ -272,7 +274,7 @@ def test_direct_establishment_function_call_is_rejected() -> None:
     ):
         establish_intensity_scale_state(
             IntensityScaleState.raw(has_total_matrix=False),
-            established_via="phospy.datasets.builders.transformation_resolver",
+            established_via="phospy.science.datasets.builders.transformation_resolver",
         )
 
 
@@ -283,7 +285,7 @@ def test_fake_authority_object_is_rejected_even_with_supported_source() -> None:
     ):
         establish_intensity_scale_state(
             IntensityScaleState.raw(has_total_matrix=False),
-            established_via="phospy.datasets.builders.transformation_resolver",
+            established_via="phospy.science.datasets.builders.transformation_resolver",
             _authority=object(),
         )
 

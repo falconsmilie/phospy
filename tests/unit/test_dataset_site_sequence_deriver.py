@@ -3,10 +3,10 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.datasets.builders.sequence_derivation import SiteSequenceDeriver
 from phospy.errors.input import UnsupportedInputFormatError
 from phospy.errors.references import UnsupportedOrganismError
-from phospy.references.models import Organism
+from phospy.science.datasets.builders.sequence_derivation import SiteSequenceDeriver
+from phospy.science.references.models import Organism
 
 
 def _site_metadata_without_sequences() -> pd.DataFrame:

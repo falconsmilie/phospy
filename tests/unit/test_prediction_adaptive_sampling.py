@@ -6,13 +6,15 @@ import pytest
 
 from phospy.api.configs import KinasePredictionConfig
 from phospy.errors import WorkflowStageError, WorkflowValidationError
-from phospy.prediction.execution import run_adaptive_ensemble_prediction
-from phospy.prediction.policies import (
+from phospy.science.prediction.execution import run_adaptive_ensemble_prediction
+from phospy.science.prediction.policies import (
     PredictionSamplingRandomSource,
     resolve_prediction_sampling_policy,
 )
-from phospy.prediction.sampling_core import run_adaptive_sampling_ensemble
-from phospy.prediction.sampling_runtime import transform_resampling_probabilities
+from phospy.science.prediction.sampling_core import run_adaptive_sampling_ensemble
+from phospy.science.prediction.sampling_runtime import (
+    transform_resampling_probabilities,
+)
 
 
 def test_kinase_prediction_config_rejects_adaptive_mode_without_seed() -> None:
@@ -129,7 +131,7 @@ def test_run_adaptive_ensemble_prediction_averages_per_ensemble_scores(
         return np.asarray([0.4, 0.6, 0.8], dtype=float)
 
     monkeypatch.setattr(
-        "phospy.prediction.execution.run_adaptive_sampling_ensemble",
+        "phospy.science.prediction.execution.run_adaptive_sampling_ensemble",
         fake_sampling,
     )
     observed = run_adaptive_ensemble_prediction(

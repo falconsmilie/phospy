@@ -6,27 +6,36 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.datasets.preprocessing.models import PreprocessingPlan, PreprocessingState
-from phospy.datasets.preprocessing.stages.missing_data import minprob as minprob_module
-from phospy.datasets.preprocessing.stages.missing_data.audit import (
+from phospy.errors.input import PhosPyInputError
+from phospy.science.datasets.preprocessing.models import (
+    PreprocessingPlan,
+    PreprocessingState,
+)
+from phospy.science.datasets.preprocessing.stages.missing_data import (
+    minprob as minprob_module,
+)
+from phospy.science.datasets.preprocessing.stages.missing_data.audit import (
     build_knn_audit_records,
     build_minprob_audit_records,
     build_row_median_audit_records,
 )
-from phospy.datasets.preprocessing.stages.missing_data.diagnostics import (
+from phospy.science.datasets.preprocessing.stages.missing_data.diagnostics import (
     build_input_profile,
     build_missing_data_diagnostics,
 )
-from phospy.datasets.preprocessing.stages.missing_data.forbid import (
+from phospy.science.datasets.preprocessing.stages.missing_data.forbid import (
     fail_if_forbid_policy_has_missing_values,
 )
-from phospy.datasets.preprocessing.stages.missing_data.knn import run_knn_policy
-from phospy.datasets.preprocessing.stages.missing_data.minprob import run_minprob_policy
-from phospy.datasets.preprocessing.stages.missing_data.row_median import (
+from phospy.science.datasets.preprocessing.stages.missing_data.knn import run_knn_policy
+from phospy.science.datasets.preprocessing.stages.missing_data.minprob import (
+    run_minprob_policy,
+)
+from phospy.science.datasets.preprocessing.stages.missing_data.row_median import (
     run_row_median_policy,
 )
-from phospy.datasets.preprocessing.stages.missing_data.stage import MissingDataStage
-from phospy.errors.input import PhosPyInputError
+from phospy.science.datasets.preprocessing.stages.missing_data.stage import (
+    MissingDataStage,
+)
 
 
 def _site_metadata(index: pd.Index) -> pd.DataFrame:

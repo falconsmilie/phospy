@@ -7,14 +7,14 @@ from typing import cast
 import numpy as np
 import pandas as pd
 
-from phospy.differential.models import (
+from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.science.differential.models import (
     ContrastMatrix,
     DesignMatrix,
 )
-from phospy.differential.models import (
+from phospy.science.differential.models import (
     DifferentialAnalysisRequest as DifferentialComputationRequest,
 )
-from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.workflows.differential.models import (
     InterpretedDifferentialAnalysisRequest,
     ValidatedDifferentialAnalysisRequest,

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from phospy.signalomes.constants import (
+from phospy.science.signalomes.constants import (
     MODULE_ID_COLUMN,
     MODULE_TOP_KINASE_CANDIDATES_COLUMN,
     MODULE_TOP_KINASE_COLUMN,

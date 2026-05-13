@@ -15,18 +15,18 @@ from phospy.api.configs import (
 )
 from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.prediction.scoring import DownstreamScoreSelectionPolicy
 from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
-from phospy.scoring.policy_models import DownstreamScoreSource
-from phospy.signalomes.clustering.models import (
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.prediction.scoring import DownstreamScoreSelectionPolicy
+from phospy.science.scoring.policy_models import DownstreamScoreSource
+from phospy.science.signalomes.clustering.models import (
     SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
 )
-from phospy.signalomes.clustering.policies import (
+from phospy.science.signalomes.clustering.policies import (
     SignalomeCandidateScoringPolicyDefinition,
 )
-from phospy.signalomes.models import (
+from phospy.science.signalomes.models import (
     SignalomeAlignmentDiagnostics,
     SignalomeScorePreconditioningDiagnostics,
     default_signalome_alignment_diagnostics,

@@ -31,7 +31,7 @@ Default signalome guardrails are configured through `SignalomeConfig.performance
 - `max_full_candidate_scoring_sites=2000`
 
 Guardrail enforcement is owned by
-`src/phospy/signalomes/clustering/scale_guards.py`.
+`src/phospy/science/signalomes/clustering/scale_guards.py`.
 
 ## CI Benchmark Ownership
 
@@ -50,3 +50,4 @@ Guardrail enforcement is owned by
   release-validation commands (`make test-release-gate`).
 - Failing performance contracts block release until fixed, formally waived, or
   intentionally updated with matching test and documentation changes.
+

@@ -4,13 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from phospy.activities.models import (
-    ActivityMethodMetadata,
-    ActivityMethodSummary,
-    KinaseActivityResult,
-)
 from phospy.api.results import KinaseWorkflowResult
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._kinase.manifest import KinaseManifestSections
 from phospy.io.bundles._shared.intensity_scale_state import (
@@ -29,9 +23,15 @@ from phospy.io.bundles._shared.tables import (
     read_optional_table,
     read_required_table,
 )
-from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.provenance.serialization import from_payload as provenance_from_payload
-from phospy.references.models import ReferenceBundle
+from phospy.science.activities.models import (
+    ActivityMethodMetadata,
+    ActivityMethodSummary,
+    KinaseActivityResult,
+)
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
+from phospy.science.references.models import ReferenceBundle
 
 
 def reconstruct_kinase_result(

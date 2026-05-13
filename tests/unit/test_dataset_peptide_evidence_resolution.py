@@ -13,7 +13,7 @@ from phospy.api.requests import (
     DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
     DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
 )
-from phospy.datasets.builders.validator import DatasetBuildRequestValidator
+from phospy.science.datasets.builders.validator import DatasetBuildRequestValidator
 
 
 def _site_level_phospho() -> pd.DataFrame:

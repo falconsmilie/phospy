@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from phospy.api.requests import DifferentialAnalysisRequest
-from phospy.differential.models import DifferentialAnalysisResult
+from phospy.science.differential.models import DifferentialAnalysisResult
 from phospy.workflows.differential.executor import DifferentialAnalysisExecutor
 from phospy.workflows.differential.interpreter import DifferentialAnalysisInterpreter
 from phospy.workflows.differential.models import (

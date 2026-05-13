@@ -5,9 +5,9 @@ from __future__ import annotations
 from typing import cast
 
 from phospy.api.requests import KinaseWorkflowRequest
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.validation import WorkflowValidationError
-from phospy.references.models import ReferenceBundle, ReferencePreset
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.references.models import ReferenceBundle, ReferencePreset
 from phospy.validation.common.dataframes import require_dataframe
 from phospy.validation.datasets.site_metadata import (
     enforce_localisation_requirement,

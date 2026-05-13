@@ -8,9 +8,9 @@ from phospy.api.configs import (
     SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
 )
 from phospy.errors import WorkflowStageError
-from phospy.signalomes.expanded import build_expanded_signalome_table
-from phospy.signalomes.modules import build_signalome_module_table
-from phospy.signalomes.network import (
+from phospy.science.signalomes.expanded import build_expanded_signalome_table
+from phospy.science.signalomes.modules import build_signalome_module_table
+from phospy.science.signalomes.network import (
     build_kinase_network_with_diagnostics,
 )
 

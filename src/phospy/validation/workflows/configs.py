@@ -8,9 +8,9 @@ from phospy.api.configs import (
     KinaseScoringConfig,
     SignalomeConfig,
 )
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.validation import WorkflowValidationError
-from phospy.transformations.models import QuantitativeMeaning
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.transformations.models import QuantitativeMeaning
 
 _MIXED_QUANTITATIVE_MEANING = QuantitativeMeaning.MIXED_PHOSPHO_TOTAL_LOG_RATIO_AND_PHOSPHOSITE_LOG_ABUNDANCE.value
 

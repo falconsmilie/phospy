@@ -2,16 +2,16 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.differential.aggregation import (
+from phospy.science.differential.aggregation import (
     PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE,
     PEPTIDE_TO_SITE_STRATEGY_FIXED_EFFECT_META,
     PeptideToSiteAggregationConfig,
     PeptideToSiteAggregator,
 )
-from phospy.differential.aggregation.scientific_policies import (
+from phospy.science.differential.aggregation.scientific_policies import (
     build_peptide_to_site_aggregation_policy,
 )
-from phospy.evidence import PeptideEvidenceTable
+from phospy.science.evidence import PeptideEvidenceTable
 
 
 def _evidence_frame() -> pd.DataFrame:
@@ -59,7 +59,7 @@ def test_default_strategy_is_not_minimum_p_value() -> None:
 def test_peptide_to_site_scientific_policy_ownership_is_explicit() -> None:
     assert (
         build_peptide_to_site_aggregation_policy.__module__
-        == "phospy.differential.aggregation.scientific_policies"
+        == "phospy.science.differential.aggregation.scientific_policies"
     )
 
 

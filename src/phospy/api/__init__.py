@@ -74,7 +74,6 @@ from phospy.api.workflows import (
     KinaseWorkflow,
     SignalomeWorkflow,
 )
-from phospy.differential.policy_models import TechnicalReplicatePolicy
 from phospy.errors import (
     DatasetBuildError,
     DatasetValidationError,
@@ -100,8 +99,9 @@ from phospy.errors import (
     WorkflowStageError,
     WorkflowValidationError,
 )
-from phospy.references.models import ReferenceBundle
-from phospy.transformations.models import (
+from phospy.science.differential.policy_models import TechnicalReplicatePolicy
+from phospy.science.references.models import ReferenceBundle
+from phospy.science.transformations.models import (
     IntensityScaleKind,
     IntensityScaleState,
     MatrixIntensityScaleState,

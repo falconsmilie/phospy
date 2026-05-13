@@ -31,7 +31,7 @@ one of:
 - `keep_joint`
 - `split`
 
-Policy mapping reuses the existing `phospy.evidence` models and multi-site
+Policy mapping reuses the existing `phospy.science.evidence` models and multi-site
 resolution logic (`PeptideEvidenceTable`, `MultiSiteHandlingConfig`,
 `SiteEvidenceMapping`) instead of introducing parallel ambiguity models.
 
@@ -83,7 +83,7 @@ The dataset report/provenance includes:
 
 This ADR explicitly keeps ownership boundaries as:
 
-- evidence resolution: `phospy.evidence` + dataset preprocessing/builder
+- evidence resolution: `phospy.science.evidence` + dataset preprocessing/builder
 - dataset model: no peptide collapse
 - kinase workflow: no peptide ambiguity resolution
 - signalome workflow: no peptide ambiguity resolution

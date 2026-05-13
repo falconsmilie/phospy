@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from phospy.api.configs import MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG
-from phospy.differential.executor import (
+from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.science.differential.executor import (
     DifferentialAnalysisExecutor as DifferentialComputationExecutor,
 )
-from phospy.differential.models import DifferentialAnalysisResult
-from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.science.differential.models import DifferentialAnalysisResult
 from phospy.workflows.differential.models import (
     InterpretedDifferentialAnalysisRequest,
 )

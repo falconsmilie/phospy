@@ -17,7 +17,7 @@ from phospy.api import (
     ReferencePreset,
     SignalomeWorkflowRequest,
 )
-from phospy.signalomes.science import build_kinase_network
+from phospy.science.signalomes.science import build_kinase_network
 from tests.support.parity_reporting import format_shape, record_parity_metrics
 from tests.support.rewrite_fixture_data import (
     build_rat_l6_dataset,

@@ -5,15 +5,17 @@ import pandas.testing as pdt
 import pytest
 
 from phospy.api.configs import DatasetPreprocessingConfig
-from phospy.datasets.builders.preprocessing import (
+from phospy.errors.build import DatasetBuildError
+from phospy.errors.input import PhosPyInputError
+from phospy.science.datasets.builders.preprocessing import (
     DatasetPreprocessor,
     build_dataset_processing_state,
 )
-from phospy.datasets.builders.transformation_resolver import (
+from phospy.science.datasets.builders.transformation_resolver import (
     DatasetIntensityScaleResolver,
 )
-from phospy.datasets.preprocessing.diagnostics import ProcessingTraceDiagnostics
-from phospy.datasets.preprocessing.models import (
+from phospy.science.datasets.preprocessing.diagnostics import ProcessingTraceDiagnostics
+from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
     DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
@@ -22,23 +24,23 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingStageResult,
     PreprocessingState,
 )
-from phospy.datasets.preprocessing.pipeline import (
+from phospy.science.datasets.preprocessing.pipeline import (
     PreprocessingPipeline,
     _resolve_state_table,
 )
-from phospy.datasets.preprocessing.provenance_adapter import (
+from phospy.science.datasets.preprocessing.provenance_adapter import (
     PreprocessingProvenanceAdapter,
 )
-from phospy.datasets.preprocessing.state_builder import DatasetProcessingStateBuilder
-from phospy.errors.build import DatasetBuildError
-from phospy.errors.input import PhosPyInputError
-from phospy.transformations.models import (
+from phospy.science.datasets.preprocessing.state_builder import (
+    DatasetProcessingStateBuilder,
+)
+from phospy.science.transformations.models import (
     IntensityScaleKind,
     IntensityScaleState,
     MatrixIntensityScaleState,
     QuantitativeMeaning,
 )
-from phospy.transformations.transformers import IdentityTransformer
+from phospy.science.transformations.transformers import IdentityTransformer
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
 )

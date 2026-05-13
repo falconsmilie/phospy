@@ -121,11 +121,11 @@ but cannot claim deep immutability.
 ## Affected Modules
 
 - `src/phospy/frames/ownership.py`
-- `src/phospy/datasets/models.py`
+- `src/phospy/science/datasets/models.py`
 - `src/phospy/api/results.py`
-- `src/phospy/activities/models.py`
-- `src/phospy/prediction/models.py`
-- `src/phospy/signalomes/models.py`
+- `src/phospy/science/activities/models.py`
+- `src/phospy/science/prediction/models.py`
+- `src/phospy/science/signalomes/models.py`
 - `src/phospy/provenance/`
 - `src/phospy/io/`
 
@@ -183,3 +183,4 @@ i349-i356.
 
 YangLab. (n.d.). *PhosR* [Computer software]. GitHub.
 https://github.com/PYangLab/PhosR
+

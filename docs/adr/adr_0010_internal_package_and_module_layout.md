@@ -76,6 +76,20 @@ Without governance:
 4. Compatibility re-export shims for removed root scientific policy modules are
    not allowed.
 
+### Package-Ownership Boundaries
+
+1. `phospy.science` owns scientific domain code:
+   domain models, phosphosite/sequence logic, references/evidence handling,
+   prediction/activity/differential/signalome computation, dataset-domain
+   preprocessing, and transformation-domain models.
+2. `phospy.workflows` owns orchestration only.
+3. `phospy.validation` owns validation infrastructure only.
+4. `phospy.provenance` owns shared provenance infrastructure only.
+5. `phospy.tables` owns table/schema wrapper infrastructure only.
+6. `phospy.frames` owns pandas frame ownership helpers only.
+7. `phospy.data` owns packaged static resources only.
+8. Public contract ownership stays under `phospy.api`.
+
 ### Acceptable Compatibility Shim Examples
 
 - bundle-format compatibility adapters where the compatibility concern is
