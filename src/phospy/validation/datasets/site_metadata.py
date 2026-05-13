@@ -11,7 +11,10 @@ import pandas as pd
 
 from phospy.api.configs.localisation import LocalisationRequirement
 from phospy.site_ids import ParsedSiteToken, try_parse_site_token
-from phospy.sites.identity import validate_identity_optional_columns
+from phospy.sites.identity import (
+    build_phosphosite_identity,
+    validate_identity_optional_columns,
+)
 
 ErrorType = TypeVar("ErrorType", bound=Exception)
 _PHOSPHORYLATABLE_RESIDUES = frozenset({"S", "T", "Y"})
@@ -347,6 +350,36 @@ def validate_site_sequence_column(
     )
 
 
+def enforce_site_identity_rows(
+    *,
+    site_metadata: pd.DataFrame,
+    field_name: str,
+    error_type: type[ErrorType],
+    allow_opaque_site_values: bool = True,
+) -> None:
+    """Enforce row-level phosphosite identity parsing for workflow boundaries."""
+
+    for site_id in site_metadata.index.tolist():
+        _ = build_phosphosite_identity(
+            display_id=site_id,
+            gene_symbol=site_metadata.at[site_id, "gene_symbol"],
+            site=site_metadata.at[site_id, "site"],
+            allow_opaque_site_values=allow_opaque_site_values,
+            protein_id=(
+                site_metadata.at[site_id, "protein_id"]
+                if "protein_id" in site_metadata.columns
+                else None
+            ),
+            protein_accession=(
+                site_metadata.at[site_id, "protein_accession"]
+                if "protein_accession" in site_metadata.columns
+                else None
+            ),
+            field_name=f"{field_name}[{site_id!r}]",
+            error_type=error_type,
+        )
+
+
 def assess_localisation_probability_column(
     *,
     site_metadata: pd.DataFrame,
@@ -588,6 +621,7 @@ __all__ = [
     "LocalisationProbabilityAssessment",
     "assess_localisation_confidence_column",
     "assess_localisation_probability_column",
+    "enforce_site_identity_rows",
     "enforce_required_non_empty_string_column",
     "enforce_localisation_requirement",
     "validate_localisation_confidence_column",

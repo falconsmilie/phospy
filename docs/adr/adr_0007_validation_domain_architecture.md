@@ -13,12 +13,18 @@
 This ADR defines ownership boundaries for shared validation primitives and
 workflow/domain validators. Validation remains an internal architecture domain,
 but ownership is now explicit enough to prevent drift and generic-helper sprawl.
+The executable ownership registry is maintained in
+`docs/validation-ownership.md`.
 
 ## Status
 
 Accepted.
 
 This ADR supersedes earlier generic statements about reusable validation.
+
+Update note (2026-05-13): invariant-level ownership is now documented in
+`docs/validation-ownership.md` (owner, enforcement point, exclusions, and test
+coverage expectations).
 
 ## Context and Problem Statement
 
@@ -112,6 +118,7 @@ Workflow validators must not:
 - `src/phospy/workflows/kinase/validator.py`
 - `src/phospy/workflows/signalome/validator.py`
 - `src/phospy/tables/datasets.py`
+- `docs/validation-ownership.md`
 
 ## Scope Boundaries
 
@@ -128,6 +135,8 @@ Future changes must satisfy all of the following:
 3. If domain-specific, is it in a domain module with clear ownership?
 4. Does the workflow validator compose validation without executing science?
 5. Do presets/config objects still pass normal validation boundaries?
+6. Does the change align with `docs/validation-ownership.md` for primary owner
+   and enforcement point?
 
 ## References
 
