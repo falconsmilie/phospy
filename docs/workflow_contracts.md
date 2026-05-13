@@ -122,6 +122,10 @@ identical numeric outputs across different machines or dependency builds.
   conditions are hard validation errors.
 - Batch and blocking metadata are represented in the contract for forward
   compatibility but are not yet executable in this release.
+- Current parity-protected lane is two-condition unpaired simple contrasts.
+- Paired/repeated-measure modelling is not executable in this release.
+- Missing values are rejected at `AnalysisReadyPhosphoDataset` boundary before
+  differential execution.
 
 ### Empirical-Bayes Moderation Policy
 

@@ -16,6 +16,27 @@ Differential analysis requires analysis-ready numeric inputs plus valid
 `ExperimentalDesign` and `Contrast` metadata. It does not infer design from
 sample names and does not replace upstream preprocessing requirements.
 
+### Differential Parity Envelope (Current Release)
+
+`DifferentialAnalysisWorkflow` parity claims are currently scoped to:
+
+- two-condition unpaired designs with biological-replicate rows
+- simple condition-vs-condition contrasts with one `+1` and one `-1` term
+- empirical-Bayes modes: `method="standard"` and `method="robust"` with
+  optional `trend=True`
+- Benjamini-Hochberg multiple-testing adjustment (`adj.P.Val`)
+
+Explicitly unsupported in this release:
+
+- batch-aware differential modelling (`batch`)
+- block/paired/repeated-measure differential modelling (`block`)
+
+Contract difference vs limma/PhosR surface:
+
+- analysis-ready inputs must be complete at boundary; missing values are
+  rejected before differential execution instead of being handled inside
+  differential model fitting.
+
 Bundled runtime references in the current release are rat-only. Human and mouse
 analysis can be run by passing an explicit `ReferenceBundle` in Python.
 
@@ -57,7 +78,7 @@ documented PhosPy contract, not full PhosR equivalence.
 | Normalisation | `PARITY_GATED_ACTIVE_SCIENCE` | `required parity` | Supported preprocessing methods include `none`, `median_center`, `quantile` with stage-order provenance | Method-by-method scope; not a blanket normalization equivalence claim | Unit preprocessing tests plus preprocessing parity tests (`tests/unit/test_dataset_preprocessing_subsystem.py`, `tests/parity/test_preprocessing_science_parity.py`) |
 | Imputation | `PHOSPY_VALIDATED_SCIENCE` | `required parity` | Explicit preprocessing imputation policies are supported (`row_median`, `minprob`, `knn`) | Imputation is policy-dependent and scientifically consequential; parity claims stay lane-scoped | Unit tests for imputation behavior and invariants (`tests/unit/test_dataset_preprocessing_subsystem.py`, `tests/unit/test_scientific_invariants.py`) |
 | Batch correction | `OPEN_GAP` | `useful future extension` | RUV readiness diagnostics exist; executable SPS/RUV batch correction is not in the supported public lane | Must not be described as supported until executable workflow + parity evidence exists | Keep as open gap; add fixture-backed parity tests only if/when executable lane is implemented |
-| Differential phosphorylation | `PARITY_GATED_ACTIVE_SCIENCE` | `required parity` | Public `DifferentialAnalysisWorkflow` route with design/contrast validation, per-site statistics, and multiple-testing adjustment | Assumes analysis-ready numeric input and valid experimental design; does not perform upstream preprocessing unless explicitly configured | Unit and integration tests for design validation, contrast orientation, effect direction, adjusted p-values, result alignment, and fixture-backed parity comparison (`tests/unit/test_differential_analysis.py`, `tests/parity/test_differential_analysis_parity.py`) |
+| Differential phosphorylation | `PARITY_GATED_ACTIVE_SCIENCE` | `required parity` | Public `DifferentialAnalysisWorkflow` route with design/contrast validation, per-site statistics, and multiple-testing adjustment | Parity envelope is explicitly scoped to two-condition unpaired simple contrasts, with batch/block/paired modes rejected in this release; analysis-ready boundary rejects missing values before differential execution | Unit and integration tests for design validation, unsupported-mode rejection, contrast orientation/sign, adjusted p-values, result alignment, and fixture-backed limma parity comparison (`tests/unit/test_differential_analysis.py`, `tests/unit/test_differential_unsupported_designs.py`, `tests/unit/test_differential_result_contract.py`, `tests/parity/test_differential_analysis_parity.py`, `tests/parity/test_differential_limma_parity.py`) |
 | Kinase/substrate analysis | `PARITY_GATED_ACTIVE_SCIENCE` | `required parity` | Public kinase scoring/prediction lane with active fixture-backed parity checks | Parity is scoped to documented fixture lanes and published comparison rules | Active parity tests in `tests/parity/test_kinase_workflow_parity.py`, `tests/parity/test_l6_prediction_parity.py`, `tests/parity/test_public_predmat_parity.py` |
 | Motif/sequence-aware analysis | `PARITY_GATED_ACTIVE_SCIENCE` | `required parity` | Rank-weighted motif/profile evidence fusion and sequence-aware scoring are supported | Relative-support ranking, not calibrated causal inference | Unit scientific-policy tests and fixture-backed parity checks (`tests/unit/test_prediction_science.py`, `tests/parity/test_prediction_science_parity.py`) |
 | Enrichment analysis | `SUPPORTED_CONTRACT_CHANGED` | `deliberate scope difference` | KSEA-style substrate-set enrichment is supported in kinase activity lane | Broader pathway/gene-set enrichment utilities are not currently a first-class core lane | Unit tests for KSEA-style activity behavior (`tests/unit/test_activity_science.py`) |

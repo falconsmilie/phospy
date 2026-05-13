@@ -137,6 +137,24 @@ A global claim is allowed only if all required feature lanes have explicit
 feature-level evidence and all known exclusions are published in
 `docs/scientific-coverage.md`.
 
+### Differential Feature Envelope (Current Accepted Scope)
+
+For differential statistics, parity claims are currently accepted only for the
+documented executable envelope:
+
+- two-condition unpaired designs
+- simple condition-vs-condition contrasts
+- empirical-Bayes modes explicitly exposed by contract (`standard`, `robust`,
+  optional `trend`)
+
+Unsupported differential-design features (batch-aware and block/paired models)
+must be rejected explicitly and must not be described as parity-equivalent.
+
+Where PhosPy keeps an intentional contract difference (for example requiring
+analysis-ready complete matrices and rejecting missing values before
+differential execution), parity documentation must label the difference instead
+of implying limma-equivalent handling.
+
 ## Primary Parity Target
 
 The primary parity target should be PhosR-aligned scientific behaviour.

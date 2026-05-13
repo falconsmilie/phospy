@@ -45,6 +45,11 @@ PhosPy adopts a typed experimental-design contract for differential workflows:
 The validator resolves validated matrix-ready representations before the
 interpreter/executor stages.
 
+Current parity-protected differential statistics are scoped to two-condition
+unpaired simple-contrast fixtures. Multi-factor, paired/repeated-measure, and
+batch-aware differential modelling are explicitly out of executable scope for
+this release.
+
 For current differential modeling, biological replicate rows are the statistical
 unit. Technical replicates are not modeled as independent samples; when
 present, they must be explicitly collapsed to one value per
