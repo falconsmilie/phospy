@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from typing import Protocol
 
 import pandas as pd
 
 from phospy.science.transformations.models import IntensityScaleState
+
+
+def _default_transformation_provenance() -> dict[str, object]:
+    return {}
 
 
 @dataclass(frozen=True, slots=True)
@@ -17,6 +22,9 @@ class TransformationResult:
     phospho: pd.DataFrame
     total: pd.DataFrame | None
     state: IntensityScaleState
+    provenance: Mapping[str, object] = field(
+        default_factory=_default_transformation_provenance
+    )
 
 
 class Transformer(Protocol):

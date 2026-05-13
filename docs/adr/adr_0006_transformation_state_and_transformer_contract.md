@@ -82,6 +82,10 @@ compatibility behavior where historical names appear in non-contract internals.
   `src/phospy/validation/transformations/state.py`.
 - Intensity-scale establishment modes and structured establishment provenance
   are defined in `src/phospy/science/transformations/models.py`.
+- Numeric intensity transformations (including default preprocessing log2) must
+  execute through transformer implementations in
+  `src/phospy/science/transformations/transformers/`; preprocessing stages
+  orchestrate and report but do not own transformation science.
 - Bundle metadata and reconstruction use explicit `intensity_scale_state` keys
   under `src/phospy/io/bundles/_shared/intensity_scale_state.py`.
 - Workflow validators consume established boundary state; they do not establish

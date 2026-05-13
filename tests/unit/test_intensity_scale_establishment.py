@@ -100,7 +100,7 @@ def test_transformed_log2_records_transformed_establishment_mode() -> None:
         declared_input_scale_state=_declared_state("log2"),
         declared_input_establishment_mode=IntensityScaleEstablishmentMode.TRANSFORMED,
         establishment_transformer_name=(
-            "phospy.science.datasets.preprocessing.stages.intensity_transform.log2"
+            "phospy.science.transformations.transformers.log2.Log2Transformer"
         ),
         scale_establishment_parameters={"operation": "log2", "pseudocount": 1.0},
     )
@@ -113,7 +113,7 @@ def test_transformed_log2_records_transformed_establishment_mode() -> None:
     assert provenance is not None
     assert (
         provenance.transformer_name
-        == "phospy.science.datasets.preprocessing.stages.intensity_transform.log2"
+        == "phospy.science.transformations.transformers.log2.Log2Transformer"
     )
     assert provenance.parameters["operation"] == "log2"
 

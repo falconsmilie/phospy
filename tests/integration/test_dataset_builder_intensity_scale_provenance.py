@@ -102,10 +102,23 @@ def test_builder_log2_transformation_records_transformed_mode_in_provenance() ->
     workflow_payload = _workflow_establishment_payload(built)
     assert workflow_payload["establishment_mode"] == "transformed"
     assert workflow_payload["transformer_name"] == (
-        "phospy.science.datasets.preprocessing.stages.intensity_transform.log2"
+        "phospy.science.transformations.transformers.log2.Log2Transformer"
     )
     assert workflow_payload["parameters"]["operation"] == "log2"
     assert workflow_payload["parameters"]["pseudocount"] == 1.0
+    assert workflow_payload["parameters"]["affected_matrices"] == ["phospho"]
+
+    assert built.provenance is not None
+    stage = next(
+        item
+        for item in built.provenance.preprocessing_stages
+        if item.stage == "intensity_transform"
+    )
+    diagnostics = stage.diagnostics or {}
+    assert diagnostics["pseudocount"] == 1.0
+    assert diagnostics["affected_matrices"] == ["phospho"]
+    assert isinstance(diagnostics.get("input_phospho_hash"), str)
+    assert isinstance(diagnostics.get("output_phospho_hash"), str)
 
 
 def test_builder_identity_pass_through_records_identity_mode_in_provenance() -> None:
