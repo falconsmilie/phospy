@@ -208,6 +208,92 @@ def test_differential_workflow_runs_on_builder_log2_dataset() -> None:
     assert "B_vs_A" in result.contrast_tables
 
 
+def test_documented_two_vs_two_differential_example_contract() -> None:
+    phospho = pd.DataFrame(
+        {
+            "control_rep1": [8200.0, 9100.0],
+            "control_rep2": [8000.0, 9000.0],
+            "treatment_rep1": [16200.0, 9150.0],
+            "treatment_rep2": [15800.0, 9050.0],
+        },
+        index=pd.Index(
+            ["MAPK14;Y182;", "GSK3B;S9;"],
+            name="site_id",
+        ),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "GSK3B"],
+            "site": ["Y182", "S9"],
+            "site_sequence": [
+                "MPRKSLVGTPYWMNQYAVNQKQTLRDLKQEN",
+                "ATMSGRPRTTSFAESSKPVQQPSAFGQAAAL",
+            ],
+            "protein_id": ["MAPK14", "GSK3B"],
+            "localisation_confidence": [0.95, 0.95],
+        },
+        index=phospho.index.copy(),
+    )
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            preprocessing_config=DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="log2",
+                    pseudocount=1.0,
+                )
+            ),
+        )
+    )
+
+    assert dataset.intensity_scale_state.kind.value == "log2"
+    assert dataset.intensity_scale_state.is_established
+
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                sample_id="control_rep1",
+                condition="control",
+                biological_replicate_id="control_r1",
+            ),
+            SampleDesignRecord(
+                sample_id="control_rep2",
+                condition="control",
+                biological_replicate_id="control_r2",
+            ),
+            SampleDesignRecord(
+                sample_id="treatment_rep1",
+                condition="treatment",
+                biological_replicate_id="treatment_r1",
+            ),
+            SampleDesignRecord(
+                sample_id="treatment_rep2",
+                condition="treatment",
+                biological_replicate_id="treatment_r2",
+            ),
+        )
+    )
+    result = DifferentialAnalysisWorkflow().run(
+        DifferentialAnalysisRequest(
+            dataset=dataset,
+            design=design,
+            contrasts=(
+                Contrast(
+                    name="treatment_vs_control",
+                    numerator_condition="treatment",
+                    denominator_condition="control",
+                ),
+            ),
+        )
+    )
+
+    table = result.table_for("treatment_vs_control")
+    assert float(table.loc["MAPK14;Y182;", "logFC"]) > 0.7
+    assert abs(float(table.loc["GSK3B;S9;", "logFC"])) < 0.1
+
+
 def test_differential_workflow_rejects_linear_scale_before_execution() -> None:
     valid_dataset = _dataset()
     linear_dataset = AnalysisReadyPhosphoDataset(

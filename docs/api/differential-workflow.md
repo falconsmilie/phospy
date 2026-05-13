@@ -93,6 +93,8 @@ Optional inputs:
 
 ### Intensity Scale and Missing Values
 
+- Differential analysis requires an established log2 phospho intensity scale
+  at the `AnalysisReadyPhosphoDataset` boundary before it can emit `logFC`.
 - Differential analysis assumes valid upstream preprocessing.
 - It does not build datasets, perform sequence resolution, localisation
   filtering, imputation, normalisation, or batch correction.
@@ -108,6 +110,8 @@ Optional inputs:
 - Contrast conditions must exist in the design.
 - Each contrast must satisfy minimum replicate counts for numerator and
   denominator conditions.
+- Use at least two biological replicates per condition for meaningful
+  differential examples and interpretation.
 - Batch/block metadata is modeled in the contract but not yet executable in the
   differential engine; such requests fail with explicit unsupported-feature
   errors.
@@ -180,17 +184,44 @@ Each contrast result table is row-aligned to the input site IDs.
 - Statistical interpretation depends on design, contrast specification, and
   replicate structure.
 
-## Minimal Example
+## Worked Example
 
 ```python
+import pandas as pd
+
 from phospy import AnalysisReadyDatasetBuilder, DifferentialAnalysisWorkflow
 from phospy.api import (
     Contrast,
     DatasetBuildRequest,
+    DatasetIntensityTransformConfig,
+    DatasetPreprocessingConfig,
     DifferentialAnalysisRequest,
     ExperimentalDesign,
+    IntensityScaleKind,
     Organism,
     SampleDesignRecord,
+)
+
+phospho = pd.DataFrame(
+    {
+        "control_rep1": [8200.0, 9100.0],
+        "control_rep2": [8000.0, 9000.0],
+        "treatment_rep1": [16200.0, 9150.0],
+        "treatment_rep2": [15800.0, 9050.0],
+    },
+    index=["MAPK14;Y182;", "GSK3B;S9;"],
+)
+site_metadata = pd.DataFrame(
+    {
+        "gene_symbol": ["MAPK14", "GSK3B"],
+        "site": ["Y182", "S9"],
+        "site_sequence": [
+            "MPRKSLVGTPYWMNQYAVNQKQTLRDLKQEN",
+            "ATMSGRPRTTSFAESSKPVQQPSAFGQAAAL",
+        ],
+        "protein_id": ["MAPK14", "GSK3B"],
+    },
+    index=phospho.index.copy(),
 )
 
 dataset = AnalysisReadyDatasetBuilder().run(
@@ -198,38 +229,47 @@ dataset = AnalysisReadyDatasetBuilder().run(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
+        preprocessing_config=DatasetPreprocessingConfig(
+            intensity_transform=DatasetIntensityTransformConfig(
+                policy="log2",
+                pseudocount=1.0,
+            )
+        ),
     )
 )
+
+assert dataset.intensity_scale_state.kind is IntensityScaleKind.LOG2
+assert dataset.intensity_scale_state.is_established
 
 design = ExperimentalDesign(
     samples=(
         SampleDesignRecord(
-            sample_id="A_1",
-            condition="A",
-            biological_replicate_id="A_r1",
+            sample_id="control_rep1",
+            condition="control",
+            biological_replicate_id="control_r1",
         ),
         SampleDesignRecord(
-            sample_id="A_2",
-            condition="A",
-            biological_replicate_id="A_r2",
+            sample_id="control_rep2",
+            condition="control",
+            biological_replicate_id="control_r2",
         ),
         SampleDesignRecord(
-            sample_id="B_1",
-            condition="B",
-            biological_replicate_id="B_r1",
+            sample_id="treatment_rep1",
+            condition="treatment",
+            biological_replicate_id="treatment_r1",
         ),
         SampleDesignRecord(
-            sample_id="B_2",
-            condition="B",
-            biological_replicate_id="B_r2",
+            sample_id="treatment_rep2",
+            condition="treatment",
+            biological_replicate_id="treatment_r2",
         ),
     )
 )
 contrasts = (
     Contrast(
-        name="B_vs_A",
-        numerator_condition="B",
-        denominator_condition="A",
+        name="treatment_vs_control",
+        numerator_condition="treatment",
+        denominator_condition="control",
     ),
 )
 
@@ -238,12 +278,17 @@ result = DifferentialAnalysisWorkflow().run(
         dataset=dataset,
         design=design,
         contrasts=contrasts,
-        config=DifferentialAnalysisConfig(
-            technical_replicate_policy=TechnicalReplicatePolicy.MEAN,
-            minimum_condition_replicates=2,
-        ),
     )
 )
 
-print(result.table_for("B_vs_A").head())
+print(result.table_for("treatment_vs_control").loc[:, ["logFC", "adj.P.Val"]])
 ```
+
+Interpretation notes for this tiny synthetic matrix:
+
+- `MAPK14;Y182;` has higher treatment intensity than control, so `logFC` should
+  be positive for `treatment_vs_control`.
+- `GSK3B;S9;` is approximately unchanged across conditions, so its `logFC`
+  should be near zero.
+- The example demonstrates workflow contracts and mechanics, not biological
+  discovery or study-level statistical power.

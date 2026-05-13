@@ -12,7 +12,6 @@ from phospy.api import (
     DatasetMissingDataConfig,
     DatasetNormalisationConfig,
     DatasetPreprocessingConfig,
-    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     ExperimentalDesign,
     KinaseActivityConfig,
@@ -31,11 +30,11 @@ from phospy.api import (
     SignalomeScientificConfig,
     SignalomeValidationConfig,
     SignalomeWorkflowRequest,
-    TechnicalReplicatePolicy,
 )
 from phospy.api.results import KinasePredictionResult, KinaseScoringResult
 
 ROOT = Path(__file__).resolve().parents[2]
+README = ROOT / "README.md"
 API_DOCS_DIR = ROOT / "docs" / "api"
 DIFFERENTIAL_DOC = API_DOCS_DIR / "differential-workflow.md"
 
@@ -77,6 +76,12 @@ def _build_dataset():
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            preprocessing_config=DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="log2",
+                    pseudocount=1.0,
+                )
+            ),
         )
     )
 
@@ -174,49 +179,48 @@ def test_api_docs_dataset_build_request_example_is_constructible() -> None:
 
 def test_api_docs_differential_request_example_is_constructible() -> None:
     dataset = _build_dataset()
+    assert dataset.intensity_scale_state.kind.value == "log2"
+    assert dataset.intensity_scale_state.is_established
+
     design = ExperimentalDesign(
         samples=(
             SampleDesignRecord(
                 sample_id="A_1",
-                condition="A",
-                biological_replicate_id="A_r1",
+                condition="control",
+                biological_replicate_id="control_r1",
             ),
             SampleDesignRecord(
                 sample_id="A_2",
-                condition="A",
-                biological_replicate_id="A_r2",
+                condition="control",
+                biological_replicate_id="control_r2",
             ),
             SampleDesignRecord(
                 sample_id="B_1",
-                condition="B",
-                biological_replicate_id="B_r1",
+                condition="treatment",
+                biological_replicate_id="treatment_r1",
             ),
             SampleDesignRecord(
                 sample_id="B_2",
-                condition="B",
-                biological_replicate_id="B_r2",
+                condition="treatment",
+                biological_replicate_id="treatment_r2",
             ),
         )
     )
     contrasts = (
         Contrast(
-            name="B_vs_A",
-            numerator_condition="B",
-            denominator_condition="A",
+            name="treatment_vs_control",
+            numerator_condition="treatment",
+            denominator_condition="control",
         ),
     )
     request = DifferentialAnalysisRequest(
         dataset=dataset,
         design=design,
         contrasts=contrasts,
-        config=DifferentialAnalysisConfig(
-            technical_replicate_policy=TechnicalReplicatePolicy.MEAN,
-            minimum_condition_replicates=2,
-        ),
     )
 
     assert request.design.samples[0].sample_id == "A_1"
-    assert request.contrasts[0].name == "B_vs_A"
+    assert request.contrasts[0].name == "treatment_vs_control"
     assert request.config.minimum_condition_replicates == 2
 
 
@@ -295,3 +299,20 @@ def test_api_docs_differential_import_route_uses_supported_public_path() -> None
     assert "DifferentialAnalysisRequest," in source
     assert "`from phospy import DifferentialAnalysis` and" in source
     assert "`from phospy.api import DifferentialAnalysis` are not supported" in source
+
+
+def test_readme_and_differential_docs_keep_scientific_scope_contracts() -> None:
+    readme_source = _read(README)
+    differential_source = _read(DIFFERENTIAL_DOC)
+
+    assert "minimum_condition_replicates=1" not in readme_source
+    assert "minimum_condition_replicates=1" not in differential_source
+    assert "KinaseWorkflow().run(" in readme_source
+    assert "KinaseWorkflowRequest(" in readme_source
+    assert "site_sequence" in readme_source
+    assert "ReferencePreset.AUTO" in readme_source
+    assert "control_rep1" in differential_source
+    assert "control_rep2" in differential_source
+    assert "treatment_rep1" in differential_source
+    assert "treatment_rep2" in differential_source
+    assert 'policy="log2"' in differential_source

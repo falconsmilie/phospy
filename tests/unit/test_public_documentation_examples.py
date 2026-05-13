@@ -5,6 +5,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 README = ROOT / "README.md"
 API_GUIDE = ROOT / "docs" / "api" / "guide.md"
+DATASET_WORKFLOW_DOC = ROOT / "docs" / "api" / "dataset-build-workflow.md"
+DIFFERENTIAL_WORKFLOW_DOC = ROOT / "docs" / "api" / "differential-workflow.md"
+KINASE_WORKFLOW_DOC = ROOT / "docs" / "api" / "kinase-workflow.md"
+SIGNALOME_WORKFLOW_DOC = ROOT / "docs" / "api" / "signalome-workflow.md"
 
 README_IMPORT_SNIPPET = """from phospy import AnalysisReadyDatasetBuilder, AnalysisReadyPhosphoDataset
 from phospy import DifferentialAnalysisWorkflow, KinaseWorkflow, SignalomeWorkflow
@@ -62,6 +66,32 @@ def test_readme_differential_import_example_matches_supported_route() -> None:
 
     assert README_IMPORT_SNIPPET in source
     assert "DifferentialAnalysis().run(" not in source
+
+
+def test_readme_primary_workflow_example_is_kinase() -> None:
+    source = _read(README)
+
+    assert "## Kinase Workflow Example" in source
+    assert "KinaseWorkflow().run(" in source
+    assert "KinaseWorkflowRequest(" in source
+    assert "DifferentialAnalysisWorkflow().run(" not in source
+    assert "site_sequence" in source
+    assert "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA" in source
+    assert "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA" in source
+
+
+def test_readme_links_to_existing_api_workflow_docs() -> None:
+    source = _read(README)
+
+    assert "[Dataset building](docs/api/dataset-build-workflow.md)" in source
+    assert "[Differential workflow](docs/api/differential-workflow.md)" in source
+    assert "[Kinase workflow](docs/api/kinase-workflow.md)" in source
+    assert "[Signalome workflow](docs/api/signalome-workflow.md)" in source
+
+    assert DATASET_WORKFLOW_DOC.exists()
+    assert DIFFERENTIAL_WORKFLOW_DOC.exists()
+    assert KINASE_WORKFLOW_DOC.exists()
+    assert SIGNALOME_WORKFLOW_DOC.exists()
 
 
 def test_api_guide_differential_import_examples_match_supported_route() -> None:

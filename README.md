@@ -51,127 +51,88 @@ pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
 make test-release-gate
 ```
 
-## Beginner Lane
+## Quick Start
 
-The smallest supported public lanes are:
+1. Build an analysis-ready phosphoproteomics dataset.
+2. Run a kinase workflow.
+3. Explore full API workflow documentation:
+   - [Dataset building](docs/api/dataset-build-workflow.md)
+   - [Differential workflow](docs/api/differential-workflow.md)
+   - [Kinase workflow](docs/api/kinase-workflow.md)
+   - [Signalome workflow](docs/api/signalome-workflow.md)
 
-1. build a dataset with `organism=Organism.RAT`
-2. run `DifferentialAnalysisWorkflow` with explicit design and contrasts
-3. run kinase with `references=ReferencePreset.AUTO`
-4. run signalome only when `site_metadata.protein_id` is present
+Bundled runtime references in the current release are rat-only. For human or
+mouse work, create and pass an explicit `ReferenceBundle` in Python instead of
+using `ReferencePreset.AUTO`.
 
-Bundled runtime references in the current release are rat-only. For human or mouse work,
-create and pass an explicit `ReferenceBundle` in Python instead of using
-`ReferencePreset.AUTO`.
-
-## Minimum Input Shape
-
-`phospho` is a numeric site-by-sample table. Its index should use standard
-PhosPy site IDs such as `TSC2;S939;`.
-
-`site_metadata` must align to `phospho.index` and include:
-
-- `gene_symbol`
-- `site`
-- `site_sequence` (required at the analysis-ready dataset boundary)
-- `protein_id` when you want signalome analysis
-
-## Minimal Python Example
+## Kinase Workflow Example
 
 ```python
 import pandas as pd
 
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-    DifferentialAnalysisWorkflow,
-    KinaseWorkflow,
-    SignalomeWorkflow,
-)
+from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow
 from phospy.api import (
-    Contrast,
     DatasetBuildRequest,
-    DifferentialAnalysisRequest,
-    ExperimentalDesign,
     KinaseWorkflowRequest,
     Organism,
     ReferencePreset,
-    SampleDesignRecord,
-    SignalomeWorkflowRequest,
 )
 
+# Tiny synthetic example for workflow mechanics only (not biological discovery).
 phospho = pd.DataFrame(
     {
-        "sample_a": [1.00, 0.70],
-        "sample_b": [1.10, 0.80],
-        "sample_c": [0.95, 0.75],
+        "control_rep1": [8200.0, 9100.0, 6000.0],
+        "control_rep2": [8000.0, 9000.0, 5900.0],
+        "treatment_rep1": [16200.0, 9150.0, 13000.0],
+        "treatment_rep2": [15800.0, 9050.0, 12800.0],
     },
-    index=["TSC2;S939;", "GSK3B;S9;"],
+    index=["MAPK14;Y182;", "GSK3B;S9;", "TSC2;S939;"],
 )
 site_metadata = pd.DataFrame(
     {
-        "gene_symbol": ["TSC2", "GSK3B"],
-        "site": ["S939", "S9"],
+        "gene_symbol": ["MAPK14", "GSK3B", "TSC2"],
+        "site": ["Y182", "S9", "S939"],
         "site_sequence": [
-            "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
-            "ATMSGRPRTTSFAESCKPVQQPSAFGQAAAL",
+            "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
+            "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
+            "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
         ],
-        "protein_id": ["TSC2", "GSK3B"],
+        "protein_id": ["MAPK14", "GSK3B", "TSC2"],
+        "localisation_confidence": [0.95, 0.94, 0.96],
     },
     index=phospho.index.copy(),
+)
+sample_metadata = pd.DataFrame(
+    {
+        "condition": ["control", "control", "treatment", "treatment"],
+    },
+    index=phospho.columns.copy(),
 )
 
 dataset = AnalysisReadyDatasetBuilder().run(
     DatasetBuildRequest(
         phospho=phospho,
         site_metadata=site_metadata,
+        sample_metadata=sample_metadata,
         organism=Organism.RAT,
     )
 )
+
+# Dataset construction validates required site metadata, including site_sequence.
+print(dataset.site_metadata.loc[:, ["gene_symbol", "site", "site_sequence"]])
 
 kinase_result = KinaseWorkflow().run(
     KinaseWorkflowRequest(
         dataset=dataset,
         references=ReferencePreset.AUTO,
-        activity_config=None,  # keep this tiny two-site example in the safe lane
+        activity_config=None,
     )
 )
 
-signalome_result = SignalomeWorkflow().run(
-    SignalomeWorkflowRequest(kinase_result=kinase_result)
-)
-
-design = ExperimentalDesign(
-    samples=(
-        SampleDesignRecord(sample_id="sample_a", condition="A"),
-        SampleDesignRecord(sample_id="sample_b", condition="A"),
-        SampleDesignRecord(sample_id="sample_c", condition="B"),
-    )
-)
-contrasts = (
-    Contrast(
-        name="B_vs_A",
-        numerator_condition="B",
-        denominator_condition="A",
-    ),
-)
-differential_result = DifferentialAnalysisWorkflow().run(
-    DifferentialAnalysisRequest(
-        dataset=dataset,
-        design=design,
-        contrasts=contrasts,
-        minimum_condition_replicates=1,
-    )
-)
-
-print(dataset.phospho.shape)
-print(differential_result.table_for("B_vs_A").round(4))
-print(kinase_result.prediction_result.pred_mat.round(4))
-print(signalome_result.signalome_modules.table)
+print(kinase_result.prediction_result.pred_mat.round(3).iloc[:3, :5])
+if kinase_result.prediction_result.substrate_list is not None:
+    print(kinase_result.prediction_result.substrate_list.head(5))
 ```
-
-With the tables above you should get a strict `AnalysisReadyPhosphoDataset`, a
-non-empty kinase prediction matrix, and signalome tables because every site has
-an explicit `protein_id`.
 
 ## Minimal CLI Example
 
