@@ -1,115 +1,106 @@
-# ADR: Experimental Design and Contrast Contract
+# ADR-0019: Experimental Design, Contrast, and Replicate Contract
 
-## Document Control
+## Status
 
 - **ADR ID:** ADR-0019
-- **Title:** Experimental Design and Contrast Contract
+- **Title:** Experimental Design, Contrast, and Replicate Contract
 - **Status:** Accepted
-- **Date:** 2026-05-11
-- **Decision Type:** Architecture Decision Record
+- **Date:** 2026-05-13
 
 ## Context
 
-Differential workflows previously accepted numeric design and contrast matrices
-directly. That shape allowed valid models, but it also left workflow intent
-implicit:
+Differential workflows previously allowed matrix-first design/contrast surfaces
+that left intent implicit. That made condition semantics, replicate handling,
+and auditability fragile.
 
-- condition labels were only indirectly encoded in matrix columns
-- replicate semantics were not explicit
-- batch/block metadata had no typed home
-- request auditability depended on external conventions
+Implementation now enforces typed design and explicit technical-replicate policy
+before design-matrix assembly and model fitting.
 
-Future workflow lanes (replicate-aware filtering, batch-aware modeling,
-condition-aware imputation, paired designs) require a typed design contract
-that is validated before statistical execution.
+Current parity-protected differential execution remains deliberately narrow:
+two-condition unpaired simple contrasts, with unsupported design features
+rejected at validation boundaries.
 
 ## Decision
 
-PhosPy adopts a typed experimental-design contract for differential workflows:
+Differential workflows use a typed contract:
 
 1. `ExperimentalDesign` with `SampleDesignRecord` entries.
-2. Typed `Contrast` definitions (`numerator_condition`,
-   `denominator_condition`).
-3. Standalone design-contract validation in
-   `phospy.validation.workflows.differential`.
-4. Explicit technical-replicate policy in `DifferentialAnalysisRequest`:
-   - default: `technical_replicate_policy='reject'`
-   - supported explicit aggregation: `technical_replicate_policy='mean'` and
-     `technical_replicate_policy='median'`
+2. Typed `Contrast` definitions
+   (`numerator_condition`, `denominator_condition`).
+3. Contract validation in
+   `phospy.validation.workflows.differential.ExperimentalDesignContractValidator`.
+4. Explicit technical-replicate handling via
+   `DifferentialAnalysisConfig.technical_replicate_policy`:
+   - default `TechnicalReplicatePolicy.REJECT`
+   - explicit aggregation modes `TechnicalReplicatePolicy.MEAN` and
+     `TechnicalReplicatePolicy.MEDIAN`
 
-`DifferentialAnalysisRequest` now requires:
+Technical-replicate resolution runs in
+`phospy.workflows.differential.replicates.TechnicalReplicateResolver` before
+design/contrast validation and matrix assembly.
 
-- `design: ExperimentalDesign`
-- `contrasts: tuple[Contrast, ...]`
+Repeated `biological_replicate_id` values within condition groups are treated as
+technical replicates and require explicit aggregation policy. Aggregation also
+requires `biological_replicate_id` on every design sample and consistent
+optional group fields (`batch`, `block`) within each
+`condition + biological_replicate_id` group.
 
-The validator resolves validated matrix-ready representations before the
-interpreter/executor stages.
-
-Current parity-protected differential statistics are scoped to two-condition
-unpaired simple-contrast fixtures. Multi-factor, paired/repeated-measure, and
-batch-aware differential modelling are explicitly out of executable scope for
-this release.
-
-For current differential modeling, biological replicate rows are the statistical
-unit. Technical replicates are not modeled as independent samples; when
-present, they must be explicitly collapsed to one value per
-`condition + biological_replicate_id` group before model fitting.
-
-## Validation Responsibilities
-
-The design validator owns:
-
-- dataset/design sample alignment
-- duplicate sample ID rejection
-- empty condition-label rejection
-- unknown contrast-condition rejection
-- minimum replicate-count checks
-- optional field alignment checks (`batch`, `block`)
-- explicit unsupported-feature errors for currently non-executable design
-  features (batch-aware and block/paired modeling in this release)
-- rejection of repeated biological replicate IDs unless an explicit
-  technical-replicate aggregation policy is selected
-
-Executor logic does not parse or infer design semantics.
-
-## Separation From Raw Metadata
-
-`AnalysisReadyPhosphoDataset.sample_metadata` remains raw tabular metadata.
-`ExperimentalDesign` is interpreted statistical intent for one analysis run.
-Keeping these separate avoids overloading generic datasets with all statistical
-semantics.
+No condition inference from sample names is allowed.
 
 ## Consequences
 
-### Positive
+- **Positive**
+  - Differential inputs are auditable and explicit.
+  - Replicate policy is deterministic and validated before modeling.
+  - Ambiguous replicate structure fails early with clear errors.
+  - Future extensions can add richer modeling without breaking request shape.
+- **Negative**
+  - Matrix-only call sites must migrate to typed design/contrast objects.
+  - Previously tolerated ambiguous replicate inputs now fail unless explicitly
+    resolved.
+- **Neutral**
+  - Statistical parity claims remain scoped to documented executable lanes.
 
-- Differential runs require an auditable, typed design input.
-- No condition inference from sample names.
-- Request validation fails early with explicit diagnostics.
-- Future extensions can add batch/block/paired/time-course support by extending
-  design validation and design-to-model translation without breaking the request
-  contract.
+## Alternatives Considered
 
-### Tradeoffs
+1. Continue allowing ad hoc design-matrix-only requests.
+   Rejected because intent and replicate semantics stayed implicit.
+2. Auto-detect and collapse technical replicates with hidden defaults.
+   Rejected because silent aggregation can change scientific interpretation.
+3. Allow executors to infer design semantics downstream.
+   Rejected because boundary validation must enforce correctness before
+   execution.
 
-- Existing matrix-only differential request call sites must migrate to typed
-  design/contrast objects.
-- Some previously tolerated ambiguous inputs now fail at validation boundaries.
+## Implementation Notes
 
-## Scope Boundaries
-
-This ADR does not:
-
-- implement batch-adjusted or paired statistical fitting in the current release
-- auto-derive design conditions from sample labels
-- move design parsing into statistical execution stages
-- implement replicate-aware random-effects or repeated-measures modeling; that
-  remains a separate future decision
+- Request/config contracts:
+  `src/phospy/api/requests.py` and
+  `src/phospy/api/configs/differential.py`.
+- Technical replicate policy enum:
+  `src/phospy/science/differential/policy_models.py`.
+- Resolver and aggregation behavior:
+  `src/phospy/workflows/differential/replicates.py`.
+- Differential request validation pipeline:
+  `src/phospy/workflows/differential/validator.py`.
+- Ownership registry alignment:
+  `docs/validation-ownership.md` (Design matrix validity, Contrast validity,
+  Replicate policy).
+- Scope guardrails:
+  `docs/scientific-coverage.md` and `docs/workflow_contracts.md`.
 
 ## References
 
-Benjamini, Y., & Hochberg, Y. (1995). Controlling the false discovery rate: A practical and powerful approach to multiple testing. *Journal of the Royal Statistical Society: Series B (Methodological), 57*(1), 289-300.
+Benjamini, Y., & Hochberg, Y. (1995). Controlling the false discovery rate: A
+practical and powerful approach to multiple testing. *Journal of the Royal
+Statistical Society: Series B (Methodological), 57*(1), 289-300.
+https://doi.org/10.1111/j.2517-6161.1995.tb02031.x
 
-Ritchie, M. E., Phipson, B., Wu, D., Hu, Y., Law, C. W., Shi, W., & Smyth, G. K. (2015). limma powers differential expression analyses for RNA-sequencing and microarray studies. *Nucleic Acids Research, 43*(7), e47.
+Ritchie, M. E., Phipson, B., Wu, D., Hu, Y., Law, C. W., Shi, W., & Smyth,
+G. K. (2015). limma powers differential expression analyses for RNA-sequencing
+and microarray studies. *Nucleic Acids Research, 43*(7), e47.
+https://doi.org/10.1093/nar/gkv007
 
-Smyth, G. K. (2004). Linear models and empirical Bayes methods for assessing differential expression in microarray experiments. *Statistical Applications in Genetics and Molecular Biology, 3*(1), Article 3.
+Smyth, G. K. (2004). Linear models and empirical Bayes methods for assessing
+differential expression in microarray experiments. *Statistical Applications in
+Genetics and Molecular Biology, 3*(1), Article 3.
+https://doi.org/10.2202/1544-6115.1027

@@ -79,6 +79,8 @@ identical numeric outputs across different machines or dependency builds.
 ### Provenance Guarantees
 
 - Dataset provenance records preprocessing-stage execution and table fingerprints.
+- `intensity_scale_state` establishment provenance records establishment mode
+  (`declared`, `transformed`, `identity`, or `derived`) and establishment source.
 - Normalisation provenance is explicit: method, parameters, matrix-shape before/after,
   per-sample summary before/after, and row/column drop diagnostics.
 - Each table fingerprint carries both `exact_hash_*` (audit/regression) and `tolerance_hash_*` (cross-platform tolerant comparison) metadata; legacy `hash_*` fields are compatibility aliases of the tolerance hash.
@@ -115,6 +117,9 @@ identical numeric outputs across different machines or dependency builds.
 
 - Differential analysis does not infer conditions from sample names.
 - Sample/design alignment is validated before statistical execution.
+- `technical_replicate_policy` is explicit and defaults to `reject`.
+- Supported explicit technical-replicate aggregation policies are `mean` and
+  `median`.
 - By default, dataset and design must reference the same sample set.
 - `config.allow_design_subset=True` is the only supported path to analyze an explicit
   subset of samples.
@@ -122,6 +127,11 @@ identical numeric outputs across different machines or dependency builds.
   conditions are hard validation errors.
 - Batch and blocking metadata are represented in the contract for forward
   compatibility but are not yet executable in this release.
+- Repeated `biological_replicate_id` values within condition groups are treated
+  as technical replicates and require an explicit aggregation policy.
+- Technical-replicate aggregation requires `biological_replicate_id` for every
+  design sample and consistent optional group fields (`batch`, `block`) within
+  each condition+biological-replicate group.
 - Current parity-protected lane is two-condition unpaired simple contrasts.
 - Paired/repeated-measure modelling is not executable in this release.
 - Missing values are rejected at `AnalysisReadyPhosphoDataset` boundary before

@@ -22,8 +22,8 @@ Use these ADRs when you need rationale and tradeoffs.
 | ADR-0003 | Analysis-Ready Dataset and Preprocessing Boundary for PhosPy | Accepted | 2026-04-16 | [adr_0003-analysis_ready_dataset_and_preprocessing_boundary.md](adr_0003-analysis_ready_dataset_and_preprocessing_boundary.md) |
 | ADR-0004 | Reference Resolution Strategy and `ReferenceBundle` Contract for PhosPy | Accepted | 2026-04-16 | [adr_0004_reference_resolution_strategy_and_referencebundle_contract.md](adr_0004_reference_resolution_strategy_and_referencebundle_contract.md) |
 | ADR-0005 | Result Model Design for PhosPy | Accepted | 2026-04-16 | [adr_0005__result_model_design.md](adr_0005__result_model_design.md) |
-| ADR-0006 | Intensity-Scale and Processing-State Contract for PhosPy Datasets | Accepted | 2026-04-26 | [adr_0006_transformation_state_and_transformer_contract.md](adr_0006_transformation_state_and_transformer_contract.md) |
-| ADR-0007 | Validation Domain Architecture for PhosPy | Accepted | 2026-05-02 | [adr_0007_validation_domain_architecture.md](adr_0007_validation_domain_architecture.md) |
+| ADR-0006 | Intensity-Scale and Processing-State Contract for PhosPy Datasets | Accepted | 2026-05-13 | [adr_0006_transformation_state_and_transformer_contract.md](adr_0006_transformation_state_and_transformer_contract.md) |
+| ADR-0007 | Validation Domain Architecture for PhosPy | Accepted | 2026-05-13 | [adr_0007_validation_domain_architecture.md](adr_0007_validation_domain_architecture.md) |
 | ADR-0008 | Analysis-Ready Dataset Builder Architecture for PhosPy | Accepted | 2026-04-16 | [adr_0008_analysis_ready_dataset_builder_architecture.md](adr_0008_analysis_ready_dataset_builder_architecture.md) |
 | ADR-0009 | Exception and Error Taxonomy for PhosPy | Accepted | 2026-04-16 | [adr_0009_exception_and_error_taxonomy.md](adr_0009_exception_and_error_taxonomy.md) |
 | ADR-0010 | Internal Package and Module Layout for PhosPy | Accepted | 2026-05-02 | [adr_0010_internal_package_and_module_layout.md](adr_0010_internal_package_and_module_layout.md) |
@@ -35,6 +35,6 @@ Use these ADRs when you need rationale and tradeoffs.
 | ADR-0016 | DataFrame and Series Ownership at Public Boundaries | Accepted | 2026-05-02 | [adr_0016_dataframe_and_series_ownership_at_public_boundaries.md](adr_0016_dataframe_and_series_ownership_at_public_boundaries.md) |
 | ADR-0017 | Stochastic Reproducibility and Adaptive Prediction Seed Governance | Accepted | 2026-05-02 | [adr_0017_stochastic_reproducibility_and_adaptive_prediction_seed_governance.md](adr_0017_stochastic_reproducibility_and_adaptive_prediction_seed_governance.md) |
 | ADR-0018 | Localisation Confidence and Site-Level Eligibility Policy | Accepted | 2026-05-11 | [adr_0018_phosphosite_identity_and_localisation_policy.md](adr_0018_phosphosite_identity_and_localisation_policy.md) |
-| ADR-0019 | Experimental Design and Contrast Contract | Accepted | 2026-05-11 | [adr_0019_experimental_design_and_contrast_contract.md](adr_0019_experimental_design_and_contrast_contract.md) |
+| ADR-0019 | Experimental Design, Contrast, and Replicate Contract | Accepted | 2026-05-13 | [adr_0019_experimental_design_and_contrast_contract.md](adr_0019_experimental_design_and_contrast_contract.md) |
 | ADR-0020 | Peptide Evidence and Site-Level Resolution Policy | Accepted | 2026-05-12 | [adr_0020_peptide_evidence_and_site_level_resolution_policy.md](adr_0020_peptide_evidence_and_site_level_resolution_policy.md) |
 | ADR-0021 | Phosphosite Identity and Protein Context Policy | Accepted | 2026-05-12 | [adr_0021_phosphosite_identity_and_protein_context_policy.md](adr_0021_phosphosite_identity_and_protein_context_policy.md) |
