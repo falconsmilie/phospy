@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from phospy.api.configs import DifferentialAnalysisConfig, MultipleTestingConfig
 from phospy.api.requests import DifferentialAnalysisRequest
 from phospy.errors.validation import WorkflowValidationError
@@ -42,28 +44,30 @@ class DifferentialAnalysisValidator:
             raise WorkflowValidationError(
                 "differential workflow input must be a DifferentialAnalysisRequest"
             )
-        if not isinstance(request.dataset, AnalysisReadyPhosphoDataset):
+        if not isinstance(cast(object, request.dataset), AnalysisReadyPhosphoDataset):
             raise WorkflowValidationError(
                 "differential workflow request dataset must be AnalysisReadyPhosphoDataset"
             )
         config = request.config
-        if not isinstance(config, DifferentialAnalysisConfig):
+        if not isinstance(cast(object, config), DifferentialAnalysisConfig):
             raise WorkflowValidationError(
                 "differential workflow request config must be DifferentialAnalysisConfig"
             )
         technical_replicate_policy = config.technical_replicate_policy
-        if not isinstance(technical_replicate_policy, TechnicalReplicatePolicy):
+        if not isinstance(
+            cast(object, technical_replicate_policy), TechnicalReplicatePolicy
+        ):
             raise WorkflowValidationError(
                 "differential workflow request technical_replicate_policy must be "
                 "TechnicalReplicatePolicy"
             )
-        if not isinstance(config.allow_design_subset, bool):
+        if not isinstance(cast(object, config.allow_design_subset), bool):
             raise WorkflowValidationError(
                 "differential workflow request allow_design_subset must be a bool"
             )
-        if not isinstance(config.minimum_condition_replicates, int) or isinstance(
-            config.minimum_condition_replicates, bool
-        ):
+        if not isinstance(
+            cast(object, config.minimum_condition_replicates), int
+        ) or isinstance(cast(object, config.minimum_condition_replicates), bool):
             raise WorkflowValidationError(
                 "differential workflow request minimum_condition_replicates must be an int"
             )
@@ -71,11 +75,11 @@ class DifferentialAnalysisValidator:
             raise WorkflowValidationError(
                 "differential workflow request minimum_condition_replicates must be >= 1"
             )
-        if not isinstance(config.empirical_bayes, EmpiricalBayesConfig):
+        if not isinstance(cast(object, config.empirical_bayes), EmpiricalBayesConfig):
             raise WorkflowValidationError(
                 "differential workflow request empirical_bayes must be EmpiricalBayesConfig"
             )
-        if not isinstance(config.multiple_testing, MultipleTestingConfig):
+        if not isinstance(cast(object, config.multiple_testing), MultipleTestingConfig):
             raise WorkflowValidationError(
                 "differential workflow request multiple_testing must be MultipleTestingConfig"
             )

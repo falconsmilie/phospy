@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import InitVar, dataclass
 from datetime import date
 from enum import Enum
+from typing import cast
 
 import pandas as pd
 
@@ -116,7 +117,7 @@ class ReferenceBundle:
     _assume_owned: InitVar[bool] = False
 
     def __post_init__(self, _assume_owned: bool) -> None:
-        if not isinstance(self.organism, Organism):
+        if not isinstance(cast(object, self.organism), Organism):
             raise ReferenceValidationError(
                 "references.organism must be an Organism enum value"
             )
@@ -140,9 +141,10 @@ class ReferenceBundle:
             frame=site_sequences,
             _assume_owned=True,
         )
-        substrate_sites = set(
-            kinase_substrate_reference.frame.loc[:, "substrate_site"].tolist()
-        )
+        substrate_sites = {
+            str(value)
+            for value in kinase_substrate_reference.frame["substrate_site"].tolist()
+        }
         known_sites = set(site_sequence_reference.frame.index.tolist())
         missing_sequences = sorted(substrate_sites.difference(known_sites))
         if missing_sequences:
@@ -177,7 +179,7 @@ class ReferenceBundle:
                 ),
                 identifier_normalisation=identifier_normalisation,
             )
-        elif not isinstance(provenance, ReferenceProvenance):
+        elif not isinstance(cast(object, provenance), ReferenceProvenance):
             raise ReferenceValidationError(
                 "references.provenance must be ReferenceProvenance or None"
             )
@@ -199,7 +201,9 @@ class ReferenceBundle:
                 identifier_normalisation=identifier_normalisation,
             )
         manifest = self.manifest
-        if manifest is not None and not isinstance(manifest, ReferenceManifest):
+        if manifest is not None and not isinstance(
+            cast(object, manifest), ReferenceManifest
+        ):
             raise ReferenceValidationError(
                 "references.manifest must be ReferenceManifest or None"
             )

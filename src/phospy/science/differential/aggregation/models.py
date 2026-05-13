@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
+from typing import cast
 
 import pandas as pd
 
@@ -52,10 +53,8 @@ class PeptideToSiteAggregationConfig:
             raise PhosPyInputError(
                 f"peptide_to_site_aggregation.strategy must be one of: {supported}"
             )
-        if (
-            not isinstance(self.min_peptides_per_site, int)
-            or self.min_peptides_per_site < 1
-        ):
+        min_peptides_per_site = cast(object, self.min_peptides_per_site)
+        if not isinstance(min_peptides_per_site, int) or min_peptides_per_site < 1:
             raise PhosPyInputError(
                 "peptide_to_site_aggregation.min_peptides_per_site must be an int >= 1"
             )
@@ -72,10 +71,11 @@ class PeptideToSiteAggregationConfig:
             raise PhosPyInputError(
                 f"peptide_to_site_aggregation.stouffer_weighting must be one of: {supported}"
             )
+        random_effect_tau2_floor = cast(object, self.random_effect_tau2_floor)
         if (
-            isinstance(self.random_effect_tau2_floor, bool)
-            or not isinstance(self.random_effect_tau2_floor, int | float)
-            or float(self.random_effect_tau2_floor) < 0.0
+            isinstance(random_effect_tau2_floor, bool)
+            or not isinstance(random_effect_tau2_floor, int | float)
+            or float(random_effect_tau2_floor) < 0.0
         ):
             raise PhosPyInputError(
                 "peptide_to_site_aggregation.random_effect_tau2_floor must be a "
@@ -106,7 +106,10 @@ class PeptideToSiteAggregationResult:
         scientific_policies: tuple[ScientificPolicyRecord, ...] = (),
         _assume_owned: bool = False,
     ) -> None:
-        if not isinstance(contrast_name, str) or not contrast_name.strip():
+        if (
+            not isinstance(cast(object, contrast_name), str)
+            or not contrast_name.strip()
+        ):
             raise PhosPyInputError(
                 "peptide_to_site_aggregation_result.contrast_name must be a non-empty string"
             )
@@ -133,7 +136,7 @@ class PeptideToSiteAggregationResult:
             )
         warnings_tuple = tuple(str(value) for value in warnings)
         for policy in scientific_policies:
-            if not isinstance(policy, ScientificPolicyRecord):
+            if not isinstance(cast(object, policy), ScientificPolicyRecord):
                 raise PhosPyInputError(
                     "peptide_to_site_aggregation_result.scientific_policies must "
                     "contain ScientificPolicyRecord values"

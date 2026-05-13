@@ -21,7 +21,7 @@ def benjamini_hochberg(p_values: np.ndarray) -> np.ndarray:
     ranks = np.arange(1, n_tests + 1, dtype=float)
     raw = ranked * float(n_tests) / ranks
     monotone = np.minimum.accumulate(raw[::-1])[::-1]
-    monotone = np.clip(monotone, 0.0, 1.0)
+    monotone = np.minimum(np.maximum(monotone, 0.0), 1.0)
     restored = np.empty_like(monotone)
     restored[order] = monotone
     adjusted[finite_mask] = restored

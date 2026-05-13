@@ -157,7 +157,7 @@ def validate_identity_optional_columns(
     for column_name in optional_columns:
         if column_name not in site_metadata.columns:
             continue
-        series = site_metadata.loc[:, column_name]
+        series = pd.Series(site_metadata[column_name], dtype="object")
         for site_id, raw_value in series.items():
             try:
                 _optional_text(
@@ -199,9 +199,8 @@ def validate_no_conflicting_identity_collisions(
     display_key_to_contexts: dict[str, set[tuple[object, ...]]] = {}
     display_key_to_rows: dict[str, list[str]] = {}
 
-    for position, row_id in enumerate(site_metadata.index.tolist()):
+    for position, (row_id, row) in enumerate(site_metadata.iterrows()):
         display_id = display_ids.iloc[position]
-        row = site_metadata.iloc[position]
         identity = build_phosphosite_identity(
             display_id=display_id,
             gene_symbol=row["gene_symbol"],
@@ -270,7 +269,8 @@ def _series_value_or_none(
 ) -> object:
     if column not in frame.columns:
         return None
-    return frame.iloc[row_position][column]
+    row_label = frame.index[row_position]
+    return frame.at[row_label, column]
 
 
 def _optional_text(

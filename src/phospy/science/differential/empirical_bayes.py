@@ -252,7 +252,7 @@ def _winsorize_log_values(
 ) -> tuple[np.ndarray, int, int, float, float]:
     lower = float(np.quantile(values, left_tail_p))
     upper = float(np.quantile(values, 1.0 - right_tail_p))
-    winsorized = np.clip(values, lower, upper)
+    winsorized = np.minimum(np.maximum(values, lower), upper)
     low_count = int(np.sum(values < lower))
     high_count = int(np.sum(values > upper))
     return winsorized, low_count, high_count, lower, upper

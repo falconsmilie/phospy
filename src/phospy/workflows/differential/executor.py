@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from phospy.api.configs import MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.differential.executor import (
@@ -28,7 +30,9 @@ class DifferentialAnalysisExecutor:
     def run(
         self, request: InterpretedDifferentialAnalysisRequest
     ) -> DifferentialAnalysisResult:
-        if not isinstance(request, InterpretedDifferentialAnalysisRequest):
+        if not isinstance(
+            cast(object, request), InterpretedDifferentialAnalysisRequest
+        ):
             raise WorkflowBoundaryError(
                 seam="differential.executor.interpreted_request_type",
                 next_action=(
@@ -51,7 +55,7 @@ class DifferentialAnalysisExecutor:
         result = self._computation_executor.run(request.computation_request)
         if request.workflow_provenance is None:
             return result
-        return DifferentialAnalysisResult._from_owned(
+        return DifferentialAnalysisResult._from_owned(  # pyright: ignore[reportPrivateUsage] - trusted internal ownership-preserving constructor
             residual_variance=result.residual_variance,
             posterior_residual_variance=result.posterior_residual_variance,
             prior_residual_variance=result.prior_residual_variance,
@@ -66,7 +70,7 @@ class DifferentialAnalysisExecutor:
             empirical_bayes_trend=result.empirical_bayes_trend,
             prior_diagnostics=result.prior_diagnostics,
             mean_variance_trend_diagnostics=result.mean_variance_trend_diagnostics,
-            contrast_tables=result._contrast_tables,
+            contrast_tables=result._contrast_tables,  # pyright: ignore[reportPrivateUsage] - owned contrast tables are forwarded without copying
             workflow_provenance=request.workflow_provenance,
         )
 

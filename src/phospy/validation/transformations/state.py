@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from phospy.errors.validation import TransformationValidationError
 from phospy.science.transformations.models import IntensityScaleState
 
@@ -16,7 +18,7 @@ class IntensityScaleStateValidator:
         has_total_matrix: bool,
         require_established: bool = False,
     ) -> IntensityScaleState:
-        if not isinstance(intensity_scale_state, IntensityScaleState):
+        if not isinstance(cast(object, intensity_scale_state), IntensityScaleState):
             raise TransformationValidationError(
                 "dataset.intensity_scale_state must be an IntensityScaleState instance"
             )

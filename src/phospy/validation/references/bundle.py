@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import pandas as pd
 
 from phospy.errors.validation import ReferenceValidationError
@@ -19,7 +21,7 @@ class ReferenceBundleValidator:
         kinase_substrate_map: pd.DataFrame,
         site_sequences: pd.DataFrame,
     ) -> None:
-        if not isinstance(organism, Organism):
+        if not isinstance(cast(object, organism), Organism):
             raise ReferenceValidationError(
                 "references.organism must be an Organism enum value"
             )
@@ -31,9 +33,10 @@ class ReferenceBundleValidator:
             frame=site_sequences,
             _assume_owned=True,
         )
-        substrate_sites = set(
-            kinase_substrate_reference.frame.loc[:, "substrate_site"].tolist()
-        )
+        substrate_sites = {
+            str(value)
+            for value in kinase_substrate_reference.frame["substrate_site"].tolist()
+        }
         known_sites = set(site_sequence_reference.frame.index.tolist())
         missing_sequences = sorted(substrate_sites.difference(known_sites))
         if missing_sequences:

@@ -115,7 +115,11 @@ def canonicalize_site_index(
         name=index.name if index_name is None else index_name,
     )
     if require_unique and not canonical.is_unique:
-        duplicates = list(dict.fromkeys(canonical[canonical.duplicated(keep=False)]))
+        duplicate_values: list[str] = []
+        for index_position, is_duplicate in enumerate(canonical.duplicated(keep=False)):
+            if bool(is_duplicate):
+                duplicate_values.append(str(canonical[index_position]))
+        duplicates = list(dict.fromkeys(duplicate_values))
         preview = ", ".join(duplicates[:5])
         suffix = "" if len(duplicates) <= 5 else " ..."
         raise error_type(
@@ -142,7 +146,7 @@ def canonicalize_site_series(
             )
             for value in series.tolist()
         ],
-        index=series.index.copy(),
+        index=pd.Index(series.index),
         name=series.name,
         dtype="object",
     )
@@ -273,7 +277,7 @@ def canonicalize_site_components_series(
     ]
     return pd.Series(
         canonical,
-        index=gene_symbol.index.copy(),
+        index=pd.Index(gene_symbol.index),
         name=output_name,
         dtype="object",
     )

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from dataclasses import dataclass
+from typing import cast
 
 import pandas as pd
 
@@ -40,19 +41,19 @@ class ExperimentalDesignContractValidator:
         allow_design_subset: bool,
         minimum_condition_replicates: int,
     ) -> ValidatedExperimentalDesignContract:
-        if not isinstance(dataset, AnalysisReadyPhosphoDataset):
+        if not isinstance(cast(object, dataset), AnalysisReadyPhosphoDataset):
             raise WorkflowValidationError(
                 "differential workflow request dataset must be AnalysisReadyPhosphoDataset"
             )
-        if not isinstance(design, ExperimentalDesign):
+        if not isinstance(cast(object, design), ExperimentalDesign):
             raise WorkflowValidationError(
                 "differential workflow request design must be ExperimentalDesign"
             )
-        if not isinstance(allow_design_subset, bool):
+        if not isinstance(cast(object, allow_design_subset), bool):
             raise WorkflowValidationError(
                 "differential workflow request allow_design_subset must be a bool"
             )
-        if not isinstance(minimum_condition_replicates, int):
+        if not isinstance(cast(object, minimum_condition_replicates), int):
             raise WorkflowValidationError(
                 "differential workflow request minimum_condition_replicates must be an int"
             )
@@ -68,7 +69,8 @@ class ExperimentalDesignContractValidator:
             )
 
         dataset_sample_ids = tuple(
-            str(label) for label in dataset._borrow_phospho_frame().columns
+            str(label)
+            for label in dataset._borrow_phospho_frame().columns  # pyright: ignore[reportPrivateUsage] - workflow boundary reads trusted internal dataset snapshots
         )
         design_sample_ids = design.sample_ids()
         dataset_sample_set = set(dataset_sample_ids)
@@ -161,7 +163,7 @@ class ExperimentalDesignContractValidator:
     def _validate_contrasts(contrasts: tuple[Contrast, ...]) -> tuple[Contrast, ...]:
         normalized = tuple(contrasts)
         for contrast in normalized:
-            if not isinstance(contrast, Contrast):
+            if not isinstance(cast(object, contrast), Contrast):
                 raise WorkflowValidationError(
                     "differential workflow request contrasts must contain Contrast values"
                 )
@@ -227,7 +229,7 @@ class ExperimentalDesignContractValidator:
             columns=pd.Index(condition_labels, name="coefficient"),
         )
         for record in design.samples:
-            frame.loc[record.sample_id, record.condition] = 1.0
+            frame.at[record.sample_id, record.condition] = 1.0
         return frame
 
     @staticmethod
@@ -244,8 +246,8 @@ class ExperimentalDesignContractValidator:
             ),
         )
         for contrast in contrasts:
-            frame.loc[contrast.denominator_condition, contrast.name] = -1.0
-            frame.loc[contrast.numerator_condition, contrast.name] = 1.0
+            frame.at[contrast.denominator_condition, contrast.name] = -1.0
+            frame.at[contrast.numerator_condition, contrast.name] = 1.0
         return frame
 
 

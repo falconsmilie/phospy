@@ -60,3 +60,15 @@ def _resolve_establishment_authority_source(authority: object | None) -> str:
         "intensity scale state can be established only through supported PhosPy "
         "builder/transformer or bundle reconstruction paths"
     )
+
+
+# Public aliases for cross-module internal typing/authority checks.
+EstablishmentAuthority = _EstablishmentAuthority
+dataset_resolver_establishment_authority = _dataset_resolver_establishment_authority
+identity_transformer_establishment_authority = (
+    _identity_transformer_establishment_authority
+)
+bundle_reconstruction_establishment_authority = (
+    _bundle_reconstruction_establishment_authority
+)
+resolve_establishment_authority_source = _resolve_establishment_authority_source

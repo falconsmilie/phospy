@@ -5,18 +5,22 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Final
+from typing import Final, cast
 
 from phospy.errors.transformations import InvalidTransformationStateError
 from phospy.science.transformations._authority import (
-    _EstablishmentAuthority,
-    _resolve_establishment_authority_source,
+    EstablishmentAuthority,
+    resolve_establishment_authority_source,
 )
 
 IDENTITY_INTENSITY_SCALE_ESTABLISHER: Final[str] = (
     "phospy.science.transformations.transformers.identity"
 )
 _ESTABLISHED_INTENSITY_SCALE_STATE_MARKER: Final[object] = object()
+
+
+def _default_provenance_parameters() -> dict[str, object]:
+    return {}
 
 
 class IntensityScaleKind(str, Enum):
@@ -57,7 +61,9 @@ class IntensityScaleEstablishmentProvenance:
     mode: IntensityScaleEstablishmentMode
     transformer_name: str | None = None
     input_declaration_source: str | None = None
-    parameters: Mapping[str, object] = field(default_factory=dict)
+    parameters: dict[str, object] = field(
+        default_factory=_default_provenance_parameters
+    )
     trace_id: str | None = None
     diagnostic_warnings: tuple[str, ...] = ()
 
@@ -68,7 +74,7 @@ class IntensityScaleEstablishmentProvenance:
                 "intensity-scale establishment provenance requires non-empty scale"
             )
         object.__setattr__(self, "scale", scale)
-        if not isinstance(self.mode, IntensityScaleEstablishmentMode):
+        if not isinstance(cast(object, self.mode), IntensityScaleEstablishmentMode):
             try:
                 mode = IntensityScaleEstablishmentMode(str(self.mode))
             except ValueError as exc:
@@ -97,7 +103,10 @@ class IntensityScaleEstablishmentProvenance:
         object.__setattr__(
             self,
             "parameters",
-            {str(key): value for key, value in self.parameters.items()},
+            cast(
+                Mapping[str, object],
+                {str(key): value for key, value in self.parameters.items()},
+            ),
         )
         object.__setattr__(
             self,
@@ -215,12 +224,12 @@ class IntensityScaleState:
     )
 
     def __post_init__(self) -> None:
-        if not isinstance(self.phospho, MatrixIntensityScaleState):
+        if not isinstance(cast(object, self.phospho), MatrixIntensityScaleState):
             raise InvalidTransformationStateError(
                 "intensity_scale_state.phospho must be a MatrixIntensityScaleState"
             )
         if self.total is not None and not isinstance(
-            self.total, MatrixIntensityScaleState
+            cast(object, self.total), MatrixIntensityScaleState
         ):
             raise InvalidTransformationStateError(
                 "intensity_scale_state.total must be a MatrixIntensityScaleState or None"
@@ -310,11 +319,11 @@ class IntensityScaleState:
         parameters: Mapping[str, object] | None = None,
         trace_id: str | None = None,
         diagnostic_warnings: tuple[str, ...] = (),
-        _authority: _EstablishmentAuthority | None = None,
+        _authority: EstablishmentAuthority | None = None,
     ) -> IntensityScaleState:
         """Create a canonical linear state through an approved internal authority."""
 
-        return cls.raw(has_total_matrix=has_total_matrix)._with_establishment(
+        return cls.raw(has_total_matrix=has_total_matrix).with_establishment(
             established_via=established_via,
             authority=_authority,
             establishment_mode=establishment_mode,
@@ -325,11 +334,11 @@ class IntensityScaleState:
             diagnostic_warnings=diagnostic_warnings,
         )
 
-    def _with_establishment(
+    def with_establishment(
         self,
         *,
         established_via: str,
-        authority: _EstablishmentAuthority | None,
+        authority: EstablishmentAuthority | None,
         establishment_mode: IntensityScaleEstablishmentMode,
         transformer_name: str | None,
         input_declaration_source: str | None,
@@ -342,7 +351,9 @@ class IntensityScaleState:
             raise InvalidTransformationStateError(
                 "intensity scale state establishment source must be a non-empty string"
             )
-        if isinstance(establishment_mode, IntensityScaleEstablishmentMode):
+        if isinstance(
+            cast(object, establishment_mode), IntensityScaleEstablishmentMode
+        ):
             resolved_mode = establishment_mode
         else:
             try:
@@ -355,7 +366,7 @@ class IntensityScaleState:
                     "unsupported intensity-scale establishment mode "
                     f"{establishment_mode!r}; supported: {supported}"
                 ) from exc
-        authority_source = _resolve_establishment_authority_source(authority)
+        authority_source = resolve_establishment_authority_source(authority)
         established = IntensityScaleState(
             phospho=self.phospho,
             total=self.total,
@@ -381,7 +392,7 @@ class IntensityScaleState:
                 mode=resolved_mode,
                 transformer_name=transformer_name,
                 input_declaration_source=input_declaration_source,
-                parameters=parameters,
+                parameters=dict(parameters),
                 trace_id=trace_id,
                 diagnostic_warnings=diagnostic_warnings,
             ),
@@ -439,15 +450,15 @@ def establish_intensity_scale_state(
     parameters: Mapping[str, object] | None = None,
     trace_id: str | None = None,
     diagnostic_warnings: tuple[str, ...] = (),
-    _authority: _EstablishmentAuthority | None = None,
+    _authority: EstablishmentAuthority | None = None,
 ) -> IntensityScaleState:
     """Return state marked as established through approved internal authority."""
 
-    if not isinstance(state, IntensityScaleState):
+    if not isinstance(cast(object, state), IntensityScaleState):
         raise InvalidTransformationStateError(
             "intensity scale state establishment requires an IntensityScaleState value"
         )
-    return state._with_establishment(
+    return state.with_establishment(
         established_via=established_via,
         authority=_authority,
         establishment_mode=establishment_mode,

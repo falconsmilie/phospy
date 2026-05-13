@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from typing import cast
 
 import pandas as pd
 
@@ -47,13 +48,15 @@ class EmpiricalBayesConfig:
             raise PhosPyInputError(
                 f"empirical_bayes.method must be one of: {supported}"
             )
-        if not isinstance(self.trend, bool):
+        if not isinstance(cast(object, self.trend), bool):
             raise PhosPyInputError("empirical_bayes.trend must be a bool")
         winsor_tail_p = self.winsor_tail_p
         if (
-            not isinstance(winsor_tail_p, tuple)
+            not isinstance(cast(object, winsor_tail_p), tuple)
             or len(winsor_tail_p) != 2
-            or not all(isinstance(value, int | float) for value in winsor_tail_p)
+            or not all(
+                isinstance(cast(object, value), int | float) for value in winsor_tail_p
+            )
         ):
             raise PhosPyInputError(
                 "empirical_bayes.winsor_tail_p must be a tuple of two numeric values"
@@ -288,18 +291,18 @@ class DifferentialAnalysisRequest:
         design = self.design
         if isinstance(design, pd.DataFrame):
             design = DesignMatrix(design)
-        if not isinstance(design, DesignMatrix):
+        if not isinstance(cast(object, design), DesignMatrix):
             raise PhosPyInputError(
                 "differential.design must be a DesignMatrix or pandas DataFrame"
             )
         contrasts = self.contrasts
         if isinstance(contrasts, pd.DataFrame):
             contrasts = ContrastMatrix(contrasts)
-        if not isinstance(contrasts, ContrastMatrix):
+        if not isinstance(cast(object, contrasts), ContrastMatrix):
             raise PhosPyInputError(
                 "differential.contrasts must be a ContrastMatrix or pandas DataFrame"
             )
-        if not isinstance(self.empirical_bayes, EmpiricalBayesConfig):
+        if not isinstance(cast(object, self.empirical_bayes), EmpiricalBayesConfig):
             raise PhosPyInputError(
                 "differential.empirical_bayes must be an EmpiricalBayesConfig"
             )
@@ -414,15 +417,14 @@ class DifferentialAnalysisResult:
                 "differential_result.contrast_tables must include at least one contrast"
             )
         if workflow_provenance is not None and not isinstance(
-            workflow_provenance,
-            Mapping,
+            cast(object, workflow_provenance), Mapping
         ):
             raise PhosPyInputError(
                 "differential_result.workflow_provenance must be a mapping or None"
             )
         owned_tables: dict[str, pd.DataFrame] = {}
         for contrast_name, table in contrast_tables.items():
-            if not isinstance(contrast_name, str) or not contrast_name:
+            if not isinstance(cast(object, contrast_name), str) or not contrast_name:
                 raise PhosPyInputError(
                     "differential_result.contrast_tables keys must be non-empty strings"
                 )
