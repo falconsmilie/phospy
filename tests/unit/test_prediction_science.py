@@ -17,7 +17,7 @@ from phospy.prediction.scoring import (
     fuse_profile_and_motif_scores_by_rank_weight,
     select_downstream_score_matrix,
 )
-from phospy.scientific_policies import ScientificPolicyId
+from phospy.provenance.scientific_policy_models import ScientificPolicyId
 
 
 def test_fuse_profile_and_motif_scores_by_rank_weight_falls_back_when_motif_column_is_all_nan() -> (

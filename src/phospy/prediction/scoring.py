@@ -9,10 +9,12 @@ from types import MappingProxyType
 import numpy as np
 import pandas as pd
 
-from phospy.scientific_policies import (
+from phospy.prediction.scientific_policies import (
+    build_motif_profile_rank_fusion_policy,
+)
+from phospy.provenance.scientific_policy_models import (
     ScientificPolicyId,
     ScientificPolicyRecord,
-    build_motif_profile_rank_fusion_policy,
 )
 from phospy.scoring.policy_models import DownstreamScoreSource
 

@@ -23,7 +23,7 @@ from phospy.activities.threshold_membership import (
     threshold_membership_mask_array,
 )
 from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.scientific_policies import ScientificPolicyId
+from phospy.provenance.scientific_policy_models import ScientificPolicyId
 
 
 def _inputs(

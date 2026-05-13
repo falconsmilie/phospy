@@ -8,9 +8,11 @@ from phospy.activities.methods.weighted_substrate_activity import (
     SimplifiedWeightedSubstrateActivityMethod,
 )
 from phospy.activities.models import KinaseActivityInputs, KinaseActivityResult
-from phospy.scientific_policies import (
-    ScientificPolicyRecord,
+from phospy.activities.scientific_policies import (
     build_simplified_weighted_substrate_activity_policy,
+)
+from phospy.provenance.scientific_policy_models import (
+    ScientificPolicyRecord,
 )
 
 

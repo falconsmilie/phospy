@@ -15,15 +15,11 @@ from phospy.provenance.models import (
     RunProvenance,
     TableFingerprint,
 )
-from phospy.provenance.serialization import to_payload as provenance_to_payload
-from phospy.scientific_policies import (
-    PROTEIN_MODULE_FROM_SITE_MEMBERSHIP_POLICY,
+from phospy.provenance.scientific_policy_models import (
     ScientificPolicyId,
     ScientificPolicyRecord,
-    ScorePreconditioningPolicy,
-    SignalomeMissingValueClusteringPolicy,
-    build_signalome_module_candidate_score_policy,
 )
+from phospy.provenance.serialization import to_payload as provenance_to_payload
 from phospy.scoring.policy_models import DownstreamScoreSource
 from phospy.signalomes.clustering import ClusterSitesResult
 from phospy.signalomes.clustering.diagnostic_schemas import (
@@ -33,6 +29,11 @@ from phospy.signalomes.clustering.diagnostic_schemas import (
 from phospy.signalomes.clustering.policies import (
     SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_APPLIES_TO,
     SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_IMPUTED_VALUES_EXPOSED_IN_OUTPUT_TABLES,
+)
+from phospy.signalomes.clustering.scientific_policies import (
+    PROTEIN_MODULE_FROM_SITE_MEMBERSHIP_POLICY,
+    SignalomeMissingValueClusteringPolicy,
+    build_signalome_module_candidate_score_policy,
 )
 from phospy.signalomes.clustering.tree_building import (
     SignalomeClusteringMissingValueDiagnostics,
@@ -44,6 +45,7 @@ from phospy.workflows.signalome.contracts import (
     ResolvedSignalomeExecutionConfig,
     ResolvedSignalomeWorkflowRequest,
 )
+from phospy.workflows.signalome.scientific_policies import ScorePreconditioningPolicy
 
 
 class SignalomeProvenanceBuilder:

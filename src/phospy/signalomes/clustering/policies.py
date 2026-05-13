@@ -7,7 +7,10 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Literal
 
-from phospy.scientific_policies import ScientificPolicyId, ScientificPolicyRecord
+from phospy.provenance.scientific_policy_models import (
+    ScientificPolicyId,
+    ScientificPolicyRecord,
+)
 
 # Performance contracts for module-count selection scoring:
 # - At or below `MAX_FULL_CORRELATION_SITE_COUNT`, candidate scoring computes a

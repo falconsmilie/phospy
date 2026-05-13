@@ -65,6 +65,17 @@ Without governance:
 3. Root-level dumping-ground modules (for example `phospy.policy_models`) are
    not allowed.
 
+### Scientific-Policy Record Ownership
+
+1. Shared scientific policy record models belong in
+   `phospy.provenance.scientific_policy_models`.
+2. Domain-specific scientific policy builders/records must live in the owning
+   domain module.
+3. Root-level scientific policy dumping-ground modules (for example
+   `phospy.scientific_policies`) are not allowed.
+4. Compatibility re-export shims for removed root scientific policy modules are
+   not allowed.
+
 ### Acceptable Compatibility Shim Examples
 
 - bundle-format compatibility adapters where the compatibility concern is

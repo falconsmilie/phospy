@@ -65,6 +65,28 @@ from phospy.api import (
 
 All public executors use `run(request)`.
 
+## Scientific Policy Module Ownership
+
+Scientific policy records are owned by domain modules, not a root dumping-ground
+module.
+
+- Shared policy record models:
+  `phospy.provenance.scientific_policy_models`
+- Prediction scientific policies:
+  `phospy.prediction.scientific_policies`
+- Activity scientific policies:
+  `phospy.activities.scientific_policies`
+- Preprocessing scientific policies:
+  `phospy.datasets.preprocessing.scientific_policies`
+- Signalome workflow scientific policies:
+  `phospy.workflows.signalome.scientific_policies`
+- Signalome clustering scientific policies:
+  `phospy.signalomes.clustering.scientific_policies`
+- Differential aggregation scientific policies:
+  `phospy.differential.aggregation.scientific_policies`
+
+`phospy.scientific_policies` is intentionally not part of the import contract.
+
 ## Public Workflow Shape
 
 1. `DatasetBuildRequest` -> `AnalysisReadyDatasetBuilder.run(...)` -> `AnalysisReadyPhosphoDataset`

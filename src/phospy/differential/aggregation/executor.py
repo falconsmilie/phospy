@@ -16,11 +16,13 @@ from phospy.differential.aggregation.models import (
     PeptideToSiteAggregationConfig,
     PeptideToSiteAggregationResult,
 )
+from phospy.differential.aggregation.scientific_policies import (
+    build_peptide_to_site_aggregation_policy,
+)
 from phospy.differential.models import DifferentialAnalysisResult
 from phospy.differential.multiple_testing import benjamini_hochberg
 from phospy.errors.input import PhosPyInputError
 from phospy.evidence.models import PeptideEvidenceTable
-from phospy.scientific_policies import build_peptide_to_site_aggregation_policy
 
 _COMPATIBILITY_WARNING = (
     "compat_best_p_value selects the minimum peptide p-value per site and is "

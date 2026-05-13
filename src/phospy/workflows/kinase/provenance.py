@@ -8,6 +8,10 @@ import pandas as pd
 
 from phospy.activities.methods import KSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG
 from phospy.activities.models import KinaseActivityResult
+from phospy.activities.scientific_policies import (
+    build_ksea_zscore_activity_policy,
+    build_simplified_weighted_substrate_activity_policy,
+)
 from phospy.api.configs import (
     KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
     KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
@@ -15,7 +19,16 @@ from phospy.api.configs import (
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
 )
+from phospy.datasets.preprocessing.scientific_policies import (
+    build_duplicate_site_resolution_policy,
+)
 from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
+from phospy.prediction.scientific_policies import (
+    PROFILE_CORRELATION_SHIFTED_UNIT_POLICY,
+    CandidateSubstrateSelectionPolicy,
+    KinaseProfileScoringPolicy,
+    build_motif_profile_rank_fusion_policy,
+)
 from phospy.provenance.environment import collect_environment_provenance
 from phospy.provenance.hashing import fingerprint_optional_table
 from phospy.provenance.models import (
@@ -24,15 +37,8 @@ from phospy.provenance.models import (
     RunProvenance,
     TableFingerprint,
 )
-from phospy.scientific_policies import (
-    PROFILE_CORRELATION_SHIFTED_UNIT_POLICY,
-    CandidateSubstrateSelectionPolicy,
-    KinaseProfileScoringPolicy,
+from phospy.provenance.scientific_policy_models import (
     ScientificPolicyRecord,
-    build_duplicate_site_resolution_policy,
-    build_ksea_zscore_activity_policy,
-    build_motif_profile_rank_fusion_policy,
-    build_simplified_weighted_substrate_activity_policy,
 )
 from phospy.workflows.kinase.component_models import (
     CANDIDATE_MIN_INCLUSION,

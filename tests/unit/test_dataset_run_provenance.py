@@ -19,8 +19,8 @@ from phospy.datasets.preprocessing.models import (
 )
 from phospy.provenance import environment as provenance_environment
 from phospy.provenance.environment import collect_environment_provenance
+from phospy.provenance.scientific_policy_models import ScientificPolicyId
 from phospy.provenance.serialization import from_payload, to_payload
-from phospy.scientific_policies import ScientificPolicyId
 
 
 def test_collect_environment_provenance_reports_expected_keys() -> None:

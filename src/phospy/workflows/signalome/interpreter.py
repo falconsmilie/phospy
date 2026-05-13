@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.prediction.scoring import select_downstream_score_matrix
-from phospy.scientific_policies import resolve_score_preconditioning_policy
 from phospy.signalomes.clustering.policies import (
     resolve_candidate_scoring_policy_definition,
 )
@@ -23,6 +22,9 @@ from phospy.workflows.signalome.contracts import (
 )
 from phospy.workflows.signalome.matrix_alignment import SignalomeMatrixAligner
 from phospy.workflows.signalome.protein_resolution import SignalomeProteinResolver
+from phospy.workflows.signalome.scientific_policies import (
+    resolve_score_preconditioning_policy,
+)
 from phospy.workflows.signalome.score_matrix_selection import (
     SignalomeScoreMatrixSelector,
 )

@@ -29,7 +29,7 @@ from phospy.io.bundles._shared.processing_state import (
     processing_state_to_payload,
 )
 from phospy.provenance.hashing import hash_table, hash_table_exact, hash_table_tolerance
-from phospy.scientific_policies import ScientificPolicyId
+from phospy.provenance.scientific_policy_models import ScientificPolicyId
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,

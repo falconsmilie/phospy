@@ -24,7 +24,7 @@ from phospy.api.results import (
     KinaseWorkflowResult,
     SignalomeWorkflowResult,
 )
-from phospy.scientific_policies import ScientificPolicyId
+from phospy.provenance.scientific_policy_models import ScientificPolicyId
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,

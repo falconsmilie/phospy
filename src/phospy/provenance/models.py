@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from phospy.scientific_policies import ScientificPolicyRecord
+from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
 
 if TYPE_CHECKING:
     from phospy.references.identifiers import ReferenceIdentifierNormalisationReport

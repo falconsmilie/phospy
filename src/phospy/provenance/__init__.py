@@ -21,6 +21,11 @@ from phospy.provenance.models import (
     RunProvenance,
     TableFingerprint,
 )
+from phospy.provenance.scientific_policy_models import (
+    ScientificPolicyId,
+    ScientificPolicyParameter,
+    ScientificPolicyRecord,
+)
 from phospy.provenance.serialization import from_payload, to_payload
 
 __all__ = [
@@ -32,6 +37,9 @@ __all__ = [
     "PreprocessingStageProvenance",
     "ReferenceProvenance",
     "RunProvenance",
+    "ScientificPolicyId",
+    "ScientificPolicyParameter",
+    "ScientificPolicyRecord",
     "TableFingerprint",
     "collect_environment_provenance",
     "fingerprint_optional_table",

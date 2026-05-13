@@ -10,7 +10,7 @@ import pandas as pd
 
 from phospy._frame_ownership import export_dataframe, own_dataframe
 from phospy.errors.input import PhosPyInputError
-from phospy.scientific_policies import ScientificPolicyRecord
+from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
 
 PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE = "compat_best_p_value"
 PEPTIDE_TO_SITE_STRATEGY_INVERSE_VARIANCE_WEIGHTED = "inverse_variance_weighted"

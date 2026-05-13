@@ -14,7 +14,10 @@ from phospy.api.configs import (
     KINASE_ADAPTIVE_POLICY_STABLE,
     KinaseAdaptivePolicy,
 )
-from phospy.scientific_policies import ScientificPolicyId, ScientificPolicyRecord
+from phospy.provenance.scientific_policy_models import (
+    ScientificPolicyId,
+    ScientificPolicyRecord,
+)
 
 PredictionSamplingSeedStrategy = Literal["stable_by_kinase", "global_parity"]
 PredictionResamplingWeightMode = Literal["default", "r_parity"]

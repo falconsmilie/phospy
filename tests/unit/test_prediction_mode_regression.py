@@ -18,8 +18,8 @@ from phospy.api.configs import (
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_PREDICTION_MODES,
 )
+from phospy.provenance.scientific_policy_models import ScientificPolicyId
 from phospy.provenance.serialization import from_payload, to_payload
-from phospy.scientific_policies import ScientificPolicyId
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,

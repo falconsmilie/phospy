@@ -18,7 +18,7 @@ from phospy.provenance.models import (
     RunProvenance,
     TableFingerprint,
 )
-from phospy.scientific_policies import ScientificPolicyRecord
+from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
 
 if TYPE_CHECKING:
     from phospy.references.identifiers import (

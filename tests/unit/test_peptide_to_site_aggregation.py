@@ -8,6 +8,9 @@ from phospy.differential.aggregation import (
     PeptideToSiteAggregationConfig,
     PeptideToSiteAggregator,
 )
+from phospy.differential.aggregation.scientific_policies import (
+    build_peptide_to_site_aggregation_policy,
+)
 from phospy.evidence import PeptideEvidenceTable
 
 
@@ -50,6 +53,13 @@ def test_default_strategy_is_not_minimum_p_value() -> None:
     assert (
         PeptideToSiteAggregationConfig().strategy
         != PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE
+    )
+
+
+def test_peptide_to_site_scientific_policy_ownership_is_explicit() -> None:
+    assert (
+        build_peptide_to_site_aggregation_policy.__module__
+        == "phospy.differential.aggregation.scientific_policies"
     )
 
 

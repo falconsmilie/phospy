@@ -15,7 +15,7 @@ from phospy.api.results import (
     KinaseScoringResult,
     SignalomeWorkflowResult,
 )
-from phospy.scientific_policies import ScientificPolicyId
+from phospy.provenance.scientific_policy_models import ScientificPolicyId
 from phospy.signalomes.clustering import (
     ClusterSitesResult,
 )

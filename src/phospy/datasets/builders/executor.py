@@ -56,6 +56,10 @@ from phospy.datasets.preprocessing.report_schema import (
     row_audit_rows_from_dataframe,
     row_count_rows_from_dataframe,
 )
+from phospy.datasets.preprocessing.scientific_policies import (
+    PreprocessingStageOrderPolicy,
+    build_duplicate_site_resolution_policy,
+)
 from phospy.errors.build import DatasetBuildError
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.transformations import (
@@ -70,11 +74,7 @@ from phospy.provenance.models import (
     RunProvenance,
     TableFingerprint,
 )
-from phospy.scientific_policies import (
-    PreprocessingStageOrderPolicy,
-    ScientificPolicyRecord,
-    build_duplicate_site_resolution_policy,
-)
+from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
 from phospy.site_ids import canonicalize_site_components, canonicalize_site_identifier
 from phospy.transformations.contracts import Transformer
 from phospy.transformations.models import (
