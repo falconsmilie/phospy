@@ -116,7 +116,7 @@ identical numeric outputs across different machines or dependency builds.
 - Differential analysis does not infer conditions from sample names.
 - Sample/design alignment is validated before statistical execution.
 - By default, dataset and design must reference the same sample set.
-- `allow_design_subset=True` is the only supported path to analyze an explicit
+- `config.allow_design_subset=True` is the only supported path to analyze an explicit
   subset of samples.
 - Duplicate design sample IDs, missing condition labels, and unknown contrast
   conditions are hard validation errors.
@@ -129,10 +129,10 @@ identical numeric outputs across different machines or dependency builds.
 
 ### Empirical-Bayes Moderation Policy
 
-- `empirical_bayes.method="standard"` applies limma-style moderated variance.
-- `empirical_bayes.method="robust"` applies winsorized robust hyperparameter estimation and outlier-aware prior-df shrinkage.
-- `empirical_bayes.trend=True` enables mean-intensity-dependent prior variance (limma-trend style).
-- `empirical_bayes.winsor_tail_p` controls robust winsor tail clipping; this is used only when `method="robust"`.
+- `config.empirical_bayes.method="standard"` applies limma-style moderated variance.
+- `config.empirical_bayes.method="robust"` applies winsorized robust hyperparameter estimation and outlier-aware prior-df shrinkage.
+- `config.empirical_bayes.trend=True` enables mean-intensity-dependent prior variance (limma-trend style).
+- `config.empirical_bayes.winsor_tail_p` controls robust winsor tail clipping; this is used only when `method="robust"`.
 - Moderation changes residual variance estimates, moderated t-statistics, and p-values.
 - Moderation does not alter `logFC`; fold-change estimates remain OLS contrast estimates.
 

@@ -7,6 +7,7 @@ import pytest
 from phospy import AnalysisReadyPhosphoDataset
 from phospy.api import (
     Contrast,
+    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
     ExperimentalDesign,
@@ -165,7 +166,9 @@ def _request(
         dataset=_dataset_with_technical_replicates() if dataset is None else dataset,
         design=_repeated_design() if design is None else design,
         contrasts=_contrasts(),
-        technical_replicate_policy=technical_replicate_policy,
+        config=DifferentialAnalysisConfig(
+            technical_replicate_policy=technical_replicate_policy
+        ),
     )
 
 
@@ -175,7 +178,7 @@ def test_independent_biological_replicates_pass_unchanged() -> None:
         dataset=dataset,
         design=_independent_design(),
         contrasts=_contrasts(),
-        allow_design_subset=True,
+        config=DifferentialAnalysisConfig(allow_design_subset=True),
     )
     validated = DifferentialAnalysisValidator().run(request)
     assert validated.analysis_sample_ids == ("A1_T1", "A1_T2", "B1_T1", "B1_T2")
@@ -273,8 +276,10 @@ def test_aggregation_groups_by_condition_plus_biological_replicate_id() -> None:
             dataset=dataset,
             design=design,
             contrasts=_contrasts(),
-            technical_replicate_policy=TechnicalReplicatePolicy.MEAN,
-            minimum_condition_replicates=1,
+            config=DifferentialAnalysisConfig(
+                technical_replicate_policy=TechnicalReplicatePolicy.MEAN,
+                minimum_condition_replicates=1,
+            ),
         )
     )
     assert validated.dataset.phospho.columns.tolist() == ["A__R1", "B__R1"]
@@ -346,13 +351,16 @@ def test_provenance_records_technical_replicate_lineage() -> None:
 
 
 def test_invalid_technical_replicate_policy_fails() -> None:
+    request = DifferentialAnalysisRequest(
+        dataset=_dataset_with_technical_replicates(),
+        design=_repeated_design(),
+        contrasts=_contrasts(),
+        config=DifferentialAnalysisConfig(
+            technical_replicate_policy="invalid"  # type: ignore[arg-type]
+        ),
+    )
     with pytest.raises(
         WorkflowValidationError,
-        match="technical_replicate_policy must be one of",
+        match="technical_replicate_policy must be TechnicalReplicatePolicy",
     ):
-        DifferentialAnalysisRequest(
-            dataset=_dataset_with_technical_replicates(),
-            design=_repeated_design(),
-            contrasts=_contrasts(),
-            technical_replicate_policy="invalid",  # type: ignore[arg-type]
-        )
+        DifferentialAnalysisValidator().run(request)

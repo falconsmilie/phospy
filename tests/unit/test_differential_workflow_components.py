@@ -9,13 +9,17 @@ import pytest
 from phospy import AnalysisReadyPhosphoDataset
 from phospy.api import (
     Contrast,
+    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
     ExperimentalDesign,
+    MultipleTestingConfig,
     Organism,
     SampleDesignRecord,
+    TechnicalReplicatePolicy,
 )
 from phospy.api.results import DifferentialAnalysisResult
+from phospy.differential.models import EmpiricalBayesConfig
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
 from phospy.workflows.differential.executor import DifferentialAnalysisExecutor
 from phospy.workflows.differential.interpreter import DifferentialAnalysisInterpreter
@@ -209,8 +213,7 @@ def test_differential_interpreter_checks_sample_to_design_alignment() -> None:
                 analysis_sample_ids=validated.analysis_sample_ids,
                 design_matrix=type(validated.design_matrix)(misaligned_design),
                 contrast_matrix=validated.contrast_matrix,
-                empirical_bayes=validated.empirical_bayes,
-                multiple_testing=validated.multiple_testing,
+                config=validated.config,
             )
         )
 
@@ -278,3 +281,183 @@ def test_differential_misaligned_design_fails_before_executor() -> None:
             )
         )
     assert calls["executor"] == 0
+
+
+def test_differential_validator_rejects_non_differential_config_type() -> None:
+    with pytest.raises(
+        WorkflowValidationError,
+        match="differential workflow request config must be DifferentialAnalysisConfig",
+    ):
+        DifferentialAnalysisValidator().run(
+            DifferentialAnalysisRequest(
+                dataset=_dataset(),
+                design=_request().design,
+                contrasts=_request().contrasts,
+                config=object(),  # type: ignore[arg-type]
+            )
+        )
+
+
+def test_differential_validator_rejects_raw_string_technical_replicate_policy() -> None:
+    with pytest.raises(
+        WorkflowValidationError,
+        match="technical_replicate_policy must be TechnicalReplicatePolicy",
+    ):
+        DifferentialAnalysisValidator().run(
+            DifferentialAnalysisRequest(
+                dataset=_dataset(),
+                design=_request().design,
+                contrasts=_request().contrasts,
+                config=DifferentialAnalysisConfig(
+                    technical_replicate_policy="mean",  # type: ignore[arg-type]
+                ),
+            )
+        )
+
+
+def test_differential_validator_rejects_non_bool_allow_design_subset() -> None:
+    with pytest.raises(
+        WorkflowValidationError,
+        match="allow_design_subset must be a bool",
+    ):
+        DifferentialAnalysisValidator().run(
+            DifferentialAnalysisRequest(
+                dataset=_dataset(),
+                design=_request().design,
+                contrasts=_request().contrasts,
+                config=DifferentialAnalysisConfig(
+                    allow_design_subset=1,  # type: ignore[arg-type]
+                ),
+            )
+        )
+
+
+@pytest.mark.parametrize("value", [0, -1, 1.5, True])
+def test_differential_validator_rejects_invalid_minimum_condition_replicates(
+    value: object,
+) -> None:
+    pattern = (
+        "minimum_condition_replicates must be >= 1"
+        if isinstance(value, int) and not isinstance(value, bool)
+        else "minimum_condition_replicates must be an int"
+    )
+    with pytest.raises(WorkflowValidationError, match=pattern):
+        DifferentialAnalysisValidator().run(
+            DifferentialAnalysisRequest(
+                dataset=_dataset(),
+                design=_request().design,
+                contrasts=_request().contrasts,
+                config=DifferentialAnalysisConfig(
+                    minimum_condition_replicates=value,  # type: ignore[arg-type]
+                ),
+            )
+        )
+
+
+def test_differential_validator_rejects_non_empirical_bayes_config() -> None:
+    with pytest.raises(
+        WorkflowValidationError,
+        match="empirical_bayes must be EmpiricalBayesConfig",
+    ):
+        DifferentialAnalysisValidator().run(
+            DifferentialAnalysisRequest(
+                dataset=_dataset(),
+                design=_request().design,
+                contrasts=_request().contrasts,
+                config=DifferentialAnalysisConfig(
+                    empirical_bayes=object(),  # type: ignore[arg-type]
+                ),
+            )
+        )
+
+
+def test_differential_validator_rejects_non_multiple_testing_config() -> None:
+    with pytest.raises(
+        WorkflowValidationError,
+        match="multiple_testing must be MultipleTestingConfig",
+    ):
+        DifferentialAnalysisValidator().run(
+            DifferentialAnalysisRequest(
+                dataset=_dataset(),
+                design=_request().design,
+                contrasts=_request().contrasts,
+                config=DifferentialAnalysisConfig(
+                    multiple_testing=object(),  # type: ignore[arg-type]
+                ),
+            )
+        )
+
+
+def test_differential_validator_passes_config_values_to_collaborators() -> None:
+    calls: dict[str, object] = {}
+    base_request = _request()
+
+    class _FakeTechnicalReplicateResolver:
+        def run(self, *, dataset, design, technical_replicate_policy):
+            calls["technical_replicate_policy"] = technical_replicate_policy
+            from phospy.workflows.differential.replicates import (
+                TechnicalReplicateResolution,
+            )
+
+            return TechnicalReplicateResolution(
+                dataset=dataset,
+                design=design,
+                workflow_provenance=None,
+            )
+
+    class _FakeDesignValidator:
+        def run(
+            self,
+            *,
+            dataset,
+            design,
+            contrasts,
+            allow_design_subset,
+            minimum_condition_replicates,
+        ):
+            calls["allow_design_subset"] = allow_design_subset
+            calls["minimum_condition_replicates"] = minimum_condition_replicates
+            from phospy.validation.workflows.differential import (
+                ValidatedExperimentalDesignContract,
+            )
+
+            return ValidatedExperimentalDesignContract(
+                design=design,
+                contrasts=contrasts,
+                analysis_sample_ids=tuple(
+                    record.sample_id for record in design.samples
+                ),
+                condition_labels=("A", "B"),
+                design_frame=pd.DataFrame(
+                    {
+                        "A": [1.0, 1.0, 0.0, 0.0],
+                        "B": [0.0, 0.0, 1.0, 1.0],
+                    },
+                    index=pd.Index(["A_1", "A_2", "B_1", "B_2"], name="sample"),
+                ),
+                contrast_frame=pd.DataFrame(
+                    {"B_vs_A": [-1.0, 1.0]},
+                    index=pd.Index(["A", "B"], name="coefficient"),
+                ),
+            )
+
+    request = DifferentialAnalysisRequest(
+        dataset=base_request.dataset,
+        design=base_request.design,
+        contrasts=base_request.contrasts,
+        config=DifferentialAnalysisConfig(
+            technical_replicate_policy=TechnicalReplicatePolicy.MEAN,
+            allow_design_subset=True,
+            minimum_condition_replicates=1,
+            empirical_bayes=EmpiricalBayesConfig(method="standard"),
+            multiple_testing=MultipleTestingConfig(),
+        ),
+    )
+    DifferentialAnalysisValidator(
+        technical_replicate_resolver=_FakeTechnicalReplicateResolver(),  # type: ignore[arg-type]
+        design_validator=_FakeDesignValidator(),  # type: ignore[arg-type]
+    ).run(request)
+
+    assert calls["technical_replicate_policy"] is TechnicalReplicatePolicy.MEAN
+    assert calls["allow_design_subset"] is True
+    assert calls["minimum_condition_replicates"] == 1

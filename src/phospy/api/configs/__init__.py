@@ -3,6 +3,12 @@
 from __future__ import annotations
 
 from phospy.api.configs.dataset import DatasetPreprocessingConfig
+from phospy.api.configs.differential import (
+    MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG,
+    SUPPORTED_MULTIPLE_TESTING_METHODS,
+    DifferentialAnalysisConfig,
+    MultipleTestingConfig,
+)
 from phospy.api.configs.kinase import (
     KINASE_ACTIVITY_DEFAULT_MIN_SUBSTRATES,
     KINASE_ACTIVITY_DEFAULT_THRESHOLD,
@@ -320,6 +326,7 @@ __all__ = [
     "DatasetTotalProteinCorrectionIdentityMatchingPolicy",
     "DatasetTotalProteinCorrectionPolicy",
     "DatasetTotalProteinCorrectionUnmatchedPolicy",
+    "DifferentialAnalysisConfig",
     "KinaseAdaptivePolicy",
     "KinaseActivityMethod",
     "KinaseActivityPValueMethod",
@@ -340,4 +347,7 @@ __all__ = [
     "SignalomeScorePreconditioningPolicy",
     "SignalomeConfig",
     "SignalomeValidationConfig",
+    "MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG",
+    "MultipleTestingConfig",
+    "SUPPORTED_MULTIPLE_TESTING_METHODS",
 ]

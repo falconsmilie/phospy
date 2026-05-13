@@ -6,6 +6,7 @@ import pytest
 from phospy import AnalysisReadyPhosphoDataset, DifferentialAnalysisWorkflow
 from phospy.api import (
     Contrast,
+    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     ExperimentalDesign,
     Organism,
@@ -142,7 +143,9 @@ def test_differential_workflow_runs_after_mean_technical_replicate_aggregation()
             dataset=_dataset(),
             design=_design(),
             contrasts=_contrast(),
-            technical_replicate_policy=TechnicalReplicatePolicy.MEAN,
+            config=DifferentialAnalysisConfig(
+                technical_replicate_policy=TechnicalReplicatePolicy.MEAN
+            ),
         )
     )
 

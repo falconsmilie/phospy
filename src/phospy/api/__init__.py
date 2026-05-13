@@ -8,6 +8,8 @@ types.
 from phospy.api.builders import AnalysisReadyDatasetBuilder
 from phospy.api.configs import (
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
+    MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG,
+    SUPPORTED_MULTIPLE_TESTING_METHODS,
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetLocalisationConfig,
@@ -19,10 +21,12 @@ from phospy.api.configs import (
     DatasetSiteSequenceResolutionConfig,
     DatasetTotalProteinCorrectionConfig,
     DatasetTotalProteinCorrectionIdentityConfig,
+    DifferentialAnalysisConfig,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
     LocalisationRequirement,
+    MultipleTestingConfig,
     SignalomeClusteringConfig,
     SignalomeConfig,
     SignalomeOutputConfig,
@@ -54,10 +58,8 @@ from phospy.api.requests import (
     EmpiricalBayesConfig,
     ExperimentalDesign,
     KinaseWorkflowRequest,
-    MultipleTestingConfig,
     SampleDesignRecord,
     SignalomeWorkflowRequest,
-    TechnicalReplicatePolicy,
 )
 from phospy.api.results import (
     DifferentialAnalysisResult,
@@ -97,6 +99,7 @@ from phospy.errors import (
     WorkflowStageError,
     WorkflowValidationError,
 )
+from phospy.policy_models import TechnicalReplicatePolicy
 from phospy.references.models import ReferenceBundle
 from phospy.transformations.models import (
     IntensityScaleKind,
@@ -139,6 +142,7 @@ __all__ = [
     "DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED",
     "DifferentialAnalysisWorkflow",
     "DifferentialAnalysisRequest",
+    "DifferentialAnalysisConfig",
     "DifferentialAnalysisResult",
     "EmpiricalBayesConfig",
     "KinaseActivityConfig",
@@ -151,6 +155,8 @@ __all__ = [
     "KinaseWorkflowRequest",
     "KinaseWorkflowResult",
     "MultipleTestingConfig",
+    "MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG",
+    "SUPPORTED_MULTIPLE_TESTING_METHODS",
     "TechnicalReplicatePolicy",
     "Organism",
     "IntensityScaleKind",

@@ -9,6 +9,7 @@ import pytest
 
 from phospy.api import (
     Contrast,
+    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
     EmpiricalBayesConfig,
@@ -152,7 +153,9 @@ def _run_fixture_workflow() -> object:
         dataset=_dataset_from_matrix(matrix),
         design=_design_from_matrix(design_matrix),
         contrasts=_contrasts_from_matrix(contrast_matrix),
-        empirical_bayes=EmpiricalBayesConfig(method="standard"),
+        config=DifferentialAnalysisConfig(
+            empirical_bayes=EmpiricalBayesConfig(method="standard")
+        ),
     )
     return DifferentialAnalysisWorkflow().run(request)
 

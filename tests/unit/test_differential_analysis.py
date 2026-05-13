@@ -9,6 +9,7 @@ import pytest
 
 from phospy.api import (
     Contrast,
+    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
     EmpiricalBayesConfig,
@@ -137,11 +138,13 @@ def _request(
         dataset=_dataset() if dataset is None else dataset,
         design=_design() if design is None else design,
         contrasts=_contrasts() if contrasts is None else contrasts,
-        minimum_condition_replicates=minimum_condition_replicates,
-        empirical_bayes=(
-            EmpiricalBayesConfig(method="standard")
-            if empirical_bayes is None
-            else empirical_bayes
+        config=DifferentialAnalysisConfig(
+            minimum_condition_replicates=minimum_condition_replicates,
+            empirical_bayes=(
+                EmpiricalBayesConfig(method="standard")
+                if empirical_bayes is None
+                else empirical_bayes
+            ),
         ),
     )
 

@@ -8,6 +8,7 @@ import pytest
 
 from phospy.api import (
     Contrast,
+    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
     EmpiricalBayesConfig,
@@ -176,7 +177,9 @@ def test_differential_analysis_matches_limma_parity_within_tolerance() -> None:
         dataset=_dataset_from_matrix(matrix),
         design=_design_from_matrix(design_matrix),
         contrasts=_contrasts_from_matrix(contrast_matrix),
-        empirical_bayes=EmpiricalBayesConfig(method="standard"),
+        config=DifferentialAnalysisConfig(
+            empirical_bayes=EmpiricalBayesConfig(method="standard")
+        ),
     )
     result = DifferentialAnalysisWorkflow().run(request)
 

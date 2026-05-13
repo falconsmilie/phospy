@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phospy.api.requests import MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG
+from phospy.api.configs import MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG
 from phospy.differential.executor import (
     DifferentialAnalysisExecutor as DifferentialComputationExecutor,
 )
@@ -37,7 +37,7 @@ class DifferentialAnalysisExecutor:
                 message_prefix="differential workflow boundary validation failed",
             )
         if (
-            request.multiple_testing.method
+            request.config.multiple_testing.method
             != MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG
         ):
             raise WorkflowBoundaryError(
@@ -45,7 +45,7 @@ class DifferentialAnalysisExecutor:
                 next_action=(
                     "use multiple_testing.method='benjamini_hochberg' for this release"
                 ),
-                details={"method": request.multiple_testing.method},
+                details={"method": request.config.multiple_testing.method},
                 message_prefix="differential workflow boundary validation failed",
             )
         result = self._computation_executor.run(request.computation_request)

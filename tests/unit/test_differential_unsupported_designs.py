@@ -7,6 +7,7 @@ import pytest
 
 from phospy.api import (
     Contrast,
+    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
     ExperimentalDesign,
@@ -93,7 +94,9 @@ def _workflow_request(
                 denominator_condition="A",
             ),
         ),
-        minimum_condition_replicates=minimum_condition_replicates,
+        config=DifferentialAnalysisConfig(
+            minimum_condition_replicates=minimum_condition_replicates
+        ),
     )
 
 

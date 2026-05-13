@@ -97,6 +97,14 @@ class ComparisonBuildingPolicy(_PolicyEnum):
     SAMPLE_METADATA_PAIRS = "sample_metadata_pairs"
 
 
+class TechnicalReplicatePolicy(_PolicyEnum):
+    """Policy for handling repeated biological replicate IDs."""
+
+    REJECT = "reject"
+    MEAN = "mean"
+    MEDIAN = "median"
+
+
 class LocalisationEligibilityMode(_PolicyEnum):
     REQUIRE_THRESHOLD = "require_threshold"
     ALLOW_MISSING_WITH_WAIVER = "allow_missing_with_waiver"
@@ -125,6 +133,7 @@ __all__ = [
     "SiteMatrixPolicy",
     "SiteSequenceConflictPolicy",
     "SiteSequenceResolutionMode",
+    "TechnicalReplicatePolicy",
     "ThresholdMode",
     "TotalProteinCorrectionIdentityMatchingPolicy",
     "TotalProteinCorrectionPolicy",

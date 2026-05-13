@@ -106,11 +106,11 @@ class DifferentialAnalysisInterpreter:
             contrasts=ContrastMatrix(
                 cast(pd.DataFrame, contrasts_aligned.copy(deep=True))
             ),
-            empirical_bayes=request.empirical_bayes,
+            empirical_bayes=request.config.empirical_bayes,
         )
         return InterpretedDifferentialAnalysisRequest(
             computation_request=computation_request,
-            multiple_testing=request.multiple_testing,
+            config=request.config,
             design_rank=rank,
             residual_degrees_of_freedom=residual_dof,
             workflow_provenance=request.workflow_provenance,

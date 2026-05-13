@@ -35,11 +35,12 @@ differential_result = DifferentialAnalysisWorkflow().run(
 ```python
 from phospy.api import (
     Contrast,
+    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     EmpiricalBayesConfig,
     ExperimentalDesign,
-    MultipleTestingConfig,
     SampleDesignRecord,
+    TechnicalReplicatePolicy,
 )
 ```
 
@@ -55,10 +56,11 @@ Required inputs:
 
 Optional inputs:
 
-- `allow_design_subset` (`False` by default)
-- `minimum_condition_replicates` (`2` by default)
-- `empirical_bayes` (`EmpiricalBayesConfig()` by default)
-- `multiple_testing` (`MultipleTestingConfig()` by default)
+- `config` (`DifferentialAnalysisConfig()` by default), including:
+  - `technical_replicate_policy` (`TechnicalReplicatePolicy.REJECT`)
+  - `allow_design_subset` (`False`)
+  - `minimum_condition_replicates` (`2`)
+  - `empirical_bayes` (`EmpiricalBayesConfig()`)
 
 ### Matrix Shape Expectations
 
@@ -73,7 +75,7 @@ Optional inputs:
 - `condition` labels are required and cannot be empty.
 - Duplicate `sample_id` values are rejected.
 - By default, all dataset samples must appear in the design.
-- With `allow_design_subset=True`, design may define a strict sample subset.
+- With `config.allow_design_subset=True`, design may define a strict sample subset.
 
 ### Contrast Expectations
 
@@ -236,6 +238,10 @@ result = DifferentialAnalysisWorkflow().run(
         dataset=dataset,
         design=design,
         contrasts=contrasts,
+        config=DifferentialAnalysisConfig(
+            technical_replicate_policy=TechnicalReplicatePolicy.MEAN,
+            minimum_condition_replicates=2,
+        ),
     )
 )
 

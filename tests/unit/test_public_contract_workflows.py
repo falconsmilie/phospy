@@ -10,7 +10,9 @@ import phospy.api.requests as request_models
 import phospy.api.workflows as workflow_models
 from phospy import DifferentialAnalysisWorkflow, KinaseWorkflow, SignalomeWorkflow
 from phospy.api.configs import (
+    DifferentialAnalysisConfig,
     KinaseScoringConfig,
+    MultipleTestingConfig,
     SignalomeConfig,
     SignalomeOutputConfig,
 )
@@ -18,10 +20,8 @@ from phospy.api.requests import (
     Contrast,
     DatasetBuildRequest,
     DifferentialAnalysisRequest,
-    EmpiricalBayesConfig,
     ExperimentalDesign,
     KinaseWorkflowRequest,
-    MultipleTestingConfig,
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import (
@@ -51,10 +51,8 @@ def test_public_workflow_and_request_exports_match_contract() -> None:
         "EmpiricalBayesConfig",
         "ExperimentalDesign",
         "KinaseWorkflowRequest",
-        "MultipleTestingConfig",
         "SampleDesignRecord",
         "SignalomeWorkflowRequest",
-        "TechnicalReplicatePolicy",
     }
     assert set(workflow_models.__all__) == {
         "DifferentialAnalysisWorkflow",
@@ -115,11 +113,11 @@ def test_workflow_requests_keep_ingestion_outside_workflows() -> None:
     contrasts_hint = differential_request_hints["contrasts"]
     assert get_origin(contrasts_hint) is tuple
     assert get_args(contrasts_hint) == (Contrast, Ellipsis)
-    assert differential_request_hints["empirical_bayes"] is EmpiricalBayesConfig
-    assert differential_request_hints["multiple_testing"] is MultipleTestingConfig
+    assert differential_request_hints["config"] is DifferentialAnalysisConfig
     assert kinase_request_hints["dataset"] is AnalysisReadyPhosphoDataset
     assert signalome_request_hints["kinase_result"] is KinaseWorkflowResult
     assert kinase_request_hints["dataset"] is not DatasetBuildRequest
+    assert MultipleTestingConfig().method == "benjamini_hochberg"
 
 
 def test_workflow_configs_self_validate_local_policy_constraints() -> None:

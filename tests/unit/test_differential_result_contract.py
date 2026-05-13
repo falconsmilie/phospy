@@ -8,6 +8,7 @@ import pytest
 
 from phospy.api import (
     Contrast,
+    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
     EmpiricalBayesConfig,
@@ -121,7 +122,9 @@ def _request_for_reverse_contrasts(
         dataset=_build_dataset(matrix),
         design=design,
         contrasts=contrasts,
-        empirical_bayes=EmpiricalBayesConfig(method="standard"),
+        config=DifferentialAnalysisConfig(
+            empirical_bayes=EmpiricalBayesConfig(method="standard")
+        ),
     )
 
 
