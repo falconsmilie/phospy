@@ -20,7 +20,7 @@ from phospy.evidence.multi_site import (
     build_multi_site_observation,
     resolve_site_mapping_frame,
 )
-from phospy.site_ids import canonicalize_site_identifier
+from phospy.sites.identifiers import canonicalize_site_identifier
 from phospy.validation.common.dataframes import (
     require_columns,
     require_dataframe,

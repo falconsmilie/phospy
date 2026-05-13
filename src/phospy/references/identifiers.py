@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.errors.validation import ReferenceValidationError
-from phospy.site_ids import canonicalize_site_identifier
+from phospy.sites.identifiers import canonicalize_site_identifier
 
 REFERENCE_IDENTIFIER_NORMALISATION_SCHEMA_VERSION = 1
 _IDENTIFIER_KINDS = frozenset({"site_id", "kinase", "protein_accession"})

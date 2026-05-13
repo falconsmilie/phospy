@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
-from phospy.site_ids import canonicalize_site_components
+from phospy.sites.identifiers import canonicalize_site_components
 
 MULTI_SITE_POLICY_KEEP_JOINT = "keep_joint"
 MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING = "exclude_from_sequence_scoring"

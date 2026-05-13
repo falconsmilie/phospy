@@ -18,7 +18,7 @@ from phospy.errors import (
 )
 from phospy.references.models import ReferencePreset
 from phospy.references.resolution import ReferenceResolver
-from phospy.site_ids import canonicalize_site_identifier
+from phospy.sites.identifiers import canonicalize_site_identifier
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,

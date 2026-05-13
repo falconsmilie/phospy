@@ -75,7 +75,10 @@ from phospy.provenance.models import (
     TableFingerprint,
 )
 from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
-from phospy.site_ids import canonicalize_site_components, canonicalize_site_identifier
+from phospy.sites.identifiers import (
+    canonicalize_site_components,
+    canonicalize_site_identifier,
+)
 from phospy.transformations.contracts import Transformer
 from phospy.transformations.models import (
     IntensityScaleEstablishmentMode,

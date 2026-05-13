@@ -18,7 +18,7 @@ from phospy.prediction.models import KinasePredictionResult
 from phospy.prediction.sequence_validation import (
     SEQUENCE_VALIDATION_STATUS_INVALID_SITE_ID,
 )
-from phospy.site_ids import parse_canonical_site_identifier
+from phospy.sites.identifiers import parse_canonical_site_identifier
 from phospy.workflows.kinase.component_models import KinaseScoringRunResult
 from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
 

@@ -17,7 +17,7 @@ from phospy.evidence.dataset_resolution import (
     DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
 )
 from phospy.references.models import Organism
-from phospy.site_ids import SiteIdentifierNormalisationReport
+from phospy.sites.identifiers import SiteIdentifierNormalisationReport
 from phospy.transformations.models import IntensityScaleKind, QuantitativeMeaning
 
 if TYPE_CHECKING:

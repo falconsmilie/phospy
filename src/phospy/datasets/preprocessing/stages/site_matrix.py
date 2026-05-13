@@ -39,7 +39,7 @@ from phospy.datasets.preprocessing.stages.site_matrix_components import (
     SiteMatrixRowAuditBuilder,
 )
 from phospy.errors.input import PhosPyInputError
-from phospy.site_ids import canonicalize_site_components_series
+from phospy.sites.identifiers import canonicalize_site_components_series
 
 _GENE_SYMBOL_COLUMN = "gene_symbol"
 _SITE_COLUMN = "site"

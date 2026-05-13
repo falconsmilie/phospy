@@ -15,7 +15,7 @@ from phospy.references.models import (
     ReferenceManifest,
     SequenceWindowDefinition,
 )
-from phospy.site_ids import canonicalize_site_index, canonicalize_site_series
+from phospy.sites.identifiers import canonicalize_site_index, canonicalize_site_series
 
 _BUNDLED_DEFAULTS: dict[Organism, str] = {
     Organism.RAT: "l6_native",

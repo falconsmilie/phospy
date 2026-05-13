@@ -8,7 +8,7 @@ from typing import TypeVar
 
 import pandas as pd
 
-from phospy.site_ids import (
+from phospy.sites.identifiers import (
     canonicalize_site_components,
     canonicalize_site_identifier,
     parse_canonical_site_identifier,

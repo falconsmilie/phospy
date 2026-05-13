@@ -15,7 +15,7 @@ from phospy.evidence.multi_site import (
     MULTI_SITE_POLICY_SPLIT_EQUAL_WEIGHT,
     MultiSiteHandlingConfig,
 )
-from phospy.site_ids import parse_canonical_site_identifier
+from phospy.sites.identifiers import parse_canonical_site_identifier
 
 DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED = "site_level_resolved"
 DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE = "peptide_evidence"

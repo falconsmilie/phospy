@@ -14,7 +14,7 @@ from phospy.references.resources import (
     load_bundled_reference_manifest,
     load_bundled_site_sequences,
 )
-from phospy.site_ids import (
+from phospy.sites.identifiers import (
     canonicalize_site_components_series,
     canonicalize_site_index,
     canonicalize_site_series,

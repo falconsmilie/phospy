@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.errors.input import UnsupportedInputFormatError
-from phospy.site_ids import (
+from phospy.sites.identifiers import (
     SiteIdentifierNormalisationRecord,
     SiteIdentifierNormalisationReport,
     build_site_identifier_normalisation_report,
