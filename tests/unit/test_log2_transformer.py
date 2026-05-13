@@ -94,6 +94,13 @@ def test_log2_transformer_returns_log2_intensity_scale_state() -> None:
     assert isinstance(transformed.provenance["transformer_state"], dict)
 
 
+def test_log2_transformer_exposes_scale_capabilities() -> None:
+    transformer = Log2Transformer(pseudocount=1.0)
+    assert transformer.preserves_input_scale_state is False
+    assert transformer.changes_numeric_values is True
+    assert transformer.requires_established_input_state is False
+
+
 def test_intensity_transform_stage_delegates_to_transformer() -> None:
     class SpyTransformer:
         def __init__(self) -> None:

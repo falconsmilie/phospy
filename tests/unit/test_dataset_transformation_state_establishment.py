@@ -36,6 +36,7 @@ from phospy.science.datasets.preprocessing.models import PreprocessingPlan
 from phospy.science.references.models import Organism
 from phospy.science.transformations.contracts import TransformationResult
 from phospy.science.transformations.models import (
+    IntensityScaleEstablishmentMode,
     IntensityScaleKind,
     IntensityScaleState,
     MatrixIntensityScaleState,
@@ -309,6 +310,13 @@ def test_identity_transformer_is_strict_passthrough_establisher() -> None:
     assert result.state.kind.value == "linear"
 
 
+def test_identity_transformer_exposes_scale_capabilities() -> None:
+    transformer = IdentityTransformer()
+    assert transformer.preserves_input_scale_state is True
+    assert transformer.changes_numeric_values is False
+    assert transformer.requires_established_input_state is False
+
+
 def test_identity_transformer_preserves_declared_linear_state() -> None:
     resolver = DatasetIntensityScaleResolver(transformer=IdentityTransformer())
     declared_linear = IntensityScaleState.raw(has_total_matrix=True)
@@ -341,6 +349,46 @@ def test_identity_transformer_preserves_already_declared_log2_state() -> None:
     assert resolved.intensity_scale_state.phospho.established_by == "trusted.input"
 
 
+def test_capability_preserving_transformer_preserves_declared_state() -> None:
+    class CapabilityPreservingTransformer:
+        preserves_input_scale_state = True
+        changes_numeric_values = False
+        requires_established_input_state = False
+
+        def run(
+            self,
+            phospho: pd.DataFrame,
+            total: pd.DataFrame | None = None,
+        ) -> TransformationResult:
+            return TransformationResult(
+                phospho=phospho,
+                total=total,
+                state=IntensityScaleState.raw(has_total_matrix=total is not None),
+            )
+
+    resolver = DatasetIntensityScaleResolver(
+        transformer=CapabilityPreservingTransformer()
+    )
+    declared_log2 = IntensityScaleState(
+        phospho=MatrixIntensityScaleState.log2(established_by="trusted.input"),
+        total=MatrixIntensityScaleState.log2(established_by="trusted.input"),
+    )
+    resolved = resolver.run(
+        phospho=_phospho(),
+        total=_total(),
+        expected_scale_kind=IntensityScaleKind.LOG2,
+        declared_input_scale_state=declared_log2,
+    )
+
+    assert resolved.intensity_scale_state.kind is IntensityScaleKind.LOG2
+    assert resolved.intensity_scale_state.total is not None
+    assert resolved.intensity_scale_state.total.kind is IntensityScaleKind.LOG2
+    assert (
+        resolved.intensity_scale_state.establishment_mode
+        is IntensityScaleEstablishmentMode.DECLARED
+    )
+
+
 def test_identity_transformer_cannot_establish_log2_from_unknown_state() -> None:
     resolver = DatasetIntensityScaleResolver(transformer=IdentityTransformer())
     with pytest.raises(
@@ -352,6 +400,81 @@ def test_identity_transformer_cannot_establish_log2_from_unknown_state() -> None
             total=_total(),
             expected_scale_kind=IntensityScaleKind.LOG2,
         )
+
+
+def test_capability_non_preserving_transformer_rejects_declared_state() -> None:
+    class CapabilityNonPreservingTransformer:
+        preserves_input_scale_state = False
+        changes_numeric_values = True
+        requires_established_input_state = False
+
+        def run(
+            self,
+            phospho: pd.DataFrame,
+            total: pd.DataFrame | None = None,
+        ) -> TransformationResult:
+            return TransformationResult(
+                phospho=phospho,
+                total=total,
+                state=IntensityScaleState.raw(has_total_matrix=total is not None),
+            )
+
+    resolver = DatasetIntensityScaleResolver(
+        transformer=CapabilityNonPreservingTransformer()
+    )
+    with pytest.raises(
+        TransformationStateEstablishmentError,
+        match="unsupported identity state establishment",
+    ):
+        resolver.run(
+            phospho=_phospho(),
+            total=_total(),
+            declared_input_scale_state=IntensityScaleState.raw(has_total_matrix=True),
+        )
+
+
+def test_capability_non_preserving_transformer_establishes_new_state() -> None:
+    class CapabilityNonPreservingTransformer:
+        preserves_input_scale_state = False
+        changes_numeric_values = True
+        requires_established_input_state = False
+
+        def run(
+            self,
+            phospho: pd.DataFrame,
+            total: pd.DataFrame | None = None,
+        ) -> TransformationResult:
+            return TransformationResult(
+                phospho=phospho,
+                total=total,
+                state=IntensityScaleState(
+                    phospho=MatrixIntensityScaleState.log2(
+                        established_by="test.transformer"
+                    ),
+                    total=(
+                        MatrixIntensityScaleState.log2(
+                            established_by="test.transformer"
+                        )
+                        if total is not None
+                        else None
+                    ),
+                ),
+            )
+
+    resolver = DatasetIntensityScaleResolver(
+        transformer=CapabilityNonPreservingTransformer()
+    )
+    resolved = resolver.run(
+        phospho=_phospho(),
+        total=_total(),
+        expected_scale_kind=IntensityScaleKind.LOG2,
+    )
+
+    assert resolved.intensity_scale_state.kind is IntensityScaleKind.LOG2
+    assert (
+        resolved.intensity_scale_state.establishment_mode
+        is IntensityScaleEstablishmentMode.DERIVED
+    )
 
 
 def test_resolver_rejects_declared_state_with_non_identity_transformer() -> None:

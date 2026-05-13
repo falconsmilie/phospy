@@ -18,6 +18,10 @@ class IdentityTransformer:
     donor-aligned analysis-ready matrices.
     """
 
+    preserves_input_scale_state = True
+    changes_numeric_values = False
+    requires_established_input_state = False
+
     def run(
         self,
         phospho: pd.DataFrame,

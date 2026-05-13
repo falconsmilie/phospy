@@ -30,6 +30,21 @@ class TransformationResult:
 class Transformer(Protocol):
     """Contract for components that establish dataset intensity scale state."""
 
+    @property
+    def preserves_input_scale_state(self) -> bool:
+        """Return whether declared input scale state may be preserved."""
+        ...
+
+    @property
+    def changes_numeric_values(self) -> bool:
+        """Return whether transformer run changes matrix numeric values."""
+        ...
+
+    @property
+    def requires_established_input_state(self) -> bool:
+        """Return whether transformer requires explicit established input scale state."""
+        ...
+
     def run(
         self,
         phospho: pd.DataFrame,

@@ -24,7 +24,6 @@ from phospy.science.transformations.models import (
     IntensityScaleState,
     establish_intensity_scale_state,
 )
-from phospy.science.transformations.transformers import IdentityTransformer
 from phospy.validation.transformations.state import IntensityScaleStateValidator
 
 
@@ -73,14 +72,23 @@ class DatasetIntensityScaleResolver:
                 "Configure AnalysisReadyDatasetBuilder("
                 "executor=DatasetBuildExecutor(transformer=...))."
             )
-        if declared_input_scale_state is not None and not isinstance(
-            self._transformer, IdentityTransformer
-        ):
+        preserves_input_scale_state = self._capability_enabled(
+            self._transformer,
+            "preserves_input_scale_state",
+        )
+        changes_numeric_values = self._capability_enabled(
+            self._transformer,
+            "changes_numeric_values",
+            default=True,
+        )
+
+        if declared_input_scale_state is not None and not preserves_input_scale_state:
             raise TransformationStateEstablishmentError(
                 "unsupported identity state establishment: declared input intensity "
-                "scale state can only be preserved by IdentityTransformer. "
-                "Use IdentityTransformer for explicit input declarations, or remove "
-                "the declaration and establish state via a scale-changing transformer."
+                "scale state can only be preserved by a transformer with "
+                "preserves_input_scale_state=True. Use a preserving transformer for "
+                "explicit input declarations, or remove the declaration and establish "
+                "state via a scale-changing transformer."
             )
 
         try:
@@ -101,24 +109,24 @@ class DatasetIntensityScaleResolver:
             )
 
         state = transformed.state
-        if isinstance(self._transformer, IdentityTransformer):
-            if declared_input_scale_state is not None:
-                self._validate_state(
-                    declared_input_scale_state,
-                    has_total_matrix=transformed.total is not None,
-                    source="declared input intensity scale state",
-                )
-                state = declared_input_scale_state
-            elif (
-                expected_scale_kind is IntensityScaleKind.LOG2
-                and state.phospho.kind is not IntensityScaleKind.LOG2
-            ):
-                raise TransformationStateEstablishmentError(
-                    "missing intensity state evidence for expected 'log2': "
-                    "IdentityTransformer preserves declared input state and cannot "
-                    "establish log2 from unknown/raw input without an explicit "
-                    "trusted declaration."
-                )
+        if declared_input_scale_state is not None and preserves_input_scale_state:
+            self._validate_state(
+                declared_input_scale_state,
+                has_total_matrix=transformed.total is not None,
+                source="declared input intensity scale state",
+            )
+            state = declared_input_scale_state
+        elif (
+            preserves_input_scale_state
+            and expected_scale_kind is IntensityScaleKind.LOG2
+            and state.phospho.kind is not IntensityScaleKind.LOG2
+        ):
+            raise TransformationStateEstablishmentError(
+                "missing intensity state evidence for expected 'log2': "
+                "configured transformer preserves declared input state and cannot "
+                "establish log2 from unknown/raw input without an explicit trusted "
+                "declaration."
+            )
         if (
             expected_scale_kind is not None
             and state.phospho.kind is not expected_scale_kind
@@ -142,7 +150,9 @@ class DatasetIntensityScaleResolver:
         establishment_mode = self._resolve_establishment_mode(
             declared_input_scale_state=declared_input_scale_state,
             declared_input_establishment_mode=declared_input_establishment_mode,
-            identity_transformer=isinstance(self._transformer, IdentityTransformer),
+            identity_like_transformer=(
+                preserves_input_scale_state and not changes_numeric_values
+            ),
         )
         diagnostic_warnings = ()
         if establishment_mode is IntensityScaleEstablishmentMode.DECLARED:
@@ -186,7 +196,7 @@ class DatasetIntensityScaleResolver:
         *,
         declared_input_scale_state: IntensityScaleState | None,
         declared_input_establishment_mode: IntensityScaleEstablishmentMode | None,
-        identity_transformer: bool,
+        identity_like_transformer: bool,
     ) -> IntensityScaleEstablishmentMode:
         if declared_input_scale_state is not None:
             if declared_input_establishment_mode is None:
@@ -199,9 +209,21 @@ class DatasetIntensityScaleResolver:
             return IntensityScaleEstablishmentMode(
                 str(declared_input_establishment_mode)
             )
-        if identity_transformer:
+        if identity_like_transformer:
             return IntensityScaleEstablishmentMode.IDENTITY
         return IntensityScaleEstablishmentMode.DERIVED
+
+    @staticmethod
+    def _capability_enabled(
+        transformer: Transformer,
+        capability_name: str,
+        *,
+        default: bool = False,
+    ) -> bool:
+        value = getattr(transformer, capability_name, default)
+        if value is None:
+            return default
+        return bool(value)
 
     @staticmethod
     def _resolve_transformer_name(

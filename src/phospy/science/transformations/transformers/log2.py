@@ -19,6 +19,10 @@ _LOG2_ESTABLISHED_BY = "phospy.science.transformations.transformers.log2"
 class Log2Transformer:
     """Apply validated log2 transformation with an explicit pseudocount."""
 
+    preserves_input_scale_state = False
+    changes_numeric_values = True
+    requires_established_input_state = False
+
     def __init__(self, *, pseudocount: float) -> None:
         self._pseudocount = _validate_pseudocount(pseudocount)
 

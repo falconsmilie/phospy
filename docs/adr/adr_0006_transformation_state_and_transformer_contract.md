@@ -86,6 +86,10 @@ compatibility behavior where historical names appear in non-contract internals.
   execute through transformer implementations in
   `src/phospy/science/transformations/transformers/`; preprocessing stages
   orchestrate and report but do not own transformation science.
+- Intensity-scale preservation is expressed as transformer capability metadata
+  (`preserves_input_scale_state`, `changes_numeric_values`,
+  `requires_established_input_state`); resolvers consume these capabilities and
+  must not branch on concrete transformer classes.
 - Bundle metadata and reconstruction use explicit `intensity_scale_state` keys
   under `src/phospy/io/bundles/_shared/intensity_scale_state.py`.
 - Workflow validators consume established boundary state; they do not establish
