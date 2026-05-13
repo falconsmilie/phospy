@@ -120,7 +120,7 @@ but cannot claim deep immutability.
 
 ## Affected Modules
 
-- `src/phospy/_frame_ownership.py`
+- `src/phospy/frames/ownership.py`
 - `src/phospy/datasets/models.py`
 - `src/phospy/api/results.py`
 - `src/phospy/activities/models.py`

@@ -8,8 +8,8 @@ from types import MappingProxyType
 
 import pandas as pd
 
-from phospy._frame_ownership import export_dataframe, own_dataframe
 from phospy.errors.input import PhosPyInputError
+from phospy.frames.ownership import export_dataframe, own_dataframe
 from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
 
 PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE = "compat_best_p_value"

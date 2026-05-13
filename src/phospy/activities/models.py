@@ -7,16 +7,16 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from phospy._frame_ownership import (
-    export_dataframe,
-    export_optional_dataframe,
-    export_series,
-)
 from phospy.activities.threshold_membership import (
     ActivityThresholdMembershipDiagnostics,
 )
 from phospy.errors.validation import PhosPyValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.frames.ownership import (
+    export_dataframe,
+    export_optional_dataframe,
+    export_series,
+)
 from phospy.tables.activity import (
     ActivityCountMatrix,
     ActivityCountSeries,

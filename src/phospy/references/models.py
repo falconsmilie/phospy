@@ -8,8 +8,8 @@ from enum import Enum
 
 import pandas as pd
 
-from phospy._frame_ownership import export_dataframe, own_dataframe
 from phospy.errors.validation import ReferenceValidationError
+from phospy.frames.ownership import export_dataframe, own_dataframe
 from phospy.provenance.hashing import fingerprint_table
 from phospy.provenance.models import JsonValue, ReferenceProvenance
 from phospy.references.identifiers import (

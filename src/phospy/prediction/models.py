@@ -7,14 +7,14 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-from phospy._frame_ownership import (
+from phospy.errors.validation import PhosPyValidationError
+from phospy.frames.ownership import (
     _borrow_dataframe,
     _borrow_optional_dataframe,
     export_dataframe,
     export_optional_dataframe,
     own_optional_dataframe,
 )
-from phospy.errors.validation import PhosPyValidationError
 from phospy.prediction.motif_scoring import MotifLibraryValidationResult
 from phospy.prediction.scoring import (
     KINASE_SCORE_SOURCE_SUMMARY_COLUMNS,

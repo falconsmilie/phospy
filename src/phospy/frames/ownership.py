@@ -1,12 +1,4 @@
-"""Internal pandas ownership helpers.
-
-PhosPy frame ownership policy:
-- `_frame_ownership` and dataset/result models own DataFrame/Series policy.
-- public properties/export helpers always return defensive copies.
-- internal borrowed access is explicit (`_borrow_*`) and internal-only.
-- borrowed frames are mutation-isolated snapshot views for internal read paths.
-- mutation is allowed only in owned construction/transformation code paths.
-"""
+"""Shared pandas DataFrame and Series ownership helpers."""
 
 from __future__ import annotations
 
@@ -177,7 +169,6 @@ def _borrow_optional_series(value: pd.Series | None) -> pd.Series | None:
 
 
 __all__ = [
-    "ExceptionType",
     "export_dataframe",
     "export_optional_dataframe",
     "export_optional_series",

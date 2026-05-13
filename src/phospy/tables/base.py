@@ -7,8 +7,8 @@ from typing import ClassVar
 
 import pandas as pd
 
-from phospy._frame_ownership import export_dataframe, own_dataframe
 from phospy.errors.validation import PhosPyValidationError
+from phospy.frames.ownership import export_dataframe, own_dataframe
 from phospy.validation.common.dataframes import (
     require_no_duplicate_labels,
     require_string_index,

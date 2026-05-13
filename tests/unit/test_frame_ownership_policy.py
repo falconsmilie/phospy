@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import inspect
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -44,6 +45,18 @@ from phospy.datasets.preprocessing.report_schema import (
     PreprocessingOperationRow,
     PreprocessingRowAuditRow,
     PreprocessingRowCountRow,
+)
+from phospy.frames.ownership import (
+    _borrow_dataframe,
+    _borrow_series,
+    export_dataframe,
+    export_optional_dataframe,
+    export_optional_series,
+    export_series,
+    own_dataframe,
+    own_optional_dataframe,
+    own_optional_series,
+    own_series,
 )
 from phospy.prediction.models import KinaseScoringResult
 from phospy.provenance.hashing import fingerprint_table
@@ -674,8 +687,8 @@ def test_owned_construction_frames_can_be_mutated_after_owned_transfer() -> None
 
 def test_internal_borrowed_accessors_are_not_public_api_exports() -> None:
     import phospy
-    import phospy._frame_ownership as frame_ownership
     import phospy.datasets as datasets
+    import phospy.frames.ownership as frame_ownership
 
     assert not any("borrow" in name for name in phospy.__all__)
     assert not any("borrow" in name for name in datasets.__all__)
@@ -683,6 +696,53 @@ def test_internal_borrowed_accessors_are_not_public_api_exports() -> None:
     assert not hasattr(AnalysisReadyPhosphoDataset, "borrow_phospho_frame")
     assert not hasattr(AnalysisReadyPhosphoDataset, "borrow_site_metadata_frame")
     assert not hasattr(DatasetPreprocessingReport, "borrow_row_counts_frame")
+
+
+def test_frame_ownership_helpers_are_owned_by_frames_ownership_module() -> None:
+    assert own_dataframe.__module__ == "phospy.frames.ownership"
+    assert own_optional_dataframe.__module__ == "phospy.frames.ownership"
+    assert export_dataframe.__module__ == "phospy.frames.ownership"
+    assert export_optional_dataframe.__module__ == "phospy.frames.ownership"
+    assert own_series.__module__ == "phospy.frames.ownership"
+    assert own_optional_series.__module__ == "phospy.frames.ownership"
+    assert export_series.__module__ == "phospy.frames.ownership"
+    assert export_optional_series.__module__ == "phospy.frames.ownership"
+    assert _borrow_dataframe.__module__ == "phospy.frames.ownership"
+    assert _borrow_series.__module__ == "phospy.frames.ownership"
+
+
+def test_root_frame_ownership_module_is_removed() -> None:
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("phospy._frame_ownership")
+
+
+def test_frame_ownership_helper_constructor_and_export_behaviour_is_preserved() -> None:
+    original = _phospho()
+    owned = own_dataframe(original, field_name="x")
+    original.iloc[0, 0] = 999.0
+    assert float(owned.iloc[0, 0]) == 1.0
+
+    exported = export_dataframe(owned)
+    exported.iloc[0, 0] = 111.0
+    assert float(owned.iloc[0, 0]) == 1.0
+
+
+def test_frame_ownership_optional_helpers_return_none_for_none() -> None:
+    assert own_optional_dataframe(None, field_name="x") is None
+    assert export_optional_dataframe(None) is None
+    assert own_optional_series(None, field_name="x") is None
+    assert export_optional_series(None) is None
+
+
+def test_frame_ownership_series_helper_copy_behaviour_is_preserved() -> None:
+    original = pd.Series([1.0, 2.0], index=["a", "b"], name="values")
+    owned = own_series(original, field_name="x")
+    original.iloc[0] = 999.0
+    assert float(owned.iloc[0]) == 1.0
+
+    exported = export_series(owned)
+    exported.iloc[0] = 111.0
+    assert float(owned.iloc[0]) == 1.0
 
 
 def test_prediction_result_public_export_copy_default_is_safe() -> None:

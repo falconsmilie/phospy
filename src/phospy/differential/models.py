@@ -7,13 +7,13 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from phospy._frame_ownership import (
+from phospy.errors.input import PhosPyInputError
+from phospy.frames.ownership import (
     export_dataframe,
     export_series,
     own_dataframe,
     own_series,
 )
-from phospy.errors.input import PhosPyInputError
 from phospy.validation.common.dataframes import (
     require_dataframe,
     require_finite_numeric_dataframe,

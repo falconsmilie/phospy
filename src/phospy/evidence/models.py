@@ -7,18 +7,18 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from phospy._frame_ownership import (
-    export_dataframe,
-    export_series,
-    own_dataframe,
-    own_series,
-)
 from phospy.errors.input import PhosPyInputError
 from phospy.evidence.multi_site import (
     MultiSiteHandlingConfig,
     MultiSiteObservation,
     build_multi_site_observation,
     resolve_site_mapping_frame,
+)
+from phospy.frames.ownership import (
+    export_dataframe,
+    export_series,
+    own_dataframe,
+    own_series,
 )
 from phospy.sites.identifiers import canonicalize_site_identifier
 from phospy.validation.common.dataframes import (

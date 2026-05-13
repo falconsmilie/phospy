@@ -8,8 +8,8 @@ from typing import ClassVar
 import numpy as np
 import pandas as pd
 
-from phospy._frame_ownership import own_dataframe, own_series
 from phospy.errors.validation import PhosPyValidationError
+from phospy.frames.ownership import own_dataframe, own_series
 from phospy.tables.base import (
     TableSchema,
     ValidationErrorType,

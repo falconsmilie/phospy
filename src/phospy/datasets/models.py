@@ -7,14 +7,6 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from phospy._frame_ownership import (
-    _borrow_dataframe,
-    _borrow_optional_dataframe,
-    export_dataframe,
-    export_optional_dataframe,
-    own_dataframe,
-    own_optional_dataframe,
-)
 from phospy.datasets.preprocessing.report_schema import (
     COMPARISON_GROUP_STATS_COLUMNS,
     COMPARISON_PAIR_STATS_COLUMNS,
@@ -41,6 +33,14 @@ from phospy.datasets.preprocessing.report_schema import (
 )
 from phospy.datasets.processing_state import DatasetProcessingState, RuvReadinessState
 from phospy.errors.validation import DatasetValidationError
+from phospy.frames.ownership import (
+    _borrow_dataframe,
+    _borrow_optional_dataframe,
+    export_dataframe,
+    export_optional_dataframe,
+    own_dataframe,
+    own_optional_dataframe,
+)
 from phospy.provenance.models import RunProvenance
 from phospy.references.models import Organism
 from phospy.tables.datasets import (

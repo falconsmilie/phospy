@@ -6,8 +6,8 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from phospy._frame_ownership import own_dataframe
 from phospy.errors.validation import PhosPyValidationError
+from phospy.frames.ownership import own_dataframe
 from phospy.tables.base import TableSchema, require_canonical_label_index
 from phospy.validation.common.dataframes import (
     require_canonical_site_index,
