@@ -1,101 +1,49 @@
-"""Validator for the analysis-ready dataset boundary."""
+"""Adapter for analysis-ready dataset model-boundary validation."""
 
 from __future__ import annotations
 
 import pandas as pd
 
-from phospy.errors.validation import DatasetValidationError
+from phospy.provenance.models import RunProvenance
+from phospy.science.datasets.models import (
+    AnalysisReadyPhosphoDataset,
+    DatasetPreprocessingReport,
+)
+from phospy.science.datasets.processing_state import DatasetProcessingState
 from phospy.science.references.models import Organism
-from phospy.tables.datasets import (
-    PhosphoIntensityMatrix,
-    SampleMetadataTable,
-    SiteMetadataTable,
-    TotalProteinMatrix,
-)
-from phospy.validation.common.dataframes import (
-    require_dataframe,
-    require_exact_index_match,
-    require_finite_numeric_dataframe,
-    require_non_empty_dataframe,
-    require_numeric_dataframe,
-    require_unique_columns,
-)
+from phospy.science.transformations.models import IntensityScaleState
 
 
-class AnalysisReadyDatasetValidator:
-    """Validate the public `AnalysisReadyPhosphoDataset` contract."""
+class AnalysisReadyDatasetModelBoundaryValidator:
+    """Validate by delegating to `AnalysisReadyPhosphoDataset` construction.
+
+    This adapter does not own analysis-ready invariants. The model constructor
+    remains the single authoritative owner for strict dataset-boundary checks.
+    """
 
     def run(
         self,
         *,
         phospho: pd.DataFrame,
         site_metadata: pd.DataFrame,
+        intensity_scale_state: IntensityScaleState,
+        processing_state: DatasetProcessingState,
         sample_metadata: pd.DataFrame | None,
         total: pd.DataFrame | None,
         comparisons: pd.DataFrame | None,
         organism: Organism | None,
-    ) -> None:
-        phospho_frame = PhosphoIntensityMatrix(
-            frame=phospho,
-            _assume_owned=True,
-        ).frame
-        SiteMetadataTable(
-            frame=site_metadata,
-            expected_index=phospho_frame.index,
-            _assume_owned=True,
+        preprocessing_report: DatasetPreprocessingReport | None = None,
+        provenance: RunProvenance | None = None,
+    ) -> AnalysisReadyPhosphoDataset:
+        return AnalysisReadyPhosphoDataset(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            intensity_scale_state=intensity_scale_state,
+            processing_state=processing_state,
+            sample_metadata=sample_metadata,
+            total=total,
+            comparisons=comparisons,
+            organism=organism,
+            preprocessing_report=preprocessing_report,
+            provenance=provenance,
         )
-
-        if sample_metadata is not None:
-            SampleMetadataTable(
-                frame=sample_metadata,
-                expected_index=phospho_frame.columns,
-                _assume_owned=True,
-            )
-
-        if comparisons is not None:
-            comparisons_frame = require_dataframe(
-                comparisons,
-                field_name="dataset.comparisons",
-                allow_empty=True,
-                error_type=DatasetValidationError,
-            )
-            require_non_empty_dataframe(
-                comparisons_frame,
-                field_name="dataset.comparisons",
-                error_type=DatasetValidationError,
-            )
-            require_numeric_dataframe(
-                comparisons_frame,
-                field_name="dataset.comparisons",
-                error_type=DatasetValidationError,
-            )
-            require_finite_numeric_dataframe(
-                comparisons_frame,
-                field_name="dataset.comparisons",
-                error_type=DatasetValidationError,
-                allow_missing=False,
-            )
-            require_unique_columns(
-                comparisons_frame,
-                field_name="dataset.comparisons",
-                error_type=DatasetValidationError,
-            )
-            require_exact_index_match(
-                left=comparisons_frame.index,
-                right=phospho_frame.index,
-                left_name="dataset.comparisons.index",
-                right_name="dataset.phospho.index",
-                error_type=DatasetValidationError,
-            )
-
-        if total is not None:
-            TotalProteinMatrix(
-                frame=total,
-                expected_sample_index=phospho_frame.columns,
-                _assume_owned=True,
-            )
-
-        if organism is not None and not isinstance(organism, Organism):
-            raise DatasetValidationError(
-                "dataset.organism must be an Organism enum value or None"
-            )

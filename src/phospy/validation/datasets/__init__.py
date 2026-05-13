@@ -5,26 +5,28 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from phospy.validation.datasets.analysis_ready import AnalysisReadyDatasetValidator
+    from phospy.validation.datasets.analysis_ready import (
+        AnalysisReadyDatasetModelBoundaryValidator,
+    )
     from phospy.validation.datasets.inputs import DatasetInputSourceValidator
     from phospy.validation.datasets.preprocessing import (
         DatasetPreprocessingConfigValidator,
     )
 
 __all__ = [
-    "AnalysisReadyDatasetValidator",
+    "AnalysisReadyDatasetModelBoundaryValidator",
     "DatasetInputSourceValidator",
     "DatasetPreprocessingConfigValidator",
 ]
 
 
 def __getattr__(name: str) -> object:
-    if name == "AnalysisReadyDatasetValidator":
+    if name == "AnalysisReadyDatasetModelBoundaryValidator":
         from phospy.validation.datasets.analysis_ready import (
-            AnalysisReadyDatasetValidator,
+            AnalysisReadyDatasetModelBoundaryValidator,
         )
 
-        return AnalysisReadyDatasetValidator
+        return AnalysisReadyDatasetModelBoundaryValidator
     if name == "DatasetInputSourceValidator":
         from phospy.validation.datasets.inputs import DatasetInputSourceValidator
 

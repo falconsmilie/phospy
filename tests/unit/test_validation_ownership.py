@@ -19,7 +19,9 @@ from phospy.errors import ReferenceCompatibilityError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.references.models import Organism, ReferenceBundle, ReferencePreset
 from phospy.science.references.resolution import ReferenceResolver
-from phospy.validation.datasets.analysis_ready import AnalysisReadyDatasetValidator
+from phospy.validation.datasets.analysis_ready import (
+    AnalysisReadyDatasetModelBoundaryValidator,
+)
 from phospy.validation.ownership import VALIDATION_RULE_OWNERS
 from phospy.validation.references.bundle import ReferenceBundleValidator
 from phospy.validation.references.compatibility import ReferenceCompatibilityValidator
@@ -120,14 +122,19 @@ def test_reference_bundle_contract_validation_has_single_owner() -> None:
 
 
 def test_dataset_validation_composition_is_outside_validation_subdomains() -> None:
-    dataset_validator_source = inspect.getsource(AnalysisReadyDatasetValidator)
+    dataset_validator_source = inspect.getsource(
+        AnalysisReadyDatasetModelBoundaryValidator
+    )
     dataset_post_init_source = inspect.getsource(
         AnalysisReadyPhosphoDataset.__post_init__
     )
-    assert "IntensityScaleStateValidator" not in dataset_validator_source
+    assert "AnalysisReadyPhosphoDataset(" in dataset_validator_source
+    assert "PhosphoIntensityMatrix(" not in dataset_validator_source
+    assert "SiteMetadataTable(" not in dataset_validator_source
+    assert "TotalProteinMatrix(" not in dataset_validator_source
     assert (
         "intensity_scale_state"
-        not in inspect.signature(AnalysisReadyDatasetValidator.run).parameters
+        in inspect.signature(AnalysisReadyDatasetModelBoundaryValidator.run).parameters
     )
     assert "PhosphoIntensityMatrix(" in dataset_post_init_source
     assert "SiteMetadataTable(" in dataset_post_init_source
@@ -157,6 +164,9 @@ def test_major_validation_rules_have_documented_owners() -> None:
         == "ReferenceCompatibilityValidator.run"
     )
     assert documented["reference bundle structural contract"]
-    assert documented["analysis-ready dataset structural contract"]
+    assert (
+        documented["analysis-ready dataset structural contract"]
+        == "AnalysisReadyPhosphoDataset.__post_init__"
+    )
     assert documented["dataset/intensity-scale-state coherence"]
     assert documented["signalome result expanded_signalome field type/ownership"]

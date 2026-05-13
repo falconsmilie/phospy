@@ -23,6 +23,8 @@ Higher-level layers may compose owners, but must not duplicate ownership logic.
 ## Ownership Notes
 
 - Dataset validation remains private: there is no public dataset `validate()` API.
+- Validation-domain adapters may call dataset construction, but they must not
+  reimplement `AnalysisReadyPhosphoDataset` invariants.
 - Workflow validators should compose shared/domain validators instead of duplicating row-level scientific identity checks.
 - Public request dataclasses remain transport objects; boundary ownership sits in validators and domain contracts.
 - Policy enums are owned by behavioural domain modules:

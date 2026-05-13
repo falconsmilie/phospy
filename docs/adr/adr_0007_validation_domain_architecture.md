@@ -34,9 +34,12 @@ Validation ownership is explicit and enforced by module boundaries:
    eligibility).
 3. Workflow validators compose structural and domain validators at request
    boundaries, then pass validated objects downstream.
-4. Workflow validators do not execute scoring/prediction/clustering science and
+4. Dataset construction owns dataset invariants. Validation-domain adapters may
+   delegate through model construction, but do not duplicate model-boundary
+   invariant logic.
+5. Workflow validators do not execute scoring/prediction/clustering science and
    do not perform data-transformation side effects.
-5. Public presets/config objects are still required to pass the same validator
+6. Public presets/config objects are still required to pass the same validator
    boundaries as manually constructed configs.
 
 The ownership map in `docs/validation-ownership.md` is part of ADR governance,
