@@ -1,4 +1,4 @@
-"""Shared site-identifier canonicalisation helpers."""
+"""Phosphosite display-identifier parsing and canonicalisation helpers."""
 
 from __future__ import annotations
 
@@ -22,6 +22,20 @@ _SITE_TOKEN_RESIDUE_POSITION_PATTERN = re.compile(
 _SITE_IDENTIFIER_EXPECTATION = (
     "site identifiers must use 'GENE;SITE;' format (example: 'MAPK1;S123;')"
 )
+__all__ = [
+    "ParsedSiteToken",
+    "SiteIdentifierNormalisationRecord",
+    "SiteIdentifierNormalisationReport",
+    "SITE_IDENTIFIER_NORMALISATION_SCHEMA_VERSION",
+    "build_site_identifier_normalisation_report",
+    "canonicalize_site_index",
+    "canonicalize_site_series",
+    "canonicalize_site_identifier",
+    "parse_canonical_site_identifier",
+    "try_parse_site_token",
+    "canonicalize_site_components",
+    "canonicalize_site_components_series",
+]
 
 
 @dataclass(frozen=True, slots=True)
