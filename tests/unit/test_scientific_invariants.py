@@ -346,7 +346,7 @@ def test_duplicate_site_resolution_is_deterministic_for_max_mean_signal_policy()
             "gene_symbol": ["MAPK14", "MAPK14", "AKT1"],
             "site": ["Y182", "Y182", "T308"],
             "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
-            "protein_id": ["P1", "P2", "P3"],
+            "protein_id": ["P1", "P1", "P3"],
         },
         index=phospho.index.copy(),
     )

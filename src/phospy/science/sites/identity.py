@@ -26,6 +26,13 @@ PHOSPHOSITE_IDENTITY_OPTIONAL_COLUMNS = (
     "source_site_id",
 )
 PHOSPHOSITE_PROTEIN_CONTEXT_COLUMNS = ("protein_id", "protein_accession")
+PHOSPHOSITE_STRICT_COLLISION_CONTEXT_COLUMNS = (
+    "protein_id",
+    "protein_accession",
+    "isoform_id",
+    "source_namespace",
+    "source_site_id",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -246,9 +253,20 @@ def validate_no_conflicting_identity_collisions(
         row_ids = display_key_to_rows.get(display_id, ())
         row_preview = ", ".join(repr(value) for value in tuple(row_ids)[:preview_limit])
         row_suffix = "" if len(row_ids) <= preview_limit else " ..."
+        conflicting_context = _describe_conflicting_context(
+            site_metadata=site_metadata,
+            row_ids=row_ids,
+            preview_limit=preview_limit,
+        )
+        conflicting_context_suffix = (
+            ""
+            if conflicting_context is None
+            else f"; conflicting context: {conflicting_context}"
+        )
         conflicts.append(
             f"{display_id!r} has {int(len(contexts))} conflicting scientific "
             f"identities across source rows [{row_preview}{row_suffix}]"
+            f"{conflicting_context_suffix}"
         )
 
     if conflicts:
@@ -298,12 +316,7 @@ def _requires_strict_collision_rejection(
     site_metadata: pd.DataFrame,
     row_ids: Iterable[str],
 ) -> bool:
-    strict_columns = (
-        "protein_accession",
-        "isoform_id",
-        "source_namespace",
-        "source_site_id",
-    )
+    strict_columns = PHOSPHOSITE_STRICT_COLLISION_CONTEXT_COLUMNS
     row_index = set(str(row_id) for row_id in row_ids)
     if not row_index:
         return False
@@ -319,6 +332,39 @@ def _requires_strict_collision_rejection(
     return False
 
 
+def _describe_conflicting_context(
+    *,
+    site_metadata: pd.DataFrame,
+    row_ids: Iterable[str],
+    preview_limit: int,
+) -> str | None:
+    row_index = set(str(row_id) for row_id in row_ids)
+    if not row_index:
+        return None
+
+    conflicts: list[str] = []
+    for column in PHOSPHOSITE_STRICT_COLLISION_CONTEXT_COLUMNS:
+        if column not in site_metadata.columns:
+            continue
+        values: set[object] = set()
+        for row_id in site_metadata.index.tolist():
+            if str(row_id) not in row_index:
+                continue
+            values.add(_canonical_context_value(site_metadata.at[row_id, column]))
+        if len(values) <= 1:
+            continue
+        ordered_values = sorted(values, key=repr)
+        value_preview = ", ".join(
+            repr(value) for value in ordered_values[:preview_limit]
+        )
+        value_suffix = "" if len(ordered_values) <= preview_limit else " ..."
+        conflicts.append(f"{column}=[{value_preview}{value_suffix}]")
+
+    if not conflicts:
+        return None
+    return ", ".join(conflicts)
+
+
 def _is_missing(value: object) -> bool:
     return bool(pd.Series((value,), dtype="object").isna().iat[0])
 
@@ -331,9 +377,19 @@ def _has_strict_identity_value(value: object) -> bool:
     return True
 
 
+def _canonical_context_value(value: object) -> object:
+    if _is_missing(value):
+        return None
+    if isinstance(value, str):
+        token = value.strip()
+        return None if token == "" else token
+    return value
+
+
 __all__ = [
     "PHOSPHOSITE_IDENTITY_OPTIONAL_COLUMNS",
     "PHOSPHOSITE_PROTEIN_CONTEXT_COLUMNS",
+    "PHOSPHOSITE_STRICT_COLLISION_CONTEXT_COLUMNS",
     "PhosphositeIdentity",
     "build_phosphosite_identity",
     "validate_identity_optional_columns",

@@ -78,6 +78,48 @@ def test_builder_rejects_duplicate_display_ids_with_conflicting_protein_identity
         )
 
 
+def test_builder_rejects_duplicate_display_ids_with_conflicting_protein_id() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0],
+            "sample_b": [1.5, 2.5],
+        },
+        index=pd.Index(["row_a", "row_b"], name="source_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "MAPK14"],
+            "site": ["Y182", "Y182"],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["Y182", "Y182"]
+            ],
+            "localisation_confidence": [0.95, 0.95],
+            "protein_id": ["P28482", "Q5S007"],
+            "protein_accession": ["P28482-1", "P28482-1"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="protein_id=\\['P28482', 'Q5S007'\\]",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                organism=Organism.RAT,
+                preprocessing_config=DatasetPreprocessingConfig(
+                    site_matrix=DatasetSiteMatrixConfig(
+                        policy="build_from_metadata",
+                        duplicate_site_policy="first",
+                    )
+                ),
+            )
+        )
+
+
 def test_signalome_still_requires_explicit_protein_identity() -> None:
     base_dataset = build_rat_l6_dataset(n_sites=260)
     dataset_without_protein = AnalysisReadyPhosphoDataset(

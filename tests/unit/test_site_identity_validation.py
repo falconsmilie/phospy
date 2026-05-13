@@ -9,6 +9,49 @@ from phospy.science.sites.identity import (
 )
 
 
+def _display_id_collision_inputs(
+    *,
+    protein_ids: list[object] | None = None,
+    protein_accessions: list[object] | None = None,
+    isoform_ids: list[object] | None = None,
+) -> tuple[pd.DataFrame, pd.Series]:
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "MAPK14"],
+            "site": ["Y182", "Y182"],
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in ["Y182", "Y182"]
+            ],
+        },
+        index=pd.Index(["row_a", "row_b"], name="source_row"),
+    )
+    if protein_ids is not None:
+        site_metadata.loc[:, "protein_id"] = pd.Series(
+            protein_ids,
+            index=site_metadata.index,
+            dtype="object",
+        )
+    if protein_accessions is not None:
+        site_metadata.loc[:, "protein_accession"] = pd.Series(
+            protein_accessions,
+            index=site_metadata.index,
+            dtype="object",
+        )
+    if isoform_ids is not None:
+        site_metadata.loc[:, "isoform_id"] = pd.Series(
+            isoform_ids,
+            index=site_metadata.index,
+            dtype="object",
+        )
+    constructed_site_ids = pd.Series(
+        ["MAPK14;Y182;", "MAPK14;Y182;"],
+        index=site_metadata.index.copy(),
+        name="site_id",
+    )
+    return site_metadata, constructed_site_ids
+
+
 def test_validate_identity_optional_columns_accepts_missing_and_strings() -> None:
     frame = pd.DataFrame(
         {
@@ -57,23 +100,9 @@ def test_validate_identity_optional_columns_rejects_non_string_values() -> None:
 def test_identity_collision_rejects_same_display_id_with_conflicting_protein_context() -> (
     None
 ):
-    site_metadata = pd.DataFrame(
-        {
-            "gene_symbol": ["MAPK14", "MAPK14"],
-            "site": ["Y182", "Y182"],
-            "site_sequence": [
-                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
-                for site in ["Y182", "Y182"]
-            ],
-            "protein_id": ["P28482", "P28482"],
-            "protein_accession": ["P28482-1", "P28482-2"],
-        },
-        index=pd.Index(["row_a", "row_b"], name="source_row"),
-    )
-    constructed_site_ids = pd.Series(
-        ["MAPK14;Y182;", "MAPK14;Y182;"],
-        index=site_metadata.index.copy(),
-        name="site_id",
+    site_metadata, constructed_site_ids = _display_id_collision_inputs(
+        protein_ids=["P28482", "P28482"],
+        protein_accessions=["P28482-1", "P28482-2"],
     )
 
     with pytest.raises(
@@ -89,23 +118,9 @@ def test_identity_collision_rejects_same_display_id_with_conflicting_protein_con
 
 
 def test_identity_collision_allows_semantically_identical_duplicates() -> None:
-    site_metadata = pd.DataFrame(
-        {
-            "gene_symbol": ["MAPK14", "MAPK14"],
-            "site": ["Y182", "Y182"],
-            "site_sequence": [
-                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
-                for site in ["Y182", "Y182"]
-            ],
-            "protein_id": ["P28482-1", "P28482-1"],
-            "protein_accession": ["P28482-1", "P28482-1"],
-        },
-        index=pd.Index(["row_a", "row_b"], name="source_row"),
-    )
-    constructed_site_ids = pd.Series(
-        ["MAPK14;Y182;", "MAPK14;Y182;"],
-        index=site_metadata.index.copy(),
-        name="site_id",
+    site_metadata, constructed_site_ids = _display_id_collision_inputs(
+        protein_ids=["P28482-1", "P28482-1"],
+        protein_accessions=["P28482-1", "P28482-1"],
     )
 
     validate_no_conflicting_identity_collisions(
@@ -114,3 +129,88 @@ def test_identity_collision_allows_semantically_identical_duplicates() -> None:
         field_name="dataset preprocessing.site_matrix",
         error_type=ValueError,
     )
+
+
+def test_identity_collision_allows_same_display_id_with_matching_protein_id() -> None:
+    site_metadata, constructed_site_ids = _display_id_collision_inputs(
+        protein_ids=["P28482", "P28482"],
+    )
+
+    validate_no_conflicting_identity_collisions(
+        site_metadata=site_metadata,
+        display_ids=constructed_site_ids,
+        field_name="dataset preprocessing.site_matrix",
+        error_type=ValueError,
+    )
+
+
+def test_identity_collision_rejects_same_display_id_with_conflicting_protein_id() -> (
+    None
+):
+    site_metadata, constructed_site_ids = _display_id_collision_inputs(
+        protein_ids=["P28482", "Q12345"],
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="protein_id=\\['P28482', 'Q12345'\\]",
+    ):
+        validate_no_conflicting_identity_collisions(
+            site_metadata=site_metadata,
+            display_ids=constructed_site_ids,
+            field_name="dataset preprocessing.site_matrix",
+            error_type=ValueError,
+        )
+
+
+def test_identity_collision_protein_id_missing_context_follows_strict_policy() -> None:
+    site_metadata, constructed_site_ids = _display_id_collision_inputs(
+        protein_ids=["P28482", pd.NA],
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="protein_id=\\['P28482', None\\]",
+    ):
+        validate_no_conflicting_identity_collisions(
+            site_metadata=site_metadata,
+            display_ids=constructed_site_ids,
+            field_name="dataset preprocessing.site_matrix",
+            error_type=ValueError,
+        )
+
+
+def test_identity_collision_rejects_same_display_id_with_conflicting_accession() -> (
+    None
+):
+    site_metadata, constructed_site_ids = _display_id_collision_inputs(
+        protein_accessions=["P28482-1", "P28482-2"],
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="protein_accession=\\['P28482-1', 'P28482-2'\\]",
+    ):
+        validate_no_conflicting_identity_collisions(
+            site_metadata=site_metadata,
+            display_ids=constructed_site_ids,
+            field_name="dataset preprocessing.site_matrix",
+            error_type=ValueError,
+        )
+
+
+def test_identity_collision_rejects_same_display_id_with_conflicting_isoform() -> None:
+    site_metadata, constructed_site_ids = _display_id_collision_inputs(
+        isoform_ids=["isoform-1", "isoform-2"],
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="isoform_id=\\['isoform-1', 'isoform-2'\\]",
+    ):
+        validate_no_conflicting_identity_collisions(
+            site_metadata=site_metadata,
+            display_ids=constructed_site_ids,
+            field_name="dataset preprocessing.site_matrix",
+            error_type=ValueError,
+        )
