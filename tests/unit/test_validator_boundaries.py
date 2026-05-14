@@ -118,7 +118,7 @@ def _mixed_total_correction_dataset() -> AnalysisReadyPhosphoDataset:
         {
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "site_sequence": ["AAAAAAAYAAAAAAA", "AAAAAAATAAAAAAA"],
             "protein_id": ["MAPK14", "AKT1"],
             "localisation_confidence": [0.95, 0.9],
         },
@@ -972,6 +972,68 @@ def test_kinase_validator_rejects_malformed_site_tokens() -> None:
 
 
 @pytest.mark.parametrize(
+    ("sequence_value", "pattern"),
+    [
+        pytest.param(pd.NA, "missing or blank", id="missing"),
+        pytest.param("AAAAAAAYAAAAAAAA", "must be odd length", id="even-length"),
+        pytest.param(
+            "AAAAAAASAAAAAAA",
+            "centre residue must match the site token residue",
+            id="centre-mismatch",
+        ),
+        pytest.param(
+            "AAAAAA_SAAAAAAA",
+            "centre residue must match the site token residue",
+            id="underscore-gapped-mismatch",
+        ),
+    ],
+)
+def test_kinase_validator_requires_centred_sequence_context(
+    sequence_value: object,
+    pattern: str,
+) -> None:
+    dataset = _dataset()
+    dataset._site_metadata.loc[:, "site_sequence"] = [sequence_value]
+    request = KinaseWorkflowRequest(
+        dataset=dataset,
+        references=_references(),
+        scoring_config=KinaseScoringConfig(min_substrates=2),
+        prediction_config=KinasePredictionConfig(
+            top_k=5,
+            deterministic_max_selected_kinases=5,
+            adaptive_ensemble_runs=5,
+        ),
+        activity_config=None,
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match=f"requires centred sequence context.*{pattern}",
+    ) as exc_info:
+        KinaseWorkflowValidator().run(request)
+    assert "MAPK14;Y182;" in str(exc_info.value)
+
+
+def test_kinase_validator_allows_gapped_flanks_when_centre_is_valid() -> None:
+    dataset = _dataset()
+    dataset._site_metadata.loc[:, "site_sequence"] = ["________Y________"]
+    request = KinaseWorkflowRequest(
+        dataset=dataset,
+        references=_references(),
+        scoring_config=KinaseScoringConfig(min_substrates=2),
+        prediction_config=KinasePredictionConfig(
+            top_k=5,
+            deterministic_max_selected_kinases=5,
+            adaptive_ensemble_runs=5,
+        ),
+        activity_config=None,
+    )
+
+    validated = KinaseWorkflowValidator().run(request)
+    assert validated is request
+
+
+@pytest.mark.parametrize(
     (
         "config_path",
         "invalid_value",
@@ -1319,6 +1381,59 @@ def test_signalome_validator_reports_invalid_localisation_probability_values() -
     assert "example_site_ids=['MAPK14;Y182;']" in message
 
 
+@pytest.mark.parametrize(
+    ("sequence_value", "pattern"),
+    [
+        pytest.param(pd.NA, "missing or blank", id="missing"),
+        pytest.param("AAAAAAAYAAAAAAAA", "must be odd length", id="even-length"),
+        pytest.param(
+            "AAAAAAASAAAAAAA",
+            "centre residue must match the site token residue",
+            id="centre-mismatch",
+        ),
+        pytest.param(
+            "AAAAAA-SAAAAAAA",
+            "centre residue must match the site token residue",
+            id="gapped-mismatch",
+        ),
+    ],
+)
+def test_signalome_validator_requires_centred_sequence_context(
+    sequence_value: object,
+    pattern: str,
+) -> None:
+    kinase_result = _kinase_result()
+    kinase_result.dataset._site_metadata.loc[:, "site_sequence"] = [sequence_value]
+    request = SignalomeWorkflowRequest(
+        kinase_result=kinase_result,
+        config=build_signalome_config(substrate_support_cutoff=0.5),
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match=f"requires centred sequence context.*{pattern}",
+    ) as exc_info:
+        SignalomeWorkflowValidator().run(request)
+    message = str(exc_info.value)
+    assert "MAPK14;Y182;" in message
+    assert (
+        "Signalome execution requires an explicit site_metadata.protein_id column"
+        in (message)
+    )
+
+
+def test_signalome_validator_allows_gapped_flanks_when_centre_is_valid() -> None:
+    kinase_result = _kinase_result()
+    kinase_result.dataset._site_metadata.loc[:, "site_sequence"] = ["________Y________"]
+    request = SignalomeWorkflowRequest(
+        kinase_result=kinase_result,
+        config=build_signalome_config(substrate_support_cutoff=0.5),
+    )
+
+    validated = SignalomeWorkflowValidator().run(request)
+    assert validated is request
+
+
 def test_kinase_validator_does_not_filter_rows_for_localisation_policy() -> None:
     site_ids = pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id")
     dataset = AnalysisReadyPhosphoDataset(
@@ -1330,7 +1445,7 @@ def test_kinase_validator_does_not_filter_rows_for_localisation_policy() -> None
             {
                 "gene_symbol": ["MAPK14", "AKT1"],
                 "site": ["Y182", "T308"],
-                "site_sequence": ["SEQ_A", "SEQ_B"],
+                "site_sequence": ["AAAAAAAYAAAAAAA", "AAAAAAATAAAAAAA"],
                 "protein_id": ["MAPK14", "AKT1"],
                 "localisation_confidence": [0.2, pd.NA],
             },
@@ -1380,7 +1495,7 @@ def test_signalome_validator_does_not_filter_rows_for_localisation_policy() -> N
             {
                 "gene_symbol": ["MAPK14", "AKT1"],
                 "site": ["Y182", "T308"],
-                "site_sequence": ["SEQ_A", "SEQ_B"],
+                "site_sequence": ["AAAAAAAYAAAAAAA", "AAAAAAATAAAAAAA"],
                 "protein_id": ["MAPK14", "AKT1"],
                 "localisation_confidence": [0.2, pd.NA],
             },

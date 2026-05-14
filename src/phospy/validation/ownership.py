@@ -51,6 +51,10 @@ VALIDATION_RULE_OWNERS: tuple[ValidationRuleOwner, ...] = (
         owner="IntensityScaleStateValidator.run",
     ),
     ValidationRuleOwner(
+        rule="sequence-aware workflow centred site-sequence context",
+        owner="enforce_centred_site_sequence_context",
+    ),
+    ValidationRuleOwner(
         rule="signalome result expanded_signalome field type/ownership",
         owner="SignalomeWorkflowResult.__post_init__",
     ),

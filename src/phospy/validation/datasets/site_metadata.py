@@ -20,6 +20,7 @@ ErrorType = TypeVar("ErrorType", bound=Exception)
 _PHOSPHORYLATABLE_RESIDUES = frozenset({"S", "T", "Y"})
 _EXAMPLE_LIMIT = 5
 _SITE_POSITION_CANDIDATE_COLUMNS = ("site_position", "position")
+_SUPPORTED_GAP_SEQUENCE_CHARACTERS = frozenset({"_", "-"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -349,6 +350,152 @@ def validate_site_sequence_column(
     )
 
 
+def enforce_centred_site_sequence_context(
+    *,
+    site_metadata: pd.DataFrame,
+    field_name: str,
+    workflow_name: str,
+    error_type: type[ErrorType],
+    site_column: str = "site",
+    site_sequence_column: str = "site_sequence",
+    residue_column: str = "residue",
+    allow_gapped_sequence_context: bool = False,
+    allow_unknown_site_residue: bool = False,
+) -> None:
+    """Require centred residue context for sequence-aware workflow execution."""
+
+    if site_sequence_column not in site_metadata.columns:
+        site_examples = _site_id_examples(site_metadata.index)
+        raise error_type(
+            f"{workflow_name} requires centred sequence context in "
+            f"{field_name}.{site_sequence_column}; "
+            f"missing required column={field_name}.{site_sequence_column}; "
+            f"affected_rows={int(site_metadata.shape[0])}; "
+            f"example_site_ids={site_examples}"
+        )
+
+    missing_sequence_rows: list[str] = []
+    even_length_rows: list[str] = []
+    unsupported_character_rows: list[str] = []
+    unknown_expected_residue_rows: list[str] = []
+    non_phospho_centre_rows: list[str] = []
+    centre_mismatch_rows: list[str] = []
+
+    for site_id in site_metadata.index.tolist():
+        raw_sequence = site_metadata.at[site_id, site_sequence_column]
+        sequence = _resolve_optional_sequence(raw_sequence)
+        if sequence is None:
+            missing_sequence_rows.append(f"{site_id!r}:{raw_sequence!r}")
+            continue
+
+        sequence_length = len(sequence)
+        if sequence_length % 2 == 0:
+            even_length_rows.append(
+                f"{site_id!r}:{sequence!r}:length={sequence_length}"
+            )
+            continue
+
+        unsupported_characters = sorted(
+            {character for character in sequence if not character.isalpha()}
+        )
+        if (
+            allow_gapped_sequence_context
+            and unsupported_characters
+            and all(
+                character in _SUPPORTED_GAP_SEQUENCE_CHARACTERS
+                for character in unsupported_characters
+            )
+        ):
+            unsupported_characters = []
+        if unsupported_characters:
+            joined = "".join(unsupported_characters)
+            unsupported_character_rows.append(
+                f"{site_id!r}:{sequence!r}:unsupported_characters={joined!r}"
+            )
+            continue
+
+        centre_residue = sequence[sequence_length // 2]
+        if centre_residue not in _PHOSPHORYLATABLE_RESIDUES:
+            non_phospho_centre_rows.append(
+                f"{site_id!r}:{sequence!r}:centre={centre_residue!r}"
+            )
+            continue
+
+        parsed_site = None
+        if site_column in site_metadata.columns:
+            parsed_site = try_parse_site_token(site_metadata.at[site_id, site_column])
+        explicit_residue = None
+        if residue_column in site_metadata.columns:
+            explicit_residue = _resolve_optional_residue(
+                site_metadata.at[site_id, residue_column]
+            )
+        expected_residue = _resolve_expected_residue(parsed_site, explicit_residue)
+        if expected_residue is None:
+            if allow_unknown_site_residue:
+                continue
+            observed_site = (
+                None
+                if site_column not in site_metadata.columns
+                else site_metadata.at[site_id, site_column]
+            )
+            observed_residue = (
+                None
+                if residue_column not in site_metadata.columns
+                else site_metadata.at[site_id, residue_column]
+            )
+            unknown_expected_residue_rows.append(
+                f"{site_id!r}:site={observed_site!r}:residue={observed_residue!r}"
+            )
+            continue
+        if centre_residue != expected_residue:
+            centre_mismatch_rows.append(
+                f"{site_id!r}:expected={expected_residue!r}:"
+                f"observed={centre_residue!r}:sequence={sequence!r}"
+            )
+
+    details: list[str] = []
+    if missing_sequence_rows:
+        details.append(
+            f"missing or blank {field_name}.{site_sequence_column} values; "
+            + _summarise_examples(missing_sequence_rows)
+        )
+    if even_length_rows:
+        details.append(
+            f"{field_name}.{site_sequence_column} must be odd length for centred "
+            "context; " + _summarise_examples(even_length_rows)
+        )
+    if unsupported_character_rows:
+        details.append(
+            f"{field_name}.{site_sequence_column} contains unsupported non-letter "
+            "characters under the configured centred-context policy; "
+            + _summarise_examples(unsupported_character_rows)
+        )
+    if unknown_expected_residue_rows:
+        details.append(
+            "cannot resolve expected phosphosite residue from site/residue metadata "
+            "under strict centred-context policy; "
+            + _summarise_examples(unknown_expected_residue_rows)
+        )
+    if non_phospho_centre_rows:
+        details.append(
+            f"{field_name}.{site_sequence_column} centre residue must be one of "
+            "S/T/Y; " + _summarise_examples(non_phospho_centre_rows)
+        )
+    if centre_mismatch_rows:
+        details.append(
+            f"{field_name}.{site_sequence_column} centre residue must match the "
+            f"site token residue from {field_name}.{site_column}; "
+            + _summarise_examples(centre_mismatch_rows)
+        )
+
+    if not details:
+        return
+    raise error_type(
+        f"{workflow_name} requires centred sequence context in "
+        f"{field_name}.{site_sequence_column}; " + "; ".join(details)
+    )
+
+
 def enforce_site_identity_rows(
     *,
     site_metadata: pd.DataFrame,
@@ -604,6 +751,7 @@ __all__ = [
     "LocalisationProbabilityAssessment",
     "assess_localisation_confidence_column",
     "assess_localisation_probability_column",
+    "enforce_centred_site_sequence_context",
     "enforce_site_identity_rows",
     "enforce_required_non_empty_string_column",
     "enforce_localisation_requirement",

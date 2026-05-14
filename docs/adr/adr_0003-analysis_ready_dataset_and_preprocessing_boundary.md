@@ -36,6 +36,13 @@ structured `SiteSequenceResolutionReport` that audits sequence origin and loss
 `final_sequence_complete_sites`). Sequence-loss decisions are preprocessing
 responsibility and must not be deferred to workflow scoring.
 
+Update note (2026-05-14, sequence-context split): `AnalysisReadyPhosphoDataset`
+still requires `site_sequence` presence as a dataset boundary invariant, but
+centred-sequence context suitability is a separate sequence-aware workflow
+invariant. Kinase and signalome validation now require odd-length centred
+context with central residue agreement to site identity, and do not silently
+accept gapped/underscore sequence values under strict mode.
+
 ## Context and Problem Statement
 
 PhosPy is intended to expose one public dataset model and three primary
@@ -125,6 +132,8 @@ The dataset is expected to enforce the following invariants at construction time
   - `site`
 - `site_sequence` is required and must contain non-empty plausible sequence
   strings
+- centred odd-length phosphosite context is **not** a universal dataset-level
+  invariant; it is enforced by sequence-aware workflow validators
 - `site` scientific identity tokens must default to strict phosphosite format:
   `S`, `T`, or `Y` followed by a positive integer (for example `S123`)
 - display IDs (`GENE;SITE;`) are necessary for indexing but are not sufficient

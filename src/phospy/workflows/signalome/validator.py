@@ -19,6 +19,7 @@ from phospy.validation.common.dataframes import (
     require_unique_index,
 )
 from phospy.validation.datasets.site_metadata import (
+    enforce_centred_site_sequence_context,
     enforce_localisation_requirement,
     enforce_required_non_empty_string_column,
     enforce_site_identity_rows,
@@ -213,6 +214,14 @@ class SignalomeWorkflowValidator:
                 workflow_name="signalome workflow request",
                 column_name="protein_id",
                 error_type=WorkflowValidationError,
+            )
+            enforce_centred_site_sequence_context(
+                site_metadata=site_metadata_frame,
+                field_name=field_name,
+                workflow_name="signalome workflow request",
+                error_type=WorkflowValidationError,
+                allow_gapped_sequence_context=True,
+                allow_unknown_site_residue=allow_opaque_site_values,
             )
             enforce_localisation_requirement(
                 site_metadata=site_metadata_frame,

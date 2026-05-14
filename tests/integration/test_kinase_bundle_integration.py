@@ -473,7 +473,7 @@ def _build_request(*, activity: bool) -> KinaseWorkflowRequest:
             "site_sequence": [
                 "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
                 "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
-                "MDFGLCKEGIKDGATMKLCKRERANWQPWQ",
+                "AAAAAAAAAAAAAAATAAAAAAAAAAAAAAA",
             ],
             "localisation_confidence": [0.95] * phospho.shape[0],
         },
@@ -556,7 +556,7 @@ def _build_request_with_subtract_log_total_and_uncorrected_rows(
             "site": ["Y182", "T308"],
             "site_sequence": [
                 "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
-                "MDFGLCKEGIKDGATMKLCKRERANWQPWQ",
+                "AAAAAAAAAAAAAAATAAAAAAAAAAAAAAA",
             ],
             "localisation_confidence": [0.95] * phospho.shape[0],
             "protein_id": ["MAPK14", "AKT1"],
@@ -649,7 +649,7 @@ def _build_request_with_subtract_log_total(*, activity: bool) -> KinaseWorkflowR
             "site": ["Y182", "T308", "S9"],
             "site_sequence": [
                 "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
-                "MDFGLCKEGIKDGATMKLCKRERANWQPWQ",
+                "AAAAAAAAAAAAAAATAAAAAAAAAAAAAAA",
                 "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
             ],
             "localisation_confidence": [0.95] * phospho.shape[0],

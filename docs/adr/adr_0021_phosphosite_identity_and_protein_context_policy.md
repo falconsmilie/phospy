@@ -58,6 +58,21 @@ Opaque site values are only valid behind an explicit waiver
 (`allow_opaque_site_values=True`), and that waiver must be provenance-visible
 in any workflow path that enables it.
 
+### Sequence Context Distinction
+
+`site_sequence` presence is a dataset boundary requirement, but sequence-aware
+centred context is a separate execution requirement. For sequence-aware
+workflows, centred context requires:
+
+- odd-length sequence windows
+- centre residue in `S/T/Y`
+- centre residue agreement with the site token residue
+- no silent bypass of centre checks via gapped/underscore characters under
+  strict mode
+
+If relaxed/gapped/unknown context is allowed, that allowance must be explicit
+in the validator policy.
+
 ### Compatibility
 
 Standardized `GENE;SITE;` parsing remains supported and is still required for
@@ -75,9 +90,10 @@ Semantically identical repeated identities remain valid.
 ## Workflow Requirements
 
 - **Signalome:** remains strict about explicit protein identity metadata and
-  consumes validated phosphosite identities.
+  consumes validated phosphosite identities and strict centred sequence context.
 - **Kinase workflows:** consume validated phosphosite identities but do not
-  require protein/accession identity for all lanes yet.
+  require protein/accession identity for all lanes yet; they do require strict
+  centred sequence context for sequence-aware scoring paths.
 - **Differential/simple matrix workflows:** continue to accept gene-site-only
   datasets when scientifically acceptable.
 

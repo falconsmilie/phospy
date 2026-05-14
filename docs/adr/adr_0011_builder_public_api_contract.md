@@ -33,6 +33,13 @@ structured preprocessing sequence-resolution summary
 conflicts, applied conflict policy, unresolved counts, and final
 sequence-complete site totals.
 
+Update note (2026-05-14, boundary clarification): builder output guarantees
+required `site_sequence` presence at the analysis-ready dataset boundary. It
+does not automatically imply sequence-aware centred-context suitability for
+every workflow lane. Sequence-aware workflow validators own strict centred
+context checks (odd length, central residue match to site token, strict
+character policy unless an explicit relaxation is configured).
+
 ## Context and Problem Statement
 
 Earlier ADRs established two important truths:

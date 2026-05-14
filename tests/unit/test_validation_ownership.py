@@ -169,4 +169,8 @@ def test_major_validation_rules_have_documented_owners() -> None:
         == "AnalysisReadyPhosphoDataset.__post_init__"
     )
     assert documented["dataset/intensity-scale-state coherence"]
+    assert (
+        documented["sequence-aware workflow centred site-sequence context"]
+        == "enforce_centred_site_sequence_context"
+    )
     assert documented["signalome result expanded_signalome field type/ownership"]

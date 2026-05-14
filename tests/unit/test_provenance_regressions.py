@@ -39,6 +39,10 @@ from tests.support.signalome_config import build_signalome_config
 
 pytestmark = [pytest.mark.reproducibility, pytest.mark.release_gate]
 
+SEQ_Y = "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA"
+SEQ_S = "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA"
+SEQ_T = "AAAAAAAAAAAAAAATAAAAAAAAAAAAAAA"
+
 
 def _base_table() -> pd.DataFrame:
     return pd.DataFrame(
@@ -165,7 +169,7 @@ def test_dataset_output_fingerprints_match_observed_numeric_outputs() -> None:
         {
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "site_sequence": [SEQ_Y, SEQ_T],
             "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
@@ -215,7 +219,7 @@ def test_dataset_provenance_exact_hash_changes_for_tiny_shift_but_tolerance_hash
         {
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "site_sequence": [SEQ_Y, SEQ_T],
             "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
@@ -268,7 +272,7 @@ def test_processing_state_bundle_round_trip_from_real_preprocessing_output() -> 
         {
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "site_sequence": [SEQ_Y, SEQ_T],
             "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
@@ -309,7 +313,7 @@ def test_preprocessing_policy_changes_are_visible_in_provenance() -> None:
         {
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
             "site": ["Y182", "T308", "S9"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            "site_sequence": [SEQ_Y, SEQ_T, SEQ_S],
             "localisation_confidence": [0.95, 0.9, 0.92],
         },
         index=phospho.index.copy(),
@@ -516,7 +520,7 @@ def test_kinase_provenance_includes_duplicate_site_resolution_policy_when_prepro
         {
             "gene_symbol": ["MAPK14", "MAPK14", "GSK3B"],
             "site": ["Y182", "Y182", "S9"],
-            "site_sequence": ["SEQ_A", "SEQ_A", "SEQ_B"],
+            "site_sequence": [SEQ_Y, SEQ_Y, SEQ_S],
             "protein_id": ["P28482", "P28482", "Q9Y243"],
             "localisation_confidence": [0.95, 0.94, 0.9],
         },
@@ -550,7 +554,7 @@ def test_kinase_provenance_includes_duplicate_site_resolution_policy_when_prepro
             }
         ),
         site_sequences=pd.DataFrame(
-            {"site_sequence": ["SEQ_A", "SEQ_B"]},
+            {"site_sequence": [SEQ_Y, SEQ_S]},
             index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
         ),
     )
