@@ -19,14 +19,15 @@ from phospy.validation.common.dataframes import (
     require_unique_index,
 )
 from phospy.validation.datasets.site_metadata import (
-    enforce_centred_site_sequence_context,
     enforce_localisation_requirement,
-    enforce_required_non_empty_string_column,
-    enforce_site_identity_rows,
 )
 from phospy.validation.workflows.configs import (
     SignalomeConfigValidator,
     reject_mixed_total_protein_quantitative_meaning,
+)
+from phospy.validation.workflows.identity import (
+    SIGNALOME_IDENTITY_CONTRACT,
+    enforce_workflow_site_identity_contract,
 )
 
 SIGNALOME_PROTEIN_IDENTITY_CONTRACT_NOTE = (
@@ -202,26 +203,12 @@ class SignalomeWorkflowValidator:
             error_type=WorkflowValidationError,
         )
         try:
-            enforce_site_identity_rows(
+            enforce_workflow_site_identity_contract(
                 site_metadata=site_metadata_frame,
                 field_name=field_name,
+                contract=SIGNALOME_IDENTITY_CONTRACT,
                 error_type=WorkflowValidationError,
                 allow_opaque_site_values=allow_opaque_site_values,
-            )
-            enforce_required_non_empty_string_column(
-                site_metadata=site_metadata_frame,
-                field_name=field_name,
-                workflow_name="signalome workflow request",
-                column_name="protein_id",
-                error_type=WorkflowValidationError,
-            )
-            enforce_centred_site_sequence_context(
-                site_metadata=site_metadata_frame,
-                field_name=field_name,
-                workflow_name="signalome workflow request",
-                error_type=WorkflowValidationError,
-                allow_gapped_sequence_context=True,
-                allow_unknown_site_residue=allow_opaque_site_values,
             )
             enforce_localisation_requirement(
                 site_metadata=site_metadata_frame,

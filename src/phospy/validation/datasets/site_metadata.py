@@ -505,19 +505,19 @@ def enforce_site_identity_rows(
 ) -> None:
     """Enforce row-level phosphosite identity parsing for workflow boundaries."""
 
-    for site_id in site_metadata.index.tolist():
+    for row_position in range(len(site_metadata.index)):
+        site_id = site_metadata.index[row_position]
+        row = site_metadata.iloc[row_position]
         _ = build_phosphosite_identity(
             display_id=site_id,
-            gene_symbol=site_metadata.at[site_id, "gene_symbol"],
-            site=site_metadata.at[site_id, "site"],
+            gene_symbol=row["gene_symbol"],
+            site=row["site"],
             allow_opaque_site_values=allow_opaque_site_values,
             protein_id=(
-                site_metadata.at[site_id, "protein_id"]
-                if "protein_id" in site_metadata.columns
-                else None
+                row["protein_id"] if "protein_id" in site_metadata.columns else None
             ),
             protein_accession=(
-                site_metadata.at[site_id, "protein_accession"]
+                row["protein_accession"]
                 if "protein_accession" in site_metadata.columns
                 else None
             ),

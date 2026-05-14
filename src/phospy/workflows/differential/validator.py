@@ -14,9 +14,14 @@ from phospy.science.differential.models import (
     EmpiricalBayesConfig,
 )
 from phospy.science.differential.policy_models import TechnicalReplicatePolicy
+from phospy.validation.common.dataframes import require_dataframe
 from phospy.validation.workflows.differential import (
     DifferentialDatasetEligibilityValidator,
     ExperimentalDesignContractValidator,
+)
+from phospy.validation.workflows.identity import (
+    DIFFERENTIAL_IDENTITY_CONTRACT,
+    enforce_workflow_site_identity_contract,
 )
 from phospy.workflows.differential.models import (
     ValidatedDifferentialAnalysisRequest,
@@ -55,6 +60,19 @@ class DifferentialAnalysisValidator:
             raise WorkflowValidationError(
                 "differential workflow request dataset must be AnalysisReadyPhosphoDataset"
             )
+        site_metadata = require_dataframe(
+            request.dataset._borrow_site_metadata_frame(),  # pyright: ignore[reportPrivateUsage] - workflow boundary reads trusted internal dataset snapshots
+            field_name="differential workflow request dataset.site_metadata",
+            allow_empty=False,
+            error_type=WorkflowValidationError,
+        )
+        enforce_workflow_site_identity_contract(
+            site_metadata=site_metadata,
+            field_name="differential workflow request dataset.site_metadata",
+            contract=DIFFERENTIAL_IDENTITY_CONTRACT,
+            error_type=WorkflowValidationError,
+            allow_opaque_site_values=request.dataset.opaque_site_values_allowed,
+        )
         self._dataset_eligibility_validator.run(dataset=request.dataset)
         config = request.config
         if not isinstance(cast(object, config), DifferentialAnalysisConfig):

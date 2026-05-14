@@ -10,13 +10,15 @@ from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.references.models import ReferenceBundle, ReferencePreset
 from phospy.validation.common.dataframes import require_dataframe
 from phospy.validation.datasets.site_metadata import (
-    enforce_centred_site_sequence_context,
     enforce_localisation_requirement,
-    enforce_site_identity_rows,
 )
 from phospy.validation.workflows.configs import (
     KinaseWorkflowConfigValidator,
     reject_mixed_total_protein_quantitative_meaning,
+)
+from phospy.validation.workflows.identity import (
+    KINASE_IDENTITY_CONTRACT,
+    enforce_workflow_site_identity_contract,
 )
 
 
@@ -61,19 +63,12 @@ class KinaseWorkflowValidator:
             allow_empty=False,
             error_type=WorkflowValidationError,
         )
-        enforce_site_identity_rows(
+        enforce_workflow_site_identity_contract(
             site_metadata=site_metadata,
             field_name="kinase workflow request dataset.site_metadata",
+            contract=KINASE_IDENTITY_CONTRACT,
             error_type=WorkflowValidationError,
             allow_opaque_site_values=dataset.opaque_site_values_allowed,
-        )
-        enforce_centred_site_sequence_context(
-            site_metadata=site_metadata,
-            field_name="kinase workflow request dataset.site_metadata",
-            workflow_name="kinase workflow request",
-            error_type=WorkflowValidationError,
-            allow_gapped_sequence_context=True,
-            allow_unknown_site_residue=dataset.opaque_site_values_allowed,
         )
         enforce_localisation_requirement(
             site_metadata=site_metadata,

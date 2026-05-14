@@ -89,13 +89,19 @@ Semantically identical repeated identities remain valid.
 
 ## Workflow Requirements
 
-- **Signalome:** remains strict about explicit protein identity metadata and
-  consumes validated phosphosite identities and strict centred sequence context.
-- **Kinase workflows:** consume validated phosphosite identities but do not
-  require protein/accession identity for all lanes yet; they do require strict
-  centred sequence context for sequence-aware scoring paths.
-- **Differential/simple matrix workflows:** continue to accept gene-site-only
-  datasets when scientifically acceptable.
+Workflow validators must compose shared identity validation through
+`src/phospy/validation/workflows/identity.py` and declare one explicit contract.
+
+| Workflow | Contract ID | Identity minimum | Required additions | Explicitly not required |
+| --- | --- | --- | --- | --- |
+| Differential | `display_site_identity_minimum` | Standardized display IDs and coherent `gene_symbol/site` rows | Collision checks for conflicting scientific context when duplicate display IDs are present | Protein/accession fields |
+| Kinase | `sty_site_identity_plus_sequence_context` | Differential minimum | Strict site-token parsing (`S/T/Y<position>` unless opaque waiver), centred sequence context | Mandatory protein/accession on every row |
+| Signalome | `protein_scoped_site_identity` | Kinase minimum | Explicit non-empty `protein_id` per retained site | Inference of protein identity from display IDs |
+
+Reference-organism compatibility remains enforced at the workflow runtime
+reference-resolution boundary (`ReferenceCompatibilityValidator` via kinase
+workflow interpreter), while workflow identity contracts remain focused on
+phosphosite scientific identity semantics.
 
 ## Responsibility Audit
 
@@ -104,8 +110,11 @@ Ownership boundaries are:
 - **Site identity domain module:** parsing + identity construction + collision
   validation.
 - **Dataset/table schemas:** structural shape and column contracts.
-- **Workflow validators:** workflow-specific identity requirements (for example
-  strict signalome protein identity expectations).
+- **Workflow identity contract composer:**
+  `enforce_workflow_site_identity_contract` in
+  `src/phospy/validation/workflows/identity.py`.
+- **Workflow validators:** select and apply exactly one workflow identity
+  contract; they do not parse identity rows ad hoc.
 - **Executors/interpreters:** consume validated identity; they do not infer or
   synthesize identity from fallback heuristics.
 

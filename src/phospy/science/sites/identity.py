@@ -190,6 +190,7 @@ def validate_no_conflicting_identity_collisions(
     field_name: str,
     error_type: type[ErrorType],
     preview_limit: int = 5,
+    allow_opaque_site_values: bool = False,
 ) -> None:
     """Reject ambiguous same-display-ID rows with conflicting scientific identity."""
 
@@ -204,7 +205,7 @@ def validate_no_conflicting_identity_collisions(
         return
 
     display_key_to_contexts: dict[str, set[tuple[object, ...]]] = {}
-    display_key_to_rows: dict[str, list[str]] = {}
+    display_key_to_row_positions: dict[str, list[int]] = {}
 
     for position, (row_id, row) in enumerate(site_metadata.iterrows()):
         display_id = display_ids.iloc[position]
@@ -212,6 +213,7 @@ def validate_no_conflicting_identity_collisions(
             display_id=display_id,
             gene_symbol=row["gene_symbol"],
             site=row["site"],
+            allow_opaque_site_values=allow_opaque_site_values,
             organism=_series_value_or_none(
                 site_metadata,
                 row_position=position,
@@ -238,24 +240,31 @@ def validate_no_conflicting_identity_collisions(
         display_key_to_contexts.setdefault(identity.display_id, set()).add(
             identity.scientific_context_key()
         )
-        display_key_to_rows.setdefault(identity.display_id, []).append(str(row_id))
+        display_key_to_row_positions.setdefault(identity.display_id, []).append(
+            int(position)
+        )
 
     conflicts: list[str] = []
     for display_id, contexts in display_key_to_contexts.items():
         if len(contexts) <= 1:
             continue
-        rows_for_display = display_key_to_rows.get(display_id, ())
+        rows_for_display = display_key_to_row_positions.get(display_id, ())
         if not _requires_strict_collision_rejection(
             site_metadata=site_metadata,
-            row_ids=rows_for_display,
+            row_positions=rows_for_display,
         ):
             continue
-        row_ids = display_key_to_rows.get(display_id, ())
-        row_preview = ", ".join(repr(value) for value in tuple(row_ids)[:preview_limit])
-        row_suffix = "" if len(row_ids) <= preview_limit else " ..."
+        row_labels = [
+            str(site_metadata.index[int(row_position)])
+            for row_position in rows_for_display
+        ]
+        row_preview = ", ".join(
+            repr(value) for value in tuple(row_labels)[:preview_limit]
+        )
+        row_suffix = "" if len(row_labels) <= preview_limit else " ..."
         conflicting_context = _describe_conflicting_context(
             site_metadata=site_metadata,
-            row_ids=row_ids,
+            row_positions=rows_for_display,
             preview_limit=preview_limit,
         )
         conflicting_context_suffix = (
@@ -287,8 +296,8 @@ def _series_value_or_none(
 ) -> object:
     if column not in frame.columns:
         return None
-    row_label = frame.index[row_position]
-    return frame.at[row_label, column]
+    column_position = frame.columns.tolist().index(column)
+    return frame.iat[row_position, column_position]
 
 
 def _optional_text(
@@ -314,19 +323,21 @@ def _has_text(value: str | None) -> bool:
 def _requires_strict_collision_rejection(
     *,
     site_metadata: pd.DataFrame,
-    row_ids: Iterable[str],
+    row_positions: Iterable[int],
 ) -> bool:
     strict_columns = PHOSPHOSITE_STRICT_COLLISION_CONTEXT_COLUMNS
-    row_index = set(str(row_id) for row_id in row_ids)
-    if not row_index:
+    row_position_set = {int(row_position) for row_position in row_positions}
+    if not row_position_set:
         return False
     for column in strict_columns:
         if column not in site_metadata.columns:
             continue
-        for row_id in site_metadata.index.tolist():
-            if str(row_id) not in row_index:
-                continue
-            value = site_metadata.at[row_id, column]
+        for row_position in row_position_set:
+            value = _series_value_or_none(
+                site_metadata,
+                row_position=row_position,
+                column=column,
+            )
             if _has_strict_identity_value(value):
                 return True
     return False
@@ -335,11 +346,11 @@ def _requires_strict_collision_rejection(
 def _describe_conflicting_context(
     *,
     site_metadata: pd.DataFrame,
-    row_ids: Iterable[str],
+    row_positions: Iterable[int],
     preview_limit: int,
 ) -> str | None:
-    row_index = set(str(row_id) for row_id in row_ids)
-    if not row_index:
+    row_position_set = {int(row_position) for row_position in row_positions}
+    if not row_position_set:
         return None
 
     conflicts: list[str] = []
@@ -347,10 +358,16 @@ def _describe_conflicting_context(
         if column not in site_metadata.columns:
             continue
         values: set[object] = set()
-        for row_id in site_metadata.index.tolist():
-            if str(row_id) not in row_index:
-                continue
-            values.add(_canonical_context_value(site_metadata.at[row_id, column]))
+        for row_position in row_position_set:
+            values.add(
+                _canonical_context_value(
+                    _series_value_or_none(
+                        site_metadata,
+                        row_position=row_position,
+                        column=column,
+                    )
+                )
+            )
         if len(values) <= 1:
             continue
         ordered_values = sorted(values, key=repr)
