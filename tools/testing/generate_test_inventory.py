@@ -35,7 +35,7 @@ MANUAL_COLUMNS = (
 
 
 def _read_text(path: Path) -> str:
-    return path.read_text(encoding="utf-8", errors="replace")
+    return path.read_text(encoding="utf-8-sig", errors="replace")
 
 
 def _normalize_field_name(name: str) -> str:

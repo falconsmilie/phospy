@@ -61,6 +61,7 @@ def test_builder_supports_all_publicly_advertised_site_matrix_missing_data_modes
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 site_matrix=DatasetSiteMatrixConfig(
                     policy="build_from_metadata",
@@ -116,6 +117,7 @@ def test_builder_rejects_dead_end_site_matrix_missing_data_modes_before_interpre
                 phospho=phospho,
                 site_metadata=site_metadata,
                 organism=Organism.RAT,
+                input_intensity_scale="linear",
                 preprocessing_config=DatasetPreprocessingConfig(
                     site_matrix=DatasetSiteMatrixConfig(
                         policy="build_from_metadata",
@@ -153,6 +155,7 @@ def test_builder_site_sequence_mixed_support_keeps_resolvable_rows_and_excludes_
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
             ),
@@ -205,6 +208,7 @@ def test_builder_rejects_missing_sample_label_before_stringification() -> None:
                 site_metadata=site_metadata,
                 sample_metadata=sample_metadata,
                 organism=Organism.RAT,
+                input_intensity_scale="linear",
             )
         )
 
@@ -232,6 +236,7 @@ def test_builder_provenance_exposes_site_identifier_normalisation_records() -> N
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
 
@@ -259,7 +264,11 @@ def test_builder_succeeds_with_provided_site_sequence_at_analysis_ready_boundary
     )
 
     built = AnalysisReadyDatasetBuilder().run(
-        DatasetBuildRequest(phospho=phospho, site_metadata=site_metadata)
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            input_intensity_scale="linear",
+        )
     )
 
     assert built.site_metadata.loc["MAPK14;Y182;", "site_sequence"] == "SEQ_A"
@@ -293,7 +302,11 @@ def test_builder_rejects_non_phosphorylatable_site_sequence_centre_before_constr
         match="must contain a centred phosphorylatable residue \\(S/T/Y\\)",
     ):
         AnalysisReadyDatasetBuilder().run(
-            DatasetBuildRequest(phospho=phospho, site_metadata=site_metadata)
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                input_intensity_scale="linear",
+            )
         )
 
 
@@ -318,6 +331,7 @@ def test_builder_derives_missing_site_sequence_before_analysis_ready_constructio
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
 
@@ -360,6 +374,7 @@ def test_builder_fails_when_site_sequence_cannot_be_derived_before_dataset_const
                 phospho=phospho,
                 site_metadata=site_metadata,
                 organism=Organism.RAT,
+                input_intensity_scale="linear",
             )
         )
 
@@ -394,5 +409,6 @@ def test_builder_fails_clearly_for_unsupported_organism_when_site_sequences_need
                 phospho=phospho,
                 site_metadata=site_metadata,
                 organism=Organism.HUMAN,
+                input_intensity_scale="linear",
             )
         )

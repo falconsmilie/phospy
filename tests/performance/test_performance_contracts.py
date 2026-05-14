@@ -318,6 +318,7 @@ def _build_kinase_workflow_inputs(
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
 

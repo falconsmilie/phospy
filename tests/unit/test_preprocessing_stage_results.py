@@ -37,7 +37,10 @@ from phospy.science.datasets.preprocessing.stages.total_protein_correction impor
     TotalProteinCorrectionStage,
 )
 from phospy.science.datasets.processing_state import MissingDataDiagnosticsV1
-from phospy.science.transformations.models import QuantitativeMeaning
+from phospy.science.transformations.models import (
+    IntensityScaleKind,
+    QuantitativeMeaning,
+)
 from tests.support.intensity_scale_states import supported_linear_intensity_scale_state
 
 
@@ -261,6 +264,7 @@ def test_missing_data_stage_report_rows_appear_in_final_report() -> None:
             sample_metadata=None,
             total=None,
             organism=None,
+            declared_input_intensity_scale_kind=IntensityScaleKind.LINEAR,
             preprocessing_plan=PreprocessingPlan(
                 missing_data_policy="impute_row_median",
                 missing_data_min_observed_values=1,
@@ -300,6 +304,7 @@ def test_missing_data_stage_operations_report_imputation_summary_note() -> None:
             sample_metadata=None,
             total=None,
             organism=None,
+            declared_input_intensity_scale_kind=IntensityScaleKind.LINEAR,
             preprocessing_plan=PreprocessingPlan(
                 missing_data_policy="impute_row_median",
                 missing_data_min_observed_values=1,
@@ -345,6 +350,7 @@ def test_final_dataset_has_complete_matrix_after_missing_data_imputation() -> No
             sample_metadata=None,
             total=None,
             organism=None,
+            declared_input_intensity_scale_kind=IntensityScaleKind.LINEAR,
             preprocessing_plan=PreprocessingPlan(
                 missing_data_policy="impute_row_median",
                 missing_data_min_observed_values=1,
@@ -601,6 +607,7 @@ def test_minimal_custom_stage_emits_supported_report_row_into_final_report() -> 
             sample_metadata=None,
             total=None,
             organism=None,
+            declared_input_intensity_scale_kind=IntensityScaleKind.LINEAR,
             preprocessing_plan=PreprocessingPlan(stage_order=("fake_stage",)),
         )
     )
@@ -641,6 +648,7 @@ def test_executor_applies_explicit_quantitative_meaning_to_dataset_and_provenanc
             sample_metadata=None,
             total=None,
             organism=None,
+            declared_input_intensity_scale_kind=IntensityScaleKind.LINEAR,
             preprocessing_plan=PreprocessingPlan.default(),
             quantitative_meaning=QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE,
         )

@@ -753,12 +753,12 @@ def _resolve_expected_intensity_scale_kind(
     preprocessing_plan: PreprocessingPlan,
     *,
     declared_input_scale_kind: IntensityScaleKind | None = None,
-) -> IntensityScaleKind:
+) -> IntensityScaleKind | None:
     if preprocessing_plan.intensity_transform_policy is IntensityTransformPolicy.LOG2:
         return IntensityScaleKind.LOG2
     if declared_input_scale_kind is not None:
         return declared_input_scale_kind
-    return IntensityScaleKind.LINEAR
+    return None
 
 
 def _resolve_declared_input_intensity_scale_resolution(

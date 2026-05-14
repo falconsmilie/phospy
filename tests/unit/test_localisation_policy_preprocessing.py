@@ -163,6 +163,7 @@ def test_localisation_waiver_policy_is_recorded_in_dataset_provenance() -> None:
         DatasetBuildRequest(
             phospho=phospho,
             site_metadata=_site_metadata(localisation_values=[0.95, pd.NA, 0.4]),
+            input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 localisation=DatasetLocalisationConfig(
                     mode=DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER,

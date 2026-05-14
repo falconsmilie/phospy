@@ -45,7 +45,7 @@ def _discover_test_files() -> list[Path]:
 
 
 def _read_lines(path: Path) -> list[str]:
-    return path.read_text(encoding="utf-8", errors="replace").splitlines()
+    return path.read_text(encoding="utf-8-sig", errors="replace").splitlines()
 
 
 def _clean_snippet(line: str) -> str:

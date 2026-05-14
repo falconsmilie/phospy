@@ -49,6 +49,7 @@ def _build_kinase_result() -> KinaseWorkflowResult:
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
     protein_ids = dataset.site_metadata["protein_id"].astype("string").str.strip()

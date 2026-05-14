@@ -195,6 +195,15 @@ def _add_dataset_input_arguments(parser: argparse.ArgumentParser) -> None:
         choices=["human", "mouse", "rat"],
         help="Optional dataset organism.",
     )
+    parser.add_argument(
+        "--input-intensity-scale",
+        default=None,
+        choices=["linear", "log2"],
+        help=(
+            "Explicit declared input intensity scale. Required for pass-through "
+            "identity preprocessing lanes to establish scientific scale state."
+        ),
+    )
 
 
 def _add_output_arguments(parser: argparse.ArgumentParser) -> None:

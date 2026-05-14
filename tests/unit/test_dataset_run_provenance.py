@@ -207,6 +207,7 @@ def test_dataset_builder_emits_run_provenance_and_stage_details() -> None:
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 missing_data=DatasetMissingDataConfig(
                     policy="impute_row_median",
@@ -280,6 +281,7 @@ def test_dataset_builder_provenance_records_site_identifier_normalisation_change
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
 
@@ -316,6 +318,7 @@ def test_dataset_stage_order_policy_changes_with_preprocessing_plan() -> None:
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
     transformed_result = AnalysisReadyDatasetBuilder().run(
@@ -485,6 +488,7 @@ def test_run_provenance_serialization_round_trip_preserves_payload() -> None:
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
     assert built.provenance is not None
@@ -522,6 +526,7 @@ def test_run_provenance_from_payload_accepts_legacy_stage_shape() -> None:
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 missing_data=DatasetMissingDataConfig(
                     policy="impute_row_median",

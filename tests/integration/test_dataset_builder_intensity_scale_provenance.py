@@ -9,6 +9,7 @@ from phospy.api import (
     DatasetIntensityTransformConfig,
     DatasetPreprocessingConfig,
 )
+from phospy.errors.transformations import TransformationStateEstablishmentError
 
 pytestmark = pytest.mark.integration
 
@@ -121,7 +122,28 @@ def test_builder_log2_transformation_records_transformed_mode_in_provenance() ->
     assert isinstance(diagnostics.get("output_phospho_hash"), str)
 
 
-def test_builder_identity_pass_through_records_identity_mode_in_provenance() -> None:
+def test_builder_identity_pass_through_without_declared_scale_fails_establishment() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {"sample_a": [100.0], "sample_b": [200.0]},
+        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+    )
+    with pytest.raises(
+        TransformationStateEstablishmentError,
+        match="pass-through/identity transformer cannot establish scientific input scale",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_site_metadata(phospho.index),
+            )
+        )
+
+
+def test_builder_identity_pass_through_with_declared_linear_records_declared_mode() -> (
+    None
+):
     phospho = pd.DataFrame(
         {"sample_a": [100.0], "sample_b": [200.0]},
         index=pd.Index(["MAPK14;Y182;"], name="site_id"),
@@ -130,12 +152,16 @@ def test_builder_identity_pass_through_records_identity_mode_in_provenance() -> 
         DatasetBuildRequest(
             phospho=phospho,
             site_metadata=_site_metadata(phospho.index),
+            input_intensity_scale="linear",
+            preprocessing_config=DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(policy="identity")
+            ),
         )
     )
 
     workflow_payload = _workflow_establishment_payload(built)
-    assert workflow_payload["establishment_mode"] == "identity"
-    assert "IdentityTransformer" in str(workflow_payload["transformer_name"])
+    assert workflow_payload["establishment_mode"] == "declared"
+    assert workflow_payload["transformer_name"] is None
 
 
 def test_builder_records_suspicious_declared_log2_warning_in_provenance() -> None:

@@ -151,6 +151,7 @@ def test_site_matrix_build_contract_is_row_wise_for_mixed_sequence_support() -> 
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
             ),
@@ -189,6 +190,7 @@ def test_site_matrix_build_contract_retains_all_rows_when_fully_resolvable() -> 
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
             ),
@@ -234,6 +236,7 @@ def test_site_matrix_build_contract_reports_empty_when_fully_unresolvable() -> N
                 phospho=phospho,
                 site_metadata=site_metadata,
                 organism=Organism.RAT,
+                input_intensity_scale="linear",
                 preprocessing_config=DatasetPreprocessingConfig(
                     site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
                 ),

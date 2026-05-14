@@ -192,6 +192,7 @@ def test_request_config_and_result_models_construct() -> None:
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
+        input_intensity_scale="linear",
     )
     workflow_request = KinaseWorkflowRequest(
         dataset=dataset,
@@ -246,6 +247,7 @@ def test_builder_run_contract_builds_analysis_ready_dataset() -> None:
             phospho=_phospho(),
             site_metadata=_site_metadata(),
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
     assert isinstance(built, AnalysisReadyPhosphoDataset)
@@ -258,6 +260,7 @@ def test_builder_orchestration_uses_collaborators() -> None:
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
+        input_intensity_scale="linear",
     )
     calls: list[str] = []
     interpreted = InterpretedDatasetBuildRequest(
@@ -301,6 +304,7 @@ def test_builder_orchestration_threads_preprocessing_config_to_executor() -> Non
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
+        input_intensity_scale="linear",
         preprocessing_config=DatasetPreprocessingConfig(
             missing_data=DatasetMissingDataConfig(
                 policy="impute_row_median",

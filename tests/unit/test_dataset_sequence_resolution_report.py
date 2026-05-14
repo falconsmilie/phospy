@@ -73,6 +73,7 @@ def _summary_for_built_dataset(
             phospho=phospho,
             site_metadata=site_metadata,
             organism=organism,
+            input_intensity_scale="linear",
             preprocessing_config=(
                 DatasetPreprocessingConfig()
                 if preprocessing_config is None
@@ -244,6 +245,7 @@ def test_unresolved_sequence_blocks_dataset_creation_when_fasta_resolution_fails
             DatasetBuildRequest(
                 phospho=phospho,
                 site_metadata=site_metadata,
+                input_intensity_scale="linear",
                 preprocessing_config=DatasetPreprocessingConfig(
                     site_sequence_resolution=DatasetSiteSequenceResolutionConfig(
                         fasta_path=_write_fasta(tmp_path),

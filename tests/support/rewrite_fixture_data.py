@@ -824,6 +824,7 @@ def build_rat_l6_dataset(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
+        input_intensity_scale="linear",
     )
     return AnalysisReadyDatasetBuilder().run(request)
 

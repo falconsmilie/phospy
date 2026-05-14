@@ -172,6 +172,7 @@ def test_preprocessing_report_integration_preserves_representative_values() -> N
             phospho=phospho,
             site_metadata=site_metadata,
             sample_metadata=sample_metadata,
+            input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 site_matrix=DatasetSiteMatrixConfig(
                     policy="build_from_metadata",
@@ -240,6 +241,7 @@ def test_report_schema_stable_with_missing_data_diagnostics_enabled() -> None:
         DatasetBuildRequest(
             phospho=phospho,
             site_metadata=site_metadata,
+            input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 missing_data=DatasetMissingDataConfig(
                     policy="impute_row_median",

@@ -51,6 +51,7 @@ def test_builder_canonicalizes_site_ids_and_reorders_site_metadata() -> None:
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
 
@@ -86,6 +87,7 @@ def test_builder_canonicalizes_lowercase_site_ids() -> None:
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
 
@@ -120,6 +122,7 @@ def test_builder_does_not_mutate_caller_owned_phospho_frame() -> None:
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
 
@@ -152,6 +155,7 @@ def test_builder_does_not_mutate_caller_owned_site_metadata_frame() -> None:
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
 
@@ -188,6 +192,7 @@ def test_builder_rejects_ambiguous_site_ids_after_canonicalization() -> None:
                 phospho=phospho,
                 site_metadata=site_metadata,
                 organism=Organism.RAT,
+                input_intensity_scale="linear",
             )
         )
 
@@ -219,6 +224,7 @@ def test_builder_rejects_colliding_dirty_site_ids_after_canonicalization() -> No
                 phospho=phospho,
                 site_metadata=site_metadata,
                 organism=Organism.RAT,
+                input_intensity_scale="linear",
             )
         )
 
@@ -695,6 +701,7 @@ def test_dataset_and_reference_ids_align_after_shared_normalization() -> None:
                 }
             ),
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
     references = ReferenceBundle(

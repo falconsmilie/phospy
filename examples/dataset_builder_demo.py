@@ -40,6 +40,7 @@ def build_demo_dataset() -> AnalysisReadyPhosphoDataset:
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
+        input_intensity_scale="linear",
     )
     return AnalysisReadyDatasetBuilder().run(request)
 

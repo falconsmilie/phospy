@@ -80,6 +80,7 @@ def test_cli_command_runner_executes_signalome_with_fake_collaborators() -> None
     dataset_request = DatasetBuildRequest(
         phospho=Path("phospho.csv"),
         site_metadata=Path("site_metadata.csv"),
+        input_intensity_scale="linear",
     )
     output = OutputTarget(outdir=Path("out"), output_format="csv")
     command = SignalomeCommand(
@@ -177,6 +178,7 @@ def test_workflow_output_publisher_writes_dataset_outputs(tmp_path: Path) -> Non
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
 
@@ -247,6 +249,7 @@ def test_cli_main_delegates_typed_commands_without_argparse_leak(
         request=DatasetBuildRequest(
             phospho=Path("phospho.csv"),
             site_metadata=Path("site_metadata.csv"),
+            input_intensity_scale="linear",
         ),
         output=OutputTarget(outdir=Path("out"), output_format="csv"),
     )

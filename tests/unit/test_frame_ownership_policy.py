@@ -333,6 +333,7 @@ def _assert_copy_keyword_rejected(
                     phospho=p,
                     site_metadata=s,
                     organism=Organism.RAT,
+                    input_intensity_scale="linear",
                 )
             ),
             (1, 1, 777.0),
@@ -375,6 +376,7 @@ def test_builder_stage_handoff_transfers_owned_frames_without_recopies() -> None
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
+        input_intensity_scale="linear",
     )
     interpreted = DatasetBuildRequestInterpreter().run(request)
     built = DatasetBuildExecutor().run(interpreted)
@@ -388,6 +390,7 @@ def test_builder_dataframe_copy_churn_regression_budget() -> None:
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
+        input_intensity_scale="linear",
     )
 
     with _count_dataframe_deep_copies() as counts:
@@ -770,6 +773,7 @@ def test_safe_public_export_does_not_change_owned_provenance_state() -> None:
             phospho=_phospho(),
             site_metadata=_site_metadata(),
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
     fingerprint_before = fingerprint_table(built.phospho, name="dataset.phospho")
@@ -808,6 +812,7 @@ def test_safe_public_export_does_not_change_owned_provenance_state() -> None:
                         phospho=_phospho(),
                         site_metadata=_site_metadata(),
                         organism=Organism.RAT,
+                        input_intensity_scale="linear",
                     )
                 )
                 .to_dataframe

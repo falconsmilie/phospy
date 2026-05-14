@@ -4,19 +4,12 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.science.transformations._authority import (
-    identity_transformer_establishment_authority,
-)
 from phospy.science.transformations.contracts import TransformationResult
 from phospy.science.transformations.models import IntensityScaleState
 
 
 class IdentityTransformer:
-    """Establish linear state without changing matrix values.
-
-    This is a strict pass-through establisher used when inputs are already
-    donor-aligned analysis-ready matrices.
-    """
+    """Pass through matrix values without establishing intensity scale state."""
 
     preserves_input_scale_state = True
     changes_numeric_values = False
@@ -30,8 +23,5 @@ class IdentityTransformer:
         return TransformationResult(
             phospho=phospho,
             total=total,
-            state=IntensityScaleState.established_raw(
-                has_total_matrix=total is not None,
-                _authority=identity_transformer_establishment_authority(),
-            ),
+            state=IntensityScaleState.raw(has_total_matrix=total is not None),
         )

@@ -69,16 +69,18 @@ def _build_dataset(
         if site_metadata is None
         else site_metadata
     )
-    return AnalysisReadyDatasetBuilder().run(
-        DatasetBuildRequest(
-            phospho=resolved_phospho,
-            site_metadata=resolved_site_metadata,
-            sample_metadata=sample_metadata,
-            total=total,
-            organism=Organism.RAT,
-            preprocessing_config=preprocessing_config,
-        )
-    )
+    request_kwargs: dict[str, object] = {
+        "phospho": resolved_phospho,
+        "site_metadata": resolved_site_metadata,
+        "sample_metadata": sample_metadata,
+        "total": total,
+        "organism": Organism.RAT,
+        "preprocessing_config": preprocessing_config,
+    }
+    policy = str(preprocessing_config.intensity_transform.policy).strip().lower()
+    if policy != "log2":
+        request_kwargs["input_intensity_scale"] = "linear"
+    return AnalysisReadyDatasetBuilder().run(DatasetBuildRequest(**request_kwargs))
 
 
 def _stage(

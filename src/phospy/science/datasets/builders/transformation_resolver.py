@@ -42,8 +42,9 @@ class DatasetIntensityScaleResolver:
     Supported establishment path:
     A configured transformer that establishes state from matrices.
 
-    Public builder policy wires this resolver with identity pass-through
-    establishment by default, keeping transformation behavior narrow and honest.
+    Public builder policy wires this resolver with identity pass-through by
+    default. Pass-through transformers cannot establish scale from unknown
+    inputs; they can only preserve explicitly declared input scale state.
     """
 
     def __init__(self, *, transformer: Transformer | None = None) -> None:
@@ -80,6 +81,9 @@ class DatasetIntensityScaleResolver:
             self._transformer,
             "changes_numeric_values",
             default=True,
+        )
+        identity_like_transformer = (
+            preserves_input_scale_state and not changes_numeric_values
         )
 
         if declared_input_scale_state is not None and not preserves_input_scale_state:
@@ -127,6 +131,14 @@ class DatasetIntensityScaleResolver:
                 "establish log2 from unknown/raw input without an explicit trusted "
                 "declaration."
             )
+        if declared_input_scale_state is None and identity_like_transformer:
+            raise TransformationStateEstablishmentError(
+                "unable to establish intensity scale state with confidence: "
+                "pass-through/identity transformer cannot establish scientific "
+                "input scale from values alone. Provide an explicit "
+                "input_intensity_scale declaration or apply a scale-changing "
+                "transformation."
+            )
         if (
             expected_scale_kind is not None
             and state.phospho.kind is not expected_scale_kind
@@ -150,9 +162,7 @@ class DatasetIntensityScaleResolver:
         establishment_mode = self._resolve_establishment_mode(
             declared_input_scale_state=declared_input_scale_state,
             declared_input_establishment_mode=declared_input_establishment_mode,
-            identity_like_transformer=(
-                preserves_input_scale_state and not changes_numeric_values
-            ),
+            identity_like_transformer=identity_like_transformer,
         )
         diagnostic_warnings = ()
         if establishment_mode is IntensityScaleEstablishmentMode.DECLARED:

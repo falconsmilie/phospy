@@ -499,6 +499,7 @@ def _build_request(*, activity: bool) -> KinaseWorkflowRequest:
             sample_metadata=sample_metadata,
             total=total,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
     references = ReferenceBundle(

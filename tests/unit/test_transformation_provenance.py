@@ -7,6 +7,8 @@ from phospy.science.datasets.builders.transformation_resolver import (
 )
 from phospy.science.transformations.models import (
     IntensityScaleEstablishmentMode,
+    IntensityScaleState,
+    MatrixIntensityScaleState,
     QuantitativeMeaning,
 )
 from phospy.science.transformations.transformers import IdentityTransformer
@@ -20,11 +22,17 @@ def _phospho() -> pd.DataFrame:
 
 
 def test_establishment_provenance_payload_exposes_mode_and_scale() -> None:
+    declared_linear = IntensityScaleState(
+        phospho=MatrixIntensityScaleState.linear(established_by="trusted.input"),
+        total=None,
+    )
     state = (
         DatasetIntensityScaleResolver(transformer=IdentityTransformer())
         .run(
             phospho=_phospho(),
             total=None,
+            declared_input_scale_state=declared_linear,
+            input_declaration_source="tests.unit",
         )
         .intensity_scale_state
     )
@@ -34,21 +42,27 @@ def test_establishment_provenance_payload_exposes_mode_and_scale() -> None:
     payload = provenance.to_payload()
     assert payload["scale"] == "linear"
     assert (
-        payload["establishment_mode"] == IntensityScaleEstablishmentMode.IDENTITY.value
+        payload["establishment_mode"] == IntensityScaleEstablishmentMode.DECLARED.value
     )
     assert payload["diagnostic_warnings"] == []
 
 
 def test_quantitative_meaning_update_preserves_establishment_provenance() -> None:
+    declared_linear = IntensityScaleState(
+        phospho=MatrixIntensityScaleState.linear(established_by="trusted.input"),
+        total=None,
+    )
     state = (
         DatasetIntensityScaleResolver(transformer=IdentityTransformer())
         .run(
             phospho=_phospho(),
             total=None,
+            declared_input_scale_state=declared_linear,
+            input_declaration_source="tests.unit",
         )
         .intensity_scale_state
     )
     updated = state.with_quantitative_meaning(QuantitativeMeaning.PHOSPHOSITE_ABUNDANCE)
 
-    assert updated.establishment_mode is IntensityScaleEstablishmentMode.IDENTITY
+    assert updated.establishment_mode is IntensityScaleEstablishmentMode.DECLARED
     assert updated.establishment_provenance == state.establishment_provenance

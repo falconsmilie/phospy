@@ -194,6 +194,7 @@ def test_kinase_workflow_uses_dataset_site_sequences_without_mutating_references
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
     references = ReferenceBundle(
@@ -277,6 +278,7 @@ def test_kinase_workflow_site_sequence_conflict_policy_is_public_request_option(
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
     references = ReferenceBundle(
@@ -740,6 +742,7 @@ def test_explicit_mixed_case_references_align_and_emit_normalised_identifiers() 
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
     references = ReferenceBundle(
@@ -1049,6 +1052,7 @@ def test_kinase_public_predmat_provenance_matches_golden_contract() -> None:
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
     references = ReferenceBundle(

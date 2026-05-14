@@ -142,7 +142,7 @@ def _discover_test_files() -> list[Path]:
 
 
 def _load_text(path: Path) -> str:
-    return path.read_text(encoding="utf-8", errors="replace")
+    return path.read_text(encoding="utf-8-sig", errors="replace")
 
 
 def _ownership_score(content: str) -> int:

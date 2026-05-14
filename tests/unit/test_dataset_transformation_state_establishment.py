@@ -242,11 +242,15 @@ def test_dataset_boundary_rejects_declared_intensity_scale_state_bypass() -> Non
 
 
 def test_dataset_boundary_accepts_supported_established_state() -> None:
+    declared_linear = IntensityScaleState.raw(has_total_matrix=False)
     supported_state = (
         DatasetIntensityScaleResolver(transformer=IdentityTransformer())
         .run(
             phospho=_phospho(),
             total=None,
+            expected_scale_kind=IntensityScaleKind.LINEAR,
+            declared_input_scale_state=declared_linear,
+            input_declaration_source="tests.unit",
         )
         .intensity_scale_state
     )
@@ -306,8 +310,22 @@ def test_identity_transformer_is_strict_passthrough_establisher() -> None:
 
     pdt.assert_frame_equal(result.phospho, phospho)
     pdt.assert_frame_equal(result.total, total)
-    assert result.state.is_established
+    assert not result.state.is_established
     assert result.state.kind.value == "linear"
+
+
+def test_identity_transformer_cannot_establish_scale_without_explicit_declaration() -> (
+    None
+):
+    resolver = DatasetIntensityScaleResolver(transformer=IdentityTransformer())
+    with pytest.raises(
+        TransformationStateEstablishmentError,
+        match="pass-through/identity transformer cannot establish scientific input scale",
+    ):
+        resolver.run(
+            phospho=_phospho(),
+            total=_total(),
+        )
 
 
 def test_identity_transformer_exposes_scale_capabilities() -> None:

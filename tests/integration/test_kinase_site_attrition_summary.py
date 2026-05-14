@@ -91,6 +91,7 @@ def _build_dataset_with_attrition_mix() -> object:
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
             preprocessing_config=preprocessing,
         )
     )

@@ -150,6 +150,7 @@ def test_dataset_build_from_file_paths_uses_schema_aware_readers(
             phospho=phospho_path,
             site_metadata=site_metadata_path,
             sample_metadata=sample_metadata_path,
+            input_intensity_scale="linear",
         )
     )
 
@@ -196,6 +197,7 @@ def test_dataset_build_from_file_paths_reports_invalid_numeric_cell_context(
             DatasetBuildRequest(
                 phospho=phospho_path,
                 site_metadata=site_metadata_path,
+                input_intensity_scale="linear",
             )
         )
 

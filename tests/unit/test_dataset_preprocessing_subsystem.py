@@ -49,7 +49,10 @@ from phospy.science.datasets.preprocessing.stage_registry import (
     PreprocessingStageMetadata,
 )
 from phospy.science.references.models import Organism
-from phospy.science.transformations.models import QuantitativeMeaning
+from phospy.science.transformations.models import (
+    IntensityScaleKind,
+    QuantitativeMeaning,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
 )
@@ -1988,6 +1991,7 @@ def test_executor_delegates_preprocessing_to_internal_subsystem() -> None:
         sample_metadata=sample_metadata,
         total=total,
         organism=Organism.RAT,
+        declared_input_intensity_scale_kind=IntensityScaleKind.LINEAR,
         preprocessing_plan=PreprocessingPlan.default(),
     )
 
@@ -2107,6 +2111,7 @@ def test_dataset_builder_request_quantitative_meaning_propagates_to_provenance()
             DatasetBuildRequest(
                 phospho=phospho,
                 site_metadata=site_metadata,
+                input_intensity_scale="log2",
                 quantitative_meaning=QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE.value,
             )
         )
@@ -2157,6 +2162,7 @@ def test_dataset_interpreter_defers_reference_site_sequence_fill_when_fasta_is_c
             index=pd.Index(["MAPK14;Y182;"], name="site_id"),
         ),
         organism=Organism.RAT,
+        input_intensity_scale="linear",
         preprocessing_config=DatasetPreprocessingConfig(
             site_sequence_resolution=DatasetSiteSequenceResolutionConfig(
                 fasta_path="local.fasta",
@@ -2213,6 +2219,7 @@ def test_dataset_interpreter_keeps_reference_site_sequence_fill_enabled_without_
             index=pd.Index(["MAPK14;Y182;"], name="site_id"),
         ),
         organism=Organism.RAT,
+        input_intensity_scale="linear",
     )
 
     DatasetBuildRequestInterpreter(site_sequence_deriver=SiteSequenceDeriverSpy()).run(

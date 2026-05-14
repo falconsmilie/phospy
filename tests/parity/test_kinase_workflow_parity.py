@@ -240,6 +240,7 @@ def test_profile_missing_value_policy_changes_downstream_lane_for_mixed_missing_
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
     dataset._phospho.loc["GENEA;S2;", "sample_c"] = float("nan")

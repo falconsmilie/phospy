@@ -248,7 +248,7 @@ def _is_related_test_file(path: Path, primary_file: Path | None) -> bool:
 
 
 def _extract_test_functions(path: Path) -> list[TestFunction]:
-    source = path.read_text(encoding="utf-8", errors="replace")
+    source = path.read_text(encoding="utf-8-sig", errors="replace")
     lines = source.splitlines()
     module = ast.parse(source)
     relpath = path.relative_to(REPO_ROOT).as_posix()

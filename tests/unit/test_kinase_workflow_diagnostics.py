@@ -550,6 +550,7 @@ def test_eligibility_report_includes_localisation_counts_when_policy_available()
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
 

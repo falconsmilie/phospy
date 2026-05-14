@@ -31,11 +31,22 @@ def supported_linear_intensity_scale_state(
             {"sample_a": [1.0]},
             index=pd.Index(["GENEA"], name="protein_id"),
         )
+    declared_state = IntensityScaleState(
+        phospho=MatrixIntensityScaleState.linear(established_by="trusted.input"),
+        total=(
+            MatrixIntensityScaleState.linear(established_by="trusted.input")
+            if has_total_matrix
+            else None
+        ),
+    )
     return (
         DatasetIntensityScaleResolver(transformer=IdentityTransformer())
         .run(
             phospho=phospho,
             total=total,
+            expected_scale_kind=IntensityScaleKind.LINEAR,
+            declared_input_scale_state=declared_state,
+            input_declaration_source="tests.support.intensity_scale_states",
         )
         .intensity_scale_state
     )

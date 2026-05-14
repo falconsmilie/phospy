@@ -112,6 +112,7 @@ def _dataset_build_request_from_args(args: argparse.Namespace) -> DatasetBuildRe
         sample_metadata=args.sample_metadata,
         total=args.total,
         organism=_organism_from_value(args.organism),
+        input_intensity_scale=args.input_intensity_scale,
     )
 
 

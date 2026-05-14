@@ -53,6 +53,7 @@ def test_readme_style_kinase_workflow_builds_and_runs() -> None:
             site_metadata=site_metadata,
             sample_metadata=sample_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
     assert isinstance(dataset, AnalysisReadyPhosphoDataset)

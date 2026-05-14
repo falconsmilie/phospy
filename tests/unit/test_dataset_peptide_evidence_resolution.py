@@ -80,10 +80,12 @@ def test_site_level_input_works_with_safe_default_or_explicit_declaration() -> N
     safe_default_request = DatasetBuildRequest(
         phospho=_site_level_phospho(),
         site_metadata=_site_level_site_metadata(),
+        input_intensity_scale="linear",
     )
     explicit_request = DatasetBuildRequest(
         phospho=_site_level_phospho(),
         site_metadata=_site_level_site_metadata(),
+        input_intensity_scale="linear",
         site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
     )
     assert (
@@ -97,6 +99,7 @@ def test_peptide_evidence_requires_multi_site_policy() -> None:
         site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
         peptide_evidence=_peptide_evidence_frame(),
         peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
+        input_intensity_scale="linear",
     )
     with pytest.raises(
         PhosPyInputError,
@@ -111,6 +114,7 @@ def test_reject_policy_fails_on_ambiguous_peptide_evidence() -> None:
         peptide_evidence=_peptide_evidence_frame(include_single_site=False),
         peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
         multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
+        input_intensity_scale="linear",
     )
     with pytest.raises(
         PhosPyInputError,
@@ -126,6 +130,7 @@ def test_exclude_policy_records_exclusions_in_report_and_provenance() -> None:
             peptide_evidence=_peptide_evidence_frame(),
             peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
             multi_site_policy=DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING,
+            input_intensity_scale="linear",
         )
     )
     assert list(built.phospho.index.tolist()) == ["AKT1;S473;"]
@@ -157,6 +162,7 @@ def test_keep_joint_policy_preserves_joint_ambiguous_site_representation() -> No
             peptide_evidence=_peptide_evidence_frame(include_single_site=False),
             peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
             multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+            input_intensity_scale="linear",
         )
     )
     assert list(built.phospho.index.tolist()) == ["MAPK1;S10,T12;"]
@@ -171,6 +177,7 @@ def test_split_policy_applies_deterministic_equal_split() -> None:
             peptide_evidence=_peptide_evidence_frame(include_single_site=False),
             peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
             multi_site_policy=DATASET_MULTI_SITE_POLICY_SPLIT,
+            input_intensity_scale="linear",
         )
     )
     assert set(built.phospho.index.tolist()) == {"MAPK1;S10;", "MAPK1;T12;"}

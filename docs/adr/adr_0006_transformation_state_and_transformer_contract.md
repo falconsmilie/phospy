@@ -38,13 +38,15 @@ tracked with `IntensityScaleEstablishmentMode`:
 
 - `declared`: incoming matrix scale was explicitly declared
 - `transformed`: scale changed through a scale-changing transformation path
-- `identity`: scale established through identity pass-through without changing
-  numeric values
+- `identity`: pass-through preservation of an already established declared
+  state without changing numeric values
 - `derived`: scale established through a supported derived path
 
 Configured intent alone must not assign `log2`. Established state must come
 from a supported builder/transformer/bundle path with structured establishment
 provenance.
+Identity/pass-through paths must not establish `linear`/raw scale from
+undeclared inputs; they may only preserve an explicit trusted declaration.
 
 This ADR supersedes the old transformation-state wording but does not remove
 compatibility behavior where historical names appear in non-contract internals.

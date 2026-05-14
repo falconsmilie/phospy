@@ -366,6 +366,7 @@ def test_builder_rejects_sparse_missingness_in_phospho_matrix() -> None:
                 phospho=phospho,
                 site_metadata=site_metadata,
                 organism=Organism.RAT,
+                input_intensity_scale="linear",
             )
         )
 
@@ -507,6 +508,7 @@ def test_builder_rejects_non_dataframe_phospho_input() -> None:
                 phospho="not-a-dataframe",
                 site_metadata=_site_metadata(),
                 organism=Organism.RAT,
+                input_intensity_scale="linear",
             )
         )
 
@@ -522,6 +524,7 @@ def test_builder_supports_file_path_inputs(tmp_path) -> None:
             phospho=phospho_path,
             site_metadata=site_metadata_path,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
     assert list(built.phospho.index) == ["MAPK14;Y182;"]
@@ -538,6 +541,7 @@ def test_builder_rejects_preprocessing_threshold_above_sample_count() -> None:
                 phospho=_phospho(),
                 site_metadata=_site_metadata(),
                 organism=Organism.RAT,
+                input_intensity_scale="linear",
                 preprocessing_config=DatasetPreprocessingConfig(
                     missing_data=DatasetMissingDataConfig(
                         policy="impute_row_median",
@@ -554,6 +558,7 @@ def test_builder_derives_site_sequence_for_supported_organism() -> None:
             phospho=_phospho(),
             site_metadata=_site_metadata().drop(columns=["site_sequence"]),
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
     assert built.site_metadata.loc["MAPK14;Y182;", "site_sequence"]
@@ -571,6 +576,7 @@ def test_builder_derives_gene_symbol_and_site_from_supported_index_convention() 
                 index=["MAPK14;Y182;"],
             ),
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
     assert built.site_metadata.loc["MAPK14;Y182;", "gene_symbol"] == "MAPK14"
@@ -596,6 +602,7 @@ def test_builder_rejects_ambiguous_sequence_column_without_explicit_convention()
                     index=["MAPK14;Y182;"],
                 ),
                 organism=Organism.RAT,
+                input_intensity_scale="linear",
             )
         )
 
@@ -617,6 +624,7 @@ def test_builder_rejects_unsupported_historical_gene_alias() -> None:
                     index=["MAPK14;Y182;"],
                 ),
                 organism=Organism.RAT,
+                input_intensity_scale="linear",
             )
         )
 
@@ -674,6 +682,7 @@ def test_builder_rejects_blank_required_site_metadata_fields_across_input_routes
                     filename="site_metadata.csv",
                 ),
                 organism=Organism.RAT,
+                input_intensity_scale="linear",
             )
         )
 
@@ -710,6 +719,7 @@ def test_builder_rejects_unsupported_historical_site_alias_across_input_routes(
                     filename="site_metadata.csv",
                 ),
                 organism=Organism.RAT,
+                input_intensity_scale="linear",
             )
         )
 
@@ -730,6 +740,7 @@ def test_builder_fails_when_missing_gene_or_site_cannot_be_derived_from_index() 
                     index=["MAPK14"],
                 ),
                 organism=Organism.RAT,
+                input_intensity_scale="linear",
             )
         )
 
@@ -772,6 +783,7 @@ def test_builder_site_matrix_excludes_only_unresolved_rows_in_mixed_support_case
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
             ),
@@ -819,6 +831,7 @@ def test_builder_site_matrix_reports_no_retained_rows_when_all_rows_lack_sequenc
                 phospho=phospho,
                 site_metadata=site_metadata,
                 organism=Organism.RAT,
+                input_intensity_scale="linear",
                 preprocessing_config=DatasetPreprocessingConfig(
                     site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
                 ),
@@ -845,6 +858,7 @@ def test_builder_establishes_intensity_scale_state_with_supported_path() -> None
             phospho=_phospho(),
             site_metadata=_site_metadata(),
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
     assert built.intensity_scale_state.label == "linear"
@@ -852,7 +866,7 @@ def test_builder_establishes_intensity_scale_state_with_supported_path() -> None
     assert built.intensity_scale_state.established_via is not None
     assert (
         built.intensity_scale_state.phospho.established_by
-        == "phospy.science.transformations.transformers.identity"
+        == "phospy.science.datasets.builders.executor.input_intensity_scale"
     )
 
 

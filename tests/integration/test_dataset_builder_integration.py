@@ -30,7 +30,10 @@ from phospy.api import (
 from phospy.errors import PhosPyInputError
 from phospy.io.publishers.workflows import publish_dataset
 from phospy.science.references.resolution import ReferenceResolver
-from phospy.science.transformations.models import IntensityScaleState
+from phospy.science.transformations.models import (
+    IntensityScaleState,
+    MatrixIntensityScaleState,
+)
 from tests.support.rewrite_fixture_data import load_rat_l6_phospho, site_metadata_for
 
 pytestmark = pytest.mark.integration
@@ -43,6 +46,7 @@ def test_dataset_builder_populates_preprocessing_report_for_successful_build() -
             phospho=phospho,
             site_metadata=site_metadata_for(phospho),
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
 
@@ -130,6 +134,7 @@ def test_dataset_builder_builds_analysis_ready_dataset_from_fixture() -> None:
             phospho=phospho,
             site_metadata=site_metadata_for(phospho),
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
     pdt.assert_frame_equal(built.phospho, phospho)
@@ -139,8 +144,13 @@ def test_dataset_builder_builds_analysis_ready_dataset_from_fixture() -> None:
         "site_sequence",
         "localisation_confidence",
     ]
-    assert built.intensity_scale_state == IntensityScaleState.raw(
-        has_total_matrix=False
+    assert built.intensity_scale_state == IntensityScaleState(
+        phospho=MatrixIntensityScaleState.linear(
+            established_by=(
+                "phospy.science.datasets.builders.executor.input_intensity_scale"
+            )
+        ),
+        total=None,
     )
     assert built.processing_state.intensity_scale == built.intensity_scale_state
     assert built.processing_state.missing_data.policy == "forbid"
@@ -178,6 +188,7 @@ def test_dataset_builder_reports_ruv_readiness_without_mutating_phospho_values()
             phospho=phospho.copy(deep=True),
             site_metadata=site_metadata.copy(deep=True),
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
     with_readiness = AnalysisReadyDatasetBuilder().run(
@@ -185,6 +196,7 @@ def test_dataset_builder_reports_ruv_readiness_without_mutating_phospho_values()
             phospho=phospho.copy(deep=True),
             site_metadata=site_metadata.copy(deep=True),
             organism=Organism.RAT,
+            input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 ruv_readiness=DatasetRuvReadinessConfig(enabled=True),
             ),
@@ -206,6 +218,7 @@ def test_dataset_builder_establishes_intensity_scale_state_via_supported_path() 
             phospho=phospho,
             site_metadata=site_metadata_for(phospho),
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
     assert built.intensity_scale_state.label == "linear"
@@ -213,7 +226,7 @@ def test_dataset_builder_establishes_intensity_scale_state_via_supported_path() 
     assert built.intensity_scale_state.established_via is not None
     assert (
         built.intensity_scale_state.phospho.established_by
-        == "phospy.science.transformations.transformers.identity"
+        == "phospy.science.datasets.builders.executor.input_intensity_scale"
     )
 
 
@@ -232,11 +245,23 @@ def test_dataset_builder_preserves_total_matrix_and_establishes_linear_state() -
             site_metadata=site_metadata_for(phospho),
             total=total,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
     assert built.total is not None
     pdt.assert_frame_equal(built.total, total)
-    assert built.intensity_scale_state == IntensityScaleState.raw(has_total_matrix=True)
+    assert built.intensity_scale_state == IntensityScaleState(
+        phospho=MatrixIntensityScaleState.linear(
+            established_by=(
+                "phospy.science.datasets.builders.executor.input_intensity_scale"
+            )
+        ),
+        total=MatrixIntensityScaleState.linear(
+            established_by=(
+                "phospy.science.datasets.builders.executor.input_intensity_scale"
+            )
+        ),
+    )
     assert built.intensity_scale_state.label == "linear"
 
 
@@ -507,6 +532,7 @@ def test_dataset_builder_supports_documented_alias_and_index_derivation_conventi
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
     assert list(built.phospho.index) == list(phospho.index)
@@ -533,6 +559,7 @@ def test_dataset_builder_preserves_explicit_protein_identity_column() -> None:
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
     assert "protein_id" in built.site_metadata.columns
@@ -556,6 +583,7 @@ def test_dataset_builder_supports_row_median_missing_data_preprocessing_policy()
             phospho=phospho,
             site_metadata=site_metadata_for(phospho),
             organism=Organism.RAT,
+            input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 missing_data=DatasetMissingDataConfig(
                     policy="impute_row_median",
@@ -675,6 +703,7 @@ def test_dataset_builder_treats_fasta_resolution_as_authoritative_for_missing_se
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 site_sequence_resolution=DatasetSiteSequenceResolutionConfig(
                     fasta_path=str(fasta_path),
@@ -736,6 +765,7 @@ def test_dataset_builder_site_sequence_resolution_processing_state_tracks_diagno
                     flank_size=2,
                 ),
             ),
+            input_intensity_scale="linear",
         )
     )
 
@@ -800,6 +830,7 @@ def test_dataset_builder_supports_site_matrix_build_from_metadata_policy() -> No
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 missing_data=DatasetMissingDataConfig(
                     policy="impute_row_median",
@@ -843,6 +874,7 @@ def test_dataset_builder_supports_site_matrix_duplicate_aggregation_policy() -> 
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 site_matrix=DatasetSiteMatrixConfig(
                     policy="build_from_metadata",
@@ -899,6 +931,7 @@ def test_dataset_builder_site_matrix_derivation_keeps_all_fully_resolvable_rows(
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
             ),
@@ -938,6 +971,7 @@ def test_dataset_builder_site_matrix_derivation_excludes_only_unresolved_rows() 
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
             ),
@@ -979,6 +1013,7 @@ def test_dataset_builder_site_matrix_derivation_uses_row_metadata_site_identity(
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
             ),
@@ -1019,6 +1054,7 @@ def test_dataset_builder_site_matrix_excludes_unusable_supplied_sequence_rows() 
         DatasetBuildRequest(
             phospho=phospho,
             site_metadata=site_metadata,
+            input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
             ),
@@ -1193,6 +1229,7 @@ def test_dataset_builder_builds_inferred_comparisons_from_sample_metadata() -> N
             site_metadata=site_metadata,
             sample_metadata=sample_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 comparisons=DatasetComparisonBuildingConfig(
                     policy="sample_metadata_pairs"
@@ -1584,6 +1621,7 @@ def test_dataset_builder_median_center_preprocessing_records_operation() -> None
         DatasetBuildRequest(
             phospho=phospho,
             site_metadata=site_metadata,
+            input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 normalisation=DatasetNormalisationConfig(policy="median_center")
             ),
@@ -1650,6 +1688,7 @@ def test_dataset_builder_quantile_preprocessing_records_operation() -> None:
         DatasetBuildRequest(
             phospho=phospho,
             site_metadata=site_metadata,
+            input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 normalisation=DatasetNormalisationConfig(policy="quantile")
             ),
@@ -1709,6 +1748,7 @@ def test_dataset_builder_emits_machine_readable_run_provenance() -> None:
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 missing_data=DatasetMissingDataConfig(
                     policy="impute_row_median",

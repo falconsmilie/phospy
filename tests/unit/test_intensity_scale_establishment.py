@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from phospy.errors.transformations import TransformationStateEstablishmentError
 from phospy.errors.validation import TransformationValidationError
 from phospy.science.datasets.builders.preprocessing import (
     build_dataset_processing_state,
@@ -118,20 +119,16 @@ def test_transformed_log2_records_transformed_establishment_mode() -> None:
     assert provenance.parameters["operation"] == "log2"
 
 
-def test_identity_pass_through_records_identity_mode() -> None:
+def test_identity_pass_through_without_declared_scale_fails_establishment() -> None:
     resolver = DatasetIntensityScaleResolver(transformer=IdentityTransformer())
-    resolved = resolver.run(
-        phospho=_phospho([100.0, 101.0]),
-        total=None,
-    )
-    provenance = resolved.intensity_scale_state.establishment_provenance
-    assert (
-        resolved.intensity_scale_state.establishment_mode
-        is IntensityScaleEstablishmentMode.IDENTITY
-    )
-    assert provenance is not None
-    assert provenance.transformer_name is not None
-    assert "IdentityTransformer" in provenance.transformer_name
+    with pytest.raises(
+        TransformationStateEstablishmentError,
+        match="pass-through/identity transformer cannot establish scientific input scale",
+    ):
+        resolver.run(
+            phospho=_phospho([100.0, 101.0]),
+            total=None,
+        )
 
 
 def test_suspicious_declared_log2_records_warning() -> None:

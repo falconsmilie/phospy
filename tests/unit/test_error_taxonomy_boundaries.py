@@ -42,6 +42,7 @@ def _dataset_request() -> DatasetBuildRequest:
             index=pd.Index(["MAPK14;Y182;"], name="site_id"),
         ),
         organism=Organism.RAT,
+        input_intensity_scale="linear",
     )
 
 
@@ -52,6 +53,7 @@ def _dataset():
             phospho=request.phospho,
             site_metadata=request.site_metadata,
             organism=request.organism,
+            input_intensity_scale="linear",
         )
     )
 

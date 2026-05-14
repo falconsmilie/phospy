@@ -175,6 +175,7 @@ def test_dataset_output_fingerprints_match_observed_numeric_outputs() -> None:
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
 
@@ -225,6 +226,7 @@ def test_dataset_provenance_exact_hash_changes_for_tiny_shift_but_tolerance_hash
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
     second = AnalysisReadyDatasetBuilder().run(
@@ -232,6 +234,7 @@ def test_dataset_provenance_exact_hash_changes_for_tiny_shift_but_tolerance_hash
             phospho=changed,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
     first_fingerprint = next(
@@ -317,6 +320,7 @@ def test_preprocessing_policy_changes_are_visible_in_provenance() -> None:
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
     imputed_result = AnalysisReadyDatasetBuilder().run(
@@ -324,6 +328,7 @@ def test_preprocessing_policy_changes_are_visible_in_provenance() -> None:
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 missing_data=DatasetMissingDataConfig(
                     policy="impute_row_median",
@@ -522,6 +527,7 @@ def test_kinase_provenance_includes_duplicate_site_resolution_policy_when_prepro
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 missing_data=DatasetMissingDataConfig(
                     policy="forbid",

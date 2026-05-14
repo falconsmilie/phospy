@@ -148,6 +148,7 @@ def _build_public_predmat_dataset():
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            input_intensity_scale="linear",
         )
     )
 
