@@ -45,7 +45,7 @@ def test_build_phosphosite_identity_rejects_mismatched_display_and_components() 
 
 
 def test_build_phosphosite_identity_rejects_non_parseable_site_token() -> None:
-    with pytest.raises(ValueError, match="must use '<residue><position>'"):
+    with pytest.raises(ValueError, match="must use strict 'S/T/Y<position>'"):
         build_phosphosite_identity(
             display_id="MAPK14;Y182-T180;",
             gene_symbol="MAPK14",
@@ -53,3 +53,49 @@ def test_build_phosphosite_identity_rejects_non_parseable_site_token() -> None:
             field_name="test.site_metadata.row",
             error_type=ValueError,
         )
+
+
+@pytest.mark.parametrize("site_token", ["S1", "T45", "Y999"])
+def test_build_phosphosite_identity_accepts_strict_sty_site_tokens(
+    site_token: str,
+) -> None:
+    identity = build_phosphosite_identity(
+        display_id=f"MAPK14;{site_token};",
+        gene_symbol="MAPK14",
+        site=site_token,
+        field_name="test.site_metadata.row",
+        error_type=ValueError,
+    )
+    assert identity.display_id == f"MAPK14;{site_token};"
+    assert identity.residue == site_token[0]
+    assert identity.position == int(site_token[1:])
+
+
+@pytest.mark.parametrize("site_token", ["FOO", "A123", "S0", "S", "123"])
+def test_build_phosphosite_identity_rejects_invalid_site_tokens_by_default(
+    site_token: str,
+) -> None:
+    with pytest.raises(ValueError, match="must use strict 'S/T/Y<position>'"):
+        build_phosphosite_identity(
+            display_id=f"MAPK14;{site_token};",
+            gene_symbol="MAPK14",
+            site=site_token,
+            field_name="test.site_metadata.row",
+            error_type=ValueError,
+        )
+
+
+def test_build_phosphosite_identity_allows_opaque_site_token_with_explicit_opt_in() -> (
+    None
+):
+    identity = build_phosphosite_identity(
+        display_id="MAPK14;FOO;",
+        gene_symbol="MAPK14",
+        site="FOO",
+        allow_opaque_site_values=True,
+        field_name="test.site_metadata.row",
+        error_type=ValueError,
+    )
+    assert identity.display_id == "MAPK14;FOO;"
+    assert identity.residue is None
+    assert identity.position is None

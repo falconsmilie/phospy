@@ -169,6 +169,7 @@ class SignalomeWorkflowValidator:
             site_metadata=dataset._borrow_site_metadata_frame(),
             dataset_sites=dataset._borrow_phospho_frame().index,
             localisation_requirement=config.validation.localisation_requirement,
+            allow_opaque_site_values=dataset.opaque_site_values_allowed,
         )
         return request
 
@@ -178,6 +179,7 @@ class SignalomeWorkflowValidator:
         site_metadata: object,
         dataset_sites: pd.Index,
         localisation_requirement: LocalisationRequirement,
+        allow_opaque_site_values: bool,
     ) -> None:
         field_name = "signalome workflow request kinase_result.dataset.site_metadata"
         site_metadata_frame = require_dataframe(
@@ -203,7 +205,7 @@ class SignalomeWorkflowValidator:
                 site_metadata=site_metadata_frame,
                 field_name=field_name,
                 error_type=WorkflowValidationError,
-                allow_opaque_site_values=True,
+                allow_opaque_site_values=allow_opaque_site_values,
             )
             enforce_required_non_empty_string_column(
                 site_metadata=site_metadata_frame,

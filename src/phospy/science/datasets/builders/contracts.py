@@ -49,6 +49,7 @@ class InterpretedDatasetBuildRequest:
     quantitative_meaning: QuantitativeMeaning | None = None
     site_resolution_mode: str = DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED
     multi_site_policy: str | None = None
+    allow_opaque_site_values: bool = False
     peptide_evidence_resolution: dict[str, object] | None = None
 
 

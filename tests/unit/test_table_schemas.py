@@ -447,9 +447,62 @@ def test_site_metadata_rejects_malformed_site_tokens_by_default() -> None:
     frame.loc["MAPK14;Y182;", "site"] = "Y18X"
     with pytest.raises(
         DatasetValidationError,
-        match="site values must use '<residue><position>'",
+        match="site values must use strict 'S/T/Y<position>' tokens",
     ):
         SiteMetadataTable(frame=frame, expected_index=phospho.frame.index)
+
+
+@pytest.mark.parametrize(
+    "invalid_site_value",
+    ["FOO", "A123", "S0", "S", "123", "", None],
+)
+def test_site_metadata_rejects_invalid_site_tokens_by_default(
+    invalid_site_value: object,
+) -> None:
+    phospho = PhosphoIntensityMatrix(frame=_phospho_frame())
+    frame = _site_metadata_frame(phospho.frame.index).copy(deep=True)
+    frame.loc["MAPK14;Y182;", "site"] = invalid_site_value
+    with pytest.raises(DatasetValidationError):
+        SiteMetadataTable(frame=frame, expected_index=phospho.frame.index)
+
+
+def test_site_metadata_allows_opaque_site_tokens_only_with_explicit_opt_in() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0]},
+        index=pd.Index(["MAPK14;FOO;"], name="site_id"),
+    )
+    frame = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14"],
+            "site": ["FOO"],
+            "site_sequence": ["AAAAAYAAAAA"],
+        },
+        index=phospho.index.copy(),
+    )
+    wrapped = SiteMetadataTable(
+        frame=frame,
+        expected_index=phospho.index.copy(),
+        allow_opaque_site_values=True,
+    )
+    assert wrapped.frame.loc["MAPK14;FOO;", "site"] == "FOO"
+
+
+@pytest.mark.parametrize("site_token", ["S1", "T45", "Y999"])
+def test_site_metadata_accepts_valid_sty_site_tokens(site_token: str) -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0]},
+        index=pd.Index([f"MAPK14;{site_token};"], name="site_id"),
+    )
+    frame = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14"],
+            "site": [site_token],
+            "site_sequence": [("A" * 5) + site_token[0] + ("A" * 5)],
+        },
+        index=phospho.index.copy(),
+    )
+    wrapped = SiteMetadataTable(frame=frame, expected_index=phospho.index.copy())
+    assert wrapped.frame.loc[f"MAPK14;{site_token};", "site"] == site_token
 
 
 def test_site_metadata_rejects_residue_site_inconsistency() -> None:

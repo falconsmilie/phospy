@@ -64,7 +64,7 @@ class KinaseWorkflowValidator:
             site_metadata=site_metadata,
             field_name="kinase workflow request dataset.site_metadata",
             error_type=WorkflowValidationError,
-            allow_opaque_site_values=True,
+            allow_opaque_site_values=dataset.opaque_site_values_allowed,
         )
         enforce_localisation_requirement(
             site_metadata=site_metadata,

@@ -71,11 +71,7 @@ def validate_site_identity_metadata(
     for site_id in site_metadata.index.tolist():
         site_value = site_metadata.at[site_id, site_column]
         parsed_site = try_parse_site_token(site_value)
-        if (
-            parsed_site is None
-            and not allow_opaque_site_values
-            and _looks_like_site_token(raw_value=site_value)
-        ):
+        if parsed_site is None and not allow_opaque_site_values:
             malformed_site_values.append(f"{site_id!r}:{site_value!r}")
 
         explicit_residue = _resolve_optional_residue(
@@ -133,8 +129,8 @@ def validate_site_identity_metadata(
     details: list[str] = []
     if malformed_site_values:
         details.append(
-            "site values must use '<residue><position>' (example: 'S123') unless "
-            "opaque-site mode is explicitly enabled; "
+            "site values must use strict 'S/T/Y<position>' tokens (example: "
+            "'S123') unless opaque-site mode is explicitly enabled; "
             + _summarise_examples(malformed_site_values)
         )
     if invalid_explicit_residue_rows:
@@ -358,7 +354,7 @@ def enforce_site_identity_rows(
     site_metadata: pd.DataFrame,
     field_name: str,
     error_type: type[ErrorType],
-    allow_opaque_site_values: bool = True,
+    allow_opaque_site_values: bool = False,
 ) -> None:
     """Enforce row-level phosphosite identity parsing for workflow boundaries."""
 
@@ -542,22 +538,6 @@ def _resolve_expected_residue(
     if parsed_site is not None:
         return parsed_site.residue
     return None
-
-
-def _looks_like_site_token(*, raw_value: object) -> bool:
-    if _is_missing(raw_value):
-        return False
-    token = str(raw_value).strip()
-    if token == "":
-        return False
-    if ";" in token or "," in token:
-        return False
-    first = token[0]
-    if not first.isalpha():
-        return False
-    if len(token) < 2 or not token[1].isdigit():
-        return False
-    return True
 
 
 def _parse_localisation_probability(value: object) -> float | str | None:

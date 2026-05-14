@@ -149,6 +149,7 @@ def _build_public_predmat_dataset():
             site_metadata=site_metadata,
             organism=Organism.RAT,
             input_intensity_scale="linear",
+            allow_opaque_site_values=True,
         )
     )
 

@@ -45,10 +45,24 @@ The identity model includes:
   - `source_namespace`
   - `source_site_id`
 
+### Default Site-Token Strictness
+
+By default, phosphosite `site` values must be strict phosphoproteomics tokens:
+`S`, `T`, or `Y` followed by a positive integer (for example `S123`, `T45`,
+`Y999`).
+
+Malformed or non-phosphorylatable tokens (for example `FOO`, `A123`, `S0`,
+blank, or null values) are rejected before workflow execution.
+
+Opaque site values are only valid behind an explicit waiver
+(`allow_opaque_site_values=True`), and that waiver must be provenance-visible
+in any workflow path that enables it.
+
 ### Compatibility
 
 Standardized `GENE;SITE;` parsing remains supported and is still required for
-display IDs at strict dataset boundaries.
+display IDs at strict dataset boundaries. Display identity remains an indexing
+surface, not complete scientific identity.
 
 ### Ambiguity and Collision Policy
 

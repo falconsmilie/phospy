@@ -242,6 +242,13 @@ class KinaseProvenanceBuilder:
             reference=request.references.provenance,
             workflow_name="kinase_workflow",
             workflow_parameters={
+                "site_token_validation": {
+                    "mode": (
+                        "opaque_opt_in"
+                        if request.dataset.opaque_site_values_allowed
+                        else "strict_sty_residue_position"
+                    )
+                },
                 "scoring_config": {
                     "min_substrates": int(config.scoring_min_substrates),
                     "include_diagnostic_scoring_tables": bool(

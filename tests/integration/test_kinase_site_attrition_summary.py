@@ -92,6 +92,7 @@ def _build_dataset_with_attrition_mix() -> object:
             site_metadata=site_metadata,
             organism=Organism.RAT,
             input_intensity_scale="linear",
+            allow_opaque_site_values=True,
             preprocessing_config=preprocessing,
         )
     )

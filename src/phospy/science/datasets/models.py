@@ -505,11 +505,13 @@ class AnalysisReadyPhosphoDataset:
     organism: Organism | None = None
     preprocessing_report: DatasetPreprocessingReport | None = None
     provenance: RunProvenance | None = None
+    allow_opaque_site_values: bool = False
     _phospho: pd.DataFrame = field(init=False, repr=False)
     _site_metadata: pd.DataFrame = field(init=False, repr=False)
     _sample_metadata: pd.DataFrame | None = field(init=False, repr=False)
     _total: pd.DataFrame | None = field(init=False, repr=False)
     _comparisons: pd.DataFrame | None = field(init=False, repr=False)
+    _allow_opaque_site_values: bool = field(init=False, repr=False, default=False)
     _init_payload: (
         tuple[
             pd.DataFrame,
@@ -517,6 +519,7 @@ class AnalysisReadyPhosphoDataset:
             pd.DataFrame | None,
             pd.DataFrame | None,
             pd.DataFrame | None,
+            bool,
             bool,
         ]
         | None
@@ -534,13 +537,19 @@ class AnalysisReadyPhosphoDataset:
         organism: Organism | None = None,
         preprocessing_report: DatasetPreprocessingReport | None = None,
         provenance: RunProvenance | None = None,
+        allow_opaque_site_values: bool = False,
         _assume_owned: bool = False,
     ) -> None:
+        if not isinstance(allow_opaque_site_values, bool):
+            raise DatasetValidationError(
+                "dataset.allow_opaque_site_values must be a bool"
+            )
         object.__setattr__(self, "intensity_scale_state", intensity_scale_state)
         object.__setattr__(self, "processing_state", processing_state)
         object.__setattr__(self, "organism", organism)
         object.__setattr__(self, "preprocessing_report", preprocessing_report)
         object.__setattr__(self, "provenance", provenance)
+        object.__setattr__(self, "allow_opaque_site_values", allow_opaque_site_values)
         object.__setattr__(
             self,
             "_init_payload",
@@ -550,6 +559,7 @@ class AnalysisReadyPhosphoDataset:
                 sample_metadata,
                 total,
                 comparisons,
+                allow_opaque_site_values,
                 _assume_owned,
             ),
         )
@@ -567,6 +577,7 @@ class AnalysisReadyPhosphoDataset:
             sample_metadata,
             total,
             comparisons,
+            allow_opaque_site_values,
             _assume_owned,
         ) = payload
         phospho = own_dataframe(
@@ -606,6 +617,7 @@ class AnalysisReadyPhosphoDataset:
         site_metadata_table = SiteMetadataTable(
             frame=site_metadata,
             expected_index=phospho_table.frame.index,
+            allow_opaque_site_values=allow_opaque_site_values,
             _assume_owned=True,
         )
         sample_metadata_table = (
@@ -723,6 +735,8 @@ class AnalysisReadyPhosphoDataset:
             self, "_total", None if total_table is None else total_table.frame
         )
         object.__setattr__(self, "_comparisons", comparisons)
+        object.__setattr__(self, "_allow_opaque_site_values", allow_opaque_site_values)
+        object.__setattr__(self, "allow_opaque_site_values", allow_opaque_site_values)
         object.__setattr__(
             self, "intensity_scale_state", validated_intensity_scale_state
         )
@@ -747,6 +761,10 @@ class AnalysisReadyPhosphoDataset:
     @property
     def comparisons(self) -> pd.DataFrame | None:
         return export_optional_dataframe(self._comparisons)
+
+    @property
+    def opaque_site_values_allowed(self) -> bool:
+        return bool(self._allow_opaque_site_values)
 
     def _borrow_phospho_frame(self) -> pd.DataFrame:
         """Package-private borrowed phospho matrix for internal workflows."""
@@ -787,6 +805,7 @@ class AnalysisReadyPhosphoDataset:
         organism: Organism | None = None,
         preprocessing_report: DatasetPreprocessingReport | None = None,
         provenance: RunProvenance | None = None,
+        allow_opaque_site_values: bool = False,
     ) -> AnalysisReadyPhosphoDataset:
         return cls(
             phospho=phospho,
@@ -799,6 +818,7 @@ class AnalysisReadyPhosphoDataset:
             organism=organism,
             preprocessing_report=preprocessing_report,
             provenance=provenance,
+            allow_opaque_site_values=allow_opaque_site_values,
             _assume_owned=True,
         )
 

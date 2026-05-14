@@ -208,6 +208,7 @@ class DatasetBuildRequestInterpreter:
             ),
             site_resolution_mode=site_resolution_mode,
             multi_site_policy=multi_site_policy,
+            allow_opaque_site_values=bool(request.allow_opaque_site_values),
             peptide_evidence_resolution=peptide_evidence_resolution_payload,
         )
 

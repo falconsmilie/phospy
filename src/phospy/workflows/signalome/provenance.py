@@ -186,6 +186,13 @@ class SignalomeProvenanceBuilder:
             reference=request.kinase_result.references.provenance,
             workflow_name="signalome_workflow",
             workflow_parameters={
+                "site_token_validation": {
+                    "mode": (
+                        "opaque_opt_in"
+                        if request.dataset.opaque_site_values_allowed
+                        else "strict_sty_residue_position"
+                    )
+                },
                 "signalome_config": {
                     "scientific": {
                         "substrate_support_cutoff": float(

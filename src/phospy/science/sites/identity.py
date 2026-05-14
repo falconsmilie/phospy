@@ -109,8 +109,8 @@ def build_phosphosite_identity(
     parsed_site = try_parse_site_token(canonical_site)
     if parsed_site is None and not allow_opaque_site_values:
         raise error_type(
-            f"{field_name}.site must use '<residue><position>' tokens to build a "
-            f"scientific phosphosite identity; got {canonical_site!r}"
+            f"{field_name}.site must use strict 'S/T/Y<position>' tokens to build "
+            f"a scientific phosphosite identity; got {canonical_site!r}"
         )
 
     return PhosphositeIdentity(

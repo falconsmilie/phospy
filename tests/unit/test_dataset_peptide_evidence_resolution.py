@@ -13,6 +13,7 @@ from phospy.api.requests import (
     DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
     DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
 )
+from phospy.errors.validation import DatasetValidationError
 from phospy.science.datasets.builders.validator import DatasetBuildRequestValidator
 
 
@@ -163,11 +164,32 @@ def test_keep_joint_policy_preserves_joint_ambiguous_site_representation() -> No
             peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
             multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
             input_intensity_scale="linear",
+            allow_opaque_site_values=True,
         )
     )
     assert list(built.phospho.index.tolist()) == ["MAPK1;S10,T12;"]
     site_value = built.site_metadata.loc["MAPK1;S10,T12;", "site"]
     assert str(site_value) == "S10,T12"
+    assert built.provenance is not None
+    assert built.provenance.workflow_parameters["site_token_validation"] == {
+        "mode": "opaque_opt_in"
+    }
+
+
+def test_keep_joint_policy_without_opaque_opt_in_fails_dataset_validation() -> None:
+    with pytest.raises(
+        DatasetValidationError,
+        match="site values must use strict 'S/T/Y<position>' tokens",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+                peptide_evidence=_peptide_evidence_frame(include_single_site=False),
+                peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
+                multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+                input_intensity_scale="linear",
+            )
+        )
 
 
 def test_split_policy_applies_deterministic_equal_split() -> None:

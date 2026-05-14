@@ -17,7 +17,7 @@ _SITE_IDENTIFIER_PATTERN = re.compile(
 _GENE_TOKEN_PATTERN = re.compile(r"^[^;\s]+$")
 _SITE_TOKEN_PATTERN = re.compile(r"^[^;\s]+$")
 _SITE_TOKEN_RESIDUE_POSITION_PATTERN = re.compile(
-    r"^\s*(?P<residue>[A-Za-z])(?P<position>[1-9][0-9]*)\s*$"
+    r"^\s*(?P<residue>[STYsty])(?P<position>[1-9][0-9]*)\s*$"
 )
 _SITE_IDENTIFIER_EXPECTATION = (
     "site identifiers must use 'GENE;SITE;' format (example: 'MAPK1;S123;')"
@@ -207,7 +207,7 @@ def parse_canonical_site_identifier(
 
 
 def try_parse_site_token(value: object) -> ParsedSiteToken | None:
-    """Parse a ``site`` token like ``S123`` to structured residue/position."""
+    """Parse one strict phosphosite token (``S/T/Y`` + positive integer)."""
 
     if _is_missing(value):
         return None

@@ -21,3 +21,5 @@ def test_workflow_validators_compose_shared_site_identity_validator() -> None:
     assert "enforce_site_identity_rows(" in signalome_source
     assert "build_phosphosite_identity(" not in kinase_source
     assert "build_phosphosite_identity(" not in signalome_source
+    assert "allow_opaque_site_values=True" not in kinase_source
+    assert "allow_opaque_site_values=True" not in signalome_source

@@ -66,7 +66,8 @@ class DatasetBuildRequest:
 
     Preprocessing policy remains builder owned via ``preprocessing_config`` and
     must still converge on a strict, missing-value-free
-    ``AnalysisReadyPhosphoDataset`` boundary.
+    ``AnalysisReadyPhosphoDataset`` boundary. Opaque non-STY site tokens remain
+    disallowed by default and require explicit ``allow_opaque_site_values=True``.
     """
 
     phospho: DatasetInput | None = None
@@ -78,6 +79,7 @@ class DatasetBuildRequest:
     peptide_evidence_sample_intensity_columns: tuple[str, ...] | None = None
     peptide_site_mapping: DatasetInput | None = None
     multi_site_policy: str | None = None
+    allow_opaque_site_values: bool = False
     organism: Organism | None = None
     preprocessing_config: DatasetPreprocessingConfig = field(
         default_factory=DatasetPreprocessingConfig

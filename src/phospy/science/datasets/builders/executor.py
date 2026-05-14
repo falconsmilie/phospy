@@ -253,6 +253,7 @@ class DatasetBuildExecutor:
             intensity_scale_label=intensity_scale_state.label,
             intensity_scale_establishment=establishment_provenance.to_payload(),
             quantitative_meaning=quantitative_meaning.value,
+            allow_opaque_site_values=request.allow_opaque_site_values,
         )
         return AnalysisReadyPhosphoDataset._from_owned(
             phospho=resolved.phospho,
@@ -265,6 +266,7 @@ class DatasetBuildExecutor:
             processing_state=processing_state,
             preprocessing_report=report,
             provenance=provenance,
+            allow_opaque_site_values=request.allow_opaque_site_values,
         )
 
 
@@ -1071,6 +1073,7 @@ def _build_dataset_run_provenance(
     intensity_scale_label: str,
     intensity_scale_establishment: Mapping[str, object],
     quantitative_meaning: str,
+    allow_opaque_site_values: bool,
 ) -> RunProvenance:
     input_tables = _collect_fingerprints(
         (
@@ -1114,6 +1117,11 @@ def _build_dataset_run_provenance(
             "site_resolution_mode": request.site_resolution_mode,
             "multi_site_policy": request.multi_site_policy,
             "peptide_evidence_resolution": request.peptide_evidence_resolution,
+            "site_token_validation": (
+                {"mode": "opaque_opt_in"}
+                if allow_opaque_site_values
+                else {"mode": "strict_sty_residue_position"}
+            ),
         },
         random_state=None,
         random_seed_policy=None,

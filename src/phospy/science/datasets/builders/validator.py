@@ -102,6 +102,10 @@ class DatasetBuildRequestValidator:
             raise PhosPyInputError("dataset build request organism must be an Organism")
         _validate_input_intensity_scale(request.input_intensity_scale)
         _validate_quantitative_meaning(request.quantitative_meaning)
+        if not isinstance(request.allow_opaque_site_values, bool):
+            raise PhosPyInputError(
+                "dataset build request allow_opaque_site_values must be a bool"
+            )
         self._preprocessing_validator.run(request.preprocessing_config)
         requested_total_policy = (
             request.preprocessing_config.total_protein_correction.policy

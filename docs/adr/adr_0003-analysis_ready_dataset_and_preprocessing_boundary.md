@@ -125,6 +125,12 @@ The dataset is expected to enforce the following invariants at construction time
   - `site`
 - `site_sequence` is required and must contain non-empty plausible sequence
   strings
+- `site` scientific identity tokens must default to strict phosphosite format:
+  `S`, `T`, or `Y` followed by a positive integer (for example `S123`)
+- display IDs (`GENE;SITE;`) are necessary for indexing but are not sufficient
+  scientific identity on their own
+- any opaque-site waiver is an explicit opt-in (`allow_opaque_site_values`) and
+  must be surfaced in provenance for flows that permit it
 
 ### Sample Metadata Invariants
 

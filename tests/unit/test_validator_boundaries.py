@@ -258,6 +258,26 @@ def test_dataset_build_request_has_default_preprocessing_config() -> None:
     assert validated.preprocessing_config.missing_data.min_observed_values is None
 
 
+def test_dataset_build_request_requires_boolean_allow_opaque_site_values() -> None:
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["MAPK14;Y182;"],
+        ),
+        allow_opaque_site_values="yes",  # type: ignore[arg-type]
+    )
+    with pytest.raises(
+        PhosPyInputError,
+        match="allow_opaque_site_values must be a bool",
+    ):
+        DatasetBuildRequestValidator().run(request)
+
+
 @pytest.mark.parametrize(
     "quantitative_meaning",
     [
@@ -931,6 +951,24 @@ def test_kinase_validator_can_require_localisation_probability_threshold() -> No
     message = str(exc_info.value)
     assert "policy=require_threshold" in message
     assert "must be >= 0.750" in message
+
+
+def test_kinase_validator_rejects_malformed_site_tokens() -> None:
+    dataset = _dataset()
+    malformed_index = pd.Index(["MAPK14;FOO;"], name="site_id")
+    dataset._phospho.index = malformed_index.copy()
+    dataset._site_metadata.index = malformed_index.copy()
+    dataset._site_metadata.loc[:, "site"] = ["FOO"]
+    request = KinaseWorkflowRequest(
+        dataset=dataset,
+        references=_references(),
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="must use strict 'S/T/Y<position>'",
+    ):
+        KinaseWorkflowValidator().run(request)
 
 
 @pytest.mark.parametrize(
