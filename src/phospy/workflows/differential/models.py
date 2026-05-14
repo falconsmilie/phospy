@@ -13,6 +13,7 @@ from phospy.science.differential.models import (
     ContrastMatrix,
     DesignMatrix,
     DifferentialAnalysisResult,
+    DifferentialPolicyProvenance,
 )
 from phospy.science.differential.models import (
     DifferentialAnalysisRequest as DifferentialComputationRequest,
@@ -30,6 +31,7 @@ class ValidatedDifferentialAnalysisRequest:
     design_matrix: DesignMatrix
     contrast_matrix: ContrastMatrix
     config: DifferentialAnalysisConfig
+    policy_provenance: DifferentialPolicyProvenance | None = None
     workflow_provenance: Mapping[str, object] | None = None
 
 
@@ -41,6 +43,7 @@ class InterpretedDifferentialAnalysisRequest:
     config: DifferentialAnalysisConfig
     design_rank: int
     residual_degrees_of_freedom: float
+    policy_provenance: DifferentialPolicyProvenance | None = None
     workflow_provenance: Mapping[str, object] | None = None
 
 

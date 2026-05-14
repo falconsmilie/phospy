@@ -19,6 +19,9 @@ from phospy.workflows.differential.models import (
     InterpretedDifferentialAnalysisRequest,
     ValidatedDifferentialAnalysisRequest,
 )
+from phospy.workflows.differential.provenance import (
+    build_differential_policy_provenance,
+)
 
 
 class DifferentialAnalysisInterpreter:
@@ -108,11 +111,17 @@ class DifferentialAnalysisInterpreter:
             ),
             empirical_bayes=request.config.empirical_bayes,
         )
+        policy_provenance = build_differential_policy_provenance(
+            request=request,
+            design_rank=rank,
+            residual_degrees_of_freedom=residual_dof,
+        )
         return InterpretedDifferentialAnalysisRequest(
             computation_request=computation_request,
             config=request.config,
             design_rank=rank,
             residual_degrees_of_freedom=residual_dof,
+            policy_provenance=policy_provenance,
             workflow_provenance=request.workflow_provenance,
         )
 

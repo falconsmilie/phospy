@@ -306,7 +306,10 @@ The following decisions are now resolved for this ADR.
 
 1. `pred_mat_result` should not be retained as a top-level convenience property on `KinaseWorkflowResult`. Prediction output should be accessed through `prediction_result` directly.
 2. `SignalomeWorkflowResult` should expose `kinase_result` directly.
-3. Result-level provenance attachment is not a current concern and should remain outside result models for now.
+3. Broad workflow-run provenance attachments remain out of scope for most
+   result models, but differential statistical-policy provenance is explicitly
+   in scope via structured `DifferentialAnalysisResult.policy_provenance`
+   because those policy choices directly affect interpretation.
 4. The `dataset` field should be included on all public workflow result objects for now.
 
 ## Implementation Guidance

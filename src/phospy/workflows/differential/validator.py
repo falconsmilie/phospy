@@ -132,6 +132,7 @@ class DifferentialAnalysisValidator:
             design_matrix=design_matrix,
             contrast_matrix=contrast_matrix,
             config=config,
+            policy_provenance=None,
             workflow_provenance=technical_replicate_resolution.workflow_provenance,
         )
 

@@ -356,6 +356,19 @@ def test_provenance_records_technical_replicate_lineage() -> None:
     assert a1_group["input_sample_ids"] == ["A1_T1", "A1_T2"]
     assert a1_group["technical_replicate_ids"] == ["T1", "T2"]
     assert a1_group["n_technical_replicates"] == 2
+    assert result.policy_provenance is not None
+    assert result.policy_provenance.replicates.technical_replicate_policy == "mean"
+    structured_groups = result.policy_provenance.replicates.technical_replicate_groups
+    assert len(structured_groups) == 4
+    a1_structured = next(
+        group
+        for group in structured_groups
+        if group.condition == "A" and group.biological_replicate_id == "A1"
+    )
+    assert a1_structured.output_sample_id == "A1"
+    assert a1_structured.input_sample_ids == ("A1_T1", "A1_T2")
+    assert a1_structured.technical_replicate_ids == ("T1", "T2")
+    assert a1_structured.n_technical_replicates == 2
 
 
 def test_invalid_technical_replicate_policy_fails() -> None:

@@ -160,6 +160,33 @@ def test_differential_analysis_returns_per_contrast_moderated_tables() -> None:
     assert result.empirical_bayes_robust is False
     assert result.empirical_bayes_trend is False
     assert result.mean_variance_trend_diagnostics is None
+    assert result.policy_provenance is not None
+    assert result.policy_provenance.design.formula == "~0 + condition"
+    assert result.policy_provenance.design.rank == 3
+    assert result.policy_provenance.design.residual_degrees_of_freedom == pytest.approx(
+        3.0
+    )
+    assert result.policy_provenance.statistical_testing.p_value_method == (
+        "two_sided_t_distribution_survival_function"
+    )
+    assert result.policy_provenance.statistical_testing.adjusted_p_value_method == (
+        "benjamini_hochberg"
+    )
+    assert result.policy_provenance.missing_values.policy == (
+        "reject_missing_values_before_differential_execution"
+    )
+    assert "batch-aware differential modelling" in (
+        result.policy_provenance.unsupported_design.intentionally_rejected_features
+    )
+    assert result.policy_provenance.replicates.condition_replicate_counts == (
+        ("A", 2),
+        ("B", 2),
+        ("C", 2),
+    )
+    assert [item.name for item in result.policy_provenance.contrasts] == [
+        "B_vs_A",
+        "C_vs_A",
+    ]
     for contrast_name in ("B_vs_A", "C_vs_A"):
         table = result.table_for(contrast_name)
         assert list(table.columns) == ["logFC", "t", "P.Value", "adj.P.Val"]
@@ -200,6 +227,10 @@ def test_robust_mode_downweights_variance_outlier() -> None:
     )
 
     assert robust.empirical_bayes_robust is True
+    assert robust.policy_provenance is not None
+    assert robust.policy_provenance.empirical_bayes.method == "robust"
+    assert robust.policy_provenance.empirical_bayes.robust is True
+    assert robust.policy_provenance.empirical_bayes.winsor_tail_p == (0.05, 0.1)
     assert robust.prior_diagnostics.robust_outlier_count >= 1
     outlier_site = "MAPK14;Y182;"
     assert (

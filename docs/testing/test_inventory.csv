@@ -1,10 +1,10 @@
 path,test_area,line_count,test_function_count,uses_pytest_mark,uses_parametrization,primary_category,recommended_action,protected_risk_or_contract,reviewer,followup_ticket,notes
-tests/golden/test_differential_fixture_provenance_golden.py,golden,51,2,true,false,,,,,,
+tests/golden/test_differential_fixture_provenance_golden.py,golden,250,3,true,false,,,,,,
 tests/integration/test_cli_smoke.py,integration,469,12,true,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for cli smoke and increase risk of boundary regressions.,codex-audit,,
 tests/integration/test_dataset_builder_boundary_honesty_integration.py,integration,414,10,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset builder boundary honesty integration and increase risk of boundary regressions.,codex-audit,,
 tests/integration/test_dataset_builder_integration.py,integration,1863,36,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset builder integration and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/integration/test_dataset_builder_intensity_scale_provenance.py,integration,233,7,true,false,,,,,,
-tests/integration/test_differential_with_technical_replicates.py,integration,162,2,false,false,,,,,,
+tests/integration/test_differential_with_technical_replicates.py,integration,179,3,false,false,,,,,,
 tests/integration/test_differential_workflow_integration.py,integration,365,8,false,false,,,,,,
 tests/integration/test_identity_aware_workflows.py,integration,209,4,false,false,,,,,,
 tests/integration/test_kinase_bundle_integration.py,integration,857,8,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle integration, making artifact and output drift unsafe.",codex-audit,,
@@ -52,11 +52,11 @@ tests/unit/test_dataset_sequence_resolution_report.py,unit,257,6,false,false,,,,
 tests/unit/test_dataset_site_sequence_deriver.py,unit,96,4,false,false,,,,,,
 tests/unit/test_dataset_site_sequence_resolution.py,unit,407,10,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for dataset site sequence resolution, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_dataset_transformation_state_establishment.py,unit,757,28,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset transformation state establishment and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
-tests/unit/test_differential_analysis.py,unit,454,11,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for differential analysis behaviour, allowing numerically plausible but scientifically invalid results.",codex-audit,,New test file classified after audit-doc regeneration.
+tests/unit/test_differential_analysis.py,unit,484,11,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for differential analysis behaviour, allowing numerically plausible but scientifically invalid results.",codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_differential_dataset_eligibility_validator.py,unit,131,5,false,false,,,,,,
 tests/unit/test_differential_request_config_refactor.py,unit,58,6,false,false,,,,,,
 tests/unit/test_differential_result_contract.py,unit,196,3,false,false,,,,,,
-tests/unit/test_differential_technical_replicate_policy.py,unit,374,10,false,false,,,,,,
+tests/unit/test_differential_technical_replicate_policy.py,unit,387,10,false,false,,,,,,
 tests/unit/test_differential_unsupported_designs.py,unit,169,5,false,false,,,,,,
 tests/unit/test_differential_workflow_components.py,unit,548,19,true,true,,,,,,
 tests/unit/test_docs_legacy_wording_lint.py,unit,10,1,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in docs legacy wording lint; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-ORCH-002,Route to TST-ORCH-002 to align wording-lint assertions with current public boundary terminology and remove stale internal seam references.
@@ -150,5 +150,5 @@ tests/unit/test_validation_ownership.py,unit,176,9,false,false,internal implemen
 tests/unit/test_validation_ownership_contracts.py,unit,56,2,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_validator_boundaries.py,unit,1701,61,true,true,duplicate validation matrix,consolidate,Loss of this file would reduce repeated primitive validation coverage for validator boundaries; protections must remain through a consolidated matrix before removal.,codex-audit,TST-VAL-002,Umbrella validator-boundary consolidation ticket that coordinates existing mapped follow-ups in consolidation_coverage_map.md (primitive int/range/enum/dataframe plus signalome/reference domain matrices); auto-orchestration private-member hit is non-routing noise. | [auto-orchestration] 16 hit(s); indicators: private_member_access
 tests/unit/test_workflow_boundary_error.py,unit,320,9,false,false,regression for past bug,keep,Loss of this file would remove regression protection for previously fragile behavior in workflow boundary error and increase risk of silent reintroduction.,codex-audit,,
-tests/unit/test_workflow_identity_contracts.py,unit,245,5,false,false,,,,,,[auto-orchestration] 8 hit(s); indicators: private_member_access
+tests/unit/test_workflow_identity_contracts.py,unit,246,5,false,false,,,,,,[auto-orchestration] 8 hit(s); indicators: private_member_access
 tests/unit/test_workflow_public_import_contract.py,unit,77,6,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for workflow public import contract and increase risk of boundary regressions.,codex-audit,,

@@ -38,6 +38,15 @@ Differential workflows use a typed contract:
    - default `TechnicalReplicatePolicy.REJECT`
    - explicit aggregation modes `TechnicalReplicatePolicy.MEAN` and
      `TechnicalReplicatePolicy.MEDIAN`
+5. Structured differential policy provenance on result objects through
+   `DifferentialAnalysisResult.policy_provenance`, recording:
+   - design formula and matrix summary
+   - typed contrast definitions
+   - replicate requirements and technical-replicate lineage
+   - empirical-Bayes settings
+   - p-value and adjusted p-value methods
+   - missing-value handling policy
+   - intentionally rejected unsupported design features (`batch`, `block`)
 
 Technical-replicate resolution runs in
 `phospy.workflows.differential.replicates.TechnicalReplicateResolver` before
@@ -92,10 +101,14 @@ No condition inference from sample names is allowed.
   `src/phospy/api/configs/differential.py`.
 - Technical replicate policy enum:
   `src/phospy/science/differential/policy_models.py`.
+- Differential structured policy provenance model:
+  `src/phospy/science/differential/models.py`.
 - Resolver and aggregation behavior:
   `src/phospy/workflows/differential/replicates.py`.
 - Differential request validation pipeline:
   `src/phospy/workflows/differential/validator.py`.
+- Differential provenance construction:
+  `src/phospy/workflows/differential/provenance.py`.
 - Ownership registry alignment:
   `docs/validation-ownership.md` (Design matrix validity, Contrast validity,
   Replicate policy).

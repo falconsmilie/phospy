@@ -311,6 +311,253 @@ class DifferentialAnalysisRequest:
         object.__setattr__(self, "contrasts", contrasts)
 
 
+@dataclass(frozen=True, slots=True)
+class DifferentialDesignMatrixSummary:
+    """Structured summary of the resolved differential design matrix."""
+
+    formula: str
+    sample_labels: tuple[str, ...]
+    coefficient_labels: tuple[str, ...]
+    sample_count: int
+    coefficient_count: int
+    rank: int
+    residual_degrees_of_freedom: float
+
+    def __post_init__(self) -> None:
+        if not self.formula:
+            raise PhosPyInputError(
+                "differential_policy_provenance.design.formula must be non-empty"
+            )
+        if not self.sample_labels:
+            raise PhosPyInputError(
+                "differential_policy_provenance.design.sample_labels must be non-empty"
+            )
+        if not self.coefficient_labels:
+            raise PhosPyInputError(
+                "differential_policy_provenance.design.coefficient_labels must be "
+                "non-empty"
+            )
+        if self.sample_count < 1:
+            raise PhosPyInputError(
+                "differential_policy_provenance.design.sample_count must be >= 1"
+            )
+        if self.coefficient_count < 1:
+            raise PhosPyInputError(
+                "differential_policy_provenance.design.coefficient_count must be >= 1"
+            )
+        if self.rank < 1:
+            raise PhosPyInputError(
+                "differential_policy_provenance.design.rank must be >= 1"
+            )
+        if self.rank > self.coefficient_count:
+            raise PhosPyInputError(
+                "differential_policy_provenance.design.rank cannot exceed "
+                "coefficient_count"
+            )
+        if self.residual_degrees_of_freedom <= 0.0:
+            raise PhosPyInputError(
+                "differential_policy_provenance.design.residual_degrees_of_freedom "
+                "must be > 0.0"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class DifferentialContrastDefinition:
+    """Structured differential contrast definition."""
+
+    name: str
+    numerator_condition: str
+    denominator_condition: str
+    coefficients: tuple[tuple[str, float], ...]
+
+    def __post_init__(self) -> None:
+        if not self.name:
+            raise PhosPyInputError(
+                "differential_policy_provenance.contrasts[].name must be non-empty"
+            )
+        if not self.numerator_condition:
+            raise PhosPyInputError(
+                "differential_policy_provenance.contrasts[].numerator_condition must "
+                "be non-empty"
+            )
+        if not self.denominator_condition:
+            raise PhosPyInputError(
+                "differential_policy_provenance.contrasts[].denominator_condition "
+                "must be non-empty"
+            )
+        if not self.coefficients:
+            raise PhosPyInputError(
+                "differential_policy_provenance.contrasts[].coefficients must be "
+                "non-empty"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class DifferentialTechnicalReplicateGroup:
+    """Structured technical-replicate lineage for one resolved group."""
+
+    condition: str
+    biological_replicate_id: str
+    output_sample_id: str
+    input_sample_ids: tuple[str, ...]
+    technical_replicate_ids: tuple[str, ...]
+    n_technical_replicates: int
+
+    def __post_init__(self) -> None:
+        if not self.condition:
+            raise PhosPyInputError(
+                "differential_policy_provenance.replicates.technical_replicate_groups[]"
+                ".condition must be non-empty"
+            )
+        if not self.biological_replicate_id:
+            raise PhosPyInputError(
+                "differential_policy_provenance.replicates.technical_replicate_groups[]"
+                ".biological_replicate_id must be non-empty"
+            )
+        if not self.output_sample_id:
+            raise PhosPyInputError(
+                "differential_policy_provenance.replicates.technical_replicate_groups[]"
+                ".output_sample_id must be non-empty"
+            )
+        if not self.input_sample_ids:
+            raise PhosPyInputError(
+                "differential_policy_provenance.replicates.technical_replicate_groups[]"
+                ".input_sample_ids must be non-empty"
+            )
+        if self.n_technical_replicates < 1:
+            raise PhosPyInputError(
+                "differential_policy_provenance.replicates.technical_replicate_groups[]"
+                ".n_technical_replicates must be >= 1"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class DifferentialReplicatePolicyProvenance:
+    """Structured replicate/group requirements for differential analysis."""
+
+    minimum_condition_replicates: int
+    technical_replicate_policy: str
+    condition_replicate_counts: tuple[tuple[str, int], ...]
+    technical_replicate_groups: tuple[DifferentialTechnicalReplicateGroup, ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.minimum_condition_replicates < 1:
+            raise PhosPyInputError(
+                "differential_policy_provenance.replicates."
+                "minimum_condition_replicates must be >= 1"
+            )
+        if not self.technical_replicate_policy:
+            raise PhosPyInputError(
+                "differential_policy_provenance.replicates."
+                "technical_replicate_policy must be non-empty"
+            )
+        if not self.condition_replicate_counts:
+            raise PhosPyInputError(
+                "differential_policy_provenance.replicates.condition_replicate_counts "
+                "must be non-empty"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class DifferentialEmpiricalBayesProvenance:
+    """Structured empirical-Bayes moderation settings."""
+
+    method: str
+    robust: bool
+    trend: bool
+    winsor_tail_p: tuple[float, float]
+
+    def __post_init__(self) -> None:
+        if not self.method:
+            raise PhosPyInputError(
+                "differential_policy_provenance.empirical_bayes.method must be "
+                "non-empty"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class DifferentialStatisticalTestingProvenance:
+    """Structured p-value and multiple-testing adjustment settings."""
+
+    test_statistic: str
+    p_value_method: str
+    adjusted_p_value_method: str
+
+    def __post_init__(self) -> None:
+        if not self.test_statistic:
+            raise PhosPyInputError(
+                "differential_policy_provenance.statistical_testing.test_statistic "
+                "must be non-empty"
+            )
+        if not self.p_value_method:
+            raise PhosPyInputError(
+                "differential_policy_provenance.statistical_testing.p_value_method "
+                "must be non-empty"
+            )
+        if not self.adjusted_p_value_method:
+            raise PhosPyInputError(
+                "differential_policy_provenance.statistical_testing."
+                "adjusted_p_value_method must be non-empty"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class DifferentialMissingValuePolicyProvenance:
+    """Structured missing-value handling policy for differential execution."""
+
+    policy: str
+    stage: str
+
+    def __post_init__(self) -> None:
+        if not self.policy:
+            raise PhosPyInputError(
+                "differential_policy_provenance.missing_values.policy must be non-empty"
+            )
+        if not self.stage:
+            raise PhosPyInputError(
+                "differential_policy_provenance.missing_values.stage must be non-empty"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class DifferentialUnsupportedDesignPolicyProvenance:
+    """Structured record of unsupported differential-design features."""
+
+    intentionally_rejected_features: tuple[str, ...]
+    enforcement_stage: str
+
+    def __post_init__(self) -> None:
+        if not self.intentionally_rejected_features:
+            raise PhosPyInputError(
+                "differential_policy_provenance.unsupported_design."
+                "intentionally_rejected_features must be non-empty"
+            )
+        if not self.enforcement_stage:
+            raise PhosPyInputError(
+                "differential_policy_provenance.unsupported_design.enforcement_stage "
+                "must be non-empty"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class DifferentialPolicyProvenance:
+    """Structured differential-analysis statistical policy provenance."""
+
+    design: DifferentialDesignMatrixSummary
+    contrasts: tuple[DifferentialContrastDefinition, ...]
+    replicates: DifferentialReplicatePolicyProvenance
+    empirical_bayes: DifferentialEmpiricalBayesProvenance
+    statistical_testing: DifferentialStatisticalTestingProvenance
+    missing_values: DifferentialMissingValuePolicyProvenance
+    unsupported_design: DifferentialUnsupportedDesignPolicyProvenance
+
+    def __post_init__(self) -> None:
+        if not self.contrasts:
+            raise PhosPyInputError(
+                "differential_policy_provenance.contrasts must be non-empty"
+            )
+
+
 @dataclass(frozen=True, slots=True, init=False)
 class DifferentialAnalysisResult:
     """Differential-analysis output with per-contrast moderated tables."""
@@ -327,6 +574,7 @@ class DifferentialAnalysisResult:
     empirical_bayes_trend: bool
     prior_diagnostics: EmpiricalBayesPriorDiagnostics
     mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None
+    policy_provenance: DifferentialPolicyProvenance | None
     workflow_provenance: Mapping[str, object] | None
     _contrast_tables: Mapping[str, pd.DataFrame]
 
@@ -346,6 +594,7 @@ class DifferentialAnalysisResult:
         prior_diagnostics: EmpiricalBayesPriorDiagnostics,
         mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None,
         contrast_tables: Mapping[str, pd.DataFrame],
+        policy_provenance: DifferentialPolicyProvenance | None = None,
         workflow_provenance: Mapping[str, object] | None = None,
         _assume_owned: bool = False,
     ) -> None:
@@ -411,6 +660,13 @@ class DifferentialAnalysisResult:
             raise PhosPyInputError(
                 "differential_result.mean_variance_trend_diagnostics index must match "
                 "matrix feature index"
+            )
+        if policy_provenance is not None and not isinstance(
+            cast(object, policy_provenance), DifferentialPolicyProvenance
+        ):
+            raise PhosPyInputError(
+                "differential_result.policy_provenance must be "
+                "DifferentialPolicyProvenance or None"
             )
         if not contrast_tables:
             raise PhosPyInputError(
@@ -479,6 +735,7 @@ class DifferentialAnalysisResult:
             "mean_variance_trend_diagnostics",
             mean_variance_trend_diagnostics,
         )
+        object.__setattr__(self, "policy_provenance", policy_provenance)
         object.__setattr__(
             self,
             "workflow_provenance",
@@ -534,6 +791,7 @@ class DifferentialAnalysisResult:
         prior_diagnostics: EmpiricalBayesPriorDiagnostics,
         mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None,
         contrast_tables: Mapping[str, pd.DataFrame],
+        policy_provenance: DifferentialPolicyProvenance | None = None,
         workflow_provenance: Mapping[str, object] | None = None,
     ) -> DifferentialAnalysisResult:
         return cls(
@@ -549,6 +807,7 @@ class DifferentialAnalysisResult:
             empirical_bayes_trend=empirical_bayes_trend,
             prior_diagnostics=prior_diagnostics,
             mean_variance_trend_diagnostics=mean_variance_trend_diagnostics,
+            policy_provenance=policy_provenance,
             contrast_tables=contrast_tables,
             workflow_provenance=workflow_provenance,
             _assume_owned=True,

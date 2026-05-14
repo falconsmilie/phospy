@@ -171,6 +171,14 @@ Each contrast result table is row-aligned to the input site IDs.
   - `result.empirical_bayes_robust`
   - `result.empirical_bayes_trend`
 - Trend diagnostics when enabled (`result.mean_variance_trend_diagnostics`)
+- Structured policy provenance (`result.policy_provenance`) including:
+  - design formula/matrix summary
+  - typed contrast definitions
+  - replicate and technical-replicate policy details
+  - empirical-Bayes settings
+  - p-value and adjusted p-value methods
+  - missing-value handling policy
+  - intentionally rejected unsupported design features
 
 ## Limitations and Non-goals
 

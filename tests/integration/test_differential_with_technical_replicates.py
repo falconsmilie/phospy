@@ -160,3 +160,20 @@ def test_differential_workflow_runs_after_mean_technical_replicate_aggregation()
     groups = result.workflow_provenance["groups"]
     assert isinstance(groups, list)
     assert len(groups) == 4
+    assert result.policy_provenance is not None
+    assert result.policy_provenance.replicates.technical_replicate_policy == "mean"
+    assert len(result.policy_provenance.replicates.technical_replicate_groups) == 4
+
+
+def test_differential_policy_provenance_is_deterministic_for_identical_inputs() -> None:
+    request = DifferentialAnalysisRequest(
+        dataset=_dataset(),
+        design=_design(),
+        contrasts=_contrast(),
+        config=DifferentialAnalysisConfig(
+            technical_replicate_policy=TechnicalReplicatePolicy.MEAN
+        ),
+    )
+    first = DifferentialAnalysisWorkflow().run(request)
+    second = DifferentialAnalysisWorkflow().run(request)
+    assert first.policy_provenance == second.policy_provenance

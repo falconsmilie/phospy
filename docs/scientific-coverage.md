@@ -136,12 +136,16 @@ Ownership of scientific policy modules is domain-scoped:
 - signalome clustering: `phospy.science.signalomes.clustering.scientific_policies`
 - differential aggregation: `phospy.science.differential.aggregation.scientific_policies`
 
-Differential design validation, differential contrast testing, and differential
-multiple-testing correction do not yet have dedicated machine-readable policy
-records such as `differential_design_validation_v1`,
-`differential_contrast_testing_v1`, `benjamini_hochberg_adjustment_v1`, or
-`limma_style_empirical_bayes_v1`. Current differential policy provenance is
-limited to implemented policy records (for example peptide-to-site aggregation).
+Differential outputs now expose structured policy provenance through
+`DifferentialAnalysisResult.policy_provenance`, including:
+
+- design formula and design-matrix summary
+- explicit contrast definitions
+- replicate/group requirements and technical-replicate lineage
+- empirical-Bayes moderation settings
+- p-value and adjusted p-value methods
+- missing-value handling policy
+- intentionally rejected unsupported design features (batch/block/paired)
 
 ### `profile_correlation_shifted_unit_v1`
 
