@@ -15,6 +15,14 @@ from phospy.api.requests import (
 )
 from phospy.errors.validation import DatasetValidationError
 from phospy.science.datasets.builders.validator import DatasetBuildRequestValidator
+from phospy.science.evidence import (
+    DATASET_PEPTIDE_DUPLICATE_POLICY_RETAIN_ALL_ROWS,
+    DATASET_PEPTIDE_MAPPING_WEIGHT_NORMALISATION_UNIT_PER_PEPTIDE,
+    DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_EXPLICIT,
+    DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_MAPPING_WEIGHTED_MEAN,
+    PeptideEvidenceDatasetResolver,
+    PeptideEvidenceTable,
+)
 
 
 def _site_level_phospho() -> pd.DataFrame:
@@ -209,3 +217,189 @@ def test_split_policy_applies_deterministic_equal_split() -> None:
     payload = built.provenance.workflow_parameters["peptide_evidence_resolution"]
     assert isinstance(payload, dict)
     assert int(payload["split_observations"]) == 1
+
+
+def test_split_policy_mixed_ambiguous_and_unambiguous_rows_is_deterministic() -> None:
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+            peptide_evidence=_peptide_evidence_frame(include_single_site=True),
+            peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_SPLIT,
+            input_intensity_scale="linear",
+        )
+    )
+    assert set(built.phospho.index.tolist()) == {
+        "MAPK1;S10;",
+        "MAPK1;T12;",
+        "AKT1;S473;",
+    }
+    assert float(built.phospho.loc["MAPK1;S10;", "sample_a"]) == pytest.approx(5.0)
+    assert float(built.phospho.loc["MAPK1;T12;", "sample_a"]) == pytest.approx(5.0)
+    assert float(built.phospho.loc["AKT1;S473;", "sample_a"]) == pytest.approx(7.0)
+    assert float(built.phospho.loc["MAPK1;S10;", "sample_b"]) == pytest.approx(6.0)
+    assert float(built.phospho.loc["MAPK1;T12;", "sample_b"]) == pytest.approx(6.0)
+    assert float(built.phospho.loc["AKT1;S473;", "sample_b"]) == pytest.approx(9.0)
+
+
+def test_multiple_peptides_mapping_to_one_site_are_mean_aggregated() -> None:
+    evidence = pd.DataFrame(
+        [
+            {
+                "peptide_row_id": "pep_1",
+                "site_id": "MAPK1;S10;",
+                "unique_feature_id": "feat_1",
+                "gene_symbol": "MAPK1",
+                "protein_accession": "P28482",
+                "site_string": "S10",
+                "sample_a": 10.0,
+                "sample_b": 20.0,
+                "peptide_sequence": "AAAAA",
+                "modified_peptide_sequence": "AA[+80]AAA",
+                "multi_site": False,
+                "provenance_source": "maxquant",
+                "site_sequence": "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
+                "localisation_confidence": 0.95,
+            },
+            {
+                "peptide_row_id": "pep_2",
+                "site_id": "MAPK1;S10;",
+                "unique_feature_id": "feat_2",
+                "gene_symbol": "MAPK1",
+                "protein_accession": "P28482",
+                "site_string": "S10",
+                "sample_a": 14.0,
+                "sample_b": 26.0,
+                "peptide_sequence": "BBBBB",
+                "modified_peptide_sequence": "BB[+80]BBB",
+                "multi_site": False,
+                "provenance_source": "maxquant",
+                "site_sequence": "BBBBBBBBBBBBBBBSBBBBBBBBBBBBBBB",
+                "localisation_confidence": 0.92,
+            },
+        ]
+    )
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+            peptide_evidence=evidence,
+            peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+            input_intensity_scale="linear",
+        )
+    )
+    assert list(built.phospho.index.tolist()) == ["MAPK1;S10;"]
+    assert float(built.phospho.loc["MAPK1;S10;", "sample_a"]) == pytest.approx(12.0)
+    assert float(built.phospho.loc["MAPK1;S10;", "sample_b"]) == pytest.approx(23.0)
+
+
+def test_duplicate_peptide_rows_are_retained_as_independent_observations() -> None:
+    evidence = _peptide_evidence_frame(include_single_site=False)
+    evidence = pd.concat([evidence, evidence.copy(deep=True)], ignore_index=True)
+    evidence.loc[0, "peptide_row_id"] = "pep_joint_a"
+    evidence.loc[1, "peptide_row_id"] = "pep_joint_b"
+    evidence.loc[:, "sample_a"] = [10.0, 30.0]
+    evidence.loc[:, "sample_b"] = [12.0, 28.0]
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+            peptide_evidence=evidence,
+            peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_SPLIT,
+            input_intensity_scale="linear",
+        )
+    )
+    assert float(built.phospho.loc["MAPK1;S10;", "sample_a"]) == pytest.approx(10.0)
+    assert float(built.phospho.loc["MAPK1;T12;", "sample_a"]) == pytest.approx(10.0)
+    assert float(built.phospho.loc["MAPK1;S10;", "sample_b"]) == pytest.approx(10.0)
+    assert float(built.phospho.loc["MAPK1;T12;", "sample_b"]) == pytest.approx(10.0)
+    assert built.provenance is not None
+    payload = built.provenance.workflow_parameters["peptide_evidence_resolution"]
+    assert isinstance(payload, dict)
+    assert (
+        payload["duplicate_peptide_policy"]
+        == DATASET_PEPTIDE_DUPLICATE_POLICY_RETAIN_ALL_ROWS
+    )
+    assert int(payload["duplicate_peptide_rows"]) == 2
+
+
+def test_explicit_mapping_weights_are_applied_deterministically() -> None:
+    evidence_frame = _peptide_evidence_frame(include_single_site=False)
+    mapping = pd.DataFrame(
+        {
+            "peptide_row_id": ["pep_joint", "pep_joint"],
+            "site_id": ["MAPK1;S10;", "MAPK1;T12;"],
+            "mapping_weight": [0.7, 0.3],
+            "mapping_uncertainty": [True, True],
+        }
+    )
+    resolved = PeptideEvidenceDatasetResolver().run(
+        evidence=PeptideEvidenceTable(
+            frame=evidence_frame,
+            sample_intensity_columns=("sample_a", "sample_b"),
+            site_mapping=mapping,
+        ),
+        multi_site_policy=DATASET_MULTI_SITE_POLICY_SPLIT,
+    )
+    assert float(resolved.phospho.loc["MAPK1;S10;", "sample_a"]) == pytest.approx(7.0)
+    assert float(resolved.phospho.loc["MAPK1;T12;", "sample_a"]) == pytest.approx(3.0)
+    payload = resolved.summary.to_payload()
+    assert (
+        payload["mapping_weight_source"]
+        == DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_EXPLICIT
+    )
+
+
+def test_mapping_weights_must_sum_to_one_per_peptide_row() -> None:
+    evidence_frame = _peptide_evidence_frame(include_single_site=False)
+    mapping = pd.DataFrame(
+        {
+            "peptide_row_id": ["pep_joint", "pep_joint"],
+            "site_id": ["MAPK1;S10;", "MAPK1;T12;"],
+            "mapping_weight": [0.7, 0.4],
+        }
+    )
+    with pytest.raises(PhosPyInputError, match="must sum to 1.0 per peptide_row_id"):
+        PeptideEvidenceDatasetResolver().run(
+            evidence=PeptideEvidenceTable(
+                frame=evidence_frame,
+                sample_intensity_columns=("sample_a", "sample_b"),
+                site_mapping=mapping,
+            ),
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_SPLIT,
+        )
+
+
+def test_peptide_evidence_resolution_provenance_records_aggregation_semantics() -> None:
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+            peptide_evidence=_peptide_evidence_frame(include_single_site=True),
+            peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_SPLIT,
+            input_intensity_scale="linear",
+        )
+    )
+    assert built.provenance is not None
+    payload = built.provenance.workflow_parameters["peptide_evidence_resolution"]
+    assert isinstance(payload, dict)
+    assert (
+        payload["aggregation_policy"]
+        == DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_MAPPING_WEIGHTED_MEAN
+    )
+    assert (
+        payload["mapping_weight_normalisation"]
+        == DATASET_PEPTIDE_MAPPING_WEIGHT_NORMALISATION_UNIT_PER_PEPTIDE
+    )
+    assert built.preprocessing_report is not None
+    resolution_row = built.preprocessing_report.operations.loc[
+        built.preprocessing_report.operations.loc[:, "stage"]
+        == "peptide_evidence_resolution"
+    ].iloc[0]
+    parameters = resolution_row["parameters"]
+    assert isinstance(parameters, dict)
+    assert (
+        parameters["aggregation_policy"]
+        == DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_MAPPING_WEIGHTED_MEAN
+    )

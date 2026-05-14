@@ -46,6 +46,23 @@ _POLICY_TO_MULTI_SITE_HANDLING_POLICY: dict[str, str] = {
     DATASET_MULTI_SITE_POLICY_SPLIT: MULTI_SITE_POLICY_SPLIT_EQUAL_WEIGHT,
 }
 
+DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_MAPPING_WEIGHTED_MEAN = (
+    "mapping_weighted_mean"
+)
+DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_EXPLICIT = "explicit_mapping_weight"
+DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_DERIVED_EQUAL = (
+    "derived_equal_weight_per_mapped_site"
+)
+DATASET_PEPTIDE_MAPPING_WEIGHT_NORMALISATION_UNIT_PER_PEPTIDE = (
+    "sum_to_one_per_peptide_row"
+)
+DATASET_PEPTIDE_DUPLICATE_POLICY_RETAIN_ALL_ROWS = (
+    "retain_all_peptide_rows_as_independent_observations"
+)
+DATASET_PEPTIDE_MIXED_AMBIGUITY_POLICY_SHARED_WEIGHTED_MEAN = (
+    "mixed_ambiguous_and_unambiguous_rows_share_same_weighted_mean_aggregation"
+)
+
 
 @dataclass(frozen=True, slots=True)
 class PeptideEvidenceResolutionSummary:
@@ -58,6 +75,13 @@ class PeptideEvidenceResolutionSummary:
     ambiguous_observations: int
     excluded_observations: int
     split_observations: int
+    aggregation_policy: str
+    aggregation_formula: str
+    mapping_weight_source: str
+    mapping_weight_normalisation: str
+    duplicate_peptide_policy: str
+    duplicate_peptide_rows: int
+    mixed_ambiguity_policy: str
 
     def to_payload(self) -> dict[str, object]:
         return {
@@ -68,6 +92,13 @@ class PeptideEvidenceResolutionSummary:
             "ambiguous_observations": int(self.ambiguous_observations),
             "excluded_observations": int(self.excluded_observations),
             "split_observations": int(self.split_observations),
+            "aggregation_policy": self.aggregation_policy,
+            "aggregation_formula": self.aggregation_formula,
+            "mapping_weight_source": self.mapping_weight_source,
+            "mapping_weight_normalisation": self.mapping_weight_normalisation,
+            "duplicate_peptide_policy": self.duplicate_peptide_policy,
+            "duplicate_peptide_rows": int(self.duplicate_peptide_rows),
+            "mixed_ambiguity_policy": self.mixed_ambiguity_policy,
         }
 
 
@@ -114,13 +145,19 @@ class PeptideEvidenceDatasetResolver:
             if multi_site_policy == DATASET_MULTI_SITE_POLICY_SPLIT
             else 0
         )
+        duplicate_peptide_rows = int(
+            evidence_frame.loc[:, "peptide_sequence"]
+            .astype(str)
+            .duplicated(keep=False)
+            .sum()
+        )
 
         if mapping.empty:
             raise PhosPyInputError(
                 "dataset build request peptide_evidence resolved to zero mapped "
                 "site rows after applying multi_site_policy"
             )
-        mapped_rows = _build_mapped_rows(
+        mapped_rows, mapping_weight_source = _build_mapped_rows(
             evidence_frame=evidence_frame,
             mapping=mapping,
             sample_columns=evidence.sample_intensity_columns,
@@ -145,6 +182,21 @@ class PeptideEvidenceDatasetResolver:
             ambiguous_observations=ambiguous_observations,
             excluded_observations=excluded_observations,
             split_observations=split_observations,
+            aggregation_policy=(
+                DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_MAPPING_WEIGHTED_MEAN
+            ),
+            aggregation_formula=(
+                "site_intensity = mean(per_peptide_intensity * mapping_weight)"
+            ),
+            mapping_weight_source=mapping_weight_source,
+            mapping_weight_normalisation=(
+                DATASET_PEPTIDE_MAPPING_WEIGHT_NORMALISATION_UNIT_PER_PEPTIDE
+            ),
+            duplicate_peptide_policy=DATASET_PEPTIDE_DUPLICATE_POLICY_RETAIN_ALL_ROWS,
+            duplicate_peptide_rows=duplicate_peptide_rows,
+            mixed_ambiguity_policy=(
+                DATASET_PEPTIDE_MIXED_AMBIGUITY_POLICY_SHARED_WEIGHTED_MEAN
+            ),
         )
         return PeptideEvidenceResolutionResult(
             phospho=phospho,
@@ -175,7 +227,7 @@ def _build_mapped_rows(
     evidence_frame: pd.DataFrame,
     mapping: pd.DataFrame,
     sample_columns: tuple[str, ...],
-) -> pd.DataFrame:
+) -> tuple[pd.DataFrame, str]:
     peptide_fields = ["peptide_row_id", "protein_accession"]
     if "site_sequence" in evidence_frame.columns:
         peptide_fields.append("site_sequence")
@@ -186,23 +238,40 @@ def _build_mapped_rows(
     )
     merged = mapping.merge(peptide_rows, how="inner", on="peptide_row_id")
     if merged.empty:
-        return merged
+        return merged, DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_DERIVED_EQUAL
+    mapping_weight_source = DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_EXPLICIT
     if "mapping_weight" not in merged.columns:
         counts = merged.groupby("peptide_row_id", sort=False).size().astype(float)
         merged.loc[:, "mapping_weight"] = merged.loc[:, "peptide_row_id"].map(
             lambda peptide_row_id: float(1.0 / counts.loc[str(peptide_row_id)])
         )
+        mapping_weight_source = DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_DERIVED_EQUAL
     weights = pd.to_numeric(merged.loc[:, "mapping_weight"], errors="coerce")
     if weights.isna().any() or (weights <= 0.0).any():
         raise PhosPyInputError(
             "dataset build request peptide_evidence site mapping contains "
             "non-positive or non-numeric mapping_weight values"
         )
+    per_peptide_weight_sum = weights.groupby(merged.loc[:, "peptide_row_id"]).sum()
+    invalid_weight_rows = per_peptide_weight_sum.loc[
+        (per_peptide_weight_sum - 1.0).abs() > 1e-6
+    ]
+    if not invalid_weight_rows.empty:
+        preview = ", ".join(
+            f"{str(peptide_row_id)!r}={float(total_weight):.6f}"
+            for peptide_row_id, total_weight in invalid_weight_rows.iloc[:5].items()
+        )
+        suffix = "" if int(invalid_weight_rows.shape[0]) <= 5 else " ..."
+        raise PhosPyInputError(
+            "dataset build request peptide_evidence mapping_weight values must sum "
+            "to 1.0 per peptide_row_id; invalid totals: "
+            f"{preview}{suffix}"
+        )
     for sample_column in sample_columns:
         merged.loc[:, sample_column] = pd.to_numeric(
             merged.loc[:, sample_column], errors="coerce"
         ) * weights.to_numpy(dtype=float)
-    return merged
+    return merged, mapping_weight_source
 
 
 def _aggregate_site_matrix(
@@ -318,6 +387,12 @@ def _validate_dataset_multi_site_policy(policy: object, *, field_name: str) -> N
 __all__ = [
     "DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING",
     "DATASET_MULTI_SITE_POLICY_KEEP_JOINT",
+    "DATASET_PEPTIDE_DUPLICATE_POLICY_RETAIN_ALL_ROWS",
+    "DATASET_PEPTIDE_MAPPING_WEIGHT_NORMALISATION_UNIT_PER_PEPTIDE",
+    "DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_DERIVED_EQUAL",
+    "DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_EXPLICIT",
+    "DATASET_PEPTIDE_MIXED_AMBIGUITY_POLICY_SHARED_WEIGHTED_MEAN",
+    "DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_MAPPING_WEIGHTED_MEAN",
     "DATASET_MULTI_SITE_POLICY_REJECT",
     "DATASET_MULTI_SITE_POLICY_SPLIT",
     "DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE",

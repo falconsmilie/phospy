@@ -108,6 +108,11 @@ def test_split_policies_emit_row_level_sites_without_row_explosion() -> None:
     assert {"MAPK1;S1246;", "MAPK1;T1247;", "MAPK1;S10;"} == set(
         mapping.loc[:, "site_id"].tolist()
     )
+    split_weights = mapping.loc[
+        mapping.loc[:, "site_id"].isin({"MAPK1;S1246;", "MAPK1;T1247;"}),
+        "mapping_weight",
+    ]
+    assert split_weights.tolist() == [0.5, 0.5]
     kinase_mapping = evidence.kinase_sequence_site_mapping()
     uncertain = kinase_mapping.loc[
         kinase_mapping.loc[:, "site_id"].isin({"MAPK1;S1246;", "MAPK1;T1247;"}),

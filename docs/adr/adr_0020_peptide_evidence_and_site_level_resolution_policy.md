@@ -35,6 +35,25 @@ Policy mapping reuses the existing `phospy.science.evidence` models and multi-si
 resolution logic (`PeptideEvidenceTable`, `MultiSiteHandlingConfig`,
 `SiteEvidenceMapping`) instead of introducing parallel ambiguity models.
 
+### Explicit Aggregation Semantics
+
+Peptide-to-site aggregation is scientifically explicit and owned by
+`phospy.science.evidence.dataset_resolution`:
+
+- **Aggregation policy name:** `mapping_weighted_mean`
+- **Formula:** `site_intensity = mean(per_peptide_intensity * mapping_weight)`
+- **Mapping-weight representation:** `site_mapping.mapping_weight`
+- **Weight normalisation contract:** mapping weights must sum to `1.0` per
+  `peptide_row_id`
+- **Derived default when absent:** equal weight per mapped site
+- **Duplicate peptide handling:** retain all peptide rows as independent
+  observations (no sequence-level de-duplication)
+- **Mixed ambiguous/unambiguous handling:** both contribute through the same
+  weighted-mean aggregation once mapping is resolved
+
+This replaces implicit split-plus-mean behaviour with named, provenance-visible
+semantics.
+
 ## Peptide vs Site Ambiguity
 
 - **Peptide-level ambiguity:** one peptide evidence row references multiple site
@@ -63,6 +82,10 @@ The dataset report/provenance includes:
 - excluded observations
 - split observations (when applicable)
 - selected multi-site policy
+- aggregation policy + formula
+- mapping-weight source + normalisation contract
+- duplicate peptide policy + duplicate peptide row count
+- mixed-ambiguity handling policy
 
 ## Consequences
 
@@ -78,6 +101,8 @@ The dataset report/provenance includes:
   `peptide_evidence_sample_intensity_columns` and `multi_site_policy`.
 - `keep_joint` rows preserve ambiguous site tokens and must be interpreted as
   ambiguous by consumers.
+- Explicit mapping-weight contracts reject malformed mappings where per-peptide
+  weights do not sum to `1.0`.
 
 ## Responsibility Audit
 
@@ -87,3 +112,7 @@ This ADR explicitly keeps ownership boundaries as:
 - dataset model: no peptide collapse
 - kinase workflow: no peptide ambiguity resolution
 - signalome workflow: no peptide ambiguity resolution
+- dataset builder: invokes evidence resolution and records provenance, but does
+  not duplicate aggregation policy logic
+- downstream workflows: consume resolved site-level data after provenance is
+  attached

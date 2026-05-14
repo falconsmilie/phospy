@@ -49,6 +49,12 @@ _OPTIONAL_EVIDENCE_COLUMNS: tuple[str, ...] = (
     "missingness_flags",
     "imputation_flags",
 )
+_OPTIONAL_SITE_MAPPING_COLUMNS: tuple[str, ...] = (
+    "mapping_weight",
+    "mapping_uncertainty",
+    "multi_site_policy",
+    "is_multi_site",
+)
 
 
 @dataclass(frozen=True, slots=True, init=False)
@@ -215,7 +221,12 @@ class SiteEvidenceMapping:
             required_columns=("peptide_row_id", "site_id"),
             error_type=PhosPyInputError,
         )
-        canonical = frame.loc[:, ["peptide_row_id", "site_id"]].copy(deep=True)
+        mapping_columns = ["peptide_row_id", "site_id"] + [
+            column
+            for column in _OPTIONAL_SITE_MAPPING_COLUMNS
+            if column in frame.columns
+        ]
+        canonical = frame.loc[:, mapping_columns].copy(deep=True)
         if not canonical.empty:
             canonical.loc[:, "peptide_row_id"] = canonical.loc[:, "peptide_row_id"].map(
                 lambda value: _canonical_non_empty_string(
@@ -235,6 +246,42 @@ class SiteEvidenceMapping:
                 column_names=("peptide_row_id", "site_id"),
                 error_type=PhosPyInputError,
             )
+            if "mapping_weight" in canonical.columns:
+                canonical.loc[:, "mapping_weight"] = canonical.loc[
+                    :, "mapping_weight"
+                ].map(
+                    lambda value: _canonical_mapping_weight(
+                        value,
+                        field_name="site_evidence_mapping.mapping_weight",
+                    )
+                )
+            if "mapping_uncertainty" in canonical.columns:
+                canonical.loc[:, "mapping_uncertainty"] = canonical.loc[
+                    :, "mapping_uncertainty"
+                ].map(
+                    lambda value: _canonical_mapping_bool(
+                        value,
+                        field_name="site_evidence_mapping.mapping_uncertainty",
+                    )
+                )
+            if "multi_site_policy" in canonical.columns:
+                canonical.loc[:, "multi_site_policy"] = canonical.loc[
+                    :, "multi_site_policy"
+                ].map(
+                    lambda value: _canonical_non_empty_string(
+                        value,
+                        field_name="site_evidence_mapping.multi_site_policy",
+                    )
+                )
+            if "is_multi_site" in canonical.columns:
+                canonical.loc[:, "is_multi_site"] = canonical.loc[
+                    :, "is_multi_site"
+                ].map(
+                    lambda value: _canonical_mapping_bool(
+                        value,
+                        field_name="site_evidence_mapping.is_multi_site",
+                    )
+                )
         object.__setattr__(self, "_frame", canonical)
 
     def to_dataframe(self) -> pd.DataFrame:
@@ -624,9 +671,12 @@ def _resolve_mapping(
             resolved.loc[:, "peptide_row_id"].astype(str).isin(default_linkable),
             :,
         ].copy(deep=True)
-        resolved_mapping = filtered.loc[:, ["peptide_row_id", "site_id"]].copy(
-            deep=True
-        )
+        resolved_columns = ["peptide_row_id", "site_id"] + [
+            column
+            for column in _OPTIONAL_SITE_MAPPING_COLUMNS
+            if column in filtered.columns
+        ]
+        resolved_mapping = filtered.loc[:, resolved_columns].copy(deep=True)
         return SiteEvidenceMapping(resolved_mapping, _assume_owned=True)
     if isinstance(site_mapping, pd.DataFrame):
         return SiteEvidenceMapping(site_mapping)
@@ -745,6 +795,27 @@ def _canonical_optional_float(
             f"{field_name} must be less than or equal to {maximum} when provided"
         )
     return resolved
+
+
+def _canonical_mapping_weight(value: object, *, field_name: str) -> float:
+    if _is_missing(value):
+        raise PhosPyInputError(f"{field_name} must not contain missing values")
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise PhosPyInputError(f"{field_name} must be numeric")
+    resolved = float(value)
+    if resolved in (float("inf"), float("-inf")):
+        raise PhosPyInputError(f"{field_name} must be finite")
+    if resolved <= 0.0:
+        raise PhosPyInputError(f"{field_name} must be greater than zero")
+    return resolved
+
+
+def _canonical_mapping_bool(value: object, *, field_name: str) -> bool:
+    if isinstance(value, bool):
+        return value
+    if type(value).__name__ == "bool_":
+        return bool(value)
+    raise PhosPyInputError(f"{field_name} must be a bool column")
 
 
 def _canonical_optional_site_id(value: object, *, field_name: str) -> str | None:

@@ -100,6 +100,38 @@ def test_evidence_keeps_multi_site_rows_unexploded_by_default_and_validates_mapp
     assert set(mapped.loc[:, "site_id"]) == {"MAPK1;S10;", "MAPK1;T12;"}
 
 
+def test_evidence_mapping_preserves_optional_weight_metadata_columns() -> None:
+    frame = _base_frame().iloc[[0]].copy(deep=True)
+    frame.loc[:, "multi_site"] = [True]
+    frame.loc[:, "site_string"] = ["S10;T12"]
+    mapping = pd.DataFrame(
+        {
+            "peptide_row_id": ["row_1", "row_1"],
+            "site_id": ["MAPK1;S10;", "MAPK1;T12;"],
+            "mapping_weight": [0.75, 0.25],
+            "mapping_uncertainty": [True, True],
+            "multi_site_policy": ["split_equal_weight", "split_equal_weight"],
+            "is_multi_site": [True, True],
+        }
+    )
+
+    evidence = PeptideEvidenceTable(
+        frame=frame,
+        sample_intensity_columns=("sample_a", "sample_b"),
+        site_mapping=mapping,
+    )
+    mapped = evidence.site_mapping.to_dataframe()
+    assert set(mapped.columns) == {
+        "peptide_row_id",
+        "site_id",
+        "mapping_weight",
+        "mapping_uncertainty",
+        "multi_site_policy",
+        "is_multi_site",
+    }
+    assert mapped.loc[:, "mapping_weight"].tolist() == [0.75, 0.25]
+
+
 @pytest.mark.parametrize(
     ("mutator", "message"),
     [
