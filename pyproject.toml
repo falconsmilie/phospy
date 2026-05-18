@@ -80,9 +80,6 @@ dev = [
   "ruff>=0.15.7",
 ]
 
-[project.scripts]
-phospy = "phospy.cli:main"
-
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["phospy", "phospy.*"]
