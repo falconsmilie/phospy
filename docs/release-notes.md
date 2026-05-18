@@ -39,7 +39,7 @@ guarantees.
   enum-backed policy models with stricter public validation boundaries.
 - Expanded strict typing and CI quality gates (Pyright coverage,
   benchmark/performance contracts, and broader boundary contract tests).
-- Refreshed docs, CLI docs, examples, and MkDocs structure/styling to match
+- Refreshed docs, examples, and MkDocs structure/styling to match
   the current public API surfaces.
 
 ## Fixed

@@ -42,7 +42,6 @@ For public docs and examples:
 pytest tests/unit/test_public_contract_import_routes.py
 pytest tests/unit/test_public_examples_contract.py
 pytest tests/integration/test_public_examples_smoke.py
-pytest tests/integration/test_cli_smoke.py
 ```
 
 Run parity tests when scientific logic or fixture-backed behaviour changes:

@@ -64,7 +64,7 @@ nav:
       - Differential Workflow: api/differential-workflow.md
       - Kinase Workflow: api/kinase-workflow.md
       - Signalome Workflow: api/signalome-workflow.md
-  - CLI Guide: cli.md
+  - CLI Status: cli.md
   - User Guides:
       - Workflow Contracts: workflow_contracts.md
       - Validation Guide: validation.md

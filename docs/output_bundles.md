@@ -2,14 +2,14 @@
 
 PhosPy has two related output paths.
 
-1. The CLI and publisher helpers write simple workflow output directories.
+1. Publisher helpers write simple workflow output directories.
 2. Bundle services write reloadable output bundles with a manifest and config
    snapshot.
 
-Use the simple CLI layout when you only need files. Use bundle services when you
+Use the simple publisher layout when you only need files. Use bundle services when you
 want to save and reload a workflow result object.
 
-## CLI and Publisher Output Layout
+## Publisher Output Layout
 
 `publish_dataset(...)` writes:
 
@@ -125,7 +125,7 @@ total-protein correction diagnostics.
 
 | Need | Use |
 | --- | --- |
-| Run from terminal and inspect CSV files | CLI |
+| Write workflow output tables from Python | `publish_*` helpers |
 | Write result tables from Python | `publish_*` helpers |
 | Save and reload a result object | bundle services |
 | Keep config snapshot beside outputs | bundle services |

@@ -6,10 +6,8 @@ intensity tables to differential phosphorylation analysis, kinase scoring,
 kinase prediction, and optional signalome analysis.
 
 PhosPy does **not** provide HTTP endpoints or a web service. The supported user
-interfaces are:
-
-- the Python API
-- the `phospy` command-line interface
+interface is the Python API. The `phospy` command-line workflow interface is
+not currently supported.
 
 ## Recommended Reading
 You can view the full documentation here: [Phospy Docs](https://phospy.com/docs)
@@ -134,20 +132,10 @@ if kinase_result.prediction_result.substrate_list is not None:
     print(kinase_result.prediction_result.substrate_list.head(5))
 ```
 
-## Minimal CLI Example
+## CLI Status
 
-```bash
-phospy kinase \
-  --phospho ./input/phospho.csv \
-  --site-metadata ./input/site_metadata.csv \
-  --organism rat \
-  --reference auto \
-  --skip-activity \
-  --outdir ./out
-```
-
-The CLI writes a dataset directory, a kinase directory, and a short list of file
-paths written.
+Workflow execution through a `phospy` command-line interface is not currently
+supported. Use the Python API examples in this README and the API docs.
 
 ## Import Contract
 
@@ -166,7 +154,7 @@ exceptions.
 1. [Quickstart](https://phospy.com/docs/quickstart/)
 2. [API Guide](https://phospy.com/docs/api/)
 3. [Workflow Contracts](https://phospy.com/docs/workflow_contracts/)
-4. [CLI Guide](https://phospy.com/docs/cli/)
+4. [CLI Status](https://phospy.com/docs/cli/)
 5. [Validation Guide](https://phospy.com/docs/validation/)
 
 ## Citation
