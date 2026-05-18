@@ -13,7 +13,6 @@ _README = _ROOT / "README.md"
 def _public_module_paths() -> tuple[Path, ...]:
     explicit_paths = (
         _SRC_ROOT / "__init__.py",
-        _SRC_ROOT / "cli.py",
         _SRC_ROOT / "science" / "datasets" / "models.py",
         _SRC_ROOT / "science" / "activities" / "threshold_membership.py",
     )
