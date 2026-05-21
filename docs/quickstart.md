@@ -130,16 +130,11 @@ Why `activity_config=None`? The example has only two sites. The activity stage i
 more useful on larger data and defaults to a higher substrate-support threshold.
 For real datasets, you can remove that line or configure `KinaseActivityConfig`.
 
-## 4. CLI Status
-
-Workflow execution through a `phospy` command-line interface is not currently
-supported. Use the Python API workflow shown above.
-
 Supported file-backed table formats for API-driven loading are `.csv`, `.tsv`,
 `.txt` as tab-separated text, and `.parquet` when optional parquet dependencies
 are installed.
 
-## 5. If It Fails
+## 4. If It Fails
 
 | Symptom                                          | Most likely fix                                                                                                      |
 |--------------------------------------------------|----------------------------------------------------------------------------------------------------------------------|

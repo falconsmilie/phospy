@@ -9,8 +9,7 @@ kinase prediction, and optional signalome analysis in Python.
 
 1. [Quickstart](quickstart.md): copy/paste a complete first workflow.
 2. [API Guide](api/guide.md): see the public Python classes and config options.
-3. [CLI Status](cli.md): command-line workflow execution is not currently supported.
-4. [Validation Guide](validation.md): fix common input and boundary errors.
+3. [Validation Guide](validation.md): fix common input and boundary errors.
 
 ## What PhosPy Does
 
@@ -22,8 +21,7 @@ PhosPy supports clear public workflow lanes:
 4. optionally run `SignalomeWorkflow`
 
 The package does not provide HTTP endpoints. Use the Python API for DataFrame
-work and explicit references. Command-line workflow execution is not currently
-supported.
+work and explicit references.
 
 ## Page Map
 
@@ -31,7 +29,6 @@ supported.
 | --- |-----------------------------------------------------------------------|
 | First successful run | [Quickstart](quickstart.md)                                           |
 | Public Python classes and parameters | [API Guide](api/guide.md)                                             |
-| CLI support status | [CLI Status](cli.md)                                                   |
 | Input rules and common errors | [Validation Guide](validation.md)                                     |
 | Workflow expectations, assumptions, and result interpretation | [Workflow Contracts](workflow_contracts.md)                           |
 | Written output files and reloadable bundles | [Output Bundles](output_bundles.md)                                   |

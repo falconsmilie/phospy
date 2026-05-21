@@ -254,7 +254,7 @@ def test_active_generators_do_not_write_fixtures_on_import(script_path: Path) ->
     after = {path: _file_fingerprint(path) for path in output_paths}
     assert before == after, (
         f"{script_path.name} changed fixture outputs during import; generation must "
-        "stay inside explicit CLI entrypoints"
+        "stay inside explicit script entrypoints"
     )
 
 

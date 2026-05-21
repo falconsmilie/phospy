@@ -132,11 +132,6 @@ if kinase_result.prediction_result.substrate_list is not None:
     print(kinase_result.prediction_result.substrate_list.head(5))
 ```
 
-## CLI Status
-
-Workflow execution through a `phospy` command-line interface is not currently
-supported. Use the Python API examples in this README and the API docs.
-
 ## Import Contract
 
 Use top-level `phospy` for the five main entrypoints:
@@ -154,8 +149,7 @@ exceptions.
 1. [Quickstart](https://phospy.com/docs/quickstart/)
 2. [API Guide](https://phospy.com/docs/api/)
 3. [Workflow Contracts](https://phospy.com/docs/workflow_contracts/)
-4. [CLI Status](https://phospy.com/docs/cli/)
-5. [Validation Guide](https://phospy.com/docs/validation/)
+4. [Validation Guide](https://phospy.com/docs/validation/)
 
 ## Citation
 
