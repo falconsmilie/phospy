@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from phospy.api.requests import KinaseWorkflowRequest
-from phospy.api.results import KinaseWorkflowResult
+from phospy.contracts.requests import KinaseWorkflowRequest
+from phospy.contracts.results import KinaseWorkflowResult
 from phospy.workflows.kinase.contracts import (
     KinaseWorkflowExecutorContract,
     KinaseWorkflowInterpreterContract,

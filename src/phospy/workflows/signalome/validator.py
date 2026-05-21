@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.api.configs.localisation import LocalisationRequirement
-from phospy.api.requests import SignalomeWorkflowRequest
-from phospy.api.results import KinaseWorkflowResult
+from phospy.contracts.configs.localisation import LocalisationRequirement
+from phospy.contracts.requests import SignalomeWorkflowRequest
+from phospy.contracts.results import KinaseWorkflowResult
 from phospy.errors.validation import WorkflowValidationError
 from phospy.science.prediction.scoring import select_downstream_score_matrix
 from phospy.validation.common.dataframes import (

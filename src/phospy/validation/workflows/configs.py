@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,

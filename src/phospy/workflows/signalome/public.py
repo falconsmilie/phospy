@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from phospy.api.requests import SignalomeWorkflowRequest
-from phospy.api.results import SignalomeWorkflowResult
+from phospy.contracts.requests import SignalomeWorkflowRequest
+from phospy.contracts.results import SignalomeWorkflowResult
 from phospy.workflows.signalome.contracts import (
     SignalomeWorkflowExecutorContract,
     SignalomeWorkflowInterpreterContract,

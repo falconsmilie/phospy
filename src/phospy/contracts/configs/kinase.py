@@ -1,0 +1,258 @@
+"""Public kinase workflow configuration models."""
+# pyright: reportUnnecessaryIsInstance=false
+# Runtime boundary guards are intentionally retained for untyped external callers.
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Literal
+
+from phospy.contracts.configs.common import _require_int_at_least, _require_real_between
+from phospy.contracts.configs.localisation import LocalisationRequirement
+from phospy.errors.validation import WorkflowValidationError
+
+KINASE_SCORING_MIN_SUBSTRATES_FLOOR = 2
+KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT = "strict"
+KINASE_PROFILE_MISSING_VALUE_STRATEGY_MEDIAN_SKIPNA = "median_skipna"
+KinaseProfileMissingValueStrategy = Literal[
+    "strict",
+    "median_skipna",
+]
+KINASE_PROFILE_MISSING_VALUE_STRATEGIES = frozenset(
+    {
+        KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT,
+        KINASE_PROFILE_MISSING_VALUE_STRATEGY_MEDIAN_SKIPNA,
+    }
+)
+KINASE_ACTIVITY_MIN_SUBSTRATES_FLOOR = 1
+KINASE_ACTIVITY_TOP_N_SUBSTRATES_FLOOR = 1
+KINASE_ACTIVITY_DEFAULT_THRESHOLD = 0.6
+KINASE_ACTIVITY_DEFAULT_MIN_SUBSTRATES = 3
+KINASE_ACTIVITY_DEFAULT_TOP_N_SUBSTRATES = 20
+KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY = (
+    "simplified_weighted_substrate_activity"
+)
+KINASE_ACTIVITY_METHOD_KSEA_ZSCORE = "ksea_zscore"
+KinaseActivityMethod = Literal[
+    "simplified_weighted_substrate_activity",
+    "ksea_zscore",
+]
+KINASE_ACTIVITY_METHODS = frozenset(
+    {
+        KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
+        KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
+    }
+)
+KINASE_ACTIVITY_KSEA_DEFAULT_MIN_SUBSTRATES = 5
+KINASE_ACTIVITY_KSEA_P_VALUE_METHOD_NORMAL_APPROXIMATION = "normal_approximation"
+KinaseActivityPValueMethod = Literal["normal_approximation"]
+KINASE_ACTIVITY_KSEA_P_VALUE_METHODS = frozenset(
+    {KINASE_ACTIVITY_KSEA_P_VALUE_METHOD_NORMAL_APPROXIMATION}
+)
+KINASE_ACTIVITY_KSEA_DEFAULT_ADJUST_P_VALUES = True
+KINASE_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT = False
+KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR = "error"
+KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE = "prefer_reference"
+KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET = "prefer_dataset"
+KinaseSiteSequenceConflictPolicy = Literal[
+    "error",
+    "prefer_reference",
+    "prefer_dataset",
+]
+KINASE_SITE_SEQUENCE_CONFLICT_POLICIES = frozenset(
+    {
+        KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,
+        KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE,
+        KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET,
+    }
+)
+
+
+@dataclass(frozen=True, slots=True)
+class KinaseScoringConfig:
+    """Public scoring-stage configuration.
+
+    `min_substrates` is constrained to the public scoring support floor used by
+    the supported rewrite contract.
+
+    Supported scoring semantics are stage-pure: score generation is determined
+    only by analysis-ready dataset values, resolved reference content, and this
+    explicit scoring configuration. Prediction mode and reference input
+    provenance (preset vs explicit bundle) do not redefine scoring behavior.
+
+    `include_diagnostic_scoring_tables` controls publication of non-authoritative
+    diagnostic scoring outputs (`motif_scores`, `score_fusion_weights`). The
+    authoritative downstream lane (`rank_weighted_fusion_scores` with profile
+    fallback) is always computed.
+
+    `profile_missing_value_strategy` controls column-wise median behavior when a
+    kinase profile is built from multiple quantified substrates:
+
+    - `"strict"` propagates missing values (`median(..., skipna=False)`)
+    - `"median_skipna"` ignores missing values (`median(..., skipna=True)`)
+    """
+
+    min_substrates: int = KINASE_SCORING_MIN_SUBSTRATES_FLOOR
+    include_diagnostic_scoring_tables: bool = False
+    profile_missing_value_strategy: KinaseProfileMissingValueStrategy = (
+        KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
+    )
+    localisation_requirement: LocalisationRequirement = field(
+        default_factory=LocalisationRequirement
+    )
+    allow_mixed_total_protein_quantitative_meaning: bool = (
+        KINASE_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT
+    )
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.include_diagnostic_scoring_tables, bool):
+            raise WorkflowValidationError(
+                "scoring_config.include_diagnostic_scoring_tables must be a bool"
+            )
+        if not isinstance(self.allow_mixed_total_protein_quantitative_meaning, bool):
+            raise WorkflowValidationError(
+                "scoring_config.allow_mixed_total_protein_quantitative_meaning "
+                "must be a bool"
+            )
+        if (
+            self.profile_missing_value_strategy
+            not in KINASE_PROFILE_MISSING_VALUE_STRATEGIES
+        ):
+            allowed = ", ".join(sorted(KINASE_PROFILE_MISSING_VALUE_STRATEGIES))
+            raise WorkflowValidationError(
+                "scoring_config.profile_missing_value_strategy must be one of: "
+                f"{allowed}"
+            )
+        _require_int_at_least(
+            self.min_substrates,
+            field_name="scoring_config.min_substrates",
+            minimum=KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
+            error_type=WorkflowValidationError,
+        )
+        if not isinstance(self.localisation_requirement, LocalisationRequirement):
+            raise WorkflowValidationError(
+                "scoring_config.localisation_requirement must be "
+                "LocalisationRequirement"
+            )
+
+    @classmethod
+    def default(cls) -> KinaseScoringConfig:
+        """Return the package default kinase scoring profile."""
+        return cls()
+
+    @classmethod
+    def strict_missing_values(cls) -> KinaseScoringConfig:
+        """Return strict missing-value handling for profile aggregation."""
+        return cls(
+            profile_missing_value_strategy=(
+                KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
+            )
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class KinaseActivityConfig:
+    """Configuration for the supported kinase activity stage.
+
+    Activity runs inside `KinaseWorkflow` and can be disabled by setting either:
+
+    - `activity_config=None` on `KinaseWorkflowRequest`, or
+    - `activity_config.enabled=False`.
+    """
+
+    enabled: bool = True
+    method: KinaseActivityMethod = (
+        KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY
+    )
+    threshold: float = KINASE_ACTIVITY_DEFAULT_THRESHOLD
+    min_substrates: int = KINASE_ACTIVITY_DEFAULT_MIN_SUBSTRATES
+    top_n_substrates: int = KINASE_ACTIVITY_DEFAULT_TOP_N_SUBSTRATES
+    ksea_min_substrates: int = KINASE_ACTIVITY_KSEA_DEFAULT_MIN_SUBSTRATES
+    ksea_evidence_threshold: float | None = None
+    ksea_p_value_method: KinaseActivityPValueMethod = (
+        KINASE_ACTIVITY_KSEA_P_VALUE_METHOD_NORMAL_APPROXIMATION
+    )
+    ksea_adjust_p_values: bool = KINASE_ACTIVITY_KSEA_DEFAULT_ADJUST_P_VALUES
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.enabled, bool):
+            raise WorkflowValidationError("activity_config.enabled must be a bool")
+        if self.method not in KINASE_ACTIVITY_METHODS:
+            allowed_methods = ", ".join(sorted(KINASE_ACTIVITY_METHODS))
+            raise WorkflowValidationError(
+                f"activity_config.method must be one of: {allowed_methods}"
+            )
+        _require_real_between(
+            self.threshold,
+            field_name="activity_config.threshold",
+            minimum=0.0,
+            maximum=1.0,
+            error_type=WorkflowValidationError,
+        )
+        _require_int_at_least(
+            self.min_substrates,
+            field_name="activity_config.min_substrates",
+            minimum=KINASE_ACTIVITY_MIN_SUBSTRATES_FLOOR,
+            error_type=WorkflowValidationError,
+        )
+        _require_int_at_least(
+            self.top_n_substrates,
+            field_name="activity_config.top_n_substrates",
+            minimum=KINASE_ACTIVITY_TOP_N_SUBSTRATES_FLOOR,
+            error_type=WorkflowValidationError,
+        )
+        _require_int_at_least(
+            self.ksea_min_substrates,
+            field_name="activity_config.ksea_min_substrates",
+            minimum=KINASE_ACTIVITY_MIN_SUBSTRATES_FLOOR,
+            error_type=WorkflowValidationError,
+        )
+        if self.ksea_evidence_threshold is not None:
+            _require_real_between(
+                self.ksea_evidence_threshold,
+                field_name="activity_config.ksea_evidence_threshold",
+                minimum=0.0,
+                maximum=1.0,
+                error_type=WorkflowValidationError,
+            )
+        if self.ksea_p_value_method not in KINASE_ACTIVITY_KSEA_P_VALUE_METHODS:
+            allowed_methods = ", ".join(sorted(KINASE_ACTIVITY_KSEA_P_VALUE_METHODS))
+            raise WorkflowValidationError(
+                f"activity_config.ksea_p_value_method must be one of: {allowed_methods}"
+            )
+        if not isinstance(self.ksea_adjust_p_values, bool):
+            raise WorkflowValidationError(
+                "activity_config.ksea_adjust_p_values must be a bool"
+            )
+
+
+__all__ = [
+    "KINASE_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT",
+    "KINASE_SITE_SEQUENCE_CONFLICT_POLICIES",
+    "KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR",
+    "KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET",
+    "KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE",
+    "KINASE_ACTIVITY_KSEA_DEFAULT_ADJUST_P_VALUES",
+    "KINASE_ACTIVITY_KSEA_DEFAULT_MIN_SUBSTRATES",
+    "KINASE_ACTIVITY_KSEA_P_VALUE_METHOD_NORMAL_APPROXIMATION",
+    "KINASE_ACTIVITY_KSEA_P_VALUE_METHODS",
+    "KINASE_ACTIVITY_DEFAULT_MIN_SUBSTRATES",
+    "KINASE_ACTIVITY_DEFAULT_THRESHOLD",
+    "KINASE_ACTIVITY_DEFAULT_TOP_N_SUBSTRATES",
+    "KINASE_ACTIVITY_METHODS",
+    "KINASE_ACTIVITY_METHOD_KSEA_ZSCORE",
+    "KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY",
+    "KINASE_ACTIVITY_MIN_SUBSTRATES_FLOOR",
+    "KINASE_ACTIVITY_TOP_N_SUBSTRATES_FLOOR",
+    "KINASE_PROFILE_MISSING_VALUE_STRATEGIES",
+    "KINASE_PROFILE_MISSING_VALUE_STRATEGY_MEDIAN_SKIPNA",
+    "KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT",
+    "KINASE_SCORING_MIN_SUBSTRATES_FLOOR",
+    "KinaseActivityConfig",
+    "KinaseActivityMethod",
+    "KinaseActivityPValueMethod",
+    "KinaseProfileMissingValueStrategy",
+    "KinaseSiteSequenceConflictPolicy",
+    "LocalisationRequirement",
+    "KinaseScoringConfig",
+]

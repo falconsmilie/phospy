@@ -8,15 +8,15 @@ from typing import TYPE_CHECKING, Protocol
 
 import pandas as pd
 
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     KinaseActivityMethod,
     KinaseActivityPValueMethod,
     KinaseAdaptivePolicy,
     KinasePredictionMode,
     KinaseProfileMissingValueStrategy,
 )
-from phospy.api.requests import KinaseWorkflowRequest
-from phospy.api.results import KinaseWorkflowResult
+from phospy.contracts.requests import KinaseWorkflowRequest
+from phospy.contracts.results import KinaseWorkflowResult
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.prediction.policies import (

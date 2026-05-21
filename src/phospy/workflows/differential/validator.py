@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import cast
 
-from phospy.api.configs import DifferentialAnalysisConfig, MultipleTestingConfig
-from phospy.api.requests import DifferentialAnalysisRequest
+from phospy.contracts.configs import DifferentialAnalysisConfig, MultipleTestingConfig
+from phospy.contracts.requests import DifferentialAnalysisRequest
 from phospy.errors.validation import WorkflowValidationError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.differential.models import (

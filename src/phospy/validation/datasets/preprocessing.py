@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     DATASET_INTENSITY_TRANSFORM_POLICY_LOG2,
     DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,

@@ -8,7 +8,7 @@ from collections.abc import Mapping, Sequence
 import numpy as np
 import pandas as pd
 
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
     SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
     SignalomeAssignmentPolicy,

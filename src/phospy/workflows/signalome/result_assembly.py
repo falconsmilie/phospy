@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 import pandas as pd
 
-from phospy.api.results import SignalomeWorkflowResult
+from phospy.contracts.results import SignalomeWorkflowResult
 from phospy.errors.workflows import WorkflowStageError
 from phospy.provenance.models import RunProvenance
 from phospy.science.signalomes.clustering import ClusterSitesResult

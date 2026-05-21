@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phospy.api.results import (
+from phospy.contracts.results import (
     KinaseEligibilityReport,
     KinaseWorkflowResult,
     KinaseWorkflowSiteAttritionSummary,

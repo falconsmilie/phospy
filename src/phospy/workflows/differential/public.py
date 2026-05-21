@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phospy.api.requests import DifferentialAnalysisRequest
+from phospy.contracts.requests import DifferentialAnalysisRequest
 from phospy.science.differential.models import DifferentialAnalysisResult
 from phospy.workflows.differential.executor import DifferentialAnalysisExecutor
 from phospy.workflows.differential.interpreter import DifferentialAnalysisInterpreter

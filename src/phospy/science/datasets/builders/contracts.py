@@ -24,7 +24,7 @@ from phospy.science.transformations.models import (
 )
 
 if TYPE_CHECKING:
-    from phospy.api.requests import DatasetBuildRequest
+    from phospy.contracts.requests import DatasetBuildRequest
     from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
 DatasetInput = pd.DataFrame | str | Path | PathLike[str]

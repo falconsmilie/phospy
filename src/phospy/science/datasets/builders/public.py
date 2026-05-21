@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phospy.api.requests import DatasetBuildRequest
+from phospy.contracts.requests import DatasetBuildRequest
 from phospy.science.datasets.builders.contracts import (
     DatasetBuildExecutorContract,
     DatasetBuildInterpreterContract,

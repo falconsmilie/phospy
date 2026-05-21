@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phospy.api.results import SignalomeWorkflowResult
+from phospy.contracts.results import SignalomeWorkflowResult
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.signalomes.clustering import (
     run_signalome_clustering_engine,

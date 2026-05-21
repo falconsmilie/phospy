@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import NoReturn
 
-from phospy.api.requests import DatasetBuildRequest
+from phospy.contracts.requests import DatasetBuildRequest
 from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.builders.contracts import (
     DatasetInput,

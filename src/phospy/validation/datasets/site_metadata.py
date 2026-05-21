@@ -9,7 +9,7 @@ from typing import TypeVar
 
 import pandas as pd
 
-from phospy.api.configs.localisation import LocalisationRequirement
+from phospy.contracts.configs.localisation import LocalisationRequirement
 from phospy.science.sites.identifiers import ParsedSiteToken, try_parse_site_token
 from phospy.science.sites.identity import (
     build_phosphosite_identity,

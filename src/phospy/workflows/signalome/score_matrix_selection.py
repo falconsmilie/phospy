@@ -7,7 +7,7 @@ from typing import Protocol
 
 import pandas as pd
 
-from phospy.api.results import KinaseScoringResult
+from phospy.contracts.results import KinaseScoringResult
 from phospy.science.prediction.scoring import (
     SIGNALOME_DOWNSTREAM_SCORE_RANK_WEIGHTED_PREFERRED_POLICY,
     DownstreamScoreSelectionPolicy,

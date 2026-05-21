@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Protocol
 
-from phospy.api.configs import DifferentialAnalysisConfig
+from phospy.contracts.configs import DifferentialAnalysisConfig
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.design.models import Contrast, ExperimentalDesign
 from phospy.science.differential.models import (

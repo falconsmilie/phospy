@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     KINASE_PROFILE_MISSING_VALUE_STRATEGIES,
     KINASE_PROFILE_MISSING_VALUE_STRATEGY_MEDIAN_SKIPNA,
     KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT,

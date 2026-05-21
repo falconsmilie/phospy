@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     DATASET_COMPARISON_BUILDING_POLICY_SAMPLE_METADATA_PAIRS,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
 )
-from phospy.api.requests import DatasetBuildRequest
+from phospy.contracts.requests import DatasetBuildRequest
 from phospy.errors.input import PhosPyInputError
 from phospy.science.evidence.dataset_resolution import (
     DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,

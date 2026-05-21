@@ -7,7 +7,7 @@ from collections.abc import Mapping
 import numpy as np
 import pandas as pd
 
-from phospy.api.configs import KinasePredictionConfig
+from phospy.contracts.configs import KinasePredictionConfig
 from phospy.errors.workflows import WorkflowStageError
 from phospy.science.prediction.policies import (
     PredictionSamplingRandomSource,

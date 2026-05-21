@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import cast
 
-from phospy.api.requests import KinaseWorkflowRequest
+from phospy.contracts.requests import KinaseWorkflowRequest
 from phospy.errors.validation import WorkflowValidationError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.references.models import ReferenceBundle, ReferencePreset

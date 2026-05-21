@@ -10,7 +10,7 @@ from typing import Protocol
 
 import pandas as pd
 
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN,
     DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICY_ERROR,
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT,

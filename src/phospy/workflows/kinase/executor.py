@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phospy.api.results import KinaseWorkflowResult
+from phospy.contracts.results import KinaseWorkflowResult
 from phospy.science.activities.models import KinaseActivityResult
 from phospy.science.prediction.candidates import (
     build_candidate_substrate_list,

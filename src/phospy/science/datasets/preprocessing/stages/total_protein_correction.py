@@ -6,7 +6,7 @@ from dataclasses import dataclass, replace
 
 import pandas as pd
 
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT,
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_MAPPING_TABLE,
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,

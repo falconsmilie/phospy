@@ -7,7 +7,7 @@ from itertools import combinations
 
 import pandas as pd
 
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     DatasetComparisonPair,
 )
 from phospy.errors.input import PhosPyInputError

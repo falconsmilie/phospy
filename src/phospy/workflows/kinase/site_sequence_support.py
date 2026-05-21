@@ -7,7 +7,7 @@ from typing import Literal
 
 import pandas as pd
 
-from phospy.api.configs.kinase import (
+from phospy.contracts.configs.kinase import (
     KINASE_SITE_SEQUENCE_CONFLICT_POLICIES,
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET,

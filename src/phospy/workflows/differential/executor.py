@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import cast
 
-from phospy.api.configs import MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG
+from phospy.contracts.configs import MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.differential.executor import (
     DifferentialAnalysisExecutor as DifferentialComputationExecutor,

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phospy.api.requests import SignalomeWorkflowRequest
+from phospy.contracts.requests import SignalomeWorkflowRequest
 from phospy.science.prediction.scoring import select_downstream_score_matrix
 from phospy.science.signalomes.clustering.policies import (
     resolve_candidate_scoring_policy_definition,

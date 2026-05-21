@@ -6,7 +6,7 @@ from typing import NoReturn, TypedDict, cast
 
 import pandas as pd
 
-from phospy.api.requests import KinaseWorkflowRequest
+from phospy.contracts.requests import KinaseWorkflowRequest
 from phospy.errors.workflows import PhosPyWorkflowError, WorkflowBoundaryError
 from phospy.science.prediction.policies import resolve_prediction_sampling_policy
 from phospy.science.references.resolution import (

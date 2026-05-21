@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.api.results import (
+from phospy.contracts.results import (
     KinaseWorkflowPreprocessingAttritionSummary,
     KinaseWorkflowScoringAttritionSummary,
     KinaseWorkflowSiteAttritionSummary,

@@ -7,7 +7,7 @@ from typing import NoReturn
 
 import pandas as pd
 
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KinasePredictionConfig,

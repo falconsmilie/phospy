@@ -1,49 +1,11 @@
-"""Public differential workflow configuration models."""
+"""Public compatibility wrapper for internal contract ownership."""
 
-from __future__ import annotations
-
-from dataclasses import dataclass, field
-
-from phospy.errors.validation import WorkflowValidationError
-from phospy.science.differential.models import EmpiricalBayesConfig
-from phospy.science.differential.policy_models import TechnicalReplicatePolicy
-
-MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG = "benjamini_hochberg"
-SUPPORTED_MULTIPLE_TESTING_METHODS: tuple[str, ...] = (
+from phospy.contracts.configs.differential import (
     MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG,
+    SUPPORTED_MULTIPLE_TESTING_METHODS,
+    DifferentialAnalysisConfig,
+    MultipleTestingConfig,
 )
-
-
-@dataclass(frozen=True, slots=True)
-class MultipleTestingConfig:
-    """Public multiple-testing policy for differential analysis."""
-
-    method: str = MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG
-
-    def __post_init__(self) -> None:
-        if self.method not in SUPPORTED_MULTIPLE_TESTING_METHODS:
-            supported = ", ".join(
-                repr(value) for value in SUPPORTED_MULTIPLE_TESTING_METHODS
-            )
-            raise WorkflowValidationError(
-                f"differential.multiple_testing.method must be one of: {supported}"
-            )
-
-
-@dataclass(frozen=True, slots=True)
-class DifferentialAnalysisConfig:
-    """Public configuration for differential analysis."""
-
-    technical_replicate_policy: TechnicalReplicatePolicy = (
-        TechnicalReplicatePolicy.REJECT
-    )
-    allow_design_subset: bool = False
-    minimum_condition_replicates: int = 2
-    empirical_bayes: EmpiricalBayesConfig = field(default_factory=EmpiricalBayesConfig)
-    multiple_testing: MultipleTestingConfig = field(
-        default_factory=MultipleTestingConfig
-    )
-
 
 __all__ = [
     "DifferentialAnalysisConfig",

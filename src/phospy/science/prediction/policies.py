@@ -9,7 +9,7 @@ from typing import Literal
 
 import numpy as np
 
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     KINASE_ADAPTIVE_POLICY_R_PARITY,
     KINASE_ADAPTIVE_POLICY_STABLE,
     KinaseAdaptivePolicy,

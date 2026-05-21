@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
     KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
 )

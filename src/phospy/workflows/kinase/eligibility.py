@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.api.results import KinaseEligibilityReport
+from phospy.contracts.results import KinaseEligibilityReport
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_LOCALISATION,
 )

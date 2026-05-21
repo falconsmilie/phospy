@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import warnings
 
-from phospy.api.requests import DifferentialAnalysisRequest
+from phospy.contracts.requests import DifferentialAnalysisRequest
 from phospy.science.differential.models import DifferentialAnalysisResult
 from phospy.workflows.differential.public import DifferentialAnalysisWorkflow
 

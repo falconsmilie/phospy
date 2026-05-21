@@ -7,14 +7,14 @@ from typing import Protocol
 
 import pandas as pd
 
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     SignalomeAssignmentPolicy,
     SignalomeCandidateScoringPolicy,
     SignalomeKinaseNetworkPolicy,
     SignalomeScorePreconditioningPolicy,
 )
-from phospy.api.requests import SignalomeWorkflowRequest
-from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
+from phospy.contracts.requests import SignalomeWorkflowRequest
+from phospy.contracts.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset

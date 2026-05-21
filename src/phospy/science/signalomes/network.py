@@ -7,7 +7,7 @@ from collections.abc import Mapping, Sequence
 import numpy as np
 import pandas as pd
 
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     SIGNALOME_KINASE_NETWORK_POLICIES,
     SIGNALOME_KINASE_NETWORK_POLICY_ABSOLUTE_THRESHOLD,
     SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY,
