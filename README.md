@@ -12,7 +12,7 @@ PhosPy does **not** provide HTTP endpoints or a web service. The supported user
 interface is the Python API.
 
 ## Recommended Reading
-You can view the full documentation here: [Phospy Docs](https://phospy.com/docs)
+You can view the full documentation here: [PhosPy Docs](https://phospy.com/docs)
 
 ## Install
 
@@ -77,6 +77,7 @@ import pandas as pd
 from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow
 from phospy.api import (
     DatasetBuildRequest,
+    IntensityScaleKind,
     DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
     KinaseWorkflowRequest,
@@ -121,6 +122,7 @@ dataset = AnalysisReadyDatasetBuilder().run(
         site_metadata=site_metadata,
         sample_metadata=sample_metadata,
         organism=Organism.RAT,
+        input_intensity_scale=IntensityScaleKind.LINEAR,
         preprocessing_config=DatasetPreprocessingConfig(
             # Site-level workflows should fail fast when localisation is missing
             # or below threshold, because ambiguous site assignment can

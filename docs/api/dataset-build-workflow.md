@@ -17,6 +17,7 @@ dataset = AnalysisReadyDatasetBuilder().run(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
+        input_intensity_scale=IntensityScaleKind.LINEAR,
     )
 )
 ```
@@ -38,6 +39,7 @@ from phospy.api import (
     DatasetSiteSequenceResolutionConfig,
     DatasetTotalProteinCorrectionConfig,
     DatasetTotalProteinCorrectionIdentityConfig,
+    IntensityScaleKind,
     Organism,
 )
 ```
@@ -52,6 +54,8 @@ from phospy.api import (
 | `total` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Total-protein matrix used only when total-protein correction is enabled. Columns must align to phospho sample columns. |
 | `organism` | `Organism` or `None` | `None` | No | Species identity for the dataset. Use `Organism.RAT` for the bundled beginner lane. |
 | `preprocessing_config` | `DatasetPreprocessingConfig` | `DatasetPreprocessingConfig()` | No | Grouped preprocessing policy for transforms, normalisation, missing data, total-protein correction, site construction, site-sequence resolution, comparisons, and RUV readiness reporting. |
+| `input_intensity_scale` | `IntensityScaleKind`, `str`, or `None` | `None` | No | Required when your preprocessing path keeps `intensity_transform.policy="identity"` and you still need a trusted intensity scale (`"linear"` or `"log2"`). |
+| `quantitative_meaning` | `QuantitativeMeaning`, `str`, or `None` | `None` | No | Optional explicit scientific meaning for phospho values (for example `phosphosite_abundance` or `phosphosite_log_abundance`). |
 
 Supported file suffixes are `.csv`, `.tsv`, `.txt` as tab-separated text, and
 `.parquet`. CSV, TSV, and TXT inputs are read with the first column as the row
@@ -84,6 +88,7 @@ request = DatasetBuildRequest(
     site_metadata="./input/site_metadata.tsv",
     sample_metadata="./input/sample_metadata.csv",
     organism=Organism.RAT,
+    input_intensity_scale=IntensityScaleKind.LINEAR,
 )
 ```
 
@@ -112,7 +117,7 @@ site_metadata = pd.DataFrame(
         "site": ["S939", "S9"],
         "site_sequence": [
             "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
-            "ATMSGRPRTTSFAESCKPVQQPSAFGQAAAL",
+            "ATMSGRPRTTSFAESSSPVQQPSAFGQAAAL",
         ],
         "protein_id": ["TSC2", "GSK3B"],
         "localisation_confidence": [0.95, 0.92],
@@ -150,6 +155,18 @@ Use presets for common lanes:
 ```python
 strict = DatasetPreprocessingConfig.strict()
 raw_table = DatasetPreprocessingConfig.from_raw_phosphosite_table()
+```
+
+If you keep the identity transform (`policy="identity"`), declare
+`input_intensity_scale` on `DatasetBuildRequest` so the dataset can establish a
+trusted scale state:
+
+```python
+request = DatasetBuildRequest(
+    phospho=phospho,
+    site_metadata=site_metadata,
+    input_intensity_scale=IntensityScaleKind.LINEAR,
+)
 ```
 
 Use explicit groups when you need a specific preprocessing policy:
@@ -496,7 +513,7 @@ site_metadata = pd.DataFrame(
         "site": ["S939", "S9"],
         "site_sequence": [
             "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
-            "ATMSGRPRTTSFAESCKPVQQPSAFGQAAAL",
+            "ATMSGRPRTTSFAESSSPVQQPSAFGQAAAL",
         ],
         "protein_id": ["TSC2", "GSK3B"],
         "localisation_confidence": [0.95, 0.92],

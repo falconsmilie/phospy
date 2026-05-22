@@ -69,6 +69,9 @@ from phospy.api import (
 
 All public executors use `run(request)`.
 
+Most short snippets below show one concept at a time. For a copy/paste run,
+use the full examples in [Quickstart](../quickstart.md) or each workflow page.
+
 ## Scientific Policy Module Ownership
 
 Scientific policy records are owned by domain modules, not a root dumping-ground
@@ -280,6 +283,7 @@ import pandas as pd
 from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow
 from phospy.api import (
     DatasetBuildRequest,
+    IntensityScaleKind,
     DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
     KinaseWorkflowRequest,
@@ -301,7 +305,7 @@ site_metadata = pd.DataFrame(
         "site": ["S939", "S9"],
         "site_sequence": [
             "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
-            "ATMSGRPRTTSFAESCKPVQQPSAFGQAAAL",
+            "ATMSGRPRTTSFAESSSPVQQPSAFGQAAAL",
         ],
         "protein_id": ["TSC2", "GSK3B"],
         "localisation_confidence": [0.95, 0.92],
@@ -314,6 +318,7 @@ dataset = AnalysisReadyDatasetBuilder().run(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
+        input_intensity_scale=IntensityScaleKind.LINEAR,
         preprocessing_config=DatasetPreprocessingConfig(
             # Fail fast on missing/low-confidence localisation so site-level
             # kinase interpretation does not rely on ambiguous phosphosite mapping.

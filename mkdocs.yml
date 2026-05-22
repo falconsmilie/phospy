@@ -8,7 +8,7 @@ theme:
   name: material
   font: false
   features:
-#    - navigation.sections
+    - navigation.sections
     - navigation.top
     - navigation.footer
     - search.highlight
@@ -76,4 +76,6 @@ nav:
   - Project:
       - Maintenance: maintenance.md
       - Release Notes: release-notes.md
+      - Validation Ownership Map: validation-ownership.md
+      - Testing Audit Docs: testing/README.md
       - ADR Index: adr/index.md

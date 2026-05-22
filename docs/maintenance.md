@@ -98,7 +98,11 @@ Docs should stay flat, beginner-friendly, and tested against the code. Prefer on
 clear beginner path over several overlapping overview pages. Keep examples small
 and runnable.
 
-The only docs subdirectory should be `docs/adr/` for decision records.
+Docs subdirectories are intentional:
+
+- `docs/api/` for workflow API references
+- `docs/adr/` for architecture decision records
+- `docs/testing/` for testing-audit and consolidation material
 
 ## Frame Ownership Policy
 

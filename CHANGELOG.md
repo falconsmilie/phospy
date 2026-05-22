@@ -100,8 +100,8 @@ All notable changes to this project are documented here.
 
 ### Documentation
 
-- Release notes: `docs/release-notes-1.5.0.md`.
-- Main user docs: `docs/quickstart.md`, `docs/api.md`, `docs/cli.md`, `docs/validation.md`, and
+- Release notes: `docs/release-notes.md`.
+- Main user docs: `docs/quickstart.md`, `docs/api/guide.md`, `docs/cli.md`, `docs/validation.md`, and
   `docs/output_bundles.md`.
 - Scientific and maintainer docs: `docs/scientific-coverage.md`, `docs/parity.md`, `docs/performance.md`, and
   `docs/maintenance.md`.

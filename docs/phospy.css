@@ -43,7 +43,7 @@
   --md-accent-fg-color--transparent: rgba(61, 174, 255, 0.16);
 
   --md-typeset-color: #e8eef9;
-  --md-typeset-a-color: #3daeff;
+  --md-typeset-a-color: #ff8f4d;
 
   --md-code-fg-color: #eef4ff;
   --md-code-bg-color: #0d1523;
@@ -89,7 +89,7 @@
   --md-accent-fg-color--transparent: rgba(37, 99, 235, 0.1);
 
   --md-typeset-color: #243041;
-  --md-typeset-a-color: #1456f0;
+  --md-typeset-a-color: #f97316;
 
   --md-code-fg-color: #eef4ff;
   --md-code-bg-color: #181e25;
@@ -236,8 +236,24 @@ body {
   font-weight: 700;
 }
 
+/* Links: orange so clickable text is clearly distinct from inline code */
 .md-typeset a {
-  font-weight: 500;
+  color: var(--md-typeset-a-color);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.16em;
+}
+
+.md-typeset a:hover,
+.md-typeset a:focus-visible {
+  color: #ffb86b;
+  text-decoration-thickness: 0.12em;
+}
+
+[data-md-color-scheme="default"] .md-typeset a:hover,
+[data-md-color-scheme="default"] .md-typeset a:focus-visible {
+  color: #ea580c;
 }
 
 /* --------------------------------------------------------------------------
@@ -287,19 +303,20 @@ body {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 }
 
-/* Inline code: blue text only, no rounded background */
+/* Inline code: visibly code, not link-like */
 .md-typeset :not(pre) > code {
-  padding: 0;
-  border-radius: 0;
-  background: transparent;
-  color: #3daeff;
+  padding: 0.08rem 0.32rem;
+  border-radius: 0.35rem;
+  background: rgba(249, 194, 231, 0.10);
+  color: #f9c2e7;
   font-size: 0.92em;
-  box-shadow: none;
+  box-shadow: inset 0 0 0 1px rgba(249, 194, 231, 0.12);
 }
 
 [data-md-color-scheme="default"] .md-typeset :not(pre) > code {
-  background: transparent;
-  color: #1456f0;
+  background: rgba(217, 77, 177, 0.08);
+  color: #9d2f7f;
+  box-shadow: inset 0 0 0 1px rgba(217, 77, 177, 0.12);
 }
 
 .md-typeset pre {

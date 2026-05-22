@@ -17,7 +17,9 @@ When editing docs or examples:
 
 - keep the beginner path small and runnable
 - avoid repeating the same rule in many places
-- keep `docs/` flat except for `docs/adr/`
+- keep top-level user guides in `docs/`, workflow API pages in `docs/api/`,
+  architecture decisions in `docs/adr/`, and testing-audit material in
+  `docs/testing/`
 - use `phospy.api` for request, config, result, enum, reference, and error imports
 - keep beginner docs focused on the rat bundled-reference lane unless the page is explicitly advanced
 

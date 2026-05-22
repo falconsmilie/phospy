@@ -38,6 +38,8 @@ work and explicit references.
 | Runtime limits and larger datasets | [Performance Contracts](performance.md)                               |
 | Scientific coverage and PhosR comparison | [Scientific Coverage](scientific-coverage.md) and [Parity](parity.md) |
 | Development, CI, fixtures, and release notes | [Maintenance](maintenance.md)                                         |
+| Validation ownership details for maintainers | [Validation Ownership Map](validation-ownership.md)                    |
+| Testing audit and consolidation docs | [Testing Audit Docs](testing/README.md)                                |
 
 A good first outcome is modest: build a two-site rat dataset, run kinase with
 `ReferencePreset.AUTO`, and add signalome once `protein_id` is present.

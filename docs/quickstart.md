@@ -10,6 +10,17 @@ works.
 pip install phospy
 ```
 
+If this is your first Python project, create and activate a virtual
+environment first:
+
+```bash
+python -m venv .venv
+# Linux/macOS
+source .venv/bin/activate
+# Windows PowerShell
+# .venv\Scripts\Activate.ps1
+```
+
 For local development:
 
 ```bash
@@ -26,6 +37,7 @@ Required `site_metadata` columns for this lane:
 - `gene_symbol`
 - `site`
 - `site_sequence`
+- `localisation_confidence`
 - `protein_id` for signalome
 
 A site ID should look like `TSC2;S939;`.
@@ -66,9 +78,10 @@ site_metadata = pd.DataFrame(
         "site": ["S939", "S9"],
         "site_sequence": [
             "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
-            "ATMSGRPRTTSFAESCKPVQQPSAFGQAAAL",
+            "ATMSGRPRTTSFAESSSPVQQPSAFGQAAAL",
         ],
         "protein_id": ["TSC2", "GSK3B"],
+        "localisation_confidence": [0.96, 0.93],
     },
     index=phospho.index.copy(),
 )
@@ -139,6 +152,10 @@ scoring. It does not make tree generation approximate.
 Why `activity_config=None`? The example has only two sites. The activity stage is
 more useful on larger data and defaults to a higher substrate-support threshold.
 For real datasets, you can remove that line or configure `KinaseActivityConfig`.
+
+Why no `input_intensity_scale` declaration in this example? The
+`from_raw_phosphosite_table()` preset applies a log2 transform, so the builder
+can establish intensity scale from the configured preprocessing path.
 
 Supported file-backed table formats for API-driven loading are `.csv`, `.tsv`,
 `.txt` as tab-separated text, and `.parquet` when optional parquet dependencies
