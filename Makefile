@@ -33,7 +33,7 @@ help:
 	@echo   make install-dev                   Install editable package with dev and test extras
 	@echo   make lint                          Run Ruff checks
 	@echo   make format                        Run Ruff formatter
-	@echo   make type-check                    Run Pyright with the active Python interpreter
+	@echo   make type-check                    Run the same Pyright entrypoint used by CI and pre-commit
 	@echo   make pre-commit                    Run all pre-commit hooks
 	@echo   make test-unit                     Run the non-parity pytest suite
 	@echo   make test-parity                   Run the parity pytest suite
@@ -79,7 +79,7 @@ pre-commit: check-tools
 	$(PRE_COMMIT) run --all-files
 
 type-check: check-tools
-	$(PYTHON) -m pyright --warnings
+	$(PYTHON) scripts/run_pyright.py
 
 test: test-unit test-parity
 

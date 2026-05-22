@@ -32,7 +32,7 @@ For local development from a clone:
 
 ```bash
 pip install -e ".[dev]"
-pyright
+python scripts/run_pyright.py
 pytest -m "not parity"
 ```
 

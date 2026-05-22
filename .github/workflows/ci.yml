@@ -78,21 +78,28 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@v6
         with:
-          python-version: '3.10'
+          python-version: '3.12'
           cache: 'pip'
           cache-dependency-path: |
             pyproject.toml
-            constraints/ci.txt
       - name: Install package with development dependencies
         run: |
+          unset PIP_CONSTRAINT PIP_BUILD_CONSTRAINT
           python -m venv .venv
           source .venv/bin/activate
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
+      - name: Show type-check environment
+        run: |
+          unset PIP_CONSTRAINT PIP_BUILD_CONSTRAINT
+          source .venv/bin/activate
+          python -c "import sys, importlib.metadata as md; print('python', sys.version); print('executable', sys.executable); print('pyright', md.version('pyright')); print('pandas', md.version('pandas')); print('pandas-stubs', md.version('pandas-stubs')); print('numpy', md.version('numpy')); print('scipy', md.version('scipy')); print('scikit-learn', md.version('scikit-learn'))"
       - name: Run Pyright
         run: |
+          unset PIP_CONSTRAINT PIP_BUILD_CONSTRAINT
           source .venv/bin/activate
-          python scripts/run_pyright.py
+          export PHOSPY_PYRIGHT_PYTHON="$PWD/.venv/bin/python"
+          python scripts/run_pyright.py --verbose
 
   benchmark-smoke:
     needs: repo-hygiene
@@ -215,7 +222,7 @@ jobs:
       - name: Verify adaptive dependency contract
         run: |
           python -c "import importlib.metadata as md; requirements = md.requires('phospy') or []; assert any(req.lower().startswith('scikit-learn') for req in requirements), requirements"
-          python -c "from phospy.prediction.svm import require_sklearn; require_sklearn()"
+          python -c "from phospy.science.prediction.svm import require_sklearn; require_sklearn()"
       - name: Run adaptive-mode tests
         run: pytest tests/unit/test_prediction_adaptive_sampling.py tests/unit/test_prediction_mode_regression.py tests/unit/test_prediction_svm_dependency_guard.py
 
