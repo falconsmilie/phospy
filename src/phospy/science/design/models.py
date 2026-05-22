@@ -94,7 +94,10 @@ class SampleDesignRecord:
 
 @dataclass(frozen=True, slots=True)
 class ExperimentalDesign:
-    """Typed contract for sample-to-condition experimental design."""
+    """Typed contract for workflow-consumed sample-to-condition design.
+
+    Experimental design is independent from passive dataset sample metadata.
+    """
 
     samples: tuple[SampleDesignRecord, ...]
 

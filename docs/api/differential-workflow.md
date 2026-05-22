@@ -54,6 +54,9 @@ Required inputs:
 - `design`: `ExperimentalDesign`
 - `contrasts`: `tuple[Contrast, ...]`
 
+`dataset.sample_metadata` may exist, but differential workflow design semantics
+are owned by the explicit `design` and `contrasts` request fields.
+
 Optional inputs:
 
 - `config` (`DifferentialAnalysisConfig()` by default), including:
@@ -76,6 +79,8 @@ Optional inputs:
 - Duplicate `sample_id` values are rejected.
 - By default, all dataset samples must appear in the design.
 - With `config.allow_design_subset=True`, design may define a strict sample subset.
+- Conditions, replicate identity, batch fields, and block fields are taken from
+  `ExperimentalDesign`, not inferred from `dataset.sample_metadata`.
 
 ### Contrast Expectations
 
@@ -103,6 +108,7 @@ Optional inputs:
 ## Design and Contrast Requirements
 
 - Conditions are never inferred from sample names.
+- Conditions are not inferred from `dataset.sample_metadata` columns.
 - `ExperimentalDesign.samples[].sample_id` must align to dataset sample IDs.
 - By default, every dataset sample must appear in design.
 - Duplicate design sample IDs are rejected.
@@ -115,6 +121,8 @@ Optional inputs:
 - Batch/block metadata is modeled in the contract but not yet executable in the
   differential engine; such requests fail with explicit unsupported-feature
   errors.
+- Paired/blocking designs remain rejected unless explicitly implemented in a
+  future release.
 
 ## Empirical-Bayes Settings
 

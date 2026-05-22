@@ -172,7 +172,11 @@ class SiteMetadataTable(TableSchema):
 
 @dataclass(frozen=True, slots=True)
 class SampleMetadataTable(TableSchema):
-    """Schema wrapper for ``dataset.sample_metadata``."""
+    """Schema wrapper for ``dataset.sample_metadata``.
+
+    This table validates metadata-table integrity and sample-index alignment only.
+    It does not validate workflow experimental design semantics.
+    """
 
     expected_index: pd.Index | None = field(default=None, repr=False, compare=False)
 

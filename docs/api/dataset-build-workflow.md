@@ -48,7 +48,7 @@ from phospy.api import (
 | --- | --- | --- | --- | --- |
 | `phospho` | `pandas.DataFrame`, `str`, or `pathlib.Path` | None | Yes | Site-by-sample intensity matrix. Rows are phosphosites and columns are samples. |
 | `site_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path` | None | Yes | Row metadata aligned to `phospho.index`. `gene_symbol`, `site`, and `site_sequence` are required at the analysis-ready boundary; include `protein_id` for signalome. For site-level scientific workflows, include a localisation-confidence column (default: `localisation_confidence`) and configure explicit localisation policy. |
-| `sample_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Sample metadata aligned to phospho columns. Required when comparison building uses `sample_metadata_pairs`. |
+| `sample_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Descriptive/alignment metadata aligned to phospho columns. Required when comparison building uses `sample_metadata_pairs`. It does not automatically define differential-analysis conditions, replicates, batches, or blocks. |
 | `total` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Total-protein matrix used only when total-protein correction is enabled. Columns must align to phospho sample columns. |
 | `organism` | `Organism` or `None` | `None` | No | Species identity for the dataset. Use `Organism.RAT` for the bundled beginner lane. |
 | `preprocessing_config` | `DatasetPreprocessingConfig` | `DatasetPreprocessingConfig()` | No | Grouped preprocessing policy for transforms, normalisation, missing data, total-protein correction, site construction, site-sequence resolution, comparisons, and RUV readiness reporting. |
@@ -66,6 +66,17 @@ Parsing is table-role aware:
   preserved).
 - Missing-value interpretation is explicit per table role; dataset loading does
   not rely on pandas default NA inference for metadata.
+
+## Sample Metadata Semantics
+
+`sample_metadata` is passive dataset metadata aligned to `phospho.columns`.
+
+- It is useful for descriptive labels and metadata-driven preprocessing features.
+- It does not perform scientific design validation.
+- It does not automatically define differential-analysis conditions,
+  replicates, batches, or blocks.
+- Differential analysis consumes explicit workflow design objects
+  (`ExperimentalDesign` and `Contrast`) in the differential workflow API.
 
 ```python
 request = DatasetBuildRequest(
@@ -415,6 +426,8 @@ site_sequence_resolution = DatasetSiteSequenceResolutionConfig(
 | `pairs` | `tuple[tuple[str, str], ...]` or `None` | `None` | Non-empty pair tuples when provided | Explicit comparison pairs. If omitted, pairs are inferred from observed groups. |
 
 When `policy="sample_metadata_pairs"`, `sample_metadata` is required.
+This comparison-building feature does not replace differential workflow design
+contracts.
 
 ```python
 sample_metadata = pd.DataFrame(
@@ -434,6 +447,8 @@ comparisons = DatasetComparisonBuildingConfig(
 `DatasetRuvReadinessConfig` is report-only. It helps audit whether metadata
 needed for future RUV-compatible correction is present; it does not correct the
 matrix.
+It does not make sample metadata scientific design input for differential
+analysis.
 
 | Parameter | Type | Default | Allowed Values | How to Use It |
 | --- | --- | --- | --- | --- |

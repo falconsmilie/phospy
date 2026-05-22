@@ -16,6 +16,11 @@ and auditability fragile.
 Implementation now enforces typed design and explicit technical-replicate policy
 before design-matrix assembly and model fitting.
 
+Dataset `sample_metadata` remains a passive, aligned metadata table. It is not
+the scientific design contract for differential analysis, and adding metadata
+columns does not implicitly define conditions, replicate structure, batches, or
+blocks.
+
 Current parity-protected differential execution remains deliberately narrow:
 two-condition unpaired simple contrasts, with unsupported design features
 rejected at validation boundaries.
@@ -69,6 +74,8 @@ optional group fields (`batch`, `block`) within each
 `condition + biological_replicate_id` group.
 
 No condition inference from sample names is allowed.
+No condition/replicate/batch/block inference from dataset sample metadata is
+allowed.
 
 ## Consequences
 

@@ -110,7 +110,7 @@ site_metadata = pd.DataFrame(
 )
 sample_metadata = pd.DataFrame(
     {
-        "condition": ["control", "control", "treatment", "treatment"],
+        "comparison_group": ["control", "control", "treatment", "treatment"],
     },
     index=phospho.columns.copy(),
 )
@@ -136,6 +136,8 @@ dataset = AnalysisReadyDatasetBuilder().run(
 
 # Dataset construction validates required site metadata, including site_sequence.
 print(dataset.site_metadata.loc[:, ["gene_symbol", "site", "site_sequence"]])
+# sample_metadata is descriptive/alignment metadata on the dataset.
+# Differential workflow design is provided separately via ExperimentalDesign.
 
 kinase_result = KinaseWorkflow().run(
     KinaseWorkflowRequest(
