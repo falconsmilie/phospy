@@ -15,6 +15,7 @@ from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.datasets.preprocessing.models import PreprocessingPlan
 from phospy.science.transformations.models import (
     IntensityScaleEstablishmentMode,
+    IntensityScaleEstablishmentSource,
     IntensityScaleState,
     MatrixIntensityScaleState,
 )
@@ -91,6 +92,7 @@ def test_declared_log2_records_declared_establishment_mode() -> None:
         == "dataset_build_request.input_intensity_scale"
     )
     assert provenance.mode is IntensityScaleEstablishmentMode.DECLARED
+    assert provenance.source is IntensityScaleEstablishmentSource.DECLARED_BY_USER
 
 
 def test_transformed_log2_records_transformed_establishment_mode() -> None:
@@ -117,6 +119,7 @@ def test_transformed_log2_records_transformed_establishment_mode() -> None:
         == "phospy.science.transformations.transformers.log2.Log2Transformer"
     )
     assert provenance.parameters["operation"] == "log2"
+    assert provenance.source is IntensityScaleEstablishmentSource.TRANSFORMED_BY_PHOSPY
 
 
 def test_identity_pass_through_without_declared_scale_fails_establishment() -> None:
@@ -161,6 +164,44 @@ def test_suspicious_declared_linear_records_warning() -> None:
     assert provenance is not None
     assert any(
         "declared linear scale contains negative values" in warning
+        for warning in provenance.diagnostic_warnings
+    )
+
+
+def test_declared_log2_impossible_range_records_warning() -> None:
+    resolver = DatasetIntensityScaleResolver(transformer=IdentityTransformer())
+    resolved = resolver.run(
+        phospho=_phospho([-45.0, -5.0, 60.0]),
+        total=None,
+        declared_input_scale_state=_declared_state("log2"),
+        declared_input_establishment_mode=IntensityScaleEstablishmentMode.DECLARED,
+        input_declaration_source="dataset_build_request.input_intensity_scale",
+    )
+    provenance = resolved.intensity_scale_state.establishment_provenance
+    assert provenance is not None
+    assert any(
+        "declared log2 scale has highly suspicious range" in warning
+        for warning in provenance.diagnostic_warnings
+    )
+
+
+def test_declared_linear_log_ratio_like_values_record_warning() -> None:
+    resolver = DatasetIntensityScaleResolver(transformer=IdentityTransformer())
+    resolved = resolver.run(
+        phospho=_phospho([-1.2, -0.7, 0.3, 1.1, 2.4]),
+        total=None,
+        declared_input_scale_state=_declared_state("linear"),
+        declared_input_establishment_mode=IntensityScaleEstablishmentMode.DECLARED,
+        input_declaration_source="dataset_build_request.input_intensity_scale",
+    )
+    provenance = resolved.intensity_scale_state.establishment_provenance
+    assert provenance is not None
+    assert any(
+        "consistent with log-ratio style data" in warning
+        for warning in provenance.diagnostic_warnings
+    )
+    assert any(
+        "strongly resembles already log-transformed data" in warning
         for warning in provenance.diagnostic_warnings
     )
 

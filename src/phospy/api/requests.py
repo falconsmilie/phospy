@@ -1,6 +1,7 @@
 """Public compatibility wrapper for internal contract ownership."""
 
 from phospy.contracts import requests as _request_contracts
+from phospy.contracts.configs import SignalomeConfig
 from phospy.contracts.requests import (
     Contrast,
     ContrastMatrix,
@@ -17,6 +18,7 @@ from phospy.contracts.requests import (
 # Compatibility aliases intentionally re-exported at module scope.
 # Keep these as explicit assignments (not import-only) so static "unused import"
 # cleanups do not remove them.
+_SIGNALOME_CONFIG_TYPE_HINT_ALIAS = SignalomeConfig
 DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING = (
     _request_contracts.DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING
 )

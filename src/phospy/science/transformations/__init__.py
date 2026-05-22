@@ -3,6 +3,7 @@
 from phospy.science.transformations.models import (
     IntensityScaleEstablishmentMode,
     IntensityScaleEstablishmentProvenance,
+    IntensityScaleEstablishmentSource,
     IntensityScaleKind,
     IntensityScaleState,
     MatrixIntensityScaleState,
@@ -13,6 +14,7 @@ __all__ = [
     "MatrixIntensityScaleState",
     "IntensityScaleEstablishmentMode",
     "IntensityScaleEstablishmentProvenance",
+    "IntensityScaleEstablishmentSource",
     "IntensityScaleKind",
     "IntensityScaleState",
     "QuantitativeMeaning",

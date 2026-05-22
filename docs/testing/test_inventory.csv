@@ -2,7 +2,7 @@ path,test_area,line_count,test_function_count,uses_pytest_mark,uses_parametrizat
 tests/golden/test_differential_fixture_provenance_golden.py,golden,252,3,true,false,,,,,,
 tests/integration/test_dataset_builder_boundary_honesty_integration.py,integration,414,10,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset builder boundary honesty integration and increase risk of boundary regressions.,codex-audit,,
 tests/integration/test_dataset_builder_integration.py,integration,1863,36,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset builder integration and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
-tests/integration/test_dataset_builder_intensity_scale_provenance.py,integration,233,7,true,false,,,,,,
+tests/integration/test_dataset_builder_intensity_scale_provenance.py,integration,246,7,true,false,,,,,,
 tests/integration/test_differential_with_technical_replicates.py,integration,179,3,false,false,,,,,,
 tests/integration/test_differential_workflow_integration.py,integration,365,8,false,false,,,,,,
 tests/integration/test_identity_aware_workflows.py,integration,209,4,false,false,,,,,,
@@ -49,7 +49,7 @@ tests/unit/test_dataset_run_provenance.py,unit,580,13,false,false,provenance/gol
 tests/unit/test_dataset_sequence_resolution_report.py,unit,257,6,false,false,,,,,,
 tests/unit/test_dataset_site_sequence_deriver.py,unit,96,4,false,false,,,,,,
 tests/unit/test_dataset_site_sequence_resolution.py,unit,407,10,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for dataset site sequence resolution, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/unit/test_dataset_transformation_state_establishment.py,unit,757,28,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset transformation state establishment and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
+tests/unit/test_dataset_transformation_state_establishment.py,unit,764,28,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset transformation state establishment and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/unit/test_differential_analysis.py,unit,485,11,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for differential analysis behaviour, allowing numerically plausible but scientifically invalid results.",codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_differential_dataset_eligibility_validator.py,unit,131,5,false,false,,,,,,
 tests/unit/test_differential_request_config_refactor.py,unit,58,6,false,false,,,,,,
@@ -68,7 +68,7 @@ tests/unit/test_fasta_sequence_repository.py,unit,125,8,false,false,public API c
 tests/unit/test_frame_ownership_policy.py,unit,1275,27,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for frame ownership policy and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 53 hit(s); indicators: private_member_access
 tests/unit/test_generate_test_inventory_tool.py,unit,132,1,true,true,public API contract,keep,Loss of this file would weaken protection for the testing audit inventory generator and could allow manual audit classifications to be lost during regeneration.,codex-audit,TST-AUDIT-TOOL-001,Audit tooling regression coverage; keep as part of testing-governance infrastructure.
 tests/unit/test_historical_baseline_science.py,unit,390,8,true,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for historical baseline science, making artifact and output drift unsafe.",codex-audit,,
-tests/unit/test_intensity_scale_establishment.py,unit,199,7,false,false,,,,,,
+tests/unit/test_intensity_scale_establishment.py,unit,240,9,false,false,,,,,,
 tests/unit/test_io_table_readers.py,unit,236,8,true,true,public API contract,keep,Loss of this file would weaken table-reader input contract coverage and increase risk of invalid external data being accepted or parsed inconsistently.,codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_kinase_bundle_snapshots.py,unit,95,4,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle snapshots, making artifact and output drift unsafe.",codex-audit,,
 tests/unit/test_kinase_science.py,unit,381,11,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for kinase science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
@@ -141,9 +141,9 @@ tests/unit/test_site_identifier_canonicalization.py,unit,722,24,false,false,scie
 tests/unit/test_site_identifier_module_ownership.py,unit,39,3,false,false,,,,,,
 tests/unit/test_site_identity_validation.py,unit,216,9,false,false,,,,,,
 tests/unit/test_site_matrix_components.py,unit,758,14,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for site matrix components, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
-tests/unit/test_table_schemas.py,unit,898,60,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for table schemas and increase risk of boundary regressions.,codex-audit,,
+tests/unit/test_table_schemas.py,unit,940,63,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for table schemas and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_total_protein_correction_identity_mapping.py,unit,559,22,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for total protein correction identity mapping, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
-tests/unit/test_transformation_provenance.py,unit,68,2,false,false,,,,,,
+tests/unit/test_transformation_provenance.py,unit,73,2,false,false,,,,,,
 tests/unit/test_validation_ownership.py,unit,176,9,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in validation ownership; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-OWN-001,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_validation_ownership_contracts.py,unit,56,2,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_validator_boundaries.py,unit,1701,61,true,true,duplicate validation matrix,consolidate,Loss of this file would reduce repeated primitive validation coverage for validator boundaries; protections must remain through a consolidated matrix before removal.,codex-audit,TST-VAL-002,Umbrella validator-boundary consolidation ticket that coordinates existing mapped follow-ups in consolidation_coverage_map.md (primitive int/range/enum/dataframe plus signalome/reference domain matrices); auto-orchestration private-member hit is non-routing noise. | [auto-orchestration] 16 hit(s); indicators: private_member_access

@@ -42,11 +42,22 @@ tracked with `IntensityScaleEstablishmentMode`:
   state without changing numeric values
 - `derived`: scale established through a supported derived path
 
+In addition to mode, provenance records an explicit establishment source:
+
+- `transformed_by_phospy`: PhosPy performed/owned the establishing transformation lane
+- `declared_by_user`: user declaration was preserved as declared input scale
+- `restored_from_trusted_provenance`: state was reconstructed from trusted bundle/provenance payload
+
 Configured intent alone must not assign `log2`. Established state must come
 from a supported builder/transformer/bundle path with structured establishment
 provenance.
 Identity/pass-through paths must not establish `linear`/raw scale from
 undeclared inputs; they may only preserve an explicit trusted declaration.
+
+Declared-scale diagnostics are safeguards and audit aids only. They can flag
+suspicious declared values (for example ranges that resemble raw linear values
+when declared as `log2`), but diagnostics do not prove scientific truth of the
+declaration and do not silently change scale.
 
 This ADR supersedes the old transformation-state wording but does not remove
 compatibility behavior where historical names appear in non-contract internals.

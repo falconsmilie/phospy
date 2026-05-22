@@ -10,6 +10,7 @@ from phospy.api import (
     DatasetPreprocessingConfig,
 )
 from phospy.errors.transformations import TransformationStateEstablishmentError
+from phospy.science.transformations.models import IntensityScaleEstablishmentSource
 
 pytestmark = pytest.mark.integration
 
@@ -76,6 +77,10 @@ def test_builder_declared_log2_records_declared_establishment_mode_in_provenance
     workflow_payload = _workflow_establishment_payload(built)
     final_stage_payload = _final_stage_establishment_payload(built)
     assert workflow_payload["establishment_mode"] == "declared"
+    assert (
+        workflow_payload["establishment_source"]
+        == IntensityScaleEstablishmentSource.DECLARED_BY_USER.value
+    )
     assert workflow_payload["input_declaration_source"] == (
         "dataset_build_request.input_intensity_scale"
     )
@@ -102,6 +107,10 @@ def test_builder_log2_transformation_records_transformed_mode_in_provenance() ->
 
     workflow_payload = _workflow_establishment_payload(built)
     assert workflow_payload["establishment_mode"] == "transformed"
+    assert (
+        workflow_payload["establishment_source"]
+        == IntensityScaleEstablishmentSource.TRANSFORMED_BY_PHOSPY.value
+    )
     assert workflow_payload["transformer_name"] == (
         "phospy.science.transformations.transformers.log2.Log2Transformer"
     )
@@ -161,6 +170,10 @@ def test_builder_identity_pass_through_with_declared_linear_records_declared_mod
 
     workflow_payload = _workflow_establishment_payload(built)
     assert workflow_payload["establishment_mode"] == "declared"
+    assert (
+        workflow_payload["establishment_source"]
+        == IntensityScaleEstablishmentSource.DECLARED_BY_USER.value
+    )
     assert workflow_payload["transformer_name"] is None
 
 

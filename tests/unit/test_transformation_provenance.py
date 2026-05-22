@@ -7,6 +7,7 @@ from phospy.science.datasets.builders.transformation_resolver import (
 )
 from phospy.science.transformations.models import (
     IntensityScaleEstablishmentMode,
+    IntensityScaleEstablishmentSource,
     IntensityScaleState,
     MatrixIntensityScaleState,
     QuantitativeMeaning,
@@ -43,6 +44,10 @@ def test_establishment_provenance_payload_exposes_mode_and_scale() -> None:
     assert payload["scale"] == "linear"
     assert (
         payload["establishment_mode"] == IntensityScaleEstablishmentMode.DECLARED.value
+    )
+    assert (
+        payload["establishment_source"]
+        == IntensityScaleEstablishmentSource.DECLARED_BY_USER.value
     )
     assert payload["diagnostic_warnings"] == []
 

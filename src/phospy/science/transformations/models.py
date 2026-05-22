@@ -39,6 +39,14 @@ class IntensityScaleEstablishmentMode(str, Enum):
     DERIVED = "derived"
 
 
+class IntensityScaleEstablishmentSource(str, Enum):
+    """Provenance source for how intensity-scale truth was established."""
+
+    TRANSFORMED_BY_PHOSPY = "transformed_by_phospy"
+    DECLARED_BY_USER = "declared_by_user"
+    RESTORED_FROM_TRUSTED_PROVENANCE = "restored_from_trusted_provenance"
+
+
 class QuantitativeMeaning(str, Enum):
     """Scientific interpretation of phospho matrix values."""
 
@@ -59,6 +67,7 @@ class IntensityScaleEstablishmentProvenance:
 
     scale: str
     mode: IntensityScaleEstablishmentMode
+    source: IntensityScaleEstablishmentSource
     transformer_name: str | None = None
     input_declaration_source: str | None = None
     parameters: dict[str, object] = field(
@@ -86,6 +95,18 @@ class IntensityScaleEstablishmentProvenance:
                     f"{self.mode!r}; supported: {supported}"
                 ) from exc
             object.__setattr__(self, "mode", mode)
+        if not isinstance(cast(object, self.source), IntensityScaleEstablishmentSource):
+            try:
+                source = IntensityScaleEstablishmentSource(str(self.source))
+            except ValueError as exc:
+                supported = ", ".join(
+                    item.value for item in IntensityScaleEstablishmentSource
+                )
+                raise InvalidTransformationStateError(
+                    "unsupported intensity-scale establishment source "
+                    f"{self.source!r}; supported: {supported}"
+                ) from exc
+            object.__setattr__(self, "source", source)
         transformer_name = (
             None
             if self.transformer_name is None
@@ -124,6 +145,7 @@ class IntensityScaleEstablishmentProvenance:
         return {
             "scale": self.scale,
             "establishment_mode": self.mode.value,
+            "establishment_source": self.source.value,
             "transformer_name": self.transformer_name,
             "input_declaration_source": self.input_declaration_source,
             "parameters": dict(self.parameters),
@@ -294,6 +316,14 @@ class IntensityScaleState:
             return None
         return self._establishment_provenance
 
+    @property
+    def establishment_authority_source(self) -> str | None:
+        """Internal authority lane that established this state, when available."""
+
+        if not self.is_established:
+            return None
+        return self._establishment_authority_source
+
     @classmethod
     def raw(cls, *, has_total_matrix: bool = False) -> IntensityScaleState:
         """Create a canonical declared linear state (not yet established)."""
@@ -390,6 +420,10 @@ class IntensityScaleState:
             IntensityScaleEstablishmentProvenance(
                 scale=established.label,
                 mode=resolved_mode,
+                source=_resolve_establishment_source(
+                    authority_source=authority_source,
+                    establishment_mode=resolved_mode,
+                ),
                 transformer_name=transformer_name,
                 input_declaration_source=input_declaration_source,
                 parameters=dict(parameters),
@@ -520,3 +554,15 @@ def _validate_quantitative_meaning_kind_coherence(
         raise InvalidTransformationStateError(
             f"quantitative meaning '{quantity.value}' requires log2 intensity scale"
         )
+
+
+def _resolve_establishment_source(
+    *,
+    authority_source: str,
+    establishment_mode: IntensityScaleEstablishmentMode,
+) -> IntensityScaleEstablishmentSource:
+    if authority_source == "phospy.io.bundles._shared.intensity_scale_state":
+        return IntensityScaleEstablishmentSource.RESTORED_FROM_TRUSTED_PROVENANCE
+    if establishment_mode is IntensityScaleEstablishmentMode.DECLARED:
+        return IntensityScaleEstablishmentSource.DECLARED_BY_USER
+    return IntensityScaleEstablishmentSource.TRANSFORMED_BY_PHOSPY

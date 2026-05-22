@@ -37,6 +37,7 @@ from phospy.science.references.models import Organism
 from phospy.science.transformations.contracts import TransformationResult
 from phospy.science.transformations.models import (
     IntensityScaleEstablishmentMode,
+    IntensityScaleEstablishmentSource,
     IntensityScaleKind,
     IntensityScaleState,
     MatrixIntensityScaleState,
@@ -640,6 +641,12 @@ def test_bundle_reconstruction_lane_establishes_state() -> None:
 
     assert state.is_established
     assert state.established_via == "phospy.io.bundles._shared.intensity_scale_state"
+    provenance = state.establishment_provenance
+    assert provenance is not None
+    assert (
+        provenance.source
+        is IntensityScaleEstablishmentSource.RESTORED_FROM_TRUSTED_PROVENANCE
+    )
 
 
 def test_processing_state_payload_rejects_minimal_total_correction_without_explicit_quantitative_meaning() -> (
