@@ -9,8 +9,7 @@ kinase prediction, and optional signalome analysis.
 does not imply full PhosR package parity or full PhosR API compatibility.
 
 PhosPy does **not** provide HTTP endpoints or a web service. The supported user
-interface is the Python API. The `phospy` command-line workflow interface is
-not currently supported.
+interface is the Python API.
 
 ## Recommended Reading
 You can view the full documentation here: [Phospy Docs](https://phospy.com/docs)

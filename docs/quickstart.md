@@ -114,9 +114,19 @@ print(
 )
 
 scale_guard = signalome_result.provenance.workflow_parameters["scale_guard"]
-print("tree generation mode", scale_guard["tree_generation_mode"])
-print("tree generation is approximate", scale_guard["tree_generation_is_approximate"])
-print("candidate scoring mode", scale_guard["candidate_scoring_mode"])
+
+print(
+    "tree generation mode", 
+    scale_guard["tree_generation_mode"]
+)
+print(
+    "tree generation is approximate", 
+    scale_guard["tree_generation_is_approximate"]
+)
+print(
+    "candidate scoring mode", 
+    scale_guard["candidate_scoring_mode"]
+)
 print(
     "candidate scoring is approximate",
     scale_guard["candidate_scoring_is_approximate"],
