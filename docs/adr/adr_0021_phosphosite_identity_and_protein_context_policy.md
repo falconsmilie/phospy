@@ -73,6 +73,19 @@ workflows, centred context requires:
 If relaxed/gapped/unknown context is allowed, that allowance must be explicit
 in the validator policy.
 
+Base dataset/site-metadata validation guarantees only sequence plausibility, not
+full centred context semantics. The base `site_sequence` policy is explicit:
+
+- non-empty, non-whitespace strings are required
+- allowed amino-acid residues: `A C D E F G H I K L M N P Q R S T V W Y`
+- allowed unknown residue: `X`
+- allowed gap/placeholders: `_` and `-`
+- unsupported letters such as `B`, `J`, `O`, `U`, `Z` are rejected
+
+Base validation deliberately does **not** guarantee odd-length windows,
+phosphorylatable centre residue, or centre/site token agreement. Those stricter
+rules remain owned by sequence-aware workflow identity contracts.
+
 ### Compatibility
 
 Standardized `GENE;SITE;` parsing remains supported and is still required for

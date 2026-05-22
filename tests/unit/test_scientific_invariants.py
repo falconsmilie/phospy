@@ -67,7 +67,7 @@ def _normalisation_state(*, phospho: pd.DataFrame, policy: str) -> Preprocessing
         {
             "gene_symbol": ["A", "B", "C", "D"][: len(phospho.index)],
             "site": ["S1", "S2", "S3", "S4"][: len(phospho.index)],
-            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"][: len(phospho.index)],
+            "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C", "SEQ_D"][: len(phospho.index)],
         },
         index=phospho.index.copy(),
     )
@@ -345,7 +345,7 @@ def test_duplicate_site_resolution_is_deterministic_for_max_mean_signal_policy()
         {
             "gene_symbol": ["MAPK14", "MAPK14", "AKT1"],
             "site": ["Y182", "Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
             "protein_id": ["P1", "P1", "P3"],
         },
         index=phospho.index.copy(),

@@ -280,7 +280,7 @@ def test_dataset_builder_applies_subtract_log_total_after_log2_transform() -> No
         {
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
             "site": ["Y182", "T308", "S9"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
         },
         index=phospho.index.copy(),
     )
@@ -413,7 +413,7 @@ def test_dataset_builder_marks_mixed_quantitative_meaning_when_uncorrected_rows_
         {
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "site_sequence": ["SEQ_A", "SEQ_R"],
             "protein_id": ["MAPK14", "AKT1"],
         },
         index=phospho.index.copy(),
@@ -819,7 +819,7 @@ def test_dataset_builder_supports_site_matrix_build_from_metadata_policy() -> No
         {
             "gene_symbol": ["MAPK14", "MAPK14", "AKT1"],
             "site": ["Y182", "Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
         },
         index=phospho.index.copy(),
     )
@@ -845,7 +845,7 @@ def test_dataset_builder_supports_site_matrix_build_from_metadata_policy() -> No
     assert built.phospho.iloc[0, 0] == pytest.approx(2.0)
     assert built.phospho.iloc[0, 1] == pytest.approx(2.5)
     assert built.site_metadata.index.tolist() == ["MAPK14;Y182;"]
-    assert built.site_metadata.loc["MAPK14;Y182;", "site_sequence"] == "SEQ_B"
+    assert built.site_metadata.loc["MAPK14;Y182;", "site_sequence"] == "SEQ_R"
     assert built.processing_state.site_matrix.policy == "build_from_metadata"
     assert built.processing_state.site_matrix.constructed is True
 
@@ -1213,7 +1213,7 @@ def test_dataset_builder_builds_inferred_comparisons_from_sample_metadata() -> N
         {
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "site_sequence": ["SEQ_A", "SEQ_R"],
         },
         index=phospho.index.copy(),
     )
@@ -1377,7 +1377,7 @@ def test_dataset_builder_log2_preprocessing_records_operation_and_state() -> Non
         {
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "site_sequence": ["SEQ_A", "SEQ_R"],
         },
         index=phospho.index.copy(),
     )
@@ -1611,7 +1611,7 @@ def test_dataset_builder_median_center_preprocessing_records_operation() -> None
         {
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
             "site": ["Y182", "T308", "S9"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
         },
         index=phospho.index.copy(),
     )
@@ -1678,7 +1678,7 @@ def test_dataset_builder_quantile_preprocessing_records_operation() -> None:
         {
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
             "site": ["Y182", "T308", "S9"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
         },
         index=phospho.index.copy(),
     )
@@ -1737,7 +1737,7 @@ def test_dataset_builder_emits_machine_readable_run_provenance() -> None:
         {
             "gene_symbol": ["MAPK14", "MAPK14", "AKT1", "GSK3B"],
             "site": ["Y182", "Y182", "T308", "S9"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "", "SEQ_D"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "", "SEQ_D"],
         },
         index=phospho.index.copy(),
     )
@@ -1827,7 +1827,7 @@ def test_dataset_builder_marks_minprob_stage_as_seeded_stochastic() -> None:
         {
             "gene_symbol": ["MAPK14", "AKT1", "PRKACA"],
             "site": ["Y182", "T308", "S339"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
         },
         index=phospho.index.copy(),
     )

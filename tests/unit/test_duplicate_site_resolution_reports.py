@@ -28,7 +28,7 @@ def _duplicate_policy_inputs() -> tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
         {
             "gene_symbol": ["MAPK14", "MAPK14", "AKT1"],
             "site": ["Y182", "Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
             "protein_id": ["PROT_A", "PROT_A", "PROT_C"],
             "uid": ["A", "B", "C"],
         },
@@ -197,7 +197,7 @@ def test_duplicate_site_policy_reports_metadata_conflicts() -> None:
                 {
                     "gene_symbol": ["AKT1", "MAPK14"],
                     "site": ["T308", "Y182"],
-                    "site_sequence": ["SEQ_C", "SEQ_B"],
+                    "site_sequence": ["SEQ_C", "SEQ_R"],
                     "protein_id": ["PROT_C", "PROT_A"],
                     "uid": ["C", "B"],
                 },

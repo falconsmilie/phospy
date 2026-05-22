@@ -21,7 +21,7 @@ def _site_metadata_without_sequences() -> pd.DataFrame:
 
 def test_site_sequence_deriver_preserves_provided_sequences() -> None:
     site_metadata = _site_metadata_without_sequences()
-    site_metadata.loc[:, "site_sequence"] = ["SEQ_A", "SEQ_B"]
+    site_metadata.loc[:, "site_sequence"] = ["SEQ_A", "SEQ_R"]
     deriver = SiteSequenceDeriver()
 
     resolved = deriver.run(
@@ -31,7 +31,7 @@ def test_site_sequence_deriver_preserves_provided_sequences() -> None:
         derive_missing_from_reference=False,
     )
 
-    assert resolved.loc[:, "site_sequence"].tolist() == ["SEQ_A", "SEQ_B"]
+    assert resolved.loc[:, "site_sequence"].tolist() == ["SEQ_A", "SEQ_R"]
     report = deriver.last_report
     assert report is not None
     assert report.provided_sequence_count == 2
@@ -66,7 +66,7 @@ def test_site_sequence_deriver_derives_missing_sequences_from_supported_referenc
 
 def test_site_sequence_deriver_fails_clearly_for_blank_provided_sequence() -> None:
     site_metadata = _site_metadata_without_sequences()
-    site_metadata.loc[:, "site_sequence"] = ["", "SEQ_B"]
+    site_metadata.loc[:, "site_sequence"] = ["", "SEQ_R"]
     deriver = SiteSequenceDeriver()
 
     with pytest.raises(

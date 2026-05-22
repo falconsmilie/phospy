@@ -50,7 +50,7 @@ def test_builder_supports_all_publicly_advertised_site_matrix_missing_data_modes
         {
             "gene_symbol": ["MAPK14", "GSK3B"],
             "site": ["Y182", "S9"],
-            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "site_sequence": ["SEQ_A", "SEQ_R"],
             "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
@@ -144,7 +144,7 @@ def test_builder_site_sequence_mixed_support_keeps_resolvable_rows_and_excludes_
         {
             "gene_symbol": ["MAPK14", "GSK3B", "FAKE1", "FAKE2"],
             "site": ["Y182", "S9", "S1", "T2"],
-            "site_sequence": [pd.NA, "SEQ_MANUAL", pd.NA, "   "],
+            "site_sequence": [pd.NA, "SEQ_MANXAL", pd.NA, "   "],
             "localisation_confidence": [0.95, 0.9, 0.8, 0.85],
         },
         index=phospho.index.copy(),
@@ -164,7 +164,7 @@ def test_builder_site_sequence_mixed_support_keeps_resolvable_rows_and_excludes_
 
     assert built.phospho.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
     assert built.site_metadata.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
-    assert built.site_metadata.loc["GSK3B;S9;", "site_sequence"] == "SEQ_MANUAL"
+    assert built.site_metadata.loc["GSK3B;S9;", "site_sequence"] == "SEQ_MANXAL"
     assert isinstance(built.site_metadata.loc["MAPK14;Y182;", "site_sequence"], str)
     assert built.preprocessing_report is not None
     assert built.preprocessing_report.row_audit is not None

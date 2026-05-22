@@ -646,6 +646,48 @@ def test_site_metadata_rejects_implausible_site_sequence_values(
         SiteMetadataTable(frame=frame, expected_index=phospho.frame.index)
 
 
+@pytest.mark.parametrize(
+    "invalid_letter_sequence",
+    ["AAAAABAAAAA", "AAAAAJAAAAA", "AAAAAOAAAAA", "AAAAAUAAAAA", "AAAAAZAAAAA"],
+)
+def test_site_metadata_rejects_non_policy_amino_acid_letters(
+    invalid_letter_sequence: str,
+) -> None:
+    phospho = PhosphoIntensityMatrix(frame=_phospho_frame())
+    frame = _site_metadata_frame(phospho.frame.index).copy(deep=True)
+    frame.loc["MAPK14;Y182;", "site_sequence"] = invalid_letter_sequence
+    with pytest.raises(
+        DatasetValidationError,
+        match="allowed residues: ACDEFGHIKLMNPQRSTVWY",
+    ):
+        SiteMetadataTable(frame=frame, expected_index=phospho.frame.index)
+
+
+@pytest.mark.parametrize("blank_value", ["", "   "])
+def test_site_metadata_rejects_blank_site_sequence_values(blank_value: str) -> None:
+    phospho = PhosphoIntensityMatrix(frame=_phospho_frame())
+    frame = _site_metadata_frame(phospho.frame.index).copy(deep=True)
+    frame.loc["MAPK14;Y182;", "site_sequence"] = blank_value
+    with pytest.raises(
+        DatasetValidationError,
+        match="site_sequence must contain non-empty string values",
+    ):
+        SiteMetadataTable(frame=frame, expected_index=phospho.frame.index)
+
+
+@pytest.mark.parametrize(
+    "sequence_value", ["AAAAXYAAAAA", "AAAA-YAAAAA", "AAAA_YAAAAA"]
+)
+def test_site_metadata_accepts_explicit_unknown_and_gap_sequence_policy(
+    sequence_value: str,
+) -> None:
+    phospho = PhosphoIntensityMatrix(frame=_phospho_frame())
+    frame = _site_metadata_frame(phospho.frame.index).copy(deep=True)
+    frame.loc["MAPK14;Y182;", "site_sequence"] = sequence_value
+    wrapped = SiteMetadataTable(frame=frame, expected_index=phospho.frame.index)
+    assert wrapped.frame.loc["MAPK14;Y182;", "site_sequence"] == sequence_value
+
+
 def test_dataset_schema_sample_metadata_index_mismatch_fails() -> None:
     phospho = PhosphoIntensityMatrix(frame=_phospho_frame())
     sample_metadata = pd.DataFrame(

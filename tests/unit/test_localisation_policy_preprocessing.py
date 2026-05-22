@@ -32,7 +32,7 @@ def _site_metadata(
     payload: dict[str, list[object]] = {
         "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
         "site": ["Y182", "T308", "S9"],
-        "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+        "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
     }
     if include_localisation_column:
         payload["localisation_confidence"] = (

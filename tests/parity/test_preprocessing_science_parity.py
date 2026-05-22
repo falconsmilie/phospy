@@ -77,7 +77,7 @@ def test_row_median_missing_data_policy_is_deterministic_and_provenance_backed(
         {
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
             "site": ["Y182", "T308", "S9"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
             "localisation_confidence": [0.95] * phospho.shape[0],
         },
         index=phospho.index.copy(),
@@ -173,7 +173,7 @@ def test_minprob_missing_data_policy_is_deterministic_and_seeded(
         {
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B", "PRKACA"],
             "site": ["Y182", "T308", "S9", "S339"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C", "SEQ_D"],
             "localisation_confidence": [0.95] * phospho.shape[0],
         },
         index=phospho.index.copy(),

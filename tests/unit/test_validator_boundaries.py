@@ -1463,7 +1463,7 @@ def test_kinase_validator_does_not_filter_rows_for_localisation_policy() -> None
             }
         ),
         site_sequences=pd.DataFrame(
-            {"site_sequence": ["SEQ_A", "SEQ_B"]},
+            {"site_sequence": ["SEQ_A", "SEQ_R"]},
             index=site_ids.copy(),
         ),
     )
@@ -1513,7 +1513,7 @@ def test_signalome_validator_does_not_filter_rows_for_localisation_policy() -> N
             }
         ),
         site_sequences=pd.DataFrame(
-            {"site_sequence": ["SEQ_A", "SEQ_B"]},
+            {"site_sequence": ["SEQ_A", "SEQ_R"]},
             index=site_ids.copy(),
         ),
     )

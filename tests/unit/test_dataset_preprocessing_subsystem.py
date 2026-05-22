@@ -708,7 +708,7 @@ def test_dataset_preprocessor_knn_imputes_expected_values_and_preserves_labels()
         {
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B", "PRKACA"],
             "site": ["Y182", "T308", "S9", "S339"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C", "SEQ_D"],
             "localisation_confidence": [0.95, 0.96, 0.9, 0.88],
         },
         index=phospho.index.copy(),
@@ -914,7 +914,7 @@ def test_dataset_preprocessor_minprob_is_deterministic_for_same_seed() -> None:
         {
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B", "PRKACA"],
             "site": ["Y182", "T308", "S9", "S339"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C", "SEQ_D"],
             "localisation_confidence": [0.95, 0.96, 0.9, 0.88],
         },
         index=phospho.index.copy(),
@@ -966,7 +966,7 @@ def test_dataset_preprocessor_minprob_changes_with_seed() -> None:
         {
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B", "PRKACA"],
             "site": ["Y182", "T308", "S9", "S339"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C", "SEQ_D"],
             "localisation_confidence": [0.95, 0.96, 0.9, 0.88],
         },
         index=phospho.index.copy(),
@@ -1168,7 +1168,7 @@ def test_dataset_preprocessor_builds_site_matrix_from_metadata_policy() -> None:
         {
             "gene_symbol": ["MAPK14", "MAPK14", "AKT1", "GSK3B"],
             "site": ["Y182", "Y182", "T308", "S9"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "", "SEQ_D"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "", "SEQ_D"],
             "source_uid": ["UID_A", "UID_B", "UID_C", "UID_D"],
             "localisation_confidence": [0.95, 0.92, 0.91, 0.9],
         },
@@ -1198,7 +1198,7 @@ def test_dataset_preprocessor_builds_site_matrix_from_metadata_policy() -> None:
         {
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
-            "site_sequence": ["SEQ_B"],
+            "site_sequence": ["SEQ_R"],
             "source_uid": ["UID_B"],
             "localisation_confidence": [0.92],
         },
@@ -1223,7 +1223,7 @@ def test_dataset_preprocessor_site_matrix_retain_missing_policy_keeps_partial_ro
         {
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "site_sequence": ["SEQ_A", "SEQ_R"],
             "localisation_confidence": [0.95, 0.96],
         },
         index=phospho.index.copy(),
@@ -1268,7 +1268,7 @@ def test_dataset_preprocessor_site_matrix_supports_min_observed_and_duplicate_ag
         {
             "gene_symbol": ["MAPK14", "MAPK14", "AKT1"],
             "site": ["Y182", "Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
             "uid": ["A", "B", "C"],
             "localisation_confidence": [0.95, 0.92, 0.97],
         },
@@ -1313,7 +1313,7 @@ def test_dataset_preprocessor_site_matrix_duplicate_first_policy_keeps_first_row
         {
             "gene_symbol": ["MAPK14", "MAPK14"],
             "site": ["Y182", "Y182"],
-            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "site_sequence": ["SEQ_A", "SEQ_R"],
             "uid": ["A", "B"],
             "localisation_confidence": [0.95, 0.92],
         },
@@ -1353,7 +1353,7 @@ def test_dataset_preprocessor_site_matrix_duplicate_aggregate_median_policy() ->
         {
             "gene_symbol": ["MAPK14", "MAPK14", "AKT1"],
             "site": ["Y182", "Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
             "uid": ["A", "B", "C"],
             "localisation_confidence": [0.95, 0.92, 0.97],
         },
@@ -1431,7 +1431,7 @@ def test_dataset_preprocessor_rejects_site_matrix_duplicate_rows_in_error_mode()
         {
             "gene_symbol": ["MAPK14", "MAPK14"],
             "site": ["Y182", "Y182"],
-            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "site_sequence": ["SEQ_A", "SEQ_R"],
             "localisation_confidence": [0.95, 0.92],
         },
         index=phospho.index.copy(),
@@ -2100,7 +2100,7 @@ def test_dataset_builder_request_quantitative_meaning_propagates_to_provenance()
         {
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "site_sequence": ["SEQ_A", "SEQ_R"],
             "localisation_confidence": [0.95, 0.96],
         },
         index=phospho.index.copy(),
@@ -2371,7 +2371,7 @@ def test_dataset_preprocessor_quantile_normalisation_equalises_column_distributi
         {
             "gene_symbol": ["A", "B", "C", "D"],
             "site": ["S1", "S1", "S1", "S1"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C", "SEQ_D"],
             "localisation_confidence": [0.95, 0.94, 0.93, 0.92],
         },
         index=phospho.index.copy(),
@@ -2414,7 +2414,7 @@ def test_dataset_preprocessor_quantile_normalisation_is_deterministic_with_ties_
         {
             "gene_symbol": ["A", "B", "C", "D"],
             "site": ["S1", "S1", "S1", "S1"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C", "SEQ_D"],
             "localisation_confidence": [0.95, 0.94, 0.93, 0.92],
         },
         index=phospho.index.copy(),
@@ -2460,7 +2460,7 @@ def test_dataset_preprocessor_site_matrix_min_observed_filter_can_keep_all_rows(
         {
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "site_sequence": ["SEQ_A", "SEQ_R"],
             "localisation_confidence": [0.95, 0.96],
         },
         index=phospho.index.copy(),
@@ -2506,7 +2506,7 @@ def test_dataset_preprocessor_site_matrix_min_observed_filter_can_remove_all_row
         {
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "site_sequence": ["SEQ_A", "SEQ_R"],
             "localisation_confidence": [0.95, 0.96],
         },
         index=phospho.index.copy(),
@@ -2547,7 +2547,7 @@ def test_dataset_preprocessor_trace_tracks_stagewise_transform_progression() -> 
         {
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
             "site": ["Y182", "T308", "S9"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
             "localisation_confidence": [0.95, 0.96, 0.9],
         },
         index=phospho.index.copy(),
@@ -2619,7 +2619,7 @@ def test_dataset_preprocessor_rejects_non_numeric_phospho_columns_for_new_method
         {
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "site_sequence": ["SEQ_A", "SEQ_R"],
             "localisation_confidence": [0.95, 0.96],
         },
         index=phospho.index.copy(),

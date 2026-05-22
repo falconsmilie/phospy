@@ -357,7 +357,7 @@ def test_normalizer_rejects_duplicate_site_ids_introduced_by_canonicalization() 
                 {
                     "gene_symbol": ["MAPK14", "MAPK14"],
                     "site": ["Y182", "Y182"],
-                    "site_sequence": ["SEQ_A", "SEQ_B"],
+                    "site_sequence": ["SEQ_A", "SEQ_R"],
                 },
                 index=pd.Index(
                     ["mapk14;y182", " MAPK14 ; Y182 ;"],

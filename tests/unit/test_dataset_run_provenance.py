@@ -196,7 +196,7 @@ def test_dataset_builder_emits_run_provenance_and_stage_details() -> None:
         {
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
             "site": ["Y182", "T308", "S9"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
             "localisation_confidence": [0.95, 0.9, 0.92],
         },
         index=phospho.index.copy(),
@@ -369,7 +369,7 @@ def test_run_provenance_serializes_resolved_stage_order_for_minprob_with_log2() 
         {
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
             "site": ["Y182", "T308", "S9"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
             "localisation_confidence": [0.95, 0.9, 0.92],
         },
         index=phospho.index.copy(),
@@ -432,7 +432,7 @@ def test_run_provenance_serializes_resolved_stage_order_for_non_minprob_with_log
         {
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
             "site": ["Y182", "T308", "S9"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
             "localisation_confidence": [0.95, 0.9, 0.92],
         },
         index=phospho.index.copy(),

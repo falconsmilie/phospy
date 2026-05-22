@@ -59,7 +59,7 @@ def _site_metadata(index: pd.Index) -> pd.DataFrame:
         {
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "site_sequence": ["SEQ_A", "SEQ_R"],
             "localisation_confidence": [0.95, 0.9],
         },
         index=index.copy(),
@@ -252,7 +252,7 @@ def test_missing_data_stage_report_rows_appear_in_final_report() -> None:
         {
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "site_sequence": ["SEQ_A", "SEQ_R"],
             "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
@@ -291,7 +291,7 @@ def test_missing_data_stage_operations_report_imputation_summary_note() -> None:
         {
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "site_sequence": ["SEQ_A", "SEQ_R"],
             "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
@@ -337,7 +337,7 @@ def test_final_dataset_has_complete_matrix_after_missing_data_imputation() -> No
         {
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "site_sequence": ["SEQ_A", "SEQ_R"],
             "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
@@ -587,7 +587,7 @@ def test_minimal_custom_stage_emits_supported_report_row_into_final_report() -> 
         {
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "site_sequence": ["SEQ_A", "SEQ_R"],
             "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
@@ -636,7 +636,7 @@ def test_executor_applies_explicit_quantitative_meaning_to_dataset_and_provenanc
         {
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "site_sequence": ["SEQ_A", "SEQ_R"],
             "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
@@ -776,7 +776,7 @@ def test_missing_data_stage_row_median_emits_structured_diagnostics() -> None:
             {
                 "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
                 "site": ["Y182", "T308", "S9"],
-                "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+                "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
             },
             index=phospho.index.copy(),
         ),
@@ -834,7 +834,7 @@ def test_missing_data_stage_row_median_values_remain_unchanged() -> None:
             {
                 "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
                 "site": ["Y182", "T308", "S9"],
-                "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+                "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
             },
             index=phospho.index.copy(),
         ),
@@ -884,7 +884,7 @@ def test_missing_data_stage_minprob_emits_distribution_diagnostics_and_drops_row
             {
                 "gene_symbol": ["MAPK14", "AKT1", "GSK3B", "PRKACA"],
                 "site": ["Y182", "T308", "S9", "S339"],
-                "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+                "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C", "SEQ_D"],
             },
             index=phospho.index.copy(),
         ),
@@ -945,7 +945,7 @@ def test_missing_data_stage_minprob_is_deterministic_for_same_seed() -> None:
         {
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B", "PRKACA"],
             "site": ["Y182", "T308", "S9", "S339"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C", "SEQ_D"],
             "localisation_confidence": [0.95, 0.9, 0.92, 0.94],
         },
         index=phospho.index.copy(),
@@ -995,7 +995,7 @@ def test_missing_data_stage_minprob_changes_with_seed() -> None:
         {
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B", "PRKACA"],
             "site": ["Y182", "T308", "S9", "S339"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C", "SEQ_D"],
             "localisation_confidence": [0.95, 0.9, 0.92, 0.94],
         },
         index=phospho.index.copy(),
@@ -1056,7 +1056,7 @@ def test_missing_data_stage_minprob_rejects_incompatible_stage_order() -> None:
             {
                 "gene_symbol": ["MAPK14", "AKT1", "PRKACA"],
                 "site": ["Y182", "T308", "S339"],
-                "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_D"],
+                "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_D"],
             },
             index=phospho.index.copy(),
         ),
@@ -1095,7 +1095,7 @@ def test_missing_data_stage_knn_imputes_drops_and_reports_diagnostics() -> None:
             {
                 "gene_symbol": ["MAPK14", "AKT1", "GSK3B", "PRKACA"],
                 "site": ["Y182", "T308", "S9", "S339"],
-                "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+                "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C", "SEQ_D"],
             },
             index=phospho.index.copy(),
         ),
@@ -1153,7 +1153,7 @@ def test_missing_data_stage_knn_rejects_columns_without_observed_values() -> Non
             {
                 "gene_symbol": ["MAPK14", "AKT1"],
                 "site": ["Y182", "T308"],
-                "site_sequence": ["SEQ_A", "SEQ_B"],
+                "site_sequence": ["SEQ_A", "SEQ_R"],
             },
             index=phospho.index.copy(),
         ),

@@ -63,7 +63,7 @@ def test_reference_resolver_keeps_explicit_bundle_identity_and_provenance() -> N
             {"kinase": ["AKT1"], "substrate_site": ["AKT1;T308;"]}
         ),
         site_sequences=pd.DataFrame(
-            {"site_sequence": ["SEQ_B"]},
+            {"site_sequence": ["SEQ_R"]},
             index=pd.Index(["AKT1;T308;"], name="site_id"),
         ),
     )

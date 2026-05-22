@@ -51,7 +51,7 @@ def _duplicate_policy_inputs() -> tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
         {
             "gene_symbol": ["MAPK14", "MAPK14", "AKT1"],
             "site": ["Y182", "Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
             "protein_id": ["PROT_A", "PROT_A", "PROT_C"],
             "uid": ["A", "B", "C"],
         },
@@ -190,7 +190,7 @@ def test_site_matrix_assembler_preserves_index_order_and_dropped_row_ids() -> No
             {
                 "gene_symbol": ["MAPK14", "AKT1"],
                 "site": ["Y182", "T308"],
-                "site_sequence": ["SEQ_B", "SEQ_A"],
+                "site_sequence": ["SEQ_R", "SEQ_A"],
             },
             index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
         ),
@@ -234,7 +234,7 @@ def test_site_matrix_provenance_builder_preserves_fields_and_diagnostics() -> No
         {
             "gene_symbol": ["AKT1", "MAPK14"],
             "site": ["T308", "Y182"],
-            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "site_sequence": ["SEQ_A", "SEQ_R"],
         },
         index=phospho.index.copy(),
     )
@@ -356,7 +356,7 @@ def test_site_matrix_provenance_builder_preserves_fields_and_diagnostics() -> No
                 {
                     "gene_symbol": ["AKT1", "MAPK14"],
                     "site": ["T308", "Y182"],
-                    "site_sequence": ["SEQ_C", "SEQ_B"],
+                    "site_sequence": ["SEQ_C", "SEQ_R"],
                     "protein_id": ["PROT_C", "PROT_A"],
                     "uid": ["C", "B"],
                 },
@@ -660,7 +660,7 @@ def test_site_matrix_stage_orchestration_remains_stable_for_representative_fixtu
         {
             "gene_symbol": ["MAPK14", "MAPK14", "AKT1", "GSK3B"],
             "site": ["Y182", "Y182", "T308", "S9"],
-            "site_sequence": ["SEQ_A", "SEQ_B", "", "SEQ_D"],
+            "site_sequence": ["SEQ_A", "SEQ_R", "", "SEQ_D"],
             "protein_id": ["P_A", "P_A", "P_C", "P_D"],
         },
         index=phospho.index.copy(),

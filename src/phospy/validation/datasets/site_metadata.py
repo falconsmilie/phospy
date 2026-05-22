@@ -21,6 +21,37 @@ _PHOSPHORYLATABLE_RESIDUES = frozenset({"S", "T", "Y"})
 _EXAMPLE_LIMIT = 5
 _SITE_POSITION_CANDIDATE_COLUMNS = ("site_position", "position")
 _SUPPORTED_GAP_SEQUENCE_CHARACTERS = frozenset({"_", "-"})
+_CANONICAL_AMINO_ACID_RESIDUES = frozenset(
+    {
+        "A",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G",
+        "H",
+        "I",
+        "K",
+        "L",
+        "M",
+        "N",
+        "P",
+        "Q",
+        "R",
+        "S",
+        "T",
+        "V",
+        "W",
+        "Y",
+    }
+)
+_SUPPORTED_UNKNOWN_SEQUENCE_CHARACTERS = frozenset({"X"})
+_SUPPORTED_BASE_SEQUENCE_SPECIAL_CHARACTERS = frozenset({"_", "-"})
+_SUPPORTED_BASE_SEQUENCE_CHARACTERS = frozenset(
+    _CANONICAL_AMINO_ACID_RESIDUES
+    | _SUPPORTED_UNKNOWN_SEQUENCE_CHARACTERS
+    | _SUPPORTED_BASE_SEQUENCE_SPECIAL_CHARACTERS
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -330,23 +361,35 @@ def validate_site_sequence_column(
             invalid_rows.append(f"{site_id!r}:{raw_value!r}")
             continue
         sequence = raw_value.strip().upper()
+        if sequence == "":
+            invalid_rows.append(f"{site_id!r}:{raw_value!r}:blank_sequence")
+            continue
         if len(sequence) < 3:
             invalid_rows.append(f"{site_id!r}:{raw_value!r}:sequence_too_short")
             continue
-        if not any(character.isalpha() for character in sequence):
+        unsupported_characters = sorted(
+            {
+                character
+                for character in sequence
+                if character not in _SUPPORTED_BASE_SEQUENCE_CHARACTERS
+            }
+        )
+        if unsupported_characters:
+            invalid_rows.append(
+                f"{site_id!r}:{raw_value!r}:unsupported_characters={''.join(unsupported_characters)!r}"
+            )
+            continue
+        if not any(
+            character in _CANONICAL_AMINO_ACID_RESIDUES for character in sequence
+        ):
             invalid_rows.append(f"{site_id!r}:{raw_value!r}:no_residue_letters")
             continue
-        if any(
-            (not character.isalpha()) and character != "_" for character in sequence
-        ):
-            invalid_rows.append(
-                f"{site_id!r}:{raw_value!r}:unsupported_sequence_characters"
-            )
     if not invalid_rows:
         return
     raise error_type(
-        f"{field_name}.{column_name} must be plausible amino-acid context strings; "
-        + _summarise_examples(invalid_rows)
+        f"{field_name}.{column_name} must be plausible amino-acid context strings "
+        "(allowed residues: ACDEFGHIKLMNPQRSTVWY; allowed unknown: X; "
+        "allowed gap placeholders: '_' and '-'); " + _summarise_examples(invalid_rows)
     )
 
 

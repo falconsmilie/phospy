@@ -78,7 +78,7 @@ def _peptide_evidence_frame(*, include_single_site: bool = True) -> pd.DataFrame
                 "modified_peptide_sequence": "BB[+80]BBB",
                 "multi_site": False,
                 "provenance_source": "maxquant",
-                "site_sequence": "BBBBBBBBBBBBBBBSBBBBBBBBBBBBBBB",
+                "site_sequence": "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
                 "localisation_confidence": 0.9,
             }
         )
@@ -274,7 +274,7 @@ def test_multiple_peptides_mapping_to_one_site_are_mean_aggregated() -> None:
                 "modified_peptide_sequence": "BB[+80]BBB",
                 "multi_site": False,
                 "provenance_source": "maxquant",
-                "site_sequence": "BBBBBBBBBBBBBBBSBBBBBBBBBBBBBBB",
+                "site_sequence": "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
                 "localisation_confidence": 0.92,
             },
         ]
