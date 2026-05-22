@@ -2,34 +2,49 @@
 
 All notable changes to this project are documented here.
 
-## [1.5.2] - 2026-05-06
+## [1.5.2] - 2026-05-22
 
 ### Added
 
 - explicit KSEA z-score activity scoring, shared threshold-membership policy handling, and condition-specific
   `activity_substrate_counts` reporting.
+- native limma-style moderated differential analysis as a first-class workflow, including robust eBayes trend
+  moderation, explicit quantitative meaning/provenance, and technical replicate aggregation policies.
+- peptide-evidence and multi-site ambiguity models with policy-driven peptide-to-site aggregation integrated into
+  dataset construction.
 - FASTA-backed site-sequence resolution components with configurable conflict policies and durable preprocessing/kinase
   provenance reporting.
+- stricter phosphosite identity/localisation contracts, sequence provenance, and workflow scientific-eligibility
+  reporting surfaces.
 - opt-in missing-data preprocessing policies for MinProb and KNN imputation, plus explicit forbid-path diagnostics and
   preprocessing readiness reporting.
 - structured identifier normalisation provenance and conflict diagnostics across dataset ingestion and reference-table
   boundaries.
+- schema-aware table readers with strict metadata/numeric parsing and explicit exact-vs-tolerance table hash metadata.
 - expanded signalome clustering components (candidate scoring/selection, module selection, tree building, scale guards,
   and backend diagnostics schemas) with explicit policy records.
-- docs and governance additions including ADR-0016/ADR-0017, contributor guidance, workflow contracts, and consolidated
-  release-notes pages.
+- expanded scientific and governance docs, including ADR-0016 through ADR-0022, testing audit assets, workflow
+  contracts, and a PhosR compatibility/scope matrix.
 
 ### Changed
 
+- reorganised domain implementation under `phospy.science` and moved internal contract ownership from `phospy.api` into
+  dedicated `phospy.contracts` modules.
 - split preprocessing configuration and processing-state responsibilities into focused modules/packages, with an
   authoritative stage registry and stricter diagnostics parsing.
+- split dataset-builder and preprocessing orchestration responsibilities into focused collaborators with stricter
+  `site_sequence` and sample-metadata contract enforcement.
 - refactored kinase and signalome workflow orchestration into dedicated runner/result/provenance collaborators for
   clearer ownership boundaries.
 - promoted high-impact scientific/workflow behaviour toggles to explicit enum-backed policy models with stricter public
   validation boundaries.
-- expanded strict typing and CI quality gates (Pyright coverage, benchmark/performance contracts, and broader boundary
-  contract tests).
-- refreshed docs, CLI docs, examples, and MkDocs structure/styling to match the current public API surfaces.
+- expanded strict typing and CI quality gates (Pyright coverage, realistic performance/data-scale benchmark contracts,
+  and broader boundary/parity regression suites).
+- refreshed docs, examples, and MkDocs structure/styling to match the current public API and scientific-scope claims.
+
+### Removed
+
+- removed the legacy `phospy` console-script CLI entry point and retired obsolete CLI workflow docs/tests.
 
 ### Fixed
 
@@ -40,6 +55,10 @@ All notable changes to this project are documented here.
   post-normalisation conflict/duplicate reporting.
 - stricter scientific matrix guard behaviour (forbid-policy enforcement, bool-frame rejection, and fail-fast invalid
   preprocessing metadata handling).
+- fixed centred site-sequence validation and phosphosite identity collision handling, and removed duplicate
+  analysis-ready validation paths.
+- enforced established log2 intensity scale before differential `logFC` emission and prevented unaudited
+  intensity-scale establishment.
 
 ## [1.5.1] - 2026-04-29
 
