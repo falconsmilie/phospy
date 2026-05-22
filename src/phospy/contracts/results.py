@@ -12,7 +12,10 @@ from phospy.errors.validation import WorkflowValidationError
 from phospy.frames.ownership import export_optional_dataframe, own_optional_dataframe
 from phospy.provenance.models import RunProvenance
 from phospy.science.activities.models import KinaseActivityResult
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.datasets.models import (
+    AnalysisReadyPhosphoDataset,
+    DatasetPreprocessingReport,
+)
 from phospy.science.differential.models import DifferentialAnalysisResult
 from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.science.references.models import ReferenceBundle
@@ -93,6 +96,12 @@ class KinaseWorkflowResult:
     site_attrition_summary: KinaseWorkflowSiteAttritionSummary | None = None
     activity_result: KinaseActivityResult | None = None
     provenance: RunProvenance | None = None
+
+    @property
+    def input_dataset_preprocessing_report(self) -> DatasetPreprocessingReport | None:
+        """Return preprocessing provenance of the input analysis-ready dataset."""
+
+        return self.dataset.preprocessing_report
 
 
 @dataclass(frozen=True, slots=True, init=False)
@@ -258,6 +267,12 @@ class SignalomeWorkflowResult:
     @property
     def protein_site_context(self) -> pd.DataFrame | None:
         return export_optional_dataframe(self._protein_site_context)
+
+    @property
+    def input_dataset_preprocessing_report(self) -> DatasetPreprocessingReport | None:
+        """Return preprocessing provenance of the input analysis-ready dataset."""
+
+        return self.dataset.preprocessing_report
 
     @classmethod
     def _from_owned(

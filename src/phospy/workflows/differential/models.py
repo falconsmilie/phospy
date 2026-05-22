@@ -7,7 +7,10 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from phospy.contracts.configs import DifferentialAnalysisConfig
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.datasets.models import (
+    AnalysisReadyPhosphoDataset,
+    DatasetPreprocessingReport,
+)
 from phospy.science.design.models import Contrast, ExperimentalDesign
 from phospy.science.differential.models import (
     ContrastMatrix,
@@ -33,6 +36,7 @@ class ValidatedDifferentialAnalysisRequest:
     config: DifferentialAnalysisConfig
     policy_provenance: DifferentialPolicyProvenance | None = None
     workflow_provenance: Mapping[str, object] | None = None
+    dataset_preprocessing_report: DatasetPreprocessingReport | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,6 +49,7 @@ class InterpretedDifferentialAnalysisRequest:
     residual_degrees_of_freedom: float
     policy_provenance: DifferentialPolicyProvenance | None = None
     workflow_provenance: Mapping[str, object] | None = None
+    dataset_preprocessing_report: DatasetPreprocessingReport | None = None
 
 
 class DifferentialAnalysisValidatorContract(Protocol):

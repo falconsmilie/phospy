@@ -98,6 +98,11 @@ class DatasetBuildExecutor:
             final_dataset_rows=int(len(transformed.phospho.index)),
             intensity_scale_label=transformed.intensity_scale_state.label,
             intensity_scale_establishment=transformed.intensity_scale_establishment,
+            declared_input_intensity_scale_kind=(
+                None
+                if request.declared_input_intensity_scale_kind is None
+                else request.declared_input_intensity_scale_kind.value
+            ),
             quantitative_meaning=transformed.quantitative_meaning,
             peptide_evidence_resolution=request.peptide_evidence_resolution,
         )

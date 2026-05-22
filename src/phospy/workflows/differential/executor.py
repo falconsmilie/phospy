@@ -53,7 +53,11 @@ class DifferentialAnalysisExecutor:
                 message_prefix="differential workflow boundary validation failed",
             )
         result = self._computation_executor.run(request.computation_request)
-        if request.workflow_provenance is None and request.policy_provenance is None:
+        if (
+            request.workflow_provenance is None
+            and request.policy_provenance is None
+            and request.dataset_preprocessing_report is None
+        ):
             return result
         return DifferentialAnalysisResult._from_owned(  # pyright: ignore[reportPrivateUsage] - trusted internal ownership-preserving constructor
             residual_variance=result.residual_variance,
@@ -73,6 +77,7 @@ class DifferentialAnalysisExecutor:
             policy_provenance=request.policy_provenance,
             contrast_tables=result._contrast_tables,  # pyright: ignore[reportPrivateUsage] - owned contrast tables are forwarded without copying
             workflow_provenance=request.workflow_provenance,
+            input_dataset_preprocessing_report=request.dataset_preprocessing_report,
         )
 
 

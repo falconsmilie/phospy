@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import pandas as pd
 
@@ -23,6 +23,9 @@ from phospy.validation.common.dataframes import (
     require_unique_columns,
     require_unique_index,
 )
+
+if TYPE_CHECKING:
+    from phospy.science.datasets.models import DatasetPreprocessingReport
 
 EMPIRICAL_BAYES_METHOD_STANDARD = "standard"
 EMPIRICAL_BAYES_METHOD_ROBUST = "robust"
@@ -576,6 +579,7 @@ class DifferentialAnalysisResult:
     mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None
     policy_provenance: DifferentialPolicyProvenance | None
     workflow_provenance: Mapping[str, object] | None
+    input_dataset_preprocessing_report: DatasetPreprocessingReport | None
     _contrast_tables: Mapping[str, pd.DataFrame]
 
     def __init__(
@@ -596,6 +600,7 @@ class DifferentialAnalysisResult:
         contrast_tables: Mapping[str, pd.DataFrame],
         policy_provenance: DifferentialPolicyProvenance | None = None,
         workflow_provenance: Mapping[str, object] | None = None,
+        input_dataset_preprocessing_report: DatasetPreprocessingReport | None = None,
         _assume_owned: bool = False,
     ) -> None:
         residual_variance = own_series(
@@ -678,6 +683,14 @@ class DifferentialAnalysisResult:
             raise PhosPyInputError(
                 "differential_result.workflow_provenance must be a mapping or None"
             )
+        if (
+            input_dataset_preprocessing_report is not None
+            and not _is_dataset_preprocessing_report(input_dataset_preprocessing_report)
+        ):
+            raise PhosPyInputError(
+                "differential_result.input_dataset_preprocessing_report must be "
+                "DatasetPreprocessingReport or None"
+            )
         owned_tables: dict[str, pd.DataFrame] = {}
         for contrast_name, table in contrast_tables.items():
             if not isinstance(cast(object, contrast_name), str) or not contrast_name:
@@ -745,6 +758,11 @@ class DifferentialAnalysisResult:
                 else {str(key): value for key, value in workflow_provenance.items()}
             ),
         )
+        object.__setattr__(
+            self,
+            "input_dataset_preprocessing_report",
+            input_dataset_preprocessing_report,
+        )
         object.__setattr__(self, "_contrast_tables", owned_tables)
 
     @property
@@ -793,6 +811,7 @@ class DifferentialAnalysisResult:
         contrast_tables: Mapping[str, pd.DataFrame],
         policy_provenance: DifferentialPolicyProvenance | None = None,
         workflow_provenance: Mapping[str, object] | None = None,
+        input_dataset_preprocessing_report: DatasetPreprocessingReport | None = None,
     ) -> DifferentialAnalysisResult:
         return cls(
             residual_variance=residual_variance,
@@ -810,8 +829,22 @@ class DifferentialAnalysisResult:
             policy_provenance=policy_provenance,
             contrast_tables=contrast_tables,
             workflow_provenance=workflow_provenance,
+            input_dataset_preprocessing_report=input_dataset_preprocessing_report,
             _assume_owned=True,
         )
+
+
+def _is_dataset_preprocessing_report(value: object) -> bool:
+    """Runtime guard without module-load import cycle with dataset models."""
+
+    try:
+        from phospy.science.datasets.models import (
+            DatasetPreprocessingReport as _DatasetPreprocessingReport,
+        )
+    except ImportError:
+        return False
+
+    return isinstance(value, _DatasetPreprocessingReport)
 
 
 def _validate_numeric_matrix(frame: pd.DataFrame, *, field_name: str) -> None:

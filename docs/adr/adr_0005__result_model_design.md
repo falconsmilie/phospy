@@ -20,6 +20,13 @@ Accepted.
 
 This ADR defines the result-model rules that support the public API, workflow architecture, dataset boundary, and reference-resolution decisions established by earlier ADRs.
 
+Update note (2026-05-22, provenance discoverability): downstream public result
+models may expose a direct reference to input dataset preprocessing provenance
+when that reference is needed for scientific interpretation. Differential
+results now allow an explicit `input_dataset_preprocessing_report` reference;
+kinase/signalome results expose the same provenance through their dataset
+lineage.
+
 ## Context and Problem Statement
 
 Result models are a common place for architectural drift. Once a workflow produces data, there is often a temptation to make the result object "helpful" by adding:
@@ -311,6 +318,9 @@ The following decisions are now resolved for this ADR.
    in scope via structured `DifferentialAnalysisResult.policy_provenance`
    because those policy choices directly affect interpretation.
 4. The `dataset` field should be included on all public workflow result objects for now.
+5. Downstream results must keep preprocessing provenance discoverable either by
+   carrying `dataset` lineage directly or by a direct reference field when a
+   dataset object is not part of the result payload.
 
 ## Implementation Guidance
 

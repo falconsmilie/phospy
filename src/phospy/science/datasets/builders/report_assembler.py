@@ -11,6 +11,7 @@ from phospy.science.datasets.models import (
     SiteSequenceResolutionReport,
 )
 from phospy.science.datasets.preprocessing.models import (
+    DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
     DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
     PreprocessingStageExecution,
 )
@@ -53,6 +54,7 @@ class DatasetPreprocessingReportAssembler:
         intensity_scale_establishment: Mapping[str, object],
         quantitative_meaning: str,
         peptide_evidence_resolution: dict[str, object] | None,
+        declared_input_intensity_scale_kind: str | None = None,
     ) -> DatasetPreprocessingReport:
         row_count_rows = list(row_count_rows_from_dataframe(row_counts))
         operation_rows = list(operation_rows_from_dataframe(operations))
@@ -129,6 +131,19 @@ class DatasetPreprocessingReportAssembler:
                     "intensity_scale_label": intensity_scale_label,
                     "intensity_scale_establishment": dict(
                         intensity_scale_establishment
+                    ),
+                    "intensity_transformation_state": {
+                        "before_preprocessing": _resolve_input_intensity_scale_label(
+                            declared_input_intensity_scale_kind=(
+                                declared_input_intensity_scale_kind
+                            ),
+                            preprocessing_trace=preprocessing_trace,
+                            intensity_scale_establishment=intensity_scale_establishment,
+                        ),
+                        "after_preprocessing": str(intensity_scale_label).strip(),
+                    },
+                    "preprocessing_diagnostics": _summarize_preprocessing_diagnostics(
+                        preprocessing_trace
                     ),
                     "quantitative_meaning": quantitative_meaning,
                 },
@@ -308,3 +323,87 @@ def _coerce_non_negative_int(value: object, *, default: int) -> int:
     if isinstance(value, int):
         return max(int(value), 0)
     return int(max(default, 0))
+
+
+def _resolve_input_intensity_scale_label(
+    *,
+    declared_input_intensity_scale_kind: str | None,
+    preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
+    intensity_scale_establishment: Mapping[str, object],
+) -> str | None:
+    declared = (
+        None
+        if declared_input_intensity_scale_kind is None
+        else str(declared_input_intensity_scale_kind).strip()
+    )
+    if declared:
+        return declared
+    establishment_parameters = intensity_scale_establishment.get("parameters")
+    if isinstance(establishment_parameters, Mapping):
+        declared_parameter = establishment_parameters.get("declared_scale_kind")
+        if isinstance(declared_parameter, str) and declared_parameter.strip():
+            return declared_parameter.strip()
+    intensity_transform_stage = _resolve_stage(
+        preprocessing_trace=preprocessing_trace,
+        stage_key=DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
+    )
+    if intensity_transform_stage is None:
+        return None
+    if str(intensity_transform_stage.operation).strip() == "log2":
+        return "linear_or_unknown"
+    return "unknown"
+
+
+def _summarize_preprocessing_diagnostics(
+    preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
+) -> dict[str, object]:
+    if preprocessing_trace is None:
+        return {"warnings": [], "stages": []}
+    warnings: list[str] = []
+    stage_summaries: list[dict[str, object]] = []
+    for stage in preprocessing_trace:
+        diagnostics = (
+            {}
+            if not isinstance(stage.diagnostics, Mapping)
+            else dict(stage.diagnostics)
+        )
+        stage_warning_messages = _extract_warning_messages(diagnostics)
+        warnings.extend(stage_warning_messages)
+        stage_summaries.append(
+            {
+                "stage": stage.stage,
+                "operation": stage.operation,
+                "dropped_row_count": int(max(stage.dropped_row_count, 0)),
+                "imputed_cell_count": int(max(stage.imputed_cell_count, 0)),
+                "diagnostic_keys": sorted(str(key) for key in diagnostics.keys()),
+                "warning_count": len(stage_warning_messages),
+            }
+        )
+    return {"warnings": list(dict.fromkeys(warnings)), "stages": stage_summaries}
+
+
+def _extract_warning_messages(diagnostics: Mapping[str, object]) -> list[str]:
+    messages: list[str] = []
+    for key in ("diagnostic_warnings", "warnings"):
+        value = diagnostics.get(key)
+        if isinstance(value, list | tuple):
+            for item in value:
+                if isinstance(item, str) and item.strip():
+                    messages.append(item.strip())
+    note = diagnostics.get("note")
+    if isinstance(note, str) and note.strip():
+        messages.append(note.strip())
+    return messages
+
+
+def _resolve_stage(
+    *,
+    preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
+    stage_key: str,
+) -> PreprocessingStageExecution | None:
+    if preprocessing_trace is None:
+        return None
+    for stage in preprocessing_trace:
+        if stage.stage == stage_key:
+            return stage
+    return None

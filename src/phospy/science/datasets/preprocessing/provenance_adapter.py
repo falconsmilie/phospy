@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 import pandas as pd
 
 from phospy.science.datasets.preprocessing.models import (
@@ -52,7 +54,7 @@ class PreprocessingProvenanceAdapter:
             stage_label = stage_metadata.display_label
             record = trace_by_stage.get(stage)
             operation = stage_metadata.operation_name(plan)
-            parameters = stage_metadata.serialize_parameters(plan)
+            parameters = dict(stage_metadata.serialize_parameters(plan))
             if record is None:
                 stage_input_rows = row_cursor
                 stage_output_rows = row_cursor
@@ -64,6 +66,11 @@ class PreprocessingProvenanceAdapter:
                     "stage executed"
                     if record.notes is None
                     else str(record.notes).strip()
+                )
+                parameters = _with_execution_summary(
+                    stage=stage,
+                    base_parameters=parameters,
+                    record=record,
                 )
             row_cursor = stage_output_rows
             row_count_rows.append(
@@ -103,3 +110,112 @@ class PreprocessingProvenanceAdapter:
         row_counts = dataframe_from_row_count_rows(row_count_rows)
         operations = dataframe_from_operation_rows(operation_rows)
         return row_counts, operations
+
+
+def _with_execution_summary(
+    *,
+    stage: str,
+    base_parameters: dict[str, object],
+    record: PreprocessingStageExecution,
+) -> dict[str, object]:
+    diagnostics = (
+        {}
+        if not isinstance(record.diagnostics, Mapping)
+        else {str(key): value for key, value in record.diagnostics.items()}
+    )
+    input_rows = int(max(record.input_rows, 0))
+    output_rows = int(max(record.output_rows, 0))
+    dropped_row_count = int(max(record.dropped_row_count, 0))
+    imputed_cell_count = int(max(record.imputed_cell_count, 0))
+    diagnostics_imputed_cell_count = _resolve_int(
+        diagnostics.get("imputed_cell_count"),
+        default=0,
+    )
+    if diagnostics_imputed_cell_count > imputed_cell_count:
+        imputed_cell_count = diagnostics_imputed_cell_count
+    input_matrix_cells = max(
+        int(record.input_shape[0]) * int(record.input_shape[1]),
+        0,
+    )
+    dropped_sample_count = _resolve_int(
+        diagnostics.get("dropped_column_count"),
+        default=0,
+    )
+    summary: dict[str, object] = {
+        "input_rows": input_rows,
+        "output_rows": output_rows,
+        "dropped_rows": dropped_row_count,
+        "dropped_row_fraction_of_input": _safe_fraction(
+            numerator=dropped_row_count,
+            denominator=input_rows,
+        ),
+        "imputed_cell_count": imputed_cell_count,
+        "imputed_row_count": int(len(record.imputed_row_ids)),
+        "imputed_cell_fraction_of_input_matrix": _safe_fraction(
+            numerator=imputed_cell_count,
+            denominator=input_matrix_cells,
+        ),
+        "imputation_scope": _resolve_imputation_scope(
+            stage=stage,
+            base_parameters=base_parameters,
+        ),
+        "dropped_sample_count": dropped_sample_count,
+        "diagnostic_keys": sorted(diagnostics.keys()),
+        "diagnostic_summary": _extract_scalar_diagnostics(diagnostics),
+    }
+    parameters = dict(base_parameters)
+    parameters["execution_summary"] = summary
+    return parameters
+
+
+def _resolve_imputation_scope(
+    *,
+    stage: str,
+    base_parameters: Mapping[str, object],
+) -> str | None:
+    if stage != "missing_data":
+        return None
+    policy = str(base_parameters.get("missing_data_policy", "")).strip()
+    if policy == "impute_row_median":
+        return "per_row"
+    if policy in {"impute_knn", "impute_minprob"}:
+        return "global_matrix"
+    if policy == "forbid":
+        return "none"
+    return None
+
+
+def _extract_scalar_diagnostics(values: Mapping[str, object]) -> dict[str, object]:
+    summary: dict[str, object] = {}
+    for key, value in values.items():
+        if value is None or isinstance(value, str | int | float | bool):
+            summary[str(key)] = value
+            continue
+        if isinstance(value, tuple):
+            if len(value) <= 10 and all(
+                item is None or isinstance(item, str | int | float | bool)
+                for item in value
+            ):
+                summary[str(key)] = list(value)
+            continue
+        if isinstance(value, list):
+            if len(value) <= 10 and all(
+                item is None or isinstance(item, str | int | float | bool)
+                for item in value
+            ):
+                summary[str(key)] = list(value)
+    return summary
+
+
+def _resolve_int(value: object, *, default: int) -> int:
+    if value is None or isinstance(value, bool):
+        return int(default)
+    if isinstance(value, int):
+        return int(value)
+    return int(default)
+
+
+def _safe_fraction(*, numerator: int, denominator: int) -> float | None:
+    if denominator <= 0:
+        return None
+    return float(numerator) / float(denominator)

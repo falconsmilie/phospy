@@ -4,7 +4,7 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.api.configs import DatasetPreprocessingConfig
+from phospy.api.configs import DatasetMissingDataConfig, DatasetPreprocessingConfig
 from phospy.errors.build import DatasetBuildError
 from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.builders.preprocessing import (
@@ -439,6 +439,44 @@ def test_provenance_adapter_builds_row_counts_and_operations() -> None:
     assert "stage not scheduled in preprocessing plan" in set(
         operations.loc[:, "notes"].astype(str).tolist()
     )
+
+
+def test_provenance_adapter_includes_execution_summary_for_imputation_stage() -> None:
+    plan = PreprocessingPlan.from_config(
+        DatasetPreprocessingConfig(
+            missing_data=DatasetMissingDataConfig(
+                policy="impute_row_median",
+                min_observed_values=1,
+            )
+        )
+    )
+    adapter = PreprocessingProvenanceAdapter()
+    trace = (
+        _trace_record(
+            stage=DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+            diagnostics={"imputed_cell_count": 2, "output_missing_cell_count": 0},
+            notes="stage executed",
+            dropped_row_count=1,
+        ),
+    )
+
+    _, operations = adapter.build_tables(
+        plan=plan,
+        input_row_count=3,
+        output_row_count=2,
+        trace=trace,
+    )
+    missing_data_row = operations.loc[
+        operations.loc[:, "stage"] == "missing_data"
+    ].iloc[0]
+    parameters = missing_data_row["parameters"]
+    assert isinstance(parameters, dict)
+    summary = parameters.get("execution_summary")
+    assert isinstance(summary, dict)
+    assert summary["dropped_rows"] == 1
+    assert summary["imputed_cell_count"] == 2
+    assert summary["imputation_scope"] == "per_row"
+    assert summary["diagnostic_summary"]["output_missing_cell_count"] == 0
 
 
 def test_builder_integration_assembles_pipeline_outputs_through_collaborators() -> None:

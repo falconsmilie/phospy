@@ -1406,7 +1406,11 @@ def test_dataset_builder_log2_preprocessing_records_operation_and_state() -> Non
     ]
     assert log2_operation.shape[0] == 1
     assert log2_operation.iloc[0]["operation"] == "log2"
-    assert log2_operation.iloc[0]["parameters"] == {"pseudocount": 1.0}
+    log2_parameters = log2_operation.iloc[0]["parameters"]
+    assert isinstance(log2_parameters, dict)
+    assert log2_parameters["pseudocount"] == 1.0
+    assert "execution_summary" in log2_parameters
+    assert log2_parameters["execution_summary"]["imputed_cell_count"] == 0
     assert built.processing_state.intensity_scale == built.intensity_scale_state
 
 
@@ -1636,12 +1640,13 @@ def test_dataset_builder_median_center_preprocessing_records_operation() -> None
     ]
     assert normalisation_operation.shape[0] == 1
     assert normalisation_operation.iloc[0]["operation"] == "median_center"
-    assert normalisation_operation.iloc[0]["parameters"] == {
-        "applied": True,
-        "centering_statistic": "median",
-        "axis": "columns",
-        "skipna": True,
-    }
+    normalisation_parameters = normalisation_operation.iloc[0]["parameters"]
+    assert isinstance(normalisation_parameters, dict)
+    assert normalisation_parameters["applied"] is True
+    assert normalisation_parameters["centering_statistic"] == "median"
+    assert normalisation_parameters["axis"] == "columns"
+    assert normalisation_parameters["skipna"] is True
+    assert "execution_summary" in normalisation_parameters
     assert built.processing_state.normalisation.policy == "median_center"
     assert built.provenance is not None
     normalisation_stage = next(
@@ -1703,12 +1708,13 @@ def test_dataset_builder_quantile_preprocessing_records_operation() -> None:
     ]
     assert normalisation_operation.shape[0] == 1
     assert normalisation_operation.iloc[0]["operation"] == "quantile"
-    assert normalisation_operation.iloc[0]["parameters"] == {
-        "applied": True,
-        "target_distribution": "mean_rank_distribution",
-        "tie_strategy": "deterministic_rank_average",
-        "dtype": "float64",
-    }
+    normalisation_parameters = normalisation_operation.iloc[0]["parameters"]
+    assert isinstance(normalisation_parameters, dict)
+    assert normalisation_parameters["applied"] is True
+    assert normalisation_parameters["target_distribution"] == "mean_rank_distribution"
+    assert normalisation_parameters["tie_strategy"] == "deterministic_rank_average"
+    assert normalisation_parameters["dtype"] == "float64"
+    assert "execution_summary" in normalisation_parameters
     assert built.processing_state.normalisation.policy == "quantile"
 
 

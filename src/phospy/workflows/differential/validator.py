@@ -134,6 +134,9 @@ class DifferentialAnalysisValidator:
             config=config,
             policy_provenance=None,
             workflow_provenance=technical_replicate_resolution.workflow_provenance,
+            dataset_preprocessing_report=(
+                technical_replicate_resolution.dataset.preprocessing_report
+            ),
         )
 
 

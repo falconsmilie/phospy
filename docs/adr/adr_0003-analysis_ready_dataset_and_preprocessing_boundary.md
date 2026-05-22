@@ -43,6 +43,13 @@ invariant. Kinase and signalome validation now require odd-length centred
 context with central residue agreement to site identity, and do not silently
 accept gapped/underscore sequence values under strict mode.
 
+Update note (2026-05-22, preprocessing provenance visibility): preprocessing
+reports now carry compact execution summaries per stage (row/sample removals,
+imputation counts/fractions/scope, scalar diagnostics), and final dataset
+construction records explicit intensity transformation state
+(`before_preprocessing`, `after_preprocessing`) plus preprocessing warning
+summaries. Downstream workflow results must keep this history discoverable.
+
 ## Context and Problem Statement
 
 PhosPy is intended to expose one public dataset model and three primary

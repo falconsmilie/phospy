@@ -212,18 +212,17 @@ def _read_table_with_policy(
     table_format = table_format_from_path(normalized_path)
     try:
         if table_format == _CSV:
-            return pd.read_csv(
+            return _read_delimited_table_with_policy(
                 normalized_path,
-                index_col=0,
+                sep=",",
                 dtype=dtype,
                 keep_default_na=keep_default_na,
                 na_values=na_values,
             )
         if table_format == _TSV:
-            return pd.read_csv(
+            return _read_delimited_table_with_policy(
                 normalized_path,
                 sep="\t",
-                index_col=0,
                 dtype=dtype,
                 keep_default_na=keep_default_na,
                 na_values=na_values,
@@ -249,6 +248,37 @@ def _read_table_with_policy(
         raise PhosPyInputError(
             f"failed to parse {table_role} table input '{normalized_path}': {exc}"
         ) from exc
+
+
+def _read_delimited_table_with_policy(
+    path: Path,
+    *,
+    sep: str,
+    dtype: type[str] | None,
+    keep_default_na: bool,
+    na_values: list[str],
+) -> pd.DataFrame:
+    frame = pd.read_csv(
+        path,
+        sep=sep,
+        dtype=dtype,
+        keep_default_na=keep_default_na,
+        na_values=na_values,
+    )
+    if frame.shape[1] == 0:
+        return frame
+    index_column = frame.columns[0]
+    normalized_index_name = (
+        None
+        if isinstance(index_column, str) and index_column.startswith("Unnamed:")
+        else index_column
+    )
+    index = pd.Index(frame.iloc[:, 0].tolist(), name=normalized_index_name)
+    return pd.DataFrame(
+        frame.iloc[:, 1:].to_numpy(copy=True),
+        index=index,
+        columns=frame.columns[1:].copy(),
+    )
 
 
 def _stringify_dataframe(frame: pd.DataFrame) -> pd.DataFrame:

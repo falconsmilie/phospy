@@ -7,6 +7,7 @@ from phospy import AnalysisReadyDatasetBuilder
 from phospy.api import (
     DatasetBuildRequest,
     DatasetIntensityTransformConfig,
+    DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
 )
 from phospy.errors.transformations import TransformationStateEstablishmentError
@@ -54,6 +55,17 @@ def _final_stage_establishment_payload(dataset) -> dict[str, object]:
     payload = parameters.get("intensity_scale_establishment")
     assert isinstance(payload, dict)
     return payload
+
+
+def _final_stage_parameters(dataset) -> dict[str, object]:
+    assert dataset.preprocessing_report is not None
+    final_stage = dataset.preprocessing_report.operations.loc[
+        dataset.preprocessing_report.operations.loc[:, "stage"]
+        == "final_dataset_construction"
+    ].iloc[0]
+    parameters = final_stage["parameters"]
+    assert isinstance(parameters, dict)
+    return parameters
 
 
 def test_builder_declared_log2_records_declared_establishment_mode_in_provenance() -> (
@@ -244,3 +256,61 @@ def test_builder_plausible_declared_scale_has_no_warning() -> None:
     warnings = workflow_payload["diagnostic_warnings"]
     assert isinstance(warnings, list)
     assert warnings == []
+
+
+def test_final_report_records_intensity_transformation_state_before_and_after() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [3.0, 7.0], "sample_b": [15.0, 31.0]},
+        index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
+    )
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=_site_metadata(phospho.index),
+            preprocessing_config=DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="log2",
+                    pseudocount=1.0,
+                )
+            ),
+        )
+    )
+
+    parameters = _final_stage_parameters(built)
+    transformation_state = parameters.get("intensity_transformation_state")
+    assert isinstance(transformation_state, dict)
+    assert transformation_state["before_preprocessing"] == "linear_or_unknown"
+    assert transformation_state["after_preprocessing"] == "log2"
+
+
+def test_preprocessing_operations_include_execution_summary_for_imputation() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0, 2.0], "sample_b": [2.0, float("nan")]},
+        index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
+    )
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=_site_metadata(phospho.index),
+            input_intensity_scale="linear",
+            preprocessing_config=DatasetPreprocessingConfig(
+                missing_data=DatasetMissingDataConfig(
+                    policy="impute_row_median",
+                    min_observed_values=1,
+                )
+            ),
+        )
+    )
+
+    assert built.preprocessing_report is not None
+    operations = built.preprocessing_report.operations
+    missing_data_row = operations.loc[
+        operations.loc[:, "stage"] == "missing_data"
+    ].iloc[0]
+    parameters = missing_data_row["parameters"]
+    assert isinstance(parameters, dict)
+    summary = parameters.get("execution_summary")
+    assert isinstance(summary, dict)
+    assert summary["imputed_cell_count"] == 1
+    assert summary["imputed_row_count"] == 1
+    assert summary["imputation_scope"] == "per_row"

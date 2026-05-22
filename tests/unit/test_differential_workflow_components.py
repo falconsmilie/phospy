@@ -20,6 +20,7 @@ from phospy.api import (
 )
 from phospy.api.results import DifferentialAnalysisResult
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
+from phospy.science.datasets.models import DatasetPreprocessingReport
 from phospy.science.differential.models import EmpiricalBayesConfig
 from phospy.science.transformations.models import (
     IntensityScaleState,
@@ -161,6 +162,31 @@ def test_differential_workflow_dependency_injection_supports_real_stage_contract
     )
     result = workflow.run(_request())
     assert isinstance(result, DifferentialAnalysisResult)
+
+
+def test_differential_result_references_input_dataset_preprocessing_report() -> None:
+    base_dataset = _dataset()
+    preprocessing_report = DatasetPreprocessingReport.from_rows()
+    dataset_with_report = AnalysisReadyPhosphoDataset(
+        phospho=base_dataset.phospho,
+        site_metadata=base_dataset.site_metadata,
+        sample_metadata=base_dataset.sample_metadata,
+        total=base_dataset.total,
+        comparisons=base_dataset.comparisons,
+        organism=base_dataset.organism,
+        intensity_scale_state=base_dataset.intensity_scale_state,
+        processing_state=base_dataset.processing_state,
+        preprocessing_report=preprocessing_report,
+        provenance=base_dataset.provenance,
+    )
+    result = DifferentialAnalysisWorkflow().run(
+        DifferentialAnalysisRequest(
+            dataset=dataset_with_report,
+            design=_request().design,
+            contrasts=_request().contrasts,
+        )
+    )
+    assert result.input_dataset_preprocessing_report is preprocessing_report
 
 
 def test_differential_public_stages_expose_run_only() -> None:

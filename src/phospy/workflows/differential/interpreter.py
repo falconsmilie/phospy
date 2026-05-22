@@ -123,6 +123,7 @@ class DifferentialAnalysisInterpreter:
             residual_degrees_of_freedom=residual_dof,
             policy_provenance=policy_provenance,
             workflow_provenance=request.workflow_provenance,
+            dataset_preprocessing_report=request.dataset_preprocessing_report,
         )
 
 
