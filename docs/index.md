@@ -5,6 +5,9 @@
 PhosPy helps you turn phosphosite intensity tables into kinase scoring,
 kinase prediction, and optional signalome analysis in Python.
 
+PhosPy does not claim full PhosR package equivalence. Scientific support claims
+are feature-scoped and mapped in the Scientific Coverage matrix.
+
 ## Start Here
 
 1. [Quickstart](quickstart.md): copy/paste a complete first workflow.
@@ -38,3 +41,7 @@ work and explicit references.
 
 A good first outcome is modest: build a two-site rat dataset, run kinase with
 `ReferencePreset.AUTO`, and add signalome once `protein_id` is present.
+
+Use [Scientific Coverage](scientific-coverage.md) as the single maintained
+scope matrix for parity-gated lanes, validated PhosPy implementations,
+experimental features, open gaps, and out-of-scope/not-planned areas.

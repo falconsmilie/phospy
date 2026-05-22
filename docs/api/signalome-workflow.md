@@ -15,6 +15,33 @@ signalome_result = SignalomeWorkflow().run(
 )
 ```
 
+## Localisation Prerequisite
+
+Signalome runs on site-level kinase outputs and should inherit explicit
+localisation-confidence policy from dataset building:
+
+- metadata column: `site_metadata["localisation_confidence"]`
+- minimum threshold: `0.75`
+- failure behaviour: dataset build fails if localisation metadata is missing,
+  invalid, missing per-row, or below threshold
+- why it matters: ambiguous site localisation can distort module assignments and
+  kinase-network interpretation
+
+```python
+from phospy.api import DatasetLocalisationConfig, DatasetPreprocessingConfig
+
+preprocessing = DatasetPreprocessingConfig(
+    localisation=DatasetLocalisationConfig(
+        mode="require_threshold",
+        confidence_column="localisation_confidence",
+        min_confidence=0.75,
+    )
+)
+```
+
+The signalome request examples below focus on signalome API wiring and assume
+this upstream dataset-localisation policy is already in place.
+
 ## Imports
 
 ```python

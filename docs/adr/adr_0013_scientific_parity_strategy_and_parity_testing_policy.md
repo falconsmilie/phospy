@@ -106,11 +106,11 @@ PhosPy must maintain its scientific coverage and PhosR parity scope matrix in:
 
 `docs/scientific-coverage.md` is the maintained user-facing source of truth for:
 
-1. current scientific confidence (`PARITY_GATED_ACTIVE_SCIENCE`,
-   `PHOSPY_VALIDATED_SCIENCE`, `SUPPORTED_CONTRACT_CHANGED`, `OPEN_GAP`)
-2. intended parity scope (`required parity`, `deliberate scope difference`,
-   `useful future extension`, `not planned`)
-3. current supported public lanes and interpretation limits
+1. current scope category (`parity-gated`, `validated PhosPy implementation`,
+   `experimental`, `open gap`, `deliberate scope difference`, `not planned`)
+2. current supported public lanes, explicit non-claims, and interpretation
+   limits
+3. release-gated scientific checks and their exact executable commands/workflows
 
 Governance rules:
 
@@ -118,7 +118,9 @@ Governance rules:
 2. scope differences must be documented explicitly, not hidden as gaps
 3. future extensions must not be described as current support
 4. global "full PhosR parity" claims are disallowed unless explicitly proven
-5. detailed fixture mechanics stay in `docs/parity.md`, not duplicated here
+5. diagnostic/readiness-only capabilities must be labelled as non-executable
+   workflow support
+6. detailed fixture mechanics stay in `docs/parity.md`, not duplicated here
 
 Parity claims must be source-labelled at fixture level. A parity claim without
 source-labelled fixture provenance is not accepted as a PhosR-equivalence claim.

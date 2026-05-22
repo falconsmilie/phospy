@@ -6,7 +6,12 @@ from __future__ import annotations
 import pandas as pd
 
 from phospy import AnalysisReadyDatasetBuilder, AnalysisReadyPhosphoDataset
-from phospy.api import DatasetBuildRequest, Organism
+from phospy.api import (
+    DatasetBuildRequest,
+    DatasetLocalisationConfig,
+    DatasetPreprocessingConfig,
+    Organism,
+)
 
 
 def _example_tables() -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -41,6 +46,15 @@ def build_demo_dataset() -> AnalysisReadyPhosphoDataset:
         site_metadata=site_metadata,
         organism=Organism.RAT,
         input_intensity_scale="linear",
+        preprocessing_config=DatasetPreprocessingConfig(
+            # Fail fast on missing/low localisation confidence so downstream
+            # site-level interpretation does not rely on ambiguous site mapping.
+            localisation=DatasetLocalisationConfig(
+                mode="require_threshold",
+                confidence_column="localisation_confidence",
+                min_confidence=0.75,
+            )
+        ),
     )
     return AnalysisReadyDatasetBuilder().run(request)
 

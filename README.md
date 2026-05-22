@@ -5,6 +5,9 @@ PhosR. It is aimed at scientists who want a clear Python lane from phosphosite
 intensity tables to differential phosphorylation analysis, kinase scoring,
 kinase prediction, and optional signalome analysis.
 
+"PhosR-inspired" in PhosPy docs means scoped, feature-level comparison lanes. It
+does not imply full PhosR package parity or full PhosR API compatibility.
+
 PhosPy does **not** provide HTTP endpoints or a web service. The supported user
 interface is the Python API. The `phospy` command-line workflow interface is
 not currently supported.
@@ -63,6 +66,10 @@ Bundled runtime references in the current release are rat-only. For human or
 mouse work, create and pass an explicit `ReferenceBundle` in Python instead of
 using `ReferencePreset.AUTO`.
 
+Scientific scope categories and parity/open-gap status are maintained in
+[`docs/scientific-coverage.md`](docs/scientific-coverage.md). Parity fixture
+evidence lives in [`docs/parity.md`](docs/parity.md).
+
 ## Kinase Workflow Example
 
 ```python
@@ -71,6 +78,8 @@ import pandas as pd
 from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow
 from phospy.api import (
     DatasetBuildRequest,
+    DatasetLocalisationConfig,
+    DatasetPreprocessingConfig,
     KinaseWorkflowRequest,
     Organism,
     ReferencePreset,
@@ -113,6 +122,16 @@ dataset = AnalysisReadyDatasetBuilder().run(
         site_metadata=site_metadata,
         sample_metadata=sample_metadata,
         organism=Organism.RAT,
+        preprocessing_config=DatasetPreprocessingConfig(
+            # Site-level workflows should fail fast when localisation is missing
+            # or below threshold, because ambiguous site assignment can
+            # mis-state kinase/substrate interpretation.
+            localisation=DatasetLocalisationConfig(
+                mode="require_threshold",
+                confidence_column="localisation_confidence",
+                min_confidence=0.75,
+            )
+        ),
     )
 )
 
@@ -150,6 +169,7 @@ exceptions.
 2. [API Guide](https://phospy.com/docs/api/)
 3. [Workflow Contracts](https://phospy.com/docs/workflow_contracts/)
 4. [Validation Guide](https://phospy.com/docs/validation/)
+5. [Scientific Coverage Matrix](https://phospy.com/docs/scientific-coverage/)
 
 ## Citation
 

@@ -7,6 +7,10 @@ This page gives scientist-facing contracts for each public workflow lane:
 3. `KinaseWorkflow`
 4. `SignalomeWorkflow`
 
+For support status labels (`parity-gated`, `validated PhosPy implementation`,
+`experimental`, `open gap`, `deliberate scope difference`, `not planned`), use
+`docs/scientific-coverage.md` as the single maintained matrix.
+
 For executable usage, see:
 
 - `examples/dataset_builder_demo.py`

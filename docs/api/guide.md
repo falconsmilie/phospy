@@ -7,6 +7,10 @@ the supported workflow shape, and links to the workflow-specific API pages in
 PhosPy does not expose HTTP endpoints. The supported programmatic interface is
 the Python API.
 
+This API guide describes executable interfaces, not global PhosR-equivalence
+claims. Scope categories and parity/open-gap status are maintained in
+[`docs/scientific-coverage.md`](../scientific-coverage.md).
+
 ## Workflow Pages
 
 The workflow documentation is split into dedicated pages:
@@ -276,6 +280,8 @@ import pandas as pd
 from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow
 from phospy.api import (
     DatasetBuildRequest,
+    DatasetLocalisationConfig,
+    DatasetPreprocessingConfig,
     KinaseWorkflowRequest,
     Organism,
     ReferencePreset,
@@ -298,6 +304,7 @@ site_metadata = pd.DataFrame(
             "ATMSGRPRTTSFAESCKPVQQPSAFGQAAAL",
         ],
         "protein_id": ["TSC2", "GSK3B"],
+        "localisation_confidence": [0.95, 0.92],
     },
     index=phospho.index.copy(),
 )
@@ -307,6 +314,15 @@ dataset = AnalysisReadyDatasetBuilder().run(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
+        preprocessing_config=DatasetPreprocessingConfig(
+            # Fail fast on missing/low-confidence localisation so site-level
+            # kinase interpretation does not rely on ambiguous phosphosite mapping.
+            localisation=DatasetLocalisationConfig(
+                mode="require_threshold",
+                confidence_column="localisation_confidence",
+                min_confidence=0.75,
+            )
+        ),
     )
 )
 kinase_result = KinaseWorkflow().run(

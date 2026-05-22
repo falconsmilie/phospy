@@ -12,6 +12,8 @@ from phospy import (
 )
 from phospy.api import (
     DatasetBuildRequest,
+    DatasetLocalisationConfig,
+    DatasetPreprocessingConfig,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
@@ -47,6 +49,15 @@ def build_demo_dataset() -> AnalysisReadyPhosphoDataset:
             site_metadata=site_metadata,
             organism=Organism.RAT,
             input_intensity_scale="linear",
+            preprocessing_config=DatasetPreprocessingConfig(
+                # Fail fast on missing/below-threshold localisation confidence
+                # to avoid ambiguous site-level kinase interpretation.
+                localisation=DatasetLocalisationConfig(
+                    mode="require_threshold",
+                    confidence_column="localisation_confidence",
+                    min_confidence=0.75,
+                )
+            ),
         )
     )
 

@@ -11,6 +11,7 @@ Read them in this order:
 They intentionally keep the story small:
 
 - rat bundled-reference lane first
+- explicit localisation policy (`localisation_confidence >= 0.75`) at dataset build
 - `phospy.api` for requests and enums
 - explicit `protein_id` for signalome
 - explicit reporting of both numeric scale and quantitative meaning (for example, `log2` with `phosphosite_log_abundance`)

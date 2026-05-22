@@ -78,6 +78,9 @@ def test_readme_primary_workflow_example_is_kinase() -> None:
     assert "site_sequence" in source
     assert "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA" in source
     assert "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA" in source
+    assert "DatasetLocalisationConfig(" in source
+    assert 'confidence_column="localisation_confidence"' in source
+    assert "min_confidence=0.75" in source
 
 
 def test_readme_links_to_existing_api_workflow_docs() -> None:
@@ -101,3 +104,12 @@ def test_api_guide_differential_import_examples_match_supported_route() -> None:
     assert API_GUIDE_API_IMPORT_SNIPPET in source
     assert "DifferentialAnalysisWorkflow().run(differential_request)" in source
     assert "from phospy import DifferentialAnalysis," not in source
+
+
+def test_api_guide_small_working_example_includes_localisation_policy() -> None:
+    source = _read(API_GUIDE)
+
+    assert "## Small Working Example" in source
+    assert "DatasetLocalisationConfig(" in source
+    assert 'confidence_column="localisation_confidence"' in source
+    assert "min_confidence=0.75" in source

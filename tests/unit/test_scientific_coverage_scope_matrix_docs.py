@@ -14,50 +14,50 @@ def test_scientific_coverage_doc_exists() -> None:
     assert SCIENTIFIC_COVERAGE_DOC.is_file()
 
 
-def test_scientific_confidence_labels_are_listed() -> None:
+def test_scope_categories_are_listed() -> None:
     text = _scientific_coverage_text()
     for label in (
-        "PARITY_GATED_ACTIVE_SCIENCE",
-        "PHOSPY_VALIDATED_SCIENCE",
-        "SUPPORTED_CONTRACT_CHANGED",
-        "OPEN_GAP",
+        "parity-gated",
+        "validated PhosPy implementation",
+        "experimental",
+        "open gap",
+        "deliberate scope difference",
+        "not planned",
     ):
         assert label in text
 
 
-def test_parity_scope_terms_are_listed() -> None:
-    lowered = _scientific_coverage_text().lower()
-    for term in (
-        "required parity",
-        "deliberate scope difference",
-        "useful future extension",
-        "not planned",
-    ):
-        assert term in lowered
+def test_scope_matrix_is_the_single_source_of_truth() -> None:
+    text = _scientific_coverage_text()
+    lowered = text.lower()
+    assert "## Scientific Scope Matrix (Single Source Of Truth)" in text
+    assert "full phosr package equivalence is not" in lowered
+    assert "not claimed" in lowered
 
 
 def test_scope_matrix_columns_and_required_rows_are_present() -> None:
     text = _scientific_coverage_text()
     lowered = text.lower()
-    assert "| Area | Current confidence | Intended PhosR parity scope |" in text
+    assert (
+        "| Area | Scope category | Current executable support | "
+        "Evidence and release checks | Limits and non-claims |"
+    ) in text
 
     for row_name in (
-        "input formats",
-        "phosphosite representation",
-        "site/flanking sequence",
-        "localisation confidence",
-        "replicate/condition modelling",
-        "missing-value handling",
+        "differential analysis",
+        "kinase scoring",
+        "kinase activity scoring",
+        "kinase prediction",
+        "signalome analysis",
+        "sequence context",
+        "localisation handling",
+        "missing values",
         "normalisation",
         "imputation",
-        "batch correction",
-        "differential phosphorylation",
-        "kinase/substrate analysis",
-        "motif/sequence-aware analysis",
-        "enrichment analysis",
-        "clustering/time-series",
+        "batch correction / ruv",
+        "enrichment",
         "visualisation",
-        "reproducibility/reporting",
-        "workflow composition/extensibility",
+        "supported bundled organisms and references",
+        "full phosr package equivalence claim",
     ):
         assert f"| {row_name} |" in lowered

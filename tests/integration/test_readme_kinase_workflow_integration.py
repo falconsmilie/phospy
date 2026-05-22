@@ -10,6 +10,8 @@ from phospy import (
 )
 from phospy.api import (
     DatasetBuildRequest,
+    DatasetLocalisationConfig,
+    DatasetPreprocessingConfig,
     KinaseWorkflowRequest,
     Organism,
     ReferencePreset,
@@ -54,6 +56,13 @@ def test_readme_style_kinase_workflow_builds_and_runs() -> None:
             sample_metadata=sample_metadata,
             organism=Organism.RAT,
             input_intensity_scale="linear",
+            preprocessing_config=DatasetPreprocessingConfig(
+                localisation=DatasetLocalisationConfig(
+                    mode="require_threshold",
+                    confidence_column="localisation_confidence",
+                    min_confidence=0.75,
+                )
+            ),
         )
     )
     assert isinstance(dataset, AnalysisReadyPhosphoDataset)

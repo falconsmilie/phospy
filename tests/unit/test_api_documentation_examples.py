@@ -9,6 +9,7 @@ from phospy.api import (
     Contrast,
     DatasetBuildRequest,
     DatasetIntensityTransformConfig,
+    DatasetLocalisationConfig,
     DatasetMissingDataConfig,
     DatasetNormalisationConfig,
     DatasetPreprocessingConfig,
@@ -36,7 +37,10 @@ from phospy.api.results import KinasePredictionResult, KinaseScoringResult
 ROOT = Path(__file__).resolve().parents[2]
 README = ROOT / "README.md"
 API_DOCS_DIR = ROOT / "docs" / "api"
+DATASET_BUILD_DOC = API_DOCS_DIR / "dataset-build-workflow.md"
 DIFFERENTIAL_DOC = API_DOCS_DIR / "differential-workflow.md"
+KINASE_DOC = API_DOCS_DIR / "kinase-workflow.md"
+SIGNALOME_DOC = API_DOCS_DIR / "signalome-workflow.md"
 
 
 def _read(path: Path) -> str:
@@ -80,7 +84,12 @@ def _build_dataset():
                 intensity_transform=DatasetIntensityTransformConfig(
                     policy="log2",
                     pseudocount=1.0,
-                )
+                ),
+                localisation=DatasetLocalisationConfig(
+                    mode="require_threshold",
+                    confidence_column="localisation_confidence",
+                    min_confidence=0.75,
+                ),
             ),
         )
     )
@@ -316,3 +325,33 @@ def test_readme_and_differential_docs_keep_scientific_scope_contracts() -> None:
     assert "treatment_rep1" in differential_source
     assert "treatment_rep2" in differential_source
     assert 'policy="log2"' in differential_source
+
+
+def test_public_workflow_docs_make_localisation_policy_explicit() -> None:
+    readme_source = _read(README)
+    dataset_source = _read(DATASET_BUILD_DOC)
+    differential_source = _read(DIFFERENTIAL_DOC)
+    kinase_source = _read(KINASE_DOC)
+    signalome_source = _read(SIGNALOME_DOC)
+
+    assert "DatasetLocalisationConfig(" in readme_source
+    assert 'confidence_column="localisation_confidence"' in readme_source
+    assert "min_confidence=0.75" in readme_source
+
+    assert "## Localisation-Confidence Parameters" in dataset_source
+    assert "fails dataset build when" in dataset_source
+    assert 'mode="require_threshold"' in dataset_source
+    assert 'confidence_column="localisation_confidence"' in dataset_source
+    assert "min_confidence=0.75" in dataset_source
+
+    assert "DatasetLocalisationConfig(" in differential_source
+    assert "localisation_confidence" in differential_source
+    assert "low-confidence phosphosite assignments fail fast" in differential_source
+
+    assert "## Localisation Prerequisite" in kinase_source
+    assert "DatasetLocalisationConfig(" in kinase_source
+    assert "dataset build fails" in kinase_source
+
+    assert "## Localisation Prerequisite" in signalome_source
+    assert "DatasetLocalisationConfig(" in signalome_source
+    assert "dataset build fails" in signalome_source

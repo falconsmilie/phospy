@@ -12,6 +12,8 @@ import pandas as pd
 from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow, SignalomeWorkflow
 from phospy.api import (
     DatasetBuildRequest,
+    DatasetLocalisationConfig,
+    DatasetPreprocessingConfig,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
@@ -50,6 +52,15 @@ def _build_kinase_result() -> KinaseWorkflowResult:
             site_metadata=site_metadata,
             organism=Organism.RAT,
             input_intensity_scale="linear",
+            preprocessing_config=DatasetPreprocessingConfig(
+                # Fail fast on missing/below-threshold localisation confidence
+                # to keep site-level module interpretation scientifically safe.
+                localisation=DatasetLocalisationConfig(
+                    mode="require_threshold",
+                    confidence_column="localisation_confidence",
+                    min_confidence=0.75,
+                )
+            ),
         )
     )
     protein_ids = dataset.site_metadata["protein_id"].astype("string").str.strip()

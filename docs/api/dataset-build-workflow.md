@@ -29,6 +29,7 @@ from phospy.api import (
     DatasetBuildRequest,
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
+    DatasetLocalisationConfig,
     DatasetMissingDataConfig,
     DatasetNormalisationConfig,
     DatasetPreprocessingConfig,
@@ -46,7 +47,7 @@ from phospy.api import (
 | Parameter | Type | Default | Required | How to Use It |
 | --- | --- | --- | --- | --- |
 | `phospho` | `pandas.DataFrame`, `str`, or `pathlib.Path` | None | Yes | Site-by-sample intensity matrix. Rows are phosphosites and columns are samples. |
-| `site_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path` | None | Yes | Row metadata aligned to `phospho.index`. `gene_symbol`, `site`, and `site_sequence` are required at the analysis-ready boundary; include `protein_id` for signalome. |
+| `site_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path` | None | Yes | Row metadata aligned to `phospho.index`. `gene_symbol`, `site`, and `site_sequence` are required at the analysis-ready boundary; include `protein_id` for signalome. For site-level scientific workflows, include a localisation-confidence column (default: `localisation_confidence`) and configure explicit localisation policy. |
 | `sample_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Sample metadata aligned to phospho columns. Required when comparison building uses `sample_metadata_pairs`. |
 | `total` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Total-protein matrix used only when total-protein correction is enabled. Columns must align to phospho sample columns. |
 | `organism` | `Organism` or `None` | `None` | No | Species identity for the dataset. Use `Organism.RAT` for the bundled beginner lane. |
@@ -103,6 +104,7 @@ site_metadata = pd.DataFrame(
             "ATMSGRPRTTSFAESCKPVQQPSAFGQAAAL",
         ],
         "protein_id": ["TSC2", "GSK3B"],
+        "localisation_confidence": [0.95, 0.92],
     },
     index=phospho.index.copy(),
 )
@@ -129,6 +131,7 @@ The builder may derive `gene_symbol` and `site` from index values formatted like
 | `site_matrix` | `DatasetSiteMatrixConfig` | `policy="as_input"` | Controls construction and duplicate-site handling. |
 | `site_sequence_resolution` | `DatasetSiteSequenceResolutionConfig` | `mode="validate_existing_and_fill_missing"` | Controls optional local FASTA-backed site-sequence resolution. |
 | `comparisons` | `DatasetComparisonBuildingConfig` | `policy="none"` | Controls optional pairwise comparison construction from sample metadata. |
+| `localisation` | `DatasetLocalisationConfig` | `mode="require_threshold"`, `min_confidence=0.75`, `confidence_column="localisation_confidence"` | Controls site-level localisation-confidence eligibility at dataset-build time. |
 | `ruv_readiness` | `DatasetRuvReadinessConfig` | `enabled=False` | Adds readiness reporting for future RUV-compatible workflows; it does not apply correction. |
 
 Use presets for common lanes:
@@ -242,6 +245,36 @@ missing_data = DatasetMissingDataConfig(
     k=5,
     distance="nan_euclidean",
     max_missing_fraction_per_row=0.5,
+)
+```
+
+## Localisation-Confidence Parameters
+
+Use `DatasetLocalisationConfig` to make localisation policy explicit for
+site-level analysis datasets.
+
+| Parameter | Type | Default | Allowed Values | How to Use It |
+| --- | --- | --- | --- | --- |
+| `mode` | `str` | `"require_threshold"` | `"require_threshold"`, `"allow_missing_with_waiver"`, `"ignore"` | `"require_threshold"` is the scientifically strict lane for site-level workflows. |
+| `min_confidence` | `float` | `0.75` | `0.0 <= value <= 1.0` | Minimum accepted localisation confidence for `mode="require_threshold"`. |
+| `confidence_column` | `str` | `"localisation_confidence"` | Non-empty string | Site-metadata column containing localisation confidence values. |
+| `waiver_reason` | `str` or `None` | `None` | Non-empty string when `mode="allow_missing_with_waiver"` | Required reason when localisation strictness is waived. |
+
+Failure behaviour for `mode="require_threshold"`:
+
+- fails dataset build when `site_metadata[confidence_column]` is missing
+- fails dataset build when values are missing/invalid
+- fails dataset build when any value is below `min_confidence`
+
+Why this matters: low-confidence phosphosite localisation can mis-assign
+site-level effects and lead to misleading downstream kinase/signalome
+interpretation.
+
+```python
+localisation = DatasetLocalisationConfig(
+    mode="require_threshold",
+    confidence_column="localisation_confidence",
+    min_confidence=0.75,
 )
 ```
 
@@ -427,6 +460,7 @@ from phospy import AnalysisReadyDatasetBuilder
 from phospy.api import (
     DatasetBuildRequest,
     DatasetIntensityTransformConfig,
+    DatasetLocalisationConfig,
     DatasetMissingDataConfig,
     DatasetNormalisationConfig,
     DatasetPreprocessingConfig,
@@ -450,6 +484,7 @@ site_metadata = pd.DataFrame(
             "ATMSGRPRTTSFAESCKPVQQPSAFGQAAAL",
         ],
         "protein_id": ["TSC2", "GSK3B"],
+        "localisation_confidence": [0.95, 0.92],
     },
     index=phospho.index.copy(),
 )
@@ -461,6 +496,11 @@ preprocessing = DatasetPreprocessingConfig(
     ),
     normalisation=DatasetNormalisationConfig(policy="median_center"),
     missing_data=DatasetMissingDataConfig(policy="forbid"),
+    localisation=DatasetLocalisationConfig(
+        mode="require_threshold",
+        confidence_column="localisation_confidence",
+        min_confidence=0.75,
+    ),
 )
 
 dataset = AnalysisReadyDatasetBuilder().run(

@@ -17,6 +17,33 @@ kinase_result = KinaseWorkflow().run(
 )
 ```
 
+## Localisation Prerequisite
+
+This workflow expects a site-level dataset that already passed explicit
+localisation-confidence policy at dataset build time. A typical strict policy:
+
+- metadata column: `site_metadata["localisation_confidence"]`
+- minimum threshold: `0.75`
+- failure behaviour: dataset build fails if the column is missing, has
+  invalid/missing values, or contains below-threshold values
+- why it matters: low-confidence localisation can mis-assign kinase-substrate
+  interpretation at site level
+
+```python
+from phospy.api import DatasetLocalisationConfig, DatasetPreprocessingConfig
+
+preprocessing = DatasetPreprocessingConfig(
+    localisation=DatasetLocalisationConfig(
+        mode="require_threshold",
+        confidence_column="localisation_confidence",
+        min_confidence=0.75,
+    )
+)
+```
+
+Minimal request snippets below focus on kinase API shape and assume this
+upstream dataset-localisation policy is already configured.
+
 ## Imports
 
 ```python

@@ -1,7 +1,9 @@
 # Scientific Coverage
 
-PhosPy implements selected PhosR-style phosphoproteomics workflows. It does not
-claim full package equivalence with PhosR.
+PhosPy implements selected PhosR-style phosphoproteomics workflows.
+"PhosR-style" and "PhosR-inspired" in this repository always mean
+feature-scoped, evidence-scoped comparison lanes. They do not mean full PhosR
+package equivalence.
 
 ## Current Supported Public Lanes
 
@@ -40,57 +42,60 @@ Contract difference vs limma/PhosR surface:
 Bundled runtime references in the current release are rat-only. Human and mouse
 analysis can be run by passing an explicit `ReferenceBundle` in Python.
 
-## Scientific Confidence Labels
+## Scope Categories
 
-Use these labels when discussing coverage confidence:
+Every scientific scope claim in public docs must map to one category:
 
-| Label | Meaning |
+| Category | Meaning |
 | --- | --- |
-| `PARITY_GATED_ACTIVE_SCIENCE` | protected by active fixture-backed parity tests |
-| `PHOSPY_VALIDATED_SCIENCE` | validated by PhosPy contract, unit, and integration tests |
-| `SUPPORTED_CONTRACT_CHANGED` | intentionally supported with a changed public contract |
-| `OPEN_GAP` | not yet covered or not yet claimed |
+| `parity-gated` | Executable lane with active fixture-backed parity checks in release gates |
+| `validated PhosPy implementation` | Executable lane validated by PhosPy contract/unit/integration tests; not a PhosR-equivalence claim by itself |
+| `experimental` | Executable but intentionally provisional/approximate behavior with explicit caveats |
+| `open gap` | Not currently executable in the supported public workflow lane |
+| `deliberate scope difference` | Intentionally different from PhosR surface or intentionally narrowed contract |
+| `not planned` | Intentionally outside supported scope |
 
-## Intended PhosR Parity Scope Labels
+## Scientific Scope Matrix (Single Source Of Truth)
 
-Use these labels to describe parity intent, separate from current confidence:
+This matrix is the maintained user-facing scope source for PhosPy. Parity is
+feature-specific and evidence-scoped. Full PhosR package equivalence is not
+claimed.
 
-| Scope label | Meaning |
-| --- | --- |
-| `required parity` | PhosPy is expected to match PhosR-style behavior for the scoped lane |
-| `deliberate scope difference` | PhosPy intentionally keeps a different surface or contract |
-| `useful future extension` | scientifically useful but not currently in the supported core lane |
-| `not planned` | intentionally outside PhosPy scope |
+| Area | Scope category | Current executable support | Evidence and release checks | Limits and non-claims |
+| --- | --- | --- | --- | --- |
+| Differential analysis | `parity-gated` | `DifferentialAnalysisWorkflow` for two-condition unpaired simple contrasts with empirical-Bayes `standard`/`robust` and optional `trend` | `tests/parity/test_differential_analysis_parity.py`, `tests/parity/test_differential_limma_parity.py`, plus unit/integration design and result-contract tests | Batch-aware, block/paired, and repeated-measure designs are rejected in this release. Missing values are rejected at analysis-ready boundary before model fitting. |
+| Kinase scoring | `parity-gated` | `KinaseWorkflow` profile/motif scoring and rank-weighted fusion | `tests/parity/test_kinase_workflow_parity.py`, `tests/parity/test_prediction_science_parity.py`, `tests/parity/test_l6_prediction_parity.py` | Relative support scoring only; not calibrated causal inference. |
+| Kinase prediction | `parity-gated` | Deterministic and adaptive kinase prediction in `KinaseWorkflow` | `tests/parity/test_public_predmat_parity.py`, `tests/parity/test_l6_prediction_parity.py`, `tests/parity/test_adaptive_prediction_parity.py`, `tests/parity/test_adaptive_replay_parity.py` | Prediction scores are ranking support, not probabilities. |
+| Kinase activity scoring | `validated PhosPy implementation` | Supported activity methods: `simplified_weighted_substrate_activity_v1` and `ksea_zscore_activity_v1` | Unit activity tests (`tests/unit/test_activity_science.py`) and parity activity gate (`tests/parity/test_activity_stage_parity.py`) | KSEA-style activity is not a claim of full PhosR kinase activity equivalence. |
+| Signalome analysis | `parity-gated` | `SignalomeWorkflow` module assignment, network outputs, and protein-site context | `tests/parity/test_signalome_workflow_parity.py`, `tests/parity/test_signalome_clustering_backend_parity.py` | Derived summaries, not causal proof. Requires explicit `protein_id`. |
+| Signalome sampled candidate scoring policy | `experimental` | `SignalomeConfig.sampled_candidate_scoring()` approximates candidate module-count scoring | Parity/contract coverage through signalome parity tests and workflow contract checks | Approximation applies to candidate scoring only; tree generation remains exact-policy governed. |
+| Sequence context | `parity-gated` | `site_sequence` required at analysis-ready boundary and used in kinase scoring/prediction | `tests/parity/test_l6_prediction_parity.py`, `tests/parity/test_prediction_science_parity.py` | Sequence quality remains an upstream dependency. |
+| Localisation handling | `validated PhosPy implementation` | Localisation confidence validation and fail-fast threshold policies are supported | `tests/unit/test_localisation_policy_preprocessing.py`, `tests/unit/test_validator_boundaries.py` | No full localisation-filter workflow parity claim in this release. |
+| Missing values | `parity-gated` | Missing-data policy execution in preprocessing and downstream score preconditioning | `tests/parity/test_preprocessing_science_parity.py`, unit missing-data tests | Policy choice changes retained rows and downstream behavior. |
+| Imputation | `validated PhosPy implementation` | Supported policies include `row_median`, `minprob`, `knn` | Unit preprocessing/scientific invariant tests | Policy-dependent behavior; not blanket PhosR-equivalent imputation. |
+| Normalisation | `parity-gated` | Supported methods: `none`, `median_center`, `quantile` with stage-order provenance | `tests/parity/test_preprocessing_science_parity.py`, unit preprocessing tests | Method-specific claims only; no blanket normalisation equivalence claim. |
+| Batch correction / RUV | `open gap` | No executable SPS/RUV correction lane in current public workflow | N/A for execution; readiness diagnostics documented in workflow contracts | `ruv_readiness` is diagnostic/report-only and must not be interpreted as correction support. |
+| Enrichment | `deliberate scope difference` | KSEA-style substrate-set enrichment exists within kinase activity lane | Unit activity tests and scientific policy provenance | Broader pathway/gene-set enrichment lane is not part of current core workflow contract. |
+| Visualisation | `deliberate scope difference` | No first-class visualization workflow/API in core PhosPy | N/A | Visualization is intentionally out of current scientific parity scope. |
+| Supported bundled organisms and references | `deliberate scope difference` | Bundled runtime references are rat-only for `ReferencePreset.AUTO` in this release | Runtime behavior, reference compatibility tests, and workflow docs | Human/mouse are valid organisms but require explicit caller-supplied `ReferenceBundle`. |
+| Full PhosR package equivalence claim | `not planned` | Not claimed | Guardrail documentation in this matrix and `docs/parity.md` | Any implication of global PhosR parity is out of scope. |
 
-## PhosR Parity Scope Matrix
+## Release-Gated Scientific Checks
 
-Parity is feature-specific, not global. "Supported" means supported in the
-documented PhosPy contract, not full PhosR equivalence.
+Release-bearing scientific checks are documented and executable with these exact
+commands/workflows:
 
-| Area | Current confidence | Intended PhosR parity scope | Current PhosPy support | Notes / limits | Test expectation |
-| --- | --- | --- | --- | --- | --- |
-| Input formats | `SUPPORTED_CONTRACT_CHANGED` | `deliberate scope difference` | Tabular/DataFrame-first boundary with typed request models, not Bioconductor object classes | PhosPy keeps explicit Python-native contracts (`AnalysisReadyPhosphoDataset`, typed workflow requests/results) | Contract tests for request/result models and boundary validation (`tests/unit/test_public_contract_*.py`) |
-| Phosphosite representation | `PHOSPY_VALIDATED_SCIENCE` | `required parity` | Strict site-ID and site-metadata validation at dataset boundary | Site identity must be explicit and aligned; peptide/site ambiguity policies remain bounded by contract | Unit/integration contract tests plus parity tests for site-sensitive lanes (`tests/parity/test_preprocessing_science_parity.py`) |
-| Site/flanking sequence | `PARITY_GATED_ACTIVE_SCIENCE` | `required parity` | `site_sequence` is required at analysis-ready boundary and used in scoring/prediction | Sequence quality is an upstream dependency; parity claims are lane-scoped | Fixture-backed parity checks for sequence-sensitive scoring/prediction outputs (`tests/parity/test_l6_prediction_parity.py`, `tests/parity/test_prediction_science_parity.py`) |
-| Localisation confidence | `PHOSPY_VALIDATED_SCIENCE` | `useful future extension` | Optional localisation confidence fields and validation policies are supported | No first-class localisation-filter workflow parity claim in current lane | Unit tests for localisation validation boundaries (`tests/unit/test_localisation_policy_preprocessing.py`, `tests/unit/test_validator_boundaries.py`) |
-| Replicate/condition modelling | `PHOSPY_VALIDATED_SCIENCE` | `required parity` | Typed `ExperimentalDesign` and `Contrast` contract for differential workflows | No implicit condition inference from sample names; technical replicates require explicit policy (`reject`, `mean`, `median`) | Contract and boundary tests for design/contrast and technical-replicate validation (`tests/unit/test_experimental_design_contract.py`, `tests/unit/test_differential_analysis.py`, `tests/integration/test_differential_with_technical_replicates.py`) |
-| Missing-value handling | `PARITY_GATED_ACTIVE_SCIENCE` | `required parity` | Missing-data preprocessing policies plus downstream score preconditioning are supported | Policy choice changes retained rows and downstream behavior | Unit policy tests plus preprocessing parity fixture checks (`tests/unit/test_missing_data_split_modules.py`, `tests/parity/test_preprocessing_science_parity.py`) |
-| Normalisation | `PARITY_GATED_ACTIVE_SCIENCE` | `required parity` | Supported preprocessing methods include `none`, `median_center`, `quantile` with stage-order provenance | Method-by-method scope; not a blanket normalization equivalence claim | Unit preprocessing tests plus preprocessing parity tests (`tests/unit/test_dataset_preprocessing_subsystem.py`, `tests/parity/test_preprocessing_science_parity.py`) |
-| Imputation | `PHOSPY_VALIDATED_SCIENCE` | `required parity` | Explicit preprocessing imputation policies are supported (`row_median`, `minprob`, `knn`) | Imputation is policy-dependent and scientifically consequential; parity claims stay lane-scoped | Unit tests for imputation behavior and invariants (`tests/unit/test_dataset_preprocessing_subsystem.py`, `tests/unit/test_scientific_invariants.py`) |
-| Batch correction | `OPEN_GAP` | `useful future extension` | RUV readiness diagnostics exist; executable SPS/RUV batch correction is not in the supported public lane | Must not be described as supported until executable workflow + parity evidence exists | Keep as open gap; add fixture-backed parity tests only if/when executable lane is implemented |
-| Differential phosphorylation | `PARITY_GATED_ACTIVE_SCIENCE` | `required parity` | Public `DifferentialAnalysisWorkflow` route with design/contrast validation, per-site statistics, and multiple-testing adjustment | Parity envelope is explicitly scoped to two-condition unpaired simple contrasts, with batch/block/paired modes rejected in this release; analysis-ready boundary rejects missing values before differential execution | Unit and integration tests for design validation, unsupported-mode rejection, contrast orientation/sign, adjusted p-values, result alignment, and fixture-backed limma parity comparison (`tests/unit/test_differential_analysis.py`, `tests/unit/test_differential_unsupported_designs.py`, `tests/unit/test_differential_result_contract.py`, `tests/parity/test_differential_analysis_parity.py`, `tests/parity/test_differential_limma_parity.py`) |
-| Kinase/substrate analysis | `PARITY_GATED_ACTIVE_SCIENCE` | `required parity` | Public kinase scoring/prediction lane with active fixture-backed parity checks | Parity is scoped to documented fixture lanes and published comparison rules | Active parity tests in `tests/parity/test_kinase_workflow_parity.py`, `tests/parity/test_l6_prediction_parity.py`, `tests/parity/test_public_predmat_parity.py` |
-| Motif/sequence-aware analysis | `PARITY_GATED_ACTIVE_SCIENCE` | `required parity` | Rank-weighted motif/profile evidence fusion and sequence-aware scoring are supported | Relative-support ranking, not calibrated causal inference | Unit scientific-policy tests and fixture-backed parity checks (`tests/unit/test_prediction_science.py`, `tests/parity/test_prediction_science_parity.py`) |
-| Enrichment analysis | `SUPPORTED_CONTRACT_CHANGED` | `deliberate scope difference` | KSEA-style substrate-set enrichment is supported in kinase activity lane | Broader pathway/gene-set enrichment utilities are not currently a first-class core lane | Unit tests for KSEA-style activity behavior (`tests/unit/test_activity_science.py`) |
-| Clustering/time-series | `PARITY_GATED_ACTIVE_SCIENCE` | `useful future extension` | Signalome clustering/network construction is supported for documented lanes; no first-class time-series workflow contract | Time-series analysis remains out of current public workflow contract | Signalome parity and backend parity tests (`tests/parity/test_signalome_workflow_parity.py`, `tests/parity/test_signalome_clustering_backend_parity.py`) |
-| Visualisation | `OPEN_GAP` | `deliberate scope difference` | No first-class visualization API in core PhosPy workflows | Visualization is intentionally not treated as core scientific parity in this release | Keep documented as scope difference unless a separate visualization scope is approved |
-| Reproducibility/reporting | `PHOSPY_VALIDATED_SCIENCE` | `required parity` | Provenance payloads, fixture provenance docs, and reloadable output bundles are supported | Reproducibility claims depend on documented provenance and fixture governance | Integration and provenance regression tests (`tests/integration/test_kinase_workflow_integration.py`, `tests/integration/test_signalome_workflow_integration.py`, `tests/unit/test_provenance_regressions.py`) |
-| Workflow composition/extensibility | `SUPPORTED_CONTRACT_CHANGED` | `deliberate scope difference` | Governed public composition lanes are explicit (`DatasetBuilder`, `DifferentialAnalysisWorkflow`, `KinaseWorkflow`, `SignalomeWorkflow`) | PhosPy does not mirror full PhosR package layering or object model | Public-contract and integration workflow tests (`tests/unit/test_public_contract_workflows.py`, `tests/integration/test_dataset_builder_integration.py`, `tests/integration/test_kinase_workflow_integration.py`, `tests/integration/test_signalome_workflow_integration.py`) |
-| Full PhosR package equivalence | `OPEN_GAP` | `not planned` | Not claimed | PhosPy parity is lane-scoped and evidence-scoped; full-package equivalence is intentionally outside scope | Guardrail documentation plus parity suite scoping in `docs/parity.md` and `tests/parity/` |
-
-Required-parity rows must maintain explicit test expectations and should not be
-promoted to parity-equivalent language without fixture provenance and active
-comparison tests.
+- Local release gate command: `make test-release-gate`
+- `make test-release-gate` executes:
+  - `pytest tests/unit tests/integration -m "not parity and not performance and not release_gate"`
+  - `pytest tests/unit/test_provenance_regressions.py tests/integration/test_kinase_workflow_integration.py::test_kinase_public_predmat_provenance_matches_golden_contract tests/integration/test_signalome_workflow_integration.py::test_signalome_l6_provenance_matches_golden_contract -m "release_gate and (reproducibility or golden)"`
+  - `pytest tests/parity -m "parity and not parity_diagnostic" -s`
+  - `pytest tests/performance -m "performance or release_gate" -q`
+- Publish pipeline release gate workflow:
+  - `.github/workflows/publish.yml` job `release-gate` runs `make test-release-gate`
+- CI parity workflows:
+  - `.github/workflows/ci.yml` job `activity-parity-gate` runs `pytest tests/parity/test_activity_stage_parity.py -m "parity and activity_parity" -s`
+  - `.github/workflows/ci.yml` job `parity-tests` runs `pytest tests/parity -m parity -s`
 
 ## Interpretation Limits
 

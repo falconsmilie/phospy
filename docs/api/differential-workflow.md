@@ -194,6 +194,10 @@ Each contrast result table is row-aligned to the input site IDs.
 
 ## Worked Example
 
+This site-level example sets localisation policy at dataset build time so
+low-confidence phosphosite assignments fail fast before differential statistics.
+That avoids reporting `logFC` on ambiguously localised sites.
+
 ```python
 import pandas as pd
 
@@ -202,6 +206,7 @@ from phospy.api import (
     Contrast,
     DatasetBuildRequest,
     DatasetIntensityTransformConfig,
+    DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
     DifferentialAnalysisRequest,
     ExperimentalDesign,
@@ -228,6 +233,7 @@ site_metadata = pd.DataFrame(
             "ATMSGRPRTTSFAESSKPVQQPSAFGQAAAL",
         ],
         "protein_id": ["MAPK14", "GSK3B"],
+        "localisation_confidence": [0.95, 0.92],
     },
     index=phospho.index.copy(),
 )
@@ -241,7 +247,12 @@ dataset = AnalysisReadyDatasetBuilder().run(
             intensity_transform=DatasetIntensityTransformConfig(
                 policy="log2",
                 pseudocount=1.0,
-            )
+            ),
+            localisation=DatasetLocalisationConfig(
+                mode="require_threshold",
+                confidence_column="localisation_confidence",
+                min_confidence=0.75,
+            ),
         ),
     )
 )
