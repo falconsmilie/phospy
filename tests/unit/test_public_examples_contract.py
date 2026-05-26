@@ -33,7 +33,7 @@ def test_kinase_example_keeps_bundled_reference_lane_explicit() -> None:
 def test_signalome_example_keeps_explicit_protein_identity_contract() -> None:
     source = (EXAMPLES_DIR / "signalome_workflow_demo.py").read_text(encoding="utf-8")
 
-    assert '"protein_id": ["TSC2", "GSK3B"]' in source
+    assert '"protein_id": ["TSC2", "GSK3A"]' in source
     assert "SignalomeWorkflowRequest(kinase_result=kinase_result)" in source
     assert "SignalomeConfig" not in source
     assert "DatasetLocalisationConfig(" in source

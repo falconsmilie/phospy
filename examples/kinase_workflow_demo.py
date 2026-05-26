@@ -28,18 +28,18 @@ def build_demo_dataset() -> AnalysisReadyPhosphoDataset:
             "sample_b": [1.10, 0.80],
             "sample_c": [0.95, 0.75],
         },
-        index=["TSC2;S939;", "GSK3B;S9;"],
+        index=["TSC2;S939;", "GSK3A;S21;"],
     )
     site_metadata = pd.DataFrame(
         {
-            "gene_symbol": ["TSC2", "GSK3B"],
-            "site": ["S939", "S9"],
+            "gene_symbol": ["TSC2", "GSK3A"],
+            "site": ["S939", "S21"],
             "site_sequence": [
                 "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
-                "_______MSGRPRTTSFAESCKPVQQPSAFG",
+                "PSGGGPGGSGRARTSSFAEPGGGGGGGGGGP",
             ],
             "localisation_confidence": [0.95] * phospho.shape[0],
-            "protein_id": ["TSC2", "GSK3B"],
+            "protein_id": ["TSC2", "GSK3A"],
         },
         index=phospho.index.copy(),
     )

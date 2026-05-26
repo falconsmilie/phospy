@@ -76,8 +76,9 @@ def test_readme_primary_workflow_example_is_kinase() -> None:
     assert "KinaseWorkflowRequest(" in source
     assert "DifferentialAnalysisWorkflow().run(" not in source
     assert "site_sequence" in source
-    assert "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA" in source
-    assert "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA" in source
+    assert "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW" in source
+    assert "PSGGGPGGSGRARTSSFAEPGGGGGGGGGGP" in source
+    assert "FDDTPEKDSFRARSTSLNERPKSLRIARAPK" in source
     assert "DatasetLocalisationConfig(" in source
     assert 'confidence_column="localisation_confidence"' in source
     assert "min_confidence=0.75" in source

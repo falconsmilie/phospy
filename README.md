@@ -93,18 +93,18 @@ phospho = pd.DataFrame(
         "treatment_rep1": [16200.0, 9150.0, 13000.0],
         "treatment_rep2": [15800.0, 9050.0, 12800.0],
     },
-    index=["MAPK14;Y182;", "GSK3B;S9;", "TSC2;S939;"],
+    index=["MAPK14;Y182;", "GSK3A;S21;", "TSC2;S939;"],
 )
 site_metadata = pd.DataFrame(
     {
-        "gene_symbol": ["MAPK14", "GSK3B", "TSC2"],
-        "site": ["Y182", "S9", "S939"],
+        "gene_symbol": ["MAPK14", "GSK3A", "TSC2"],
+        "site": ["Y182", "S21", "S939"],
         "site_sequence": [
-            "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
-            "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
-            "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
+            "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
+            "PSGGGPGGSGRARTSSFAEPGGGGGGGGGGP",
+            "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
         ],
-        "protein_id": ["MAPK14", "GSK3B", "TSC2"],
+        "protein_id": ["MAPK14", "GSK3A", "TSC2"],
         "localisation_confidence": [0.95, 0.94, 0.96],
     },
     index=phospho.index.copy(),
@@ -144,6 +144,8 @@ print(dataset.site_metadata.loc[:, ["gene_symbol", "site", "site_sequence"]])
 kinase_result = KinaseWorkflow().run(
     KinaseWorkflowRequest(
         dataset=dataset,
+        # Safe in this example because organism=rat and bundled runtime
+        # references in this release are rat-only.
         references=ReferencePreset.AUTO,
         activity_config=None,
     )
