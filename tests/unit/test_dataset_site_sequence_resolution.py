@@ -405,3 +405,78 @@ def test_site_sequence_resolution_processing_state_populates_fasta_provenance(
     assert resolution.conflict_policy == "replace_existing"
     assert len(resolution.row_diagnostics) == 2
     assert resolution.row_diagnostics[1].action == "replace_existing"
+
+
+def test_missing_reference_data_raises_input_error(tmp_path: Path) -> None:
+    config = DatasetPreprocessingConfig(
+        site_sequence_resolution=DatasetSiteSequenceResolutionConfig(
+            fasta_path=str(tmp_path / "missing.fasta"),
+            mode="fill_missing_only",
+            flank_size=2,
+        )
+    )
+
+    with pytest.raises(PhosPyInputError, match="FASTA file does not exist"):
+        DatasetPreprocessor().run(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(site_sequences=[pd.NA, "CCTCC"]),
+            sample_metadata=None,
+            total=None,
+            plan=PreprocessingPlan.from_config(config),
+        )
+
+
+def test_diagnostics_shape_and_row_content_are_complete(tmp_path: Path) -> None:
+    preprocessed = _run_site_sequence_resolution(
+        tmp_path=tmp_path,
+        site_sequences=[pd.NA, "XXXXX"],
+        mode="validate_existing_and_fill_missing",
+        conflict_policy="preserve_existing",
+    )
+
+    diagnostics = _stage_diagnostics(preprocessed)
+    expected_keys = {
+        "fasta_source_path",
+        "fasta_source_label",
+        "fasta_sha256",
+        "resolver_version",
+        "flank_size",
+        "mode",
+        "conflict_policy",
+        "accession_column",
+        "site_column",
+        "resolved_site_count",
+        "unresolved_site_count",
+        "unresolved_counts_by_reason",
+        "existing_sequence_conflict_count",
+        "filled_missing_count",
+        "replaced_existing_count",
+        "preserved_existing_count",
+        "row_status",
+        "row_diagnostics",
+    }
+    assert expected_keys.issubset(diagnostics.keys())
+    assert diagnostics["resolved_site_count"] == 2
+    assert diagnostics["filled_missing_count"] == 1
+    assert diagnostics["existing_sequence_conflict_count"] == 1
+
+    row_diagnostics = diagnostics["row_diagnostics"]
+    assert isinstance(row_diagnostics, list)
+    assert len(row_diagnostics) == 2
+    expected_row_keys = {
+        "row_index",
+        "row_id",
+        "site_id",
+        "status",
+        "existing_site_sequence",
+        "fasta_site_sequence",
+        "resolved_site_sequence",
+        "action",
+        "reason",
+        "conflict_policy",
+        "resolver_version",
+        "fasta_source_path",
+        "fasta_sha256",
+    }
+    assert expected_row_keys.issubset(row_diagnostics[0].keys())
+    assert expected_row_keys.issubset(row_diagnostics[1].keys())
