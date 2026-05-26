@@ -503,17 +503,18 @@ def test_differential_validator_passes_config_values_to_collaborators() -> None:
     calls: dict[str, object] = {}
     base_request = _request()
 
-    class _FakeTechnicalReplicateResolver:
+    class _FakeTechnicalReplicatePlanner:
         def run(self, *, dataset, design, technical_replicate_policy):
             calls["technical_replicate_policy"] = technical_replicate_policy
             from phospy.workflows.differential.replicates import (
-                TechnicalReplicateResolution,
+                TechnicalReplicateAggregationPlan,
             )
 
-            return TechnicalReplicateResolution(
-                dataset=dataset,
-                design=design,
-                workflow_provenance=None,
+            return TechnicalReplicateAggregationPlan(
+                technical_replicate_policy=technical_replicate_policy,
+                groups=(),
+                aggregate_phospho=False,
+                aggregate_total_protein=False,
             )
 
     class _FakeDesignValidator:
@@ -565,7 +566,7 @@ def test_differential_validator_passes_config_values_to_collaborators() -> None:
         ),
     )
     DifferentialAnalysisValidator(
-        technical_replicate_resolver=_FakeTechnicalReplicateResolver(),  # type: ignore[arg-type]
+        technical_replicate_planner=_FakeTechnicalReplicatePlanner(),  # type: ignore[arg-type]
         design_validator=_FakeDesignValidator(),  # type: ignore[arg-type]
     ).run(request)
 

@@ -1,4 +1,4 @@
-"""Technical-replicate policy resolution for differential workflows."""
+"""Technical-replicate planning and aggregation for differential workflows."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from phospy.science.differential.policy_models import TechnicalReplicatePolicy
 
 
 @dataclass(frozen=True, slots=True)
-class _ResolvedReplicateGroup:
+class TechnicalReplicateAggregationGroup:
     condition: str
     biological_replicate_id: str
     output_sample_id: str
@@ -26,16 +26,30 @@ class _ResolvedReplicateGroup:
 
 
 @dataclass(frozen=True, slots=True)
+class TechnicalReplicateAggregationPlan:
+    """Explicit technical-replicate aggregation plan for workflow preparation."""
+
+    technical_replicate_policy: TechnicalReplicatePolicy
+    groups: tuple[TechnicalReplicateAggregationGroup, ...]
+    aggregate_phospho: bool
+    aggregate_total_protein: bool
+
+    @property
+    def requires_aggregation(self) -> bool:
+        return bool(self.groups)
+
+
+@dataclass(frozen=True, slots=True)
 class TechnicalReplicateResolution:
-    """Resolved dataset/design pair after technical-replicate policy handling."""
+    """Resolved dataset/design pair after technical-replicate aggregation."""
 
     dataset: AnalysisReadyPhosphoDataset
     design: ExperimentalDesign
     workflow_provenance: Mapping[str, object] | None = None
 
 
-class TechnicalReplicateResolver:
-    """Apply explicit technical-replicate policy before design-matrix assembly."""
+class TechnicalReplicateAggregationPlanner:
+    """Build an explicit aggregation plan from technical-replicate policy."""
 
     def run(
         self,
@@ -43,7 +57,7 @@ class TechnicalReplicateResolver:
         dataset: AnalysisReadyPhosphoDataset,
         design: ExperimentalDesign,
         technical_replicate_policy: TechnicalReplicatePolicy,
-    ) -> TechnicalReplicateResolution:
+    ) -> TechnicalReplicateAggregationPlan:
         if not isinstance(technical_replicate_policy, TechnicalReplicatePolicy):
             raise WorkflowValidationError(
                 "differential workflow request technical_replicate_policy must be "
@@ -52,10 +66,11 @@ class TechnicalReplicateResolver:
 
         repeated_groups = self._find_repeated_biological_groups(design)
         if not repeated_groups:
-            return TechnicalReplicateResolution(
-                dataset=dataset,
-                design=design,
-                workflow_provenance=None,
+            return TechnicalReplicateAggregationPlan(
+                technical_replicate_policy=technical_replicate_policy,
+                groups=(),
+                aggregate_phospho=False,
+                aggregate_total_protein=False,
             )
 
         if technical_replicate_policy == TechnicalReplicatePolicy.REJECT:
@@ -72,45 +87,33 @@ class TechnicalReplicateResolver:
             )
 
         groups = self._build_resolved_groups(design=design)
-        aggregated_dataset = self._aggregate_dataset(
+        self._validate_required_sample_ids_exist(
             dataset=dataset,
             groups=groups,
+        )
+        return TechnicalReplicateAggregationPlan(
             technical_replicate_policy=technical_replicate_policy,
+            groups=groups,
+            aggregate_phospho=True,
+            aggregate_total_protein=dataset._borrow_total_frame() is not None,
         )
-        aggregated_design = ExperimentalDesign(
-            samples=tuple(
-                SampleDesignRecord(
-                    sample_id=group.output_sample_id,
-                    condition=group.condition,
-                    biological_replicate_id=group.biological_replicate_id,
-                    technical_replicate_id=None,
-                    batch=group.batch,
-                    block=group.block,
-                )
-                for group in groups
+
+    @staticmethod
+    def _validate_required_sample_ids_exist(
+        *,
+        dataset: AnalysisReadyPhosphoDataset,
+        groups: tuple[TechnicalReplicateAggregationGroup, ...],
+    ) -> None:
+        phospho = dataset._borrow_phospho_frame()
+        required_sample_ids = [
+            sample_id for group in groups for sample_id in group.input_sample_ids
+        ]
+        missing = sorted(set(required_sample_ids) - set(phospho.columns.astype(str)))
+        if missing:
+            raise WorkflowValidationError(
+                "technical replicate aggregation design samples are missing from "
+                "dataset.phospho columns: " + ", ".join(missing)
             )
-        )
-        provenance_groups: list[dict[str, object]] = []
-        for group in groups:
-            provenance_groups.append(
-                {
-                    "condition": group.condition,
-                    "biological_replicate_id": group.biological_replicate_id,
-                    "output_sample_id": group.output_sample_id,
-                    "input_sample_ids": list(group.input_sample_ids),
-                    "technical_replicate_ids": list(group.technical_replicate_ids),
-                    "n_technical_replicates": len(group.input_sample_ids),
-                }
-            )
-        workflow_provenance: dict[str, object] = {
-            "technical_replicate_policy": technical_replicate_policy.value,
-            "groups": provenance_groups,
-        }
-        return TechnicalReplicateResolution(
-            dataset=aggregated_dataset,
-            design=aggregated_design,
-            workflow_provenance=workflow_provenance,
-        )
 
     @staticmethod
     def _find_repeated_biological_groups(
@@ -127,7 +130,7 @@ class TechnicalReplicateResolver:
     @staticmethod
     def _build_resolved_groups(
         *, design: ExperimentalDesign
-    ) -> tuple[_ResolvedReplicateGroup, ...]:
+    ) -> tuple[TechnicalReplicateAggregationGroup, ...]:
         missing_biological_id_samples = [
             record.sample_id
             for record in design.samples
@@ -157,7 +160,7 @@ class TechnicalReplicateResolver:
             biological_replicate_id
             for _, biological_replicate_id in grouped_records.keys()
         )
-        resolved_groups: list[_ResolvedReplicateGroup] = []
+        resolved_groups: list[TechnicalReplicateAggregationGroup] = []
         for (condition, biological_replicate_id), records in grouped_records.items():
             output_sample_id = biological_replicate_id
             if biological_id_counts[biological_replicate_id] > 1:
@@ -169,16 +172,20 @@ class TechnicalReplicateResolver:
                 )
                 if technical_id is not None
             )
-            batch = TechnicalReplicateResolver._require_consistent_optional_field(
-                records=tuple(records),
-                field_name="batch",
+            batch = (
+                TechnicalReplicateAggregationPlanner._require_consistent_optional_field(
+                    records=tuple(records),
+                    field_name="batch",
+                )
             )
-            block = TechnicalReplicateResolver._require_consistent_optional_field(
-                records=tuple(records),
-                field_name="block",
+            block = (
+                TechnicalReplicateAggregationPlanner._require_consistent_optional_field(
+                    records=tuple(records),
+                    field_name="block",
+                )
             )
             resolved_groups.append(
-                _ResolvedReplicateGroup(
+                TechnicalReplicateAggregationGroup(
                     condition=condition,
                     biological_replicate_id=biological_replicate_id,
                     output_sample_id=output_sample_id,
@@ -210,25 +217,96 @@ class TechnicalReplicateResolver:
             )
         return first
 
+
+class TechnicalReplicateAggregator:
+    """Apply an explicit technical-replicate aggregation plan."""
+
+    def run(
+        self,
+        *,
+        dataset: AnalysisReadyPhosphoDataset,
+        design: ExperimentalDesign,
+        aggregation_plan: TechnicalReplicateAggregationPlan,
+    ) -> TechnicalReplicateResolution:
+        if not isinstance(aggregation_plan, TechnicalReplicateAggregationPlan):
+            raise WorkflowValidationError(
+                "technical_replicate_aggregation_plan must be "
+                "TechnicalReplicateAggregationPlan"
+            )
+        if not aggregation_plan.requires_aggregation:
+            return TechnicalReplicateResolution(
+                dataset=dataset,
+                design=design,
+                workflow_provenance=None,
+            )
+
+        groups = aggregation_plan.groups
+        technical_replicate_policy = aggregation_plan.technical_replicate_policy
+        aggregated_dataset = self._aggregate_dataset(
+            dataset=dataset,
+            groups=groups,
+            technical_replicate_policy=technical_replicate_policy,
+        )
+        aggregated_design = ExperimentalDesign(
+            samples=tuple(
+                SampleDesignRecord(
+                    sample_id=group.output_sample_id,
+                    condition=group.condition,
+                    biological_replicate_id=group.biological_replicate_id,
+                    technical_replicate_id=None,
+                    batch=group.batch,
+                    block=group.block,
+                )
+                for group in groups
+            )
+        )
+        provenance_groups: list[dict[str, object]] = []
+        for group in groups:
+            provenance_groups.append(
+                {
+                    "condition": group.condition,
+                    "biological_replicate_id": group.biological_replicate_id,
+                    "output_sample_id": group.output_sample_id,
+                    "input_sample_ids": list(group.input_sample_ids),
+                    "source_sample_ids": list(group.input_sample_ids),
+                    "technical_replicate_ids": list(group.technical_replicate_ids),
+                    "n_technical_replicates": len(group.input_sample_ids),
+                    "aggregation_method": technical_replicate_policy.value,
+                }
+            )
+        grouped_samples = [group.output_sample_id for group in groups]
+        source_samples = sorted(
+            {sample_id for group in groups for sample_id in group.input_sample_ids}
+        )
+        aggregate_total = aggregation_plan.aggregate_total_protein
+        workflow_provenance: dict[str, object] = {
+            "technical_replicate_policy": technical_replicate_policy.value,
+            "aggregation_policy": technical_replicate_policy.value,
+            "aggregation_method": technical_replicate_policy.value,
+            "grouped_samples": grouped_samples,
+            "source_samples": source_samples,
+            "matrices_aggregated": {
+                "phospho": True,
+                "total_protein": aggregate_total,
+            },
+            "both_phospho_and_total_aggregated": bool(aggregate_total),
+            "groups": provenance_groups,
+        }
+        return TechnicalReplicateResolution(
+            dataset=aggregated_dataset,
+            design=aggregated_design,
+            workflow_provenance=workflow_provenance,
+        )
+
     @staticmethod
     def _aggregate_dataset(
         *,
         dataset: AnalysisReadyPhosphoDataset,
-        groups: tuple[_ResolvedReplicateGroup, ...],
+        groups: tuple[TechnicalReplicateAggregationGroup, ...],
         technical_replicate_policy: TechnicalReplicatePolicy,
     ) -> AnalysisReadyPhosphoDataset:
         phospho = dataset._borrow_phospho_frame()
-        required_sample_ids = [
-            sample_id for group in groups for sample_id in group.input_sample_ids
-        ]
-        missing = sorted(set(required_sample_ids) - set(phospho.columns.astype(str)))
-        if missing:
-            raise WorkflowValidationError(
-                "technical replicate aggregation design samples are missing from "
-                "dataset.phospho columns: " + ", ".join(missing)
-            )
-
-        aggregated_phospho = TechnicalReplicateResolver._aggregate_numeric_matrix(
+        aggregated_phospho = TechnicalReplicateAggregator._aggregate_numeric_matrix(
             matrix=phospho,
             groups=groups,
             technical_replicate_policy=technical_replicate_policy,
@@ -236,7 +314,7 @@ class TechnicalReplicateResolver:
         total = dataset._borrow_total_frame()
         aggregated_total = None
         if total is not None:
-            aggregated_total = TechnicalReplicateResolver._aggregate_numeric_matrix(
+            aggregated_total = TechnicalReplicateAggregator._aggregate_numeric_matrix(
                 matrix=total,
                 groups=groups,
                 technical_replicate_policy=technical_replicate_policy,
@@ -244,9 +322,11 @@ class TechnicalReplicateResolver:
         sample_metadata = dataset._borrow_sample_metadata_frame()
         aggregated_sample_metadata = None
         if sample_metadata is not None:
-            aggregated_sample_metadata = TechnicalReplicateResolver._aggregate_metadata(
-                metadata=sample_metadata,
-                groups=groups,
+            aggregated_sample_metadata = (
+                TechnicalReplicateAggregator._aggregate_metadata(
+                    metadata=sample_metadata,
+                    groups=groups,
+                )
             )
         comparisons = dataset._borrow_comparisons_frame()
         return AnalysisReadyPhosphoDataset._from_owned(
@@ -266,7 +346,7 @@ class TechnicalReplicateResolver:
     def _aggregate_numeric_matrix(
         *,
         matrix: pd.DataFrame,
-        groups: tuple[_ResolvedReplicateGroup, ...],
+        groups: tuple[TechnicalReplicateAggregationGroup, ...],
         technical_replicate_policy: TechnicalReplicatePolicy,
     ) -> pd.DataFrame:
         aggregated_columns: list[pd.Series] = []
@@ -294,7 +374,7 @@ class TechnicalReplicateResolver:
     def _aggregate_metadata(
         *,
         metadata: pd.DataFrame,
-        groups: tuple[_ResolvedReplicateGroup, ...],
+        groups: tuple[TechnicalReplicateAggregationGroup, ...],
     ) -> pd.DataFrame:
         rows: list[pd.Series] = []
         for group in groups:
@@ -310,7 +390,42 @@ class TechnicalReplicateResolver:
         return aggregated
 
 
+class TechnicalReplicateResolver:
+    """Backward-compatible wrapper that plans and then applies aggregation."""
+
+    def __init__(
+        self,
+        *,
+        planner: TechnicalReplicateAggregationPlanner | None = None,
+        aggregator: TechnicalReplicateAggregator | None = None,
+    ) -> None:
+        self._planner = planner or TechnicalReplicateAggregationPlanner()
+        self._aggregator = aggregator or TechnicalReplicateAggregator()
+
+    def run(
+        self,
+        *,
+        dataset: AnalysisReadyPhosphoDataset,
+        design: ExperimentalDesign,
+        technical_replicate_policy: TechnicalReplicatePolicy,
+    ) -> TechnicalReplicateResolution:
+        plan = self._planner.run(
+            dataset=dataset,
+            design=design,
+            technical_replicate_policy=technical_replicate_policy,
+        )
+        return self._aggregator.run(
+            dataset=dataset,
+            design=design,
+            aggregation_plan=plan,
+        )
+
+
 __all__ = [
+    "TechnicalReplicateAggregationGroup",
+    "TechnicalReplicateAggregationPlan",
+    "TechnicalReplicateAggregationPlanner",
+    "TechnicalReplicateAggregator",
     "TechnicalReplicateResolution",
     "TechnicalReplicateResolver",
 ]

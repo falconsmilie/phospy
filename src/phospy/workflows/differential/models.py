@@ -21,6 +21,9 @@ from phospy.science.differential.models import (
 from phospy.science.differential.models import (
     DifferentialAnalysisRequest as DifferentialComputationRequest,
 )
+from phospy.workflows.differential.replicates import (
+    TechnicalReplicateAggregationPlan,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,6 +38,9 @@ class ValidatedDifferentialAnalysisRequest:
     contrast_matrix: ContrastMatrix
     config: DifferentialAnalysisConfig
     policy_provenance: DifferentialPolicyProvenance | None = None
+    technical_replicate_aggregation_plan: TechnicalReplicateAggregationPlan | None = (
+        None
+    )
     workflow_provenance: Mapping[str, object] | None = None
     dataset_preprocessing_report: DatasetPreprocessingReport | None = None
 

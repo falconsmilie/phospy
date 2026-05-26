@@ -23,6 +23,10 @@ from phospy.science.differential.models import (
     DifferentialAnalysisRequest as ComputationRequest,
 )
 from phospy.workflows.differential.executor import DifferentialAnalysisExecutor
+from phospy.workflows.differential.replicates import (
+    TechnicalReplicateAggregationPlanner,
+    TechnicalReplicateAggregator,
+)
 from phospy.workflows.differential.validator import DifferentialAnalysisValidator
 from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
@@ -122,6 +126,33 @@ def _repeated_design() -> ExperimentalDesign:
     )
 
 
+def _dataset_with_technical_replicates_and_total() -> AnalysisReadyPhosphoDataset:
+    phospho_only = _dataset_with_technical_replicates()
+    total = pd.DataFrame(
+        {
+            "A1_T1": [1.0, 2.0],
+            "A1_T2": [3.0, 4.0],
+            "A2_T1": [2.0, 1.0],
+            "A2_T2": [4.0, 3.0],
+            "B1_T1": [5.0, 6.0],
+            "B1_T2": [7.0, 8.0],
+            "B2_T1": [6.0, 5.0],
+            "B2_T2": [8.0, 7.0],
+        },
+        index=pd.Index(["MAPK14", "GSK3B"], name="protein_id"),
+    )
+    return AnalysisReadyPhosphoDataset(
+        phospho=phospho_only.phospho,
+        site_metadata=phospho_only.site_metadata,
+        total=total,
+        organism=phospho_only.organism,
+        intensity_scale_state=supported_log2_intensity_scale_state(
+            has_total_matrix=True
+        ),
+        processing_state=supported_log2_processing_state(has_total_matrix=True),
+    )
+
+
 def _independent_design() -> ExperimentalDesign:
     return ExperimentalDesign(
         samples=(
@@ -188,6 +219,8 @@ def test_independent_biological_replicates_pass_unchanged() -> None:
     validated = DifferentialAnalysisValidator().run(request)
     assert validated.analysis_sample_ids == ("A1_T1", "A1_T2", "B1_T1", "B1_T2")
     assert validated.workflow_provenance is None
+    assert validated.technical_replicate_aggregation_plan is not None
+    assert not validated.technical_replicate_aggregation_plan.requires_aggregation
 
 
 def test_repeated_biological_replicates_fail_with_default_reject_policy() -> None:
@@ -198,26 +231,35 @@ def test_repeated_biological_replicates_fail_with_default_reject_policy() -> Non
         DifferentialAnalysisValidator().run(_request())
 
 
-def test_repeated_biological_replicates_aggregate_with_mean() -> None:
+def test_repeated_biological_replicates_mean_policy_produces_explicit_plan() -> None:
     validated = DifferentialAnalysisValidator().run(
         _request(technical_replicate_policy=TechnicalReplicatePolicy.MEAN)
     )
-    aggregated = validated.dataset.phospho
-    assert aggregated.columns.tolist() == ["A1", "A2", "B1", "B2"]
-    assert aggregated.loc["MAPK14;Y182;", "A1"] == pytest.approx(2.0)
-    assert aggregated.loc["MAPK14;Y182;", "A2"] == pytest.approx(3.0)
-    assert aggregated.loc["MAPK14;Y182;", "B1"] == pytest.approx(6.0)
-    assert aggregated.loc["MAPK14;Y182;", "B2"] == pytest.approx(7.0)
+    assert validated.dataset.phospho.columns.tolist() == [
+        "A1_T1",
+        "A1_T2",
+        "A2_T1",
+        "A2_T2",
+        "B1_T1",
+        "B1_T2",
+        "B2_T1",
+        "B2_T2",
+    ]
+    plan = validated.technical_replicate_aggregation_plan
+    assert plan is not None
+    assert plan.requires_aggregation
+    assert plan.technical_replicate_policy is TechnicalReplicatePolicy.MEAN
+    assert [group.output_sample_id for group in plan.groups] == ["A1", "A2", "B1", "B2"]
 
 
-def test_repeated_biological_replicates_aggregate_with_median() -> None:
+def test_repeated_biological_replicates_median_policy_produces_explicit_plan() -> None:
     validated = DifferentialAnalysisValidator().run(
         _request(technical_replicate_policy=TechnicalReplicatePolicy.MEDIAN)
     )
-    aggregated = validated.dataset.phospho
-    assert aggregated.columns.tolist() == ["A1", "A2", "B1", "B2"]
-    assert aggregated.loc["GSK3B;S9;", "A1"] == pytest.approx(9.0)
-    assert aggregated.loc["GSK3B;S9;", "B1"] == pytest.approx(19.0)
+    plan = validated.technical_replicate_aggregation_plan
+    assert plan is not None
+    assert plan.requires_aggregation
+    assert plan.technical_replicate_policy is TechnicalReplicatePolicy.MEDIAN
 
 
 def test_aggregation_groups_by_condition_plus_biological_replicate_id() -> None:
@@ -290,36 +332,43 @@ def test_aggregation_groups_by_condition_plus_biological_replicate_id() -> None:
             ),
         )
     )
-    assert validated.dataset.phospho.columns.tolist() == ["A__R1", "B__R1"]
-    sample_ids = tuple(record.sample_id for record in validated.design.samples)
-    assert sample_ids == ("A__R1", "B__R1")
+    plan = validated.technical_replicate_aggregation_plan
+    assert plan is not None
+    assert [group.output_sample_id for group in plan.groups] == ["A__R1", "B__R1"]
 
 
-def test_original_dataset_is_not_mutated_by_aggregation() -> None:
+def test_validator_does_not_mutate_dataset_or_design_for_aggregation_policy() -> None:
     dataset = _dataset_with_technical_replicates()
     before = dataset.phospho.copy(deep=True)
-    DifferentialAnalysisValidator().run(
-        _request(
-            dataset=dataset,
-            technical_replicate_policy=TechnicalReplicatePolicy.MEAN,
-        )
+    before_design_sample_ids = tuple(
+        record.sample_id for record in _repeated_design().samples
     )
+    request = _request(
+        dataset=dataset,
+        technical_replicate_policy=TechnicalReplicatePolicy.MEAN,
+    )
+    DifferentialAnalysisValidator().run(request)
     pdt.assert_frame_equal(before, dataset.phospho)
+    assert (
+        tuple(record.sample_id for record in request.design.samples)
+        == before_design_sample_ids
+    )
 
 
-def test_design_after_aggregation_has_one_row_per_biological_replicate() -> None:
-    validated = DifferentialAnalysisValidator().run(
-        _request(technical_replicate_policy=TechnicalReplicatePolicy.MEAN)
+def test_validator_keeps_phospho_and_total_frames_immutable() -> None:
+    dataset = _dataset_with_technical_replicates_and_total()
+    phospho_before = dataset.phospho.copy(deep=True)
+    total_before = dataset.total.copy(deep=True)
+    request = _request(
+        dataset=dataset,
+        technical_replicate_policy=TechnicalReplicatePolicy.MEAN,
     )
-    assert tuple(record.sample_id for record in validated.design.samples) == (
-        "A1",
-        "A2",
-        "B1",
-        "B2",
-    )
-    assert all(
-        record.technical_replicate_id is None for record in validated.design.samples
-    )
+    validated = DifferentialAnalysisValidator().run(request)
+    assert validated.dataset is dataset
+    pdt.assert_frame_equal(phospho_before, dataset.phospho)
+    assert total_before is not None
+    assert dataset.total is not None
+    pdt.assert_frame_equal(total_before, dataset.total)
 
 
 def test_executor_receives_aggregated_matrix() -> None:
@@ -339,12 +388,58 @@ def test_executor_receives_aggregated_matrix() -> None:
     assert observed_columns == ["A1", "A2", "B1", "B2"]
 
 
+def test_phospho_only_aggregation_marks_total_matrix_as_not_aggregated() -> None:
+    result = DifferentialAnalysisWorkflow().run(
+        _request(technical_replicate_policy=TechnicalReplicatePolicy.MEAN)
+    )
+    assert result.workflow_provenance is not None
+    matrices = result.workflow_provenance["matrices_aggregated"]
+    assert matrices == {"phospho": True, "total_protein": False}
+    assert result.workflow_provenance["both_phospho_and_total_aggregated"] is False
+
+
+def test_phospho_and_total_matrices_are_both_aggregated_when_total_present() -> None:
+    dataset = _dataset_with_technical_replicates_and_total()
+    plan = TechnicalReplicateAggregationPlanner().run(
+        dataset=dataset,
+        design=_repeated_design(),
+        technical_replicate_policy=TechnicalReplicatePolicy.MEAN,
+    )
+    resolved = TechnicalReplicateAggregator().run(
+        dataset=dataset,
+        design=_repeated_design(),
+        aggregation_plan=plan,
+    )
+    assert resolved.dataset.phospho.columns.tolist() == ["A1", "A2", "B1", "B2"]
+    assert resolved.dataset.total is not None
+    assert resolved.dataset.total.columns.tolist() == ["A1", "A2", "B1", "B2"]
+    assert resolved.workflow_provenance is not None
+    assert resolved.workflow_provenance["matrices_aggregated"] == {
+        "phospho": True,
+        "total_protein": True,
+    }
+    assert resolved.workflow_provenance["both_phospho_and_total_aggregated"] is True
+
+
 def test_provenance_records_technical_replicate_lineage() -> None:
     result = DifferentialAnalysisWorkflow().run(
         _request(technical_replicate_policy=TechnicalReplicatePolicy.MEAN)
     )
     assert result.workflow_provenance is not None
     assert result.workflow_provenance["technical_replicate_policy"] == "mean"
+    assert result.workflow_provenance["aggregation_policy"] == "mean"
+    assert result.workflow_provenance["aggregation_method"] == "mean"
+    assert result.workflow_provenance["grouped_samples"] == ["A1", "A2", "B1", "B2"]
+    assert result.workflow_provenance["source_samples"] == [
+        "A1_T1",
+        "A1_T2",
+        "A2_T1",
+        "A2_T2",
+        "B1_T1",
+        "B1_T2",
+        "B2_T1",
+        "B2_T2",
+    ]
     groups = result.workflow_provenance["groups"]
     assert isinstance(groups, list)
     a1_group = next(
@@ -354,8 +449,10 @@ def test_provenance_records_technical_replicate_lineage() -> None:
     )
     assert a1_group["output_sample_id"] == "A1"
     assert a1_group["input_sample_ids"] == ["A1_T1", "A1_T2"]
+    assert a1_group["source_sample_ids"] == ["A1_T1", "A1_T2"]
     assert a1_group["technical_replicate_ids"] == ["T1", "T2"]
     assert a1_group["n_technical_replicates"] == 2
+    assert a1_group["aggregation_method"] == "mean"
     assert result.policy_provenance is not None
     assert result.policy_provenance.replicates.technical_replicate_policy == "mean"
     structured_groups = result.policy_provenance.replicates.technical_replicate_groups

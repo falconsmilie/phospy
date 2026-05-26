@@ -15,6 +15,9 @@ from phospy.science.differential.models import (
 from phospy.science.differential.models import (
     DifferentialAnalysisRequest as DifferentialComputationRequest,
 )
+from phospy.validation.workflows.differential import (
+    ExperimentalDesignContractValidator,
+)
 from phospy.workflows.differential.models import (
     InterpretedDifferentialAnalysisRequest,
     ValidatedDifferentialAnalysisRequest,
@@ -22,20 +25,70 @@ from phospy.workflows.differential.models import (
 from phospy.workflows.differential.provenance import (
     build_differential_policy_provenance,
 )
+from phospy.workflows.differential.replicates import (
+    TechnicalReplicateAggregator,
+)
 
 
 class DifferentialAnalysisInterpreter:
     """Resolve a validated differential request into execution-ready inputs."""
 
+    def __init__(
+        self,
+        *,
+        design_validator: ExperimentalDesignContractValidator | None = None,
+        technical_replicate_aggregator: TechnicalReplicateAggregator | None = None,
+    ) -> None:
+        self._design_validator = (
+            design_validator or ExperimentalDesignContractValidator()
+        )
+        self._technical_replicate_aggregator = (
+            technical_replicate_aggregator or TechnicalReplicateAggregator()
+        )
+
     def run(
         self, request: ValidatedDifferentialAnalysisRequest
     ) -> InterpretedDifferentialAnalysisRequest:
-        analysis_sample_ids = request.analysis_sample_ids
-        matrix = request.dataset._borrow_phospho_frame().loc[
+        aggregation_plan = request.technical_replicate_aggregation_plan
+        resolved_dataset = request.dataset
+        resolved_design = request.design
+        resolved_contrasts = request.contrasts
+        resolved_analysis_sample_ids = request.analysis_sample_ids
+        resolved_design_matrix = request.design_matrix
+        resolved_contrast_matrix = request.contrast_matrix
+        resolved_workflow_provenance = request.workflow_provenance
+
+        if aggregation_plan is not None and aggregation_plan.requires_aggregation:
+            technical_replicate_resolution = self._technical_replicate_aggregator.run(
+                dataset=request.dataset,
+                design=request.design,
+                aggregation_plan=aggregation_plan,
+            )
+            resolved_dataset = technical_replicate_resolution.dataset
+            resolved_design = technical_replicate_resolution.design
+            resolved_workflow_provenance = (
+                technical_replicate_resolution.workflow_provenance
+            )
+            resolved_design_contract = self._design_validator.run(
+                dataset=resolved_dataset,
+                design=resolved_design,
+                contrasts=request.contrasts,
+                allow_design_subset=request.config.allow_design_subset,
+                minimum_condition_replicates=request.config.minimum_condition_replicates,
+            )
+            resolved_contrasts = resolved_design_contract.contrasts
+            resolved_analysis_sample_ids = resolved_design_contract.analysis_sample_ids
+            resolved_design_matrix = DesignMatrix(resolved_design_contract.design_frame)
+            resolved_contrast_matrix = ContrastMatrix(
+                resolved_design_contract.contrast_frame
+            )
+
+        analysis_sample_ids = resolved_analysis_sample_ids
+        matrix = resolved_dataset._borrow_phospho_frame().loc[
             :, list(analysis_sample_ids)
         ]
-        design_aligned = request.design_matrix.frame
-        contrasts_aligned = request.contrast_matrix.frame
+        design_aligned = resolved_design_matrix.frame
+        contrasts_aligned = resolved_contrast_matrix.frame
 
         matrix_samples = pd.Index(matrix.columns)
         design_samples = pd.Index(design_aligned.index)
@@ -111,8 +164,20 @@ class DifferentialAnalysisInterpreter:
             ),
             empirical_bayes=request.config.empirical_bayes,
         )
+        provenance_request = ValidatedDifferentialAnalysisRequest(
+            dataset=resolved_dataset,
+            design=resolved_design,
+            contrasts=resolved_contrasts,
+            analysis_sample_ids=resolved_analysis_sample_ids,
+            design_matrix=resolved_design_matrix,
+            contrast_matrix=resolved_contrast_matrix,
+            config=request.config,
+            technical_replicate_aggregation_plan=aggregation_plan,
+            workflow_provenance=resolved_workflow_provenance,
+            dataset_preprocessing_report=resolved_dataset.preprocessing_report,
+        )
         policy_provenance = build_differential_policy_provenance(
-            request=request,
+            request=provenance_request,
             design_rank=rank,
             residual_degrees_of_freedom=residual_dof,
         )
@@ -122,8 +187,8 @@ class DifferentialAnalysisInterpreter:
             design_rank=rank,
             residual_degrees_of_freedom=residual_dof,
             policy_provenance=policy_provenance,
-            workflow_provenance=request.workflow_provenance,
-            dataset_preprocessing_report=request.dataset_preprocessing_report,
+            workflow_provenance=resolved_workflow_provenance,
+            dataset_preprocessing_report=resolved_dataset.preprocessing_report,
         )
 
 

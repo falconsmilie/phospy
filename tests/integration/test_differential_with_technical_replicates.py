@@ -157,6 +157,13 @@ def test_differential_workflow_runs_after_mean_technical_replicate_aggregation()
     assert table.index.tolist() == _dataset().phospho.index.tolist()
     assert result.workflow_provenance is not None
     assert result.workflow_provenance["technical_replicate_policy"] == "mean"
+    assert result.workflow_provenance["aggregation_policy"] == "mean"
+    assert result.workflow_provenance["aggregation_method"] == "mean"
+    assert result.workflow_provenance["matrices_aggregated"] == {
+        "phospho": True,
+        "total_protein": False,
+    }
+    assert result.workflow_provenance["both_phospho_and_total_aggregated"] is False
     groups = result.workflow_provenance["groups"]
     assert isinstance(groups, list)
     assert len(groups) == 4
