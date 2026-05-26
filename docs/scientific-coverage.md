@@ -20,9 +20,10 @@ sample names and does not replace upstream preprocessing requirements.
 
 At dataset-construction boundary, PhosPy currently supports one
 analysis-ready row per normalised phosphosite display identifier such as
-`GENE;SITE;`. Protein- or isoform-scoped row identity is not yet supported.
-Input data with multiple rows that resolve to the same display-site identifier
-must be resolved upstream before dataset construction.
+`GENE;SITE;`. Protein-, isoform-, source-, or peptide-evidence-scoped row
+identity is not yet supported. Input data containing multiple rows for the same
+display-site identifier must be resolved before dataset construction. See
+[ADR-0023: Supported Phosphosite Display-Site Identity Scope](adr/adr_0023_supported_phosphosite_display_site_identity_scope.md).
 
 ### Differential Parity Envelope (Current Release)
 

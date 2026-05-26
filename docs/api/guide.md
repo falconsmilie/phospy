@@ -109,9 +109,12 @@ The dataset that leaves the builder must be missing-value-free. This strict
 boundary keeps kinase scoring, prediction, and signalome interpretation easier
 to audit.
 At this boundary, PhosPy supports one row per normalised phosphosite
-display-site identifier (`GENE;SITE;`). Protein- or isoform-scoped row identity
-is not yet supported, and duplicate display-site rows must be resolved before
-dataset construction.
+display-site identifier (`GENE;SITE;`). Protein-, isoform-, source-, and
+peptide-evidence-scoped row identity are not yet supported, and duplicate
+display-site rows must be resolved before dataset construction. Duplicate
+display-site rows are rejected during dataset construction, including rows with
+identical protein metadata. See
+[ADR-0023](../adr/adr_0023_supported_phosphosite_display_site_identity_scope.md).
 
 For concise scientist facing assumptions and interpretation notes, see
 [Workflow Contracts](../workflow_contracts.md).
