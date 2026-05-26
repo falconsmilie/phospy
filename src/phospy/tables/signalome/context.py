@@ -30,6 +30,7 @@ from phospy.science.signalomes.context import (
     SITE_MEMBERSHIP_TOP_KINASE_SCORE_COLUMN,
     SITE_MEMBERSHIP_TOP_KINASE_WEIGHT_COLUMN,
 )
+from phospy.science.sites.validation import require_canonical_site_series
 from phospy.tables.base import TableSchema
 from phospy.tables.signalome.common import (
     _require_boolean_column,
@@ -39,7 +40,6 @@ from phospy.tables.signalome.common import (
     _require_string_column,
 )
 from phospy.validation.common.dataframes import (
-    require_canonical_site_series,
     require_columns,
     require_dataframe,
 )

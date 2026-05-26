@@ -10,13 +10,13 @@ import pandas as pd
 
 from phospy.errors.validation import PhosPyValidationError
 from phospy.frames.ownership import own_dataframe, own_series
+from phospy.science.sites.validation import require_canonical_site_series
 from phospy.tables.base import (
     TableSchema,
     ValidationErrorType,
     require_canonical_label_index,
 )
 from phospy.validation.common.dataframes import (
-    require_canonical_site_series,
     require_canonical_string_column,
     require_columns,
     require_dataframe,

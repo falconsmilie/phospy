@@ -74,6 +74,8 @@ not optional commentary.
 
 - Ownership registry: `docs/validation-ownership.md`.
 - Shared structural primitives: `src/phospy/validation/common/dataframes.py`.
+- Phosphosite-specific identifier/coherence validation owner:
+  `src/phospy/science/sites/validation.py`.
 - Differential design/contrast validation ownership:
   `src/phospy/validation/workflows/differential.py` plus
   `src/phospy/workflows/differential/validator.py`.

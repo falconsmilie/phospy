@@ -8,9 +8,9 @@ import pandas as pd
 
 from phospy.errors.validation import PhosPyValidationError
 from phospy.frames.ownership import own_dataframe
+from phospy.science.sites.validation import require_canonical_site_index
 from phospy.tables.base import TableSchema, require_canonical_label_index
 from phospy.validation.common.dataframes import (
-    require_canonical_site_index,
     require_dataframe,
     require_finite_numeric_dataframe,
     require_numeric_dataframe,

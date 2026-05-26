@@ -22,6 +22,7 @@ from phospy.science.signalomes.constants import (
     TOP_SCORE_COLUMN,
     UNSUPPORTED_KINASE,
 )
+from phospy.science.sites.validation import require_canonical_site_index
 from phospy.tables.base import TableSchema, ValidationErrorType
 from phospy.tables.signalome.common import (
     _column_series,
@@ -31,7 +32,6 @@ from phospy.tables.signalome.common import (
     _require_non_negative_integer_column,
 )
 from phospy.validation.common.dataframes import (
-    require_canonical_site_index,
     require_columns,
     require_dataframe,
     require_non_empty_string_column,

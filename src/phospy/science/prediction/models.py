@@ -21,10 +21,10 @@ from phospy.science.prediction.scoring import (
     KINASE_SCORE_SOURCE_VALUES,
 )
 from phospy.science.prediction.sequence_validation import SequenceValidationResult
+from phospy.science.sites.validation import require_canonical_site_index
 from phospy.tables.base import require_canonical_label_index
 from phospy.tables.kinase import KinasePredictionMatrix, KinaseScoreMatrix
 from phospy.validation.common.dataframes import (
-    require_canonical_site_index,
     require_dataframe,
     require_exact_index_match,
     require_finite_numeric_dataframe,

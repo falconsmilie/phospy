@@ -8,11 +8,6 @@ import numpy as np
 import pandas as pd
 
 from phospy.errors.base import PhosPyError
-from phospy.science.sites.identifiers import (
-    canonicalize_site_index,
-    canonicalize_site_series,
-    parse_canonical_site_identifier,
-)
 
 ValidationErrorType = type[PhosPyError]
 _ALIGNMENT_EXAMPLE_LIMIT = 5
@@ -319,7 +314,7 @@ def require_string_index(
     """Require one index to contain only string labels and no missing labels."""
 
     values = index.tolist()
-    missing = [value for value in values if _is_missing_site_identifier(value)]
+    missing = [value for value in values if _is_missing_label(value)]
     if missing:
         raise error_type(
             f"{field_name} must not contain missing labels; "
@@ -408,193 +403,7 @@ def require_canonical_string_column(
     return value
 
 
-def require_canonical_site_index(
-    index: pd.Index,
-    *,
-    field_name: str,
-    error_type: ValidationErrorType,
-    strict_supported_format: bool = True,
-) -> pd.Index:
-    """Require one site index to already be strict/canonical."""
-
-    if not strict_supported_format:
-        _require_stripped_site_identifiers(
-            index.tolist(),
-            field_name=field_name,
-            error_type=error_type,
-        )
-        return index
-    canonical = canonicalize_site_index(
-        index,
-        field_name=field_name,
-        error_type=error_type,
-        require_unique=True,
-        index_name=(str(index.name) if index.name is not None else None),
-    )
-    if canonical.tolist() != index.tolist():
-        raise error_type(
-            f"{field_name} must contain canonical site identifiers in "
-            "'GENE;SITE;' format"
-        )
-    if not index.is_unique:
-        require_no_duplicate_labels(
-            index,
-            field_name=field_name,
-            error_type=error_type,
-        )
-    return index
-
-
-def require_canonical_site_series(
-    series: pd.Series,
-    *,
-    field_name: str,
-    error_type: ValidationErrorType,
-    strict_supported_format: bool = True,
-) -> pd.Series:
-    """Require one site-id series to already be strict/canonical."""
-
-    if not strict_supported_format:
-        _require_stripped_site_identifiers(
-            series.tolist(),
-            field_name=field_name,
-            error_type=error_type,
-        )
-        return series
-    canonical = canonicalize_site_series(
-        series,
-        field_name=field_name,
-        error_type=error_type,
-    )
-    if canonical.tolist() != series.tolist():
-        raise error_type(
-            f"{field_name} must contain canonical site identifiers in "
-            "'GENE;SITE;' format"
-        )
-    return series
-
-
-def require_site_identity_coherence(
-    *,
-    site_index: pd.Index,
-    site_metadata: pd.DataFrame,
-    site_index_field_name: str,
-    site_metadata_field_name: str,
-    gene_symbol_column: str = "gene_symbol",
-    site_column: str = "site",
-    error_type: ValidationErrorType,
-    error_preview_limit: int = 5,
-) -> None:
-    """Require canonical site IDs to agree with metadata gene/site columns."""
-
-    unparseable_site_ids: list[str] = []
-    mismatched_rows: list[str] = []
-
-    for site_id in site_index:
-        parsed = _parse_site_identity(
-            site_id,
-            field_name=site_index_field_name,
-            error_type=error_type,
-        )
-        if parsed is None:
-            unparseable_site_ids.append(str(site_id))
-            continue
-
-        expected_gene_symbol, expected_site = parsed
-        observed_gene_symbol = site_metadata.at[site_id, gene_symbol_column]
-        observed_site = site_metadata.at[site_id, site_column]
-        if (
-            observed_gene_symbol != expected_gene_symbol
-            or observed_site != expected_site
-        ):
-            mismatched_rows.append(
-                f"{site_id} expected(gene_symbol={expected_gene_symbol!r}, "
-                f"site={expected_site!r}) observed(gene_symbol={observed_gene_symbol!r}, "
-                f"site={observed_site!r})"
-            )
-
-    if not unparseable_site_ids and not mismatched_rows:
-        return
-
-    details: list[str] = []
-    if unparseable_site_ids:
-        preview = ", ".join(
-            repr(site_id) for site_id in unparseable_site_ids[:error_preview_limit]
-        )
-        suffix = "" if len(unparseable_site_ids) <= error_preview_limit else " ..."
-        details.append(
-            f"unparseable site IDs for '<gene_symbol>;<site>;': {preview}{suffix}"
-        )
-    if mismatched_rows:
-        preview = "; ".join(mismatched_rows[:error_preview_limit])
-        suffix = "" if len(mismatched_rows) <= error_preview_limit else " ..."
-        details.append(f"mismatched rows: {preview}{suffix}")
-
-    joined_details = "; ".join(details)
-    raise error_type(
-        "dataset site-identity coherence failed: "
-        f"{site_index_field_name} canonical site IDs must agree with "
-        f"{site_metadata_field_name}.{gene_symbol_column} and "
-        f"{site_metadata_field_name}.{site_column}; {joined_details}"
-    )
-
-
-def _parse_site_identity(
-    site_id: object,
-    *,
-    field_name: str,
-    error_type: ValidationErrorType,
-) -> tuple[str, str] | None:
-    if not isinstance(site_id, str):
-        return None
-    try:
-        return parse_canonical_site_identifier(
-            site_id,
-            field_name=field_name,
-            error_type=error_type,
-        )
-    except error_type:
-        return None
-
-
-def _require_stripped_site_identifiers(
-    values: list[object],
-    *,
-    field_name: str,
-    error_type: ValidationErrorType,
-) -> None:
-    if any(_is_missing_site_identifier(value) for value in values):
-        raise error_type(f"{field_name} must not contain missing site identifiers")
-    if not all(isinstance(value, str) for value in values):
-        raise error_type(
-            f"{field_name} must contain canonical site identifiers (non-empty stripped strings)"
-        )
-    raw_values = [value for value in values if isinstance(value, str)]
-    stripped_values = [value.strip() for value in raw_values]
-    if any(value == "" for value in stripped_values):
-        raise error_type(f"{field_name} must contain non-empty site identifiers")
-
-    collisions: dict[str, set[str]] = {}
-    for raw_value, stripped_value in zip(raw_values, stripped_values, strict=False):
-        collisions.setdefault(stripped_value, set()).add(raw_value)
-    colliding = [value for value, raw_set in collisions.items() if len(raw_set) > 1]
-    if colliding:
-        preview = ", ".join(colliding[:5])
-        suffix = "" if len(colliding) <= 5 else " ..."
-        raise error_type(
-            f"{field_name} contains colliding site identifiers when stripped: "
-            f"{preview}{suffix}"
-        )
-    if any(
-        raw_value != stripped_value
-        for raw_value, stripped_value in zip(raw_values, stripped_values, strict=False)
-    ):
-        raise error_type(
-            f"{field_name} must contain canonical site identifiers (non-empty stripped strings)"
-        )
-
-
-def _is_missing_site_identifier(value: object) -> bool:
+def _is_missing_label(value: object) -> bool:
     return bool(pd.Series((value,), dtype="object").isna().iat[0])
 
 

@@ -24,10 +24,12 @@ from phospy.science.prediction.policies import (
     PredictionSamplingPolicy,
 )
 from phospy.science.references.models import ReferenceBundle
-from phospy.tables.datasets import PhosphoIntensityMatrix
-from phospy.validation.common.dataframes import (
+from phospy.science.sites.validation import (
     require_canonical_site_index,
     require_canonical_site_series,
+)
+from phospy.tables.datasets import PhosphoIntensityMatrix
+from phospy.validation.common.dataframes import (
     require_canonical_string_column,
     require_columns,
     require_dataframe,
