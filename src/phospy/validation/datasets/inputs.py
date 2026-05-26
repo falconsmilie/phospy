@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from os import PathLike
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
 
@@ -19,7 +20,7 @@ class DatasetInputSourceValidator:
         *,
         field_name: str,
         allow_none: bool = False,
-    ) -> object | None:
+    ) -> pd.DataFrame | str | Path | None:
         if value is None:
             if allow_none:
                 return None
@@ -33,7 +34,9 @@ class DatasetInputSourceValidator:
                 raise UnsupportedInputFormatError(
                     f"dataset build request {field_name} path cannot be empty"
                 )
-            return value
+            if isinstance(value, (str, Path)):
+                return value
+            return Path(cast(PathLike[str], value))
         raise UnsupportedInputFormatError(
             f"dataset build request {field_name} must be a pandas DataFrame or a file "
             "path (str/pathlib.Path)"

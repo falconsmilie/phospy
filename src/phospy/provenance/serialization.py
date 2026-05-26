@@ -152,16 +152,8 @@ def from_payload(payload: Mapping[str, object]) -> RunProvenance:
 
 
 def _table_fingerprint_to_payload(fingerprint: TableFingerprint) -> dict[str, object]:
-    legacy_hash_algorithm = (
-        fingerprint.tolerance_hash_algorithm
-        if fingerprint.hash_algorithm is None
-        else fingerprint.hash_algorithm
-    )
-    legacy_hash_value = (
-        fingerprint.tolerance_hash_value
-        if fingerprint.hash_value is None
-        else fingerprint.hash_value
-    )
+    legacy_hash_algorithm = fingerprint.hash_algorithm
+    legacy_hash_value = fingerprint.hash_value
     exact_hash_algorithm = (
         fingerprint.hash_algorithm
         if fingerprint.exact_hash_algorithm is None

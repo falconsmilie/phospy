@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from typing import TypeVar
 
 import pandas as pd
 
 from phospy.errors.validation import DatasetValidationError
 from phospy.frames.ownership import (
-    _borrow_dataframe,
-    _borrow_optional_dataframe,
+    borrow_dataframe,
+    borrow_optional_dataframe,
     export_dataframe,
     export_optional_dataframe,
     own_dataframe,
@@ -68,6 +70,9 @@ from phospy.validation.datasets.display_site_identity import (
 from phospy.validation.transformations.state import IntensityScaleStateValidator
 
 _INTENSITY_SCALE_STATE_VALIDATOR = IntensityScaleStateValidator()
+_SITE_ID_REASON_PATTERN = re.compile(r"site identifier|site_id|site id")
+_INVALID_REASON_PATTERN = re.compile(r"invalid|missing|blank|empty")
+_ExpectedType = TypeVar("_ExpectedType")
 
 
 @dataclass(frozen=True, slots=True)
@@ -238,13 +243,6 @@ class DatasetPreprocessingReport:
                 comparison_pair_stats,
                 expected_columns=COMPARISON_PAIR_STATS_COLUMNS,
             )
-        if site_sequence_resolution is not None and not isinstance(
-            site_sequence_resolution, SiteSequenceResolutionReport
-        ):
-            raise DatasetValidationError(
-                "dataset.preprocessing_report.site_sequence_resolution must be "
-                "SiteSequenceResolutionReport or None"
-            )
         object.__setattr__(self, "_row_counts", row_counts)
         object.__setattr__(self, "_operations", operations)
         object.__setattr__(self, "_row_audit", row_audit)
@@ -291,37 +289,37 @@ class DatasetPreprocessingReport:
     def _borrow_row_counts_frame(self) -> pd.DataFrame:
         """Package-private borrowed row-count table for internal workflows."""
 
-        return _borrow_dataframe(self._row_counts)
+        return borrow_dataframe(self._row_counts)
 
     def _borrow_operations_frame(self) -> pd.DataFrame:
         """Package-private borrowed operations table for internal workflows."""
 
-        return _borrow_dataframe(self._operations)
+        return borrow_dataframe(self._operations)
 
     def _borrow_row_audit_frame(self) -> pd.DataFrame:
         """Package-private borrowed row-audit table for internal workflows."""
 
-        return _borrow_dataframe(self._row_audit)
+        return borrow_dataframe(self._row_audit)
 
     def _borrow_duplicate_site_resolution_frame(self) -> pd.DataFrame | None:
         """Package-private borrowed duplicate-resolution table for internals."""
 
-        return _borrow_optional_dataframe(self._duplicate_site_resolution)
+        return borrow_optional_dataframe(self._duplicate_site_resolution)
 
     def _borrow_metadata_conflicts_frame(self) -> pd.DataFrame | None:
         """Package-private borrowed metadata-conflict table for internals."""
 
-        return _borrow_optional_dataframe(self._metadata_conflicts)
+        return borrow_optional_dataframe(self._metadata_conflicts)
 
     def _borrow_comparison_group_stats_frame(self) -> pd.DataFrame | None:
         """Package-private borrowed comparison-group stats for internals."""
 
-        return _borrow_optional_dataframe(self._comparison_group_stats)
+        return borrow_optional_dataframe(self._comparison_group_stats)
 
     def _borrow_comparison_pair_stats_frame(self) -> pd.DataFrame | None:
         """Package-private borrowed comparison-pair stats for internals."""
 
-        return _borrow_optional_dataframe(self._comparison_pair_stats)
+        return borrow_optional_dataframe(self._comparison_pair_stats)
 
     def row_counts_dataframe(self) -> pd.DataFrame:
         """Return a row-count snapshot; mutating it does not mutate this report."""
@@ -374,13 +372,14 @@ class DatasetPreprocessingReport:
             duplicate_site_resolution is not None
             and not duplicate_site_resolution.empty
         ):
-            duplicate_sites_merged_or_resolved = int(
-                duplicate_site_resolution.loc[:, "site_id"]
-                .astype("string")
-                .str.strip()
-                .dropna()
-                .nunique()
-            )
+            site_id_values = duplicate_site_resolution["site_id"]
+            site_id_value_list: list[object] = list(site_id_values.tolist())
+            normalized_site_ids: set[str] = set()
+            for raw_site_id in site_id_value_list:
+                if _is_missing_value(raw_site_id):
+                    continue
+                normalized_site_ids.add(str(raw_site_id).strip())
+            duplicate_sites_merged_or_resolved = int(len(normalized_site_ids))
         rows_removed_invalid_or_missing_site_identifiers = (
             self._count_invalid_or_missing_identifier_drops()
         )
@@ -455,30 +454,45 @@ class DatasetPreprocessingReport:
         row_counts = self._row_counts
         if row_counts.empty:
             return 0
-        stage_mask = row_counts.loc[:, "stage"].astype(str) == str(stage)
-        if not bool(stage_mask.any()):
+        stage_values: list[object] = list(row_counts["stage"].tolist())
+        output_values: list[object] = list(row_counts["output_rows"].tolist())
+        target_stage = str(stage)
+        matched_values: list[object] = []
+        for stage_value, output_value in zip(stage_values, output_values, strict=True):
+            if str(stage_value) == target_stage:
+                matched_values.append(output_value)
+        if not matched_values:
             return 0
-        return int(row_counts.loc[stage_mask, "output_rows"].iloc[-1])
+        last_value = matched_values[-1]
+        if isinstance(last_value, bool):
+            return int(last_value)
+        if isinstance(last_value, (int, float, str)):
+            return int(last_value)
+        raise DatasetValidationError(
+            "dataset.preprocessing_report.row_counts.output_rows must be "
+            "int-like values"
+        )
 
     def _count_invalid_or_missing_identifier_drops(self) -> int:
         row_audit = self._row_audit
         if row_audit.empty:
             return 0
-        dropped = row_audit.loc[row_audit.loc[:, "action"].astype(str) == "dropped", :]
-        if dropped.empty:
-            return 0
-        reasons = dropped.loc[:, "reason"].astype("string").str.lower()
-        site_id_reason = reasons.str.contains(
-            "site identifier|site_id|site id",
-            regex=True,
-            na=False,
-        )
-        invalid_reason = reasons.str.contains(
-            "invalid|missing|blank|empty",
-            regex=True,
-            na=False,
-        )
-        return int((site_id_reason & invalid_reason).sum())
+        action_values: list[object] = list(row_audit["action"].tolist())
+        reason_values: list[object] = list(row_audit["reason"].tolist())
+        drop_count = 0
+        for action_value, reason_value in zip(
+            action_values, reason_values, strict=True
+        ):
+            if str(action_value) != "dropped":
+                continue
+            if _is_missing_value(reason_value):
+                continue
+            normalized_reason = str(reason_value).lower()
+            if _SITE_ID_REASON_PATTERN.search(
+                normalized_reason
+            ) and _INVALID_REASON_PATTERN.search(normalized_reason):
+                drop_count += 1
+        return drop_count
 
 
 @dataclass(frozen=True, slots=True, init=False)
@@ -543,10 +557,11 @@ class AnalysisReadyPhosphoDataset:
         allow_opaque_site_values: bool = False,
         _assume_owned: bool = False,
     ) -> None:
-        if not isinstance(allow_opaque_site_values, bool):
-            raise DatasetValidationError(
-                "dataset.allow_opaque_site_values must be a bool"
-            )
+        _require_instance(
+            allow_opaque_site_values,
+            expected_type=bool,
+            error_message="dataset.allow_opaque_site_values must be a bool",
+        )
         object.__setattr__(self, "intensity_scale_state", intensity_scale_state)
         object.__setattr__(self, "processing_state", processing_state)
         object.__setattr__(self, "organism", organism)
@@ -617,7 +632,7 @@ class AnalysisReadyPhosphoDataset:
             site_metadata=site_metadata,
             display_site_ids=pd.Series(
                 phospho.index.tolist(),
-                index=site_metadata.index.copy(),
+                index=pd.Index(site_metadata.index),
                 name="display_site_id",
                 dtype="object",
             ),
@@ -688,24 +703,31 @@ class AnalysisReadyPhosphoDataset:
                 error_type=DatasetValidationError,
             )
             comparisons = comparisons_frame
-        if self.organism is not None and not isinstance(self.organism, Organism):
-            raise DatasetValidationError(
-                "dataset.organism must be an Organism enum value or None"
-            )
         validated_intensity_scale_state = _INTENSITY_SCALE_STATE_VALIDATOR.run(
             intensity_scale_state=self.intensity_scale_state,
             has_total_matrix=total_table is not None,
             require_established=True,
         )
-        if not isinstance(self.processing_state, DatasetProcessingState):
-            raise DatasetValidationError(
+        _require_optional_instance(
+            self.organism,
+            expected_type=Organism,
+            error_message="dataset.organism must be an Organism enum value or None",
+        )
+        _require_instance(
+            self.processing_state,
+            expected_type=DatasetProcessingState,
+            error_message=(
                 "dataset.processing_state must be a DatasetProcessingState instance"
-            )
-        if not isinstance(self.processing_state.ruv_readiness, RuvReadinessState):
-            raise DatasetValidationError(
+            ),
+        )
+        _require_instance(
+            self.processing_state.ruv_readiness,
+            expected_type=RuvReadinessState,
+            error_message=(
                 "dataset.processing_state.ruv_readiness must be a "
                 "RuvReadinessState instance"
-            )
+            ),
+        )
         if (
             not self.processing_state.ruv_readiness.enabled
             and self.processing_state.ruv_readiness.ready
@@ -724,20 +746,19 @@ class AnalysisReadyPhosphoDataset:
                 "dataset.processing_state.missing_data.complete_matrix must be True "
                 "at AnalysisReadyPhosphoDataset boundary"
             )
-        if self.preprocessing_report is not None and not isinstance(
+        _require_optional_instance(
             self.preprocessing_report,
-            DatasetPreprocessingReport,
-        ):
-            raise DatasetValidationError(
+            expected_type=DatasetPreprocessingReport,
+            error_message=(
                 "dataset.preprocessing_report must be DatasetPreprocessingReport "
                 "or None"
-            )
-        if self.provenance is not None and not isinstance(
-            self.provenance, RunProvenance
-        ):
-            raise DatasetValidationError(
-                "dataset.provenance must be RunProvenance or None"
-            )
+            ),
+        )
+        _require_optional_instance(
+            self.provenance,
+            expected_type=RunProvenance,
+            error_message="dataset.provenance must be RunProvenance or None",
+        )
         object.__setattr__(self, "_phospho", phospho_table.frame)
         object.__setattr__(self, "_site_metadata", site_metadata_table.frame)
         object.__setattr__(
@@ -783,27 +804,27 @@ class AnalysisReadyPhosphoDataset:
     def _borrow_phospho_frame(self) -> pd.DataFrame:
         """Package-private borrowed phospho matrix for internal workflows."""
 
-        return _borrow_dataframe(self._phospho)
+        return borrow_dataframe(self._phospho)
 
     def _borrow_site_metadata_frame(self) -> pd.DataFrame:
         """Package-private borrowed site-metadata table for internals."""
 
-        return _borrow_dataframe(self._site_metadata)
+        return borrow_dataframe(self._site_metadata)
 
     def _borrow_sample_metadata_frame(self) -> pd.DataFrame | None:
         """Package-private borrowed sample-metadata table for internals."""
 
-        return _borrow_optional_dataframe(self._sample_metadata)
+        return borrow_optional_dataframe(self._sample_metadata)
 
     def _borrow_total_frame(self) -> pd.DataFrame | None:
         """Package-private borrowed total-protein table for internals."""
 
-        return _borrow_optional_dataframe(self._total)
+        return borrow_optional_dataframe(self._total)
 
     def _borrow_comparisons_frame(self) -> pd.DataFrame | None:
         """Package-private borrowed comparisons table for internals."""
 
-        return _borrow_optional_dataframe(self._comparisons)
+        return borrow_optional_dataframe(self._comparisons)
 
     @classmethod
     def _from_owned(
@@ -860,3 +881,32 @@ class AnalysisReadyPhosphoDataset:
         """Return an optional comparisons snapshot isolated from this dataset."""
 
         return export_optional_dataframe(self._comparisons)
+
+
+def _is_missing_value(value: object) -> bool:
+    return bool(pd.Series((value,), dtype="object").isna().iat[0])
+
+
+def _require_instance(
+    value: object,
+    *,
+    expected_type: type[_ExpectedType],
+    error_message: str,
+) -> None:
+    if not isinstance(value, expected_type):
+        raise DatasetValidationError(error_message)
+
+
+def _require_optional_instance(
+    value: object | None,
+    *,
+    expected_type: type[_ExpectedType],
+    error_message: str,
+) -> None:
+    if value is None:
+        return
+    _require_instance(
+        value,
+        expected_type=expected_type,
+        error_message=error_message,
+    )

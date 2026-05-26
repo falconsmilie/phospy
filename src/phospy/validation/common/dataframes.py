@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import numbers
 from collections.abc import Iterable
 
 import numpy as np
@@ -93,16 +94,41 @@ def require_finite_numeric_dataframe(
 ) -> pd.DataFrame:
     """Require one numeric DataFrame to satisfy finite-value constraints."""
 
-    missing_mask = value.isna()
-    if not allow_missing and missing_mask.to_numpy().any():
-        missing_count = int(missing_mask.to_numpy().sum())
+    cell_values = value.to_numpy(dtype="object")
+    missing_array = np.zeros(cell_values.shape, dtype=bool)
+    infinite_array = np.zeros(cell_values.shape, dtype=bool)
+    row_count = int(cell_values.shape[0])
+    column_count = int(cell_values.shape[1])
+    for row_idx in range(row_count):
+        for col_idx in range(column_count):
+            cell_value = cell_values[row_idx, col_idx]
+            if _is_missing_label(cell_value):
+                missing_array[row_idx, col_idx] = True
+                continue
+            if isinstance(cell_value, numbers.Real) and not np.isfinite(
+                float(cell_value)
+            ):
+                infinite_array[row_idx, col_idx] = True
+
+    missing_mask = pd.DataFrame(
+        missing_array,
+        index=value.index,
+        columns=value.columns,
+    )
+    if not allow_missing and bool(missing_array.any()):
+        missing_count = int(missing_array.sum())
         raise error_type(
             f"{field_name} must not contain missing values; "
             f"{_invalid_location_preview(missing_mask)}; missing_entries={missing_count}"
         )
-    infinite_mask = value.isin([float("inf"), float("-inf")])
-    if infinite_mask.to_numpy().any():
-        infinite_count = int(infinite_mask.to_numpy().sum())
+
+    infinite_mask = pd.DataFrame(
+        infinite_array,
+        index=value.index,
+        columns=value.columns,
+    )
+    if bool(infinite_array.any()):
+        infinite_count = int(infinite_array.sum())
         raise error_type(
             f"{field_name} must contain finite numeric values; "
             f"{_invalid_location_preview(infinite_mask)}; infinite_entries={infinite_count}"
@@ -275,7 +301,14 @@ def require_non_empty_index_intersection(
 ) -> pd.Index:
     """Require two indexes to share at least one label and return the overlap."""
 
-    shared = left.intersection(right)
+    left_labels = left.tolist()
+    right_labels = right.tolist()
+    try:
+        right_lookup = set(right_labels)
+        shared_labels = [label for label in left_labels if label in right_lookup]
+    except TypeError:
+        shared_labels = [label for label in left_labels if label in right_labels]
+    shared = pd.Index(shared_labels)
     if shared.size > 0:
         return shared
     raise error_type(
@@ -293,14 +326,18 @@ def require_no_duplicate_labels(
 ) -> pd.Index:
     """Require one index-like label sequence to be unique."""
 
-    duplicated = labels[labels.duplicated(keep=False)]
-    if duplicated.size == 0:
+    label_values = labels.tolist()
+    duplicate_counts: dict[object, int] = {}
+    for label in label_values:
+        duplicate_counts[label] = duplicate_counts.get(label, 0) + 1
+    duplicated_values = [label for label in label_values if duplicate_counts[label] > 1]
+    if not duplicated_values:
         return labels
-    duplicate_labels = duplicated.unique()
-    preview = ", ".join(repr(label) for label in duplicate_labels.tolist()[:5])
-    suffix = "" if duplicate_labels.size <= 5 else " ..."
+    duplicate_labels = list(dict.fromkeys(duplicated_values))
+    preview = ", ".join(repr(label) for label in duplicate_labels[:5])
+    suffix = "" if len(duplicate_labels) <= 5 else " ..."
     raise error_type(
-        f"{field_name} must be unique; duplicate_count={int(duplicated.size)}, "
+        f"{field_name} must be unique; duplicate_count={int(len(duplicated_values))}, "
         f"duplicate_labels={preview}{suffix}"
     )
 
@@ -466,15 +503,16 @@ def require_unique_row_pairs(
 ) -> pd.DataFrame:
     """Require unique row pairs for one two-column key."""
 
-    duplicated = value.duplicated(subset=list(column_names), keep=False)
-    if not bool(duplicated.any()):
+    left_column, right_column = column_names
+    left_values = value[left_column].tolist()
+    right_values = value[right_column].tolist()
+    pair_counts: dict[tuple[object, object], int] = {}
+    for pair in zip(left_values, right_values, strict=True):
+        pair_counts[pair] = pair_counts.get(pair, 0) + 1
+    duplicate_pairs = [pair for pair, count in pair_counts.items() if count > 1]
+    if not duplicate_pairs:
         return value
-    duplicate_pairs = (
-        value.loc[duplicated, list(column_names)]
-        .drop_duplicates()
-        .itertuples(index=False, name=None)
-    )
-    preview_pairs = list(duplicate_pairs)
+    preview_pairs = duplicate_pairs
     preview = ", ".join(repr(pair) for pair in preview_pairs[:5])
     suffix = "" if len(preview_pairs) <= 5 else " ..."
     left, right = column_names

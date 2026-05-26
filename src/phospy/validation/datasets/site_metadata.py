@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 import numbers
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import TypeVar, cast
 
 import pandas as pd
 
@@ -263,7 +263,7 @@ def enforce_localisation_requirement(
         return
     if assessment.invalid_count > 0:
         invalid_sites = _site_id_examples(
-            site_metadata.index[assessment.invalid_mask.to_numpy()]
+            _index_by_boolean_mask(site_metadata.index, assessment.invalid_mask)
         )
         raise error_type(
             f"{workflow_name} requires localisation metadata policy={requirement.policy}; "
@@ -274,7 +274,7 @@ def enforce_localisation_requirement(
         )
     if requirement.require_present and assessment.missing_count > 0:
         missing_sites = _site_id_examples(
-            site_metadata.index[assessment.missing_mask.to_numpy()]
+            _index_by_boolean_mask(site_metadata.index, assessment.missing_mask)
         )
         raise error_type(
             f"{workflow_name} requires localisation metadata policy={requirement.policy}; "
@@ -291,7 +291,7 @@ def enforce_localisation_requirement(
     if below_threshold_count <= 0:
         return
     below_threshold_sites = _site_id_examples(
-        site_metadata.index[below_threshold.to_numpy()]
+        _index_by_boolean_mask(site_metadata.index, below_threshold)
     )
     threshold = float(requirement.minimum_probability)
     raise error_type(
@@ -321,8 +321,8 @@ def enforce_required_non_empty_string_column(
             f"affected_rows={int(site_metadata.shape[0])}; "
             f"example_site_ids={site_examples}"
         )
-    column = site_metadata.loc[:, column_name]
-    invalid_mask = pd.Series(False, index=column.index.copy(), dtype="boolean")
+    column = site_metadata[column_name]
+    invalid_mask = pd.Series(False, index=pd.Index(column.index), dtype="boolean")
     for site_id, raw_value in column.items():
         if _is_missing(raw_value):
             invalid_mask.at[site_id] = True
@@ -335,7 +335,9 @@ def enforce_required_non_empty_string_column(
     invalid_count = int(invalid_mask.sum())
     if invalid_count == 0:
         return
-    invalid_sites = _site_id_examples(site_metadata.index[invalid_mask.to_numpy()])
+    invalid_sites = _site_id_examples(
+        _index_by_boolean_mask(site_metadata.index, invalid_mask)
+    )
     raise error_type(
         f"{workflow_name} requires {field_name}.{column_name} to contain non-empty "
         f"string values; affected_rows={invalid_count}; "
@@ -355,7 +357,7 @@ def validate_site_sequence_column(
     if column_name not in site_metadata.columns:
         return
     invalid_rows: list[str] = []
-    values = site_metadata.loc[:, column_name]
+    values = site_metadata[column_name]
     for site_id, raw_value in values.items():
         if not isinstance(raw_value, str):
             invalid_rows.append(f"{site_id!r}:{raw_value!r}")
@@ -548,21 +550,28 @@ def enforce_site_identity_rows(
 ) -> None:
     """Enforce row-level phosphosite identity parsing for workflow boundaries."""
 
-    for row_position in range(len(site_metadata.index)):
-        site_id = site_metadata.index[row_position]
-        row = site_metadata.iloc[row_position]
+    site_ids = site_metadata.index.tolist()
+    gene_symbols = site_metadata["gene_symbol"].tolist()
+    sites = site_metadata["site"].tolist()
+    protein_ids = (
+        site_metadata["protein_id"].tolist()
+        if "protein_id" in site_metadata.columns
+        else None
+    )
+    protein_accessions = (
+        site_metadata["protein_accession"].tolist()
+        if "protein_accession" in site_metadata.columns
+        else None
+    )
+    for row_position, site_id in enumerate(site_ids):
         _ = build_phosphosite_identity(
             display_id=site_id,
-            gene_symbol=row["gene_symbol"],
-            site=row["site"],
+            gene_symbol=gene_symbols[row_position],
+            site=sites[row_position],
             allow_opaque_site_values=allow_opaque_site_values,
-            protein_id=(
-                row["protein_id"] if "protein_id" in site_metadata.columns else None
-            ),
+            protein_id=(None if protein_ids is None else protein_ids[row_position]),
             protein_accession=(
-                row["protein_accession"]
-                if "protein_accession" in site_metadata.columns
-                else None
+                None if protein_accessions is None else protein_accessions[row_position]
             ),
             field_name=f"{field_name}[{site_id!r}]",
             error_type=error_type,
@@ -580,10 +589,11 @@ def assess_localisation_probability_column(
 
     if column_name not in site_metadata.columns:
         return None
-    values = site_metadata.loc[:, column_name]
-    normalized = pd.Series(pd.NA, index=values.index.copy(), dtype="Float64")
-    missing_mask = pd.Series(False, index=values.index.copy(), dtype="boolean")
-    invalid_mask = pd.Series(False, index=values.index.copy(), dtype="boolean")
+    values = site_metadata[column_name]
+    values_index = pd.Index(values.index)
+    normalized = pd.Series(pd.NA, index=values_index, dtype="Float64")
+    missing_mask = pd.Series(False, index=values_index, dtype="boolean")
+    invalid_mask = pd.Series(False, index=values_index, dtype="boolean")
     invalid_examples: list[str] = []
 
     for site_id, raw_value in values.items():
@@ -648,10 +658,10 @@ def assess_localisation_confidence_column(
 def _resolve_site_position_series(site_metadata: pd.DataFrame) -> pd.Series:
     for column_name in _SITE_POSITION_CANDIDATE_COLUMNS:
         if column_name in site_metadata.columns:
-            series = site_metadata.loc[:, column_name].copy()
+            series = site_metadata[column_name].copy(deep=True)
             series.name = column_name
             return series
-    series = pd.Series(pd.NA, index=site_metadata.index.copy(), dtype="object")
+    series = pd.Series(pd.NA, index=pd.Index(site_metadata.index), dtype="object")
     series.name = None
     return series
 
@@ -776,6 +786,17 @@ def _site_id_examples(index: pd.Index, *, limit: int = _EXAMPLE_LIMIT) -> str:
     preview = ", ".join(repr(label) for label in labels[:limit])
     suffix = "" if len(labels) <= limit else f", +{len(labels) - limit} more"
     return f"[{preview}{suffix}]"
+
+
+def _index_by_boolean_mask(index: pd.Index, mask: pd.Series) -> pd.Index:
+    labels = index.tolist()
+    mask_values = cast(list[object], mask.tolist())
+    selected = [
+        label
+        for label, include in zip(labels, mask_values, strict=True)
+        if bool(include)
+    ]
+    return pd.Index(selected)
 
 
 def _summarise_examples(values: list[str], *, limit: int = _EXAMPLE_LIMIT) -> str:

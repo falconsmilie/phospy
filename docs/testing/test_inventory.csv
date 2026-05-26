@@ -56,7 +56,7 @@ tests/unit/test_dataset_site_sequence_resolution_collaborators.py,unit,86,3,true
 tests/unit/test_dataset_transformation_state_establishment.py,unit,764,28,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset transformation state establishment and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/unit/test_differential_analysis.py,unit,485,11,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for differential analysis behaviour, allowing numerically plausible but scientifically invalid results.",codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_differential_dataset_eligibility_validator.py,unit,131,5,false,false,,,,,,
-tests/unit/test_differential_numerical_guards.py,unit,276,7,true,true,,,,,,
+tests/unit/test_differential_numerical_guards.py,unit,280,7,true,true,,,,,,
 tests/unit/test_differential_request_config_refactor.py,unit,58,6,false,false,,,,,,
 tests/unit/test_differential_result_contract.py,unit,196,3,false,false,,,,,,
 tests/unit/test_differential_technical_replicate_policy.py,unit,484,12,false,false,,,,,,

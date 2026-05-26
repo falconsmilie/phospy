@@ -58,9 +58,18 @@ def enforce_unique_display_site_identity_rows(
     plain_messages: list[str] = []
 
     for duplicate_id in duplicate_ids:
-        duplicate_rows = normalised_display_ids.index[
-            normalised_display_ids.astype(str) == duplicate_id
-        ]
+        normalized_labels = normalised_display_ids.astype(str).tolist()
+        duplicate_rows = pd.Index(
+            [
+                row_id
+                for row_id, normalized_label in zip(
+                    normalised_display_ids.index.tolist(),
+                    normalized_labels,
+                    strict=True,
+                )
+                if normalized_label == duplicate_id
+            ]
+        )
         conflicts = _describe_context_conflicts(
             site_metadata=site_metadata,
             duplicate_rows=duplicate_rows,

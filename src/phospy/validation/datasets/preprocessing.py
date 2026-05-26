@@ -26,12 +26,6 @@ class DatasetPreprocessingConfigValidator:
     """Validate the public config interpreted into the internal preprocessing plan."""
 
     def run(self, config: DatasetPreprocessingConfig) -> DatasetPreprocessingConfig:
-        if not isinstance(config, DatasetPreprocessingConfig):
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config must be a "
-                "DatasetPreprocessingConfig"
-            )
-
         self._validate_intensity_transform(config.intensity_transform)
         self._validate_normalisation(config.normalisation)
         self._validate_missing_data(config.missing_data)

@@ -46,6 +46,12 @@ def export_dataframe(value: pd.DataFrame) -> pd.DataFrame:
     return value.copy(deep=True)
 
 
+def borrow_dataframe(value: pd.DataFrame) -> pd.DataFrame:
+    """Return internal borrowed DataFrame access without deep-copy churn."""
+
+    return _borrow_dataframe(value)
+
+
 def _borrow_dataframe(value: pd.DataFrame) -> pd.DataFrame:
     """Return internal borrowed DataFrame access without deep-copy churn.
 
@@ -85,6 +91,12 @@ def export_optional_dataframe(value: pd.DataFrame | None) -> pd.DataFrame | None
     if value is None:
         return None
     return export_dataframe(value)
+
+
+def borrow_optional_dataframe(value: pd.DataFrame | None) -> pd.DataFrame | None:
+    """Return internal borrowed optional DataFrame access."""
+
+    return _borrow_optional_dataframe(value)
 
 
 def _borrow_optional_dataframe(value: pd.DataFrame | None) -> pd.DataFrame | None:
