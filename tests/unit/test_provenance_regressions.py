@@ -519,7 +519,7 @@ def test_kinase_provenance_includes_duplicate_site_resolution_policy_when_prepro
     site_metadata = pd.DataFrame(
         {
             "gene_symbol": ["MAPK14", "MAPK14", "GSK3B"],
-            "site": ["Y182", "Y182", "S9"],
+            "site": ["Y182", "Y183", "S9"],
             "site_sequence": [SEQ_Y, SEQ_Y, SEQ_S],
             "protein_id": ["P28482", "P28482", "Q9Y243"],
             "localisation_confidence": [0.95, 0.94, 0.9],
@@ -549,13 +549,15 @@ def test_kinase_provenance_includes_duplicate_site_resolution_policy_when_prepro
         organism=Organism.RAT,
         kinase_substrate_map=pd.DataFrame(
             {
-                "kinase": ["K_DUP", "K_DUP"],
-                "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
+                "kinase": ["K_DUP", "K_DUP", "K_DUP"],
+                "substrate_site": ["MAPK14;Y182;", "MAPK14;Y183;", "GSK3B;S9;"],
             }
         ),
         site_sequences=pd.DataFrame(
-            {"site_sequence": [SEQ_Y, SEQ_S]},
-            index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
+            {"site_sequence": [SEQ_Y, SEQ_Y, SEQ_S]},
+            index=pd.Index(
+                ["MAPK14;Y182;", "MAPK14;Y183;", "GSK3B;S9;"], name="site_id"
+            ),
         ),
     )
     kinase_result = KinaseWorkflow().run(

@@ -61,7 +61,7 @@ def _build_dataset_with_attrition_mix() -> object:
                 "MISSQ",
                 "REF2",
             ],
-            "site": ["Y182", "Y182", "S9", "T308", "123", "S1", "S1", "T1"],
+            "site": ["Y182", "Y183", "S9", "T308", "123", "S1", "S1", "T1"],
             "site_sequence": [
                 _centred_sequence("Y"),
                 _centred_sequence("Y"),
@@ -166,26 +166,26 @@ def test_kinase_workflow_exposes_compact_site_attrition_summary() -> None:
     eligibility = result.eligibility_report
 
     assert preprocessing.input_rows == 8
-    assert preprocessing.rows_removed_during_preprocessing == 2
+    assert preprocessing.rows_removed_during_preprocessing == 1
     assert preprocessing.rows_removed_invalid_or_missing_site_identifiers == 0
-    assert preprocessing.duplicate_sites_merged_or_resolved == 1
-    assert preprocessing.output_rows == 6
-    assert preprocessing.sequence_complete_sites == 6
+    assert preprocessing.duplicate_sites_merged_or_resolved == 0
+    assert preprocessing.output_rows == 7
+    assert preprocessing.sequence_complete_sites == 7
 
-    assert eligibility.total_dataset_sites == 6
-    assert eligibility.sequence_complete_sites == 6
-    assert eligibility.localisation_eligible_sites == 6
+    assert eligibility.total_dataset_sites == 7
+    assert eligibility.sequence_complete_sites == 7
+    assert eligibility.localisation_eligible_sites == 7
     assert eligibility.reference_overlap_sites == 3
-    assert eligibility.excluded_no_reference_match == 3
+    assert eligibility.excluded_no_reference_match == 4
     assert eligibility.excluded_low_localisation == 0
     assert eligibility.eligible_kinases == 2
     assert eligibility.excluded_kinases_below_min_substrates == 0
 
     assert scoring.rows_removed_invalid_or_missing_site_identifiers == 1
-    assert scoring.final_quantitative_sites_entering_scoring == 6
-    assert scoring.sites_with_valid_site_sequence == 5
+    assert scoring.final_quantitative_sites_entering_scoring == 7
+    assert scoring.sites_with_valid_site_sequence == 6
     assert scoring.sites_without_usable_site_sequence == 1
-    assert scoring.sites_eligible_for_motif_scoring == 5
+    assert scoring.sites_eligible_for_motif_scoring == 6
     assert scoring.sites_with_kinase_substrate_reference_profile_evidence == 3
     assert scoring.sites_contributing_to_final_fused_prediction_scoring_output == int(
         result.prediction_result.pred_mat.notna().any(axis=1).sum()
@@ -249,15 +249,15 @@ def test_published_kinase_manifest_includes_site_attrition_summary(
     assert payload is not None
     assert eligibility_payload is not None
     assert payload["preprocessing"]["input_rows"] == 8
-    assert payload["preprocessing"]["rows_removed_during_preprocessing"] == 2
-    assert payload["preprocessing"]["duplicate_sites_merged_or_resolved"] == 1
-    assert payload["preprocessing"]["sequence_complete_sites"] == 6
-    assert payload["scoring"]["final_quantitative_sites_entering_scoring"] == 6
-    assert eligibility_payload["total_dataset_sites"] == 6
-    assert eligibility_payload["sequence_complete_sites"] == 6
-    assert eligibility_payload["localisation_eligible_sites"] == 6
+    assert payload["preprocessing"]["rows_removed_during_preprocessing"] == 1
+    assert payload["preprocessing"]["duplicate_sites_merged_or_resolved"] == 0
+    assert payload["preprocessing"]["sequence_complete_sites"] == 7
+    assert payload["scoring"]["final_quantitative_sites_entering_scoring"] == 7
+    assert eligibility_payload["total_dataset_sites"] == 7
+    assert eligibility_payload["sequence_complete_sites"] == 7
+    assert eligibility_payload["localisation_eligible_sites"] == 7
     assert eligibility_payload["reference_overlap_sites"] == 3
-    assert eligibility_payload["excluded_no_reference_match"] == 3
+    assert eligibility_payload["excluded_no_reference_match"] == 4
     assert eligibility_payload["excluded_low_localisation"] == 0
     assert eligibility_payload["eligible_kinases"] == 2
     assert eligibility_payload["excluded_kinases_below_min_substrates"] == 0

@@ -155,8 +155,8 @@ def test_preprocessing_report_integration_preserves_representative_values() -> N
     )
     site_metadata = pd.DataFrame(
         {
-            "gene_symbol": ["MAPK14", "MAPK14", "AKT1"],
-            "site": ["Y182", "Y182", "T308"],
+            "gene_symbol": ["MAPK14", "GSK3B", "AKT1"],
+            "site": ["Y182", "S9", "T308"],
             "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
             "localisation_confidence": [0.95, 0.9, 0.92],
         },
@@ -193,23 +193,9 @@ def test_preprocessing_report_integration_preserves_representative_values() -> N
     ]
     assert site_matrix_counts.shape[0] == 1
     assert int(site_matrix_counts.iloc[0]["input_rows"]) == 3
-    assert int(site_matrix_counts.iloc[0]["output_rows"]) == 2
-    assert int(site_matrix_counts.iloc[0]["dropped_rows"]) == 1
-
-    collapsed = report.row_audit.loc[
-        (report.row_audit.loc[:, "stage"] == "site_matrix")
-        & (report.row_audit.loc[:, "action"] == "collapsed")
-    ]
-    assert collapsed.shape[0] == 1
-    assert collapsed.iloc[0]["source_row_id"] == "row_b"
-
-    duplicate_rows = report.duplicate_site_resolution
-    assert not duplicate_rows.empty
-    dropped_duplicate = duplicate_rows.loc[
-        duplicate_rows.loc[:, "source_row_id"] == "row_b"
-    ]
-    assert dropped_duplicate.shape[0] == 1
-    assert bool(dropped_duplicate.iloc[0]["retained"]) is False
+    assert int(site_matrix_counts.iloc[0]["output_rows"]) == 3
+    assert int(site_matrix_counts.iloc[0]["dropped_rows"]) == 0
+    assert report.duplicate_site_resolution.empty
 
     pair_stats = report.comparison_pair_stats.loc[
         (report.comparison_pair_stats.loc[:, "site_id"] == "MAPK14;Y182;")

@@ -62,6 +62,9 @@ from phospy.validation.common.dataframes import (
     require_numeric_dataframe,
     require_unique_columns,
 )
+from phospy.validation.datasets.display_site_identity import (
+    enforce_unique_display_site_identity_rows,
+)
 from phospy.validation.transformations.state import IntensityScaleStateValidator
 
 _INTENSITY_SCALE_STATE_VALIDATOR = IntensityScaleStateValidator()
@@ -609,6 +612,17 @@ class AnalysisReadyPhosphoDataset:
             field_name="dataset.comparisons",
             error_type=DatasetValidationError,
             assume_owned=_assume_owned,
+        )
+        enforce_unique_display_site_identity_rows(
+            site_metadata=site_metadata,
+            display_site_ids=pd.Series(
+                phospho.index.tolist(),
+                index=site_metadata.index.copy(),
+                name="display_site_id",
+                dtype="object",
+            ),
+            field_name="dataset.display_site_identity",
+            error_type=DatasetValidationError,
         )
         phospho_table = PhosphoIntensityMatrix(
             frame=phospho,

@@ -18,6 +18,12 @@ Differential analysis requires analysis-ready numeric inputs plus valid
 `ExperimentalDesign` and `Contrast` metadata. It does not infer design from
 sample names and does not replace upstream preprocessing requirements.
 
+At dataset-construction boundary, PhosPy currently supports one
+analysis-ready row per normalised phosphosite display identifier such as
+`GENE;SITE;`. Protein- or isoform-scoped row identity is not yet supported.
+Input data with multiple rows that resolve to the same display-site identifier
+must be resolved upstream before dataset construction.
+
 ### Differential Parity Envelope (Current Release)
 
 `DifferentialAnalysisWorkflow` parity claims are currently scoped to:

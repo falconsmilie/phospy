@@ -13,6 +13,7 @@ from phospy.api import (
 )
 from phospy.errors import (
     DatasetValidationError,
+    PhosPyInputError,
     ReferenceValidationError,
     UnsupportedInputFormatError,
 )
@@ -184,8 +185,8 @@ def test_builder_rejects_ambiguous_site_ids_after_canonicalization() -> None:
     )
 
     with pytest.raises(
-        UnsupportedInputFormatError,
-        match="duplicate site identifiers after canonicalization",
+        PhosPyInputError,
+        match="one analysis-ready row per normalised display-site identifier",
     ):
         AnalysisReadyDatasetBuilder().run(
             DatasetBuildRequest(
@@ -216,8 +217,8 @@ def test_builder_rejects_colliding_dirty_site_ids_after_canonicalization() -> No
     )
 
     with pytest.raises(
-        UnsupportedInputFormatError,
-        match="duplicate site identifiers after canonicalization",
+        PhosPyInputError,
+        match="one analysis-ready row per normalised display-site identifier",
     ):
         AnalysisReadyDatasetBuilder().run(
             DatasetBuildRequest(
@@ -391,7 +392,7 @@ def test_dataset_boundary_rejects_missing_trailing_delimiter_site_ids() -> None:
 def test_dataset_boundary_rejects_duplicates_after_site_id_canonicalization() -> None:
     with pytest.raises(
         DatasetValidationError,
-        match="contains duplicate site identifiers after canonicalization",
+        match="contains duplicate normalised phosphosite display identifiers",
     ):
         from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
@@ -431,7 +432,7 @@ def test_dataset_boundary_rejects_duplicates_after_site_id_canonicalization() ->
 def test_dataset_boundary_rejects_colliding_dirty_site_ids() -> None:
     with pytest.raises(
         DatasetValidationError,
-        match="contains duplicate site identifiers after canonicalization",
+        match="contains duplicate normalised phosphosite display identifiers",
     ):
         from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 

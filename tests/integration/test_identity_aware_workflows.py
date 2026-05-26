@@ -61,7 +61,7 @@ def test_builder_rejects_duplicate_display_ids_with_conflicting_protein_identity
 
     with pytest.raises(
         PhosPyInputError,
-        match="conflicting scientific identities",
+        match="multiple protein or isoform contexts",
     ):
         AnalysisReadyDatasetBuilder().run(
             DatasetBuildRequest(

@@ -475,6 +475,7 @@ def _normalize_supported_site_index_if_present(
         normalized.index,
         field_name=field_name,
         error_type=UnsupportedInputFormatError,
+        require_unique=False,
     )
     site_identifier_records.extend(
         _site_identifier_normalisation_changes(
@@ -502,6 +503,7 @@ def _canonicalize_site_index_with_label_validation(
         normalized.index,
         field_name=field_name,
         error_type=UnsupportedInputFormatError,
+        require_unique=False,
         index_name=index_name,
     )
     site_identifier_records.extend(

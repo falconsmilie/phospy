@@ -27,6 +27,9 @@ from phospy.science.evidence.dataset_resolution import (
 from phospy.science.evidence.models import PeptideEvidenceTable
 from phospy.science.references.models import Organism
 from phospy.science.sites.identifiers import SiteIdentifierNormalisationReport
+from phospy.validation.datasets.display_site_identity import (
+    enforce_unique_display_site_identity_rows,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,6 +112,7 @@ class DatasetBuildSourceResolver:
             sample_metadata=sample_metadata,
             total=total,
         )
+        self._enforce_display_site_identity_uniqueness(normalized.site_metadata)
         return ResolvedDatasetBuildSources(
             phospho=normalized.phospho,
             site_metadata=normalized.site_metadata,
@@ -212,6 +216,43 @@ class DatasetBuildSourceResolver:
                 ),
                 original_error=exc,
             )
+
+    @staticmethod
+    def _enforce_display_site_identity_uniqueness(site_metadata: pd.DataFrame) -> None:
+        if (
+            "gene_symbol" not in site_metadata.columns
+            or "site" not in site_metadata.columns
+        ):
+            raise PhosPyInputError(
+                "dataset build request site_metadata must include gene_symbol/site "
+                "before duplicate display-site validation"
+            )
+        gene_symbol = site_metadata.loc[:, "gene_symbol"]
+        site = site_metadata.loc[:, "site"]
+        gene_token = gene_symbol.astype("string").str.strip()
+        site_token = site.astype("string").str.strip()
+        has_blank_or_missing = (
+            gene_symbol.isna()
+            | site.isna()
+            | gene_token.isna()
+            | site_token.isna()
+            | (gene_token == "")
+            | (site_token == "")
+        )
+        if bool(has_blank_or_missing.any()):
+            return
+        display_site_ids = pd.Series(
+            (gene_token.astype(str) + ";" + site_token.astype(str) + ";").tolist(),
+            index=site_metadata.index.copy(),
+            name="display_site_id",
+            dtype="object",
+        )
+        enforce_unique_display_site_identity_rows(
+            site_metadata=site_metadata,
+            display_site_ids=display_site_ids,
+            field_name="dataset build request site_metadata",
+            error_type=PhosPyInputError,
+        )
 
 
 class DatasetBuildPreprocessingPlanner:

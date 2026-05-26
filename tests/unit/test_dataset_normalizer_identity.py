@@ -340,30 +340,30 @@ def test_normalizer_rejects_duplicate_labels_introduced_by_trimming() -> None:
         )
 
 
-def test_normalizer_rejects_duplicate_site_ids_introduced_by_canonicalization() -> None:
-    with pytest.raises(
-        UnsupportedInputFormatError,
-        match="contains duplicate site identifiers after canonicalization",
-    ):
-        DatasetConventionNormalizer().run(
-            phospho=pd.DataFrame(
-                {"sample_a": [1.0, 2.0]},
-                index=pd.Index(
-                    ["mapk14;y182", " MAPK14 ; Y182 ;"],
-                    name="site_id",
-                ),
+def test_normalizer_preserves_duplicate_site_ids_for_dataset_boundary_validation() -> (
+    None
+):
+    normalized = DatasetConventionNormalizer().run(
+        phospho=pd.DataFrame(
+            {"sample_a": [1.0, 2.0]},
+            index=pd.Index(
+                ["mapk14;y182", " MAPK14 ; Y182 ;"],
+                name="site_id",
             ),
-            site_metadata=pd.DataFrame(
-                {
-                    "gene_symbol": ["MAPK14", "MAPK14"],
-                    "site": ["Y182", "Y182"],
-                    "site_sequence": ["SEQ_A", "SEQ_R"],
-                },
-                index=pd.Index(
-                    ["mapk14;y182", " MAPK14 ; Y182 ;"],
-                    name="site_id",
-                ),
+        ),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14", "MAPK14"],
+                "site": ["Y182", "Y182"],
+                "site_sequence": ["SEQ_A", "SEQ_R"],
+            },
+            index=pd.Index(
+                ["mapk14;y182", " MAPK14 ; Y182 ;"],
+                name="site_id",
             ),
-            sample_metadata=None,
-            total=None,
-        )
+        ),
+        sample_metadata=None,
+        total=None,
+    )
+    assert normalized.phospho.index.tolist() == ["MAPK14;Y182;", "MAPK14;Y182;"]
+    assert normalized.site_metadata.index.tolist() == ["MAPK14;Y182;", "MAPK14;Y182;"]

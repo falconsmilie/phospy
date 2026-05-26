@@ -3,9 +3,12 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyPhosphoDataset
+from phospy import AnalysisReadyDatasetBuilder, AnalysisReadyPhosphoDataset
 from phospy.api import (
     Contrast,
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
+    DatasetSiteMatrixConfig,
     DifferentialAnalysisRequest,
     ExperimentalDesign,
     KinaseWorkflow,
@@ -21,7 +24,11 @@ from phospy.api.results import (
     KinaseScoringResult,
     KinaseWorkflowResult,
 )
-from phospy.errors import ReferenceCompatibilityError, WorkflowValidationError
+from phospy.errors import (
+    PhosPyInputError,
+    ReferenceCompatibilityError,
+    WorkflowValidationError,
+)
 from phospy.science.references.models import ReferenceBundle
 from phospy.workflows.differential.validator import DifferentialAnalysisValidator
 from phospy.workflows.kinase.validator import KinaseWorkflowValidator
@@ -228,6 +235,40 @@ def test_signalome_identity_contract_rejects_missing_protein_identity() -> None:
         ),
     ):
         SignalomeWorkflowValidator().run(request)
+
+
+def test_signalome_inputs_require_unique_display_ids_before_workflow_validation() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0, 2.0], "sample_b": [1.1, 2.1]},
+        index=pd.Index(["row_a", "row_b"], name="source_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "MAPK14"],
+            "site": ["Y182", "Y182"],
+            "site_sequence": ["AAAAAAAYAAAAAAA", "AAAAAAAYAAAAAAA"],
+            "protein_id": ["P28482", "P28482"],
+            "localisation_confidence": [0.95, 0.95],
+        },
+        index=phospho.index.copy(),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="one analysis-ready row per normalised display-site identifier",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                preprocessing_config=DatasetPreprocessingConfig(
+                    site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
+                ),
+                input_intensity_scale="linear",
+            )
+        )
 
 
 def test_kinase_workflow_rejects_reference_organism_mismatch_where_applicable() -> None:

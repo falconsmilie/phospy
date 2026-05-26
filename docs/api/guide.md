@@ -108,6 +108,10 @@ release are rat only. Human and mouse workflows need an explicit
 The dataset that leaves the builder must be missing-value-free. This strict
 boundary keeps kinase scoring, prediction, and signalome interpretation easier
 to audit.
+At this boundary, PhosPy supports one row per normalised phosphosite
+display-site identifier (`GENE;SITE;`). Protein- or isoform-scoped row identity
+is not yet supported, and duplicate display-site rows must be resolved before
+dataset construction.
 
 For concise scientist facing assumptions and interpretation notes, see
 [Workflow Contracts](../workflow_contracts.md).

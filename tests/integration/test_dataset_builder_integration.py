@@ -817,8 +817,8 @@ def test_dataset_builder_supports_site_matrix_build_from_metadata_policy() -> No
     )
     site_metadata = pd.DataFrame(
         {
-            "gene_symbol": ["MAPK14", "MAPK14", "AKT1"],
-            "site": ["Y182", "Y182", "T308"],
+            "gene_symbol": ["MAPK14", "GSK3B", "AKT1"],
+            "site": ["Y182", "S9", "T308"],
             "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
         },
         index=phospho.index.copy(),
@@ -841,16 +841,16 @@ def test_dataset_builder_supports_site_matrix_build_from_metadata_policy() -> No
         )
     )
 
-    assert built.phospho.index.tolist() == ["MAPK14;Y182;"]
-    assert built.phospho.iloc[0, 0] == pytest.approx(2.0)
-    assert built.phospho.iloc[0, 1] == pytest.approx(2.5)
-    assert built.site_metadata.index.tolist() == ["MAPK14;Y182;"]
-    assert built.site_metadata.loc["MAPK14;Y182;", "site_sequence"] == "SEQ_R"
+    assert set(built.phospho.index.tolist()) == {"MAPK14;Y182;", "GSK3B;S9;"}
+    assert built.site_metadata.index.tolist() == built.phospho.index.tolist()
+    assert built.site_metadata.loc["MAPK14;Y182;", "site_sequence"] == "SEQ_A"
     assert built.processing_state.site_matrix.policy == "build_from_metadata"
     assert built.processing_state.site_matrix.constructed is True
 
 
-def test_dataset_builder_supports_site_matrix_duplicate_aggregation_policy() -> None:
+def test_dataset_builder_rejects_duplicate_display_ids_before_site_matrix_aggregation() -> (
+    None
+):
     phospho = pd.DataFrame(
         {
             "sample_a": [1.0, 3.0],
@@ -869,42 +869,24 @@ def test_dataset_builder_supports_site_matrix_duplicate_aggregation_policy() -> 
     )
     site_metadata.loc[:, "localisation_confidence"] = [0.95] * site_metadata.shape[0]
 
-    built = AnalysisReadyDatasetBuilder().run(
-        DatasetBuildRequest(
-            phospho=phospho,
-            site_metadata=site_metadata,
-            organism=Organism.RAT,
-            input_intensity_scale="linear",
-            preprocessing_config=DatasetPreprocessingConfig(
-                site_matrix=DatasetSiteMatrixConfig(
-                    policy="build_from_metadata",
-                    duplicate_site_policy="aggregate_mean",
-                )
-            ),
+    with pytest.raises(
+        PhosPyInputError,
+        match="one analysis-ready row per normalised display-site identifier",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+                preprocessing_config=DatasetPreprocessingConfig(
+                    site_matrix=DatasetSiteMatrixConfig(
+                        policy="build_from_metadata",
+                        duplicate_site_policy="aggregate_mean",
+                    )
+                ),
+            )
         )
-    )
-
-    assert built.phospho.index.tolist() == ["MAPK14;Y182;"]
-    assert built.phospho.loc["MAPK14;Y182;", "sample_a"] == pytest.approx(2.0)
-    assert built.phospho.loc["MAPK14;Y182;", "sample_b"] == pytest.approx(3.0)
-    assert pd.isna(built.site_metadata.loc["MAPK14;Y182;", "source_uid"])
-    assert built.preprocessing_report is not None
-    assert built.preprocessing_report.row_audit is not None
-    assert built.preprocessing_report.duplicate_site_resolution is not None
-    assert built.preprocessing_report.metadata_conflicts is not None
-    duplicate_rows = built.preprocessing_report.duplicate_site_resolution
-    assert duplicate_rows.shape[0] == 2
-    assert duplicate_rows["source_row_id"].tolist() == ["row_a", "row_b"]
-    assert duplicate_rows["retained"].tolist() == [True, True]
-    assert duplicate_rows["n_aggregated_rows"].tolist() == [2, 2]
-    conflicts = built.preprocessing_report.metadata_conflicts
-    assert not conflicts.empty
-    assert "source_uid" in set(conflicts.loc[:, "field"])
-    aggregated = built.preprocessing_report.row_audit.loc[
-        (built.preprocessing_report.row_audit.loc[:, "stage"] == "site_matrix")
-        & (built.preprocessing_report.row_audit.loc[:, "action"] == "aggregated")
-    ]
-    assert set(aggregated.loc[:, "source_row_id"].astype(str)) == {"row_a", "row_b"}
 
 
 def test_dataset_builder_site_matrix_derivation_keeps_all_fully_resolvable_rows() -> (
@@ -1741,8 +1723,8 @@ def test_dataset_builder_emits_machine_readable_run_provenance() -> None:
     )
     site_metadata = pd.DataFrame(
         {
-            "gene_symbol": ["MAPK14", "MAPK14", "AKT1", "GSK3B"],
-            "site": ["Y182", "Y182", "T308", "S9"],
+            "gene_symbol": ["MAPK14", "AKT1", "PRKACA", "GSK3B"],
+            "site": ["Y182", "T308", "S339", "S9"],
             "site_sequence": ["SEQ_A", "SEQ_R", "", "SEQ_D"],
         },
         index=phospho.index.copy(),

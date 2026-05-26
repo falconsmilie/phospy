@@ -20,6 +20,9 @@ from phospy.validation.common.dataframes import (
     require_unique_columns,
     require_unique_index,
 )
+from phospy.validation.datasets.display_site_identity import (
+    enforce_unique_display_site_identity_rows,
+)
 from phospy.validation.datasets.site_metadata import (
     validate_localisation_confidence_column,
     validate_localisation_probability_column,
@@ -89,6 +92,17 @@ class SiteMetadataTable(TableSchema):
             frame,
             field_name=self._field_name,
             allow_empty=False,
+            error_type=self._error_type,
+        )
+        enforce_unique_display_site_identity_rows(
+            site_metadata=frame,
+            display_site_ids=pd.Series(
+                frame.index.tolist(),
+                index=frame.index.copy(),
+                name="display_site_id",
+                dtype="object",
+            ),
+            field_name=f"{self._field_name}.display_site_identity",
             error_type=self._error_type,
         )
         require_canonical_site_index(

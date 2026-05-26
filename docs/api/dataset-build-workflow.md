@@ -10,6 +10,9 @@ The dataset builder validates table shape, interprets site metadata, applies the
 preprocessing policy you request, and returns an `AnalysisReadyPhosphoDataset`.
 The dataset that leaves the builder is intentionally strict and must be
 missing-value-free.
+It also enforces one analysis-ready row per normalised phosphosite display
+identifier (`GENE;SITE;`). Duplicate display-site rows are rejected at dataset
+construction boundary and must be resolved upstream.
 
 ```python
 dataset = AnalysisReadyDatasetBuilder().run(
@@ -133,6 +136,9 @@ Supported site-metadata aliases are deliberately narrow:
 
 The builder may derive `gene_symbol` and `site` from index values formatted like
 `MAPK14;Y182;`. It does not derive `protein_id`.
+
+PhosPy currently stores protein/isoform/source fields as metadata only. These
+fields do not define row identity at this boundary.
 
 ## Preprocessing Configuration
 
@@ -392,13 +398,12 @@ For mixed datasets, row-level correction status is available in
 | Parameter | Type | Default | Allowed Values | How to Use It |
 | --- | --- | --- | --- | --- |
 | `policy` | `str` | `"as_input"` | `"as_input"`, `"build_from_metadata"` | `"as_input"` preserves interpreted site-matrix-ready rows. `"build_from_metadata"` constructs site IDs from metadata. |
-| `duplicate_site_policy` | `str` | `"max_mean_signal"` | `"max_mean_signal"`, `"first"`, `"aggregate_mean"`, `"aggregate_median"`, `"error"` | Controls duplicate-site collapse when `policy="build_from_metadata"`. |
+| `duplicate_site_policy` | `str` | `"max_mean_signal"` | `"max_mean_signal"`, `"first"`, `"aggregate_mean"`, `"aggregate_median"`, `"error"` | Policy metadata remains available, but duplicate display-site rows are rejected before analysis-ready dataset construction. |
 | `missing_data_policy` | `str` | `"drop_any_missing"` | `"drop_any_missing"` | Keeps only complete rows for strict dataset construction. |
 | `minimum_observed_values` | `None` | `None` | `None` | Public strict construction requires this to stay unset. |
 
-Duplicate-site handling is a scientific choice. `"error"` is cautious,
-`"first"` is input-order dependent, `"max_mean_signal"` favours stronger rows,
-and aggregate policies can blur peptide context.
+When two or more rows resolve to the same normalised display-site identifier,
+the builder fails fast. It does not aggregate, collapse, or rename duplicates.
 
 ```python
 site_matrix = DatasetSiteMatrixConfig(
