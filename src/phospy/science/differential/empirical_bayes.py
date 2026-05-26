@@ -81,6 +81,12 @@ def fit_empirical_bayes(
 ) -> EmpiricalBayesFit:
     """Estimate limma-style prior variance/df with optional robust and trend modes."""
 
+    residual_dof = float(residual_dof)
+    if not np.isfinite(residual_dof) or residual_dof <= 0.0:
+        raise ValueError(
+            "residual_dof must be finite and > 0.0 for empirical-Bayes moderation"
+        )
+
     variances = np.asarray(variances, dtype=float)
     if variances.ndim != 1:
         raise ValueError("variances must be one-dimensional")
@@ -193,6 +199,17 @@ def fit_empirical_bayes(
                 outside = (detrended_log < lower_bound) | (detrended_log > upper_bound)
                 robust_outlier_count = max(robust_outlier_count, int(np.sum(outside)))
                 robust_outlier_fraction = robust_outlier_count / float(variances.size)
+
+    invalid_prior_variance = ~np.isfinite(prior_variance) | (prior_variance <= 0.0)
+    if np.any(invalid_prior_variance):
+        raise ValueError(
+            "empirical-Bayes prior variance became invalid; expected finite values > 0.0"
+        )
+    invalid_prior_dof = np.isnan(prior_dof) | (prior_dof < 0.0)
+    if np.any(invalid_prior_dof):
+        raise ValueError(
+            "empirical-Bayes prior degrees of freedom became invalid; expected values >= 0.0 or +inf"
+        )
 
     return EmpiricalBayesFit(
         prior_variance=prior_variance.astype(float),

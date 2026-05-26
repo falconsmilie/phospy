@@ -92,6 +92,13 @@ class DifferentialAnalysisExecutor:
             np.minimum(residual_dof + prior_dof, total_residual_dof),
             total_residual_dof,
         )
+        invalid_moderated_dof = ~np.isfinite(moderated_dof) | (moderated_dof <= 0.0)
+        if np.any(invalid_moderated_dof):
+            raise PhosPyInputError(
+                "differential analysis produced invalid moderated degrees of freedom; "
+                "degrees of freedom must be finite and > 0.0; "
+                f"{_preview_invalid_entries(invalid_moderated_dof, moderated_dof, row_index=matrix_aligned.index)}"
+            )
 
         contrasts = contrast_aligned.to_numpy(dtype=float)
         contrast_effects = response.T @ design_values @ xtx_inv @ contrasts
@@ -110,11 +117,30 @@ class DifferentialAnalysisExecutor:
         for column_idx, contrast_name in enumerate(contrast_aligned.columns):
             log_fc = contrast_effects[:, column_idx]
             standard_error = posterior_sd * contrast_scale[column_idx]
+            invalid_standard_error = ~np.isfinite(standard_error) | (
+                standard_error <= 0.0
+            )
+            if np.any(invalid_standard_error):
+                raise PhosPyInputError(
+                    "differential analysis produced unstable standard errors for "
+                    f"contrast {contrast_name!r}; standard errors must be finite "
+                    "and > 0.0; "
+                    f"{_preview_invalid_entries(invalid_standard_error, standard_error, row_index=row_index)}"
+                )
             moderated_t = log_fc / standard_error
             p_values = np.asarray(
                 2.0 * stats.t.sf(np.abs(moderated_t), df=moderated_dof),
                 dtype=float,
             )
+            invalid_p_values = (
+                ~np.isfinite(p_values) | (p_values < 0.0) | (p_values > 1.0)
+            )
+            if np.any(invalid_p_values):
+                raise PhosPyInputError(
+                    "differential analysis produced invalid p-values for contrast "
+                    f"{contrast_name!r}; P.Value must be finite and within [0, 1]; "
+                    f"{_preview_invalid_entries(invalid_p_values, p_values, row_index=row_index)}"
+                )
             adjusted = benjamini_hochberg(p_values)
             contrast_tables[str(contrast_name)] = pd.DataFrame(
                 {
@@ -197,3 +223,22 @@ class DifferentialAnalysisExecutor:
             mean_variance_trend_diagnostics=trend_diagnostics,
             contrast_tables=contrast_tables,
         )
+
+
+def _preview_invalid_entries(
+    invalid_mask: np.ndarray,
+    values: np.ndarray,
+    *,
+    row_index: pd.Index,
+) -> str:
+    invalid_positions = np.flatnonzero(invalid_mask)
+    preview = ", ".join(
+        f"({row_index[position]!r}, {values[position]:.6g})"
+        for position in invalid_positions[:3]
+    )
+    suffix = (
+        ""
+        if invalid_positions.size <= 3
+        else f", +{int(invalid_positions.size - 3)} more"
+    )
+    return f"invalid values: {preview}{suffix}; invalid_entry_count={int(invalid_positions.size)}"

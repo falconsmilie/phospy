@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast
 
+import numpy as np
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
@@ -889,3 +890,42 @@ def _validate_result_table(table: pd.DataFrame, *, field_name: str) -> None:
     if missing:
         joined = ", ".join(missing)
         raise PhosPyInputError(f"{field_name} is missing required columns: {joined}")
+    _validate_unit_interval_column(
+        table=table,
+        column_name="P.Value",
+        field_name=field_name,
+    )
+    _validate_unit_interval_column(
+        table=table,
+        column_name="adj.P.Val",
+        field_name=field_name,
+    )
+
+
+def _validate_unit_interval_column(
+    *,
+    table: pd.DataFrame,
+    column_name: str,
+    field_name: str,
+) -> None:
+    column = table[column_name]
+    values = column.to_numpy(dtype=float)
+    invalid_mask = (values < 0.0) | (values > 1.0)
+    if not np.any(invalid_mask):
+        return
+
+    invalid_positions = np.flatnonzero(invalid_mask)
+    preview: list[str] = []
+    for position in invalid_positions[:3]:
+        preview.append(f"({table.index[position]!r}, {values[position]:.6g})")
+    suffix = (
+        ""
+        if invalid_positions.size <= 3
+        else f", +{int(invalid_positions.size - 3)} more"
+    )
+    examples = ", ".join(preview)
+    raise PhosPyInputError(
+        f"{field_name}.{column_name} must be within [0, 1] for each feature; "
+        f"invalid values: {examples}{suffix}; "
+        f"invalid_entry_count={int(invalid_positions.size)}"
+    )
