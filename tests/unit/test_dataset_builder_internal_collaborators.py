@@ -16,10 +16,15 @@ from phospy.science.datasets.builders.normalizer import NormalizedDatasetInputs
 from phospy.science.datasets.builders.provenance_assembler import (
     DatasetRunProvenanceAssembler,
 )
+from phospy.science.datasets.builders.site_identity_derivation import (
+    DatasetSiteIdentityDeriver,
+)
 from phospy.science.datasets.builders.site_sequence_boundary import (
     AnalysisReadySiteSequenceValidator,
 )
 from phospy.science.datasets.preprocessing.models import PreprocessingPlan
+from phospy.science.references.models import Organism
+from phospy.science.sites.site_keys import decode_site_key
 
 
 def _phospho() -> pd.DataFrame:
@@ -33,6 +38,7 @@ def _site_metadata(include_sequence: bool = True) -> pd.DataFrame:
     data: dict[str, object] = {
         "gene_symbol": ["MAPK14"],
         "site": ["Y182"],
+        "protein_accession": ["P28482"],
     }
     if include_sequence:
         data["site_sequence"] = ["AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA"]
@@ -83,6 +89,7 @@ def test_source_resolver_reads_and_normalizes_site_level_inputs() -> None:
             phospho=phospho,
             site_metadata=site_metadata,
             sample_metadata=sample_metadata,
+            organism=Organism.HUMAN,
             input_intensity_scale="linear",
         )
     )
@@ -188,6 +195,7 @@ def test_source_resolver_rejects_plain_duplicate_display_site_identity_rows() ->
             DatasetBuildRequest(
                 phospho=phospho,
                 site_metadata=site_metadata,
+                organism=Organism.HUMAN,
                 input_intensity_scale="linear",
             )
         )
@@ -212,6 +220,7 @@ def test_source_resolver_rejects_duplicate_display_ids_with_conflicting_protein_
             DatasetBuildRequest(
                 phospho=phospho,
                 site_metadata=site_metadata,
+                organism=Organism.HUMAN,
                 input_intensity_scale="linear",
             )
         )
@@ -236,6 +245,7 @@ def test_source_resolver_rejects_duplicate_display_ids_with_conflicting_protein_
             DatasetBuildRequest(
                 phospho=phospho,
                 site_metadata=site_metadata,
+                organism=Organism.HUMAN,
                 input_intensity_scale="linear",
             )
         )
@@ -259,6 +269,7 @@ def test_source_resolver_rejects_duplicate_display_ids_with_conflicting_isoform_
             DatasetBuildRequest(
                 phospho=phospho,
                 site_metadata=site_metadata,
+                organism=Organism.HUMAN,
                 input_intensity_scale="linear",
             )
         )
@@ -278,6 +289,7 @@ def test_source_resolver_rejects_duplicate_display_ids_when_context_columns_are_
             DatasetBuildRequest(
                 phospho=phospho,
                 site_metadata=site_metadata,
+                organism=Organism.HUMAN,
                 input_intensity_scale="linear",
             )
         )
@@ -297,7 +309,169 @@ def test_source_resolver_allows_distinct_display_ids_with_different_context() ->
         DatasetBuildRequest(
             phospho=phospho,
             site_metadata=site_metadata,
+            organism=Organism.HUMAN,
             input_intensity_scale="linear",
         )
     )
     assert resolved.site_metadata.loc[:, "site"].tolist() == ["Y182", "T308"]
+
+
+def test_site_identity_deriver_derives_display_id_and_site_key_without_mutation() -> (
+    None
+):
+    input_site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["mapk14"],
+            "site": ["y182"],
+            "protein_accession": ["P28482"],
+            "isoform_id": [None],
+        },
+        index=pd.Index(["row_a"], name="source_row"),
+    )
+    original_columns = input_site_metadata.columns.tolist()
+    original = input_site_metadata.copy(deep=True)
+
+    derived = DatasetSiteIdentityDeriver().run(
+        site_metadata=input_site_metadata,
+        organism=Organism.HUMAN,
+    )
+
+    assert input_site_metadata.equals(original)
+    assert input_site_metadata.columns.tolist() == original_columns
+    assert derived.loc["row_a", "display_id"] == "MAPK14;Y182;"
+    key = decode_site_key(
+        derived.loc["row_a", "site_key"],
+        field_name="test.site_key",
+        error_type=ValueError,
+    )
+    assert key.organism == "human"
+    assert key.protein_namespace == "protein_accession"
+    assert key.protein_identifier == "P28482"
+    assert key.residue == "Y"
+    assert key.position == 182
+    assert key.isoform_id is None
+
+
+def test_site_identity_deriver_uses_accession_over_protein_id_and_falls_back_namespace() -> (
+    None
+):
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["AKT1", "AKT1"],
+            "site": ["S473", "S473"],
+            "organism": ["human", "human"],
+            "protein_accession": ["P31749", ""],
+            "protein_id": ["AKT1_HUMAN", "AKT1_HUMAN"],
+            "protein_namespace": ["", ""],
+            "isoform_id": [None, "2"],
+        },
+        index=pd.Index(["row_a", "row_b"], name="source_row"),
+    )
+
+    derived = DatasetSiteIdentityDeriver().run(
+        site_metadata=site_metadata, organism=None
+    )
+
+    key_a = decode_site_key(
+        derived.loc["row_a", "site_key"],
+        field_name="test.site_key.row_a",
+        error_type=ValueError,
+    )
+    key_b = decode_site_key(
+        derived.loc["row_b", "site_key"],
+        field_name="test.site_key.row_b",
+        error_type=ValueError,
+    )
+    assert key_a.protein_namespace == "protein_accession"
+    assert key_a.protein_identifier == "P31749"
+    assert key_b.protein_namespace == "protein_id"
+    assert key_b.protein_identifier == "AKT1_HUMAN"
+    assert key_a.isoform_id is None
+    assert key_b.isoform_id == "2"
+
+
+def test_site_identity_deriver_same_display_id_different_protein_context_changes_site_key() -> (
+    None
+):
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "MAPK14"],
+            "site": ["Y182", "Y182"],
+            "organism": ["human", "human"],
+            "protein_accession": ["P28482", "Q9Y2J8"],
+        },
+        index=pd.Index(["row_a", "row_b"], name="source_row"),
+    )
+
+    derived = DatasetSiteIdentityDeriver().run(
+        site_metadata=site_metadata, organism=None
+    )
+
+    assert derived.loc["row_a", "display_id"] == "MAPK14;Y182;"
+    assert derived.loc["row_b", "display_id"] == "MAPK14;Y182;"
+    assert derived.loc["row_a", "site_key"] != derived.loc["row_b", "site_key"]
+
+
+def test_site_identity_deriver_same_protein_context_produces_same_site_key() -> None:
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "MAPK14"],
+            "site": ["Y182", "Y182"],
+            "organism": ["human", "human"],
+            "protein_accession": ["P28482", "P28482"],
+            "isoform_id": [None, None],
+        },
+        index=pd.Index(["row_a", "row_b"], name="source_row"),
+    )
+
+    derived = DatasetSiteIdentityDeriver().run(
+        site_metadata=site_metadata, organism=None
+    )
+    assert derived.loc["row_a", "site_key"] == derived.loc["row_b", "site_key"]
+
+
+def test_site_identity_deriver_rejects_missing_organism() -> None:
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "protein_accession": ["P28482"],
+        },
+        index=pd.Index(["row_a"], name="source_row"),
+    )
+
+    with pytest.raises(PhosPyInputError, match="requires organism"):
+        DatasetSiteIdentityDeriver().run(site_metadata=site_metadata, organism=None)
+
+
+def test_site_identity_deriver_rejects_missing_protein_context() -> None:
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "organism": ["human"],
+            "protein_accession": [""],
+            "protein_id": [None],
+        },
+        index=pd.Index(["row_a"], name="source_row"),
+    )
+
+    with pytest.raises(
+        PhosPyInputError, match="requires protein_accession or protein_id"
+    ):
+        DatasetSiteIdentityDeriver().run(site_metadata=site_metadata, organism=None)
+
+
+def test_site_identity_deriver_rejects_invalid_site_token() -> None:
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182-T180"],
+            "organism": ["human"],
+            "protein_accession": ["P28482"],
+        },
+        index=pd.Index(["row_a"], name="source_row"),
+    )
+
+    with pytest.raises(PhosPyInputError, match="strict 'S/T/Y<position>'"):
+        DatasetSiteIdentityDeriver().run(site_metadata=site_metadata, organism=None)
