@@ -4,13 +4,15 @@
 
 - **ADR ID:** ADR-0023
 - **Title:** Supported Phosphosite Display-Site Identity Scope
-- **Status:** Accepted
+- **Status:** Superseded
 - **Date:** 2026-05-26
 - **Decision Type:** Architecture Decision Record
 
+Superseded by ADR-0024 for analysis-ready phosphosite row identity.
+
 ## Status
 
-Accepted.
+Superseded.
 
 ## Context
 

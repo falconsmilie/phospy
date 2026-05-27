@@ -39,4 +39,5 @@ Use these ADRs when you need rationale and tradeoffs.
 | ADR-0020 | Peptide Evidence and Site-Level Resolution Policy | Accepted | 2026-05-12 | [adr_0020_peptide_evidence_and_site_level_resolution_policy.md](adr_0020_peptide_evidence_and_site_level_resolution_policy.md) |
 | ADR-0021 | Phosphosite Identity and Protein Context Policy | Superseded | 2026-05-12 | [adr_0021_phosphosite_identity_and_protein_context_policy.md](adr_0021_phosphosite_identity_and_protein_context_policy.md) |
 | ADR-0022 | Python API as the Supported Scientific Workflow Interface | Accepted | 2026-05-18 | [adr_0022_python_api_as_supported_scientific_workflow_interface.md](adr_0022_python_api_as_supported_scientific_workflow_interface.md) |
-| ADR-0023 | Supported Phosphosite Display-Site Identity Scope | Accepted | 2026-05-26 | [adr_0023_supported_phosphosite_display_site_identity_scope.md](adr_0023_supported_phosphosite_display_site_identity_scope.md) |
+| ADR-0023 | Supported Phosphosite Display-Site Identity Scope | Superseded | 2026-05-26 | [adr_0023_supported_phosphosite_display_site_identity_scope.md](adr_0023_supported_phosphosite_display_site_identity_scope.md) |
+| ADR-0024 | Protein-Scoped Phosphosite Row Identity | Accepted | 2026-05-27 | [adr_0024_protein_scoped_phosphosite_row_identity.md](adr_0024_protein_scoped_phosphosite_row_identity.md) |

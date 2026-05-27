@@ -6,21 +6,23 @@ Detailed API usage lives in
 
 Identity boundary summary:
 
-- PhosPy currently supports one analysis-ready row per normalised phosphosite
-  display identifier such as `GENE;SITE;`.
-- Duplicate display-site rows are rejected during dataset construction.
-- Duplicate display-site rows are rejected even when duplicate rows carry
-  identical protein metadata.
-- Duplicate rows are not automatically aggregated.
+- Analysis-ready row identity is `site_key`.
+- `display_id` (for example `GENE;SITE;`) is a human-readable label and may
+  repeat after `site_key` becomes row identity.
+- `site_key` must be unique.
+- `AnalysisReadyPhosphoDataset.phospho.index` is `site_key`.
+- `AnalysisReadyPhosphoDataset.site_metadata.index` is `site_key`.
+- `AnalysisReadyPhosphoDataset.site_metadata["display_id"]` is required.
+- Protein context is required to construct `site_key`.
+- Direct analysis-ready datasets must not silently fall back to display-site
+  identity.
+- Builder input may accept legacy display-indexed shape only when enough
+  protein context exists to derive `site_key`.
+- Duplicate rows are not automatically aggregated beyond explicit duplicate
+  policies.
 - Duplicate rows are not automatically renamed.
-- Protein and isoform context can be retained as metadata, but protein and
-  isoform context does not currently define row identity.
-- Source and mapping context can be retained as metadata, but source context
-  does not currently define row identity.
-- Peptide-evidence-scoped row identity is not currently supported.
-- Resolve duplicated display-site rows upstream before constructing
-  `AnalysisReadyPhosphoDataset`.
+- Peptide-evidence modelling scope is unchanged in this identity migration.
 
 See
-[ADR-0023: Supported Phosphosite Display-Site Identity Scope](../adr/adr_0023_supported_phosphosite_display_site_identity_scope.md)
+[ADR-0024: Protein-Scoped Phosphosite Row Identity](../adr/adr_0024_protein_scoped_phosphosite_row_identity.md)
 for the formal architecture decision.

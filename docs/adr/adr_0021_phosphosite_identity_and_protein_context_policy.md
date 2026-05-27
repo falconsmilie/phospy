@@ -8,8 +8,8 @@
 - **Date:** 2026-05-12
 - **Decision Type:** Architecture Decision Record
 
-Superseded in part by ADR-0023 for supported analysis-ready row identity scope
-and duplicate display-site handling.
+Superseded in part by ADR-0023 and ADR-0024 for supported analysis-ready row
+identity scope and duplicate display-site handling.
 
 ## Context
 

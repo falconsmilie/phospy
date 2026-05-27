@@ -18,12 +18,14 @@ Differential analysis requires analysis-ready numeric inputs plus valid
 `ExperimentalDesign` and `Contrast` metadata. It does not infer design from
 sample names and does not replace upstream preprocessing requirements.
 
-At dataset-construction boundary, PhosPy currently supports one
-analysis-ready row per normalised phosphosite display identifier such as
-`GENE;SITE;`. Protein-, isoform-, source-, or peptide-evidence-scoped row
-identity is not yet supported. Input data containing multiple rows for the same
-display-site identifier must be resolved before dataset construction. See
-[ADR-0023: Supported Phosphosite Display-Site Identity Scope](adr/adr_0023_supported_phosphosite_display_site_identity_scope.md).
+At dataset-construction boundary, PhosPy uses a protein-scoped analysis-ready
+row key (`site_key`) and keeps `display_id` (for example `GENE;SITE;`) as a
+human-readable label. `site_key` is required to be unique, while `display_id`
+may repeat once `site_key` is the row identity. Direct analysis-ready datasets
+must not silently fall back to display-site identity. Builder input may accept
+legacy display-indexed shape only when enough protein context exists to derive
+`site_key`. See
+[ADR-0024: Protein-Scoped Phosphosite Row Identity](adr/adr_0024_protein_scoped_phosphosite_row_identity.md).
 
 ### Differential Parity Envelope (Current Release)
 
