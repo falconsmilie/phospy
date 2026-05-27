@@ -20,6 +20,7 @@ from phospy.science.prediction.scoring import (
     SIGNALOME_DOWNSTREAM_SCORE_RANK_WEIGHTED_PREFERRED_POLICY,
     DownstreamScoreSelectionPolicy,
     build_kinase_score_source_diagnostics,
+    build_kinase_score_source_summary,
     fuse_profile_and_motif_scores_by_rank_weight,
     resolve_downstream_score_matrix,
 )
@@ -132,15 +133,15 @@ class KinaseScoringRunner:
                 f"{exc}"
             ) from exc
         diagnostic_motif_scores: pd.DataFrame | None = None
-        score_source_matrix, score_source_summary = (
-            build_kinase_score_source_diagnostics(
-                motif_scores=motif_result.motif_scores,
-                profile_scores=profile_scores,
-                rank_weighted_fusion_scores=rank_weighted_fusion_scores,
-            )
-        )
         diagnostic_score_source_matrix: pd.DataFrame | None = None
         if include_diagnostic_tables:
+            score_source_matrix, score_source_summary = (
+                build_kinase_score_source_diagnostics(
+                    motif_scores=motif_result.motif_scores,
+                    profile_scores=profile_scores,
+                    rank_weighted_fusion_scores=rank_weighted_fusion_scores,
+                )
+            )
             diagnostic_motif_scores = motif_result.motif_scores
             if diagnostic_motif_scores.empty:
                 diagnostic_motif_scores = pd.DataFrame(
@@ -149,6 +150,12 @@ class KinaseScoringRunner:
                     dtype=float,
                 )
             diagnostic_score_source_matrix = score_source_matrix
+        else:
+            score_source_summary = build_kinase_score_source_summary(
+                motif_scores=motif_result.motif_scores,
+                profile_scores=profile_scores,
+                rank_weighted_fusion_scores=rank_weighted_fusion_scores,
+            )
         scoring_result = KinaseScoringResult._from_owned(
             profile_scores=profile_scores,
             motif_scores=diagnostic_motif_scores,

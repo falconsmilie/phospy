@@ -217,17 +217,63 @@ class KinaseScoringResult:
         motif_sequence_validation: SequenceValidationResult | None = None,
         motif_library_validation: MotifLibraryValidationResult | None = None,
     ) -> KinaseScoringResult:
-        return cls(
-            profile_scores=profile_scores,
-            motif_scores=motif_scores,
-            rank_weighted_fusion_scores=rank_weighted_fusion_scores,
-            score_fusion_weights=score_fusion_weights,
-            score_source_matrix=score_source_matrix,
-            score_source_summary=score_source_summary,
-            motif_sequence_validation=motif_sequence_validation,
-            motif_library_validation=motif_library_validation,
-            _assume_owned=True,
+        _require_frame_type(
+            profile_scores,
+            field_name="scoring_result.profile_scores",
         )
+        _require_optional_frame_type(
+            motif_scores,
+            field_name="scoring_result.motif_scores",
+        )
+        _require_optional_frame_type(
+            rank_weighted_fusion_scores,
+            field_name="scoring_result.rank_weighted_fusion_scores",
+        )
+        _require_optional_frame_type(
+            score_fusion_weights,
+            field_name="scoring_result.score_fusion_weights",
+        )
+        _require_optional_frame_type(
+            score_source_matrix,
+            field_name="scoring_result.score_source_matrix",
+        )
+        _require_optional_frame_type(
+            score_source_summary,
+            field_name="scoring_result.score_source_summary",
+        )
+        if motif_sequence_validation is not None and not isinstance(
+            motif_sequence_validation,
+            SequenceValidationResult,
+        ):
+            raise PhosPyValidationError(
+                "scoring_result.motif_sequence_validation must be "
+                "SequenceValidationResult or None"
+            )
+        if motif_library_validation is not None and not isinstance(
+            motif_library_validation,
+            MotifLibraryValidationResult,
+        ):
+            raise PhosPyValidationError(
+                "scoring_result.motif_library_validation must be "
+                "MotifLibraryValidationResult or None"
+            )
+
+        result = object.__new__(cls)
+        object.__setattr__(
+            result, "motif_sequence_validation", motif_sequence_validation
+        )
+        object.__setattr__(result, "motif_library_validation", motif_library_validation)
+        object.__setattr__(result, "_profile_scores", profile_scores)
+        object.__setattr__(result, "_motif_scores", motif_scores)
+        object.__setattr__(
+            result,
+            "_rank_weighted_fusion_scores",
+            rank_weighted_fusion_scores,
+        )
+        object.__setattr__(result, "_score_fusion_weights", score_fusion_weights)
+        object.__setattr__(result, "_score_source_matrix", score_source_matrix)
+        object.__setattr__(result, "_score_source_summary", score_source_summary)
+        return result
 
     def to_dataframe(self) -> pd.DataFrame:
         """Return a `profile_scores` snapshot isolated from this result."""
@@ -505,11 +551,15 @@ class KinasePredictionResult:
         pred_mat: pd.DataFrame,
         substrate_list: pd.DataFrame | None = None,
     ) -> KinasePredictionResult:
-        return cls(
-            pred_mat=pred_mat,
-            substrate_list=substrate_list,
-            _assume_owned=True,
+        _require_frame_type(pred_mat, field_name="prediction_result.pred_mat")
+        _require_optional_frame_type(
+            substrate_list,
+            field_name="prediction_result.substrate_list",
         )
+        result = object.__new__(cls)
+        object.__setattr__(result, "_pred_mat", pred_mat)
+        object.__setattr__(result, "_substrate_list", substrate_list)
+        return result
 
     def to_dataframe(self) -> pd.DataFrame:
         """Return a `pred_mat` snapshot isolated from this result."""
@@ -520,3 +570,15 @@ class KinasePredictionResult:
         """Return an optional substrate-list snapshot isolated from this result."""
 
         return export_optional_dataframe(self._substrate_list)
+
+
+def _require_frame_type(value: object, *, field_name: str) -> None:
+    if not isinstance(value, pd.DataFrame):
+        raise PhosPyValidationError(f"{field_name} must be a pandas DataFrame")
+
+
+def _require_optional_frame_type(value: object | None, *, field_name: str) -> None:
+    if value is not None and not isinstance(value, pd.DataFrame):
+        raise PhosPyValidationError(
+            f"{field_name} must be a pandas DataFrame when provided"
+        )

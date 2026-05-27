@@ -22,6 +22,12 @@ from phospy.science.sites.identity import (
     validate_identity_optional_columns,
     validate_no_conflicting_identity_collisions,
 )
+from phospy.science.sites.site_keys import (
+    ProteinScopedPhosphositeKey,
+    build_protein_scoped_site_key,
+    decode_site_key,
+    encode_site_key,
+)
 from phospy.science.sites.validation import (
     require_canonical_site_index,
     require_canonical_site_series,
@@ -47,6 +53,10 @@ __all__ = [
     "build_phosphosite_identity",
     "validate_identity_optional_columns",
     "validate_no_conflicting_identity_collisions",
+    "ProteinScopedPhosphositeKey",
+    "build_protein_scoped_site_key",
+    "encode_site_key",
+    "decode_site_key",
     "require_canonical_site_index",
     "require_canonical_site_series",
     "require_site_identity_coherence",
