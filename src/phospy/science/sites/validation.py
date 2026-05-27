@@ -11,6 +11,10 @@ from phospy.science.sites.identifiers import (
     canonicalize_site_series,
     parse_canonical_site_identifier,
 )
+from phospy.science.sites.site_keys import (
+    ProteinScopedPhosphositeKey,
+    decode_site_key,
+)
 
 ErrorType = TypeVar("ErrorType", bound=Exception)
 
@@ -148,6 +152,72 @@ def require_site_identity_coherence(
     )
 
 
+def require_no_mixed_site_key_isoform_scope(
+    site_keys: pd.Series,
+    *,
+    field_name: str,
+    error_type: type[ErrorType],
+    preview_limit: int = 5,
+) -> None:
+    """Reject mixed missing/specified isoform keys for the same protein-scoped site."""
+
+    decoded_by_row: list[tuple[object, ProteinScopedPhosphositeKey]] = [
+        (
+            row_id,
+            decode_site_key(
+                value,
+                field_name=f"{field_name}[{row_id!r}]",
+                error_type=error_type,
+            ),
+        )
+        for row_id, value in site_keys.items()
+    ]
+
+    isoform_scope: dict[tuple[object, ...], set[bool]] = {}
+    rows_by_scope: dict[tuple[object, ...], list[object]] = {}
+    for row_id, key in decoded_by_row:
+        scope = (
+            key.organism,
+            key.protein_namespace,
+            key.protein_identifier,
+            key.residue,
+            int(key.position),
+        )
+        isoform_scope.setdefault(scope, set()).add(key.isoform_id is None)
+        rows_by_scope.setdefault(scope, []).append(row_id)
+
+    mixed_scopes = [
+        (scope, rows_by_scope[scope])
+        for scope, flags in isoform_scope.items()
+        if len(flags) > 1
+    ]
+    if not mixed_scopes:
+        return
+
+    previews: list[str] = []
+    for scope, row_ids in mixed_scopes[:preview_limit]:
+        row_preview = ", ".join(repr(str(row_id)) for row_id in row_ids[:preview_limit])
+        row_suffix = "" if len(row_ids) <= preview_limit else " ..."
+        previews.append(
+            "("
+            f"organism={scope[0]!r}, "
+            f"protein_namespace={scope[1]!r}, "
+            f"protein_identifier={scope[2]!r}, "
+            f"residue={scope[3]!r}, "
+            f"position={scope[4]!r}"
+            ") rows=["
+            f"{row_preview}{row_suffix}]"
+        )
+    suffix = "" if len(mixed_scopes) <= preview_limit else " ..."
+    raise error_type(
+        f"{field_name} contains mixed isoform scope for protein-scoped site "
+        "identities; rows for the same "
+        "(organism, protein_namespace, protein_identifier, residue, position) "
+        "must either all define isoform_id or all omit it; "
+        f"conflicts={'; '.join(previews)}{suffix}"
+    )
+
+
 def _parse_site_identity(
     site_id: object,
     *,
@@ -228,6 +298,7 @@ def _resolve_duplicate_labels(index: pd.Index) -> tuple[int, list[object]]:
 
 
 __all__ = [
+    "require_no_mixed_site_key_isoform_scope",
     "require_canonical_site_index",
     "require_canonical_site_series",
     "require_site_identity_coherence",

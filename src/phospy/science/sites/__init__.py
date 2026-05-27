@@ -31,6 +31,7 @@ from phospy.science.sites.site_keys import (
 from phospy.science.sites.validation import (
     require_canonical_site_index,
     require_canonical_site_series,
+    require_no_mixed_site_key_isoform_scope,
     require_site_identity_coherence,
 )
 
@@ -57,6 +58,7 @@ __all__ = [
     "build_protein_scoped_site_key",
     "encode_site_key",
     "decode_site_key",
+    "require_no_mixed_site_key_isoform_scope",
     "require_canonical_site_index",
     "require_canonical_site_series",
     "require_site_identity_coherence",
