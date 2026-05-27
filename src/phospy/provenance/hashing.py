@@ -20,6 +20,7 @@ DEFAULT_EXACT_TABLE_HASH_ALGORITHM = "sha256-stable-json-v1"
 DEFAULT_TOLERANCE_TABLE_HASH_ALGORITHM = "sha256-float-round-8dp-v1"
 _MISSING_SENTINEL = "<MISSING>"
 _FLOAT_HASH_DECIMAL_PLACES = 8
+_SITE_METADATA_PROVENANCE_IGNORED_COLUMNS = ("display_id", "site_key")
 _PANDAS_MISSING_SCALAR_TYPES = (
     str,
     bytes,
@@ -104,26 +105,35 @@ def fingerprint_table(
 ) -> TableFingerprint:
     """Build a typed deterministic table fingerprint."""
 
+    canonical_table = _canonicalize_provenance_table_view(table, name=name)
     exact_hash_algorithm = _exact_hash_algorithm_name(algorithm)
     tolerance_hash_algorithm = _tolerance_hash_algorithm_name(algorithm)
-    exact_hash = hash_table_exact(table, name=name, algorithm=algorithm)
-    tolerance_hash = hash_table_tolerance(table, name=name, algorithm=algorithm)
+    exact_hash = hash_table_exact(canonical_table, name=name, algorithm=algorithm)
+    tolerance_hash = hash_table_tolerance(
+        canonical_table, name=name, algorithm=algorithm
+    )
 
     return TableFingerprint(
         name=name,
-        rows=int(table.shape[0]),
-        columns=int(table.shape[1]),
-        index_name=None if table.index.name is None else str(table.index.name),
-        column_names=tuple(str(label) for label in table.columns.tolist()),
-        dtypes=tuple(str(dtype) for dtype in table.dtypes.tolist()),
+        rows=int(canonical_table.shape[0]),
+        columns=int(canonical_table.shape[1]),
+        index_name=(
+            None
+            if canonical_table.index.name is None
+            else str(canonical_table.index.name)
+        ),
+        column_names=tuple(str(label) for label in canonical_table.columns.tolist()),
+        dtypes=tuple(str(dtype) for dtype in canonical_table.dtypes.tolist()),
         hash_algorithm=algorithm,
         hash_value=tolerance_hash,
         exact_hash_algorithm=exact_hash_algorithm,
         exact_hash_value=exact_hash,
         tolerance_hash_algorithm=tolerance_hash_algorithm,
         tolerance_hash_value=tolerance_hash,
-        index_structure=_index_structure(table.index, round_floats=False),
-        column_index_structure=_index_structure(table.columns, round_floats=False),
+        index_structure=_index_structure(canonical_table.index, round_floats=False),
+        column_index_structure=_index_structure(
+            canonical_table.columns, round_floats=False
+        ),
     )
 
 
@@ -312,6 +322,25 @@ def _tolerance_hash_algorithm_name(algorithm: str) -> str:
     if algorithm == DEFAULT_TABLE_HASH_ALGORITHM:
         return DEFAULT_TOLERANCE_TABLE_HASH_ALGORITHM
     return f"{algorithm}-float-round-{_FLOAT_HASH_DECIMAL_PLACES}dp-v1"
+
+
+def _canonicalize_provenance_table_view(
+    table: pd.DataFrame,
+    *,
+    name: str,
+) -> pd.DataFrame:
+    if name != "dataset.site_metadata":
+        return table
+    removable = [
+        column
+        for column in _SITE_METADATA_PROVENANCE_IGNORED_COLUMNS
+        if column in table.columns
+    ]
+    if not removable:
+        return table
+    # Keep provenance contracts stable while builder-owned identity fields are
+    # introduced. A later provenance schema ticket can make this explicit.
+    return table.drop(columns=removable)
 
 
 __all__ = [

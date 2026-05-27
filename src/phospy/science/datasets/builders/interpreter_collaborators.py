@@ -16,6 +16,9 @@ from phospy.science.datasets.builders.normalizer import (
 )
 from phospy.science.datasets.builders.reader import DatasetInputReader
 from phospy.science.datasets.builders.sequence_derivation import SiteSequenceDeriver
+from phospy.science.datasets.builders.site_identity_derivation import (
+    DatasetSiteIdentityDeriver,
+)
 from phospy.science.datasets.preprocessing.models import PreprocessingPlan
 from phospy.science.datasets.preprocessing.policy_models import SiteMatrixPolicy
 from phospy.science.evidence.dataset_resolution import (
@@ -63,11 +66,15 @@ class DatasetBuildSourceResolver:
         reader: DatasetInputReader | None = None,
         normalizer: DatasetConventionNormalizer | None = None,
         peptide_evidence_resolver: PeptideEvidenceDatasetResolver | None = None,
+        site_identity_deriver: DatasetSiteIdentityDeriver | None = None,
     ) -> None:
         self._reader = reader or DatasetInputReader()
         self._normalizer = normalizer or DatasetConventionNormalizer()
         self._peptide_evidence_resolver = (
             peptide_evidence_resolver or PeptideEvidenceDatasetResolver()
+        )
+        self._site_identity_deriver = (
+            site_identity_deriver or DatasetSiteIdentityDeriver()
         )
 
     def run(self, request: DatasetBuildRequest) -> ResolvedDatasetBuildSources:
@@ -112,10 +119,14 @@ class DatasetBuildSourceResolver:
             sample_metadata=sample_metadata,
             total=total,
         )
-        self._enforce_display_site_identity_uniqueness(normalized.site_metadata)
+        identity_enriched_site_metadata = self._derive_site_identity(
+            site_metadata=normalized.site_metadata,
+            organism=request.organism,
+        )
+        self._enforce_display_site_identity_uniqueness(identity_enriched_site_metadata)
         return ResolvedDatasetBuildSources(
             phospho=normalized.phospho,
-            site_metadata=normalized.site_metadata,
+            site_metadata=identity_enriched_site_metadata,
             sample_metadata=normalized.sample_metadata,
             total=normalized.total,
             site_resolution_mode=site_resolution_mode,
@@ -213,6 +224,35 @@ class DatasetBuildSourceResolver:
                     "ensure phospho/site_metadata/sample_metadata/total tables use "
                     "supported rectangular DataFrame shapes, canonical site labels, "
                     "and non-conflicting metadata column conventions"
+                ),
+                original_error=exc,
+            )
+
+    def _derive_site_identity(
+        self,
+        *,
+        site_metadata: pd.DataFrame,
+        organism: Organism | None,
+    ) -> pd.DataFrame:
+        if _has_blank_or_missing_site_identity_fields(site_metadata):
+            return site_metadata
+        try:
+            return self._site_identity_deriver.run(
+                site_metadata=site_metadata,
+                organism=organism,
+                allow_gene_symbol_fallback=True,
+                fallback_organism="unknown",
+                allow_non_strict_site_fallback=True,
+                copy_site_metadata=False,
+            )
+        except (TypeError, ValueError, KeyError, PhosPyInputError) as exc:
+            _raise_wrapped_input_error(
+                stage_name="dataset_builder.site_identity_derivation",
+                field_name="dataset build request site_metadata",
+                operation="deriving display_id and site_key metadata columns",
+                next_action=(
+                    "ensure site_metadata provides canonical gene/site values and "
+                    "string-compatible optional identity fields"
                 ),
                 original_error=exc,
             )
@@ -344,3 +384,24 @@ def _raise_wrapped_input_error(
         f"Original error: {type(original_error).__name__}: {original_message}. "
         f"Next action: {next_action}"
     ) from original_error
+
+
+def _has_blank_or_missing_site_identity_fields(site_metadata: pd.DataFrame) -> bool:
+    if (
+        "gene_symbol" not in site_metadata.columns
+        or "site" not in site_metadata.columns
+    ):
+        return True
+    gene_symbol = site_metadata.loc[:, "gene_symbol"]
+    site = site_metadata.loc[:, "site"]
+    gene_token = gene_symbol.astype("string").str.strip()
+    site_token = site.astype("string").str.strip()
+    has_blank_or_missing = (
+        gene_symbol.isna()
+        | site.isna()
+        | gene_token.isna()
+        | site_token.isna()
+        | (gene_token == "")
+        | (site_token == "")
+    )
+    return bool(has_blank_or_missing.any())

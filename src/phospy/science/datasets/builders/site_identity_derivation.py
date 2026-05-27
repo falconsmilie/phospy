@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+
 import pandas as pd
 
 from phospy.errors.input import UnsupportedInputFormatError
@@ -22,11 +24,23 @@ class DatasetSiteIdentityDeriver:
         *,
         site_metadata: pd.DataFrame,
         organism: Organism | None,
+        allow_gene_symbol_fallback: bool = False,
+        fallback_organism: str | None = None,
+        allow_non_strict_site_fallback: bool = False,
+        copy_site_metadata: bool = True,
     ) -> pd.DataFrame:
-        normalized = own_dataframe(
-            site_metadata,
-            field_name="dataset build request site_metadata",
-            error_type=UnsupportedInputFormatError,
+        normalized = (
+            own_dataframe(
+                site_metadata,
+                field_name="dataset build request site_metadata",
+                error_type=UnsupportedInputFormatError,
+            )
+            if copy_site_metadata
+            else site_metadata
+        )
+        resolved_fallback_organism = _optional_text(
+            fallback_organism,
+            field_name=("dataset builder site identity derivation fallback organism"),
         )
         _require_columns(
             normalized,
@@ -50,11 +64,13 @@ class DatasetSiteIdentityDeriver:
                 row_position=row_position,
                 request_organism=organism,
                 field_name=row_field,
+                fallback_organism=resolved_fallback_organism,
             )
             protein_source, protein_identifier = _resolve_protein_identifier(
                 site_metadata=normalized,
                 row_position=row_position,
                 field_name=row_field,
+                allow_gene_symbol_fallback=allow_gene_symbol_fallback,
             )
             protein_namespace = _resolve_protein_namespace(
                 site_metadata=normalized,
@@ -70,13 +86,18 @@ class DatasetSiteIdentityDeriver:
                 ),
                 field_name=f"{row_field}.isoform_id",
             )
-            parsed_site = _parse_strict_site(
+            parsed_site = _parse_site_for_key(
                 value=_series_value_or_none(
                     normalized,
                     row_position=row_position,
                     column="site",
                 ),
                 field_name=f"{row_field}.site",
+                allow_non_strict_site_fallback=allow_non_strict_site_fallback,
+            )
+            site_key_isoform_id = _merge_site_key_isoform_id(
+                isoform_id=isoform_id,
+                opaque_site_token=parsed_site.opaque_site_token,
             )
             key = build_protein_scoped_site_key(
                 organism=resolved_organism,
@@ -84,7 +105,7 @@ class DatasetSiteIdentityDeriver:
                 protein_identifier=protein_identifier,
                 residue=parsed_site.residue,
                 position=parsed_site.position,
-                isoform_id=isoform_id,
+                isoform_id=site_key_isoform_id,
                 field_name=f"{row_field}.site_key",
                 error_type=UnsupportedInputFormatError,
             )
@@ -99,6 +120,7 @@ def _resolve_organism(
     row_position: int,
     request_organism: Organism | None,
     field_name: str,
+    fallback_organism: str | None,
 ) -> str:
     column_value = _series_value_or_none(
         site_metadata,
@@ -114,6 +136,8 @@ def _resolve_organism(
         return explicit
     if request_organism is not None:
         return str(request_organism.value).strip()
+    if fallback_organism is not None:
+        return fallback_organism
     raise UnsupportedInputFormatError(
         f"{field_name} requires organism to derive site_key. Provide non-empty "
         "site_metadata.organism or dataset build request organism."
@@ -125,6 +149,7 @@ def _resolve_protein_identifier(
     site_metadata: pd.DataFrame,
     row_position: int,
     field_name: str,
+    allow_gene_symbol_fallback: bool,
 ) -> tuple[str, str]:
     protein_accession = _optional_text(
         _series_value_or_none(
@@ -146,6 +171,17 @@ def _resolve_protein_identifier(
     )
     if protein_id is not None:
         return "protein_id", protein_id
+    if allow_gene_symbol_fallback:
+        gene_symbol = _optional_text(
+            _series_value_or_none(
+                site_metadata,
+                row_position=row_position,
+                column="gene_symbol",
+            ),
+            field_name=f"{field_name}.gene_symbol",
+        )
+        if gene_symbol is not None:
+            return "gene_symbol", gene_symbol
     raise UnsupportedInputFormatError(
         f"{field_name} requires protein_accession or protein_id to derive site_key"
     )
@@ -171,16 +207,75 @@ def _resolve_protein_namespace(
     return fallback_namespace
 
 
-def _parse_strict_site(*, field_name: str, value: object):
+class _ResolvedSiteKeySiteComponents:
+    __slots__ = ("residue", "position", "opaque_site_token")
+
+    def __init__(
+        self,
+        *,
+        residue: str,
+        position: int,
+        opaque_site_token: str | None,
+    ) -> None:
+        self.residue = residue
+        self.position = position
+        self.opaque_site_token = opaque_site_token
+
+
+def _parse_site_for_key(
+    *,
+    field_name: str,
+    value: object,
+    allow_non_strict_site_fallback: bool,
+) -> _ResolvedSiteKeySiteComponents:
     from phospy.science.sites.identifiers import try_parse_site_token
 
     parsed = try_parse_site_token(value)
-    if parsed is None:
+    if parsed is not None:
+        return _ResolvedSiteKeySiteComponents(
+            residue=parsed.residue,
+            position=parsed.position,
+            opaque_site_token=None,
+        )
+    if not allow_non_strict_site_fallback:
         raise UnsupportedInputFormatError(
             f"{field_name} must use strict 'S/T/Y<position>' site tokens to derive "
             f"site_key; got {value!r}"
         )
-    return parsed
+    opaque_site_token = _optional_text(value, field_name=field_name)
+    if opaque_site_token is None:
+        raise UnsupportedInputFormatError(
+            f"{field_name} must contain a non-empty site token to derive site_key"
+        )
+    digest = hashlib.sha256(opaque_site_token.upper().encode("utf-8")).hexdigest()
+    synthetic_position = (int(digest[:12], 16) % 2_147_483_647) + 1
+    synthetic_residue = _resolve_fallback_residue(opaque_site_token)
+    return _ResolvedSiteKeySiteComponents(
+        residue=synthetic_residue,
+        position=synthetic_position,
+        opaque_site_token=opaque_site_token.upper(),
+    )
+
+
+def _resolve_fallback_residue(site_token: str) -> str:
+    upper = site_token.upper()
+    for token in upper:
+        if token in {"S", "T", "Y"}:
+            return token
+    return "S"
+
+
+def _merge_site_key_isoform_id(
+    *,
+    isoform_id: str | None,
+    opaque_site_token: str | None,
+) -> str | None:
+    if opaque_site_token is None:
+        return isoform_id
+    marker = f"opaque_site_token:{opaque_site_token}"
+    if isoform_id is None:
+        return marker
+    return f"{isoform_id}|{marker}"
 
 
 def _require_columns(

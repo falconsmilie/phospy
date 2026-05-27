@@ -1,7 +1,7 @@
 path,test_area,line_count,test_function_count,uses_pytest_mark,uses_parametrization,primary_category,recommended_action,protected_risk_or_contract,reviewer,followup_ticket,notes
 tests/golden/test_differential_fixture_provenance_golden.py,golden,252,3,true,false,,,,,,
 tests/integration/test_dataset_builder_boundary_honesty_integration.py,integration,414,10,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset builder boundary honesty integration and increase risk of boundary regressions.,codex-audit,,
-tests/integration/test_dataset_builder_integration.py,integration,1851,36,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset builder integration and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
+tests/integration/test_dataset_builder_integration.py,integration,1855,36,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset builder integration and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/integration/test_dataset_builder_intensity_scale_provenance.py,integration,316,9,true,false,,,,,,
 tests/integration/test_differential_with_technical_replicates.py,integration,186,3,false,false,,,,,,
 tests/integration/test_differential_workflow_integration.py,integration,365,8,false,false,,,,,,
@@ -42,7 +42,7 @@ tests/unit/test_boundary_constructor_no_repair.py,unit,33,3,false,false,internal
 tests/unit/test_builder_and_kinase_orchestration.py,unit,540,8,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in builder and kinase orchestration; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-ORCH-002,Route to TST-ORCH-002 for boundary-focused orchestration rewrite coverage that removes incidental collaborator-coupled assertions while preserving workflow contracts.
 tests/unit/test_config_validation_primitives.py,unit,144,7,true,true,duplicate validation matrix,consolidate,Loss of this file would reduce repeated primitive validation coverage for config validation primitives; protections must remain through a consolidated matrix before removal.,codex-audit,TST-FOLLOWUP-VAL-PRIMITIVE-INT,Validator pattern report maps this file to primitive int/range/enum families; track consolidation from optional-int matrix first.
 tests/unit/test_dataframe_validation_primitives.py,unit,306,10,true,true,duplicate validation matrix,consolidate,Loss of this file would reduce repeated primitive validation coverage for dataframe validation primitives; protections must remain through a consolidated matrix before removal.,codex-audit,TST-FOLLOWUP-VAL-PRIMITIVE-DATAFRAME,
-tests/unit/test_dataset_builder_internal_collaborators.py,unit,470,16,false,false,,,,,,
+tests/unit/test_dataset_builder_internal_collaborators.py,unit,511,17,false,false,,,,,,
 tests/unit/test_dataset_normalizer_collaborators.py,unit,161,9,false,false,,,,,,
 tests/unit/test_dataset_normalizer_identity.py,unit,369,15,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for dataset normalizer identity, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_dataset_peptide_evidence_resolution.py,unit,405,13,false,false,,,,,,

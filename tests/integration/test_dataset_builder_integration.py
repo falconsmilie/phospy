@@ -143,6 +143,8 @@ def test_dataset_builder_builds_analysis_ready_dataset_from_fixture() -> None:
         "site",
         "site_sequence",
         "localisation_confidence",
+        "display_id",
+        "site_key",
     ]
     assert built.intensity_scale_state == IntensityScaleState(
         phospho=MatrixIntensityScaleState.linear(
@@ -541,6 +543,8 @@ def test_dataset_builder_supports_documented_alias_and_index_derivation_conventi
         "localisation_confidence",
         "gene_symbol",
         "site",
+        "display_id",
+        "site_key",
     ]
     assert (
         built.site_metadata.loc[:, "site_sequence"].tolist()

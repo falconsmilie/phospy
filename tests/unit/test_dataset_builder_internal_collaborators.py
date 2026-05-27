@@ -99,6 +99,40 @@ def test_source_resolver_reads_and_normalizes_site_level_inputs() -> None:
     assert resolved.site_resolution_mode == "site_level_resolved"
     assert resolved.multi_site_policy is None
     assert resolved.peptide_evidence_resolution is None
+    assert resolved.site_metadata.loc[:, "display_id"].tolist() == ["MAPK14;Y182;"]
+    assert resolved.site_metadata.loc[:, "site_key"].shape[0] == 1
+
+
+def test_source_resolver_derives_site_identity_for_gene_site_only_rows() -> None:
+    phospho = _phospho()
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "site_sequence": ["AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    resolved = DatasetBuildSourceResolver().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            input_intensity_scale="linear",
+        )
+    )
+
+    assert resolved.site_metadata.loc[:, "display_id"].tolist() == ["MAPK14;Y182;"]
+    key = decode_site_key(
+        resolved.site_metadata.loc[:, "site_key"].iloc[0],
+        field_name="test.source_resolver.site_key",
+        error_type=ValueError,
+    )
+    assert key.organism == "unknown"
+    assert key.protein_namespace == "gene_symbol"
+    assert key.protein_identifier == "MAPK14"
+    assert key.residue == "Y"
+    assert key.position == 182
 
 
 def test_site_sequence_boundary_validator_rejects_missing_sequence_column() -> None:
