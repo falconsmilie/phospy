@@ -9,6 +9,8 @@ def normalize_module_assignments_table(table):
     """Normalize tuple/list/dict-serialized signalome assignment fields."""
 
     normalized = table.copy(deep=True)
+    normalized = _normalize_identity_columns(normalized)
+    normalized = _normalize_string_columns(normalized)
     candidate_columns = [
         str(column)
         for column in normalized.columns
@@ -33,6 +35,52 @@ def normalize_module_assignments_table(table):
         )
         normalized = normalized.drop(columns=[weight_column])
         normalized.insert(weight_index, weight_column, weights)
+    return normalized
+
+
+def _normalize_identity_columns(table):
+    normalized = table.copy(deep=True)
+    for column_name in ("site_key", "display_id", "site_id"):
+        duplicate_name = f"{column_name}.1"
+        if (
+            column_name not in normalized.columns
+            and duplicate_name in normalized.columns
+        ):
+            normalized = normalized.rename(columns={duplicate_name: column_name})
+    index_name = str(normalized.index.name) if normalized.index.name is not None else ""
+    if index_name:
+        duplicate_index_name = f"{index_name}.1"
+        if (
+            index_name not in normalized.columns
+            and duplicate_index_name in normalized.columns
+        ):
+            normalized = normalized.rename(columns={duplicate_index_name: index_name})
+    return normalized
+
+
+def _normalize_string_columns(table):
+    normalized = table.copy(deep=True)
+    for column_name in (
+        "site_key",
+        "display_id",
+        "site_id",
+        "gene_symbol",
+        "site",
+        "protein_id",
+        "protein_accession",
+        "isoform_id",
+        "top_kinase",
+        "top_kinase_selection_policy",
+        "module_top_kinase",
+        "module_top_kinase_selection_policy",
+    ):
+        if column_name in normalized.columns:
+            column_index = normalized.columns.get_loc(column_name)
+            series = (
+                normalized.loc[:, column_name].astype(object).fillna("").astype(str)
+            )
+            normalized = normalized.drop(columns=[column_name])
+            normalized.insert(column_index, column_name, series)
     return normalized
 
 

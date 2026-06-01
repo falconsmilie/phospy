@@ -6,6 +6,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Protocol
 
+import pandas as pd
+
 from phospy.contracts.configs import DifferentialAnalysisConfig
 from phospy.science.datasets.models import (
     AnalysisReadyPhosphoDataset,
@@ -50,6 +52,7 @@ class InterpretedDifferentialAnalysisRequest:
     """Execution-ready differential request produced by interpretation."""
 
     computation_request: DifferentialComputationRequest
+    result_identity_metadata: pd.DataFrame
     config: DifferentialAnalysisConfig
     design_rank: int
     residual_degrees_of_freedom: float

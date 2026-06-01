@@ -99,6 +99,7 @@ class ComparisonsStage:
         )
         build_result = _build_comparison_build_result(
             phospho=state.phospho,
+            site_metadata=state.site_metadata,
             group_to_samples=group_to_samples,
             pairs=pairs,
         )
@@ -246,10 +247,10 @@ def _build_group_statistics(
     *,
     phospho: pd.DataFrame,
     group_to_samples: dict[str, list[str]],
+    site_ids: list[str],
 ) -> tuple[pd.DataFrame, dict[str, pd.DataFrame]]:
     group_records: list[pd.DataFrame] = []
     group_summaries: dict[str, pd.DataFrame] = {}
-    site_ids = phospho.index.astype(str).tolist()
     for group_name, sample_columns in group_to_samples.items():
         group_values = phospho.loc[:, sample_columns]
         n = group_values.count(axis=1).astype(int)
@@ -313,13 +314,12 @@ def _build_comparison_matrix(
 
 def _build_pair_statistics(
     *,
-    phospho: pd.DataFrame,
     pairs: tuple[DatasetComparisonPair, ...],
     comparison_matrix: pd.DataFrame,
     group_summaries: dict[str, pd.DataFrame],
+    site_ids: list[str],
 ) -> pd.DataFrame:
     pair_records: list[pd.DataFrame] = []
-    site_ids = phospho.index.astype(str).tolist()
     for left_group, right_group in pairs:
         left_summary = group_summaries[left_group]
         right_summary = group_summaries[right_group]
@@ -359,12 +359,18 @@ def _build_pair_statistics(
 def _build_comparison_build_result(
     *,
     phospho: pd.DataFrame,
+    site_metadata: pd.DataFrame,
     group_to_samples: dict[str, list[str]],
     pairs: tuple[DatasetComparisonPair, ...],
 ) -> ComparisonBuildResult:
+    site_ids = _resolve_report_site_ids(
+        phospho=phospho,
+        site_metadata=site_metadata,
+    )
     group_stats, group_summaries = _build_group_statistics(
         phospho=phospho,
         group_to_samples=group_to_samples,
+        site_ids=site_ids,
     )
     group_means = _build_group_means(
         phospho=phospho,
@@ -372,10 +378,10 @@ def _build_comparison_build_result(
     )
     comparisons = _build_comparison_matrix(group_means=group_means, pairs=pairs)
     pair_stats = _build_pair_statistics(
-        phospho=phospho,
         pairs=pairs,
         comparison_matrix=comparisons,
         group_summaries=group_summaries,
+        site_ids=site_ids,
     )
     return ComparisonBuildResult(
         comparisons=comparisons,
@@ -401,6 +407,30 @@ def _resolve_group_labels_from_stats(state: PreprocessingState) -> list[str]:
         return []
     labels = group_stats.loc[:, "group"].astype(str).drop_duplicates().tolist()
     return [str(label) for label in labels]
+
+
+def _resolve_report_site_ids(
+    *, phospho: pd.DataFrame, site_metadata: pd.DataFrame
+) -> list[str]:
+    if "display_id" not in site_metadata.columns:
+        return phospho.index.astype(str).tolist()
+    display_series = (
+        site_metadata.reindex(phospho.index)
+        .loc[:, "display_id"]
+        .astype("string")
+        .str.strip()
+    )
+    report_ids: list[str] = []
+    for site_key, display_id in zip(
+        phospho.index.astype(str).tolist(),
+        display_series.tolist(),
+        strict=True,
+    ):
+        if not bool(pd.notna(display_id)) or str(display_id) == "":
+            report_ids.append(str(site_key))
+            continue
+        report_ids.append(str(display_id))
+    return report_ids
 
 
 def _resolve_operation(plan: PreprocessingPlan) -> str:

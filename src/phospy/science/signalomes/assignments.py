@@ -9,6 +9,9 @@ import pandas as pd
 
 from phospy.errors.workflows import WorkflowStageError
 from phospy.science.signalomes.constants import (
+    DISPLAY_ID_COLUMN,
+    GENE_SYMBOL_COLUMN,
+    ISOFORM_ID_COLUMN,
     LEXICOGRAPHIC_TIE_BREAK_POLICY,
     MODULE_ID_COLUMN,
     MODULE_TOP_KINASE_CANDIDATES_COLUMN,
@@ -17,8 +20,10 @@ from phospy.science.signalomes.constants import (
     MODULE_TOP_KINASE_SELECTION_POLICY_COLUMN,
     MODULE_TOP_KINASE_TIE_COUNT_COLUMN,
     NO_SUPPORT_SELECTION_POLICY,
+    PROTEIN_ACCESSION_COLUMN,
     PROTEIN_COLUMN,
-    SITE_ID_COLUMN,
+    SITE_COLUMN,
+    SITE_KEY_COLUMN,
     TOP_KINASE_CANDIDATES_COLUMN,
     TOP_KINASE_COLUMN,
     TOP_KINASE_IS_AMBIGUOUS_COLUMN,
@@ -34,6 +39,7 @@ def build_module_assignments(
     *,
     prediction_matrix: pd.DataFrame,
     site_to_protein: pd.Series,
+    site_metadata: pd.DataFrame | None = None,
     protein_modules: pd.Series | None = None,
 ) -> pd.DataFrame:
     """Build site-level module assignments with explicit tie-handling metadata."""
@@ -44,6 +50,11 @@ def build_module_assignments(
     resolved_site_to_protein = _resolve_site_to_protein(
         site_index=site_index,
         site_to_protein=site_to_protein,
+    )
+    site_identity = _resolve_site_identity_columns(
+        site_index=site_index,
+        resolved_site_to_protein=resolved_site_to_protein,
+        site_metadata=site_metadata,
     )
 
     sorted_kinase_columns = sorted(str(kinase) for kinase in prediction_matrix.columns)
@@ -87,7 +98,33 @@ def build_module_assignments(
 
     assignments = pd.DataFrame(
         {
+            SITE_KEY_COLUMN: site_identity.loc[:, SITE_KEY_COLUMN].to_numpy(
+                dtype=object,
+                copy=False,
+            ),
+            DISPLAY_ID_COLUMN: site_identity.loc[:, DISPLAY_ID_COLUMN].to_numpy(
+                dtype=object,
+                copy=False,
+            ),
+            GENE_SYMBOL_COLUMN: site_identity.loc[:, GENE_SYMBOL_COLUMN].to_numpy(
+                dtype=object,
+                copy=False,
+            ),
+            SITE_COLUMN: site_identity.loc[:, SITE_COLUMN].to_numpy(
+                dtype=object,
+                copy=False,
+            ),
             PROTEIN_COLUMN: resolved_site_to_protein.to_numpy(dtype=object, copy=False),
+            PROTEIN_ACCESSION_COLUMN: site_identity.loc[
+                :, PROTEIN_ACCESSION_COLUMN
+            ].to_numpy(
+                dtype=object,
+                copy=False,
+            ),
+            ISOFORM_ID_COLUMN: site_identity.loc[:, ISOFORM_ID_COLUMN].to_numpy(
+                dtype=object,
+                copy=False,
+            ),
             MODULE_ID_COLUMN: site_module_resolution.loc[:, MODULE_ID_COLUMN].to_numpy(
                 dtype=np.int64, copy=False
             ),
@@ -118,7 +155,13 @@ def build_module_assignments(
     )
     return assignments.astype(
         {
+            SITE_KEY_COLUMN: str,
+            DISPLAY_ID_COLUMN: str,
+            GENE_SYMBOL_COLUMN: str,
+            SITE_COLUMN: str,
             PROTEIN_COLUMN: str,
+            PROTEIN_ACCESSION_COLUMN: str,
+            ISOFORM_ID_COLUMN: str,
             MODULE_ID_COLUMN: "int64",
             TOP_KINASE_COLUMN: str,
             TOP_SCORE_COLUMN: float,
@@ -199,7 +242,7 @@ def _normalize_top_kinase_weight_pairs(
 
 
 def _as_unique_string_index(index: pd.Index, *, context: str) -> pd.Index:
-    resolved = pd.Index(index.astype(str), name=SITE_ID_COLUMN)
+    resolved = pd.Index(index.astype(str), name=SITE_KEY_COLUMN)
     if not resolved.has_duplicates:
         return resolved
     duplicates = sorted(
@@ -218,7 +261,7 @@ def _resolve_site_to_protein(
     site_to_protein: pd.Series,
 ) -> pd.Series:
     resolved = site_to_protein.copy()
-    resolved.index = pd.Index(resolved.index.astype(str), name=SITE_ID_COLUMN)
+    resolved.index = pd.Index(resolved.index.astype(str), name=SITE_KEY_COLUMN)
     missing = [site_id for site_id in site_index if site_id not in resolved.index]
     if missing:
         preview = ", ".join(missing[:3])
@@ -234,6 +277,137 @@ def _resolve_site_to_protein(
     aligned.index = site_index.copy()
     aligned.name = PROTEIN_COLUMN
     return aligned
+
+
+def _resolve_site_identity_columns(
+    *,
+    site_index: pd.Index,
+    resolved_site_to_protein: pd.Series,
+    site_metadata: pd.DataFrame | None,
+) -> pd.DataFrame:
+    fallback_display = pd.Series(
+        site_index.astype(str).tolist(),
+        index=site_index.copy(),
+        dtype=object,
+        name=DISPLAY_ID_COLUMN,
+    )
+    empty = pd.Series(
+        [""] * int(site_index.size),
+        index=site_index.copy(),
+        dtype=object,
+    )
+    if site_metadata is None:
+        parsed_identity = [
+            _parse_display_site_identity(display_id)
+            for display_id in fallback_display.astype(str).tolist()
+        ]
+        parsed_gene_symbols = [gene_symbol for gene_symbol, _ in parsed_identity]
+        parsed_sites = [site for _, site in parsed_identity]
+        protein_values = resolved_site_to_protein.astype(str).tolist()
+        identity = pd.DataFrame(
+            {
+                SITE_KEY_COLUMN: site_index.astype(str).tolist(),
+                DISPLAY_ID_COLUMN: fallback_display.astype(str).tolist(),
+                GENE_SYMBOL_COLUMN: [
+                    gene_symbol if gene_symbol != "" else protein_id
+                    for gene_symbol, protein_id in zip(
+                        parsed_gene_symbols,
+                        protein_values,
+                        strict=True,
+                    )
+                ],
+                SITE_COLUMN: parsed_sites,
+                PROTEIN_ACCESSION_COLUMN: empty.astype(str).tolist(),
+                ISOFORM_ID_COLUMN: empty.astype(str).tolist(),
+            },
+            index=site_index.copy(),
+        )
+    else:
+        metadata = site_metadata.copy(deep=False)
+        metadata.index = pd.Index(metadata.index.astype(str), name=SITE_KEY_COLUMN)
+        if (
+            not site_index.isin(metadata.index).all()
+            and SITE_KEY_COLUMN in metadata.columns
+        ):
+            site_key_index = (
+                metadata.loc[:, SITE_KEY_COLUMN].fillna("").astype(str).str.strip()
+            )
+            if not (site_key_index == "").any():
+                remapped_metadata = metadata.copy(deep=False)
+                remapped_metadata.index = pd.Index(
+                    site_key_index.tolist(),
+                    name=SITE_KEY_COLUMN,
+                )
+                if site_index.isin(remapped_metadata.index).all():
+                    metadata = remapped_metadata
+        aligned_metadata = metadata.reindex(site_index)
+
+        def _resolve_column(
+            column_name: str,
+            *,
+            fallback: pd.Series | None = None,
+        ) -> pd.Series:
+            if column_name in aligned_metadata.columns:
+                return (
+                    aligned_metadata.loc[:, column_name]
+                    .fillna("")
+                    .astype(str)
+                    .str.strip()
+                    .rename(column_name)
+                )
+            if fallback is not None:
+                return fallback.astype(str).rename(column_name)
+            return empty.astype(str).rename(column_name)
+
+        identity = pd.DataFrame(
+            {
+                SITE_KEY_COLUMN: site_index.astype(str).tolist(),
+                DISPLAY_ID_COLUMN: _resolve_column(
+                    DISPLAY_ID_COLUMN, fallback=fallback_display
+                ).tolist(),
+                GENE_SYMBOL_COLUMN: _resolve_column(GENE_SYMBOL_COLUMN).tolist(),
+                SITE_COLUMN: _resolve_column(SITE_COLUMN).tolist(),
+                PROTEIN_ACCESSION_COLUMN: _resolve_column(
+                    PROTEIN_ACCESSION_COLUMN
+                ).tolist(),
+                ISOFORM_ID_COLUMN: _resolve_column(ISOFORM_ID_COLUMN).tolist(),
+            },
+            index=site_index.copy(),
+        )
+    identity.loc[:, PROTEIN_COLUMN] = resolved_site_to_protein.astype(str).tolist()
+    blank_display_mask = (
+        identity.loc[:, DISPLAY_ID_COLUMN].astype(str).str.strip() == ""
+    )
+    if bool(blank_display_mask.any()):
+        identity.loc[blank_display_mask, DISPLAY_ID_COLUMN] = (
+            fallback_display.loc[blank_display_mask].astype(str).tolist()
+        )
+    identity = identity.astype(
+        {
+            SITE_KEY_COLUMN: str,
+            DISPLAY_ID_COLUMN: str,
+            GENE_SYMBOL_COLUMN: str,
+            SITE_COLUMN: str,
+            PROTEIN_COLUMN: str,
+            PROTEIN_ACCESSION_COLUMN: str,
+            ISOFORM_ID_COLUMN: str,
+        }
+    )
+    return identity
+
+
+def _parse_display_site_identity(display_id: str) -> tuple[str, str]:
+    text = str(display_id).strip()
+    if text.count(";") < 2:
+        return "", ""
+    tokens = [token.strip() for token in text.split(";")]
+    if len(tokens) < 2:
+        return "", ""
+    gene_symbol = tokens[0]
+    site = tokens[1]
+    if gene_symbol == "" or site == "":
+        return "", ""
+    return gene_symbol, site
 
 
 def _resolve_site_module_resolution(

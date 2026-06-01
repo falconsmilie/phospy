@@ -350,22 +350,29 @@ def test_duplicate_site_resolution_is_deterministic_for_max_mean_signal_policy()
         },
         index=phospho.index.copy(),
     )
-    site_ids = pd.Series(
+    site_keys = pd.Series(
+        ["site_key_1", "site_key_1", "site_key_2"],
+        index=phospho.index.copy(),
+        name="site_key",
+    )
+    display_ids = pd.Series(
         ["MAPK14;Y182;", "MAPK14;Y182;", "AKT1;T308;"],
         index=phospho.index.copy(),
-        name="site_id",
+        name="display_id",
     )
 
     first = _apply_duplicate_site_policy(
         phospho=phospho,
         site_metadata=site_metadata,
-        constructed_site_id=site_ids,
+        scientific_row_key=site_keys,
+        constructed_display_id=display_ids,
         duplicate_site_policy=DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
     )
     second = _apply_duplicate_site_policy(
         phospho=phospho,
         site_metadata=site_metadata,
-        constructed_site_id=site_ids,
+        scientific_row_key=site_keys,
+        constructed_display_id=display_ids,
         duplicate_site_policy=DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
     )
 

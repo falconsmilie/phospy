@@ -51,19 +51,21 @@ def reconstruct_kinase_result(
         sections.dataset_metadata.get("intensity_scale_state"),
         field_name="bundle manifest.dataset.metadata.intensity_scale_state",
     )
-    dataset = AnalysisReadyPhosphoDataset(
+    site_metadata = read_required_table(
+        bundle_root=bundle_root,
+        tables=sections.dataset_tables,
+        table_key="site_metadata",
+        field_name="bundle manifest.dataset.tables.site_metadata",
+    )
+    site_metadata = _normalise_site_metadata_bundle_table(site_metadata)
+    dataset = AnalysisReadyPhosphoDataset._from_owned(
         phospho=read_required_table(
             bundle_root=bundle_root,
             tables=sections.dataset_tables,
             table_key="phospho",
             field_name="bundle manifest.dataset.tables.phospho",
         ),
-        site_metadata=read_required_table(
-            bundle_root=bundle_root,
-            tables=sections.dataset_tables,
-            table_key="site_metadata",
-            field_name="bundle manifest.dataset.tables.site_metadata",
-        ),
+        site_metadata=site_metadata,
         sample_metadata=read_optional_table(
             bundle_root=bundle_root,
             tables=sections.dataset_tables,
@@ -267,3 +269,13 @@ def reconstruct_kinase_result(
         activity_result=activity_result,
         provenance=provenance,
     )
+
+
+def _normalise_site_metadata_bundle_table(table):
+    if "site_key" in table.columns:
+        return table
+    if "site_key.1" not in table.columns:
+        return table
+    normalised = table.copy(deep=True)
+    normalised = normalised.rename(columns={"site_key.1": "site_key"})
+    return normalised

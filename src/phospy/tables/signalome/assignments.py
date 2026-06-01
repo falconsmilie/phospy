@@ -6,13 +6,19 @@ import numpy as np
 import pandas as pd
 
 from phospy.science.signalomes.constants import (
+    DISPLAY_ID_COLUMN,
+    GENE_SYMBOL_COLUMN,
+    ISOFORM_ID_COLUMN,
     MODULE_ID_COLUMN,
     MODULE_TOP_KINASE_CANDIDATES_COLUMN,
     MODULE_TOP_KINASE_COLUMN,
     MODULE_TOP_KINASE_IS_AMBIGUOUS_COLUMN,
     MODULE_TOP_KINASE_SELECTION_POLICY_COLUMN,
     MODULE_TOP_KINASE_TIE_COUNT_COLUMN,
+    PROTEIN_ACCESSION_COLUMN,
     PROTEIN_COLUMN,
+    SITE_COLUMN,
+    SITE_KEY_COLUMN,
     TOP_KINASE_CANDIDATES_COLUMN,
     TOP_KINASE_COLUMN,
     TOP_KINASE_IS_AMBIGUOUS_COLUMN,
@@ -22,7 +28,6 @@ from phospy.science.signalomes.constants import (
     TOP_SCORE_COLUMN,
     UNSUPPORTED_KINASE,
 )
-from phospy.science.sites.validation import require_canonical_site_index
 from phospy.tables.base import TableSchema, ValidationErrorType
 from phospy.tables.signalome.common import (
     _column_series,
@@ -30,16 +35,24 @@ from phospy.tables.signalome.common import (
     _require_boolean_column,
     _require_integer_compatible_column,
     _require_non_negative_integer_column,
+    _require_string_column,
 )
 from phospy.validation.common.dataframes import (
     require_columns,
     require_dataframe,
     require_non_empty_string_column,
+    require_string_index,
     require_unique_index,
 )
 
 _SIGNALOME_ASSIGNMENTS_REQUIRED_COLUMNS = (
+    SITE_KEY_COLUMN,
+    DISPLAY_ID_COLUMN,
+    GENE_SYMBOL_COLUMN,
+    SITE_COLUMN,
     PROTEIN_COLUMN,
+    PROTEIN_ACCESSION_COLUMN,
+    ISOFORM_ID_COLUMN,
     MODULE_ID_COLUMN,
     TOP_KINASE_COLUMN,
     TOP_SCORE_COLUMN,
@@ -80,7 +93,7 @@ class SignalomeAssignmentsTable(TableSchema):
             field_name=self._field_name,
             error_type=self._error_type,
         )
-        require_canonical_site_index(
+        require_string_index(
             frame.index,
             field_name=f"{self._field_name}.index",
             error_type=self._error_type,
@@ -90,9 +103,54 @@ class SignalomeAssignmentsTable(TableSchema):
         require_non_empty_string_column(
             frame,
             field_name=self._field_name,
+            column_name=SITE_KEY_COLUMN,
+            error_type=self._error_type,
+        )
+        require_non_empty_string_column(
+            frame,
+            field_name=self._field_name,
+            column_name=DISPLAY_ID_COLUMN,
+            error_type=self._error_type,
+        )
+        require_non_empty_string_column(
+            frame,
+            field_name=self._field_name,
+            column_name=GENE_SYMBOL_COLUMN,
+            error_type=self._error_type,
+        )
+        require_non_empty_string_column(
+            frame,
+            field_name=self._field_name,
+            column_name=SITE_COLUMN,
+            error_type=self._error_type,
+        )
+        require_non_empty_string_column(
+            frame,
+            field_name=self._field_name,
             column_name=PROTEIN_COLUMN,
             error_type=self._error_type,
         )
+        _require_string_column(
+            frame,
+            field_name=self._field_name,
+            column_name=PROTEIN_ACCESSION_COLUMN,
+            error_type=self._error_type,
+        )
+        _require_string_column(
+            frame,
+            field_name=self._field_name,
+            column_name=ISOFORM_ID_COLUMN,
+            error_type=self._error_type,
+        )
+        indexed_site_keys = pd.Index(
+            frame.loc[:, SITE_KEY_COLUMN].astype(str).tolist(),
+            name=SITE_KEY_COLUMN,
+        )
+        if not frame.index.equals(indexed_site_keys):
+            raise self._error_type(
+                f"{self._field_name}.index must match "
+                f"{self._field_name}.{SITE_KEY_COLUMN}"
+            )
         require_non_empty_string_column(
             frame,
             field_name=self._field_name,

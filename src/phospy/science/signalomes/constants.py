@@ -3,8 +3,14 @@
 from __future__ import annotations
 
 SITE_ID_COLUMN = "site_id"
+SITE_KEY_COLUMN = "site_key"
+DISPLAY_ID_COLUMN = "display_id"
+GENE_SYMBOL_COLUMN = "gene_symbol"
+SITE_COLUMN = "site"
 KINASE_COLUMN = "kinase"
 PROTEIN_COLUMN = "protein_id"
+PROTEIN_ACCESSION_COLUMN = "protein_accession"
+ISOFORM_ID_COLUMN = "isoform_id"
 MODULE_ID_COLUMN = "module_id"
 TOP_KINASE_COLUMN = "top_kinase"
 TOP_SCORE_COLUMN = "top_score"
@@ -71,9 +77,15 @@ __all__ = [
     "MODULE_TOP_KINASE_TIE_COUNT_COLUMN",
     "NO_SUPPORT_SELECTION_POLICY",
     "N_SUBSTRATES_COLUMN",
+    "DISPLAY_ID_COLUMN",
+    "GENE_SYMBOL_COLUMN",
+    "ISOFORM_ID_COLUMN",
     "PROTEIN_COLUMN",
+    "PROTEIN_ACCESSION_COLUMN",
+    "SITE_COLUMN",
     "SITE_CLUSTER_COLUMN",
     "SITE_ID_COLUMN",
+    "SITE_KEY_COLUMN",
     "SOURCE_KINASE_COLUMN",
     "SUPPORT_WEIGHT_COLUMN",
     "TARGET_KINASE_COLUMN",

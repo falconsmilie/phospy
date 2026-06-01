@@ -46,6 +46,30 @@ from phospy.science.signalomes.models import (
 )
 
 
+def _normalize_site_metadata_for_dataset_contract(site_metadata):
+    """Repair CSV round-trip site_key column naming drift before dataset load."""
+
+    normalized = site_metadata.copy(deep=True)
+    if "site_key" not in normalized.columns and "site_key.1" in normalized.columns:
+        normalized = normalized.rename(columns={"site_key.1": "site_key"})
+    if "site_key" not in normalized.columns:
+        normalized.loc[:, "site_key"] = normalized.index.astype(str).tolist()
+    return normalized
+
+
+def _normalize_optional_string_columns(table, *, columns: tuple[str, ...]):
+    normalized = table.copy(deep=True)
+    for column_name in columns:
+        if column_name in normalized.columns:
+            column_index = normalized.columns.get_loc(column_name)
+            series = (
+                normalized.loc[:, column_name].astype(object).fillna("").astype(str)
+            )
+            normalized = normalized.drop(columns=[column_name])
+            normalized.insert(column_index, column_name, series)
+    return normalized
+
+
 def reconstruct_signalome_result(
     *,
     bundle_root: Path,
@@ -74,19 +98,23 @@ def reconstruct_signalome_result(
         field_name="bundle manifest.dataset.metadata.intensity_scale_state",
     )
 
-    dataset = AnalysisReadyPhosphoDataset(
+    dataset_site_metadata = read_required_table(
+        bundle_root=bundle_root,
+        tables=sections.dataset_tables,
+        table_key="site_metadata",
+        field_name="bundle manifest.dataset.tables.site_metadata",
+    )
+    dataset_site_metadata = _normalize_site_metadata_for_dataset_contract(
+        dataset_site_metadata
+    )
+    dataset = AnalysisReadyPhosphoDataset._from_owned(
         phospho=read_required_table(
             bundle_root=bundle_root,
             tables=sections.dataset_tables,
             table_key="phospho",
             field_name="bundle manifest.dataset.tables.phospho",
         ),
-        site_metadata=read_required_table(
-            bundle_root=bundle_root,
-            tables=sections.dataset_tables,
-            table_key="site_metadata",
-            field_name="bundle manifest.dataset.tables.site_metadata",
-        ),
+        site_metadata=dataset_site_metadata,
         sample_metadata=read_optional_table(
             bundle_root=bundle_root,
             tables=sections.dataset_tables,
@@ -321,12 +349,73 @@ def reconstruct_signalome_result(
             .fillna("")
             .astype(str)
         )
+    if site_membership is not None:
+        site_membership = _normalize_optional_string_columns(
+            site_membership,
+            columns=(
+                "site_key",
+                "display_id",
+                "site_id",
+                "gene_symbol",
+                "site",
+                "protein_id",
+                "protein_accession",
+                "isoform_id",
+                "top_kinase",
+                "excluded_reason",
+            ),
+        )
     protein_site_context = read_optional_table(
         bundle_root=bundle_root,
         tables=sections.signalome_tables,
         table_key="protein_site_context",
         field_name="bundle manifest.signalome_outputs.tables.protein_site_context",
     )
+    if protein_site_context is not None:
+        protein_site_context = _normalize_optional_string_columns(
+            protein_site_context,
+            columns=(
+                "protein_id",
+                "gene_symbol",
+                "site",
+                "protein_accession",
+                "isoform_id",
+                "site_ids",
+                "site_keys",
+                "display_ids",
+                "site_clusters",
+                "top_kinases_by_site",
+                "module_ids_by_site",
+                "site_key_to_display_id",
+            ),
+        )
+    expanded_signalome = read_optional_table(
+        bundle_root=bundle_root,
+        tables=sections.signalome_tables,
+        table_key="expanded_signalome",
+        field_name="bundle manifest.signalome_outputs.tables.expanded_signalome",
+    )
+    if expanded_signalome is not None:
+        expanded_signalome = _normalize_optional_string_columns(
+            expanded_signalome,
+            columns=(
+                "site_key",
+                "display_id",
+                "site_id",
+                "gene_symbol",
+                "site",
+                "protein_id",
+                "protein_accession",
+                "isoform_id",
+                "top_kinase",
+                "expanded_signalome_kinase",
+                "expanded_signalome_row_kind",
+                "expanded_signalome_assignment_policy",
+                "expanded_signalome_linked_kinases",
+                "expanded_signalome_regulated_module_ids",
+                "expanded_signalome_support_kinases",
+            ),
+        )
 
     return SignalomeWorkflowResult(
         dataset=dataset,
@@ -368,12 +457,7 @@ def reconstruct_signalome_result(
         module_selection_diagnostics=module_selection_diagnostics,
         score_preconditioning_diagnostics=score_preconditioning_diagnostics,
         alignment_diagnostics=alignment_diagnostics,
-        expanded_signalome=read_optional_table(
-            bundle_root=bundle_root,
-            tables=sections.signalome_tables,
-            table_key="expanded_signalome",
-            field_name="bundle manifest.signalome_outputs.tables.expanded_signalome",
-        ),
+        expanded_signalome=expanded_signalome,
         site_membership=site_membership,
         protein_site_context=protein_site_context,
         provenance=signalome_provenance,

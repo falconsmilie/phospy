@@ -10,7 +10,10 @@ import pandas as pd
 
 from phospy.errors.validation import PhosPyValidationError
 from phospy.frames.ownership import own_dataframe, own_series
-from phospy.science.sites.validation import require_canonical_site_series
+from phospy.science.sites.validation import (
+    require_canonical_site_series,
+    require_site_key_series,
+)
 from phospy.tables.base import (
     TableSchema,
     ValidationErrorType,
@@ -194,11 +197,19 @@ class ActivityTargetTable(TableSchema):
             column_name="site_id",
             error_type=self._error_type,
         )
-        require_canonical_site_series(
-            frame.loc[:, "site_id"],
-            field_name=f"{self._field_name}.site_id",
-            error_type=self._error_type,
-        )
+        site_series = frame.loc[:, "site_id"]
+        try:
+            require_canonical_site_series(
+                site_series,
+                field_name=f"{self._field_name}.site_id",
+                error_type=self._error_type,
+            )
+        except self._error_type:
+            require_site_key_series(
+                site_series,
+                field_name=f"{self._field_name}.site_id",
+                error_type=self._error_type,
+            )
         require_non_empty_string_column(
             frame,
             field_name=self._field_name,

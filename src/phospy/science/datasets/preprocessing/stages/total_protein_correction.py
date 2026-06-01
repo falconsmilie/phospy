@@ -145,6 +145,7 @@ class TotalProteinCorrectionStage:
             identity_policy=identity_policy,
             mapping=mapping,
             phospho=state.phospho,
+            site_metadata=state.site_metadata,
             total=state.total,
             corrected=corrected,
         )
@@ -168,6 +169,7 @@ def _build_diagnostics(
     identity_policy: TotalProteinCorrectionIdentityPolicy,
     mapping: _ResolvedIdentityMapping,
     phospho: pd.DataFrame,
+    site_metadata: pd.DataFrame,
     total: pd.DataFrame,
     corrected: pd.DataFrame,
 ) -> dict[str, object]:
@@ -180,14 +182,38 @@ def _build_diagnostics(
         if uncorrected_rows > 0
         else _PHOSPHO_TOTAL_LOG_RATIO_QUANTITATIVE_MEANING
     )
+    display_lookup = _resolve_display_id_lookup(
+        phospho=phospho,
+        site_metadata=site_metadata,
+    )
+    corrected_display_ids = [
+        _resolve_diagnostic_row_id(
+            row_id=row_id,
+            display_lookup=display_lookup,
+        )
+        for row_id in mapping.corrected_phosphosite_rows
+    ]
+    uncorrected_display_ids = [
+        _resolve_diagnostic_row_id(
+            row_id=row_id,
+            display_lookup=display_lookup,
+        )
+        for row_id in mapping.uncorrected_phosphosite_rows
+    ]
     corrected_row_to_total_row = {
-        str(phosphosite_row_id): str(total_row_id)
+        _resolve_diagnostic_row_id(
+            row_id=phosphosite_row_id,
+            display_lookup=display_lookup,
+        ): str(total_row_id)
         for phosphosite_row_id, total_row_id in sorted(
             mapping.phosphosite_to_total_row.items()
         )
     }
     uncorrected_row_reasons = {
-        str(row_id): (
+        _resolve_diagnostic_row_id(
+            row_id=row_id,
+            display_lookup=display_lookup,
+        ): (
             "no_matching_total_protein_row_retained_by_"
             f"unmatched_policy_{str(identity_policy.unmatched_policy)}"
         )
@@ -219,9 +245,9 @@ def _build_diagnostics(
         "uncorrected_row_count": uncorrected_rows,
         "unused_total_protein_row_count": unused_total_rows,
         "total_rows_used_by_multiple_phosphosites": shared_total_rows,
-        "corrected_phosphosite_row_ids": list(mapping.corrected_phosphosite_rows),
+        "corrected_phosphosite_row_ids": corrected_display_ids,
         "corrected_phosphosite_to_total_protein_row_id": corrected_row_to_total_row,
-        "unmatched_phosphosite_row_ids": list(mapping.uncorrected_phosphosite_rows),
+        "unmatched_phosphosite_row_ids": uncorrected_display_ids,
         "uncorrected_phosphosite_row_reasons": uncorrected_row_reasons,
         "unused_total_protein_row_ids": list(mapping.unused_total_rows),
         "gene_symbol_matching_used": bool(mapping.gene_symbol_matching_used),
@@ -240,6 +266,36 @@ def _build_diagnostics(
         ),
     }
     return diagnostics
+
+
+def _resolve_display_id_lookup(
+    *, phospho: pd.DataFrame, site_metadata: pd.DataFrame
+) -> dict[str, str]:
+    if "display_id" not in site_metadata.columns:
+        return {}
+    display_series = (
+        site_metadata.reindex(phospho.index)
+        .loc[:, "display_id"]
+        .astype("string")
+        .str.strip()
+    )
+    lookup: dict[str, str] = {}
+    for row_id, display_id in zip(
+        phospho.index.astype(str).tolist(),
+        display_series.tolist(),
+        strict=True,
+    ):
+        if not bool(pd.notna(display_id)) or str(display_id) == "":
+            continue
+        lookup[str(row_id)] = str(display_id)
+    return lookup
+
+
+def _resolve_diagnostic_row_id(*, row_id: str, display_lookup: dict[str, str]) -> str:
+    display_id = display_lookup.get(str(row_id))
+    if display_id is None:
+        return str(row_id)
+    return str(display_id)
 
 
 def _resolve_identity_mapping(

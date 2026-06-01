@@ -6,6 +6,10 @@ import pytest
 from phospy import AnalysisReadyPhosphoDataset
 from phospy.api import Organism
 from phospy.errors import WorkflowValidationError
+from phospy.science.sites.site_keys import (
+    build_protein_scoped_site_key,
+    encode_site_key,
+)
 from phospy.science.transformations.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
@@ -23,6 +27,31 @@ from tests.support.intensity_scale_states import (
 
 
 def _frames() -> tuple[pd.DataFrame, pd.DataFrame]:
+    site_keys = [
+        encode_site_key(
+            build_protein_scoped_site_key(
+                organism="rat",
+                protein_namespace="protein_id",
+                protein_identifier="MAPK14",
+                residue="Y",
+                position=182,
+                field_name="test.site_key.mapk14",
+                error_type=ValueError,
+            )
+        ),
+        encode_site_key(
+            build_protein_scoped_site_key(
+                organism="rat",
+                protein_namespace="protein_id",
+                protein_identifier="AKT1",
+                residue="T",
+                position=308,
+                field_name="test.site_key.akt1",
+                error_type=ValueError,
+            )
+        ),
+    ]
+    display_ids = ["MAPK14;Y182;", "AKT1;T308;"]
     phospho = pd.DataFrame(
         {
             "A_1": [1.0, 2.0],
@@ -30,10 +59,12 @@ def _frames() -> tuple[pd.DataFrame, pd.DataFrame]:
             "B_1": [2.1, 2.0],
             "B_2": [2.0, 2.2],
         },
-        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+        index=pd.Index(site_keys, name="site_key"),
     )
     site_metadata = pd.DataFrame(
         {
+            "site_key": site_keys,
+            "display_id": display_ids,
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": [

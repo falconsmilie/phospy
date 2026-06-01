@@ -72,6 +72,7 @@ class DifferentialAnalysisValidator:
         )
         enforce_workflow_site_identity_contract(
             site_metadata=site_metadata,
+            expected_index=request.dataset._borrow_phospho_frame().index,  # pyright: ignore[reportPrivateUsage] - workflow boundary reads trusted internal dataset snapshots
             field_name="differential workflow request dataset.site_metadata",
             contract=DIFFERENTIAL_IDENTITY_CONTRACT,
             error_type=WorkflowValidationError,

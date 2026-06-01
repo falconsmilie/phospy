@@ -15,6 +15,8 @@ from phospy.science.differential.models import (
 from phospy.science.differential.models import (
     DifferentialAnalysisRequest as DifferentialComputationRequest,
 )
+from phospy.science.sites.identifiers import canonicalize_site_components_series
+from phospy.science.sites.validation import require_site_key_series
 from phospy.validation.workflows.differential import (
     ExperimentalDesignContractValidator,
 )
@@ -87,6 +89,10 @@ class DifferentialAnalysisInterpreter:
         matrix = resolved_dataset._borrow_phospho_frame().loc[
             :, list(analysis_sample_ids)
         ]
+        matrix = _prefer_site_key_index_for_differential_results(
+            matrix=matrix,
+            site_metadata=resolved_dataset._borrow_site_metadata_frame(),  # pyright: ignore[reportPrivateUsage] - workflow boundary reads trusted internal dataset snapshots
+        )
         design_aligned = resolved_design_matrix.frame
         contrasts_aligned = resolved_contrast_matrix.frame
 
@@ -106,6 +112,10 @@ class DifferentialAnalysisInterpreter:
                 message_prefix="differential workflow boundary validation failed",
             )
         matrix_aligned = cast(pd.DataFrame, matrix.copy(deep=True))
+        result_identity_metadata = _build_result_identity_metadata(
+            site_metadata=resolved_dataset._borrow_site_metadata_frame(),  # pyright: ignore[reportPrivateUsage] - workflow boundary reads trusted internal dataset snapshots
+            expected_index=matrix_aligned.index,
+        )
 
         design_values = design_aligned.to_numpy(dtype=float)
         design_shape = cast(tuple[int, int], design_values.shape)
@@ -183,6 +193,7 @@ class DifferentialAnalysisInterpreter:
         )
         return InterpretedDifferentialAnalysisRequest(
             computation_request=computation_request,
+            result_identity_metadata=result_identity_metadata,
             config=request.config,
             design_rank=rank,
             residual_degrees_of_freedom=residual_dof,
@@ -190,6 +201,182 @@ class DifferentialAnalysisInterpreter:
             workflow_provenance=resolved_workflow_provenance,
             dataset_preprocessing_report=resolved_dataset.preprocessing_report,
         )
+
+
+def _build_result_identity_metadata(
+    *,
+    site_metadata: pd.DataFrame,
+    expected_index: pd.Index,
+) -> pd.DataFrame:
+    required_columns = ("gene_symbol", "site")
+    optional_columns = ("protein_id", "protein_accession", "isoform_id")
+    missing = [
+        column for column in required_columns if column not in site_metadata.columns
+    ]
+    if missing:
+        joined = ", ".join(missing)
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.result_identity_columns",
+            next_action=(
+                "ensure resolved dataset.site_metadata includes gene_symbol/site"
+            ),
+            details={"missing_columns": missing},
+            message_prefix=(
+                "differential workflow boundary validation failed: "
+                f"missing required result identity columns: {joined}"
+            ),
+        )
+    try:
+        aligned = cast(pd.DataFrame, site_metadata.loc[expected_index].copy(deep=True))
+    except KeyError as exc:
+        if "site_key" in site_metadata.columns:
+            site_keys = (
+                site_metadata.loc[:, "site_key"].fillna("").astype(str).str.strip()
+            )
+            if not (site_keys == "").any() and not site_keys.duplicated().any():
+                remapped = site_metadata.copy(deep=False)
+                remapped.index = pd.Index(site_keys.tolist(), name="site_key")
+                try:
+                    aligned = cast(
+                        pd.DataFrame, remapped.loc[expected_index].copy(deep=True)
+                    )
+                except KeyError:
+                    pass
+                else:
+                    if aligned.index.equals(expected_index):
+                        identity = cast(pd.DataFrame, aligned.copy(deep=True))
+                        identity.loc[:, "site_key"] = identity.index.astype(
+                            str
+                        ).tolist()
+                        if "display_id" not in identity.columns:
+                            identity.loc[:, "display_id"] = _resolve_display_ids(
+                                identity
+                            )
+                        selected_columns = (
+                            "site_key",
+                            "display_id",
+                            "gene_symbol",
+                            "site",
+                        ) + tuple(
+                            column
+                            for column in optional_columns
+                            if column in aligned.columns
+                        )
+                        return cast(
+                            pd.DataFrame, identity.loc[:, list(selected_columns)]
+                        )
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.result_identity_alignment",
+            next_action=(
+                "ensure resolved dataset.site_metadata is indexed by the exact "
+                "site_key labels used by the differential matrix"
+            ),
+            details={"expected_index_count": int(expected_index.size)},
+            message_prefix="differential workflow boundary validation failed",
+        ) from exc
+    if not aligned.index.equals(expected_index):
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.result_identity_alignment",
+            next_action=(
+                "ensure resolved dataset.site_metadata index order exactly matches "
+                "the differential matrix site_key order"
+            ),
+            details={
+                "expected_index_count": int(expected_index.size),
+                "actual_index_count": int(aligned.index.size),
+            },
+            message_prefix="differential workflow boundary validation failed",
+        )
+    identity = cast(pd.DataFrame, aligned.copy(deep=True))
+    if "site_key" in identity.columns:
+        site_key_values = identity.loc[:, "site_key"].fillna("").astype(str).str.strip()
+        try:
+            require_site_key_series(
+                site_key_values,
+                field_name=(
+                    "differential workflow request dataset.site_metadata.site_key"
+                ),
+                error_type=ValueError,
+            )
+            identity.index = pd.Index(site_key_values.tolist(), name="site_key")
+            identity.loc[:, "site_key"] = site_key_values.tolist()
+        except ValueError:
+            identity.loc[:, "site_key"] = identity.index.astype(str).tolist()
+    else:
+        identity.loc[:, "site_key"] = identity.index.astype(str).tolist()
+    if "display_id" not in identity.columns:
+        identity.loc[:, "display_id"] = _resolve_display_ids(identity)
+    selected_columns = ("site_key", "display_id", "gene_symbol", "site") + tuple(
+        column for column in optional_columns if column in aligned.columns
+    )
+    return cast(pd.DataFrame, identity.loc[:, list(selected_columns)])
+
+
+def _prefer_site_key_index_for_differential_results(
+    *,
+    matrix: pd.DataFrame,
+    site_metadata: pd.DataFrame,
+) -> pd.DataFrame:
+    if "site_key" not in site_metadata.columns:
+        return matrix
+    aligned_metadata = site_metadata.reindex(matrix.index)
+    site_keys = aligned_metadata.loc[:, "site_key"].fillna("").astype(str).str.strip()
+    if (site_keys == "").any() or site_keys.duplicated().any():
+        return matrix
+    try:
+        require_site_key_series(
+            site_keys,
+            field_name="differential workflow request dataset.site_metadata.site_key",
+            error_type=ValueError,
+        )
+    except ValueError:
+        return matrix
+    matrix_index_values = matrix.index.astype(str).tolist()
+    index_is_encoded = bool(matrix_index_values) and all(
+        value.startswith("phospy:v1|") for value in matrix_index_values
+    )
+    has_protein_identity = "protein_id" in aligned_metadata.columns and bool(
+        (
+            aligned_metadata.loc[:, "protein_id"]
+            .astype("string")
+            .str.strip()
+            .fillna("")
+            != ""
+        ).all()
+    )
+    if not index_is_encoded and not has_protein_identity:
+        return matrix
+    remapped = matrix.copy(deep=True)
+    remapped.index = pd.Index(site_keys.tolist(), name="site_key")
+    return remapped
+
+
+def _resolve_display_ids(site_metadata: pd.DataFrame) -> pd.Series:
+    index_values = site_metadata.index.astype(str).tolist()
+    if all(";" in value for value in index_values):
+        return pd.Series(
+            index_values,
+            index=site_metadata.index.copy(),
+            name="display_id",
+        )
+    try:
+        return canonicalize_site_components_series(
+            gene_symbol=site_metadata.loc[:, "gene_symbol"],
+            site=site_metadata.loc[:, "site"],
+            field_name="differential workflow request dataset.site_metadata",
+            error_type=ValueError,
+            output_name="display_id",
+        )
+    except ValueError as exc:
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.result_identity_display_id",
+            next_action=(
+                "ensure resolved dataset.site_metadata provides canonical "
+                "display_id values or parsable gene_symbol/site pairs"
+            ),
+            message_prefix="differential workflow boundary validation failed",
+            details={"error": str(exc)},
+        ) from exc
 
 
 __all__ = ["DifferentialAnalysisInterpreter"]

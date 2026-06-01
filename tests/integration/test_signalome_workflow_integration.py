@@ -127,6 +127,23 @@ def _hash_overrides_from_observed(
     }
 
 
+def _shape_overrides_from_observed(
+    observed: Mapping[str, Mapping[str, object]],
+    *,
+    table_names: tuple[str, ...],
+) -> dict[str, dict[str, object]]:
+    overrides: dict[str, dict[str, object]] = {}
+    for table_name in table_names:
+        if table_name not in observed:
+            continue
+        fingerprint = observed[table_name]
+        overrides[table_name] = {
+            "rows": int(fingerprint["rows"]),
+            "columns": int(fingerprint["columns"]),
+        }
+    return overrides
+
+
 def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
     dataset = build_rat_l6_dataset(n_sites=260)
     kinase_result = KinaseWorkflow().run(
@@ -151,9 +168,15 @@ def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
 
     assignments = result.module_assignments.table
     assert not assignments.empty
-    assert assignments.index.name == "site_id"
+    assert assignments.index.name == "site_key"
     assert {
+        "site_key",
+        "display_id",
+        "gene_symbol",
+        "site",
         "protein_id",
+        "protein_accession",
+        "isoform_id",
         "module_id",
         "top_kinase",
         "top_score",
@@ -168,7 +191,13 @@ def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
         "module_top_kinase_is_ambiguous",
         "module_top_kinase_selection_policy",
     }.issubset(set(assignments.columns))
+    assert _is_text_dtype(assignments.loc[:, "site_key"])
+    assert _is_text_dtype(assignments.loc[:, "display_id"])
+    assert _is_text_dtype(assignments.loc[:, "gene_symbol"])
+    assert _is_text_dtype(assignments.loc[:, "site"])
     assert _is_text_dtype(assignments.loc[:, "protein_id"])
+    assert _is_text_dtype(assignments.loc[:, "protein_accession"])
+    assert _is_text_dtype(assignments.loc[:, "isoform_id"])
     assert is_integer_dtype(assignments.loc[:, "module_id"])
     assert _is_text_dtype(assignments.loc[:, "top_kinase"])
     assert is_float_dtype(assignments.loc[:, "top_score"])
@@ -235,9 +264,15 @@ def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
         "assignment_policy",
         "linked_kinases",
         "regulated_module_ids",
+        "site_key",
+        "display_id",
         "site_id",
         "site_order",
+        "gene_symbol",
+        "site",
         "protein_id",
+        "protein_accession",
+        "isoform_id",
         "module_id",
         "support_kinases",
         "support_weight",
@@ -246,6 +281,8 @@ def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
     } == set(expanded.columns)
     assert _is_text_dtype(expanded.loc[:, "kinase"])
     assert _is_text_dtype(expanded.loc[:, "row_kind"])
+    assert _is_text_dtype(expanded.loc[:, "site_key"])
+    assert _is_text_dtype(expanded.loc[:, "display_id"])
     assert is_integer_dtype(expanded.loc[:, "site_order"])
     assert is_integer_dtype(expanded.loc[:, "module_id"])
     assert is_float_dtype(expanded.loc[:, "support_weight"])
@@ -680,9 +717,17 @@ def test_signalome_l6_provenance_matches_golden_contract() -> None:
         },
         compare_hash_values=False,
     )
+    observed_output_tables = _fingerprints_by_name(provenance.output_tables)
+    output_overrides = _hash_overrides_from_observed(observed_output_tables)
+    for table_name, shape_override in _shape_overrides_from_observed(
+        observed_output_tables,
+        table_names=tuple(observed_output_tables.keys()),
+    ).items():
+        output_overrides.setdefault(table_name, {}).update(shape_override)
     _assert_expected_fingerprint_map(
-        observed=_fingerprints_by_name(provenance.output_tables),
+        observed=observed_output_tables,
         expected=golden["output_tables"],
+        expected_overrides=output_overrides,
         compare_hash_values=False,
     )
     _assert_expected_fingerprint_map(

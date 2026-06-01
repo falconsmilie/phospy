@@ -14,6 +14,7 @@ from phospy.science.sites.identifiers import (
 from phospy.science.sites.site_keys import (
     ProteinScopedPhosphositeKey,
     decode_site_key,
+    encode_site_key,
 )
 
 ErrorType = TypeVar("ErrorType", bound=Exception)
@@ -84,6 +85,57 @@ def require_canonical_site_series(
             f"{field_name} must contain canonical site identifiers in "
             "'GENE;SITE;' format"
         )
+    return series
+
+
+def require_site_key_index(
+    index: pd.Index,
+    *,
+    field_name: str,
+    error_type: type[ErrorType],
+    require_unique: bool = True,
+) -> pd.Index:
+    """Require one index of encoded site_key values."""
+
+    normalised: list[str] = []
+    for position, value in enumerate(index.tolist()):
+        key = decode_site_key(
+            value,
+            field_name=f"{field_name}[{position}]",
+            error_type=error_type,
+        )
+        normalised.append(encode_site_key(key))
+    if normalised != [str(value) for value in index.tolist()]:
+        raise error_type(f"{field_name} must contain canonical encoded site_key values")
+    if require_unique and not index.is_unique:
+        duplicate_count, duplicate_labels = _resolve_duplicate_labels(index)
+        preview = ", ".join(repr(label) for label in duplicate_labels[:5])
+        suffix = "" if len(duplicate_labels) <= 5 else " ..."
+        raise error_type(
+            f"{field_name} must be unique; duplicate_count={duplicate_count}, "
+            f"duplicate_labels={preview}{suffix}"
+        )
+    return index
+
+
+def require_site_key_series(
+    series: pd.Series,
+    *,
+    field_name: str,
+    error_type: type[ErrorType],
+) -> pd.Series:
+    """Require one series of canonical encoded site_key values."""
+
+    normalised: list[str] = []
+    for row_id, value in series.items():
+        key = decode_site_key(
+            value,
+            field_name=f"{field_name}[{row_id!r}]",
+            error_type=error_type,
+        )
+        normalised.append(encode_site_key(key))
+    if normalised != [str(value) for value in series.tolist()]:
+        raise error_type(f"{field_name} must contain canonical encoded site_key values")
     return series
 
 
@@ -301,5 +353,7 @@ __all__ = [
     "require_no_mixed_site_key_isoform_scope",
     "require_canonical_site_index",
     "require_canonical_site_series",
+    "require_site_key_index",
+    "require_site_key_series",
     "require_site_identity_coherence",
 ]

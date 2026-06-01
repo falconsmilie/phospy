@@ -16,7 +16,9 @@ from phospy.science.datasets.preprocessing.stages.site_matrix import (
 )
 
 
-def _duplicate_policy_inputs() -> tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
+def _duplicate_policy_inputs() -> tuple[
+    pd.DataFrame, pd.DataFrame, pd.Series, pd.Series
+]:
     phospho = pd.DataFrame(
         {
             "sample_a": [1.0, 3.0, 5.0],
@@ -28,43 +30,57 @@ def _duplicate_policy_inputs() -> tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
         {
             "gene_symbol": ["MAPK14", "MAPK14", "AKT1"],
             "site": ["Y182", "Y182", "T308"],
+            "display_id": ["MAPK14;Y182;", "MAPK14;Y182;", "AKT1;T308;"],
             "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
             "protein_id": ["PROT_A", "PROT_A", "PROT_C"],
             "uid": ["A", "B", "C"],
         },
         index=phospho.index.copy(),
     )
-    constructed_site_id = pd.Series(
+    scientific_row_key = pd.Series(
+        ["site_key_1", "site_key_1", "site_key_2"],
+        index=phospho.index.copy(),
+        name="site_key",
+    )
+    constructed_display_id = pd.Series(
         ["MAPK14;Y182;", "MAPK14;Y182;", "AKT1;T308;"],
         index=phospho.index.copy(),
-        name="site_id",
+        name="display_id",
     )
-    return phospho, site_metadata, constructed_site_id
+    return phospho, site_metadata, scientific_row_key, constructed_display_id
 
 
 def test_apply_duplicate_site_policy_returns_structured_result() -> None:
-    phospho, site_metadata, constructed_site_id = _duplicate_policy_inputs()
+    phospho, site_metadata, scientific_row_key, constructed_display_id = (
+        _duplicate_policy_inputs()
+    )
     result = _apply_duplicate_site_policy(
         phospho=phospho,
         site_metadata=site_metadata,
-        constructed_site_id=constructed_site_id,
+        scientific_row_key=scientific_row_key,
+        constructed_display_id=constructed_display_id,
         duplicate_site_policy=DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST,
     )
     assert isinstance(result, DuplicateSiteResolutionResult)
 
 
 def test_duplicate_site_policy_first_reports_retained_and_dropped_rows() -> None:
-    phospho, site_metadata, constructed_site_id = _duplicate_policy_inputs()
+    phospho, site_metadata, scientific_row_key, constructed_display_id = (
+        _duplicate_policy_inputs()
+    )
     result = _apply_duplicate_site_policy(
         phospho=phospho,
         site_metadata=site_metadata,
-        constructed_site_id=constructed_site_id,
+        scientific_row_key=scientific_row_key,
+        constructed_display_id=constructed_display_id,
         duplicate_site_policy=DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST,
     )
 
     table = result.duplicate_site_resolution.sort_values("source_row_id")
     assert table.shape[0] == 2
     assert {
+        "site_key",
+        "display_id",
         "site_id",
         "source_row_id",
         "retained",
@@ -82,11 +98,14 @@ def test_duplicate_site_policy_first_reports_retained_and_dropped_rows() -> None
 
 
 def test_duplicate_site_policy_max_mean_signal_reports_mean_and_selection() -> None:
-    phospho, site_metadata, constructed_site_id = _duplicate_policy_inputs()
+    phospho, site_metadata, scientific_row_key, constructed_display_id = (
+        _duplicate_policy_inputs()
+    )
     result = _apply_duplicate_site_policy(
         phospho=phospho,
         site_metadata=site_metadata,
-        constructed_site_id=constructed_site_id,
+        scientific_row_key=scientific_row_key,
+        constructed_display_id=constructed_display_id,
         duplicate_site_policy=DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
     )
 
@@ -102,11 +121,14 @@ def test_duplicate_site_policy_max_mean_signal_reports_mean_and_selection() -> N
 
 
 def test_duplicate_site_policy_aggregate_mean_reports_all_contributing_rows() -> None:
-    phospho, site_metadata, constructed_site_id = _duplicate_policy_inputs()
+    phospho, site_metadata, scientific_row_key, constructed_display_id = (
+        _duplicate_policy_inputs()
+    )
     result = _apply_duplicate_site_policy(
         phospho=phospho,
         site_metadata=site_metadata,
-        constructed_site_id=constructed_site_id,
+        scientific_row_key=scientific_row_key,
+        constructed_display_id=constructed_display_id,
         duplicate_site_policy=DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
     )
 
@@ -118,11 +140,14 @@ def test_duplicate_site_policy_aggregate_mean_reports_all_contributing_rows() ->
 
 
 def test_duplicate_site_policy_aggregate_median_reports_all_contributing_rows() -> None:
-    phospho, site_metadata, constructed_site_id = _duplicate_policy_inputs()
+    phospho, site_metadata, scientific_row_key, constructed_display_id = (
+        _duplicate_policy_inputs()
+    )
     result = _apply_duplicate_site_policy(
         phospho=phospho,
         site_metadata=site_metadata,
-        constructed_site_id=constructed_site_id,
+        scientific_row_key=scientific_row_key,
+        constructed_display_id=constructed_display_id,
         duplicate_site_policy=DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
     )
 
@@ -134,11 +159,14 @@ def test_duplicate_site_policy_aggregate_median_reports_all_contributing_rows() 
 
 
 def test_duplicate_site_policy_reports_metadata_conflicts() -> None:
-    phospho, site_metadata, constructed_site_id = _duplicate_policy_inputs()
+    phospho, site_metadata, scientific_row_key, constructed_display_id = (
+        _duplicate_policy_inputs()
+    )
     result = _apply_duplicate_site_policy(
         phospho=phospho,
         site_metadata=site_metadata,
-        constructed_site_id=constructed_site_id,
+        scientific_row_key=scientific_row_key,
+        constructed_display_id=constructed_display_id,
         duplicate_site_policy=DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
     )
 
@@ -147,13 +175,15 @@ def test_duplicate_site_policy_reports_metadata_conflicts() -> None:
         result.metadata_conflicts["field"] == "uid"
     ]
     assert uid_conflict.shape[0] == 1
+    assert uid_conflict.iloc[0]["site_key"] == "site_key_1"
+    assert uid_conflict.iloc[0]["display_id"] == "MAPK14;Y182;"
     assert uid_conflict.iloc[0]["site_id"] == "MAPK14;Y182;"
     assert uid_conflict.iloc[0]["n_distinct_values"] == 2
     assert uid_conflict.iloc[0]["source_row_ids"] == ("row_a", "row_b")
     assert "site_sequence" in set(result.metadata_conflicts.loc[:, "field"])
     assert "uid" in set(result.metadata_conflicts.loc[:, "field"])
-    assert pd.isna(result.site_metadata.loc["MAPK14;Y182;", "site_sequence"])
-    assert pd.isna(result.site_metadata.loc["MAPK14;Y182;", "uid"])
+    assert pd.isna(result.site_metadata.loc["site_key_1", "site_sequence"])
+    assert pd.isna(result.site_metadata.loc["site_key_1", "uid"])
     assert (
         result.duplicate_site_resolution.loc[:, "metadata_conflict_detected"]
         .astype(bool)
@@ -171,37 +201,39 @@ def test_duplicate_site_policy_reports_metadata_conflicts() -> None:
                     "sample_a": [1.0, 5.0],
                     "sample_b": [2.0, 6.0],
                 },
-                index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+                index=pd.Index(["site_key_1", "site_key_2"], name="site_key"),
             ),
             pd.DataFrame(
                 {
                     "gene_symbol": ["MAPK14", "AKT1"],
                     "site": ["Y182", "T308"],
+                    "display_id": ["MAPK14;Y182;", "AKT1;T308;"],
                     "site_sequence": ["SEQ_A", "SEQ_C"],
                     "protein_id": ["PROT_A", "PROT_C"],
                     "uid": ["A", "C"],
                 },
-                index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+                index=pd.Index(["site_key_1", "site_key_2"], name="site_key"),
             ),
         ),
         (
             DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
             pd.DataFrame(
                 {
-                    "sample_a": [5.0, 3.0],
-                    "sample_b": [6.0, 4.0],
+                    "sample_a": [3.0, 5.0],
+                    "sample_b": [4.0, 6.0],
                 },
-                index=pd.Index(["AKT1;T308;", "MAPK14;Y182;"], name="site_id"),
+                index=pd.Index(["site_key_1", "site_key_2"], name="site_key"),
             ),
             pd.DataFrame(
                 {
-                    "gene_symbol": ["AKT1", "MAPK14"],
-                    "site": ["T308", "Y182"],
-                    "site_sequence": ["SEQ_C", "SEQ_R"],
-                    "protein_id": ["PROT_C", "PROT_A"],
-                    "uid": ["C", "B"],
+                    "gene_symbol": ["MAPK14", "AKT1"],
+                    "site": ["Y182", "T308"],
+                    "display_id": ["MAPK14;Y182;", "AKT1;T308;"],
+                    "site_sequence": ["SEQ_R", "SEQ_C"],
+                    "protein_id": ["PROT_A", "PROT_C"],
+                    "uid": ["B", "C"],
                 },
-                index=pd.Index(["AKT1;T308;", "MAPK14;Y182;"], name="site_id"),
+                index=pd.Index(["site_key_1", "site_key_2"], name="site_key"),
             ),
         ),
         (
@@ -211,17 +243,18 @@ def test_duplicate_site_policy_reports_metadata_conflicts() -> None:
                     "sample_a": [2.0, 5.0],
                     "sample_b": [3.0, 6.0],
                 },
-                index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+                index=pd.Index(["site_key_1", "site_key_2"], name="site_key"),
             ),
             pd.DataFrame(
                 {
                     "gene_symbol": ["MAPK14", "AKT1"],
                     "site": ["Y182", "T308"],
+                    "display_id": ["MAPK14;Y182;", "AKT1;T308;"],
                     "site_sequence": [pd.NA, "SEQ_C"],
                     "protein_id": ["PROT_A", "PROT_C"],
                     "uid": [pd.NA, "C"],
                 },
-                index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+                index=pd.Index(["site_key_1", "site_key_2"], name="site_key"),
             ),
         ),
         (
@@ -231,17 +264,18 @@ def test_duplicate_site_policy_reports_metadata_conflicts() -> None:
                     "sample_a": [2.0, 5.0],
                     "sample_b": [3.0, 6.0],
                 },
-                index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+                index=pd.Index(["site_key_1", "site_key_2"], name="site_key"),
             ),
             pd.DataFrame(
                 {
                     "gene_symbol": ["MAPK14", "AKT1"],
                     "site": ["Y182", "T308"],
+                    "display_id": ["MAPK14;Y182;", "AKT1;T308;"],
                     "site_sequence": [pd.NA, "SEQ_C"],
                     "protein_id": ["PROT_A", "PROT_C"],
                     "uid": [pd.NA, "C"],
                 },
-                index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+                index=pd.Index(["site_key_1", "site_key_2"], name="site_key"),
             ),
         ),
     ],
@@ -251,11 +285,14 @@ def test_duplicate_site_policy_preserves_existing_outputs_for_current_policies(
     expected_phospho: pd.DataFrame,
     expected_site_metadata: pd.DataFrame,
 ) -> None:
-    phospho, site_metadata, constructed_site_id = _duplicate_policy_inputs()
+    phospho, site_metadata, scientific_row_key, constructed_display_id = (
+        _duplicate_policy_inputs()
+    )
     result = _apply_duplicate_site_policy(
         phospho=phospho,
         site_metadata=site_metadata,
-        constructed_site_id=constructed_site_id,
+        scientific_row_key=scientific_row_key,
+        constructed_display_id=constructed_display_id,
         duplicate_site_policy=policy,
     )
 
@@ -288,22 +325,28 @@ def test_duplicate_site_aggregate_complete_observations_preserve_values(
         },
         index=phospho.index.copy(),
     )
-    constructed_site_id = pd.Series(
+    scientific_row_key = pd.Series(
+        ["site_key_1", "site_key_1"],
+        index=phospho.index.copy(),
+        name="site_key",
+    )
+    constructed_display_id = pd.Series(
         ["MAPK14;Y182;", "MAPK14;Y182;"],
         index=phospho.index.copy(),
-        name="site_id",
+        name="display_id",
     )
 
     result = _apply_duplicate_site_policy(
         phospho=phospho,
         site_metadata=site_metadata,
-        constructed_site_id=constructed_site_id,
+        scientific_row_key=scientific_row_key,
+        constructed_display_id=constructed_display_id,
         duplicate_site_policy=policy,
     )
 
     assert result.phospho.shape == (1, 2)
-    assert result.phospho.loc["MAPK14;Y182;", "sample_a"] == pytest.approx(3.0)
-    assert result.phospho.loc["MAPK14;Y182;", "sample_b"] == pytest.approx(7.0)
+    assert result.phospho.loc["site_key_1", "sample_a"] == pytest.approx(3.0)
+    assert result.phospho.loc["site_key_1", "sample_b"] == pytest.approx(7.0)
     assert result.duplicate_aggregation_diagnostics["missing_value_policy"] == (
         "skip_missing_values"
     )
@@ -343,23 +386,29 @@ def test_duplicate_site_aggregate_partial_missing_uses_explicit_skip_missing_pol
         },
         index=phospho.index.copy(),
     )
-    constructed_site_id = pd.Series(
+    scientific_row_key = pd.Series(
+        ["site_key_1", "site_key_1", "site_key_2"],
+        index=phospho.index.copy(),
+        name="site_key",
+    )
+    constructed_display_id = pd.Series(
         ["MAPK14;Y182;", "MAPK14;Y182;", "AKT1;T308;"],
         index=phospho.index.copy(),
-        name="site_id",
+        name="display_id",
     )
 
     result = _apply_duplicate_site_policy(
         phospho=phospho,
         site_metadata=site_metadata,
-        constructed_site_id=constructed_site_id,
+        scientific_row_key=scientific_row_key,
+        constructed_display_id=constructed_display_id,
         duplicate_site_policy=policy,
     )
 
-    assert result.phospho.loc["MAPK14;Y182;", "sample_a"] == pytest.approx(
+    assert result.phospho.loc["site_key_1", "sample_a"] == pytest.approx(
         expected_sample_a
     )
-    assert result.phospho.loc["MAPK14;Y182;", "sample_b"] == pytest.approx(
+    assert result.phospho.loc["site_key_1", "sample_b"] == pytest.approx(
         expected_sample_b
     )
     assert result.duplicate_aggregation_diagnostics["missing_value_policy"] == (
@@ -396,22 +445,28 @@ def test_duplicate_site_aggregate_one_source_row_all_missing_is_not_dropped(
         },
         index=phospho.index.copy(),
     )
-    constructed_site_id = pd.Series(
+    scientific_row_key = pd.Series(
+        ["site_key_1", "site_key_1"],
+        index=phospho.index.copy(),
+        name="site_key",
+    )
+    constructed_display_id = pd.Series(
         ["MAPK14;Y182;", "MAPK14;Y182;"],
         index=phospho.index.copy(),
-        name="site_id",
+        name="display_id",
     )
 
     result = _apply_duplicate_site_policy(
         phospho=phospho,
         site_metadata=site_metadata,
-        constructed_site_id=constructed_site_id,
+        scientific_row_key=scientific_row_key,
+        constructed_display_id=constructed_display_id,
         duplicate_site_policy=policy,
     )
 
     assert result.phospho.shape[0] == 1
-    assert result.phospho.loc["MAPK14;Y182;", "sample_a"] == pytest.approx(4.0)
-    assert result.phospho.loc["MAPK14;Y182;", "sample_b"] == pytest.approx(6.0)
+    assert result.phospho.loc["site_key_1", "sample_a"] == pytest.approx(4.0)
+    assert result.phospho.loc["site_key_1", "sample_b"] == pytest.approx(6.0)
     assert result.duplicate_aggregation_diagnostics["rows_collapsed_count"] == 1
 
 
@@ -431,19 +486,68 @@ def test_duplicate_site_aggregate_all_missing_duplicates_keep_group_row() -> Non
         },
         index=phospho.index.copy(),
     )
-    constructed_site_id = pd.Series(
+    scientific_row_key = pd.Series(
+        ["site_key_1", "site_key_1"],
+        index=phospho.index.copy(),
+        name="site_key",
+    )
+    constructed_display_id = pd.Series(
         ["MAPK14;Y182;", "MAPK14;Y182;"],
         index=phospho.index.copy(),
-        name="site_id",
+        name="display_id",
     )
 
     result = _apply_duplicate_site_policy(
         phospho=phospho,
         site_metadata=site_metadata,
-        constructed_site_id=constructed_site_id,
+        scientific_row_key=scientific_row_key,
+        constructed_display_id=constructed_display_id,
         duplicate_site_policy=DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
     )
 
     assert result.phospho.shape == (1, 2)
-    assert result.phospho.index.tolist() == ["MAPK14;Y182;"]
+    assert result.phospho.index.tolist() == ["site_key_1"]
     assert result.duplicate_aggregation_diagnostics["duplicate_group_count"] == 1
+
+
+def test_duplicate_display_ids_with_distinct_site_keys_are_not_treated_as_duplicates() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0],
+            "sample_b": [3.0, 4.0],
+        },
+        index=pd.Index(["row_a", "row_b"], name="source_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "MAPK14"],
+            "site": ["Y182", "Y182"],
+            "display_id": ["MAPK14;Y182;", "MAPK14;Y182;"],
+            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "protein_id": ["P28482", "Q9Y2R5"],
+        },
+        index=phospho.index.copy(),
+    )
+    scientific_row_key = pd.Series(
+        ["site_key_1", "site_key_2"],
+        index=phospho.index.copy(),
+        name="site_key",
+    )
+    constructed_display_id = pd.Series(
+        ["MAPK14;Y182;", "MAPK14;Y182;"],
+        index=phospho.index.copy(),
+        name="display_id",
+    )
+
+    result = _apply_duplicate_site_policy(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        scientific_row_key=scientific_row_key,
+        constructed_display_id=constructed_display_id,
+        duplicate_site_policy="error",
+    )
+
+    assert result.phospho.index.tolist() == ["site_key_1", "site_key_2"]
+    assert result.duplicate_site_resolution.empty

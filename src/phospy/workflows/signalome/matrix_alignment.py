@@ -38,7 +38,7 @@ class SignalomeMatrixAlignment:
 class SignalomeMatrixAligner:
     """Resolve numeric frames and align sites/kinases across signalome inputs."""
 
-    _SITE_ID_COLUMN = "site_id"
+    _SITE_ID_COLUMN = "site_key"
     _KINASE_COLUMN = "kinase"
 
     def run(
@@ -81,7 +81,7 @@ class SignalomeMatrixAligner:
         )
         dataset_site_index = pd.Index(
             dataset_sites.astype(str),
-            name=self._SITE_ID_COLUMN,
+            name=(dataset_sites.name or self._SITE_ID_COLUMN),
         )
         aligned_site_index = self._resolve_shared_site_index(
             dataset_sites=dataset_site_index,
@@ -186,8 +186,14 @@ class SignalomeMatrixAligner:
                 error_type=WorkflowValidationError,
             )
             resolved = frame.astype(float)
-            resolved.index = pd.Index(frame.index, name=index_name)
-            resolved.columns = pd.Index(frame.columns, name=columns_name)
+            resolved.index = pd.Index(
+                frame.index.astype(str),
+                name=(frame.index.name or index_name),
+            )
+            resolved.columns = pd.Index(
+                frame.columns.astype(str),
+                name=(frame.columns.name or columns_name),
+            )
             return resolved
         except (TypeError, ValueError, WorkflowValidationError) as exc:
             raise_wrapped_signalome_boundary_error(
@@ -207,13 +213,16 @@ class SignalomeMatrixAligner:
         score_sites: pd.Index,
     ) -> pd.Index:
         dataset_site_index = pd.Index(
-            dataset_sites.astype(str), name=self._SITE_ID_COLUMN
+            dataset_sites.astype(str), name=(dataset_sites.name or self._SITE_ID_COLUMN)
         )
         prediction_site_index = pd.Index(
             prediction_sites.astype(str),
-            name=self._SITE_ID_COLUMN,
+            name=(prediction_sites.name or self._SITE_ID_COLUMN),
         )
-        score_site_index = pd.Index(score_sites.astype(str), name=self._SITE_ID_COLUMN)
+        score_site_index = pd.Index(
+            score_sites.astype(str),
+            name=(score_sites.name or self._SITE_ID_COLUMN),
+        )
         try:
             shared_dataset_prediction = require_non_empty_index_intersection(
                 left=dataset_site_index,
@@ -241,7 +250,7 @@ class SignalomeMatrixAligner:
                 score_sites=int(score_site_index.size),
                 shared_sites=0,
             )
-        return pd.Index(shared_sites, name=self._SITE_ID_COLUMN)
+        return pd.Index(shared_sites, name=dataset_site_index.name)
 
     def _resolve_shared_kinase_index(
         self,
@@ -251,10 +260,11 @@ class SignalomeMatrixAligner:
     ) -> pd.Index:
         prediction_kinase_index = pd.Index(
             prediction_kinases.astype(str),
-            name=self._KINASE_COLUMN,
+            name=(prediction_kinases.name or self._KINASE_COLUMN),
         )
         score_kinase_index = pd.Index(
-            score_kinases.astype(str), name=self._KINASE_COLUMN
+            score_kinases.astype(str),
+            name=(score_kinases.name or self._KINASE_COLUMN),
         )
         try:
             shared_kinases = require_non_empty_index_intersection(
@@ -275,7 +285,7 @@ class SignalomeMatrixAligner:
                 score_kinases=int(score_kinase_index.size),
                 shared_kinases=0,
             )
-        return pd.Index(shared_kinases, name=self._KINASE_COLUMN)
+        return pd.Index(shared_kinases, name=prediction_kinase_index.name)
 
 
 __all__ = [

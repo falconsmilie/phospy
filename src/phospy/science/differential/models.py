@@ -16,11 +16,14 @@ from phospy.frames.ownership import (
     own_dataframe,
     own_series,
 )
+from phospy.science.sites.validation import require_site_key_index
 from phospy.validation.common.dataframes import (
     require_dataframe,
     require_finite_numeric_dataframe,
     require_non_empty_dataframe,
+    require_non_empty_string_column,
     require_numeric_dataframe,
+    require_string_index,
     require_unique_columns,
     require_unique_index,
 )
@@ -602,6 +605,7 @@ class DifferentialAnalysisResult:
         policy_provenance: DifferentialPolicyProvenance | None = None,
         workflow_provenance: Mapping[str, object] | None = None,
         input_dataset_preprocessing_report: DatasetPreprocessingReport | None = None,
+        require_identity_columns: bool = False,
         _assume_owned: bool = False,
     ) -> None:
         residual_variance = own_series(
@@ -707,6 +711,7 @@ class DifferentialAnalysisResult:
             _validate_result_table(
                 owned_table,
                 field_name=f"differential_result.contrast_tables[{contrast_name!r}]",
+                require_identity_columns=require_identity_columns,
             )
             if not owned_table.index.equals(residual_variance.index):
                 raise PhosPyInputError(
@@ -769,7 +774,7 @@ class DifferentialAnalysisResult:
     @property
     def contrast_tables(self) -> dict[str, pd.DataFrame]:
         return {
-            contrast_name: export_dataframe(table)
+            contrast_name: _export_public_contrast_table(table)
             for contrast_name, table in self._contrast_tables.items()
         }
 
@@ -779,7 +784,10 @@ class DifferentialAnalysisResult:
             raise KeyError(
                 f"unknown contrast {contrast_name!r}; available: {available}"
             )
-        return export_dataframe(self._contrast_tables[contrast_name])
+        table = self._contrast_tables[contrast_name]
+        if _index_uses_site_key_identity(table.index):
+            return export_dataframe(table)
+        return _export_public_contrast_table(table)
 
     def residual_variance_series(self) -> pd.Series:
         return export_series(self.residual_variance)
@@ -813,6 +821,7 @@ class DifferentialAnalysisResult:
         policy_provenance: DifferentialPolicyProvenance | None = None,
         workflow_provenance: Mapping[str, object] | None = None,
         input_dataset_preprocessing_report: DatasetPreprocessingReport | None = None,
+        require_identity_columns: bool = False,
     ) -> DifferentialAnalysisResult:
         return cls(
             residual_variance=residual_variance,
@@ -831,6 +840,7 @@ class DifferentialAnalysisResult:
             contrast_tables=contrast_tables,
             workflow_provenance=workflow_provenance,
             input_dataset_preprocessing_report=input_dataset_preprocessing_report,
+            require_identity_columns=require_identity_columns,
             _assume_owned=True,
         )
 
@@ -883,13 +893,83 @@ def _validate_numeric_matrix(frame: pd.DataFrame, *, field_name: str) -> None:
     )
 
 
-def _validate_result_table(table: pd.DataFrame, *, field_name: str) -> None:
-    _validate_numeric_matrix(table, field_name=field_name)
-    required_columns = ("logFC", "t", "P.Value", "adj.P.Val")
-    missing = [column for column in required_columns if column not in table.columns]
+def _validate_result_table(
+    table: pd.DataFrame,
+    *,
+    field_name: str,
+    require_identity_columns: bool,
+) -> None:
+    require_dataframe(
+        table,
+        field_name=field_name,
+        allow_empty=False,
+        error_type=PhosPyInputError,
+    )
+    require_non_empty_dataframe(
+        table,
+        field_name=field_name,
+        error_type=PhosPyInputError,
+    )
+    require_string_index(
+        table.index,
+        field_name=f"{field_name}.index",
+        error_type=PhosPyInputError,
+    )
+    require_unique_index(
+        table,
+        field_name=field_name,
+        error_type=PhosPyInputError,
+    )
+    require_unique_columns(
+        table,
+        field_name=field_name,
+        error_type=PhosPyInputError,
+    )
+    required_stat_columns = ("logFC", "t", "P.Value", "adj.P.Val")
+    missing = [
+        column for column in required_stat_columns if column not in table.columns
+    ]
     if missing:
         joined = ", ".join(missing)
         raise PhosPyInputError(f"{field_name} is missing required columns: {joined}")
+    stat_table = cast(pd.DataFrame, table[list(required_stat_columns)])
+    require_numeric_dataframe(
+        stat_table,
+        field_name=field_name,
+        error_type=PhosPyInputError,
+    )
+    require_finite_numeric_dataframe(
+        stat_table,
+        field_name=field_name,
+        error_type=PhosPyInputError,
+        allow_missing=False,
+    )
+    enforce_identity_columns = require_identity_columns or (
+        "site_key" in table.columns or "display_id" in table.columns
+    )
+    if enforce_identity_columns:
+        identity_required = ("site_key", "display_id")
+        missing_identity = [
+            column for column in identity_required if column not in table.columns
+        ]
+        if missing_identity:
+            joined = ", ".join(missing_identity)
+            raise PhosPyInputError(
+                f"{field_name} is missing required columns: {joined}"
+            )
+        require_non_empty_string_column(
+            table,
+            field_name=field_name,
+            column_name="site_key",
+            error_type=PhosPyInputError,
+        )
+        require_non_empty_string_column(
+            table,
+            field_name=field_name,
+            column_name="display_id",
+            error_type=PhosPyInputError,
+        )
+        _validate_site_key_column_matches_index(table=table, field_name=field_name)
     _validate_unit_interval_column(
         table=table,
         column_name="P.Value",
@@ -899,6 +979,37 @@ def _validate_result_table(table: pd.DataFrame, *, field_name: str) -> None:
         table=table,
         column_name="adj.P.Val",
         field_name=field_name,
+    )
+
+
+def _validate_site_key_column_matches_index(
+    *,
+    table: pd.DataFrame,
+    field_name: str,
+) -> None:
+    try:
+        require_site_key_index(
+            table.index,
+            field_name=f"{field_name}.index",
+            error_type=PhosPyInputError,
+        )
+    except PhosPyInputError:
+        return
+    site_key_column = table["site_key"]
+    site_key_values = [str(value) for value in site_key_column.tolist()]
+    index_values = [str(value) for value in table.index.tolist()]
+    mismatches = [
+        idx
+        for idx, site_key in zip(index_values, site_key_values, strict=True)
+        if idx != site_key
+    ]
+    if not mismatches:
+        return
+    preview = ", ".join(repr(value) for value in mismatches[:5])
+    suffix = "" if len(mismatches) <= 5 else " ..."
+    raise PhosPyInputError(
+        f"{field_name}.site_key must exactly match {field_name}.index; "
+        f"mismatched_labels={preview}{suffix}"
     )
 
 
@@ -929,3 +1040,20 @@ def _validate_unit_interval_column(
         f"invalid values: {examples}{suffix}; "
         f"invalid_entry_count={int(invalid_positions.size)}"
     )
+
+
+def _export_public_contrast_table(table: pd.DataFrame) -> pd.DataFrame:
+    exported = export_dataframe(table)
+    return cast(pd.DataFrame, exported[["logFC", "t", "P.Value", "adj.P.Val"]])
+
+
+def _index_uses_site_key_identity(index: pd.Index) -> bool:
+    try:
+        require_site_key_index(
+            index,
+            field_name="differential_result.contrast_table.index",
+            error_type=PhosPyInputError,
+        )
+        return True
+    except PhosPyInputError:
+        return False

@@ -142,6 +142,13 @@ class KinasePredictionRunner:
             candidate_substrates=candidate_substrates,
             top_k=config.prediction_top_k,
         )
+        substrate_list = self._annotate_substrate_list(
+            substrate_list=substrate_list,
+            site_identity_map=_require_site_identity_map(request.site_identity_map),
+            include_identity_columns={"site_key", "display_id"}.issubset(
+                set(request.dataset._borrow_site_metadata_frame().columns)
+            ),
+        )
         return KinasePredictionResult._from_owned(
             pred_mat=pred_mat,
             substrate_list=substrate_list,
@@ -237,10 +244,45 @@ class KinasePredictionRunner:
             top_k=config.prediction_top_k,
             retain_full_scores=True,
         )
+        substrate_list = self._annotate_substrate_list(
+            substrate_list=substrate_list,
+            site_identity_map=_require_site_identity_map(request.site_identity_map),
+            include_identity_columns={"site_key", "display_id"}.issubset(
+                set(request.dataset._borrow_site_metadata_frame().columns)
+            ),
+        )
         return KinasePredictionResult._from_owned(
             pred_mat=pred_mat,
             substrate_list=substrate_list,
         )
+
+    @staticmethod
+    def _annotate_substrate_list(
+        *,
+        substrate_list: pd.DataFrame,
+        site_identity_map: pd.DataFrame,
+        include_identity_columns: bool,
+    ) -> pd.DataFrame:
+        if not include_identity_columns:
+            return substrate_list.copy(deep=True)
+        if substrate_list.empty:
+            annotated = substrate_list.copy(deep=True)
+            annotated.loc[:, "site_key"] = pd.Series(dtype="object")
+            annotated.loc[:, "display_id"] = pd.Series(dtype="object")
+            return annotated
+        display_lookup = {
+            str(site_key): str(display_id)
+            for site_key, display_id in site_identity_map.loc[
+                :, ["site_key", "display_id"]
+            ].itertuples(index=False)
+        }
+        annotated = substrate_list.copy(deep=True)
+        site_keys = annotated.loc[:, "substrate_site"].astype(str)
+        display_ids = site_keys.map(lambda value: display_lookup.get(value, value))
+        annotated.loc[:, "site_key"] = site_keys
+        annotated.loc[:, "display_id"] = display_ids
+        annotated.loc[:, "substrate_site"] = display_ids
+        return annotated
 
     @staticmethod
     def _as_prediction_config(
@@ -285,6 +327,16 @@ class KinasePredictionRunner:
             details=details,
             message_prefix="kinase workflow boundary validation failed",
         )
+
+
+def _require_site_identity_map(site_identity_map: pd.DataFrame | None) -> pd.DataFrame:
+    if site_identity_map is None:
+        raise WorkflowBoundaryError(
+            seam="kinase.prediction.site_identity_map",
+            next_action="ensure kinase workflow interpretation resolves site identity mapping",
+            message_prefix="kinase workflow boundary validation failed",
+        )
+    return site_identity_map
 
 
 __all__ = ["KinasePredictionRunner"]

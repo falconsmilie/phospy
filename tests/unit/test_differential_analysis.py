@@ -22,6 +22,10 @@ from phospy.errors import (
     WorkflowBoundaryError,
     WorkflowValidationError,
 )
+from phospy.science.sites.site_keys import (
+    build_protein_scoped_site_key,
+    encode_site_key,
+)
 from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
@@ -51,19 +55,48 @@ def _matrix() -> pd.DataFrame:
     )
 
 
+def _site_key_for_display_id(
+    display_id: str,
+    *,
+    protein_id: str | None = None,
+) -> str:
+    parts = [token.strip() for token in display_id.split(";") if token.strip()]
+    gene_symbol = parts[0]
+    site = parts[1]
+    key = build_protein_scoped_site_key(
+        organism="rat",
+        protein_namespace="protein_id",
+        protein_identifier=protein_id or gene_symbol,
+        residue=site.upper()[0],
+        position=int(site[1:]),
+        field_name="tests.unit.test_differential_analysis.site_key",
+        error_type=ValueError,
+    )
+    return encode_site_key(key)
+
+
 def _dataset(matrix: pd.DataFrame | None = None):
     phospho = _matrix() if matrix is None else matrix
-    index = phospho.index.astype(str)
-    gene_site = [site_id.split(";") for site_id in index]
+    display_ids = phospho.index.astype(str).tolist()
+    gene_site = [site_id.split(";") for site_id in display_ids]
+    protein_ids = [parts[0] for parts in gene_site]
+    site_keys = [
+        _site_key_for_display_id(display_id, protein_id=protein_id)
+        for display_id, protein_id in zip(display_ids, protein_ids, strict=True)
+    ]
+    phospho = phospho.copy(deep=True)
+    phospho.index = pd.Index(site_keys, name="site_key")
     site_metadata = pd.DataFrame(
         {
+            "site_key": site_keys,
+            "display_id": display_ids,
             "gene_symbol": [parts[0] for parts in gene_site],
             "site": [parts[1] for parts in gene_site],
             "site_sequence": [
                 ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
                 for site in [parts[1] for parts in gene_site]
             ],
-            "protein_id": [parts[0] for parts in gene_site],
+            "protein_id": protein_ids,
         },
         index=phospho.index.copy(),
     )
@@ -189,9 +222,19 @@ def test_differential_analysis_returns_per_contrast_moderated_tables() -> None:
     ]
     for contrast_name in ("B_vs_A", "C_vs_A"):
         table = result.table_for(contrast_name)
-        assert list(table.columns) == ["logFC", "t", "P.Value", "adj.P.Val"]
+        assert list(table.columns) == [
+            "site_key",
+            "display_id",
+            "gene_symbol",
+            "site",
+            "protein_id",
+            "logFC",
+            "t",
+            "P.Value",
+            "adj.P.Val",
+        ]
         assert table.shape[0] == 5
-        assert table.index.tolist() == _matrix().index.tolist()
+        assert table.index.tolist() == _dataset().phospho.index.tolist()
         assert (table.loc[:, "P.Value"] >= 0.0).all()
         assert (table.loc[:, "P.Value"] <= 1.0).all()
         assert (table.loc[:, "adj.P.Val"] >= 0.0).all()
@@ -232,7 +275,7 @@ def test_robust_mode_downweights_variance_outlier() -> None:
     assert robust.policy_provenance.empirical_bayes.robust is True
     assert robust.policy_provenance.empirical_bayes.winsor_tail_p == (0.05, 0.1)
     assert robust.prior_diagnostics.robust_outlier_count >= 1
-    outlier_site = "MAPK14;Y182;"
+    outlier_site = _site_key_for_display_id("MAPK14;Y182;")
     assert (
         robust.prior_degrees_of_freedom_series().loc[outlier_site]
         <= standard.prior_degrees_of_freedom_series().loc[outlier_site]
@@ -255,8 +298,9 @@ def test_trend_mode_stores_mean_variance_diagnostics() -> None:
     assert result.empirical_bayes_trend is True
     assert result.mean_variance_trend_diagnostics is not None
     diagnostics = result.mean_variance_trend_diagnostics
-    assert diagnostics.mean_intensity.index.tolist() == matrix.index.tolist()
-    assert diagnostics.fitted_log_prior_variance.index.tolist() == matrix.index.tolist()
+    expected_index = _dataset(matrix).phospho.index.tolist()
+    assert diagnostics.mean_intensity.index.tolist() == expected_index
+    assert diagnostics.fitted_log_prior_variance.index.tolist() == expected_index
     assert not diagnostics.fitted_log_prior_variance.equals(
         diagnostics.log_residual_variance
     )
@@ -400,9 +444,10 @@ def test_differential_analysis_handles_zero_variance_features() -> None:
     )
     table = result.table_for("B_vs_A")
 
-    assert table.at["MAPK14;Y182;", "logFC"] == pytest.approx(0.0)
-    assert table.at["MAPK14;Y182;", "t"] == pytest.approx(0.0)
-    assert table.at["MAPK14;Y182;", "P.Value"] == pytest.approx(1.0)
+    site_key = _site_key_for_display_id("MAPK14;Y182;")
+    assert table.at[site_key, "logFC"] == pytest.approx(0.0)
+    assert table.at[site_key, "t"] == pytest.approx(0.0)
+    assert table.at[site_key, "P.Value"] == pytest.approx(1.0)
     assert np.isfinite(table.loc[:, "t"]).all()
     assert np.isfinite(table.loc[:, "P.Value"]).all()
 

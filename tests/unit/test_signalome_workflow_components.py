@@ -50,13 +50,19 @@ from tests.support.signalome_config import build_signalome_config
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
-    site_ids = ["P1;S1;", "P1;S2;", "P2;S3;", "P3;S4;"]
+    site_keys = [
+        "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P1|residue=S|position=1",
+        "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P1|residue=S|position=2",
+        "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P2|residue=S|position=3",
+        "phospy:v1|organism=rat|protein_namespace=protein_id|protein_identifier=P3|residue=S|position=4",
+    ]
+    display_ids = ["P1;S1;", "P1;S2;", "P2;S3;", "P3;S4;"]
     phospho = pd.DataFrame(
         {
             "sample_a": [1.0, 2.0, 3.0, 4.0],
             "sample_b": [1.2, 2.2, 3.2, 4.2],
         },
-        index=site_ids,
+        index=pd.Index(site_keys, name="site_key"),
     )
     site_metadata = pd.DataFrame(
         {
@@ -67,8 +73,10 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
                 for site in ["S1", "S2", "S3", "S4"]
             ],
             "protein_id": ["P1", "P1", "P2", "P3"],
+            "display_id": display_ids,
+            "site_key": site_keys,
         },
-        index=site_ids,
+        index=pd.Index(site_keys, name="site_key"),
     )
     return AnalysisReadyPhosphoDataset(
         phospho=phospho,
@@ -92,14 +100,7 @@ def _bundle(site_ids: list[str]) -> ReferenceBundle:
             }
         ),
         site_sequences=pd.DataFrame(
-            {
-                "site_sequence": [
-                    ("A" * 15)
-                    + str(site_id).split(";")[1].strip().upper()[0]
-                    + ("A" * 15)
-                    for site_id in unique_sites
-                ]
-            },
+            {"site_sequence": [("A" * 15) + "S" + ("A" * 15) for _ in unique_sites]},
             index=unique_sites,
         ),
     )
@@ -113,7 +114,7 @@ def _matrix(
 ) -> pd.DataFrame:
     return pd.DataFrame(
         values,
-        index=pd.Index(site_ids, name="site_id"),
+        index=pd.Index(site_ids, name="site_key"),
         columns=pd.Index(kinases, name="kinase"),
         dtype=float,
     )
@@ -125,9 +126,10 @@ def _kinase_result(
     prediction_matrix: pd.DataFrame,
     score_matrix: pd.DataFrame,
 ) -> KinaseWorkflowResult:
+    display_ids = dataset.site_metadata.loc[:, "display_id"].astype(str).tolist()
     return KinaseWorkflowResult(
         dataset=dataset,
-        references=_bundle(site_ids=dataset.phospho.index.astype(str).tolist()),
+        references=_bundle(site_ids=display_ids),
         scoring_result=KinaseScoringResult(
             profile_scores=score_matrix,
             rank_weighted_fusion_scores=score_matrix,
@@ -285,6 +287,7 @@ def test_signalome_module_table_builder_preserves_module_summary_shape() -> None
     expected_assignments = build_module_assignments(
         prediction_matrix=resolved.prediction_matrix,
         site_to_protein=resolved.site_to_protein,
+        site_metadata=resolved.dataset.site_metadata,
         protein_modules=clustering.protein_modules,
     )
     expected_substrates = select_kinase_substrates(
@@ -582,3 +585,55 @@ def test_signalome_result_assembly_preserves_public_result_shape() -> None:
     assert result.site_membership is not None
     assert result.protein_site_context is not None
     assert result.provenance.workflow_name == "signalome_workflow"
+
+
+def test_signalome_duplicate_display_ids_remain_separate_by_site_key() -> None:
+    site_index = pd.Index(["site_key_a", "site_key_b"], name="site_key")
+    prediction_matrix = pd.DataFrame(
+        {"K1": [0.8, 0.7]},
+        index=site_index.copy(),
+    )
+    site_to_protein = pd.Series(
+        ["P1", "P2"],
+        index=site_index.copy(),
+        dtype=object,
+        name="protein_id",
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "display_id": ["MAPK14;Y182;", "MAPK14;Y182;"],
+            "gene_symbol": ["MAPK14", "MAPK14"],
+            "site": ["Y182", "Y182"],
+            "protein_accession": ["P28482-1", "P28482-2"],
+            "isoform_id": ["isoform-1", "isoform-2"],
+        },
+        index=site_index.copy(),
+    )
+    module_assignments = build_module_assignments(
+        prediction_matrix=prediction_matrix,
+        site_to_protein=site_to_protein,
+        site_metadata=site_metadata,
+    )
+
+    assert int(module_assignments.shape[0]) == 2
+    assert module_assignments.index.tolist() == ["site_key_a", "site_key_b"]
+    assert int(module_assignments.loc[:, "site_key"].nunique()) == 2
+    assert int(module_assignments.loc[:, "display_id"].nunique()) == 1
+
+    site_membership = build_site_membership_table(
+        module_assignments=module_assignments,
+        site_clusters=pd.Series(
+            [1, 2],
+            index=site_index.copy(),
+            dtype="int64",
+            name="site_cluster",
+        ),
+        site_metadata=site_metadata,
+        prediction_matrix=prediction_matrix,
+        kinase_substrates={"K1": ("site_key_a", "site_key_b")},
+        substrate_support_cutoff=0.5,
+        assignment_policy="cutoff_binary",
+    )
+    assert int(site_membership.shape[0]) == 2
+    assert int(site_membership.loc[:, "site_key"].nunique()) == 2
+    assert int(site_membership.loc[:, "display_id"].nunique()) == 1

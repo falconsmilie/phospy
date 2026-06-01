@@ -149,6 +149,7 @@ class SignalomeModuleTableBuilder:
             return self._build_assignments(
                 prediction_matrix=request.prediction_matrix,
                 site_to_protein=request.site_to_protein,
+                site_metadata=request.dataset._borrow_site_metadata_frame(),
                 protein_modules=protein_modules,
             )
         except WorkflowStageError as exc:

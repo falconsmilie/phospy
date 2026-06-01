@@ -666,8 +666,32 @@ def normalize_signalome_modules_for_parity(frame: pd.DataFrame) -> pd.DataFrame:
 def normalize_signalome_module_assignments_for_parity(
     frame: pd.DataFrame,
 ) -> pd.DataFrame:
-    normalized = frame.copy(deep=True)
+    normalized = frame.copy(deep=True).astype("object")
+    for column_name in ("site_key", "display_id", "site_id"):
+        duplicate_name = f"{column_name}.1"
+        if (
+            column_name not in normalized.columns
+            and duplicate_name in normalized.columns
+        ):
+            normalized = normalized.rename(columns={duplicate_name: column_name})
     normalized.index = pd.Index(normalized.index.astype(str), name="site_id")
+    for column_name in (
+        "site_key",
+        "display_id",
+        "gene_symbol",
+        "site",
+        "protein_id",
+        "protein_accession",
+        "isoform_id",
+        "top_kinase",
+        "top_kinase_selection_policy",
+        "module_top_kinase",
+        "module_top_kinase_selection_policy",
+    ):
+        if column_name in normalized.columns:
+            normalized.loc[:, column_name] = (
+                normalized.loc[:, column_name].fillna("").astype(str)
+            )
     collection_columns = (
         "top_kinase_candidates",
         "top_kinase_weights",
@@ -746,20 +770,33 @@ def normalize_signalome_network_edges_for_parity(frame: pd.DataFrame) -> pd.Data
 def normalize_signalome_expanded_signalome_for_parity(
     frame: pd.DataFrame,
 ) -> pd.DataFrame:
-    normalized = frame.copy(deep=True).astype(
+    normalized = frame.copy(deep=True).astype("object")
+    for column_name in (
+        "kinase",
+        "row_kind",
+        "assignment_policy",
+        "linked_kinases",
+        "regulated_module_ids",
+        "site_key",
+        "display_id",
+        "site_id",
+        "gene_symbol",
+        "site",
+        "protein_id",
+        "protein_accession",
+        "isoform_id",
+        "support_kinases",
+        "top_kinase",
+    ):
+        if column_name in normalized.columns:
+            normalized.loc[:, column_name] = (
+                normalized.loc[:, column_name].fillna("").astype(str)
+            )
+    normalized = normalized.astype(
         {
-            "kinase": str,
-            "row_kind": str,
-            "assignment_policy": str,
-            "linked_kinases": str,
-            "regulated_module_ids": str,
-            "site_id": str,
             "site_order": "int64",
-            "protein_id": str,
             "module_id": "int64",
-            "support_kinases": str,
             "support_weight": float,
-            "top_kinase": str,
             "top_score": float,
         }
     )

@@ -51,6 +51,7 @@ def _site_metadata_for(phospho: pd.DataFrame) -> pd.DataFrame:
             "gene_symbol": split.loc[:, 0].values,
             "site": split.loc[:, 1].values,
             "site_sequence": site_sequences.values,
+            "localisation_confidence": [0.95] * int(len(phospho.index)),
             "protein_id": split.loc[:, 0].values,
         },
         index=phospho.index.copy(),
@@ -69,5 +70,6 @@ def build_rat_l6_dataset(
         phospho=phospho,
         site_metadata=_site_metadata_for(phospho),
         organism=Organism.RAT,
+        input_intensity_scale="linear",
     )
     return AnalysisReadyDatasetBuilder().run(request)

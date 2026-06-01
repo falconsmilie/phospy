@@ -381,7 +381,7 @@ class KinaseActivityResult:
 
     @property
     def target_table(self) -> pd.DataFrame:
-        return export_dataframe(self._target_table)
+        return _export_public_target_table(self._target_table)
 
     @property
     def statistics_table(self) -> pd.DataFrame | None:
@@ -455,9 +455,17 @@ class KinaseActivityResult:
     def target_table_dataframe(self) -> pd.DataFrame:
         """Return a target-table snapshot isolated from this result."""
 
-        return export_dataframe(self._target_table)
+        return _export_public_target_table(self._target_table)
 
     def statistics_table_dataframe(self) -> pd.DataFrame | None:
         """Return a statistics-table snapshot isolated from this result."""
 
         return export_optional_dataframe(self._statistics_table)
+
+
+def _export_public_target_table(table: pd.DataFrame) -> pd.DataFrame:
+    exported = export_dataframe(table)
+    legacy_columns = ["site_id", "kinase", "score"]
+    if not all(column in exported.columns for column in legacy_columns):
+        return exported
+    return exported.loc[:, legacy_columns]

@@ -20,9 +20,8 @@ from phospy.science.datasets.preprocessing.stages.site_matrix_components.metadat
     _resolve_source_metadata_column,
     resolve_aggregate_site_metadata,
 )
-from phospy.science.sites.identity import validate_no_conflicting_identity_collisions
 
-_SITE_ID_COLUMN = "site_id"
+_SITE_KEY_COLUMN = "site_key"
 _AGGREGATE_DUPLICATE_SITE_POLICIES = {
     SiteMatrixDuplicateSitePolicy.AGGREGATE_MEAN,
     SiteMatrixDuplicateSitePolicy.AGGREGATE_MEDIAN,
@@ -60,9 +59,33 @@ class DuplicateSiteResolver:
         *,
         phospho: pd.DataFrame,
         site_metadata: pd.DataFrame,
-        constructed_site_id: pd.Series,
+        scientific_row_key: pd.Series | None = None,
+        constructed_display_id: pd.Series | None = None,
+        constructed_site_id: pd.Series | None = None,
         duplicate_site_policy: SiteMatrixDuplicateSitePolicy | str,
     ) -> DuplicateSiteResolutionResult:
+        legacy_display_mode = (
+            scientific_row_key is None and constructed_site_id is not None
+        )
+        if scientific_row_key is None:
+            if constructed_site_id is None:
+                raise PhosPyInputError(
+                    "duplicate-site resolution requires scientific_row_key "
+                    "(or legacy constructed_site_id)"
+                )
+            scientific_row_key = constructed_site_id
+        if constructed_display_id is None:
+            if constructed_site_id is None:
+                raise PhosPyInputError(
+                    "duplicate-site resolution requires constructed_display_id "
+                    "(or legacy constructed_site_id)"
+                )
+            constructed_display_id = constructed_site_id
+        output_index_name = (
+            str(scientific_row_key.name)
+            if scientific_row_key.name is not None
+            else _SITE_KEY_COLUMN
+        )
         resolved_policy = SiteMatrixDuplicateSitePolicy.parse(
             duplicate_site_policy,
             field_name="site_matrix.duplicate_site_policy",
@@ -74,7 +97,7 @@ class DuplicateSiteResolver:
             )
 
         if phospho.empty:
-            empty_site_index = pd.Index([], name=_SITE_ID_COLUMN)
+            empty_site_index = pd.Index([], name=output_index_name)
             empty_phospho = phospho.copy()
             empty_site_metadata = site_metadata.copy()
             empty_phospho.index = empty_site_index
@@ -95,10 +118,11 @@ class DuplicateSiteResolver:
                 ),
             )
 
-        duplicate_mask = constructed_site_id.duplicated(keep=False)
+        duplicate_mask = scientific_row_key.duplicated(keep=False)
         if not bool(duplicate_mask.any()):
             final_site_index = pd.Index(
-                constructed_site_id.astype(str).tolist(), name=_SITE_ID_COLUMN
+                scientific_row_key.astype(str).tolist(),
+                name=output_index_name,
             )
             direct_phospho = phospho.copy()
             direct_site_metadata = site_metadata.copy()
@@ -123,7 +147,8 @@ class DuplicateSiteResolver:
 
         dedupe_work = pd.DataFrame(
             {
-                _SITE_ID_COLUMN: constructed_site_id.astype(str),
+                _SITE_KEY_COLUMN: scientific_row_key.astype(str),
+                "display_id": constructed_display_id.astype(str),
                 "source_row_id": phospho.index.astype(str),
                 "observed_values": phospho.notna().sum(axis=1),
                 "mean_signal": phospho.mean(axis=1, skipna=True),
@@ -133,37 +158,42 @@ class DuplicateSiteResolver:
         )
         duplicate_work = dedupe_work.loc[duplicate_mask].copy()
         duplicate_work.loc[:, "n_source_rows"] = (
-            duplicate_work.groupby(_SITE_ID_COLUMN, sort=False)
+            duplicate_work.groupby(_SITE_KEY_COLUMN, sort=False)
             .size()
-            .reindex(duplicate_work.loc[:, _SITE_ID_COLUMN])
+            .reindex(duplicate_work.loc[:, _SITE_KEY_COLUMN])
             .to_numpy()
         )
-        validate_no_conflicting_identity_collisions(
-            site_metadata=site_metadata.loc[duplicate_mask],
-            display_ids=constructed_site_id.loc[duplicate_mask],
-            field_name=(
-                "dataset build request preprocessing site-matrix duplicate-site "
-                "identity validation"
-            ),
-            error_type=PhosPyInputError,
+        _raise_on_conflicting_duplicate_display_identity(
+            site_metadata=site_metadata,
+            scientific_row_key=scientific_row_key,
+            display_id=constructed_display_id,
         )
         metadata_conflicts = self._metadata_conflict_detector.detect(
             site_metadata=site_metadata.loc[duplicate_mask],
-            constructed_site_id=constructed_site_id.loc[duplicate_mask],
+            scientific_row_key=scientific_row_key.loc[duplicate_mask],
+            display_id=constructed_display_id.loc[duplicate_mask],
         )
-        conflict_site_ids = set(metadata_conflicts.loc[:, "site_id"].astype(str))
+        conflict_site_keys = set(metadata_conflicts.loc[:, "site_key"].astype(str))
 
         if resolved_policy is SiteMatrixDuplicateSitePolicy.ERROR:
-            duplicate_sites = (
-                constructed_site_id.loc[duplicate_mask]
+            duplicate_site_keys = (
+                scientific_row_key.loc[duplicate_mask]
                 .astype(str)
                 .drop_duplicates()
                 .head(3)
             )
-            preview = ", ".join(duplicate_sites.tolist())
+            preview = ", ".join(duplicate_site_keys.tolist())
+            if legacy_display_mode:
+                raise PhosPyInputError(
+                    "dataset build request preprocessing site-matrix construction "
+                    "found duplicate constructed site identifiers and "
+                    "site_matrix.duplicate_site_policy='error': "
+                    f"{preview}. Use a non-error duplicate policy to emit "
+                    "duplicate-site resolution and metadata-conflict diagnostics."
+                )
             raise PhosPyInputError(
                 "dataset build request preprocessing site-matrix construction found "
-                "duplicate constructed site identifiers and "
+                "duplicate site_key values and "
                 "site_matrix.duplicate_site_policy='error': "
                 f"{preview}. Use a non-error duplicate policy to emit duplicate-site "
                 "resolution and metadata-conflict diagnostics."
@@ -172,16 +202,16 @@ class DuplicateSiteResolver:
         if resolved_policy is SiteMatrixDuplicateSitePolicy.FIRST:
             selected_rows = (
                 pd.DataFrame(
-                    {_SITE_ID_COLUMN: constructed_site_id}, index=phospho.index
+                    {_SITE_KEY_COLUMN: scientific_row_key}, index=phospho.index
                 )
-                .drop_duplicates(_SITE_ID_COLUMN, keep="first")
+                .drop_duplicates(_SITE_KEY_COLUMN, keep="first")
                 .index
             )
             selected_phospho = phospho.loc[selected_rows].copy()
             selected_site_metadata = site_metadata.loc[selected_rows].copy()
-            selected_site_ids = constructed_site_id.loc[selected_rows]
+            selected_site_keys = scientific_row_key.loc[selected_rows]
             final_site_index = pd.Index(
-                selected_site_ids.astype(str).tolist(), name=_SITE_ID_COLUMN
+                selected_site_keys.astype(str).tolist(), name=output_index_name
             )
             selected_phospho.index = final_site_index
             selected_site_metadata.index = final_site_index.copy()
@@ -194,7 +224,7 @@ class DuplicateSiteResolver:
                 dropped_reason=(
                     "dropped because another row was selected first by input order"
                 ),
-                conflict_site_ids=conflict_site_ids,
+                conflict_site_keys=conflict_site_keys,
             )
             return DuplicateSiteResolutionResult(
                 phospho=selected_phospho,
@@ -216,7 +246,8 @@ class DuplicateSiteResolver:
             value_columns = list(phospho.columns)
             dedupe_work = pd.DataFrame(
                 {
-                    _SITE_ID_COLUMN: constructed_site_id,
+                    _SITE_KEY_COLUMN: scientific_row_key,
+                    "display_id": constructed_display_id.astype(str),
                     "observed_values": phospho.loc[:, value_columns]
                     .notna()
                     .sum(axis=1),
@@ -229,19 +260,19 @@ class DuplicateSiteResolver:
             )
             selected_rows = (
                 dedupe_work.sort_values(
-                    [_SITE_ID_COLUMN, "observed_values", "mean_signal", "row_order"],
+                    [_SITE_KEY_COLUMN, "observed_values", "mean_signal", "row_order"],
                     ascending=[True, False, False, True],
                     kind="stable",
                     na_position="last",
                 )
-                .drop_duplicates(_SITE_ID_COLUMN, keep="first")
+                .drop_duplicates(_SITE_KEY_COLUMN, keep="first")
                 .index
             )
             selected_phospho = phospho.loc[selected_rows].copy()
             selected_site_metadata = site_metadata.loc[selected_rows].copy()
-            selected_site_ids = constructed_site_id.loc[selected_rows]
+            selected_site_keys = scientific_row_key.loc[selected_rows]
             final_site_index = pd.Index(
-                selected_site_ids.astype(str).tolist(), name=_SITE_ID_COLUMN
+                selected_site_keys.astype(str).tolist(), name=output_index_name
             )
             selected_phospho.index = final_site_index
             selected_site_metadata.index = final_site_index.copy()
@@ -256,7 +287,7 @@ class DuplicateSiteResolver:
                 dropped_reason=(
                     "dropped because another row ranked higher by max_mean_signal criteria"
                 ),
-                conflict_site_ids=conflict_site_ids,
+                conflict_site_keys=conflict_site_keys,
             )
             return DuplicateSiteResolutionResult(
                 phospho=selected_phospho,
@@ -277,16 +308,21 @@ class DuplicateSiteResolver:
         if resolved_policy in _AGGREGATE_DUPLICATE_SITE_POLICIES:
             grouped_metadata = resolve_aggregate_site_metadata(
                 site_metadata=site_metadata,
-                constructed_site_id=constructed_site_id,
+                scientific_row_key=scientific_row_key,
+                display_id=constructed_display_id,
                 metadata_conflicts=metadata_conflicts,
             )
-            grouped_values = phospho.groupby(constructed_site_id, sort=False)
+            grouped_metadata.index = pd.Index(
+                grouped_metadata.index.astype(str),
+                name=output_index_name,
+            )
+            grouped_values = phospho.groupby(scientific_row_key, sort=False)
             if resolved_policy is SiteMatrixDuplicateSitePolicy.AGGREGATE_MEAN:
                 grouped_phospho = cast(pd.DataFrame, grouped_values.mean())
             else:
                 grouped_phospho = cast(pd.DataFrame, grouped_values.median())
             grouped_phospho.index = pd.Index(
-                grouped_phospho.index.astype(str), name=_SITE_ID_COLUMN
+                grouped_phospho.index.astype(str), name=output_index_name
             )
             duplicate_site_resolution = self._build_duplicate_site_resolution(
                 duplicate_work=duplicate_work,
@@ -297,7 +333,7 @@ class DuplicateSiteResolver:
                     "contributed to site-level aggregate from duplicate source rows"
                 ),
                 dropped_reason=None,
-                conflict_site_ids=conflict_site_ids,
+                conflict_site_keys=conflict_site_keys,
                 aggregated=True,
             )
             return DuplicateSiteResolutionResult(
@@ -327,7 +363,7 @@ class DuplicateSiteResolver:
         duplicate_site_policy: SiteMatrixDuplicateSitePolicy,
         retained_reason: str,
         dropped_reason: str | None,
-        conflict_site_ids: set[str],
+        conflict_site_keys: set[str],
         aggregated: bool = False,
     ) -> pd.DataFrame:
         if duplicate_work.empty:
@@ -350,7 +386,11 @@ class DuplicateSiteResolver:
         )
         resolution = pd.DataFrame(
             {
-                "site_id": duplicate_work.loc[:, _SITE_ID_COLUMN].astype(str).tolist(),
+                "site_key": duplicate_work.loc[:, _SITE_KEY_COLUMN]
+                .astype(str)
+                .tolist(),
+                "display_id": duplicate_work.loc[:, "display_id"].astype(str).tolist(),
+                "site_id": duplicate_work.loc[:, "display_id"].astype(str).tolist(),
                 "source_row_id": duplicate_work.loc[:, "source_row_id"]
                 .astype(str)
                 .tolist(),
@@ -391,7 +431,7 @@ class DuplicateSiteResolver:
             resolution.loc[retained_mask, "dropped_reason"] = pd.NA
             resolution.loc[:, "n_aggregated_rows"] = pd.NA
         resolution.loc[:, "metadata_conflict_detected"] = (
-            resolution.loc[:, "site_id"].astype(str).isin(conflict_site_ids)
+            resolution.loc[:, "site_key"].astype(str).isin(conflict_site_keys)
         )
         return resolution.loc[:, list(DUPLICATE_SITE_RESOLUTION_COLUMNS)].reset_index(
             drop=True
@@ -426,7 +466,7 @@ class DuplicateSiteResolver:
             "duplicate_group_count": (
                 0
                 if duplicate_site_resolution.empty
-                else int(duplicate_site_resolution.loc[:, "site_id"].nunique())
+                else int(duplicate_site_resolution.loc[:, "site_key"].nunique())
             ),
             "rows_collapsed_count": max(
                 int(len(input_phospho.index) - len(output_phospho.index)), 0
@@ -463,3 +503,31 @@ def _metadata_resolution_policy_text(
     if duplicate_site_policy is SiteMatrixDuplicateSitePolicy.ERROR:
         return "error_on_duplicate_sites"
     return pd.NA if for_row_resolution else "not_applicable"
+
+
+def _raise_on_conflicting_duplicate_display_identity(
+    *,
+    site_metadata: pd.DataFrame,
+    scientific_row_key: pd.Series,
+    display_id: pd.Series,
+) -> None:
+    duplicate_mask = scientific_row_key.duplicated(keep=False)
+    if not bool(duplicate_mask.any()):
+        return
+    duplicate_metadata = site_metadata.loc[duplicate_mask]
+    duplicate_display = display_id.loc[duplicate_mask].astype(str)
+    context_columns = ("protein_id", "protein_accession", "isoform_id")
+    for column_name in context_columns:
+        if column_name not in duplicate_metadata.columns:
+            continue
+        column_values = duplicate_metadata.loc[:, column_name]
+        normalized = column_values.astype("string").str.strip().fillna("").astype(str)
+        grouped = normalized.groupby(duplicate_display, sort=False)
+        for display_value, values in grouped:
+            non_empty = [value for value in values.tolist() if value != ""]
+            if len(set(non_empty)) > 1:
+                raise PhosPyInputError(
+                    "dataset build request preprocessing site-matrix construction "
+                    "found conflicting scientific identities for duplicate display "
+                    f"site IDs; display_id={display_value!r}, column={column_name!r}"
+                )

@@ -20,6 +20,10 @@ from phospy.api.results import (
 )
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
+from phospy.science.sites.site_keys import (
+    build_protein_scoped_site_key,
+    encode_site_key,
+)
 from phospy.validation.workflows.activity import KinaseActivityInputValidator
 from phospy.workflows.kinase.activity_runner import KinaseActivityRunner
 from phospy.workflows.kinase.component_models import KinaseScoringRunResult
@@ -44,7 +48,32 @@ from tests.support.intensity_scale_states import (
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
-    site_ids = pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id")
+    display_ids = ["MAPK14;Y182;", "GSK3B;S9;"]
+    site_keys = [
+        encode_site_key(
+            build_protein_scoped_site_key(
+                organism="rat",
+                protein_namespace="protein_id",
+                protein_identifier="MAPK14",
+                residue="Y",
+                position=182,
+                field_name="test.dataset.site_key.mapk14",
+                error_type=ValueError,
+            )
+        ),
+        encode_site_key(
+            build_protein_scoped_site_key(
+                organism="rat",
+                protein_namespace="protein_id",
+                protein_identifier="GSK3B",
+                residue="S",
+                position=9,
+                field_name="test.dataset.site_key.gsk3b",
+                error_type=ValueError,
+            )
+        ),
+    ]
+    site_ids = pd.Index(site_keys, name="site_key")
     return AnalysisReadyPhosphoDataset(
         phospho=pd.DataFrame(
             {
@@ -55,6 +84,8 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         ),
         site_metadata=pd.DataFrame(
             {
+                "site_key": site_keys,
+                "display_id": display_ids,
                 "gene_symbol": ["MAPK14", "GSK3B"],
                 "site": ["Y182", "S9"],
                 "site_sequence": [
@@ -91,6 +122,67 @@ def _references() -> ReferenceBundle:
             index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
         ),
     )
+
+
+def _site_identity_map(dataset: AnalysisReadyPhosphoDataset) -> pd.DataFrame:
+    metadata = dataset._borrow_site_metadata_frame().reindex(dataset.phospho.index)
+    site_keys = dataset.phospho.index.astype(str).tolist()
+    return pd.DataFrame(
+        {
+            "site_key": site_keys,
+            "display_id": metadata.loc[:, "display_id"].astype(str).tolist(),
+        },
+        index=pd.Index(site_keys, name=dataset.phospho.index.name),
+    )
+
+
+def _project_references_to_site_key(
+    dataset: AnalysisReadyPhosphoDataset,
+    references: ReferenceBundle,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    identity_map = _site_identity_map(dataset)
+    display_lookup = {
+        str(display_id): str(site_key)
+        for site_key, display_id in identity_map.loc[
+            :, ["site_key", "display_id"]
+        ].itertuples(index=False)
+    }
+    site_sequence_rows: list[dict[str, str]] = []
+    for site_key, display_id in identity_map.loc[
+        :, ["site_key", "display_id"]
+    ].itertuples(index=False):
+        if display_id not in references.site_sequences.index:
+            continue
+        site_sequence_rows.append(
+            {
+                "site_key": str(site_key),
+                "display_id": str(display_id),
+                "site_sequence": str(
+                    references.site_sequences.at[display_id, "site_sequence"]
+                ),
+            }
+        )
+    site_sequences = pd.DataFrame.from_records(site_sequence_rows).set_index("site_key")
+    site_sequences.index.name = dataset.phospho.index.name
+
+    map_rows: list[dict[str, str]] = []
+    for kinase, display_id in references.kinase_substrate_map.loc[
+        :, ["kinase", "substrate_site"]
+    ].itertuples(index=False):
+        site_key = display_lookup.get(str(display_id))
+        if site_key is None:
+            continue
+        map_rows.append(
+            {
+                "kinase": str(kinase),
+                "substrate_site": site_key,
+                "display_id": str(display_id),
+            }
+        )
+    kinase_substrate_map = pd.DataFrame.from_records(map_rows).drop_duplicates(
+        ignore_index=True
+    )
+    return kinase_substrate_map, site_sequences
 
 
 def _mixed_case_references() -> ReferenceBundle:
@@ -157,16 +249,19 @@ def _resolved_request(
 ) -> ResolvedKinaseWorkflowRequest:
     dataset = _dataset()
     references = references or _references()
-    scoring_site_index = dataset.phospho.index.copy()
+    kinase_substrate_map, site_sequences = _project_references_to_site_key(
+        dataset,
+        references,
+    )
+    scoring_site_index = site_sequences.index.copy()
     return ResolvedKinaseWorkflowRequest(
         dataset=dataset,
         references=references,
-        kinase_substrate_map=references.kinase_substrate_map,
-        site_sequences=references.site_sequences,
+        kinase_substrate_map=kinase_substrate_map,
+        site_sequences=site_sequences,
+        site_identity_map=_site_identity_map(dataset).loc[scoring_site_index],
         scoring_site_index=scoring_site_index,
-        activity_phospho_matrix=dataset.phospho.loc[scoring_site_index, :].copy(
-            deep=True
-        ),
+        activity_phospho_matrix=dataset.phospho.loc[scoring_site_index].copy(deep=True),
         execution_config=config or _config(),
     )
 
@@ -174,21 +269,23 @@ def _resolved_request(
 def test_direct_unnormalised_kinase_ids_are_rejected_by_execution_contract() -> None:
     dataset = _dataset()
     references = _references()
+    _, site_sequences = _project_references_to_site_key(dataset, references)
 
     with pytest.raises(
         WorkflowBoundaryError,
-        match="kinase.contracts.kinase_substrate_reference_alignment",
+        match="kinase.contracts.kinase_substrate_map_schema",
     ):
         ResolvedKinaseWorkflowRequest(
             dataset=dataset,
             references=references,
             kinase_substrate_map=pd.DataFrame(
                 {
-                    "kinase": ["map2k6", "MAP2K6"],
-                    "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
+                    "kinase": [" map2k6 ", "MAP2K6"],
+                    "substrate_site": dataset.phospho.index.astype(str).tolist(),
                 }
             ),
-            site_sequences=references.site_sequences,
+            site_sequences=site_sequences,
+            site_identity_map=_site_identity_map(dataset),
             scoring_site_index=dataset.phospho.index.copy(),
             activity_phospho_matrix=dataset.phospho.copy(deep=True),
             execution_config=_config(),
@@ -198,10 +295,11 @@ def test_direct_unnormalised_kinase_ids_are_rejected_by_execution_contract() -> 
 def test_direct_unnormalised_site_ids_are_rejected_by_execution_contract() -> None:
     dataset = _dataset()
     references = _references()
-    unnormalised_site_sequences = references.site_sequences.copy(deep=True)
+    _, mapped_site_sequences = _project_references_to_site_key(dataset, references)
+    unnormalised_site_sequences = mapped_site_sequences.copy(deep=True)
     unnormalised_site_sequences.index = pd.Index(
-        [" mapk14 ; y182 ", "GSK3B;S9;"],
-        name=references.site_sequences.index.name,
+        [" phospy:v1|broken=mapk14 ", "phospy:v1|broken=gsk3b"],
+        name=dataset.phospho.index.name,
     )
 
     with pytest.raises(
@@ -210,8 +308,11 @@ def test_direct_unnormalised_site_ids_are_rejected_by_execution_contract() -> No
         ResolvedKinaseWorkflowRequest(
             dataset=dataset,
             references=references,
-            kinase_substrate_map=references.kinase_substrate_map,
+            kinase_substrate_map=_project_references_to_site_key(dataset, references)[
+                0
+            ],
             site_sequences=unnormalised_site_sequences,
+            site_identity_map=_site_identity_map(dataset),
             scoring_site_index=dataset.phospho.index.copy(),
             activity_phospho_matrix=dataset.phospho.copy(deep=True),
             execution_config=_config(),
@@ -221,8 +322,14 @@ def test_direct_unnormalised_site_ids_are_rejected_by_execution_contract() -> No
 def test_already_normalised_execution_inputs_are_accepted() -> None:
     request = _resolved_request()
 
-    assert request.kinase_substrate_map.equals(request.references.kinase_substrate_map)
-    assert request.site_sequences.loc["MAPK14;Y182;", "site_sequence"] == (
+    assert set(request.kinase_substrate_map.loc[:, "display_id"]) == {
+        "MAPK14;Y182;",
+        "GSK3B;S9;",
+    }
+    mapk14_site_key = request.site_identity_map.loc[
+        request.site_identity_map.loc[:, "display_id"] == "MAPK14;Y182;", "site_key"
+    ].iloc[0]
+    assert request.site_sequences.loc[mapk14_site_key, "site_sequence"] == (
         "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"
     )
 
@@ -250,15 +357,15 @@ def test_interpreter_overlap_uses_normalised_reference_tables_after_bundle_const
 
     interpreted = KinaseWorkflowInterpreter().run(request)
     assert set(interpreted.kinase_substrate_map.loc[:, "kinase"]) == {"MAP2K6"}
-    assert set(interpreted.kinase_substrate_map.loc[:, "substrate_site"]) == {
+    assert set(interpreted.kinase_substrate_map.loc[:, "display_id"]) == {
         "MAPK14;Y182;",
         "GSK3B;S9;",
     }
-    assert set(interpreted.site_sequences.index.astype(str)) == {
+    assert set(interpreted.site_sequences.loc[:, "display_id"]) == {
         "MAPK14;Y182;",
         "GSK3B;S9;",
     }
-    overlap_sites = request.dataset.phospho.index.intersection(
+    overlap_sites = interpreted.scoring_site_index.intersection(
         interpreted.kinase_substrate_map.loc[:, "substrate_site"]
     )
     assert len(overlap_sites) == 2
@@ -303,10 +410,9 @@ def test_scoring_runner_receives_normalised_reference_identifiers() -> None:
 
     assert captured_map is not None
     assert set(captured_map.loc[:, "kinase"]) == {"MAP2K6"}
-    assert set(captured_map.loc[:, "substrate_site"]) == {
-        "MAPK14;Y182;",
-        "GSK3B;S9;",
-    }
+    assert set(captured_map.loc[:, "substrate_site"]) == set(
+        request.scoring_site_index.astype(str)
+    )
 
 
 def test_prediction_output_construction_receives_normalised_kinase_ids() -> None:

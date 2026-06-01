@@ -42,10 +42,14 @@ from phospy.science.datasets.preprocessing.stages.site_matrix_components import 
     SiteMatrixRowAuditBuilder,
 )
 from phospy.science.sites.identifiers import canonicalize_site_components_series
+from phospy.validation.datasets.protein_scoped_site_identity import (
+    enforce_site_key_column,
+)
 
 _GENE_SYMBOL_COLUMN = "gene_symbol"
 _SITE_COLUMN = "site"
 _SITE_ID_COLUMN = "site_id"
+_SITE_KEY_COLUMN = "site_key"
 _REQUIRED_SITE_METADATA_COLUMNS = (
     _GENE_SYMBOL_COLUMN,
     _SITE_COLUMN,
@@ -139,30 +143,41 @@ class SiteMatrixStage:
             state.site_metadata,
             column_name=_SITE_COLUMN,
         )
-        constructed_site_id = _build_site_identifier(gene_symbol=gene_symbol, site=site)
+        constructed_display_id = _build_site_identifier(
+            gene_symbol=gene_symbol,
+            site=site,
+        )
+        scientific_row_key = _resolve_scientific_row_key(
+            site_metadata=state.site_metadata,
+            fallback_constructed_display_id=constructed_display_id,
+        )
         sequence_filter_result = self._sequence_support_filter.filter(
             phospho=state.phospho,
             site_metadata=state.site_metadata,
-            constructed_site_id=constructed_site_id,
+            scientific_row_key=scientific_row_key,
         )
 
         missing_data_result = self._missing_data_site_filter.filter(
             phospho=sequence_filter_result.phospho,
-            constructed_site_id=sequence_filter_result.constructed_site_id,
+            scientific_row_key=sequence_filter_result.scientific_row_key,
             missing_data_policy=state.plan.site_matrix_missing_data_policy,
             minimum_observed_values=state.plan.site_matrix_minimum_observed_values,
         )
         policy_filtered_site_metadata = sequence_filter_result.site_metadata.loc[
             missing_data_result.phospho.index
         ]
-        policy_filtered_site_id = sequence_filter_result.constructed_site_id.loc[
+        policy_filtered_row_key = sequence_filter_result.scientific_row_key.loc[
+            missing_data_result.phospho.index
+        ]
+        policy_filtered_display_id = constructed_display_id.loc[
             missing_data_result.phospho.index
         ]
 
         duplicate_site_result = self._duplicate_site_resolver.resolve(
             phospho=missing_data_result.phospho,
             site_metadata=policy_filtered_site_metadata,
-            constructed_site_id=policy_filtered_site_id,
+            scientific_row_key=policy_filtered_row_key,
+            constructed_display_id=policy_filtered_display_id,
             duplicate_site_policy=state.plan.site_matrix_duplicate_site_policy,
         )
 
@@ -279,17 +294,17 @@ def _select_rows_with_usable_sequence_support(
     *,
     phospho: pd.DataFrame,
     site_metadata: pd.DataFrame,
-    constructed_site_id: pd.Series,
+    scientific_row_key: pd.Series,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, int, tuple[tuple[str, str], ...]]:
     result = SequenceSupportFilter().filter(
         phospho=phospho,
         site_metadata=site_metadata,
-        constructed_site_id=constructed_site_id,
+        scientific_row_key=scientific_row_key,
     )
     return (
         result.phospho,
         result.site_metadata,
-        result.constructed_site_id,
+        result.scientific_row_key,
         result.dropped_row_count,
         result.dropped_rows,
     )
@@ -315,13 +330,13 @@ def _build_site_identifier(
 def _apply_missing_data_policy(
     *,
     phospho: pd.DataFrame,
-    constructed_site_id: pd.Series,
+    scientific_row_key: pd.Series,
     missing_data_policy: SiteMatrixMissingDataPolicy,
     minimum_observed_values: int | None,
 ) -> tuple[pd.DataFrame, int, int, tuple[tuple[str, str, int], ...]]:
     result = MissingDataSiteFilter().filter(
         phospho=phospho,
-        constructed_site_id=constructed_site_id,
+        scientific_row_key=scientific_row_key,
         missing_data_policy=missing_data_policy,
         minimum_observed_values=minimum_observed_values,
     )
@@ -365,7 +380,8 @@ def _apply_duplicate_site_policy(
     *,
     phospho: pd.DataFrame,
     site_metadata: pd.DataFrame,
-    constructed_site_id: pd.Series,
+    scientific_row_key: pd.Series,
+    constructed_display_id: pd.Series,
     duplicate_site_policy: SiteMatrixDuplicateSitePolicy,
 ) -> DuplicateSiteResolutionResult:
     """Compatibility wrapper for legacy direct tests of duplicate policy logic."""
@@ -373,7 +389,8 @@ def _apply_duplicate_site_policy(
     return DuplicateSiteResolver().resolve(
         phospho=phospho,
         site_metadata=site_metadata,
-        constructed_site_id=constructed_site_id,
+        scientific_row_key=scientific_row_key,
+        constructed_display_id=constructed_display_id,
         duplicate_site_policy=duplicate_site_policy,
     )
 
@@ -381,13 +398,53 @@ def _apply_duplicate_site_policy(
 def _build_metadata_conflicts(
     *,
     site_metadata: pd.DataFrame,
-    constructed_site_id: pd.Series,
+    scientific_row_key: pd.Series,
+    constructed_display_id: pd.Series,
 ) -> pd.DataFrame:
     """Compatibility wrapper for legacy direct metadata-conflict tests."""
 
     return MetadataConflictDetector().detect(
         site_metadata=site_metadata,
-        constructed_site_id=constructed_site_id,
+        scientific_row_key=scientific_row_key,
+        display_id=constructed_display_id,
+    )
+
+
+def _resolve_scientific_row_key(
+    *,
+    site_metadata: pd.DataFrame,
+    fallback_constructed_display_id: pd.Series,
+    prefer_site_key: bool = True,
+) -> pd.Series:
+    if prefer_site_key and _SITE_KEY_COLUMN in site_metadata.columns:
+        try:
+            site_keys = enforce_site_key_column(
+                site_metadata=site_metadata,
+                field_name=(
+                    "dataset build request preprocessing site-matrix construction "
+                    "site_metadata"
+                ),
+                error_type=PhosPyInputError,
+                column_name=_SITE_KEY_COLUMN,
+            )
+        except PhosPyInputError:
+            site_keys = pd.Series(
+                site_metadata.loc[:, _SITE_KEY_COLUMN].astype(str).tolist(),
+                index=fallback_constructed_display_id.index.copy(),
+                name=_SITE_KEY_COLUMN,
+                dtype="object",
+            )
+        return pd.Series(
+            site_keys.astype(str).tolist(),
+            index=fallback_constructed_display_id.index.copy(),
+            name=_SITE_KEY_COLUMN,
+            dtype="object",
+        )
+    return pd.Series(
+        fallback_constructed_display_id.astype(str).tolist(),
+        index=fallback_constructed_display_id.index.copy(),
+        name=_SITE_ID_COLUMN,
+        dtype="object",
     )
 
 
@@ -454,6 +511,7 @@ SITE_MATRIX_STAGE_CONTRACT = PreprocessingStageContract(
             "duplicate_site_policy",
             "missing_data_policy",
             "required_observed_count",
+            "final_site_keys",
             "final_constructed_site_ids",
             "duplicate_aggregation",
             "duplicate_site_decisions",

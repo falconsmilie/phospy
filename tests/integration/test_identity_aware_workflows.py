@@ -25,16 +25,149 @@ from phospy.api import (
     SampleDesignRecord,
     SignalomeWorkflowRequest,
 )
-from phospy.errors import PhosPyInputError, WorkflowValidationError
-from tests.support.intensity_scale_states import (
-    supported_log2_intensity_scale_state,
-    supported_log2_processing_state,
+from phospy.api.results import (
+    KinasePredictionResult,
+    KinaseScoringResult,
+    KinaseWorkflowResult,
 )
+from phospy.errors import WorkflowValidationError
+from phospy.science.references.models import ReferenceBundle
+from phospy.workflows.differential.validator import DifferentialAnalysisValidator
+from phospy.workflows.kinase.validator import KinaseWorkflowValidator
+from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
 from tests.support.signalome_config import build_signalome_config
 
 
-def test_builder_rejects_duplicate_display_ids_with_conflicting_protein_identity() -> (
+def _minimal_site_key_dataset(
+    *, include_protein_id: bool
+) -> AnalysisReadyPhosphoDataset:
+    site_metadata = {
+        "gene_symbol": ["MAPK14", "AKT1"],
+        "site": ["Y182", "T308"],
+        "site_sequence": [
+            "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
+            "AAAAAAAAAAAAAAATAAAAAAAAAAAAAAA",
+        ],
+        "localisation_confidence": [0.95, 0.95],
+    }
+    if include_protein_id:
+        site_metadata["protein_id"] = ["P28482", "P31749"]
+    return AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=pd.DataFrame(
+                {
+                    "A_1": [1.0, 2.0],
+                    "A_2": [1.1, 2.1],
+                    "B_1": [2.1, 2.0],
+                    "B_2": [2.0, 2.2],
+                },
+                index=pd.Index(["row_a", "row_b"], name="source_row"),
+            ),
+            site_metadata=pd.DataFrame(
+                site_metadata,
+                index=pd.Index(["row_a", "row_b"], name="source_row"),
+            ),
+            organism=Organism.RAT,
+            input_intensity_scale="log2",
+        )
+    )
+
+
+def _build_differential_request(
+    *, dataset: AnalysisReadyPhosphoDataset
+) -> DifferentialAnalysisRequest:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="A_1", condition="A"),
+            SampleDesignRecord(sample_id="A_2", condition="A"),
+            SampleDesignRecord(sample_id="B_1", condition="B"),
+            SampleDesignRecord(sample_id="B_2", condition="B"),
+        )
+    )
+    return DifferentialAnalysisRequest(
+        dataset=dataset,
+        design=design,
+        contrasts=(
+            Contrast(name="B_vs_A", numerator_condition="B", denominator_condition="A"),
+        ),
+    )
+
+
+def _build_kinase_request(
+    *, dataset: AnalysisReadyPhosphoDataset
+) -> KinaseWorkflowRequest:
+    return KinaseWorkflowRequest(
+        dataset=dataset,
+        references=ReferencePreset.AUTO,
+        scoring_config=KinaseScoringConfig(min_substrates=2),
+        prediction_config=KinasePredictionConfig(
+            top_k=6,
+            deterministic_max_selected_kinases=12,
+            adaptive_ensemble_runs=12,
+        ),
+        activity_config=None,
+    )
+
+
+def _signalome_reference_bundle_for(
+    dataset: AnalysisReadyPhosphoDataset,
+) -> ReferenceBundle:
+    metadata = dataset.site_metadata
+    display_ids = metadata.loc[:, "display_id"].astype(str).tolist()
+    return ReferenceBundle(
+        organism=dataset.organism or Organism.RAT,
+        kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["MAP2K6"] * len(display_ids),
+                "substrate_site": display_ids,
+            }
+        ),
+        site_sequences=pd.DataFrame(
+            {"site_sequence": metadata.loc[:, "site_sequence"].astype(str).tolist()},
+            index=pd.Index(display_ids, name="site_id"),
+        ),
+    )
+
+
+def _build_signalome_request(
+    *, dataset: AnalysisReadyPhosphoDataset
+) -> SignalomeWorkflowRequest:
+    site_index = pd.Index(
+        dataset.site_metadata.loc[:, "display_id"].astype(str).tolist(),
+        name="site_id",
+    )
+    score_matrix = pd.DataFrame({"MAP2K6": [1.0] * len(site_index)}, index=site_index)
+    prediction_matrix = pd.DataFrame(
+        {"MAP2K6": [0.8] * len(site_index)},
+        index=site_index,
+    )
+    return SignalomeWorkflowRequest(
+        kinase_result=KinaseWorkflowResult(
+            dataset=dataset,
+            references=_signalome_reference_bundle_for(dataset),
+            scoring_result=KinaseScoringResult(
+                profile_scores=score_matrix,
+                rank_weighted_fusion_scores=score_matrix,
+            ),
+            prediction_result=KinasePredictionResult(pred_mat=prediction_matrix),
+            activity_result=None,
+        ),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
+    )
+
+
+def _site_metadata_dataset(request: object) -> AnalysisReadyPhosphoDataset:
+    if isinstance(request, SignalomeWorkflowRequest):
+        return request.kinase_result.dataset
+    if isinstance(request, DifferentialAnalysisRequest):
+        return request.dataset
+    if isinstance(request, KinaseWorkflowRequest):
+        return request.dataset
+    raise TypeError(f"unexpected request type: {type(request)!r}")
+
+
+def test_builder_allows_duplicate_display_ids_across_distinct_protein_accessions() -> (
     None
 ):
     phospho = pd.DataFrame(
@@ -59,26 +192,24 @@ def test_builder_rejects_duplicate_display_ids_with_conflicting_protein_identity
         index=phospho.index.copy(),
     )
 
-    with pytest.raises(
-        PhosPyInputError,
-        match="multiple protein or isoform contexts",
-    ):
-        AnalysisReadyDatasetBuilder().run(
-            DatasetBuildRequest(
-                phospho=phospho,
-                site_metadata=site_metadata,
-                organism=Organism.RAT,
-                preprocessing_config=DatasetPreprocessingConfig(
-                    site_matrix=DatasetSiteMatrixConfig(
-                        policy="build_from_metadata",
-                        duplicate_site_policy="first",
-                    )
-                ),
-            )
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            input_intensity_scale="linear",
+            preprocessing_config=DatasetPreprocessingConfig(
+                site_matrix=DatasetSiteMatrixConfig(
+                    policy="build_from_metadata",
+                    duplicate_site_policy="first",
+                )
+            ),
         )
+    )
+    assert built.phospho.shape[0] == 2
 
 
-def test_builder_rejects_duplicate_display_ids_with_conflicting_protein_id() -> None:
+def test_builder_allows_duplicate_display_ids_across_distinct_protein_ids() -> None:
     phospho = pd.DataFrame(
         {
             "sample_a": [1.0, 2.0],
@@ -96,28 +227,25 @@ def test_builder_rejects_duplicate_display_ids_with_conflicting_protein_id() -> 
             ],
             "localisation_confidence": [0.95, 0.95],
             "protein_id": ["P28482", "Q5S007"],
-            "protein_accession": ["P28482-1", "P28482-1"],
         },
         index=phospho.index.copy(),
     )
 
-    with pytest.raises(
-        PhosPyInputError,
-        match="protein_id=\\['P28482', 'Q5S007'\\]",
-    ):
-        AnalysisReadyDatasetBuilder().run(
-            DatasetBuildRequest(
-                phospho=phospho,
-                site_metadata=site_metadata,
-                organism=Organism.RAT,
-                preprocessing_config=DatasetPreprocessingConfig(
-                    site_matrix=DatasetSiteMatrixConfig(
-                        policy="build_from_metadata",
-                        duplicate_site_policy="first",
-                    )
-                ),
-            )
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            input_intensity_scale="linear",
+            preprocessing_config=DatasetPreprocessingConfig(
+                site_matrix=DatasetSiteMatrixConfig(
+                    policy="build_from_metadata",
+                    duplicate_site_policy="first",
+                )
+            ),
         )
+    )
+    assert built.phospho.shape[0] == 2
 
 
 def test_signalome_still_requires_explicit_protein_identity() -> None:
@@ -158,33 +286,32 @@ def test_signalome_still_requires_explicit_protein_identity() -> None:
 
 
 def test_differential_workflow_accepts_gene_site_only_dataset() -> None:
-    dataset = AnalysisReadyPhosphoDataset(
-        phospho=pd.DataFrame(
-            {
-                "A_1": [1.0, 2.0],
-                "A_2": [1.1, 2.1],
-                "B_1": [2.1, 2.0],
-                "B_2": [2.0, 2.2],
-            },
-            index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
-        ),
-        site_metadata=pd.DataFrame(
-            {
-                "gene_symbol": ["MAPK14", "AKT1"],
-                "site": ["Y182", "T308"],
-                "site_sequence": [
-                    ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
-                    for site in ["Y182", "T308"]
-                ],
-                "localisation_confidence": [0.95, 0.95],
-            },
-            index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
-        ),
-        organism=Organism.RAT,
-        intensity_scale_state=supported_log2_intensity_scale_state(
-            has_total_matrix=False
-        ),
-        processing_state=supported_log2_processing_state(has_total_matrix=False),
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=pd.DataFrame(
+                {
+                    "A_1": [1.0, 2.0],
+                    "A_2": [1.1, 2.1],
+                    "B_1": [2.1, 2.0],
+                    "B_2": [2.0, 2.2],
+                },
+                index=pd.Index(["row_a", "row_b"], name="source_row"),
+            ),
+            site_metadata=pd.DataFrame(
+                {
+                    "gene_symbol": ["MAPK14", "AKT1"],
+                    "site": ["Y182", "T308"],
+                    "site_sequence": [
+                        ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                        for site in ["Y182", "T308"]
+                    ],
+                    "localisation_confidence": [0.95, 0.95],
+                },
+                index=pd.Index(["row_a", "row_b"], name="source_row"),
+            ),
+            organism=Organism.RAT,
+            input_intensity_scale="log2",
+        )
     )
     design = ExperimentalDesign(
         samples=(
@@ -206,4 +333,114 @@ def test_differential_workflow_accepts_gene_site_only_dataset() -> None:
         )
     )
 
-    assert list(result.table_for("B_vs_A").index) == ["MAPK14;Y182;", "AKT1;T308;"]
+    assert list(result.table_for("B_vs_A").index) == dataset.phospho.index.tolist()
+
+
+def test_workflow_validators_require_display_id_column() -> None:
+    cases: tuple[tuple[object, object], ...] = (
+        (
+            DifferentialAnalysisValidator(),
+            _build_differential_request(
+                dataset=_minimal_site_key_dataset(include_protein_id=False)
+            ),
+        ),
+        (
+            KinaseWorkflowValidator(),
+            _build_kinase_request(
+                dataset=_minimal_site_key_dataset(include_protein_id=True)
+            ),
+        ),
+        (
+            SignalomeWorkflowValidator(),
+            _build_signalome_request(
+                dataset=_minimal_site_key_dataset(include_protein_id=True)
+            ),
+        ),
+    )
+    for validator, request in cases:
+        dataset = _site_metadata_dataset(request)
+        site_metadata = dataset._borrow_site_metadata_frame().copy(deep=True)
+        object.__setattr__(
+            dataset,
+            "_site_metadata",
+            site_metadata.drop(columns=["display_id"]),
+        )
+        with pytest.raises(
+            WorkflowValidationError,
+            match="missing required columns: display_id",
+        ):
+            validator.run(request)
+
+
+def test_workflow_validators_reject_non_site_key_indexed_site_metadata() -> None:
+    cases: tuple[tuple[object, object], ...] = (
+        (
+            DifferentialAnalysisValidator(),
+            _build_differential_request(
+                dataset=_minimal_site_key_dataset(include_protein_id=False)
+            ),
+        ),
+        (
+            KinaseWorkflowValidator(),
+            _build_kinase_request(
+                dataset=_minimal_site_key_dataset(include_protein_id=True)
+            ),
+        ),
+        (
+            SignalomeWorkflowValidator(),
+            _build_signalome_request(
+                dataset=_minimal_site_key_dataset(include_protein_id=True)
+            ),
+        ),
+    )
+    for validator, request in cases:
+        dataset = _site_metadata_dataset(request)
+        site_metadata = dataset._borrow_site_metadata_frame().copy(deep=True)
+        site_metadata.index = pd.Index(
+            site_metadata.loc[:, "display_id"].astype(str).tolist(),
+            name=site_metadata.index.name,
+        )
+        object.__setattr__(dataset, "_site_metadata", site_metadata)
+        with pytest.raises(
+            WorkflowValidationError,
+            match=(
+                "index must match .*site_key|"
+                "must exactly match .*dataset\\.phospho\\.index"
+            ),
+        ):
+            validator.run(request)
+
+
+def test_workflow_validators_require_site_key_column_to_match_index() -> None:
+    cases: tuple[tuple[object, object], ...] = (
+        (
+            DifferentialAnalysisValidator(),
+            _build_differential_request(
+                dataset=_minimal_site_key_dataset(include_protein_id=False)
+            ),
+        ),
+        (
+            KinaseWorkflowValidator(),
+            _build_kinase_request(
+                dataset=_minimal_site_key_dataset(include_protein_id=True)
+            ),
+        ),
+        (
+            SignalomeWorkflowValidator(),
+            _build_signalome_request(
+                dataset=_minimal_site_key_dataset(include_protein_id=True)
+            ),
+        ),
+    )
+    for validator, request in cases:
+        dataset = _site_metadata_dataset(request)
+        site_metadata = dataset._borrow_site_metadata_frame().copy(deep=True)
+        mutated_site_keys = site_metadata.loc[:, "site_key"].tolist()
+        mutated_site_keys[0] = mutated_site_keys[-1]
+        site_metadata.loc[:, "site_key"] = mutated_site_keys
+        object.__setattr__(dataset, "_site_metadata", site_metadata)
+        with pytest.raises(
+            WorkflowValidationError,
+            match="index must match .*site_key",
+        ):
+            validator.run(request)

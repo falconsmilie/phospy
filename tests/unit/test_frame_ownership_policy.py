@@ -1019,6 +1019,8 @@ def test_preprocessing_report_dataframe_properties_are_defensive_snapshots() -> 
         ),
         duplicate_site_resolution_rows=(
             DuplicateSiteResolutionRow(
+                site_key="MAPK14;Y182;",
+                display_id="MAPK14;Y182;",
                 site_id="MAPK14;Y182;",
                 source_row_id="MAPK14;Y182;",
                 retained=True,
@@ -1041,6 +1043,8 @@ def test_preprocessing_report_dataframe_properties_are_defensive_snapshots() -> 
         ),
         metadata_conflict_rows=(
             MetadataConflictRow(
+                site_key="MAPK14;Y182;",
+                display_id="MAPK14;Y182;",
                 site_id="MAPK14;Y182;",
                 field="protein_id",
                 values=["MAPK14"],

@@ -37,6 +37,7 @@ def score_phosphosite_motifs(
     motif_frequency_matrices: Mapping[str, pd.DataFrame],
     motif_sizes: pd.Series,
     site_index: Sequence[str] | None = None,
+    site_identities: Mapping[str, str] | pd.Series | None = None,
     min_motif_size: int = 1,
     flank_size: int = DEFAULT_MOTIF_FLANK_SIZE,
     sequence_semantics: SequenceSemantics = SEQUENCE_SEMANTICS_CENTRED_WINDOW,
@@ -59,6 +60,10 @@ def score_phosphosite_motifs(
         site_sequences,
         site_index=site_index,
     )
+    resolved_site_identities = _coerce_site_identity_series(
+        site_identities,
+        site_index=raw_sequences.index.tolist(),
+    )
     kinases = [
         kinase
         for kinase in motif_frequency_matrices
@@ -72,6 +77,7 @@ def score_phosphosite_motifs(
     )
     validation = _validate_sequence_windows(
         raw_sequences,
+        site_identities=resolved_site_identities,
         expected_window_size=expected_window_size,
         sequence_semantics=sequence_semantics,
     )
@@ -181,6 +187,7 @@ def _resolve_expected_window_size(
 def _validate_sequence_windows(
     windows: pd.Series,
     *,
+    site_identities: pd.Series,
     expected_window_size: int,
     sequence_semantics: SequenceSemantics,
 ) -> SequenceValidationResult:
@@ -204,11 +211,35 @@ def _validate_sequence_windows(
         SequenceValidationInput(
             site_id=str(site_id),
             site_sequence=sequence,
-            site_identity=str(site_id),
+            site_identity=str(site_identities.at[site_id]),
         )
         for site_id, sequence in windows.items()
     ]
     return validator.run(rows=rows)
+
+
+def _coerce_site_identity_series(
+    values: Mapping[str, str] | pd.Series | None,
+    *,
+    site_index: Sequence[object],
+) -> pd.Series:
+    site_labels = [str(site_id) for site_id in site_index]
+    if values is None:
+        return pd.Series(
+            site_labels,
+            index=pd.Index(site_labels),
+            dtype=object,
+        )
+    if isinstance(values, pd.Series):
+        series = values.copy()
+    else:
+        series = pd.Series(dict(values), dtype=object)
+    missing = [site for site in site_labels if site not in series.index]
+    if missing:
+        raise ValueError(
+            f"site_identities missing entries for {', '.join(map(str, missing[:5]))}"
+        )
+    return series.loc[site_labels].astype(str)
 
 
 def _materialize_scoring_windows(

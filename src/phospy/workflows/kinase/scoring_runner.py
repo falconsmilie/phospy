@@ -108,11 +108,13 @@ class KinaseScoringRunner:
             .isin(eligible_kinases)
         ]
         sequence_series = request.site_sequences.loc[:, "site_sequence"]
+        site_identity_series = request.site_sequences.loc[:, "display_id"]
         motif_result = self._resolve_motif_scores(
             scoring_min_substrates=scoring_min_substrates,
             scoring_phospho=scoring_phospho,
             motif_kinase_substrate_map=motif_kinase_substrate_map,
             sequence_series=sequence_series,
+            site_identity_series=site_identity_series,
         )
         try:
             (
@@ -196,15 +198,18 @@ class KinaseScoringRunner:
         scoring_phospho: pd.DataFrame,
         motif_kinase_substrate_map: pd.DataFrame,
         sequence_series: pd.Series,
+        site_identity_series: pd.Series,
     ) -> MotifScoringResult:
         motif_frequency_matrices, motif_sizes = self._build_motif_library(
             kinase_substrate_map=motif_kinase_substrate_map,
             site_sequences=sequence_series,
+            site_identities=site_identity_series,
             flank_size=DEFAULT_MOTIF_FLANK_SIZE,
         )
         motif_library_validation = self._get_motif_library_validation(motif_sizes)
         return self._score_motifs(
             site_sequences=sequence_series.loc[scoring_phospho.index],
+            site_identities=site_identity_series.loc[scoring_phospho.index],
             motif_frequency_matrices=motif_frequency_matrices,
             motif_sizes=motif_sizes,
             site_index=tuple(str(site_id) for site_id in scoring_phospho.index),

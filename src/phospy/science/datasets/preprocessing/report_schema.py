@@ -78,6 +78,8 @@ class PreprocessingRowAuditRow:
 
 @dataclass(frozen=True, slots=True)
 class DuplicateSiteResolutionRow:
+    site_key: str
+    display_id: str
     site_id: str
     source_row_id: str
     retained: bool
@@ -104,6 +106,8 @@ class DuplicateSiteResolutionRow:
 
 @dataclass(frozen=True, slots=True)
 class MetadataConflictRow:
+    site_key: str
+    display_id: str
     site_id: str
     field: str
     values: object

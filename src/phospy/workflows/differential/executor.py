@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import cast
 
+import pandas as pd
+
 from phospy.contracts.configs import MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.differential.executor import (
@@ -53,12 +55,14 @@ class DifferentialAnalysisExecutor:
                 message_prefix="differential workflow boundary validation failed",
             )
         result = self._computation_executor.run(request.computation_request)
-        if (
-            request.workflow_provenance is None
-            and request.policy_provenance is None
-            and request.dataset_preprocessing_report is None
-        ):
-            return result
+        contrast_tables = {
+            contrast_name: _attach_result_identity_metadata(
+                table=table,
+                identity_metadata=request.result_identity_metadata,
+                contrast_name=contrast_name,
+            )
+            for contrast_name, table in result._contrast_tables.items()  # pyright: ignore[reportPrivateUsage] - owned contrast tables are forwarded without copying
+        }
         return DifferentialAnalysisResult._from_owned(  # pyright: ignore[reportPrivateUsage] - trusted internal ownership-preserving constructor
             residual_variance=result.residual_variance,
             posterior_residual_variance=result.posterior_residual_variance,
@@ -75,10 +79,34 @@ class DifferentialAnalysisExecutor:
             prior_diagnostics=result.prior_diagnostics,
             mean_variance_trend_diagnostics=result.mean_variance_trend_diagnostics,
             policy_provenance=request.policy_provenance,
-            contrast_tables=result._contrast_tables,  # pyright: ignore[reportPrivateUsage] - owned contrast tables are forwarded without copying
+            contrast_tables=contrast_tables,
             workflow_provenance=request.workflow_provenance,
             input_dataset_preprocessing_report=request.dataset_preprocessing_report,
+            require_identity_columns=True,
         )
+
+
+def _attach_result_identity_metadata(
+    *,
+    table: pd.DataFrame,
+    identity_metadata: pd.DataFrame,
+    contrast_name: str,
+) -> pd.DataFrame:
+    if not table.index.equals(identity_metadata.index):
+        raise WorkflowBoundaryError(
+            seam="differential.executor.result_identity_alignment",
+            next_action=(
+                "ensure interpreted result_identity_metadata index exactly matches "
+                "differential contrast table index"
+            ),
+            details={"contrast_name": contrast_name},
+            message_prefix="differential workflow boundary validation failed",
+        )
+    enriched = pd.DataFrame(identity_metadata, copy=True)
+    for column_name in ("logFC", "t", "P.Value", "adj.P.Val"):
+        contrast_column = table[column_name]
+        enriched[column_name] = contrast_column.to_numpy(dtype=float)
+    return enriched
 
 
 __all__ = ["DifferentialAnalysisExecutor"]

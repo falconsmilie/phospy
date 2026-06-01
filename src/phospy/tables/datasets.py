@@ -7,11 +7,19 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from phospy.errors.validation import DatasetValidationError
+from phospy.science.sites.identifiers import (
+    canonicalize_site_components_series,
+    canonicalize_site_identifier,
+)
 from phospy.science.sites.validation import (
     require_canonical_site_index,
-    require_site_identity_coherence,
+    require_site_key_index,
 )
-from phospy.tables.base import TableSchema
+from phospy.tables.base import (
+    TableSchema,
+    ValidationErrorType,
+    require_canonical_label_index,
+)
 from phospy.validation.common.dataframes import (
     require_columns,
     require_dataframe,
@@ -22,10 +30,11 @@ from phospy.validation.common.dataframes import (
     require_unique_columns,
     require_unique_index,
 )
-from phospy.validation.datasets.display_site_identity import (
-    enforce_unique_display_site_identity_rows,
+from phospy.validation.datasets.protein_scoped_site_identity import (
+    enforce_unique_site_key_identity,
 )
 from phospy.validation.datasets.site_metadata import (
+    enforce_site_identity_rows,
     validate_localisation_confidence_column,
     validate_localisation_probability_column,
     validate_site_identity_metadata,
@@ -70,11 +79,10 @@ class PhosphoIntensityMatrix(TableSchema):
             field_name=self._field_name,
             error_type=self._error_type,
         )
-        require_canonical_site_index(
+        _require_dataset_site_index_identity(
             frame.index,
             field_name=f"{self._field_name}.index",
             error_type=self._error_type,
-            strict_supported_format=True,
         )
         return frame
 
@@ -96,23 +104,34 @@ class SiteMetadataTable(TableSchema):
             allow_empty=False,
             error_type=self._error_type,
         )
-        enforce_unique_display_site_identity_rows(
-            site_metadata=frame,
-            display_site_ids=pd.Series(
-                frame.index.tolist(),
-                index=frame.index.copy(),
-                name="display_site_id",
-                dtype="object",
-            ),
-            field_name=f"{self._field_name}.display_site_identity",
+        require_unique_index(
+            frame,
+            field_name=self._field_name,
             error_type=self._error_type,
         )
-        require_canonical_site_index(
+        require_canonical_label_index(
             frame.index,
             field_name=f"{self._field_name}.index",
             error_type=self._error_type,
-            strict_supported_format=True,
         )
+        require_columns(
+            frame,
+            field_name=self._field_name,
+            required_columns=(
+                "gene_symbol",
+                "site",
+                "site_sequence",
+            ),
+            error_type=self._error_type,
+        )
+        if "site_key" in frame.columns:
+            if _site_key_column_is_encoded(frame):
+                enforce_unique_site_key_identity(
+                    site_metadata=frame,
+                    field_name=self._field_name,
+                    error_type=self._error_type,
+                    site_key_column="site_key",
+                )
         if self.expected_index is not None:
             require_exact_index_match(
                 left=frame.index,
@@ -121,12 +140,20 @@ class SiteMetadataTable(TableSchema):
                 right_name="dataset.phospho.index",
                 error_type=self._error_type,
             )
-        require_columns(
-            frame,
-            field_name=self._field_name,
-            required_columns=("gene_symbol", "site", "site_sequence"),
-            error_type=self._error_type,
-        )
+        if "site_key" in frame.columns:
+            require_non_empty_string_column(
+                frame,
+                field_name=self._field_name,
+                column_name="site_key",
+                error_type=self._error_type,
+            )
+        if "display_id" in frame.columns:
+            require_non_empty_string_column(
+                frame,
+                field_name=self._field_name,
+                column_name="display_id",
+                error_type=self._error_type,
+            )
         require_non_empty_string_column(
             frame,
             field_name=self._field_name,
@@ -176,13 +203,18 @@ class SiteMetadataTable(TableSchema):
             error_type=self._error_type,
             allow_opaque_site_values=self.allow_opaque_site_values,
         )
-        require_site_identity_coherence(
-            site_index=frame.index,
-            site_metadata=frame,
-            site_index_field_name=f"{self._field_name}.index",
-            site_metadata_field_name=self._field_name,
-            error_type=self._error_type,
-        )
+        identity_frame = _build_identity_coherence_frame(frame)
+        try:
+            enforce_site_identity_rows(
+                site_metadata=identity_frame,
+                field_name=self._field_name,
+                error_type=self._error_type,
+                allow_opaque_site_values=self.allow_opaque_site_values,
+            )
+        except self._error_type as exc:
+            raise self._error_type(
+                f"{self._field_name} site-identity coherence failed; {exc}"
+            ) from exc
         return frame
 
 
@@ -272,3 +304,89 @@ class TotalProteinMatrix(TableSchema):
                 error_type=self._error_type,
             )
         return frame
+
+
+def _require_dataset_site_index_identity(
+    index: pd.Index,
+    *,
+    field_name: str,
+    error_type: ValidationErrorType,
+) -> None:
+    try:
+        require_site_key_index(
+            index,
+            field_name=field_name,
+            error_type=error_type,
+        )
+        return
+    except error_type:
+        pass
+    try:
+        require_canonical_site_index(
+            index,
+            field_name=field_name,
+            error_type=error_type,
+        )
+    except error_type as exc:
+        message = str(exc)
+        if "duplicate site identifiers after canonicalization" in message:
+            raise error_type(
+                f"{field_name} contains duplicate normalised phosphosite display identifiers"
+            ) from exc
+        raise
+
+
+def _display_ids_are_canonical(frame: pd.DataFrame) -> bool:
+    values = frame.loc[:, "display_id"].astype(str).tolist()
+    for value in values:
+        try:
+            canonicalize_site_identifier(
+                value,
+                field_name="dataset.site_metadata.display_id",
+                error_type=DatasetValidationError,
+            )
+        except DatasetValidationError:
+            return False
+    return True
+
+
+def _build_identity_coherence_frame(frame: pd.DataFrame) -> pd.DataFrame:
+    identity_frame = frame.copy(deep=False)
+    if "display_id" not in identity_frame.columns:
+        return identity_frame
+    if _display_ids_are_canonical(identity_frame):
+        reindexed = identity_frame.copy(deep=False)
+        reindexed.index = pd.Index(
+            reindexed.loc[:, "display_id"].astype(str).tolist(),
+            name="display_id",
+        )
+        return reindexed
+    try:
+        canonical_display = canonicalize_site_components_series(
+            gene_symbol=identity_frame.loc[:, "gene_symbol"],
+            site=identity_frame.loc[:, "site"],
+            field_name="dataset.site_metadata.gene_symbol/site",
+            error_type=DatasetValidationError,
+            output_name="display_id",
+        )
+        with_canonical_display = identity_frame.copy(deep=True)
+        with_canonical_display.loc[:, "display_id"] = canonical_display.astype(
+            str
+        ).tolist()
+        with_canonical_display.index = pd.Index(
+            with_canonical_display.loc[:, "display_id"].astype(str).tolist(),
+            name="display_id",
+        )
+        return with_canonical_display
+    except DatasetValidationError:
+        without_display = identity_frame.copy(deep=False)
+        return without_display.drop(columns=["display_id"], errors="ignore")
+
+
+def _site_key_column_is_encoded(frame: pd.DataFrame) -> bool:
+    if "site_key" not in frame.columns:
+        return False
+    values = frame.loc[:, "site_key"].astype(str).tolist()
+    if not values:
+        return False
+    return all(value.startswith("phospy:v1|") for value in values)

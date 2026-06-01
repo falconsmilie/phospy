@@ -39,6 +39,18 @@ from tests.support.rewrite_fixture_data import load_rat_l6_phospho, site_metadat
 pytestmark = pytest.mark.integration
 
 
+def _index_by_display_id(
+    frame: pd.DataFrame,
+    *,
+    site_metadata: pd.DataFrame,
+    index_name: str | None,
+) -> pd.DataFrame:
+    indexed = frame.copy(deep=True)
+    display_ids = site_metadata.reindex(frame.index).loc[:, "display_id"].tolist()
+    indexed.index = pd.Index(display_ids, name=index_name)
+    return indexed
+
+
 def test_dataset_builder_populates_preprocessing_report_for_successful_build() -> None:
     phospho = load_rat_l6_phospho().head(16).copy(deep=True)
     built = AnalysisReadyDatasetBuilder().run(
@@ -50,7 +62,18 @@ def test_dataset_builder_populates_preprocessing_report_for_successful_build() -
         )
     )
 
-    pdt.assert_frame_equal(built.phospho, phospho)
+    observed_phospho = _index_by_display_id(
+        built.phospho,
+        site_metadata=built.site_metadata,
+        index_name=phospho.index.name,
+    )
+    pdt.assert_frame_equal(observed_phospho, phospho)
+    assert built.phospho.index.name == "site_key"
+    assert built.site_metadata.index.name == "site_key"
+    assert (
+        built.site_metadata.loc[:, "site_key"].tolist()
+        == built.site_metadata.index.tolist()
+    )
     report = built.preprocessing_report
     assert report is not None
     assert report.row_counts.shape[0] >= 1
@@ -88,6 +111,8 @@ def test_dataset_builder_populates_preprocessing_report_for_successful_build() -
     assert report.comparison_group_stats is not None
     assert report.comparison_pair_stats is not None
     assert {
+        "site_key",
+        "display_id",
         "site_id",
         "source_row_id",
         "retained",
@@ -98,6 +123,8 @@ def test_dataset_builder_populates_preprocessing_report_for_successful_build() -
         "mean_signal",
     }.issubset(set(report.duplicate_site_resolution.columns))
     assert {
+        "site_key",
+        "display_id",
         "site_id",
         "field",
         "values",
@@ -137,7 +164,12 @@ def test_dataset_builder_builds_analysis_ready_dataset_from_fixture() -> None:
             input_intensity_scale="linear",
         )
     )
-    pdt.assert_frame_equal(built.phospho, phospho)
+    observed_phospho = _index_by_display_id(
+        built.phospho,
+        site_metadata=built.site_metadata,
+        index_name=phospho.index.name,
+    )
+    pdt.assert_frame_equal(observed_phospho, phospho)
     assert list(built.site_metadata.columns) == [
         "gene_symbol",
         "site",
@@ -318,7 +350,12 @@ def test_dataset_builder_applies_subtract_log_total_after_log2_transform() -> No
     total_by_site = total.reindex(gene_symbols.tolist())
     total_by_site.index = phospho.index
     expected = np.log2(phospho + 1.0) - np.log2(total_by_site + 1.0)
-    pdt.assert_frame_equal(built.phospho, expected)
+    observed_phospho = _index_by_display_id(
+        built.phospho,
+        site_metadata=built.site_metadata,
+        index_name=expected.index.name,
+    )
+    pdt.assert_frame_equal(observed_phospho, expected)
     assert built.total is not None
     expected_total = np.log2(total + 1.0)
     pdt.assert_frame_equal(built.total, expected_total)
@@ -537,7 +574,8 @@ def test_dataset_builder_supports_documented_alias_and_index_derivation_conventi
             input_intensity_scale="linear",
         )
     )
-    assert list(built.phospho.index) == list(phospho.index)
+    assert built.site_metadata.loc[:, "display_id"].tolist() == list(phospho.index)
+    assert built.phospho.index.name == "site_key"
     assert list(built.site_metadata.columns) == [
         "site_sequence",
         "localisation_confidence",
@@ -597,11 +635,13 @@ def test_dataset_builder_supports_row_median_missing_data_preprocessing_policy()
         )
     )
 
-    assert built.phospho.index.tolist() == [
+    assert built.site_metadata.loc[:, "display_id"].tolist() == [
         site_id for site_id in original_index.tolist() if site_id != original_index[1]
     ]
     assert built.phospho.isna().to_numpy().sum() == 0
-    assert built.phospho.loc[original_index[0], phospho.columns[0]] == expected_imputed
+    imputed_display_row = built.site_metadata.loc[:, "display_id"] == original_index[0]
+    imputed_site_key = built.site_metadata.loc[imputed_display_row].index[0]
+    assert built.phospho.loc[imputed_site_key, phospho.columns[0]] == expected_imputed
     assert built.processing_state.missing_data.policy == "impute_row_median"
     assert built.processing_state.missing_data.imputed is True
 
@@ -717,7 +757,11 @@ def test_dataset_builder_treats_fasta_resolution_as_authoritative_for_missing_se
         )
     )
 
-    assert built.site_metadata.loc["MAPK14;Y182;", "site_sequence"] == "AAYCC"
+    resolved_sequence = built.site_metadata.loc[
+        built.site_metadata.loc[:, "display_id"] == "MAPK14;Y182;",
+        "site_sequence",
+    ].iloc[0]
+    assert resolved_sequence == "AAYCC"
     assert built.provenance is not None
     sequence_stage = next(
         stage
@@ -751,7 +795,7 @@ def test_dataset_builder_site_sequence_resolution_processing_state_tracks_diagno
         {
             "gene_symbol": ["MAPK14", "GSK3B", "BAD", "MAPK1"],
             "site": ["S5", "T6", "T6", "S5"],
-            "protein_accession": ["P1", "P2", "P404", "P1"],
+            "protein_accession": ["P1", "P2", "P404", "P3"],
             "site_sequence": [pd.NA, "XXXXX", "KEEP", "AASAA"],
         },
         index=phospho.index.copy(),
@@ -845,16 +889,25 @@ def test_dataset_builder_supports_site_matrix_build_from_metadata_policy() -> No
         )
     )
 
-    assert set(built.phospho.index.tolist()) == {"MAPK14;Y182;", "GSK3B;S9;"}
-    assert built.site_metadata.index.tolist() == built.phospho.index.tolist()
-    assert built.site_metadata.loc["MAPK14;Y182;", "site_sequence"] == "SEQ_A"
+    assert set(built.site_metadata.loc[:, "display_id"].tolist()) == {
+        "MAPK14;Y182;",
+        "GSK3B;S9;",
+    }
+    assert (
+        built.site_metadata.loc[:, "site_key"].tolist() == built.phospho.index.tolist()
+    )
+    assert (
+        built.site_metadata.loc[
+            built.site_metadata.loc[:, "display_id"] == "MAPK14;Y182;",
+            "site_sequence",
+        ].iloc[0]
+        == "SEQ_A"
+    )
     assert built.processing_state.site_matrix.policy == "build_from_metadata"
     assert built.processing_state.site_matrix.constructed is True
 
 
-def test_dataset_builder_rejects_duplicate_display_ids_before_site_matrix_aggregation() -> (
-    None
-):
+def test_dataset_builder_allows_duplicate_display_ids_with_distinct_site_keys() -> None:
     phospho = pd.DataFrame(
         {
             "sample_a": [1.0, 3.0],
@@ -867,30 +920,33 @@ def test_dataset_builder_rejects_duplicate_display_ids_before_site_matrix_aggreg
             "gene_symbol": ["MAPK14", "MAPK14"],
             "site": ["Y182", "Y182"],
             "site_sequence": ["SEQ_A", "SEQ_A"],
+            "protein_accession": ["P28482-1", "P28482-2"],
             "source_uid": ["UID_A", "UID_B"],
         },
         index=phospho.index.copy(),
     )
     site_metadata.loc[:, "localisation_confidence"] = [0.95] * site_metadata.shape[0]
 
-    with pytest.raises(
-        PhosPyInputError,
-        match="one analysis-ready row per normalised display-site identifier",
-    ):
-        AnalysisReadyDatasetBuilder().run(
-            DatasetBuildRequest(
-                phospho=phospho,
-                site_metadata=site_metadata,
-                organism=Organism.RAT,
-                input_intensity_scale="linear",
-                preprocessing_config=DatasetPreprocessingConfig(
-                    site_matrix=DatasetSiteMatrixConfig(
-                        policy="build_from_metadata",
-                        duplicate_site_policy="aggregate_mean",
-                    )
-                ),
-            )
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            input_intensity_scale="linear",
+            preprocessing_config=DatasetPreprocessingConfig(
+                site_matrix=DatasetSiteMatrixConfig(
+                    policy="build_from_metadata",
+                    duplicate_site_policy="aggregate_mean",
+                )
+            ),
         )
+    )
+
+    assert built.phospho.shape[0] == 2
+    assert built.site_metadata.loc[:, "display_id"].tolist() == [
+        "MAPK14;Y182;",
+        "MAPK14;Y182;",
+    ]
 
 
 def test_dataset_builder_site_matrix_derivation_keeps_all_fully_resolvable_rows() -> (
@@ -924,8 +980,13 @@ def test_dataset_builder_site_matrix_derivation_keeps_all_fully_resolvable_rows(
         )
     )
 
-    assert built.phospho.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
-    assert built.site_metadata.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
+    assert built.site_metadata.loc[:, "display_id"].tolist() == [
+        "GSK3B;S9;",
+        "MAPK14;Y182;",
+    ]
+    assert (
+        built.site_metadata.loc[:, "site_key"].tolist() == built.phospho.index.tolist()
+    )
     assert built.site_metadata.loc[:, "site_sequence"].isna().sum() == 0
     assert built.preprocessing_report is not None
     dropped = built.preprocessing_report.row_audit.loc[
@@ -964,8 +1025,13 @@ def test_dataset_builder_site_matrix_derivation_excludes_only_unresolved_rows() 
         )
     )
 
-    assert built.phospho.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
-    assert built.site_metadata.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
+    assert built.site_metadata.loc[:, "display_id"].tolist() == [
+        "GSK3B;S9;",
+        "MAPK14;Y182;",
+    ]
+    assert (
+        built.site_metadata.loc[:, "site_key"].tolist() == built.phospho.index.tolist()
+    )
     assert built.preprocessing_report is not None
     dropped = built.preprocessing_report.row_audit.loc[
         (built.preprocessing_report.row_audit.loc[:, "stage"] == "site_matrix")
@@ -1006,8 +1072,13 @@ def test_dataset_builder_site_matrix_derivation_uses_row_metadata_site_identity(
         )
     )
 
-    assert built.phospho.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
-    assert built.site_metadata.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
+    assert built.site_metadata.loc[:, "display_id"].tolist() == [
+        "GSK3B;S9;",
+        "MAPK14;Y182;",
+    ]
+    assert (
+        built.site_metadata.loc[:, "site_key"].tolist() == built.phospho.index.tolist()
+    )
     assert built.site_metadata.loc[:, "site_sequence"].isna().sum() == 0
     assert built.preprocessing_report is not None
     dropped = built.preprocessing_report.row_audit.loc[
@@ -1047,8 +1118,10 @@ def test_dataset_builder_site_matrix_excludes_unusable_supplied_sequence_rows() 
         )
     )
 
-    assert built.phospho.index.tolist() == ["MAPK14;Y182;"]
-    assert built.site_metadata.index.tolist() == ["MAPK14;Y182;"]
+    assert built.site_metadata.loc[:, "display_id"].tolist() == ["MAPK14;Y182;"]
+    assert (
+        built.site_metadata.loc[:, "site_key"].tolist() == built.phospho.index.tolist()
+    )
     assert built.preprocessing_report is not None
     dropped = built.preprocessing_report.row_audit.loc[
         (built.preprocessing_report.row_audit.loc[:, "stage"] == "site_matrix")
@@ -1229,7 +1302,12 @@ def test_dataset_builder_builds_inferred_comparisons_from_sample_metadata() -> N
         {"p_group1_group4": [3.0, 2.0]},
         index=phospho.index.copy(),
     )
-    pdt.assert_frame_equal(built.comparisons, expected)
+    comparisons_display = _index_by_display_id(
+        built.comparisons,
+        site_metadata=built.site_metadata,
+        index_name=expected.index.name,
+    )
+    pdt.assert_frame_equal(comparisons_display, expected)
     assert built.preprocessing_report is not None
     assert built.preprocessing_report.row_audit is not None
     assert built.preprocessing_report.comparison_group_stats is not None
@@ -1254,7 +1332,7 @@ def test_dataset_builder_builds_inferred_comparisons_from_sample_metadata() -> N
         "right_sem",
         "effect_size",
     }.issubset(set(pair_stats.columns))
-    comparison_long = built.comparisons.reset_index().melt(
+    comparison_long = comparisons_display.reset_index().melt(
         id_vars=["site_id"],
         var_name="comparison",
         value_name="expected_effect_size",
@@ -1800,7 +1878,7 @@ def test_dataset_builder_emits_machine_readable_run_provenance() -> None:
     assert "row_c" in set(diagnostics["dropped_missing_sequence_row_ids"])
     assert diagnostics["duplicate_site_policy"] == "max_mean_signal"
     assert diagnostics["missing_data_policy"] == "drop_any_missing"
-    assert "MAPK14;Y182;" in set(diagnostics["final_constructed_site_ids"])
+    assert set(diagnostics["final_site_keys"]) == set(built.phospho.index.tolist())
 
 
 def test_dataset_builder_marks_minprob_stage_as_seeded_stochastic() -> None:

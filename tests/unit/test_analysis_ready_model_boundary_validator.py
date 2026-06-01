@@ -11,6 +11,10 @@ from phospy.errors.validation import (
 )
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.references.models import Organism
+from phospy.science.sites.site_keys import (
+    build_protein_scoped_site_key,
+    encode_site_key,
+)
 from phospy.validation.datasets.analysis_ready import (
     AnalysisReadyDatasetModelBoundaryValidator,
 )
@@ -25,8 +29,25 @@ _CENTRED_Y_SEQUENCE = "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA"
 _CENTRED_T_SEQUENCE = "AAAAAAAAAAAAAAATAAAAAAAAAAAAAAA"
 
 
+def _site_key(*, protein_identifier: str, residue: str, position: int) -> str:
+    key = build_protein_scoped_site_key(
+        organism="rat",
+        protein_namespace="protein_id",
+        protein_identifier=protein_identifier,
+        residue=residue,
+        position=position,
+        field_name="test.site_key",
+        error_type=ValueError,
+    )
+    return encode_site_key(key)
+
+
 def _valid_payload() -> dict[str, object]:
-    site_index = pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id")
+    site_keys = [
+        _site_key(protein_identifier="MAPK14", residue="Y", position=182),
+        _site_key(protein_identifier="AKT1", residue="T", position=308),
+    ]
+    site_index = pd.Index(site_keys, name="site_key")
     return {
         "phospho": pd.DataFrame(
             {
@@ -37,6 +58,8 @@ def _valid_payload() -> dict[str, object]:
         ),
         "site_metadata": pd.DataFrame(
             {
+                "site_key": site_keys,
+                "display_id": ["MAPK14;Y182;", "AKT1;T308;"],
                 "gene_symbol": ["MAPK14", "AKT1"],
                 "site": ["Y182", "T308"],
                 "site_sequence": [
@@ -78,10 +101,33 @@ def test_model_boundary_validator_accepts_valid_payload() -> None:
     assert isinstance(validated, AnalysisReadyPhosphoDataset)
 
 
+def test_model_boundary_validator_rejects_display_indexed_direct_constructor_payload() -> (
+    None
+):
+    payload = _valid_payload()
+    phospho = payload["phospho"].copy(deep=True)
+    site_metadata = payload["site_metadata"].copy(deep=True)
+    phospho.index = pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id")
+    site_metadata.index = phospho.index.copy()
+    payload["phospho"] = phospho
+    payload["site_metadata"] = site_metadata
+    _assert_constructor_and_adapter_reject(payload)
+
+
 def test_model_boundary_validator_parity_for_misaligned_site_metadata() -> None:
     payload = _valid_payload()
+    mismatched_site_key = _site_key(
+        protein_identifier="AKT1",
+        residue="T",
+        position=309,
+    )
     payload["site_metadata"] = pd.DataFrame(
         {
+            "site_key": [
+                payload["site_metadata"].index[0],  # type: ignore[index]
+                mismatched_site_key,
+            ],
+            "display_id": ["MAPK14;Y182;", "AKT1;T308;"],
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": [
@@ -89,7 +135,13 @@ def test_model_boundary_validator_parity_for_misaligned_site_metadata() -> None:
                 _CENTRED_T_SEQUENCE,
             ],
         },
-        index=pd.Index(["MAPK14;Y182;", "AKT1;T309;"], name="site_id"),
+        index=pd.Index(
+            [
+                payload["site_metadata"].index[0],  # type: ignore[index]
+                mismatched_site_key,
+            ],
+            name="site_key",
+        ),
     )
     _assert_constructor_and_adapter_reject(payload)
 

@@ -17,9 +17,13 @@ _SITE_SEQUENCE_COLUMN = "site_sequence"
 class SequenceSupportFilterResult:
     phospho: pd.DataFrame
     site_metadata: pd.DataFrame
-    constructed_site_id: pd.Series
+    scientific_row_key: pd.Series
     dropped_row_count: int
     dropped_rows: tuple[tuple[str, str], ...]
+
+    @property
+    def constructed_site_id(self) -> pd.Series:
+        return self.scientific_row_key
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,8 +52,16 @@ class SequenceSupportFilter:
         *,
         phospho: pd.DataFrame,
         site_metadata: pd.DataFrame,
-        constructed_site_id: pd.Series,
+        scientific_row_key: pd.Series | None = None,
+        constructed_site_id: pd.Series | None = None,
     ) -> SequenceSupportFilterResult:
+        if scientific_row_key is None:
+            if constructed_site_id is None:
+                raise PhosPyInputError(
+                    "sequence-support filtering requires scientific_row_key "
+                    "(or legacy constructed_site_id)"
+                )
+            scientific_row_key = constructed_site_id
         if _SITE_SEQUENCE_COLUMN in site_metadata.columns:
             site_sequence = _resolve_optional_string_column(
                 site_metadata,
@@ -67,14 +79,14 @@ class SequenceSupportFilter:
             (str(row_id), str(site_id))
             for row_id, site_id in zip(
                 phospho.index[~has_sequence].tolist(),
-                constructed_site_id.loc[~has_sequence].astype(str).tolist(),
+                scientific_row_key.loc[~has_sequence].astype(str).tolist(),
                 strict=True,
             )
         )
         return SequenceSupportFilterResult(
             phospho=phospho.loc[has_sequence],
             site_metadata=site_metadata.loc[has_sequence],
-            constructed_site_id=constructed_site_id.loc[has_sequence],
+            scientific_row_key=scientific_row_key.loc[has_sequence],
             dropped_row_count=int((~has_sequence).sum()),
             dropped_rows=dropped_rows,
         )
@@ -87,10 +99,18 @@ class MissingDataSiteFilter:
         self,
         *,
         phospho: pd.DataFrame,
-        constructed_site_id: pd.Series,
+        scientific_row_key: pd.Series | None = None,
+        constructed_site_id: pd.Series | None = None,
         missing_data_policy: SiteMatrixMissingDataPolicy | str,
         minimum_observed_values: int | None,
     ) -> MissingDataSiteFilterResult:
+        if scientific_row_key is None:
+            if constructed_site_id is None:
+                raise PhosPyInputError(
+                    "missing-data site filtering requires scientific_row_key "
+                    "(or legacy constructed_site_id)"
+                )
+            scientific_row_key = constructed_site_id
         resolved_policy = SiteMatrixMissingDataPolicy.parse(
             missing_data_policy,
             field_name="site_matrix.missing_data_policy",
@@ -129,7 +149,7 @@ class MissingDataSiteFilter:
             (str(row_id), str(site_id), int(observed_value_count))
             for row_id, site_id, observed_value_count in zip(
                 phospho.index[~retained_mask].tolist(),
-                constructed_site_id.loc[~retained_mask].astype(str).tolist(),
+                scientific_row_key.loc[~retained_mask].astype(str).tolist(),
                 observed_counts.loc[~retained_mask].tolist(),
                 strict=True,
             )
@@ -157,6 +177,22 @@ class SiteMatrixAssembler:
         final_site_metadata = duplicate_site_result.site_metadata.reindex(
             final_phospho.index
         )
+        if "display_id" in final_site_metadata.columns:
+            display_ids = (
+                final_site_metadata.loc[:, "display_id"].astype("string").str.strip()
+            )
+            if bool(display_ids.notna().all()) and bool((display_ids != "").all()):
+                if not bool(display_ids.duplicated().any()):
+                    canonical_display_index = pd.Index(
+                        display_ids.astype(str).tolist(),
+                        name=output_index_name,
+                    )
+                    final_phospho.index = canonical_display_index
+                    final_site_metadata.index = canonical_display_index.copy()
+                    if "site_key" in final_site_metadata.columns:
+                        final_site_metadata.loc[:, "site_key"] = (
+                            canonical_display_index.astype(str).tolist()
+                        )
         final_site_index = pd.Index(
             final_phospho.index.tolist(), name=output_index_name
         )

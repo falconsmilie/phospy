@@ -18,7 +18,8 @@ from phospy.science.prediction.models import KinasePredictionResult
 from phospy.science.prediction.sequence_validation import (
     SEQUENCE_VALIDATION_STATUS_INVALID_SITE_ID,
 )
-from phospy.science.sites.identifiers import parse_canonical_site_identifier
+from phospy.science.sites.identifiers import canonicalize_site_identifier
+from phospy.science.sites.site_keys import decode_site_key
 from phospy.workflows.kinase.component_models import KinaseScoringRunResult
 from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
 
@@ -174,13 +175,21 @@ class KinaseSiteAttritionSummaryComposer:
         for site_id in index.tolist():
             raw_site_id = str(site_id)
             try:
-                parse_canonical_site_identifier(
+                decode_site_key(
                     raw_site_id,
                     field_name="kinase.workflow.dataset.phospho.index",
                     error_type=_WorkflowIdentifierError,
                 )
+                continue
             except _WorkflowIdentifierError:
-                malformed.add(raw_site_id)
+                try:
+                    canonicalize_site_identifier(
+                        raw_site_id,
+                        field_name="kinase.workflow.dataset.phospho.index",
+                        error_type=_WorkflowIdentifierError,
+                    )
+                except _WorkflowIdentifierError:
+                    malformed.add(raw_site_id)
             except Exception as exc:  # pragma: no cover - defensive boundary guard
                 raise WorkflowValidationError(
                     "failed to evaluate site identifier validity for attrition "

@@ -49,6 +49,10 @@ from phospy.science.datasets.preprocessing.stage_registry import (
     PreprocessingStageMetadata,
 )
 from phospy.science.references.models import Organism
+from phospy.science.sites.site_keys import (
+    build_protein_scoped_site_key,
+    encode_site_key,
+)
 from phospy.science.transformations.models import (
     IntensityScaleKind,
     QuantitativeMeaning,
@@ -1981,7 +1985,26 @@ def test_dataset_preprocessor_comparison_stats_follow_pandas_single_sample_conve
 def test_executor_delegates_preprocessing_to_internal_subsystem() -> None:
     calls: list[str] = []
     phospho = _phospho().iloc[:2].copy(deep=True)
-    site_metadata = _site_metadata(phospho.index).copy(deep=True)
+    encoded_site_keys = [
+        encode_site_key(
+            build_protein_scoped_site_key(
+                organism="rat",
+                protein_namespace="protein_id",
+                protein_identifier=protein_id,
+                residue=residue,
+                position=position,
+                isoform_id=None,
+                field_name="test.site_key",
+                error_type=ValueError,
+            )
+        )
+        for protein_id, residue, position in (("P1", "Y", 182), ("P2", "S", 9))
+    ]
+    phospho.index = pd.Index(encoded_site_keys, name="site_key")
+    site_metadata = _site_metadata().iloc[:2].copy(deep=True)
+    site_metadata.index = phospho.index.copy()
+    site_metadata.loc[:, "display_id"] = phospho.index.tolist()
+    site_metadata.loc[:, "site_key"] = phospho.index.tolist()
     sample_metadata = _sample_metadata(phospho.columns)
     total = _total(phospho.columns)
 

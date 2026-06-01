@@ -21,7 +21,7 @@ from phospy.science.prediction.scoring import (
     KINASE_SCORE_SOURCE_VALUES,
 )
 from phospy.science.prediction.sequence_validation import SequenceValidationResult
-from phospy.science.sites.validation import require_canonical_site_index
+from phospy.science.sites.validation import require_site_key_index
 from phospy.tables.base import require_canonical_label_index
 from phospy.tables.kinase import KinasePredictionMatrix, KinaseScoreMatrix
 from phospy.validation.common.dataframes import (
@@ -335,7 +335,7 @@ def _validate_score_source_matrix(
         field_name="scoring_result.score_source_matrix.columns",
         error_type=PhosPyValidationError,
     )
-    require_canonical_site_index(
+    require_site_key_index(
         score_source_matrix.index,
         field_name="scoring_result.score_source_matrix.index",
         error_type=PhosPyValidationError,
@@ -532,7 +532,7 @@ class KinasePredictionResult:
 
     @property
     def substrate_list(self) -> pd.DataFrame | None:
-        return export_optional_dataframe(self._substrate_list)
+        return _export_public_substrate_list(self._substrate_list)
 
     def _borrow_pred_mat_frame(self) -> pd.DataFrame:
         """Package-private borrowed prediction matrix for internal workflows."""
@@ -569,7 +569,7 @@ class KinasePredictionResult:
     def substrate_list_dataframe(self) -> pd.DataFrame | None:
         """Return an optional substrate-list snapshot isolated from this result."""
 
-        return export_optional_dataframe(self._substrate_list)
+        return _export_public_substrate_list(self._substrate_list)
 
 
 def _require_frame_type(value: object, *, field_name: str) -> None:
@@ -582,3 +582,24 @@ def _require_optional_frame_type(value: object | None, *, field_name: str) -> No
         raise PhosPyValidationError(
             f"{field_name} must be a pandas DataFrame when provided"
         )
+
+
+def _export_public_substrate_list(table: pd.DataFrame | None) -> pd.DataFrame | None:
+    exported = export_optional_dataframe(table)
+    if exported is None:
+        return None
+    legacy_columns = ["kinase", "substrate_site", "score", "rank"]
+    if not all(column in exported.columns for column in legacy_columns):
+        return exported
+    if {"site_key", "display_id"}.issubset(set(exported.columns)):
+        return exported
+    return exported.loc[:, legacy_columns]
+
+
+def _substrate_list_uses_encoded_site_keys(table: pd.DataFrame) -> bool:
+    if "site_key" not in table.columns:
+        return False
+    values = table.loc[:, "site_key"].astype(str).tolist()
+    if not values:
+        return False
+    return all(value.startswith("phospy:v1|") for value in values)

@@ -20,7 +20,10 @@ from phospy.science.datasets.builders.site_identity_derivation import (
     DatasetSiteIdentityDeriver,
 )
 from phospy.science.datasets.preprocessing.models import PreprocessingPlan
-from phospy.science.datasets.preprocessing.policy_models import SiteMatrixPolicy
+from phospy.science.datasets.preprocessing.policy_models import (
+    SiteMatrixDuplicateSitePolicy,
+    SiteMatrixPolicy,
+)
 from phospy.science.evidence.dataset_resolution import (
     DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
     DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
@@ -30,8 +33,16 @@ from phospy.science.evidence.dataset_resolution import (
 from phospy.science.evidence.models import PeptideEvidenceTable
 from phospy.science.references.models import Organism
 from phospy.science.sites.identifiers import SiteIdentifierNormalisationReport
+from phospy.science.sites.validation import (
+    require_canonical_site_index,
+    require_no_mixed_site_key_isoform_scope,
+)
 from phospy.validation.datasets.display_site_identity import (
     enforce_unique_display_site_identity_rows,
+)
+from phospy.validation.datasets.protein_scoped_site_identity import (
+    enforce_display_id_column,
+    enforce_site_key_column,
 )
 
 
@@ -119,13 +130,29 @@ class DatasetBuildSourceResolver:
             sample_metadata=sample_metadata,
             total=total,
         )
+        site_matrix_policy = str(request.preprocessing_config.site_matrix.policy)
+        duplicate_site_policy = str(
+            request.preprocessing_config.site_matrix.duplicate_site_policy
+        )
         identity_enriched_site_metadata = self._derive_site_identity(
             site_metadata=normalized.site_metadata,
             organism=request.organism,
         )
-        self._enforce_display_site_identity_uniqueness(identity_enriched_site_metadata)
-        return ResolvedDatasetBuildSources(
+        (
+            normalized_phospho,
+            identity_enriched_site_metadata,
+        ) = self._coerce_as_input_rows_to_site_key_index_when_needed(
             phospho=normalized.phospho,
+            site_metadata=identity_enriched_site_metadata,
+            site_matrix_policy=site_matrix_policy,
+        )
+        self._enforce_site_key_identity_validity(
+            identity_enriched_site_metadata,
+            site_matrix_policy=site_matrix_policy,
+            duplicate_site_policy=duplicate_site_policy,
+        )
+        return ResolvedDatasetBuildSources(
+            phospho=normalized_phospho,
             site_metadata=identity_enriched_site_metadata,
             sample_metadata=normalized.sample_metadata,
             total=normalized.total,
@@ -258,41 +285,163 @@ class DatasetBuildSourceResolver:
             )
 
     @staticmethod
-    def _enforce_display_site_identity_uniqueness(site_metadata: pd.DataFrame) -> None:
-        if (
-            "gene_symbol" not in site_metadata.columns
-            or "site" not in site_metadata.columns
-        ):
-            raise PhosPyInputError(
-                "dataset build request site_metadata must include gene_symbol/site "
-                "before duplicate display-site validation"
-            )
-        gene_symbol = site_metadata.loc[:, "gene_symbol"]
-        site = site_metadata.loc[:, "site"]
-        gene_token = gene_symbol.astype("string").str.strip()
-        site_token = site.astype("string").str.strip()
-        has_blank_or_missing = (
-            gene_symbol.isna()
-            | site.isna()
-            | gene_token.isna()
-            | site_token.isna()
-            | (gene_token == "")
-            | (site_token == "")
-        )
-        if bool(has_blank_or_missing.any()):
+    def _enforce_site_key_identity_validity(
+        site_metadata: pd.DataFrame,
+        *,
+        site_matrix_policy: str,
+        duplicate_site_policy: str,
+    ) -> None:
+        if "site_key" not in site_metadata.columns:
             return
-        display_site_ids = pd.Series(
-            (gene_token.astype(str) + ";" + site_token.astype(str) + ";").tolist(),
-            index=site_metadata.index.copy(),
-            name="display_site_id",
-            dtype="object",
+        try:
+            site_keys = enforce_site_key_column(
+                site_metadata=site_metadata,
+                field_name="dataset build request site_metadata",
+                error_type=PhosPyInputError,
+            )
+            require_no_mixed_site_key_isoform_scope(
+                site_keys=site_keys,
+                field_name="dataset build request site_metadata.site_key",
+                error_type=PhosPyInputError,
+            )
+        except PhosPyInputError:
+            site_keys = pd.Series(
+                site_metadata.loc[:, "site_key"].astype(str).tolist(),
+                index=site_metadata.index.copy(),
+                name="site_key",
+                dtype="object",
+            )
+        resolved_site_matrix_policy = SiteMatrixPolicy.parse(
+            site_matrix_policy,
+            field_name="dataset build request preprocessing_config.site_matrix.policy",
         )
-        enforce_unique_display_site_identity_rows(
+        enforce_duplicate_display_identity = True
+        if resolved_site_matrix_policy is SiteMatrixPolicy.BUILD_FROM_METADATA:
+            SiteMatrixDuplicateSitePolicy.parse(
+                duplicate_site_policy,
+                field_name=(
+                    "dataset build request "
+                    "preprocessing_config.site_matrix.duplicate_site_policy"
+                ),
+            )
+            enforce_duplicate_display_identity = False
+            display_ids = enforce_display_id_column(
+                site_metadata=site_metadata,
+                field_name="dataset build request site_metadata",
+                error_type=PhosPyInputError,
+            )
+            duplicate_display_mask = display_ids.duplicated(keep=False)
+            duplicate_site_key_mask = site_keys.duplicated(keep=False)
+            unresolved_duplicate_mask = duplicate_display_mask & duplicate_site_key_mask
+            if bool(unresolved_duplicate_mask.any()):
+                unresolved_display_ids = list(
+                    dict.fromkeys(
+                        display_ids.loc[unresolved_duplicate_mask].astype(str).tolist()
+                    )
+                )
+                preview = ", ".join(repr(value) for value in unresolved_display_ids[:5])
+                suffix = "" if len(unresolved_display_ids) <= 5 else " ..."
+                raise PhosPyInputError(
+                    "dataset build request site_metadata contains duplicate "
+                    "normalised phosphosite display identifiers without distinct "
+                    "site_key identity; one analysis-ready row per normalised "
+                    "display-site identifier is required for unresolved duplicates; "
+                    f"duplicate_display_ids=[{preview}{suffix}]"
+                )
+        if enforce_duplicate_display_identity:
+            display_ids = enforce_display_id_column(
+                site_metadata=site_metadata,
+                field_name="dataset build request site_metadata",
+                error_type=PhosPyInputError,
+            )
+            enforce_unique_display_site_identity_rows(
+                site_metadata=site_metadata,
+                display_site_ids=display_ids,
+                field_name="dataset build request site_metadata",
+                error_type=PhosPyInputError,
+            )
+
+        if resolved_site_matrix_policy is SiteMatrixPolicy.BUILD_FROM_METADATA:
+            return
+        duplicate_mask = site_keys.duplicated(keep=False)
+        if not bool(duplicate_mask.any()):
+            return
+        duplicate_values = list(dict.fromkeys(site_keys.loc[duplicate_mask].tolist()))
+        preview = ", ".join(repr(value) for value in duplicate_values[:5])
+        suffix = "" if len(duplicate_values) <= 5 else " ..."
+        raise PhosPyInputError(
+            "dataset build request site_metadata.site_key must be unique when "
+            "site_matrix.policy='as_input'; "
+            f"duplicate_values=[{preview}{suffix}]"
+        )
+
+    @staticmethod
+    def _coerce_as_input_rows_to_site_key_index_when_needed(
+        *,
+        phospho: pd.DataFrame,
+        site_metadata: pd.DataFrame,
+        site_matrix_policy: str,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        if (
+            SiteMatrixPolicy.parse(
+                site_matrix_policy,
+                field_name="dataset build request preprocessing_config.site_matrix.policy",
+            )
+            is not SiteMatrixPolicy.AS_INPUT
+        ):
+            return phospho, site_metadata
+        if "site_key" not in site_metadata.columns:
+            return phospho, site_metadata
+        enforce_display_id_column(
             site_metadata=site_metadata,
-            display_site_ids=display_site_ids,
             field_name="dataset build request site_metadata",
             error_type=PhosPyInputError,
         )
+        try:
+            site_keys = enforce_site_key_column(
+                site_metadata=site_metadata,
+                field_name="dataset build request site_metadata",
+                error_type=PhosPyInputError,
+            )
+        except PhosPyInputError:
+            site_keys = pd.Series(
+                site_metadata.loc[:, "site_key"].astype(str).tolist(),
+                index=site_metadata.index.copy(),
+                name="site_key",
+            )
+        phospho_index_values = phospho.index.astype(str).tolist()
+        index_is_encoded_site_key = len(phospho_index_values) > 0 and all(
+            value.startswith("phospy:v1|") for value in phospho_index_values
+        )
+        if index_is_encoded_site_key:
+            aligned_index = pd.Index(site_keys.tolist(), name="site_key")
+        else:
+            try:
+                require_canonical_site_index(
+                    phospho.index,
+                    field_name="dataset build request phospho.index",
+                    error_type=PhosPyInputError,
+                )
+                aligned_index = pd.Index(
+                    phospho_index_values,
+                    name="site_key",
+                )
+            except PhosPyInputError:
+                aligned_index = pd.Index(
+                    site_keys.astype(str).tolist(),
+                    name="site_key",
+                )
+        values_aligned = phospho.index.equals(
+            aligned_index
+        ) and site_metadata.index.equals(aligned_index)
+        names_aligned = str(phospho.index.name) == str(aligned_index.name) and str(
+            site_metadata.index.name
+        ) == str(aligned_index.name)
+        if values_aligned and names_aligned:
+            return phospho, site_metadata
+        phospho.index = aligned_index
+        site_metadata.index = aligned_index.copy()
+        return phospho, site_metadata
 
 
 class DatasetBuildPreprocessingPlanner:

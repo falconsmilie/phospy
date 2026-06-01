@@ -114,14 +114,19 @@ class SiteMatrixRowAuditBuilder:
         if duplicate_site_resolution.empty:
             return []
 
+        grouping_column = (
+            "site_key" if "site_key" in duplicate_site_resolution.columns else "site_id"
+        )
         source_rows_by_site = (
-            duplicate_site_resolution.groupby("site_id", sort=False)["source_row_id"]
+            duplicate_site_resolution.groupby(grouping_column, sort=False)[
+                "source_row_id"
+            ]
             .apply(lambda values: tuple(str(value) for value in values.tolist()))
             .to_dict()
         )
         retained_row_by_site = (
             duplicate_site_resolution.loc[duplicate_site_resolution.loc[:, "retained"]]
-            .groupby("site_id", sort=False)["source_row_id"]
+            .groupby(grouping_column, sort=False)["source_row_id"]
             .first()
             .astype(str)
             .to_dict()
@@ -132,7 +137,9 @@ class SiteMatrixRowAuditBuilder:
         }
         records: list[PreprocessingRowAuditRow] = []
         for row in duplicate_site_resolution.to_dict(orient="records"):
-            site_id = str(row.get("site_id", ""))
+            site_id = str(
+                row.get(grouping_column, row.get("site_id", row.get("display_id", "")))
+            )
             source_row_id = str(row.get("source_row_id", ""))
             source_rows = source_rows_by_site.get(site_id, (source_row_id,))
             if aggregated:

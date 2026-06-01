@@ -16,10 +16,15 @@ from phospy.contracts.configs import (
 from phospy.errors.workflows import WorkflowStageError
 from phospy.science.signalomes.assignments import _normalize_top_kinase_weights
 from phospy.science.signalomes.constants import (
+    DISPLAY_ID_COLUMN,
+    ISOFORM_ID_COLUMN,
     MODULE_ID_COLUMN,
+    PROTEIN_ACCESSION_COLUMN,
     PROTEIN_COLUMN,
     SITE_CLUSTER_COLUMN,
+    SITE_COLUMN,
     SITE_ID_COLUMN,
+    SITE_KEY_COLUMN,
     TOP_KINASE_COLUMN,
     TOP_KINASE_WEIGHTS_COLUMN,
     TOP_SCORE_COLUMN,
@@ -35,14 +40,20 @@ SITE_MEMBERSHIP_N_SUPPORTED_KINASES_COLUMN = "n_supported_kinases"
 
 PROTEIN_SITE_CONTEXT_N_SITES_COLUMN = "n_sites"
 PROTEIN_SITE_CONTEXT_SITE_IDS_COLUMN = "site_ids"
+PROTEIN_SITE_CONTEXT_SITE_KEYS_COLUMN = "site_keys"
+PROTEIN_SITE_CONTEXT_DISPLAY_IDS_COLUMN = "display_ids"
 PROTEIN_SITE_CONTEXT_SITE_CLUSTERS_COLUMN = "site_clusters"
 PROTEIN_SITE_CONTEXT_N_DISTINCT_SITE_CLUSTERS_COLUMN = "n_distinct_site_clusters"
 PROTEIN_SITE_CONTEXT_PROTEIN_MODULE_COLUMN = "protein_module_id"
 PROTEIN_SITE_CONTEXT_MULTI_SITE_COLUMN = "multi_site_protein"
 PROTEIN_SITE_CONTEXT_AMBIGUOUS_CONTEXT_COLUMN = "ambiguous_module_context"
 PROTEIN_SITE_CONTEXT_GENE_SYMBOL_COLUMN = "gene_symbol"
+PROTEIN_SITE_CONTEXT_SITE_COLUMN = "site"
+PROTEIN_SITE_CONTEXT_PROTEIN_ACCESSION_COLUMN = "protein_accession"
+PROTEIN_SITE_CONTEXT_ISOFORM_ID_COLUMN = "isoform_id"
 PROTEIN_SITE_CONTEXT_TOP_KINASES_BY_SITE_COLUMN = "top_kinases_by_site"
 PROTEIN_SITE_CONTEXT_MODULE_IDS_BY_SITE_COLUMN = "module_ids_by_site"
+PROTEIN_SITE_CONTEXT_SITE_KEY_TO_DISPLAY_ID_COLUMN = "site_key_to_display_id"
 
 EXCLUDED_REASON_DROPPED_ALL_MISSING_DOWNSTREAM_SCORES = (
     "dropped_all_missing_downstream_scores"
@@ -75,27 +86,59 @@ def build_site_membership_table(
             f"columns {sorted(required_columns)}; missing columns: {missing}"
         )
 
-    site_index = pd.Index(module_assignments.index.astype(str), name=SITE_ID_COLUMN)
+    site_index = pd.Index(module_assignments.index.astype(str), name=SITE_KEY_COLUMN)
     assignments = module_assignments.copy(deep=False)
     assignments.index = site_index
 
     cluster_series = site_clusters.copy(deep=False)
     cluster_series.index = pd.Index(
-        cluster_series.index.astype(str), name=SITE_ID_COLUMN
+        cluster_series.index.astype(str), name=SITE_KEY_COLUMN
     )
     aligned_clusters = cluster_series.reindex(site_index)
     aligned_clusters = aligned_clusters.astype("Int64")
 
     metadata = site_metadata.copy(deep=False)
-    metadata.index = pd.Index(metadata.index.astype(str), name=SITE_ID_COLUMN)
-    gene_symbols = (
-        metadata.reindex(site_index)
-        .loc[:, SITE_MEMBERSHIP_GENE_SYMBOL_COLUMN]
-        .fillna("")
-        if SITE_MEMBERSHIP_GENE_SYMBOL_COLUMN in metadata.columns
-        else pd.Series("", index=site_index, dtype=object)
+    metadata.index = pd.Index(metadata.index.astype(str), name=SITE_KEY_COLUMN)
+    aligned_metadata = metadata.reindex(site_index)
+
+    def _resolve_identity_column(
+        column_name: str,
+        *,
+        fallback: pd.Series | None = None,
+    ) -> pd.Series:
+        if column_name in assignments.columns:
+            return (
+                assignments.loc[:, column_name]
+                .fillna("")
+                .astype(str)
+                .str.strip()
+                .rename(column_name)
+            )
+        if column_name in aligned_metadata.columns:
+            return (
+                aligned_metadata.loc[:, column_name]
+                .fillna("")
+                .astype(str)
+                .str.strip()
+                .rename(column_name)
+            )
+        if fallback is not None:
+            return fallback.astype(str).rename(column_name)
+        return pd.Series("", index=site_index, dtype=object, name=column_name)
+
+    site_keys = pd.Series(
+        site_index.astype(str).tolist(),
+        index=site_index.copy(),
+        dtype=object,
+        name=SITE_KEY_COLUMN,
     )
-    gene_symbols = gene_symbols.astype(str).str.strip()
+    display_ids = _resolve_identity_column(DISPLAY_ID_COLUMN, fallback=site_keys)
+    gene_symbols = _resolve_identity_column(
+        SITE_MEMBERSHIP_GENE_SYMBOL_COLUMN,
+    )
+    site_tokens = _resolve_identity_column(SITE_COLUMN)
+    protein_accessions = _resolve_identity_column(PROTEIN_ACCESSION_COLUMN)
+    isoform_ids = _resolve_identity_column(ISOFORM_ID_COLUMN)
 
     module_ids = assignments.loc[:, MODULE_ID_COLUMN].astype("int64")
     top_kinases = (
@@ -142,13 +185,24 @@ def build_site_membership_table(
 
     site_membership = pd.DataFrame(
         {
-            SITE_ID_COLUMN: site_index.to_numpy(dtype=object, copy=False),
+            SITE_KEY_COLUMN: site_keys.to_numpy(dtype=object, copy=False),
+            DISPLAY_ID_COLUMN: display_ids.to_numpy(dtype=object, copy=False),
+            SITE_ID_COLUMN: display_ids.to_numpy(dtype=object, copy=False),
+            SITE_MEMBERSHIP_GENE_SYMBOL_COLUMN: gene_symbols.to_numpy(
+                dtype=object, copy=False
+            ),
+            SITE_COLUMN: site_tokens.to_numpy(dtype=object, copy=False),
             PROTEIN_COLUMN: assignments.loc[:, PROTEIN_COLUMN]
             .astype(str)
             .to_numpy(
                 dtype=object,
                 copy=False,
             ),
+            PROTEIN_ACCESSION_COLUMN: protein_accessions.to_numpy(
+                dtype=object,
+                copy=False,
+            ),
+            ISOFORM_ID_COLUMN: isoform_ids.to_numpy(dtype=object, copy=False),
             SITE_CLUSTER_COLUMN: aligned_clusters.to_numpy(copy=False),
             SITE_MEMBERSHIP_PROTEIN_MODULE_COLUMN: module_ids.to_numpy(
                 dtype=np.int64,
@@ -159,10 +213,6 @@ def build_site_membership_table(
                 copy=False,
             ),
             SITE_MEMBERSHIP_EXCLUDED_REASON_COLUMN: excluded_reasons.to_numpy(
-                dtype=object,
-                copy=False,
-            ),
-            SITE_MEMBERSHIP_GENE_SYMBOL_COLUMN: gene_symbols.to_numpy(
                 dtype=object,
                 copy=False,
             ),
@@ -183,8 +233,13 @@ def build_site_membership_table(
     )
     return site_membership.astype(
         {
+            SITE_KEY_COLUMN: str,
+            DISPLAY_ID_COLUMN: str,
             SITE_ID_COLUMN: str,
+            SITE_COLUMN: str,
             PROTEIN_COLUMN: str,
+            PROTEIN_ACCESSION_COLUMN: str,
+            ISOFORM_ID_COLUMN: str,
             SITE_CLUSTER_COLUMN: "Int64",
             SITE_MEMBERSHIP_PROTEIN_MODULE_COLUMN: "int64",
             SITE_MEMBERSHIP_INCLUDED_COLUMN: bool,
@@ -205,8 +260,13 @@ def build_protein_site_context_table(
     """Build protein-level phosphosite context table."""
 
     required_columns = {
+        SITE_KEY_COLUMN,
+        DISPLAY_ID_COLUMN,
         SITE_ID_COLUMN,
+        SITE_COLUMN,
         PROTEIN_COLUMN,
+        PROTEIN_ACCESSION_COLUMN,
+        ISOFORM_ID_COLUMN,
         SITE_CLUSTER_COLUMN,
         SITE_MEMBERSHIP_PROTEIN_MODULE_COLUMN,
         SITE_MEMBERSHIP_INCLUDED_COLUMN,
@@ -225,6 +285,12 @@ def build_protein_site_context_table(
     membership = site_membership.copy(deep=False)
     protein_rows: list[dict[str, object]] = []
     for protein_id, group in membership.groupby(PROTEIN_COLUMN, sort=False):
+        site_keys = [
+            str(site_key) for site_key in group.loc[:, SITE_KEY_COLUMN].tolist()
+        ]
+        display_ids = [
+            str(display_id) for display_id in group.loc[:, DISPLAY_ID_COLUMN].tolist()
+        ]
         site_ids = [str(site_id) for site_id in group.loc[:, SITE_ID_COLUMN].tolist()]
         cluster_values = [
             None if pd.isna(value) else int(value)
@@ -262,16 +328,20 @@ def build_protein_site_context_table(
             )
         )
         top_kinases_by_site = {
-            site_id: str(top_kinase)
-            for site_id, top_kinase in zip(
-                site_ids,
+            site_key: str(top_kinase)
+            for site_key, top_kinase in zip(
+                site_keys,
                 group.loc[:, TOP_KINASE_COLUMN].astype(str).tolist(),
                 strict=True,
             )
         }
         module_ids_by_site = {
-            site_id: int(module_id_value)
-            for site_id, module_id_value in zip(site_ids, module_values, strict=True)
+            site_key: int(module_id_value)
+            for site_key, module_id_value in zip(site_keys, module_values, strict=True)
+        }
+        site_key_to_display_id = {
+            site_key: display_id
+            for site_key, display_id in zip(site_keys, display_ids, strict=True)
         }
         gene_symbols = [
             value
@@ -282,12 +352,38 @@ def build_protein_site_context_table(
             if value != ""
         ]
         gene_symbol = gene_symbols[0] if gene_symbols else ""
+        site_tokens = [
+            value
+            for value in group.loc[:, SITE_COLUMN].astype(str).str.strip().tolist()
+            if value != ""
+        ]
+        site_token = site_tokens[0] if site_tokens else ""
+        protein_accessions = [
+            value
+            for value in group.loc[:, PROTEIN_ACCESSION_COLUMN]
+            .astype(str)
+            .str.strip()
+            .tolist()
+            if value != ""
+        ]
+        protein_accession = protein_accessions[0] if protein_accessions else ""
+        isoform_values = [
+            value
+            for value in group.loc[:, ISOFORM_ID_COLUMN]
+            .astype(str)
+            .str.strip()
+            .tolist()
+            if value != ""
+        ]
+        isoform_id = isoform_values[0] if isoform_values else ""
 
         protein_rows.append(
             {
                 PROTEIN_COLUMN: str(protein_id),
                 PROTEIN_SITE_CONTEXT_N_SITES_COLUMN: int(n_sites),
                 PROTEIN_SITE_CONTEXT_SITE_IDS_COLUMN: _serialize_json(site_ids),
+                PROTEIN_SITE_CONTEXT_SITE_KEYS_COLUMN: _serialize_json(site_keys),
+                PROTEIN_SITE_CONTEXT_DISPLAY_IDS_COLUMN: _serialize_json(display_ids),
                 PROTEIN_SITE_CONTEXT_SITE_CLUSTERS_COLUMN: _serialize_json(
                     cluster_values
                 ),
@@ -298,11 +394,17 @@ def build_protein_site_context_table(
                 PROTEIN_SITE_CONTEXT_MULTI_SITE_COLUMN: bool(multi_site),
                 PROTEIN_SITE_CONTEXT_AMBIGUOUS_CONTEXT_COLUMN: bool(ambiguous_context),
                 PROTEIN_SITE_CONTEXT_GENE_SYMBOL_COLUMN: str(gene_symbol),
+                PROTEIN_SITE_CONTEXT_SITE_COLUMN: str(site_token),
+                PROTEIN_SITE_CONTEXT_PROTEIN_ACCESSION_COLUMN: str(protein_accession),
+                PROTEIN_SITE_CONTEXT_ISOFORM_ID_COLUMN: str(isoform_id),
                 PROTEIN_SITE_CONTEXT_TOP_KINASES_BY_SITE_COLUMN: _serialize_json(
                     top_kinases_by_site
                 ),
                 PROTEIN_SITE_CONTEXT_MODULE_IDS_BY_SITE_COLUMN: _serialize_json(
                     module_ids_by_site
+                ),
+                PROTEIN_SITE_CONTEXT_SITE_KEY_TO_DISPLAY_ID_COLUMN: _serialize_json(
+                    site_key_to_display_id
                 ),
             }
         )
@@ -315,14 +417,20 @@ def build_protein_site_context_table(
             PROTEIN_COLUMN: str,
             PROTEIN_SITE_CONTEXT_N_SITES_COLUMN: "int64",
             PROTEIN_SITE_CONTEXT_SITE_IDS_COLUMN: str,
+            PROTEIN_SITE_CONTEXT_SITE_KEYS_COLUMN: str,
+            PROTEIN_SITE_CONTEXT_DISPLAY_IDS_COLUMN: str,
             PROTEIN_SITE_CONTEXT_SITE_CLUSTERS_COLUMN: str,
             PROTEIN_SITE_CONTEXT_N_DISTINCT_SITE_CLUSTERS_COLUMN: "int64",
             PROTEIN_SITE_CONTEXT_PROTEIN_MODULE_COLUMN: "int64",
             PROTEIN_SITE_CONTEXT_MULTI_SITE_COLUMN: bool,
             PROTEIN_SITE_CONTEXT_AMBIGUOUS_CONTEXT_COLUMN: bool,
             PROTEIN_SITE_CONTEXT_GENE_SYMBOL_COLUMN: str,
+            PROTEIN_SITE_CONTEXT_SITE_COLUMN: str,
+            PROTEIN_SITE_CONTEXT_PROTEIN_ACCESSION_COLUMN: str,
+            PROTEIN_SITE_CONTEXT_ISOFORM_ID_COLUMN: str,
             PROTEIN_SITE_CONTEXT_TOP_KINASES_BY_SITE_COLUMN: str,
             PROTEIN_SITE_CONTEXT_MODULE_IDS_BY_SITE_COLUMN: str,
+            PROTEIN_SITE_CONTEXT_SITE_KEY_TO_DISPLAY_ID_COLUMN: str,
         }
     )
 
@@ -332,8 +440,13 @@ def empty_site_membership_table() -> pd.DataFrame:
 
     return pd.DataFrame(
         {
+            SITE_KEY_COLUMN: pd.Series(dtype=str),
+            DISPLAY_ID_COLUMN: pd.Series(dtype=str),
             SITE_ID_COLUMN: pd.Series(dtype=str),
+            SITE_COLUMN: pd.Series(dtype=str),
             PROTEIN_COLUMN: pd.Series(dtype=str),
+            PROTEIN_ACCESSION_COLUMN: pd.Series(dtype=str),
+            ISOFORM_ID_COLUMN: pd.Series(dtype=str),
             SITE_CLUSTER_COLUMN: pd.Series(dtype="Int64"),
             SITE_MEMBERSHIP_PROTEIN_MODULE_COLUMN: pd.Series(dtype="int64"),
             SITE_MEMBERSHIP_INCLUDED_COLUMN: pd.Series(dtype=bool),
@@ -355,6 +468,8 @@ def empty_protein_site_context_table() -> pd.DataFrame:
             PROTEIN_COLUMN: pd.Series(dtype=str),
             PROTEIN_SITE_CONTEXT_N_SITES_COLUMN: pd.Series(dtype="int64"),
             PROTEIN_SITE_CONTEXT_SITE_IDS_COLUMN: pd.Series(dtype=str),
+            PROTEIN_SITE_CONTEXT_SITE_KEYS_COLUMN: pd.Series(dtype=str),
+            PROTEIN_SITE_CONTEXT_DISPLAY_IDS_COLUMN: pd.Series(dtype=str),
             PROTEIN_SITE_CONTEXT_SITE_CLUSTERS_COLUMN: pd.Series(dtype=str),
             PROTEIN_SITE_CONTEXT_N_DISTINCT_SITE_CLUSTERS_COLUMN: pd.Series(
                 dtype="int64"
@@ -363,8 +478,12 @@ def empty_protein_site_context_table() -> pd.DataFrame:
             PROTEIN_SITE_CONTEXT_MULTI_SITE_COLUMN: pd.Series(dtype=bool),
             PROTEIN_SITE_CONTEXT_AMBIGUOUS_CONTEXT_COLUMN: pd.Series(dtype=bool),
             PROTEIN_SITE_CONTEXT_GENE_SYMBOL_COLUMN: pd.Series(dtype=str),
+            PROTEIN_SITE_CONTEXT_SITE_COLUMN: pd.Series(dtype=str),
+            PROTEIN_SITE_CONTEXT_PROTEIN_ACCESSION_COLUMN: pd.Series(dtype=str),
+            PROTEIN_SITE_CONTEXT_ISOFORM_ID_COLUMN: pd.Series(dtype=str),
             PROTEIN_SITE_CONTEXT_TOP_KINASES_BY_SITE_COLUMN: pd.Series(dtype=str),
             PROTEIN_SITE_CONTEXT_MODULE_IDS_BY_SITE_COLUMN: pd.Series(dtype=str),
+            PROTEIN_SITE_CONTEXT_SITE_KEY_TO_DISPLAY_ID_COLUMN: pd.Series(dtype=str),
         }
     )
 
@@ -474,13 +593,19 @@ def _serialize_json(value: object) -> str:
 __all__ = [
     "PROTEIN_SITE_CONTEXT_AMBIGUOUS_CONTEXT_COLUMN",
     "PROTEIN_SITE_CONTEXT_GENE_SYMBOL_COLUMN",
+    "PROTEIN_SITE_CONTEXT_DISPLAY_IDS_COLUMN",
+    "PROTEIN_SITE_CONTEXT_ISOFORM_ID_COLUMN",
     "PROTEIN_SITE_CONTEXT_MODULE_IDS_BY_SITE_COLUMN",
     "PROTEIN_SITE_CONTEXT_MULTI_SITE_COLUMN",
     "PROTEIN_SITE_CONTEXT_N_DISTINCT_SITE_CLUSTERS_COLUMN",
     "PROTEIN_SITE_CONTEXT_N_SITES_COLUMN",
+    "PROTEIN_SITE_CONTEXT_PROTEIN_ACCESSION_COLUMN",
     "PROTEIN_SITE_CONTEXT_PROTEIN_MODULE_COLUMN",
+    "PROTEIN_SITE_CONTEXT_SITE_COLUMN",
     "PROTEIN_SITE_CONTEXT_SITE_CLUSTERS_COLUMN",
     "PROTEIN_SITE_CONTEXT_SITE_IDS_COLUMN",
+    "PROTEIN_SITE_CONTEXT_SITE_KEYS_COLUMN",
+    "PROTEIN_SITE_CONTEXT_SITE_KEY_TO_DISPLAY_ID_COLUMN",
     "PROTEIN_SITE_CONTEXT_TOP_KINASES_BY_SITE_COLUMN",
     "SITE_MEMBERSHIP_EXCLUDED_REASON_COLUMN",
     "SITE_MEMBERSHIP_GENE_SYMBOL_COLUMN",

@@ -57,14 +57,24 @@ class KinaseWorkflowInterpreter:
     def run(self, request: KinaseWorkflowRequest) -> ResolvedKinaseWorkflowRequest:
         dataset_phospho = request.dataset._borrow_phospho_frame()
         dataset_site_metadata = request.dataset._borrow_site_metadata_frame()
+        site_identity_map = self._build_site_identity_map(
+            dataset=dataset_phospho,
+            site_metadata=dataset_site_metadata,
+        )
         site_sequence_conflict_policy = request.site_sequence_conflict_policy
         references = self._reference_resolver.run(
             request.references,
             dataset_organism=request.dataset.organism,
         )
-        # ReferenceBundle construction is the sole identifier-normalisation
-        # boundary. Downstream workflow stages consume these tables as-is.
-        kinase_substrate_map = references.kinase_substrate_map
+        reference_site_count = int(
+            references.kinase_substrate_map.loc[:, "substrate_site"]
+            .astype(str)
+            .nunique()
+        )
+        kinase_substrate_map = self._project_reference_substrate_map(
+            reference_kinase_substrate_map=references.kinase_substrate_map,
+            site_identity_map=site_identity_map,
+        )
         merge_result = self._site_sequence_support_builder.run(
             dataset=dataset_phospho,
             site_metadata=dataset_site_metadata,
@@ -99,6 +109,7 @@ class KinaseWorkflowInterpreter:
         self._validate_reference_coverage(
             overlap_counts=overlap_counts,
             request=request,
+            reference_site_count=reference_site_count,
         )
         self._validate_eligible_kinases(
             overlap_counts=overlap_counts,
@@ -113,6 +124,19 @@ class KinaseWorkflowInterpreter:
             dataset=dataset_phospho,
             site_sequences=site_sequences,
         )
+        scoring_site_keys = set(scoring_site_index.astype(str))
+        site_sequences = site_sequences.reindex(scoring_site_index)
+        site_identity_map = site_identity_map.reindex(scoring_site_index)
+        kinase_substrate_map = (
+            kinase_substrate_map.loc[
+                kinase_substrate_map.loc[:, "substrate_site"]
+                .astype(str)
+                .isin(scoring_site_keys),
+                :,
+            ]
+            .reset_index(drop=True)
+            .copy(deep=True)
+        )
         activity_phospho_matrix = dataset_phospho.loc[scoring_site_index, :]
         execution_config = self._resolve_execution_config(request)
         return ResolvedKinaseWorkflowRequest(
@@ -120,6 +144,7 @@ class KinaseWorkflowInterpreter:
             references=references,
             kinase_substrate_map=kinase_substrate_map,
             site_sequences=site_sequences,
+            site_identity_map=site_identity_map,
             scoring_site_index=scoring_site_index,
             activity_phospho_matrix=activity_phospho_matrix,
             execution_config=execution_config,
@@ -127,8 +152,77 @@ class KinaseWorkflowInterpreter:
                 **merge_result.diagnostics_payload(),
                 "reference_sequence_count": int(references.site_sequences.shape[0]),
                 "execution_sequence_count": int(site_sequences.shape[0]),
+                "reference_substrate_map_count": int(
+                    references.kinase_substrate_map.shape[0]
+                ),
+                "execution_substrate_map_count": int(kinase_substrate_map.shape[0]),
             },
         )
+
+    @staticmethod
+    def _build_site_identity_map(
+        *,
+        dataset: pd.DataFrame,
+        site_metadata: pd.DataFrame,
+    ) -> pd.DataFrame:
+        aligned_metadata = site_metadata.reindex(dataset.index)
+        if "display_id" in aligned_metadata.columns:
+            display_ids = (
+                aligned_metadata.loc[:, "display_id"].astype("string").str.strip()
+            )
+        else:
+            display_ids = pd.Series(
+                dataset.index.astype(str), index=dataset.index, dtype="string"
+            )
+        resolved_display_ids = [
+            str(site_key)
+            if not bool(pd.notna(value)) or str(value) == ""
+            else str(value)
+            for site_key, value in zip(
+                dataset.index.tolist(), display_ids.tolist(), strict=False
+            )
+        ]
+        site_keys = [str(value) for value in dataset.index.tolist()]
+        return pd.DataFrame(
+            {"site_key": site_keys, "display_id": resolved_display_ids},
+            index=pd.Index(site_keys, name=dataset.index.name),
+        )
+
+    @staticmethod
+    def _project_reference_substrate_map(
+        *,
+        reference_kinase_substrate_map: pd.DataFrame,
+        site_identity_map: pd.DataFrame,
+    ) -> pd.DataFrame:
+        display_lookup: dict[str, list[str]] = {}
+        for site_key, display_id in site_identity_map.loc[
+            :, ["site_key", "display_id"]
+        ].itertuples(index=False):
+            display_lookup.setdefault(str(display_id), []).append(str(site_key))
+
+        rows: list[dict[str, str]] = []
+        for kinase, display_id in reference_kinase_substrate_map.loc[
+            :, ["kinase", "substrate_site"]
+        ].itertuples(index=False):
+            matched_site_keys = display_lookup.get(str(display_id), [])
+            if not matched_site_keys:
+                continue
+            for site_key in matched_site_keys:
+                rows.append(
+                    {
+                        "kinase": str(kinase),
+                        "substrate_site": str(site_key),
+                        "display_id": str(display_id),
+                    }
+                )
+        if not rows:
+            return pd.DataFrame(
+                columns=pd.Index(["kinase", "substrate_site", "display_id"])
+            )
+        return pd.DataFrame.from_records(
+            rows,
+            columns=["kinase", "substrate_site", "display_id"],
+        ).drop_duplicates(ignore_index=True)
 
     @staticmethod
     def _resolve_execution_config(
@@ -225,6 +319,7 @@ class KinaseWorkflowInterpreter:
         *,
         overlap_counts: _OverlapSummary,
         request: KinaseWorkflowRequest,
+        reference_site_count: int,
     ) -> None:
         overlap_sites = int(overlap_counts["overlap_sites"])
         if overlap_sites > 0:
@@ -236,7 +331,7 @@ class KinaseWorkflowInterpreter:
                 "identifier formatting in dataset.phospho.index"
             ),
             dataset_sites=overlap_counts["dataset_sites"],
-            reference_sites=overlap_counts["reference_sites"],
+            reference_sites=reference_site_count,
             overlap_sites=overlap_sites,
             scoring_config_min_substrates=request.scoring_config.min_substrates,
         )

@@ -5,6 +5,7 @@ from typing import cast
 
 import pandas as pd
 
+from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.preprocessing.policy_models import (
     SiteMatrixDuplicateSitePolicy,
     SiteMatrixMissingDataPolicy,
@@ -28,7 +29,7 @@ _DEFAULT_METADATA_CONFLICT_FIELDS = (
 _DEFAULT_ROW_DROP_STATS_ATTR = "site_matrix_row_drop_stats"
 _DEFAULT_SITE_MATRIX_POLICY_ATTR = "site_matrix_policy"
 _DEFAULT_SITE_MATRIX_PROVENANCE_ATTR = "site_matrix_provenance"
-_SITE_ID_COLUMN = "site_id"
+_SITE_KEY_COLUMN = "site_key"
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,10 +114,10 @@ class SiteMatrixProvenanceBuilder:
             "duplicate_site_policy": resolved_duplicate_site_policy.value,
             "missing_data_policy": resolved_missing_data_policy.value,
             "required_observed_count": required_observed_count,
-            "final_constructed_site_ids": tuple(
-                str(site_id) for site_id in final_phospho.index.tolist()
-            ),
         }
+        site_matrix_provenance["final_constructed_site_ids"] = tuple(
+            str(site_id) for site_id in final_phospho.index.tolist()
+        )
         if duplicate_aggregation_diagnostics is not None:
             site_matrix_provenance["duplicate_aggregation"] = dict(
                 duplicate_aggregation_diagnostics
@@ -127,9 +128,12 @@ class SiteMatrixProvenanceBuilder:
         )
 
         diagnostics = dict(site_matrix_provenance)
-        diagnostics["final_constructed_site_ids"] = [
+        diagnostics["final_site_keys"] = list(
             str(site_id) for site_id in final_phospho.index.tolist()
-        ]
+        )
+        diagnostics["final_constructed_site_ids"] = list(
+            diagnostics["final_constructed_site_ids"]
+        )
         if duplicate_aggregation_diagnostics is not None:
             diagnostics["duplicate_aggregation"] = dict(
                 duplicate_aggregation_diagnostics
@@ -148,7 +152,7 @@ class SiteMatrixProvenanceBuilder:
 
 
 class MetadataConflictDetector:
-    """Detect metadata conflicts for rows mapping to the same constructed site id."""
+    """Detect metadata conflicts for rows mapping to the same scientific row key."""
 
     def __init__(
         self,
@@ -161,14 +165,31 @@ class MetadataConflictDetector:
         self,
         *,
         site_metadata: pd.DataFrame,
-        constructed_site_id: pd.Series,
+        scientific_row_key: pd.Series | None = None,
+        display_id: pd.Series | None = None,
+        constructed_site_id: pd.Series | None = None,
     ) -> pd.DataFrame:
+        if scientific_row_key is None:
+            if constructed_site_id is None:
+                raise PhosPyInputError(
+                    "metadata conflict detection requires scientific_row_key "
+                    "(or legacy constructed_site_id)"
+                )
+            scientific_row_key = constructed_site_id
+        if display_id is None:
+            if constructed_site_id is None:
+                raise PhosPyInputError(
+                    "metadata conflict detection requires display_id "
+                    "(or legacy constructed_site_id)"
+                )
+            display_id = constructed_site_id
         if site_metadata.empty:
             return _empty_metadata_conflicts()
 
         duplicate_groups = site_metadata.assign(
             **{
-                _SITE_ID_COLUMN: constructed_site_id.astype(str),
+                _SITE_KEY_COLUMN: scientific_row_key.astype(str),
+                "display_id": display_id.astype(str),
                 "source_row_id": site_metadata.index.astype(str),
             }
         )
@@ -178,8 +199,13 @@ class MetadataConflictDetector:
             else self._conflict_fields
         )
         records: list[dict[str, object]] = []
-        for site_id, group in duplicate_groups.groupby(_SITE_ID_COLUMN, sort=False):
+        for site_key, group in duplicate_groups.groupby(_SITE_KEY_COLUMN, sort=False):
             source_row_ids = tuple(group.loc[:, "source_row_id"].astype(str).tolist())
+            display_label = (
+                group.loc[:, "display_id"].astype(str).iloc[0]
+                if "display_id" in group.columns
+                else ""
+            )
             for field in conflict_fields:
                 if field not in group.columns:
                     continue
@@ -193,7 +219,9 @@ class MetadataConflictDetector:
                     continue
                 records.append(
                     {
-                        "site_id": str(site_id),
+                        "site_key": str(site_key),
+                        "display_id": str(display_label),
+                        "site_id": str(display_label),
                         "field": field,
                         "values": tuple(str(value) for value in distinct_values),
                         "n_distinct_values": len(distinct_values),
@@ -208,7 +236,8 @@ class MetadataConflictDetector:
 def resolve_aggregate_site_metadata(
     *,
     site_metadata: pd.DataFrame,
-    constructed_site_id: pd.Series,
+    scientific_row_key: pd.Series,
+    display_id: pd.Series,
     metadata_conflicts: pd.DataFrame,
 ) -> pd.DataFrame:
     if site_metadata.empty:
@@ -217,23 +246,30 @@ def resolve_aggregate_site_metadata(
     metadata_columns = list(site_metadata.columns)
     grouped_metadata = cast(
         pd.DataFrame,
-        site_metadata.assign(**{_SITE_ID_COLUMN: constructed_site_id.to_numpy()})
-        .groupby(_SITE_ID_COLUMN, sort=False)[metadata_columns]
+        site_metadata.assign(
+            **{
+                _SITE_KEY_COLUMN: scientific_row_key.to_numpy(),
+                "display_id": display_id.to_numpy(),
+            }
+        )
+        .groupby(_SITE_KEY_COLUMN, sort=False)[metadata_columns]
         .first(),
     )
     grouped_metadata.index = pd.Index(
-        grouped_metadata.index.astype(str), name=_SITE_ID_COLUMN
+        grouped_metadata.index.astype(str), name=_SITE_KEY_COLUMN
     )
 
     if metadata_conflicts.empty:
         return cast(pd.DataFrame, grouped_metadata)
 
-    conflict_records = metadata_conflicts.loc[:, ["site_id", "field"]].drop_duplicates()
+    conflict_records = metadata_conflicts.loc[
+        :, ["site_key", "field"]
+    ].drop_duplicates()
     for conflict in conflict_records.to_dict(orient="records"):
-        site_id = str(conflict["site_id"])
+        site_key = str(conflict["site_key"])
         field = str(conflict["field"])
-        if site_id in grouped_metadata.index and field in grouped_metadata.columns:
-            grouped_metadata.at[site_id, field] = pd.NA
+        if site_key in grouped_metadata.index and field in grouped_metadata.columns:
+            grouped_metadata.at[site_key, field] = pd.NA
 
     return cast(pd.DataFrame, grouped_metadata)
 

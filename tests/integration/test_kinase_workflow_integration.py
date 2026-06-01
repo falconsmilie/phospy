@@ -234,11 +234,13 @@ def test_kinase_workflow_uses_dataset_site_sequences_without_mutating_references
 
     assert result.site_attrition_summary is not None
     assert result.site_attrition_summary.scoring.sites_with_valid_site_sequence == 3
-    assert set(result.prediction_result.pred_mat.index.astype(str)) == {
-        "MAPK14;Y182;",
-        "GSK3B;S9;",
-        "EXTRA;S1;",
-    }
+    assert set(result.prediction_result.pred_mat.index.astype(str)) == set(
+        dataset.phospho.index.astype(str)
+    )
+    if result.prediction_result.substrate_list is not None:
+        assert {"site_key", "display_id"} <= set(
+            result.prediction_result.substrate_list.columns
+        )
     pd.testing.assert_frame_equal(
         result.references.site_sequences,
         original_reference_sequences,
@@ -781,12 +783,17 @@ def test_explicit_mixed_case_references_align_and_emit_normalised_identifiers() 
         "MAPK1;S123;",
         "MAPK1;T185;",
     }
-    assert "MAPK1;S123;" in result.scoring_result.profile_scores.index
-    assert "MAPK1;S123;" in result.prediction_result.pred_mat.index
+    assert set(result.scoring_result.profile_scores.index.astype(str)) == set(
+        dataset.phospho.index.astype(str)
+    )
+    assert set(result.prediction_result.pred_mat.index.astype(str)) == set(
+        dataset.phospho.index.astype(str)
+    )
     assert list(result.prediction_result.pred_mat.columns) == ["AKT1"]
     substrate_list = result.prediction_result.substrate_list
     assert substrate_list is not None
     assert set(substrate_list.loc[:, "kinase"]) == {"AKT1"}
+    assert {"site_key", "display_id"} <= set(substrate_list.columns)
 
 
 def test_prediction_changes_when_downstream_matrix_switches_profile_vs_combined(
@@ -962,7 +969,12 @@ def test_motif_library_build_is_limited_to_profile_eligible_kinases(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     dataset = build_rat_l6_dataset(n_sites=40)
-    overlap_sites = dataset.phospho.index.astype(str).tolist()[:2]
+    overlap_sites = (
+        dataset.site_metadata.reindex(dataset.phospho.index)
+        .loc[:, "display_id"]
+        .astype(str)
+        .tolist()[:2]
+    )
     offlane_sites = [f"OFFLANE{i};S{i};" for i in range(1, 9)]
     references = ReferenceBundle(
         organism=dataset.organism,
@@ -981,7 +993,13 @@ def test_motif_library_build_is_limited_to_profile_eligible_kinases(
     captured_kinases: list[str] = []
     original_build_motif_library = kinase_executor.build_motif_library
 
-    def _capture_eligible_kinases(*, kinase_substrate_map, site_sequences, flank_size):
+    def _capture_eligible_kinases(
+        *,
+        kinase_substrate_map,
+        site_sequences,
+        flank_size,
+        site_identities=None,
+    ):
         nonlocal captured_kinases
         captured_kinases = sorted(
             kinase_substrate_map.loc[:, "kinase"].astype(str).unique().tolist()
@@ -989,6 +1007,7 @@ def test_motif_library_build_is_limited_to_profile_eligible_kinases(
         return original_build_motif_library(
             kinase_substrate_map=kinase_substrate_map,
             site_sequences=site_sequences,
+            site_identities=site_identities,
             flank_size=flank_size,
         )
 
@@ -1141,6 +1160,9 @@ def test_kinase_public_predmat_provenance_matches_golden_contract() -> None:
     _assert_expected_fingerprint_map(
         observed=_fingerprints_by_name(provenance.output_tables),
         expected=golden["output_tables"],
+        expected_overrides={
+            "outputs.prediction.substrate_list": {"columns": 6},
+        },
         compare_hash_values=False,
     )
     _assert_expected_fingerprint_map(

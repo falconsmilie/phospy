@@ -65,6 +65,7 @@ class KinaseWorkflowValidator:
         )
         enforce_workflow_site_identity_contract(
             site_metadata=site_metadata,
+            expected_index=dataset._borrow_phospho_frame().index,
             field_name="kinase workflow request dataset.site_metadata",
             contract=KINASE_IDENTITY_CONTRACT,
             error_type=WorkflowValidationError,

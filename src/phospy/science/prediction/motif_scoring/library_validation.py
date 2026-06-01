@@ -39,6 +39,7 @@ def build_motif_library(
     *,
     kinase_substrate_map: pd.DataFrame,
     site_sequences: pd.Series,
+    site_identities: Mapping[str, str] | pd.Series | None = None,
     flank_size: int = DEFAULT_MOTIF_FLANK_SIZE,
 ) -> tuple[dict[str, pd.DataFrame], pd.Series]:
     """Build per-kinase motif frequency matrices from reference sequences."""
@@ -49,6 +50,13 @@ def build_motif_library(
     sequence_lookup = {
         str(site_id): sequence for site_id, sequence in site_sequences.items()
     }
+    identity_lookup = (
+        {}
+        if site_identities is None
+        else {
+            str(site_id): str(identity) for site_id, identity in site_identities.items()
+        }
+    )
     candidates: list[_LibraryCandidate] = []
     for kinase, grouped in kinase_substrate_map.groupby("kinase", sort=False):
         sites = list(dict.fromkeys(grouped.loc[:, "substrate_site"].astype(str)))
@@ -56,7 +64,7 @@ def build_motif_library(
             candidates.append(
                 _LibraryCandidate(
                     reference_id=reference_id,
-                    site_id=reference_id,
+                    site_id=identity_lookup.get(reference_id, reference_id),
                     kinase=str(kinase),
                     sequence_input=_normalize_sequence_value(
                         sequence_lookup.get(reference_id, np.nan)

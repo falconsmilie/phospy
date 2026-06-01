@@ -13,7 +13,7 @@ from phospy.science.signalomes.models import (
 class SignalomeAlignmentDiagnosticsBuilder:
     """Build alignment diagnostics across sites, kinases, and proteins."""
 
-    _SITE_ID_COLUMN = "site_id"
+    _SITE_KEY_COLUMN = "site_key"
     _KINASE_COLUMN = "kinase"
     _REASON_MISSING_FROM_DATASET = "missing_from_dataset"
     _REASON_MISSING_FROM_PREDICTION_SCORES = "missing_from_prediction_scores"
@@ -38,15 +38,15 @@ class SignalomeAlignmentDiagnosticsBuilder:
         retained_protein_sites: pd.Index,
     ) -> SignalomeAlignmentDiagnostics:
         dataset_site_index = pd.Index(
-            dataset_sites.astype(str), name=self._SITE_ID_COLUMN
+            dataset_sites.astype(str), name=self._SITE_KEY_COLUMN
         )
         prediction_site_index = pd.Index(
             prediction_sites.astype(str),
-            name=self._SITE_ID_COLUMN,
+            name=self._SITE_KEY_COLUMN,
         )
-        score_site_index = pd.Index(score_sites.astype(str), name=self._SITE_ID_COLUMN)
+        score_site_index = pd.Index(score_sites.astype(str), name=self._SITE_KEY_COLUMN)
         retained_site_index = pd.Index(
-            retained_sites.astype(str), name=self._SITE_ID_COLUMN
+            retained_sites.astype(str), name=self._SITE_KEY_COLUMN
         )
         dataset_sites_diag = self._build_site_alignment_input_diagnostics(
             provided=dataset_site_index,
@@ -120,11 +120,11 @@ class SignalomeAlignmentDiagnosticsBuilder:
 
         interpreted_protein_index = pd.Index(
             interpreted_protein_sites.astype(str),
-            name=self._SITE_ID_COLUMN,
+            name=self._SITE_KEY_COLUMN,
         )
         retained_protein_index = pd.Index(
             retained_protein_sites.astype(str),
-            name=self._SITE_ID_COLUMN,
+            name=self._SITE_KEY_COLUMN,
         )
         protein_dropped = int(
             interpreted_protein_index.size - retained_protein_index.size
@@ -156,8 +156,8 @@ class SignalomeAlignmentDiagnosticsBuilder:
         missing_from_first: tuple[pd.Index, str],
         missing_from_second: tuple[pd.Index, str],
     ) -> SignalomeAlignmentInputDiagnostics:
-        provided_index = pd.Index(provided.astype(str), name=self._SITE_ID_COLUMN)
-        retained_index = pd.Index(retained.astype(str), name=self._SITE_ID_COLUMN)
+        provided_index = pd.Index(provided.astype(str), name=self._SITE_KEY_COLUMN)
+        retained_index = pd.Index(retained.astype(str), name=self._SITE_KEY_COLUMN)
         first_index, first_reason = missing_from_first
         second_index, second_reason = missing_from_second
         first_site_set = set(pd.Index(first_index.astype(str)).tolist())

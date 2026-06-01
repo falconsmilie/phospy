@@ -33,8 +33,8 @@ from phospy.validation.workflows.identity import (
 SIGNALOME_PROTEIN_IDENTITY_CONTRACT_NOTE = (
     "Signalome execution requires an explicit site_metadata.protein_id column. "
     "That column must contain explicit non-missing protein_id values for retained sites. "
-    "Protein identifiers are resolved for retained signalome sites after "
-    "downstream-score preconditioning. "
+    "Base dataset phosphosite identity must already be valid and site_key-indexed before "
+    "signalome validation; signalome does not repair weak dataset identity. "
     "Gene-symbol site-ID prefixes encode site identity, not protein identity."
 )
 
@@ -205,6 +205,7 @@ class SignalomeWorkflowValidator:
         try:
             enforce_workflow_site_identity_contract(
                 site_metadata=site_metadata_frame,
+                expected_index=dataset_sites,
                 field_name=field_name,
                 contract=SIGNALOME_IDENTITY_CONTRACT,
                 error_type=WorkflowValidationError,

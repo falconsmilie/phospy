@@ -57,22 +57,16 @@ def enforce_unique_display_site_identity_rows(
     conflicting_messages: list[str] = []
     plain_messages: list[str] = []
 
+    normalized_labels = normalised_display_ids.astype(str).tolist()
     for duplicate_id in duplicate_ids:
-        normalized_labels = normalised_display_ids.astype(str).tolist()
-        duplicate_rows = pd.Index(
-            [
-                row_id
-                for row_id, normalized_label in zip(
-                    normalised_display_ids.index.tolist(),
-                    normalized_labels,
-                    strict=True,
-                )
-                if normalized_label == duplicate_id
-            ]
+        duplicate_positions = tuple(
+            position
+            for position, normalized_label in enumerate(normalized_labels)
+            if normalized_label == duplicate_id
         )
         conflicts = _describe_context_conflicts(
             site_metadata=site_metadata,
-            duplicate_rows=duplicate_rows,
+            duplicate_positions=duplicate_positions,
             context_columns=context_columns,
             preview_limit=preview_limit,
         )
@@ -109,7 +103,7 @@ def enforce_unique_display_site_identity_rows(
 def _describe_context_conflicts(
     *,
     site_metadata: pd.DataFrame,
-    duplicate_rows: pd.Index,
+    duplicate_positions: tuple[int, ...],
     context_columns: tuple[str, ...],
     preview_limit: int,
 ) -> str:
@@ -117,9 +111,11 @@ def _describe_context_conflicts(
     for column_name in context_columns:
         if column_name not in site_metadata.columns:
             continue
+        column = site_metadata[column_name]
+        column_values = column.tolist()
         values = {
-            _normalise_context_value(site_metadata.at[row_id, column_name])
-            for row_id in duplicate_rows.tolist()
+            _normalise_context_value(column_values[position])
+            for position in duplicate_positions
         }
         if len(values) <= 1:
             continue

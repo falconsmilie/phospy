@@ -19,6 +19,10 @@ from phospy.api import (
     SampleDesignRecord,
 )
 from phospy.errors import WorkflowValidationError
+from phospy.science.sites.site_keys import (
+    build_protein_scoped_site_key,
+    encode_site_key,
+)
 from phospy.science.transformations.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
@@ -42,11 +46,21 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         },
         index=pd.Index(
             ["MAPK14;Y182;", "GSK3B;S9;", "AKT1;T308;", "RPS6KB1;T389;"],
-            name="site_id",
+            name="display_id",
         ),
     )
+    display_ids = phospho.index.astype(str).tolist()
+    parsed = [site_id.split(";") for site_id in display_ids]
+    protein_ids = [parts[0] for parts in parsed]
+    site_keys = [
+        _site_key_for_display_id(display_id, protein_id=protein_id)
+        for display_id, protein_id in zip(display_ids, protein_ids, strict=True)
+    ]
+    phospho.index = pd.Index(site_keys, name="site_key")
     site_metadata = pd.DataFrame(
         {
+            "site_key": site_keys,
+            "display_id": display_ids,
             "gene_symbol": ["MAPK14", "GSK3B", "AKT1", "RPS6KB1"],
             "site": ["Y182", "S9", "T308", "T389"],
             "site_sequence": [
@@ -67,6 +81,25 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         ),
         processing_state=supported_log2_processing_state(has_total_matrix=False),
     )
+
+
+def _site_key_for_display_id(
+    display_id: str,
+    *,
+    protein_id: str,
+) -> str:
+    parts = [token.strip() for token in display_id.split(";") if token.strip()]
+    site = parts[1]
+    key = build_protein_scoped_site_key(
+        organism="rat",
+        protein_namespace="protein_id",
+        protein_identifier=protein_id,
+        residue=site.upper()[0],
+        position=int(site[1:]),
+        field_name="tests.integration.test_differential_workflow_integration.site_key",
+        error_type=ValueError,
+    )
+    return encode_site_key(key)
 
 
 def _design() -> ExperimentalDesign:
@@ -116,7 +149,17 @@ def test_differential_workflow_runs_on_analysis_ready_dataset() -> None:
     )
 
     table = result.table_for("B_vs_A")
-    assert list(table.columns) == ["logFC", "t", "P.Value", "adj.P.Val"]
+    assert list(table.columns) == [
+        "site_key",
+        "display_id",
+        "gene_symbol",
+        "site",
+        "protein_id",
+        "logFC",
+        "t",
+        "P.Value",
+        "adj.P.Val",
+    ]
     assert table.index.tolist() == _dataset().phospho.index.tolist()
     assert (table.loc[:, "adj.P.Val"] >= 0.0).all()
     assert (table.loc[:, "adj.P.Val"] <= 1.0).all()
@@ -290,8 +333,10 @@ def test_documented_two_vs_two_differential_example_contract() -> None:
     )
 
     table = result.table_for("treatment_vs_control")
-    assert float(table.loc["MAPK14;Y182;", "logFC"]) > 0.7
-    assert abs(float(table.loc["GSK3B;S9;", "logFC"])) < 0.1
+    mapk14_site_key = _site_key_for_display_id("MAPK14;Y182;", protein_id="MAPK14")
+    gsk3b_site_key = _site_key_for_display_id("GSK3B;S9;", protein_id="GSK3B")
+    assert float(table.loc[mapk14_site_key, "logFC"]) > 0.7
+    assert abs(float(table.loc[gsk3b_site_key, "logFC"])) < 0.1
 
 
 def test_differential_workflow_rejects_linear_scale_before_execution() -> None:

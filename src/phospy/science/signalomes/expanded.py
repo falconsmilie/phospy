@@ -16,6 +16,7 @@ from phospy.contracts.configs import (
 from phospy.errors.workflows import WorkflowStageError
 from phospy.science.signalomes.assignments import _normalize_top_kinase_weights
 from phospy.science.signalomes.constants import (
+    DISPLAY_ID_COLUMN,
     EXPANDED_SIGNALOME_ASSIGNMENT_POLICY_COLUMN,
     EXPANDED_SIGNALOME_KINASE_COLUMN,
     EXPANDED_SIGNALOME_LINKED_KINASES_COLUMN,
@@ -25,11 +26,16 @@ from phospy.science.signalomes.constants import (
     EXPANDED_SIGNALOME_ROW_KIND_SUMMARY,
     EXPANDED_SIGNALOME_SITE_ORDER_COLUMN,
     EXPANDED_SIGNALOME_SUPPORT_KINASES_COLUMN,
+    GENE_SYMBOL_COLUMN,
+    ISOFORM_ID_COLUMN,
     JSON_EMPTY_ARRAY,
     MIN_EXPANDED_MODULE_SHARE_PERCENT,
     MODULE_ID_COLUMN,
+    PROTEIN_ACCESSION_COLUMN,
     PROTEIN_COLUMN,
+    SITE_COLUMN,
     SITE_ID_COLUMN,
+    SITE_KEY_COLUMN,
     SOURCE_KINASE_COLUMN,
     SUPPORT_WEIGHT_COLUMN,
     TARGET_KINASE_COLUMN,
@@ -82,9 +88,45 @@ def build_expanded_signalome_table(
 
     site_module_ids = module_id_values.to_numpy(dtype=np.int64, copy=False)
     site_proteins = protein_ids.to_numpy(dtype=object, copy=False)
+    site_keys = site_index.to_numpy(dtype=object, copy=False)
+    site_display_ids = (
+        indexed_assignments.loc[:, DISPLAY_ID_COLUMN]
+        .astype(str)
+        .to_numpy(dtype=object, copy=False)
+        if DISPLAY_ID_COLUMN in indexed_assignments.columns
+        else site_keys
+    )
+    site_gene_symbols = (
+        indexed_assignments.loc[:, GENE_SYMBOL_COLUMN]
+        .astype(str)
+        .to_numpy(dtype=object, copy=False)
+        if GENE_SYMBOL_COLUMN in indexed_assignments.columns
+        else np.full(int(site_index.size), "", dtype=object)
+    )
+    site_tokens = (
+        indexed_assignments.loc[:, SITE_COLUMN]
+        .astype(str)
+        .to_numpy(dtype=object, copy=False)
+        if SITE_COLUMN in indexed_assignments.columns
+        else np.full(int(site_index.size), "", dtype=object)
+    )
+    site_protein_accessions = (
+        indexed_assignments.loc[:, PROTEIN_ACCESSION_COLUMN]
+        .astype(str)
+        .to_numpy(dtype=object, copy=False)
+        if PROTEIN_ACCESSION_COLUMN in indexed_assignments.columns
+        else np.full(int(site_index.size), "", dtype=object)
+    )
+    site_isoform_ids = (
+        indexed_assignments.loc[:, ISOFORM_ID_COLUMN]
+        .astype(str)
+        .to_numpy(dtype=object, copy=False)
+        if ISOFORM_ID_COLUMN in indexed_assignments.columns
+        else np.full(int(site_index.size), "", dtype=object)
+    )
     site_top_kinases = top_kinases.to_numpy(dtype=object, copy=False)
     site_top_scores = top_scores.to_numpy(dtype=float, copy=False)
-    site_ids = site_index.to_numpy(dtype=object, copy=False)
+    site_ids = site_display_ids
     module_site_positions = _build_module_site_positions(site_module_ids)
     regulated_modules_by_kinase = _build_regulated_modules_by_kinase(
         signalome_modules=signalome_modules,
@@ -98,9 +140,15 @@ def build_expanded_signalome_table(
         EXPANDED_SIGNALOME_ASSIGNMENT_POLICY_COLUMN,
         EXPANDED_SIGNALOME_LINKED_KINASES_COLUMN,
         EXPANDED_SIGNALOME_REGULATED_MODULE_IDS_COLUMN,
+        SITE_KEY_COLUMN,
+        DISPLAY_ID_COLUMN,
         SITE_ID_COLUMN,
         EXPANDED_SIGNALOME_SITE_ORDER_COLUMN,
+        GENE_SYMBOL_COLUMN,
+        SITE_COLUMN,
         PROTEIN_COLUMN,
+        PROTEIN_ACCESSION_COLUMN,
+        ISOFORM_ID_COLUMN,
         MODULE_ID_COLUMN,
         EXPANDED_SIGNALOME_SUPPORT_KINASES_COLUMN,
         SUPPORT_WEIGHT_COLUMN,
@@ -184,9 +232,15 @@ def build_expanded_signalome_table(
                     assignment_policy,
                     linked_kinases_json,
                     regulated_module_ids_json,
+                    str(site_keys[row_position]),
+                    str(site_display_ids[row_position]),
                     str(site_ids[row_position]),
                     row_position,
+                    str(site_gene_symbols[row_position]),
+                    str(site_tokens[row_position]),
                     str(site_proteins[row_position]),
+                    str(site_protein_accessions[row_position]),
+                    str(site_isoform_ids[row_position]),
                     int(site_module_ids[row_position]),
                     json.dumps(
                         support_kinases,
@@ -210,9 +264,15 @@ def build_expanded_signalome_table(
             EXPANDED_SIGNALOME_ASSIGNMENT_POLICY_COLUMN: str,
             EXPANDED_SIGNALOME_LINKED_KINASES_COLUMN: str,
             EXPANDED_SIGNALOME_REGULATED_MODULE_IDS_COLUMN: str,
+            SITE_KEY_COLUMN: str,
+            DISPLAY_ID_COLUMN: str,
             SITE_ID_COLUMN: str,
             EXPANDED_SIGNALOME_SITE_ORDER_COLUMN: "int64",
+            GENE_SYMBOL_COLUMN: str,
+            SITE_COLUMN: str,
             PROTEIN_COLUMN: str,
+            PROTEIN_ACCESSION_COLUMN: str,
+            ISOFORM_ID_COLUMN: str,
             MODULE_ID_COLUMN: "int64",
             EXPANDED_SIGNALOME_SUPPORT_KINASES_COLUMN: str,
             SUPPORT_WEIGHT_COLUMN: float,
@@ -225,9 +285,10 @@ def build_expanded_signalome_table(
             EXPANDED_SIGNALOME_KINASE_COLUMN,
             EXPANDED_SIGNALOME_ROW_KIND_COLUMN,
             EXPANDED_SIGNALOME_SITE_ORDER_COLUMN,
+            SITE_KEY_COLUMN,
             SITE_ID_COLUMN,
         ],
-        ascending=[True, True, True, True],
+        ascending=[True, True, True, True, True],
         kind="stable",
     ).reset_index(drop=True)
 
@@ -292,7 +353,13 @@ def _summary_row(
         linked_kinases_json,
         regulated_module_ids_json,
         "",
+        "",
+        "",
         -1,
+        "",
+        "",
+        "",
+        "",
         "",
         0,
         JSON_EMPTY_ARRAY,
