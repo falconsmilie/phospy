@@ -16,6 +16,7 @@ from phospy.api import (
 from phospy.api.configs import DATASET_SITE_MATRIX_MISSING_DATA_POLICIES
 from phospy.errors.references import UnsupportedOrganismError
 from phospy.errors.validation import DatasetValidationError
+from tests.support.site_keys import site_key_from_display_id
 
 pytestmark = pytest.mark.integration
 
@@ -30,6 +31,14 @@ class _InterpreterSentinel:
             "interpreter must not run when invalid site_matrix missing-data policy "
             "is rejected at validator boundary"
         )
+
+
+def _site_key_for_display_id(site_metadata: pd.DataFrame, display_id: str) -> str:
+    matches = site_metadata.index[
+        site_metadata.loc[:, "display_id"].astype(str) == display_id
+    ].astype(str)
+    assert len(matches) == 1
+    return str(matches[0])
 
 
 @pytest.mark.parametrize(
@@ -71,7 +80,11 @@ def test_builder_supports_all_publicly_advertised_site_matrix_missing_data_modes
         )
     )
 
-    assert built.phospho.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
+    assert built.phospho.index.name == "site_key"
+    assert built.site_metadata.loc[:, "display_id"].astype(str).tolist() == [
+        "GSK3B;S9;",
+        "MAPK14;Y182;",
+    ]
     assert built.phospho.isna().to_numpy().sum() == 0
     assert built.preprocessing_report is not None
     assert built.preprocessing_report.row_audit is not None
@@ -162,10 +175,15 @@ def test_builder_site_sequence_mixed_support_keeps_resolvable_rows_and_excludes_
         )
     )
 
-    assert built.phospho.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
-    assert built.site_metadata.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
-    assert built.site_metadata.loc["GSK3B;S9;", "site_sequence"] == "SEQ_MANXAL"
-    assert isinstance(built.site_metadata.loc["MAPK14;Y182;", "site_sequence"], str)
+    assert built.phospho.index.name == "site_key"
+    assert built.site_metadata.loc[:, "display_id"].astype(str).tolist() == [
+        "GSK3B;S9;",
+        "MAPK14;Y182;",
+    ]
+    gsk3b_site_key = _site_key_for_display_id(built.site_metadata, "GSK3B;S9;")
+    mapk14_site_key = _site_key_for_display_id(built.site_metadata, "MAPK14;Y182;")
+    assert built.site_metadata.loc[gsk3b_site_key, "site_sequence"] == "SEQ_MANXAL"
+    assert isinstance(built.site_metadata.loc[mapk14_site_key, "site_sequence"], str)
     assert built.preprocessing_report is not None
     assert built.preprocessing_report.row_audit is not None
     dropped = built.preprocessing_report.row_audit.loc[
@@ -271,7 +289,8 @@ def test_builder_succeeds_with_provided_site_sequence_at_analysis_ready_boundary
         )
     )
 
-    assert built.site_metadata.loc["MAPK14;Y182;", "site_sequence"] == "SEQ_A"
+    site_key = _site_key_for_display_id(built.site_metadata, "MAPK14;Y182;")
+    assert built.site_metadata.loc[site_key, "site_sequence"] == "SEQ_A"
     assert built.provenance is not None
     derivation = built.provenance.workflow_parameters.get("site_sequence_derivation")
     assert isinstance(derivation, dict)
@@ -379,7 +398,15 @@ def test_builder_fails_when_site_sequence_cannot_be_derived_before_dataset_const
         )
 
     message = str(caught.value)
-    assert "site_id='FAKE1;S1;'" in message
+    expected_site_key = site_key_from_display_id(
+        "FAKE1;S1;",
+        protein_namespace="gene_symbol",
+    )
+    assert (
+        "site_id='FAKE1;S1;'" in message
+        or f"site_key='{expected_site_key}'" in message
+        or expected_site_key in message
+    )
     assert "gene_symbol='FAKE1'" in message
     assert "site='S1'" in message
     assert "failure_category='missing_reference_support'" in message

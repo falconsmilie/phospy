@@ -10,10 +10,12 @@ from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
 )
+from tests.support.site_keys import site_key_index_from_display_ids
 
 
 def _coherent_site_identity_inputs() -> tuple[pd.DataFrame, pd.DataFrame]:
-    index = pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id")
+    display_ids = ["MAPK14;Y182;", "AKT1;T308;"]
+    index = site_key_index_from_display_ids(display_ids)
     phospho = pd.DataFrame(
         {
             "sample_a": [1.0, 2.0],
@@ -23,6 +25,8 @@ def _coherent_site_identity_inputs() -> tuple[pd.DataFrame, pd.DataFrame]:
     )
     site_metadata = pd.DataFrame(
         {
+            "site_key": index.astype(str).tolist(),
+            "display_id": display_ids,
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": [
@@ -48,16 +52,21 @@ def test_dataset_boundary_accepts_coherent_site_identity_rows() -> None:
         processing_state=supported_linear_processing_state(has_total_matrix=False),
     )
 
-    assert dataset.phospho.index.tolist() == ["MAPK14;Y182;", "AKT1;T308;"]
-    assert dataset.site_metadata.index.tolist() == ["MAPK14;Y182;", "AKT1;T308;"]
+    assert dataset.phospho.index.tolist() == phospho.index.tolist()
+    assert dataset.site_metadata.index.tolist() == phospho.index.tolist()
+    assert dataset.site_metadata["display_id"].tolist() == [
+        "MAPK14;Y182;",
+        "AKT1;T308;",
+    ]
 
 
 def test_dataset_boundary_rejects_site_identity_semantic_disagreement_with_details() -> (
     None
 ):
     phospho, site_metadata = _coherent_site_identity_inputs()
-    site_metadata.loc["MAPK14;Y182;", "gene_symbol"] = "MAPK1"
-    site_metadata.loc["AKT1;T308;", "site"] = "S473"
+    mapk14_site_key, akt1_site_key = site_metadata.index.tolist()
+    site_metadata.loc[mapk14_site_key, "gene_symbol"] = "MAPK1"
+    site_metadata.loc[akt1_site_key, "site"] = "S473"
 
     with pytest.raises(DatasetValidationError) as exc_info:
         AnalysisReadyPhosphoDataset(
@@ -78,18 +87,19 @@ def test_dataset_boundary_rejects_site_identity_semantic_disagreement_with_detai
     assert (
         "site_sequence central residue must agree with site/residue metadata" in message
     )
-    assert "AKT1;T308;" in message
+    assert str(akt1_site_key) in message
 
 
-def test_dataset_boundary_rejects_unparseable_site_ids_before_coherence_checks() -> (
-    None
-):
+def test_dataset_boundary_rejects_invalid_site_key_before_coherence_checks() -> None:
+    index = pd.Index(["MAPK14-Y182"], name="site_key")
     phospho = pd.DataFrame(
         {"sample_a": [1.0], "sample_b": [2.0]},
-        index=pd.Index(["MAPK14-Y182"], name="site_id"),
+        index=index,
     )
     site_metadata = pd.DataFrame(
         {
+            "site_key": ["MAPK14-Y182"],
+            "display_id": ["MAPK14;Y182;"],
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
             "site_sequence": [
@@ -112,5 +122,5 @@ def test_dataset_boundary_rejects_unparseable_site_ids_before_coherence_checks()
         )
 
     message = str(exc_info.value)
-    assert "site identifiers must use 'GENE;SITE;' format" in message
-    assert "'MAPK14-Y182'" in message
+    assert "must contain valid PhosPy site_key values" in message
+    assert "must start with 'phospy:v1'" in message

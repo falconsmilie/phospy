@@ -99,6 +99,11 @@ def test_model_boundary_validator_accepts_valid_payload() -> None:
     validated = _BOUNDARY_VALIDATOR.run(**payload)
     assert isinstance(constructed, AnalysisReadyPhosphoDataset)
     assert isinstance(validated, AnalysisReadyPhosphoDataset)
+    assert constructed.phospho.index.name == "site_key"
+    assert constructed.site_metadata.index.name == "site_key"
+    assert constructed.site_metadata.loc[:, "site_key"].tolist() == (
+        constructed.site_metadata.index.tolist()
+    )
 
 
 def test_model_boundary_validator_rejects_display_indexed_direct_constructor_payload() -> (
@@ -112,6 +117,107 @@ def test_model_boundary_validator_rejects_display_indexed_direct_constructor_pay
     payload["phospho"] = phospho
     payload["site_metadata"] = site_metadata
     _assert_constructor_and_adapter_reject(payload)
+
+
+def test_model_boundary_validator_rejects_missing_site_key_column() -> None:
+    payload = _valid_payload()
+    payload["site_metadata"] = payload["site_metadata"].drop(columns=["site_key"])
+    with pytest.raises(_MODEL_BOUNDARY_ERRORS, match="site_key"):
+        AnalysisReadyPhosphoDataset(**payload)
+
+
+def test_model_boundary_validator_rejects_missing_display_id_column() -> None:
+    payload = _valid_payload()
+    payload["site_metadata"] = payload["site_metadata"].drop(columns=["display_id"])
+    with pytest.raises(_MODEL_BOUNDARY_ERRORS, match="display_id"):
+        AnalysisReadyPhosphoDataset(**payload)
+
+
+def test_model_boundary_validator_allows_duplicate_display_id_with_distinct_site_key() -> (
+    None
+):
+    first_key = _site_key(protein_identifier="P28482", residue="Y", position=182)
+    second_key = _site_key(protein_identifier="Q9WVS8", residue="Y", position=182)
+    site_index = pd.Index([first_key, second_key], name="site_key")
+    payload = _valid_payload()
+    payload["phospho"] = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0],
+            "sample_b": [1.5, 2.5],
+        },
+        index=site_index.copy(),
+    )
+    payload["site_metadata"] = pd.DataFrame(
+        {
+            "site_key": [first_key, second_key],
+            "display_id": ["MAPK14;Y182;", "MAPK14;Y182;"],
+            "gene_symbol": ["MAPK14", "MAPK14"],
+            "site": ["Y182", "Y182"],
+            "site_sequence": [_CENTRED_Y_SEQUENCE, _CENTRED_Y_SEQUENCE],
+            "protein_id": ["P28482", "Q9WVS8"],
+        },
+        index=site_index.copy(),
+    )
+
+    dataset = AnalysisReadyPhosphoDataset(**payload)
+
+    assert dataset.site_metadata.loc[:, "display_id"].nunique() == 1
+    assert dataset.site_metadata.loc[:, "site_key"].nunique() == 2
+
+
+def test_model_boundary_validator_rejects_duplicate_site_key() -> None:
+    payload = _valid_payload()
+    duplicate_key = payload["phospho"].index[0]  # type: ignore[index]
+    duplicate_index = pd.Index([duplicate_key, duplicate_key], name="site_key")
+    phospho = payload["phospho"].copy(deep=True)
+    site_metadata = payload["site_metadata"].copy(deep=True)
+    phospho.index = duplicate_index.copy()
+    site_metadata.index = duplicate_index.copy()
+    site_metadata.loc[:, "site_key"] = duplicate_index.tolist()
+    payload["phospho"] = phospho
+    payload["site_metadata"] = site_metadata
+
+    with pytest.raises(_MODEL_BOUNDARY_ERRORS, match="duplicate_site_key"):
+        AnalysisReadyPhosphoDataset(**payload)
+
+
+def test_model_boundary_validator_rejects_site_key_column_index_mismatch() -> None:
+    payload = _valid_payload()
+    site_metadata = payload["site_metadata"].copy(deep=True)
+    site_metadata.iloc[1, site_metadata.columns.get_loc("site_key")] = _site_key(
+        protein_identifier="AKT1",
+        residue="T",
+        position=309,
+    )
+    payload["site_metadata"] = site_metadata
+
+    with pytest.raises(_MODEL_BOUNDARY_ERRORS, match="site_key.*index"):
+        AnalysisReadyPhosphoDataset(**payload)
+
+
+def test_model_boundary_validator_rejects_phospho_site_metadata_index_mismatch() -> (
+    None
+):
+    payload = _valid_payload()
+    phospho = payload["phospho"].copy(deep=True)
+    phospho.index = pd.Index(list(reversed(phospho.index.tolist())), name="site_key")
+    payload["phospho"] = phospho
+
+    with pytest.raises(_MODEL_BOUNDARY_ERRORS, match="must exactly match"):
+        AnalysisReadyPhosphoDataset(**payload)
+
+
+def test_analysis_ready_from_owned_rejects_invalid_site_identity() -> None:
+    payload = _valid_payload()
+    phospho = payload["phospho"].copy(deep=True)
+    site_metadata = payload["site_metadata"].copy(deep=True)
+    phospho.index = pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id")
+    site_metadata.index = phospho.index.copy()
+    payload["phospho"] = phospho
+    payload["site_metadata"] = site_metadata
+
+    with pytest.raises(_MODEL_BOUNDARY_ERRORS, match="display-indexed"):
+        AnalysisReadyPhosphoDataset._from_owned(**payload)
 
 
 def test_model_boundary_validator_parity_for_misaligned_site_metadata() -> None:

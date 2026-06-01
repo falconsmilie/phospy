@@ -69,7 +69,8 @@ def test_readme_style_kinase_workflow_builds_and_runs() -> None:
     assert {"gene_symbol", "site", "site_sequence"} <= set(
         dataset.site_metadata.columns
     )
-    assert set(dataset.phospho.index.astype(str)) == {
+    assert dataset.phospho.index.name == "site_key"
+    assert set(dataset.site_metadata.loc[:, "display_id"].astype(str)) == {
         "MAPK14;Y182;",
         "GSK3A;S21;",
         "TSC2;S939;",
@@ -86,6 +87,6 @@ def test_readme_style_kinase_workflow_builds_and_runs() -> None:
     assert result.prediction_result.pred_mat.shape[0] == phospho.shape[0]
     assert result.prediction_result.pred_mat.shape[1] > 0
     assert set(result.prediction_result.pred_mat.index.astype(str)) == set(
-        phospho.index.astype(str)
+        dataset.phospho.index.astype(str)
     )
     assert result.prediction_result.substrate_list is not None

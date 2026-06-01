@@ -32,6 +32,14 @@ from tests.support.rewrite_fixture_data import (
 pytestmark = pytest.mark.parity
 
 
+def _site_key_for_display_id(site_metadata: pd.DataFrame, display_id: str) -> str:
+    matches = site_metadata.index[
+        site_metadata.loc[:, "display_id"].astype(str) == display_id
+    ].astype(str)
+    assert len(matches) == 1
+    return str(matches[0])
+
+
 def test_scoring_outputs_match_selected_reference_profile_values(
     request: pytest.FixtureRequest,
 ) -> None:
@@ -60,7 +68,10 @@ def test_scoring_outputs_match_selected_reference_profile_values(
     ]
     point_abs_deltas: list[float] = []
     for site_id, kinase in points:
-        observed_value = float(result.scoring_result.profile_scores.at[site_id, kinase])
+        site_key = _site_key_for_display_id(result.dataset.site_metadata, site_id)
+        observed_value = float(
+            result.scoring_result.profile_scores.at[site_key, kinase]
+        )
         expected_value = float(expected.at[site_id, kinase])
         assert observed_value == pytest.approx(
             expected_value,
@@ -243,7 +254,8 @@ def test_profile_missing_value_policy_changes_downstream_lane_for_mixed_missing_
             input_intensity_scale="linear",
         )
     )
-    dataset._phospho.loc["GENEA;S2;", "sample_c"] = float("nan")
+    genea_s2_key = _site_key_for_display_id(dataset.site_metadata, "GENEA;S2;")
+    dataset._phospho.loc[genea_s2_key, "sample_c"] = float("nan")
     references = ReferenceBundle(
         organism=Organism.RAT,
         kinase_substrate_map=pd.DataFrame(

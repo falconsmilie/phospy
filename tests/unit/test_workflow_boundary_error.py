@@ -28,6 +28,7 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
 )
 from tests.support.signalome_config import build_signalome_config
+from tests.support.site_keys import site_key_index_from_display_ids
 
 
 def test_workflow_boundary_error_supports_message_only_construction() -> None:
@@ -69,9 +70,12 @@ def test_workflow_boundary_error_copies_details_mapping() -> None:
 
 
 def _dataset(*, with_protein_id: bool) -> AnalysisReadyPhosphoDataset:
-    index = pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id")
+    display_ids = ["MAPK14;Y182;", "AKT1;T308;"]
+    index = _site_index()
     site_metadata = pd.DataFrame(
         {
+            "site_key": index.tolist(),
+            "display_id": display_ids,
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": [
@@ -94,6 +98,13 @@ def _dataset(*, with_protein_id: bool) -> AnalysisReadyPhosphoDataset:
             has_total_matrix=False
         ),
         processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+
+
+def _site_index() -> pd.Index:
+    return site_key_index_from_display_ids(
+        ["MAPK14;Y182;", "AKT1;T308;"],
+        protein_namespace="gene_symbol",
     )
 
 
@@ -147,16 +158,16 @@ def test_signalome_boundary_wraps_non_numeric_downstream_score_matrix() -> None:
     request = _request(
         prediction_matrix=pd.DataFrame(
             {"MAP2K6": [0.8, 0.7]},
-            index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+            index=_site_index(),
         ),
         score_matrix=pd.DataFrame(
             {"MAP2K6": [1.0, 2.0]},
-            index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+            index=_site_index(),
         ),
     )
     bad_score_matrix = pd.DataFrame(
         {"MAP2K6": ["abc", "2.0"]},
-        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+        index=_site_index(),
     )
     object.__setattr__(
         request.kinase_result.scoring_result, "_profile_scores", bad_score_matrix
@@ -181,16 +192,16 @@ def test_signalome_boundary_wraps_non_numeric_prediction_matrix() -> None:
     request = _request(
         prediction_matrix=pd.DataFrame(
             {"MAP2K6": [0.8, 0.7]},
-            index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+            index=_site_index(),
         ),
         score_matrix=pd.DataFrame(
             {"MAP2K6": [1.0, 2.0]},
-            index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+            index=_site_index(),
         ),
     )
     bad_prediction_matrix = pd.DataFrame(
         {"MAP2K6": ["bad", "0.7"]},
-        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+        index=_site_index(),
     )
     object.__setattr__(
         request.kinase_result.prediction_result, "_pred_mat", bad_prediction_matrix
@@ -216,11 +227,11 @@ def test_signalome_validator_rejects_missing_required_site_metadata_column() -> 
     request = _request(
         prediction_matrix=pd.DataFrame(
             {"MAP2K6": [0.8, 0.7]},
-            index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+            index=_site_index(),
         ),
         score_matrix=pd.DataFrame(
             {"MAP2K6": [1.0, 2.0]},
-            index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+            index=_site_index(),
         ),
         dataset=dataset,
     )
@@ -262,16 +273,16 @@ def test_signalome_boundary_rejects_infinite_downstream_scores() -> None:
     request = _request(
         prediction_matrix=pd.DataFrame(
             {"MAP2K6": [0.8, 0.7]},
-            index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+            index=_site_index(),
         ),
         score_matrix=pd.DataFrame(
             {"MAP2K6": [1.0, 2.0]},
-            index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+            index=_site_index(),
         ),
     )
     bad_score_matrix = pd.DataFrame(
         {"MAP2K6": [float("inf"), 2.0]},
-        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+        index=_site_index(),
     )
     object.__setattr__(
         request.kinase_result.scoring_result, "_profile_scores", bad_score_matrix

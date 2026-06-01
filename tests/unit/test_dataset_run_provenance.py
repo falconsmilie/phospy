@@ -21,6 +21,28 @@ from phospy.science.datasets.preprocessing.models import (
     PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA,
     PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_MISSING_DATA,
 )
+from phospy.science.sites.site_keys import (
+    ProteinScopedPhosphositeKey,
+    encode_site_key,
+)
+
+
+def _gene_site_key(
+    *,
+    organism: Organism,
+    gene_symbol: str,
+    residue: str,
+    position: int,
+) -> str:
+    return encode_site_key(
+        ProteinScopedPhosphositeKey(
+            organism=organism.value,
+            protein_namespace="gene_symbol",
+            protein_identifier=gene_symbol,
+            residue=residue,
+            position=position,
+        )
+    )
 
 
 def test_collect_environment_provenance_reports_expected_keys() -> None:
@@ -252,9 +274,19 @@ def test_dataset_builder_emits_run_provenance_and_stage_details() -> None:
     assert isinstance(missing_stage.phospho_output_hash, str)
     assert missing_stage.input_hash != missing_stage.phospho_input_hash
     assert missing_stage.output_hash != missing_stage.phospho_output_hash
-    assert "GSK3B;S9;" in set(missing_stage.dropped_row_ids)
+    assert _gene_site_key(
+        organism=Organism.RAT,
+        gene_symbol="GSK3B",
+        residue="S",
+        position=9,
+    ) in set(missing_stage.dropped_row_ids)
     assert missing_stage.imputed_cell_count >= 1
-    assert "AKT1;T308;" in set(missing_stage.imputed_row_ids)
+    assert _gene_site_key(
+        organism=Organism.RAT,
+        gene_symbol="AKT1",
+        residue="T",
+        position=308,
+    ) in set(missing_stage.imputed_row_ids)
     policy_ids = {policy.id for policy in provenance.scientific_policies}
     assert ScientificPolicyId.PREPROCESSING_STAGE_ORDER in policy_ids
 

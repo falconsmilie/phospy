@@ -81,7 +81,7 @@ def _build_log2_dataset(*, corrected: bool) -> AnalysisReadyPhosphoDataset:
 
 
 def _build_reference_bundle(dataset: AnalysisReadyPhosphoDataset) -> ReferenceBundle:
-    site_ids = list(dataset.phospho.index.astype(str))
+    site_ids = list(dataset.site_metadata.loc[:, "display_id"].astype(str))
     return ReferenceBundle(
         organism=Organism.RAT,
         kinase_substrate_map=pd.DataFrame(
@@ -97,7 +97,7 @@ def _build_reference_bundle(dataset: AnalysisReadyPhosphoDataset) -> ReferenceBu
         ),
         site_sequences=pd.DataFrame(
             {"site_sequence": dataset.site_metadata.loc[:, "site_sequence"].values},
-            index=pd.Index(dataset.site_metadata.index.astype(str), name="site_id"),
+            index=pd.Index(site_ids, name="site_id"),
         ),
     )
 

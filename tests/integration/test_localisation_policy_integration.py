@@ -21,6 +21,7 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
 )
 from tests.support.signalome_config import build_signalome_config
+from tests.support.site_keys import site_key_index_from_display_ids
 
 pytestmark = pytest.mark.integration
 
@@ -28,18 +29,25 @@ pytestmark = pytest.mark.integration
 def _dataset(
     *, localisation_probability: object | None = None
 ) -> AnalysisReadyPhosphoDataset:
+    display_ids = ["MAPK14;Y182;"]
+    site_index = site_key_index_from_display_ids(
+        display_ids,
+        protein_namespace="gene_symbol",
+    )
     phospho = pd.DataFrame(
         {"sample_a": [1.0], "sample_b": [1.2]},
-        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+        index=site_index,
     )
     site_metadata = pd.DataFrame(
         {
+            "site_key": site_index.tolist(),
+            "display_id": display_ids,
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
             "site_sequence": [("A" * 15) + "Y" + ("A" * 15)],
             "protein_id": ["P53778"],
         },
-        index=phospho.index.copy(),
+        index=site_index.copy(),
     )
     if localisation_probability is not None:
         site_metadata.loc[:, "localisation_probability"] = [localisation_probability]

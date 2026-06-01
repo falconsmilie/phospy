@@ -17,6 +17,7 @@ from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
 )
+from tests.support.site_keys import site_key_index_from_display_ids
 
 ROOT = Path(__file__).resolve().parents[2]
 PARITY_FIXTURE_ROOT = ROOT / "tests" / "fixtures" / "rewrite_parity"
@@ -65,6 +66,11 @@ def test_differential_limma_expected_tables_keep_stable_schema() -> None:
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
+    display_ids = ["MAPK14;Y182;", "GSK3B;S9;"]
+    site_index = site_key_index_from_display_ids(
+        display_ids,
+        protein_namespace="gene_symbol",
+    )
     phospho = pd.DataFrame(
         {
             "A_1": [1.0, 2.0],
@@ -72,10 +78,12 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
             "B_1": [2.0, 1.9],
             "B_2": [2.2, 2.2],
         },
-        index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
+        index=site_index,
     )
     site_metadata = pd.DataFrame(
         {
+            "site_key": site_index.tolist(),
+            "display_id": display_ids,
             "gene_symbol": ["MAPK14", "GSK3B"],
             "site": ["Y182", "S9"],
             "site_sequence": [
@@ -84,7 +92,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
             ],
             "protein_id": ["MAPK14", "GSK3B"],
         },
-        index=phospho.index.copy(),
+        index=site_index.copy(),
     )
     return AnalysisReadyPhosphoDataset(
         phospho=phospho,

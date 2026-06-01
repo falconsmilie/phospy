@@ -15,6 +15,7 @@ from phospy.api.requests import (
 )
 from phospy.errors.validation import DatasetValidationError
 from phospy.science.datasets.builders.validator import DatasetBuildRequestValidator
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.evidence import (
     DATASET_PEPTIDE_DUPLICATE_POLICY_RETAIN_ALL_ROWS,
     DATASET_PEPTIDE_MAPPING_WEIGHT_NORMALISATION_UNIT_PER_PEPTIDE,
@@ -23,6 +24,21 @@ from phospy.science.evidence import (
     PeptideEvidenceDatasetResolver,
     PeptideEvidenceTable,
 )
+
+
+def _site_key_for_display_id(
+    dataset: AnalysisReadyPhosphoDataset,
+    display_id: str,
+) -> str:
+    matches = dataset.site_metadata.index[
+        dataset.site_metadata.loc[:, "display_id"].astype(str) == display_id
+    ].astype(str)
+    assert len(matches) == 1
+    return str(matches[0])
+
+
+def _display_ids(dataset: AnalysisReadyPhosphoDataset) -> list[str]:
+    return dataset.site_metadata.loc[:, "display_id"].astype(str).tolist()
 
 
 def _site_level_phospho() -> pd.DataFrame:
@@ -142,7 +158,8 @@ def test_exclude_policy_records_exclusions_in_report_and_provenance() -> None:
             input_intensity_scale="linear",
         )
     )
-    assert list(built.phospho.index.tolist()) == ["AKT1;S473;"]
+    assert built.phospho.index.name == "site_key"
+    assert _display_ids(built) == ["AKT1;S473;"]
     assert built.preprocessing_report is not None
     resolution_rows = built.preprocessing_report.operations.loc[
         built.preprocessing_report.operations.loc[:, "stage"]
@@ -175,8 +192,9 @@ def test_keep_joint_policy_preserves_joint_ambiguous_site_representation() -> No
             allow_opaque_site_values=True,
         )
     )
-    assert list(built.phospho.index.tolist()) == ["MAPK1;S10,T12;"]
-    site_value = built.site_metadata.loc["MAPK1;S10,T12;", "site"]
+    joint_key = _site_key_for_display_id(built, "MAPK1;S10,T12;")
+    assert list(built.phospho.index.astype(str)) == [joint_key]
+    site_value = built.site_metadata.loc[joint_key, "site"]
     assert str(site_value) == "S10,T12"
     assert built.provenance is not None
     assert built.provenance.workflow_parameters["site_token_validation"] == {
@@ -210,9 +228,11 @@ def test_split_policy_applies_deterministic_equal_split() -> None:
             input_intensity_scale="linear",
         )
     )
-    assert set(built.phospho.index.tolist()) == {"MAPK1;S10;", "MAPK1;T12;"}
-    assert float(built.phospho.loc["MAPK1;S10;", "sample_a"]) == pytest.approx(5.0)
-    assert float(built.phospho.loc["MAPK1;T12;", "sample_a"]) == pytest.approx(5.0)
+    assert set(_display_ids(built)) == {"MAPK1;S10;", "MAPK1;T12;"}
+    mapk1_s10 = _site_key_for_display_id(built, "MAPK1;S10;")
+    mapk1_t12 = _site_key_for_display_id(built, "MAPK1;T12;")
+    assert float(built.phospho.loc[mapk1_s10, "sample_a"]) == pytest.approx(5.0)
+    assert float(built.phospho.loc[mapk1_t12, "sample_a"]) == pytest.approx(5.0)
     assert built.provenance is not None
     payload = built.provenance.workflow_parameters["peptide_evidence_resolution"]
     assert isinstance(payload, dict)
@@ -229,17 +249,20 @@ def test_split_policy_mixed_ambiguous_and_unambiguous_rows_is_deterministic() ->
             input_intensity_scale="linear",
         )
     )
-    assert set(built.phospho.index.tolist()) == {
+    assert set(_display_ids(built)) == {
         "MAPK1;S10;",
         "MAPK1;T12;",
         "AKT1;S473;",
     }
-    assert float(built.phospho.loc["MAPK1;S10;", "sample_a"]) == pytest.approx(5.0)
-    assert float(built.phospho.loc["MAPK1;T12;", "sample_a"]) == pytest.approx(5.0)
-    assert float(built.phospho.loc["AKT1;S473;", "sample_a"]) == pytest.approx(7.0)
-    assert float(built.phospho.loc["MAPK1;S10;", "sample_b"]) == pytest.approx(6.0)
-    assert float(built.phospho.loc["MAPK1;T12;", "sample_b"]) == pytest.approx(6.0)
-    assert float(built.phospho.loc["AKT1;S473;", "sample_b"]) == pytest.approx(9.0)
+    mapk1_s10 = _site_key_for_display_id(built, "MAPK1;S10;")
+    mapk1_t12 = _site_key_for_display_id(built, "MAPK1;T12;")
+    akt1_s473 = _site_key_for_display_id(built, "AKT1;S473;")
+    assert float(built.phospho.loc[mapk1_s10, "sample_a"]) == pytest.approx(5.0)
+    assert float(built.phospho.loc[mapk1_t12, "sample_a"]) == pytest.approx(5.0)
+    assert float(built.phospho.loc[akt1_s473, "sample_a"]) == pytest.approx(7.0)
+    assert float(built.phospho.loc[mapk1_s10, "sample_b"]) == pytest.approx(6.0)
+    assert float(built.phospho.loc[mapk1_t12, "sample_b"]) == pytest.approx(6.0)
+    assert float(built.phospho.loc[akt1_s473, "sample_b"]) == pytest.approx(9.0)
 
 
 def test_multiple_peptides_mapping_to_one_site_are_mean_aggregated() -> None:
@@ -288,9 +311,10 @@ def test_multiple_peptides_mapping_to_one_site_are_mean_aggregated() -> None:
             input_intensity_scale="linear",
         )
     )
-    assert list(built.phospho.index.tolist()) == ["MAPK1;S10;"]
-    assert float(built.phospho.loc["MAPK1;S10;", "sample_a"]) == pytest.approx(12.0)
-    assert float(built.phospho.loc["MAPK1;S10;", "sample_b"]) == pytest.approx(23.0)
+    mapk1_s10 = _site_key_for_display_id(built, "MAPK1;S10;")
+    assert list(built.phospho.index.astype(str)) == [mapk1_s10]
+    assert float(built.phospho.loc[mapk1_s10, "sample_a"]) == pytest.approx(12.0)
+    assert float(built.phospho.loc[mapk1_s10, "sample_b"]) == pytest.approx(23.0)
 
 
 def test_duplicate_peptide_rows_are_retained_as_independent_observations() -> None:
@@ -310,10 +334,12 @@ def test_duplicate_peptide_rows_are_retained_as_independent_observations() -> No
             input_intensity_scale="linear",
         )
     )
-    assert float(built.phospho.loc["MAPK1;S10;", "sample_a"]) == pytest.approx(10.0)
-    assert float(built.phospho.loc["MAPK1;T12;", "sample_a"]) == pytest.approx(10.0)
-    assert float(built.phospho.loc["MAPK1;S10;", "sample_b"]) == pytest.approx(10.0)
-    assert float(built.phospho.loc["MAPK1;T12;", "sample_b"]) == pytest.approx(10.0)
+    mapk1_s10 = _site_key_for_display_id(built, "MAPK1;S10;")
+    mapk1_t12 = _site_key_for_display_id(built, "MAPK1;T12;")
+    assert float(built.phospho.loc[mapk1_s10, "sample_a"]) == pytest.approx(10.0)
+    assert float(built.phospho.loc[mapk1_t12, "sample_a"]) == pytest.approx(10.0)
+    assert float(built.phospho.loc[mapk1_s10, "sample_b"]) == pytest.approx(10.0)
+    assert float(built.phospho.loc[mapk1_t12, "sample_b"]) == pytest.approx(10.0)
     assert built.provenance is not None
     payload = built.provenance.workflow_parameters["peptide_evidence_resolution"]
     assert isinstance(payload, dict)

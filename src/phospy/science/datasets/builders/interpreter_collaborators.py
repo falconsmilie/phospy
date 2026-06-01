@@ -33,10 +33,7 @@ from phospy.science.evidence.dataset_resolution import (
 from phospy.science.evidence.models import PeptideEvidenceTable
 from phospy.science.references.models import Organism
 from phospy.science.sites.identifiers import SiteIdentifierNormalisationReport
-from phospy.science.sites.validation import (
-    require_canonical_site_index,
-    require_no_mixed_site_key_isoform_scope,
-)
+from phospy.science.sites.validation import require_no_mixed_site_key_isoform_scope
 from phospy.validation.datasets.display_site_identity import (
     enforce_unique_display_site_identity_rows,
 )
@@ -409,28 +406,10 @@ class DatasetBuildSourceResolver:
                 index=site_metadata.index.copy(),
                 name="site_key",
             )
-        phospho_index_values = phospho.index.astype(str).tolist()
-        index_is_encoded_site_key = len(phospho_index_values) > 0 and all(
-            value.startswith("phospy:v1|") for value in phospho_index_values
+        aligned_index = pd.Index(
+            site_keys.astype(str).tolist(),
+            name="site_key",
         )
-        if index_is_encoded_site_key:
-            aligned_index = pd.Index(site_keys.tolist(), name="site_key")
-        else:
-            try:
-                require_canonical_site_index(
-                    phospho.index,
-                    field_name="dataset build request phospho.index",
-                    error_type=PhosPyInputError,
-                )
-                aligned_index = pd.Index(
-                    phospho_index_values,
-                    name="site_key",
-                )
-            except PhosPyInputError:
-                aligned_index = pd.Index(
-                    site_keys.astype(str).tolist(),
-                    name="site_key",
-                )
         values_aligned = phospho.index.equals(
             aligned_index
         ) and site_metadata.index.equals(aligned_index)

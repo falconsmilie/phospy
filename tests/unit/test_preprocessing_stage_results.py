@@ -42,6 +42,31 @@ from phospy.science.transformations.models import (
     QuantitativeMeaning,
 )
 from tests.support.intensity_scale_states import supported_linear_intensity_scale_state
+from tests.support.site_keys import site_key_index_from_display_ids
+
+_ANALYSIS_DISPLAY_IDS = ["MAPK14;Y182;", "AKT1;T308;"]
+_ANALYSIS_GENE_SYMBOLS = ["MAPK14", "AKT1"]
+_ANALYSIS_SITES = ["Y182", "T308"]
+
+
+def _analysis_site_index() -> pd.Index:
+    return site_key_index_from_display_ids(_ANALYSIS_DISPLAY_IDS)
+
+
+def _analysis_site_metadata(index: pd.Index) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "site_key": index.astype(str).tolist(),
+            "display_id": _ANALYSIS_DISPLAY_IDS,
+            "gene_symbol": _ANALYSIS_GENE_SYMBOLS,
+            "site": _ANALYSIS_SITES,
+            "site_sequence": [
+                ("A" * 15) + site[0] + ("A" * 15) for site in _ANALYSIS_SITES
+            ],
+            "localisation_confidence": [0.95, 0.9],
+        },
+        index=index.copy(),
+    )
 
 
 def _phospho() -> pd.DataFrame:
@@ -241,22 +266,15 @@ def test_missing_data_stage_forbid_policy_rejects_multiple_missing_values() -> N
 
 
 def test_missing_data_stage_report_rows_appear_in_final_report() -> None:
+    site_index = _analysis_site_index()
     phospho = pd.DataFrame(
         {
             "sample_a": [4.0, 8.0],
             "sample_b": [6.0, float("nan")],
         },
-        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+        index=site_index,
     )
-    site_metadata = pd.DataFrame(
-        {
-            "gene_symbol": ["MAPK14", "AKT1"],
-            "site": ["Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_R"],
-            "localisation_confidence": [0.95, 0.9],
-        },
-        index=phospho.index.copy(),
-    )
+    site_metadata = _analysis_site_metadata(phospho.index)
     built = DatasetBuildExecutor().run(
         InterpretedDatasetBuildRequest(
             phospho=phospho,
@@ -280,22 +298,15 @@ def test_missing_data_stage_report_rows_appear_in_final_report() -> None:
 
 
 def test_missing_data_stage_operations_report_imputation_summary_note() -> None:
+    site_index = _analysis_site_index()
     phospho = pd.DataFrame(
         {
             "sample_a": [4.0, 8.0],
             "sample_b": [6.0, float("nan")],
         },
-        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+        index=site_index,
     )
-    site_metadata = pd.DataFrame(
-        {
-            "gene_symbol": ["MAPK14", "AKT1"],
-            "site": ["Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_R"],
-            "localisation_confidence": [0.95, 0.9],
-        },
-        index=phospho.index.copy(),
-    )
+    site_metadata = _analysis_site_metadata(phospho.index)
 
     built = DatasetBuildExecutor().run(
         InterpretedDatasetBuildRequest(
@@ -326,22 +337,15 @@ def test_missing_data_stage_operations_report_imputation_summary_note() -> None:
 
 
 def test_final_dataset_has_complete_matrix_after_missing_data_imputation() -> None:
+    site_index = _analysis_site_index()
     phospho = pd.DataFrame(
         {
             "sample_a": [4.0, 8.0],
             "sample_b": [6.0, float("nan")],
         },
-        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+        index=site_index,
     )
-    site_metadata = pd.DataFrame(
-        {
-            "gene_symbol": ["MAPK14", "AKT1"],
-            "site": ["Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_R"],
-            "localisation_confidence": [0.95, 0.9],
-        },
-        index=phospho.index.copy(),
-    )
+    site_metadata = _analysis_site_metadata(phospho.index)
 
     built = DatasetBuildExecutor().run(
         InterpretedDatasetBuildRequest(
@@ -576,22 +580,15 @@ def test_minimal_custom_stage_emits_supported_report_row_into_final_report() -> 
                 diagnostics={"notes": "stage executed"},
             )
 
+    site_index = _analysis_site_index()
     phospho = pd.DataFrame(
         {
             "sample_a": [4.0, 8.0],
             "sample_b": [6.0, 12.0],
         },
-        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+        index=site_index,
     )
-    site_metadata = pd.DataFrame(
-        {
-            "gene_symbol": ["MAPK14", "AKT1"],
-            "site": ["Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_R"],
-            "localisation_confidence": [0.95, 0.9],
-        },
-        index=phospho.index.copy(),
-    )
+    site_metadata = _analysis_site_metadata(phospho.index)
     executor = DatasetBuildExecutor(
         preprocessor=DatasetPreprocessor(
             pipeline=PreprocessingPipeline(
@@ -625,22 +622,15 @@ def test_minimal_custom_stage_emits_supported_report_row_into_final_report() -> 
 def test_executor_applies_explicit_quantitative_meaning_to_dataset_and_provenance() -> (
     None
 ):
+    site_index = _analysis_site_index()
     phospho = pd.DataFrame(
         {
             "sample_a": [0.5, -0.2],
             "sample_b": [1.1, 0.0],
         },
-        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+        index=site_index,
     )
-    site_metadata = pd.DataFrame(
-        {
-            "gene_symbol": ["MAPK14", "AKT1"],
-            "site": ["Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_R"],
-            "localisation_confidence": [0.95, 0.9],
-        },
-        index=phospho.index.copy(),
-    )
+    site_metadata = _analysis_site_metadata(phospho.index)
     built = DatasetBuildExecutor().run(
         InterpretedDatasetBuildRequest(
             phospho=phospho,

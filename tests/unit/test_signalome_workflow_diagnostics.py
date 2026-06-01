@@ -84,6 +84,7 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
 )
 from tests.support.signalome_config import build_signalome_config
+from tests.support.site_keys import site_key_index_from_display_ids
 
 _SIGNALOME_WORKFLOW_EXECUTION_PATHS = ("direct_components", "public_workflow")
 _PROPERTY_SETTINGS = settings(
@@ -103,15 +104,18 @@ def _dataset(
         gene_symbols = [str(site_id).split(";", 1)[0] for site_id in site_ids]
     if protein_ids is None:
         protein_ids = [str(site_id).split(";", 1)[0].strip() for site_id in site_ids]
+    site_index = site_key_index_from_display_ids(site_ids)
     phospho = pd.DataFrame(
         {
             "sample_a": [float(index + 1) for index in range(len(site_ids))],
             "sample_b": [float(index + 2) for index in range(len(site_ids))],
         },
-        index=site_ids,
+        index=site_index,
     )
     site_metadata = pd.DataFrame(
         {
+            "site_key": site_index.astype(str).tolist(),
+            "display_id": site_ids,
             "gene_symbol": gene_symbols,
             "site": [f"S{index + 1}" for index in range(len(site_ids))],
             "site_sequence": [
@@ -120,7 +124,7 @@ def _dataset(
             ],
             "protein_id": protein_ids,
         },
-        index=site_ids,
+        index=site_index.copy(),
     )
     return AnalysisReadyPhosphoDataset(
         phospho=phospho,
@@ -162,10 +166,26 @@ def _matrix(
 ) -> pd.DataFrame:
     return pd.DataFrame(
         values,
-        index=pd.Index(site_ids, name="site_id"),
+        index=_site_index(site_ids),
         columns=pd.Index(kinases, name="kinase"),
         dtype=float,
     )
+
+
+def _site_index(site_ids: list[str]) -> pd.Index:
+    if all(str(site_id).startswith("phospy:v1|") for site_id in site_ids):
+        return pd.Index(site_ids, name="site_key")
+    if all(str(site_id).count(";") >= 2 for site_id in site_ids):
+        return site_key_index_from_display_ids(site_ids)
+    return pd.Index(site_ids, name="site_id")
+
+
+def _site_keys(site_ids: list[str]) -> list[str]:
+    return site_key_index_from_display_ids(site_ids).astype(str).tolist()
+
+
+def _site_key(site_id: str) -> str:
+    return _site_keys([site_id])[0]
 
 
 def _site_id_strategy(
@@ -208,9 +228,10 @@ def _kinase_result(
     score_matrix: pd.DataFrame,
     combined_score_matrix: pd.DataFrame | None = None,
 ) -> KinaseWorkflowResult:
+    display_site_ids = dataset.site_metadata.loc[:, "display_id"].astype(str).tolist()
     return KinaseWorkflowResult(
         dataset=dataset,
-        references=_bundle(site_ids=dataset.phospho.index.astype(str).tolist()),
+        references=_bundle(site_ids=display_site_ids),
         scoring_result=KinaseScoringResult(
             profile_scores=score_matrix,
             rank_weighted_fusion_scores=(
@@ -615,7 +636,7 @@ def test_interpreter_property_shared_site_alignment_preserves_dataset_order(
     interpreted = SignalomeWorkflowInterpreter().run(request)
     shared_site_set = set(shared_sites)
     expected_order = [
-        site_id for site_id in dataset_sites if site_id in shared_site_set
+        _site_key(site_id) for site_id in dataset_sites if site_id in shared_site_set
     ]
     assert interpreted.prediction_matrix.index.tolist() == expected_order
     assert interpreted.downstream_score_matrix.index.tolist() == expected_order
@@ -721,7 +742,7 @@ def test_interpreter_property_allow_and_report_drops_all_missing_rows(
 
     interpreted = SignalomeWorkflowInterpreter().run(request)
     expected_retained_sites = [
-        site_id
+        _site_key(site_id)
         for site_id, missing_row in zip(site_ids, row_is_all_missing, strict=True)
         if not missing_row
     ]
@@ -951,8 +972,8 @@ def test_interpreter_filters_site_indexed_inputs_to_retained_scores_after_precon
 
     interpreted = SignalomeWorkflowInterpreter().run(request)
     retained_sites = [
-        "P2;S2;",
-        "P3;S3;",
+        _site_key("P2;S2;"),
+        _site_key("P3;S3;"),
     ]
     assert interpreted.downstream_score_matrix.index.tolist() == retained_sites
     assert interpreted.prediction_matrix.index.tolist() == retained_sites
@@ -963,7 +984,7 @@ def test_interpreter_filters_site_indexed_inputs_to_retained_scores_after_precon
     assert interpreted.site_to_protein.index.equals(
         interpreted.downstream_score_matrix.index
     )
-    assert pd.isna(interpreted.downstream_score_matrix.loc["P2;S2;", "K2"])
+    assert pd.isna(interpreted.downstream_score_matrix.loc[_site_key("P2;S2;"), "K2"])
     assert interpreted.score_preconditioning_diagnostics.input_row_count == 3
     assert (
         interpreted.score_preconditioning_diagnostics.dropped_all_missing_row_count == 1
@@ -1003,7 +1024,7 @@ def test_interpreter_reports_zero_drop_preconditioning_diagnostics() -> None:
     )
 
     interpreted = SignalomeWorkflowInterpreter().run(request)
-    assert interpreted.downstream_score_matrix.index.tolist() == site_ids
+    assert interpreted.downstream_score_matrix.index.tolist() == _site_keys(site_ids)
     assert interpreted.score_preconditioning_diagnostics.input_row_count == 2
     assert (
         interpreted.score_preconditioning_diagnostics.dropped_all_missing_row_count == 0
@@ -1272,10 +1293,10 @@ def test_resolved_signalome_request_rejects_mismatched_site_indexes() -> None:
         site_ids=site_ids,
         kinases=["K1", "K2"],
     )
-    downstream_score_matrix = score_matrix.loc[["P2;S2;"], :]
+    downstream_score_matrix = score_matrix.loc[[_site_key("P2;S2;")], :]
     site_to_protein = pd.Series(
         ["P2"],
-        index=pd.Index(["P2;S2;"], name="site_id"),
+        index=site_key_index_from_display_ids(["P2;S2;"]),
         name="protein_id",
         dtype=str,
     )
@@ -1343,8 +1364,8 @@ def test_interpreter_respects_explicit_allow_and_report_preconditioning_policy()
 
     interpreted = SignalomeWorkflowInterpreter().run(request)
     assert interpreted.downstream_score_matrix.index.tolist() == [
-        "P2;S2;",
-        "P3;S3;",
+        _site_key("P2;S2;"),
+        _site_key("P3;S3;"),
     ]
     assert interpreted.score_preconditioning_diagnostics.input_row_count == 3
     assert (
@@ -1442,7 +1463,7 @@ def test_interpreter_allows_error_on_drop_policy_when_no_rows_require_drop() -> 
     )
 
     interpreted = SignalomeWorkflowInterpreter().run(request)
-    assert interpreted.downstream_score_matrix.index.tolist() == site_ids
+    assert interpreted.downstream_score_matrix.index.tolist() == _site_keys(site_ids)
     assert interpreted.score_preconditioning_diagnostics.input_row_count == 2
     assert (
         interpreted.score_preconditioning_diagnostics.dropped_all_missing_row_count == 0
@@ -1458,7 +1479,7 @@ def test_interpreter_allows_removed_site_with_missing_protein_id_in_permissive_m
 ):
     site_ids = ["P1;S1;", "P2;S2;"]
     dataset = _dataset(site_ids=site_ids)
-    dataset._site_metadata.loc["P1;S1;", "protein_id"] = np.nan
+    dataset._site_metadata.loc[_site_key("P1;S1;"), "protein_id"] = np.nan
     prediction_matrix = _matrix(
         values=[
             [0.9, 0.1],
@@ -1492,10 +1513,11 @@ def test_interpreter_allows_removed_site_with_missing_protein_id_in_permissive_m
         )
     )
 
-    assert interpreted.downstream_score_matrix.index.tolist() == ["P2;S2;"]
-    assert interpreted.prediction_matrix.index.tolist() == ["P2;S2;"]
-    assert interpreted.site_to_protein.index.tolist() == ["P2;S2;"]
-    assert interpreted.site_to_protein.loc["P2;S2;"] == "P2"
+    p2_site_key = _site_key("P2;S2;")
+    assert interpreted.downstream_score_matrix.index.tolist() == [p2_site_key]
+    assert interpreted.prediction_matrix.index.tolist() == [p2_site_key]
+    assert interpreted.site_to_protein.index.tolist() == [p2_site_key]
+    assert interpreted.site_to_protein.loc[p2_site_key] == "P2"
     assert (
         interpreted.alignment_diagnostics.dataset_sites.dropped_reasons[
             "removed_by_score_preconditioning"
@@ -1515,7 +1537,7 @@ def test_interpreter_allows_removed_site_with_missing_protein_id_in_permissive_m
 def test_interpreter_fails_for_retained_site_with_missing_protein_id() -> None:
     site_ids = ["P1;S1;"]
     dataset = _dataset(site_ids=site_ids)
-    dataset._site_metadata.loc["P1;S1;", "protein_id"] = np.nan
+    dataset._site_metadata.loc[_site_key("P1;S1;"), "protein_id"] = np.nan
     prediction_matrix = _matrix(
         values=[[0.9, 0.1]],
         site_ids=site_ids,
@@ -1545,8 +1567,8 @@ def test_interpreter_fails_for_retained_site_with_missing_protein_id() -> None:
     assert error.details["retained_with_missing_protein_id"] == 1
     assert error.details["retained_and_valid"] == 0
     assert error.details["removed_by_score_preconditioning"] == 0
-    assert error.details["missing_protein_id_sites"] == ["P1;S1;"]
-    assert "P1;S1;" in message
+    assert error.details["missing_protein_id_sites"] == [_site_key("P1;S1;")]
+    assert _site_key("P1;S1;") in message
     assert "retained signalome sites after score preconditioning" in message
 
 
@@ -1555,7 +1577,7 @@ def test_interpreter_strict_mode_fails_on_score_preconditioning_before_protein_m
 ):
     site_ids = ["P1;S1;", "P2;S2;"]
     dataset = _dataset(site_ids=site_ids)
-    dataset._site_metadata.loc["P1;S1;", "protein_id"] = np.nan
+    dataset._site_metadata.loc[_site_key("P1;S1;"), "protein_id"] = np.nan
     prediction_matrix = _matrix(
         values=[
             [0.9, 0.1],
@@ -1600,8 +1622,8 @@ def test_interpreter_mixed_removed_and_retained_missing_protein_sites_reports_re
 ):
     site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
     dataset = _dataset(site_ids=site_ids)
-    dataset._site_metadata.loc["P1;S1;", "protein_id"] = np.nan
-    dataset._site_metadata.loc["P3;S3;", "protein_id"] = np.nan
+    dataset._site_metadata.loc[_site_key("P1;S1;"), "protein_id"] = np.nan
+    dataset._site_metadata.loc[_site_key("P3;S3;"), "protein_id"] = np.nan
     prediction_matrix = _matrix(
         values=[
             [0.9, 0.1],
@@ -1641,12 +1663,12 @@ def test_interpreter_mixed_removed_and_retained_missing_protein_sites_reports_re
     error = exc_info.value
     message = str(error)
     assert error.seam == SIGNALOME_INTERPRETER_PROTEIN_MAPPING_SEAM
-    assert error.details["missing_protein_id_sites"] == ["P3;S3;"]
+    assert error.details["missing_protein_id_sites"] == [_site_key("P3;S3;")]
     assert error.details["retained_with_missing_protein_id"] == 1
     assert error.details["retained_and_valid"] == 1
     assert error.details["removed_by_score_preconditioning"] == 1
-    assert "P3;S3;" in message
-    assert "P1;S1;" not in message
+    assert _site_key("P3;S3;") in message
+    assert _site_key("P1;S1;") not in message
 
 
 def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> None:
@@ -2601,7 +2623,7 @@ def test_boundary_error_reports_network_failure_modes() -> None:
         prediction_matrix=prediction_matrix,
         site_to_protein=pd.Series(
             ["P1", "P2"],
-            index=pd.Index(["P1;S1;", "P2;S2;"], name="site_id"),
+            index=site_key_index_from_display_ids(["P1;S1;", "P2;S2;"]),
             name="protein_id",
             dtype=str,
         ),
@@ -2984,7 +3006,7 @@ def test_executor_internal_seam_invokes_signalome_domain_services(
         prediction_matrix=prediction_matrix,
         site_to_protein=pd.Series(
             ["P1", "P2"],
-            index=pd.Index(site_ids, name="site_id"),
+            index=site_key_index_from_display_ids(site_ids),
             name="protein_id",
             dtype=str,
         ),
@@ -3039,8 +3061,13 @@ def test_executor_internal_seam_invokes_signalome_domain_services(
 
     def _assignments(**_: object) -> pd.DataFrame:
         call_order.append("assignments")
+        site_index = site_key_index_from_display_ids(site_ids)
         return pd.DataFrame(
             {
+                "site_key": site_index.astype(str).tolist(),
+                "display_id": site_ids,
+                "gene_symbol": ["P1", "P2"],
+                "site": ["S1", "S2"],
                 "protein_id": ["P1", "P2"],
                 "module_id": [1, 2],
                 "top_kinase": ["K1", "K2"],
@@ -3062,12 +3089,12 @@ def test_executor_internal_seam_invokes_signalome_domain_services(
                     "max_score_then_lexicographic_tiebreak",
                 ],
             },
-            index=pd.Index(site_ids, name="site_id"),
+            index=site_index,
         )
 
     def _substrates(**_: object) -> dict[str, tuple[str, ...]]:
         call_order.append("substrates")
-        return {"K1": ("P1;S1;",), "K2": ("P2;S2;",)}
+        return {"K1": (_site_key("P1;S1;"),), "K2": (_site_key("P2;S2;"),)}
 
     def _modules(**_: object) -> pd.DataFrame:
         call_order.append("modules")
@@ -3125,7 +3152,7 @@ def test_executor_internal_seam_invokes_signalome_domain_services(
                 "assignment_policy": [SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY],
                 "linked_kinases": ['["K1","K2"]'],
                 "regulated_module_ids": ["[1]"],
-                "site_id": [""],
+                "site_id": ["P1;S1;"],
                 "site_order": [-1],
                 "protein_id": [""],
                 "module_id": [0],

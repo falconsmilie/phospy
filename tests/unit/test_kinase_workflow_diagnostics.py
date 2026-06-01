@@ -33,6 +33,7 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
 )
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
+from tests.support.site_keys import site_key_index_from_display_ids
 
 
 def _dataset(
@@ -40,6 +41,7 @@ def _dataset(
     site_ids: list[str],
     sample_names: list[str],
 ) -> AnalysisReadyPhosphoDataset:
+    site_index = site_key_index_from_display_ids(site_ids)
     phospho = pd.DataFrame(
         {
             sample: [
@@ -48,10 +50,12 @@ def _dataset(
             ]
             for sample_position, sample in enumerate(sample_names)
         },
-        index=site_ids,
+        index=site_index,
     )
     site_metadata = pd.DataFrame(
         {
+            "site_key": site_index.astype(str).tolist(),
+            "display_id": site_ids,
             "gene_symbol": [site.split(";", 1)[0] for site in site_ids],
             "site": [site.split(";")[1] for site in site_ids],
             "site_sequence": [
@@ -60,7 +64,7 @@ def _dataset(
             ],
             "localisation_confidence": [0.95 for _ in site_ids],
         },
-        index=site_ids,
+        index=site_index.copy(),
     )
     return AnalysisReadyPhosphoDataset(
         phospho=phospho,
@@ -107,8 +111,8 @@ def _resolved_request(
     activity_min_substrates: int = 2,
     activity_top_n_substrates: int = 3,
 ) -> ResolvedKinaseWorkflowRequest:
-    scoring_site_index = dataset.phospho.index.intersection(
-        references.site_sequences.index
+    projected_map, projected_sequences, scoring_site_index, site_identity_map = (
+        _project_reference_inputs(dataset=dataset, references=references)
     )
     execution_config = ResolvedKinaseExecutionConfig(
         scoring_min_substrates=int(min_substrates),
@@ -137,13 +141,65 @@ def _resolved_request(
     return ResolvedKinaseWorkflowRequest(
         dataset=dataset,
         references=references,
-        kinase_substrate_map=references.kinase_substrate_map,
-        site_sequences=references.site_sequences,
+        kinase_substrate_map=projected_map,
+        site_sequences=projected_sequences,
+        site_identity_map=site_identity_map,
         scoring_site_index=scoring_site_index,
         activity_phospho_matrix=dataset.phospho.loc[scoring_site_index, :].copy(
             deep=True
         ),
         execution_config=execution_config,
+    )
+
+
+def _project_reference_inputs(
+    *,
+    dataset: AnalysisReadyPhosphoDataset,
+    references: ReferenceBundle,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.Index, pd.DataFrame]:
+    site_metadata = dataset.site_metadata
+    display_to_site_key = {
+        str(display_id): str(site_key)
+        for site_key, display_id in site_metadata.loc[
+            :, ["site_key", "display_id"]
+        ].itertuples(index=False)
+    }
+    scoring_display_ids = [
+        str(display_id)
+        for display_id in site_metadata.loc[:, "display_id"].astype(str).tolist()
+        if str(display_id) in set(references.site_sequences.index.astype(str))
+    ]
+    scoring_site_index = pd.Index(
+        [display_to_site_key[display_id] for display_id in scoring_display_ids],
+        name=dataset.phospho.index.name,
+    )
+    site_sequences = references.site_sequences.reindex(scoring_display_ids).copy(
+        deep=True
+    )
+    site_sequences.loc[:, "display_id"] = scoring_display_ids
+    site_sequences.index = scoring_site_index.copy()
+    projected_rows: list[dict[str, str]] = []
+    for kinase, display_id in references.kinase_substrate_map.loc[
+        :, ["kinase", "substrate_site"]
+    ].itertuples(index=False):
+        site_key = display_to_site_key.get(str(display_id))
+        if site_key is None:
+            continue
+        projected_rows.append(
+            {
+                "kinase": str(kinase),
+                "substrate_site": site_key,
+                "display_id": str(display_id),
+            }
+        )
+    site_identity_map = site_metadata.loc[
+        scoring_site_index, ["site_key", "display_id"]
+    ].copy(deep=True)
+    return (
+        pd.DataFrame(projected_rows),
+        site_sequences,
+        scoring_site_index,
+        site_identity_map,
     )
 
 
@@ -219,11 +275,9 @@ def test_interpreter_merges_dataset_site_sequences_without_mutating_references()
         KinaseWorkflowRequest(dataset=dataset, references=references)
     )
 
-    assert set(interpreted.site_sequences.index.astype(str)) == {
-        "MAPK14;Y182;",
-        "GSK3B;S9;",
-        "EXTRA;S1;",
-    }
+    assert set(interpreted.site_sequences.index.astype(str)) == set(
+        dataset.phospho.index.astype(str)
+    )
     pd.testing.assert_frame_equal(
         references.site_sequences,
         original_reference_sequences,
@@ -315,16 +369,9 @@ def test_workflow_uses_execution_time_merged_site_sequences() -> None:
         )
     )
 
-    assert list(result.scoring_result.profile_scores.index) == [
-        "MAPK14;Y182;",
-        "GSK3B;S9;",
-        "EXTRA;S1;",
-    ]
-    assert list(result.prediction_result.pred_mat.index) == [
-        "MAPK14;Y182;",
-        "GSK3B;S9;",
-        "EXTRA;S1;",
-    ]
+    expected_site_keys = dataset.phospho.index.astype(str).tolist()
+    assert list(result.scoring_result.profile_scores.index) == expected_site_keys
+    assert list(result.prediction_result.pred_mat.index) == expected_site_keys
 
 
 def test_boundary_error_reports_unusable_reference_coverage_counts() -> None:
@@ -811,7 +858,7 @@ def test_weighted_activity_is_stable_under_zero_padding_matrix_growth() -> None:
         pred_mat=pd.DataFrame(
             {"MAP2K6": [0.8, 0.4]},
             index=pd.Index(
-                ["MAPK14;Y182;", "GSK3B;S9;"],
+                site_key_index_from_display_ids(["MAPK14;Y182;", "GSK3B;S9;"]),
                 name=dataset.phospho.index.name,
             ),
         ),

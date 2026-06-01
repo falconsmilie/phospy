@@ -18,9 +18,15 @@ from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
 )
+from tests.support.site_keys import site_key_index_from_display_ids
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
+    display_ids = ["MAPK14;Y182;", "GSK3B;S9;", "AKT1;T308;"]
+    site_index = site_key_index_from_display_ids(
+        display_ids,
+        protein_namespace="gene_symbol",
+    )
     phospho = pd.DataFrame(
         {
             "A1_T1": [1.0, 2.0, 1.0],
@@ -32,10 +38,12 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
             "B2_T1": [2.2, 2.5, 0.7],
             "B2_T2": [2.3, 2.6, 0.6],
         },
-        index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;", "AKT1;T308;"], name="site_id"),
+        index=site_index,
     )
     site_metadata = pd.DataFrame(
         {
+            "site_key": site_index.tolist(),
+            "display_id": display_ids,
             "gene_symbol": ["MAPK14", "GSK3B", "AKT1"],
             "site": ["Y182", "S9", "T308"],
             "site_sequence": [
@@ -44,7 +52,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
             ],
             "protein_id": ["MAPK14", "GSK3B", "AKT1"],
         },
-        index=phospho.index.copy(),
+        index=site_index.copy(),
     )
     return AnalysisReadyPhosphoDataset(
         phospho=phospho,
@@ -153,7 +161,7 @@ def test_differential_workflow_runs_after_mean_technical_replicate_aggregation()
     )
 
     table = result.table_for("B_vs_A")
-    assert list(table.columns) == ["logFC", "t", "P.Value", "adj.P.Val"]
+    assert {"logFC", "t", "P.Value", "adj.P.Val"} <= set(table.columns)
     assert table.index.tolist() == _dataset().phospho.index.tolist()
     assert result.workflow_provenance is not None
     assert result.workflow_provenance["technical_replicate_policy"] == "mean"

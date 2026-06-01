@@ -37,6 +37,10 @@ from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
 )
+from tests.support.site_keys import (
+    site_key_from_display_id,
+    site_key_index_from_display_ids,
+)
 
 
 def _validator() -> MotifSequenceValidator:
@@ -363,7 +367,8 @@ def test_motif_scoring_rejects_non_phospho_centre_residue() -> None:
 
 
 def test_kinase_workflow_exposes_sequence_validation_diagnostics() -> None:
-    site_ids = pd.Index(["MAPK1;S202;", "MAPK1;T205;", "MAPK1;S210;"], name="site_id")
+    display_ids = ["MAPK1;S202;", "MAPK1;T205;", "MAPK1;S210;"]
+    site_ids = site_key_index_from_display_ids(display_ids)
     phospho = pd.DataFrame(
         {
             "sample_a": [1.0, 2.0, 1.5],
@@ -373,6 +378,8 @@ def test_kinase_workflow_exposes_sequence_validation_diagnostics() -> None:
     )
     site_metadata = pd.DataFrame(
         {
+            "site_key": site_ids.astype(str).tolist(),
+            "display_id": display_ids,
             "gene_symbol": ["MAPK1", "MAPK1", "MAPK1"],
             "site": ["S202", "T205", "S210"],
             "site_sequence": [
@@ -407,7 +414,7 @@ def test_kinase_workflow_exposes_sequence_validation_diagnostics() -> None:
                     "AAAAAAAXAAAAAAA",
                 ],
             },
-            index=site_ids,
+            index=pd.Index(display_ids, name="site_id"),
         ),
     )
 
@@ -465,7 +472,8 @@ def test_kinase_workflow_exposes_sequence_validation_diagnostics() -> None:
     assert library_summary["expected_window_size"] == 15
 
     assert scoring_result.motif_scores is not None
-    assert pd.isna(scoring_result.motif_scores.loc["MAPK1;S210;", "KINASE_A"])
+    s210_site_key = site_key_from_display_id("MAPK1;S210;")
+    assert pd.isna(scoring_result.motif_scores.loc[s210_site_key, "KINASE_A"])
 
 
 def test_sequence_coverage_summary_reports_full_coverage_for_all_valid_sites() -> None:
@@ -517,7 +525,8 @@ def test_sequence_coverage_summary_reports_zero_coverage_for_all_invalid_sites()
 
 
 def test_kinase_workflow_reports_partial_sequence_coverage_in_provenance() -> None:
-    site_ids = pd.Index(["MAPK1;S202;", "MAPK1;T205;", "MAPK1;S210;"], name="site_id")
+    display_ids = ["MAPK1;S202;", "MAPK1;T205;", "MAPK1;S210;"]
+    site_ids = site_key_index_from_display_ids(display_ids)
     dataset = AnalysisReadyPhosphoDataset(
         phospho=pd.DataFrame(
             {
@@ -528,6 +537,8 @@ def test_kinase_workflow_reports_partial_sequence_coverage_in_provenance() -> No
         ),
         site_metadata=pd.DataFrame(
             {
+                "site_key": site_ids.astype(str).tolist(),
+                "display_id": display_ids,
                 "gene_symbol": ["MAPK1", "MAPK1", "MAPK1"],
                 "site": ["S202", "T205", "S210"],
                 "site_sequence": [
@@ -559,7 +570,7 @@ def test_kinase_workflow_reports_partial_sequence_coverage_in_provenance() -> No
                     "AAAAAAAXAAAAAAA",
                 ],
             },
-            index=site_ids,
+            index=pd.Index(display_ids, name="site_id"),
         ),
     )
 
@@ -593,7 +604,8 @@ def test_kinase_workflow_reports_partial_sequence_coverage_in_provenance() -> No
 
 
 def test_kinase_workflow_continues_when_no_sites_have_valid_sequence() -> None:
-    site_ids = pd.Index(["MAPK1;S202;", "MAPK1;T205;"], name="site_id")
+    display_ids = ["MAPK1;S202;", "MAPK1;T205;"]
+    site_ids = site_key_index_from_display_ids(display_ids)
     dataset = AnalysisReadyPhosphoDataset(
         phospho=pd.DataFrame(
             {"sample_a": [1.0, 2.0], "sample_b": [2.0, 3.0]},
@@ -601,6 +613,8 @@ def test_kinase_workflow_continues_when_no_sites_have_valid_sequence() -> None:
         ),
         site_metadata=pd.DataFrame(
             {
+                "site_key": site_ids.astype(str).tolist(),
+                "display_id": display_ids,
                 "gene_symbol": ["MAPK1", "MAPK1"],
                 "site": ["S202", "T205"],
                 "site_sequence": [
@@ -626,7 +640,7 @@ def test_kinase_workflow_continues_when_no_sites_have_valid_sequence() -> None:
         ),
         site_sequences=pd.DataFrame(
             {"site_sequence": ["AAAAAAAXAAAAAAA", "ASAA"]},
-            index=site_ids,
+            index=pd.Index(display_ids, name="site_id"),
         ),
     )
 

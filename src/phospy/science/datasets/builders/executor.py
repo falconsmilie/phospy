@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pandas as pd
-
 from phospy.science.datasets.builders.contracts import (
     DatasetPreprocessorContract,
     InterpretedDatasetBuildRequest,
@@ -120,13 +118,9 @@ class DatasetBuildExecutor:
             quantitative_meaning=transformed.quantitative_meaning,
             allow_opaque_site_values=request.allow_opaque_site_values,
         )
-        public_site_metadata = _project_gene_site_fallback_site_key_to_display_index(
-            phospho=transformed.phospho,
-            site_metadata=validated_site_metadata,
-        )
         return AnalysisReadyPhosphoDataset._from_owned(
             phospho=transformed.phospho,
-            site_metadata=public_site_metadata,
+            site_metadata=validated_site_metadata,
             sample_metadata=preprocessed.sample_metadata,
             total=transformed.total,
             comparisons=preprocessed.comparisons,
@@ -137,20 +131,3 @@ class DatasetBuildExecutor:
             provenance=provenance,
             allow_opaque_site_values=request.allow_opaque_site_values,
         )
-
-
-def _project_gene_site_fallback_site_key_to_display_index(
-    *,
-    phospho: pd.DataFrame,
-    site_metadata: pd.DataFrame,
-) -> pd.DataFrame:
-    if "site_key" not in site_metadata.columns:
-        return site_metadata
-    has_explicit_protein_identity = any(
-        column in site_metadata.columns
-        for column in ("protein_id", "protein_accession", "isoform_id")
-    )
-    if has_explicit_protein_identity:
-        return site_metadata
-    site_metadata.loc[:, "site_key"] = phospho.index.astype(str).tolist()
-    return site_metadata

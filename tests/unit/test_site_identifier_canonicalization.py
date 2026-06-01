@@ -24,6 +24,21 @@ from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
 )
+from tests.support.site_keys import (
+    site_key_from_display_id,
+    site_key_index_from_display_ids,
+)
+
+
+def _site_key(display_id: str) -> str:
+    return site_key_from_display_id(display_id, protein_namespace="gene_symbol")
+
+
+def _site_keys(display_ids: list[str]) -> pd.Index:
+    return site_key_index_from_display_ids(
+        display_ids,
+        protein_namespace="gene_symbol",
+    )
 
 
 def test_builder_canonicalizes_site_ids_and_reorders_site_metadata() -> None:
@@ -56,10 +71,15 @@ def test_builder_canonicalizes_site_ids_and_reorders_site_metadata() -> None:
         )
     )
 
-    assert list(built.phospho.index) == ["MAPK14;Y182;", "AKT1;T308;"]
-    assert list(built.site_metadata.index) == ["MAPK14;Y182;", "AKT1;T308;"]
-    assert built.site_metadata.loc["MAPK14;Y182;", "gene_symbol"] == "MAPK14"
-    assert built.site_metadata.loc["AKT1;T308;", "gene_symbol"] == "AKT1"
+    expected_index = _site_keys(["MAPK14;Y182;", "AKT1;T308;"])
+    assert list(built.phospho.index) == expected_index.tolist()
+    assert list(built.site_metadata.index) == expected_index.tolist()
+    assert built.site_metadata.loc[_site_key("MAPK14;Y182;"), "gene_symbol"] == "MAPK14"
+    assert built.site_metadata.loc[_site_key("AKT1;T308;"), "gene_symbol"] == "AKT1"
+    assert built.site_metadata.loc[:, "display_id"].tolist() == [
+        "MAPK14;Y182;",
+        "AKT1;T308;",
+    ]
 
 
 def test_builder_canonicalizes_lowercase_site_ids() -> None:
@@ -92,8 +112,10 @@ def test_builder_canonicalizes_lowercase_site_ids() -> None:
         )
     )
 
-    assert list(built.phospho.index) == ["MAPK14;Y182;"]
-    assert list(built.site_metadata.index) == ["MAPK14;Y182;"]
+    expected_index = _site_keys(["MAPK14;Y182;"])
+    assert list(built.phospho.index) == expected_index.tolist()
+    assert list(built.site_metadata.index) == expected_index.tolist()
+    assert built.site_metadata.loc[:, "display_id"].tolist() == ["MAPK14;Y182;"]
 
 
 def test_builder_does_not_mutate_caller_owned_phospho_frame() -> None:
@@ -128,7 +150,7 @@ def test_builder_does_not_mutate_caller_owned_phospho_frame() -> None:
     )
 
     pd.testing.assert_frame_equal(phospho, original)
-    assert list(built.phospho.index) == ["MAPK14;Y182;"]
+    assert list(built.phospho.index) == _site_keys(["MAPK14;Y182;"]).tolist()
     assert list(built.phospho.columns) == ["sample_a", "sample_b"]
 
 
@@ -161,9 +183,11 @@ def test_builder_does_not_mutate_caller_owned_site_metadata_frame() -> None:
     )
 
     pd.testing.assert_frame_equal(site_metadata, original)
-    assert list(built.site_metadata.index) == ["MAPK14;Y182;"]
-    assert built.site_metadata.loc["MAPK14;Y182;", "gene_symbol"] == "MAPK14"
-    assert built.site_metadata.loc["MAPK14;Y182;", "site"] == "Y182"
+    site_key = _site_key("MAPK14;Y182;")
+    assert list(built.site_metadata.index) == [site_key]
+    assert built.site_metadata.loc[site_key, "gene_symbol"] == "MAPK14"
+    assert built.site_metadata.loc[site_key, "site"] == "Y182"
+    assert built.site_metadata.loc[site_key, "display_id"] == "MAPK14;Y182;"
 
 
 def test_builder_rejects_ambiguous_site_ids_after_canonicalization() -> None:
@@ -256,7 +280,7 @@ def test_reference_bundle_rejects_ambiguous_site_sequence_ids() -> None:
 def test_dataset_boundary_rejects_non_canonical_site_ids() -> None:
     with pytest.raises(
         DatasetValidationError,
-        match="site identifiers must use 'GENE;SITE;' format",
+        match="dataset\\.phospho\\.index must be named 'site_key'",
     ):
         from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
@@ -290,7 +314,7 @@ def test_dataset_boundary_rejects_non_canonical_site_ids() -> None:
 def test_dataset_boundary_rejects_lowercase_site_ids() -> None:
     with pytest.raises(
         DatasetValidationError,
-        match="dataset\\.phospho\\.index must contain canonical site identifiers",
+        match="dataset\\.phospho\\.index is display-indexed direct construction",
     ):
         from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
@@ -324,7 +348,7 @@ def test_dataset_boundary_rejects_lowercase_site_ids() -> None:
 def test_dataset_boundary_rejects_whitespace_site_ids() -> None:
     with pytest.raises(
         DatasetValidationError,
-        match="dataset\\.phospho\\.index must contain canonical site identifiers",
+        match="dataset\\.phospho\\.index is display-indexed direct construction",
     ):
         from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
@@ -358,7 +382,7 @@ def test_dataset_boundary_rejects_whitespace_site_ids() -> None:
 def test_dataset_boundary_rejects_missing_trailing_delimiter_site_ids() -> None:
     with pytest.raises(
         DatasetValidationError,
-        match="dataset\\.phospho\\.index must contain canonical site identifiers",
+        match="dataset\\.phospho\\.index is display-indexed direct construction",
     ):
         from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
@@ -392,10 +416,11 @@ def test_dataset_boundary_rejects_missing_trailing_delimiter_site_ids() -> None:
 def test_dataset_boundary_rejects_duplicates_after_site_id_canonicalization() -> None:
     with pytest.raises(
         DatasetValidationError,
-        match="contains duplicate normalised phosphosite display identifiers",
+        match="duplicate_site_key_values",
     ):
         from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
+        site_key = _site_key("MAPK14;Y182;")
         AnalysisReadyPhosphoDataset(
             phospho=pd.DataFrame(
                 {
@@ -403,12 +428,14 @@ def test_dataset_boundary_rejects_duplicates_after_site_id_canonicalization() ->
                     "sample_b": [2.0, 4.0],
                 },
                 index=pd.Index(
-                    ["mapk14;y182;", "MAPK14;Y182;"],
-                    name="site_id",
+                    [site_key, site_key],
+                    name="site_key",
                 ),
             ),
             site_metadata=pd.DataFrame(
                 {
+                    "site_key": [site_key, site_key],
+                    "display_id": ["MAPK14;Y182;", "MAPK14;Y182;"],
                     "gene_symbol": ["MAPK14", "MAPK14"],
                     "site": ["Y182", "Y182"],
                     "site_sequence": [
@@ -417,8 +444,8 @@ def test_dataset_boundary_rejects_duplicates_after_site_id_canonicalization() ->
                     ],
                 },
                 index=pd.Index(
-                    ["mapk14;y182;", "MAPK14;Y182;"],
-                    name="site_id",
+                    [site_key, site_key],
+                    name="site_key",
                 ),
             ),
             organism=Organism.RAT,
@@ -432,7 +459,7 @@ def test_dataset_boundary_rejects_duplicates_after_site_id_canonicalization() ->
 def test_dataset_boundary_rejects_colliding_dirty_site_ids() -> None:
     with pytest.raises(
         DatasetValidationError,
-        match="contains duplicate normalised phosphosite display identifiers",
+        match="dataset\\.phospho\\.index is display-indexed direct construction",
     ):
         from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
@@ -472,16 +499,19 @@ def test_dataset_boundary_rejects_colliding_dirty_site_ids() -> None:
 def test_dataset_boundary_accepts_strict_canonical_site_ids() -> None:
     from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
+    site_key = _site_key("MAPK14;Y182;")
     dataset = AnalysisReadyPhosphoDataset(
         phospho=pd.DataFrame(
             {
                 "sample_a": [1.0],
                 "sample_b": [2.0],
             },
-            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            index=pd.Index([site_key], name="site_key"),
         ),
         site_metadata=pd.DataFrame(
             {
+                "site_key": [site_key],
+                "display_id": ["MAPK14;Y182;"],
                 "gene_symbol": ["MAPK14"],
                 "site": ["Y182"],
                 "site_sequence": [
@@ -489,7 +519,7 @@ def test_dataset_boundary_accepts_strict_canonical_site_ids() -> None:
                     for site in ["Y182"]
                 ],
             },
-            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            index=pd.Index([site_key], name="site_key"),
         ),
         organism=Organism.RAT,
         intensity_scale_state=supported_linear_intensity_scale_state(
@@ -498,20 +528,24 @@ def test_dataset_boundary_accepts_strict_canonical_site_ids() -> None:
         processing_state=supported_linear_processing_state(has_total_matrix=False),
     )
 
-    assert list(dataset.phospho.index) == ["MAPK14;Y182;"]
+    assert list(dataset.phospho.index) == [site_key]
+    assert dataset.site_metadata.loc[site_key, "display_id"] == "MAPK14;Y182;"
 
 
 def test_dataset_boundary_requires_explicit_intensity_and_processing_state() -> None:
     with pytest.raises(TypeError, match="missing .* required positional argument"):
         from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
+        site_key = _site_key("MAPK14;Y182;")
         AnalysisReadyPhosphoDataset(
             phospho=pd.DataFrame(
                 {"sample_a": [1.0]},
-                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+                index=pd.Index([site_key], name="site_key"),
             ),
             site_metadata=pd.DataFrame(
                 {
+                    "site_key": [site_key],
+                    "display_id": ["MAPK14;Y182;"],
                     "gene_symbol": ["MAPK14"],
                     "site": ["Y182"],
                     "site_sequence": [
@@ -519,7 +553,7 @@ def test_dataset_boundary_requires_explicit_intensity_and_processing_state() -> 
                         for site in ["Y182"]
                     ],
                 },
-                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+                index=pd.Index([site_key], name="site_key"),
             ),
             organism=Organism.RAT,
         )  # type: ignore[call-arg]
@@ -715,9 +749,10 @@ def test_dataset_and_reference_ids_align_after_shared_normalization() -> None:
             index=pd.Index(["MAPK14;Y182"], name="site_id"),
         ),
     )
-    overlap_sites = built.phospho.index.intersection(
+    display_ids = pd.Index(built.site_metadata.loc[:, "display_id"], name="site_id")
+    overlap_sites = display_ids.intersection(
         references.kinase_substrate_map.loc[:, "substrate_site"]
     )
-    scoring_index = built.phospho.index.intersection(references.site_sequences.index)
+    scoring_index = display_ids.intersection(references.site_sequences.index)
     assert len(overlap_sites) == 1
     assert list(scoring_index) == ["MAPK14;Y182;"]

@@ -2003,7 +2003,7 @@ def test_executor_delegates_preprocessing_to_internal_subsystem() -> None:
     phospho.index = pd.Index(encoded_site_keys, name="site_key")
     site_metadata = _site_metadata().iloc[:2].copy(deep=True)
     site_metadata.index = phospho.index.copy()
-    site_metadata.loc[:, "display_id"] = phospho.index.tolist()
+    site_metadata.loc[:, "display_id"] = ["MAPK14;Y182;", "GSK3B;S9;"]
     site_metadata.loc[:, "site_key"] = phospho.index.tolist()
     sample_metadata = _sample_metadata(phospho.columns)
     total = _total(phospho.columns)
@@ -2109,7 +2109,15 @@ def test_dataset_interpreter_does_not_apply_preprocessing_science() -> None:
     interpreted = DatasetBuildRequestInterpreter().run(request)
 
     assert interpreted.phospho.isna().to_numpy().sum() == 2
-    assert interpreted.phospho.index.tolist() == ["MAPK14;Y182;", "GSK3B;S9;"]
+    assert interpreted.phospho.index.name == "site_key"
+    assert interpreted.site_metadata.index.equals(interpreted.phospho.index)
+    assert interpreted.site_metadata.loc[:, "site_key"].tolist() == (
+        interpreted.phospho.index.tolist()
+    )
+    assert interpreted.site_metadata.loc[:, "display_id"].tolist() == [
+        "MAPK14;Y182;",
+        "GSK3B;S9;",
+    ]
 
 
 def test_dataset_builder_request_quantitative_meaning_propagates_to_provenance() -> (
@@ -2202,7 +2210,10 @@ def test_dataset_interpreter_defers_reference_site_sequence_fill_when_fasta_is_c
     assert calls[0]["organism"] == Organism.RAT
     assert calls[0]["allow_partial"] is True
     assert calls[0]["derive_missing_from_reference"] is False
-    assert pd.isna(interpreted.site_metadata.loc["MAPK14;Y182;", "site_sequence"])
+    site_key = interpreted.site_metadata.index[0]
+    assert interpreted.site_metadata.index.name == "site_key"
+    assert interpreted.site_metadata.at[site_key, "display_id"] == "MAPK14;Y182;"
+    assert pd.isna(interpreted.site_metadata.at[site_key, "site_sequence"])
 
 
 def test_dataset_interpreter_keeps_reference_site_sequence_fill_enabled_without_fasta() -> (

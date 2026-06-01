@@ -101,7 +101,7 @@ class SiteSequenceDeriver:
 
         if "site_sequence" in normalized.columns and not allow_partial:
             existing = self._validated_existing_site_sequence(normalized)
-            normalized.loc[:, "site_sequence"] = existing.astype(str)
+            normalized["site_sequence"] = existing.astype("string")
             self._last_report = SiteSequenceDerivationReport(
                 schema_version=_SITE_SEQUENCE_DERIVATION_SCHEMA_VERSION,
                 input_site_sequence_column_present=input_has_site_sequence,
@@ -149,7 +149,7 @@ class SiteSequenceDeriver:
                         existing.notna(),
                         other=derived_optional,
                     )
-            normalized.loc[:, "site_sequence"] = final_sequences.astype("string")
+            normalized["site_sequence"] = final_sequences.astype("string")
             unresolved_count = int(final_sequences.isna().sum())
             self._last_report = SiteSequenceDerivationReport(
                 schema_version=_SITE_SEQUENCE_DERIVATION_SCHEMA_VERSION,
@@ -206,7 +206,7 @@ class SiteSequenceDeriver:
             derived_optional = self._normalized_optional_site_sequence(attempt.derived)
             derived_sequence_count = int(derived_optional.notna().sum())
             unresolved_count = int(derived_optional.isna().sum())
-            normalized.loc[:, "site_sequence"] = derived_optional.astype("string")
+            normalized["site_sequence"] = derived_optional.astype("string")
             self._last_report = SiteSequenceDerivationReport(
                 schema_version=_SITE_SEQUENCE_DERIVATION_SCHEMA_VERSION,
                 input_site_sequence_column_present=input_has_site_sequence,
@@ -235,7 +235,7 @@ class SiteSequenceDeriver:
                 reference_support=reference_support,
             )
             return normalized
-        normalized.loc[:, "site_sequence"] = attempt.derived.astype(str)
+        normalized["site_sequence"] = attempt.derived.astype("string")
         self._last_report = SiteSequenceDerivationReport(
             schema_version=_SITE_SEQUENCE_DERIVATION_SCHEMA_VERSION,
             input_site_sequence_column_present=input_has_site_sequence,
@@ -339,7 +339,7 @@ def _resolve_site_ids_from_metadata_columns(site_metadata: pd.DataFrame) -> pd.S
         error_type=UnsupportedInputFormatError,
         output_name="site_id",
     ).astype("string")
-    normalized.loc[has_tokens] = canonical.to_numpy(dtype="object", copy=False)
+    normalized.loc[has_tokens] = canonical.astype("string")
     return normalized
 
 
@@ -356,5 +356,5 @@ def _resolve_site_ids_from_index(index: pd.Index) -> pd.Series:
         field_name="dataset build request site_metadata.index for sequence lookup",
         error_type=UnsupportedInputFormatError,
     ).astype("string")
-    resolved.loc[site_like_tokens] = canonical.to_numpy(dtype="object", copy=False)
+    resolved.loc[site_like_tokens] = canonical.astype("string")
     return resolved

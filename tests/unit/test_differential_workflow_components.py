@@ -39,9 +39,13 @@ from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
 )
+from tests.support.site_keys import protein_site_key_index
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
+    genes = ["MAPK14", "GSK3B", "AKT1"]
+    sites = ["Y182", "S9", "T308"]
+    site_index = protein_site_key_index(protein_identifiers=genes, sites=sites)
     phospho = pd.DataFrame(
         {
             "A_1": [1.0, 2.0, 1.0],
@@ -49,17 +53,18 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
             "B_1": [2.1, 2.0, 1.0],
             "B_2": [2.0, 2.2, 0.9],
         },
-        index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;", "AKT1;T308;"], name="site_id"),
+        index=site_index,
     )
     site_metadata = pd.DataFrame(
         {
-            "gene_symbol": ["MAPK14", "GSK3B", "AKT1"],
-            "site": ["Y182", "S9", "T308"],
+            "site_key": site_index.tolist(),
+            "display_id": ["MAPK14;Y182;", "GSK3B;S9;", "AKT1;T308;"],
+            "gene_symbol": genes,
+            "site": sites,
             "site_sequence": [
-                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
-                for site in ["Y182", "S9", "T308"]
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15) for site in sites
             ],
-            "protein_id": ["MAPK14", "GSK3B", "AKT1"],
+            "protein_id": genes,
         },
         index=phospho.index.copy(),
     )

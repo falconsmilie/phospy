@@ -54,7 +54,12 @@ class DatasetSiteIdentityDeriver:
             error_type=UnsupportedInputFormatError,
             output_name="display_id",
         )
-        normalized.loc[:, "display_id"] = display_id.to_numpy(dtype=object, copy=False)
+        normalized["display_id"] = pd.Series(
+            display_id.astype(str).tolist(),
+            index=normalized.index.copy(),
+            name="display_id",
+            dtype="string",
+        )
 
         site_keys: list[str] = []
         for row_position, row_id in enumerate(normalized.index.tolist()):
@@ -110,7 +115,12 @@ class DatasetSiteIdentityDeriver:
                 error_type=UnsupportedInputFormatError,
             )
             site_keys.append(encode_site_key(key))
-        normalized.loc[:, "site_key"] = site_keys
+        normalized["site_key"] = pd.Series(
+            site_keys,
+            index=normalized.index.copy(),
+            name="site_key",
+            dtype="string",
+        )
         return normalized
 
 

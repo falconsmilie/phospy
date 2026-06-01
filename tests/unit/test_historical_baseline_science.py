@@ -34,21 +34,25 @@ from tests.support.rewrite_fixture_data import (
     load_adaptive_sampling_edge_rank_weighted_fusion_scores,
 )
 from tests.support.signalome_config import build_signalome_config
+from tests.support.site_keys import site_key_index_from_display_ids
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
-    site_ids = pd.Index(["MAPK14;Y182;", "GSK3B;S9;", "AKT1;T308;"], name="site_id")
+    display_ids = ["MAPK14;Y182;", "GSK3B;S9;", "AKT1;T308;"]
+    site_index = site_key_index_from_display_ids(display_ids)
     phospho = pd.DataFrame(
         {
             "sample_a": [1.0, 2.0, 4.0],
             "sample_b": [2.0, 4.0, 1.0],
         },
-        index=site_ids,
+        index=site_index,
     )
     site_metadata = pd.DataFrame(
         {
+            "site_key": site_index.astype(str).tolist(),
+            "display_id": display_ids,
             "gene_symbol": ["MAPK14", "GSK3B", "AKT1"],
             "site": ["Y182", "S9", "T308"],
             "site_sequence": [
@@ -57,7 +61,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
             ],
             "protein_id": ["MAPK14", "GSK3B", "AKT1"],
         },
-        index=site_ids,
+        index=site_index.copy(),
     )
     return AnalysisReadyPhosphoDataset(
         phospho=phospho,

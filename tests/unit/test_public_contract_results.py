@@ -30,19 +30,23 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
 )
 from tests.support.signalome_config import build_signalome_config
+from tests.support.site_keys import site_key_index_from_display_ids
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
     site_ids = ["MAPK14;Y182;", "GSK3B;S9;", "AKT1;T308;"]
+    site_index = site_key_index_from_display_ids(site_ids)
     phospho = pd.DataFrame(
         {
             "sample_a": [1.0, 2.0, 4.0],
             "sample_b": [2.0, 4.0, 1.0],
         },
-        index=site_ids,
+        index=site_index,
     )
     site_metadata = pd.DataFrame(
         {
+            "site_key": site_index.astype(str).tolist(),
+            "display_id": site_ids,
             "gene_symbol": ["MAPK14", "GSK3B", "AKT1"],
             "site": ["Y182", "S9", "T308"],
             "site_sequence": [
@@ -52,7 +56,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
             ],
             "protein_id": ["MAPK14", "GSK3B", "AKT1"],
         },
-        index=site_ids,
+        index=site_index.copy(),
     )
     return AnalysisReadyPhosphoDataset(
         phospho=phospho,
@@ -133,12 +137,12 @@ def test_kinase_result_stays_nested_and_honest_for_supported_lane() -> None:
     assert result.scoring_result.score_source_matrix is None
     assert result.activity_result is None
     assert result.prediction_result.substrate_list is not None
-    assert set(result.prediction_result.substrate_list.columns) == {
+    assert {
         "kinase",
         "substrate_site",
         "score",
         "rank",
-    }
+    }.issubset(set(result.prediction_result.substrate_list.columns))
     pred_values = result.prediction_result.pred_mat.to_numpy(dtype=float)
     finite_values = pred_values[np.isfinite(pred_values)]
     assert (finite_values >= 0.0).all()

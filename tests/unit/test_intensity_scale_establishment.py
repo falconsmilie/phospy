@@ -20,9 +20,10 @@ from phospy.science.transformations.models import (
     MatrixIntensityScaleState,
 )
 from phospy.science.transformations.transformers import IdentityTransformer
+from tests.support.site_keys import site_key_index_from_display_ids
 
 
-def _phospho(values: list[float]) -> pd.DataFrame:
+def _display_ids_for_count(count: int) -> list[str]:
     fallback = [
         "MAPK14;Y182;",
         "GSK3B;S9;",
@@ -30,29 +31,39 @@ def _phospho(values: list[float]) -> pd.DataFrame:
         "PRKACA;S339;",
         "MAPK1;T185;",
     ]
-    index_labels = fallback[: len(values)]
-    if len(index_labels) < len(values):
-        for idx in range(len(index_labels), len(values)):
-            index_labels.append(f"GENE{idx};S{idx + 1};")
+    display_ids = fallback[:count]
+    if len(display_ids) < count:
+        for idx in range(len(display_ids), count):
+            display_ids.append(f"GENE{idx};S{idx + 1};")
+    return display_ids
+
+
+def _phospho(values: list[float]) -> pd.DataFrame:
+    display_ids = _display_ids_for_count(len(values))
     return pd.DataFrame(
         {"sample_a": values},
-        index=pd.Index(index_labels, name="site_id"),
+        index=site_key_index_from_display_ids(display_ids),
     )
 
 
 def _site_metadata(index: pd.Index) -> pd.DataFrame:
+    display_ids = _display_ids_for_count(len(index))
     gene_symbols: list[str] = []
     sites: list[str] = []
-    for site_id in index.astype(str):
+    for site_id in display_ids:
         parts = site_id.split(";")
         gene_symbols.append(parts[0])
         sites.append(parts[1] if len(parts) > 1 else "S1")
     rows = len(gene_symbols)
     return pd.DataFrame(
         {
+            "site_key": index.astype(str).tolist(),
+            "display_id": display_ids,
             "gene_symbol": gene_symbols,
             "site": sites,
-            "site_sequence": ["SEQ_A"] * rows,
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15) for site in sites
+            ],
             "localisation_confidence": [0.95] * rows,
         },
         index=index.copy(),

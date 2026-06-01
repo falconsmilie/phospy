@@ -12,6 +12,10 @@ from phospy.errors.validation import (
     WorkflowValidationError,
 )
 from phospy.science.references.models import Organism, ReferenceBundle
+from phospy.science.sites.site_keys import (
+    build_protein_scoped_site_key,
+    encode_site_key,
+)
 from phospy.tables.activity import ActivityMatrix, ActivityTargetTable
 from phospy.tables.datasets import (
     PhosphoIntensityMatrix,
@@ -48,19 +52,48 @@ def _parse_site_id(site_id: str) -> tuple[str, str]:
     return gene_symbol, site
 
 
+def _site_key_for_display_id(
+    display_id: str,
+    *,
+    protein_identifier: str | None = None,
+) -> str:
+    gene_symbol, site = _parse_site_id(display_id)
+    key = build_protein_scoped_site_key(
+        organism="rat",
+        protein_namespace="protein_id",
+        protein_identifier=protein_identifier or gene_symbol,
+        residue=site[0],
+        position=int(site[1:]),
+        field_name="tests.unit.test_table_schemas.site_key",
+        error_type=ValueError,
+    )
+    return encode_site_key(key)
+
+
+def _site_keys_for_display_ids(display_ids: list[str]) -> list[str]:
+    return [_site_key_for_display_id(display_id) for display_id in display_ids]
+
+
+_MAPK14_Y182 = _site_key_for_display_id("MAPK14;Y182;", protein_identifier="P28482")
+_AKT1_T308 = _site_key_for_display_id("AKT1;T308;", protein_identifier="P31749")
+_GSK3B_S9 = _site_key_for_display_id("GSK3B;S9;", protein_identifier="GSK3B")
+
+
 def _phospho_frame() -> pd.DataFrame:
     return pd.DataFrame(
         {
             "sample_a": [1.0, 2.0],
             "sample_b": [1.5, 2.5],
         },
-        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+        index=pd.Index([_MAPK14_Y182, _AKT1_T308], name="site_key"),
     )
 
 
 def _site_metadata_frame(index: pd.Index) -> pd.DataFrame:
     return pd.DataFrame(
         {
+            "site_key": index.astype(str).tolist(),
+            "display_id": ["MAPK14;Y182;", "AKT1;T308;"],
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": [
@@ -193,12 +226,13 @@ def test_dataset_schema_numeric_looking_string_column_fails() -> None:
 def test_dataset_schema_property_non_numeric_string_columns_are_rejected(
     site_ids: list[str],
 ) -> None:
+    site_keys = _site_keys_for_display_ids(site_ids)
     frame = pd.DataFrame(
         {
             "sample_a": [1.0 for _ in site_ids],
             "sample_b": [2.0 for _ in site_ids],
         },
-        index=pd.Index(site_ids, name="site_id"),
+        index=pd.Index(site_keys, name="site_key"),
     ).astype(object)
     frame.loc[:, "sample_a"] = ["x" for _ in site_ids]
     with pytest.raises(DatasetValidationError, match="non-numeric columns: sample_a"):
@@ -210,7 +244,7 @@ def test_dataset_schema_property_non_numeric_string_columns_are_rejected(
 def test_dataset_schema_property_boolean_columns_are_rejected(
     site_ids: list[str],
 ) -> None:
-    index = pd.Index(site_ids, name="site_id")
+    index = pd.Index(_site_keys_for_display_ids(site_ids), name="site_key")
     frame = pd.DataFrame(
         {
             "sample_a": [1.0 for _ in site_ids],
@@ -228,15 +262,15 @@ def test_dataset_schema_property_boolean_columns_are_rejected(
 
 def test_dataset_schema_missing_phospho_value_fails() -> None:
     bad = _phospho_frame().copy(deep=True)
-    bad.loc["MAPK14;Y182;", "sample_a"] = float("nan")
+    bad.loc[_MAPK14_Y182, "sample_a"] = float("nan")
     with pytest.raises(DatasetValidationError, match="must not contain missing values"):
         PhosphoIntensityMatrix(frame=bad)
 
 
 def test_dataset_schema_duplicate_phospho_index_fails() -> None:
     bad = _phospho_frame().copy(deep=True)
-    bad.index = pd.Index(["MAPK14;Y182;", "MAPK14;Y182;"])
-    with pytest.raises(DatasetValidationError, match="index must be unique"):
+    bad.index = pd.Index([_MAPK14_Y182, _MAPK14_Y182], name="site_key")
+    with pytest.raises(DatasetValidationError, match="duplicate_site_key"):
         PhosphoIntensityMatrix(frame=bad)
 
 
@@ -253,12 +287,13 @@ def test_dataset_schema_property_duplicate_index_rejected_for_unique_site_ids(
     data: st.DataObject,
 ) -> None:
     site_ids = data.draw(_canonical_site_ids(min_size=2), label="site_ids")
-    duplicate_source = data.draw(st.sampled_from(site_ids), label="duplicate_source")
+    site_keys = _site_keys_for_display_ids(site_ids)
+    duplicate_source = data.draw(st.sampled_from(site_keys), label="duplicate_source")
     duplicate_target_idx = data.draw(
         st.integers(min_value=0, max_value=len(site_ids) - 1),
         label="duplicate_target_idx",
     )
-    duplicated_index = list(site_ids)
+    duplicated_index = list(site_keys)
     duplicated_index[duplicate_target_idx] = duplicate_source
     assume(len(set(duplicated_index)) < len(duplicated_index))
 
@@ -267,11 +302,11 @@ def test_dataset_schema_property_duplicate_index_rejected_for_unique_site_ids(
             "sample_a": [float(i + 1) for i in range(len(duplicated_index))],
             "sample_b": [float(i + 10) for i in range(len(duplicated_index))],
         },
-        index=pd.Index(duplicated_index, name="site_id"),
+        index=pd.Index(duplicated_index, name="site_key"),
     )
     with pytest.raises(
         DatasetValidationError,
-        match="dataset.phospho.index must be unique",
+        match="duplicate_site_key",
     ):
         PhosphoIntensityMatrix(frame=frame)
 
@@ -317,8 +352,8 @@ def test_prediction_schema_property_duplicate_columns_rejected_for_unique_kinase
 
 def test_dataset_schema_non_canonical_site_index_fails() -> None:
     bad = _phospho_frame().copy(deep=True)
-    bad.index = pd.Index(["MAPK14;Y182; ", "AKT1;T308;"])
-    with pytest.raises(DatasetValidationError, match="canonical site identifiers"):
+    bad.index = pd.Index([f"{_MAPK14_Y182} ", _AKT1_T308], name="site_key")
+    with pytest.raises(DatasetValidationError, match="valid PhosPy site_key"):
         PhosphoIntensityMatrix(frame=bad)
 
 
@@ -355,13 +390,16 @@ def test_site_metadata_property_required_columns_allow_extra_columns(
         label="extra_column_names",
     )
     parsed = [_parse_site_id(site_id) for site_id in site_ids]
+    site_keys = _site_keys_for_display_ids(site_ids)
     frame = pd.DataFrame(
         {
+            "site_key": site_keys,
+            "display_id": site_ids,
             "gene_symbol": [gene for gene, _ in parsed],
             "site": [site for _, site in parsed],
             "site_sequence": [("A" * 15) + site[0] + ("A" * 15) for _, site in parsed],
         },
-        index=pd.Index(site_ids, name="site_id"),
+        index=pd.Index(site_keys, name="site_key"),
     )
     for idx, column_name in enumerate(extra_column_names):
         frame.loc[:, column_name] = idx
@@ -372,7 +410,9 @@ def test_site_metadata_property_required_columns_allow_extra_columns(
 
 @given(
     site_ids=_canonical_site_ids(min_size=1),
-    missing_column=st.sampled_from(("gene_symbol", "site", "site_sequence")),
+    missing_column=st.sampled_from(
+        ("site_key", "display_id", "gene_symbol", "site", "site_sequence")
+    ),
 )
 @_PROPERTY_SETTINGS
 def test_site_metadata_property_removing_required_column_fails(
@@ -380,14 +420,17 @@ def test_site_metadata_property_removing_required_column_fails(
     missing_column: str,
 ) -> None:
     parsed = [_parse_site_id(site_id) for site_id in site_ids]
+    site_keys = _site_keys_for_display_ids(site_ids)
     frame = pd.DataFrame(
         {
+            "site_key": site_keys,
+            "display_id": site_ids,
             "gene_symbol": [gene for gene, _ in parsed],
             "site": [site for _, site in parsed],
             "site_sequence": [("A" * 15) + site[0] + ("A" * 15) for _, site in parsed],
             "extra_col": ["x" for _ in site_ids],
         },
-        index=pd.Index(site_ids, name="site_id"),
+        index=pd.Index(site_keys, name="site_key"),
     ).drop(columns=[missing_column])
     with pytest.raises(DatasetValidationError, match="missing required columns"):
         SiteMetadataTable(frame=frame, expected_index=frame.index)
@@ -395,7 +438,7 @@ def test_site_metadata_property_removing_required_column_fails(
 
 def test_dataset_schema_site_metadata_index_mismatch_fails() -> None:
     phospho = PhosphoIntensityMatrix(frame=_phospho_frame())
-    bad = _site_metadata_frame(pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"))
+    bad = _site_metadata_frame(pd.Index([_MAPK14_Y182, _GSK3B_S9], name="site_key"))
     with pytest.raises(DatasetValidationError) as exc_info:
         SiteMetadataTable(frame=bad, expected_index=phospho.frame.index)
     message = str(exc_info.value)
@@ -403,15 +446,15 @@ def test_dataset_schema_site_metadata_index_mismatch_fails() -> None:
         "dataset.site_metadata.index must exactly match dataset.phospho.index"
         in message
     )
-    assert "Only in dataset.site_metadata.index: 'GSK3B;S9;'" in message
-    assert "Only in dataset.phospho.index: 'AKT1;T308;'" in message
+    assert "Only in dataset.site_metadata.index" in message
+    assert "Only in dataset.phospho.index" in message
     assert "First positional mismatch: position 1" in message
 
 
 def test_dataset_schema_site_metadata_identity_mismatch_fails() -> None:
     phospho = PhosphoIntensityMatrix(frame=_phospho_frame())
     bad = _site_metadata_frame(phospho.frame.index).copy(deep=True)
-    bad.loc["MAPK14;Y182;", "gene_symbol"] = "MAPK1"
+    bad.loc[_MAPK14_Y182, "gene_symbol"] = "MAPK1"
     with pytest.raises(DatasetValidationError, match="site-identity coherence failed"):
         SiteMetadataTable(frame=bad, expected_index=phospho.frame.index)
 
@@ -444,7 +487,7 @@ def test_site_metadata_localisation_probability_invalid_values_fail(
 def test_site_metadata_rejects_malformed_site_tokens_by_default() -> None:
     phospho = PhosphoIntensityMatrix(frame=_phospho_frame())
     frame = _site_metadata_frame(phospho.frame.index).copy(deep=True)
-    frame.loc["MAPK14;Y182;", "site"] = "Y18X"
+    frame.loc[_MAPK14_Y182, "site"] = "Y18X"
     with pytest.raises(
         DatasetValidationError,
         match="site values must use strict 'S/T/Y<position>' tokens",
@@ -461,18 +504,21 @@ def test_site_metadata_rejects_invalid_site_tokens_by_default(
 ) -> None:
     phospho = PhosphoIntensityMatrix(frame=_phospho_frame())
     frame = _site_metadata_frame(phospho.frame.index).copy(deep=True)
-    frame.loc["MAPK14;Y182;", "site"] = invalid_site_value
+    frame.loc[_MAPK14_Y182, "site"] = invalid_site_value
     with pytest.raises(DatasetValidationError):
         SiteMetadataTable(frame=frame, expected_index=phospho.frame.index)
 
 
 def test_site_metadata_allows_opaque_site_tokens_only_with_explicit_opt_in() -> None:
+    site_key = _site_key_for_display_id("MAPK14;S1;", protein_identifier="P28482")
     phospho = pd.DataFrame(
         {"sample_a": [1.0]},
-        index=pd.Index(["MAPK14;FOO;"], name="site_id"),
+        index=pd.Index([site_key], name="site_key"),
     )
     frame = pd.DataFrame(
         {
+            "site_key": [site_key],
+            "display_id": ["MAPK14;FOO;"],
             "gene_symbol": ["MAPK14"],
             "site": ["FOO"],
             "site_sequence": ["AAAAAYAAAAA"],
@@ -484,17 +530,21 @@ def test_site_metadata_allows_opaque_site_tokens_only_with_explicit_opt_in() -> 
         expected_index=phospho.index.copy(),
         allow_opaque_site_values=True,
     )
-    assert wrapped.frame.loc["MAPK14;FOO;", "site"] == "FOO"
+    assert wrapped.frame.loc[site_key, "site"] == "FOO"
 
 
 @pytest.mark.parametrize("site_token", ["S1", "T45", "Y999"])
 def test_site_metadata_accepts_valid_sty_site_tokens(site_token: str) -> None:
+    display_id = f"MAPK14;{site_token};"
+    site_key = _site_key_for_display_id(display_id, protein_identifier="P28482")
     phospho = pd.DataFrame(
         {"sample_a": [1.0]},
-        index=pd.Index([f"MAPK14;{site_token};"], name="site_id"),
+        index=pd.Index([site_key], name="site_key"),
     )
     frame = pd.DataFrame(
         {
+            "site_key": [site_key],
+            "display_id": [display_id],
             "gene_symbol": ["MAPK14"],
             "site": [site_token],
             "site_sequence": [("A" * 5) + site_token[0] + ("A" * 5)],
@@ -502,7 +552,7 @@ def test_site_metadata_accepts_valid_sty_site_tokens(site_token: str) -> None:
         index=phospho.index.copy(),
     )
     wrapped = SiteMetadataTable(frame=frame, expected_index=phospho.index.copy())
-    assert wrapped.frame.loc[f"MAPK14;{site_token};", "site"] == site_token
+    assert wrapped.frame.loc[site_key, "site"] == site_token
 
 
 def test_site_metadata_rejects_residue_site_inconsistency() -> None:
@@ -530,7 +580,7 @@ def test_site_metadata_rejects_site_position_site_inconsistency() -> None:
 def test_site_metadata_rejects_site_sequence_centre_residue_mismatch() -> None:
     phospho = PhosphoIntensityMatrix(frame=_phospho_frame())
     frame = _site_metadata_frame(phospho.frame.index).copy(deep=True)
-    frame.loc["MAPK14;Y182;", "site_sequence"] = "AAAAASAAAAA"
+    frame.loc[_MAPK14_Y182, "site_sequence"] = "AAAAASAAAAA"
     with pytest.raises(
         DatasetValidationError,
         match="site_sequence central residue must agree with site/residue metadata",
@@ -542,12 +592,16 @@ def test_site_metadata_rejects_site_sequence_centre_residue_mismatch() -> None:
 def test_site_metadata_accepts_phosphorylatable_site_sequence_centre(
     centre_residue: str,
 ) -> None:
+    display_id = f"MAPK14;{centre_residue}182;"
+    site_key = _site_key_for_display_id(display_id, protein_identifier="P28482")
     phospho = pd.DataFrame(
         {"sample_a": [1.0]},
-        index=pd.Index([f"MAPK14;{centre_residue}182;"], name="site_id"),
+        index=pd.Index([site_key], name="site_key"),
     )
     frame = pd.DataFrame(
         {
+            "site_key": [site_key],
+            "display_id": [display_id],
             "gene_symbol": ["MAPK14"],
             "site": [f"{centre_residue}182"],
             "site_sequence": [f"AAAAA{centre_residue}AAAAA"],
@@ -563,12 +617,15 @@ def test_site_metadata_accepts_phosphorylatable_site_sequence_centre(
 
 
 def test_site_metadata_rejects_non_phosphorylatable_site_sequence_centre() -> None:
+    site_key = _site_key_for_display_id("GSK3B;S9;", protein_identifier="GSK3B")
     phospho = pd.DataFrame(
         {"sample_a": [1.0]},
-        index=pd.Index(["GSK3B;S9;"], name="site_id"),
+        index=pd.Index([site_key], name="site_key"),
     )
     frame = pd.DataFrame(
         {
+            "site_key": [site_key],
+            "display_id": ["GSK3B;S9;"],
             "gene_symbol": ["GSK3B"],
             "site": ["S9"],
             "site_sequence": ["AAAAAKAAAAA"],
@@ -595,12 +652,16 @@ def test_site_metadata_rejects_site_sequence_centre_residue_site_mismatch(
     site: str,
     site_sequence: str,
 ) -> None:
+    display_id = f"GENE;{site};"
+    site_key = _site_key_for_display_id(display_id, protein_identifier="GENE")
     phospho = pd.DataFrame(
         {"sample_a": [1.0]},
-        index=pd.Index([f"GENE;{site};"], name="site_id"),
+        index=pd.Index([site_key], name="site_key"),
     )
     frame = pd.DataFrame(
         {
+            "site_key": [site_key],
+            "display_id": [display_id],
             "gene_symbol": ["GENE"],
             "site": [site],
             "site_sequence": [site_sequence],
@@ -615,12 +676,15 @@ def test_site_metadata_rejects_site_sequence_centre_residue_site_mismatch(
 
 
 def test_site_metadata_accepts_lowercase_site_sequence_when_centre_is_valid() -> None:
+    site_key = _site_key_for_display_id("MAPK14;Y182;", protein_identifier="P28482")
     phospho = pd.DataFrame(
         {"sample_a": [1.0]},
-        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+        index=pd.Index([site_key], name="site_key"),
     )
     frame = pd.DataFrame(
         {
+            "site_key": [site_key],
+            "display_id": ["MAPK14;Y182;"],
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
             "site_sequence": ["aaaaayaaaaa"],
@@ -629,7 +693,7 @@ def test_site_metadata_accepts_lowercase_site_sequence_when_centre_is_valid() ->
     )
 
     wrapped = SiteMetadataTable(frame=frame, expected_index=phospho.index.copy())
-    assert wrapped.frame.loc["MAPK14;Y182;", "site_sequence"] == "aaaaayaaaaa"
+    assert wrapped.frame.loc[site_key, "site_sequence"] == "aaaaayaaaaa"
 
 
 @pytest.mark.parametrize("invalid_value", ["A1A", "AA AA", "**", "S"])
@@ -638,7 +702,7 @@ def test_site_metadata_rejects_implausible_site_sequence_values(
 ) -> None:
     phospho = PhosphoIntensityMatrix(frame=_phospho_frame())
     frame = _site_metadata_frame(phospho.frame.index).copy(deep=True)
-    frame.loc["MAPK14;Y182;", "site_sequence"] = invalid_value
+    frame.loc[_MAPK14_Y182, "site_sequence"] = invalid_value
     with pytest.raises(
         DatasetValidationError,
         match="dataset.site_metadata.site_sequence must be plausible amino-acid context strings",
@@ -655,7 +719,7 @@ def test_site_metadata_rejects_non_policy_amino_acid_letters(
 ) -> None:
     phospho = PhosphoIntensityMatrix(frame=_phospho_frame())
     frame = _site_metadata_frame(phospho.frame.index).copy(deep=True)
-    frame.loc["MAPK14;Y182;", "site_sequence"] = invalid_letter_sequence
+    frame.loc[_MAPK14_Y182, "site_sequence"] = invalid_letter_sequence
     with pytest.raises(
         DatasetValidationError,
         match="allowed residues: ACDEFGHIKLMNPQRSTVWY",
@@ -667,7 +731,7 @@ def test_site_metadata_rejects_non_policy_amino_acid_letters(
 def test_site_metadata_rejects_blank_site_sequence_values(blank_value: str) -> None:
     phospho = PhosphoIntensityMatrix(frame=_phospho_frame())
     frame = _site_metadata_frame(phospho.frame.index).copy(deep=True)
-    frame.loc["MAPK14;Y182;", "site_sequence"] = blank_value
+    frame.loc[_MAPK14_Y182, "site_sequence"] = blank_value
     with pytest.raises(
         DatasetValidationError,
         match="site_sequence must contain non-empty string values",
@@ -683,9 +747,9 @@ def test_site_metadata_accepts_explicit_unknown_and_gap_sequence_policy(
 ) -> None:
     phospho = PhosphoIntensityMatrix(frame=_phospho_frame())
     frame = _site_metadata_frame(phospho.frame.index).copy(deep=True)
-    frame.loc["MAPK14;Y182;", "site_sequence"] = sequence_value
+    frame.loc[_MAPK14_Y182, "site_sequence"] = sequence_value
     wrapped = SiteMetadataTable(frame=frame, expected_index=phospho.frame.index)
-    assert wrapped.frame.loc["MAPK14;Y182;", "site_sequence"] == sequence_value
+    assert wrapped.frame.loc[_MAPK14_Y182, "site_sequence"] == sequence_value
 
 
 def test_dataset_schema_sample_metadata_index_mismatch_fails() -> None:

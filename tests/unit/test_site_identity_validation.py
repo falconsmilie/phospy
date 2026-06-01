@@ -12,8 +12,10 @@ from phospy.science.sites.site_keys import (
     encode_site_key,
 )
 from phospy.validation.datasets.protein_scoped_site_identity import (
+    enforce_analysis_ready_site_key_index,
     enforce_display_id_column,
     enforce_site_key_column,
+    enforce_site_key_column_matches_index,
     enforce_site_key_index,
     enforce_site_key_matches_metadata,
     enforce_unique_site_key_identity,
@@ -383,6 +385,54 @@ def test_protein_scoped_identity_site_key_index_enforcement() -> None:
     invalid.index = pd.Index(["row_a", "row_b"], name="row")
     with pytest.raises(ValueError, match="index must match"):
         enforce_site_key_index(
+            site_metadata=invalid,
+            field_name="dataset.site_metadata",
+            error_type=ValueError,
+        )
+
+
+def test_analysis_ready_site_key_index_rejects_display_index() -> None:
+    with pytest.raises(ValueError, match="display-indexed direct construction"):
+        enforce_analysis_ready_site_key_index(
+            pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+            field_name="dataset.phospho.index",
+            error_type=ValueError,
+        )
+
+
+def test_analysis_ready_site_key_index_requires_site_key_name() -> None:
+    site_metadata = _protein_scoped_metadata_rows().copy(deep=True)
+    index = pd.Index(site_metadata.loc[:, "site_key"].tolist(), name="row")
+
+    with pytest.raises(ValueError, match="must be named 'site_key'"):
+        enforce_analysis_ready_site_key_index(
+            index,
+            field_name="dataset.phospho.index",
+            error_type=ValueError,
+        )
+
+
+def test_analysis_ready_site_key_column_must_match_index_exactly() -> None:
+    site_metadata = _protein_scoped_metadata_rows().copy(deep=True)
+    site_metadata.index = pd.Index(
+        site_metadata.loc[:, "site_key"].tolist(), name="site_key"
+    )
+
+    enforce_analysis_ready_site_key_index(
+        site_metadata.index,
+        field_name="dataset.site_metadata.index",
+        error_type=ValueError,
+    )
+    enforce_site_key_column_matches_index(
+        site_metadata=site_metadata,
+        field_name="dataset.site_metadata",
+        error_type=ValueError,
+    )
+
+    invalid = site_metadata.copy(deep=True)
+    invalid.iloc[1, invalid.columns.get_loc("site_key")] = invalid.iloc[0]["site_key"]
+    with pytest.raises(ValueError, match="site_key.*must exactly match"):
+        enforce_site_key_column_matches_index(
             site_metadata=invalid,
             field_name="dataset.site_metadata",
             error_type=ValueError,

@@ -20,6 +20,7 @@ from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
 )
+from tests.support.site_keys import site_key_index_from_display_ids
 
 
 class _BrokenSourceValidator:
@@ -28,16 +29,19 @@ class _BrokenSourceValidator:
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
-    index = pd.Index(["MAPK14;Y182;"], name="site_id")
+    display_id = "MAPK14;Y182;"
+    index = site_key_index_from_display_ids([display_id])
     return AnalysisReadyPhosphoDataset(
         phospho=pd.DataFrame({"sample_a": [1.0]}, index=index),
         site_metadata=pd.DataFrame(
             {
+                "site_key": index.astype(str).tolist(),
+                "display_id": [display_id],
                 "gene_symbol": ["MAPK14"],
                 "site": ["Y182"],
                 "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
             },
-            index=index,
+            index=index.copy(),
         ),
         organism=Organism.RAT,
         intensity_scale_state=supported_linear_intensity_scale_state(

@@ -17,10 +17,62 @@ from phospy.science.sites.site_keys import (
     decode_site_key,
     encode_site_key,
 )
-from phospy.science.sites.validation import require_no_mixed_site_key_isoform_scope
+from phospy.science.sites.validation import (
+    require_no_mixed_site_key_isoform_scope,
+    require_site_key_index,
+)
 
 ErrorType = TypeVar("ErrorType", bound=Exception)
 _SITE_POSITION_CANDIDATE_COLUMNS = ("position", "site_position")
+_SITE_KEY_INDEX_NAME = "site_key"
+
+
+def enforce_analysis_ready_site_key_index(
+    index: pd.Index,
+    *,
+    field_name: str,
+    error_type: type[ErrorType],
+    preview_limit: int = 5,
+) -> pd.Index:
+    """Require an analysis-ready public row index to be encoded site_key identity."""
+
+    if index.name != _SITE_KEY_INDEX_NAME:
+        if _looks_like_display_site_index(index):
+            raise error_type(
+                f"{field_name} is display-indexed direct construction; "
+                "analysis-ready phosphosite row identity must use encoded "
+                "site_key values with index.name='site_key', not GENE;SITE; labels"
+            )
+        raise error_type(
+            f"{field_name} must be named 'site_key' for analysis-ready "
+            "phosphosite row identity"
+        )
+    if _looks_like_display_site_index(index):
+        raise error_type(
+            f"{field_name} is display-indexed direct construction; analysis-ready "
+            "phosphosite row identity must use encoded site_key values, not "
+            "GENE;SITE; labels"
+        )
+    try:
+        require_site_key_index(
+            index,
+            field_name=field_name,
+            error_type=error_type,
+            require_unique=False,
+        )
+    except error_type as exc:
+        raise error_type(
+            f"{field_name} must contain valid PhosPy site_key values; {exc}"
+        ) from exc
+    if index.is_unique:
+        return index
+    duplicate_values = _duplicate_label_values(index)
+    preview = ", ".join(repr(value) for value in duplicate_values[:preview_limit])
+    suffix = "" if len(duplicate_values) <= preview_limit else " ..."
+    raise error_type(
+        f"{field_name} must contain unique site_key values; "
+        f"duplicate_site_key_values=[{preview}{suffix}]"
+    )
 
 
 def enforce_site_key_column(
@@ -104,6 +156,47 @@ def enforce_unique_site_key_identity(
         preview_limit=preview_limit,
     )
     return site_keys
+
+
+def enforce_site_key_column_matches_index(
+    *,
+    site_metadata: pd.DataFrame,
+    field_name: str,
+    error_type: type[ErrorType],
+    site_key_column: str = "site_key",
+    preview_limit: int = 5,
+) -> pd.Series:
+    """Require site_metadata.site_key values to exactly equal the row index."""
+
+    site_keys = enforce_site_key_column(
+        site_metadata=site_metadata,
+        field_name=field_name,
+        error_type=error_type,
+        column_name=site_key_column,
+    )
+    raw_site_key_values = [
+        str(value)
+        for value in pd.Series(site_metadata[site_key_column], dtype="object").tolist()
+    ]
+    index_values = [str(value) for value in site_metadata.index.tolist()]
+    mismatches: list[str] = []
+    for position, (index_value, column_value) in enumerate(
+        zip(index_values, raw_site_key_values, strict=True)
+    ):
+        if index_value == column_value:
+            continue
+        mismatches.append(
+            f"position {position}: index={index_value!r}:"
+            f"{site_key_column}={column_value!r}"
+        )
+    if not mismatches:
+        return site_keys
+    preview = ", ".join(mismatches[:preview_limit])
+    suffix = "" if len(mismatches) <= preview_limit else " ..."
+    raise error_type(
+        f"{field_name}.{site_key_column} must exactly match {field_name}.index "
+        f"values; mismatches=[{preview}{suffix}]"
+    )
 
 
 def enforce_site_key_matches_metadata(
@@ -429,9 +522,42 @@ def _is_missing(value: object) -> bool:
     return bool(pd.Series((value,), dtype="object").isna().iat[0])
 
 
+def _looks_like_display_site_index(index: pd.Index) -> bool:
+    values = index.tolist()
+    if not values:
+        return False
+    if not all(isinstance(value, str) for value in values):
+        return False
+    if not any(";" in value for value in values):
+        return False
+    try:
+        canonicalize_site_series(
+            pd.Series(values, dtype="object"),
+            field_name="analysis-ready row identity",
+            error_type=ValueError,
+        )
+    except ValueError:
+        return False
+    return True
+
+
+def _duplicate_label_values(index: pd.Index) -> list[object]:
+    values = cast(list[object], index.tolist())
+    duplicate_values: list[object] = []
+    for value in values:
+        if values.count(value) <= 1:
+            continue
+        if any(existing == value for existing in duplicate_values):
+            continue
+        duplicate_values.append(value)
+    return duplicate_values
+
+
 __all__ = [
+    "enforce_analysis_ready_site_key_index",
     "enforce_display_id_column",
     "enforce_site_key_column",
+    "enforce_site_key_column_matches_index",
     "enforce_site_key_index",
     "enforce_site_key_matches_metadata",
     "enforce_unique_site_key_identity",

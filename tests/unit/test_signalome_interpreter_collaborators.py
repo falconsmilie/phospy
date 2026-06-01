@@ -34,6 +34,7 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
 )
 from tests.support.signalome_config import build_signalome_config
+from tests.support.site_keys import site_key_index_from_display_ids
 
 
 def _dataset(
@@ -43,15 +44,18 @@ def _dataset(
 ) -> AnalysisReadyPhosphoDataset:
     if protein_ids is None:
         protein_ids = [site_id.split(";", 1)[0] for site_id in site_ids]
+    site_index = site_key_index_from_display_ids(site_ids)
     phospho = pd.DataFrame(
         {
             "sample_a": [float(i + 1) for i in range(len(site_ids))],
             "sample_b": [float(i + 2) for i in range(len(site_ids))],
         },
-        index=site_ids,
+        index=site_index,
     )
     site_metadata = pd.DataFrame(
         {
+            "site_key": site_index.astype(str).tolist(),
+            "display_id": site_ids,
             "gene_symbol": [site_id.split(";", 1)[0] for site_id in site_ids],
             "site": [f"S{i + 1}" for i in range(len(site_ids))],
             "site_sequence": [
@@ -60,7 +64,7 @@ def _dataset(
             ],
             "protein_id": protein_ids,
         },
-        index=site_ids,
+        index=site_index.copy(),
     )
     return AnalysisReadyPhosphoDataset(
         phospho=phospho,
@@ -102,9 +106,21 @@ def _matrix(
 ) -> pd.DataFrame:
     return pd.DataFrame(
         values,
-        index=pd.Index(site_ids, name="site_id"),
+        index=_site_index(site_ids),
         columns=pd.Index(kinases, name="kinase"),
     )
+
+
+def _site_index(site_ids: list[str]) -> pd.Index:
+    if all(str(site_id).startswith("phospy:v1|") for site_id in site_ids):
+        return pd.Index(site_ids, name="site_key")
+    if all(str(site_id).count(";") >= 2 for site_id in site_ids):
+        return site_key_index_from_display_ids(site_ids)
+    return pd.Index(site_ids, name="site_id")
+
+
+def _site_keys(site_ids: list[str]) -> list[str]:
+    return site_key_index_from_display_ids(site_ids).astype(str).tolist()
 
 
 def _request(
@@ -114,10 +130,11 @@ def _request(
     profile_scores: pd.DataFrame,
     rank_weighted_scores: pd.DataFrame | None = None,
 ) -> SignalomeWorkflowRequest:
+    display_site_ids = dataset.site_metadata.loc[:, "display_id"].astype(str).tolist()
     return SignalomeWorkflowRequest(
         kinase_result=KinaseWorkflowResult(
             dataset=dataset,
-            references=_bundle(site_ids=dataset.phospho.index.astype(str).tolist()),
+            references=_bundle(site_ids=display_site_ids),
             scoring_result=KinaseScoringResult(
                 profile_scores=profile_scores,
                 rank_weighted_fusion_scores=rank_weighted_scores,
@@ -276,11 +293,11 @@ def test_protein_resolver_maps_retained_sites_to_explicit_protein_ids() -> None:
 
     resolved = resolver.run(
         dataset=dataset,
-        site_index=pd.Index(["P3;S3;", "P1;S1;"], name="site_id"),
+        site_index=site_key_index_from_display_ids(["P3;S3;", "P1;S1;"]),
         removed_by_score_preconditioning_count=1,
     )
 
-    assert resolved.index.tolist() == ["P3;S3;", "P1;S1;"]
+    assert resolved.index.tolist() == _site_keys(["P3;S3;", "P1;S1;"])
     assert resolved.tolist() == ["PROT3", "PROT1"]
     assert resolved.name == "protein_id"
 
@@ -365,9 +382,10 @@ def test_interpreter_run_preserves_expected_interpreted_output_for_valid_fixture
     interpreted = SignalomeWorkflowInterpreter().run(request)
 
     assert interpreted.downstream_score_source == "rank_weighted_fusion_scores"
-    assert interpreted.downstream_score_matrix.index.tolist() == ["P1;S1;", "P3;S3;"]
-    assert interpreted.prediction_matrix.index.tolist() == ["P1;S1;", "P3;S3;"]
-    assert interpreted.site_to_protein.index.tolist() == ["P1;S1;", "P3;S3;"]
+    retained_site_keys = _site_keys(["P1;S1;", "P3;S3;"])
+    assert interpreted.downstream_score_matrix.index.tolist() == retained_site_keys
+    assert interpreted.prediction_matrix.index.tolist() == retained_site_keys
+    assert interpreted.site_to_protein.index.tolist() == retained_site_keys
     assert interpreted.site_to_protein.tolist() == ["PROT1", "PROT3"]
     pdt.assert_index_equal(
         interpreted.downstream_score_matrix.columns,

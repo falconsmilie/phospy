@@ -192,6 +192,18 @@ def _build_public_predmat_references(*, reverse_order: bool) -> ReferenceBundle:
     )
 
 
+def _with_dataset_display_index(frame: pd.DataFrame, result: object) -> pd.DataFrame:
+    site_metadata = result.dataset.site_metadata.reindex(frame.index)
+    if "display_id" not in site_metadata.columns:
+        return frame
+    with_display = frame.copy(deep=True)
+    with_display.index = pd.Index(
+        site_metadata.loc[:, "display_id"].astype(str).tolist(),
+        name="site_id",
+    )
+    return with_display
+
+
 def _run_public_predmat_lane(
     *, adaptive_policy: str, reverse_reference_order: bool
 ) -> pd.DataFrame:
@@ -214,7 +226,7 @@ def _run_public_predmat_lane(
             activity_config=None,
         )
     )
-    return result.prediction_result.pred_mat
+    return _with_dataset_display_index(result.prediction_result.pred_mat, result)
 
 
 def _collect_lane_metrics(*, adaptive_policy: str) -> PublicPredmatLaneMetrics:

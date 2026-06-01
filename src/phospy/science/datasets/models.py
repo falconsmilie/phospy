@@ -635,23 +635,6 @@ class AnalysisReadyPhosphoDataset:
             allow_opaque_site_values=allow_opaque_site_values,
             _assume_owned=True,
         )
-        if (
-            not _assume_owned
-            and "site_key" in site_metadata_table.frame.columns
-            and _site_key_column_is_encoded(site_metadata_table.frame)
-            and str(site_metadata_table.frame.index.name) != "site_key"
-        ):
-            site_key_index = pd.Index(
-                _site_key_column_values(site_metadata_table.frame),
-                name=site_metadata_table.frame.index.name,
-            )
-            require_exact_index_match(
-                left=site_metadata_table.frame.index,
-                right=site_key_index,
-                left_name="dataset.site_metadata.index",
-                right_name="dataset.site_metadata.site_key",
-                error_type=DatasetValidationError,
-            )
         sample_metadata_table = (
             None
             if sample_metadata is None
@@ -888,20 +871,6 @@ class AnalysisReadyPhosphoDataset:
 
 def _is_missing_value(value: object) -> bool:
     return bool(pd.Series((value,), dtype="object").isna().iat[0])
-
-
-def _site_key_column_is_encoded(frame: pd.DataFrame) -> bool:
-    values = _site_key_column_values(frame)
-    if not values:
-        return False
-    return all(value.startswith("phospy:v1|") for value in values)
-
-
-def _site_key_column_values(frame: pd.DataFrame) -> list[str]:
-    if "site_key" not in frame.columns:
-        return []
-    site_key_column = frame["site_key"]
-    return [str(value).strip() for value in site_key_column.tolist()]
 
 
 def _require_instance(

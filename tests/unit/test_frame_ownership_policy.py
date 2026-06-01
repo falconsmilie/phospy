@@ -74,6 +74,20 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
 )
 from tests.support.signalome_config import build_signalome_config
+from tests.support.site_keys import protein_site_key, protein_site_key_index
+
+_DISPLAY_IDS = ["MAPK14;Y182;", "GSK3B;S9;"]
+_GENE_SYMBOLS = ["MAPK14", "GSK3B"]
+_SITES = ["Y182", "S9"]
+_SITE_INDEX = protein_site_key_index(
+    protein_identifiers=_GENE_SYMBOLS,
+    sites=_SITES,
+)
+_SITE_KEYS = _SITE_INDEX.astype(str).tolist()
+_AKT1_T308_KEY = protein_site_key(protein_identifier="AKT1", site="T308")
+_KINASE_DISPLAY_IDS = [*_DISPLAY_IDS, "AKT1;T308;"]
+_KINASE_SITE_INDEX = pd.Index([*_SITE_KEYS, _AKT1_T308_KEY], name="site_key")
+_KINASE_SITE_KEYS = _KINASE_SITE_INDEX.astype(str).tolist()
 
 
 def _phospho() -> pd.DataFrame:
@@ -82,23 +96,25 @@ def _phospho() -> pd.DataFrame:
             "sample_a": [1.0, 2.0],
             "sample_b": [2.0, 1.0],
         },
-        index=["MAPK14;Y182;", "GSK3B;S9;"],
+        index=_SITE_INDEX.copy(),
     )
 
 
 def _site_metadata() -> pd.DataFrame:
     return pd.DataFrame(
         {
-            "gene_symbol": ["MAPK14", "GSK3B"],
-            "site": ["Y182", "S9"],
+            "gene_symbol": _GENE_SYMBOLS,
+            "site": _SITES,
             "site_sequence": [
                 "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
                 "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
             ],
-            "protein_id": ["MAPK14", "GSK3B"],
+            "protein_id": _GENE_SYMBOLS,
             "localisation_confidence": [0.95, 0.9],
+            "site_key": _SITE_KEYS,
+            "display_id": _DISPLAY_IDS,
         },
-        index=["MAPK14;Y182;", "GSK3B;S9;"],
+        index=_SITE_INDEX.copy(),
     )
 
 
@@ -124,13 +140,12 @@ def _references() -> ReferenceBundle:
 
 
 def _kinase_result():
-    site_ids = ["MAPK14;Y182;", "GSK3B;S9;", "AKT1;T308;"]
     phospho = pd.DataFrame(
         {
             "sample_a": [1.0, 2.0, 4.0],
             "sample_b": [2.0, 4.0, 1.0],
         },
-        index=site_ids,
+        index=_KINASE_SITE_INDEX.copy(),
     )
     site_metadata = pd.DataFrame(
         {
@@ -142,8 +157,10 @@ def _kinase_result():
             ],
             "protein_id": ["MAPK14", "GSK3B", "AKT1"],
             "localisation_confidence": [0.95, 0.9, 0.92],
+            "site_key": _KINASE_SITE_KEYS,
+            "display_id": _KINASE_DISPLAY_IDS,
         },
-        index=site_ids,
+        index=_KINASE_SITE_INDEX.copy(),
     )
     references = ReferenceBundle(
         organism=Organism.RAT,
@@ -160,7 +177,7 @@ def _kinase_result():
         ),
         site_sequences=pd.DataFrame(
             {"site_sequence": ["A" * 31, "B" * 31, "C" * 31]},
-            index=pd.Index(site_ids, name="site_id"),
+            index=pd.Index(_KINASE_DISPLAY_IDS, name="site_id"),
         ),
     )
     return KinaseWorkflow().run(

@@ -19,6 +19,10 @@ from phospy.errors import ReferenceCompatibilityError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.references.models import Organism, ReferenceBundle, ReferencePreset
 from phospy.science.references.resolution import ReferenceResolver
+from phospy.science.sites.site_keys import (
+    build_protein_scoped_site_key,
+    encode_site_key,
+)
 from phospy.validation.datasets.analysis_ready import (
     AnalysisReadyDatasetModelBoundaryValidator,
 )
@@ -33,12 +37,28 @@ from tests.support.intensity_scale_states import (
 )
 
 
+def _site_key() -> str:
+    return encode_site_key(
+        build_protein_scoped_site_key(
+            organism="rat",
+            protein_namespace="protein_id",
+            protein_identifier="P28482",
+            residue="Y",
+            position=182,
+            field_name="tests.unit.test_validation_ownership.site_key",
+            error_type=ValueError,
+        )
+    )
+
+
 def _dataset() -> AnalysisReadyPhosphoDataset:
-    index = pd.Index(["MAPK14;Y182;"], name="site_id")
+    index = pd.Index([_site_key()], name="site_key")
     return AnalysisReadyPhosphoDataset(
         phospho=pd.DataFrame({"sample_a": [1.0]}, index=index),
         site_metadata=pd.DataFrame(
             {
+                "site_key": index.tolist(),
+                "display_id": ["MAPK14;Y182;"],
                 "gene_symbol": ["MAPK14"],
                 "site": ["Y182"],
                 "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],

@@ -59,6 +59,17 @@ def _canonicalise_kinase_column(
     return canonical
 
 
+def _with_dataset_display_index(frame: pd.DataFrame, result: object) -> pd.DataFrame:
+    dataset = result.dataset
+    site_metadata = dataset.site_metadata.reindex(frame.index)
+    if "display_id" not in site_metadata.columns:
+        return frame
+    display_ids = site_metadata.loc[:, "display_id"].astype(str).tolist()
+    with_display = frame.copy(deep=True)
+    with_display.index = pd.Index(display_ids, name="site_id")
+    return with_display
+
+
 @dataclass(frozen=True, slots=True)
 class TableParityMetrics:
     observed_shape: tuple[int, int]
@@ -547,7 +558,10 @@ def collect_l6_prediction_parity_metrics() -> L6PredictionParityMetrics:
     r_parity_result = _run_l6_workflow("r_parity")
 
     observed_profile = _canonicalise_kinase_columns(
-        stable_result.scoring_result.profile_scores
+        _with_dataset_display_index(
+            stable_result.scoring_result.profile_scores,
+            stable_result,
+        )
     )
     expected_profile = _canonicalise_kinase_columns(
         load_l6_prediction_reference_profile_scores()
@@ -557,7 +571,9 @@ def collect_l6_prediction_parity_metrics() -> L6PredictionParityMetrics:
         raise AssertionError(
             "expected rank_weighted_fusion_scores to be present for L6 parity"
         )
-    observed_combined = _canonicalise_kinase_columns(observed_combined)
+    observed_combined = _canonicalise_kinase_columns(
+        _with_dataset_display_index(observed_combined, stable_result)
+    )
     expected_combined = _canonicalise_kinase_columns(
         load_l6_prediction_reference_rank_weighted_fusion_scores()
     )
@@ -596,10 +612,20 @@ def collect_l6_prediction_parity_metrics() -> L6PredictionParityMetrics:
     )
 
     stable_prediction_matrix_surface = PredictionMatrixSurface(
-        frame=_canonicalise_kinase_columns(stable_result.prediction_result.pred_mat)
+        frame=_canonicalise_kinase_columns(
+            _with_dataset_display_index(
+                stable_result.prediction_result.pred_mat,
+                stable_result,
+            )
+        )
     )
     r_parity_prediction_matrix_surface = PredictionMatrixSurface(
-        frame=_canonicalise_kinase_columns(r_parity_result.prediction_result.pred_mat)
+        frame=_canonicalise_kinase_columns(
+            _with_dataset_display_index(
+                r_parity_result.prediction_result.pred_mat,
+                r_parity_result,
+            )
+        )
     )
     expected_prediction_matrix_surface = PredictionMatrixSurface(
         frame=expected_pred_mat

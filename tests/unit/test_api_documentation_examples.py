@@ -97,8 +97,9 @@ def _build_dataset():
 
 def _minimal_kinase_result() -> KinaseWorkflowResult:
     dataset = _build_dataset()
-    site_ids = dataset.phospho.index.astype(str).tolist()
-    index = pd.Index(site_ids, name="site_id")
+    site_keys = dataset.phospho.index.astype(str).tolist()
+    display_ids = dataset.site_metadata.loc[:, "display_id"].astype(str).tolist()
+    index = pd.Index(site_keys, name="site_key")
     kinases = pd.Index(["K1"], name="kinase")
     score_matrix = pd.DataFrame([[0.9], [0.8]], index=index, columns=kinases)
     prediction_matrix = pd.DataFrame([[0.7], [0.6]], index=index, columns=kinases)
@@ -107,12 +108,12 @@ def _minimal_kinase_result() -> KinaseWorkflowResult:
         kinase_substrate_map=pd.DataFrame(
             {
                 "kinase": ["K1", "K1"],
-                "substrate_site": site_ids,
+                "substrate_site": display_ids,
             }
         ),
         site_sequences=pd.DataFrame(
             {"site_sequence": ["A" * 31, "C" * 31]},
-            index=index.copy(),
+            index=pd.Index(display_ids, name="site_id"),
         ),
     )
     return KinaseWorkflowResult(

@@ -22,6 +22,7 @@ from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
 )
+from tests.support.site_keys import site_key_index_from_display_ids
 
 pytestmark = [pytest.mark.parity]
 
@@ -72,14 +73,26 @@ def _load_expected(contrast_name: str) -> pd.DataFrame:
         _canonical_site_id(site_id, ordinal=idx)
         for idx, site_id in enumerate(raw_site_ids, start=1)
     ]
-    expected.index = pd.Index(canonical_ids, name=expected.index.name)
+    expected.index = site_key_index_from_display_ids(
+        canonical_ids,
+        protein_namespace="gene_symbol",
+    )
     return expected
 
 
 def _dataset_from_matrix(matrix: pd.DataFrame) -> AnalysisReadyPhosphoDataset:
-    parsed = [site_id.split(";") for site_id in matrix.index.astype(str).tolist()]
+    display_ids = matrix.index.astype(str).tolist()
+    site_index = site_key_index_from_display_ids(
+        display_ids,
+        protein_namespace="gene_symbol",
+    )
+    parsed = [site_id.split(";") for site_id in display_ids]
+    phospho = matrix.copy(deep=True)
+    phospho.index = site_index
     site_metadata = pd.DataFrame(
         {
+            "site_key": site_index.tolist(),
+            "display_id": display_ids,
             "gene_symbol": [parts[0] for parts in parsed],
             "site": [parts[1] for parts in parsed],
             "site_sequence": [
@@ -89,10 +102,10 @@ def _dataset_from_matrix(matrix: pd.DataFrame) -> AnalysisReadyPhosphoDataset:
             "localisation_confidence": [0.95] * matrix.shape[0],
             "protein_id": [parts[0] for parts in parsed],
         },
-        index=matrix.index.copy(),
+        index=site_index.copy(),
     )
     return AnalysisReadyPhosphoDataset(
-        phospho=matrix,
+        phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
         intensity_scale_state=supported_log2_intensity_scale_state(
@@ -191,7 +204,9 @@ def test_two_condition_small_n_parity_matches_limma_with_explicit_tolerance() ->
     assert list(result.contrast_tables) == ["B_vs_A", "A_vs_B"]
 
     for contrast_name in ("B_vs_A", "A_vs_B"):
-        observed = result.table_for(contrast_name)
+        observed = result.table_for(contrast_name).loc[
+            :, ["logFC", "t", "P.Value", "adj.P.Val"]
+        ]
         expected = _load_expected(contrast_name)
         pdt.assert_frame_equal(
             observed,
@@ -204,8 +219,8 @@ def test_two_condition_small_n_parity_matches_limma_with_explicit_tolerance() ->
 
 def test_reverse_contrast_preserves_sign_convention_and_order() -> None:
     result = _run_fixture_workflow()
-    b_vs_a = result.table_for("B_vs_A")
-    a_vs_b = result.table_for("A_vs_B")
+    b_vs_a = result.table_for("B_vs_A").loc[:, ["logFC", "t", "P.Value", "adj.P.Val"]]
+    a_vs_b = result.table_for("A_vs_B").loc[:, ["logFC", "t", "P.Value", "adj.P.Val"]]
 
     np.testing.assert_allclose(
         b_vs_a.loc[:, "logFC"].to_numpy(dtype=float),
@@ -234,9 +249,18 @@ def test_reverse_contrast_preserves_sign_convention_and_order() -> None:
 
 
 def test_zero_variance_feature_matches_limma_and_remains_finite() -> None:
-    observed = _run_fixture_workflow().table_for("B_vs_A")
+    observed = (
+        _run_fixture_workflow()
+        .table_for("B_vs_A")
+        .loc[:, ["logFC", "t", "P.Value", "adj.P.Val"]]
+    )
     expected = _load_expected("B_vs_A")
-    site_id = "SITE5;S5;"
+    site_id = str(
+        site_key_index_from_display_ids(
+            ["SITE5;S5;"],
+            protein_namespace="gene_symbol",
+        )[0]
+    )
 
     pdt.assert_series_equal(
         observed.loc[site_id],

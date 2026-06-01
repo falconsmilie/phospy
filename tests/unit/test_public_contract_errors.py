@@ -44,6 +44,10 @@ from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
 )
+from tests.support.site_keys import (
+    site_key_from_display_id,
+    site_key_index_from_display_ids,
+)
 
 TOP_LEVEL_ERROR_FACADE = {
     "PhosPyError",
@@ -86,11 +90,14 @@ def _supported_dataset_state(*, has_total_matrix: bool) -> dict[str, object]:
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
-    index = pd.Index(["MAPK14;Y182;"], name="site_id")
+    display_id = "MAPK14;Y182;"
+    index = site_key_index_from_display_ids([display_id])
     return AnalysisReadyPhosphoDataset(
         phospho=pd.DataFrame({"sample_a": [1.0]}, index=index),
         site_metadata=pd.DataFrame(
             {
+                "site_key": index.astype(str).tolist(),
+                "display_id": [display_id],
                 "gene_symbol": ["MAPK14"],
                 "site": ["Y182"],
                 "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
@@ -104,7 +111,8 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
 
 
 def _coherent_site_identity_inputs() -> tuple[pd.DataFrame, pd.DataFrame]:
-    index = pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id")
+    display_ids = ["MAPK14;Y182;", "AKT1;T308;"]
+    index = site_key_index_from_display_ids(display_ids)
     phospho = pd.DataFrame(
         {
             "sample_a": [1.0, 2.0],
@@ -114,6 +122,8 @@ def _coherent_site_identity_inputs() -> tuple[pd.DataFrame, pd.DataFrame]:
     )
     site_metadata = pd.DataFrame(
         {
+            "site_key": index.astype(str).tolist(),
+            "display_id": display_ids,
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": [
@@ -142,19 +152,21 @@ def _references() -> ReferenceBundle:
 
 
 def _scoring_result() -> KinaseScoringResult:
+    site_key = site_key_from_display_id("MAPK14;Y182;")
     return KinaseScoringResult(
         profile_scores=pd.DataFrame(
             {"MAP2K6": [1.0]},
-            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            index=pd.Index([site_key], name="site_key"),
         )
     )
 
 
 def _prediction_result() -> KinasePredictionResult:
+    site_key = site_key_from_display_id("MAPK14;Y182;")
     return KinasePredictionResult(
         pred_mat=pd.DataFrame(
             {"MAP2K6": [0.8]},
-            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            index=pd.Index([site_key], name="site_key"),
         )
     )
 
@@ -333,19 +345,23 @@ def test_dataset_constructor_rejects_non_dataframe_with_dataset_validation_error
 
 
 def test_dataset_constructor_rejects_blank_gene_symbol_values() -> None:
+    site_key = site_key_from_display_id("MAPK14;Y182;")
+    index = pd.Index([site_key], name="site_key")
     with pytest.raises(
         DatasetValidationError,
         match="dataset.site_metadata.gene_symbol must contain non-empty string values",
     ):
         AnalysisReadyPhosphoDataset(
-            phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+            phospho=pd.DataFrame({"sample_a": [1.0]}, index=index),
             site_metadata=pd.DataFrame(
                 {
+                    "site_key": [site_key],
+                    "display_id": ["MAPK14;Y182;"],
                     "gene_symbol": ["  "],
                     "site": ["Y182"],
                     "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
                 },
-                index=["MAPK14;Y182;"],
+                index=index.copy(),
             ),
             organism=Organism.RAT,
             **_supported_dataset_state(has_total_matrix=False),
@@ -353,19 +369,23 @@ def test_dataset_constructor_rejects_blank_gene_symbol_values() -> None:
 
 
 def test_dataset_constructor_rejects_blank_site_values() -> None:
+    site_key = site_key_from_display_id("MAPK14;Y182;")
+    index = pd.Index([site_key], name="site_key")
     with pytest.raises(
         DatasetValidationError,
         match="dataset.site_metadata.site must contain non-empty string values",
     ):
         AnalysisReadyPhosphoDataset(
-            phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+            phospho=pd.DataFrame({"sample_a": [1.0]}, index=index),
             site_metadata=pd.DataFrame(
                 {
+                    "site_key": [site_key],
+                    "display_id": ["MAPK14;Y182;"],
                     "gene_symbol": ["MAPK14"],
                     "site": ["\t"],
                     "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
                 },
-                index=["MAPK14;Y182;"],
+                index=index.copy(),
             ),
             organism=Organism.RAT,
             **_supported_dataset_state(has_total_matrix=False),
@@ -380,12 +400,12 @@ def test_dataset_constructor_accepts_site_identity_coherence() -> None:
         organism=Organism.RAT,
         **_supported_dataset_state(has_total_matrix=False),
     )
-    assert list(dataset.phospho.index) == ["MAPK14;Y182;", "AKT1;T308;"]
+    assert list(dataset.phospho.index) == list(phospho.index)
 
 
 def test_dataset_constructor_rejects_site_identity_gene_symbol_mismatch() -> None:
     phospho, site_metadata = _coherent_site_identity_inputs()
-    site_metadata.loc["MAPK14;Y182;", "gene_symbol"] = "MAPK1"
+    site_metadata.loc[site_metadata.index[0], "gene_symbol"] = "MAPK1"
     with pytest.raises(
         DatasetValidationError,
         match="site-identity coherence failed",
@@ -400,7 +420,7 @@ def test_dataset_constructor_rejects_site_identity_gene_symbol_mismatch() -> Non
 
 def test_dataset_constructor_rejects_site_identity_site_mismatch() -> None:
     phospho, site_metadata = _coherent_site_identity_inputs()
-    site_metadata.loc["MAPK14;Y182;", "site"] = "T185"
+    site_metadata.loc[site_metadata.index[0], "site"] = "T185"
     with pytest.raises(
         DatasetValidationError,
         match="site_sequence central residue must agree with site/residue metadata",
@@ -415,10 +435,11 @@ def test_dataset_constructor_rejects_site_identity_site_mismatch() -> None:
 
 def test_dataset_constructor_rejects_when_one_row_has_site_identity_mismatch() -> None:
     phospho, site_metadata = _coherent_site_identity_inputs()
-    site_metadata.loc["AKT1;T308;", "site"] = "S473"
+    akt1_site_key = site_metadata.index[1]
+    site_metadata.loc[akt1_site_key, "site"] = "S473"
     with pytest.raises(
         DatasetValidationError,
-        match="site_sequence central residue must agree with site/residue metadata.*AKT1;T308;",
+        match="site_sequence central residue must agree with site/residue metadata",
     ):
         AnalysisReadyPhosphoDataset(
             phospho=phospho,
@@ -429,18 +450,22 @@ def test_dataset_constructor_rejects_when_one_row_has_site_identity_mismatch() -
 
 
 def test_dataset_constructor_rejects_missing_site_sequence_column() -> None:
+    site_key = site_key_from_display_id("MAPK14;Y182;")
+    index = pd.Index([site_key], name="site_key")
     with pytest.raises(
         DatasetValidationError,
         match="dataset.site_metadata is missing required columns: site_sequence",
     ):
         AnalysisReadyPhosphoDataset(
-            phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+            phospho=pd.DataFrame({"sample_a": [1.0]}, index=index),
             site_metadata=pd.DataFrame(
                 {
+                    "site_key": [site_key],
+                    "display_id": ["MAPK14;Y182;"],
                     "gene_symbol": ["MAPK14"],
                     "site": ["Y182"],
                 },
-                index=["MAPK14;Y182;"],
+                index=index.copy(),
             ),
             organism=Organism.RAT,
             **_supported_dataset_state(has_total_matrix=False),
@@ -448,19 +473,23 @@ def test_dataset_constructor_rejects_missing_site_sequence_column() -> None:
 
 
 def test_dataset_constructor_rejects_blank_site_sequence_values() -> None:
+    site_key = site_key_from_display_id("MAPK14;Y182;")
+    index = pd.Index([site_key], name="site_key")
     with pytest.raises(
         DatasetValidationError,
         match="dataset.site_metadata.site_sequence must contain non-empty string values",
     ):
         AnalysisReadyPhosphoDataset(
-            phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+            phospho=pd.DataFrame({"sample_a": [1.0]}, index=index),
             site_metadata=pd.DataFrame(
                 {
+                    "site_key": [site_key],
+                    "display_id": ["MAPK14;Y182;"],
                     "gene_symbol": ["MAPK14"],
                     "site": ["Y182"],
                     "site_sequence": [""],
                 },
-                index=["MAPK14;Y182;"],
+                index=index.copy(),
             ),
             organism=Organism.RAT,
             **_supported_dataset_state(has_total_matrix=False),

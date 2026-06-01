@@ -15,6 +15,7 @@ from phospy.io.readers.tables import (
     read_site_metadata,
 )
 from phospy.science.datasets.builders.public import AnalysisReadyDatasetBuilder
+from tests.support.site_keys import protein_site_key
 
 
 def _write_table(path: Path, frame: pd.DataFrame) -> None:
@@ -22,6 +23,14 @@ def _write_table(path: Path, frame: pd.DataFrame) -> None:
         frame.to_csv(path, sep="\t")
         return
     frame.to_csv(path)
+
+
+def _site_key_for_display_id(site_metadata: pd.DataFrame, display_id: str) -> str:
+    matches = site_metadata.index[
+        site_metadata.loc[:, "display_id"].astype(str) == display_id
+    ].astype(str)
+    assert len(matches) == 1
+    return str(matches[0])
 
 
 @pytest.mark.parametrize("suffix", (".csv", ".tsv"))
@@ -51,6 +60,32 @@ def test_site_metadata_reader_preserves_na_like_identifiers(
     assert read_back.loc["P00001", "protein_id"] == "1E10"
     assert list(read_back.index) == ["NA", "P00001"]
     assert read_back.loc["NA", "gene_symbol"] is not pd.NA
+
+
+@pytest.mark.parametrize("suffix", (".csv", ".tsv"))
+def test_site_metadata_reader_restores_site_key_column_when_index_is_site_key(
+    suffix: str, tmp_path: Path
+) -> None:
+    site_key = protein_site_key(protein_identifier="MAPK14", site="Y182")
+    site_metadata = pd.DataFrame(
+        {
+            "site_key": [site_key],
+            "display_id": ["MAPK14;Y182;"],
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+        },
+        index=pd.Index([site_key], name="site_key"),
+    )
+    path = tmp_path / f"site_metadata{suffix}"
+    _write_table(path, site_metadata)
+
+    read_back = read_site_metadata(path)
+
+    assert "site_key" in read_back.columns
+    assert "site_key.1" not in read_back.columns
+    assert read_back.index.name == "site_key"
+    assert read_back.loc[site_key, "site_key"] == site_key
 
 
 @pytest.mark.parametrize("suffix", (".csv", ".tsv"))
@@ -154,7 +189,8 @@ def test_dataset_build_from_file_paths_uses_schema_aware_readers(
         )
     )
 
-    assert built.site_metadata.loc["NA;S1;", "gene_symbol"] == "NA"
+    site_key = _site_key_for_display_id(built.site_metadata, "NA;S1;")
+    assert built.site_metadata.loc[site_key, "gene_symbol"] == "NA"
     assert list(built.sample_metadata.index) == ["01"]
     assert built.sample_metadata.loc["01", "comparison_group"] == "01"
 

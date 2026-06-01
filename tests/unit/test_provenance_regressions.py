@@ -36,6 +36,7 @@ from tests.support.intensity_scale_states import (
 )
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
 from tests.support.signalome_config import build_signalome_config
+from tests.support.site_keys import site_key_index_from_display_ids
 
 pytestmark = [pytest.mark.reproducibility, pytest.mark.release_gate]
 
@@ -55,15 +56,19 @@ def _base_table() -> pd.DataFrame:
 
 
 def _dataset_for_workflows() -> AnalysisReadyPhosphoDataset:
+    display_ids = ["MAPK14;Y182;", "GSK3B;S9;"]
+    site_index = site_key_index_from_display_ids(display_ids)
     phospho = pd.DataFrame(
         {
             "sample_a": [1.0, 0.8],
             "sample_b": [2.0, 1.2],
         },
-        index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
+        index=site_index,
     )
     site_metadata = pd.DataFrame(
         {
+            "site_key": site_index.astype(str).tolist(),
+            "display_id": display_ids,
             "gene_symbol": ["MAPK14", "GSK3B"],
             "site": ["Y182", "S9"],
             "site_sequence": [
@@ -73,7 +78,7 @@ def _dataset_for_workflows() -> AnalysisReadyPhosphoDataset:
             "protein_id": ["P28482", "Q9Y243"],
             "localisation_confidence": [0.95, 0.9],
         },
-        index=phospho.index.copy(),
+        index=site_index.copy(),
     )
     return AnalysisReadyPhosphoDataset(
         phospho=phospho,

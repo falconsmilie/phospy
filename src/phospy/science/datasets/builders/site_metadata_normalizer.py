@@ -262,9 +262,9 @@ class SiteMetadataNormalizer:
 
         genes, sites = parsed
         if needs_gene_symbol:
-            normalized.loc[:, "gene_symbol"] = genes.to_numpy(dtype=object, copy=False)
+            normalized["gene_symbol"] = genes.astype("string")
         if needs_site:
-            normalized.loc[:, "site"] = sites.to_numpy(dtype=object, copy=False)
+            normalized["site"] = sites.astype("string")
         return normalized
 
 

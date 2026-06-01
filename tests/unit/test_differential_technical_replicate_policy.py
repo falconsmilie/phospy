@@ -32,9 +32,19 @@ from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
 )
+from tests.support.site_keys import protein_site_key_index
+
+_GENES = ["MAPK14", "GSK3B"]
+_SITES = ["Y182", "S9"]
+_DISPLAY_IDS = ["MAPK14;Y182;", "GSK3B;S9;"]
+
+
+def _site_index() -> pd.Index:
+    return protein_site_key_index(protein_identifiers=_GENES, sites=_SITES)
 
 
 def _dataset_with_technical_replicates() -> AnalysisReadyPhosphoDataset:
+    site_index = _site_index()
     phospho = pd.DataFrame(
         {
             "A1_T1": [1.0, 10.0],
@@ -46,17 +56,19 @@ def _dataset_with_technical_replicates() -> AnalysisReadyPhosphoDataset:
             "B2_T1": [6.0, 6.0],
             "B2_T2": [8.0, 8.0],
         },
-        index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
+        index=site_index,
     )
     site_metadata = pd.DataFrame(
         {
-            "gene_symbol": ["MAPK14", "GSK3B"],
-            "site": ["Y182", "S9"],
+            "site_key": site_index.tolist(),
+            "display_id": _DISPLAY_IDS,
+            "gene_symbol": _GENES,
+            "site": _SITES,
             "site_sequence": [
                 ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
-                for site in ["Y182", "S9"]
+                for site in _SITES
             ],
-            "protein_id": ["MAPK14", "GSK3B"],
+            "protein_id": _GENES,
         },
         index=phospho.index.copy(),
     )
@@ -263,6 +275,7 @@ def test_repeated_biological_replicates_median_policy_produces_explicit_plan() -
 
 
 def test_aggregation_groups_by_condition_plus_biological_replicate_id() -> None:
+    site_index = _site_index()
     phospho = pd.DataFrame(
         {
             "A_R1_T1": [1.0, 2.0],
@@ -270,17 +283,19 @@ def test_aggregation_groups_by_condition_plus_biological_replicate_id() -> None:
             "B_R1_T1": [10.0, 20.0],
             "B_R1_T2": [30.0, 40.0],
         },
-        index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
+        index=site_index,
     )
     site_metadata = pd.DataFrame(
         {
-            "gene_symbol": ["MAPK14", "GSK3B"],
-            "site": ["Y182", "S9"],
+            "site_key": site_index.tolist(),
+            "display_id": _DISPLAY_IDS,
+            "gene_symbol": _GENES,
+            "site": _SITES,
             "site_sequence": [
                 ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
-                for site in ["Y182", "S9"]
+                for site in _SITES
             ],
-            "protein_id": ["MAPK14", "GSK3B"],
+            "protein_id": _GENES,
         },
         index=phospho.index.copy(),
     )

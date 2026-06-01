@@ -51,27 +51,40 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
 )
 from tests.support.signalome_config import build_signalome_config
+from tests.support.site_keys import protein_site_key_index
+
+_PROTEINS = ["MAPK14", "GSK3B"]
+_SITES = ["Y182", "S9"]
+_DISPLAY_IDS = ["MAPK14;Y182;", "GSK3B;S9;"]
+
+
+def _site_index() -> pd.Index:
+    return protein_site_key_index(protein_identifiers=_PROTEINS, sites=_SITES)
 
 
 def _phospho() -> pd.DataFrame:
     return pd.DataFrame(
         {"sample_a": [1.0, 0.8], "sample_b": [2.0, 1.2]},
-        index=["MAPK14;Y182;", "GSK3B;S9;"],
+        index=_site_index(),
     )
 
 
 def _site_metadata() -> pd.DataFrame:
+    site_index = _site_index()
     return pd.DataFrame(
         {
-            "gene_symbol": ["MAPK14", "GSK3B"],
-            "site": ["Y182", "S9"],
+            "site_key": site_index.tolist(),
+            "display_id": _DISPLAY_IDS,
+            "gene_symbol": _PROTEINS,
+            "site": _SITES,
             "site_sequence": [
                 "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
                 "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
             ],
+            "protein_id": _PROTEINS,
             "localisation_confidence": [0.95, 0.9],
         },
-        index=["MAPK14;Y182;", "GSK3B;S9;"],
+        index=site_index,
     )
 
 
@@ -105,6 +118,38 @@ def _bundle() -> ReferenceBundle:
             },
             index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
         ),
+    )
+
+
+def _projected_kinase_substrate_map() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "kinase": ["MAP2K6", "MAP2K6"],
+            "substrate_site": _site_index().tolist(),
+        }
+    )
+
+
+def _projected_site_sequences() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "site_sequence": [
+                "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
+                "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
+            ]
+        },
+        index=_site_index(),
+    )
+
+
+def _site_identity_map() -> pd.DataFrame:
+    site_index = _site_index()
+    return pd.DataFrame(
+        {
+            "site_key": site_index.tolist(),
+            "display_id": _DISPLAY_IDS,
+        },
+        index=site_index.copy(),
     )
 
 
@@ -213,13 +258,13 @@ def test_request_config_and_result_models_construct() -> None:
     scoring = KinaseScoringResult(
         profile_scores=pd.DataFrame(
             {"MAP2K6": [0.75]},
-            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            index=pd.Index([_site_index()[0]], name="site_key"),
         )
     )
     prediction = KinasePredictionResult(
         pred_mat=pd.DataFrame(
             {"MAP2K6": [0.75]},
-            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            index=pd.Index([_site_index()[0]], name="site_key"),
         )
     )
     activity = KinaseActivityResult(
@@ -377,11 +422,12 @@ def test_workflow_public_entrypoint_exercises_collaborators() -> None:
     interpreted = ResolvedKinaseWorkflowRequest(
         dataset=request.dataset,
         references=bundle,
-        kinase_substrate_map=bundle.kinase_substrate_map,
-        site_sequences=bundle.site_sequences,
+        kinase_substrate_map=_projected_kinase_substrate_map(),
+        site_sequences=_projected_site_sequences(),
         scoring_site_index=request.dataset.phospho.index.copy(),
         activity_phospho_matrix=request.dataset.phospho.copy(deep=True),
         execution_config=_resolved_kinase_execution_config(request),
+        site_identity_map=_site_identity_map(),
     )
     expected = KinaseWorkflowResult(
         dataset=request.dataset,
@@ -389,13 +435,13 @@ def test_workflow_public_entrypoint_exercises_collaborators() -> None:
         scoring_result=KinaseScoringResult(
             profile_scores=pd.DataFrame(
                 {"MAP2K6": [0.75]},
-                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+                index=pd.Index([_site_index()[0]], name="site_key"),
             )
         ),
         prediction_result=KinasePredictionResult(
             pred_mat=pd.DataFrame(
                 {"MAP2K6": [0.75]},
-                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+                index=pd.Index([_site_index()[0]], name="site_key"),
             )
         ),
         activity_result=None,
@@ -482,7 +528,7 @@ def test_signalome_workflow_public_entrypoint_exercises_collaborators() -> None:
                         "max_score_then_lexicographic_tiebreak"
                     ],
                 },
-                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+                index=pd.Index([_site_index()[0]], name="site_key"),
             )
         ),
         signalome_modules=SignalomeModules(

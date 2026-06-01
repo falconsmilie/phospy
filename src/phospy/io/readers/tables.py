@@ -175,7 +175,20 @@ def _read_metadata_table(path: Path, *, table_role: str) -> pd.DataFrame:
         keep_default_na=False,
         na_values=[],
     )
+    if table_role == "site_metadata":
+        frame = _restore_site_key_column_after_index_round_trip(frame)
     return _stringify_dataframe(frame)
+
+
+def _restore_site_key_column_after_index_round_trip(
+    frame: pd.DataFrame,
+) -> pd.DataFrame:
+    if frame.index.name != "site_key":
+        return frame
+    if "site_key" in frame.columns or "site_key.1" not in frame.columns:
+        return frame
+    restored = frame.copy(deep=True)
+    return restored.rename(columns={"site_key.1": "site_key"})
 
 
 def _read_numeric_table(

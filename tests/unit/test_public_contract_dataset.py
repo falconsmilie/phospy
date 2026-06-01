@@ -37,6 +37,10 @@ from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def _display_ids(dataset: AnalysisReadyPhosphoDataset) -> list[str]:
+    return dataset.site_metadata.loc[:, "display_id"].astype(str).tolist()
+
+
 def _public_methods(cls: type[object]) -> set[str]:
     return {
         name
@@ -158,7 +162,8 @@ def test_site_matrix_build_contract_is_row_wise_for_mixed_sequence_support() -> 
         )
     )
 
-    assert built.phospho.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
+    assert built.phospho.index.name == "site_key"
+    assert _display_ids(built) == ["GSK3B;S9;", "MAPK14;Y182;"]
     assert built.preprocessing_report is not None
     assert built.preprocessing_report.row_audit is not None
     dropped = built.preprocessing_report.row_audit.loc[
@@ -197,7 +202,8 @@ def test_site_matrix_build_contract_retains_all_rows_when_fully_resolvable() -> 
         )
     )
 
-    assert built.phospho.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
+    assert built.phospho.index.name == "site_key"
+    assert _display_ids(built) == ["GSK3B;S9;", "MAPK14;Y182;"]
     assert built.preprocessing_report is not None
     assert built.preprocessing_report.row_audit is not None
     dropped = built.preprocessing_report.row_audit.loc[

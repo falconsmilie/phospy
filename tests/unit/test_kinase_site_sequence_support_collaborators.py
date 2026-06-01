@@ -31,6 +31,10 @@ from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
 )
+from tests.support.site_keys import (
+    site_key_from_display_id,
+    site_key_index_from_display_ids,
+)
 
 
 def _dataset(
@@ -38,7 +42,7 @@ def _dataset(
     sequences_by_site: dict[str, str],
 ) -> AnalysisReadyPhosphoDataset:
     site_ids = list(sequences_by_site)
-    site_index = pd.Index(site_ids, name="site_id")
+    site_index = site_key_index_from_display_ids(site_ids)
     return AnalysisReadyPhosphoDataset(
         phospho=pd.DataFrame(
             {
@@ -49,6 +53,8 @@ def _dataset(
         ),
         site_metadata=pd.DataFrame(
             {
+                "site_key": site_index.astype(str).tolist(),
+                "display_id": site_ids,
                 "gene_symbol": [site.split(";", 1)[0] for site in site_ids],
                 "site": [site.split(";")[1] for site in site_ids],
                 "site_sequence": [sequences_by_site[site] for site in site_ids],
@@ -118,9 +124,10 @@ def test_site_sequence_builder_appends_dataset_only_sequences() -> None:
         conflict_policy=KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,
     )
 
-    assert "EXTRA;S1;" in result.site_sequences.index
+    extra_site_key = site_key_from_display_id("EXTRA;S1;")
+    assert extra_site_key in result.site_sequences.index
     assert (
-        result.site_sequences.at["EXTRA;S1;", "site_sequence"]
+        result.site_sequences.at[extra_site_key, "site_sequence"]
         == "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA"
     )
     assert result.dataset_sequences_added == 1
@@ -276,7 +283,8 @@ def test_interpreter_prefer_dataset_selects_dataset_sequence_and_contract_accept
 
     interpreted = KinaseWorkflowInterpreter().run(request)
 
-    assert interpreted.site_sequences.at["MAPK14;Y182;", "site_sequence"] == (
+    mapk14_site_key = site_key_from_display_id("MAPK14;Y182;")
+    assert interpreted.site_sequences.at[mapk14_site_key, "site_sequence"] == (
         "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA"
     )
     diagnostics = interpreted.site_sequence_merge_diagnostics
@@ -316,10 +324,16 @@ def test_boundary_contracts_reject_unnormalised_site_identifiers() -> None:
     with pytest.raises(
         WorkflowBoundaryError, match="kinase.contracts.site_sequence_schema"
     ):
+        projected_kinase_substrate_map = pd.DataFrame(
+            {
+                "kinase": ["MAP2K6" for _ in dataset.phospho.index],
+                "substrate_site": dataset.phospho.index.astype(str).tolist(),
+            }
+        )
         ResolvedKinaseWorkflowRequest(
             dataset=dataset,
             references=references,
-            kinase_substrate_map=references.kinase_substrate_map,
+            kinase_substrate_map=projected_kinase_substrate_map,
             site_sequences=unnormalised_sequences,
             scoring_site_index=dataset.phospho.index.copy(),
             activity_phospho_matrix=dataset.phospho.copy(deep=True),

@@ -55,6 +55,15 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
 )
 from tests.support.signalome_config import build_signalome_config
+from tests.support.site_keys import site_key_index_from_display_ids
+
+
+def _site_keys(display_ids: list[str]) -> pd.Index:
+    return site_key_index_from_display_ids(display_ids)
+
+
+def _site_key(display_id: str) -> str:
+    return str(_site_keys([display_id])[0])
 
 
 def _dataset_state_kwargs(*, has_total_matrix: bool) -> dict[str, object]:
@@ -75,18 +84,22 @@ def test_kinase_scoring_default_sets_two_substrate_support_floor() -> None:
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
+    display_ids = ["MAPK14;Y182;"]
+    site_index = _site_keys(display_ids)
     phospho = pd.DataFrame(
         {"sample_a": [1.0]},
-        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+        index=site_index,
     )
     site_metadata = pd.DataFrame(
         {
+            "site_key": site_index.tolist(),
+            "display_id": display_ids,
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
             "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
             "protein_id": ["MAPK14"],
         },
-        index=phospho.index,
+        index=site_index.copy(),
     )
     return AnalysisReadyPhosphoDataset(
         phospho=phospho,
@@ -153,13 +166,14 @@ def _kinase_result(
     dataset: AnalysisReadyPhosphoDataset | None = None,
 ) -> KinaseWorkflowResult:
     resolved_dataset = _dataset() if dataset is None else dataset
+    site_index = resolved_dataset.phospho.index.copy()
     prediction_matrix = pd.DataFrame(
         {"MAP2K6": [0.9]},
-        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+        index=site_index,
     )
     score_matrix = pd.DataFrame(
         {"MAP2K6": [1.5]},
-        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+        index=site_index.copy(),
     )
     return KinaseWorkflowResult(
         dataset=resolved_dataset,
@@ -966,7 +980,7 @@ def test_kinase_validator_rejects_malformed_site_tokens() -> None:
 
     with pytest.raises(
         WorkflowValidationError,
-        match="must use strict 'S/T/Y<position>'",
+        match="inconsistent display and metadata identity fields",
     ):
         KinaseWorkflowValidator().run(request)
 
@@ -1011,7 +1025,7 @@ def test_kinase_validator_requires_centred_sequence_context(
         match=f"requires centred sequence context.*{pattern}",
     ) as exc_info:
         KinaseWorkflowValidator().run(request)
-    assert "MAPK14;Y182;" in str(exc_info.value)
+    assert _site_key("MAPK14;Y182;") in str(exc_info.value)
 
 
 def test_kinase_validator_allows_gapped_flanks_when_centre_is_valid() -> None:
@@ -1276,7 +1290,7 @@ def test_signalome_validator_reports_site_metadata_index_alignment_details() -> 
     ) in message
     assert (
         "Only in signalome workflow request kinase_result.dataset.phospho.index: "
-        "'MAPK14;Y182;'"
+        f"'{_site_key('MAPK14;Y182;')}'"
     ) in message
     assert "First positional mismatch: position 0" in message
 
@@ -1339,7 +1353,7 @@ def test_signalome_validator_can_require_localisation_probability_presence() -> 
         "kinase_result.dataset.site_metadata.localisation_confidence"
     ) in message
     assert "affected_rows=1" in message
-    assert "example_site_ids=['MAPK14;Y182;']" in message
+    assert f"example_site_ids=['{_site_key('MAPK14;Y182;')}']" in message
 
 
 def test_signalome_validator_can_require_localisation_probability_threshold() -> None:
@@ -1357,7 +1371,7 @@ def test_signalome_validator_can_require_localisation_probability_threshold() ->
     message = str(exc_info.value)
     assert "policy=require_threshold" in message
     assert "must be >= 0.750" in message
-    assert "example_site_ids=['MAPK14;Y182;']" in message
+    assert f"example_site_ids=['{_site_key('MAPK14;Y182;')}']" in message
 
 
 def test_signalome_validator_reports_invalid_localisation_probability_values() -> None:
@@ -1378,7 +1392,7 @@ def test_signalome_validator_reports_invalid_localisation_probability_values() -
         "kinase_result.dataset.site_metadata.localisation_probability"
     ) in message
     assert "affected_rows=1" in message
-    assert "example_site_ids=['MAPK14;Y182;']" in message
+    assert f"example_site_ids=['{_site_key('MAPK14;Y182;')}']" in message
 
 
 @pytest.mark.parametrize(
@@ -1415,7 +1429,7 @@ def test_signalome_validator_requires_centred_sequence_context(
     ) as exc_info:
         SignalomeWorkflowValidator().run(request)
     message = str(exc_info.value)
-    assert "MAPK14;Y182;" in message
+    assert _site_key("MAPK14;Y182;") in message
     assert (
         "Signalome execution requires an explicit site_metadata.protein_id column"
         in (message)
@@ -1435,7 +1449,8 @@ def test_signalome_validator_allows_gapped_flanks_when_centre_is_valid() -> None
 
 
 def test_kinase_validator_does_not_filter_rows_for_localisation_policy() -> None:
-    site_ids = pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id")
+    display_ids = ["MAPK14;Y182;", "AKT1;T308;"]
+    site_ids = _site_keys(display_ids)
     dataset = AnalysisReadyPhosphoDataset(
         phospho=pd.DataFrame(
             {"sample_a": [1.0, 2.0]},
@@ -1443,6 +1458,8 @@ def test_kinase_validator_does_not_filter_rows_for_localisation_policy() -> None
         ),
         site_metadata=pd.DataFrame(
             {
+                "site_key": site_ids.tolist(),
+                "display_id": display_ids,
                 "gene_symbol": ["MAPK14", "AKT1"],
                 "site": ["Y182", "T308"],
                 "site_sequence": ["AAAAAAAYAAAAAAA", "AAAAAAATAAAAAAA"],
@@ -1459,12 +1476,12 @@ def test_kinase_validator_does_not_filter_rows_for_localisation_policy() -> None
         kinase_substrate_map=pd.DataFrame(
             {
                 "kinase": ["MAP2K6", "MAP2K6"],
-                "substrate_site": site_ids.astype(str).tolist(),
+                "substrate_site": display_ids,
             }
         ),
         site_sequences=pd.DataFrame(
             {"site_sequence": ["SEQ_A", "SEQ_R"]},
-            index=site_ids.copy(),
+            index=pd.Index(display_ids, name="site_id"),
         ),
     )
     request = KinaseWorkflowRequest(
@@ -1485,7 +1502,8 @@ def test_kinase_validator_does_not_filter_rows_for_localisation_policy() -> None
 
 
 def test_signalome_validator_does_not_filter_rows_for_localisation_policy() -> None:
-    site_ids = pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id")
+    display_ids = ["MAPK14;Y182;", "AKT1;T308;"]
+    site_ids = _site_keys(display_ids)
     dataset = AnalysisReadyPhosphoDataset(
         phospho=pd.DataFrame(
             {"sample_a": [1.0, 2.0]},
@@ -1493,6 +1511,8 @@ def test_signalome_validator_does_not_filter_rows_for_localisation_policy() -> N
         ),
         site_metadata=pd.DataFrame(
             {
+                "site_key": site_ids.tolist(),
+                "display_id": display_ids,
                 "gene_symbol": ["MAPK14", "AKT1"],
                 "site": ["Y182", "T308"],
                 "site_sequence": ["AAAAAAAYAAAAAAA", "AAAAAAATAAAAAAA"],
@@ -1509,12 +1529,12 @@ def test_signalome_validator_does_not_filter_rows_for_localisation_policy() -> N
         kinase_substrate_map=pd.DataFrame(
             {
                 "kinase": ["MAP2K6", "MAP2K6"],
-                "substrate_site": site_ids.astype(str).tolist(),
+                "substrate_site": display_ids,
             }
         ),
         site_sequences=pd.DataFrame(
             {"site_sequence": ["SEQ_A", "SEQ_R"]},
-            index=site_ids.copy(),
+            index=pd.Index(display_ids, name="site_id"),
         ),
     )
     signalome_scores = pd.DataFrame(

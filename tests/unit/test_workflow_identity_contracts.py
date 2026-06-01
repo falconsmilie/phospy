@@ -40,19 +40,29 @@ from tests.support.intensity_scale_states import (
     supported_log2_processing_state,
 )
 from tests.support.signalome_config import build_signalome_config
+from tests.support.site_keys import site_key_index_from_display_ids
+
+
+def _site_keys(display_ids: list[str]) -> pd.Index:
+    return site_key_index_from_display_ids(
+        display_ids,
+        protein_namespace="gene_symbol",
+    )
 
 
 def _differential_dataset(
     *, allow_opaque_site_values: bool = False
 ) -> AnalysisReadyPhosphoDataset:
-    site_ids = pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id")
+    display_ids = ["MAPK14;Y182;", "AKT1;T308;"]
+    site_ids = _site_keys(display_ids)
     metadata_sites = ["Y182", "T308"]
     sequence_values = [
         ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
         for site in metadata_sites
     ]
     if allow_opaque_site_values:
-        site_ids = pd.Index(["MAPK14;FOO;", "AKT1;BAR;"], name="site_id")
+        display_ids = ["MAPK14;FOO;", "AKT1;BAR;"]
+        site_ids = _site_keys(["MAPK14;Y182;", "AKT1;T308;"])
         metadata_sites = ["FOO", "BAR"]
         sequence_values = [("A" * 15) + "Y" + ("A" * 15)] * 2
     return AnalysisReadyPhosphoDataset(
@@ -67,6 +77,8 @@ def _differential_dataset(
         ),
         site_metadata=pd.DataFrame(
             {
+                "site_key": site_ids.tolist(),
+                "display_id": display_ids,
                 "gene_symbol": ["MAPK14", "AKT1"],
                 "site": metadata_sites,
                 "site_sequence": sequence_values,
@@ -104,7 +116,8 @@ def _differential_request(
 
 
 def _kinase_dataset() -> AnalysisReadyPhosphoDataset:
-    site_ids = pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id")
+    display_ids = ["MAPK14;Y182;", "AKT1;T308;"]
+    site_ids = _site_keys(display_ids)
     return AnalysisReadyPhosphoDataset(
         phospho=pd.DataFrame(
             {"sample_a": [1.0, 2.0], "sample_b": [1.1, 2.1]},
@@ -112,6 +125,8 @@ def _kinase_dataset() -> AnalysisReadyPhosphoDataset:
         ),
         site_metadata=pd.DataFrame(
             {
+                "site_key": site_ids.tolist(),
+                "display_id": display_ids,
                 "gene_symbol": ["MAPK14", "AKT1"],
                 "site": ["Y182", "T308"],
                 "site_sequence": ["AAAAAAAYAAAAAAA", "AAAAAAATAAAAAAA"],
@@ -169,7 +184,9 @@ def test_differential_identity_contract_accepts_display_level_minimum() -> None:
     validated = DifferentialAnalysisValidator().run(
         _differential_request(dataset=_differential_dataset())
     )
-    assert validated.dataset._borrow_phospho_frame().index.tolist() == [
+    assert validated.dataset._borrow_site_metadata_frame().loc[
+        :, "display_id"
+    ].tolist() == [
         "MAPK14;Y182;",
         "AKT1;T308;",
     ]
@@ -187,9 +204,7 @@ def test_differential_identity_contract_allows_opaque_sites_with_explicit_opt_in
 
 def test_kinase_identity_contract_rejects_conflicting_duplicate_display_ids() -> None:
     dataset = _kinase_dataset()
-    duplicate_index = pd.Index(["MAPK14;Y182;", "MAPK14;Y182;"], name="site_id")
-    dataset._phospho.index = duplicate_index.copy()
-    dataset._site_metadata.index = duplicate_index.copy()
+    dataset._site_metadata.loc[:, "display_id"] = ["MAPK14;Y182;", "MAPK14;Y182;"]
     dataset._site_metadata.loc[:, "gene_symbol"] = ["MAPK14", "MAPK14"]
     dataset._site_metadata.loc[:, "site"] = ["Y182", "Y182"]
     dataset._site_metadata.loc[:, "protein_id"] = ["P28482", "P28482"]

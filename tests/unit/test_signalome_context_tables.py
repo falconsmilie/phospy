@@ -30,6 +30,10 @@ from phospy.science.signalomes.science import (
     build_signalome_module_table,
     select_kinase_substrates,
 )
+from phospy.science.sites.site_keys import (
+    ProteinScopedPhosphositeKey,
+    encode_site_key,
+)
 from phospy.workflows.signalome.contracts import ResolvedSignalomeWorkflowRequest
 from phospy.workflows.signalome.executor import SignalomeWorkflowExecutor
 from phospy.workflows.signalome.interpreter import SignalomeWorkflowInterpreter
@@ -40,26 +44,48 @@ from tests.support.intensity_scale_states import (
 from tests.support.signalome_config import build_signalome_config
 
 
+def _site_key(*, protein_id: str, site: str) -> str:
+    return encode_site_key(
+        ProteinScopedPhosphositeKey(
+            organism=Organism.RAT.value,
+            protein_namespace="protein_id",
+            protein_identifier=protein_id,
+            residue=site[0],
+            position=int(site[1:]),
+        )
+    )
+
+
 def _dataset() -> AnalysisReadyPhosphoDataset:
-    site_ids = ["P1;S1;", "P1;S2;", "P2;S3;", "P3;S4;"]
+    protein_ids = ["P1", "P1", "P2", "P3"]
+    sites = ["S1", "S2", "S3", "S4"]
+    display_ids = [
+        f"{protein_id};{site};"
+        for protein_id, site in zip(protein_ids, sites, strict=True)
+    ]
+    site_keys = [
+        _site_key(protein_id=protein_id, site=site)
+        for protein_id, site in zip(protein_ids, sites, strict=True)
+    ]
     phospho = pd.DataFrame(
         {
             "sample_a": [1.0, 2.0, 3.0, 4.0],
             "sample_b": [1.2, 2.2, 3.2, 4.2],
         },
-        index=site_ids,
+        index=pd.Index(site_keys, name="site_key"),
     )
     site_metadata = pd.DataFrame(
         {
-            "gene_symbol": ["P1", "P1", "P2", "P3"],
-            "site": ["S1", "S2", "S3", "S4"],
+            "site_key": site_keys,
+            "display_id": display_ids,
+            "gene_symbol": protein_ids,
+            "site": sites,
             "site_sequence": [
-                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
-                for site in ["S1", "S2", "S3", "S4"]
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15) for site in sites
             ],
-            "protein_id": ["P1", "P1", "P2", "P3"],
+            "protein_id": protein_ids,
         },
-        index=site_ids,
+        index=pd.Index(site_keys, name="site_key"),
     )
     return AnalysisReadyPhosphoDataset(
         phospho=phospho,
@@ -104,7 +130,7 @@ def _matrix(
 ) -> pd.DataFrame:
     return pd.DataFrame(
         values,
-        index=pd.Index(site_ids, name="site_id"),
+        index=pd.Index(site_ids, name="site_key"),
         columns=pd.Index(kinases, name="kinase"),
         dtype=float,
     )
@@ -118,7 +144,9 @@ def _kinase_result(
 ) -> KinaseWorkflowResult:
     return KinaseWorkflowResult(
         dataset=dataset,
-        references=_bundle(site_ids=dataset.phospho.index.astype(str).tolist()),
+        references=_bundle(
+            site_ids=dataset.site_metadata.loc[:, "display_id"].astype(str).tolist()
+        ),
         scoring_result=KinaseScoringResult(
             profile_scores=score_matrix,
             rank_weighted_fusion_scores=score_matrix,
@@ -203,9 +231,11 @@ def test_site_membership_contains_only_retained_interpreted_sites() -> None:
     assert result.site_membership is not None
     site_membership = result.site_membership
 
-    expected_site_ids = interpreted.prediction_matrix.index.astype(str).tolist()
-    assert site_membership.shape[0] == len(expected_site_ids)
-    assert set(site_membership.loc[:, "site_id"].astype(str)) == set(expected_site_ids)
+    expected_site_keys = interpreted.prediction_matrix.index.astype(str).tolist()
+    assert site_membership.shape[0] == len(expected_site_keys)
+    assert set(site_membership.loc[:, "site_key"].astype(str)) == set(
+        expected_site_keys
+    )
 
     assert "P3;S4;" not in set(site_membership.loc[:, "site_id"].astype(str))
     assert interpreted.prediction_matrix.index.equals(
@@ -245,6 +275,7 @@ def test_context_tables_do_not_change_module_outputs() -> None:
     expected_assignments = build_module_assignments(
         prediction_matrix=interpreted.prediction_matrix,
         site_to_protein=interpreted.site_to_protein,
+        site_metadata=interpreted.dataset._borrow_site_metadata_frame(),
         protein_modules=protein_modules,
     )
     expected_substrates = select_kinase_substrates(

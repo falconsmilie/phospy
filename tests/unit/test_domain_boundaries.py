@@ -36,8 +36,13 @@ from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
 )
+from tests.support.site_keys import protein_site_key
 
 ROOT = Path(__file__).resolve().parents[2]
+_SITE_KEY = protein_site_key(protein_identifier="MAPK14", site="Y182")
+_SITE_INDEX = pd.Index([_SITE_KEY], name="site_key")
+_DISPLAY_ID = "MAPK14;Y182;"
+_AKT1_T308_KEY = protein_site_key(protein_identifier="AKT1", site="T308")
 _REFERENCE_IDENTIFIER_GUARD_TARGETS = (
     "src/phospy/workflows/kinase/contracts.py",
     "src/phospy/workflows/kinase/scoring_runner.py",
@@ -66,19 +71,30 @@ _FORBIDDEN_ACCESSION_CASE_NORMALISATION = re.compile(
 
 
 def _phospho() -> pd.DataFrame:
-    return pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"])
+    return pd.DataFrame({"sample_a": [1.0]}, index=_SITE_INDEX.copy())
 
 
 def _site_metadata() -> pd.DataFrame:
     return pd.DataFrame(
         {
+            "site_key": [_SITE_KEY],
+            "display_id": [_DISPLAY_ID],
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
             "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            "protein_id": ["MAPK14"],
             "localisation_confidence": [0.95],
         },
-        index=["MAPK14;Y182;"],
+        index=_SITE_INDEX.copy(),
     )
+
+
+def _site_key_for_display_id(site_metadata: pd.DataFrame, display_id: str) -> str:
+    matches = site_metadata.index[
+        site_metadata.loc[:, "display_id"].astype(str) == display_id
+    ].astype(str)
+    assert len(matches) == 1
+    return str(matches[0])
 
 
 def _as_builder_input(
@@ -242,7 +258,7 @@ def test_dataset_rejects_empty_phospho_matrix() -> None:
 
 def test_dataset_rejects_nan_in_phospho_matrix() -> None:
     phospho = _phospho()
-    phospho.loc["MAPK14;Y182;", "sample_a"] = float("nan")
+    phospho.loc[_SITE_KEY, "sample_a"] = float("nan")
     with pytest.raises(DatasetValidationError, match="must not contain missing values"):
         AnalysisReadyPhosphoDataset(
             phospho=phospho,
@@ -257,7 +273,7 @@ def test_dataset_rejects_infinite_values_in_phospho_matrix(
     invalid_value: float,
 ) -> None:
     phospho = _phospho()
-    phospho.loc["MAPK14;Y182;", "sample_a"] = invalid_value
+    phospho.loc[_SITE_KEY, "sample_a"] = invalid_value
     with pytest.raises(
         DatasetValidationError, match="must contain finite numeric values"
     ):
@@ -279,14 +295,14 @@ def test_dataset_rejects_infinite_values_in_comparisons_matrix(
             site_metadata=_site_metadata(),
             comparisons=pd.DataFrame(
                 {"p_group1_group4": [invalid_value]},
-                index=["MAPK14;Y182;"],
+                index=_SITE_INDEX.copy(),
             ),
             organism=Organism.RAT,
             **_supported_dataset_state(has_total_matrix=False),
         )
     message = str(exc_info.value)
     assert "dataset.comparisons must contain finite numeric values" in message
-    assert "('MAPK14;Y182;', 'p_group1_group4')" in message
+    assert f"({_SITE_KEY!r}, 'p_group1_group4')" in message
 
 
 def test_dataset_rejects_nan_in_comparisons_matrix() -> None:
@@ -299,7 +315,7 @@ def test_dataset_rejects_nan_in_comparisons_matrix() -> None:
             site_metadata=_site_metadata(),
             comparisons=pd.DataFrame(
                 {"p_group1_group4": [float("nan")]},
-                index=["MAPK14;Y182;"],
+                index=_SITE_INDEX.copy(),
             ),
             organism=Organism.RAT,
             **_supported_dataset_state(has_total_matrix=False),
@@ -327,7 +343,7 @@ def test_dataset_rejects_boolean_columns_in_comparisons_matrix() -> None:
             site_metadata=_site_metadata(),
             comparisons=pd.DataFrame(
                 {"p_group1_group4": [True]},
-                index=["MAPK14;Y182;"],
+                index=_SITE_INDEX.copy(),
             ),
             organism=Organism.RAT,
             **_supported_dataset_state(has_total_matrix=False),
@@ -429,13 +445,13 @@ def test_dataset_accepts_aligned_numeric_comparisons() -> None:
         site_metadata=_site_metadata(),
         comparisons=pd.DataFrame(
             {"p_group1_group4": [3.0]},
-            index=["MAPK14;Y182;"],
+            index=_SITE_INDEX.copy(),
         ),
         organism=Organism.RAT,
         **_supported_dataset_state(has_total_matrix=False),
     )
     assert dataset.comparisons is not None
-    assert dataset.comparisons.loc["MAPK14;Y182;", "p_group1_group4"] == 3.0
+    assert dataset.comparisons.loc[_SITE_KEY, "p_group1_group4"] == 3.0
 
 
 def test_dataset_rejects_comparisons_index_mismatch() -> None:
@@ -448,7 +464,7 @@ def test_dataset_rejects_comparisons_index_mismatch() -> None:
             site_metadata=_site_metadata(),
             comparisons=pd.DataFrame(
                 {"p_group1_group4": [3.0]},
-                index=["AKT1;T308;"],
+                index=pd.Index([_AKT1_T308_KEY], name="site_key"),
             ),
             organism=Organism.RAT,
             **_supported_dataset_state(has_total_matrix=False),
@@ -527,8 +543,37 @@ def test_builder_supports_file_path_inputs(tmp_path) -> None:
             input_intensity_scale="linear",
         )
     )
-    assert list(built.phospho.index) == ["MAPK14;Y182;"]
-    assert built.site_metadata.loc["MAPK14;Y182;", "site_sequence"]
+    assert built.phospho.index.name == "site_key"
+    site_key = _site_key_for_display_id(built.site_metadata, _DISPLAY_ID)
+    assert list(built.phospho.index.astype(str)) == [site_key]
+    assert built.site_metadata.loc[site_key, "site_sequence"]
+
+
+def test_builder_accepts_string_dtype_identity_columns() -> None:
+    site_metadata = _site_metadata().astype(
+        {
+            "site_key": "string",
+            "display_id": "string",
+            "gene_symbol": "string",
+            "site": "string",
+            "site_sequence": "string",
+            "protein_id": "string",
+        }
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=_phospho(),
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            input_intensity_scale="linear",
+        )
+    )
+
+    assert built.phospho.index.name == "site_key"
+    assert built.site_metadata.loc[:, "display_id"].astype(str).tolist() == [
+        _DISPLAY_ID
+    ]
 
 
 def test_builder_rejects_preprocessing_threshold_above_sample_count() -> None:
@@ -561,26 +606,29 @@ def test_builder_derives_site_sequence_for_supported_organism() -> None:
             input_intensity_scale="linear",
         )
     )
-    assert built.site_metadata.loc["MAPK14;Y182;", "site_sequence"]
+    site_key = _site_key_for_display_id(built.site_metadata, _DISPLAY_ID)
+    assert built.site_metadata.loc[site_key, "site_sequence"]
 
 
 def test_builder_derives_gene_symbol_and_site_from_supported_index_convention() -> None:
+    display_phospho = pd.DataFrame({"sample_a": [1.0]}, index=[_DISPLAY_ID])
     built = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
-            phospho=_phospho(),
+            phospho=display_phospho,
             site_metadata=pd.DataFrame(
                 {
                     "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
                     "localisation_confidence": [0.95],
                 },
-                index=["MAPK14;Y182;"],
+                index=[_DISPLAY_ID],
             ),
             organism=Organism.RAT,
             input_intensity_scale="linear",
         )
     )
-    assert built.site_metadata.loc["MAPK14;Y182;", "gene_symbol"] == "MAPK14"
-    assert built.site_metadata.loc["MAPK14;Y182;", "site"] == "Y182"
+    site_key = _site_key_for_display_id(built.site_metadata, _DISPLAY_ID)
+    assert built.site_metadata.loc[site_key, "gene_symbol"] == "MAPK14"
+    assert built.site_metadata.loc[site_key, "site"] == "Y182"
 
 
 def test_builder_rejects_ambiguous_sequence_column_without_explicit_convention() -> (
@@ -790,7 +838,11 @@ def test_builder_site_matrix_excludes_only_unresolved_rows_in_mixed_support_case
         )
     )
 
-    assert built.phospho.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
+    assert built.phospho.index.name == "site_key"
+    assert built.site_metadata.loc[:, "display_id"].astype(str).tolist() == [
+        "GSK3B;S9;",
+        "MAPK14;Y182;",
+    ]
     assert built.preprocessing_report is not None
     assert built.preprocessing_report.row_audit is not None
     dropped = built.preprocessing_report.row_audit.loc[

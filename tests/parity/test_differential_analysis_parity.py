@@ -21,6 +21,7 @@ from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
 )
+from tests.support.site_keys import site_key_index_from_display_ids
 
 pytestmark = [pytest.mark.parity]
 
@@ -109,7 +110,7 @@ def _contrasts_from_matrix(contrasts: pd.DataFrame) -> tuple[Contrast, ...]:
     return tuple(typed)
 
 
-def _load_expected(contrast_name: str, *, matrix_site_index: pd.Index) -> pd.DataFrame:
+def _load_expected(contrast_name: str, *, result_site_index: pd.Index) -> pd.DataFrame:
     frame = pd.read_csv(DIFF_PARITY_DIR / f"limma_{contrast_name}.csv")
     frame = frame.set_index("site_id")
     raw_site_ids = frame.index.astype(str).tolist()
@@ -118,19 +119,30 @@ def _load_expected(contrast_name: str, *, matrix_site_index: pd.Index) -> pd.Dat
         for idx, site_id in enumerate(raw_site_ids, start=1)
     ]
     expected = frame.loc[:, ["logFC", "t", "P.Value", "adj.P.Val"]].copy(deep=True)
-    expected.index = pd.Index(canonical_ids, name=expected.index.name)
-    expected = expected.reindex(matrix_site_index)
+    expected.index = site_key_index_from_display_ids(
+        canonical_ids,
+        protein_namespace="gene_symbol",
+    )
+    expected = expected.reindex(result_site_index)
     return expected
 
 
 def _dataset_from_matrix(matrix: pd.DataFrame) -> AnalysisReadyPhosphoDataset:
     site_ids = matrix.index.astype(str).tolist()
+    site_index = site_key_index_from_display_ids(
+        site_ids,
+        protein_namespace="gene_symbol",
+    )
     parsed = [
         _canonical_site_id(site_id, ordinal=idx).split(";")
         for idx, site_id in enumerate(site_ids, start=1)
     ]
+    phospho = matrix.copy(deep=True)
+    phospho.index = site_index
     site_metadata = pd.DataFrame(
         {
+            "site_key": site_index.tolist(),
+            "display_id": site_ids,
             "gene_symbol": [parts[0] for parts in parsed],
             "site": [parts[1] for parts in parsed],
             "site_sequence": [
@@ -140,10 +152,10 @@ def _dataset_from_matrix(matrix: pd.DataFrame) -> AnalysisReadyPhosphoDataset:
             "localisation_confidence": [0.95] * len(parsed),
             "protein_id": [parts[0] for parts in parsed],
         },
-        index=matrix.index.copy(),
+        index=site_index.copy(),
     )
     return AnalysisReadyPhosphoDataset(
-        phospho=matrix,
+        phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
         intensity_scale_state=supported_log2_intensity_scale_state(
@@ -187,10 +199,14 @@ def test_differential_analysis_matches_limma_parity_within_tolerance() -> None:
     result = DifferentialAnalysisWorkflow().run(request)
 
     for contrast_name in ("B_vs_A", "C_vs_A"):
-        observed = result.table_for(contrast_name).sort_index()
+        observed = (
+            result.table_for(contrast_name)
+            .loc[:, ["logFC", "t", "P.Value", "adj.P.Val"]]
+            .sort_index()
+        )
         expected = _load_expected(
             contrast_name,
-            matrix_site_index=matrix.index,
+            result_site_index=observed.index,
         ).sort_index()
         pdt.assert_frame_equal(
             observed,

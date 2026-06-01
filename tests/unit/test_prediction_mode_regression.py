@@ -24,13 +24,12 @@ from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
 )
+from tests.support.site_keys import site_key_index_from_display_ids
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
-    site_ids = pd.Index(
-        ["GENEA;S1;", "GENEA;S2;", "GENEB;S3;", "GENEB;S4;"],
-        name="site_id",
-    )
+    display_ids = ["GENEA;S1;", "GENEA;S2;", "GENEB;S3;", "GENEB;S4;"]
+    site_ids = site_key_index_from_display_ids(display_ids)
     phospho = pd.DataFrame(
         {
             "sample_a": [5.0, 4.5, 1.0, 1.2],
@@ -41,6 +40,8 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
     )
     site_metadata = pd.DataFrame(
         {
+            "site_key": site_ids.astype(str).tolist(),
+            "display_id": display_ids,
             "gene_symbol": ["GENEA", "GENEA", "GENEB", "GENEB"],
             "site": ["S1", "S2", "S3", "S4"],
             "site_sequence": [

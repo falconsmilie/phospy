@@ -60,6 +60,7 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
 )
 from tests.support.signalome_config import build_signalome_config
+from tests.support.site_keys import site_key_index_from_display_ids
 
 
 def _normalisation_state(*, phospho: pd.DataFrame, policy: str) -> PreprocessingState:
@@ -84,15 +85,18 @@ def _normalisation_state(*, phospho: pd.DataFrame, policy: str) -> Preprocessing
 
 
 def _analysis_ready_dataset(site_ids: list[str]) -> AnalysisReadyPhosphoDataset:
+    site_index = site_key_index_from_display_ids(site_ids)
     phospho = pd.DataFrame(
         {
             "sample_a": [1.0 + index for index, _ in enumerate(site_ids)],
             "sample_b": [2.0 + index for index, _ in enumerate(site_ids)],
         },
-        index=pd.Index(site_ids, name="site_id"),
+        index=site_index,
     )
     site_metadata = pd.DataFrame(
         {
+            "site_key": site_index.astype(str).tolist(),
+            "display_id": site_ids,
             "gene_symbol": [site_id.split(";", 1)[0] for site_id in site_ids],
             "site": [f"S{index + 1}" for index, _ in enumerate(site_ids)],
             "site_sequence": [
@@ -101,7 +105,7 @@ def _analysis_ready_dataset(site_ids: list[str]) -> AnalysisReadyPhosphoDataset:
             ],
             "protein_id": [f"P{index + 1}" for index, _ in enumerate(site_ids)],
         },
-        index=phospho.index.copy(),
+        index=site_index.copy(),
     )
     return AnalysisReadyPhosphoDataset(
         phospho=phospho,
@@ -136,9 +140,10 @@ def _kinase_result(
     prediction_matrix: pd.DataFrame,
     score_matrix: pd.DataFrame,
 ) -> KinaseWorkflowResult:
+    display_site_ids = dataset.site_metadata.loc[:, "display_id"].astype(str).tolist()
     return KinaseWorkflowResult(
         dataset=dataset,
-        references=_reference_bundle(dataset.phospho.index.astype(str).tolist()),
+        references=_reference_bundle(display_site_ids),
         scoring_result=KinaseScoringResult(
             profile_scores=score_matrix,
             rank_weighted_fusion_scores=score_matrix,
@@ -548,13 +553,14 @@ def test_signalome_missing_value_preconditioning_is_recorded_in_diagnostics_and_
 ):
     site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
     dataset = _analysis_ready_dataset(site_ids)
+    site_index = site_key_index_from_display_ids(site_ids)
     prediction_matrix = pd.DataFrame(
         {"K1": [0.9, 0.2, 0.7], "K2": [0.1, 0.8, 0.3]},
-        index=pd.Index(site_ids, name="site_id"),
+        index=site_index,
     )
     score_matrix = pd.DataFrame(
         {"K1": [0.95, 0.05, float("nan")], "K2": [0.05, 0.95, float("nan")]},
-        index=pd.Index(site_ids, name="site_id"),
+        index=site_index.copy(),
     )
     kinase_result = _kinase_result(
         dataset=dataset,
@@ -591,13 +597,14 @@ def test_signalome_missing_value_preconditioning_is_recorded_in_diagnostics_and_
 def test_signalome_backend_selection_metadata_is_recorded_clearly() -> None:
     site_ids = ["P1;S1;", "P2;S2;", "P3;S3;", "P4;S4;"]
     dataset = _analysis_ready_dataset(site_ids)
+    site_index = site_key_index_from_display_ids(site_ids)
     prediction_matrix = pd.DataFrame(
         {
             "K1": [0.9, 0.2, 0.8, 0.7],
             "K2": [0.1, 0.8, 0.2, 0.3],
             "K3": [0.3, 0.4, 0.7, 0.9],
         },
-        index=pd.Index(site_ids, name="site_id"),
+        index=site_index,
     )
     score_matrix = pd.DataFrame(
         {
@@ -605,7 +612,7 @@ def test_signalome_backend_selection_metadata_is_recorded_clearly() -> None:
             "K2": [0.05, 0.9, 0.2, 0.3],
             "K3": [0.2, 0.4, 0.75, 0.85],
         },
-        index=pd.Index(site_ids, name="site_id"),
+        index=site_index.copy(),
     )
     kinase_result = _kinase_result(
         dataset=dataset,

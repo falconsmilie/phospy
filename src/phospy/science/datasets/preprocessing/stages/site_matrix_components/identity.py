@@ -177,22 +177,6 @@ class SiteMatrixAssembler:
         final_site_metadata = duplicate_site_result.site_metadata.reindex(
             final_phospho.index
         )
-        if "display_id" in final_site_metadata.columns:
-            display_ids = (
-                final_site_metadata.loc[:, "display_id"].astype("string").str.strip()
-            )
-            if bool(display_ids.notna().all()) and bool((display_ids != "").all()):
-                if not bool(display_ids.duplicated().any()):
-                    canonical_display_index = pd.Index(
-                        display_ids.astype(str).tolist(),
-                        name=output_index_name,
-                    )
-                    final_phospho.index = canonical_display_index
-                    final_site_metadata.index = canonical_display_index.copy()
-                    if "site_key" in final_site_metadata.columns:
-                        final_site_metadata.loc[:, "site_key"] = (
-                            canonical_display_index.astype(str).tolist()
-                        )
         final_site_index = pd.Index(
             final_phospho.index.tolist(), name=output_index_name
         )
