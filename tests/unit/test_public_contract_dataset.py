@@ -145,6 +145,7 @@ def test_site_matrix_build_contract_is_row_wise_for_mixed_sequence_support() -> 
         {
             "gene_symbol": ["MAPK14", "FAKE1", "GSK3B"],
             "site": ["Y182", "S1", "S9"],
+            "protein_id": ["MAPK14", "FAKE1", "GSK3B"],
             "localisation_confidence": [0.95, 0.9, 0.92],
         },
         index=phospho.index.copy(),
@@ -185,6 +186,7 @@ def test_site_matrix_build_contract_retains_all_rows_when_fully_resolvable() -> 
         {
             "gene_symbol": ["MAPK14", "GSK3B"],
             "site": ["Y182", "S9"],
+            "protein_id": ["MAPK14", "GSK3B"],
             "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
@@ -225,6 +227,7 @@ def test_site_matrix_build_contract_reports_empty_when_fully_unresolvable() -> N
         {
             "gene_symbol": ["FAKE1", "FAKE2"],
             "site": ["S1", "T2"],
+            "protein_id": ["FAKE1", "FAKE2"],
             "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),

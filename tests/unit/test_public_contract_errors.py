@@ -99,6 +99,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
                 "site_key": index.astype(str).tolist(),
                 "display_id": [display_id],
                 "gene_symbol": ["MAPK14"],
+                "protein_id": ["MAPK14"],
                 "site": ["Y182"],
                 "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
                 "localisation_confidence": [0.95],
@@ -125,6 +126,7 @@ def _coherent_site_identity_inputs() -> tuple[pd.DataFrame, pd.DataFrame]:
             "site_key": index.astype(str).tolist(),
             "display_id": display_ids,
             "gene_symbol": ["MAPK14", "AKT1"],
+            "protein_id": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": [
                 ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
@@ -255,6 +257,7 @@ def test_builder_site_matrix_reports_no_retained_rows_when_all_sequence_support_
     site_metadata = pd.DataFrame(
         {
             "gene_symbol": ["FAKE1", "FAKE2"],
+            "protein_id": ["FAKE1", "FAKE2"],
             "site": ["S1", "T2"],
             "localisation_confidence": [0.95, 0.9],
         },
@@ -294,6 +297,7 @@ def test_builder_rejects_internal_only_site_matrix_missing_modes_at_public_bound
     site_metadata = pd.DataFrame(
         {
             "gene_symbol": ["MAPK14"],
+            "protein_id": ["MAPK14"],
             "site": ["Y182"],
             "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
             "localisation_confidence": [0.95],
@@ -312,6 +316,7 @@ def test_builder_rejects_internal_only_site_matrix_missing_modes_at_public_bound
             DatasetBuildRequest(
                 phospho=phospho,
                 site_metadata=site_metadata,
+                organism=Organism.RAT,
                 preprocessing_config=DatasetPreprocessingConfig(
                     site_matrix=DatasetSiteMatrixConfig(
                         policy="build_from_metadata",

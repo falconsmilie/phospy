@@ -15,6 +15,7 @@ from phospy.io.readers.tables import (
     read_site_metadata,
 )
 from phospy.science.datasets.builders.public import AnalysisReadyDatasetBuilder
+from phospy.science.references.models import Organism
 from tests.support.site_keys import protein_site_key
 
 
@@ -165,6 +166,7 @@ def test_dataset_build_from_file_paths_uses_schema_aware_readers(
                 ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
                 for site in ["S1"]
             ],
+            "protein_id": ["NA_PROTEIN"],
             "localisation_confidence": [0.95],
         },
         index=pd.Index(["NA;S1;"], name="site_id"),
@@ -185,6 +187,7 @@ def test_dataset_build_from_file_paths_uses_schema_aware_readers(
             phospho=phospho_path,
             site_metadata=site_metadata_path,
             sample_metadata=sample_metadata_path,
+            organism=Organism.RAT,
             input_intensity_scale="linear",
         )
     )

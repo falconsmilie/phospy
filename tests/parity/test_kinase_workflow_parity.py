@@ -237,6 +237,7 @@ def test_profile_missing_value_policy_changes_downstream_lane_for_mixed_missing_
     site_metadata = pd.DataFrame(
         {
             "gene_symbol": ["GENEA", "GENEA", "GENEB", "GENEB"],
+            "protein_id": ["GENEA", "GENEA", "GENEB", "GENEB"],
             "site": ["S1", "S2", "S3", "S4"],
             "site_sequence": [
                 ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)

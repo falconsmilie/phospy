@@ -51,9 +51,8 @@ def _minimal_site_key_dataset(
         ],
         "localisation_confidence": [0.95, 0.95],
     }
-    if include_protein_id:
-        site_metadata["protein_id"] = ["P28482", "P31749"]
-    return AnalysisReadyDatasetBuilder().run(
+    site_metadata["protein_id"] = ["P28482", "P31749"]
+    dataset = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
             phospho=pd.DataFrame(
                 {
@@ -71,6 +70,21 @@ def _minimal_site_key_dataset(
             organism=Organism.RAT,
             input_intensity_scale="log2",
         )
+    )
+    if include_protein_id:
+        return dataset
+    without_protein = dataset.site_metadata.drop(columns=["protein_id"])
+    return AnalysisReadyPhosphoDataset(
+        phospho=dataset.phospho,
+        site_metadata=without_protein,
+        sample_metadata=dataset.sample_metadata,
+        total=dataset.total,
+        organism=dataset.organism,
+        intensity_scale_state=dataset.intensity_scale_state,
+        processing_state=dataset.processing_state,
+        preprocessing_report=dataset.preprocessing_report,
+        provenance=dataset.provenance,
+        allow_opaque_site_values=dataset.allow_opaque_site_values,
     )
 
 
@@ -306,6 +320,7 @@ def test_differential_workflow_accepts_gene_site_only_dataset() -> None:
                         for site in ["Y182", "T308"]
                     ],
                     "localisation_confidence": [0.95, 0.95],
+                    "protein_id": ["P28482", "P31749"],
                 },
                 index=pd.Index(["row_a", "row_b"], name="source_row"),
             ),

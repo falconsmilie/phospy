@@ -173,6 +173,7 @@ def test_dataset_builder_builds_analysis_ready_dataset_from_fixture() -> None:
     assert list(built.site_metadata.columns) == [
         "gene_symbol",
         "site",
+        "protein_id",
         "site_sequence",
         "localisation_confidence",
         "display_id",
@@ -314,6 +315,7 @@ def test_dataset_builder_applies_subtract_log_total_after_log2_transform() -> No
         {
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
             "site": ["Y182", "T308", "S9"],
+            "protein_id": ["MAPK14", "AKT1", "GSK3B"],
             "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
         },
         index=phospho.index.copy(),
@@ -471,6 +473,7 @@ def test_dataset_builder_marks_mixed_quantitative_meaning_when_uncorrected_rows_
             phospho=phospho,
             site_metadata=site_metadata,
             total=total,
+            organism=Organism.RAT,
             preprocessing_config=DatasetPreprocessingConfig(
                 intensity_transform=DatasetIntensityTransformConfig(
                     policy="log2",
@@ -562,6 +565,7 @@ def test_dataset_builder_supports_documented_alias_and_index_derivation_conventi
             "centralized_sequence": canonical_site_metadata.loc[
                 :, "site_sequence"
             ].tolist(),
+            "protein_id": canonical_site_metadata.loc[:, "protein_id"].tolist(),
         },
         index=phospho.index.copy(),
     )
@@ -578,6 +582,7 @@ def test_dataset_builder_supports_documented_alias_and_index_derivation_conventi
     assert built.phospho.index.name == "site_key"
     assert list(built.site_metadata.columns) == [
         "site_sequence",
+        "protein_id",
         "localisation_confidence",
         "gene_symbol",
         "site",
@@ -677,6 +682,7 @@ def test_dataset_builder_runs_site_sequence_resolution_before_minprob_diagnostic
         DatasetBuildRequest(
             phospho=phospho,
             site_metadata=site_metadata,
+            organism=Organism.RAT,
             preprocessing_config=DatasetPreprocessingConfig(
                 site_sequence_resolution=DatasetSiteSequenceResolutionConfig(
                     fasta_path=str(fasta_path),
@@ -806,6 +812,7 @@ def test_dataset_builder_site_sequence_resolution_processing_state_tracks_diagno
         DatasetBuildRequest(
             phospho=phospho,
             site_metadata=site_metadata,
+            organism=Organism.RAT,
             preprocessing_config=DatasetPreprocessingConfig(
                 site_sequence_resolution=DatasetSiteSequenceResolutionConfig(
                     fasta_path=str(fasta_path),
@@ -867,6 +874,7 @@ def test_dataset_builder_supports_site_matrix_build_from_metadata_policy() -> No
         {
             "gene_symbol": ["MAPK14", "GSK3B", "AKT1"],
             "site": ["Y182", "S9", "T308"],
+            "protein_id": ["MAPK14", "GSK3B", "AKT1"],
             "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
         },
         index=phospho.index.copy(),
@@ -963,6 +971,7 @@ def test_dataset_builder_site_matrix_derivation_keeps_all_fully_resolvable_rows(
         {
             "gene_symbol": ["MAPK14", "GSK3B"],
             "site": ["Y182", "S9"],
+            "protein_id": ["MAPK14", "GSK3B"],
         },
         index=phospho.index.copy(),
     )
@@ -1008,6 +1017,7 @@ def test_dataset_builder_site_matrix_derivation_excludes_only_unresolved_rows() 
         {
             "gene_symbol": ["MAPK14", "FAKE1", "GSK3B"],
             "site": ["Y182", "S1", "S9"],
+            "protein_id": ["MAPK14", "FAKE1", "GSK3B"],
         },
         index=phospho.index.copy(),
     )
@@ -1055,6 +1065,7 @@ def test_dataset_builder_site_matrix_derivation_uses_row_metadata_site_identity(
         {
             "gene_symbol": ["MAPK14", "FAKE1", "GSK3B"],
             "site": ["Y182", "S1", "S9"],
+            "protein_id": ["MAPK14", "FAKE1", "GSK3B"],
         },
         index=phospho.index.copy(),
     )
@@ -1101,6 +1112,7 @@ def test_dataset_builder_site_matrix_excludes_unusable_supplied_sequence_rows() 
         {
             "gene_symbol": ["MAPK14", "FAKE1"],
             "site": ["Y182", "S1"],
+            "protein_id": ["MAPK14", "FAKE1"],
             "site_sequence": [("A" * 15) + "Y" + ("A" * 15), "  "],
         },
         index=phospho.index.copy(),
@@ -1111,6 +1123,7 @@ def test_dataset_builder_site_matrix_excludes_unusable_supplied_sequence_rows() 
         DatasetBuildRequest(
             phospho=phospho,
             site_metadata=site_metadata,
+            organism=Organism.RAT,
             input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
@@ -1145,6 +1158,7 @@ def test_dataset_builder_site_matrix_derivation_reports_no_rows_when_fully_unres
         {
             "gene_symbol": ["FAKE1", "FAKE2"],
             "site": ["S1", "T2"],
+            "protein_id": ["FAKE1", "FAKE2"],
         },
         index=phospho.index.copy(),
     )
@@ -1187,6 +1201,7 @@ def test_dataset_builder_rejects_incompatible_site_matrix_missing_data_modes_ear
         {
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
+            "protein_id": ["MAPK14"],
             "site_sequence": ["SEQ_A"],
         },
         index=phospho.index.copy(),
@@ -1230,6 +1245,7 @@ def test_dataset_builder_rejects_dead_end_site_matrix_missing_modes_before_datas
         {
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
+            "protein_id": ["MAPK14"],
             "site_sequence": ["SEQ_A"],
         },
         index=phospho.index.copy(),
@@ -1272,6 +1288,7 @@ def test_dataset_builder_builds_inferred_comparisons_from_sample_metadata() -> N
         {
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
+            "protein_id": ["MAPK14", "AKT1"],
             "site_sequence": ["SEQ_A", "SEQ_R"],
         },
         index=phospho.index.copy(),
@@ -1358,6 +1375,7 @@ def test_dataset_builder_rejects_comparison_groups_missing_from_metadata() -> No
         {
             "gene_symbol": ["PRKACA"],
             "site": ["S339"],
+            "protein_id": ["PRKACA"],
             "site_sequence": ["AAAAAA"],
         },
         index=phospho.index.copy(),
@@ -1391,20 +1409,36 @@ def test_dataset_builder_rejects_comparison_groups_missing_from_metadata() -> No
 def test_dataset_builder_rejects_site_matrix_build_without_site_sequence_column() -> (
     None
 ):
-    phospho = load_rat_l6_phospho().head(4).copy(deep=True)
-    site_metadata = site_metadata_for(phospho).drop(columns=["site_sequence"])
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0],
+            "sample_b": [1.5, 2.5],
+        },
+        index=pd.Index(["FAKE1;S1;", "FAKE2;T2;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["FAKE1", "FAKE2"],
+            "site": ["S1", "T2"],
+            "protein_id": ["FAKE1", "FAKE2"],
+            "localisation_confidence": [0.95, 0.95],
+        },
+        index=phospho.index.copy(),
+    )
 
     with pytest.raises(
         PhosPyInputError,
         match=(
             "site-matrix construction produced no retained rows after filtering; "
-            "input_rows=4, dropped_missing_sequence=4"
+            "input_rows=2, dropped_missing_sequence=2"
         ),
     ):
         AnalysisReadyDatasetBuilder().run(
             DatasetBuildRequest(
                 phospho=phospho,
                 site_metadata=site_metadata,
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
                 preprocessing_config=DatasetPreprocessingConfig(
                     site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
                 ),
@@ -1441,6 +1475,7 @@ def test_dataset_builder_log2_preprocessing_records_operation_and_state() -> Non
         {
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
+            "protein_id": ["MAPK14", "AKT1"],
             "site_sequence": ["SEQ_A", "SEQ_R"],
         },
         index=phospho.index.copy(),
@@ -1451,6 +1486,7 @@ def test_dataset_builder_log2_preprocessing_records_operation_and_state() -> Non
         DatasetBuildRequest(
             phospho=phospho,
             site_metadata=site_metadata,
+            organism=Organism.RAT,
             preprocessing_config=DatasetPreprocessingConfig(
                 intensity_transform=DatasetIntensityTransformConfig(
                     policy="log2",
@@ -1490,6 +1526,7 @@ def test_dataset_builder_distinguishes_corrected_vs_uncorrected_log2_quantity() 
         {
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
+            "protein_id": ["MAPK14"],
             "site_sequence": ["SEQ_A"],
         },
         index=phospho.index.copy(),
@@ -1507,6 +1544,7 @@ def test_dataset_builder_distinguishes_corrected_vs_uncorrected_log2_quantity() 
         DatasetBuildRequest(
             phospho=phospho,
             site_metadata=site_metadata,
+            organism=Organism.RAT,
             preprocessing_config=DatasetPreprocessingConfig(
                 intensity_transform=DatasetIntensityTransformConfig(
                     policy="log2",
@@ -1520,6 +1558,7 @@ def test_dataset_builder_distinguishes_corrected_vs_uncorrected_log2_quantity() 
             phospho=phospho,
             site_metadata=site_metadata,
             total=total,
+            organism=Organism.RAT,
             preprocessing_config=DatasetPreprocessingConfig(
                 intensity_transform=DatasetIntensityTransformConfig(
                     policy="log2",
@@ -1565,6 +1604,7 @@ def test_dataset_builder_public_payloads_pair_scale_with_quantitative_meaning(
         {
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
+            "protein_id": ["MAPK14"],
             "site_sequence": ["SEQ_A"],
         },
         index=phospho.index.copy(),
@@ -1584,6 +1624,7 @@ def test_dataset_builder_public_payloads_pair_scale_with_quantitative_meaning(
                 DatasetBuildRequest(
                     phospho=phospho,
                     site_metadata=site_metadata,
+                    organism=Organism.RAT,
                     preprocessing_config=DatasetPreprocessingConfig(
                         intensity_transform=DatasetIntensityTransformConfig(
                             policy="log2",
@@ -1601,6 +1642,7 @@ def test_dataset_builder_public_payloads_pair_scale_with_quantitative_meaning(
                     phospho=phospho,
                     site_metadata=site_metadata,
                     total=total,
+                    organism=Organism.RAT,
                     preprocessing_config=DatasetPreprocessingConfig(
                         intensity_transform=DatasetIntensityTransformConfig(
                             policy="log2",
@@ -1679,6 +1721,7 @@ def test_dataset_builder_median_center_preprocessing_records_operation() -> None
         {
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
             "site": ["Y182", "T308", "S9"],
+            "protein_id": ["MAPK14", "AKT1", "GSK3B"],
             "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
         },
         index=phospho.index.copy(),
@@ -1689,6 +1732,7 @@ def test_dataset_builder_median_center_preprocessing_records_operation() -> None
         DatasetBuildRequest(
             phospho=phospho,
             site_metadata=site_metadata,
+            organism=Organism.RAT,
             input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 normalisation=DatasetNormalisationConfig(policy="median_center")
@@ -1747,6 +1791,7 @@ def test_dataset_builder_quantile_preprocessing_records_operation() -> None:
         {
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
             "site": ["Y182", "T308", "S9"],
+            "protein_id": ["MAPK14", "AKT1", "GSK3B"],
             "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
         },
         index=phospho.index.copy(),
@@ -1757,6 +1802,7 @@ def test_dataset_builder_quantile_preprocessing_records_operation() -> None:
         DatasetBuildRequest(
             phospho=phospho,
             site_metadata=site_metadata,
+            organism=Organism.RAT,
             input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 normalisation=DatasetNormalisationConfig(policy="quantile")
@@ -1807,6 +1853,7 @@ def test_dataset_builder_emits_machine_readable_run_provenance() -> None:
         {
             "gene_symbol": ["MAPK14", "AKT1", "PRKACA", "GSK3B"],
             "site": ["Y182", "T308", "S339", "S9"],
+            "protein_id": ["MAPK14", "AKT1", "PRKACA", "GSK3B"],
             "site_sequence": ["SEQ_A", "SEQ_R", "", "SEQ_D"],
         },
         index=phospho.index.copy(),
@@ -1897,6 +1944,7 @@ def test_dataset_builder_marks_minprob_stage_as_seeded_stochastic() -> None:
         {
             "gene_symbol": ["MAPK14", "AKT1", "PRKACA"],
             "site": ["Y182", "T308", "S339"],
+            "protein_id": ["MAPK14", "AKT1", "PRKACA"],
             "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
         },
         index=phospho.index.copy(),

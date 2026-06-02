@@ -59,6 +59,7 @@ def test_builder_supports_all_publicly_advertised_site_matrix_missing_data_modes
         {
             "gene_symbol": ["MAPK14", "GSK3B"],
             "site": ["Y182", "S9"],
+            "protein_id": ["MAPK14", "GSK3B"],
             "site_sequence": ["SEQ_A", "SEQ_R"],
             "localisation_confidence": [0.95, 0.9],
         },
@@ -110,6 +111,7 @@ def test_builder_rejects_dead_end_site_matrix_missing_data_modes_before_interpre
         {
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
+            "protein_id": ["MAPK14"],
             "site_sequence": ["SEQ_A"],
             "localisation_confidence": [0.95],
         },
@@ -157,6 +159,7 @@ def test_builder_site_sequence_mixed_support_keeps_resolvable_rows_and_excludes_
         {
             "gene_symbol": ["MAPK14", "GSK3B", "FAKE1", "FAKE2"],
             "site": ["Y182", "S9", "S1", "T2"],
+            "protein_id": ["MAPK14", "GSK3B", "FAKE1", "FAKE2"],
             "site_sequence": [pd.NA, "SEQ_MANXAL", pd.NA, "   "],
             "localisation_confidence": [0.95, 0.9, 0.8, 0.85],
         },
@@ -206,6 +209,7 @@ def test_builder_rejects_missing_sample_label_before_stringification() -> None:
         {
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
+            "protein_id": ["MAPK14"],
             "site_sequence": ["SEQ_A"],
             "localisation_confidence": [0.95],
         },
@@ -243,6 +247,7 @@ def test_builder_provenance_exposes_site_identifier_normalisation_records() -> N
         {
             "gene_symbol": ["mapk14"],
             "site": ["y182"],
+            "protein_id": ["MAPK14"],
             "site_sequence": ["SEQ_A"],
             "localisation_confidence": [0.95],
         },
@@ -275,6 +280,7 @@ def test_builder_succeeds_with_provided_site_sequence_at_analysis_ready_boundary
         {
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
+            "protein_id": ["MAPK14"],
             "site_sequence": ["SEQ_A"],
             "localisation_confidence": [0.95],
         },
@@ -285,6 +291,7 @@ def test_builder_succeeds_with_provided_site_sequence_at_analysis_ready_boundary
         DatasetBuildRequest(
             phospho=phospho,
             site_metadata=site_metadata,
+            organism=Organism.RAT,
             input_intensity_scale="linear",
         )
     )
@@ -310,6 +317,7 @@ def test_builder_rejects_non_phosphorylatable_site_sequence_centre_before_constr
         {
             "gene_symbol": ["GSK3B"],
             "site": ["S9"],
+            "protein_id": ["GSK3B"],
             "site_sequence": ["AAAAAKAAAAA"],
             "localisation_confidence": [0.95],
         },
@@ -324,6 +332,7 @@ def test_builder_rejects_non_phosphorylatable_site_sequence_centre_before_constr
             DatasetBuildRequest(
                 phospho=phospho,
                 site_metadata=site_metadata,
+                organism=Organism.RAT,
                 input_intensity_scale="linear",
             )
         )
@@ -340,6 +349,7 @@ def test_builder_derives_missing_site_sequence_before_analysis_ready_constructio
         {
             "gene_symbol": ["MAPK14", "GSK3B"],
             "site": ["Y182", "S9"],
+            "protein_id": ["MAPK14", "GSK3B"],
             "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
@@ -379,6 +389,7 @@ def test_builder_fails_when_site_sequence_cannot_be_derived_before_dataset_const
         {
             "gene_symbol": ["FAKE1"],
             "site": ["S1"],
+            "protein_id": ["FAKE1"],
             "localisation_confidence": [0.95],
         },
         index=phospho.index.copy(),
@@ -400,7 +411,7 @@ def test_builder_fails_when_site_sequence_cannot_be_derived_before_dataset_const
     message = str(caught.value)
     expected_site_key = site_key_from_display_id(
         "FAKE1;S1;",
-        protein_namespace="gene_symbol",
+        protein_namespace="protein_id",
     )
     assert (
         "site_id='FAKE1;S1;'" in message
@@ -423,6 +434,7 @@ def test_builder_fails_clearly_for_unsupported_organism_when_site_sequences_need
         {
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
+            "protein_id": ["MAPK14"],
             "localisation_confidence": [0.95],
         },
         index=phospho.index.copy(),

@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from phospy import AnalysisReadyDatasetBuilder
 from phospy.api import DatasetBuildRequest
 from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.builders.contracts import (
@@ -103,12 +104,15 @@ def test_source_resolver_reads_and_normalizes_site_level_inputs() -> None:
     assert resolved.site_metadata.loc[:, "site_key"].shape[0] == 1
 
 
-def test_source_resolver_derives_site_identity_for_gene_site_only_rows() -> None:
+def test_source_resolver_derives_site_identity_for_display_indexed_rows_with_context() -> (
+    None
+):
     phospho = _phospho()
     site_metadata = pd.DataFrame(
         {
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
+            "protein_id": ["P28482"],
             "site_sequence": ["AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA"],
         },
         index=phospho.index.copy(),
@@ -118,6 +122,7 @@ def test_source_resolver_derives_site_identity_for_gene_site_only_rows() -> None
         DatasetBuildRequest(
             phospho=phospho,
             site_metadata=site_metadata,
+            organism=Organism.HUMAN,
             input_intensity_scale="linear",
         )
     )
@@ -128,9 +133,9 @@ def test_source_resolver_derives_site_identity_for_gene_site_only_rows() -> None
         field_name="test.source_resolver.site_key",
         error_type=ValueError,
     )
-    assert key.organism == "unknown"
-    assert key.protein_namespace == "gene_symbol"
-    assert key.protein_identifier == "MAPK14"
+    assert key.organism == "human"
+    assert key.protein_namespace == "protein_id"
+    assert key.protein_identifier == "P28482"
     assert key.residue == "Y"
     assert key.position == 182
 
@@ -223,7 +228,7 @@ def test_source_resolver_rejects_plain_duplicate_display_site_identity_rows() ->
 
     with pytest.raises(
         PhosPyInputError,
-        match="appears more than once",
+        match="site_key must be unique",
     ) as exc_info:
         DatasetBuildSourceResolver().run(
             DatasetBuildRequest(
@@ -234,59 +239,52 @@ def test_source_resolver_rejects_plain_duplicate_display_site_identity_rows() ->
             )
         )
     message = str(exc_info.value)
-    assert "one analysis-ready row per normalised display-site identifier" in message
-    assert "Aggregate or remove duplicate rows before dataset construction" in message
+    assert "site_matrix.policy='as_input'" in message
 
 
-def test_source_resolver_rejects_duplicate_display_ids_with_conflicting_protein_id() -> (
+def test_source_resolver_allows_duplicate_display_ids_with_distinct_protein_id() -> (
     None
 ):
     phospho, site_metadata = _duplicate_identity_frames(
         protein_id=("P28482", "Q5S007"),
-        protein_accession=("P28482-1", "P28482-1"),
     )
 
-    with pytest.raises(
-        PhosPyInputError,
-        match="maps to multiple protein or isoform contexts",
-    ) as exc_info:
-        DatasetBuildSourceResolver().run(
-            DatasetBuildRequest(
-                phospho=phospho,
-                site_metadata=site_metadata,
-                organism=Organism.HUMAN,
-                input_intensity_scale="linear",
-            )
+    resolved = DatasetBuildSourceResolver().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.HUMAN,
+            input_intensity_scale="linear",
         )
-    message = str(exc_info.value)
-    assert "protein_id=['P28482', 'Q5S007']" in message
-    assert "does not yet use protein- or isoform-scoped row identity" in message
+    )
+
+    assert resolved.site_metadata.loc[:, "display_id"].tolist() == [
+        "MAPK14;Y182;",
+        "MAPK14;Y182;",
+    ]
+    assert resolved.site_metadata.loc[:, "site_key"].nunique() == 2
 
 
-def test_source_resolver_rejects_duplicate_display_ids_with_conflicting_protein_accession() -> (
-    None
-):
+def test_source_resolver_allows_duplicate_display_ids_with_distinct_accession() -> None:
     phospho, site_metadata = _duplicate_identity_frames(
         protein_id=("P28482", "P28482"),
         protein_accession=("P28482-1", "P28482-2"),
     )
 
-    with pytest.raises(
-        PhosPyInputError,
-        match="maps to multiple protein or isoform contexts",
-    ) as exc_info:
-        DatasetBuildSourceResolver().run(
-            DatasetBuildRequest(
-                phospho=phospho,
-                site_metadata=site_metadata,
-                organism=Organism.HUMAN,
-                input_intensity_scale="linear",
-            )
+    resolved = DatasetBuildSourceResolver().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.HUMAN,
+            input_intensity_scale="linear",
         )
-    assert "protein_accession=['P28482-1', 'P28482-2']" in str(exc_info.value)
+    )
+
+    assert resolved.site_metadata.loc[:, "display_id"].nunique() == 1
+    assert resolved.site_metadata.loc[:, "site_key"].nunique() == 2
 
 
-def test_source_resolver_rejects_duplicate_display_ids_with_conflicting_isoform_id() -> (
+def test_source_resolver_allows_duplicate_display_ids_with_distinct_isoform_id() -> (
     None
 ):
     phospho, site_metadata = _duplicate_identity_frames(
@@ -295,29 +293,27 @@ def test_source_resolver_rejects_duplicate_display_ids_with_conflicting_isoform_
         isoform_id=("isoform-1", "isoform-2"),
     )
 
-    with pytest.raises(
-        PhosPyInputError,
-        match="maps to multiple protein or isoform contexts",
-    ) as exc_info:
-        DatasetBuildSourceResolver().run(
-            DatasetBuildRequest(
-                phospho=phospho,
-                site_metadata=site_metadata,
-                organism=Organism.HUMAN,
-                input_intensity_scale="linear",
-            )
+    resolved = DatasetBuildSourceResolver().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.HUMAN,
+            input_intensity_scale="linear",
         )
-    assert "isoform_id=['isoform-1', 'isoform-2']" in str(exc_info.value)
+    )
+
+    assert resolved.site_metadata.loc[:, "display_id"].nunique() == 1
+    assert resolved.site_metadata.loc[:, "site_key"].nunique() == 2
 
 
-def test_source_resolver_rejects_duplicate_display_ids_when_context_columns_are_missing() -> (
+def test_source_resolver_rejects_display_indexed_rows_when_protein_context_is_missing() -> (
     None
 ):
     phospho, site_metadata = _duplicate_identity_frames(include_context_columns=False)
 
     with pytest.raises(
         PhosPyInputError,
-        match="appears more than once",
+        match="protein context is required to derive site_key",
     ) as exc_info:
         DatasetBuildSourceResolver().run(
             DatasetBuildRequest(
@@ -327,7 +323,7 @@ def test_source_resolver_rejects_duplicate_display_ids_when_context_columns_are_
                 input_intensity_scale="linear",
             )
         )
-    assert "Aggregate or remove duplicate rows before dataset construction" in str(
+    assert "gene_symbol is display metadata and is not protein context" in str(
         exc_info.value
     )
 
@@ -474,7 +470,7 @@ def test_site_identity_deriver_rejects_missing_organism() -> None:
         index=pd.Index(["row_a"], name="source_row"),
     )
 
-    with pytest.raises(PhosPyInputError, match="requires organism"):
+    with pytest.raises(PhosPyInputError, match="organism is required"):
         DatasetSiteIdentityDeriver().run(site_metadata=site_metadata, organism=None)
 
 
@@ -491,21 +487,76 @@ def test_site_identity_deriver_rejects_missing_protein_context() -> None:
     )
 
     with pytest.raises(
-        PhosPyInputError, match="requires protein_accession or protein_id"
+        PhosPyInputError, match="protein context is required to derive site_key"
     ):
         DatasetSiteIdentityDeriver().run(site_metadata=site_metadata, organism=None)
 
 
-def test_site_identity_deriver_rejects_invalid_site_token() -> None:
+def test_site_identity_deriver_rejects_gene_symbol_only_protein_context() -> None:
     site_metadata = pd.DataFrame(
         {
             "gene_symbol": ["MAPK14"],
-            "site": ["Y182-T180"],
+            "site": ["Y182"],
+            "organism": ["human"],
+        },
+        index=pd.Index(["row_a"], name="source_row"),
+    )
+
+    with pytest.raises(PhosPyInputError, match="gene_symbol is display metadata"):
+        DatasetSiteIdentityDeriver().run(site_metadata=site_metadata, organism=None)
+
+
+@pytest.mark.parametrize(
+    "site_token",
+    [
+        pytest.param("A123", id="invalid_residue"),
+        pytest.param("S0", id="invalid_position"),
+        pytest.param("Y182-T180", id="non_strict_token"),
+    ],
+)
+def test_site_identity_deriver_rejects_invalid_site_token(site_token: str) -> None:
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14"],
+            "site": [site_token],
             "organism": ["human"],
             "protein_accession": ["P28482"],
         },
         index=pd.Index(["row_a"], name="source_row"),
     )
 
-    with pytest.raises(PhosPyInputError, match="strict 'S/T/Y<position>'"):
+    with pytest.raises(PhosPyInputError, match="strict residue/position"):
         DatasetSiteIdentityDeriver().run(site_metadata=site_metadata, organism=None)
+
+
+def test_dataset_builder_does_not_mutate_caller_owned_input_frames() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0]},
+        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "protein_id": ["P28482"],
+            "site_sequence": ["AAAAAYAAAAA"],
+            "localisation_confidence": [0.95],
+        },
+        index=phospho.index.copy(),
+    )
+    original_phospho = phospho.copy(deep=True)
+    original_site_metadata = site_metadata.copy(deep=True)
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.HUMAN,
+            input_intensity_scale="linear",
+        )
+    )
+
+    pd.testing.assert_frame_equal(phospho, original_phospho)
+    pd.testing.assert_frame_equal(site_metadata, original_site_metadata)
+    assert built.site_metadata.loc[:, "display_id"].tolist() == ["MAPK14;Y182;"]
+    assert built.site_metadata.loc[:, "site_key"].shape[0] == 1

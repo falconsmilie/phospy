@@ -369,6 +369,7 @@ def test_builder_rejects_sparse_missingness_in_phospho_matrix() -> None:
                 "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
                 "RPHFPQFSYSASGTA",
             ],
+            "protein_id": ["MAPK14", "AKT1"],
             "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index,
@@ -618,6 +619,7 @@ def test_builder_derives_gene_symbol_and_site_from_supported_index_convention() 
             site_metadata=pd.DataFrame(
                 {
                     "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+                    "protein_id": ["MAPK14"],
                     "localisation_confidence": [0.95],
                 },
                 index=[_DISPLAY_ID],
@@ -821,6 +823,7 @@ def test_builder_site_matrix_excludes_only_unresolved_rows_in_mixed_support_case
         {
             "gene_symbol": ["MAPK14", "FAKE1", "GSK3B"],
             "site": ["Y182", "S1", "S9"],
+            "protein_id": ["MAPK14", "FAKE1", "GSK3B"],
             "localisation_confidence": [0.95, 0.9, 0.92],
         },
         index=phospho.index.copy(),
@@ -866,6 +869,7 @@ def test_builder_site_matrix_reports_no_retained_rows_when_all_rows_lack_sequenc
         {
             "gene_symbol": ["FAKE1", "FAKE2"],
             "site": ["S1", "T2"],
+            "protein_id": ["FAKE1", "FAKE2"],
             "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),

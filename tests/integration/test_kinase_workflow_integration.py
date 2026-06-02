@@ -43,14 +43,29 @@ from tests.support.rewrite_fixture_data import (
 
 pytestmark = pytest.mark.integration
 _PUBLIC_SITE_ID_PATTERN = re.compile(r"^\s*[^;]+\s*;\s*[^;]+\s*;\s*$")
+_LEGACY_PUBLIC_SITE_ID_PATTERN = re.compile(r"^\s*([A-Za-z][A-Za-z0-9]*)_(\d+)\s*$")
 
 
-def _canonical_public_site_components(site_id: object) -> tuple[str, str, str]:
+def _canonical_public_site_components(
+    site_id: object, sequence: object | None = None
+) -> tuple[str, str, str]:
     raw_site = str(site_id).strip()
     if _PUBLIC_SITE_ID_PATTERN.fullmatch(raw_site):
         parts = raw_site.split(";")
         gene_symbol = parts[0].strip()
         site = parts[1].strip()
+        return f"{gene_symbol};{site};", gene_symbol, site
+
+    legacy_match = _LEGACY_PUBLIC_SITE_ID_PATTERN.fullmatch(raw_site)
+    if legacy_match is not None:
+        gene_symbol = legacy_match.group(1).strip()
+        sequence_token = "" if sequence is None else str(sequence).strip().upper()
+        residue = "S"
+        if sequence_token.isalpha() and len(sequence_token) % 2 == 1:
+            centre = sequence_token[len(sequence_token) // 2]
+            if centre in {"S", "T", "Y"}:
+                residue = centre
+        site = f"{residue}{legacy_match.group(2).strip()}"
         return f"{gene_symbol};{site};", gene_symbol, site
 
     gene_symbol = raw_site.split("_", 1)[0].strip()
@@ -179,6 +194,7 @@ def test_kinase_workflow_uses_dataset_site_sequences_without_mutating_references
     site_metadata = pd.DataFrame(
         {
             "gene_symbol": ["MAPK14", "GSK3B", "EXTRA"],
+            "protein_id": ["MAPK14", "GSK3B", "EXTRA"],
             "site": ["Y182", "S9", "S1"],
             "site_sequence": [
                 "AAAAAAAYAAAAAAA",
@@ -267,6 +283,7 @@ def test_kinase_workflow_site_sequence_conflict_policy_is_public_request_option(
     site_metadata = pd.DataFrame(
         {
             "gene_symbol": ["MAPK14", "GSK3B"],
+            "protein_id": ["MAPK14", "GSK3B"],
             "site": ["Y182", "S9"],
             "site_sequence": [
                 _centered_sequence_for_site("Y182"),
@@ -735,6 +752,7 @@ def test_explicit_mixed_case_references_align_and_emit_normalised_identifiers() 
     site_metadata = pd.DataFrame(
         {
             "gene_symbol": ["MAPK1", "MAPK1"],
+            "protein_id": ["MAPK1", "MAPK1"],
             "site": ["S123", "T185"],
             "site_sequence": [sequence_a, sequence_b],
             "localisation_confidence": [0.95] * phospho.shape[0],
@@ -1046,7 +1064,10 @@ def test_kinase_public_predmat_provenance_matches_golden_contract() -> None:
     input_phospho = load_public_predmat_input_phospho()
     site_sequences = load_public_predmat_input_site_sequences()
     canonical_components = [
-        _canonical_public_site_components(site_id) for site_id in input_phospho.index
+        _canonical_public_site_components(
+            site_id, site_sequences.get(str(site_id).strip())
+        )
+        for site_id in input_phospho.index
     ]
     phospho = input_phospho.copy(deep=True)
     phospho.index = pd.Index(
@@ -1056,13 +1077,15 @@ def test_kinase_public_predmat_provenance_matches_golden_contract() -> None:
     site_metadata = pd.DataFrame(
         {
             "gene_symbol": [gene_symbol for _, gene_symbol, _ in canonical_components],
+            "protein_id": [gene_symbol for _, gene_symbol, _ in canonical_components],
             "site": [site for _, _, site in canonical_components],
             "site_sequence": [
-                _normalize_sequence_center(
-                    _canonical_public_site_components(site_id)[2],
-                    site_sequences[str(site_id).strip()],
+                _normalize_sequence_center(site, site_sequences[str(site_id).strip()])
+                for site_id, (_, _, site) in zip(
+                    input_phospho.index.astype(str),
+                    canonical_components,
+                    strict=True,
                 )
-                for site_id in input_phospho.index.astype(str)
             ],
             "localisation_confidence": [0.95] * phospho.shape[0],
         },
@@ -1084,7 +1107,9 @@ def test_kinase_public_predmat_provenance_matches_golden_contract() -> None:
             [
                 {
                     "kinase": str(kinase),
-                    "substrate_site": _canonical_public_site_components(site_id)[0],
+                    "substrate_site": _canonical_public_site_components(
+                        site_id, site_sequences.get(str(site_id).strip())
+                    )[0],
                 }
                 for kinase, site_ids in substrate_map.items()
                 for site_id in site_ids
@@ -1094,7 +1119,7 @@ def test_kinase_public_predmat_provenance_matches_golden_contract() -> None:
             {
                 "site_sequence": [
                     _normalize_sequence_center(
-                        _canonical_public_site_components(site_id)[2],
+                        _canonical_public_site_components(site_id, sequence)[2],
                         sequence,
                     )
                     for site_id, sequence in site_sequences.items()
@@ -1102,8 +1127,8 @@ def test_kinase_public_predmat_provenance_matches_golden_contract() -> None:
             },
             index=pd.Index(
                 [
-                    _canonical_public_site_components(site_id)[0]
-                    for site_id, _ in site_sequences.items()
+                    _canonical_public_site_components(site_id, sequence)[0]
+                    for site_id, sequence in site_sequences.items()
                 ],
                 name="site_id",
             ),
@@ -1154,6 +1179,7 @@ def test_kinase_public_predmat_provenance_matches_golden_contract() -> None:
         expected=golden["input_tables"],
         expected_overrides={
             **_hash_overrides_from_observed(observed_input_tables),
+            "dataset.site_metadata": {"columns": 5},
         },
         compare_hash_values=False,
     )

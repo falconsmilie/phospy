@@ -582,6 +582,7 @@ def test_builder_succeeds_when_input_explicitly_declares_already_log2_values() -
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
             "site_sequence": ["SEQ_A"],
+            "protein_id": ["MAPK14"],
             "localisation_confidence": [0.95],
         },
         index=phospho.index.copy(),
@@ -591,6 +592,7 @@ def test_builder_succeeds_when_input_explicitly_declares_already_log2_values() -
         DatasetBuildRequest(
             phospho=phospho,
             site_metadata=site_metadata,
+            organism=Organism.RAT,
             input_intensity_scale="log2",
             preprocessing_config=DatasetPreprocessingConfig(
                 intensity_transform=DatasetIntensityTransformConfig(policy="identity")
@@ -629,6 +631,7 @@ def test_builder_fails_on_expected_log2_without_transform_or_declaration() -> No
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
             "site_sequence": ["SEQ_A"],
+            "protein_id": ["MAPK14"],
             "localisation_confidence": [0.95],
         },
         index=phospho.index.copy(),
@@ -645,6 +648,7 @@ def test_builder_fails_on_expected_log2_without_transform_or_declaration() -> No
             DatasetBuildRequest(
                 phospho=phospho,
                 site_metadata=site_metadata,
+                organism=Organism.RAT,
                 preprocessing_config=DatasetPreprocessingConfig(
                     intensity_transform=DatasetIntensityTransformConfig(policy="log2")
                 ),

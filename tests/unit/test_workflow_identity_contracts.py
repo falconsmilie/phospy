@@ -278,6 +278,7 @@ def test_signalome_inputs_require_unique_display_ids_before_workflow_validation(
             DatasetBuildRequest(
                 phospho=phospho,
                 site_metadata=site_metadata,
+                organism=Organism.RAT,
                 preprocessing_config=DatasetPreprocessingConfig(
                     site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
                 ),

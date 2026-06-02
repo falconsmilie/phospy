@@ -42,6 +42,7 @@ def _build_log2_dataset(*, corrected: bool) -> AnalysisReadyPhosphoDataset:
     site_metadata = pd.DataFrame(
         {
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
+            "protein_id": ["MAPK14", "AKT1", "GSK3B"],
             "site": ["Y182", "T308", "S9"],
             "site_sequence": [
                 "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",

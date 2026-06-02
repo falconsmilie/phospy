@@ -65,7 +65,7 @@ def _summary_for_built_dataset(
     *,
     phospho: pd.DataFrame,
     site_metadata: pd.DataFrame,
-    organism: Organism | None = None,
+    organism: Organism | None = Organism.RAT,
     preprocessing_config: DatasetPreprocessingConfig | None = None,
 ):
     built = AnalysisReadyDatasetBuilder().run(
@@ -245,6 +245,7 @@ def test_unresolved_sequence_blocks_dataset_creation_when_fasta_resolution_fails
             DatasetBuildRequest(
                 phospho=phospho,
                 site_metadata=site_metadata,
+                organism=Organism.RAT,
                 input_intensity_scale="linear",
                 preprocessing_config=DatasetPreprocessingConfig(
                     site_sequence_resolution=DatasetSiteSequenceResolutionConfig(

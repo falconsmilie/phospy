@@ -35,6 +35,7 @@ def _dataset_request() -> DatasetBuildRequest:
         site_metadata=pd.DataFrame(
             {
                 "gene_symbol": ["MAPK14"],
+                "protein_id": ["MAPK14"],
                 "site": ["Y182"],
                 "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
                 "localisation_confidence": [0.95],

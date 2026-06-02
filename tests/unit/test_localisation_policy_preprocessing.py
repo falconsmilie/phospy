@@ -14,6 +14,7 @@ from phospy.api.requests import DatasetBuildRequest
 from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.builders.preprocessing import DatasetPreprocessor
 from phospy.science.datasets.preprocessing.models import PreprocessingPlan
+from phospy.science.references.models import Organism
 
 
 def _phospho() -> pd.DataFrame:
@@ -31,6 +32,7 @@ def _site_metadata(
     phospho = _phospho()
     payload: dict[str, list[object]] = {
         "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
+        "protein_id": ["MAPK14", "AKT1", "GSK3B"],
         "site": ["Y182", "T308", "S9"],
         "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
     }
@@ -163,6 +165,7 @@ def test_localisation_waiver_policy_is_recorded_in_dataset_provenance() -> None:
         DatasetBuildRequest(
             phospho=phospho,
             site_metadata=_site_metadata(localisation_values=[0.95, pd.NA, 0.4]),
+            organism=Organism.RAT,
             input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 localisation=DatasetLocalisationConfig(

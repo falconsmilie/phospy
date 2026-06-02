@@ -30,6 +30,7 @@ from tests.support.rewrite_fixture_data import (
 )
 
 _CANONICAL_SITE_ID_PATTERN = re.compile(r"^\s*[^;]+\s*;\s*[^;]+\s*;\s*$")
+_LEGACY_PUBLIC_SITE_ID_PATTERN = re.compile(r"^\s*([A-Za-z][A-Za-z0-9]*)_(\d+)\s*$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,17 +74,52 @@ def _stack_frame(frame: pd.DataFrame) -> pd.Series:
         return frame.stack(dropna=False)
 
 
-def _canonical_public_site_components(site_id: object) -> tuple[str, str, str]:
+def _canonical_public_site_components(
+    site_id: object, sequence: object | None = None
+) -> tuple[str, str, str]:
     raw_site = str(site_id).strip()
     if _CANONICAL_SITE_ID_PATTERN.fullmatch(raw_site):
         parts = raw_site.split(";")
         gene_symbol = parts[0].strip()
-        site = parts[1].strip()
+        site = _strict_public_site_token(parts[1].strip(), sequence=sequence)
+        return f"{gene_symbol};{site};", gene_symbol, site
+
+    legacy_match = _LEGACY_PUBLIC_SITE_ID_PATTERN.fullmatch(raw_site)
+    if legacy_match is not None:
+        gene_symbol = legacy_match.group(1).strip()
+        site = _strict_public_site_token(raw_site, sequence=sequence)
         return f"{gene_symbol};{site};", gene_symbol, site
 
     gene_symbol = raw_site.split("_", 1)[0].strip()
     site = raw_site
     return f"{gene_symbol};{site};", gene_symbol, site
+
+
+def _strict_public_site_token(site_token: str, *, sequence: object | None) -> str:
+    legacy_match = _LEGACY_PUBLIC_SITE_ID_PATTERN.fullmatch(site_token)
+    if legacy_match is None:
+        return site_token
+    sequence_token = "" if sequence is None else str(sequence).strip().upper()
+    residue = "S"
+    if sequence_token.isalpha() and len(sequence_token) % 2 == 1:
+        centre = sequence_token[len(sequence_token) // 2]
+        if centre in {"S", "T", "Y"}:
+            residue = centre
+    return f"{residue}{legacy_match.group(2).strip()}"
+
+
+def _sequence_for_public_site_id(
+    site_id: object, site_sequences: dict[str, str]
+) -> str | None:
+    raw_site = str(site_id).strip()
+    if raw_site in site_sequences:
+        return site_sequences[raw_site]
+    if _CANONICAL_SITE_ID_PATTERN.fullmatch(raw_site):
+        parts = raw_site.split(";")
+        site_token = parts[1].strip()
+        if site_token in site_sequences:
+            return site_sequences[site_token]
+    return None
 
 
 def _centered_sequence_for_site(site: str) -> str:
@@ -109,8 +145,12 @@ def _normalize_sequence_center(site: str, sequence: object) -> str:
 
 def _canonicalize_public_site_frame_index(frame: pd.DataFrame) -> pd.DataFrame:
     normalized = frame.copy(deep=True)
+    site_sequences = load_public_predmat_input_site_sequences()
     canonical_index = [
-        _canonical_public_site_components(site_id)[0] for site_id in normalized.index
+        _canonical_public_site_components(
+            site_id, _sequence_for_public_site_id(site_id, site_sequences)
+        )[0]
+        for site_id in normalized.index
     ]
     normalized.index = pd.Index(canonical_index, name=normalized.index.name)
     return normalized
@@ -122,7 +162,10 @@ def _build_public_predmat_dataset():
     phospho = input_phospho.copy(deep=True)
     site_sequences = load_public_predmat_input_site_sequences()
     canonical_components = [
-        _canonical_public_site_components(site_id) for site_id in phospho.index
+        _canonical_public_site_components(
+            site_id, _sequence_for_public_site_id(site_id, site_sequences)
+        )
+        for site_id in phospho.index
     ]
     phospho.index = pd.Index(
         [canonical_site_id for canonical_site_id, _, _ in canonical_components],
@@ -131,13 +174,13 @@ def _build_public_predmat_dataset():
     site_metadata = pd.DataFrame(
         {
             "gene_symbol": [gene_symbol for _, gene_symbol, _ in canonical_components],
+            "protein_id": [gene_symbol for _, gene_symbol, _ in canonical_components],
             "site": [site for _, _, site in canonical_components],
             "site_sequence": [
-                _normalize_sequence_center(
-                    _canonical_public_site_components(site_id)[2],
-                    site_sequences[str(site_id).strip()],
+                _normalize_sequence_center(site, site_sequences[str(site_id).strip()])
+                for site_id, (_, _, site) in zip(
+                    raw_site_ids, canonical_components, strict=True
                 )
-                for site_id in raw_site_ids
             ],
             "localisation_confidence": [0.95] * phospho.shape[0],
         },
@@ -167,17 +210,20 @@ def _build_public_predmat_references(*, reverse_order: bool) -> ReferenceBundle:
     substrate_rows = [
         {
             "kinase": str(kinase),
-            "substrate_site": _canonical_public_site_components(site_id)[0],
+            "substrate_site": _canonical_public_site_components(
+                site_id, _sequence_for_public_site_id(site_id, site_sequences)
+            )[0],
         }
         for kinase, sites in kinase_items
         for site_id in sites
     ]
     sequence_index = [
-        _canonical_public_site_components(site_id)[0] for site_id, _ in sequence_items
+        _canonical_public_site_components(site_id, sequence)[0]
+        for site_id, sequence in sequence_items
     ]
     sequence_values = [
         _normalize_sequence_center(
-            _canonical_public_site_components(site_id)[2],
+            _canonical_public_site_components(site_id, sequence)[2],
             sequence,
         )
         for site_id, sequence in sequence_items

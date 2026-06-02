@@ -2091,6 +2091,7 @@ def test_dataset_interpreter_does_not_apply_preprocessing_science() -> None:
                 "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
                 "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
             ],
+            "protein_id": ["MAPK14", "GSK3B"],
             "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index,
@@ -2098,6 +2099,7 @@ def test_dataset_interpreter_does_not_apply_preprocessing_science() -> None:
     request = DatasetBuildRequest(
         phospho=phospho,
         site_metadata=site_metadata,
+        organism=Organism.RAT,
         preprocessing_config=DatasetPreprocessingConfig(
             missing_data=DatasetMissingDataConfig(
                 policy="impute_row_median",
@@ -2132,6 +2134,7 @@ def test_dataset_builder_request_quantitative_meaning_propagates_to_provenance()
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": ["SEQ_A", "SEQ_R"],
+            "protein_id": ["MAPK14", "AKT1"],
             "localisation_confidence": [0.95, 0.96],
         },
         index=phospho.index.copy(),
@@ -2142,6 +2145,7 @@ def test_dataset_builder_request_quantitative_meaning_propagates_to_provenance()
             DatasetBuildRequest(
                 phospho=phospho,
                 site_metadata=site_metadata,
+                organism=Organism.RAT,
                 input_intensity_scale="log2",
                 quantitative_meaning=QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE.value,
             )

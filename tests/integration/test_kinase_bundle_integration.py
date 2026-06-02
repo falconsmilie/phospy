@@ -469,6 +469,7 @@ def _build_request(*, activity: bool) -> KinaseWorkflowRequest:
     site_metadata = pd.DataFrame(
         {
             "gene_symbol": ["MAPK14", "GSK3B", "AKT1"],
+            "protein_id": ["MAPK14", "GSK3B", "AKT1"],
             "site": ["Y182", "S9", "T308"],
             "site_sequence": [
                 "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
@@ -646,6 +647,7 @@ def _build_request_with_subtract_log_total(*, activity: bool) -> KinaseWorkflowR
     site_metadata = pd.DataFrame(
         {
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
+            "protein_id": ["MAPK14", "AKT1", "GSK3B"],
             "site": ["Y182", "T308", "S9"],
             "site_sequence": [
                 "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",

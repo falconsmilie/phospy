@@ -34,9 +34,6 @@ from phospy.science.evidence.models import PeptideEvidenceTable
 from phospy.science.references.models import Organism
 from phospy.science.sites.identifiers import SiteIdentifierNormalisationReport
 from phospy.science.sites.validation import require_no_mixed_site_key_isoform_scope
-from phospy.validation.datasets.display_site_identity import (
-    enforce_unique_display_site_identity_rows,
-)
 from phospy.validation.datasets.protein_scoped_site_identity import (
     enforce_display_id_column,
     enforce_site_key_column,
@@ -258,15 +255,14 @@ class DatasetBuildSourceResolver:
         site_metadata: pd.DataFrame,
         organism: Organism | None,
     ) -> pd.DataFrame:
+        if _has_complete_explicit_site_identity_fields(site_metadata):
+            return site_metadata
         if _has_blank_or_missing_site_identity_fields(site_metadata):
             return site_metadata
         try:
             return self._site_identity_deriver.run(
                 site_metadata=site_metadata,
                 organism=organism,
-                allow_gene_symbol_fallback=True,
-                fallback_organism="unknown",
-                allow_non_strict_site_fallback=True,
                 copy_site_metadata=False,
             )
         except (TypeError, ValueError, KeyError, PhosPyInputError) as exc:
@@ -275,8 +271,10 @@ class DatasetBuildSourceResolver:
                 field_name="dataset build request site_metadata",
                 operation="deriving display_id and site_key metadata columns",
                 next_action=(
-                    "ensure site_metadata provides canonical gene/site values and "
-                    "string-compatible optional identity fields"
+                    "ensure site_metadata provides canonical gene/site values, "
+                    "strict residue/position site tokens, organism, and explicit "
+                    "protein context via protein_accession, protein_id, or "
+                    "protein_identifier plus protein_namespace"
                 ),
                 original_error=exc,
             )
@@ -312,7 +310,6 @@ class DatasetBuildSourceResolver:
             site_matrix_policy,
             field_name="dataset build request preprocessing_config.site_matrix.policy",
         )
-        enforce_duplicate_display_identity = True
         if resolved_site_matrix_policy is SiteMatrixPolicy.BUILD_FROM_METADATA:
             SiteMatrixDuplicateSitePolicy.parse(
                 duplicate_site_policy,
@@ -321,7 +318,6 @@ class DatasetBuildSourceResolver:
                     "preprocessing_config.site_matrix.duplicate_site_policy"
                 ),
             )
-            enforce_duplicate_display_identity = False
             display_ids = enforce_display_id_column(
                 site_metadata=site_metadata,
                 field_name="dataset build request site_metadata",
@@ -345,18 +341,6 @@ class DatasetBuildSourceResolver:
                     "display-site identifier is required for unresolved duplicates; "
                     f"duplicate_display_ids=[{preview}{suffix}]"
                 )
-        if enforce_duplicate_display_identity:
-            display_ids = enforce_display_id_column(
-                site_metadata=site_metadata,
-                field_name="dataset build request site_metadata",
-                error_type=PhosPyInputError,
-            )
-            enforce_unique_display_site_identity_rows(
-                site_metadata=site_metadata,
-                display_site_ids=display_ids,
-                field_name="dataset build request site_metadata",
-                error_type=PhosPyInputError,
-            )
 
         if resolved_site_matrix_policy is SiteMatrixPolicy.BUILD_FROM_METADATA:
             return
@@ -533,3 +517,19 @@ def _has_blank_or_missing_site_identity_fields(site_metadata: pd.DataFrame) -> b
         | (site_token == "")
     )
     return bool(has_blank_or_missing.any())
+
+
+def _has_complete_explicit_site_identity_fields(site_metadata: pd.DataFrame) -> bool:
+    return _has_complete_column(site_metadata, "display_id") and _has_complete_column(
+        site_metadata,
+        "site_key",
+    )
+
+
+def _has_complete_column(site_metadata: pd.DataFrame, column_name: str) -> bool:
+    if column_name not in site_metadata.columns:
+        return False
+    values = site_metadata.loc[:, column_name]
+    tokens = values.astype("string").str.strip()
+    blank_or_missing = values.isna() | tokens.isna() | (tokens == "")
+    return not bool(blank_or_missing.any())

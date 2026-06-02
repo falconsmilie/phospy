@@ -146,6 +146,7 @@ def _mixed_total_correction_dataset() -> AnalysisReadyPhosphoDataset:
             phospho=phospho,
             site_metadata=site_metadata,
             total=total,
+            organism=Organism.RAT,
             preprocessing_config=DatasetPreprocessingConfig(
                 intensity_transform=DatasetIntensityTransformConfig(
                     policy="log2",

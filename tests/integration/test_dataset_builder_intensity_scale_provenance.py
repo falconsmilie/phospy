@@ -28,6 +28,8 @@ def _site_metadata(index: pd.Index) -> pd.DataFrame:
         {
             "gene_symbol": gene_symbols,
             "site": sites,
+            "protein_id": gene_symbols,
+            "organism": ["rat"] * rows,
             "site_sequence": ["SEQ_A"] * rows,
             "localisation_confidence": [0.95] * rows,
         },

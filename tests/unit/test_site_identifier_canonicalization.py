@@ -31,14 +31,11 @@ from tests.support.site_keys import (
 
 
 def _site_key(display_id: str) -> str:
-    return site_key_from_display_id(display_id, protein_namespace="gene_symbol")
+    return site_key_from_display_id(display_id)
 
 
 def _site_keys(display_ids: list[str]) -> pd.Index:
-    return site_key_index_from_display_ids(
-        display_ids,
-        protein_namespace="gene_symbol",
-    )
+    return site_key_index_from_display_ids(display_ids)
 
 
 def test_builder_canonicalizes_site_ids_and_reorders_site_metadata() -> None:
@@ -58,6 +55,7 @@ def test_builder_canonicalizes_site_ids_and_reorders_site_metadata() -> None:
                 ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
                 for site in ["T308", "Y182"]
             ],
+            "protein_id": ["AKT1", "MAPK14"],
             "localisation_confidence": [0.95, 0.9],
         }
     )
@@ -99,6 +97,7 @@ def test_builder_canonicalizes_lowercase_site_ids() -> None:
                 ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
                 for site in ["y182"]
             ],
+            "protein_id": ["MAPK14"],
             "localisation_confidence": [0.95],
         }
     )
@@ -135,6 +134,7 @@ def test_builder_does_not_mutate_caller_owned_phospho_frame() -> None:
                 ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
                 for site in ["Y182"]
             ],
+            "protein_id": ["MAPK14"],
             "localisation_confidence": [0.95],
         }
     )
@@ -168,6 +168,7 @@ def test_builder_does_not_mutate_caller_owned_site_metadata_frame() -> None:
                 ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
                 for site in ["y182"]
             ],
+            "protein_id": ["MAPK14"],
             "localisation_confidence": [0.95],
         }
     )
@@ -203,6 +204,7 @@ def test_builder_rejects_ambiguous_site_ids_after_canonicalization() -> None:
                 ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
                 for site in ["Y182", "Y182"]
             ],
+            "protein_id": ["MAPK14", "MAPK14"],
             "localisation_confidence": [0.95, 0.9],
         },
         index=phospho.index.copy(),
@@ -210,7 +212,7 @@ def test_builder_rejects_ambiguous_site_ids_after_canonicalization() -> None:
 
     with pytest.raises(
         PhosPyInputError,
-        match="one analysis-ready row per normalised display-site identifier",
+        match="site_key must be unique",
     ):
         AnalysisReadyDatasetBuilder().run(
             DatasetBuildRequest(
@@ -236,13 +238,14 @@ def test_builder_rejects_colliding_dirty_site_ids_after_canonicalization() -> No
                 ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
                 for site in ["Y182", "Y182"]
             ],
+            "protein_id": ["MAPK14", "MAPK14"],
             "localisation_confidence": [0.95, 0.9],
         }
     )
 
     with pytest.raises(
         PhosPyInputError,
-        match="one analysis-ready row per normalised display-site identifier",
+        match="site_key must be unique",
     ):
         AnalysisReadyDatasetBuilder().run(
             DatasetBuildRequest(
@@ -732,6 +735,7 @@ def test_dataset_and_reference_ids_align_after_shared_normalization() -> None:
                         ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
                         for site in ["y182"]
                     ],
+                    "protein_id": ["mapk14"],
                     "localisation_confidence": [0.95],
                 }
             ),

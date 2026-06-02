@@ -61,7 +61,17 @@ def _build_dataset_with_attrition_mix() -> object:
                 "MISSQ",
                 "REF2",
             ],
-            "site": ["Y182", "Y183", "S9", "T308", "123", "S1", "S1", "T1"],
+            "protein_id": [
+                "MAPK14",
+                "MAPK14",
+                "GSK3B",
+                "AKT1",
+                "BADID",
+                "NOREF",
+                "MISSQ",
+                "REF2",
+            ],
+            "site": ["Y182", "Y183", "S9", "T308", "S123", "S1", "S1", "T1"],
             "site_sequence": [
                 _centred_sequence("Y"),
                 _centred_sequence("Y"),
@@ -181,11 +191,11 @@ def test_kinase_workflow_exposes_compact_site_attrition_summary() -> None:
     assert eligibility.eligible_kinases == 2
     assert eligibility.excluded_kinases_below_min_substrates == 0
 
-    assert scoring.rows_removed_invalid_or_missing_site_identifiers == 1
+    assert scoring.rows_removed_invalid_or_missing_site_identifiers == 0
     assert scoring.final_quantitative_sites_entering_scoring == 7
-    assert scoring.sites_with_valid_site_sequence == 6
-    assert scoring.sites_without_usable_site_sequence == 1
-    assert scoring.sites_eligible_for_motif_scoring == 6
+    assert scoring.sites_with_valid_site_sequence == 7
+    assert scoring.sites_without_usable_site_sequence == 0
+    assert scoring.sites_eligible_for_motif_scoring == 7
     assert scoring.sites_with_kinase_substrate_reference_profile_evidence == 3
     assert scoring.sites_contributing_to_final_fused_prediction_scoring_output == int(
         result.prediction_result.pred_mat.notna().any(axis=1).sum()

@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyDatasetBuilder
-from phospy.api import DatasetBuildRequest, PhosPyInputError
+from phospy.api import DatasetBuildRequest, Organism, PhosPyInputError
 from phospy.api.requests import (
     DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING,
     DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
@@ -13,7 +13,6 @@ from phospy.api.requests import (
     DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
     DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
 )
-from phospy.errors.validation import DatasetValidationError
 from phospy.science.datasets.builders.validator import DatasetBuildRequestValidator
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.evidence import (
@@ -125,6 +124,7 @@ def test_peptide_evidence_requires_multi_site_policy() -> None:
         peptide_evidence=_peptide_evidence_frame(),
         peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
         input_intensity_scale="linear",
+        organism=Organism.HUMAN,
     )
     with pytest.raises(
         PhosPyInputError,
@@ -140,6 +140,7 @@ def test_reject_policy_fails_on_ambiguous_peptide_evidence() -> None:
         peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
         multi_site_policy=DATASET_MULTI_SITE_POLICY_REJECT,
         input_intensity_scale="linear",
+        organism=Organism.HUMAN,
     )
     with pytest.raises(
         PhosPyInputError,
@@ -156,6 +157,7 @@ def test_exclude_policy_records_exclusions_in_report_and_provenance() -> None:
             peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
             multi_site_policy=DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING,
             input_intensity_scale="linear",
+            organism=Organism.HUMAN,
         )
     )
     assert built.phospho.index.name == "site_key"
@@ -181,31 +183,25 @@ def test_exclude_policy_records_exclusions_in_report_and_provenance() -> None:
     )
 
 
-def test_keep_joint_policy_preserves_joint_ambiguous_site_representation() -> None:
-    built = AnalysisReadyDatasetBuilder().run(
-        DatasetBuildRequest(
-            site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
-            peptide_evidence=_peptide_evidence_frame(include_single_site=False),
-            peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
-            multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
-            input_intensity_scale="linear",
-            allow_opaque_site_values=True,
+def test_keep_joint_policy_rejects_joint_ambiguous_site_representation() -> None:
+    with pytest.raises(PhosPyInputError, match="strict residue/position"):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+                peptide_evidence=_peptide_evidence_frame(include_single_site=False),
+                peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
+                multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+                input_intensity_scale="linear",
+                allow_opaque_site_values=True,
+                organism=Organism.HUMAN,
+            )
         )
-    )
-    joint_key = _site_key_for_display_id(built, "MAPK1;S10,T12;")
-    assert list(built.phospho.index.astype(str)) == [joint_key]
-    site_value = built.site_metadata.loc[joint_key, "site"]
-    assert str(site_value) == "S10,T12"
-    assert built.provenance is not None
-    assert built.provenance.workflow_parameters["site_token_validation"] == {
-        "mode": "opaque_opt_in"
-    }
 
 
 def test_keep_joint_policy_without_opaque_opt_in_fails_dataset_validation() -> None:
     with pytest.raises(
-        DatasetValidationError,
-        match="site values must use strict 'S/T/Y<position>' tokens",
+        PhosPyInputError,
+        match="strict residue/position",
     ):
         AnalysisReadyDatasetBuilder().run(
             DatasetBuildRequest(
@@ -214,6 +210,7 @@ def test_keep_joint_policy_without_opaque_opt_in_fails_dataset_validation() -> N
                 peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
                 multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
                 input_intensity_scale="linear",
+                organism=Organism.HUMAN,
             )
         )
 
@@ -226,6 +223,7 @@ def test_split_policy_applies_deterministic_equal_split() -> None:
             peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
             multi_site_policy=DATASET_MULTI_SITE_POLICY_SPLIT,
             input_intensity_scale="linear",
+            organism=Organism.HUMAN,
         )
     )
     assert set(_display_ids(built)) == {"MAPK1;S10;", "MAPK1;T12;"}
@@ -247,6 +245,7 @@ def test_split_policy_mixed_ambiguous_and_unambiguous_rows_is_deterministic() ->
             peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
             multi_site_policy=DATASET_MULTI_SITE_POLICY_SPLIT,
             input_intensity_scale="linear",
+            organism=Organism.HUMAN,
         )
     )
     assert set(_display_ids(built)) == {
@@ -309,6 +308,7 @@ def test_multiple_peptides_mapping_to_one_site_are_mean_aggregated() -> None:
             peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
             multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
             input_intensity_scale="linear",
+            organism=Organism.HUMAN,
         )
     )
     mapk1_s10 = _site_key_for_display_id(built, "MAPK1;S10;")
@@ -332,6 +332,7 @@ def test_duplicate_peptide_rows_are_retained_as_independent_observations() -> No
             peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
             multi_site_policy=DATASET_MULTI_SITE_POLICY_SPLIT,
             input_intensity_scale="linear",
+            organism=Organism.HUMAN,
         )
     )
     mapk1_s10 = _site_key_for_display_id(built, "MAPK1;S10;")
@@ -405,6 +406,7 @@ def test_peptide_evidence_resolution_provenance_records_aggregation_semantics() 
             peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
             multi_site_policy=DATASET_MULTI_SITE_POLICY_SPLIT,
             input_intensity_scale="linear",
+            organism=Organism.HUMAN,
         )
     )
     assert built.provenance is not None

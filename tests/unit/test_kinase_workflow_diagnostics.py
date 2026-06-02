@@ -57,6 +57,7 @@ def _dataset(
             "site_key": site_index.astype(str).tolist(),
             "display_id": site_ids,
             "gene_symbol": [site.split(";", 1)[0] for site in site_ids],
+            "protein_id": [site.split(";", 1)[0] for site in site_ids],
             "site": [site.split(";")[1] for site in site_ids],
             "site_sequence": [
                 ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
@@ -583,6 +584,7 @@ def test_eligibility_report_includes_localisation_counts_when_policy_available()
     site_metadata = pd.DataFrame(
         {
             "gene_symbol": ["MAPK14", "GSK3B"],
+            "protein_id": ["MAPK14", "GSK3B"],
             "site": ["Y182", "S9"],
             "site_sequence": [
                 ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)

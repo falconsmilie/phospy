@@ -38,6 +38,7 @@ from phospy.science.datasets.preprocessing.report_schema import (
     dataframe_from_row_audit_rows,
     dataframe_from_row_count_rows,
 )
+from phospy.science.references.models import Organism
 
 
 def test_row_count_rows_convert_to_dataframe_with_schema_order() -> None:
@@ -156,6 +157,7 @@ def test_preprocessing_report_integration_preserves_representative_values() -> N
     site_metadata = pd.DataFrame(
         {
             "gene_symbol": ["MAPK14", "GSK3B", "AKT1"],
+            "protein_id": ["MAPK14", "GSK3B", "AKT1"],
             "site": ["Y182", "S9", "T308"],
             "site_sequence": ["SEQ_A", "SEQ_R", "SEQ_C"],
             "localisation_confidence": [0.95, 0.9, 0.92],
@@ -172,6 +174,7 @@ def test_preprocessing_report_integration_preserves_representative_values() -> N
             phospho=phospho,
             site_metadata=site_metadata,
             sample_metadata=sample_metadata,
+            organism=Organism.RAT,
             input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 site_matrix=DatasetSiteMatrixConfig(
@@ -216,6 +219,7 @@ def test_report_schema_stable_with_missing_data_diagnostics_enabled() -> None:
     site_metadata = pd.DataFrame(
         {
             "gene_symbol": ["MAPK14", "AKT1"],
+            "protein_id": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": ["SEQ_A", "SEQ_R"],
             "localisation_confidence": [0.95, 0.9],
@@ -227,6 +231,7 @@ def test_report_schema_stable_with_missing_data_diagnostics_enabled() -> None:
         DatasetBuildRequest(
             phospho=phospho,
             site_metadata=site_metadata,
+            organism=Organism.RAT,
             input_intensity_scale="linear",
             preprocessing_config=DatasetPreprocessingConfig(
                 missing_data=DatasetMissingDataConfig(

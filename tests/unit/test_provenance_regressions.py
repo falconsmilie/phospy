@@ -173,6 +173,7 @@ def test_dataset_output_fingerprints_match_observed_numeric_outputs() -> None:
     site_metadata = pd.DataFrame(
         {
             "gene_symbol": ["MAPK14", "AKT1"],
+            "protein_id": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": [SEQ_Y, SEQ_T],
             "localisation_confidence": [0.95, 0.9],
@@ -223,6 +224,7 @@ def test_dataset_provenance_exact_hash_changes_for_tiny_shift_but_tolerance_hash
     site_metadata = pd.DataFrame(
         {
             "gene_symbol": ["MAPK14", "AKT1"],
+            "protein_id": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": [SEQ_Y, SEQ_T],
             "localisation_confidence": [0.95, 0.9],
@@ -276,6 +278,7 @@ def test_processing_state_bundle_round_trip_from_real_preprocessing_output() -> 
     site_metadata = pd.DataFrame(
         {
             "gene_symbol": ["MAPK14", "AKT1"],
+            "protein_id": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": [SEQ_Y, SEQ_T],
             "localisation_confidence": [0.95, 0.9],
@@ -317,6 +320,7 @@ def test_preprocessing_policy_changes_are_visible_in_provenance() -> None:
     site_metadata = pd.DataFrame(
         {
             "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
+            "protein_id": ["MAPK14", "AKT1", "GSK3B"],
             "site": ["Y182", "T308", "S9"],
             "site_sequence": [SEQ_Y, SEQ_T, SEQ_S],
             "localisation_confidence": [0.95, 0.9, 0.92],

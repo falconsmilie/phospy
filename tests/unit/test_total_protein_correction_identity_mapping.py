@@ -17,6 +17,7 @@ from phospy.science.datasets.builders.executor import DatasetBuildExecutor
 from phospy.science.datasets.builders.interpreter import DatasetBuildRequestInterpreter
 from phospy.science.datasets.builders.preprocessing import DatasetPreprocessor
 from phospy.science.datasets.preprocessing.models import PreprocessingPlan
+from phospy.science.references.models import Organism
 
 
 def _phospho() -> pd.DataFrame:
@@ -536,6 +537,7 @@ def test_total_correction_provenance_records_identity_policy() -> None:
             phospho=_phospho(),
             site_metadata=_site_metadata(),
             total=total,
+            organism=Organism.RAT,
             preprocessing_config=request_config,
         )
     )
