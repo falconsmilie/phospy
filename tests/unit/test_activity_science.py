@@ -24,6 +24,23 @@ from phospy.science.activities.threshold_membership import (
     ActivityThresholdMembershipDiagnostics,
     threshold_membership_mask_array,
 )
+from tests.support.site_keys import site_key_index_from_display_ids
+
+
+def _site_key_index(display_ids: list[str]) -> pd.Index:
+    return site_key_index_from_display_ids(
+        display_ids,
+        protein_namespace="gene_symbol",
+    )
+
+
+def _with_site_key_index(frame: pd.DataFrame) -> pd.DataFrame:
+    labels = frame.index.astype(str).tolist()
+    if all(label.startswith("phospy:v1|") for label in labels):
+        return frame
+    converted = frame.copy(deep=True)
+    converted.index = _site_key_index(labels)
+    return converted
 
 
 def _inputs(
@@ -34,6 +51,8 @@ def _inputs(
     min_substrates: int,
     top_n_substrates: int,
 ) -> KinaseActivityInputs:
+    pred_mat = _with_site_key_index(pred_mat)
+    phospho_matrix = _with_site_key_index(phospho_matrix)
     overlap_count = int(pred_mat.index.intersection(phospho_matrix.index).size)
     return KinaseActivityInputs(
         pred_mat=pred_mat,
@@ -320,7 +339,7 @@ def test_weighted_and_ksea_share_boundary_threshold_membership_and_counts() -> N
         min_substrates=1,
     )
 
-    expected_sites = {"S2;S2;", "S3;S3;"}
+    expected_sites = set(_site_key_index(["S2;S2;", "S3;S3;"]).astype(str))
     assert weighted.thresholded_substrate_counts.to_dict() == {"K1": 2}
     assert weighted.target_counts.to_dict() == {"K1": 2}
     assert ksea.thresholded_substrate_counts.to_dict() == {"K1": 2}
@@ -331,7 +350,7 @@ def test_weighted_and_ksea_share_boundary_threshold_membership_and_counts() -> N
     assert weighted_sites == expected_sites
     assert ksea_sites == expected_sites
     assert weighted_sites == ksea_sites
-    assert "S1;S1;" not in weighted_sites
+    assert _site_key_index(["S1;S1;"])[0] not in weighted_sites
 
     assert weighted.thresholded_substrate_mean_activity.at["K1", "c1"] == pytest.approx(
         2.5

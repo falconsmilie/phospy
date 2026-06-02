@@ -25,8 +25,6 @@ from phospy.science.prediction.policies import (
 )
 from phospy.science.references.models import ReferenceBundle
 from phospy.science.sites.validation import (
-    require_canonical_site_index,
-    require_canonical_site_series,
     require_site_key_index,
     require_site_key_series,
 )
@@ -455,16 +453,7 @@ def _require_site_index_identity(
     field_name: str,
     error_type: type[WorkflowBoundaryError],
 ) -> None:
-    try:
-        require_site_key_index(
-            index,
-            field_name=field_name,
-            error_type=error_type,
-        )
-        return
-    except WorkflowBoundaryError:
-        pass
-    require_canonical_site_index(
+    require_site_key_index(
         index,
         field_name=field_name,
         error_type=error_type,
@@ -477,16 +466,7 @@ def _require_site_series_identity(
     field_name: str,
     error_type: type[WorkflowBoundaryError],
 ) -> None:
-    try:
-        require_site_key_series(
-            series,
-            field_name=field_name,
-            error_type=error_type,
-        )
-        return
-    except WorkflowBoundaryError:
-        pass
-    require_canonical_site_series(
+    require_site_key_series(
         series,
         field_name=field_name,
         error_type=error_type,

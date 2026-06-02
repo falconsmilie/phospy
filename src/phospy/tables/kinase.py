@@ -8,10 +8,7 @@ import pandas as pd
 
 from phospy.errors.validation import PhosPyValidationError
 from phospy.frames.ownership import own_dataframe
-from phospy.science.sites.validation import (
-    require_canonical_site_index,
-    require_site_key_index,
-)
+from phospy.science.sites.validation import require_site_key_index
 from phospy.tables.base import TableSchema, require_canonical_label_index
 from phospy.validation.common.dataframes import (
     require_dataframe,
@@ -161,16 +158,7 @@ def _require_site_index_identity(
     field_name: str,
     error_type: type[PhosPyValidationError],
 ) -> None:
-    try:
-        require_site_key_index(
-            index,
-            field_name=field_name,
-            error_type=error_type,
-        )
-        return
-    except error_type:
-        pass
-    require_canonical_site_index(
+    require_site_key_index(
         index,
         field_name=field_name,
         error_type=error_type,

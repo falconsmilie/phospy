@@ -168,7 +168,7 @@ def test_kinase_prediction_result_rejects_malformed_pred_mat_immediately() -> No
         KinasePredictionResult(
             pred_mat=pd.DataFrame(
                 {"MAP2K6": [1.5]},
-                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+                index=_SITE_INDEX.copy(),
             )
         )
 

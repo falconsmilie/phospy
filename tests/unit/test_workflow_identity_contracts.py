@@ -177,11 +177,13 @@ def _signalome_request(
         kinase_result=KinaseWorkflowResult(
             dataset=dataset,
             references=_references(),
-            scoring_result=KinaseScoringResult(
+            scoring_result=KinaseScoringResult._from_owned(
                 profile_scores=score_matrix,
                 rank_weighted_fusion_scores=score_matrix,
             ),
-            prediction_result=KinasePredictionResult(pred_mat=prediction_matrix),
+            prediction_result=KinasePredictionResult._from_owned(
+                pred_mat=prediction_matrix
+            ),
             activity_result=None,
         ),
         config=build_signalome_config(substrate_support_cutoff=0.5),

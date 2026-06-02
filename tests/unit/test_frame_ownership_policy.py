@@ -428,7 +428,7 @@ def test_internal_activity_inputs_alias_owned_frames() -> None:
             "MAP2K6": [0.9, 0.8],
             "AKT1": [0.2, 0.1],
         },
-        index=["MAPK14;Y182;", "GSK3B;S9;"],
+        index=_SITE_INDEX.copy(),
     )
     phospho_matrix = _phospho()
     overlap_summary = PredMatOverlapSummary(
@@ -456,7 +456,7 @@ def test_prediction_result_boundary_copy_and_owned_transfer_modes() -> None:
             "MAP2K6": [0.9, 0.8],
             "AKT1": [0.2, 0.1],
         },
-        index=["MAPK14;Y182;", "GSK3B;S9;"],
+        index=_SITE_INDEX.copy(),
     )
     substrate_list = pd.DataFrame(
         {

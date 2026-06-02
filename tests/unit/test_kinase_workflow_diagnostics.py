@@ -697,7 +697,7 @@ def test_boundary_error_reports_activity_overlap_edge_case() -> None:
     prediction_result = KinasePredictionResult(
         pred_mat=pd.DataFrame(
             {"MAP2K6": [0.8]},
-            index=pd.Index(["OTHER;S1;"], name="site_id"),
+            index=site_key_index_from_display_ids(["OTHER;S1;"]),
         ),
     )
 

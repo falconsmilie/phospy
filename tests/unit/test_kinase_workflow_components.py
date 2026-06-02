@@ -371,6 +371,28 @@ def test_direct_unnormalised_site_ids_are_rejected_by_execution_contract() -> No
         )
 
 
+def test_execution_contract_rejects_display_indexed_scoring_site_index() -> None:
+    dataset = _dataset()
+    references = _references()
+    kinase_substrate_map, site_sequences = _project_references_to_site_key(
+        dataset,
+        references,
+    )
+    display_index = pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id")
+
+    with pytest.raises(WorkflowBoundaryError, match="scoring_site_index"):
+        ResolvedKinaseWorkflowRequest(
+            dataset=dataset,
+            references=references,
+            kinase_substrate_map=kinase_substrate_map,
+            site_sequences=site_sequences,
+            site_identity_map=_site_identity_map(dataset),
+            scoring_site_index=display_index,
+            activity_phospho_matrix=dataset.phospho.copy(deep=True),
+            execution_config=_config(),
+        )
+
+
 def test_already_normalised_execution_inputs_are_accepted() -> None:
     request = _resolved_request()
 
@@ -450,6 +472,51 @@ def test_interpreter_maps_one_display_reference_to_multiple_site_keys() -> None:
     assert isinstance(matches, list)
     assert matches[0]["display_id"] == "MAPK14;Y182;"
     assert set(matches[0]["site_keys"]) == set(dataset.phospho.index.astype(str)[:2])
+
+
+def test_projected_kinase_substrate_map_preserves_site_key_identity() -> None:
+    dataset = _dataset_with_duplicate_display_ids()
+
+    interpreted = KinaseWorkflowInterpreter().run(
+        KinaseWorkflowRequest(dataset=dataset, references=_references())
+    )
+
+    substrate_sites = interpreted.kinase_substrate_map.loc[:, "substrate_site"].astype(
+        str
+    )
+    assert set(substrate_sites) <= set(dataset.phospho.index.astype(str))
+    assert "MAPK14;Y182;" not in set(substrate_sites)
+    assert {"substrate_site", "display_id"} <= set(interpreted.kinase_substrate_map)
+    assert set(
+        interpreted.kinase_substrate_map.loc[
+            interpreted.kinase_substrate_map.loc[:, "display_id"] == "MAPK14;Y182;",
+            "substrate_site",
+        ].astype(str)
+    ) == set(dataset.phospho.index.astype(str)[:2])
+
+
+def test_one_to_many_reference_matching_diagnostic_includes_display_and_site_keys() -> (
+    None
+):
+    dataset = _dataset_with_duplicate_display_ids()
+
+    interpreted = KinaseWorkflowInterpreter().run(
+        KinaseWorkflowRequest(dataset=dataset, references=_references())
+    )
+
+    diagnostics = interpreted.site_sequence_merge_diagnostics[
+        "display_reference_matching"
+    ]
+    matches = diagnostics["one_to_many_display_reference_matches"]
+    assert isinstance(matches, list)
+    assert matches == [
+        {
+            "display_id": "MAPK14;Y182;",
+            "site_keys": dataset.phospho.index.astype(str).tolist()[:2],
+            "reference_rows": 1,
+            "projected_rows": 2,
+        }
+    ]
 
 
 def test_scoring_runner_returns_expected_downstream_score_source() -> None:
@@ -537,9 +604,59 @@ def test_prediction_output_construction_receives_normalised_kinase_ids() -> None
     assert set(captured_selected_kinases.astype(str)) == {"MAP2K6"}
     assert captured_candidate_keys == {"MAP2K6"}
     assert set(prediction_result.pred_mat.columns.astype(str)) == {"MAP2K6"}
-    if prediction_result.substrate_list is not None:
-        assert set(prediction_result.substrate_list.loc[:, "kinase"]) <= {"MAP2K6"}
-        assert {"site_key", "display_id"} <= set(prediction_result.substrate_list)
+    assert prediction_result.pred_mat.index.equals(request.scoring_site_index)
+    substrate_list = prediction_result.substrate_list
+    assert substrate_list is not None
+    assert set(substrate_list.loc[:, "kinase"]) <= {"MAP2K6"}
+    assert {"site_key", "display_id"} <= set(substrate_list)
+    assert set(substrate_list.loc[:, "site_key"].astype(str)) <= set(
+        request.scoring_site_index.astype(str)
+    )
+
+
+def test_duplicate_display_id_does_not_overwrite_prediction_rows() -> None:
+    dataset = _dataset_with_duplicate_display_ids()
+    request = KinaseWorkflowInterpreter().run(
+        KinaseWorkflowRequest(dataset=dataset, references=_references())
+    )
+    scores = pd.DataFrame(
+        {"MAP2K6": [0.95, 0.85, 0.75]},
+        index=request.scoring_site_index.copy(),
+    )
+    scoring_execution = KinaseScoringRunResult(
+        scoring_result=KinaseScoringResult._from_owned(profile_scores=scores),
+        downstream_score_matrix=scores,
+        downstream_score_source="profile_scores",
+        quantified_substrates={
+            "MAP2K6": request.scoring_site_index.astype(str).tolist()
+        },
+    )
+
+    prediction_result = KinasePredictionRunner().run(
+        request=request,
+        config=request.execution_config,
+        scoring_execution=scoring_execution,
+    )
+
+    duplicate_site_keys = request.site_identity_map.loc[
+        request.site_identity_map.loc[:, "display_id"] == "MAPK14;Y182;",
+        "site_key",
+    ].astype(str)
+    observed_scores = prediction_result.pred_mat.loc[
+        duplicate_site_keys.tolist(), "MAP2K6"
+    ].astype(float)
+    assert observed_scores.to_dict() == {
+        duplicate_site_keys.iloc[0]: pytest.approx(0.95),
+        duplicate_site_keys.iloc[1]: pytest.approx(0.85),
+    }
+    substrate_list = prediction_result.substrate_list
+    assert substrate_list is not None
+    duplicate_rows = substrate_list.loc[
+        substrate_list.loc[:, "display_id"] == "MAPK14;Y182;", :
+    ]
+    assert set(duplicate_rows.loc[:, "site_key"].astype(str)) == set(
+        duplicate_site_keys
+    )
 
 
 def test_activity_scoring_receives_only_normalised_kinase_ids() -> None:
@@ -659,7 +776,7 @@ def test_activity_runner_selects_weighted_method_from_config() -> None:
     )
     prediction_result = KinasePredictionResult._from_owned(
         pred_mat=pd.DataFrame(
-            {"MAP2K6": [0.7, 0.6]},
+            {"MAP2K6": [0.9, 0.8]},
             index=request.scoring_site_index.copy(),
         )
     )
@@ -673,6 +790,14 @@ def test_activity_runner_selects_weighted_method_from_config() -> None:
     assert result.activity_method.activity_method_id == (
         "simplified_weighted_substrate_activity_v1"
     )
+    assert {"site_key", "display_id"} <= set(result.target_table.columns)
+    assert set(result.target_table.loc[:, "site_key"].astype(str)) == set(
+        request.scoring_site_index.astype(str)
+    )
+    assert set(result.target_table.loc[:, "display_id"].astype(str)) == {
+        "MAPK14;Y182;",
+        "GSK3B;S9;",
+    }
 
 
 def test_activity_runner_selects_ksea_method_from_config() -> None:

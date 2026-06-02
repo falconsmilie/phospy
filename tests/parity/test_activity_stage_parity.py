@@ -23,13 +23,29 @@ from tests.support.rewrite_fixture_data import (
     load_activity_reference_weighted_activity,
     load_rat_l6_phospho,
 )
+from tests.support.site_keys import site_key_index_from_display_ids
 
 pytestmark = [pytest.mark.parity, pytest.mark.activity_parity]
 
 
+def _project_display_index_to_site_key(
+    frame: pd.DataFrame,
+) -> tuple[pd.DataFrame, dict[str, str]]:
+    display_ids = frame.index.astype(str).tolist()
+    site_keys = site_key_index_from_display_ids(
+        display_ids,
+        protein_namespace="gene_symbol",
+    )
+    projected = frame.copy(deep=True)
+    projected.index = site_keys
+    return projected, dict(zip(site_keys.astype(str), display_ids, strict=True))
+
+
 def _activity_result():
-    pred_mat = load_activity_reference_predmat()
-    phospho_matrix = load_rat_l6_phospho()
+    pred_mat, display_lookup = _project_display_index_to_site_key(
+        load_activity_reference_predmat()
+    )
+    phospho_matrix, _ = _project_display_index_to_site_key(load_rat_l6_phospho())
     inputs = KinaseActivityInputValidator().run(
         pred_mat=pred_mat,
         phospho_matrix=phospho_matrix,
@@ -37,7 +53,7 @@ def _activity_result():
         min_substrates=3,
         top_n_substrates=20,
     )
-    return compute_activity_from_inputs(inputs)
+    return compute_activity_from_inputs(inputs), display_lookup
 
 
 def test_activity_parity_fixture_set_is_present_readable_and_provenanced(
@@ -74,7 +90,7 @@ def test_activity_parity_fixture_set_is_present_readable_and_provenanced(
 def test_weighted_activity_matches_rewrite_reference_fixture(
     request: pytest.FixtureRequest,
 ) -> None:
-    result = _activity_result()
+    result, _ = _activity_result()
     expected = load_activity_reference_weighted_activity()
     pdt.assert_frame_equal(result.weighted_activity.sort_index(), expected.sort_index())
     aligned = result.weighted_activity.sort_index() - expected.sort_index()
@@ -96,7 +112,7 @@ def test_weighted_activity_matches_rewrite_reference_fixture(
 def test_thresholded_substrate_outputs_match_rewrite_reference_fixture(
     request: pytest.FixtureRequest,
 ) -> None:
-    result = _activity_result()
+    result, _ = _activity_result()
     expected_scores = load_activity_reference_thresholded_substrate_mean_activity()
     expected_counts = load_activity_reference_thresholded_substrate_counts()
 
@@ -147,7 +163,7 @@ def test_thresholded_substrate_outputs_match_rewrite_reference_fixture(
 def test_target_outputs_match_rewrite_reference_fixture(
     request: pytest.FixtureRequest,
 ) -> None:
-    result = _activity_result()
+    result, display_lookup = _activity_result()
     expected_counts = load_activity_reference_target_counts()
     pdt.assert_series_equal(
         result.target_counts.sort_index(),
@@ -155,8 +171,12 @@ def test_target_outputs_match_rewrite_reference_fixture(
     )
 
     expected_target_table = load_activity_reference_target_table()
+    target_table = result.target_table.copy(deep=True)
+    target_table.loc[:, "site_id"] = (
+        target_table.loc[:, "site_id"].astype(str).map(display_lookup)
+    )
     pdt.assert_frame_equal(
-        result.target_table.reset_index(drop=True),
+        target_table.reset_index(drop=True),
         expected_target_table.reset_index(drop=True),
     )
     target_count_delta = (

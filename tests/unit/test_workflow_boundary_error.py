@@ -255,11 +255,11 @@ def test_signalome_boundary_rejects_misaligned_prediction_and_scoring_indices() 
     request = _request(
         prediction_matrix=pd.DataFrame(
             {"MAP2K6": [0.8, 0.7]},
-            index=pd.Index(["A;S1;", "B;S2;"], name="site_id"),
+            index=site_key_index_from_display_ids(["A;S1;", "B;S2;"]),
         ),
         score_matrix=pd.DataFrame(
             {"MAP2K6": [1.0, 2.0]},
-            index=pd.Index(["C;S3;", "D;S4;"], name="site_id"),
+            index=site_key_index_from_display_ids(["C;S3;", "D;S4;"]),
         ),
     )
 

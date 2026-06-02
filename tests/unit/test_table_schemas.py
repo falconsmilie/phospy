@@ -24,7 +24,7 @@ from phospy.tables.datasets import (
     SiteMetadataTable,
     TotalProteinMatrix,
 )
-from phospy.tables.kinase import KinasePredictionMatrix
+from phospy.tables.kinase import KinasePredictionMatrix, KinaseScoreMatrix
 from phospy.tables.references import KinaseSubstrateReference, SiteSequenceReference
 from phospy.tables.signalome import SignalomeProteinSiteContext, SignalomeSiteContext
 
@@ -398,7 +398,7 @@ def test_prediction_schema_property_duplicate_columns_rejected_for_unique_kinase
 
     frame = pd.DataFrame(
         [list(range(1, len(duplicated_columns) + 1))],
-        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+        index=pd.Index([_MAPK14_Y182], name="site_key"),
         columns=pd.Index(duplicated_columns, name="kinase"),
         dtype=float,
     )
@@ -924,7 +924,7 @@ def test_reference_schema_missing_site_sequence_for_substrate_fails() -> None:
 def test_prediction_schema_valid_prediction_matrix_passes() -> None:
     pred_mat = pd.DataFrame(
         {"MAP2K6": [0.9, 0.8]},
-        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+        index=pd.Index([_MAPK14_Y182, _AKT1_T308], name="site_key"),
     )
     wrapper = KinasePredictionMatrix(frame=pred_mat)
     assert wrapper.frame.shape == (2, 1)
@@ -933,10 +933,10 @@ def test_prediction_schema_valid_prediction_matrix_passes() -> None:
 def test_prediction_schema_allows_nan_when_missing_policy_allows() -> None:
     pred_mat = pd.DataFrame(
         {"MAP2K6": [0.9, float("nan")]},
-        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+        index=pd.Index([_MAPK14_Y182, _AKT1_T308], name="site_key"),
     )
     wrapper = KinasePredictionMatrix(frame=pred_mat)
-    assert pd.isna(wrapper.frame.loc["AKT1;T308;", "MAP2K6"])
+    assert pd.isna(wrapper.frame.loc[_AKT1_T308, "MAP2K6"])
 
 
 @pytest.mark.parametrize("invalid_value", [float("inf"), float("-inf")])
@@ -945,7 +945,7 @@ def test_prediction_schema_rejects_infinite_values_when_missing_allowed(
 ) -> None:
     pred_mat = pd.DataFrame(
         {"MAP2K6": [0.9, invalid_value]},
-        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+        index=pd.Index([_MAPK14_Y182, _AKT1_T308], name="site_key"),
     )
     with pytest.raises(PhosPyValidationError, match="finite numeric values"):
         KinasePredictionMatrix(frame=pred_mat)
@@ -960,12 +960,13 @@ def test_prediction_schema_property_rejects_non_finite_numeric_entries(
     site_ids: list[str],
     invalid_value: float,
 ) -> None:
+    site_keys = _site_keys_for_display_ids(site_ids)
     frame = pd.DataFrame(
         {
             "K1": [0.9 for _ in site_ids],
             "K2": [0.1 for _ in site_ids],
         },
-        index=pd.Index(site_ids, name="site_id"),
+        index=pd.Index(site_keys, name="site_key"),
         dtype=float,
     )
     frame.iloc[0, 1] = invalid_value
@@ -976,26 +977,44 @@ def test_prediction_schema_property_rejects_non_finite_numeric_entries(
 def test_prediction_schema_duplicate_kinase_columns_fail() -> None:
     pred_mat = pd.DataFrame(
         [[0.9, 0.8]],
-        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+        index=pd.Index([_MAPK14_Y182], name="site_key"),
         columns=pd.Index(["MAP2K6", "MAP2K6"], name="kinase"),
     )
     with pytest.raises(PhosPyValidationError, match="columns must be unique"):
         KinasePredictionMatrix(frame=pred_mat)
 
 
-def test_prediction_schema_non_canonical_site_index_fails() -> None:
+def test_prediction_schema_display_site_index_fails() -> None:
     pred_mat = pd.DataFrame(
         {"MAP2K6": [0.9]},
-        index=pd.Index(["MAPK14;Y182; "], name="site_id"),
+        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
     )
-    with pytest.raises(PhosPyValidationError, match="canonical site identifiers"):
+    with pytest.raises(PhosPyValidationError, match="must start with 'phospy:v1'"):
+        KinasePredictionMatrix(frame=pred_mat)
+
+
+def test_kinase_score_schema_display_site_index_fails() -> None:
+    score_matrix = pd.DataFrame(
+        {"MAP2K6": [0.9]},
+        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+    )
+    with pytest.raises(PhosPyValidationError, match="must start with 'phospy:v1'"):
+        KinaseScoreMatrix(frame=score_matrix)
+
+
+def test_prediction_schema_non_canonical_site_key_index_fails() -> None:
+    pred_mat = pd.DataFrame(
+        {"MAP2K6": [0.9]},
+        index=pd.Index([f"{_MAPK14_Y182} "], name="site_key"),
+    )
+    with pytest.raises(PhosPyValidationError, match="canonical encoded site_key"):
         KinasePredictionMatrix(frame=pred_mat)
 
 
 def test_prediction_schema_out_of_range_score_fails() -> None:
     pred_mat = pd.DataFrame(
         {"MAP2K6": [1.2]},
-        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+        index=pd.Index([_MAPK14_Y182], name="site_key"),
     )
     with pytest.raises(PhosPyValidationError, match="between 0.0 and 1.0"):
         KinasePredictionMatrix(frame=pred_mat)
@@ -1007,7 +1026,7 @@ def test_prediction_schema_boolean_kinase_score_column_fails() -> None:
             "MAP2K6": [0.9, 0.8],
             "AKT1": [True, False],
         },
-        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+        index=pd.Index([_MAPK14_Y182, _AKT1_T308], name="site_key"),
     )
     with pytest.raises(PhosPyValidationError) as exc_info:
         KinasePredictionMatrix(frame=pred_mat)

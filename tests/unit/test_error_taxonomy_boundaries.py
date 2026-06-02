@@ -67,8 +67,10 @@ def _kinase_request() -> KinaseWorkflowRequest:
 
 
 def _kinase_result() -> KinaseWorkflowResult:
+    dataset = _dataset()
+    site_index = dataset.phospho.index.copy()
     return KinaseWorkflowResult(
-        dataset=_dataset(),
+        dataset=dataset,
         references=ReferenceBundle(
             organism=Organism.RAT,
             kinase_substrate_map=pd.DataFrame(
@@ -82,13 +84,13 @@ def _kinase_result() -> KinaseWorkflowResult:
         scoring_result=KinaseScoringResult(
             profile_scores=pd.DataFrame(
                 {"MAP2K6": [1.0]},
-                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+                index=site_index,
             )
         ),
         prediction_result=KinasePredictionResult(
             pred_mat=pd.DataFrame(
                 {"MAP2K6": [0.8]},
-                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+                index=site_index,
             )
         ),
     )

@@ -442,9 +442,10 @@ def test_profile_self_inclusion_behavior_is_intentional() -> None:
 
 
 def test_substrate_mean_activity_matches_hand_calculated_toy_example() -> None:
+    site_index = site_key_index_from_display_ids(["A;S1;", "B;S2;", "C;S3;"])
     pred_mat = pd.DataFrame(
         {"K1": [0.9, 0.7, 0.1]},
-        index=pd.Index(["A;S1;", "B;S2;", "C;S3;"], name="site_id"),
+        index=site_index,
     )
     phospho_matrix = pd.DataFrame(
         {
