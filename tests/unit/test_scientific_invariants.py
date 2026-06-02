@@ -355,8 +355,12 @@ def test_duplicate_site_resolution_is_deterministic_for_max_mean_signal_policy()
         },
         index=phospho.index.copy(),
     )
+    encoded_site_keys = site_key_index_from_display_ids(
+        ["MAPK14;Y182;", "MAPK14;Y182;", "AKT1;T308;"],
+        protein_namespace="gene_symbol",
+    )
     site_keys = pd.Series(
-        ["site_key_1", "site_key_1", "site_key_2"],
+        encoded_site_keys.astype(str).tolist(),
         index=phospho.index.copy(),
         name="site_key",
     )

@@ -92,6 +92,58 @@ def _site_metadata(index: pd.Index | None = None) -> pd.DataFrame:
     return data if index is None else data.loc[index]
 
 
+def _with_test_site_identity(site_metadata: pd.DataFrame) -> pd.DataFrame:
+    enriched = site_metadata.copy(deep=True)
+    display_ids: list[str] = []
+    site_keys: list[str] = []
+    for row_id, row in enriched.iterrows():
+        gene_symbol = str(row["gene_symbol"]).strip()
+        site = str(row["site"]).strip().upper()
+        protein_identifier = (
+            str(row["protein_id"]).strip()
+            if "protein_id" in enriched.columns and pd.notna(row["protein_id"])
+            else gene_symbol
+        )
+        display_ids.append(f"{gene_symbol};{site};")
+        site_keys.append(
+            encode_site_key(
+                build_protein_scoped_site_key(
+                    organism="rat",
+                    protein_namespace="test_protein_id",
+                    protein_identifier=protein_identifier,
+                    residue=site[0],
+                    position=int(site[1:]),
+                    field_name=f"test site identity {row_id!r}",
+                    error_type=ValueError,
+                )
+            )
+        )
+    enriched.loc[:, "display_id"] = display_ids
+    enriched.loc[:, "site_key"] = site_keys
+    return enriched
+
+
+def _test_site_key(
+    *,
+    gene_symbol: str,
+    site: str,
+    protein_identifier: str | None = None,
+) -> str:
+    return encode_site_key(
+        build_protein_scoped_site_key(
+            organism="rat",
+            protein_namespace="test_protein_id",
+            protein_identifier=gene_symbol
+            if protein_identifier is None
+            else protein_identifier,
+            residue=site[0],
+            position=int(site[1:]),
+            field_name=f"test site identity {gene_symbol};{site}",
+            error_type=ValueError,
+        )
+    )
+
+
 def _sample_metadata(columns: pd.Index) -> pd.DataFrame:
     return pd.DataFrame(
         {"batch": [1, 1, 2]},
@@ -1133,6 +1185,7 @@ def test_dataset_preprocessor_total_correction_uses_log_ratio_formula() -> None:
         },
         index=phospho.index.copy(),
     )
+    site_metadata = _with_test_site_identity(site_metadata)
 
     preprocessed = DatasetPreprocessor().run(
         phospho=phospho,
@@ -1178,6 +1231,7 @@ def test_dataset_preprocessor_builds_site_matrix_from_metadata_policy() -> None:
         },
         index=phospho.index.copy(),
     )
+    site_metadata = _with_test_site_identity(site_metadata)
 
     preprocessed = DatasetPreprocessor().run(
         phospho=phospho,
@@ -1196,7 +1250,10 @@ def test_dataset_preprocessor_builds_site_matrix_from_metadata_policy() -> None:
             "sample_a": [8.0],
             "sample_b": [8.5],
         },
-        index=pd.Index(["MAPK14;Y182;"], name="input_row"),
+        index=pd.Index(
+            [_test_site_key(gene_symbol="MAPK14", site="Y182")],
+            name="site_key",
+        ),
     )
     expected_site_metadata = pd.DataFrame(
         {
@@ -1205,6 +1262,8 @@ def test_dataset_preprocessor_builds_site_matrix_from_metadata_policy() -> None:
             "site_sequence": ["SEQ_R"],
             "source_uid": ["UID_B"],
             "localisation_confidence": [0.92],
+            "display_id": ["MAPK14;Y182;"],
+            "site_key": [_test_site_key(gene_symbol="MAPK14", site="Y182")],
         },
         index=expected_phospho.index.copy(),
     )
@@ -1232,6 +1291,7 @@ def test_dataset_preprocessor_site_matrix_retain_missing_policy_keeps_partial_ro
         },
         index=phospho.index.copy(),
     )
+    site_metadata = _with_test_site_identity(site_metadata)
 
     preprocessed = DatasetPreprocessor().run(
         phospho=phospho,
@@ -1248,8 +1308,10 @@ def test_dataset_preprocessor_site_matrix_retain_missing_policy_keeps_partial_ro
         ),
     )
 
-    assert preprocessed.phospho.index.tolist() == ["AKT1;T308;", "MAPK14;Y182;"]
-    assert pd.isna(preprocessed.phospho.loc["MAPK14;Y182;", "sample_b"])
+    mapk14_key = _test_site_key(gene_symbol="MAPK14", site="Y182")
+    akt1_key = _test_site_key(gene_symbol="AKT1", site="T308")
+    assert preprocessed.phospho.index.tolist() == [akt1_key, mapk14_key]
+    assert pd.isna(preprocessed.phospho.loc[mapk14_key, "sample_b"])
     dropped = preprocessed.row_audit.loc[
         (preprocessed.row_audit.loc[:, "stage"] == "site_matrix")
         & (preprocessed.row_audit.loc[:, "action"] == "dropped")
@@ -1278,6 +1340,7 @@ def test_dataset_preprocessor_site_matrix_supports_min_observed_and_duplicate_ag
         },
         index=phospho.index.copy(),
     )
+    site_metadata = _with_test_site_identity(site_metadata)
 
     preprocessed = DatasetPreprocessor().run(
         phospho=phospho,
@@ -1296,11 +1359,13 @@ def test_dataset_preprocessor_site_matrix_supports_min_observed_and_duplicate_ag
         ),
     )
 
-    assert preprocessed.phospho.index.tolist() == ["AKT1;T308;", "MAPK14;Y182;"]
-    assert preprocessed.phospho.loc["MAPK14;Y182;", "sample_a"] == pytest.approx(2.0)
-    assert preprocessed.phospho.loc["MAPK14;Y182;", "sample_b"] == pytest.approx(3.0)
-    assert pd.isna(preprocessed.phospho.loc["MAPK14;Y182;", "sample_c"])
-    assert pd.isna(preprocessed.site_metadata.loc["MAPK14;Y182;", "uid"])
+    mapk14_key = _test_site_key(gene_symbol="MAPK14", site="Y182")
+    akt1_key = _test_site_key(gene_symbol="AKT1", site="T308")
+    assert preprocessed.phospho.index.tolist() == [akt1_key, mapk14_key]
+    assert preprocessed.phospho.loc[mapk14_key, "sample_a"] == pytest.approx(2.0)
+    assert preprocessed.phospho.loc[mapk14_key, "sample_b"] == pytest.approx(3.0)
+    assert pd.isna(preprocessed.phospho.loc[mapk14_key, "sample_c"])
+    assert pd.isna(preprocessed.site_metadata.loc[mapk14_key, "uid"])
 
 
 def test_dataset_preprocessor_site_matrix_duplicate_first_policy_keeps_first_row() -> (
@@ -1323,6 +1388,7 @@ def test_dataset_preprocessor_site_matrix_duplicate_first_policy_keeps_first_row
         },
         index=phospho.index.copy(),
     )
+    site_metadata = _with_test_site_identity(site_metadata)
 
     preprocessed = DatasetPreprocessor().run(
         phospho=phospho,
@@ -1340,9 +1406,10 @@ def test_dataset_preprocessor_site_matrix_duplicate_first_policy_keeps_first_row
         ),
     )
 
-    assert preprocessed.phospho.index.tolist() == ["MAPK14;Y182;"]
-    assert preprocessed.phospho.loc["MAPK14;Y182;", "sample_a"] == pytest.approx(1.0)
-    assert preprocessed.site_metadata.loc["MAPK14;Y182;", "uid"] == "A"
+    mapk14_key = _test_site_key(gene_symbol="MAPK14", site="Y182")
+    assert preprocessed.phospho.index.tolist() == [mapk14_key]
+    assert preprocessed.phospho.loc[mapk14_key, "sample_a"] == pytest.approx(1.0)
+    assert preprocessed.site_metadata.loc[mapk14_key, "uid"] == "A"
 
 
 def test_dataset_preprocessor_site_matrix_duplicate_aggregate_median_policy() -> None:
@@ -1363,6 +1430,7 @@ def test_dataset_preprocessor_site_matrix_duplicate_aggregate_median_policy() ->
         },
         index=phospho.index.copy(),
     )
+    site_metadata = _with_test_site_identity(site_metadata)
 
     preprocessed = DatasetPreprocessor().run(
         phospho=phospho,
@@ -1380,10 +1448,12 @@ def test_dataset_preprocessor_site_matrix_duplicate_aggregate_median_policy() ->
         ),
     )
 
-    assert preprocessed.phospho.index.tolist() == ["AKT1;T308;", "MAPK14;Y182;"]
-    assert preprocessed.phospho.loc["MAPK14;Y182;", "sample_a"] == pytest.approx(15.5)
-    assert preprocessed.phospho.loc["MAPK14;Y182;", "sample_b"] == pytest.approx(21.0)
-    assert pd.isna(preprocessed.site_metadata.loc["MAPK14;Y182;", "uid"])
+    mapk14_key = _test_site_key(gene_symbol="MAPK14", site="Y182")
+    akt1_key = _test_site_key(gene_symbol="AKT1", site="T308")
+    assert preprocessed.phospho.index.tolist() == [akt1_key, mapk14_key]
+    assert preprocessed.phospho.loc[mapk14_key, "sample_a"] == pytest.approx(15.5)
+    assert preprocessed.phospho.loc[mapk14_key, "sample_b"] == pytest.approx(21.0)
+    assert pd.isna(preprocessed.site_metadata.loc[mapk14_key, "uid"])
 
 
 def test_dataset_preprocessor_rejects_site_matrix_min_observed_above_sample_count() -> (
@@ -1402,6 +1472,7 @@ def test_dataset_preprocessor_rejects_site_matrix_min_observed_above_sample_coun
         },
         index=phospho.index.copy(),
     )
+    site_metadata = _with_test_site_identity(site_metadata)
 
     with pytest.raises(
         PhosPyInputError,
@@ -1440,6 +1511,7 @@ def test_dataset_preprocessor_rejects_site_matrix_duplicate_rows_in_error_mode()
         },
         index=phospho.index.copy(),
     )
+    site_metadata = _with_test_site_identity(site_metadata)
 
     with pytest.raises(
         PhosPyInputError,
@@ -1463,7 +1535,9 @@ def test_dataset_preprocessor_rejects_site_matrix_duplicate_rows_in_error_mode()
 
 def test_dataset_preprocessor_rejects_site_matrix_build_without_site_sequence() -> None:
     phospho = _phospho()
-    site_metadata = _site_metadata().drop(columns=["site_sequence"])
+    site_metadata = _with_test_site_identity(_site_metadata()).drop(
+        columns=["site_sequence"]
+    )
 
     with pytest.raises(
         PhosPyInputError,
@@ -1671,6 +1745,7 @@ def test_dataset_preprocessor_site_matrix_build_matches_historical_baseline_fixt
         },
         index=phospho.index.copy(),
     )
+    site_metadata = _with_test_site_identity(site_metadata)
 
     preprocessed = DatasetPreprocessor().run(
         phospho=phospho,
@@ -1689,9 +1764,6 @@ def test_dataset_preprocessor_site_matrix_build_matches_historical_baseline_fixt
         .loc[:, list(corrected_cols)]
         .astype(float)
     )
-    expected_phospho.index = pd.Index(
-        expected_phospho.index.astype(str), name="source_uid"
-    )
     expected_site_metadata = pd.DataFrame(
         {
             "gene_symbol": expected_input_fixture.loc[:, "gene_names"]
@@ -1708,6 +1780,15 @@ def test_dataset_preprocessor_site_matrix_build_matches_historical_baseline_fixt
             name="source_uid",
         ),
     )
+    expected_site_metadata = _with_test_site_identity(expected_site_metadata)
+    expected_index = pd.Index(
+        expected_site_metadata.loc[:, "site_key"].astype(str).tolist(),
+        name="site_key",
+    )
+    expected_phospho.index = expected_index.copy()
+    expected_site_metadata.index = expected_index.copy()
+    expected_phospho = expected_phospho.sort_index(kind="stable")
+    expected_site_metadata = expected_site_metadata.sort_index(kind="stable")
 
     pdt.assert_frame_equal(preprocessed.phospho, expected_phospho)
     pdt.assert_frame_equal(
@@ -2504,6 +2585,8 @@ def test_dataset_preprocessor_site_matrix_min_observed_filter_can_keep_all_rows(
         index=phospho.index.copy(),
     )
 
+    site_metadata = _with_test_site_identity(site_metadata)
+
     preprocessed = DatasetPreprocessor().run(
         phospho=phospho,
         site_metadata=site_metadata,
@@ -2521,7 +2604,9 @@ def test_dataset_preprocessor_site_matrix_min_observed_filter_can_keep_all_rows(
         ),
     )
 
-    assert preprocessed.phospho.index.tolist() == ["AKT1;T308;", "MAPK14;Y182;"]
+    mapk14_key = _test_site_key(gene_symbol="MAPK14", site="Y182")
+    akt1_key = _test_site_key(gene_symbol="AKT1", site="T308")
+    assert preprocessed.phospho.index.tolist() == [akt1_key, mapk14_key]
     dropped = preprocessed.row_audit.loc[
         (preprocessed.row_audit.loc[:, "stage"] == "site_matrix")
         & (preprocessed.row_audit.loc[:, "action"] == "dropped")
@@ -2549,6 +2634,7 @@ def test_dataset_preprocessor_site_matrix_min_observed_filter_can_remove_all_row
         },
         index=phospho.index.copy(),
     )
+    site_metadata = _with_test_site_identity(site_metadata)
 
     with pytest.raises(
         PhosPyInputError,
@@ -2590,6 +2676,7 @@ def test_dataset_preprocessor_trace_tracks_stagewise_transform_progression() -> 
         },
         index=phospho.index.copy(),
     )
+    site_metadata = _with_test_site_identity(site_metadata)
 
     preprocessed = DatasetPreprocessor().run(
         phospho=phospho,
@@ -2662,6 +2749,7 @@ def test_dataset_preprocessor_rejects_non_numeric_phospho_columns_for_new_method
         },
         index=phospho.index.copy(),
     )
+    site_metadata = _with_test_site_identity(site_metadata)
 
     with pytest.raises(PhosPyInputError, match=expected):
         DatasetPreprocessor().run(

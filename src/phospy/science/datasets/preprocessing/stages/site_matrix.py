@@ -43,6 +43,7 @@ from phospy.science.datasets.preprocessing.stages.site_matrix_components import 
 )
 from phospy.science.sites.identifiers import canonicalize_site_components_series
 from phospy.validation.datasets.protein_scoped_site_identity import (
+    enforce_display_id_column,
     enforce_site_key_column,
 )
 
@@ -143,13 +144,14 @@ class SiteMatrixStage:
             state.site_metadata,
             column_name=_SITE_COLUMN,
         )
-        constructed_display_id = _build_site_identifier(
+        constructed_display_id = _resolve_display_id(
+            site_metadata=state.site_metadata,
             gene_symbol=gene_symbol,
             site=site,
         )
         scientific_row_key = _resolve_scientific_row_key(
             site_metadata=state.site_metadata,
-            fallback_constructed_display_id=constructed_display_id,
+            row_index=state.site_metadata.index,
         )
         sequence_filter_result = self._sequence_support_filter.filter(
             phospho=state.phospho,
@@ -183,15 +185,7 @@ class SiteMatrixStage:
 
         assembled = self._site_matrix_assembler.assemble(
             duplicate_site_result=duplicate_site_result,
-            output_index_name=(
-                _SITE_KEY_COLUMN
-                if _SITE_KEY_COLUMN in state.site_metadata.columns
-                else (
-                    None
-                    if state.phospho.index.name is None
-                    else str(state.phospho.index.name)
-                )
-            ),
+            output_index_name=(_SITE_KEY_COLUMN),
             dropped_missing_sequence_rows=sequence_filter_result.dropped_rows,
             dropped_incomplete_rows=missing_data_result.dropped_rows,
         )
@@ -331,6 +325,30 @@ def _build_site_identifier(
     )
 
 
+def _resolve_display_id(
+    *,
+    site_metadata: pd.DataFrame,
+    gene_symbol: pd.Series,
+    site: pd.Series,
+) -> pd.Series:
+    if "display_id" in site_metadata.columns:
+        display_ids = enforce_display_id_column(
+            site_metadata=site_metadata,
+            field_name=(
+                "dataset build request preprocessing site-matrix construction "
+                "site_metadata"
+            ),
+            error_type=PhosPyInputError,
+        )
+        return pd.Series(
+            display_ids.astype(str).tolist(),
+            index=site_metadata.index.copy(),
+            name="display_id",
+            dtype="object",
+        )
+    return _build_site_identifier(gene_symbol=gene_symbol, site=site)
+
+
 def _apply_missing_data_policy(
     *,
     phospho: pd.DataFrame,
@@ -417,29 +435,20 @@ def _build_metadata_conflicts(
 def _resolve_scientific_row_key(
     *,
     site_metadata: pd.DataFrame,
-    fallback_constructed_display_id: pd.Series,
-    prefer_site_key: bool = True,
+    row_index: pd.Index,
 ) -> pd.Series:
-    if prefer_site_key and _SITE_KEY_COLUMN in site_metadata.columns:
-        site_keys = enforce_site_key_column(
-            site_metadata=site_metadata,
-            field_name=(
-                "dataset build request preprocessing site-matrix construction "
-                "site_metadata"
-            ),
-            error_type=PhosPyInputError,
-            column_name=_SITE_KEY_COLUMN,
-        )
-        return pd.Series(
-            site_keys.astype(str).tolist(),
-            index=fallback_constructed_display_id.index.copy(),
-            name=_SITE_KEY_COLUMN,
-            dtype="object",
-        )
+    site_keys = enforce_site_key_column(
+        site_metadata=site_metadata,
+        field_name=(
+            "dataset build request preprocessing site-matrix construction site_metadata"
+        ),
+        error_type=PhosPyInputError,
+        column_name=_SITE_KEY_COLUMN,
+    )
     return pd.Series(
-        fallback_constructed_display_id.astype(str).tolist(),
-        index=fallback_constructed_display_id.index.copy(),
-        name=_SITE_ID_COLUMN,
+        site_keys.astype(str).tolist(),
+        index=row_index.copy(),
+        name=_SITE_KEY_COLUMN,
         dtype="object",
     )
 

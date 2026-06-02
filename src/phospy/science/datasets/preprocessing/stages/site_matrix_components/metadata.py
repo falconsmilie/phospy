@@ -15,6 +15,8 @@ from phospy.science.datasets.preprocessing.report_schema import (
     METADATA_CONFLICT_COLUMNS,
     dataframe_from_metadata_conflict_rows,
 )
+from phospy.science.sites.identifiers import canonicalize_site_series
+from phospy.science.sites.validation import require_site_key_series
 
 _DEFAULT_METADATA_CONFLICT_FIELDS = (
     "protein_id",
@@ -167,29 +169,46 @@ class MetadataConflictDetector:
         site_metadata: pd.DataFrame,
         scientific_row_key: pd.Series | None = None,
         display_id: pd.Series | None = None,
-        constructed_site_id: pd.Series | None = None,
     ) -> pd.DataFrame:
-        if scientific_row_key is None:
-            if constructed_site_id is None:
-                raise PhosPyInputError(
-                    "metadata conflict detection requires scientific_row_key "
-                    "(or legacy constructed_site_id)"
-                )
-            scientific_row_key = constructed_site_id
-        if display_id is None:
-            if constructed_site_id is None:
-                raise PhosPyInputError(
-                    "metadata conflict detection requires display_id "
-                    "(or legacy constructed_site_id)"
-                )
-            display_id = constructed_site_id
         if site_metadata.empty:
             return _empty_metadata_conflicts()
+        if scientific_row_key is None:
+            raise PhosPyInputError(
+                "metadata conflict detection requires site_key row identity"
+            )
+        if display_id is None:
+            raise PhosPyInputError(
+                "metadata conflict detection requires display_id metadata"
+            )
+        if scientific_row_key.name != _SITE_KEY_COLUMN:
+            raise PhosPyInputError(
+                "metadata conflict detection requires scientific_row_key.name='site_key'"
+            )
+        if not scientific_row_key.index.equals(site_metadata.index):
+            raise PhosPyInputError(
+                "metadata conflict detection requires site_key values aligned to "
+                "site_metadata rows"
+            )
+        if not display_id.index.equals(site_metadata.index):
+            raise PhosPyInputError(
+                "metadata conflict detection requires display_id values aligned to "
+                "site_metadata rows"
+            )
+        site_keys = require_site_key_series(
+            scientific_row_key.astype("object"),
+            field_name="metadata conflict detection site_key",
+            error_type=PhosPyInputError,
+        )
+        display_ids = canonicalize_site_series(
+            display_id.astype("object"),
+            field_name="metadata conflict detection display_id",
+            error_type=PhosPyInputError,
+        )
 
         duplicate_groups = site_metadata.assign(
             **{
-                _SITE_KEY_COLUMN: scientific_row_key.astype(str),
-                "display_id": display_id.astype(str),
+                _SITE_KEY_COLUMN: site_keys.astype(str),
+                "display_id": display_ids.astype(str),
                 "source_row_id": site_metadata.index.astype(str),
             }
         )

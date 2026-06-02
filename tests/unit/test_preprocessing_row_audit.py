@@ -15,6 +15,35 @@ from phospy.science.datasets.builders.preprocessing import DatasetPreprocessor
 from phospy.science.datasets.models import DatasetPreprocessingReport
 from phospy.science.datasets.preprocessing.models import PreprocessingPlan
 from phospy.science.datasets.preprocessing.report_schema import ROW_AUDIT_COLUMNS
+from tests.support.site_keys import site_key_index_from_display_ids
+
+
+def _site_key(display_id: str) -> str:
+    return str(
+        site_key_index_from_display_ids(
+            [display_id],
+            protein_namespace="gene_symbol",
+        )[0]
+    )
+
+
+def _with_site_identity(site_metadata: pd.DataFrame) -> pd.DataFrame:
+    identified = site_metadata.copy()
+    display_ids = [
+        f"{gene_symbol};{site};"
+        for gene_symbol, site in zip(
+            identified.loc[:, "gene_symbol"].astype(str).tolist(),
+            identified.loc[:, "site"].astype(str).tolist(),
+            strict=True,
+        )
+    ]
+    site_keys = site_key_index_from_display_ids(
+        display_ids,
+        protein_namespace="gene_symbol",
+    )
+    identified.insert(0, "display_id", display_ids)
+    identified.insert(0, "site_key", site_keys.astype(str).tolist())
+    return identified
 
 
 def test_missing_data_stage_audits_rows_dropped_below_min_observed_values() -> None:
@@ -138,14 +167,16 @@ def test_site_matrix_stage_audits_missing_sequence_drops() -> None:
         },
         index=pd.Index(["SRC_ROW_1", "SRC_ROW_2"], name="source_row"),
     )
-    site_metadata = pd.DataFrame(
-        {
-            "gene_symbol": ["MAPK14", "AKT1"],
-            "site": ["Y182", "T308"],
-            "site_sequence": ["", "SEQ_R"],
-            "localisation_confidence": [0.95, 0.9],
-        },
-        index=phospho.index.copy(),
+    site_metadata = _with_site_identity(
+        pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14", "AKT1"],
+                "site": ["Y182", "T308"],
+                "site_sequence": ["", "SEQ_R"],
+                "localisation_confidence": [0.95, 0.9],
+            },
+            index=phospho.index.copy(),
+        )
     )
 
     preprocessed = DatasetPreprocessor().run(
@@ -169,7 +200,7 @@ def test_site_matrix_stage_audits_missing_sequence_drops() -> None:
     ]
     assert dropped.shape[0] == 1
     assert dropped.iloc[0]["source_row_id"] == "SRC_ROW_1"
-    assert dropped.iloc[0]["site_id"] == "MAPK14;Y182;"
+    assert dropped.iloc[0]["site_id"] == _site_key("MAPK14;Y182;")
     assert "site_sequence is missing or blank" in str(dropped.iloc[0]["reason"])
 
 
@@ -181,14 +212,16 @@ def test_site_matrix_stage_audits_incomplete_value_drops() -> None:
         },
         index=pd.Index(["SRC_ROW_1", "SRC_ROW_2"], name="source_row"),
     )
-    site_metadata = pd.DataFrame(
-        {
-            "gene_symbol": ["MAPK14", "AKT1"],
-            "site": ["Y182", "T308"],
-            "site_sequence": ["SEQ_A", "SEQ_R"],
-            "localisation_confidence": [0.95, 0.9],
-        },
-        index=phospho.index.copy(),
+    site_metadata = _with_site_identity(
+        pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14", "AKT1"],
+                "site": ["Y182", "T308"],
+                "site_sequence": ["SEQ_A", "SEQ_R"],
+                "localisation_confidence": [0.95, 0.9],
+            },
+            index=phospho.index.copy(),
+        )
     )
 
     preprocessed = DatasetPreprocessor().run(
@@ -212,7 +245,7 @@ def test_site_matrix_stage_audits_incomplete_value_drops() -> None:
     ]
     assert dropped.shape[0] == 1
     assert dropped.iloc[0]["source_row_id"] == "SRC_ROW_2"
-    assert dropped.iloc[0]["site_id"] == "AKT1;T308;"
+    assert dropped.iloc[0]["site_id"] == _site_key("AKT1;T308;")
     assert dropped.iloc[0]["reason"] == "dropped by site_matrix missing-data policy"
 
 
@@ -224,14 +257,16 @@ def test_site_matrix_stage_audits_duplicate_resolution_first_policy() -> None:
         },
         index=pd.Index(["SRC_ROW_1", "SRC_ROW_2"], name="source_row"),
     )
-    site_metadata = pd.DataFrame(
-        {
-            "gene_symbol": ["MAPK14", "MAPK14"],
-            "site": ["Y182", "Y182"],
-            "site_sequence": ["SEQ_A", "SEQ_R"],
-            "localisation_confidence": [0.95, 0.9],
-        },
-        index=phospho.index.copy(),
+    site_metadata = _with_site_identity(
+        pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14", "MAPK14"],
+                "site": ["Y182", "Y182"],
+                "site_sequence": ["SEQ_A", "SEQ_R"],
+                "localisation_confidence": [0.95, 0.9],
+            },
+            index=phospho.index.copy(),
+        )
     )
 
     preprocessed = DatasetPreprocessor().run(
@@ -273,14 +308,16 @@ def test_site_matrix_stage_audits_duplicate_resolution_max_mean_signal_policy() 
         },
         index=pd.Index(["SRC_ROW_1", "SRC_ROW_2"], name="source_row"),
     )
-    site_metadata = pd.DataFrame(
-        {
-            "gene_symbol": ["MAPK14", "MAPK14"],
-            "site": ["Y182", "Y182"],
-            "site_sequence": ["SEQ_A", "SEQ_R"],
-            "localisation_confidence": [0.95, 0.9],
-        },
-        index=phospho.index.copy(),
+    site_metadata = _with_site_identity(
+        pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14", "MAPK14"],
+                "site": ["Y182", "Y182"],
+                "site_sequence": ["SEQ_A", "SEQ_R"],
+                "localisation_confidence": [0.95, 0.9],
+            },
+            index=phospho.index.copy(),
+        )
     )
 
     preprocessed = DatasetPreprocessor().run(
@@ -322,14 +359,16 @@ def test_site_matrix_stage_audits_aggregate_duplicate_contributors(
         },
         index=pd.Index(["SRC_ROW_1", "SRC_ROW_2"], name="source_row"),
     )
-    site_metadata = pd.DataFrame(
-        {
-            "gene_symbol": ["MAPK14", "MAPK14"],
-            "site": ["Y182", "Y182"],
-            "site_sequence": ["SEQ_A", "SEQ_R"],
-            "localisation_confidence": [0.95, 0.9],
-        },
-        index=phospho.index.copy(),
+    site_metadata = _with_site_identity(
+        pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14", "MAPK14"],
+                "site": ["Y182", "Y182"],
+                "site_sequence": ["SEQ_A", "SEQ_R"],
+                "localisation_confidence": [0.95, 0.9],
+            },
+            index=phospho.index.copy(),
+        )
     )
 
     preprocessed = DatasetPreprocessor().run(
@@ -353,7 +392,7 @@ def test_site_matrix_stage_audits_aggregate_duplicate_contributors(
     ]
     assert aggregated.shape[0] == 2
     assert set(aggregated["source_row_id"]) == {"SRC_ROW_1", "SRC_ROW_2"}
-    assert set(aggregated["retained_row_id"]) == {"MAPK14;Y182;"}
+    assert set(aggregated["retained_row_id"]) == {_site_key("MAPK14;Y182;")}
     assert {
         tuple(source_rows) for source_rows in aggregated["source_rows"].tolist()
     } == {("SRC_ROW_1", "SRC_ROW_2")}

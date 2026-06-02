@@ -91,6 +91,24 @@ def _site_metadata(index: pd.Index) -> pd.DataFrame:
     )
 
 
+def _site_matrix_site_metadata(index: pd.Index) -> pd.DataFrame:
+    site_keys = site_key_index_from_display_ids(
+        _ANALYSIS_DISPLAY_IDS,
+        protein_namespace="gene_symbol",
+    )
+    return pd.DataFrame(
+        {
+            "site_key": site_keys.astype(str).tolist(),
+            "display_id": _ANALYSIS_DISPLAY_IDS,
+            "gene_symbol": _ANALYSIS_GENE_SYMBOLS,
+            "site": _ANALYSIS_SITES,
+            "site_sequence": ["SEQ_A", "SEQ_R"],
+            "localisation_confidence": [0.95, 0.9],
+        },
+        index=index.copy(),
+    )
+
+
 def _sample_metadata(columns: pd.Index) -> pd.DataFrame:
     return pd.DataFrame(
         {"comparison_group": ["group1", "group2"]},
@@ -390,7 +408,7 @@ def test_normalisation_stage_returns_stage_result() -> None:
     phospho = _phospho()
     state = PreprocessingState(
         phospho=phospho,
-        site_metadata=_site_metadata(phospho.index),
+        site_metadata=_site_matrix_site_metadata(phospho.index),
         sample_metadata=None,
         total=None,
         plan=PreprocessingPlan(
@@ -445,7 +463,7 @@ def test_site_matrix_stage_returns_stage_result() -> None:
     phospho = _phospho()
     state = PreprocessingState(
         phospho=phospho,
-        site_metadata=_site_metadata(phospho.index),
+        site_metadata=_site_matrix_site_metadata(phospho.index),
         sample_metadata=None,
         total=None,
         plan=PreprocessingPlan(

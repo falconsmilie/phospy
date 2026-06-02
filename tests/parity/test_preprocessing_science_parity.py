@@ -23,6 +23,7 @@ from tests.support.parity_reporting import (
     format_shape,
     record_parity_metrics,
 )
+from tests.support.site_keys import site_key_index_from_display_ids
 
 pytestmark = pytest.mark.parity
 
@@ -327,8 +328,22 @@ def test_site_matrix_build_from_metadata_matches_rewrite_reference_fixture(
         .astype(str)
         .str.split("_", n=1, expand=True)
     )
+    display_ids = [
+        f"{gene_symbol};{site};"
+        for gene_symbol, site in zip(
+            corrected_fixture.loc[:, "gene_names"].astype(str).tolist(),
+            site_tokens.loc[:, 1].astype(str).tolist(),
+            strict=True,
+        )
+    ]
+    site_keys = site_key_index_from_display_ids(
+        display_ids,
+        protein_namespace="gene_symbol",
+    )
     site_metadata = pd.DataFrame(
         {
+            "site_key": site_keys.astype(str).tolist(),
+            "display_id": display_ids,
             "gene_symbol": corrected_fixture.loc[:, "gene_names"].astype(str).tolist(),
             "site": site_tokens.loc[:, 1].astype(str).tolist(),
             "site_sequence": corrected_fixture.loc[:, "centralized_sequence"]
@@ -356,9 +371,12 @@ def test_site_matrix_build_from_metadata_matches_rewrite_reference_fixture(
         .loc[:, list(corrected_cols)]
         .astype(float)
     )
-    expected_phospho.index = pd.Index(
-        expected_phospho.index.astype(str), name="source_uid"
+    expected_display_ids = expected_phospho.index.astype(str).tolist()
+    expected_site_keys = site_key_index_from_display_ids(
+        expected_display_ids,
+        protein_namespace="gene_symbol",
     )
+    expected_phospho.index = expected_site_keys.copy()
     expected_site_metadata = pd.DataFrame(
         {
             "gene_symbol": expected_input_fixture.loc[:, "gene_names"]
@@ -370,9 +388,9 @@ def test_site_matrix_build_from_metadata_matches_rewrite_reference_fixture(
             .tolist(),
             "localisation_confidence": [0.95] * expected_input_fixture.shape[0],
         },
-        index=pd.Index(
-            expected_input_fixture.loc[:, "site_id"].astype(str),
-            name="source_uid",
+        index=site_key_index_from_display_ids(
+            expected_input_fixture.loc[:, "site_id"].astype(str).tolist(),
+            protein_namespace="gene_symbol",
         ),
     )
 

@@ -98,6 +98,15 @@ class DuplicateSiteResolutionRow:
     source_site: object
     source_site_sequence: object
     metadata_conflict_detected: bool
+    affected_sample_columns: object = ()
+    source_organism: object = pd.NA
+    source_protein_namespace: object = pd.NA
+    source_protein_identifier: object = pd.NA
+    source_protein_accession: object = pd.NA
+    source_isoform_id: object = pd.NA
+    source_residue: object = pd.NA
+    source_position: object = pd.NA
+    source_site_position: object = pd.NA
 
     @classmethod
     def columns(cls) -> tuple[str, ...]:

@@ -65,7 +65,7 @@ DUPLICATE_SITE_RESOLUTION_AGGREGATE_MEAN_POLICY = ScientificPolicyRecord(
     name="duplicate_site_resolution_aggregate_mean_v1",
     version="1",
     description=(
-        "Resolves duplicate constructed site IDs by aggregating duplicate rows "
+        "Resolves duplicate site_key rows by aggregating duplicate rows "
         "with a column-wise arithmetic mean."
     ),
     parameters={
@@ -92,7 +92,7 @@ def build_duplicate_site_resolution_policy(
         name=f"duplicate_site_resolution_{duplicate_site_policy}_v1",
         version="1",
         description=(
-            "Resolves duplicate constructed site IDs according to the configured "
+            "Resolves duplicate site_key rows according to the configured "
             "site-matrix duplicate-site policy."
         ),
         parameters={"duplicate_site_policy": str(duplicate_site_policy)},

@@ -25,7 +25,6 @@ from phospy.api.results import (
     KinaseWorkflowResult,
 )
 from phospy.errors import (
-    PhosPyInputError,
     ReferenceCompatibilityError,
     WorkflowValidationError,
 )
@@ -252,39 +251,45 @@ def test_signalome_identity_contract_rejects_missing_protein_identity() -> None:
         SignalomeWorkflowValidator().run(request)
 
 
-def test_signalome_inputs_require_unique_display_ids_before_workflow_validation() -> (
-    None
-):
+def test_signalome_inputs_allow_duplicate_display_ids_with_distinct_site_keys() -> None:
+    site_ids = site_key_index_from_display_ids(
+        ["P28482;Y182;", "Q99999;Y182;"],
+        protein_namespace="protein_id",
+    )
     phospho = pd.DataFrame(
         {"sample_a": [1.0, 2.0], "sample_b": [1.1, 2.1]},
         index=pd.Index(["row_a", "row_b"], name="source_row"),
     )
     site_metadata = pd.DataFrame(
         {
+            "site_key": site_ids.astype(str).tolist(),
+            "display_id": ["MAPK14;Y182;", "MAPK14;Y182;"],
             "gene_symbol": ["MAPK14", "MAPK14"],
             "site": ["Y182", "Y182"],
             "site_sequence": ["AAAAAAAYAAAAAAA", "AAAAAAAYAAAAAAA"],
-            "protein_id": ["P28482", "P28482"],
+            "protein_id": ["P28482", "Q99999"],
             "localisation_confidence": [0.95, 0.95],
         },
         index=phospho.index.copy(),
     )
 
-    with pytest.raises(
-        PhosPyInputError,
-        match="one analysis-ready row per normalised display-site identifier",
-    ):
-        AnalysisReadyDatasetBuilder().run(
-            DatasetBuildRequest(
-                phospho=phospho,
-                site_metadata=site_metadata,
-                organism=Organism.RAT,
-                preprocessing_config=DatasetPreprocessingConfig(
-                    site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
-                ),
-                input_intensity_scale="linear",
-            )
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            preprocessing_config=DatasetPreprocessingConfig(
+                site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
+            ),
+            input_intensity_scale="linear",
         )
+    )
+
+    assert dataset.phospho.index.tolist() == site_ids.astype(str).tolist()
+    assert dataset.site_metadata.loc[:, "display_id"].tolist() == [
+        "MAPK14;Y182;",
+        "MAPK14;Y182;",
+    ]
 
 
 def test_kinase_workflow_rejects_reference_organism_mismatch_where_applicable() -> None:

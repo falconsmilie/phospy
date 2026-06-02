@@ -310,29 +310,11 @@ class DatasetBuildSourceResolver:
                     "preprocessing_config.site_matrix.duplicate_site_policy"
                 ),
             )
-            display_ids = enforce_display_id_column(
+            enforce_display_id_column(
                 site_metadata=site_metadata,
                 field_name="dataset build request site_metadata",
                 error_type=PhosPyInputError,
             )
-            duplicate_display_mask = display_ids.duplicated(keep=False)
-            duplicate_site_key_mask = site_keys.duplicated(keep=False)
-            unresolved_duplicate_mask = duplicate_display_mask & duplicate_site_key_mask
-            if bool(unresolved_duplicate_mask.any()):
-                unresolved_display_ids = list(
-                    dict.fromkeys(
-                        display_ids.loc[unresolved_duplicate_mask].astype(str).tolist()
-                    )
-                )
-                preview = ", ".join(repr(value) for value in unresolved_display_ids[:5])
-                suffix = "" if len(unresolved_display_ids) <= 5 else " ..."
-                raise PhosPyInputError(
-                    "dataset build request site_metadata contains duplicate "
-                    "normalised phosphosite display identifiers without distinct "
-                    "site_key identity; one analysis-ready row per normalised "
-                    "display-site identifier is required for unresolved duplicates; "
-                    f"duplicate_display_ids=[{preview}{suffix}]"
-                )
 
         if resolved_site_matrix_policy is SiteMatrixPolicy.BUILD_FROM_METADATA:
             return

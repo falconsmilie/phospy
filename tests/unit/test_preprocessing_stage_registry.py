@@ -35,6 +35,9 @@ from phospy.science.datasets.preprocessing.stage_registry import (
     resolve_builder_provenance_stage_order,
     resolve_registered_preprocessing_stages,
 )
+from tests.support.site_keys import site_key_index_from_display_ids
+
+_DISPLAY_IDS = ["MAPK14;Y182;", "AKT1;T308;"]
 
 
 def _phospho() -> pd.DataFrame:
@@ -43,13 +46,19 @@ def _phospho() -> pd.DataFrame:
             "sample_a": [1.0, 2.0],
             "sample_b": [2.0, 4.0],
         },
-        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+        index=pd.Index(_DISPLAY_IDS, name="site_id"),
     )
 
 
 def _site_metadata(index: pd.Index) -> pd.DataFrame:
+    site_keys = site_key_index_from_display_ids(
+        _DISPLAY_IDS,
+        protein_namespace="gene_symbol",
+    )
     return pd.DataFrame(
         {
+            "site_key": site_keys.astype(str).tolist(),
+            "display_id": _DISPLAY_IDS,
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": ["SEQ_A", "SEQ_R"],

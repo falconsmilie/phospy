@@ -20,6 +20,11 @@ from phospy.science.datasets.preprocessing.stages.site_matrix_components.metadat
     _resolve_source_metadata_column,
     resolve_aggregate_site_metadata,
 )
+from phospy.science.sites.identifiers import canonicalize_site_series
+from phospy.science.sites.validation import (
+    require_no_mixed_site_key_isoform_scope,
+    require_site_key_series,
+)
 
 _SITE_KEY_COLUMN = "site_key"
 _AGGREGATE_DUPLICATE_SITE_POLICIES = {
@@ -61,31 +66,21 @@ class DuplicateSiteResolver:
         site_metadata: pd.DataFrame,
         scientific_row_key: pd.Series | None = None,
         constructed_display_id: pd.Series | None = None,
-        constructed_site_id: pd.Series | None = None,
         duplicate_site_policy: SiteMatrixDuplicateSitePolicy | str,
     ) -> DuplicateSiteResolutionResult:
-        legacy_display_mode = (
-            scientific_row_key is None and constructed_site_id is not None
+        scientific_row_key = _require_valid_site_key_series(
+            scientific_row_key,
+            expected_index=phospho.index,
         )
-        if scientific_row_key is None:
-            if constructed_site_id is None:
-                raise PhosPyInputError(
-                    "duplicate-site resolution requires scientific_row_key "
-                    "(or legacy constructed_site_id)"
-                )
-            scientific_row_key = constructed_site_id
         if constructed_display_id is None:
-            if constructed_site_id is None:
-                raise PhosPyInputError(
-                    "duplicate-site resolution requires constructed_display_id "
-                    "(or legacy constructed_site_id)"
-                )
-            constructed_display_id = constructed_site_id
-        output_index_name = (
-            str(scientific_row_key.name)
-            if scientific_row_key.name is not None
-            else _SITE_KEY_COLUMN
+            raise PhosPyInputError(
+                "duplicate-site resolution requires display_id metadata for diagnostics"
+            )
+        constructed_display_id = _require_display_id_series(
+            constructed_display_id,
+            expected_index=phospho.index,
         )
+        output_index_name = _SITE_KEY_COLUMN
         resolved_policy = SiteMatrixDuplicateSitePolicy.parse(
             duplicate_site_policy,
             field_name="site_matrix.duplicate_site_policy",
@@ -163,7 +158,7 @@ class DuplicateSiteResolver:
             .reindex(duplicate_work.loc[:, _SITE_KEY_COLUMN])
             .to_numpy()
         )
-        _raise_on_conflicting_duplicate_display_identity(
+        _raise_on_conflicting_duplicate_site_key_context(
             site_metadata=site_metadata,
             scientific_row_key=scientific_row_key,
             display_id=constructed_display_id,
@@ -183,14 +178,6 @@ class DuplicateSiteResolver:
                 .head(3)
             )
             preview = ", ".join(duplicate_site_keys.tolist())
-            if legacy_display_mode:
-                raise PhosPyInputError(
-                    "dataset build request preprocessing site-matrix construction "
-                    "found duplicate constructed site identifiers and "
-                    "site_matrix.duplicate_site_policy='error': "
-                    f"{preview}. Use a non-error duplicate policy to emit "
-                    "duplicate-site resolution and metadata-conflict diagnostics."
-                )
             raise PhosPyInputError(
                 "dataset build request preprocessing site-matrix construction found "
                 "duplicate site_key values and "
@@ -225,6 +212,7 @@ class DuplicateSiteResolver:
                     "dropped because another row was selected first by input order"
                 ),
                 conflict_site_keys=conflict_site_keys,
+                affected_sample_columns=_affected_sample_columns(phospho),
             )
             return DuplicateSiteResolutionResult(
                 phospho=selected_phospho,
@@ -288,6 +276,7 @@ class DuplicateSiteResolver:
                     "dropped because another row ranked higher by max_mean_signal criteria"
                 ),
                 conflict_site_keys=conflict_site_keys,
+                affected_sample_columns=_affected_sample_columns(phospho),
             )
             return DuplicateSiteResolutionResult(
                 phospho=selected_phospho,
@@ -334,6 +323,7 @@ class DuplicateSiteResolver:
                 ),
                 dropped_reason=None,
                 conflict_site_keys=conflict_site_keys,
+                affected_sample_columns=_affected_sample_columns(phospho),
                 aggregated=True,
             )
             return DuplicateSiteResolutionResult(
@@ -364,6 +354,7 @@ class DuplicateSiteResolver:
         retained_reason: str,
         dropped_reason: str | None,
         conflict_site_keys: set[str],
+        affected_sample_columns: tuple[str, ...],
         aggregated: bool = False,
     ) -> pd.DataFrame:
         if duplicate_work.empty:
@@ -399,16 +390,42 @@ class DuplicateSiteResolver:
                 "aggregation_method": duplicate_site_policy.value,
                 "missing_value_policy": missing_value_policy,
                 "metadata_resolution_policy": metadata_resolution_policy,
+                "affected_sample_columns": [affected_sample_columns]
+                * int(len(duplicate_work.index)),
                 "observed_values": duplicate_work.loc[:, "observed_values"].to_numpy(),
                 "mean_signal": duplicate_work.loc[:, "mean_signal"].to_numpy(),
                 "n_source_rows": duplicate_work.loc[:, "n_source_rows"].to_numpy(),
+                "source_organism": _resolve_source_metadata_column(
+                    source_metadata, "organism"
+                ),
+                "source_protein_namespace": _resolve_source_metadata_column(
+                    source_metadata, "protein_namespace"
+                ),
+                "source_protein_identifier": _resolve_source_metadata_column(
+                    source_metadata, "protein_identifier"
+                ),
                 "source_protein_id": _resolve_source_metadata_column(
                     source_metadata, "protein_id"
+                ),
+                "source_protein_accession": _resolve_source_metadata_column(
+                    source_metadata, "protein_accession"
+                ),
+                "source_isoform_id": _resolve_source_metadata_column(
+                    source_metadata, "isoform_id"
                 ),
                 "source_gene_symbol": _resolve_source_metadata_column(
                     source_metadata, "gene_symbol"
                 ),
                 "source_site": _resolve_source_metadata_column(source_metadata, "site"),
+                "source_residue": _resolve_source_metadata_column(
+                    source_metadata, "residue"
+                ),
+                "source_position": _resolve_source_metadata_column(
+                    source_metadata, "position"
+                ),
+                "source_site_position": _resolve_source_metadata_column(
+                    source_metadata, "site_position"
+                ),
                 "source_site_sequence": _resolve_source_metadata_column(
                     source_metadata, "site_sequence"
                 ),
@@ -477,6 +494,7 @@ class DuplicateSiteResolver:
                 missing_cells_after < missing_cells_before
             ),
             "metadata_resolution_policy": metadata_resolution_policy,
+            "affected_sample_columns": _affected_sample_columns(input_phospho),
         }
 
 
@@ -505,7 +523,71 @@ def _metadata_resolution_policy_text(
     return pd.NA if for_row_resolution else "not_applicable"
 
 
-def _raise_on_conflicting_duplicate_display_identity(
+def _require_valid_site_key_series(
+    scientific_row_key: pd.Series | None,
+    *,
+    expected_index: pd.Index,
+) -> pd.Series:
+    if scientific_row_key is None:
+        raise PhosPyInputError(
+            "duplicate-site resolution requires site_key row identity; "
+            "display_id and constructed GENE;SITE; labels are diagnostic metadata "
+            "only"
+        )
+    if scientific_row_key.name != _SITE_KEY_COLUMN:
+        raise PhosPyInputError(
+            "duplicate-site resolution requires scientific_row_key.name='site_key'"
+        )
+    if not scientific_row_key.index.equals(expected_index):
+        raise PhosPyInputError(
+            "duplicate-site resolution requires site_key values aligned to phospho rows"
+        )
+    site_keys = require_site_key_series(
+        scientific_row_key.astype("object"),
+        field_name="duplicate-site resolution site_key",
+        error_type=PhosPyInputError,
+    )
+    require_no_mixed_site_key_isoform_scope(
+        site_keys=site_keys,
+        field_name="duplicate-site resolution site_key",
+        error_type=PhosPyInputError,
+    )
+    return pd.Series(
+        site_keys.astype(str).tolist(),
+        index=expected_index.copy(),
+        name=_SITE_KEY_COLUMN,
+        dtype="object",
+    )
+
+
+def _require_display_id_series(
+    display_id: pd.Series,
+    *,
+    expected_index: pd.Index,
+) -> pd.Series:
+    if not display_id.index.equals(expected_index):
+        raise PhosPyInputError(
+            "duplicate-site resolution requires display_id metadata aligned to "
+            "phospho rows"
+        )
+    display_ids = canonicalize_site_series(
+        display_id.astype("object"),
+        field_name="duplicate-site resolution display_id",
+        error_type=PhosPyInputError,
+    )
+    return pd.Series(
+        display_ids.astype(str).tolist(),
+        index=expected_index.copy(),
+        name="display_id",
+        dtype="object",
+    )
+
+
+def _affected_sample_columns(phospho: pd.DataFrame) -> tuple[str, ...]:
+    return tuple(str(column) for column in phospho.columns.tolist())
+
+
+def _raise_on_conflicting_duplicate_site_key_context(
     *,
     site_metadata: pd.DataFrame,
     scientific_row_key: pd.Series,
@@ -515,19 +597,38 @@ def _raise_on_conflicting_duplicate_display_identity(
     if not bool(duplicate_mask.any()):
         return
     duplicate_metadata = site_metadata.loc[duplicate_mask]
+    duplicate_site_key = scientific_row_key.loc[duplicate_mask].astype(str)
     duplicate_display = display_id.loc[duplicate_mask].astype(str)
-    context_columns = ("protein_id", "protein_accession", "isoform_id")
+    context_columns = (
+        "organism",
+        "protein_namespace",
+        "protein_identifier",
+        "protein_id",
+        "protein_accession",
+        "isoform_id",
+        "residue",
+        "position",
+        "site_position",
+    )
     for column_name in context_columns:
         if column_name not in duplicate_metadata.columns:
             continue
         column_values = duplicate_metadata.loc[:, column_name]
         normalized = column_values.astype("string").str.strip().fillna("").astype(str)
-        grouped = normalized.groupby(duplicate_display, sort=False)
-        for display_value, values in grouped:
+        grouped = normalized.groupby(duplicate_site_key, sort=False)
+        for site_key, values in grouped:
             non_empty = [value for value in values.tolist() if value != ""]
             if len(set(non_empty)) > 1:
+                display_values = tuple(
+                    dict.fromkeys(
+                        duplicate_display.loc[duplicate_site_key == site_key]
+                        .astype(str)
+                        .tolist()
+                    )
+                )
                 raise PhosPyInputError(
                     "dataset build request preprocessing site-matrix construction "
-                    "found conflicting scientific identities for duplicate display "
-                    f"site IDs; display_id={display_value!r}, column={column_name!r}"
+                    "found conflicting protein context for duplicate site_key rows; "
+                    f"site_key={site_key!r}, display_id_values={display_values!r}, "
+                    f"column={column_name!r}"
                 )

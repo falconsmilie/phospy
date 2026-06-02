@@ -7,13 +7,23 @@ import pytest
 from phospy.api.configs import (
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
+    DATASET_SITE_MATRIX_DUPLICATE_POLICY_ERROR,
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST,
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
 )
+from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.preprocessing.models import DuplicateSiteResolutionResult
 from phospy.science.datasets.preprocessing.stages.site_matrix import (
     _apply_duplicate_site_policy,
 )
+from phospy.science.datasets.preprocessing.stages.site_matrix_components import (
+    DuplicateSiteResolver,
+)
+from phospy.science.sites.site_keys import ProteinScopedPhosphositeKey, encode_site_key
+from tests.support.site_keys import protein_site_key
+
+_MAPK14_KEY = protein_site_key(protein_identifier="PROT_A", site="Y182")
+_AKT1_KEY = protein_site_key(protein_identifier="PROT_C", site="T308")
 
 
 def _duplicate_policy_inputs() -> tuple[
@@ -38,7 +48,7 @@ def _duplicate_policy_inputs() -> tuple[
         index=phospho.index.copy(),
     )
     scientific_row_key = pd.Series(
-        ["site_key_1", "site_key_1", "site_key_2"],
+        [_MAPK14_KEY, _MAPK14_KEY, _AKT1_KEY],
         index=phospho.index.copy(),
         name="site_key",
     )
@@ -89,11 +99,25 @@ def test_duplicate_site_policy_first_reports_retained_and_dropped_rows() -> None
         "dropped_reason",
         "observed_values",
         "mean_signal",
+        "affected_sample_columns",
+        "source_protein_id",
     }.issubset(set(table.columns))
     assert table.loc[table["source_row_id"] == "row_a", "retained"].item()
     assert not table.loc[table["source_row_id"] == "row_b", "retained"].item()
     assert "input order" in str(
         table.loc[table["source_row_id"] == "row_a", "retained_reason"].item()
+    )
+    assert table.loc[
+        table["source_row_id"] == "row_a", "affected_sample_columns"
+    ].item() == ("sample_a", "sample_b")
+    assert table.loc[table["source_row_id"] == "row_a", "display_id"].item() == (
+        "MAPK14;Y182;"
+    )
+    assert table.loc[table["source_row_id"] == "row_a", "site_key"].item() == (
+        _MAPK14_KEY
+    )
+    assert table.loc[table["source_row_id"] == "row_a", "source_protein_id"].item() == (
+        "PROT_A"
     )
 
 
@@ -175,15 +199,15 @@ def test_duplicate_site_policy_reports_metadata_conflicts() -> None:
         result.metadata_conflicts["field"] == "uid"
     ]
     assert uid_conflict.shape[0] == 1
-    assert uid_conflict.iloc[0]["site_key"] == "site_key_1"
+    assert uid_conflict.iloc[0]["site_key"] == _MAPK14_KEY
     assert uid_conflict.iloc[0]["display_id"] == "MAPK14;Y182;"
     assert uid_conflict.iloc[0]["site_id"] == "MAPK14;Y182;"
     assert uid_conflict.iloc[0]["n_distinct_values"] == 2
     assert uid_conflict.iloc[0]["source_row_ids"] == ("row_a", "row_b")
     assert "site_sequence" in set(result.metadata_conflicts.loc[:, "field"])
     assert "uid" in set(result.metadata_conflicts.loc[:, "field"])
-    assert pd.isna(result.site_metadata.loc["site_key_1", "site_sequence"])
-    assert pd.isna(result.site_metadata.loc["site_key_1", "uid"])
+    assert pd.isna(result.site_metadata.loc[_MAPK14_KEY, "site_sequence"])
+    assert pd.isna(result.site_metadata.loc[_MAPK14_KEY, "uid"])
     assert (
         result.duplicate_site_resolution.loc[:, "metadata_conflict_detected"]
         .astype(bool)
@@ -201,7 +225,7 @@ def test_duplicate_site_policy_reports_metadata_conflicts() -> None:
                     "sample_a": [1.0, 5.0],
                     "sample_b": [2.0, 6.0],
                 },
-                index=pd.Index(["site_key_1", "site_key_2"], name="site_key"),
+                index=pd.Index([_MAPK14_KEY, _AKT1_KEY], name="site_key"),
             ),
             pd.DataFrame(
                 {
@@ -212,7 +236,7 @@ def test_duplicate_site_policy_reports_metadata_conflicts() -> None:
                     "protein_id": ["PROT_A", "PROT_C"],
                     "uid": ["A", "C"],
                 },
-                index=pd.Index(["site_key_1", "site_key_2"], name="site_key"),
+                index=pd.Index([_MAPK14_KEY, _AKT1_KEY], name="site_key"),
             ),
         ),
         (
@@ -222,7 +246,7 @@ def test_duplicate_site_policy_reports_metadata_conflicts() -> None:
                     "sample_a": [3.0, 5.0],
                     "sample_b": [4.0, 6.0],
                 },
-                index=pd.Index(["site_key_1", "site_key_2"], name="site_key"),
+                index=pd.Index([_MAPK14_KEY, _AKT1_KEY], name="site_key"),
             ),
             pd.DataFrame(
                 {
@@ -233,7 +257,7 @@ def test_duplicate_site_policy_reports_metadata_conflicts() -> None:
                     "protein_id": ["PROT_A", "PROT_C"],
                     "uid": ["B", "C"],
                 },
-                index=pd.Index(["site_key_1", "site_key_2"], name="site_key"),
+                index=pd.Index([_MAPK14_KEY, _AKT1_KEY], name="site_key"),
             ),
         ),
         (
@@ -243,7 +267,7 @@ def test_duplicate_site_policy_reports_metadata_conflicts() -> None:
                     "sample_a": [2.0, 5.0],
                     "sample_b": [3.0, 6.0],
                 },
-                index=pd.Index(["site_key_1", "site_key_2"], name="site_key"),
+                index=pd.Index([_MAPK14_KEY, _AKT1_KEY], name="site_key"),
             ),
             pd.DataFrame(
                 {
@@ -254,7 +278,7 @@ def test_duplicate_site_policy_reports_metadata_conflicts() -> None:
                     "protein_id": ["PROT_A", "PROT_C"],
                     "uid": [pd.NA, "C"],
                 },
-                index=pd.Index(["site_key_1", "site_key_2"], name="site_key"),
+                index=pd.Index([_MAPK14_KEY, _AKT1_KEY], name="site_key"),
             ),
         ),
         (
@@ -264,7 +288,7 @@ def test_duplicate_site_policy_reports_metadata_conflicts() -> None:
                     "sample_a": [2.0, 5.0],
                     "sample_b": [3.0, 6.0],
                 },
-                index=pd.Index(["site_key_1", "site_key_2"], name="site_key"),
+                index=pd.Index([_MAPK14_KEY, _AKT1_KEY], name="site_key"),
             ),
             pd.DataFrame(
                 {
@@ -275,7 +299,7 @@ def test_duplicate_site_policy_reports_metadata_conflicts() -> None:
                     "protein_id": ["PROT_A", "PROT_C"],
                     "uid": [pd.NA, "C"],
                 },
-                index=pd.Index(["site_key_1", "site_key_2"], name="site_key"),
+                index=pd.Index([_MAPK14_KEY, _AKT1_KEY], name="site_key"),
             ),
         ),
     ],
@@ -326,7 +350,7 @@ def test_duplicate_site_aggregate_complete_observations_preserve_values(
         index=phospho.index.copy(),
     )
     scientific_row_key = pd.Series(
-        ["site_key_1", "site_key_1"],
+        [_MAPK14_KEY, _MAPK14_KEY],
         index=phospho.index.copy(),
         name="site_key",
     )
@@ -345,8 +369,8 @@ def test_duplicate_site_aggregate_complete_observations_preserve_values(
     )
 
     assert result.phospho.shape == (1, 2)
-    assert result.phospho.loc["site_key_1", "sample_a"] == pytest.approx(3.0)
-    assert result.phospho.loc["site_key_1", "sample_b"] == pytest.approx(7.0)
+    assert result.phospho.loc[_MAPK14_KEY, "sample_a"] == pytest.approx(3.0)
+    assert result.phospho.loc[_MAPK14_KEY, "sample_b"] == pytest.approx(7.0)
     assert result.duplicate_aggregation_diagnostics["missing_value_policy"] == (
         "skip_missing_values"
     )
@@ -387,7 +411,7 @@ def test_duplicate_site_aggregate_partial_missing_uses_explicit_skip_missing_pol
         index=phospho.index.copy(),
     )
     scientific_row_key = pd.Series(
-        ["site_key_1", "site_key_1", "site_key_2"],
+        [_MAPK14_KEY, _MAPK14_KEY, _AKT1_KEY],
         index=phospho.index.copy(),
         name="site_key",
     )
@@ -405,10 +429,10 @@ def test_duplicate_site_aggregate_partial_missing_uses_explicit_skip_missing_pol
         duplicate_site_policy=policy,
     )
 
-    assert result.phospho.loc["site_key_1", "sample_a"] == pytest.approx(
+    assert result.phospho.loc[_MAPK14_KEY, "sample_a"] == pytest.approx(
         expected_sample_a
     )
-    assert result.phospho.loc["site_key_1", "sample_b"] == pytest.approx(
+    assert result.phospho.loc[_MAPK14_KEY, "sample_b"] == pytest.approx(
         expected_sample_b
     )
     assert result.duplicate_aggregation_diagnostics["missing_value_policy"] == (
@@ -446,7 +470,7 @@ def test_duplicate_site_aggregate_one_source_row_all_missing_is_not_dropped(
         index=phospho.index.copy(),
     )
     scientific_row_key = pd.Series(
-        ["site_key_1", "site_key_1"],
+        [_MAPK14_KEY, _MAPK14_KEY],
         index=phospho.index.copy(),
         name="site_key",
     )
@@ -465,8 +489,8 @@ def test_duplicate_site_aggregate_one_source_row_all_missing_is_not_dropped(
     )
 
     assert result.phospho.shape[0] == 1
-    assert result.phospho.loc["site_key_1", "sample_a"] == pytest.approx(4.0)
-    assert result.phospho.loc["site_key_1", "sample_b"] == pytest.approx(6.0)
+    assert result.phospho.loc[_MAPK14_KEY, "sample_a"] == pytest.approx(4.0)
+    assert result.phospho.loc[_MAPK14_KEY, "sample_b"] == pytest.approx(6.0)
     assert result.duplicate_aggregation_diagnostics["rows_collapsed_count"] == 1
 
 
@@ -487,7 +511,7 @@ def test_duplicate_site_aggregate_all_missing_duplicates_keep_group_row() -> Non
         index=phospho.index.copy(),
     )
     scientific_row_key = pd.Series(
-        ["site_key_1", "site_key_1"],
+        [_MAPK14_KEY, _MAPK14_KEY],
         index=phospho.index.copy(),
         name="site_key",
     )
@@ -506,7 +530,7 @@ def test_duplicate_site_aggregate_all_missing_duplicates_keep_group_row() -> Non
     )
 
     assert result.phospho.shape == (1, 2)
-    assert result.phospho.index.tolist() == ["site_key_1"]
+    assert result.phospho.index.tolist() == [_MAPK14_KEY]
     assert result.duplicate_aggregation_diagnostics["duplicate_group_count"] == 1
 
 
@@ -531,7 +555,10 @@ def test_duplicate_display_ids_with_distinct_site_keys_are_not_treated_as_duplic
         index=phospho.index.copy(),
     )
     scientific_row_key = pd.Series(
-        ["site_key_1", "site_key_2"],
+        [
+            protein_site_key(protein_identifier="P28482", site="Y182"),
+            protein_site_key(protein_identifier="Q9Y2R5", site="Y182"),
+        ],
         index=phospho.index.copy(),
         name="site_key",
     )
@@ -549,5 +576,110 @@ def test_duplicate_display_ids_with_distinct_site_keys_are_not_treated_as_duplic
         duplicate_site_policy="error",
     )
 
-    assert result.phospho.index.tolist() == ["site_key_1", "site_key_2"]
+    assert result.phospho.index.tolist() == scientific_row_key.tolist()
     assert result.duplicate_site_resolution.empty
+
+
+def test_duplicate_site_keys_fail_under_strict_policy() -> None:
+    phospho, site_metadata, scientific_row_key, constructed_display_id = (
+        _duplicate_policy_inputs()
+    )
+
+    with pytest.raises(PhosPyInputError, match="duplicate site_key values"):
+        _apply_duplicate_site_policy(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            scientific_row_key=scientific_row_key,
+            constructed_display_id=constructed_display_id,
+            duplicate_site_policy=DATASET_SITE_MATRIX_DUPLICATE_POLICY_ERROR,
+        )
+
+
+def test_duplicate_resolution_rejects_missing_site_key() -> None:
+    phospho, site_metadata, _, constructed_display_id = _duplicate_policy_inputs()
+
+    with pytest.raises(PhosPyInputError, match="requires site_key row identity"):
+        DuplicateSiteResolver().resolve(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            constructed_display_id=constructed_display_id,
+            duplicate_site_policy=DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST,
+        )
+
+
+def test_duplicate_resolution_rejects_raw_invalid_site_key_strings() -> None:
+    phospho, site_metadata, _, constructed_display_id = _duplicate_policy_inputs()
+    invalid_site_key = pd.Series(
+        ["site_key_1", "site_key_1", "site_key_2"],
+        index=phospho.index.copy(),
+        name="site_key",
+    )
+
+    with pytest.raises(PhosPyInputError, match="must start with 'phospy:v1'"):
+        _apply_duplicate_site_policy(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            scientific_row_key=invalid_site_key,
+            constructed_display_id=constructed_display_id,
+            duplicate_site_policy=DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST,
+        )
+
+
+def test_missing_and_specified_isoform_scope_collision_fails() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0],
+            "sample_b": [3.0, 4.0],
+        },
+        index=pd.Index(["row_missing_isoform", "row_explicit_isoform"], name="source"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "MAPK14"],
+            "site": ["Y182", "Y182"],
+            "display_id": ["MAPK14;Y182;", "MAPK14;Y182;"],
+            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "protein_id": ["P28482", "P28482"],
+            "isoform_id": [pd.NA, "isoform-2"],
+        },
+        index=phospho.index.copy(),
+    )
+    site_keys = pd.Series(
+        [
+            encode_site_key(
+                ProteinScopedPhosphositeKey(
+                    organism="rat",
+                    protein_namespace="protein_id",
+                    protein_identifier="P28482",
+                    residue="Y",
+                    position=182,
+                )
+            ),
+            encode_site_key(
+                ProteinScopedPhosphositeKey(
+                    organism="rat",
+                    protein_namespace="protein_id",
+                    protein_identifier="P28482",
+                    residue="Y",
+                    position=182,
+                    isoform_id="isoform-2",
+                )
+            ),
+        ],
+        index=phospho.index.copy(),
+        name="site_key",
+    )
+    display_ids = pd.Series(
+        ["MAPK14;Y182;", "MAPK14;Y182;"],
+        index=phospho.index.copy(),
+        name="display_id",
+    )
+
+    with pytest.raises(PhosPyInputError, match="mixed isoform scope"):
+        _apply_duplicate_site_policy(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            scientific_row_key=site_keys,
+            constructed_display_id=display_ids,
+            duplicate_site_policy=DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST,
+        )
