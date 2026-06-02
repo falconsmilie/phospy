@@ -135,7 +135,7 @@ class DatasetBuildSourceResolver:
         (
             normalized_phospho,
             identity_enriched_site_metadata,
-        ) = self._coerce_as_input_rows_to_site_key_index_when_needed(
+        ) = self._reindex_as_input_rows_to_site_key_index_when_needed(
             phospho=normalized.phospho,
             site_metadata=identity_enriched_site_metadata,
             site_matrix_policy=site_matrix_policy,
@@ -255,8 +255,8 @@ class DatasetBuildSourceResolver:
         site_metadata: pd.DataFrame,
         organism: Organism | None,
     ) -> pd.DataFrame:
-        if _has_complete_explicit_site_identity_fields(site_metadata):
-            return site_metadata
+        if _has_valid_complete_explicit_site_identity_fields(site_metadata):
+            return _normalize_explicit_site_identity_fields(site_metadata)
         if _has_blank_or_missing_site_identity_fields(site_metadata):
             return site_metadata
         try:
@@ -288,24 +288,16 @@ class DatasetBuildSourceResolver:
     ) -> None:
         if "site_key" not in site_metadata.columns:
             return
-        try:
-            site_keys = enforce_site_key_column(
-                site_metadata=site_metadata,
-                field_name="dataset build request site_metadata",
-                error_type=PhosPyInputError,
-            )
-            require_no_mixed_site_key_isoform_scope(
-                site_keys=site_keys,
-                field_name="dataset build request site_metadata.site_key",
-                error_type=PhosPyInputError,
-            )
-        except PhosPyInputError:
-            site_keys = pd.Series(
-                site_metadata.loc[:, "site_key"].astype(str).tolist(),
-                index=site_metadata.index.copy(),
-                name="site_key",
-                dtype="object",
-            )
+        site_keys = enforce_site_key_column(
+            site_metadata=site_metadata,
+            field_name="dataset build request site_metadata",
+            error_type=PhosPyInputError,
+        )
+        require_no_mixed_site_key_isoform_scope(
+            site_keys=site_keys,
+            field_name="dataset build request site_metadata.site_key",
+            error_type=PhosPyInputError,
+        )
         resolved_site_matrix_policy = SiteMatrixPolicy.parse(
             site_matrix_policy,
             field_name="dataset build request preprocessing_config.site_matrix.policy",
@@ -357,7 +349,7 @@ class DatasetBuildSourceResolver:
         )
 
     @staticmethod
-    def _coerce_as_input_rows_to_site_key_index_when_needed(
+    def _reindex_as_input_rows_to_site_key_index_when_needed(
         *,
         phospho: pd.DataFrame,
         site_metadata: pd.DataFrame,
@@ -378,22 +370,20 @@ class DatasetBuildSourceResolver:
             field_name="dataset build request site_metadata",
             error_type=PhosPyInputError,
         )
-        try:
-            site_keys = enforce_site_key_column(
-                site_metadata=site_metadata,
-                field_name="dataset build request site_metadata",
-                error_type=PhosPyInputError,
-            )
-        except PhosPyInputError:
-            site_keys = pd.Series(
-                site_metadata.loc[:, "site_key"].astype(str).tolist(),
-                index=site_metadata.index.copy(),
-                name="site_key",
-            )
+        site_keys = enforce_site_key_column(
+            site_metadata=site_metadata,
+            field_name="dataset build request site_metadata",
+            error_type=PhosPyInputError,
+        )
         aligned_index = pd.Index(
             site_keys.astype(str).tolist(),
             name="site_key",
         )
+        if len(aligned_index) != len(phospho.index):
+            raise PhosPyInputError(
+                "dataset build request phospho and site_metadata row counts must "
+                "match before site_key indexing"
+            )
         values_aligned = phospho.index.equals(
             aligned_index
         ) and site_metadata.index.equals(aligned_index)
@@ -404,6 +394,7 @@ class DatasetBuildSourceResolver:
             return phospho, site_metadata
         phospho.index = aligned_index
         site_metadata.index = aligned_index.copy()
+        site_metadata.loc[:, "site_key"] = aligned_index.tolist()
         return phospho, site_metadata
 
 
@@ -519,11 +510,45 @@ def _has_blank_or_missing_site_identity_fields(site_metadata: pd.DataFrame) -> b
     return bool(has_blank_or_missing.any())
 
 
-def _has_complete_explicit_site_identity_fields(site_metadata: pd.DataFrame) -> bool:
-    return _has_complete_column(site_metadata, "display_id") and _has_complete_column(
-        site_metadata,
-        "site_key",
+def _has_valid_complete_explicit_site_identity_fields(
+    site_metadata: pd.DataFrame,
+) -> bool:
+    if not _has_complete_column(site_metadata, "display_id"):
+        return False
+    if not _has_complete_column(site_metadata, "site_key"):
+        return False
+    try:
+        enforce_display_id_column(
+            site_metadata=site_metadata,
+            field_name="dataset build request site_metadata",
+            error_type=PhosPyInputError,
+        )
+        enforce_site_key_column(
+            site_metadata=site_metadata,
+            field_name="dataset build request site_metadata",
+            error_type=PhosPyInputError,
+        )
+    except PhosPyInputError:
+        return False
+    return True
+
+
+def _normalize_explicit_site_identity_fields(
+    site_metadata: pd.DataFrame,
+) -> pd.DataFrame:
+    display_ids = enforce_display_id_column(
+        site_metadata=site_metadata,
+        field_name="dataset build request site_metadata",
+        error_type=PhosPyInputError,
     )
+    site_keys = enforce_site_key_column(
+        site_metadata=site_metadata,
+        field_name="dataset build request site_metadata",
+        error_type=PhosPyInputError,
+    )
+    site_metadata.loc[:, "display_id"] = display_ids.astype(str).tolist()
+    site_metadata.loc[:, "site_key"] = site_keys.astype(str).tolist()
+    return site_metadata
 
 
 def _has_complete_column(site_metadata: pd.DataFrame, column_name: str) -> bool:

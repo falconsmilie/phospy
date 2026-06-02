@@ -421,23 +421,15 @@ def _resolve_scientific_row_key(
     prefer_site_key: bool = True,
 ) -> pd.Series:
     if prefer_site_key and _SITE_KEY_COLUMN in site_metadata.columns:
-        try:
-            site_keys = enforce_site_key_column(
-                site_metadata=site_metadata,
-                field_name=(
-                    "dataset build request preprocessing site-matrix construction "
-                    "site_metadata"
-                ),
-                error_type=PhosPyInputError,
-                column_name=_SITE_KEY_COLUMN,
-            )
-        except PhosPyInputError:
-            site_keys = pd.Series(
-                site_metadata.loc[:, _SITE_KEY_COLUMN].astype(str).tolist(),
-                index=fallback_constructed_display_id.index.copy(),
-                name=_SITE_KEY_COLUMN,
-                dtype="object",
-            )
+        site_keys = enforce_site_key_column(
+            site_metadata=site_metadata,
+            field_name=(
+                "dataset build request preprocessing site-matrix construction "
+                "site_metadata"
+            ),
+            error_type=PhosPyInputError,
+            column_name=_SITE_KEY_COLUMN,
+        )
         return pd.Series(
             site_keys.astype(str).tolist(),
             index=fallback_constructed_display_id.index.copy(),

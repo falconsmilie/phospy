@@ -41,6 +41,49 @@ def _site_key_for_display_id(site_metadata: pd.DataFrame, display_id: str) -> st
     return str(matches[0])
 
 
+def test_builder_analysis_ready_output_uses_encoded_site_key_identity() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0],
+            "sample_b": [1.5, 2.5],
+        },
+        index=pd.Index(["MAPK14;Y182;", "MAPK14;Y182;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "MAPK14"],
+            "site": ["Y182", "Y182"],
+            "protein_id": ["P28482", "Q5S007"],
+            "site_sequence": ["AAAAAYAAAAA", "AAAAAYAAAAA"],
+            "localisation_confidence": [0.95, 0.96],
+            "site_key": ["MAPK14;Y182;", "MAPK14;Y182;"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            input_intensity_scale="linear",
+        )
+    )
+
+    assert built.phospho.index.name == "site_key"
+    assert built.site_metadata.index.name == "site_key"
+    assert built.phospho.index.equals(built.site_metadata.index)
+    assert built.site_metadata.loc[:, "site_key"].tolist() == (
+        built.site_metadata.index.tolist()
+    )
+    assert "MAPK14;Y182;" not in built.phospho.index.tolist()
+    assert built.site_metadata.loc[:, "display_id"].tolist() == [
+        "MAPK14;Y182;",
+        "MAPK14;Y182;",
+    ]
+    assert built.site_metadata.loc[:, "site_key"].nunique() == 2
+
+
 @pytest.mark.parametrize(
     "missing_data_policy",
     tuple(sorted(DATASET_SITE_MATRIX_MISSING_DATA_POLICIES)),
