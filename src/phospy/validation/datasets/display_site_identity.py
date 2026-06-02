@@ -1,4 +1,4 @@
-"""Dataset-boundary validation for phosphosite display-site row identity."""
+"""Legacy validation for phosphosite display-label duplicate guards."""
 
 from __future__ import annotations
 
@@ -31,7 +31,12 @@ def enforce_unique_display_site_identity_rows(
     context_columns: tuple[str, ...] = DISPLAY_SITE_CONTEXT_COLUMNS,
     preview_limit: int = 5,
 ) -> pd.Series:
-    """Reject duplicate normalised display-site identifiers at dataset boundary."""
+    """Reject duplicate display labels for callers using the legacy guard.
+
+    Current analysis-ready row identity is ``site_key``. This helper is retained
+    for compatibility with legacy duplicate checks and must not be treated as
+    the current dataset row-identity boundary.
+    """
 
     if len(site_metadata.index) != len(display_site_ids.index):
         raise error_type(
@@ -74,17 +79,16 @@ def enforce_unique_display_site_identity_rows(
             conflicting_messages.append(
                 "Duplicate phosphosite display identifier "
                 f"{duplicate_id!r} maps to multiple protein or isoform contexts"
-                f" ({conflicts}). PhosPy currently supports one analysis-ready row "
-                "per normalised display-site identifier and does not yet use "
-                "protein- or isoform-scoped row identity. Resolve or disambiguate "
-                "these rows before dataset construction."
+                f" ({conflicts}). This legacy display-label duplicate guard "
+                "cannot derive a safe site_key for those rows. Resolve or "
+                "disambiguate the protein context before using this legacy path."
             )
             continue
         plain_messages.append(
             "Duplicate phosphosite display identifier "
-            f"{duplicate_id!r} appears more than once. PhosPy currently supports "
-            "one analysis-ready row per normalised display-site identifier. "
-            "Aggregate or remove duplicate rows before dataset construction."
+            f"{duplicate_id!r} appears more than once in this legacy display-label "
+            "duplicate guard. Aggregate, remove, or derive distinct site_key rows "
+            "before using this legacy path."
         )
 
     duplicate_preview = ", ".join(

@@ -133,9 +133,9 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 
 | File | Test | Line | Evidence |
 | --- | --- | ---: | --- |
-| tests/unit/test_analysis_ready_model_boundary_validator.py | test_model_boundary_validator_allows_duplicate_display_id_with_distinct_site_key | 143 | `payload["phospho"] = pd.DataFrame(` |
-| tests/unit/test_analysis_ready_model_boundary_validator.py | test_model_boundary_validator_parity_for_misaligned_site_metadata | 230 | `payload["site_metadata"] = pd.DataFrame(` |
-| tests/unit/test_analysis_ready_model_boundary_validator.py | test_model_boundary_validator_parity_for_missing_sample_metadata_rows | 257 | `payload["sample_metadata"] = pd.DataFrame(` |
+| tests/unit/test_analysis_ready_model_boundary_validator.py | test_model_boundary_validator_allows_duplicate_display_id_with_distinct_site_key | 147 | `payload["phospho"] = pd.DataFrame(` |
+| tests/unit/test_analysis_ready_model_boundary_validator.py | test_model_boundary_validator_parity_for_misaligned_site_metadata | 234 | `payload["site_metadata"] = pd.DataFrame(` |
+| tests/unit/test_analysis_ready_model_boundary_validator.py | test_model_boundary_validator_parity_for_missing_sample_metadata_rows | 261 | `payload["sample_metadata"] = pd.DataFrame(` |
 | tests/unit/test_prediction_sequence_validation.py | test_kinase_workflow_exposes_sequence_validation_diagnostics | 372 | `phospho = pd.DataFrame(` |
 | tests/unit/test_prediction_sequence_validation.py | test_kinase_workflow_reports_partial_sequence_coverage_in_provenance | 531 | `phospho=pd.DataFrame(` |
 | tests/unit/test_prediction_sequence_validation.py | test_kinase_workflow_continues_when_no_sites_have_valid_sequence | 610 | `phospho=pd.DataFrame(` |

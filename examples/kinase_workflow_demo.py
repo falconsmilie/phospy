@@ -40,6 +40,7 @@ def build_demo_dataset() -> AnalysisReadyPhosphoDataset:
             ],
             "localisation_confidence": [0.95] * phospho.shape[0],
             "protein_id": ["TSC2", "GSK3A"],
+            "protein_accession": ["TSC2-1", "GSK3A-1"],
         },
         index=phospho.index.copy(),
     )
@@ -78,6 +79,11 @@ def main() -> None:
     result = run_demo()
     print("Preferred 1.5.0 kinase workflow lane")
     print("Dataset organism:", result.dataset.organism.value)
+    print(
+        result.dataset.site_metadata.loc[
+            :, ["site_key", "display_id", "gene_symbol", "site", "protein_id"]
+        ]
+    )
     print("Reference input: ReferencePreset.AUTO")
     print("Resolved reference organism:", result.references.organism.value)
     print("Profile score shape:", result.scoring_result.profile_scores.shape)

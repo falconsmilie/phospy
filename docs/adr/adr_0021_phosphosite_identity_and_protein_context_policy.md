@@ -8,14 +8,14 @@
 - **Date:** 2026-05-12
 - **Decision Type:** Architecture Decision Record
 
-Superseded in part by ADR-0023 and ADR-0024 for supported analysis-ready row
-identity scope and duplicate display-site handling.
+Superseded in part by ADR-0023 and then amended by ADR-0024. ADR-0024 is the
+controlling decision for supported analysis-ready row identity.
 
 ## Context
 
 PhosPy historically centered site identity on display-oriented `GENE;SITE;`
-tokens. That format is convenient and remains useful for matrix indexing, but
-it is not sufficient scientific identity for accession-aware phosphoproteomics.
+tokens. That format is convenient and remains useful as a display label, but it
+is not sufficient scientific identity for accession-aware phosphoproteomics.
 
 The same display token can correspond to different proteins, isoforms, source
 records, or namespaces. If those contexts are silently collapsed, downstream
@@ -26,11 +26,17 @@ scientifically ambiguous.
 
 PhosPy introduces an explicit phosphosite identity model that separates:
 
-- **Display identity:** standardized `GENE;SITE;` token
+- **Display identity:** standardized `GENE;SITE;` token, now represented as
+  `display_id`
 - **Scientific identity context:** protein/accession/provenance fields
 
 Identity is represented in a dedicated site-domain module and validated at
 dataset/preprocessing boundaries before workflow execution.
+
+ADR-0024 adds the analysis-ready row key: `site_key` is the unique
+protein-scoped row identity for `AnalysisReadyPhosphoDataset.phospho.index` and
+`AnalysisReadyPhosphoDataset.site_metadata.index`. `display_id` is metadata and
+may repeat when distinct `site_key` values preserve the protein context.
 
 ### Identity Model
 
@@ -91,17 +97,19 @@ rules remain owned by sequence-aware workflow identity contracts.
 
 ### Compatibility
 
-Standardized `GENE;SITE;` parsing remains supported and is still required for
-display IDs at strict dataset boundaries. Display identity remains an indexing
-surface, not complete scientific identity.
+Standardized `GENE;SITE;` parsing remains supported for display labels.
+Display identity is a reporting surface, not complete scientific identity and
+not the analysis-ready row key.
 
 ### Ambiguity and Collision Policy
 
-When multiple rows map to the same display site ID, PhosPy now rejects rows
-that carry conflicting scientific identity contexts (for example conflicting
-`protein_id`/`protein_accession` values) before duplicate-site collapse.
+When multiple builder-input rows map to the same display label, PhosPy rejects
+the input only when protein-scoped identity cannot be derived safely or when the
+rows collapse to the same `site_key` without an explicit duplicate policy that
+resolves them before final dataset construction.
 
-Semantically identical repeated identities remain valid.
+Repeated `display_id` values are valid in analysis-ready datasets when each row
+has a unique `site_key`.
 
 ## Workflow Requirements
 
@@ -110,7 +118,7 @@ Workflow validators must compose shared identity validation through
 
 | Workflow | Contract ID | Identity minimum | Required additions | Explicitly not required |
 | --- | --- | --- | --- | --- |
-| Differential | `display_site_identity_minimum` | Standardized display IDs and coherent `gene_symbol/site` rows | Collision checks for conflicting scientific context when duplicate display IDs are present | Protein/accession fields |
+| Differential | `display_site_identity_minimum` | Standardized display labels, coherent `gene_symbol/site` rows, and analysis-ready `site_key` row identity | Collision checks for unsafe builder-input duplicates when duplicate display labels are present | Mandatory protein/accession fields beyond the `site_key` already present |
 | Kinase | `sty_site_identity_plus_sequence_context` | Differential minimum | Strict site-token parsing (`S/T/Y<position>` unless opaque waiver), centred sequence context | Mandatory protein/accession on every row |
 | Signalome | `protein_scoped_site_identity` | Kinase minimum | Explicit non-empty `protein_id` per retained site | Inference of protein identity from display IDs |
 
@@ -145,5 +153,5 @@ Ownership boundaries are:
 ### Tradeoffs
 
 - Some duplicate-site datasets that previously collapsed silently now fail fast
-  until identity ambiguity is resolved upstream.
+  until protein-scoped identity ambiguity is resolved upstream.
 - Users may need to provide richer identity metadata for strict workflows.

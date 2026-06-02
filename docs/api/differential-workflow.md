@@ -68,7 +68,7 @@ Optional inputs:
 ### Matrix Shape Expectations
 
 - `dataset.phospho` must be a numeric phosphosite-by-sample matrix.
-- Rows are phosphosite features (site IDs); columns are sample IDs.
+- Rows are phosphosite features keyed by `site_key`; columns are sample IDs.
 - Values are expected to be finite and analysis-ready (no hidden preprocessing
   is run inside the differential workflow).
 
@@ -159,7 +159,7 @@ Common outputs include:
 - `result.prior_diagnostics`
 - `result.mean_variance_trend_diagnostics` (when trend is enabled)
 
-Each contrast result table is row-aligned to the input site IDs.
+Each contrast result table is row-aligned to the input `site_key` values.
 
 ### Statistical Method and Multiple Testing
 
@@ -241,6 +241,7 @@ site_metadata = pd.DataFrame(
             "ATMSGRPRTTSFAESSKPVQQPSAFGQAAAL",
         ],
         "protein_id": ["MAPK14", "GSK3B"],
+        "protein_accession": ["MAPK14-1", "GSK3B-1"],
         "localisation_confidence": [0.95, 0.92],
     },
     index=phospho.index.copy(),
@@ -308,14 +309,19 @@ result = DifferentialAnalysisWorkflow().run(
     )
 )
 
+print(
+    dataset.site_metadata.loc[
+        :, ["site_key", "display_id", "gene_symbol", "site", "protein_id"]
+    ]
+)
 print(result.table_for("treatment_vs_control").loc[:, ["logFC", "adj.P.Val"]])
 ```
 
 Interpretation notes for this tiny synthetic matrix:
 
-- `MAPK14;Y182;` has higher treatment intensity than control, so `logFC` should
-  be positive for `treatment_vs_control`.
-- `GSK3B;S9;` is approximately unchanged across conditions, so its `logFC`
-  should be near zero.
+- The `MAPK14;Y182;` display label has higher treatment intensity than control,
+  so `logFC` should be positive for `treatment_vs_control`.
+- The `GSK3B;S9;` display label is approximately unchanged across conditions,
+  so its `logFC` should be near zero.
 - The example demonstrates workflow contracts and mechanics, not biological
   discovery or study-level statistical power.

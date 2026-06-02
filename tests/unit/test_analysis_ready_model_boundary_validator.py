@@ -116,7 +116,11 @@ def test_model_boundary_validator_rejects_display_indexed_direct_constructor_pay
     site_metadata.index = phospho.index.copy()
     payload["phospho"] = phospho
     payload["site_metadata"] = site_metadata
-    _assert_constructor_and_adapter_reject(payload)
+
+    with pytest.raises(_MODEL_BOUNDARY_ERRORS, match="display-indexed"):
+        AnalysisReadyPhosphoDataset(**payload)
+    with pytest.raises(_MODEL_BOUNDARY_ERRORS, match="display-indexed"):
+        _BOUNDARY_VALIDATOR.run(**payload)
 
 
 def test_model_boundary_validator_rejects_missing_site_key_column() -> None:

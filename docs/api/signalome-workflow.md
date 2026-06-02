@@ -86,8 +86,8 @@ result = SignalomeWorkflow().run(
 ## Protein Identity Requirement
 
 Signalome requires explicit, non-empty `dataset.site_metadata.protein_id` for all
-interpreted sites. The gene-symbol prefix in a site ID such as `TSC2;S939;` is
-not treated as a protein-identity fallback.
+interpreted sites. The gene-symbol prefix in a display label such as
+`TSC2;S939;` is not treated as a protein-identity fallback.
 
 ```python
 protein_ids = kinase_result.dataset.site_metadata["protein_id"]

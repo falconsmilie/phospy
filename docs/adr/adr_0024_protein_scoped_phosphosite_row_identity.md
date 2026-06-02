@@ -8,7 +8,8 @@
 - **Date:** 2026-05-27
 - **Decision Type:** Architecture Decision Record
 
-Supersedes ADR-0023 for analysis-ready phosphosite row identity scope.
+Supersedes ADR-0023 for analysis-ready phosphosite row identity scope and
+amends ADR-0021 and ADR-0003 where they discuss analysis-ready row identity.
 
 ## Status
 

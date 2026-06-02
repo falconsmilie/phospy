@@ -220,7 +220,7 @@ def _duplicate_identity_frames(
     return phospho, site_metadata
 
 
-def test_source_resolver_rejects_plain_duplicate_display_site_identity_rows() -> None:
+def test_source_resolver_rejects_duplicate_site_key_from_same_protein_context() -> None:
     phospho, site_metadata = _duplicate_identity_frames(
         protein_id=("P28482", "P28482"),
         protein_accession=("P28482-1", "P28482-1"),

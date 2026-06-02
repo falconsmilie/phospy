@@ -6,8 +6,9 @@ errors are fixable once you know which boundary rejected the input.
 ## Dataset Input Rules
 
 `phospho` must be a non-empty numeric pandas `DataFrame` or supported file path.
-Rows are phosphosites and columns are samples. The index must use standard site
-IDs such as `MAPK14;Y182;`. Missing values are rejected by default.
+Rows are phosphosites and columns are samples. Builder input may use display
+labels such as `MAPK14;Y182;` as the index when `site_metadata` provides enough
+protein context to derive `site_key`. Missing values are rejected by default.
 
 `site_metadata` must be a non-empty table aligned to `phospho.index`. It must
 include non-empty `gene_symbol`, `site`, and `site_sequence` columns.
@@ -29,8 +30,10 @@ Accepted column aliases are narrow:
 | `gene_name` | `gene_symbol` |
 | `centralized_sequence` | `site_sequence` |
 
-If `gene_symbol` or `site` is missing, the builder can derive them from an index
-like `TSC2;S939;`. It does not derive `protein_id`.
+If `gene_symbol` or `site` is missing, the builder can derive them from an
+input index like `TSC2;S939;`. It does not derive `protein_id` from the
+gene-symbol prefix. Builder ingestion may accept legacy display-indexed input
+only when enough protein context exists to derive `site_key`.
 
 ## Analysis-Ready Dataset Boundary
 
@@ -38,8 +41,12 @@ A built `AnalysisReadyPhosphoDataset` must have:
 
 - numeric, non-empty, missing-value-free `phospho`
 - unique sample columns
-- unique site IDs
+- unique `site_key` values
+- `phospho.index.name == "site_key"`
 - `site_metadata.index` exactly matching `phospho.index`
+- `site_metadata["site_key"]` exactly matching `site_metadata.index`
+- required `display_id`; repeated `display_id` values are valid when
+  `site_key` values differ
 - required non-empty `gene_symbol`, `site`, and `site_sequence`
 - `sample_metadata.index` exactly matching `phospho.columns` when provided
 - `total.columns` exactly matching `phospho.columns` when provided
@@ -88,7 +95,7 @@ Common cross-field checks:
 
 - `organism` as an `Organism` enum value
 - `kinase_substrate_map` with non-empty `kinase` and `substrate_site`
-- `site_sequences` indexed by site ID with non-empty `site_sequence`
+- `site_sequences` indexed by display site ID with non-empty `site_sequence`
 - no duplicate `(kinase, substrate_site)` pairs
 
 `ReferencePreset.AUTO` uses `dataset.organism`. In the current release, bundled runtime
@@ -111,7 +118,7 @@ Mixed corrected/uncorrected quantitative meaning is rejected by default; set
 
 `SignalomeWorkflowRequest.kinase_result` must be a `KinaseWorkflowResult`.
 Signalome also requires explicit `protein_id` values for every interpreted site.
-Gene-symbol prefixes in site IDs are not treated as protein identity.
+Gene-symbol prefixes in display labels are not treated as protein identity.
 Mixed corrected/uncorrected quantitative meaning is rejected by default; set
 `config.validation.allow_mixed_total_protein_quantitative_meaning=True` to opt in.
 
@@ -131,7 +138,7 @@ shows exact tree-generation details and candidate-scoring details separately.
 | Error shape | What to check first |
 | --- | --- |
 | unsupported file format | Use `.csv`, `.tsv`, `.txt`, or `.parquet`; install parquet support for `.parquet`. |
-| missing `gene_symbol` or `site` | Add those columns or use site IDs formatted as `GENE;SITE;`. |
+| missing `gene_symbol` or `site` | Add those columns or use input index labels formatted as `GENE;SITE;`. |
 | signalome protein identity error | Add non-empty `protein_id` for every site. |
 | reference resolution error | Use rat with `AUTO`, or pass an explicit `ReferenceBundle`. |
 | total-protein correction error | Provide `total`, set `intensity_transform.policy="log2"`, and configure identity mapping. |

@@ -13,6 +13,8 @@ Identity boundary summary:
 - `AnalysisReadyPhosphoDataset.phospho.index` is `site_key`.
 - `AnalysisReadyPhosphoDataset.site_metadata.index` is `site_key`.
 - `AnalysisReadyPhosphoDataset.site_metadata["display_id"]` is required.
+- `AnalysisReadyPhosphoDataset.site_metadata["site_key"]` must exactly match
+  `site_metadata.index`.
 - Protein context is required to construct `site_key`.
 - Direct analysis-ready datasets must not silently fall back to display-site
   identity.

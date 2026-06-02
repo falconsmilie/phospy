@@ -107,14 +107,19 @@ release are rat only. Human and mouse workflows need an explicit
 
 The dataset that leaves the builder must be missing-value-free. This strict
 boundary keeps kinase scoring, prediction, and signalome interpretation easier
-to audit.
-At this boundary, PhosPy supports one row per normalised phosphosite
-display-site identifier (`GENE;SITE;`). Protein-, isoform-, source-, and
-peptide-evidence-scoped row identity are not yet supported, and duplicate
-display-site rows must be resolved before dataset construction. Duplicate
-display-site rows are rejected during dataset construction, including rows with
-identical protein metadata. See
-[ADR-0023](../adr/adr_0023_supported_phosphosite_display_site_identity_scope.md).
+to audit. At this boundary, `site_key` is the unique analysis-ready row
+identity and `display_id` is the human-readable `GENE;SITE;` label. The public
+dataset indexes are:
+
+- `AnalysisReadyPhosphoDataset.phospho.index`: `site_key`
+- `AnalysisReadyPhosphoDataset.site_metadata.index`: `site_key`
+- `AnalysisReadyPhosphoDataset.site_metadata["display_id"]`: display label
+
+`display_id` may repeat when distinct `site_key` values preserve distinct
+protein context. Direct `AnalysisReadyPhosphoDataset` construction requires
+`site_key`; builder ingestion may accept legacy display-indexed input only when
+protein context is sufficient to derive `site_key`. See
+[ADR-0024](../adr/adr_0024_protein_scoped_phosphosite_row_identity.md).
 
 For concise scientist facing assumptions and interpretation notes, see
 [Workflow Contracts](../workflow_contracts.md).
@@ -242,7 +247,7 @@ this release. Use `ReferenceBundle` for custom references. It requires:
 
 - `organism`
 - `kinase_substrate_map` with `kinase` and `substrate_site`
-- `site_sequences` indexed by site ID with `site_sequence`
+- `site_sequences` indexed by display site ID with `site_sequence`
 
 Example:
 
@@ -315,6 +320,7 @@ site_metadata = pd.DataFrame(
             "ATMSGRPRTTSFAESSSPVQQPSAFGQAAAL",
         ],
         "protein_id": ["TSC2", "GSK3B"],
+        "protein_accession": ["TSC2-1", "GSK3B-1"],
         "localisation_confidence": [0.95, 0.92],
     },
     index=phospho.index.copy(),
@@ -336,6 +342,11 @@ dataset = AnalysisReadyDatasetBuilder().run(
             )
         ),
     )
+)
+print(
+    dataset.site_metadata.loc[
+        :, ["site_key", "display_id", "gene_symbol", "site", "protein_id"]
+    ]
 )
 kinase_result = KinaseWorkflow().run(
     KinaseWorkflowRequest(

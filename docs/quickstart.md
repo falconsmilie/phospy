@@ -29,8 +29,10 @@ pip install -e ".[dev]"
 
 ## 2. Prepare Two Tables
 
-`phospho` is numeric, with phosphosite IDs as the index. `site_metadata` uses the
-same index and describes each site.
+`phospho` is numeric. Builder input may use display labels such as
+`TSC2;S939;` as the index when `site_metadata` provides enough protein context
+to derive `site_key`. The built analysis-ready dataset uses `site_key` as its
+row index and preserves the display label in `display_id`.
 
 Required `site_metadata` columns for this lane:
 
@@ -38,9 +40,9 @@ Required `site_metadata` columns for this lane:
 - `site`
 - `site_sequence`
 - `localisation_confidence`
-- `protein_id` for signalome
+- `protein_id` for signalome and for safe `site_key` derivation
 
-A site ID should look like `TSC2;S939;`.
+A display label should look like `TSC2;S939;`.
 
 ## 3. Run the Python Workflow
 
@@ -81,6 +83,7 @@ site_metadata = pd.DataFrame(
             "ATMSGRPRTTSFAESSSPVQQPSAFGQAAAL",
         ],
         "protein_id": ["TSC2", "GSK3B"],
+        "protein_accession": ["TSC2-1", "GSK3B-1"],
         "localisation_confidence": [0.96, 0.93],
     },
     index=phospho.index.copy(),
@@ -116,6 +119,12 @@ signalome_result = SignalomeWorkflow().run(
 print(
     "dataset shape",
     dataset.phospho.shape
+)
+print(
+    dataset.site_metadata.loc[
+        :,
+        ["site_key", "display_id", "gene_symbol", "site", "protein_id"],
+    ]
 )
 print(
     "prediction shape",
@@ -168,6 +177,6 @@ are installed.
 | `ReferencePreset.AUTO` cannot resolve references | Use `organism=Organism.RAT` with bundled references, or pass an explicit `ReferenceBundle`.                          |
 | Signalome fails on `protein_id`                  | Add a non-empty `protein_id` for every interpreted site. Gene symbols are not used as a protein-identity substitute. |
 | Missing-value error                              | Start with a complete matrix, or configure row-median imputation deliberately.                                       |
-| Site metadata does not align                     | Make `site_metadata.index` exactly match `phospho.index`.                                                            |
+| Site metadata does not align                     | For builder input, make `site_metadata.index` match `phospho.index`; for direct analysis-ready construction, use matching `site_key` indexes. |
 | File input fails                                 | Check that the first CSV/TSV column is the row index and that the suffix is supported.                               |
 | The tiny example fails after enabling activity   | Use more sites or lower the activity thresholds deliberately.                                                        |

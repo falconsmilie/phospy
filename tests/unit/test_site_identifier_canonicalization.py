@@ -416,7 +416,7 @@ def test_dataset_boundary_rejects_missing_trailing_delimiter_site_ids() -> None:
         )
 
 
-def test_dataset_boundary_rejects_duplicates_after_site_id_canonicalization() -> None:
+def test_dataset_boundary_rejects_duplicate_site_key_identity() -> None:
     with pytest.raises(
         DatasetValidationError,
         match="duplicate_site_key_values",
@@ -499,7 +499,7 @@ def test_dataset_boundary_rejects_colliding_dirty_site_ids() -> None:
         )
 
 
-def test_dataset_boundary_accepts_strict_canonical_site_ids() -> None:
+def test_dataset_boundary_accepts_site_key_row_identity() -> None:
     from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
     site_key = _site_key("MAPK14;Y182;")

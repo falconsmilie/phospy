@@ -43,6 +43,7 @@ def _build_kinase_result() -> KinaseWorkflowResult:
             "localisation_confidence": [0.95] * phospho.shape[0],
             # Required in the supported signalome lane.
             "protein_id": ["TSC2", "GSK3A"],
+            "protein_accession": ["TSC2-1", "GSK3A-1"],
         },
         index=phospho.index.copy(),
     )
@@ -89,6 +90,11 @@ def main() -> None:
     result = run_demo()
     protein_ids = result.kinase_result.dataset.site_metadata["protein_id"]
     print("Preferred 1.5.0 signalome workflow lane")
+    print(
+        result.kinase_result.dataset.site_metadata.loc[
+            :, ["site_key", "display_id", "gene_symbol", "site", "protein_id"]
+        ]
+    )
     print(
         "protein_id present for all sites:",
         bool(protein_ids.astype("string").str.strip().ne("").all()),

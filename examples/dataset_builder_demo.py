@@ -33,6 +33,7 @@ def _example_tables() -> tuple[pd.DataFrame, pd.DataFrame]:
             ],
             "localisation_confidence": [0.95] * phospho.shape[0],
             "protein_id": ["TSC2", "GSK3A"],
+            "protein_accession": ["TSC2-1", "GSK3A-1"],
         },
         index=phospho.index.copy(),
     )
@@ -65,7 +66,20 @@ def main() -> None:
     print("Input route: pandas DataFrame values")
     print("Bundled reference-compatible organism:", dataset.organism.value)
     print("Phospho shape:", dataset.phospho.shape)
-    print("Site metadata columns:", list(dataset.site_metadata.columns))
+    print("Analysis-ready row index:", dataset.phospho.index.name)
+    print(
+        dataset.site_metadata.loc[
+            :,
+            [
+                "site_key",
+                "display_id",
+                "gene_symbol",
+                "site",
+                "protein_id",
+                "protein_accession",
+            ],
+        ]
+    )
     print(
         "protein_id present for all sites:",
         bool(

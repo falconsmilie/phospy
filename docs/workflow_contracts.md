@@ -35,8 +35,13 @@ identical numeric outputs across different machines or dependency builds.
 
 ### Identifiers and Alignment Assumptions
 
-- `site_metadata.index` must exactly match `phospho.index`.
-- Site IDs are expected in standard phosphosite form (for example `TSC2;S939;`).
+- Builder input `site_metadata.index` must match `phospho.index`.
+- Builder input may use display labels in standard phosphosite form (for
+  example `TSC2;S939;`) only when enough protein context exists to derive
+  `site_key`.
+- The output `AnalysisReadyPhosphoDataset` uses `site_key` for
+  `phospho.index` and `site_metadata.index`; `display_id` remains a
+  human-readable label and may repeat.
 - `sample_metadata.index` and `total` sample index must match `phospho.columns` when provided.
 - If site-matrix construction is enabled, `site_metadata` must provide the required site-identity fields.
 
@@ -99,12 +104,14 @@ identical numeric outputs across different machines or dependency builds.
 ### Known Limitations
 
 - This workflow does not infer kinase activity or signalome structure.
-- `protein_id` is not derived automatically from site IDs; provide it explicitly for downstream signalome analysis.
+- `protein_id` is not derived automatically from display labels; provide it
+  explicitly for downstream signalome analysis.
 
 ### Expected Output Tables
 
-- `dataset.phospho`
-- `dataset.site_metadata`
+- `dataset.phospho` indexed by `site_key`
+- `dataset.site_metadata` indexed by `site_key`, with `site_key`, `display_id`,
+  `gene_symbol`, `site`, and available protein-context columns
 - optional `dataset.sample_metadata`, `dataset.total`, `dataset.comparisons`
 - optional preprocessing report tables (`row_counts`, `operations`, `row_audit`, and sidecars)
 
@@ -163,11 +170,13 @@ identical numeric outputs across different machines or dependency builds.
 - `dataset.phospho` and `dataset.site_metadata` from an `AnalysisReadyPhosphoDataset`.
 - Resolved references with:
   - `kinase_substrate_map` (`kinase`, `substrate_site`)
-  - `site_sequences` (`site_sequence` indexed by site ID)
+  - `site_sequences` (`site_sequence` indexed by display site ID)
 
 ### Identifiers and Alignment Assumptions
 
-- Quantified phosphosite IDs must align with reference `substrate_site` and `site_sequences` indices.
+- Quantified rows are keyed by `site_key`; reference `substrate_site` and
+  `site_sequences` display labels are projected onto those rows through
+  dataset `display_id` metadata before scoring.
 - Sample columns are used as provided by the dataset; scoring compares site profiles across these aligned samples.
 - Reference resolution can come from `ReferencePreset` or explicit `ReferenceBundle`.
 - Dataset `site_metadata.site_sequence` values can supplement missing reference sequences.
@@ -247,7 +256,8 @@ identical numeric outputs across different machines or dependency builds.
 
 ### Identifiers and Alignment Assumptions
 
-- Signalome runs on the shared intersection of site IDs across dataset, prediction matrix, and downstream score matrix.
+- Signalome runs on the shared intersection of `site_key` values across
+  dataset, prediction matrix, and downstream score matrix.
 - Kinase columns must overlap between prediction and downstream score matrices.
 - Site and kinase identifiers must be unique within aligned matrices.
 
@@ -296,7 +306,8 @@ identical numeric outputs across different machines or dependency builds.
 ### Known Limitations
 
 - Module/network outputs are derived summaries, not direct evidence of causal regulation.
-- Signalome requires explicit protein identifiers; gene-symbol prefixes in site IDs are not a protein-identity substitute.
+- Signalome requires explicit protein identifiers; gene-symbol prefixes in
+  display labels are not a protein-identity substitute.
 - `candidate_scoring_policy="sampled"` approximates candidate module-count scoring only; tree generation remains exact-policy governed and is reported in provenance.
 
 ### Expected Output Tables

@@ -9,10 +9,16 @@ kinase and signalome analysis.
 The dataset builder validates table shape, interprets site metadata, applies the
 preprocessing policy you request, and returns an `AnalysisReadyPhosphoDataset`.
 The dataset that leaves the builder is intentionally strict and must be
-missing-value-free.
-It also enforces one analysis-ready row per normalised phosphosite display
-identifier (`GENE;SITE;`). Duplicate display-site rows are rejected at dataset
-construction boundary and must be resolved upstream.
+missing-value-free. It also uses protein-scoped `site_key` values as
+analysis-ready row identity. `display_id` is the human-readable `GENE;SITE;`
+label and may repeat when distinct `site_key` values preserve the protein
+context.
+
+Direct `AnalysisReadyPhosphoDataset` construction is stricter than builder
+ingestion: direct construction requires `site_key` indexes and `site_key`/
+`display_id` metadata. The builder may accept legacy display-indexed input only
+when `site_metadata` contains enough protein context to derive `site_key`
+without ambiguity.
 
 ```python
 dataset = AnalysisReadyDatasetBuilder().run(
@@ -52,7 +58,7 @@ from phospy.api import (
 | Parameter | Type | Default | Required | How to Use It |
 | --- | --- | --- | --- | --- |
 | `phospho` | `pandas.DataFrame`, `str`, or `pathlib.Path` | None | Yes | Site-by-sample intensity matrix. Rows are phosphosites and columns are samples. |
-| `site_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path` | None | Yes | Row metadata aligned to `phospho.index`. `gene_symbol`, `site`, and `site_sequence` are required at the analysis-ready boundary; include `protein_id` for signalome. For site-level scientific workflows, include a localisation-confidence column (default: `localisation_confidence`) and configure explicit localisation policy. |
+| `site_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path` | None | Yes | Row metadata aligned to `phospho.index` at ingestion. `gene_symbol`, `site`, and `site_sequence` are required at the analysis-ready boundary; include protein context such as `protein_id`, `protein_accession`, or `protein_identifier` plus `protein_namespace` so the builder can derive `site_key`. `protein_id` is required for signalome. For site-level scientific workflows, include a localisation-confidence column (default: `localisation_confidence`) and configure explicit localisation policy. |
 | `sample_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Descriptive/alignment metadata aligned to phospho columns. Required when comparison building uses `sample_metadata_pairs`. It does not automatically define differential-analysis conditions, replicates, batches, or blocks. |
 | `total` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Total-protein matrix used only when total-protein correction is enabled. Columns must align to phospho sample columns. |
 | `organism` | `Organism` or `None` | `None` | No | Species identity for the dataset. Use `Organism.RAT` for the bundled beginner lane. |
@@ -97,8 +103,9 @@ request = DatasetBuildRequest(
 
 ## Minimum Input Shape
 
-`phospho` should be numeric. Its index should use stable PhosPy site IDs such as
-`TSC2;S939;`.
+`phospho` should be numeric. Builder input may use human-readable display labels
+such as `TSC2;S939;` as the index when enough protein context is available in
+`site_metadata` to derive `site_key`.
 
 ```python
 phospho = pd.DataFrame(
@@ -123,10 +130,19 @@ site_metadata = pd.DataFrame(
             "ATMSGRPRTTSFAESSSPVQQPSAFGQAAAL",
         ],
         "protein_id": ["TSC2", "GSK3B"],
+        "protein_accession": ["TSC2-1", "GSK3B-1"],
         "localisation_confidence": [0.95, 0.92],
     },
     index=phospho.index.copy(),
 )
+```
+
+The built dataset will be indexed by `site_key`:
+
+```python
+assert dataset.phospho.index.name == "site_key"
+assert dataset.site_metadata.index.name == "site_key"
+assert dataset.site_metadata["display_id"].tolist() == ["TSC2;S939;", "GSK3B;S9;"]
 ```
 
 Supported site-metadata aliases are deliberately narrow:
@@ -135,10 +151,11 @@ Supported site-metadata aliases are deliberately narrow:
 - `centralized_sequence` may stand in for `site_sequence`.
 
 The builder may derive `gene_symbol` and `site` from index values formatted like
-`MAPK14;Y182;`. It does not derive `protein_id`.
+`MAPK14;Y182;`. It does not derive `protein_id` from the gene-symbol prefix.
 
-PhosPy currently stores protein/isoform/source fields as metadata only. These
-fields do not define row identity at this boundary.
+Protein context is used to derive `site_key` when it is available and safe.
+`display_id` remains metadata and may repeat after `site_key` becomes the row
+identity.
 
 ## Preprocessing Configuration
 
@@ -397,13 +414,15 @@ For mixed datasets, row-level correction status is available in
 
 | Parameter | Type | Default | Allowed Values | How to Use It |
 | --- | --- | --- | --- | --- |
-| `policy` | `str` | `"as_input"` | `"as_input"`, `"build_from_metadata"` | `"as_input"` preserves interpreted site-matrix-ready rows. `"build_from_metadata"` constructs site IDs from metadata. |
-| `duplicate_site_policy` | `str` | `"max_mean_signal"` | `"max_mean_signal"`, `"first"`, `"aggregate_mean"`, `"aggregate_median"`, `"error"` | Policy metadata remains available, but duplicate display-site rows are rejected before analysis-ready dataset construction. |
+| `policy` | `str` | `"as_input"` | `"as_input"`, `"build_from_metadata"` | `"as_input"` preserves interpreted site-matrix-ready rows after `site_key` derivation. `"build_from_metadata"` constructs site identity from metadata before final dataset construction. |
+| `duplicate_site_policy` | `str` | `"max_mean_signal"` | `"max_mean_signal"`, `"first"`, `"aggregate_mean"`, `"aggregate_median"`, `"error"` | Controls duplicate rows that resolve to the same `site_key` during site-matrix construction. Duplicate `display_id` values with distinct `site_key` values are valid. |
 | `missing_data_policy` | `str` | `"drop_any_missing"` | `"drop_any_missing"` | Keeps only complete rows for strict dataset construction. |
 | `minimum_observed_values` | `None` | `None` | `None` | Public strict construction requires this to stay unset. |
 
-When two or more rows resolve to the same normalised display-site identifier,
-the builder fails fast. It does not aggregate, collapse, or rename duplicates.
+When two or more rows resolve to the same `site_key`, the builder applies the
+configured duplicate-site policy before final analysis-ready construction.
+Rows with repeated `display_id` values can pass when their derived `site_key`
+values differ.
 
 ```python
 site_matrix = DatasetSiteMatrixConfig(

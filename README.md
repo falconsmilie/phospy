@@ -105,6 +105,7 @@ site_metadata = pd.DataFrame(
             "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
         ],
         "protein_id": ["MAPK14", "GSK3A", "TSC2"],
+        "protein_accession": ["MAPK14-1", "GSK3A-1", "TSC2-1"],
         "localisation_confidence": [0.95, 0.94, 0.96],
     },
     index=phospho.index.copy(),
@@ -136,8 +137,22 @@ dataset = AnalysisReadyDatasetBuilder().run(
     )
 )
 
-# Dataset construction validates required site metadata, including site_sequence.
-print(dataset.site_metadata.loc[:, ["gene_symbol", "site", "site_sequence"]])
+# Builder input may be display-indexed when enough protein context is present.
+# The analysis-ready dataset itself is indexed by site_key.
+print(
+    dataset.site_metadata.loc[
+        :,
+        [
+            "site_key",
+            "display_id",
+            "gene_symbol",
+            "site",
+            "protein_id",
+            "protein_accession",
+            "site_sequence",
+        ],
+    ]
+)
 # sample_metadata is descriptive/alignment metadata on the dataset.
 # Differential workflow design is provided separately via ExperimentalDesign.
 
