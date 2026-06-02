@@ -255,10 +255,39 @@ class DatasetBuildSourceResolver:
         site_metadata: pd.DataFrame,
         organism: Organism | None,
     ) -> pd.DataFrame:
-        if _has_valid_complete_explicit_site_identity_fields(site_metadata):
-            return _normalize_explicit_site_identity_fields(site_metadata)
         if _has_blank_or_missing_site_identity_fields(site_metadata):
             return site_metadata
+        try:
+            explicit_site_keys = _normalize_complete_explicit_site_key_column_or_none(
+                site_metadata
+            )
+            explicit_display_ids = _normalize_complete_display_id_column_or_none(
+                site_metadata
+            )
+            if explicit_site_keys is not None or explicit_display_ids is not None:
+                return _validate_and_normalize_explicit_site_identity_fields(
+                    site_metadata=site_metadata,
+                    organism=organism,
+                    site_identity_deriver=self._site_identity_deriver,
+                    explicit_site_keys=explicit_site_keys,
+                    explicit_display_ids=explicit_display_ids,
+                )
+        except (TypeError, ValueError, KeyError, PhosPyInputError) as exc:
+            _raise_wrapped_input_error(
+                stage_name="dataset_builder.site_identity_derivation",
+                field_name="dataset build request site_metadata",
+                operation=(
+                    "validating explicit display_id/site_key metadata columns "
+                    "against row metadata"
+                ),
+                next_action=(
+                    "ensure explicit display_id/site_key values match "
+                    "gene_symbol, site, organism, residue/position, and "
+                    "protein context metadata; otherwise omit legacy identity "
+                    "columns and provide enough metadata to derive them"
+                ),
+                original_error=exc,
+            )
         try:
             return self._site_identity_deriver.run(
                 site_metadata=site_metadata,
@@ -492,51 +521,128 @@ def _has_blank_or_missing_site_identity_fields(site_metadata: pd.DataFrame) -> b
     return bool(has_blank_or_missing.any())
 
 
-def _has_valid_complete_explicit_site_identity_fields(
+def _normalize_complete_explicit_site_key_column_or_none(
     site_metadata: pd.DataFrame,
-) -> bool:
-    if not _has_complete_column(site_metadata, "display_id"):
-        return False
+) -> pd.Series | None:
     if not _has_complete_column(site_metadata, "site_key"):
-        return False
-    if not _has_complete_column(site_metadata, "organism"):
-        return False
-    if not _has_complete_column(site_metadata, "protein_namespace"):
-        return False
-    if not _has_complete_column(site_metadata, "protein_identifier"):
-        return False
+        return None
     try:
-        enforce_display_id_column(
-            site_metadata=site_metadata,
-            field_name="dataset build request site_metadata",
-            error_type=PhosPyInputError,
-        )
-        enforce_site_key_column(
+        return enforce_site_key_column(
             site_metadata=site_metadata,
             field_name="dataset build request site_metadata",
             error_type=PhosPyInputError,
         )
     except PhosPyInputError:
-        return False
-    return True
+        if _has_encoded_site_key_prefix(site_metadata):
+            raise
+        return None
 
 
-def _normalize_explicit_site_identity_fields(
+def _normalize_complete_display_id_column_or_none(
     site_metadata: pd.DataFrame,
+) -> pd.Series | None:
+    if not _has_complete_column(site_metadata, "display_id"):
+        return None
+    return enforce_display_id_column(
+        site_metadata=site_metadata,
+        field_name="dataset build request site_metadata",
+        error_type=PhosPyInputError,
+    )
+
+
+def _validate_and_normalize_explicit_site_identity_fields(
+    *,
+    site_metadata: pd.DataFrame,
+    organism: Organism | None,
+    site_identity_deriver: DatasetSiteIdentityDeriver,
+    explicit_site_keys: pd.Series | None,
+    explicit_display_ids: pd.Series | None,
 ) -> pd.DataFrame:
-    display_ids = enforce_display_id_column(
-        site_metadata=site_metadata,
-        field_name="dataset build request site_metadata",
-        error_type=PhosPyInputError,
+    expected_input = site_metadata.copy(deep=False)
+    expected = site_identity_deriver.run(
+        site_metadata=expected_input,
+        organism=organism,
+        copy_site_metadata=False,
     )
-    site_keys = enforce_site_key_column(
+    mismatches = _explicit_identity_mismatches(
         site_metadata=site_metadata,
-        field_name="dataset build request site_metadata",
-        error_type=PhosPyInputError,
+        expected=expected,
+        explicit_site_keys=explicit_site_keys,
+        explicit_display_ids=explicit_display_ids,
     )
-    site_metadata.loc[:, "display_id"] = display_ids.astype(str).tolist()
-    site_metadata.loc[:, "site_key"] = site_keys.astype(str).tolist()
-    return site_metadata
+    if mismatches:
+        preview = ", ".join(mismatches[:5])
+        suffix = "" if len(mismatches) <= 5 else " ..."
+        raise PhosPyInputError(
+            "dataset build request site_metadata explicit identity fields must "
+            "match metadata-derived display_id/site_key values; "
+            f"mismatches=[{preview}{suffix}]"
+        )
+    return expected
+
+
+def _explicit_identity_mismatches(
+    *,
+    site_metadata: pd.DataFrame,
+    expected: pd.DataFrame,
+    explicit_site_keys: pd.Series | None,
+    explicit_display_ids: pd.Series | None,
+) -> list[str]:
+    row_ids = site_metadata.index.tolist()
+    mismatches: list[str] = []
+    if explicit_display_ids is not None:
+        observed_display_ids = explicit_display_ids.astype(str).tolist()
+        expected_display_ids = expected.loc[:, "display_id"].astype(str).tolist()
+        mismatches.extend(
+            _field_mismatches(
+                row_ids=row_ids,
+                field_name="display_id",
+                observed=observed_display_ids,
+                expected=expected_display_ids,
+            )
+        )
+    if explicit_site_keys is not None:
+        observed_site_keys = explicit_site_keys.astype(str).tolist()
+        expected_site_keys = expected.loc[:, "site_key"].astype(str).tolist()
+        mismatches.extend(
+            _field_mismatches(
+                row_ids=row_ids,
+                field_name="site_key",
+                observed=observed_site_keys,
+                expected=expected_site_keys,
+            )
+        )
+    return mismatches
+
+
+def _field_mismatches(
+    *,
+    row_ids: list[object],
+    field_name: str,
+    observed: list[str],
+    expected: list[str],
+) -> list[str]:
+    mismatches: list[str] = []
+    for position, (observed_value, expected_value) in enumerate(
+        zip(observed, expected, strict=True)
+    ):
+        if observed_value == expected_value:
+            continue
+        row_id = row_ids[position]
+        mismatches.append(
+            f"position {position} row={row_id!r} {field_name}:"
+            f"observed={observed_value!r}:expected={expected_value!r}"
+        )
+    return mismatches
+
+
+def _has_encoded_site_key_prefix(site_metadata: pd.DataFrame) -> bool:
+    if "site_key" not in site_metadata.columns:
+        return False
+    for raw_value in site_metadata.loc[:, "site_key"].tolist():
+        if isinstance(raw_value, str) and raw_value.strip().startswith("phospy:v1"):
+            return True
+    return False
 
 
 def _has_complete_column(site_metadata: pd.DataFrame, column_name: str) -> bool:
