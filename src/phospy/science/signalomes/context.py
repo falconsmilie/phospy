@@ -76,7 +76,12 @@ def build_site_membership_table(
 ) -> pd.DataFrame:
     """Build site-level signalome membership context sidecar table."""
 
-    required_columns = {PROTEIN_COLUMN, MODULE_ID_COLUMN}
+    required_columns = {
+        SITE_KEY_COLUMN,
+        DISPLAY_ID_COLUMN,
+        PROTEIN_COLUMN,
+        MODULE_ID_COLUMN,
+    }
     if module_assignments.empty:
         return empty_site_membership_table()
     if not required_columns.issubset(module_assignments.columns):
@@ -126,13 +131,33 @@ def build_site_membership_table(
             return fallback.astype(str).rename(column_name)
         return pd.Series("", index=site_index, dtype=object, name=column_name)
 
-    site_keys = pd.Series(
-        site_index.astype(str).tolist(),
-        index=site_index.copy(),
-        dtype=object,
-        name=SITE_KEY_COLUMN,
-    )
-    display_ids = _resolve_identity_column(DISPLAY_ID_COLUMN, fallback=site_keys)
+    def _resolve_required_assignment_identity_column(column_name: str) -> pd.Series:
+        if column_name not in assignments.columns:
+            raise WorkflowStageError(
+                "site membership context build requires module assignments with "
+                f"{column_name}"
+            )
+        values = (
+            assignments.loc[:, column_name]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .rename(column_name)
+        )
+        if (values == "").any():
+            raise WorkflowStageError(
+                "site membership context build requires non-empty module "
+                f"assignment {column_name} values"
+            )
+        return values
+
+    site_keys = _resolve_required_assignment_identity_column(SITE_KEY_COLUMN)
+    if site_keys.tolist() != site_index.astype(str).tolist():
+        raise WorkflowStageError(
+            "site membership context build requires module assignment site_key "
+            "values to match the assignment index"
+        )
+    display_ids = _resolve_required_assignment_identity_column(DISPLAY_ID_COLUMN)
     gene_symbols = _resolve_identity_column(
         SITE_MEMBERSHIP_GENE_SYMBOL_COLUMN,
     )

@@ -201,12 +201,14 @@ def test_adaptive_sampling_historical_baseline_is_archival_and_svm_mode_is_not_r
 def test_signalome_clustering_historical_baseline_locks_dominant_module_assignment_behavior() -> (
     None
 ):
+    display_ids = ["P1;S1;", "P1;S2;", "P2;S3;", "P2;S4;"]
+    site_index = site_key_index_from_display_ids(display_ids)
     prediction_matrix = pd.DataFrame(
         {
             "KINASE_A": [0.9, 0.1, 0.1, 0.2],
             "KINASE_B": [0.8, 0.95, 0.8, 0.85],
         },
-        index=pd.Index(["P1;S1;", "P1;S2;", "P2;S3;", "P2;S4;"], name="site_id"),
+        index=site_index.copy(),
         dtype=float,
     )
     site_to_protein = pd.Series(
@@ -215,19 +217,30 @@ def test_signalome_clustering_historical_baseline_locks_dominant_module_assignme
         name="protein_id",
         dtype=str,
     )
+    site_metadata = pd.DataFrame(
+        {
+            "site_key": site_index.astype(str).tolist(),
+            "display_id": display_ids,
+            "gene_symbol": ["P1", "P1", "P2", "P2"],
+            "site": ["S1", "S2", "S3", "S4"],
+        },
+        index=site_index.copy(),
+    )
 
     assignments = build_module_assignments(
         prediction_matrix=prediction_matrix,
         site_to_protein=site_to_protein,
+        site_metadata=site_metadata,
     )
+    p1s1, p1s2, p2s3, p2s4 = site_index.astype(str).tolist()
 
-    assert assignments.loc["P1;S1;", "module_top_kinase"] == "KINASE_A"
-    assert assignments.loc["P1;S2;", "module_top_kinase"] == "KINASE_A"
-    assert int(assignments.loc["P1;S1;", "module_id"]) == 1
-    assert int(assignments.loc["P1;S2;", "module_id"]) == 1
-    assert assignments.loc["P2;S3;", "module_top_kinase"] == "KINASE_B"
-    assert assignments.loc["P2;S4;", "module_top_kinase"] == "KINASE_B"
-    assert int(assignments.loc["P2;S3;", "module_id"]) == 2
+    assert assignments.loc[p1s1, "module_top_kinase"] == "KINASE_A"
+    assert assignments.loc[p1s2, "module_top_kinase"] == "KINASE_A"
+    assert int(assignments.loc[p1s1, "module_id"]) == 1
+    assert int(assignments.loc[p1s2, "module_id"]) == 1
+    assert assignments.loc[p2s3, "module_top_kinase"] == "KINASE_B"
+    assert assignments.loc[p2s4, "module_top_kinase"] == "KINASE_B"
+    assert int(assignments.loc[p2s3, "module_id"]) == 2
     with pytest.raises(TypeError, match="module_selection_policy"):
         SignalomeConfig(  # type: ignore[call-arg]
             module_selection_policy={"strategy": "single_module"},
@@ -237,12 +250,14 @@ def test_signalome_clustering_historical_baseline_locks_dominant_module_assignme
 def test_weighted_top_assignment_historical_baseline_locks_fractional_metadata_and_non_fractional_module_selection() -> (
     None
 ):
+    display_ids = ["P1;S1;", "P1;S2;"]
+    site_index = site_key_index_from_display_ids(display_ids)
     prediction_matrix = pd.DataFrame(
         {
             "KINASE_A": [0.95, 0.2],
             "KINASE_B": [0.95, 0.96],
         },
-        index=pd.Index(["P1;S1;", "P1;S2;"], name="site_id"),
+        index=site_index.copy(),
         dtype=float,
     )
     site_to_protein = pd.Series(
@@ -251,19 +266,30 @@ def test_weighted_top_assignment_historical_baseline_locks_fractional_metadata_a
         name="protein_id",
         dtype=str,
     )
+    site_metadata = pd.DataFrame(
+        {
+            "site_key": site_index.astype(str).tolist(),
+            "display_id": display_ids,
+            "gene_symbol": ["P1", "P1"],
+            "site": ["S1", "S2"],
+        },
+        index=site_index.copy(),
+    )
 
     assignments = build_module_assignments(
         prediction_matrix=prediction_matrix,
         site_to_protein=site_to_protein,
+        site_metadata=site_metadata,
     )
-    tied = assignments.loc["P1;S1;"]
+    p1s1, p1s2 = site_index.astype(str).tolist()
+    tied = assignments.loc[p1s1]
 
     assert tied["top_kinase_candidates"] == ("KINASE_A", "KINASE_B")
     assert tied["top_kinase_weights"] == (("KINASE_A", 0.5), ("KINASE_B", 0.5))
     assert sum(weight for _, weight in tied["top_kinase_weights"]) == pytest.approx(1.0)
-    assert assignments.loc["P1;S1;", "module_top_kinase"] == "KINASE_A"
-    assert assignments.loc["P1;S2;", "module_top_kinase"] == "KINASE_A"
-    assert int(assignments.loc["P1;S1;", "module_id"]) == 1
+    assert assignments.loc[p1s1, "module_top_kinase"] == "KINASE_A"
+    assert assignments.loc[p1s2, "module_top_kinase"] == "KINASE_A"
+    assert int(assignments.loc[p1s1, "module_id"]) == 1
 
 
 def test_network_policy_variant_historical_baseline_locks_signed_edges_and_narrow_config_surface() -> (

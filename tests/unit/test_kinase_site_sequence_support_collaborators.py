@@ -94,6 +94,18 @@ def _references(
     )
 
 
+def _site_identity_map(dataset: AnalysisReadyPhosphoDataset) -> pd.DataFrame:
+    metadata = dataset.site_metadata.reindex(dataset.phospho.index)
+    site_keys = dataset.phospho.index.astype(str).tolist()
+    return pd.DataFrame(
+        {
+            "site_key": site_keys,
+            "display_id": metadata.loc[:, "display_id"].astype(str).tolist(),
+        },
+        index=pd.Index(site_keys, name=dataset.phospho.index.name),
+    )
+
+
 class _ExecutorSentinel:
     def __init__(self) -> None:
         self.called = False
@@ -320,6 +332,9 @@ def test_boundary_contracts_reject_unnormalised_site_identifiers() -> None:
         [" mapk14 ; y182 ", "GSK3B;S9;"],
         name=references.site_sequences.index.name,
     )
+    unnormalised_sequences.loc[:, "display_id"] = (
+        references.site_sequences.index.astype(str).tolist()
+    )
 
     with pytest.raises(
         WorkflowBoundaryError, match="kinase.contracts.site_sequence_schema"
@@ -335,6 +350,7 @@ def test_boundary_contracts_reject_unnormalised_site_identifiers() -> None:
             references=references,
             kinase_substrate_map=projected_kinase_substrate_map,
             site_sequences=unnormalised_sequences,
+            site_identity_map=_site_identity_map(dataset),
             scoring_site_index=dataset.phospho.index.copy(),
             activity_phospho_matrix=dataset.phospho.copy(deep=True),
             execution_config=ResolvedKinaseExecutionConfig(

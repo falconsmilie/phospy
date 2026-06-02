@@ -75,6 +75,7 @@ def _site_keys_for_display_ids(display_ids: list[str]) -> list[str]:
 
 
 _MAPK14_Y182 = _site_key_for_display_id("MAPK14;Y182;", protein_identifier="P28482")
+_MAPK14_T185 = _site_key_for_display_id("MAPK14;T185;", protein_identifier="P28482")
 _AKT1_T308 = _site_key_for_display_id("AKT1;T308;", protein_identifier="P31749")
 _GSK3B_S9 = _site_key_for_display_id("GSK3B;S9;", protein_identifier="GSK3B")
 
@@ -109,8 +110,13 @@ def _site_metadata_frame(index: pd.Index) -> pd.DataFrame:
 def _site_membership_frame() -> pd.DataFrame:
     return pd.DataFrame(
         {
+            "site_key": [_MAPK14_Y182, _AKT1_T308],
+            "display_id": ["MAPK14;Y182;", "AKT1;T308;"],
             "site_id": ["MAPK14;Y182;", "AKT1;T308;"],
+            "site": ["Y182", "T308"],
             "protein_id": ["P28482", "P31749"],
+            "protein_accession": ["P28482", "P31749"],
+            "isoform_id": ["", ""],
             "site_cluster": [1, pd.NA],
             "protein_module_id": [1, 0],
             "included_in_module_table": [True, False],
@@ -125,19 +131,30 @@ def _site_membership_frame() -> pd.DataFrame:
 
 
 def _protein_site_context_frame() -> pd.DataFrame:
+    site_keys_json = f'["{_MAPK14_Y182}","{_MAPK14_T185}"]'
+    display_ids_json = '["MAPK14;Y182;","MAPK14;T185;"]'
+    site_key_to_display_id_json = (
+        f'{{"{_MAPK14_Y182}":"MAPK14;Y182;","{_MAPK14_T185}":"MAPK14;T185;"}}'
+    )
     return pd.DataFrame(
         {
             "protein_id": ["P28482"],
             "n_sites": [2],
             "site_ids": ['["MAPK14;Y182;","MAPK14;T185;"]'],
+            "site_keys": [site_keys_json],
+            "display_ids": [display_ids_json],
             "site_clusters": ["[1,2]"],
             "n_distinct_site_clusters": [2],
             "protein_module_id": [1],
             "multi_site_protein": [True],
             "ambiguous_module_context": [True],
             "gene_symbol": ["MAPK14"],
+            "site": ["Y182,T185"],
+            "protein_accession": ["P28482"],
+            "isoform_id": [""],
             "top_kinases_by_site": ['{"MAPK14;Y182;":"MAP2K6","MAPK14;T185;":"MAPK1"}'],
             "module_ids_by_site": ['{"MAPK14;Y182;":1,"MAPK14;T185;":2}'],
+            "site_key_to_display_id": [site_key_to_display_id_json],
         }
     )
 
@@ -969,7 +986,7 @@ def test_signalome_schema_missing_required_site_membership_column_fails() -> Non
 
 def test_signalome_schema_invalid_site_id_fails() -> None:
     bad = _site_membership_frame().copy(deep=True)
-    bad.loc[0, "site_id"] = "MAPK14;Y182; "
+    bad.loc[0, "display_id"] = "MAPK14;Y182; "
     with pytest.raises(WorkflowValidationError, match="canonical site identifiers"):
         SignalomeSiteContext(frame=bad)
 

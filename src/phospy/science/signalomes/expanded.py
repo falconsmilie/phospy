@@ -57,7 +57,45 @@ def build_expanded_signalome_table(
 ) -> pd.DataFrame:
     """Build a flattened expanded-signalome table for all supported kinases."""
 
-    site_index = pd.Index(module_assignments.index.astype(str), name=SITE_ID_COLUMN)
+    required_identity_columns = (
+        SITE_KEY_COLUMN,
+        DISPLAY_ID_COLUMN,
+        GENE_SYMBOL_COLUMN,
+        SITE_COLUMN,
+        PROTEIN_COLUMN,
+        PROTEIN_ACCESSION_COLUMN,
+        ISOFORM_ID_COLUMN,
+    )
+    missing_identity_columns = [
+        column
+        for column in required_identity_columns
+        if column not in module_assignments.columns
+    ]
+    if missing_identity_columns:
+        joined = ", ".join(missing_identity_columns)
+        raise WorkflowStageError(
+            f"expanded signalome requires module assignment identity columns: {joined}"
+        )
+    site_key_values = (
+        module_assignments.loc[:, SITE_KEY_COLUMN].fillna("").astype(str).str.strip()
+    )
+    if (site_key_values == "").any():
+        raise WorkflowStageError(
+            "expanded signalome requires non-empty module assignment site_key values"
+        )
+    if site_key_values.tolist() != module_assignments.index.astype(str).tolist():
+        raise WorkflowStageError(
+            "expanded signalome requires module assignment site_key values to "
+            "match the assignment index"
+        )
+    display_id_values = (
+        module_assignments.loc[:, DISPLAY_ID_COLUMN].fillna("").astype(str).str.strip()
+    )
+    if (display_id_values == "").any():
+        raise WorkflowStageError(
+            "expanded signalome requires non-empty module assignment display_id values"
+        )
+    site_index = pd.Index(site_key_values.tolist(), name=SITE_KEY_COLUMN)
     indexed_assignments = module_assignments.copy(deep=False)
     indexed_assignments.index = site_index
 
@@ -88,41 +126,35 @@ def build_expanded_signalome_table(
 
     site_module_ids = module_id_values.to_numpy(dtype=np.int64, copy=False)
     site_proteins = protein_ids.to_numpy(dtype=object, copy=False)
-    site_keys = site_index.to_numpy(dtype=object, copy=False)
-    site_display_ids = (
-        indexed_assignments.loc[:, DISPLAY_ID_COLUMN]
-        .astype(str)
-        .to_numpy(dtype=object, copy=False)
-        if DISPLAY_ID_COLUMN in indexed_assignments.columns
-        else site_keys
-    )
+    site_keys = site_key_values.to_numpy(dtype=object, copy=False)
+    site_display_ids = display_id_values.to_numpy(dtype=object, copy=False)
     site_gene_symbols = (
         indexed_assignments.loc[:, GENE_SYMBOL_COLUMN]
+        .fillna("")
         .astype(str)
+        .str.strip()
         .to_numpy(dtype=object, copy=False)
-        if GENE_SYMBOL_COLUMN in indexed_assignments.columns
-        else np.full(int(site_index.size), "", dtype=object)
     )
     site_tokens = (
         indexed_assignments.loc[:, SITE_COLUMN]
+        .fillna("")
         .astype(str)
+        .str.strip()
         .to_numpy(dtype=object, copy=False)
-        if SITE_COLUMN in indexed_assignments.columns
-        else np.full(int(site_index.size), "", dtype=object)
     )
     site_protein_accessions = (
         indexed_assignments.loc[:, PROTEIN_ACCESSION_COLUMN]
+        .fillna("")
         .astype(str)
+        .str.strip()
         .to_numpy(dtype=object, copy=False)
-        if PROTEIN_ACCESSION_COLUMN in indexed_assignments.columns
-        else np.full(int(site_index.size), "", dtype=object)
     )
     site_isoform_ids = (
         indexed_assignments.loc[:, ISOFORM_ID_COLUMN]
+        .fillna("")
         .astype(str)
+        .str.strip()
         .to_numpy(dtype=object, copy=False)
-        if ISOFORM_ID_COLUMN in indexed_assignments.columns
-        else np.full(int(site_index.size), "", dtype=object)
     )
     site_top_kinases = top_kinases.to_numpy(dtype=object, copy=False)
     site_top_scores = top_scores.to_numpy(dtype=float, copy=False)

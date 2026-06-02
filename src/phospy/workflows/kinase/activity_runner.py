@@ -101,7 +101,10 @@ class KinaseActivityRunner:
         site_identity_map: pd.DataFrame,
     ) -> KinaseActivityResult:
         target_table = activity_result.target_table.copy(deep=True)
-        if not target_table.empty:
+        if target_table.empty:
+            target_table.loc[:, "site_key"] = pd.Series(dtype="object")
+            target_table.loc[:, "display_id"] = pd.Series(dtype="object")
+        else:
             display_lookup = {
                 str(site_key): str(display_id)
                 for site_key, display_id in site_identity_map.loc[

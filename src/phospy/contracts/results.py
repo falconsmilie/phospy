@@ -19,6 +19,12 @@ from phospy.science.datasets.models import (
 from phospy.science.differential.models import DifferentialAnalysisResult
 from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.science.references.models import ReferenceBundle
+from phospy.science.signalomes.constants import (
+    DISPLAY_ID_COLUMN,
+    EXPANDED_SIGNALOME_ROW_KIND_COLUMN,
+    EXPANDED_SIGNALOME_ROW_KIND_SITE,
+    SITE_KEY_COLUMN,
+)
 from phospy.science.signalomes.models import (
     KinaseNetwork,
     SignalomeAlignmentDiagnostics,
@@ -235,6 +241,7 @@ class SignalomeWorkflowResult:
             error_type=WorkflowValidationError,
             assume_owned=_assume_owned,
         )
+        _validate_expanded_signalome_identity(expanded_signalome)
         if site_membership is not None:
             site_membership = SignalomeSiteContext(
                 frame=site_membership,
@@ -322,6 +329,47 @@ class SignalomeWorkflowResult:
         """Return a protein-site context snapshot when available."""
 
         return export_optional_dataframe(self._protein_site_context)
+
+
+def _validate_expanded_signalome_identity(
+    expanded_signalome: pd.DataFrame | None,
+) -> None:
+    if expanded_signalome is None:
+        return
+    missing = [
+        column
+        for column in (SITE_KEY_COLUMN, DISPLAY_ID_COLUMN)
+        if column not in expanded_signalome.columns
+    ]
+    if missing:
+        joined = ", ".join(missing)
+        raise WorkflowValidationError(
+            f"signalome_result.expanded_signalome is missing required columns: {joined}"
+        )
+    if expanded_signalome.empty:
+        return
+    site_rows = expanded_signalome
+    if EXPANDED_SIGNALOME_ROW_KIND_COLUMN in expanded_signalome.columns:
+        site_rows = expanded_signalome.loc[
+            expanded_signalome.loc[:, EXPANDED_SIGNALOME_ROW_KIND_COLUMN].astype(str)
+            == EXPANDED_SIGNALOME_ROW_KIND_SITE,
+            :,
+        ]
+    if site_rows.empty:
+        return
+    for column_name in (SITE_KEY_COLUMN, DISPLAY_ID_COLUMN):
+        invalid_count = int(
+            sum(
+                1
+                for value in site_rows.loc[:, column_name].tolist()
+                if not isinstance(value, str) or value.strip() == ""
+            )
+        )
+        if invalid_count:
+            raise WorkflowValidationError(
+                "signalome_result.expanded_signalome site rows require non-empty "
+                f"{column_name} values; invalid_count={invalid_count}"
+            )
 
 
 __all__ = [

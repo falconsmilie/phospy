@@ -2774,6 +2774,7 @@ def test_boundary_error_reports_context_table_protein_context_failure_seam(
 
 def test_signalome_result_rejects_malformed_site_membership_immediately() -> None:
     dataset = _dataset(site_ids=["P1;S1;"])
+    site_key = str(dataset.phospho.index[0])
     prediction_matrix = _matrix(
         values=[[0.9]],
         site_ids=["P1;S1;"],
@@ -2796,7 +2797,13 @@ def test_signalome_result_rejects_malformed_site_membership_immediately() -> Non
             module_assignments=SignalomeAssignments(
                 table=pd.DataFrame(
                     {
+                        "site_key": [site_key],
+                        "display_id": ["P1;S1;"],
+                        "gene_symbol": ["P1"],
+                        "site": ["S1"],
                         "protein_id": ["P1"],
+                        "protein_accession": [""],
+                        "isoform_id": [""],
                         "module_id": [1],
                         "top_kinase": ["K1"],
                         "top_score": [0.9],
@@ -2815,7 +2822,7 @@ def test_signalome_result_rejects_malformed_site_membership_immediately() -> Non
                             "max_score_then_lexicographic_tiebreak"
                         ],
                     },
-                    index=pd.Index(["P1;S1;"], name="site_id"),
+                    index=pd.Index([site_key], name="site_key"),
                 )
             ),
             signalome_modules=SignalomeModules(
@@ -3069,6 +3076,8 @@ def test_executor_internal_seam_invokes_signalome_domain_services(
                 "gene_symbol": ["P1", "P2"],
                 "site": ["S1", "S2"],
                 "protein_id": ["P1", "P2"],
+                "protein_accession": ["", ""],
+                "isoform_id": ["", ""],
                 "module_id": [1, 2],
                 "top_kinase": ["K1", "K2"],
                 "top_score": [0.9, 0.9],
@@ -3152,6 +3161,8 @@ def test_executor_internal_seam_invokes_signalome_domain_services(
                 "assignment_policy": [SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY],
                 "linked_kinases": ['["K1","K2"]'],
                 "regulated_module_ids": ["[1]"],
+                "site_key": [""],
+                "display_id": [""],
                 "site_id": ["P1;S1;"],
                 "site_order": [-1],
                 "protein_id": [""],

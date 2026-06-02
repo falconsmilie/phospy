@@ -145,9 +145,6 @@ class KinasePredictionRunner:
         substrate_list = self._annotate_substrate_list(
             substrate_list=substrate_list,
             site_identity_map=_require_site_identity_map(request.site_identity_map),
-            include_identity_columns={"site_key", "display_id"}.issubset(
-                set(request.dataset._borrow_site_metadata_frame().columns)
-            ),
         )
         return KinasePredictionResult._from_owned(
             pred_mat=pred_mat,
@@ -247,9 +244,6 @@ class KinasePredictionRunner:
         substrate_list = self._annotate_substrate_list(
             substrate_list=substrate_list,
             site_identity_map=_require_site_identity_map(request.site_identity_map),
-            include_identity_columns={"site_key", "display_id"}.issubset(
-                set(request.dataset._borrow_site_metadata_frame().columns)
-            ),
         )
         return KinasePredictionResult._from_owned(
             pred_mat=pred_mat,
@@ -261,10 +255,7 @@ class KinasePredictionRunner:
         *,
         substrate_list: pd.DataFrame,
         site_identity_map: pd.DataFrame,
-        include_identity_columns: bool,
     ) -> pd.DataFrame:
-        if not include_identity_columns:
-            return substrate_list.copy(deep=True)
         if substrate_list.empty:
             annotated = substrate_list.copy(deep=True)
             annotated.loc[:, "site_key"] = pd.Series(dtype="object")

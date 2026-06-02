@@ -24,6 +24,19 @@ from phospy.science.signalomes.science import (
 )
 
 
+def _with_site_identity(module_assignments: pd.DataFrame) -> pd.DataFrame:
+    resolved = module_assignments.copy(deep=True)
+    site_keys = resolved.index.astype(str).tolist()
+    resolved.index = pd.Index(site_keys, name="site_key")
+    resolved.loc[:, "site_key"] = site_keys
+    resolved.loc[:, "display_id"] = site_keys
+    resolved.loc[:, "gene_symbol"] = resolved.loc[:, "protein_id"].astype(str).tolist()
+    resolved.loc[:, "site"] = site_keys
+    resolved.loc[:, "protein_accession"] = ""
+    resolved.loc[:, "isoform_id"] = ""
+    return resolved
+
+
 def _historical_baseline_build_signalome_module_table(
     *,
     module_assignments: pd.DataFrame,
@@ -491,20 +504,22 @@ def test_network_regression_undefined_correlations_are_not_zero_imputed() -> Non
 
 
 def test_build_expanded_signalome_table_tracks_membership_and_site_order() -> None:
-    module_assignments = pd.DataFrame(
-        {
-            "protein_id": ["P1", "P2", "P3", "P4"],
-            "module_id": [2, 1, 2, 3],
-            "top_kinase": ["K2", "K1", "K2", "K3"],
-            "top_score": [0.91, 0.93, 0.92, 0.88],
-            "top_kinase_weights": [
-                (("K2", 1.0),),
-                (("K1", 1.0),),
-                (("K2", 1.0),),
-                (("K3", 1.0),),
-            ],
-        },
-        index=pd.Index(["S3", "S1", "S4", "S2"], name="site_id"),
+    module_assignments = _with_site_identity(
+        pd.DataFrame(
+            {
+                "protein_id": ["P1", "P2", "P3", "P4"],
+                "module_id": [2, 1, 2, 3],
+                "top_kinase": ["K2", "K1", "K2", "K3"],
+                "top_score": [0.91, 0.93, 0.92, 0.88],
+                "top_kinase_weights": [
+                    (("K2", 1.0),),
+                    (("K1", 1.0),),
+                    (("K2", 1.0),),
+                    (("K3", 1.0),),
+                ],
+            },
+            index=pd.Index(["S3", "S1", "S4", "S2"], name="site_key"),
+        )
     )
     signalome_modules = pd.DataFrame(
         {
@@ -552,19 +567,21 @@ def test_build_expanded_signalome_table_tracks_membership_and_site_order() -> No
 def test_build_expanded_signalome_table_weighted_top_uses_fractional_site_support() -> (
     None
 ):
-    module_assignments = pd.DataFrame(
-        {
-            "protein_id": ["P1", "P1", "P2"],
-            "module_id": [1, 1, 2],
-            "top_kinase": ["K1", "K1", "K2"],
-            "top_score": [0.95, 0.96, 0.92],
-            "top_kinase_weights": [
-                (("K1", 0.5), ("K2", 0.5)),
-                (("K1", 1.0),),
-                (("K2", 1.0),),
-            ],
-        },
-        index=pd.Index(["S1", "S2", "S3"], name="site_id"),
+    module_assignments = _with_site_identity(
+        pd.DataFrame(
+            {
+                "protein_id": ["P1", "P1", "P2"],
+                "module_id": [1, 1, 2],
+                "top_kinase": ["K1", "K1", "K2"],
+                "top_score": [0.95, 0.96, 0.92],
+                "top_kinase_weights": [
+                    (("K1", 0.5), ("K2", 0.5)),
+                    (("K1", 1.0),),
+                    (("K2", 1.0),),
+                ],
+            },
+            index=pd.Index(["S1", "S2", "S3"], name="site_key"),
+        )
     )
     signalome_modules = pd.DataFrame(
         {"K1": [90.0, 0.0], "K2": [10.0, 100.0]},
@@ -597,18 +614,20 @@ def test_build_expanded_signalome_table_weighted_top_uses_fractional_site_suppor
 def test_build_expanded_signalome_table_emits_expected_shape_for_site_and_summary_rows() -> (
     None
 ):
-    module_assignments = pd.DataFrame(
-        {
-            "protein_id": ["P1", "P2"],
-            "module_id": [1, 2],
-            "top_kinase": ["K1", "K2"],
-            "top_score": [0.9, 0.8],
-            "top_kinase_weights": [
-                (("K1", 1.0),),
-                (("K2", 1.0),),
-            ],
-        },
-        index=pd.Index(["S1", "S2"], name="site_id"),
+    module_assignments = _with_site_identity(
+        pd.DataFrame(
+            {
+                "protein_id": ["P1", "P2"],
+                "module_id": [1, 2],
+                "top_kinase": ["K1", "K2"],
+                "top_score": [0.9, 0.8],
+                "top_kinase_weights": [
+                    (("K1", 1.0),),
+                    (("K2", 1.0),),
+                ],
+            },
+            index=pd.Index(["S1", "S2"], name="site_key"),
+        )
     )
     signalome_modules = pd.DataFrame(
         {

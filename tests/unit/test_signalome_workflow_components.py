@@ -601,6 +601,7 @@ def test_signalome_duplicate_display_ids_remain_separate_by_site_key() -> None:
     )
     site_metadata = pd.DataFrame(
         {
+            "site_key": site_index.astype(str).tolist(),
             "display_id": ["MAPK14;Y182;", "MAPK14;Y182;"],
             "gene_symbol": ["MAPK14", "MAPK14"],
             "site": ["Y182", "Y182"],

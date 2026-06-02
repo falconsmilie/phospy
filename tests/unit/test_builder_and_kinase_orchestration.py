@@ -126,6 +126,7 @@ def _projected_kinase_substrate_map() -> pd.DataFrame:
         {
             "kinase": ["MAP2K6", "MAP2K6"],
             "substrate_site": _site_index().tolist(),
+            "display_id": _DISPLAY_IDS,
         }
     )
 
@@ -136,7 +137,8 @@ def _projected_site_sequences() -> pd.DataFrame:
             "site_sequence": [
                 "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
                 "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
-            ]
+            ],
+            "display_id": _DISPLAY_IDS,
         },
         index=_site_index(),
     )
@@ -509,7 +511,13 @@ def test_signalome_workflow_public_entrypoint_exercises_collaborators() -> None:
         module_assignments=SignalomeAssignments(
             table=pd.DataFrame(
                 {
+                    "site_key": [_site_index()[0]],
+                    "display_id": [_DISPLAY_IDS[0]],
+                    "gene_symbol": [_PROTEINS[0]],
+                    "site": [_SITES[0]],
                     "protein_id": ["MAPK14"],
+                    "protein_accession": [""],
+                    "isoform_id": [""],
                     "module_id": [1],
                     "top_kinase": ["MAP2K6"],
                     "top_score": [0.9],

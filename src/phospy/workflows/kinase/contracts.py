@@ -43,7 +43,7 @@ from phospy.validation.common.dataframes import (
 )
 from phospy.validation.datasets.protein_scoped_site_identity import (
     enforce_display_id_column,
-    enforce_site_key_column,
+    enforce_site_key_column_matches_index,
 )
 
 if TYPE_CHECKING:
@@ -223,7 +223,7 @@ class ResolvedKinaseWorkflowRequest:
             require_columns(
                 frame,
                 field_name="kinase_request.site_sequences",
-                required_columns=("site_sequence",),
+                required_columns=("site_sequence", "display_id"),
                 error_type=WorkflowBoundaryError,
             )
             require_non_empty_string_column(
@@ -238,9 +238,6 @@ class ResolvedKinaseWorkflowRequest:
                 column_name="site_sequence",
                 error_type=WorkflowBoundaryError,
             )
-            if "display_id" not in frame.columns:
-                frame = frame.copy(deep=True)
-                frame.loc[:, "display_id"] = frame.index.astype(str).tolist()
             require_non_empty_string_column(
                 frame,
                 field_name="kinase_request.site_sequences",
@@ -309,21 +306,15 @@ class ResolvedKinaseWorkflowRequest:
     ) -> pd.DataFrame:
         try:
             if value is None:
-                site_keys = scoring_site_index.astype(str).tolist()
-                frame = pd.DataFrame(
-                    {"site_key": site_keys, "display_id": site_keys},
-                    index=pd.Index(
-                        scoring_site_index.astype(str),
-                        name=scoring_site_index.name,
-                    ),
+                raise WorkflowBoundaryError(
+                    "kinase_request.site_identity_map is required"
                 )
-            else:
-                frame = require_dataframe(
-                    value,
-                    field_name="kinase_request.site_identity_map",
-                    allow_empty=False,
-                    error_type=WorkflowBoundaryError,
-                )
+            frame = require_dataframe(
+                value,
+                field_name="kinase_request.site_identity_map",
+                allow_empty=False,
+                error_type=WorkflowBoundaryError,
+            )
             require_columns(
                 frame,
                 field_name="kinase_request.site_identity_map",
@@ -358,30 +349,18 @@ class ResolvedKinaseWorkflowRequest:
                 error_type=WorkflowBoundaryError,
                 column_name="display_id",
             )
-            try:
-                site_keys = enforce_site_key_column(
-                    site_metadata=frame,
-                    field_name="kinase_request.site_identity_map",
-                    error_type=WorkflowBoundaryError,
-                    column_name="site_key",
-                )
-            except WorkflowBoundaryError:
-                site_keys = pd.Series(
-                    frame.loc[:, "site_key"].astype(str).tolist(),
-                    index=frame.index.copy(),
-                    name="site_key",
-                    dtype="object",
-                )
-            index_values = list(frame.index.astype(str))
-            if (
-                list(site_keys.astype(str)) != index_values
-                and list(display_ids.astype(str)) != index_values
-            ):
+            site_keys = enforce_site_key_column_matches_index(
+                site_metadata=frame,
+                field_name="kinase_request.site_identity_map",
+                error_type=WorkflowBoundaryError,
+                site_key_column="site_key",
+            )
+            if list(site_keys.astype(str)) != list(scoring_site_index.astype(str)):
                 raise WorkflowBoundaryError(
-                    "kinase_request.site_identity_map.index must match either "
-                    "kinase_request.site_identity_map.site_key or "
-                    "kinase_request.site_identity_map.display_id"
+                    "kinase_request.site_identity_map.site_key must exactly match "
+                    "kinase_request.scoring_site_index"
                 )
+            _ = display_ids
             return frame
         except WorkflowBoundaryError as exc:
             raise WorkflowBoundaryError(

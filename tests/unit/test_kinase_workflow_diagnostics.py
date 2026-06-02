@@ -832,7 +832,14 @@ def test_activity_stage_returns_weighted_thresholded_mean_and_target_outputs() -
     ] == pytest.approx(1.5)
     assert result.thresholded_substrate_counts.to_dict() == {"MAP2K6": 2}
     assert result.target_counts.to_dict() == {"MAP2K6": 2, "AKT1": 1}
-    assert set(result.target_table.columns) == {"site_id", "kinase", "score"}
+    assert {"site_id", "site_key", "display_id", "kinase", "score"} <= set(
+        result.target_table.columns
+    )
+    assert result.target_table.loc[:, "site_key"].notna().all()
+    assert set(result.target_table.loc[:, "display_id"].astype(str)) == {
+        "MAPK14;Y182;",
+        "GSK3B;S9;",
+    }
     assert int(result.target_table.shape[0]) == 3
 
 

@@ -19,15 +19,6 @@ from phospy.frames.ownership import (
     own_dataframe,
     own_optional_dataframe,
 )
-from phospy.science.signalomes.constants import (
-    DISPLAY_ID_COLUMN,
-    GENE_SYMBOL_COLUMN,
-    ISOFORM_ID_COLUMN,
-    PROTEIN_ACCESSION_COLUMN,
-    PROTEIN_COLUMN,
-    SITE_COLUMN,
-    SITE_KEY_COLUMN,
-)
 
 SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS = "correlation_thresholds"
 SIGNALOME_MODULE_SELECTION_STRATEGY_EXPLICIT_MODULE_COUNT = "explicit_module_count"
@@ -209,7 +200,6 @@ class SignalomeAssignments:
             error_type=PhosPyValidationError,
             assume_owned=_assume_owned,
         )
-        table = _coerce_signalome_assignment_identity_columns(table)
         object.__setattr__(
             self,
             "_table",
@@ -228,55 +218,6 @@ class SignalomeAssignments:
     @property
     def table(self) -> pd.DataFrame:
         return export_dataframe(self._table)
-
-
-def _coerce_signalome_assignment_identity_columns(table: pd.DataFrame) -> pd.DataFrame:
-    if table.empty:
-        return table
-
-    frame = table.copy(deep=True)
-    index_values = frame.index.astype(str).tolist()
-
-    if SITE_KEY_COLUMN not in frame.columns:
-        frame.loc[:, SITE_KEY_COLUMN] = index_values
-    if DISPLAY_ID_COLUMN not in frame.columns:
-        frame.loc[:, DISPLAY_ID_COLUMN] = index_values
-
-    display_ids = frame.loc[:, DISPLAY_ID_COLUMN].astype(str).tolist()
-
-    parsed_gene_site = [_parse_display_id(value) for value in display_ids]
-    parsed_genes = [item[0] for item in parsed_gene_site]
-    parsed_sites = [item[1] for item in parsed_gene_site]
-
-    if GENE_SYMBOL_COLUMN not in frame.columns:
-        if PROTEIN_COLUMN in frame.columns:
-            frame.loc[:, GENE_SYMBOL_COLUMN] = frame.loc[:, PROTEIN_COLUMN].astype(str)
-        else:
-            frame.loc[:, GENE_SYMBOL_COLUMN] = parsed_genes
-    if SITE_COLUMN not in frame.columns:
-        frame.loc[:, SITE_COLUMN] = parsed_sites
-    if PROTEIN_COLUMN not in frame.columns:
-        frame.loc[:, PROTEIN_COLUMN] = frame.loc[:, GENE_SYMBOL_COLUMN].astype(str)
-    if PROTEIN_ACCESSION_COLUMN not in frame.columns:
-        frame.loc[:, PROTEIN_ACCESSION_COLUMN] = ""
-    if ISOFORM_ID_COLUMN not in frame.columns:
-        frame.loc[:, ISOFORM_ID_COLUMN] = ""
-
-    frame.loc[:, SITE_KEY_COLUMN] = frame.loc[:, SITE_KEY_COLUMN].astype(str)
-    frame.index = pd.Index(
-        frame.loc[:, SITE_KEY_COLUMN].tolist(),
-        name=frame.index.name,
-    )
-    return frame
-
-
-def _parse_display_id(display_id: str) -> tuple[str, str]:
-    text = str(display_id)
-    if text.count(";") >= 2:
-        parts = text.split(";")
-        if len(parts) >= 2 and parts[0] and parts[1]:
-            return parts[0], parts[1]
-    return text, text
 
 
 @dataclass(frozen=True, slots=True, init=False)

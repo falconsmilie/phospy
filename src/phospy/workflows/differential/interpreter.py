@@ -15,7 +15,6 @@ from phospy.science.differential.models import (
 from phospy.science.differential.models import (
     DifferentialAnalysisRequest as DifferentialComputationRequest,
 )
-from phospy.science.sites.identifiers import canonicalize_site_components_series
 from phospy.science.sites.validation import require_site_key_series
 from phospy.validation.workflows.differential import (
     ExperimentalDesignContractValidator,
@@ -208,8 +207,13 @@ def _build_result_identity_metadata(
     site_metadata: pd.DataFrame,
     expected_index: pd.Index,
 ) -> pd.DataFrame:
-    required_columns = ("gene_symbol", "site")
-    optional_columns = ("protein_id", "protein_accession", "isoform_id")
+    required_columns = ("site_key", "display_id", "gene_symbol", "site")
+    optional_columns = (
+        "protein_id",
+        "protein_accession",
+        "isoform_id",
+        "organism",
+    )
     missing = [
         column for column in required_columns if column not in site_metadata.columns
     ]
@@ -218,7 +222,8 @@ def _build_result_identity_metadata(
         raise WorkflowBoundaryError(
             seam="differential.interpreter.result_identity_columns",
             next_action=(
-                "ensure resolved dataset.site_metadata includes gene_symbol/site"
+                "ensure resolved dataset.site_metadata includes site_key, "
+                "display_id, gene_symbol, and site"
             ),
             details={"missing_columns": missing},
             message_prefix=(
@@ -229,42 +234,6 @@ def _build_result_identity_metadata(
     try:
         aligned = cast(pd.DataFrame, site_metadata.loc[expected_index].copy(deep=True))
     except KeyError as exc:
-        if "site_key" in site_metadata.columns:
-            site_keys = (
-                site_metadata.loc[:, "site_key"].fillna("").astype(str).str.strip()
-            )
-            if not (site_keys == "").any() and not site_keys.duplicated().any():
-                remapped = site_metadata.copy(deep=False)
-                remapped.index = pd.Index(site_keys.tolist(), name="site_key")
-                try:
-                    aligned = cast(
-                        pd.DataFrame, remapped.loc[expected_index].copy(deep=True)
-                    )
-                except KeyError:
-                    pass
-                else:
-                    if aligned.index.equals(expected_index):
-                        identity = cast(pd.DataFrame, aligned.copy(deep=True))
-                        identity.loc[:, "site_key"] = identity.index.astype(
-                            str
-                        ).tolist()
-                        if "display_id" not in identity.columns:
-                            identity.loc[:, "display_id"] = _resolve_display_ids(
-                                identity
-                            )
-                        selected_columns = (
-                            "site_key",
-                            "display_id",
-                            "gene_symbol",
-                            "site",
-                        ) + tuple(
-                            column
-                            for column in optional_columns
-                            if column in aligned.columns
-                        )
-                        return cast(
-                            pd.DataFrame, identity.loc[:, list(selected_columns)]
-                        )
         raise WorkflowBoundaryError(
             seam="differential.interpreter.result_identity_alignment",
             next_action=(
@@ -288,24 +257,48 @@ def _build_result_identity_metadata(
             message_prefix="differential workflow boundary validation failed",
         )
     identity = cast(pd.DataFrame, aligned.copy(deep=True))
-    if "site_key" in identity.columns:
-        site_key_values = identity.loc[:, "site_key"].fillna("").astype(str).str.strip()
-        try:
-            require_site_key_series(
-                site_key_values,
-                field_name=(
-                    "differential workflow request dataset.site_metadata.site_key"
-                ),
-                error_type=ValueError,
-            )
-            identity.index = pd.Index(site_key_values.tolist(), name="site_key")
-            identity.loc[:, "site_key"] = site_key_values.tolist()
-        except ValueError:
-            identity.loc[:, "site_key"] = identity.index.astype(str).tolist()
-    else:
-        identity.loc[:, "site_key"] = identity.index.astype(str).tolist()
-    if "display_id" not in identity.columns:
-        identity.loc[:, "display_id"] = _resolve_display_ids(identity)
+    site_key_values = identity.loc[:, "site_key"].fillna("").astype(str).str.strip()
+    try:
+        require_site_key_series(
+            site_key_values,
+            field_name=("differential workflow request dataset.site_metadata.site_key"),
+            error_type=ValueError,
+        )
+    except ValueError as exc:
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.result_identity_site_key",
+            next_action=(
+                "ensure resolved dataset.site_metadata.site_key contains valid "
+                "protein-scoped site keys"
+            ),
+            details={"error": str(exc)},
+            message_prefix="differential workflow boundary validation failed",
+        ) from exc
+    expected_values = expected_index.astype(str).tolist()
+    if site_key_values.tolist() != expected_values:
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.result_identity_site_key",
+            next_action=(
+                "ensure resolved dataset.site_metadata.site_key exactly matches "
+                "the differential matrix site_key index"
+            ),
+            details={"expected_index_count": int(expected_index.size)},
+            message_prefix="differential workflow boundary validation failed",
+        )
+    display_id_values = identity.loc[:, "display_id"].fillna("").astype(str).str.strip()
+    if (display_id_values == "").any():
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.result_identity_display_id",
+            next_action=(
+                "ensure resolved dataset.site_metadata.display_id is present for "
+                "every differential matrix row"
+            ),
+            details={"empty_display_id_count": int((display_id_values == "").sum())},
+            message_prefix="differential workflow boundary validation failed",
+        )
+    identity.index = pd.Index(site_key_values.tolist(), name="site_key")
+    identity.loc[:, "site_key"] = site_key_values.tolist()
+    identity.loc[:, "display_id"] = display_id_values.tolist()
     selected_columns = ("site_key", "display_id", "gene_symbol", "site") + tuple(
         column for column in optional_columns if column in aligned.columns
     )
@@ -318,65 +311,46 @@ def _prefer_site_key_index_for_differential_results(
     site_metadata: pd.DataFrame,
 ) -> pd.DataFrame:
     if "site_key" not in site_metadata.columns:
-        return matrix
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.result_identity_columns",
+            next_action=(
+                "ensure resolved dataset.site_metadata includes site_key before "
+                "differential execution"
+            ),
+            message_prefix="differential workflow boundary validation failed",
+        )
     aligned_metadata = site_metadata.reindex(matrix.index)
     site_keys = aligned_metadata.loc[:, "site_key"].fillna("").astype(str).str.strip()
-    if (site_keys == "").any() or site_keys.duplicated().any():
-        return matrix
     try:
         require_site_key_series(
             site_keys,
             field_name="differential workflow request dataset.site_metadata.site_key",
             error_type=ValueError,
         )
-    except ValueError:
-        return matrix
+    except ValueError as exc:
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.result_identity_site_key",
+            next_action=(
+                "ensure resolved dataset.site_metadata.site_key contains valid "
+                "protein-scoped site keys"
+            ),
+            details={"error": str(exc)},
+            message_prefix="differential workflow boundary validation failed",
+        ) from exc
     matrix_index_values = matrix.index.astype(str).tolist()
-    index_is_encoded = bool(matrix_index_values) and all(
-        value.startswith("phospy:v1|") for value in matrix_index_values
-    )
-    has_protein_identity = "protein_id" in aligned_metadata.columns and bool(
-        (
-            aligned_metadata.loc[:, "protein_id"]
-            .astype("string")
-            .str.strip()
-            .fillna("")
-            != ""
-        ).all()
-    )
-    if not index_is_encoded and not has_protein_identity:
-        return matrix
+    if site_keys.tolist() != matrix_index_values:
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.result_identity_site_key",
+            next_action=(
+                "ensure the analysis-ready dataset uses site_key as the phospho "
+                "matrix row index"
+            ),
+            details={"matrix_index_count": int(matrix.index.size)},
+            message_prefix="differential workflow boundary validation failed",
+        )
     remapped = matrix.copy(deep=True)
     remapped.index = pd.Index(site_keys.tolist(), name="site_key")
     return remapped
-
-
-def _resolve_display_ids(site_metadata: pd.DataFrame) -> pd.Series:
-    index_values = site_metadata.index.astype(str).tolist()
-    if all(";" in value for value in index_values):
-        return pd.Series(
-            index_values,
-            index=site_metadata.index.copy(),
-            name="display_id",
-        )
-    try:
-        return canonicalize_site_components_series(
-            gene_symbol=site_metadata.loc[:, "gene_symbol"],
-            site=site_metadata.loc[:, "site"],
-            field_name="differential workflow request dataset.site_metadata",
-            error_type=ValueError,
-            output_name="display_id",
-        )
-    except ValueError as exc:
-        raise WorkflowBoundaryError(
-            seam="differential.interpreter.result_identity_display_id",
-            next_action=(
-                "ensure resolved dataset.site_metadata provides canonical "
-                "display_id values or parsable gene_symbol/site pairs"
-            ),
-            message_prefix="differential workflow boundary validation failed",
-            details={"error": str(exc)},
-        ) from exc
 
 
 __all__ = ["DifferentialAnalysisInterpreter"]

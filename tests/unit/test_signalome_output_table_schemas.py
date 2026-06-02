@@ -10,12 +10,21 @@ from phospy.science.signalomes.models import (
     SignalomeAssignments,
     SignalomeModules,
 )
+from tests.support.site_keys import site_key_index_from_display_ids
 
 
 def _valid_assignments() -> pd.DataFrame:
+    display_ids = ["P1;S1;", "P2;S2;"]
+    site_index = site_key_index_from_display_ids(display_ids)
     return pd.DataFrame(
         {
+            "site_key": site_index.astype(str).tolist(),
+            "display_id": display_ids,
+            "gene_symbol": ["P1", "P2"],
+            "site": ["S1", "S2"],
             "protein_id": ["P1", "P2"],
+            "protein_accession": ["", ""],
+            "isoform_id": ["", ""],
             "module_id": [1, 0],
             "top_kinase": ["K1", "__UNSUPPORTED__"],
             "top_score": [0.9, np.nan],
@@ -36,7 +45,7 @@ def _valid_assignments() -> pd.DataFrame:
                 "no_support",
             ],
         },
-        index=pd.Index(["P1;S1;", "P2;S2;"], name="site_id"),
+        index=site_index,
     )
 
 
@@ -82,16 +91,25 @@ def test_signalome_assignments_reject_missing_required_columns() -> None:
         SignalomeAssignments(table=table)
 
 
+@pytest.mark.parametrize("column_name", ["site_key", "display_id"])
+def test_signalome_assignments_reject_missing_identity_columns(
+    column_name: str,
+) -> None:
+    table = _valid_assignments().drop(columns=[column_name])
+    with pytest.raises(PhosPyValidationError, match=column_name):
+        SignalomeAssignments(table=table)
+
+
 def test_signalome_assignments_reject_duplicate_site_index() -> None:
     table = _valid_assignments()
-    table.index = pd.Index(["P1;S1;", "P1;S1;"], name="site_id")
+    table.index = pd.Index([table.index[0], table.index[0]], name="site_key")
     with pytest.raises(PhosPyValidationError, match="index must be unique"):
         SignalomeAssignments(table=table)
 
 
 def test_signalome_assignments_reject_negative_module_id() -> None:
     table = _valid_assignments()
-    table.loc["P1;S1;", "module_id"] = -1
+    table.loc[table.index[0], "module_id"] = -1
     with pytest.raises(
         PhosPyValidationError, match="module_id must contain non-negative"
     ):
@@ -100,21 +118,21 @@ def test_signalome_assignments_reject_negative_module_id() -> None:
 
 def test_signalome_assignments_reject_invalid_boolean_dtype() -> None:
     table = _valid_assignments().astype({"top_kinase_is_ambiguous": object})
-    table.loc["P1;S1;", "top_kinase_is_ambiguous"] = "yes"
+    table.loc[table.index[0], "top_kinase_is_ambiguous"] = "yes"
     with pytest.raises(PhosPyValidationError, match="must contain boolean values"):
         SignalomeAssignments(table=table)
 
 
 def test_signalome_assignments_reject_missing_supported_top_score() -> None:
     table = _valid_assignments()
-    table.loc["P1;S1;", "top_score"] = np.nan
+    table.loc[table.index[0], "top_score"] = np.nan
     with pytest.raises(PhosPyValidationError, match="top_score must be finite"):
         SignalomeAssignments(table=table)
 
 
 def test_signalome_assignments_reject_malformed_weight_shape() -> None:
     table = _valid_assignments()
-    table.at["P1;S1;", "top_kinase_weights"] = ("K1", 1.0)
+    table.at[table.index[0], "top_kinase_weights"] = ("K1", 1.0)
     with pytest.raises(
         PhosPyValidationError, match="entries must be \\(kinase, weight\\) pairs"
     ):

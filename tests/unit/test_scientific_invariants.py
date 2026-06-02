@@ -523,12 +523,14 @@ def test_motif_profile_fusion_has_predictable_missing_motif_behavior() -> None:
 def test_signalome_module_assignments_are_row_order_invariant_by_site_identity() -> (
     None
 ):
+    display_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
+    site_index = site_key_index_from_display_ids(display_ids)
     prediction = pd.DataFrame(
         {
             "K1": [0.9, 0.2, 0.8],
             "K2": [0.1, 0.9, 0.8],
         },
-        index=pd.Index(["P1;S1;", "P2;S2;", "P3;S3;"], name="site_id"),
+        index=site_index.copy(),
     )
     proteins = pd.Series(
         ["P1", "P2", "P3"],
@@ -536,17 +538,29 @@ def test_signalome_module_assignments_are_row_order_invariant_by_site_identity()
         name="protein_id",
         dtype=str,
     )
+    site_metadata = pd.DataFrame(
+        {
+            "site_key": site_index.astype(str).tolist(),
+            "display_id": display_ids,
+            "gene_symbol": ["P1", "P2", "P3"],
+            "site": ["S1", "S2", "S3"],
+        },
+        index=site_index.copy(),
+    )
 
-    reordered_prediction = prediction.loc[["P3;S3;", "P1;S1;", "P2;S2;"], :]
+    p1s1, p2s2, p3s3 = site_index.astype(str).tolist()
+    reordered_prediction = prediction.loc[[p3s3, p1s1, p2s2], :]
     reordered_proteins = proteins.loc[reordered_prediction.index]
 
     base = build_module_assignments(
         prediction_matrix=prediction,
         site_to_protein=proteins,
+        site_metadata=site_metadata,
     )
     reordered = build_module_assignments(
         prediction_matrix=reordered_prediction,
         site_to_protein=reordered_proteins,
+        site_metadata=site_metadata,
     )
 
     pdt.assert_frame_equal(base.sort_index(), reordered.sort_index())

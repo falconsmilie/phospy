@@ -285,103 +285,98 @@ def _resolve_site_identity_columns(
     resolved_site_to_protein: pd.Series,
     site_metadata: pd.DataFrame | None,
 ) -> pd.DataFrame:
-    fallback_display = pd.Series(
-        site_index.astype(str).tolist(),
-        index=site_index.copy(),
-        dtype=object,
-        name=DISPLAY_ID_COLUMN,
-    )
     empty = pd.Series(
         [""] * int(site_index.size),
         index=site_index.copy(),
         dtype=object,
     )
     if site_metadata is None:
-        parsed_identity = [
-            _parse_display_site_identity(display_id)
-            for display_id in fallback_display.astype(str).tolist()
-        ]
-        parsed_gene_symbols = [gene_symbol for gene_symbol, _ in parsed_identity]
-        parsed_sites = [site for _, site in parsed_identity]
-        protein_values = resolved_site_to_protein.astype(str).tolist()
-        identity = pd.DataFrame(
-            {
-                SITE_KEY_COLUMN: site_index.astype(str).tolist(),
-                DISPLAY_ID_COLUMN: fallback_display.astype(str).tolist(),
-                GENE_SYMBOL_COLUMN: [
-                    gene_symbol if gene_symbol != "" else protein_id
-                    for gene_symbol, protein_id in zip(
-                        parsed_gene_symbols,
-                        protein_values,
-                        strict=True,
-                    )
-                ],
-                SITE_COLUMN: parsed_sites,
-                PROTEIN_ACCESSION_COLUMN: empty.astype(str).tolist(),
-                ISOFORM_ID_COLUMN: empty.astype(str).tolist(),
-            },
-            index=site_index.copy(),
+        raise WorkflowStageError(
+            "signalome assignment identity requires explicit site_metadata"
         )
-    else:
-        metadata = site_metadata.copy(deep=False)
-        metadata.index = pd.Index(metadata.index.astype(str), name=SITE_KEY_COLUMN)
-        if (
-            not site_index.isin(metadata.index).all()
-            and SITE_KEY_COLUMN in metadata.columns
-        ):
-            site_key_index = (
-                metadata.loc[:, SITE_KEY_COLUMN].fillna("").astype(str).str.strip()
-            )
-            if not (site_key_index == "").any():
-                remapped_metadata = metadata.copy(deep=False)
-                remapped_metadata.index = pd.Index(
-                    site_key_index.tolist(),
-                    name=SITE_KEY_COLUMN,
-                )
-                if site_index.isin(remapped_metadata.index).all():
-                    metadata = remapped_metadata
-        aligned_metadata = metadata.reindex(site_index)
-
-        def _resolve_column(
-            column_name: str,
-            *,
-            fallback: pd.Series | None = None,
-        ) -> pd.Series:
-            if column_name in aligned_metadata.columns:
-                return (
-                    aligned_metadata.loc[:, column_name]
-                    .fillna("")
-                    .astype(str)
-                    .str.strip()
-                    .rename(column_name)
-                )
-            if fallback is not None:
-                return fallback.astype(str).rename(column_name)
-            return empty.astype(str).rename(column_name)
-
-        identity = pd.DataFrame(
-            {
-                SITE_KEY_COLUMN: site_index.astype(str).tolist(),
-                DISPLAY_ID_COLUMN: _resolve_column(
-                    DISPLAY_ID_COLUMN, fallback=fallback_display
-                ).tolist(),
-                GENE_SYMBOL_COLUMN: _resolve_column(GENE_SYMBOL_COLUMN).tolist(),
-                SITE_COLUMN: _resolve_column(SITE_COLUMN).tolist(),
-                PROTEIN_ACCESSION_COLUMN: _resolve_column(
-                    PROTEIN_ACCESSION_COLUMN
-                ).tolist(),
-                ISOFORM_ID_COLUMN: _resolve_column(ISOFORM_ID_COLUMN).tolist(),
-            },
-            index=site_index.copy(),
-        )
-    identity.loc[:, PROTEIN_COLUMN] = resolved_site_to_protein.astype(str).tolist()
-    blank_display_mask = (
-        identity.loc[:, DISPLAY_ID_COLUMN].astype(str).str.strip() == ""
+    required_columns = (
+        SITE_KEY_COLUMN,
+        DISPLAY_ID_COLUMN,
+        GENE_SYMBOL_COLUMN,
+        SITE_COLUMN,
     )
-    if bool(blank_display_mask.any()):
-        identity.loc[blank_display_mask, DISPLAY_ID_COLUMN] = (
-            fallback_display.loc[blank_display_mask].astype(str).tolist()
+    missing = [
+        column for column in required_columns if column not in site_metadata.columns
+    ]
+    if missing:
+        joined = ", ".join(missing)
+        raise WorkflowStageError(
+            f"signalome assignment identity requires site_metadata columns: {joined}"
         )
+    metadata = site_metadata.copy(deep=False)
+    metadata.index = pd.Index(metadata.index.astype(str), name=SITE_KEY_COLUMN)
+    if not site_index.isin(metadata.index).all():
+        missing_sites = [
+            str(site_id) for site_id in site_index if site_id not in metadata.index
+        ]
+        preview = ", ".join(missing_sites[:3])
+        suffix = "..." if len(missing_sites) > 3 else ""
+        raise WorkflowStageError(
+            "signalome assignment identity metadata is missing prediction sites: "
+            f"{preview}{suffix}"
+        )
+    aligned_metadata = metadata.loc[site_index]
+
+    site_key_values = (
+        aligned_metadata.loc[:, SITE_KEY_COLUMN].fillna("").astype(str).str.strip()
+    )
+    if site_key_values.tolist() != site_index.astype(str).tolist():
+        raise WorkflowStageError(
+            "signalome assignment identity requires site_metadata.site_key to "
+            "match the prediction matrix site_key index"
+        )
+    display_id_values = (
+        aligned_metadata.loc[:, DISPLAY_ID_COLUMN].fillna("").astype(str).str.strip()
+    )
+    if (display_id_values == "").any():
+        raise WorkflowStageError(
+            "signalome assignment identity requires non-empty display_id values"
+        )
+
+    def _required_column(column_name: str) -> pd.Series:
+        values = (
+            aligned_metadata.loc[:, column_name]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .rename(column_name)
+        )
+        if (values == "").any():
+            raise WorkflowStageError(
+                f"signalome assignment identity requires non-empty {column_name} values"
+            )
+        return values
+
+    def _optional_column(column_name: str) -> pd.Series:
+        if column_name not in aligned_metadata.columns:
+            return empty.astype(str).rename(column_name)
+        return (
+            aligned_metadata.loc[:, column_name]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .rename(column_name)
+        )
+
+    identity = pd.DataFrame(
+        {
+            SITE_KEY_COLUMN: site_key_values.tolist(),
+            DISPLAY_ID_COLUMN: display_id_values.tolist(),
+            GENE_SYMBOL_COLUMN: _required_column(GENE_SYMBOL_COLUMN).tolist(),
+            SITE_COLUMN: _required_column(SITE_COLUMN).tolist(),
+            PROTEIN_ACCESSION_COLUMN: _optional_column(
+                PROTEIN_ACCESSION_COLUMN
+            ).tolist(),
+            ISOFORM_ID_COLUMN: _optional_column(ISOFORM_ID_COLUMN).tolist(),
+        },
+        index=site_index.copy(),
+    )
+    identity.loc[:, PROTEIN_COLUMN] = resolved_site_to_protein.astype(str).tolist()
     identity = identity.astype(
         {
             SITE_KEY_COLUMN: str,
@@ -394,20 +389,6 @@ def _resolve_site_identity_columns(
         }
     )
     return identity
-
-
-def _parse_display_site_identity(display_id: str) -> tuple[str, str]:
-    text = str(display_id).strip()
-    if text.count(";") < 2:
-        return "", ""
-    tokens = [token.strip() for token in text.split(";")]
-    if len(tokens) < 2:
-        return "", ""
-    gene_symbol = tokens[0]
-    site = tokens[1]
-    if gene_symbol == "" or site == "":
-        return "", ""
-    return gene_symbol, site
 
 
 def _resolve_site_module_resolution(

@@ -184,9 +184,17 @@ def _kinase_result() -> KinaseWorkflowResult:
 
 
 def _valid_signalome_assignments_table() -> pd.DataFrame:
+    display_id = "MAPK14;Y182;"
+    site_key = site_key_from_display_id(display_id)
     return pd.DataFrame(
         {
+            "site_key": [site_key],
+            "display_id": [display_id],
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
             "protein_id": ["MAPK14"],
+            "protein_accession": [""],
+            "isoform_id": [""],
             "module_id": [1],
             "top_kinase": ["MAP2K6"],
             "top_score": [0.8],
@@ -203,7 +211,7 @@ def _valid_signalome_assignments_table() -> pd.DataFrame:
                 "max_score_then_lexicographic_tiebreak"
             ],
         },
-        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+        index=pd.Index([site_key], name="site_key"),
     )
 
 

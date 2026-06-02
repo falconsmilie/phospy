@@ -161,10 +161,12 @@ class SignalomeWorkflowInterpreter:
         prediction_sites_for_diagnostics = _map_site_index_to_site_keys(
             site_metadata=dataset_site_metadata,
             site_index=aligned_matrices.resolved_prediction_matrix.index,
+            allow_unmapped=True,
         )
         score_sites_for_diagnostics = _map_site_index_to_site_keys(
             site_metadata=dataset_site_metadata,
             site_index=aligned_matrices.resolved_downstream_score_matrix.index,
+            allow_unmapped=True,
         )
         shared_sites_for_diagnostics = _map_site_index_to_site_keys(
             site_metadata=dataset_site_metadata,
@@ -259,15 +261,9 @@ def _resolve_site_key_indexes(
     retained_site_index: pd.Index,
 ) -> tuple[pd.Index, pd.Index]:
     if _SITE_KEY_COLUMN not in site_metadata.columns:
-        aligned_site_key_index = pd.Index(
-            aligned_site_index.astype(str).tolist(),
-            name=aligned_site_index.name,
+        raise WorkflowBoundaryError(
+            "signalome interpreter requires dataset.site_metadata.site_key"
         )
-        retained_site_key_index = pd.Index(
-            retained_site_index.astype(str).tolist(),
-            name=retained_site_index.name,
-        )
-        return aligned_site_key_index, retained_site_key_index
     aligned_metadata = site_metadata.reindex(aligned_site_index)
     aligned_site_keys = (
         aligned_metadata.loc[:, _SITE_KEY_COLUMN].fillna("").astype(str).str.strip()
@@ -280,6 +276,11 @@ def _resolve_site_key_indexes(
     if aligned_site_keys.duplicated().any():
         raise WorkflowBoundaryError(
             "signalome interpreter requires unique site_key values across aligned sites"
+        )
+    if aligned_site_keys.tolist() != aligned_site_index.astype(str).tolist():
+        raise WorkflowBoundaryError(
+            "signalome interpreter requires dataset.site_metadata.site_key to "
+            "match aligned site indexes"
         )
     aligned_site_key_index = pd.Index(
         aligned_site_keys.tolist(),
@@ -303,10 +304,13 @@ def _map_site_index_to_site_keys(
     *,
     site_metadata: pd.DataFrame,
     site_index: pd.Index,
+    allow_unmapped: bool = False,
 ) -> pd.Index:
     source_index = pd.Index(site_index.astype(str).tolist(), name=site_index.name)
     if _SITE_KEY_COLUMN not in site_metadata.columns:
-        return source_index
+        raise WorkflowBoundaryError(
+            "signalome interpreter requires dataset.site_metadata.site_key"
+        )
     metadata = site_metadata.copy(deep=False)
     metadata.index = pd.Index(
         metadata.index.astype(str).tolist(), name=metadata.index.name
@@ -316,7 +320,15 @@ def _map_site_index_to_site_keys(
     mapped: list[str] = []
     for value in source_index.astype(str).tolist():
         resolved = mapping.get(value, "")
-        mapped.append(resolved if resolved != "" else value)
+        if resolved == "":
+            if allow_unmapped:
+                mapped.append(value)
+                continue
+            raise WorkflowBoundaryError(
+                "signalome interpreter cannot resolve site_key for diagnostic site "
+                f"index value {value!r}"
+            )
+        mapped.append(resolved)
     return pd.Index(
         mapped,
         name=_resolved_index_name_for_site_keys(

@@ -785,8 +785,6 @@ class DifferentialAnalysisResult:
                 f"unknown contrast {contrast_name!r}; available: {available}"
             )
         table = self._contrast_tables[contrast_name]
-        if _index_uses_site_key_identity(table.index):
-            return export_dataframe(table)
         return _export_public_contrast_table(table)
 
     def residual_variance_series(self) -> pd.Series:
@@ -1044,6 +1042,10 @@ def _validate_unit_interval_column(
 
 def _export_public_contrast_table(table: pd.DataFrame) -> pd.DataFrame:
     exported = export_dataframe(table)
+    if {"site_key", "display_id"}.issubset(exported.columns):
+        return exported
+    if _index_uses_site_key_identity(exported.index):
+        return exported
     return cast(pd.DataFrame, exported[["logFC", "t", "P.Value", "adj.P.Val"]])
 
 

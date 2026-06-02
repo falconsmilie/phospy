@@ -465,6 +465,8 @@ class KinaseActivityResult:
 
 def _export_public_target_table(table: pd.DataFrame) -> pd.DataFrame:
     exported = export_dataframe(table)
+    if {"site_key", "display_id"}.issubset(exported.columns):
+        return exported
     legacy_columns = ["site_id", "kinase", "score"]
     if not all(column in exported.columns for column in legacy_columns):
         return exported

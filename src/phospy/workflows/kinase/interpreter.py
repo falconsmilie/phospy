@@ -75,6 +75,11 @@ class KinaseWorkflowInterpreter:
             reference_kinase_substrate_map=references.kinase_substrate_map,
             site_identity_map=site_identity_map,
         )
+        display_reference_matching = self._summarize_display_reference_matching(
+            reference_kinase_substrate_map=references.kinase_substrate_map,
+            projected_kinase_substrate_map=kinase_substrate_map,
+            site_identity_map=site_identity_map,
+        )
         merge_result = self._site_sequence_support_builder.run(
             dataset=dataset_phospho,
             site_metadata=dataset_site_metadata,
@@ -156,6 +161,7 @@ class KinaseWorkflowInterpreter:
                     references.kinase_substrate_map.shape[0]
                 ),
                 "execution_substrate_map_count": int(kinase_substrate_map.shape[0]),
+                "display_reference_matching": display_reference_matching,
             },
         )
 
@@ -165,27 +171,58 @@ class KinaseWorkflowInterpreter:
         dataset: pd.DataFrame,
         site_metadata: pd.DataFrame,
     ) -> pd.DataFrame:
-        aligned_metadata = site_metadata.reindex(dataset.index)
-        if "display_id" in aligned_metadata.columns:
-            display_ids = (
-                aligned_metadata.loc[:, "display_id"].astype("string").str.strip()
-            )
-        else:
-            display_ids = pd.Series(
-                dataset.index.astype(str), index=dataset.index, dtype="string"
-            )
-        resolved_display_ids = [
-            str(site_key)
-            if not bool(pd.notna(value)) or str(value) == ""
-            else str(value)
-            for site_key, value in zip(
-                dataset.index.tolist(), display_ids.tolist(), strict=False
-            )
+        missing = [
+            column
+            for column in ("site_key", "display_id")
+            if column not in site_metadata.columns
         ]
-        site_keys = [str(value) for value in dataset.index.tolist()]
+        if missing:
+            joined = ", ".join(missing)
+            raise WorkflowBoundaryError(
+                seam="kinase.interpreter.site_identity_map",
+                next_action=(
+                    "ensure the analysis-ready dataset metadata includes site_key "
+                    "and display_id"
+                ),
+                details={"missing_columns": missing},
+                message_prefix=(
+                    "kinase workflow boundary validation failed: missing required "
+                    f"site identity columns: {joined}"
+                ),
+            )
+        aligned_metadata = site_metadata.reindex(dataset.index)
+        site_key_values = (
+            aligned_metadata.loc[:, "site_key"].fillna("").astype(str).str.strip()
+        )
+        display_id_values = (
+            aligned_metadata.loc[:, "display_id"].fillna("").astype(str).str.strip()
+        )
+        site_keys = dataset.index.astype(str).tolist()
+        if site_key_values.tolist() != site_keys:
+            raise WorkflowBoundaryError(
+                seam="kinase.interpreter.site_identity_map",
+                next_action=(
+                    "ensure dataset.site_metadata.site_key exactly matches "
+                    "dataset.phospho.index"
+                ),
+                details={"dataset_site_count": int(dataset.index.size)},
+                message_prefix="kinase workflow boundary validation failed",
+            )
+        if (display_id_values == "").any():
+            raise WorkflowBoundaryError(
+                seam="kinase.interpreter.site_identity_map",
+                next_action=(
+                    "ensure dataset.site_metadata.display_id is present for every "
+                    "scoring site"
+                ),
+                details={
+                    "empty_display_id_count": int((display_id_values == "").sum())
+                },
+                message_prefix="kinase workflow boundary validation failed",
+            )
         return pd.DataFrame(
-            {"site_key": site_keys, "display_id": resolved_display_ids},
-            index=pd.Index(site_keys, name=dataset.index.name),
+            {"site_key": site_keys, "display_id": display_id_values.tolist()},
+            index=pd.Index(site_keys, name="site_key"),
         )
 
     @staticmethod
@@ -223,6 +260,67 @@ class KinaseWorkflowInterpreter:
             rows,
             columns=["kinase", "substrate_site", "display_id"],
         ).drop_duplicates(ignore_index=True)
+
+    @staticmethod
+    def _summarize_display_reference_matching(
+        *,
+        reference_kinase_substrate_map: pd.DataFrame,
+        projected_kinase_substrate_map: pd.DataFrame,
+        site_identity_map: pd.DataFrame,
+    ) -> dict[str, object]:
+        display_lookup: dict[str, list[str]] = {}
+        for site_key, display_id in site_identity_map.loc[
+            :, ["site_key", "display_id"]
+        ].itertuples(index=False):
+            display_lookup.setdefault(str(display_id), []).append(str(site_key))
+        referenced_display_ids = set(
+            reference_kinase_substrate_map.loc[:, "substrate_site"].astype(str).tolist()
+        )
+        one_to_many = {
+            display_id: site_keys
+            for display_id, site_keys in display_lookup.items()
+            if len(site_keys) > 1 and display_id in referenced_display_ids
+        }
+        if not one_to_many:
+            return {
+                "reference_key": "display_id",
+                "dataset_row_identity": "site_key",
+                "one_to_many_display_reference_match_count": 0,
+                "one_to_many_display_reference_site_key_rows": 0,
+                "one_to_many_display_reference_matches": [],
+            }
+        matches: list[dict[str, object]] = []
+        for display_id in sorted(one_to_many):
+            site_keys = one_to_many[display_id]
+            reference_rows = int(
+                (
+                    reference_kinase_substrate_map.loc[:, "substrate_site"].astype(str)
+                    == display_id
+                ).sum()
+            )
+            projected_rows = int(
+                (
+                    projected_kinase_substrate_map.loc[:, "display_id"].astype(str)
+                    == display_id
+                ).sum()
+            )
+            matches.append(
+                {
+                    "display_id": display_id,
+                    "site_keys": site_keys,
+                    "reference_rows": reference_rows,
+                    "projected_rows": projected_rows,
+                }
+            )
+        return {
+            "reference_key": "display_id",
+            "dataset_row_identity": "site_key",
+            "one_to_many_display_reference_match_count": len(one_to_many),
+            "one_to_many_display_reference_site_key_rows": sum(
+                len(site_keys) for site_keys in one_to_many.values()
+            ),
+            "one_to_many_display_reference_matches": matches,
+        }
 
     @staticmethod
     def _resolve_execution_config(

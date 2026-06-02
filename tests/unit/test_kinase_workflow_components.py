@@ -103,6 +103,55 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
     )
 
 
+def _dataset_with_duplicate_display_ids() -> AnalysisReadyPhosphoDataset:
+    display_ids = ["MAPK14;Y182;", "MAPK14;Y182;", "GSK3B;S9;"]
+    protein_ids = ["MAPK14_PROTEIN_A", "MAPK14_PROTEIN_B", "GSK3B"]
+    site_keys = [
+        encode_site_key(
+            build_protein_scoped_site_key(
+                organism="rat",
+                protein_namespace="protein_id",
+                protein_identifier=protein_id,
+                residue=display_id.split(";")[1][0],
+                position=int(display_id.split(";")[1][1:]),
+                field_name="test.dataset.duplicate_display.site_key",
+                error_type=ValueError,
+            )
+        )
+        for display_id, protein_id in zip(display_ids, protein_ids, strict=True)
+    ]
+    site_index = pd.Index(site_keys, name="site_key")
+    return AnalysisReadyPhosphoDataset(
+        phospho=pd.DataFrame(
+            {
+                "sample_a": [1.0, 1.1, 0.8],
+                "sample_b": [2.0, 2.1, 1.2],
+            },
+            index=site_index,
+        ),
+        site_metadata=pd.DataFrame(
+            {
+                "site_key": site_keys,
+                "display_id": display_ids,
+                "gene_symbol": ["MAPK14", "MAPK14", "GSK3B"],
+                "site": ["Y182", "Y182", "S9"],
+                "site_sequence": [
+                    "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
+                    "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
+                    "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
+                ],
+                "protein_id": protein_ids,
+            },
+            index=site_index,
+        ),
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+
+
 def _references() -> ReferenceBundle:
     return ReferenceBundle(
         organism=Organism.RAT,
@@ -371,6 +420,35 @@ def test_interpreter_overlap_uses_normalised_reference_tables_after_bundle_const
     assert len(overlap_sites) == 2
 
 
+def test_interpreter_maps_one_display_reference_to_multiple_site_keys() -> None:
+    dataset = _dataset_with_duplicate_display_ids()
+
+    interpreted = KinaseWorkflowInterpreter().run(
+        KinaseWorkflowRequest(dataset=dataset, references=_references())
+    )
+
+    duplicate_rows = interpreted.kinase_substrate_map.loc[
+        interpreted.kinase_substrate_map.loc[:, "display_id"] == "MAPK14;Y182;",
+        :,
+    ]
+    assert duplicate_rows.shape[0] == 2
+    assert duplicate_rows.loc[:, "substrate_site"].nunique() == 2
+    assert set(duplicate_rows.loc[:, "substrate_site"].astype(str)) == set(
+        dataset.phospho.index.astype(str)[:2]
+    )
+    diagnostics = interpreted.site_sequence_merge_diagnostics[
+        "display_reference_matching"
+    ]
+    assert diagnostics["reference_key"] == "display_id"
+    assert diagnostics["dataset_row_identity"] == "site_key"
+    assert diagnostics["one_to_many_display_reference_match_count"] == 1
+    assert diagnostics["one_to_many_display_reference_site_key_rows"] == 2
+    matches = diagnostics["one_to_many_display_reference_matches"]
+    assert isinstance(matches, list)
+    assert matches[0]["display_id"] == "MAPK14;Y182;"
+    assert set(matches[0]["site_keys"]) == set(dataset.phospho.index.astype(str)[:2])
+
+
 def test_scoring_runner_returns_expected_downstream_score_source() -> None:
     request = _resolved_request()
     result = KinaseScoringRunner().run(
@@ -458,6 +536,7 @@ def test_prediction_output_construction_receives_normalised_kinase_ids() -> None
     assert set(prediction_result.pred_mat.columns.astype(str)) == {"MAP2K6"}
     if prediction_result.substrate_list is not None:
         assert set(prediction_result.substrate_list.loc[:, "kinase"]) <= {"MAP2K6"}
+        assert {"site_key", "display_id"} <= set(prediction_result.substrate_list)
 
 
 def test_activity_scoring_receives_only_normalised_kinase_ids() -> None:

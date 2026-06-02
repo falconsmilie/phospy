@@ -142,6 +142,8 @@ def test_kinase_result_stays_nested_and_honest_for_supported_lane() -> None:
         "substrate_site",
         "score",
         "rank",
+        "site_key",
+        "display_id",
     }.issubset(set(result.prediction_result.substrate_list.columns))
     pred_values = result.prediction_result.pred_mat.to_numpy(dtype=float)
     finite_values = pred_values[np.isfinite(pred_values)]
@@ -177,6 +179,24 @@ def test_signalome_result_keeps_nested_kinase_result_contract() -> None:
     assert not signalome_result.expanded_signalome.empty
     assert not signalome_result.site_membership.empty
     assert not signalome_result.protein_site_context.empty
+    assert {"site_key", "display_id"} <= set(
+        signalome_result.module_assignments.table.columns
+    )
+    assert {"site_key", "display_id"} <= set(signalome_result.site_membership.columns)
+    assert {"site_key", "display_id"} <= set(
+        signalome_result.expanded_signalome.columns
+    )
+    assert (
+        signalome_result.module_assignments.table.loc[:, "site_key"].tolist()
+        == signalome_result.module_assignments.table.index.astype(str).tolist()
+    )
+    assert (
+        signalome_result.module_assignments.table.loc[:, "display_id"]
+        .astype(str)
+        .str.strip()
+        .ne("")
+        .all()
+    )
     assert signalome_result.kinase_result.scoring_result.motif_scores is None
     assert (
         signalome_result.kinase_result.scoring_result.rank_weighted_fusion_scores
@@ -208,11 +228,9 @@ def test_kinase_result_exposes_supported_activity_stage_outputs_when_enabled() -
     )
 
     assert result.activity_result is not None
-    assert set(result.activity_result.target_table.columns) == {
-        "site_id",
-        "kinase",
-        "score",
-    }
+    assert {"site_id", "site_key", "display_id", "kinase", "score"} <= set(
+        result.activity_result.target_table.columns
+    )
     assert result.activity_result.thresholded_substrate_counts.name == "n_substrates"
     assert result.activity_result.target_counts.name == "n_targets"
     assert result.activity_result.activity_method.activity_method_id == (

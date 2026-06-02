@@ -234,9 +234,17 @@ def test_differential_workflow_performance_contract_for_smoke_and_medium_scales(
     )
 
     assert set(result.contrast_tables) == {contrast.name for contrast in contrasts}
+    identity_columns = ["site_key", "display_id", "gene_symbol", "site", "protein_id"]
+    statistic_columns = ["logFC", "t", "P.Value", "adj.P.Val"]
     for table in result.contrast_tables.values():
-        assert table.shape == (n_sites, 4)
-        assert list(table.columns) == ["logFC", "t", "P.Value", "adj.P.Val"]
+        assert table.shape[0] == n_sites
+        assert list(table.columns) == identity_columns + statistic_columns
+        assert table.index.name == "site_key"
+        assert (
+            table.loc[:, "site_key"].astype(str).tolist()
+            == table.index.astype(str).tolist()
+        )
+        assert table.loc[:, "display_id"].astype(str).str.strip().ne("").all()
     assert result.policy_provenance is not None
     assert result.input_dataset_preprocessing_report is not None
     assert runtime_seconds < differential_runtime_max

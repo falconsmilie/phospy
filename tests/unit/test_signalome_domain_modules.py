@@ -57,15 +57,22 @@ def test_domain_network_reports_non_finite_scores_without_edge_creation() -> Non
 
 
 def test_domain_expanded_requires_network_edge_columns() -> None:
+    site_key = "S1"
     module_assignments = pd.DataFrame(
         {
+            "site_key": [site_key],
+            "display_id": ["S1"],
+            "gene_symbol": ["P1"],
+            "site": ["S1"],
             "protein_id": ["P1"],
+            "protein_accession": [""],
+            "isoform_id": [""],
             "module_id": [1],
             "top_kinase": ["K1"],
             "top_score": [0.9],
             "top_kinase_weights": [(("K1", 1.0),)],
         },
-        index=pd.Index(["S1"], name="site_id"),
+        index=pd.Index([site_key], name="site_key"),
     )
     signalome_modules = pd.DataFrame(
         {"K1": [100.0]},
