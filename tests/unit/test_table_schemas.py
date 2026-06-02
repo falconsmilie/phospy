@@ -14,6 +14,7 @@ from phospy.errors.validation import (
 from phospy.science.references.models import Organism, ReferenceBundle
 from phospy.science.sites.site_keys import (
     build_protein_scoped_site_key,
+    decode_site_key,
     encode_site_key,
 )
 from phospy.tables.activity import ActivityMatrix, ActivityTargetTable
@@ -78,6 +79,12 @@ _MAPK14_Y182 = _site_key_for_display_id("MAPK14;Y182;", protein_identifier="P284
 _MAPK14_T185 = _site_key_for_display_id("MAPK14;T185;", protein_identifier="P28482")
 _AKT1_T308 = _site_key_for_display_id("AKT1;T308;", protein_identifier="P31749")
 _GSK3B_S9 = _site_key_for_display_id("GSK3B;S9;", protein_identifier="GSK3B")
+_DISPLAY_ID_BY_SITE_KEY = {
+    _MAPK14_Y182: "MAPK14;Y182;",
+    _MAPK14_T185: "MAPK14;T185;",
+    _AKT1_T308: "AKT1;T308;",
+    _GSK3B_S9: "GSK3B;S9;",
+}
 
 
 def _phospho_frame() -> pd.DataFrame:
@@ -91,20 +98,55 @@ def _phospho_frame() -> pd.DataFrame:
 
 
 def _site_metadata_frame(index: pd.Index) -> pd.DataFrame:
+    site_keys = index.astype(str).tolist()
+    decoded_keys = [
+        decode_site_key(
+            site_key,
+            field_name="tests.unit.test_table_schemas.site_key",
+            error_type=ValueError,
+        )
+        for site_key in site_keys
+    ]
+    display_ids = [
+        _DISPLAY_ID_BY_SITE_KEY.get(
+            site_key,
+            f"{key.protein_identifier};{key.residue}{key.position};",
+        )
+        for site_key, key in zip(site_keys, decoded_keys, strict=True)
+    ]
+    parsed_display = [_parse_site_id(display_id) for display_id in display_ids]
     return pd.DataFrame(
         {
-            "site_key": index.astype(str).tolist(),
-            "display_id": ["MAPK14;Y182;", "AKT1;T308;"],
-            "gene_symbol": ["MAPK14", "AKT1"],
-            "site": ["Y182", "T308"],
+            "site_key": site_keys,
+            "display_id": display_ids,
+            "organism": [key.organism for key in decoded_keys],
+            "protein_namespace": [key.protein_namespace for key in decoded_keys],
+            "protein_identifier": [key.protein_identifier for key in decoded_keys],
+            "gene_symbol": [gene for gene, _ in parsed_display],
+            "site": [site for _, site in parsed_display],
             "site_sequence": [
-                ("A" * 15) + "Y" + ("A" * 15),
-                ("A" * 15) + "T" + ("A" * 15),
+                ("A" * 15) + site[0] + ("A" * 15) for _, site in parsed_display
             ],
-            "protein_id": ["P28482", "P31749"],
+            "protein_id": [key.protein_identifier for key in decoded_keys],
         },
         index=index.copy(),
     )
+
+
+def _site_key_context_columns(site_keys: list[str] | pd.Index) -> dict[str, list[str]]:
+    decoded_keys = [
+        decode_site_key(
+            site_key,
+            field_name="tests.unit.test_table_schemas.site_key",
+            error_type=ValueError,
+        )
+        for site_key in pd.Index(site_keys).astype(str).tolist()
+    ]
+    return {
+        "organism": [key.organism for key in decoded_keys],
+        "protein_namespace": [key.protein_namespace for key in decoded_keys],
+        "protein_identifier": [key.protein_identifier for key in decoded_keys],
+    }
 
 
 def _site_membership_frame() -> pd.DataFrame:
@@ -412,6 +454,7 @@ def test_site_metadata_property_required_columns_allow_extra_columns(
         {
             "site_key": site_keys,
             "display_id": site_ids,
+            **_site_key_context_columns(site_keys),
             "gene_symbol": [gene for gene, _ in parsed],
             "site": [site for _, site in parsed],
             "site_sequence": [("A" * 15) + site[0] + ("A" * 15) for _, site in parsed],
@@ -428,7 +471,16 @@ def test_site_metadata_property_required_columns_allow_extra_columns(
 @given(
     site_ids=_canonical_site_ids(min_size=1),
     missing_column=st.sampled_from(
-        ("site_key", "display_id", "gene_symbol", "site", "site_sequence")
+        (
+            "site_key",
+            "display_id",
+            "organism",
+            "protein_namespace",
+            "protein_identifier",
+            "gene_symbol",
+            "site",
+            "site_sequence",
+        )
     ),
 )
 @_PROPERTY_SETTINGS
@@ -442,6 +494,7 @@ def test_site_metadata_property_removing_required_column_fails(
         {
             "site_key": site_keys,
             "display_id": site_ids,
+            **_site_key_context_columns(site_keys),
             "gene_symbol": [gene for gene, _ in parsed],
             "site": [site for _, site in parsed],
             "site_sequence": [("A" * 15) + site[0] + ("A" * 15) for _, site in parsed],
@@ -526,7 +579,7 @@ def test_site_metadata_rejects_invalid_site_tokens_by_default(
         SiteMetadataTable(frame=frame, expected_index=phospho.frame.index)
 
 
-def test_site_metadata_allows_opaque_site_tokens_only_with_explicit_opt_in() -> None:
+def test_site_metadata_rejects_opaque_site_tokens_at_site_key_boundary() -> None:
     site_key = _site_key_for_display_id("MAPK14;S1;", protein_identifier="P28482")
     phospho = pd.DataFrame(
         {"sample_a": [1.0]},
@@ -536,18 +589,19 @@ def test_site_metadata_allows_opaque_site_tokens_only_with_explicit_opt_in() -> 
         {
             "site_key": [site_key],
             "display_id": ["MAPK14;FOO;"],
+            **_site_key_context_columns([site_key]),
             "gene_symbol": ["MAPK14"],
             "site": ["FOO"],
             "site_sequence": ["AAAAAYAAAAA"],
         },
         index=phospho.index.copy(),
     )
-    wrapped = SiteMetadataTable(
-        frame=frame,
-        expected_index=phospho.index.copy(),
-        allow_opaque_site_values=True,
-    )
-    assert wrapped.frame.loc[site_key, "site"] == "FOO"
+    with pytest.raises(DatasetValidationError, match="strict 'S/T/Y<position>'"):
+        SiteMetadataTable(
+            frame=frame,
+            expected_index=phospho.index.copy(),
+            allow_opaque_site_values=True,
+        )
 
 
 @pytest.mark.parametrize("site_token", ["S1", "T45", "Y999"])
@@ -562,6 +616,7 @@ def test_site_metadata_accepts_valid_sty_site_tokens(site_token: str) -> None:
         {
             "site_key": [site_key],
             "display_id": [display_id],
+            **_site_key_context_columns([site_key]),
             "gene_symbol": ["MAPK14"],
             "site": [site_token],
             "site_sequence": [("A" * 5) + site_token[0] + ("A" * 5)],
@@ -619,6 +674,7 @@ def test_site_metadata_accepts_phosphorylatable_site_sequence_centre(
         {
             "site_key": [site_key],
             "display_id": [display_id],
+            **_site_key_context_columns([site_key]),
             "gene_symbol": ["MAPK14"],
             "site": [f"{centre_residue}182"],
             "site_sequence": [f"AAAAA{centre_residue}AAAAA"],
@@ -643,6 +699,7 @@ def test_site_metadata_rejects_non_phosphorylatable_site_sequence_centre() -> No
         {
             "site_key": [site_key],
             "display_id": ["GSK3B;S9;"],
+            **_site_key_context_columns([site_key]),
             "gene_symbol": ["GSK3B"],
             "site": ["S9"],
             "site_sequence": ["AAAAAKAAAAA"],
@@ -679,6 +736,7 @@ def test_site_metadata_rejects_site_sequence_centre_residue_site_mismatch(
         {
             "site_key": [site_key],
             "display_id": [display_id],
+            **_site_key_context_columns([site_key]),
             "gene_symbol": ["GENE"],
             "site": [site],
             "site_sequence": [site_sequence],
@@ -702,6 +760,7 @@ def test_site_metadata_accepts_lowercase_site_sequence_when_centre_is_valid() ->
         {
             "site_key": [site_key],
             "display_id": ["MAPK14;Y182;"],
+            **_site_key_context_columns([site_key]),
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
             "site_sequence": ["aaaaayaaaaa"],

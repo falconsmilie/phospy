@@ -30,6 +30,7 @@ from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
 )
+from tests.support.site_keys import site_key_context_columns
 
 
 def _matrix() -> pd.DataFrame:
@@ -90,6 +91,7 @@ def _dataset(matrix: pd.DataFrame | None = None):
         {
             "site_key": site_keys,
             "display_id": display_ids,
+            **site_key_context_columns(site_keys),
             "gene_symbol": [parts[0] for parts in gene_site],
             "site": [parts[1] for parts in gene_site],
             "site_sequence": [

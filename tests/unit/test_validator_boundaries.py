@@ -55,7 +55,10 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
 )
 from tests.support.signalome_config import build_signalome_config
-from tests.support.site_keys import site_key_index_from_display_ids
+from tests.support.site_keys import (
+    site_key_context_columns,
+    site_key_index_from_display_ids,
+)
 
 
 def _site_keys(display_ids: list[str]) -> pd.Index:
@@ -94,6 +97,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         {
             "site_key": site_index.tolist(),
             "display_id": display_ids,
+            **site_key_context_columns(site_index),
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
             "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
@@ -1460,6 +1464,7 @@ def test_kinase_validator_does_not_filter_rows_for_localisation_policy() -> None
             {
                 "site_key": site_ids.tolist(),
                 "display_id": display_ids,
+                **site_key_context_columns(site_ids),
                 "gene_symbol": ["MAPK14", "AKT1"],
                 "site": ["Y182", "T308"],
                 "site_sequence": ["AAAAAAAYAAAAAAA", "AAAAAAATAAAAAAA"],
@@ -1513,6 +1518,7 @@ def test_signalome_validator_does_not_filter_rows_for_localisation_policy() -> N
             {
                 "site_key": site_ids.tolist(),
                 "display_id": display_ids,
+                **site_key_context_columns(site_ids),
                 "gene_symbol": ["MAPK14", "AKT1"],
                 "site": ["Y182", "T308"],
                 "site_sequence": ["AAAAAAAYAAAAAAA", "AAAAAAATAAAAAAA"],

@@ -51,7 +51,7 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
 )
 from tests.support.signalome_config import build_signalome_config
-from tests.support.site_keys import protein_site_key_index
+from tests.support.site_keys import protein_site_key_index, site_key_context_columns
 
 _PROTEINS = ["MAPK14", "GSK3B"]
 _SITES = ["Y182", "S9"]
@@ -75,6 +75,7 @@ def _site_metadata() -> pd.DataFrame:
         {
             "site_key": site_index.tolist(),
             "display_id": _DISPLAY_IDS,
+            **site_key_context_columns(site_index),
             "gene_symbol": _PROTEINS,
             "site": _SITES,
             "site_sequence": [

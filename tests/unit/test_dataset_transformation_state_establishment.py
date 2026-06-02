@@ -51,6 +51,7 @@ from phospy.science.transformations.transformers import IdentityTransformer
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
 )
+from tests.support.site_keys import site_key_context_columns
 
 
 def _site_key() -> str:
@@ -86,6 +87,7 @@ def _site_metadata() -> pd.DataFrame:
         {
             "site_key": [site_key],
             "display_id": ["MAPK14;Y182;"],
+            **site_key_context_columns([site_key]),
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
             "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],

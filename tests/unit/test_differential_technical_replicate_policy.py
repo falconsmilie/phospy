@@ -32,7 +32,7 @@ from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
 )
-from tests.support.site_keys import protein_site_key_index
+from tests.support.site_keys import protein_site_key_index, site_key_context_columns
 
 _GENES = ["MAPK14", "GSK3B"]
 _SITES = ["Y182", "S9"]
@@ -62,6 +62,7 @@ def _dataset_with_technical_replicates() -> AnalysisReadyPhosphoDataset:
         {
             "site_key": site_index.tolist(),
             "display_id": _DISPLAY_IDS,
+            **site_key_context_columns(site_index),
             "gene_symbol": _GENES,
             "site": _SITES,
             "site_sequence": [
@@ -289,6 +290,7 @@ def test_aggregation_groups_by_condition_plus_biological_replicate_id() -> None:
         {
             "site_key": site_index.tolist(),
             "display_id": _DISPLAY_IDS,
+            **site_key_context_columns(site_index),
             "gene_symbol": _GENES,
             "site": _SITES,
             "site_sequence": [

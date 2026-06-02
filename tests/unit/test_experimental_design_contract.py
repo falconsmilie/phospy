@@ -18,7 +18,7 @@ from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
 )
-from tests.support.site_keys import protein_site_key_index
+from tests.support.site_keys import protein_site_key_index, site_key_context_columns
 
 
 def _dataset(
@@ -45,6 +45,7 @@ def _dataset(
         {
             "site_key": site_index.astype(str).tolist(),
             "display_id": display_ids,
+            **site_key_context_columns(site_index),
             "gene_symbol": gene_symbols,
             "site": sites,
             "site_sequence": [

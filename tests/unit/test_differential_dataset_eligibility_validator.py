@@ -24,6 +24,7 @@ from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
 )
+from tests.support.site_keys import site_key_context_columns
 
 
 def _frames() -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -65,6 +66,7 @@ def _frames() -> tuple[pd.DataFrame, pd.DataFrame]:
         {
             "site_key": site_keys,
             "display_id": display_ids,
+            **site_key_context_columns(site_keys),
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": [

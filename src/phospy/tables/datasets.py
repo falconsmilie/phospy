@@ -28,6 +28,7 @@ from phospy.validation.datasets.protein_scoped_site_identity import (
     enforce_analysis_ready_site_key_index,
     enforce_display_id_column,
     enforce_site_key_column_matches_index,
+    enforce_site_key_matches_metadata,
     enforce_unique_site_key_identity,
 )
 from phospy.validation.datasets.site_metadata import (
@@ -107,6 +108,9 @@ class SiteMetadataTable(TableSchema):
             required_columns=(
                 "site_key",
                 "display_id",
+                "organism",
+                "protein_namespace",
+                "protein_identifier",
                 "gene_symbol",
                 "site",
                 "site_sequence",
@@ -149,6 +153,24 @@ class SiteMetadataTable(TableSchema):
             frame,
             field_name=self._field_name,
             column_name="display_id",
+            error_type=self._error_type,
+        )
+        require_non_empty_string_column(
+            frame,
+            field_name=self._field_name,
+            column_name="organism",
+            error_type=self._error_type,
+        )
+        require_non_empty_string_column(
+            frame,
+            field_name=self._field_name,
+            column_name="protein_namespace",
+            error_type=self._error_type,
+        )
+        require_non_empty_string_column(
+            frame,
+            field_name=self._field_name,
+            column_name="protein_identifier",
             error_type=self._error_type,
         )
         require_non_empty_string_column(
@@ -199,6 +221,12 @@ class SiteMetadataTable(TableSchema):
             field_name=self._field_name,
             error_type=self._error_type,
             allow_opaque_site_values=self.allow_opaque_site_values,
+        )
+        enforce_site_key_matches_metadata(
+            site_metadata=frame,
+            field_name=self._field_name,
+            error_type=self._error_type,
+            site_key_column="site_key",
         )
         identity_frame = _build_identity_coherence_frame(frame)
         try:

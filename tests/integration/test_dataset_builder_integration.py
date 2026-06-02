@@ -177,6 +177,9 @@ def test_dataset_builder_builds_analysis_ready_dataset_from_fixture() -> None:
         "site_sequence",
         "localisation_confidence",
         "display_id",
+        "organism",
+        "protein_namespace",
+        "protein_identifier",
         "site_key",
     ]
     assert built.intensity_scale_state == IntensityScaleState(
@@ -587,6 +590,9 @@ def test_dataset_builder_supports_documented_alias_and_index_derivation_conventi
         "gene_symbol",
         "site",
         "display_id",
+        "organism",
+        "protein_namespace",
+        "protein_identifier",
         "site_key",
     ]
     assert (

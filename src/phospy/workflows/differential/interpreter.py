@@ -212,7 +212,6 @@ def _build_result_identity_metadata(
         "protein_id",
         "protein_accession",
         "isoform_id",
-        "organism",
     )
     missing = [
         column for column in required_columns if column not in site_metadata.columns

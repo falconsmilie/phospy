@@ -38,6 +38,7 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
 )
 from tests.support.site_keys import (
+    site_key_context_columns,
     site_key_from_display_id,
     site_key_index_from_display_ids,
 )
@@ -380,6 +381,7 @@ def test_kinase_workflow_exposes_sequence_validation_diagnostics() -> None:
         {
             "site_key": site_ids.astype(str).tolist(),
             "display_id": display_ids,
+            **site_key_context_columns(site_ids),
             "gene_symbol": ["MAPK1", "MAPK1", "MAPK1"],
             "site": ["S202", "T205", "S210"],
             "site_sequence": [
@@ -539,6 +541,7 @@ def test_kinase_workflow_reports_partial_sequence_coverage_in_provenance() -> No
             {
                 "site_key": site_ids.astype(str).tolist(),
                 "display_id": display_ids,
+                **site_key_context_columns(site_ids),
                 "gene_symbol": ["MAPK1", "MAPK1", "MAPK1"],
                 "site": ["S202", "T205", "S210"],
                 "site_sequence": [
@@ -615,6 +618,7 @@ def test_kinase_workflow_continues_when_no_sites_have_valid_sequence() -> None:
             {
                 "site_key": site_ids.astype(str).tolist(),
                 "display_id": display_ids,
+                **site_key_context_columns(site_ids),
                 "gene_symbol": ["MAPK1", "MAPK1"],
                 "site": ["S202", "T205"],
                 "site_sequence": [

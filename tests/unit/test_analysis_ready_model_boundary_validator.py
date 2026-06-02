@@ -27,6 +27,7 @@ _BOUNDARY_VALIDATOR = AnalysisReadyDatasetModelBoundaryValidator()
 _MODEL_BOUNDARY_ERRORS = (DatasetValidationError, TransformationValidationError)
 _CENTRED_Y_SEQUENCE = "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA"
 _CENTRED_T_SEQUENCE = "AAAAAAAAAAAAAAATAAAAAAAAAAAAAAA"
+_CENTRED_S_SEQUENCE = "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA"
 
 
 def _site_key(*, protein_identifier: str, residue: str, position: int) -> str:
@@ -60,6 +61,9 @@ def _valid_payload() -> dict[str, object]:
             {
                 "site_key": site_keys,
                 "display_id": ["MAPK14;Y182;", "AKT1;T308;"],
+                "organism": ["rat", "rat"],
+                "protein_namespace": ["protein_id", "protein_id"],
+                "protein_identifier": ["MAPK14", "AKT1"],
                 "gene_symbol": ["MAPK14", "AKT1"],
                 "site": ["Y182", "T308"],
                 "site_sequence": [
@@ -137,6 +141,58 @@ def test_model_boundary_validator_rejects_missing_display_id_column() -> None:
         AnalysisReadyPhosphoDataset(**payload)
 
 
+@pytest.mark.parametrize(
+    "column_name",
+    ["organism", "protein_namespace", "protein_identifier"],
+)
+def test_model_boundary_validator_rejects_missing_site_key_context_column(
+    column_name: str,
+) -> None:
+    payload = _valid_payload()
+    payload["site_metadata"] = payload["site_metadata"].drop(columns=[column_name])
+
+    with pytest.raises(_MODEL_BOUNDARY_ERRORS, match=column_name):
+        AnalysisReadyPhosphoDataset(**payload)
+
+
+def test_model_boundary_validator_rejects_site_key_residue_mismatch() -> None:
+    payload = _valid_payload()
+    site_metadata = payload["site_metadata"].copy(deep=True)
+    row_key = site_metadata.index[1]
+    site_metadata.loc[row_key, "display_id"] = "AKT1;S308;"
+    site_metadata.loc[row_key, "site"] = "S308"
+    site_metadata.loc[row_key, "site_sequence"] = _CENTRED_S_SEQUENCE
+    payload["site_metadata"] = site_metadata
+
+    with pytest.raises(_MODEL_BOUNDARY_ERRORS, match="metadata-derived"):
+        AnalysisReadyPhosphoDataset(**payload)
+
+
+def test_model_boundary_validator_rejects_site_key_position_mismatch() -> None:
+    payload = _valid_payload()
+    site_metadata = payload["site_metadata"].copy(deep=True)
+    row_key = site_metadata.index[1]
+    site_metadata.loc[row_key, "display_id"] = "AKT1;T309;"
+    site_metadata.loc[row_key, "site"] = "T309"
+    payload["site_metadata"] = site_metadata
+
+    with pytest.raises(_MODEL_BOUNDARY_ERRORS, match="metadata-derived"):
+        AnalysisReadyPhosphoDataset(**payload)
+
+
+def test_model_boundary_validator_rejects_site_key_protein_identifier_mismatch() -> (
+    None
+):
+    payload = _valid_payload()
+    site_metadata = payload["site_metadata"].copy(deep=True)
+    row_key = site_metadata.index[1]
+    site_metadata.loc[row_key, "protein_identifier"] = "P31749"
+    payload["site_metadata"] = site_metadata
+
+    with pytest.raises(_MODEL_BOUNDARY_ERRORS, match="metadata-derived"):
+        AnalysisReadyPhosphoDataset(**payload)
+
+
 def test_model_boundary_validator_allows_duplicate_display_id_with_distinct_site_key() -> (
     None
 ):
@@ -155,6 +211,9 @@ def test_model_boundary_validator_allows_duplicate_display_id_with_distinct_site
         {
             "site_key": [first_key, second_key],
             "display_id": ["MAPK14;Y182;", "MAPK14;Y182;"],
+            "organism": ["rat", "rat"],
+            "protein_namespace": ["protein_id", "protein_id"],
+            "protein_identifier": ["P28482", "Q9WVS8"],
             "gene_symbol": ["MAPK14", "MAPK14"],
             "site": ["Y182", "Y182"],
             "site_sequence": [_CENTRED_Y_SEQUENCE, _CENTRED_Y_SEQUENCE],
@@ -238,6 +297,9 @@ def test_model_boundary_validator_parity_for_misaligned_site_metadata() -> None:
                 mismatched_site_key,
             ],
             "display_id": ["MAPK14;Y182;", "AKT1;T308;"],
+            "organism": ["rat", "rat"],
+            "protein_namespace": ["protein_id", "protein_id"],
+            "protein_identifier": ["MAPK14", "AKT1"],
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": [

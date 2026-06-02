@@ -4,6 +4,7 @@ import pandas as pd
 
 from phospy.science.sites.site_keys import (
     ProteinScopedPhosphositeKey,
+    decode_site_key,
     encode_site_key,
 )
 
@@ -79,3 +80,19 @@ def site_key_index_from_display_ids(
         ],
         name="site_key",
     )
+
+
+def site_key_context_columns(site_keys: list[str] | pd.Index) -> dict[str, list[str]]:
+    decoded_keys = [
+        decode_site_key(
+            value,
+            field_name="tests.support.site_keys.site_key",
+            error_type=ValueError,
+        )
+        for value in pd.Index(site_keys).astype(str).tolist()
+    ]
+    return {
+        "organism": [key.organism for key in decoded_keys],
+        "protein_namespace": [key.protein_namespace for key in decoded_keys],
+        "protein_identifier": [key.protein_identifier for key in decoded_keys],
+    }

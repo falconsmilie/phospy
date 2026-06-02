@@ -45,6 +45,7 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
 )
 from tests.support.site_keys import (
+    site_key_context_columns,
     site_key_from_display_id,
     site_key_index_from_display_ids,
 )
@@ -98,6 +99,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
             {
                 "site_key": index.astype(str).tolist(),
                 "display_id": [display_id],
+                **site_key_context_columns(index),
                 "gene_symbol": ["MAPK14"],
                 "protein_id": ["MAPK14"],
                 "site": ["Y182"],
@@ -125,6 +127,7 @@ def _coherent_site_identity_inputs() -> tuple[pd.DataFrame, pd.DataFrame]:
         {
             "site_key": index.astype(str).tolist(),
             "display_id": display_ids,
+            **site_key_context_columns(index),
             "gene_symbol": ["MAPK14", "AKT1"],
             "protein_id": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
@@ -370,6 +373,7 @@ def test_dataset_constructor_rejects_blank_gene_symbol_values() -> None:
                 {
                     "site_key": [site_key],
                     "display_id": ["MAPK14;Y182;"],
+                    **site_key_context_columns(index),
                     "gene_symbol": ["  "],
                     "site": ["Y182"],
                     "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
@@ -394,6 +398,7 @@ def test_dataset_constructor_rejects_blank_site_values() -> None:
                 {
                     "site_key": [site_key],
                     "display_id": ["MAPK14;Y182;"],
+                    **site_key_context_columns(index),
                     "gene_symbol": ["MAPK14"],
                     "site": ["\t"],
                     "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
@@ -475,6 +480,7 @@ def test_dataset_constructor_rejects_missing_site_sequence_column() -> None:
                 {
                     "site_key": [site_key],
                     "display_id": ["MAPK14;Y182;"],
+                    **site_key_context_columns(index),
                     "gene_symbol": ["MAPK14"],
                     "site": ["Y182"],
                 },
@@ -498,6 +504,7 @@ def test_dataset_constructor_rejects_blank_site_sequence_values() -> None:
                 {
                     "site_key": [site_key],
                     "display_id": ["MAPK14;Y182;"],
+                    **site_key_context_columns(index),
                     "gene_symbol": ["MAPK14"],
                     "site": ["Y182"],
                     "site_sequence": [""],

@@ -10,7 +10,10 @@ from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
 )
-from tests.support.site_keys import site_key_index_from_display_ids
+from tests.support.site_keys import (
+    site_key_context_columns,
+    site_key_index_from_display_ids,
+)
 
 
 def _coherent_site_identity_inputs() -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -27,6 +30,7 @@ def _coherent_site_identity_inputs() -> tuple[pd.DataFrame, pd.DataFrame]:
         {
             "site_key": index.astype(str).tolist(),
             "display_id": display_ids,
+            **site_key_context_columns(index),
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": [

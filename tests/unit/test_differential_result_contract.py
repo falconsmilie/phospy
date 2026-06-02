@@ -31,6 +31,7 @@ from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
 )
+from tests.support.site_keys import site_key_context_columns
 
 FIXTURE_DIR = (
     Path(__file__).resolve().parents[1]
@@ -80,6 +81,7 @@ def _build_dataset(matrix: pd.DataFrame):
         {
             "site_key": site_keys,
             "display_id": display_ids,
+            **site_key_context_columns(site_keys),
             "gene_symbol": [parts[0] for parts in parsed],
             "site": [parts[1] for parts in parsed],
             "site_sequence": [

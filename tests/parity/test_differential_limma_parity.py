@@ -22,7 +22,10 @@ from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
 )
-from tests.support.site_keys import site_key_index_from_display_ids
+from tests.support.site_keys import (
+    site_key_context_columns,
+    site_key_index_from_display_ids,
+)
 
 pytestmark = [pytest.mark.parity]
 
@@ -93,6 +96,7 @@ def _dataset_from_matrix(matrix: pd.DataFrame) -> AnalysisReadyPhosphoDataset:
         {
             "site_key": site_index.tolist(),
             "display_id": display_ids,
+            **site_key_context_columns(site_index),
             "gene_symbol": [parts[0] for parts in parsed],
             "site": [parts[1] for parts in parsed],
             "site_sequence": [

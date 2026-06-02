@@ -25,6 +25,7 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
 )
 from tests.support.site_keys import (
+    site_key_context_columns,
     site_key_from_display_id,
     site_key_index_from_display_ids,
 )
@@ -515,6 +516,7 @@ def test_dataset_boundary_accepts_site_key_row_identity() -> None:
             {
                 "site_key": [site_key],
                 "display_id": ["MAPK14;Y182;"],
+                **site_key_context_columns([site_key]),
                 "gene_symbol": ["MAPK14"],
                 "site": ["Y182"],
                 "site_sequence": [
@@ -549,6 +551,7 @@ def test_dataset_boundary_requires_explicit_intensity_and_processing_state() -> 
                 {
                     "site_key": [site_key],
                     "display_id": ["MAPK14;Y182;"],
+                    **site_key_context_columns([site_key]),
                     "gene_symbol": ["MAPK14"],
                     "site": ["Y182"],
                     "site_sequence": [

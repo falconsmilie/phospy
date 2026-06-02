@@ -45,6 +45,7 @@ from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
 )
+from tests.support.site_keys import site_key_context_columns
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
@@ -86,6 +87,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
             {
                 "site_key": site_keys,
                 "display_id": display_ids,
+                **site_key_context_columns(site_keys),
                 "gene_symbol": ["MAPK14", "GSK3B"],
                 "site": ["Y182", "S9"],
                 "site_sequence": [
@@ -133,6 +135,7 @@ def _dataset_with_duplicate_display_ids() -> AnalysisReadyPhosphoDataset:
             {
                 "site_key": site_keys,
                 "display_id": display_ids,
+                **site_key_context_columns(site_keys),
                 "gene_symbol": ["MAPK14", "MAPK14", "GSK3B"],
                 "site": ["Y182", "Y182", "S9"],
                 "site_sequence": [

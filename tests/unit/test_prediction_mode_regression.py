@@ -24,7 +24,10 @@ from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
 )
-from tests.support.site_keys import site_key_index_from_display_ids
+from tests.support.site_keys import (
+    site_key_context_columns,
+    site_key_index_from_display_ids,
+)
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
@@ -42,6 +45,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         {
             "site_key": site_ids.astype(str).tolist(),
             "display_id": display_ids,
+            **site_key_context_columns(site_ids),
             "gene_symbol": ["GENEA", "GENEA", "GENEB", "GENEB"],
             "site": ["S1", "S2", "S3", "S4"],
             "site_sequence": [

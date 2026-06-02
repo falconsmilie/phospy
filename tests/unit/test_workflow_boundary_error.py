@@ -28,7 +28,10 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
 )
 from tests.support.signalome_config import build_signalome_config
-from tests.support.site_keys import site_key_index_from_display_ids
+from tests.support.site_keys import (
+    site_key_context_columns,
+    site_key_index_from_display_ids,
+)
 
 
 def test_workflow_boundary_error_supports_message_only_construction() -> None:
@@ -76,6 +79,7 @@ def _dataset(*, with_protein_id: bool) -> AnalysisReadyPhosphoDataset:
         {
             "site_key": index.tolist(),
             "display_id": display_ids,
+            **site_key_context_columns(index),
             "gene_symbol": ["MAPK14", "AKT1"],
             "site": ["Y182", "T308"],
             "site_sequence": [

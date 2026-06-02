@@ -33,7 +33,10 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
 )
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
-from tests.support.site_keys import site_key_index_from_display_ids
+from tests.support.site_keys import (
+    site_key_context_columns,
+    site_key_index_from_display_ids,
+)
 
 
 def _dataset(
@@ -56,6 +59,7 @@ def _dataset(
         {
             "site_key": site_index.astype(str).tolist(),
             "display_id": site_ids,
+            **site_key_context_columns(site_index),
             "gene_symbol": [site.split(";", 1)[0] for site in site_ids],
             "protein_id": [site.split(";", 1)[0] for site in site_ids],
             "site": [site.split(";")[1] for site in site_ids],

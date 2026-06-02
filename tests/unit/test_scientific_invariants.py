@@ -60,7 +60,10 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
 )
 from tests.support.signalome_config import build_signalome_config
-from tests.support.site_keys import site_key_index_from_display_ids
+from tests.support.site_keys import (
+    site_key_context_columns,
+    site_key_index_from_display_ids,
+)
 
 
 def _normalisation_state(*, phospho: pd.DataFrame, policy: str) -> PreprocessingState:
@@ -97,6 +100,7 @@ def _analysis_ready_dataset(site_ids: list[str]) -> AnalysisReadyPhosphoDataset:
         {
             "site_key": site_index.astype(str).tolist(),
             "display_id": site_ids,
+            **site_key_context_columns(site_index),
             "gene_symbol": [site_id.split(";", 1)[0] for site_id in site_ids],
             "site": [f"S{index + 1}" for index, _ in enumerate(site_ids)],
             "site_sequence": [

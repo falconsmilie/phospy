@@ -35,6 +35,7 @@ from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
 )
+from tests.support.site_keys import site_key_context_columns
 
 
 def _site_key() -> str:
@@ -59,6 +60,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
             {
                 "site_key": index.tolist(),
                 "display_id": ["MAPK14;Y182;"],
+                **site_key_context_columns(index),
                 "gene_symbol": ["MAPK14"],
                 "site": ["Y182"],
                 "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],

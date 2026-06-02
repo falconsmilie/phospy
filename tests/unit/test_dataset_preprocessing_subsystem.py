@@ -60,6 +60,7 @@ from phospy.science.transformations.models import (
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
 )
+from tests.support.site_keys import site_key_context_columns
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -120,6 +121,8 @@ def _with_test_site_identity(site_metadata: pd.DataFrame) -> pd.DataFrame:
         )
     enriched.loc[:, "display_id"] = display_ids
     enriched.loc[:, "site_key"] = site_keys
+    for column_name, values in site_key_context_columns(site_keys).items():
+        enriched.loc[:, column_name] = values
     return enriched
 
 
@@ -1264,6 +1267,9 @@ def test_dataset_preprocessor_builds_site_matrix_from_metadata_policy() -> None:
             "localisation_confidence": [0.92],
             "display_id": ["MAPK14;Y182;"],
             "site_key": [_test_site_key(gene_symbol="MAPK14", site="Y182")],
+            **site_key_context_columns(
+                [_test_site_key(gene_symbol="MAPK14", site="Y182")]
+            ),
         },
         index=expected_phospho.index.copy(),
     )
@@ -2086,6 +2092,8 @@ def test_executor_delegates_preprocessing_to_internal_subsystem() -> None:
     site_metadata.index = phospho.index.copy()
     site_metadata.loc[:, "display_id"] = ["MAPK14;Y182;", "GSK3B;S9;"]
     site_metadata.loc[:, "site_key"] = phospho.index.tolist()
+    for column_name, values in site_key_context_columns(encoded_site_keys).items():
+        site_metadata.loc[:, column_name] = values
     sample_metadata = _sample_metadata(phospho.columns)
     total = _total(phospho.columns)
 

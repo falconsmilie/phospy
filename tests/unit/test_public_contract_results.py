@@ -30,7 +30,10 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
 )
 from tests.support.signalome_config import build_signalome_config
-from tests.support.site_keys import site_key_index_from_display_ids
+from tests.support.site_keys import (
+    site_key_context_columns,
+    site_key_index_from_display_ids,
+)
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
@@ -47,6 +50,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         {
             "site_key": site_index.astype(str).tolist(),
             "display_id": site_ids,
+            **site_key_context_columns(site_index),
             "gene_symbol": ["MAPK14", "GSK3B", "AKT1"],
             "site": ["Y182", "S9", "T308"],
             "site_sequence": [

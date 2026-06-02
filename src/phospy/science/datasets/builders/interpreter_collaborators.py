@@ -499,6 +499,12 @@ def _has_valid_complete_explicit_site_identity_fields(
         return False
     if not _has_complete_column(site_metadata, "site_key"):
         return False
+    if not _has_complete_column(site_metadata, "organism"):
+        return False
+    if not _has_complete_column(site_metadata, "protein_namespace"):
+        return False
+    if not _has_complete_column(site_metadata, "protein_identifier"):
+        return False
     try:
         enforce_display_id_column(
             site_metadata=site_metadata,

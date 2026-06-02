@@ -20,7 +20,10 @@ from phospy.science.transformations.models import (
     MatrixIntensityScaleState,
 )
 from phospy.science.transformations.transformers import IdentityTransformer
-from tests.support.site_keys import site_key_index_from_display_ids
+from tests.support.site_keys import (
+    site_key_context_columns,
+    site_key_index_from_display_ids,
+)
 
 
 def _display_ids_for_count(count: int) -> list[str]:
@@ -59,6 +62,7 @@ def _site_metadata(index: pd.Index) -> pd.DataFrame:
         {
             "site_key": index.astype(str).tolist(),
             "display_id": display_ids,
+            **site_key_context_columns(index),
             "gene_symbol": gene_symbols,
             "site": sites,
             "site_sequence": [

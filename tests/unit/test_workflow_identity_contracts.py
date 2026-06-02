@@ -24,6 +24,7 @@ from phospy.api.results import (
     KinaseWorkflowResult,
 )
 from phospy.errors import (
+    DatasetValidationError,
     ReferenceCompatibilityError,
     WorkflowValidationError,
 )
@@ -40,6 +41,7 @@ from tests.support.intensity_scale_states import (
 from tests.support.signalome_config import build_signalome_config
 from tests.support.site_keys import (
     protein_site_key_index,
+    site_key_context_columns,
     site_key_index_from_display_ids,
 )
 
@@ -83,6 +85,7 @@ def _differential_dataset(
             {
                 "site_key": site_ids.tolist(),
                 "display_id": display_ids,
+                **site_key_context_columns(site_ids),
                 "gene_symbol": ["MAPK14", "AKT1"],
                 "site": metadata_sites,
                 "site_sequence": sequence_values,
@@ -131,6 +134,7 @@ def _kinase_dataset() -> AnalysisReadyPhosphoDataset:
             {
                 "site_key": site_ids.tolist(),
                 "display_id": display_ids,
+                **site_key_context_columns(site_ids),
                 "gene_symbol": ["MAPK14", "AKT1"],
                 "site": ["Y182", "T308"],
                 "site_sequence": ["AAAAAAAYAAAAAAA", "AAAAAAATAAAAAAA"],
@@ -303,6 +307,7 @@ def _duplicate_display_site_metadata(site_ids: pd.Index) -> pd.DataFrame:
         {
             "site_key": site_ids.astype(str).tolist(),
             "display_id": ["MAPK14;Y182;", "MAPK14;Y182;"],
+            **site_key_context_columns(site_ids),
             "gene_symbol": ["MAPK14", "MAPK14"],
             "site": ["Y182", "Y182"],
             "site_sequence": ["AAAAAAAYAAAAAAA", "AAAAAAAYAAAAAAA"],
@@ -449,14 +454,11 @@ def test_signalome_validator_requires_score_matrix_site_key_alignment() -> None:
         SignalomeWorkflowValidator().run(request)
 
 
-def test_differential_identity_contract_allows_opaque_sites_with_explicit_opt_in() -> (
+def test_differential_identity_contract_rejects_opaque_sites_even_with_explicit_opt_in() -> (
     None
 ):
-    dataset = _differential_dataset(allow_opaque_site_values=True)
-    validated = DifferentialAnalysisValidator().run(
-        _differential_request(dataset=dataset)
-    )
-    assert validated.dataset.opaque_site_values_allowed is True
+    with pytest.raises(DatasetValidationError, match="strict 'S/T/Y<position>' tokens"):
+        _differential_dataset(allow_opaque_site_values=True)
 
 
 def test_signalome_identity_contract_rejects_missing_protein_identity() -> None:

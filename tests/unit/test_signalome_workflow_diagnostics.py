@@ -84,7 +84,10 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
 )
 from tests.support.signalome_config import build_signalome_config
-from tests.support.site_keys import site_key_index_from_display_ids
+from tests.support.site_keys import (
+    site_key_context_columns,
+    site_key_index_from_display_ids,
+)
 
 _SIGNALOME_WORKFLOW_EXECUTION_PATHS = ("direct_components", "public_workflow")
 _PROPERTY_SETTINGS = settings(
@@ -105,6 +108,7 @@ def _dataset(
     if protein_ids is None:
         protein_ids = [str(site_id).split(";", 1)[0].strip() for site_id in site_ids]
     site_index = site_key_index_from_display_ids(site_ids)
+    sites = [str(site_id).split(";")[1] for site_id in site_ids]
     phospho = pd.DataFrame(
         {
             "sample_a": [float(index + 1) for index in range(len(site_ids))],
@@ -116,11 +120,11 @@ def _dataset(
         {
             "site_key": site_index.astype(str).tolist(),
             "display_id": site_ids,
+            **site_key_context_columns(site_index),
             "gene_symbol": gene_symbols,
-            "site": [f"S{index + 1}" for index in range(len(site_ids))],
+            "site": sites,
             "site_sequence": [
-                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
-                for site in [f"S{index + 1}" for index in range(len(site_ids))]
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15) for site in sites
             ],
             "protein_id": protein_ids,
         },

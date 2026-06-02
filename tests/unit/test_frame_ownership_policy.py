@@ -74,7 +74,11 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
 )
 from tests.support.signalome_config import build_signalome_config
-from tests.support.site_keys import protein_site_key, protein_site_key_index
+from tests.support.site_keys import (
+    protein_site_key,
+    protein_site_key_index,
+    site_key_context_columns,
+)
 
 _DISPLAY_IDS = ["MAPK14;Y182;", "GSK3B;S9;"]
 _GENE_SYMBOLS = ["MAPK14", "GSK3B"]
@@ -113,6 +117,7 @@ def _site_metadata() -> pd.DataFrame:
             "localisation_confidence": [0.95, 0.9],
             "site_key": _SITE_KEYS,
             "display_id": _DISPLAY_IDS,
+            **site_key_context_columns(_SITE_INDEX),
         },
         index=_SITE_INDEX.copy(),
     )
@@ -159,6 +164,7 @@ def _kinase_result():
             "localisation_confidence": [0.95, 0.9, 0.92],
             "site_key": _KINASE_SITE_KEYS,
             "display_id": _KINASE_DISPLAY_IDS,
+            **site_key_context_columns(_KINASE_SITE_INDEX),
         },
         index=_KINASE_SITE_INDEX.copy(),
     )

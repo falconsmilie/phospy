@@ -47,6 +47,7 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
 )
 from tests.support.signalome_config import build_signalome_config
+from tests.support.site_keys import site_key_context_columns
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
@@ -75,6 +76,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
             "protein_id": ["P1", "P1", "P2", "P3"],
             "display_id": display_ids,
             "site_key": site_keys,
+            **site_key_context_columns(site_keys),
         },
         index=pd.Index(site_keys, name="site_key"),
     )

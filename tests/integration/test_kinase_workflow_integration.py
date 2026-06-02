@@ -1179,7 +1179,7 @@ def test_kinase_public_predmat_provenance_matches_golden_contract() -> None:
         expected=golden["input_tables"],
         expected_overrides={
             **_hash_overrides_from_observed(observed_input_tables),
-            "dataset.site_metadata": {"columns": 5},
+            "dataset.site_metadata": {"columns": 8},
         },
         compare_hash_values=False,
     )

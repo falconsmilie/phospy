@@ -36,7 +36,10 @@ from tests.support.intensity_scale_states import (
 )
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
 from tests.support.signalome_config import build_signalome_config
-from tests.support.site_keys import site_key_index_from_display_ids
+from tests.support.site_keys import (
+    site_key_context_columns,
+    site_key_index_from_display_ids,
+)
 
 pytestmark = [pytest.mark.reproducibility, pytest.mark.release_gate]
 
@@ -69,6 +72,7 @@ def _dataset_for_workflows() -> AnalysisReadyPhosphoDataset:
         {
             "site_key": site_index.astype(str).tolist(),
             "display_id": display_ids,
+            **site_key_context_columns(site_index),
             "gene_symbol": ["MAPK14", "GSK3B"],
             "site": ["Y182", "S9"],
             "site_sequence": [

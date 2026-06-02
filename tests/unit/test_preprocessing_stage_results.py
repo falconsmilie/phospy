@@ -42,7 +42,10 @@ from phospy.science.transformations.models import (
     QuantitativeMeaning,
 )
 from tests.support.intensity_scale_states import supported_linear_intensity_scale_state
-from tests.support.site_keys import site_key_index_from_display_ids
+from tests.support.site_keys import (
+    site_key_context_columns,
+    site_key_index_from_display_ids,
+)
 
 _ANALYSIS_DISPLAY_IDS = ["MAPK14;Y182;", "AKT1;T308;"]
 _ANALYSIS_GENE_SYMBOLS = ["MAPK14", "AKT1"]
@@ -58,6 +61,7 @@ def _analysis_site_metadata(index: pd.Index) -> pd.DataFrame:
         {
             "site_key": index.astype(str).tolist(),
             "display_id": _ANALYSIS_DISPLAY_IDS,
+            **site_key_context_columns(index),
             "gene_symbol": _ANALYSIS_GENE_SYMBOLS,
             "site": _ANALYSIS_SITES,
             "site_sequence": [
@@ -100,6 +104,7 @@ def _site_matrix_site_metadata(index: pd.Index) -> pd.DataFrame:
         {
             "site_key": site_keys.astype(str).tolist(),
             "display_id": _ANALYSIS_DISPLAY_IDS,
+            **site_key_context_columns(site_keys),
             "gene_symbol": _ANALYSIS_GENE_SYMBOLS,
             "site": _ANALYSIS_SITES,
             "site_sequence": ["SEQ_A", "SEQ_R"],

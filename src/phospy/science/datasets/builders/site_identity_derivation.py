@@ -48,6 +48,9 @@ class DatasetSiteIdentityDeriver:
         normalized["display_id"] = display_id.astype(str).tolist()
 
         site_keys: list[str] = []
+        organisms: list[str] = []
+        protein_namespaces: list[str] = []
+        protein_identifiers: list[str] = []
         for row_position, row_id in enumerate(normalized.index.tolist()):
             row_field = f"dataset build request site_metadata[{row_id!r}]"
             resolved_organism = _resolve_organism(
@@ -88,6 +91,12 @@ class DatasetSiteIdentityDeriver:
                 error_type=UnsupportedInputFormatError,
             )
             site_keys.append(encode_site_key(key))
+            organisms.append(resolved_organism)
+            protein_namespaces.append(protein_namespace)
+            protein_identifiers.append(protein_identifier)
+        normalized["organism"] = organisms
+        normalized["protein_namespace"] = protein_namespaces
+        normalized["protein_identifier"] = protein_identifiers
         normalized["site_key"] = site_keys
         return normalized
 

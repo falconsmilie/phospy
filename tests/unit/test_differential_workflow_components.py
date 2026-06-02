@@ -39,7 +39,7 @@ from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
 )
-from tests.support.site_keys import protein_site_key_index
+from tests.support.site_keys import protein_site_key_index, site_key_context_columns
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
@@ -59,6 +59,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         {
             "site_key": site_index.tolist(),
             "display_id": ["MAPK14;Y182;", "GSK3B;S9;", "AKT1;T308;"],
+            **site_key_context_columns(site_index),
             "gene_symbol": genes,
             "site": sites,
             "site_sequence": [

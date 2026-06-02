@@ -36,7 +36,7 @@ from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
 )
-from tests.support.site_keys import protein_site_key
+from tests.support.site_keys import protein_site_key, site_key_context_columns
 
 ROOT = Path(__file__).resolve().parents[2]
 _SITE_KEY = protein_site_key(protein_identifier="MAPK14", site="Y182")
@@ -79,6 +79,7 @@ def _site_metadata() -> pd.DataFrame:
         {
             "site_key": [_SITE_KEY],
             "display_id": [_DISPLAY_ID],
+            **site_key_context_columns(_SITE_INDEX),
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
             "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
