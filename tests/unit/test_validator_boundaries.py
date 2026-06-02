@@ -970,9 +970,6 @@ def test_kinase_validator_can_require_localisation_probability_threshold() -> No
 
 def test_kinase_validator_rejects_malformed_site_tokens() -> None:
     dataset = _dataset()
-    malformed_index = pd.Index(["MAPK14;FOO;"], name="site_id")
-    dataset._phospho.index = malformed_index.copy()
-    dataset._site_metadata.index = malformed_index.copy()
     dataset._site_metadata.loc[:, "site"] = ["FOO"]
     request = KinaseWorkflowRequest(
         dataset=dataset,
@@ -981,7 +978,7 @@ def test_kinase_validator_rejects_malformed_site_tokens() -> None:
 
     with pytest.raises(
         WorkflowValidationError,
-        match="inconsistent display and metadata identity fields",
+        match="cannot resolve expected phosphosite residue",
     ):
         KinaseWorkflowValidator().run(request)
 
@@ -1268,9 +1265,11 @@ def test_signalome_validator_requires_explicit_site_metadata_protein_id_column()
 
 def test_signalome_validator_reports_site_metadata_index_alignment_details() -> None:
     kinase_result = _kinase_result()
+    mismatched_site_key = _site_key("AKT1;T308;")
     kinase_result.dataset._site_metadata.index = pd.Index(
-        ["MAPK14;Y182;_mismatch"], name="site_id"
+        [mismatched_site_key], name="site_key"
     )
+    kinase_result.dataset._site_metadata.loc[:, "site_key"] = [mismatched_site_key]
     request = SignalomeWorkflowRequest(
         kinase_result=kinase_result,
         config=build_signalome_config(substrate_support_cutoff=0.5),
@@ -1287,7 +1286,7 @@ def test_signalome_validator_reports_site_metadata_index_alignment_details() -> 
     ) in message
     assert (
         "Only in signalome workflow request kinase_result.dataset.site_metadata.index: "
-        "'MAPK14;Y182;_mismatch'"
+        f"'{mismatched_site_key}'"
     ) in message
     assert (
         "Only in signalome workflow request kinase_result.dataset.phospho.index: "

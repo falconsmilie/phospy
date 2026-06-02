@@ -62,9 +62,9 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | tests/unit/test_validator_boundaries.py | test_kinase_validator_allows_unknown_localisation_by_default | 910 | `scoring_config=KinaseScoringConfig(min_substrates=2),` |
 | tests/unit/test_validator_boundaries.py | test_kinase_validator_can_require_localisation_probability_presence | 927 | `min_substrates=2,` |
 | tests/unit/test_validator_boundaries.py | test_kinase_validator_can_require_localisation_probability_threshold | 954 | `min_substrates=2,` |
-| tests/unit/test_validator_boundaries.py | test_kinase_validator_requires_centred_sequence_context | 1015 | `scoring_config=KinaseScoringConfig(min_substrates=2),` |
-| tests/unit/test_validator_boundaries.py | test_kinase_validator_allows_gapped_flanks_when_centre_is_valid | 1038 | `scoring_config=KinaseScoringConfig(min_substrates=2),` |
-| tests/unit/test_validator_boundaries.py | test_signalome_request_module_count_optional_positive_integer_boundary | 1216 | `module_count: object,` |
+| tests/unit/test_validator_boundaries.py | test_kinase_validator_requires_centred_sequence_context | 1012 | `scoring_config=KinaseScoringConfig(min_substrates=2),` |
+| tests/unit/test_validator_boundaries.py | test_kinase_validator_allows_gapped_flanks_when_centre_is_valid | 1035 | `scoring_config=KinaseScoringConfig(min_substrates=2),` |
+| tests/unit/test_validator_boundaries.py | test_signalome_request_module_count_optional_positive_integer_boundary | 1213 | `module_count: object,` |
 
 ### Non-Empty String
 
@@ -73,9 +73,9 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 
 | File | Test | Line | Evidence |
 | --- | --- | ---: | --- |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_rejects_empty_site_metadata_protein_id_values | 1305 | `match="site_metadata.protein_id must contain non-empty string values",` |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_rejects_non_string_site_metadata_protein_id_values | 1327 | `match="site_metadata.protein_id must contain non-empty string values",` |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_rejects_missing_site_metadata_protein_values | 1692 | `match="site_metadata.protein_id to contain non-empty string values",` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_rejects_empty_site_metadata_protein_id_values | 1304 | `match="site_metadata.protein_id must contain non-empty string values",` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_rejects_non_string_site_metadata_protein_id_values | 1326 | `match="site_metadata.protein_id must contain non-empty string values",` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_rejects_missing_site_metadata_protein_values | 1691 | `match="site_metadata.protein_id to contain non-empty string values",` |
 
 ### Bounded Numeric Range
 
@@ -109,7 +109,7 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | tests/unit/test_site_identity_validation.py | test_analysis_ready_site_key_column_must_match_index_exactly | 432 | `invalid = site_metadata.copy(deep=True)` |
 | tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_unknown_quantitative_meaning_literal | 337 | `match="dataset build request quantitative_meaning must be one of:",` |
 | tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_removed_ratio_to_total_alias | 543 | `match="preprocessing_config.total_protein_correction.policy must be one of",` |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_reports_invalid_localisation_probability_values | 1392 | `"invalid values in signalome workflow request "` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_reports_invalid_localisation_probability_values | 1391 | `"invalid values in signalome workflow request "` |
 
 ### Nullable Collection / Optional Field Coupling
 
@@ -160,9 +160,9 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | tests/unit/test_validator_boundaries.py | test_dataset_build_request_allows_site_matrix_build_from_metadata_policy | 550 | `phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),` |
 | tests/unit/test_validator_boundaries.py | test_dataset_build_request_allows_sample_metadata_pairs_comparison_policy | 647 | `phospho=pd.DataFrame(` |
 | tests/unit/test_validator_boundaries.py | test_dataset_build_request_requires_sample_metadata_for_comparison_building | 675 | `phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),` |
-| tests/unit/test_validator_boundaries.py | test_kinase_validator_does_not_filter_rows_for_localisation_policy | 1456 | `phospho=pd.DataFrame(` |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_does_not_filter_rows_for_localisation_policy | 1509 | `phospho=pd.DataFrame(` |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_does_not_cast_numeric_matrices | 1589 | `monkeypatch.setattr(pd.DataFrame, "astype", _fail_astype)` |
+| tests/unit/test_validator_boundaries.py | test_kinase_validator_does_not_filter_rows_for_localisation_policy | 1455 | `phospho=pd.DataFrame(` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_does_not_filter_rows_for_localisation_policy | 1508 | `phospho=pd.DataFrame(` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_does_not_cast_numeric_matrices | 1588 | `monkeypatch.setattr(pd.DataFrame, "astype", _fail_astype)` |
 
 ### Path-Like Value
 
@@ -183,8 +183,8 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | --- | --- | ---: | --- |
 | tests/unit/test_validator_boundaries.py | test_kinase_validator_rejects_mixed_total_protein_quantitative_meaning_by_default | 893 | `assert "unmatched_policy='allow_uncorrected'" in str(exc_info.value)` |
 | tests/unit/test_validator_boundaries.py | test_kinase_validator_allows_mixed_total_protein_quantitative_meaning_with_opt_in | 900 | `allow_mixed_total_protein_quantitative_meaning=True` |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_rejects_mixed_total_protein_quantitative_meaning_by_default | 1190 | `"with mixed total-protein quantitative meaning"` |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_allows_mixed_total_protein_quantitative_meaning_with_opt_in | 1202 | `allow_mixed_total_protein_quantitative_meaning=True` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_rejects_mixed_total_protein_quantitative_meaning_by_default | 1187 | `"with mixed total-protein quantitative meaning"` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_allows_mixed_total_protein_quantitative_meaning_with_opt_in | 1199 | `allow_mixed_total_protein_quantitative_meaning=True` |
 
 ### Signalome Config Boundary Contracts
 
@@ -197,7 +197,7 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | tests/unit/test_public_config_self_validation.py | test_signalome_config_accepts_supported_clustering_engine_names | 729 | `clustering=SignalomeClusteringConfig(` |
 | tests/unit/test_public_config_self_validation.py | test_signalome_config_accepts_engine_and_policy_names | 800 | `clustering=SignalomeClusteringConfig(` |
 | tests/unit/test_public_config_self_validation.py | test_signalome_clustering_config_rejects_removed_tree_engine_argument | 824 | `SignalomeClusteringConfig(tree_engine="exact") # type: ignore[call-arg]` |
-| tests/unit/test_validator_boundaries.py | test_signalome_request_module_count_optional_positive_integer_boundary | 1220 | `config = SignalomeClusteringConfig(module_count=module_count) # type: ignore[arg-type]` |
+| tests/unit/test_validator_boundaries.py | test_signalome_request_module_count_optional_positive_integer_boundary | 1217 | `config = SignalomeClusteringConfig(module_count=module_count) # type: ignore[arg-type]` |
 
 ### Reference Compatibility / Bundle Contracts
 
@@ -214,8 +214,8 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | tests/unit/test_validation_ownership.py | test_reference_compatibility_validator_is_single_owner_for_compatibility_rules | 129 | `assert "ReferencePreset.AUTO requires dataset.organism" in source` |
 | tests/unit/test_validation_ownership.py | test_reference_bundle_contract_validation_has_single_owner | 134 | `bundle_source = inspect.getsource(ReferenceBundle.__post_init__)` |
 | tests/unit/test_validator_boundaries.py | test_kinase_reference_compatibility_boundary_matrix | 866 | `except ReferenceCompatibilityError as exc: # pragma: no cover - defensive` |
-| tests/unit/test_validator_boundaries.py | test_kinase_validator_does_not_filter_rows_for_localisation_policy | 1475 | `references = ReferenceBundle(` |
-| tests/unit/test_validator_boundaries.py | test_signalome_validator_does_not_filter_rows_for_localisation_policy | 1528 | `references = ReferenceBundle(` |
+| tests/unit/test_validator_boundaries.py | test_kinase_validator_does_not_filter_rows_for_localisation_policy | 1474 | `references = ReferenceBundle(` |
+| tests/unit/test_validator_boundaries.py | test_signalome_validator_does_not_filter_rows_for_localisation_policy | 1527 | `references = ReferenceBundle(` |
 
 ## Suggested Follow-Up Tickets
 

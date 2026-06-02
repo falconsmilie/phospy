@@ -147,10 +147,7 @@ def _signalome_reference_bundle_for(
 def _build_signalome_request(
     *, dataset: AnalysisReadyPhosphoDataset
 ) -> SignalomeWorkflowRequest:
-    site_index = pd.Index(
-        dataset.site_metadata.loc[:, "display_id"].astype(str).tolist(),
-        name="site_id",
-    )
+    site_index = dataset.site_metadata.index.copy()
     score_matrix = pd.DataFrame({"MAP2K6": [1.0] * len(site_index)}, index=site_index)
     prediction_matrix = pd.DataFrame(
         {"MAP2K6": [0.8] * len(site_index)},
@@ -419,6 +416,7 @@ def test_workflow_validators_reject_non_site_key_indexed_site_metadata() -> None
         with pytest.raises(
             WorkflowValidationError,
             match=(
+                "display-indexed direct construction|"
                 "index must match .*site_key|"
                 "must exactly match .*dataset\\.phospho\\.index"
             ),
@@ -456,6 +454,6 @@ def test_workflow_validators_require_site_key_column_to_match_index() -> None:
         object.__setattr__(dataset, "_site_metadata", site_metadata)
         with pytest.raises(
             WorkflowValidationError,
-            match="index must match .*site_key",
+            match="site_key must exactly match .*index values",
         ):
             validator.run(request)

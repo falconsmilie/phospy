@@ -170,6 +170,9 @@ class SignalomeWorkflowValidator:
         self._require_explicit_site_metadata_protein_identity(
             site_metadata=dataset._borrow_site_metadata_frame(),
             dataset_sites=dataset._borrow_phospho_frame().index,
+            prediction_sites=prediction_matrix.index,
+            score_sites=score_matrix.index,
+            score_field_name=score_field_name,
             localisation_requirement=config.validation.localisation_requirement,
             allow_opaque_site_values=dataset.opaque_site_values_allowed,
         )
@@ -180,6 +183,9 @@ class SignalomeWorkflowValidator:
         *,
         site_metadata: object,
         dataset_sites: pd.Index,
+        prediction_sites: pd.Index,
+        score_sites: pd.Index,
+        score_field_name: str,
         localisation_requirement: LocalisationRequirement,
         allow_opaque_site_values: bool,
     ) -> None:
@@ -190,22 +196,13 @@ class SignalomeWorkflowValidator:
             allow_empty=False,
             error_type=WorkflowValidationError,
         )
-        site_metadata_frame = require_unique_index(
-            site_metadata_frame,
-            field_name=field_name,
-            error_type=WorkflowValidationError,
-        )
-        require_exact_index_match(
-            left=site_metadata_frame.index,
-            right=dataset_sites,
-            left_name=f"{field_name}.index",
-            right_name="signalome workflow request kinase_result.dataset.phospho.index",
-            error_type=WorkflowValidationError,
-        )
         try:
             enforce_workflow_site_identity_contract(
                 site_metadata=site_metadata_frame,
                 expected_index=dataset_sites,
+                expected_index_field_name=(
+                    "signalome workflow request kinase_result.dataset.phospho.index"
+                ),
                 field_name=field_name,
                 contract=SIGNALOME_IDENTITY_CONTRACT,
                 error_type=WorkflowValidationError,
@@ -222,3 +219,20 @@ class SignalomeWorkflowValidator:
             raise WorkflowValidationError(
                 f"{exc}. {SIGNALOME_PROTEIN_IDENTITY_CONTRACT_NOTE}"
             ) from exc
+        require_exact_index_match(
+            left=prediction_sites,
+            right=site_metadata_frame.index,
+            left_name=(
+                "signalome workflow request "
+                "kinase_result.prediction_result.pred_mat.index"
+            ),
+            right_name=f"{field_name}.index",
+            error_type=WorkflowValidationError,
+        )
+        require_exact_index_match(
+            left=score_sites,
+            right=site_metadata_frame.index,
+            left_name=f"{score_field_name}.index",
+            right_name=f"{field_name}.index",
+            error_type=WorkflowValidationError,
+        )
