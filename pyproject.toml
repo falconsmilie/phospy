@@ -87,7 +87,14 @@ include = ["phospy", "phospy.*"]
 exclude = ["phospy_legacy", "phospy_legacy.*"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests/unit", "tests/integration", "tests/parity"]
+testpaths = [
+  "tests/unit",
+  "tests/integration",
+  "tests/parity",
+  "tests/workflows",
+  "tests/validation",
+  "tests/science",
+]
 addopts = "-m \"not parity\""
 markers = [
   "unit: focused tests for a single module/function contract with isolated collaborators",
