@@ -234,7 +234,16 @@ def test_differential_workflow_performance_contract_for_smoke_and_medium_scales(
     )
 
     assert set(result.contrast_tables) == {contrast.name for contrast in contrasts}
-    identity_columns = ["site_key", "display_id", "gene_symbol", "site", "protein_id"]
+    identity_columns = [
+        "site_key",
+        "display_id",
+        "gene_symbol",
+        "site",
+        "organism",
+        "protein_namespace",
+        "protein_identifier",
+        "protein_id",
+    ]
     statistic_columns = ["logFC", "t", "P.Value", "adj.P.Val"]
     for table in result.contrast_tables.values():
         assert table.shape[0] == n_sites

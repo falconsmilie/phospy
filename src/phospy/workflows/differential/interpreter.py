@@ -209,6 +209,9 @@ def _build_result_identity_metadata(
 ) -> pd.DataFrame:
     required_columns = ("site_key", "display_id", "gene_symbol", "site")
     optional_columns = (
+        "organism",
+        "protein_namespace",
+        "protein_identifier",
         "protein_id",
         "protein_accession",
         "isoform_id",

@@ -985,14 +985,11 @@ def _validate_site_key_column_matches_index(
     table: pd.DataFrame,
     field_name: str,
 ) -> None:
-    try:
-        require_site_key_index(
-            table.index,
-            field_name=f"{field_name}.index",
-            error_type=PhosPyInputError,
-        )
-    except PhosPyInputError:
-        return
+    require_site_key_index(
+        table.index,
+        field_name=f"{field_name}.index",
+        error_type=PhosPyInputError,
+    )
     site_key_column = table["site_key"]
     site_key_values = [str(value) for value in site_key_column.tolist()]
     index_values = [str(value) for value in table.index.tolist()]
