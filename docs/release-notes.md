@@ -1,6 +1,6 @@
 # PhosPy Release Notes
 
-## Version 1.5.2 (2026-05-22)
+## Version 1.5.3 (2026-06-08)
 
 ## Release Overview
 
@@ -8,83 +8,71 @@ PhosPy keeps the supported public shape clear: build an
 `AnalysisReadyPhosphoDataset`, run `KinaseWorkflow`, and optionally run
 `SignalomeWorkflow` when protein identifiers are available.
 
-This release focuses on stricter preprocessing/scientific boundaries, expanded
-signalome and kinase workflow components, first-class differential analysis,
-and stronger provenance and typing guarantees.
+This release formalises protein-scoped phosphosite row identity. Analysis-ready
+datasets and workflows now use encoded `site_key` values as row identity, while
+preserving `display_id` as the human-readable label used for reports and
+reference-facing interpretation.
+
+The release also tightens workflow/result identity validation, hardens
+differential result invariants, and splits several large dataset and
+site-sequence internals into focused collaborators.
 
 ## Added
 
-- Explicit KSEA z-score activity scoring, shared threshold-membership policy
-  handling, and condition-specific `activity_substrate_counts` reporting.
-- Native limma-style moderated differential analysis as a first-class workflow,
-  including robust eBayes trend moderation, explicit quantitative
-  meaning/provenance, and technical replicate aggregation policies.
-- Peptide-evidence and multi-site ambiguity models with policy-driven
-  peptide-to-site aggregation integrated into dataset construction.
-- FASTA-backed site-sequence resolution components with configurable conflict
-  policies and durable preprocessing/kinase provenance reporting.
-- Stricter phosphosite identity/localisation contracts, sequence provenance, and
-  workflow scientific-eligibility reporting surfaces.
-- Opt-in missing-data preprocessing policies for MinProb and KNN imputation,
-  plus explicit forbid-path diagnostics and preprocessing readiness reporting.
-- Structured identifier normalisation provenance and conflict diagnostics across
-  dataset ingestion and reference-table boundaries.
-- Schema-aware table readers with strict metadata/numeric parsing and explicit
-  exact-vs-tolerance table hash metadata.
-- Expanded signalome clustering components (candidate scoring/selection, module
-  selection, tree building, scale guards, and backend diagnostics schemas) with
-  explicit policy records.
-- Expanded scientific and governance docs, including ADR-0016 through ADR-0022,
-  testing audit assets, workflow contracts, and a PhosR
-  compatibility/scope matrix.
+- Protein-scoped phosphosite `site_key` row identity, derived `display_id`
+  metadata, and builder support for deriving auditable site identity from
+  explicit protein context.
+- Dedicated dataset identity validators for encoded site keys, display-label
+  handling, and protein-scoped site metadata coherence.
+- ADR-0024 and dataset-builder documentation covering `site_key` row identity,
+  repeated `display_id` labels, workflow output contracts, and kinase reference
+  display-ID mapping.
+- Regression coverage for `site_key` identity across dataset construction,
+  kinase, differential, signalome, bundle reconstruction, and public output
+  tables.
 
 ## Changed
 
-- Reorganised domain implementation under `phospy.science` and moved internal
-  contract ownership from `phospy.api` into dedicated `phospy.contracts`
-  modules.
-- Split preprocessing configuration and processing-state responsibilities into
-  focused modules/packages, with an authoritative stage registry and stricter
-  diagnostics parsing.
-- Split dataset-builder and preprocessing orchestration responsibilities into
-  focused collaborators with stricter `site_sequence` and sample-metadata
-  contract enforcement.
-- Refactored kinase and signalome workflow orchestration into dedicated
-  runner/result/provenance collaborators for clearer ownership boundaries.
-- Promoted high-impact scientific/workflow behaviour toggles to explicit
-  enum-backed policy models with stricter public validation boundaries.
-- Expanded strict typing and CI quality gates (Pyright coverage,
-  realistic performance/data-scale benchmark contracts, and broader
-  boundary/parity regression suites).
-- Refreshed docs, examples, and MkDocs structure/styling to match the current
-  public API and scientific-scope claims.
-
-## Removed
-
-- Removed the legacy `phospy` console-script CLI entry point and retired
-  obsolete CLI workflow docs/tests.
+- Analysis-ready datasets and workflows now operate on encoded `site_key`
+  indexes while preserving `display_id` in site-level outputs for
+  human-readable reporting.
+- Dataset convention normalisation and site-sequence resolution now use focused
+  collaborators for metadata normalisation, total-matrix handling, conflict
+  resolution, diagnostics, and request building.
+- Kinase, differential, and signalome workflow contracts now enforce explicit
+  `site_key` identity and metadata coherence.
+- Technical-replicate aggregation moved out of the differential validator and
+  into dedicated workflow aggregation logic.
+- `protein_id` is optional source/workflow metadata at the base dataset
+  boundary. Completeness is enforced only by workflows that require protein
+  grouping, such as signalome.
+- Strict typing expanded across dataset, validation, prediction, differential,
+  kinase, and signalome boundaries.
 
 ## Fixed
 
-- Deterministic provenance hashing with typed label/index handling, explicit
-  structure hashing, and composite stage-hash compatibility support.
-- MinProb preprocessing stability by column identity plus preserved stage
-  ordering and row-median provenance persistence.
-- Duplicate/conflict handling for site identifiers and reference accession
-  normalisation, including explicit post-normalisation conflict/duplicate
-  reporting.
-- Stricter scientific matrix guard behaviour (forbid-policy enforcement,
-  bool-frame rejection, and fail-fast invalid preprocessing metadata handling).
-- Fixed centred site-sequence validation and phosphosite identity collision
-  handling, and removed duplicate analysis-ready validation paths.
-- Enforced established log2 intensity scale before differential `logFC`
-  emission and prevented unaudited intensity-scale establishment.
+- Unsafe display-ID fallbacks, mismatched explicit builder `site_key` values,
+  and semantic `site_key`/metadata incoherence now fail at dataset and public
+  result boundaries.
+- Duplicate phosphosite handling now resolves rows by protein-scoped `site_key`
+  identity instead of display labels, allowing repeated human-readable
+  `display_id` values under unique rows.
+- Workflow outputs preserve `site_key` and `display_id`, and signalome
+  assignment tables validate encoded site keys.
+- NumPy integer phosphosite positions are accepted by the site-key builder, and
+  strict `position`/`site_position` metadata validation is tighter.
+- Differential result invariants and numerical edge cases are hardened,
+  including public result identity coherence.
 
 ## Scientific Scope
 
 Bundled runtime references in this release are rat-only. Human and mouse remain
 valid enum values, but they require a caller-supplied `ReferenceBundle` for
 workflow execution.
+
+Analysis-ready row identity is now protein-scoped `site_key`. `display_id`
+remains available for interpretation and reporting, but it is not the
+analysis-ready row key and may repeat across distinct protein contexts.
 
 KSEA-style activity output is supported as a PhosPy activity method and is
 reported as an explicit PhosPy method variant, not as a claim of PhosR

@@ -2,6 +2,44 @@
 
 All notable changes to this project are documented here.
 
+## [1.5.3] - 2026-06-08
+
+### Added
+
+- protein-scoped phosphosite `site_key` row identity, derived `display_id` metadata, and builder support for deriving
+  auditable site identity from explicit protein context.
+- dedicated dataset identity validators for encoded site keys, display-label handling, and protein-scoped site metadata
+  coherence.
+- ADR-0024 and dataset-builder documentation formalising `site_key` row identity, repeated `display_id` labels, workflow
+  output contracts, and kinase reference display-ID mapping.
+- regression coverage for `site_key` identity across dataset construction, kinase, differential, signalome, bundle
+  reconstruction, and public output-table boundaries.
+
+### Changed
+
+- analysis-ready datasets and workflows now operate on encoded `site_key` indexes while preserving `display_id` in
+  site-level outputs for human-readable reporting.
+- split dataset convention normalisation and site-sequence resolution into focused collaborators for metadata
+  normalisation, total-matrix handling, conflict resolution, diagnostics, and request building.
+- tightened kinase, differential, and signalome workflow contracts around explicit `site_key` identity and metadata
+  coherence.
+- moved technical-replicate aggregation out of the differential validator and into dedicated workflow aggregation logic.
+- treated `protein_id` as optional source/workflow metadata at the base dataset boundary, with completeness enforced only
+  by workflows that require protein grouping such as signalome.
+- expanded strict typing across dataset, validation, prediction, differential, kinase, and signalome boundaries.
+
+### Fixed
+
+- rejected unsafe display-ID fallbacks, mismatched explicit builder `site_key` values, and semantic `site_key`/metadata
+  incoherence at dataset and public result boundaries.
+- resolved duplicate phosphosite handling by protein-scoped `site_key` identity instead of display labels, allowing
+  repeated human-readable `display_id` values under unique rows.
+- preserved `site_key` and `display_id` through workflow outputs and validated encoded site keys in signalome assignment
+  tables.
+- accepted NumPy integer phosphosite positions in site-key building and tightened strict `position`/`site_position`
+  metadata validation.
+- hardened differential result invariants and numerical edge cases, including public result identity coherence.
+
 ## [1.5.2] - 2026-05-22
 
 ### Added
