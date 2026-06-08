@@ -91,6 +91,27 @@ def _valid_payload() -> dict[str, object]:
     }
 
 
+def _valid_payload_with_explicit_positions(
+    *,
+    position_value: object,
+    site_position_value: object,
+) -> dict[str, object]:
+    payload = _valid_payload()
+    site_metadata = payload["site_metadata"].copy(deep=True)
+    site_metadata.loc[:, "position"] = pd.Series(
+        [182, position_value],
+        index=site_metadata.index,
+        dtype="object",
+    )
+    site_metadata.loc[:, "site_position"] = pd.Series(
+        [182, site_position_value],
+        index=site_metadata.index,
+        dtype="object",
+    )
+    payload["site_metadata"] = site_metadata
+    return payload
+
+
 def _assert_constructor_and_adapter_reject(payload: dict[str, object]) -> None:
     with pytest.raises(_MODEL_BOUNDARY_ERRORS):
         AnalysisReadyPhosphoDataset(**payload)
@@ -164,6 +185,118 @@ def test_direct_dataset_boundary_accepts_strict_integer_position_metadata(
     dataset = AnalysisReadyPhosphoDataset(**payload)
 
     assert dataset.site_metadata.loc[site_metadata.index[1], column_name] == 308
+
+
+def test_direct_dataset_boundary_accepts_equivalent_position_and_site_position_metadata() -> (
+    None
+):
+    payload = _valid_payload_with_explicit_positions(
+        position_value=308,
+        site_position_value=np.int64(308),
+    )
+
+    dataset = AnalysisReadyPhosphoDataset(**payload)
+
+    row_key = dataset.site_metadata.index[1]
+    assert dataset.site_metadata.loc[row_key, "position"] == 308
+    assert dataset.site_metadata.loc[row_key, "site_position"] == 308
+
+
+@pytest.mark.parametrize(
+    "invalid_site_position",
+    [
+        pytest.param("308", id="numeric-string"),
+        pytest.param(308.0, id="float"),
+        pytest.param(True, id="boolean"),
+        pytest.param(0, id="zero"),
+        pytest.param(-1, id="negative"),
+        pytest.param(None, id="missing"),
+        pytest.param([308], id="list"),
+    ],
+)
+def test_direct_dataset_boundary_rejects_invalid_site_position_when_position_valid(
+    invalid_site_position: object,
+) -> None:
+    payload = _valid_payload_with_explicit_positions(
+        position_value=308,
+        site_position_value=invalid_site_position,
+    )
+
+    with pytest.raises(DatasetValidationError) as exc_info:
+        AnalysisReadyPhosphoDataset(**payload)
+
+    message = str(exc_info.value)
+    assert "dataset.site_metadata" in message
+    assert "site_position" in message
+    assert "position" in message
+
+
+@pytest.mark.parametrize(
+    "invalid_position",
+    [
+        pytest.param("308", id="numeric-string"),
+        pytest.param(308.0, id="float"),
+        pytest.param(True, id="boolean"),
+        pytest.param(0, id="zero"),
+        pytest.param(-1, id="negative"),
+        pytest.param(None, id="missing"),
+        pytest.param([308], id="list"),
+    ],
+)
+def test_direct_dataset_boundary_rejects_invalid_position_when_site_position_valid(
+    invalid_position: object,
+) -> None:
+    payload = _valid_payload_with_explicit_positions(
+        position_value=invalid_position,
+        site_position_value=308,
+    )
+
+    with pytest.raises(DatasetValidationError) as exc_info:
+        AnalysisReadyPhosphoDataset(**payload)
+
+    message = str(exc_info.value)
+    assert "dataset.site_metadata" in message
+    assert "position" in message
+
+
+@pytest.mark.parametrize(
+    ("position_value", "site_position_value"),
+    [
+        pytest.param(308, 309, id="position-valid-site-position-disagrees"),
+        pytest.param(309, 308, id="position-disagrees-site-position-valid"),
+    ],
+)
+def test_direct_dataset_boundary_rejects_disagreeing_position_and_site_position_metadata(
+    position_value: object,
+    site_position_value: object,
+) -> None:
+    payload = _valid_payload_with_explicit_positions(
+        position_value=position_value,
+        site_position_value=site_position_value,
+    )
+
+    with pytest.raises(DatasetValidationError) as exc_info:
+        AnalysisReadyPhosphoDataset(**payload)
+
+    message = str(exc_info.value)
+    assert "dataset.site_metadata" in message
+    assert "position" in message
+
+
+def test_direct_dataset_boundary_rejects_invalid_position_and_site_position_metadata() -> (
+    None
+):
+    payload = _valid_payload_with_explicit_positions(
+        position_value="308",
+        site_position_value=308.0,
+    )
+
+    with pytest.raises(DatasetValidationError) as exc_info:
+        AnalysisReadyPhosphoDataset(**payload)
+
+    message = str(exc_info.value)
+    assert "dataset.site_metadata" in message
+    assert "position" in message
 
 
 @pytest.mark.parametrize("column_name", ["position", "site_position"])
