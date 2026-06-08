@@ -10,7 +10,11 @@ from phospy.science.signalomes.models import (
     SignalomeAssignments,
     SignalomeModules,
 )
-from tests.support.site_keys import site_key_index_from_display_ids
+from phospy.tables.signalome import SignalomeAssignmentsTable
+from tests.support.site_keys import (
+    protein_site_key_index,
+    site_key_index_from_display_ids,
+)
 
 
 def _valid_assignments() -> pd.DataFrame:
@@ -83,6 +87,66 @@ def _valid_candidate_correlations() -> pd.DataFrame:
             ],
         }
     )
+
+
+def test_signalome_assignments_table_accepts_valid_encoded_site_key_identity() -> None:
+    table = _valid_assignments()
+
+    wrapper = SignalomeAssignmentsTable(frame=table)
+
+    assert wrapper.frame.index.name == "site_key"
+    assert wrapper.frame.index.astype(str).tolist() == (
+        wrapper.frame.loc[:, "site_key"].astype(str).tolist()
+    )
+    assert "display_id" in wrapper.frame.columns
+
+
+def test_signalome_assignments_table_rejects_display_style_site_key_index() -> None:
+    table = _valid_assignments()
+    display_ids = ["AKT1;T308;", "GSK3B;S9;"]
+    table.index = pd.Index(display_ids, name="site_key")
+    table.loc[:, "site_key"] = display_ids
+    table.loc[:, "display_id"] = display_ids
+
+    with pytest.raises(PhosPyValidationError, match="display-indexed"):
+        SignalomeAssignmentsTable(frame=table)
+
+
+def test_signalome_assignments_table_rejects_arbitrary_site_key_strings() -> None:
+    table = _valid_assignments()
+    site_keys = ["not-a-site-key", "also-not-a-site-key"]
+    table.index = pd.Index(site_keys, name="site_key")
+    table.loc[:, "site_key"] = site_keys
+
+    with pytest.raises(PhosPyValidationError, match="valid PhosPy site_key"):
+        SignalomeAssignmentsTable(frame=table)
+
+
+def test_signalome_assignments_table_rejects_valid_site_key_column_mismatch() -> None:
+    table = _valid_assignments()
+    table.loc[:, "site_key"] = list(reversed(table.index.astype(str).tolist()))
+
+    with pytest.raises(PhosPyValidationError, match="site_key must exactly match"):
+        SignalomeAssignmentsTable(frame=table)
+
+
+def test_signalome_assignments_table_allows_duplicate_display_ids() -> None:
+    table = _valid_assignments()
+    site_index = protein_site_key_index(
+        protein_identifiers=["P31749", "Q9Y243"],
+        sites=["T308", "T308"],
+    )
+    table.index = site_index
+    table.loc[:, "site_key"] = site_index.astype(str).tolist()
+    table.loc[:, "display_id"] = ["AKT1;T308;", "AKT1;T308;"]
+    table.loc[:, "gene_symbol"] = ["AKT1", "AKT1"]
+    table.loc[:, "site"] = ["T308", "T308"]
+    table.loc[:, "protein_id"] = ["P31749", "Q9Y243"]
+
+    wrapper = SignalomeAssignmentsTable(frame=table)
+
+    assert wrapper.frame.loc[:, "display_id"].duplicated().any()
+    assert wrapper.frame.loc[:, "site_key"].is_unique
 
 
 def test_signalome_assignments_reject_missing_required_columns() -> None:

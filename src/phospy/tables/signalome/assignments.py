@@ -44,6 +44,10 @@ from phospy.validation.common.dataframes import (
     require_string_index,
     require_unique_index,
 )
+from phospy.validation.datasets.protein_scoped_site_identity import (
+    enforce_analysis_ready_site_key_index,
+    enforce_site_key_column_matches_index,
+)
 
 _SIGNALOME_ASSIGNMENTS_REQUIRED_COLUMNS = (
     SITE_KEY_COLUMN,
@@ -98,6 +102,11 @@ class SignalomeAssignmentsTable(TableSchema):
             field_name=f"{self._field_name}.index",
             error_type=self._error_type,
         )
+        enforce_analysis_ready_site_key_index(
+            frame.index,
+            field_name=f"{self._field_name}.index",
+            error_type=self._error_type,
+        )
         if frame.empty:
             return frame
         require_non_empty_string_column(
@@ -142,15 +151,12 @@ class SignalomeAssignmentsTable(TableSchema):
             column_name=ISOFORM_ID_COLUMN,
             error_type=self._error_type,
         )
-        indexed_site_keys = pd.Index(
-            frame.loc[:, SITE_KEY_COLUMN].astype(str).tolist(),
-            name=SITE_KEY_COLUMN,
+        enforce_site_key_column_matches_index(
+            site_metadata=frame,
+            field_name=self._field_name,
+            error_type=self._error_type,
+            site_key_column=SITE_KEY_COLUMN,
         )
-        if not frame.index.equals(indexed_site_keys):
-            raise self._error_type(
-                f"{self._field_name}.index must match "
-                f"{self._field_name}.{SITE_KEY_COLUMN}"
-            )
         require_non_empty_string_column(
             frame,
             field_name=self._field_name,
