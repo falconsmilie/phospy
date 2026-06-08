@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from numbers import Integral
 from typing import TypeVar
 from urllib.parse import quote, unquote
 
@@ -214,7 +215,7 @@ def _positive_integer(
     field_name: str,
     error_type: type[ErrorType],
 ) -> int:
-    if not isinstance(value, int) or isinstance(value, bool):
+    if isinstance(value, bool) or not isinstance(value, Integral):
         raise error_type(f"{field_name} must be an integer")
     if value <= 0:
         raise error_type(f"{field_name} must be a positive integer")

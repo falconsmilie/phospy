@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
 from phospy.science.sites.identity import (
@@ -173,6 +174,57 @@ def test_site_key_encoding_escapes_delimiters_and_decodes_losslessly() -> None:
     )
 
 
+def test_build_protein_scoped_site_key_accepts_python_int_position() -> None:
+    key = build_protein_scoped_site_key(
+        organism="human",
+        protein_namespace="uniprot",
+        protein_identifier="P31750",
+        residue="T",
+        position=308,
+        field_name="test.site_key",
+        error_type=ValueError,
+    )
+
+    assert key.position == 308
+
+
+def test_build_protein_scoped_site_key_accepts_numpy_integer_position() -> None:
+    key = build_protein_scoped_site_key(
+        organism="human",
+        protein_namespace="uniprot",
+        protein_identifier="P31750",
+        residue="T",
+        position=np.int64(308),
+        field_name="test.site_key",
+        error_type=ValueError,
+    )
+
+    assert key.position == 308
+
+
+def test_numpy_integer_position_encodes_like_equivalent_python_int() -> None:
+    python_int_key = build_protein_scoped_site_key(
+        organism="human",
+        protein_namespace="uniprot",
+        protein_identifier="P31750",
+        residue="T",
+        position=308,
+        field_name="test.site_key",
+        error_type=ValueError,
+    )
+    numpy_int_key = build_protein_scoped_site_key(
+        organism="human",
+        protein_namespace="uniprot",
+        protein_identifier="P31750",
+        residue="T",
+        position=np.int64(308),
+        field_name="test.site_key",
+        error_type=ValueError,
+    )
+
+    assert encode_site_key(numpy_int_key) == encode_site_key(python_int_key)
+
+
 @pytest.mark.parametrize("invalid_residue", ["A", "X", "ST", ""])
 def test_build_protein_scoped_site_key_rejects_invalid_residues(
     invalid_residue: str,
@@ -189,7 +241,18 @@ def test_build_protein_scoped_site_key_rejects_invalid_residues(
         )
 
 
-@pytest.mark.parametrize("invalid_position", [0, -1, None, "473", 4.2, True])
+@pytest.mark.parametrize(
+    "invalid_position",
+    [
+        pytest.param(True, id="boolean"),
+        pytest.param(0, id="zero"),
+        pytest.param(-1, id="negative"),
+        pytest.param(308.0, id="float"),
+        pytest.param("308", id="numeric-string"),
+        pytest.param(None, id="missing"),
+        pytest.param([308], id="non-scalar"),
+    ],
+)
 def test_build_protein_scoped_site_key_rejects_invalid_positions(
     invalid_position: object,
 ) -> None:
