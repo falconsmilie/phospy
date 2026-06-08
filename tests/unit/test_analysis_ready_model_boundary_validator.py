@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -136,6 +137,91 @@ def test_model_boundary_validator_treats_protein_id_as_optional_signalome_metada
 
     assert ("protein_id" in constructed.site_metadata.columns) is expected_present
     assert ("protein_id" in validated.site_metadata.columns) is expected_present
+
+
+@pytest.mark.parametrize(
+    ("column_name", "position_value"),
+    [
+        pytest.param("position", 308, id="position-python-int"),
+        pytest.param("position", np.int64(308), id="position-numpy-int"),
+        pytest.param("site_position", 308, id="site-position-python-int"),
+        pytest.param("site_position", np.int64(308), id="site-position-numpy-int"),
+    ],
+)
+def test_direct_dataset_boundary_accepts_strict_integer_position_metadata(
+    column_name: str,
+    position_value: object,
+) -> None:
+    payload = _valid_payload()
+    site_metadata = payload["site_metadata"].copy(deep=True)
+    site_metadata.loc[:, column_name] = pd.Series(
+        [182, position_value],
+        index=site_metadata.index,
+        dtype="object",
+    )
+    payload["site_metadata"] = site_metadata
+
+    dataset = AnalysisReadyPhosphoDataset(**payload)
+
+    assert dataset.site_metadata.loc[site_metadata.index[1], column_name] == 308
+
+
+@pytest.mark.parametrize("column_name", ["position", "site_position"])
+@pytest.mark.parametrize(
+    "invalid_position",
+    [
+        pytest.param(True, id="boolean"),
+        pytest.param(0, id="zero"),
+        pytest.param(-1, id="negative"),
+        pytest.param(308.0, id="float"),
+        pytest.param("308", id="numeric-string"),
+        pytest.param(None, id="missing"),
+        pytest.param([308], id="list"),
+    ],
+)
+def test_direct_dataset_boundary_rejects_loose_explicit_position_metadata(
+    column_name: str,
+    invalid_position: object,
+) -> None:
+    payload = _valid_payload()
+    site_metadata = payload["site_metadata"].copy(deep=True)
+    site_metadata.loc[:, column_name] = pd.Series(
+        [182, invalid_position],
+        index=site_metadata.index,
+        dtype="object",
+    )
+    payload["site_metadata"] = site_metadata
+
+    with pytest.raises(DatasetValidationError) as exc_info:
+        AnalysisReadyPhosphoDataset(**payload)
+
+    message = str(exc_info.value)
+    assert "dataset.site_metadata" in message
+    assert column_name in message
+    assert "position" in message
+
+
+def test_protein_scoped_site_key_encodes_numpy_integer_like_python_int() -> None:
+    python_int_key = build_protein_scoped_site_key(
+        organism="rat",
+        protein_namespace="protein_id",
+        protein_identifier="AKT1",
+        residue="T",
+        position=308,
+        field_name="test.site_key",
+        error_type=ValueError,
+    )
+    numpy_int_key = build_protein_scoped_site_key(
+        organism="rat",
+        protein_namespace="protein_id",
+        protein_identifier="AKT1",
+        residue="T",
+        position=np.int64(308),
+        field_name="test.site_key",
+        error_type=ValueError,
+    )
+
+    assert encode_site_key(python_int_key) == encode_site_key(numpy_int_key)
 
 
 def test_model_boundary_validator_rejects_display_indexed_direct_constructor_payload() -> (
