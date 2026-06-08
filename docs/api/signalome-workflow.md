@@ -42,6 +42,14 @@ preprocessing = DatasetPreprocessingConfig(
 The signalome request examples below focus on signalome API wiring and assume
 this upstream dataset-localisation policy is already in place.
 
+## Site Identity
+
+`SignalomeWorkflow` operates on the shared intersection of `site_key` values
+from the upstream dataset, prediction matrix, and downstream score matrix.
+`display_id` remains display metadata and may repeat. The upstream kinase result
+must already carry a valid `site_key`-indexed `AnalysisReadyPhosphoDataset`;
+signalome does not reinterpret display IDs as row identity.
+
 ## Imports
 
 ```python
@@ -87,7 +95,10 @@ result = SignalomeWorkflow().run(
 
 Signalome requires explicit, non-empty `dataset.site_metadata.protein_id` for all
 interpreted sites. The gene-symbol prefix in a display label such as
-`TSC2;S939;` is not treated as a protein-identity fallback.
+`TSC2;S939;` is not treated as a protein-identity fallback. This signalome
+protein-ID requirement is separate from the base analysis-ready `site_key`
+contract, which already requires `organism`, `protein_namespace`, and
+`protein_identifier` metadata.
 
 ```python
 protein_ids = kinase_result.dataset.site_metadata["protein_id"]
@@ -317,6 +328,10 @@ signalome_modules = signalome_result.signalome_modules.table
 network_edges = signalome_result.kinase_network.edges
 network_nodes = signalome_result.kinase_network.nodes
 ```
+
+Site-level signalome outputs that materialize row identity include `site_key`
+and `display_id` where applicable, while internal alignment remains keyed by
+`site_key`.
 
 Sidecar tables help with interpretation and auditing:
 

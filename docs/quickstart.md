@@ -40,9 +40,15 @@ Required `site_metadata` columns for this lane:
 - `site`
 - `site_sequence`
 - `localisation_confidence`
-- `protein_id` for signalome and for safe `site_key` derivation
+- `organism`
+- `protein_namespace`
+- `protein_identifier`
+- `protein_id` for signalome
 
-A display label should look like `TSC2;S939;`.
+Builder input may omit `site_key` only when those protein-context fields are
+available for deterministic derivation. Direct `AnalysisReadyPhosphoDataset`
+construction must already use `site_key` indexes. A display label should look
+like `TSC2;S939;`; it is not unique row identity.
 
 ## 3. Run the Python Workflow
 
@@ -82,8 +88,11 @@ site_metadata = pd.DataFrame(
             "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
             "ATMSGRPRTTSFAESSSPVQQPSAFGQAAAL",
         ],
+        "display_id": ["TSC2;S939;", "GSK3B;S9;"],
+        "organism": ["rat", "rat"],
+        "protein_namespace": ["protein_id", "protein_id"],
+        "protein_identifier": ["TSC2", "GSK3B"],
         "protein_id": ["TSC2", "GSK3B"],
-        "protein_accession": ["TSC2-1", "GSK3B-1"],
         "localisation_confidence": [0.96, 0.93],
     },
     index=phospho.index.copy(),
@@ -123,7 +132,15 @@ print(
 print(
     dataset.site_metadata.loc[
         :,
-        ["site_key", "display_id", "gene_symbol", "site", "protein_id"],
+        [
+            "site_key",
+            "display_id",
+            "gene_symbol",
+            "site",
+            "protein_namespace",
+            "protein_identifier",
+            "protein_id",
+        ],
     ]
 )
 print(
@@ -175,7 +192,7 @@ are installed.
 | Symptom                                          | Most likely fix                                                                                                      |
 |--------------------------------------------------|----------------------------------------------------------------------------------------------------------------------|
 | `ReferencePreset.AUTO` cannot resolve references | Use `organism=Organism.RAT` with bundled references, or pass an explicit `ReferenceBundle`.                          |
-| Signalome fails on `protein_id`                  | Add a non-empty `protein_id` for every interpreted site. Gene symbols are not used as a protein-identity substitute. |
+| Signalome fails on `protein_id`                  | Add a non-empty `protein_id` for every interpreted site. Gene symbols and `display_id` labels are not used as protein-identity substitutes. |
 | Missing-value error                              | Start with a complete matrix, or configure row-median imputation deliberately.                                       |
 | Site metadata does not align                     | For builder input, make `site_metadata.index` match `phospho.index`; for direct analysis-ready construction, use matching `site_key` indexes. |
 | File input fails                                 | Check that the first CSV/TSV column is the row index and that the suffix is supported.                               |

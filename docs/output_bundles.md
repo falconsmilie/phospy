@@ -56,6 +56,12 @@ signalome/
 
 Supported table formats are `csv`, `tsv`, and `parquet`.
 
+Site-level outputs preserve the enforced identity contract. Dataset
+`site_metadata` is `site_key` indexed and includes both `site_key` and
+`display_id`. Kinase and signalome site-level tables that materialize row
+identity also include both columns where applicable; internal workflow alignment
+remains `site_key` based.
+
 ## Reloadable Bundle Services
 
 Public bundle services live in:

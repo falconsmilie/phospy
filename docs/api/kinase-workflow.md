@@ -44,6 +44,19 @@ preprocessing = DatasetPreprocessingConfig(
 Minimal request snippets below focus on kinase API shape and assume this
 upstream dataset-localisation policy is already configured.
 
+## Site Identity and Reference Matching
+
+`KinaseWorkflow` operates on `site_key` rows from the
+`AnalysisReadyPhosphoDataset`. Reference tables may still use display IDs:
+`kinase_substrate_map.substrate_site` and `site_sequences.index` are matched to
+dataset `site_metadata.display_id` and then projected through an explicit
+`display_id` -> `site_key` mapping before scoring.
+
+`display_id` is metadata and may repeat. When one reference display ID matches
+multiple dataset `site_key` rows, the projection is one-to-many and diagnostics
+record that relationship. Reference display IDs remain reference-boundary
+identifiers and are not treated as analysis-ready row identity.
+
 ## Imports
 
 ```python
@@ -331,6 +344,10 @@ profile_scores = kinase_result.scoring_result.profile_scores
 ranked_scores = kinase_result.scoring_result.rank_weighted_fusion_scores
 prediction_matrix = kinase_result.prediction_result.pred_mat
 ```
+
+Primary scoring and prediction matrices are indexed by `site_key`. Site-level
+tables that materialize row identity, such as `substrate_list` and activity
+target tables, include both `site_key` and `display_id` for audit and display.
 
 Activity tables are present when activity is enabled:
 

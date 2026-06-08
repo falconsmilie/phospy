@@ -43,7 +43,18 @@ PhosPy adopts a two-key model for analysis-ready phosphosite rows:
 
 `AnalysisReadyPhosphoDataset.site_metadata["display_id"]` must be present.
 
-Protein context is required to construct `site_key`.
+Auditable protein context metadata is required to construct and validate
+`site_key`. At the direct analysis-ready boundary, `site_metadata` must include
+non-empty:
+
+- `site_key`
+- `display_id`
+- `organism`
+- `protein_namespace`
+- `protein_identifier`
+- `gene_symbol`
+- `site`
+- `site_sequence`
 
 Direct analysis-ready datasets must not silently fall back to display-site row
 identity.
@@ -52,6 +63,9 @@ Builder input may remain user-friendly and accept legacy display-indexed input
 only when enough protein context is available to deterministically derive
 `site_key`.
 
+Workflows operate on `site_key`. Site-level workflow outputs that materialize
+row identity include both `site_key` and `display_id`.
+
 ## Boundary Clarifications
 
 Once `site_key` becomes row identity, repeated `display_id` values are allowed.
@@ -59,6 +73,18 @@ Once `site_key` becomes row identity, repeated `display_id` values are allowed.
 
 This decision applies to analysis-ready dataset identity boundaries and
 downstream workflow contracts that consume those datasets.
+
+Display-indexed input is a builder compatibility input only. It is not valid
+direct analysis-ready identity. Direct `AnalysisReadyPhosphoDataset`
+construction requires `phospho.index`, `site_metadata.index`, and
+`site_metadata["site_key"]` to all use the same unique encoded `site_key`
+values.
+
+Kinase reference resources may continue to use display IDs at the reference
+boundary. The kinase workflow must match those display IDs through an explicit
+reference-mapping layer from dataset `display_id` metadata to internal
+`site_key` rows. Reference display IDs remain reference/display identifiers and
+are not converted into analysis-ready row identity.
 
 ## Explicitly Out of Scope for This Migration
 
@@ -76,7 +102,8 @@ Analysis-ready identity becomes protein-scoped and unambiguous, while
 human-readable display labels remain available for interpretation and reporting.
 
 Direct dataset constructors now require enough identity context to produce
-`site_key` and must fail explicitly when that context is missing.
+`site_key` and must fail explicitly when that context is missing. They also
+validate that `site_key` matches the metadata-derived protein-scoped key.
 
 Builder pathways can preserve backward-friendly ingestion shape only when they
 can derive the required `site_key` without ambiguity.

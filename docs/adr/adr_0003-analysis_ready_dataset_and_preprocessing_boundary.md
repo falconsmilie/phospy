@@ -52,7 +52,9 @@ summaries. Downstream workflow results must keep this history discoverable.
 
 Update note (2026-05-27, row identity): ADR-0024 amends this boundary. The
 analysis-ready row identity is the protein-scoped `site_key`; `display_id` is a
-human-readable `GENE;SITE;` label and may repeat.
+human-readable `GENE;SITE;` label and may repeat. Direct analysis-ready
+construction requires `site_key` indexes and required protein context metadata;
+display-indexed input is builder compatibility only.
 
 ## Context and Problem Statement
 
@@ -150,6 +152,9 @@ The dataset is expected to enforce the following invariants at construction time
 - `phospho.index` and `site_metadata.index` must use unique `site_key` values
 - `site_metadata.display_id` must preserve the human-readable `GENE;SITE;`
   label; it is not the analysis-ready row identity and may repeat
+- `site_metadata` must include `organism`, `protein_namespace`,
+  `protein_identifier`, `gene_symbol`, `site`, and `site_sequence` so `site_key`
+  is auditable from row metadata
 - any opaque-site waiver is an explicit opt-in (`allow_opaque_site_values`) and
   must be surfaced in provenance for flows that permit it
 

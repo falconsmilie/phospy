@@ -13,10 +13,11 @@ They intentionally keep the story small:
 - rat bundled-reference lane first
 - explicit localisation policy (`localisation_confidence >= 0.75`) at dataset build
 - `phospy.api` for requests and enums
-- explicit protein context (`protein_id` and `protein_accession`) so the
-  builder can derive `site_key`
+- explicit protein context (`organism`, `protein_namespace`, and
+  `protein_identifier`) so the builder can derive `site_key`
+- explicit `protein_id` where the signalome lane needs it
 - output tables that expose `site_key`, `display_id`, `gene_symbol`, `site`, and
-  available protein context
+  protein-context metadata
 - explicit reporting of both numeric scale and quantitative meaning (for example, `log2` with `phosphosite_log_abundance`)
 
 They are not meant to show every advanced option. For that, use the main docs.

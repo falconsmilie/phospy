@@ -160,4 +160,4 @@ tests/unit/test_workflow_boundary_error.py,unit,335,9,false,false,regression for
 tests/unit/test_workflow_identity_contracts.py,unit,490,12,true,true,,,,,,[auto-orchestration] 13 hit(s); indicators: private_member_access
 tests/unit/test_workflow_public_import_contract.py,unit,77,6,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for workflow public import contract and increase risk of boundary regressions.,codex-audit,,
 tests/validation/test_workflow_identity_validator_contracts.py,validation,126,3,true,true,,,,,,
-tests/workflows/test_identity_coherence.py,workflows,126,4,false,false,,,,,,
+tests/workflows/test_identity_coherence.py,workflows,124,4,false,false,,,,,,

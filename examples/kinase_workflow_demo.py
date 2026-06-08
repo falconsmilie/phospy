@@ -38,9 +38,13 @@ def build_demo_dataset() -> AnalysisReadyPhosphoDataset:
                 "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
                 "PSGGGPGGSGRARTSSFAEPGGGGGGGGGGP",
             ],
+            "display_id": ["TSC2;S939;", "GSK3A;S21;"],
+            "organism": ["rat", "rat"],
+            "protein_namespace": ["protein_id", "protein_id"],
+            "protein_identifier": ["TSC2", "GSK3A"],
             "localisation_confidence": [0.95] * phospho.shape[0],
+            # Required later by signalome; kinase identity itself uses site_key.
             "protein_id": ["TSC2", "GSK3A"],
-            "protein_accession": ["TSC2-1", "GSK3A-1"],
         },
         index=phospho.index.copy(),
     )
@@ -81,7 +85,16 @@ def main() -> None:
     print("Dataset organism:", result.dataset.organism.value)
     print(
         result.dataset.site_metadata.loc[
-            :, ["site_key", "display_id", "gene_symbol", "site", "protein_id"]
+            :,
+            [
+                "site_key",
+                "display_id",
+                "gene_symbol",
+                "site",
+                "protein_namespace",
+                "protein_identifier",
+                "protein_id",
+            ],
         ]
     )
     print("Reference input: ReferencePreset.AUTO")

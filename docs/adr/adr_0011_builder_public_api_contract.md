@@ -100,7 +100,7 @@ The public story should be that PhosPy offers one recommended route for creating
 
 That route should be more prominent than direct manual dataset construction for typical messy industry inputs.
 
-Direct construction of `AnalysisReadyPhosphoDataset` remains valid for callers who already have fully prepared data, but it is not the recommended story for ordinary ingestion.
+Direct construction of `AnalysisReadyPhosphoDataset` remains valid for callers who already have fully prepared `site_key`-indexed data with required protein context metadata, but it is not the recommended story for ordinary ingestion.
 
 ## Public Builder Shape
 

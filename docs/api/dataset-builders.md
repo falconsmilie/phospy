@@ -15,11 +15,18 @@ Identity boundary summary:
 - `AnalysisReadyPhosphoDataset.site_metadata["display_id"]` is required.
 - `AnalysisReadyPhosphoDataset.site_metadata["site_key"]` must exactly match
   `site_metadata.index`.
-- Protein context is required to construct `site_key`.
-- Direct analysis-ready datasets must not silently fall back to display-site
-  identity.
+- Direct analysis-ready construction requires auditable protein context metadata:
+  `organism`, `protein_namespace`, `protein_identifier`, `gene_symbol`, `site`,
+  and `site_sequence`.
+- Direct analysis-ready construction requires encoded `site_key` indexes and
+  does not silently fall back to display-site identity.
 - Builder input may accept legacy display-indexed shape only when enough
   protein context exists to derive `site_key`.
+- Workflows operate on `site_key`; site-level outputs that materialize row
+  identity include both `site_key` and `display_id`.
+- Kinase references may remain display-ID keyed only at the reference boundary;
+  the kinase workflow projects them through an explicit `display_id` ->
+  `site_key` mapping before scoring.
 - Duplicate rows are not automatically aggregated beyond explicit duplicate
   policies.
 - Duplicate rows are not automatically renamed.

@@ -22,9 +22,14 @@ At dataset-construction boundary, PhosPy uses a protein-scoped analysis-ready
 row key (`site_key`) and keeps `display_id` (for example `GENE;SITE;`) as a
 human-readable label. `site_key` is required to be unique, while `display_id`
 may repeat once `site_key` is the row identity. Direct analysis-ready datasets
-must not silently fall back to display-site identity. Builder input may accept
-legacy display-indexed shape only when enough protein context exists to derive
-`site_key`. See
+must use `site_key` indexes and include auditable protein context metadata
+(`organism`, `protein_namespace`, and `protein_identifier`); they must not
+silently fall back to display-site identity. Builder input may accept legacy
+display-indexed shape only when enough protein context exists to derive
+`site_key`. Workflows operate on `site_key`, and site-level outputs that
+materialize row identity include both `site_key` and `display_id`. Kinase
+references may use display IDs only through the explicit reference-to-dataset
+mapping layer; references remain reference/display identifiers. See
 [ADR-0024: Protein-Scoped Phosphosite Row Identity](adr/adr_0024_protein_scoped_phosphosite_row_identity.md).
 
 ### Differential Parity Envelope (Current Release)

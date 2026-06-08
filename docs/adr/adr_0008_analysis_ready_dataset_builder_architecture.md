@@ -185,7 +185,7 @@ Diagnostics or separate build-report outputs are not a current concern and are o
 
 ## Relationship to Direct Dataset Construction
 
-Direct construction of `AnalysisReadyPhosphoDataset` remains acceptable for callers who already possess fully analysis-ready data.
+Direct construction of `AnalysisReadyPhosphoDataset` remains acceptable for callers who already possess fully analysis-ready data. Under ADR-0024, fully analysis-ready means `site_key` indexes plus the required auditable protein context metadata, not display-indexed `GENE;SITE;` rows.
 
 However:
 

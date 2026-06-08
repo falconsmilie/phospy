@@ -104,8 +104,12 @@ site_metadata = pd.DataFrame(
             "PSGGGPGGSGRARTSSFAEPGGGGGGGGGGP",
             "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
         ],
+        "display_id": ["MAPK14;Y182;", "GSK3A;S21;", "TSC2;S939;"],
+        "organism": ["rat", "rat", "rat"],
+        "protein_namespace": ["protein_id", "protein_id", "protein_id"],
+        "protein_identifier": ["MAPK14", "GSK3A", "TSC2"],
+        # Signalome has a separate explicit protein_id requirement.
         "protein_id": ["MAPK14", "GSK3A", "TSC2"],
-        "protein_accession": ["MAPK14-1", "GSK3A-1", "TSC2-1"],
         "localisation_confidence": [0.95, 0.94, 0.96],
     },
     index=phospho.index.copy(),
@@ -138,7 +142,8 @@ dataset = AnalysisReadyDatasetBuilder().run(
 )
 
 # Builder input may be display-indexed when enough protein context is present.
-# The analysis-ready dataset itself is indexed by site_key.
+# The analysis-ready dataset itself is indexed by site_key; direct
+# AnalysisReadyPhosphoDataset construction must already use site_key indexes.
 print(
     dataset.site_metadata.loc[
         :,
@@ -147,8 +152,10 @@ print(
             "display_id",
             "gene_symbol",
             "site",
+            "organism",
+            "protein_namespace",
+            "protein_identifier",
             "protein_id",
-            "protein_accession",
             "site_sequence",
         ],
     ]

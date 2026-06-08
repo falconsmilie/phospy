@@ -31,9 +31,13 @@ def _example_tables() -> tuple[pd.DataFrame, pd.DataFrame]:
                 "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
                 "PSGGGPGGSGRARTSSFAEPGGGGGGGGGGP",
             ],
+            "display_id": ["TSC2;S939;", "GSK3A;S21;"],
+            "organism": ["rat", "rat"],
+            "protein_namespace": ["protein_id", "protein_id"],
+            "protein_identifier": ["TSC2", "GSK3A"],
             "localisation_confidence": [0.95] * phospho.shape[0],
+            # Signalome has a separate explicit protein_id requirement.
             "protein_id": ["TSC2", "GSK3A"],
-            "protein_accession": ["TSC2-1", "GSK3A-1"],
         },
         index=phospho.index.copy(),
     )
@@ -75,8 +79,11 @@ def main() -> None:
                 "display_id",
                 "gene_symbol",
                 "site",
+                "organism",
+                "protein_namespace",
+                "protein_identifier",
                 "protein_id",
-                "protein_accession",
+                "site_sequence",
             ],
         ]
     )

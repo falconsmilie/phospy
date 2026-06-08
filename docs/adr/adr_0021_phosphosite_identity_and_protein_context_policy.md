@@ -37,6 +37,9 @@ ADR-0024 adds the analysis-ready row key: `site_key` is the unique
 protein-scoped row identity for `AnalysisReadyPhosphoDataset.phospho.index` and
 `AnalysisReadyPhosphoDataset.site_metadata.index`. `display_id` is metadata and
 may repeat when distinct `site_key` values preserve the protein context.
+ADR-0024 is the current authority for final required identity metadata:
+`site_key`, `display_id`, `organism`, `protein_namespace`,
+`protein_identifier`, `gene_symbol`, `site`, and `site_sequence`.
 
 ### Identity Model
 
@@ -48,8 +51,8 @@ The identity model includes:
 - `position`
 - optional context fields:
   - `organism`
-  - `protein_id`
-  - `protein_accession`
+  - `protein_namespace`
+  - `protein_identifier`
   - `isoform_id`
   - `source_namespace`
   - `source_site_id`
@@ -118,8 +121,8 @@ Workflow validators must compose shared identity validation through
 
 | Workflow | Contract ID | Identity minimum | Required additions | Explicitly not required |
 | --- | --- | --- | --- | --- |
-| Differential | `display_site_identity_minimum` | Standardized display labels, coherent `gene_symbol/site` rows, and analysis-ready `site_key` row identity | Collision checks for unsafe builder-input duplicates when duplicate display labels are present | Mandatory protein/accession fields beyond the `site_key` already present |
-| Kinase | `sty_site_identity_plus_sequence_context` | Differential minimum | Strict site-token parsing (`S/T/Y<position>` unless opaque waiver), centred sequence context | Mandatory protein/accession on every row |
+| Differential | `site_key_identity_minimum` | Analysis-ready `site_key` row identity plus `display_id` metadata | Collision checks for unsafe builder-input duplicates when duplicate display labels are present | A one-to-one display-label model |
+| Kinase | `sty_site_identity_plus_sequence_context` | Differential minimum | Strict site-token parsing (`S/T/Y<position>` unless opaque waiver), centred sequence context | Treating reference display IDs as analysis-ready row identity |
 | Signalome | `protein_scoped_site_identity` | Kinase minimum | Explicit non-empty `protein_id` per retained site | Inference of protein identity from display IDs |
 
 Reference-organism compatibility remains enforced at the workflow runtime

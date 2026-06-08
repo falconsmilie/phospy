@@ -113,13 +113,21 @@ dataset indexes are:
 
 - `AnalysisReadyPhosphoDataset.phospho.index`: `site_key`
 - `AnalysisReadyPhosphoDataset.site_metadata.index`: `site_key`
+- `AnalysisReadyPhosphoDataset.site_metadata["site_key"]`: same values as the
+  index
 - `AnalysisReadyPhosphoDataset.site_metadata["display_id"]`: display label
 
 `display_id` may repeat when distinct `site_key` values preserve distinct
 protein context. Direct `AnalysisReadyPhosphoDataset` construction requires
-`site_key`; builder ingestion may accept legacy display-indexed input only when
-protein context is sufficient to derive `site_key`. See
+encoded `site_key` indexes plus auditable protein context metadata
+(`organism`, `protein_namespace`, `protein_identifier`, `gene_symbol`, `site`,
+and `site_sequence`). It does not fall back to display-site identity. Builder
+ingestion may accept legacy display-indexed input only when protein context is
+sufficient to derive `site_key`. See
 [ADR-0024](../adr/adr_0024_protein_scoped_phosphosite_row_identity.md).
+
+Workflows operate on `site_key`. User-facing site-level outputs that materialize
+row identity include both `site_key` and `display_id`.
 
 For concise scientist facing assumptions and interpretation notes, see
 [Workflow Contracts](../workflow_contracts.md).
@@ -249,6 +257,12 @@ this release. Use `ReferenceBundle` for custom references. It requires:
 - `kinase_substrate_map` with `kinase` and `substrate_site`
 - `site_sequences` indexed by display site ID with `site_sequence`
 
+Kinase references may use display IDs at the reference boundary. During workflow
+interpretation, those display IDs are matched against dataset `display_id`
+metadata and projected to internal `site_key` rows through an explicit mapping
+layer. References remain display-ID keyed at the reference boundary and are not
+converted into analysis-ready row identity.
+
 Example:
 
 ```python
@@ -319,8 +333,11 @@ site_metadata = pd.DataFrame(
             "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
             "ATMSGRPRTTSFAESSSPVQQPSAFGQAAAL",
         ],
+        "display_id": ["TSC2;S939;", "GSK3B;S9;"],
+        "organism": ["rat", "rat"],
+        "protein_namespace": ["protein_id", "protein_id"],
+        "protein_identifier": ["TSC2", "GSK3B"],
         "protein_id": ["TSC2", "GSK3B"],
-        "protein_accession": ["TSC2-1", "GSK3B-1"],
         "localisation_confidence": [0.95, 0.92],
     },
     index=phospho.index.copy(),
@@ -345,7 +362,16 @@ dataset = AnalysisReadyDatasetBuilder().run(
 )
 print(
     dataset.site_metadata.loc[
-        :, ["site_key", "display_id", "gene_symbol", "site", "protein_id"]
+        :,
+        [
+            "site_key",
+            "display_id",
+            "gene_symbol",
+            "site",
+            "protein_namespace",
+            "protein_identifier",
+            "protein_id",
+        ],
     ]
 )
 kinase_result = KinaseWorkflow().run(

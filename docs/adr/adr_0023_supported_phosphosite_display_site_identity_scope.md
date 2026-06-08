@@ -33,8 +33,15 @@ The supported analysis-ready identity model is now:
 - `display_id` may repeat when `site_key` values differ.
 - Direct `AnalysisReadyPhosphoDataset` construction requires `site_key`; it must
   not silently fall back to display labels.
+- Direct construction also requires auditable protein context metadata:
+  `organism`, `protein_namespace`, `protein_identifier`, `gene_symbol`, `site`,
+  and `site_sequence`.
 - Builder ingestion may accept legacy display-indexed input only when enough
   protein context exists to derive `site_key`.
+- Workflows operate on `site_key`; site-level outputs that materialize identity
+  include both `site_key` and `display_id`.
+- Kinase references may use display IDs only through an explicit mapping layer
+  to dataset `site_key` rows.
 
 ## Consequences After Supersession
 

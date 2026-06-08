@@ -40,10 +40,13 @@ def _build_kinase_result() -> KinaseWorkflowResult:
                 "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
                 "PSGGGPGGSGRARTSSFAEPGGGGGGGGGGP",
             ],
+            "display_id": ["TSC2;S939;", "GSK3A;S21;"],
+            "organism": ["rat", "rat"],
+            "protein_namespace": ["protein_id", "protein_id"],
+            "protein_identifier": ["TSC2", "GSK3A"],
             "localisation_confidence": [0.95] * phospho.shape[0],
             # Required in the supported signalome lane.
             "protein_id": ["TSC2", "GSK3A"],
-            "protein_accession": ["TSC2-1", "GSK3A-1"],
         },
         index=phospho.index.copy(),
     )
@@ -92,7 +95,16 @@ def main() -> None:
     print("Preferred 1.5.0 signalome workflow lane")
     print(
         result.kinase_result.dataset.site_metadata.loc[
-            :, ["site_key", "display_id", "gene_symbol", "site", "protein_id"]
+            :,
+            [
+                "site_key",
+                "display_id",
+                "gene_symbol",
+                "site",
+                "protein_namespace",
+                "protein_identifier",
+                "protein_id",
+            ],
         ]
     )
     print(

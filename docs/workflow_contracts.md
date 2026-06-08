@@ -42,6 +42,10 @@ identical numeric outputs across different machines or dependency builds.
 - The output `AnalysisReadyPhosphoDataset` uses `site_key` for
   `phospho.index` and `site_metadata.index`; `display_id` remains a
   human-readable label and may repeat.
+- Direct `AnalysisReadyPhosphoDataset` construction must already use encoded
+  `site_key` indexes and required identity metadata: `site_key`, `display_id`,
+  `organism`, `protein_namespace`, `protein_identifier`, `gene_symbol`, `site`,
+  and `site_sequence`.
 - `sample_metadata.index` and `total` sample index must match `phospho.columns` when provided.
 - If site-matrix construction is enabled, `site_metadata` must provide the required site-identity fields.
 
@@ -104,14 +108,17 @@ identical numeric outputs across different machines or dependency builds.
 ### Known Limitations
 
 - This workflow does not infer kinase activity or signalome structure.
-- `protein_id` is not derived automatically from display labels; provide it
-  explicitly for downstream signalome analysis.
+- Protein identity is not derived automatically from display labels; provide
+  protein context for `site_key` derivation and explicit `protein_id` for
+  downstream signalome analysis.
 
 ### Expected Output Tables
 
 - `dataset.phospho` indexed by `site_key`
 - `dataset.site_metadata` indexed by `site_key`, with `site_key`, `display_id`,
-  `gene_symbol`, `site`, and available protein-context columns
+  `organism`, `protein_namespace`, `protein_identifier`, `gene_symbol`, `site`,
+  `site_sequence`, and any workflow-specific protein-context columns such as
+  `protein_id`
 - optional `dataset.sample_metadata`, `dataset.total`, `dataset.comparisons`
 - optional preprocessing report tables (`row_counts`, `operations`, `row_audit`, and sidecars)
 
@@ -177,6 +184,9 @@ identical numeric outputs across different machines or dependency builds.
 - Quantified rows are keyed by `site_key`; reference `substrate_site` and
   `site_sequences` display labels are projected onto those rows through
   dataset `display_id` metadata before scoring.
+- This projection is an explicit `display_id` -> `site_key` mapping layer.
+  Reference display IDs remain reference/display identifiers and are not
+  converted into analysis-ready row identity.
 - Sample columns are used as provided by the dataset; scoring compares site profiles across these aligned samples.
 - Reference resolution can come from `ReferencePreset` or explicit `ReferenceBundle`.
 - Dataset `site_metadata.site_sequence` values can supplement missing reference sequences.
@@ -245,6 +255,8 @@ identical numeric outputs across different machines or dependency builds.
 - Scoring: `profile_scores`, `rank_weighted_fusion_scores` (plus optional diagnostics)
 - Prediction: `pred_mat`, `substrate_list`
 - Optional activity: primary `activity_scores` matrix (with `weighted_activity` as compatibility alias), `thresholded_substrate_mean_activity`, `thresholded_substrate_counts`, `target_counts`, `target_table`, optional `statistics_table`
+- Primary matrices are indexed by `site_key`; site-level tables that materialize
+  row identity include both `site_key` and `display_id`.
 
 ## SignalomeWorkflow Contract
 
@@ -253,11 +265,14 @@ identical numeric outputs across different machines or dependency builds.
 - `kinase_result.prediction_result.pred_mat` (non-empty, numeric).
 - Upstream downstream score matrix from kinase scoring (`rank_weighted_fusion_scores` or `profile_scores` fallback).
 - `kinase_result.dataset.site_metadata.protein_id` for retained interpreted sites.
+- A valid upstream `AnalysisReadyPhosphoDataset` with `site_key` row identity;
+  signalome does not reinterpret display IDs as row identity.
 
 ### Identifiers and Alignment Assumptions
 
 - Signalome runs on the shared intersection of `site_key` values across
   dataset, prediction matrix, and downstream score matrix.
+- `display_id` remains display metadata and may repeat.
 - Kinase columns must overlap between prediction and downstream score matrices.
 - Site and kinase identifiers must be unique within aligned matrices.
 

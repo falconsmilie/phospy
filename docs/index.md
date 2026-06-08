@@ -42,7 +42,8 @@ work and explicit references.
 | Testing audit and consolidation docs | [Testing Audit Docs](testing/README.md)                                |
 
 A good first outcome is modest: build a two-site rat dataset, run kinase with
-`ReferencePreset.AUTO`, and add signalome once `protein_id` is present.
+`ReferencePreset.AUTO`, and add signalome once protein context is complete and
+explicit `protein_id` values are present.
 
 Use [Scientific Coverage](scientific-coverage.md) as the single maintained
 scope matrix for parity-gated lanes, validated PhosPy implementations,

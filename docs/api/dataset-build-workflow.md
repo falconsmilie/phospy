@@ -15,10 +15,12 @@ label and may repeat when distinct `site_key` values preserve the protein
 context.
 
 Direct `AnalysisReadyPhosphoDataset` construction is stricter than builder
-ingestion: direct construction requires `site_key` indexes and `site_key`/
-`display_id` metadata. The builder may accept legacy display-indexed input only
-when `site_metadata` contains enough protein context to derive `site_key`
-without ambiguity.
+ingestion: direct construction requires encoded `site_key` indexes and
+auditable identity metadata (`site_key`, `display_id`, `organism`,
+`protein_namespace`, `protein_identifier`, `gene_symbol`, `site`, and
+`site_sequence`). It does not silently fall back to display-site identity. The
+builder may accept legacy display-indexed input only when `site_metadata`
+contains enough protein context to derive `site_key` without ambiguity.
 
 ```python
 dataset = AnalysisReadyDatasetBuilder().run(
@@ -58,7 +60,7 @@ from phospy.api import (
 | Parameter | Type | Default | Required | How to Use It |
 | --- | --- | --- | --- | --- |
 | `phospho` | `pandas.DataFrame`, `str`, or `pathlib.Path` | None | Yes | Site-by-sample intensity matrix. Rows are phosphosites and columns are samples. |
-| `site_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path` | None | Yes | Row metadata aligned to `phospho.index` at ingestion. `gene_symbol`, `site`, and `site_sequence` are required at the analysis-ready boundary; include protein context such as `protein_id`, `protein_accession`, or `protein_identifier` plus `protein_namespace` so the builder can derive `site_key`. `protein_id` is required for signalome. For site-level scientific workflows, include a localisation-confidence column (default: `localisation_confidence`) and configure explicit localisation policy. |
+| `site_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path` | None | Yes | Row metadata aligned to `phospho.index` at ingestion. The analysis-ready boundary requires `site_key`, `display_id`, `organism`, `protein_namespace`, `protein_identifier`, `gene_symbol`, `site`, and `site_sequence`. Builder input may omit `site_key` only when it includes enough protein context, preferably `protein_identifier` plus `protein_namespace`, to derive it. `protein_id` is additionally required for signalome. For site-level scientific workflows, include a localisation-confidence column (default: `localisation_confidence`) and configure explicit localisation policy. |
 | `sample_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Descriptive/alignment metadata aligned to phospho columns. Required when comparison building uses `sample_metadata_pairs`. It does not automatically define differential-analysis conditions, replicates, batches, or blocks. |
 | `total` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Total-protein matrix used only when total-protein correction is enabled. Columns must align to phospho sample columns. |
 | `organism` | `Organism` or `None` | `None` | No | Species identity for the dataset. Use `Organism.RAT` for the bundled beginner lane. |
@@ -119,6 +121,8 @@ phospho = pd.DataFrame(
 ```
 
 `site_metadata` must align to `phospho.index`.
+This builder example intentionally omits `site_key`; direct
+`AnalysisReadyPhosphoDataset` construction cannot omit it.
 
 ```python
 site_metadata = pd.DataFrame(
@@ -129,8 +133,11 @@ site_metadata = pd.DataFrame(
             "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
             "ATMSGRPRTTSFAESSSPVQQPSAFGQAAAL",
         ],
+        "display_id": ["TSC2;S939;", "GSK3B;S9;"],
+        "organism": ["rat", "rat"],
+        "protein_namespace": ["protein_id", "protein_id"],
+        "protein_identifier": ["TSC2", "GSK3B"],
         "protein_id": ["TSC2", "GSK3B"],
-        "protein_accession": ["TSC2-1", "GSK3B-1"],
         "localisation_confidence": [0.95, 0.92],
     },
     index=phospho.index.copy(),
@@ -143,6 +150,10 @@ The built dataset will be indexed by `site_key`:
 assert dataset.phospho.index.name == "site_key"
 assert dataset.site_metadata.index.name == "site_key"
 assert dataset.site_metadata["display_id"].tolist() == ["TSC2;S939;", "GSK3B;S9;"]
+assert dataset.site_metadata["site_key"].tolist() == dataset.phospho.index.tolist()
+assert {"organism", "protein_namespace", "protein_identifier"}.issubset(
+    dataset.site_metadata.columns
+)
 ```
 
 Supported site-metadata aliases are deliberately narrow:
@@ -151,11 +162,13 @@ Supported site-metadata aliases are deliberately narrow:
 - `centralized_sequence` may stand in for `site_sequence`.
 
 The builder may derive `gene_symbol` and `site` from index values formatted like
-`MAPK14;Y182;`. It does not derive `protein_id` from the gene-symbol prefix.
+`MAPK14;Y182;`. It does not derive `protein_id` or any protein-scoped identity
+from the gene-symbol prefix.
 
 Protein context is used to derive `site_key` when it is available and safe.
 `display_id` remains metadata and may repeat after `site_key` becomes the row
-identity.
+identity. If direct construction is used instead of the builder, the caller must
+provide matching `site_key` indexes and all required identity metadata up front.
 
 ## Preprocessing Configuration
 
@@ -539,6 +552,10 @@ site_metadata = pd.DataFrame(
             "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
             "ATMSGRPRTTSFAESSSPVQQPSAFGQAAAL",
         ],
+        "display_id": ["TSC2;S939;", "GSK3B;S9;"],
+        "organism": ["rat", "rat"],
+        "protein_namespace": ["protein_id", "protein_id"],
+        "protein_identifier": ["TSC2", "GSK3B"],
         "protein_id": ["TSC2", "GSK3B"],
         "localisation_confidence": [0.95, 0.92],
     },

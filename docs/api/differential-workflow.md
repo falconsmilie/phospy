@@ -240,8 +240,11 @@ site_metadata = pd.DataFrame(
             "MPRKSLVGTPYWMNQYAVNQKQTLRDLKQEN",
             "ATMSGRPRTTSFAESSKPVQQPSAFGQAAAL",
         ],
+        "display_id": ["MAPK14;Y182;", "GSK3B;S9;"],
+        "organism": ["rat", "rat"],
+        "protein_namespace": ["protein_id", "protein_id"],
+        "protein_identifier": ["MAPK14", "GSK3B"],
         "protein_id": ["MAPK14", "GSK3B"],
-        "protein_accession": ["MAPK14-1", "GSK3B-1"],
         "localisation_confidence": [0.95, 0.92],
     },
     index=phospho.index.copy(),
@@ -311,7 +314,16 @@ result = DifferentialAnalysisWorkflow().run(
 
 print(
     dataset.site_metadata.loc[
-        :, ["site_key", "display_id", "gene_symbol", "site", "protein_id"]
+        :,
+        [
+            "site_key",
+            "display_id",
+            "gene_symbol",
+            "site",
+            "protein_namespace",
+            "protein_identifier",
+            "protein_id",
+        ],
     ]
 )
 print(result.table_for("treatment_vs_control").loc[:, ["logFC", "adj.P.Val"]])
