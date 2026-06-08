@@ -123,7 +123,7 @@ Workflow validators must compose shared identity validation through
 | --- | --- | --- | --- | --- |
 | Differential | `site_key_identity_minimum` | Analysis-ready `site_key` row identity plus `display_id` metadata | Collision checks for unsafe builder-input duplicates when duplicate display labels are present | A one-to-one display-label model |
 | Kinase | `sty_site_identity_plus_sequence_context` | Differential minimum | Strict site-token parsing (`S/T/Y<position>` unless opaque waiver), centred sequence context | Treating reference display IDs as analysis-ready row identity |
-| Signalome | `protein_scoped_site_identity` | Kinase minimum | Explicit non-empty `protein_id` per retained site | Inference of protein identity from display IDs |
+| Signalome | `protein_scoped_site_identity` | Kinase minimum | Explicit non-empty signalome protein grouping metadata in `protein_id` per retained site | Inference of protein identity or grouping metadata from display IDs |
 
 Reference-organism compatibility remains enforced at the workflow runtime
 reference-resolution boundary (`ReferenceCompatibilityValidator` via kinase

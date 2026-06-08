@@ -17,7 +17,9 @@ include non-empty `gene_symbol`, `site`, and `site_sequence` columns at the
 analysis-ready boundary, plus auditable protein context (`organism`,
 `protein_namespace`, and `protein_identifier`). `site_sequence` may be omitted
 at ingestion only when preprocessing can derive it before final dataset
-construction. `protein_id` is optional for kinase but required for signalome.
+construction. `protein_id` is not part of dataset row identity; it is optional
+at the analysis-ready dataset boundary and required by signalome only as
+algorithm-specific protein grouping metadata.
 
 `sample_metadata`, when provided, must align to the phospho sample columns.
 
@@ -35,11 +37,11 @@ Accepted column aliases are narrow:
 
 If `gene_symbol` or `site` is missing, the builder can derive them from an
 input index like `TSC2;S939;`. It does not derive `protein_id` from the
-gene-symbol prefix, and it does not treat the display prefix as protein
-context. Builder ingestion may accept legacy display-indexed input only when
-enough protein context exists to derive `site_key`. Direct analysis-ready
-construction must provide `site_key`; it does not silently fall back to
-`GENE;SITE;` display labels.
+gene-symbol prefix, and it does not treat the display prefix as protein context
+or signalome grouping metadata. Builder ingestion may accept legacy
+display-indexed input only when enough protein context exists to derive
+`site_key`. Direct analysis-ready construction must provide `site_key`; it does
+not silently fall back to `GENE;SITE;` display labels.
 
 ## Analysis-Ready Dataset Boundary
 
@@ -57,6 +59,8 @@ A built `AnalysisReadyPhosphoDataset` must have:
   `gene_symbol`, `site`, and `site_sequence`
 - `site_metadata["site_key"]` matching the metadata-derived
   (`organism`, `protein_namespace`, `protein_identifier`, `site`) key
+- optional `protein_id`, which is signalome grouping metadata when signalome is
+  run and is not a replacement for `protein_identifier`
 - `sample_metadata.index` exactly matching `phospho.columns` when provided
 - `total.columns` exactly matching `phospho.columns` when provided
 - an `Organism` enum value or `None`
@@ -132,8 +136,9 @@ Mixed corrected/uncorrected quantitative meaning is rejected by default; set
 ### Signalome Workflow
 
 `SignalomeWorkflowRequest.kinase_result` must be a `KinaseWorkflowResult`.
-Signalome also requires explicit `protein_id` values for every interpreted site.
-Gene-symbol prefixes in display labels are not treated as protein identity.
+Signalome also requires explicit `protein_id` values for every interpreted site
+as signalome-specific protein grouping metadata. Gene-symbol prefixes in display
+labels are not treated as protein grouping metadata or protein identity.
 Signalome aligns dataset, prediction, and score tables by `site_key` and does
 not reinterpret display IDs as row identity.
 Mixed corrected/uncorrected quantitative meaning is rejected by default; set
@@ -156,9 +161,9 @@ shows exact tree-generation details and candidate-scoring details separately.
 | --- | --- |
 | unsupported file format | Use `.csv`, `.tsv`, `.txt`, or `.parquet`; install parquet support for `.parquet`. |
 | missing `gene_symbol` or `site` | Add those columns or, for builder input only, use index labels formatted as `GENE;SITE;` with sufficient protein context. |
-| missing protein-scoped identity metadata | Add non-empty `organism`, `protein_namespace`, and `protein_identifier`, or use a builder-compatible protein-context source that derives them before final construction. |
+| missing protein-scoped identity metadata | Add non-empty `organism`, `protein_namespace`, `protein_identifier`, and `site`, or use a builder-compatible protein-context source that derives them before final construction. |
 | display-indexed direct construction | Construct through the builder with enough protein context, or provide encoded `site_key` indexes and matching `site_metadata.site_key` directly. |
-| signalome protein identity error | Add non-empty `protein_id` for every interpreted site. |
+| signalome protein grouping metadata error | Add non-empty `protein_id` grouping metadata for every interpreted site; do not use `gene_symbol` or `display_id` as a fallback. |
 | reference resolution error | Use rat with `AUTO`, or pass an explicit `ReferenceBundle`. |
 | total-protein correction error | Provide `total`, set `intensity_transform.policy="log2"`, and configure identity mapping. |
 | mixed quantitative meaning rejected | Use `unmatched_policy="error"` or complete total-protein mapping; if mixed inputs are intentional, set the workflow mixed-state opt-in flag. |

@@ -23,13 +23,16 @@ row key (`site_key`) and keeps `display_id` (for example `GENE;SITE;`) as a
 human-readable label. `site_key` is required to be unique, while `display_id`
 may repeat once `site_key` is the row identity. Direct analysis-ready datasets
 must use `site_key` indexes and include auditable protein context metadata
-(`organism`, `protein_namespace`, and `protein_identifier`); they must not
-silently fall back to display-site identity. Builder input may accept legacy
+(`organism`, `protein_namespace`, `protein_identifier`, and `site`); they must
+not silently fall back to display-site identity. Builder input may accept legacy
 display-indexed shape only when enough protein context exists to derive
 `site_key`. Workflows operate on `site_key`, and site-level outputs that
-materialize row identity include both `site_key` and `display_id`. Kinase
-references may use display IDs only through the explicit reference-to-dataset
-mapping layer; references remain reference/display identifiers. See
+materialize row identity include both `site_key` and `display_id`. `display_id`
+is a human-readable label and may repeat. Kinase references may use display IDs
+only through the explicit reference-to-dataset mapping layer; references remain
+reference/display identifiers. Signalome may additionally require
+`site_metadata.protein_id` as algorithm-specific protein grouping metadata; that
+field is not the dataset row identity. See
 [ADR-0024: Protein-Scoped Phosphosite Row Identity](adr/adr_0024_protein_scoped_phosphosite_row_identity.md).
 
 ### Differential Parity Envelope (Current Release)
@@ -81,7 +84,7 @@ claimed.
 | Kinase scoring | `parity-gated` | `KinaseWorkflow` profile/motif scoring and rank-weighted fusion | `tests/parity/test_kinase_workflow_parity.py`, `tests/parity/test_prediction_science_parity.py`, `tests/parity/test_l6_prediction_parity.py` | Relative support scoring only; not calibrated causal inference. |
 | Kinase prediction | `parity-gated` | Deterministic and adaptive kinase prediction in `KinaseWorkflow` | `tests/parity/test_public_predmat_parity.py`, `tests/parity/test_l6_prediction_parity.py`, `tests/parity/test_adaptive_prediction_parity.py`, `tests/parity/test_adaptive_replay_parity.py` | Prediction scores are ranking support, not probabilities. |
 | Kinase activity scoring | `validated PhosPy implementation` | Supported activity methods: `simplified_weighted_substrate_activity_v1` and `ksea_zscore_activity_v1` | Unit activity tests (`tests/unit/test_activity_science.py`) and parity activity gate (`tests/parity/test_activity_stage_parity.py`) | KSEA-style activity is not a claim of full PhosR kinase activity equivalence. |
-| Signalome analysis | `parity-gated` | `SignalomeWorkflow` module assignment, network outputs, and protein-site context | `tests/parity/test_signalome_workflow_parity.py`, `tests/parity/test_signalome_clustering_backend_parity.py` | Derived summaries, not causal proof. Requires explicit `protein_id`. |
+| Signalome analysis | `parity-gated` | `SignalomeWorkflow` module assignment, network outputs, and protein-site context | `tests/parity/test_signalome_workflow_parity.py`, `tests/parity/test_signalome_clustering_backend_parity.py` | Derived summaries, not causal proof. Requires explicit signalome protein grouping metadata in `site_metadata.protein_id`. |
 | Signalome sampled candidate scoring policy | `experimental` | `SignalomeConfig.sampled_candidate_scoring()` approximates candidate module-count scoring | Parity/contract coverage through signalome parity tests and workflow contract checks | Approximation applies to candidate scoring only; tree generation remains exact-policy governed. |
 | Sequence context | `parity-gated` | `site_sequence` required at analysis-ready boundary and used in kinase scoring/prediction | `tests/parity/test_l6_prediction_parity.py`, `tests/parity/test_prediction_science_parity.py` | Sequence quality remains an upstream dependency. |
 | Localisation handling | `validated PhosPy implementation` | Localisation confidence validation and fail-fast threshold policies are supported | `tests/unit/test_localisation_policy_preprocessing.py`, `tests/unit/test_validator_boundaries.py` | No full localisation-filter workflow parity claim in this release. |

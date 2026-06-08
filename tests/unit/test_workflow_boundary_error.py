@@ -245,10 +245,9 @@ def test_signalome_validator_rejects_missing_required_site_metadata_column() -> 
 
     message = str(exc_info.value)
     assert "is missing required columns: protein_id" in message
-    assert (
-        "Signalome execution requires an explicit site_metadata.protein_id column"
-        in message
-    )
+    assert "signalome protein grouping metadata requirement failed" in message
+    assert "dataset.site_metadata.protein_id" in message
+    assert "identity requirement failed" not in message
 
 
 def test_signalome_boundary_rejects_misaligned_prediction_and_scoring_indices() -> None:

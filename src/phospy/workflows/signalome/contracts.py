@@ -62,8 +62,9 @@ class ResolvedSignalomeExecutionConfig:
 class ResolvedSignalomeWorkflowRequest:
     """Interpreter output for signalome workflow execution.
 
-    ``site_to_protein`` must provide a non-empty explicit protein identifier from
-    ``dataset.site_metadata.protein_id`` for every site in ``prediction_matrix.index``.
+    ``site_to_protein`` must provide a non-empty signalome protein grouping
+    label from ``dataset.site_metadata.protein_id`` for every site in
+    ``prediction_matrix.index``.
     ``downstream_score_matrix`` is the same authoritative matrix lane that drove
     upstream kinase prediction, after interpreter preconditioning of unsupported
     all-missing score rows. ``score_preconditioning_diagnostics`` surfaces the

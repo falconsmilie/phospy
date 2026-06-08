@@ -1236,7 +1236,7 @@ def test_signalome_request_max_exact_clustering_sites_policy_fails_at_boundary()
         SignalomeConfig(max_exact_clustering_sites=0)  # type: ignore[call-arg]
 
 
-def test_signalome_validator_requires_explicit_site_metadata_protein_id_column() -> (
+def test_signalome_validator_requires_signalome_protein_grouping_metadata_column() -> (
     None
 ):
     kinase_result = _kinase_result()
@@ -1260,11 +1260,16 @@ def test_signalome_validator_requires_explicit_site_metadata_protein_id_column()
         config=build_signalome_config(substrate_support_cutoff=0.5),
     )
 
-    with pytest.raises(
-        WorkflowValidationError,
-        match="requires signalome workflow request kinase_result.dataset.site_metadata.protein_id",
-    ):
+    with pytest.raises(WorkflowValidationError) as exc_info:
         SignalomeWorkflowValidator().run(request)
+
+    message = str(exc_info.value)
+    assert "signalome protein grouping metadata requirement failed" in message
+    assert "dataset.site_metadata.protein_id" in message
+    assert "dataset-level protein-scoped row identity" in message
+    assert "gene_symbol" in message
+    assert "display_id" in message
+    assert "identity requirement failed" not in message
 
 
 def test_signalome_validator_reports_site_metadata_index_alignment_details() -> None:
@@ -1434,10 +1439,7 @@ def test_signalome_validator_requires_centred_sequence_context(
         SignalomeWorkflowValidator().run(request)
     message = str(exc_info.value)
     assert _site_key("MAPK14;Y182;") in message
-    assert (
-        "Signalome execution requires an explicit site_metadata.protein_id column"
-        in (message)
-    )
+    assert "protein grouping metadata requirement failed" not in message
 
 
 def test_signalome_validator_allows_gapped_flanks_when_centre_is_valid() -> None:
@@ -1694,7 +1696,7 @@ def test_signalome_validator_rejects_missing_site_metadata_protein_values() -> N
     )
     with pytest.raises(
         WorkflowValidationError,
-        match="site_metadata.protein_id to contain non-empty string values",
+        match="signalome protein grouping metadata.*site_metadata.protein_id",
     ):
         SignalomeWorkflowValidator().run(request)
 

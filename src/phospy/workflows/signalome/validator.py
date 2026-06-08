@@ -20,6 +20,7 @@ from phospy.validation.common.dataframes import (
 )
 from phospy.validation.datasets.site_metadata import (
     enforce_localisation_requirement,
+    enforce_required_non_empty_string_column,
 )
 from phospy.validation.workflows.configs import (
     SignalomeConfigValidator,
@@ -30,12 +31,18 @@ from phospy.validation.workflows.identity import (
     enforce_workflow_site_identity_contract,
 )
 
-SIGNALOME_PROTEIN_IDENTITY_CONTRACT_NOTE = (
-    "Signalome execution requires an explicit site_metadata.protein_id column. "
-    "That column must contain explicit non-missing protein_id values for retained sites. "
-    "Base dataset phosphosite identity must already be valid and site_key-indexed before "
-    "signalome validation; signalome does not repair weak dataset identity. "
-    "Gene-symbol site-ID prefixes encode site identity, not protein identity."
+SIGNALOME_PROTEIN_GROUPING_METADATA_NOTE = (
+    "Signalome uses dataset.site_metadata.protein_id as algorithm-specific "
+    "protein grouping metadata. This grouping field is separate from the "
+    "dataset-level protein-scoped row identity contract based on site_key, "
+    "display_id, organism, protein_namespace, protein_identifier, and site. "
+    "Signalome does not infer protein grouping from gene_symbol or display_id "
+    "and does not repair invalid site_key identity."
+)
+
+SIGNALOME_SITE_IDENTITY_CONTRACT_NOTE = (
+    "Base dataset phosphosite identity must already be valid and site_key-indexed "
+    "before signalome validation; signalome does not repair weak dataset identity."
 )
 
 
@@ -167,7 +174,7 @@ class SignalomeWorkflowValidator:
             raise WorkflowValidationError(
                 f"{score_field_name} must contain at least one kinase column"
             )
-        self._require_explicit_site_metadata_protein_identity(
+        self._require_site_identity_and_protein_grouping_metadata(
             site_metadata=dataset._borrow_site_metadata_frame(),
             dataset_sites=dataset._borrow_phospho_frame().index,
             prediction_sites=prediction_matrix.index,
@@ -179,7 +186,7 @@ class SignalomeWorkflowValidator:
         return request
 
     @staticmethod
-    def _require_explicit_site_metadata_protein_identity(
+    def _require_site_identity_and_protein_grouping_metadata(
         *,
         site_metadata: object,
         dataset_sites: pd.Index,
@@ -208,17 +215,21 @@ class SignalomeWorkflowValidator:
                 error_type=WorkflowValidationError,
                 allow_opaque_site_values=allow_opaque_site_values,
             )
-            enforce_localisation_requirement(
-                site_metadata=site_metadata_frame,
-                field_name=field_name,
-                workflow_name="signalome workflow request",
-                requirement=localisation_requirement,
-                error_type=WorkflowValidationError,
-            )
         except WorkflowValidationError as exc:
             raise WorkflowValidationError(
-                f"{exc}. {SIGNALOME_PROTEIN_IDENTITY_CONTRACT_NOTE}"
+                f"{exc}. {SIGNALOME_SITE_IDENTITY_CONTRACT_NOTE}"
             ) from exc
+        enforce_localisation_requirement(
+            site_metadata=site_metadata_frame,
+            field_name=field_name,
+            workflow_name="signalome workflow request",
+            requirement=localisation_requirement,
+            error_type=WorkflowValidationError,
+        )
+        SignalomeWorkflowValidator._require_signalome_protein_grouping_metadata(
+            site_metadata=site_metadata_frame,
+            field_name=field_name,
+        )
         require_exact_index_match(
             left=prediction_sites,
             right=site_metadata_frame.index,
@@ -236,3 +247,23 @@ class SignalomeWorkflowValidator:
             right_name=f"{field_name}.index",
             error_type=WorkflowValidationError,
         )
+
+    @staticmethod
+    def _require_signalome_protein_grouping_metadata(
+        *,
+        site_metadata: pd.DataFrame,
+        field_name: str,
+    ) -> None:
+        try:
+            enforce_required_non_empty_string_column(
+                site_metadata=site_metadata,
+                field_name=field_name,
+                workflow_name="signalome protein grouping metadata",
+                column_name="protein_id",
+                error_type=WorkflowValidationError,
+            )
+        except WorkflowValidationError as exc:
+            raise WorkflowValidationError(
+                "signalome protein grouping metadata requirement failed: "
+                f"{exc}. {SIGNALOME_PROTEIN_GROUPING_METADATA_NOTE}"
+            ) from exc

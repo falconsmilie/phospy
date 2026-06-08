@@ -28,7 +28,7 @@ def test_workflow_validators_compose_shared_site_identity_validator() -> None:
     differential_source = inspect.getsource(DifferentialAnalysisValidator.run)
     kinase_source = inspect.getsource(KinaseWorkflowValidator.run)
     signalome_source = inspect.getsource(
-        SignalomeWorkflowValidator._require_explicit_site_metadata_protein_identity
+        SignalomeWorkflowValidator._require_site_identity_and_protein_grouping_metadata
     )
 
     assert "build_phosphosite_identity(" in shared_source
@@ -36,6 +36,7 @@ def test_workflow_validators_compose_shared_site_identity_validator() -> None:
     assert "enforce_site_key_column(" in site_key_alignment_source
     assert "enforce_analysis_ready_site_key_index(" in workflow_shared_source
     assert "enforce_site_key_column_matches_index(" in workflow_shared_source
+    assert "enforce_site_key_matches_metadata(" in workflow_shared_source
     assert "enforce_display_id_column(" in workflow_shared_source
     assert "require_exact_index_match(" in workflow_shared_source
     assert "enforce_site_identity_rows(" not in workflow_shared_source
@@ -61,7 +62,7 @@ def test_sequence_aware_workflow_validators_compose_shared_centred_context_valid
     )
     kinase_source = inspect.getsource(KinaseWorkflowValidator.run)
     signalome_source = inspect.getsource(
-        SignalomeWorkflowValidator._require_explicit_site_metadata_protein_identity
+        SignalomeWorkflowValidator._require_site_identity_and_protein_grouping_metadata
     )
 
     assert "site_sequence_column" in shared_source

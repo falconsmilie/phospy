@@ -13,7 +13,7 @@ from phospy.workflows.signalome.constants import (
 
 
 class SignalomeProteinResolver:
-    """Resolve retained site IDs to explicit dataset protein IDs."""
+    """Resolve retained sites to signalome protein grouping labels."""
 
     _PROTEIN_COLUMN = "protein_id"
 
@@ -29,9 +29,9 @@ class SignalomeProteinResolver:
             raise_signalome_boundary_error(
                 seam=SIGNALOME_INTERPRETER_PROTEIN_MAPPING_SEAM,
                 next_action=(
-                    "populate dataset.site_metadata.protein_id with explicit protein "
-                    "identifiers for retained signalome sites after score "
-                    "preconditioning"
+                    "populate signalome protein grouping metadata in "
+                    "dataset.site_metadata.protein_id for retained signalome sites "
+                    "after score preconditioning"
                 ),
                 protein_resolution_source=SIGNALOME_PROTEIN_RESOLUTION_SOURCE_SITE_METADATA,
                 interpreted_sites=int(site_index.size),
@@ -76,9 +76,9 @@ class SignalomeProteinResolver:
             raise_signalome_boundary_error(
                 seam=SIGNALOME_INTERPRETER_PROTEIN_MAPPING_SEAM,
                 next_action=(
-                    "populate dataset.site_metadata.protein_id with explicit protein "
-                    "identifiers for retained signalome sites after score "
-                    "preconditioning"
+                    "populate signalome protein grouping metadata in "
+                    "dataset.site_metadata.protein_id for retained signalome sites "
+                    "after score preconditioning"
                 ),
                 protein_resolution_source=SIGNALOME_PROTEIN_RESOLUTION_SOURCE_SITE_METADATA,
                 interpreted_sites=int(site_index.size),

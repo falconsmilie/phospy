@@ -8,15 +8,18 @@ from typing import TypeVar
 import pandas as pd
 
 from phospy.errors.base import PhosPyError
-from phospy.validation.common.dataframes import require_exact_index_match
+from phospy.validation.common.dataframes import (
+    require_columns,
+    require_exact_index_match,
+)
 from phospy.validation.datasets.protein_scoped_site_identity import (
     enforce_analysis_ready_site_key_index,
     enforce_display_id_column,
     enforce_site_key_column_matches_index,
+    enforce_site_key_matches_metadata,
 )
 from phospy.validation.datasets.site_metadata import (
     enforce_centred_site_sequence_context,
-    enforce_required_non_empty_string_column,
 )
 
 ErrorType = TypeVar("ErrorType", bound=PhosPyError)
@@ -28,6 +31,8 @@ class WorkflowIdentityContract:
 
     workflow_name: str
     contract_id: str
+    # Requires dataset-level protein-scoped row identity metadata, not the
+    # signalome-only site_metadata.protein_id grouping column.
     require_protein_identity: bool = False
     require_centred_sequence_context: bool = False
     allow_gapped_sequence_context: bool = False
@@ -95,12 +100,22 @@ def enforce_workflow_site_identity_contract(
             error_type=error_type,
         )
         if contract.require_protein_identity:
-            enforce_required_non_empty_string_column(
+            require_columns(
+                site_metadata,
+                field_name=field_name,
+                required_columns=(
+                    "organism",
+                    "protein_namespace",
+                    "protein_identifier",
+                    "site",
+                ),
+                error_type=error_type,
+            )
+            enforce_site_key_matches_metadata(
                 site_metadata=site_metadata,
                 field_name=field_name,
-                workflow_name=contract.workflow_name,
-                column_name="protein_id",
                 error_type=error_type,
+                site_key_column="site_key",
             )
         if contract.require_centred_sequence_context:
             enforce_centred_site_sequence_context(

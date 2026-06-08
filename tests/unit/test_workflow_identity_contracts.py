@@ -383,6 +383,24 @@ def test_workflow_validators_require_site_key_and_display_id_columns(
         run_workflow(dataset)
 
 
+@pytest.mark.parametrize("column_name", ("site_key", "display_id"))
+def test_signalome_site_key_and_display_id_fail_as_identity_contract(
+    column_name: str,
+) -> None:
+    dataset = _kinase_dataset()
+    _drop_site_metadata_column(dataset, column_name)
+
+    with pytest.raises(WorkflowValidationError) as exc_info:
+        _run_signalome_validator(dataset)
+
+    message = str(exc_info.value)
+    assert (
+        "identity requirement failed (contract=protein_scoped_site_identity)" in message
+    )
+    assert f"missing required columns: {column_name}" in message
+    assert "protein grouping metadata requirement failed" not in message
+
+
 @pytest.mark.parametrize(
     ("workflow_name", "run_workflow", "dataset_factory"),
     _workflow_cases(),
@@ -463,22 +481,30 @@ def test_differential_identity_contract_rejects_opaque_sites_even_with_explicit_
         _differential_dataset(allow_opaque_site_values=True)
 
 
-def test_signalome_identity_contract_rejects_missing_protein_identity() -> None:
-    dataset = _kinase_dataset()
-    object.__setattr__(
-        dataset,
-        "_site_metadata",
-        dataset._site_metadata.drop(columns=["protein_id"]),
+def test_signalome_validator_requires_signalome_protein_grouping_metadata() -> None:
+    source = _kinase_dataset()
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=source.phospho,
+        site_metadata=source.site_metadata.drop(columns=["protein_id"]),
+        sample_metadata=source.sample_metadata,
+        total=source.total,
+        organism=source.organism,
+        intensity_scale_state=source.intensity_scale_state,
+        processing_state=source.processing_state,
     )
     request = _signalome_request(dataset=dataset)
 
-    with pytest.raises(
-        WorkflowValidationError,
-        match=(
-            "identity requirement failed \\(contract=protein_scoped_site_identity\\)"
-        ),
-    ):
+    assert "protein_id" not in dataset.site_metadata.columns
+    with pytest.raises(WorkflowValidationError) as exc_info:
         SignalomeWorkflowValidator().run(request)
+
+    message = str(exc_info.value)
+    assert "signalome protein grouping metadata requirement failed" in message
+    assert "protein grouping metadata" in message
+    assert "dataset.site_metadata.protein_id" in message
+    assert "gene_symbol" in message
+    assert "display_id" in message
+    assert "identity requirement failed" not in message
 
 
 def test_kinase_workflow_rejects_reference_organism_mismatch_where_applicable() -> None:

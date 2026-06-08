@@ -7,7 +7,7 @@ has produced a `KinaseWorkflowResult`.
 
 `SignalomeWorkflow` interprets kinase score profiles into module assignments,
 signalome module summaries, kinase networks, and protein-site context tables.
-It requires explicit protein identity for interpreted sites.
+It requires explicit signalome protein grouping metadata for interpreted sites.
 
 ```python
 signalome_result = SignalomeWorkflow().run(
@@ -46,8 +46,11 @@ this upstream dataset-localisation policy is already in place.
 
 `SignalomeWorkflow` operates on the shared intersection of `site_key` values
 from the upstream dataset, prediction matrix, and downstream score matrix.
-`display_id` remains display metadata and may repeat. The upstream kinase result
-must already carry a valid `site_key`-indexed `AnalysisReadyPhosphoDataset`;
+`site_key` is the analysis-ready phosphosite row identity and is validated from
+protein-scoped context metadata: `organism`, `protein_namespace`,
+`protein_identifier`, and `site`. `display_id` is human-readable metadata and
+may repeat when `site_key` values differ. The upstream kinase result must
+already carry a valid `site_key`-indexed `AnalysisReadyPhosphoDataset`;
 signalome does not reinterpret display IDs as row identity.
 
 ## Imports
@@ -69,7 +72,7 @@ from phospy.api import (
 
 | Parameter | Type | Default | Required | How to Use It |
 | --- | --- | --- | --- | --- |
-| `kinase_result` | `KinaseWorkflowResult` | None | Yes | Result returned by `KinaseWorkflow.run(...)`. Its dataset must include explicit, non-empty `site_metadata.protein_id` for all interpreted sites. |
+| `kinase_result` | `KinaseWorkflowResult` | None | Yes | Result returned by `KinaseWorkflow.run(...)`. Its dataset must have valid `site_key` row identity and explicit, non-empty signalome grouping metadata in `site_metadata.protein_id` for all interpreted sites. |
 | `config` | `SignalomeConfig` | `SignalomeConfig()` | No | Grouped signalome settings for scientific interpretation, clustering, validation, output, and scale guardrails. |
 
 Minimal call:
@@ -91,19 +94,22 @@ result = SignalomeWorkflow().run(
 )
 ```
 
-## Protein Identity Requirement
+## Protein Grouping Metadata
 
 Signalome requires explicit, non-empty `dataset.site_metadata.protein_id` for all
-interpreted sites. The gene-symbol prefix in a display label such as
-`TSC2;S939;` is not treated as a protein-identity fallback. This signalome
-protein-ID requirement is separate from the base analysis-ready `site_key`
-contract, which already requires `organism`, `protein_namespace`, and
-`protein_identifier` metadata.
+interpreted sites as algorithm-specific protein grouping metadata. The
+gene-symbol prefix in a display label such as `TSC2;S939;` is not treated as a
+protein-grouping fallback. This signalome grouping requirement is separate from
+the analysis-ready `site_key` row identity contract, which already requires
+`display_id`, `organism`, `protein_namespace`, `protein_identifier`, and `site`
+metadata. Signalome does not repair invalid `site_key` identity.
 
 ```python
 protein_ids = kinase_result.dataset.site_metadata["protein_id"]
 if not protein_ids.astype("string").str.strip().ne("").all():
-    raise ValueError("Signalome requires protein_id for every interpreted site.")
+    raise ValueError(
+        "Signalome requires protein_id grouping metadata for every interpreted site."
+    )
 ```
 
 ## Signalome Configuration
