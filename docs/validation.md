@@ -18,8 +18,10 @@ analysis-ready boundary, plus auditable protein context (`organism`,
 `protein_namespace`, and `protein_identifier`). `site_sequence` may be omitted
 at ingestion only when preprocessing can derive it before final dataset
 construction. `protein_id` is not part of dataset row identity; it is optional
-at the analysis-ready dataset boundary and required by signalome only as
-algorithm-specific protein grouping metadata.
+at the analysis-ready dataset boundary, may be absent, and may contain missing
+or blank values until a workflow explicitly requires it. Signalome is the
+workflow that requires complete `protein_id` values as algorithm-specific
+protein grouping metadata.
 
 `sample_metadata`, when provided, must align to the phospho sample columns.
 
@@ -60,7 +62,8 @@ A built `AnalysisReadyPhosphoDataset` must have:
 - `site_metadata["site_key"]` matching the metadata-derived
   (`organism`, `protein_namespace`, `protein_identifier`, `site`) key
 - optional `protein_id`, which is signalome grouping metadata when signalome is
-  run and is not a replacement for `protein_identifier`
+  run, may be incomplete at the dataset boundary, and is not a replacement for
+  `protein_identifier` or `site_key`
 - `sample_metadata.index` exactly matching `phospho.columns` when provided
 - `total.columns` exactly matching `phospho.columns` when provided
 - an `Organism` enum value or `None`
@@ -153,9 +156,10 @@ Mixed corrected/uncorrected quantitative meaning is rejected by default; set
 ### Signalome Workflow
 
 `SignalomeWorkflowRequest.kinase_result` must be a `KinaseWorkflowResult`.
-Signalome also requires explicit `protein_id` values for every interpreted site
-as signalome-specific protein grouping metadata. Gene-symbol prefixes in display
-labels are not treated as protein grouping metadata or protein identity.
+Signalome also requires explicit, non-empty `protein_id` values for every
+interpreted site as signalome-specific protein grouping metadata. Gene-symbol
+prefixes in display labels are not treated as protein grouping metadata or
+protein identity.
 Signalome aligns dataset, prediction, and score tables by `site_key` and does
 not reinterpret display IDs as row identity.
 Mixed corrected/uncorrected quantitative meaning is rejected by default; set

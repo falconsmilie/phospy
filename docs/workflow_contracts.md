@@ -46,6 +46,9 @@ identical numeric outputs across different machines or dependency builds.
   `site_key` indexes and required identity metadata: `site_key`, `display_id`,
   `organism`, `protein_namespace`, `protein_identifier`, `gene_symbol`, `site`,
   and `site_sequence`.
+- `protein_id` is not part of the base analysis-ready row identity contract.
+  Analysis-ready datasets may carry it as optional workflow/source metadata, and
+  it may be absent or incomplete until a workflow such as signalome requires it.
 - `sample_metadata.index` and `total` sample index must match `phospho.columns` when provided.
 - If site-matrix construction is enabled, `site_metadata` must provide the required site-identity fields.
 
@@ -109,16 +112,16 @@ identical numeric outputs across different machines or dependency builds.
 
 - This workflow does not infer kinase activity or signalome structure.
 - Protein identity is not derived automatically from display labels; provide
-  protein context for `site_key` derivation and explicit `protein_id` for
-  downstream signalome analysis.
+  protein context for `site_key` derivation and explicit, complete `protein_id`
+  only for downstream signalome analysis.
 
 ### Expected Output Tables
 
 - `dataset.phospho` indexed by `site_key`
 - `dataset.site_metadata` indexed by `site_key`, with `site_key`, `display_id`,
   `organism`, `protein_namespace`, `protein_identifier`, `gene_symbol`, `site`,
-  `site_sequence`, and any workflow-specific protein-context columns such as
-  `protein_id`
+  `site_sequence`, and optional workflow/source metadata such as `protein_id`.
+  `protein_id` is signalome grouping metadata, not a `site_key` identity field.
 - optional `dataset.sample_metadata`, `dataset.total`, `dataset.comparisons`
 - optional preprocessing report tables (`row_counts`, `operations`, `row_audit`, and sidecars)
 
@@ -276,7 +279,9 @@ identical numeric outputs across different machines or dependency builds.
 
 - `kinase_result.prediction_result.pred_mat` (non-empty, numeric).
 - Upstream downstream score matrix from kinase scoring (`rank_weighted_fusion_scores` or `profile_scores` fallback).
-- `kinase_result.dataset.site_metadata.protein_id` for retained interpreted sites.
+- Complete `kinase_result.dataset.site_metadata.protein_id` values for retained
+  interpreted sites. This is signalome-specific protein grouping metadata, not
+  base dataset row identity.
 - A valid upstream `AnalysisReadyPhosphoDataset` with `site_key` row identity;
   signalome does not reinterpret display IDs as row identity.
 

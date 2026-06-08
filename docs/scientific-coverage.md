@@ -37,9 +37,11 @@ preserve available protein context such as `organism`, `protein_namespace`,
 display-indexed, display-keyed, arbitrary-keyed, or stat-only public result
 tables. Kinase references may use display IDs only through the explicit
 reference-to-dataset mapping layer; references remain reference/display
-identifiers. Signalome may additionally require `site_metadata.protein_id` as
+identifiers. Analysis-ready datasets may carry `site_metadata.protein_id` as
+optional metadata, and it may be absent or incomplete at the base dataset
+boundary. Signalome requires complete `site_metadata.protein_id` values as
 algorithm-specific protein grouping metadata; that field is not the dataset row
-identity. See
+identity and is not encoded in `site_key`. See
 [ADR-0024: Protein-Scoped Phosphosite Row Identity](adr/adr_0024_protein_scoped_phosphosite_row_identity.md).
 
 ### Differential Parity Envelope (Current Release)

@@ -32,7 +32,6 @@ from phospy.api.requests import (
 )
 from phospy.api.results import KinaseWorkflowResult
 from phospy.errors import (
-    DatasetValidationError,
     PhosPyInputError,
     PhosPyValidationError,
     ReferenceCompatibilityError,
@@ -1236,6 +1235,20 @@ def test_signalome_request_max_exact_clustering_sites_policy_fails_at_boundary()
         SignalomeConfig(max_exact_clustering_sites=0)  # type: ignore[call-arg]
 
 
+def test_signalome_validator_accepts_complete_signalome_grouping_metadata() -> None:
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
+    )
+
+    validated = SignalomeWorkflowValidator().run(request)
+
+    assert validated is request
+    assert validated.kinase_result.dataset.site_metadata.loc[
+        :, "protein_id"
+    ].tolist() == ["MAPK14"]
+
+
 def test_signalome_validator_requires_signalome_protein_grouping_metadata_column() -> (
     None
 ):
@@ -1264,6 +1277,7 @@ def test_signalome_validator_requires_signalome_protein_grouping_metadata_column
         SignalomeWorkflowValidator().run(request)
 
     message = str(exc_info.value)
+    assert "Missing signalome protein grouping metadata: protein_id" in message
     assert "signalome protein grouping metadata requirement failed" in message
     assert "dataset.site_metadata.protein_id" in message
     assert "dataset-level protein-scoped row identity" in message
@@ -1304,23 +1318,45 @@ def test_signalome_validator_reports_site_metadata_index_alignment_details() -> 
     assert "First positional mismatch: position 0" in message
 
 
-def test_signalome_validator_rejects_empty_site_metadata_protein_id_values() -> None:
+def _signalome_request_with_site_metadata(
+    site_metadata: pd.DataFrame,
+) -> SignalomeWorkflowRequest:
+    kinase_result = _kinase_result()
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=kinase_result.dataset.phospho,
+        site_metadata=site_metadata,
+        sample_metadata=kinase_result.dataset.sample_metadata,
+        total=kinase_result.dataset.total,
+        organism=kinase_result.dataset.organism,
+        intensity_scale_state=kinase_result.dataset.intensity_scale_state,
+        processing_state=kinase_result.dataset.processing_state,
+    )
+    return SignalomeWorkflowRequest(
+        kinase_result=KinaseWorkflowResult(
+            dataset=dataset,
+            references=kinase_result.references,
+            scoring_result=kinase_result.scoring_result,
+            prediction_result=kinase_result.prediction_result,
+            activity_result=kinase_result.activity_result,
+        ),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
+    )
+
+
+def test_signalome_validator_rejects_blank_site_metadata_protein_id_values() -> None:
     kinase_result = _kinase_result()
     site_metadata = kinase_result.dataset.site_metadata.copy(deep=True)
     site_metadata.loc[:, "protein_id"] = [""]
-    with pytest.raises(
-        DatasetValidationError,
-        match="site_metadata.protein_id must contain non-empty string values",
-    ):
-        AnalysisReadyPhosphoDataset(
-            phospho=kinase_result.dataset.phospho,
-            site_metadata=site_metadata,
-            sample_metadata=kinase_result.dataset.sample_metadata,
-            total=kinase_result.dataset.total,
-            organism=kinase_result.dataset.organism,
-            intensity_scale_state=kinase_result.dataset.intensity_scale_state,
-            processing_state=kinase_result.dataset.processing_state,
-        )
+    request = _signalome_request_with_site_metadata(site_metadata)
+
+    with pytest.raises(WorkflowValidationError) as exc_info:
+        SignalomeWorkflowValidator().run(request)
+
+    message = str(exc_info.value)
+    assert "Missing signalome protein grouping metadata: protein_id" in message
+    assert "dataset.site_metadata.protein_id" in message
+    assert "non-empty string values" in message
+    assert "identity requirement failed" not in message
 
 
 def test_signalome_validator_rejects_non_string_site_metadata_protein_id_values() -> (
@@ -1330,19 +1366,16 @@ def test_signalome_validator_rejects_non_string_site_metadata_protein_id_values(
     site_metadata = kinase_result.dataset.site_metadata.copy(deep=True)
     site_metadata = site_metadata.astype({"protein_id": object})
     site_metadata.loc[:, "protein_id"] = [123]  # type: ignore[list-item]
-    with pytest.raises(
-        DatasetValidationError,
-        match="site_metadata.protein_id must contain non-empty string values",
-    ):
-        AnalysisReadyPhosphoDataset(
-            phospho=kinase_result.dataset.phospho,
-            site_metadata=site_metadata,
-            sample_metadata=kinase_result.dataset.sample_metadata,
-            total=kinase_result.dataset.total,
-            organism=kinase_result.dataset.organism,
-            intensity_scale_state=kinase_result.dataset.intensity_scale_state,
-            processing_state=kinase_result.dataset.processing_state,
-        )
+    request = _signalome_request_with_site_metadata(site_metadata)
+
+    with pytest.raises(WorkflowValidationError) as exc_info:
+        SignalomeWorkflowValidator().run(request)
+
+    message = str(exc_info.value)
+    assert "Missing signalome protein grouping metadata: protein_id" in message
+    assert "dataset.site_metadata.protein_id" in message
+    assert "non-empty string values" in message
+    assert "identity requirement failed" not in message
 
 
 def test_signalome_validator_can_require_localisation_probability_presence() -> None:
@@ -1694,11 +1727,14 @@ def test_signalome_validator_rejects_missing_site_metadata_protein_values() -> N
         kinase_result=kinase_result,
         config=build_signalome_config(substrate_support_cutoff=0.5),
     )
-    with pytest.raises(
-        WorkflowValidationError,
-        match="signalome protein grouping metadata.*site_metadata.protein_id",
-    ):
+    with pytest.raises(WorkflowValidationError) as exc_info:
         SignalomeWorkflowValidator().run(request)
+
+    message = str(exc_info.value)
+    assert "Missing signalome protein grouping metadata: protein_id" in message
+    assert "dataset.site_metadata.protein_id" in message
+    assert "non-empty string values" in message
+    assert "identity requirement failed" not in message
 
 
 def test_signalome_validator_prefers_rank_weighted_fusion_scores_when_available() -> (

@@ -35,7 +35,8 @@ SIGNALOME_PROTEIN_GROUPING_METADATA_NOTE = (
     "Signalome uses dataset.site_metadata.protein_id as algorithm-specific "
     "protein grouping metadata. This grouping field is separate from the "
     "dataset-level protein-scoped row identity contract based on site_key, "
-    "display_id, organism, protein_namespace, protein_identifier, and site. "
+    "display_id, organism, protein_namespace, protein_identifier, gene_symbol, "
+    "site, and site_sequence where required. "
     "Signalome does not infer protein grouping from gene_symbol or display_id "
     "and does not repair invalid site_key identity."
 )
@@ -264,6 +265,7 @@ class SignalomeWorkflowValidator:
             )
         except WorkflowValidationError as exc:
             raise WorkflowValidationError(
+                "Missing signalome protein grouping metadata: protein_id; "
                 "signalome protein grouping metadata requirement failed: "
                 f"{exc}. {SIGNALOME_PROTEIN_GROUPING_METADATA_NOTE}"
             ) from exc

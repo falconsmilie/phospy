@@ -110,6 +110,34 @@ def test_model_boundary_validator_accepts_valid_payload() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    ("protein_id_values", "expected_present"),
+    [
+        pytest.param(None, False, id="absent"),
+        pytest.param(["MAPK14", "AKT1"], True, id="complete"),
+        pytest.param(["MAPK14", pd.NA], True, id="partially-missing"),
+        pytest.param(["", "  "], True, id="blank"),
+    ],
+)
+def test_model_boundary_validator_treats_protein_id_as_optional_signalome_metadata(
+    protein_id_values: list[object] | None,
+    expected_present: bool,
+) -> None:
+    payload = _valid_payload()
+    site_metadata = payload["site_metadata"].copy(deep=True)
+    if protein_id_values is None:
+        site_metadata = site_metadata.drop(columns=["protein_id"])
+    else:
+        site_metadata.loc[:, "protein_id"] = protein_id_values
+    payload["site_metadata"] = site_metadata
+
+    constructed = AnalysisReadyPhosphoDataset(**payload)
+    validated = _BOUNDARY_VALIDATOR.run(**payload)
+
+    assert ("protein_id" in constructed.site_metadata.columns) is expected_present
+    assert ("protein_id" in validated.site_metadata.columns) is expected_present
+
+
 def test_model_boundary_validator_rejects_display_indexed_direct_constructor_payload() -> (
     None
 ):

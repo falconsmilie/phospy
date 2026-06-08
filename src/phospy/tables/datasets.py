@@ -197,13 +197,6 @@ class SiteMetadataTable(TableSchema):
             error_type=self._error_type,
             column_name="site_sequence",
         )
-        if "protein_id" in frame.columns:
-            require_non_empty_string_column(
-                frame,
-                field_name=self._field_name,
-                column_name="protein_id",
-                error_type=self._error_type,
-            )
         validate_localisation_probability_column(
             site_metadata=frame,
             field_name=self._field_name,
@@ -216,8 +209,9 @@ class SiteMetadataTable(TableSchema):
             error_type=self._error_type,
             column_name="localisation_confidence",
         )
+        base_identity_frame = _drop_signalome_grouping_metadata(frame)
         validate_site_identity_metadata(
-            site_metadata=frame,
+            site_metadata=base_identity_frame,
             field_name=self._field_name,
             error_type=self._error_type,
             allow_opaque_site_values=self.allow_opaque_site_values,
@@ -346,7 +340,7 @@ def _display_ids_are_canonical(frame: pd.DataFrame) -> bool:
 
 
 def _build_identity_coherence_frame(frame: pd.DataFrame) -> pd.DataFrame:
-    identity_frame = frame.copy(deep=False)
+    identity_frame = _drop_signalome_grouping_metadata(frame)
     if "display_id" not in identity_frame.columns:
         return identity_frame
     if _display_ids_are_canonical(identity_frame):
@@ -376,3 +370,7 @@ def _build_identity_coherence_frame(frame: pd.DataFrame) -> pd.DataFrame:
     except DatasetValidationError:
         without_display = identity_frame.copy(deep=False)
         return without_display.drop(columns=["display_id"], errors="ignore")
+
+
+def _drop_signalome_grouping_metadata(frame: pd.DataFrame) -> pd.DataFrame:
+    return frame.drop(columns=["protein_id"], errors="ignore")
