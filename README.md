@@ -178,6 +178,13 @@ if kinase_result.prediction_result.substrate_list is not None:
     print(kinase_result.prediction_result.substrate_list.head(5))
 ```
 
+Differential result tables use strict protein-scoped identity. Public
+`DifferentialAnalysisResult` tables must be indexed by encoded `site_key` values
+and include `site_key`, `display_id`, `gene_symbol`, and `site`. Workflow-created
+results preserve available protein context such as `organism`,
+`protein_namespace`, `protein_identifier`, and `protein_id`. Display-indexed or
+stat-only result tables are not valid public inputs.
+
 ## Import Contract
 
 Use top-level `phospy` for the five main entrypoints:

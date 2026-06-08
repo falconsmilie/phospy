@@ -294,6 +294,11 @@ def _stat_only_display_table() -> pd.DataFrame:
     )
 
 
+def _stat_only_site_key_table() -> pd.DataFrame:
+    strict_table = _strict_result_table()
+    return strict_table.loc[:, STATISTIC_COLUMNS].copy()
+
+
 def test_direct_result_construction_accepts_site_key_identity_table() -> None:
     result = _manual_result_with_table(_strict_result_table())
     table = result.table_for("B_vs_A")
@@ -306,9 +311,17 @@ def test_direct_result_construction_accepts_site_key_identity_table() -> None:
 def test_direct_result_construction_rejects_display_indexed_stat_only_table() -> None:
     with pytest.raises(
         PhosPyInputError,
-        match="missing required columns: site_key, display_id",
+        match="missing required columns: site_key, display_id, gene_symbol, site",
     ):
         _manual_result_with_table(_stat_only_display_table())
+
+
+def test_direct_result_construction_rejects_site_key_indexed_stat_only_table() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="missing required columns: site_key, display_id, gene_symbol, site",
+    ):
+        _manual_result_with_table(_stat_only_site_key_table())
 
 
 def test_direct_result_construction_rejects_missing_site_key_column() -> None:
@@ -322,6 +335,69 @@ def test_direct_result_construction_rejects_missing_display_id_column() -> None:
     table = _strict_result_table().drop(columns=["display_id"])
 
     with pytest.raises(PhosPyInputError, match="missing required columns: display_id"):
+        _manual_result_with_table(table)
+
+
+def test_direct_result_construction_rejects_missing_gene_symbol_column() -> None:
+    table = _strict_result_table().drop(columns=["gene_symbol"])
+
+    with pytest.raises(PhosPyInputError, match="missing required columns: gene_symbol"):
+        _manual_result_with_table(table)
+
+
+def test_direct_result_construction_rejects_missing_site_column() -> None:
+    table = _strict_result_table().drop(columns=["site"])
+
+    with pytest.raises(PhosPyInputError, match="missing required columns: site"):
+        _manual_result_with_table(table)
+
+
+def test_direct_result_construction_allows_duplicate_display_ids() -> None:
+    table = _strict_result_table()
+    table.loc[:, "display_id"] = "MAPK14;Y182;"
+
+    result = _manual_result_with_table(table)
+    exported = result.table_for("B_vs_A")
+
+    assert exported.loc[:, "display_id"].tolist() == [
+        "MAPK14;Y182;",
+        "MAPK14;Y182;",
+    ]
+    assert exported.loc[:, "site_key"].nunique() == exported.shape[0]
+    assert exported.index.tolist() == table.index.tolist()
+
+
+def test_direct_result_construction_rejects_display_labels_as_site_key_column() -> None:
+    table = _strict_result_table()
+    table.loc[:, "site_key"] = table.loc[:, "display_id"].astype(str).tolist()
+
+    with pytest.raises(PhosPyInputError, match="site_key must exactly match"):
+        _manual_result_with_table(table)
+
+
+def test_direct_result_construction_rejects_arbitrary_site_key_values() -> None:
+    table = _strict_result_table()
+    arbitrary_index = pd.Index(["row-1", "row-2"], name="site_key")
+    table.index = arbitrary_index
+    table.loc[:, "site_key"] = arbitrary_index.tolist()
+
+    with pytest.raises(PhosPyInputError, match="must start with 'phospy:v1'"):
+        _manual_result_with_table(table)
+
+
+def test_direct_result_construction_rejects_duplicate_site_key_rows() -> None:
+    table = _strict_result_table().iloc[[0, 0], :].copy()
+
+    with pytest.raises(PhosPyInputError, match="must be unique"):
+        _manual_result_with_table(table)
+
+
+def test_direct_result_construction_rejects_site_key_index_column_mismatch() -> None:
+    table = _strict_result_table()
+    site_keys = table.index.astype(str).tolist()
+    table.loc[site_keys[0], "site_key"] = site_keys[1]
+
+    with pytest.raises(PhosPyInputError, match="site_key must exactly match"):
         _manual_result_with_table(table)
 
 
@@ -508,18 +584,35 @@ def test_workflow_keeps_duplicate_display_ids_with_distinct_site_keys() -> None:
     assert duplicate_rows.loc[:, "site_key"].tolist() == site_keys[:2]
     assert table.loc[:, "site_key"].nunique() == table.shape[0]
     assert table.index.tolist() == site_keys
+    assert (
+        table.loc[:, "organism"].tolist() == site_metadata.loc[:, "organism"].tolist()
+    )
+    assert (
+        table.loc[:, "protein_namespace"].tolist()
+        == site_metadata.loc[:, "protein_namespace"].tolist()
+    )
+    assert (
+        table.loc[:, "protein_identifier"].tolist()
+        == site_metadata.loc[:, "protein_identifier"].tolist()
+    )
+    assert (
+        table.loc[:, "protein_id"].tolist()
+        == site_metadata.loc[:, "protein_id"].tolist()
+    )
 
 
 def test_identity_required_result_rejects_display_indexed_table() -> None:
-    display_index = pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_key")
+    display_index = pd.Index(["AKT1;T308;", "GSK3B;S9;"], name="site_key")
     site_keys = [
-        _site_key(gene_symbol="MAPK14", site="Y182"),
+        _site_key(gene_symbol="AKT1", site="T308"),
         _site_key(gene_symbol="GSK3B", site="S9"),
     ]
     table = pd.DataFrame(
         {
             "site_key": site_keys,
             "display_id": display_index.astype(str).tolist(),
+            "gene_symbol": ["AKT1", "GSK3B"],
+            "site": ["T308", "S9"],
             "logFC": [1.0, -1.0],
             "t": [2.0, -2.0],
             "P.Value": [0.05, 0.10],

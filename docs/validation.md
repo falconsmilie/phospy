@@ -126,16 +126,17 @@ references are rat-only.
 `DifferentialAnalysisRequest.dataset` must be an
 `AnalysisReadyPhosphoDataset` whose phospho matrix is already indexed by
 `site_key`. Differential result tables are strict public contracts: each
-per-contrast table is indexed by `site_key` and includes non-empty `site_key`
-and `display_id` columns, with `site_key` exactly matching the index. Available
-identity context such as `gene_symbol`, `site`, `organism`,
-`protein_namespace`, `protein_identifier`, and optional protein metadata is
-preserved from dataset `site_metadata`.
+per-contrast table is indexed by encoded protein-scoped `site_key` values and
+includes non-empty `site_key`, `display_id`, `gene_symbol`, and `site` columns,
+with `site_key` exactly matching the index. Workflow-created results preserve
+available protein context from dataset `site_metadata`, including `organism`,
+`protein_namespace`, `protein_identifier`, and optional protein metadata such as
+`protein_id`.
 
-Display-indexed or stat-only differential result tables are invalid in public
-result construction. Result validation does not infer identity from
-`gene_symbol`, `site`, or display labels, and it does not repair missing
-identity columns.
+Display-indexed, `GENE;SITE;`-keyed, arbitrary non-encoded, or stat-only
+differential result tables are invalid in public `DifferentialAnalysisResult`
+construction. Result validation does not infer identity from `gene_symbol`,
+`site`, or display labels, and it does not repair missing identity columns.
 
 ### Kinase Workflow
 

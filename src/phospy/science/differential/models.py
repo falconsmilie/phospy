@@ -570,10 +570,8 @@ class DifferentialAnalysisResult:
     """Differential-analysis output with per-contrast moderated tables.
 
     Public contrast tables are indexed by protein-scoped ``site_key`` values and
-    must include both ``site_key`` and ``display_id`` columns. Setting
-    ``require_identity_columns=False`` is reserved for private, owned
-    construction paths used by the internal computation engine before workflow
-    identity metadata is attached.
+    must include ``site_key``, ``display_id``, ``gene_symbol``, and ``site``
+    columns.
     """
 
     residual_variance: pd.Series
@@ -612,12 +610,12 @@ class DifferentialAnalysisResult:
         policy_provenance: DifferentialPolicyProvenance | None = None,
         workflow_provenance: Mapping[str, object] | None = None,
         input_dataset_preprocessing_report: DatasetPreprocessingReport | None = None,
-        require_identity_columns: bool = True,
+        _require_identity_columns: bool = True,
         _assume_owned: bool = False,
     ) -> None:
-        if not require_identity_columns and not _assume_owned:
+        if not _require_identity_columns and not _assume_owned:
             raise PhosPyInputError(
-                "differential_result.require_identity_columns=False is reserved for "
+                "differential_result._require_identity_columns=False is reserved for "
                 "internal stat-only compatibility construction"
             )
         residual_variance = own_series(
@@ -723,7 +721,7 @@ class DifferentialAnalysisResult:
             _validate_result_table(
                 owned_table,
                 field_name=f"differential_result.contrast_tables[{contrast_name!r}]",
-                require_identity_columns=require_identity_columns,
+                require_identity_columns=_require_identity_columns,
             )
             if not owned_table.index.equals(residual_variance.index):
                 raise PhosPyInputError(
@@ -850,7 +848,7 @@ class DifferentialAnalysisResult:
             contrast_tables=contrast_tables,
             workflow_provenance=workflow_provenance,
             input_dataset_preprocessing_report=input_dataset_preprocessing_report,
-            require_identity_columns=require_identity_columns,
+            _require_identity_columns=require_identity_columns,
             _assume_owned=True,
         )
 
@@ -878,9 +876,9 @@ class DifferentialAnalysisResult:
         """Internal compatibility path for computation-only result tables.
 
         This deliberately allows stat-only contrast tables without
-        ``site_key``/``display_id`` metadata. Workflow result assembly must use
-        ``_from_owned`` or the public constructor so the public identity contract
-        stays strict.
+        ``site_key``/``display_id``/``gene_symbol``/``site`` metadata. Workflow
+        result assembly must use ``_from_owned`` or the public constructor so the
+        public identity contract stays strict.
         """
 
         return cls._from_owned(
@@ -1007,7 +1005,7 @@ def _validate_result_table(
         "site_key" in table.columns or "display_id" in table.columns
     )
     if enforce_identity_columns:
-        identity_required = ("site_key", "display_id")
+        identity_required = ("site_key", "display_id", "gene_symbol", "site")
         missing_identity = [
             column for column in identity_required if column not in table.columns
         ]
@@ -1016,18 +1014,13 @@ def _validate_result_table(
             raise PhosPyInputError(
                 f"{field_name} is missing required columns: {joined}"
             )
-        require_non_empty_string_column(
-            table,
-            field_name=field_name,
-            column_name="site_key",
-            error_type=PhosPyInputError,
-        )
-        require_non_empty_string_column(
-            table,
-            field_name=field_name,
-            column_name="display_id",
-            error_type=PhosPyInputError,
-        )
+        for column_name in identity_required:
+            require_non_empty_string_column(
+                table,
+                field_name=field_name,
+                column_name=column_name,
+                error_type=PhosPyInputError,
+            )
         _validate_site_key_column_matches_index(table=table, field_name=field_name)
     _validate_unit_interval_column(
         table=table,
@@ -1100,7 +1093,7 @@ def _validate_unit_interval_column(
 
 def _export_public_contrast_table(table: pd.DataFrame) -> pd.DataFrame:
     exported = export_dataframe(table)
-    if {"site_key", "display_id"}.issubset(exported.columns):
+    if {"site_key", "display_id", "gene_symbol", "site"}.issubset(exported.columns):
         return exported
     if _index_uses_site_key_identity(exported.index):
         return exported

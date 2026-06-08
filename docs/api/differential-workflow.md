@@ -167,15 +167,19 @@ Common outputs include:
 - `result.mean_variance_trend_diagnostics` (when trend is enabled)
 
 Each contrast result table is indexed by the input `site_key` values. The
-`site_key` column must exactly match the index, and `display_id` remains a
-human-readable label. Repeated `display_id` values remain distinct rows when
-their `site_key` values differ.
+`site_key` column must exactly match the index. The minimum public identity
+columns are `site_key`, `display_id`, `gene_symbol`, and `site`. Workflow-created
+results also preserve available protein context columns from
+`dataset.site_metadata`, such as `organism`, `protein_namespace`,
+`protein_identifier`, and `protein_id`. `display_id` remains a human-readable
+label, and repeated `display_id` values remain distinct rows when their
+`site_key` values differ.
 
 Direct public `DifferentialAnalysisResult` construction follows the same
-identity contract. Display-indexed or stat-only contrast tables are rejected in
-public/strict construction. The internal computation engine may temporarily use
-a private stat-only result constructor before workflow execution attaches
-identity metadata; workflow-created results are always strict.
+identity contract. Display-indexed, stat-only, `GENE;SITE;`-keyed, and
+arbitrary non-encoded contrast tables are rejected in public construction.
+Result validation does not derive `site_key` from `display_id`, infer protein
+identity from `gene_symbol`, or repair weak identity metadata.
 
 ### Statistical Method and Multiple Testing
 

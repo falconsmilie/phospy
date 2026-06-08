@@ -164,6 +164,18 @@ identical numeric outputs across different machines or dependency builds.
 - Moderation changes residual variance estimates, moderated t-statistics, and p-values.
 - Moderation does not alter `logFC`; fold-change estimates remain OLS contrast estimates.
 
+### Expected Output Tables
+
+- Each contrast table is indexed by encoded protein-scoped `site_key`.
+- Each contrast table includes `site_key`, `display_id`, `gene_symbol`, `site`,
+  `logFC`, `t`, `P.Value`, and `adj.P.Val`.
+- `site_key` values in the column exactly match the index.
+- Available protein context from `dataset.site_metadata`, including `organism`,
+  `protein_namespace`, `protein_identifier`, and `protein_id`, is preserved.
+- Duplicate `display_id` values remain distinct rows when `site_key` differs.
+- Display-indexed, `GENE;SITE;`-keyed, arbitrary-keyed, and stat-only public
+  `DifferentialAnalysisResult` tables are invalid.
+
 ### Diagnostics and Provenance
 
 - Result output includes method/trend flags and prior-parameter diagnostics.

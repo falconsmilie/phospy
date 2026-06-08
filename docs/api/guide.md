@@ -127,7 +127,14 @@ sufficient to derive `site_key`. See
 [ADR-0024](../adr/adr_0024_protein_scoped_phosphosite_row_identity.md).
 
 Workflows operate on `site_key`. User-facing site-level outputs that materialize
-row identity include both `site_key` and `display_id`.
+row identity include both `site_key` and `display_id`. Differential result
+tables are stricter public scientific outputs: direct
+`DifferentialAnalysisResult` construction requires encoded `site_key` indexes
+and non-empty `site_key`, `display_id`, `gene_symbol`, and `site` columns.
+Workflow-created differential results preserve available protein context such as
+`organism`, `protein_namespace`, `protein_identifier`, and `protein_id`.
+Display-indexed or stat-only differential result tables are not valid public
+inputs.
 
 For concise scientist facing assumptions and interpretation notes, see
 [Workflow Contracts](../workflow_contracts.md).
