@@ -75,13 +75,18 @@ def _canonical_site_id(raw_site_id: str, *, ordinal: int) -> str:
     return f"SITE{ordinal};S{ordinal};"
 
 
-def _site_key(*, gene_symbol: str, site: str) -> str:
+def _site_key(
+    *,
+    gene_symbol: str,
+    site: str,
+    protein_identifier: str | None = None,
+) -> str:
     residue = site.strip().upper()[0]
     position = int(site.strip()[1:])
     key = build_protein_scoped_site_key(
         organism="rat",
         protein_namespace="protein_id",
-        protein_identifier=gene_symbol,
+        protein_identifier=protein_identifier or gene_symbol,
         residue=residue,
         position=position,
         field_name="tests.unit.test_differential_result_contract.site_key",
@@ -213,41 +218,122 @@ def _prior_diagnostics(index: pd.Index) -> EmpiricalBayesPriorDiagnostics:
 def _manual_result_with_table(
     table: pd.DataFrame,
     *,
-    require_identity_columns: bool,
+    stat_only_compatibility: bool = False,
 ) -> DifferentialAnalysisResult:
     index = table.index.copy()
-    return DifferentialAnalysisResult(
-        residual_variance=pd.Series(
+    payload = {
+        "residual_variance": pd.Series(
             np.full(index.size, 1.0),
             index=index.copy(),
             name="residual_variance",
         ),
-        posterior_residual_variance=pd.Series(
+        "posterior_residual_variance": pd.Series(
             np.full(index.size, 1.0),
             index=index.copy(),
             name="posterior_residual_variance",
         ),
-        prior_residual_variance=pd.Series(
+        "prior_residual_variance": pd.Series(
             np.full(index.size, 1.0),
             index=index.copy(),
             name="prior_residual_variance",
         ),
-        prior_degrees_of_freedom_series_value=pd.Series(
+        "prior_degrees_of_freedom_series_value": pd.Series(
             np.full(index.size, 10.0),
             index=index.copy(),
             name="prior_degrees_of_freedom",
         ),
-        prior_variance=1.0,
-        prior_degrees_of_freedom=10.0,
-        residual_degrees_of_freedom=4.0,
-        empirical_bayes_method="standard",
-        empirical_bayes_robust=False,
-        empirical_bayes_trend=False,
-        prior_diagnostics=_prior_diagnostics(index),
-        mean_variance_trend_diagnostics=None,
-        contrast_tables={"B_vs_A": table},
-        require_identity_columns=require_identity_columns,
+        "prior_variance": 1.0,
+        "prior_degrees_of_freedom": 10.0,
+        "residual_degrees_of_freedom": 4.0,
+        "empirical_bayes_method": "standard",
+        "empirical_bayes_robust": False,
+        "empirical_bayes_trend": False,
+        "prior_diagnostics": _prior_diagnostics(index),
+        "mean_variance_trend_diagnostics": None,
+        "contrast_tables": {"B_vs_A": table},
+    }
+    if stat_only_compatibility:
+        return DifferentialAnalysisResult._from_owned_stat_only_tables(**payload)
+    return DifferentialAnalysisResult(**payload)
+
+
+def _strict_result_table() -> pd.DataFrame:
+    site_keys = [
+        _site_key(gene_symbol="MAPK14", site="Y182"),
+        _site_key(gene_symbol="GSK3B", site="S9"),
+    ]
+    context = site_key_context_columns(site_keys)
+    return pd.DataFrame(
+        {
+            "site_key": site_keys,
+            "display_id": ["MAPK14;Y182;", "GSK3B;S9;"],
+            "gene_symbol": ["MAPK14", "GSK3B"],
+            "site": ["Y182", "S9"],
+            "organism": context["organism"],
+            "protein_namespace": context["protein_namespace"],
+            "protein_identifier": context["protein_identifier"],
+            "protein_id": ["MAPK14", "GSK3B"],
+            "logFC": [1.0, -1.0],
+            "t": [2.0, -2.0],
+            "P.Value": [0.05, 0.10],
+            "adj.P.Val": [0.10, 0.10],
+        },
+        index=pd.Index(site_keys, name="site_key"),
     )
+
+
+def _stat_only_display_table() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "logFC": [1.0, -1.0],
+            "t": [2.0, -2.0],
+            "P.Value": [0.05, 0.10],
+            "adj.P.Val": [0.10, 0.10],
+        },
+        index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="display_id"),
+    )
+
+
+def test_direct_result_construction_accepts_site_key_identity_table() -> None:
+    result = _manual_result_with_table(_strict_result_table())
+    table = result.table_for("B_vs_A")
+
+    assert list(table.columns) == IDENTITY_COLUMNS + STATISTIC_COLUMNS
+    assert table.index.name == "site_key"
+    assert table.loc[:, "site_key"].tolist() == table.index.tolist()
+
+
+def test_direct_result_construction_rejects_display_indexed_stat_only_table() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="missing required columns: site_key, display_id",
+    ):
+        _manual_result_with_table(_stat_only_display_table())
+
+
+def test_direct_result_construction_rejects_missing_site_key_column() -> None:
+    table = _strict_result_table().drop(columns=["site_key"])
+
+    with pytest.raises(PhosPyInputError, match="missing required columns: site_key"):
+        _manual_result_with_table(table)
+
+
+def test_direct_result_construction_rejects_missing_display_id_column() -> None:
+    table = _strict_result_table().drop(columns=["display_id"])
+
+    with pytest.raises(PhosPyInputError, match="missing required columns: display_id"):
+        _manual_result_with_table(table)
+
+
+def test_internal_stat_only_result_constructor_is_explicit() -> None:
+    result = _manual_result_with_table(
+        _stat_only_display_table(),
+        stat_only_compatibility=True,
+    )
+    table = result.table_for("B_vs_A")
+
+    assert list(table.columns) == STATISTIC_COLUMNS
+    assert table.index.name == "display_id"
 
 
 def test_result_tables_follow_public_differential_contract() -> None:
@@ -325,6 +411,105 @@ def test_duplicate_display_ids_do_not_collapse_differential_rows() -> None:
     assert table.loc[:, "site_key"].tolist() == table.index.tolist()
 
 
+def test_workflow_keeps_duplicate_display_ids_with_distinct_site_keys() -> None:
+    from phospy import AnalysisReadyPhosphoDataset
+
+    site_keys = [
+        _site_key(
+            gene_symbol="MAPK14",
+            site="Y182",
+            protein_identifier="MAPK14_CANONICAL",
+        ),
+        _site_key(
+            gene_symbol="MAPK14",
+            site="Y182",
+            protein_identifier="MAPK14_ISOFORM_2",
+        ),
+        _site_key(gene_symbol="GSK3B", site="S9"),
+        _site_key(gene_symbol="AKT1", site="T308"),
+    ]
+    display_ids = ["MAPK14;Y182;", "MAPK14;Y182;", "GSK3B;S9;", "AKT1;T308;"]
+    gene_symbols = ["MAPK14", "MAPK14", "GSK3B", "AKT1"]
+    sites = ["Y182", "Y182", "S9", "T308"]
+    phospho = pd.DataFrame(
+        {
+            "A_1": [1.0, 1.2, 2.0, 1.0],
+            "A_2": [1.1, 1.3, 2.1, 1.1],
+            "B_1": [2.1, 2.2, 2.0, 0.9],
+            "B_2": [2.0, 2.1, 2.2, 1.0],
+        },
+        index=pd.Index(site_keys, name="site_key"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "site_key": site_keys,
+            "display_id": display_ids,
+            **site_key_context_columns(site_keys),
+            "gene_symbol": gene_symbols,
+            "site": sites,
+            "site_sequence": [("A" * 15) + site[0] + ("A" * 15) for site in sites],
+            "protein_id": ["MAPK14_A", "MAPK14_B", "GSK3B", "AKT1"],
+        },
+        index=phospho.index.copy(),
+    )
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        organism=Organism.RAT,
+        intensity_scale_state=supported_log2_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_log2_processing_state(has_total_matrix=False),
+    )
+
+    result = DifferentialAnalysisWorkflow().run(
+        DifferentialAnalysisRequest(
+            dataset=dataset,
+            design=ExperimentalDesign(
+                samples=(
+                    SampleDesignRecord(
+                        sample_id="A_1",
+                        condition="A",
+                        biological_replicate_id="A_r1",
+                    ),
+                    SampleDesignRecord(
+                        sample_id="A_2",
+                        condition="A",
+                        biological_replicate_id="A_r2",
+                    ),
+                    SampleDesignRecord(
+                        sample_id="B_1",
+                        condition="B",
+                        biological_replicate_id="B_r1",
+                    ),
+                    SampleDesignRecord(
+                        sample_id="B_2",
+                        condition="B",
+                        biological_replicate_id="B_r2",
+                    ),
+                )
+            ),
+            contrasts=(
+                Contrast(
+                    name="B_vs_A",
+                    numerator_condition="B",
+                    denominator_condition="A",
+                ),
+            ),
+        )
+    )
+    table = result.table_for("B_vs_A")
+
+    duplicate_rows = table.loc[site_keys[:2], :]
+    assert duplicate_rows.loc[:, "display_id"].tolist() == [
+        "MAPK14;Y182;",
+        "MAPK14;Y182;",
+    ]
+    assert duplicate_rows.loc[:, "site_key"].tolist() == site_keys[:2]
+    assert table.loc[:, "site_key"].nunique() == table.shape[0]
+    assert table.index.tolist() == site_keys
+
+
 def test_identity_required_result_rejects_display_indexed_table() -> None:
     display_index = pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_key")
     site_keys = [
@@ -344,7 +529,7 @@ def test_identity_required_result_rejects_display_indexed_table() -> None:
     )
 
     with pytest.raises(PhosPyInputError, match="must start with 'phospy:v1'"):
-        _manual_result_with_table(table, require_identity_columns=True)
+        _manual_result_with_table(table)
 
 
 def test_display_unique_statistics_are_unchanged_by_site_key_result_identity() -> None:

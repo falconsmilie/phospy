@@ -152,6 +152,13 @@ receives resolved matrix-ready design/contrast structures.
 Common outputs include:
 
 - `result.table_for("B_vs_A")` with columns:
+  - `site_key`
+  - `display_id`
+  - `gene_symbol`
+  - `site`
+  - available protein context columns such as `organism`,
+    `protein_namespace`, `protein_identifier`, and optional workflow-relevant
+    protein metadata
   - `logFC`
   - `t`
   - `P.Value`
@@ -159,7 +166,16 @@ Common outputs include:
 - `result.prior_diagnostics`
 - `result.mean_variance_trend_diagnostics` (when trend is enabled)
 
-Each contrast result table is row-aligned to the input `site_key` values.
+Each contrast result table is indexed by the input `site_key` values. The
+`site_key` column must exactly match the index, and `display_id` remains a
+human-readable label. Repeated `display_id` values remain distinct rows when
+their `site_key` values differ.
+
+Direct public `DifferentialAnalysisResult` construction follows the same
+identity contract. Display-indexed or stat-only contrast tables are rejected in
+public/strict construction. The internal computation engine may temporarily use
+a private stat-only result constructor before workflow execution attaches
+identity metadata; workflow-created results are always strict.
 
 ### Statistical Method and Multiple Testing
 

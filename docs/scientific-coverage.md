@@ -28,11 +28,14 @@ not silently fall back to display-site identity. Builder input may accept legacy
 display-indexed shape only when enough protein context exists to derive
 `site_key`. Workflows operate on `site_key`, and site-level outputs that
 materialize row identity include both `site_key` and `display_id`. `display_id`
-is a human-readable label and may repeat. Kinase references may use display IDs
-only through the explicit reference-to-dataset mapping layer; references remain
-reference/display identifiers. Signalome may additionally require
-`site_metadata.protein_id` as algorithm-specific protein grouping metadata; that
-field is not the dataset row identity. See
+is a human-readable label and may repeat. Differential result tables and direct
+public `DifferentialAnalysisResult` construction require `site_key`-indexed rows
+with explicit `site_key` and `display_id` columns; validation fails rather than
+repairing display-indexed or stat-only public result tables. Kinase references
+may use display IDs only through the explicit reference-to-dataset mapping
+layer; references remain reference/display identifiers. Signalome may
+additionally require `site_metadata.protein_id` as algorithm-specific protein
+grouping metadata; that field is not the dataset row identity. See
 [ADR-0024: Protein-Scoped Phosphosite Row Identity](adr/adr_0024_protein_scoped_phosphosite_row_identity.md).
 
 ### Differential Parity Envelope (Current Release)

@@ -121,6 +121,22 @@ references are rat-only.
 
 ## Workflow Validation
 
+### Differential Workflow
+
+`DifferentialAnalysisRequest.dataset` must be an
+`AnalysisReadyPhosphoDataset` whose phospho matrix is already indexed by
+`site_key`. Differential result tables are strict public contracts: each
+per-contrast table is indexed by `site_key` and includes non-empty `site_key`
+and `display_id` columns, with `site_key` exactly matching the index. Available
+identity context such as `gene_symbol`, `site`, `organism`,
+`protein_namespace`, `protein_identifier`, and optional protein metadata is
+preserved from dataset `site_metadata`.
+
+Display-indexed or stat-only differential result tables are invalid in public
+result construction. Result validation does not infer identity from
+`gene_symbol`, `site`, or display labels, and it does not repair missing
+identity columns.
+
 ### Kinase Workflow
 
 `KinaseWorkflowRequest.dataset` must be an `AnalysisReadyPhosphoDataset`.

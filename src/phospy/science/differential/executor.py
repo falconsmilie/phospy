@@ -208,7 +208,7 @@ class DifferentialAnalysisExecutor:
                 _assume_owned=True,
             )
 
-        return DifferentialAnalysisResult._from_owned(
+        return DifferentialAnalysisResult._from_owned_stat_only_tables(
             residual_variance=residual_variance_series,
             posterior_residual_variance=posterior_variance_series,
             prior_residual_variance=prior_variance_series,

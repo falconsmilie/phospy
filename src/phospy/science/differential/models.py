@@ -567,7 +567,14 @@ class DifferentialPolicyProvenance:
 
 @dataclass(frozen=True, slots=True, init=False)
 class DifferentialAnalysisResult:
-    """Differential-analysis output with per-contrast moderated tables."""
+    """Differential-analysis output with per-contrast moderated tables.
+
+    Public contrast tables are indexed by protein-scoped ``site_key`` values and
+    must include both ``site_key`` and ``display_id`` columns. Setting
+    ``require_identity_columns=False`` is reserved for private, owned
+    construction paths used by the internal computation engine before workflow
+    identity metadata is attached.
+    """
 
     residual_variance: pd.Series
     posterior_residual_variance: pd.Series
@@ -605,9 +612,14 @@ class DifferentialAnalysisResult:
         policy_provenance: DifferentialPolicyProvenance | None = None,
         workflow_provenance: Mapping[str, object] | None = None,
         input_dataset_preprocessing_report: DatasetPreprocessingReport | None = None,
-        require_identity_columns: bool = False,
+        require_identity_columns: bool = True,
         _assume_owned: bool = False,
     ) -> None:
+        if not require_identity_columns and not _assume_owned:
+            raise PhosPyInputError(
+                "differential_result.require_identity_columns=False is reserved for "
+                "internal stat-only compatibility construction"
+            )
         residual_variance = own_series(
             residual_variance,
             field_name="differential_result.residual_variance",
@@ -819,7 +831,7 @@ class DifferentialAnalysisResult:
         policy_provenance: DifferentialPolicyProvenance | None = None,
         workflow_provenance: Mapping[str, object] | None = None,
         input_dataset_preprocessing_report: DatasetPreprocessingReport | None = None,
-        require_identity_columns: bool = False,
+        require_identity_columns: bool = True,
     ) -> DifferentialAnalysisResult:
         return cls(
             residual_variance=residual_variance,
@@ -840,6 +852,55 @@ class DifferentialAnalysisResult:
             input_dataset_preprocessing_report=input_dataset_preprocessing_report,
             require_identity_columns=require_identity_columns,
             _assume_owned=True,
+        )
+
+    @classmethod
+    def _from_owned_stat_only_tables(
+        cls,
+        *,
+        residual_variance: pd.Series,
+        posterior_residual_variance: pd.Series,
+        prior_residual_variance: pd.Series,
+        prior_degrees_of_freedom_series_value: pd.Series,
+        prior_variance: float,
+        prior_degrees_of_freedom: float,
+        residual_degrees_of_freedom: float,
+        empirical_bayes_method: str,
+        empirical_bayes_robust: bool,
+        empirical_bayes_trend: bool,
+        prior_diagnostics: EmpiricalBayesPriorDiagnostics,
+        mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None,
+        contrast_tables: Mapping[str, pd.DataFrame],
+        policy_provenance: DifferentialPolicyProvenance | None = None,
+        workflow_provenance: Mapping[str, object] | None = None,
+        input_dataset_preprocessing_report: DatasetPreprocessingReport | None = None,
+    ) -> DifferentialAnalysisResult:
+        """Internal compatibility path for computation-only result tables.
+
+        This deliberately allows stat-only contrast tables without
+        ``site_key``/``display_id`` metadata. Workflow result assembly must use
+        ``_from_owned`` or the public constructor so the public identity contract
+        stays strict.
+        """
+
+        return cls._from_owned(
+            residual_variance=residual_variance,
+            posterior_residual_variance=posterior_residual_variance,
+            prior_residual_variance=prior_residual_variance,
+            prior_degrees_of_freedom_series_value=prior_degrees_of_freedom_series_value,
+            prior_variance=prior_variance,
+            prior_degrees_of_freedom=prior_degrees_of_freedom,
+            residual_degrees_of_freedom=residual_degrees_of_freedom,
+            empirical_bayes_method=empirical_bayes_method,
+            empirical_bayes_robust=empirical_bayes_robust,
+            empirical_bayes_trend=empirical_bayes_trend,
+            prior_diagnostics=prior_diagnostics,
+            mean_variance_trend_diagnostics=mean_variance_trend_diagnostics,
+            policy_provenance=policy_provenance,
+            contrast_tables=contrast_tables,
+            workflow_provenance=workflow_provenance,
+            input_dataset_preprocessing_report=input_dataset_preprocessing_report,
+            require_identity_columns=False,
         )
 
 

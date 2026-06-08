@@ -16,15 +16,28 @@ from phospy.science.differential.models import (
     EmpiricalBayesConfig,
     EmpiricalBayesPriorDiagnostics,
 )
+from tests.support.site_keys import protein_site_key_index, site_key_context_columns
 
 _FEATURE_INDEX = pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id")
+_STRICT_FEATURE_INDEX = protein_site_key_index(
+    protein_identifiers=["MAPK14", "GSK3B"],
+    sites=["Y182", "S9"],
+)
+_DISPLAY_IDS = ["MAPK14;Y182;", "GSK3B;S9;"]
 
 
-def _series(values: list[float], *, name: str) -> pd.Series:
-    return pd.Series(values, index=_FEATURE_INDEX.copy(), name=name, dtype=float)
+def _series(
+    values: list[float],
+    *,
+    name: str,
+    index: pd.Index | None = None,
+) -> pd.Series:
+    resolved_index = _STRICT_FEATURE_INDEX if index is None else index
+    return pd.Series(values, index=resolved_index.copy(), name=name, dtype=float)
 
 
-def _prior_diagnostics() -> EmpiricalBayesPriorDiagnostics:
+def _prior_diagnostics(index: pd.Index | None = None) -> EmpiricalBayesPriorDiagnostics:
+    resolved_index = _STRICT_FEATURE_INDEX if index is None else index
     return EmpiricalBayesPriorDiagnostics(
         method="standard",
         robust=False,
@@ -36,32 +49,59 @@ def _prior_diagnostics() -> EmpiricalBayesPriorDiagnostics:
         robust_outlier_fraction=0.0,
         winsorized_low_count=0,
         winsorized_high_count=0,
-        prior_variance=_series([1.0, 1.2], name="prior_residual_variance"),
-        prior_degrees_of_freedom=_series([5.0, 5.0], name="prior_degrees_of_freedom"),
+        prior_variance=_series(
+            [1.0, 1.2],
+            name="prior_residual_variance",
+            index=resolved_index,
+        ),
+        prior_degrees_of_freedom=_series(
+            [5.0, 5.0],
+            name="prior_degrees_of_freedom",
+            index=resolved_index,
+        ),
     )
 
 
 def _valid_result_table() -> pd.DataFrame:
+    site_keys = _STRICT_FEATURE_INDEX.astype(str).tolist()
     return pd.DataFrame(
         {
+            "site_key": site_keys,
+            "display_id": _DISPLAY_IDS,
+            **site_key_context_columns(_STRICT_FEATURE_INDEX),
+            "gene_symbol": ["MAPK14", "GSK3B"],
+            "site": ["Y182", "S9"],
             "logFC": [0.3, -0.1],
             "t": [3.0, -1.2],
             "P.Value": [0.01, 0.24],
             "adj.P.Val": [0.02, 0.24],
         },
-        index=_FEATURE_INDEX.copy(),
+        index=_STRICT_FEATURE_INDEX.copy(),
     )
 
 
 def _build_result(*, table: pd.DataFrame) -> DifferentialAnalysisResult:
+    index = table.index.copy()
     return DifferentialAnalysisResult(
-        residual_variance=_series([0.1, 0.2], name="residual_variance"),
-        posterior_residual_variance=_series(
-            [0.11, 0.21], name="posterior_residual_variance"
+        residual_variance=_series(
+            [0.1, 0.2],
+            name="residual_variance",
+            index=index,
         ),
-        prior_residual_variance=_series([0.12, 0.22], name="prior_residual_variance"),
+        posterior_residual_variance=_series(
+            [0.11, 0.21],
+            name="posterior_residual_variance",
+            index=index,
+        ),
+        prior_residual_variance=_series(
+            [0.12, 0.22],
+            name="prior_residual_variance",
+            index=index,
+        ),
         prior_degrees_of_freedom_series_value=_series(
-            [5.0, 5.0], name="prior_degrees_of_freedom"
+            [5.0, 5.0],
+            name="prior_degrees_of_freedom",
+            index=index,
         ),
         prior_variance=0.17,
         prior_degrees_of_freedom=5.0,
@@ -69,7 +109,7 @@ def _build_result(*, table: pd.DataFrame) -> DifferentialAnalysisResult:
         empirical_bayes_method="standard",
         empirical_bayes_robust=False,
         empirical_bayes_trend=False,
-        prior_diagnostics=_prior_diagnostics(),
+        prior_diagnostics=_prior_diagnostics(index),
         mean_variance_trend_diagnostics=None,
         contrast_tables={"B_vs_A": table},
     )
