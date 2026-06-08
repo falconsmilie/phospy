@@ -47,12 +47,12 @@ from phospy.science.signalomes.models import (
 
 
 def _normalize_site_metadata_for_dataset_contract(site_metadata):
-    """Repair CSV round-trip site_key column naming drift before dataset load."""
+    """Repair CSV round-trip site_key column drift for valid site_key indexes."""
 
     normalized = site_metadata.copy(deep=True)
     if "site_key" not in normalized.columns and "site_key.1" in normalized.columns:
         normalized = normalized.rename(columns={"site_key.1": "site_key"})
-    if "site_key" not in normalized.columns:
+    if "site_key" not in normalized.columns and normalized.index.name == "site_key":
         normalized.loc[:, "site_key"] = normalized.index.astype(str).tolist()
     return normalized
 

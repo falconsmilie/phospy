@@ -119,7 +119,7 @@ class SignalomeMatrixAligner:
                 operation="selecting aligned shared site and kinase labels via .loc",
                 next_action=(
                     "ensure prediction and downstream scoring tables expose stable "
-                    "canonical site IDs and kinase labels"
+                    "site_key row labels and kinase labels"
                 ),
                 original_error=exc,
                 aligned_sites=int(aligned_site_index.size),
@@ -234,7 +234,7 @@ class SignalomeMatrixAligner:
             shared_sites = require_non_empty_index_intersection(
                 left=shared_dataset_prediction,
                 right=score_site_index,
-                left_name="shared dataset/prediction phosphosite IDs",
+                left_name="shared dataset/prediction site_key rows",
                 right_name="kinase_result.scoring_result.downstream_score_matrix.index",
                 error_type=WorkflowValidationError,
             )
@@ -242,7 +242,7 @@ class SignalomeMatrixAligner:
             raise_signalome_boundary_error(
                 seam=SIGNALOME_INTERPRETER_SITE_ALIGNMENT_SEAM,
                 next_action=(
-                    "ensure prediction and scoring outputs share phosphosite IDs with "
+                    "ensure prediction and scoring outputs share site_key rows with "
                     "kinase_result.dataset.phospho.index"
                 ),
                 dataset_sites=int(dataset_site_index.size),

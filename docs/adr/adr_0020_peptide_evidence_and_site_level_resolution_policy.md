@@ -77,7 +77,7 @@ and counts.
 The dataset report/provenance includes:
 
 - peptide observations received
-- unique site IDs produced
+- unique analysis-ready `site_key` rows produced
 - ambiguous observations
 - excluded observations
 - split observations (when applicable)

@@ -150,7 +150,7 @@ def require_site_identity_coherence(
     error_type: type[ErrorType],
     error_preview_limit: int = 5,
 ) -> None:
-    """Require canonical site IDs to agree with metadata gene/site columns."""
+    """Require canonical display-site IDs to agree with metadata gene/site columns."""
 
     unparseable_site_ids: list[str] = []
     mismatched_rows: list[str] = []
@@ -198,7 +198,7 @@ def require_site_identity_coherence(
     joined_details = "; ".join(details)
     raise error_type(
         "dataset site-identity coherence failed: "
-        f"{site_index_field_name} canonical site IDs must agree with "
+        f"{site_index_field_name} canonical display-site IDs must agree with "
         f"{site_metadata_field_name}.{gene_symbol_column} and "
         f"{site_metadata_field_name}.{site_column}; {joined_details}"
     )

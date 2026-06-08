@@ -156,7 +156,7 @@ class SignalomeModuleTableBuilder:
             raise_boundary_error(
                 seam=SIGNALOME_EXECUTOR_MODULE_CONSTRUCTION_SEAM,
                 next_action=(
-                    "ensure interpreted prediction inputs provide unique site IDs and "
+                    "ensure interpreted prediction inputs provide unique site_key rows and "
                     "resolvable site-to-protein assignments"
                 ),
                 **prediction_shape_details(execution_metadata),

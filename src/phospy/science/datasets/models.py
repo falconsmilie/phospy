@@ -504,8 +504,9 @@ class AnalysisReadyPhosphoDataset:
     artefacts remain private to preprocessing internals.
     Optional `comparisons` can carry builder-constructed dataset-level pairwise
     columns aligned to `phospho.index`.
-    Site identity is strict at this boundary: standard phospho row IDs must be
-    coherent with `site_metadata.gene_symbol` / `site_metadata.site`.
+    Site identity is strict at this boundary: rows are indexed by encoded
+    `site_key` values, while `display_id` preserves the human-readable
+    `GENE;SITE;` label and must be coherent with the protein-context metadata.
 
     Provenance in this object describes owned internal state at creation time.
     Public export helpers return defensive snapshots; mutating exports does not

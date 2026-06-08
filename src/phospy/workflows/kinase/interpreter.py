@@ -425,8 +425,8 @@ class KinaseWorkflowInterpreter:
         self._raise_boundary_error(
             seam="kinase.interpreter.reference_coverage",
             next_action=(
-                "use references that contain dataset phosphosite IDs or verify site "
-                "identifier formatting in dataset.phospho.index"
+                "use references whose display IDs match dataset display_id metadata "
+                "or verify dataset site_key/display_id identity mapping"
             ),
             dataset_sites=overlap_counts["dataset_sites"],
             reference_sites=reference_site_count,
@@ -498,8 +498,8 @@ class KinaseWorkflowInterpreter:
         self._raise_boundary_error(
             seam="kinase.interpreter.sequence_support",
             next_action=(
-                "ensure references.site_sequences contains sequence entries for "
-                "dataset phosphosite IDs"
+                "ensure references.site_sequences display IDs can be projected to "
+                "dataset site_key rows"
             ),
             dataset_sites=int(dataset.index.size),
             reference_sequence_sites=int(site_sequences.index.size),
