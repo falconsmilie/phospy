@@ -64,7 +64,7 @@ def build_protein_scoped_site_key(
             field_name=f"{field_name}.residue",
             error_type=error_type,
         ),
-        position=_positive_integer(
+        position=require_positive_integer_position(
             position,
             field_name=f"{field_name}.position",
             error_type=error_type,
@@ -209,12 +209,14 @@ def _residue_token(
     return token
 
 
-def _positive_integer(
+def require_positive_integer_position(
     value: object,
     *,
     field_name: str,
     error_type: type[ErrorType],
 ) -> int:
+    """Require a strict positive integer phosphosite position scalar."""
+
     if isinstance(value, bool) or not isinstance(value, Integral):
         raise error_type(f"{field_name} must be an integer")
     if value <= 0:
@@ -225,6 +227,7 @@ def _positive_integer(
 __all__ = [
     "ProteinScopedPhosphositeKey",
     "build_protein_scoped_site_key",
+    "require_positive_integer_position",
     "encode_site_key",
     "decode_site_key",
 ]

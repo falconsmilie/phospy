@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -328,6 +329,94 @@ def test_protein_scoped_identity_rejects_site_key_metadata_mismatch() -> None:
     )
 
     with pytest.raises(ValueError, match="must match metadata-derived"):
+        enforce_site_key_matches_metadata(
+            site_metadata=site_metadata,
+            field_name="dataset.site_metadata",
+            error_type=ValueError,
+        )
+
+
+def _with_explicit_position_metadata(
+    *,
+    column_name: str,
+    second_position_value: object,
+) -> pd.DataFrame:
+    site_metadata = _protein_scoped_metadata_rows().copy(deep=True)
+    site_metadata.loc["row_b", "display_id"] = "AKT1;T308;"
+    site_metadata.loc["row_b", "protein_identifier"] = "P31749"
+    site_metadata.loc["row_b", "site"] = "T308"
+    site_metadata.loc["row_b", "residue"] = "T"
+    site_metadata.loc["row_b", "site_key"] = encode_site_key(
+        build_protein_scoped_site_key(
+            organism=str(site_metadata.at["row_b", "organism"]),
+            protein_namespace=str(site_metadata.at["row_b", "protein_namespace"]),
+            protein_identifier=str(site_metadata.at["row_b", "protein_identifier"]),
+            residue=str(site_metadata.at["row_b", "residue"]),
+            position=308,
+            isoform_id=None,
+            field_name="test['row_b'].site_key",
+            error_type=ValueError,
+        )
+    )
+    site_metadata = site_metadata.drop(columns=["position"], errors="ignore")
+    site_metadata.loc[:, column_name] = pd.Series(
+        [182, second_position_value],
+        index=site_metadata.index,
+        dtype="object",
+    )
+    return site_metadata
+
+
+@pytest.mark.parametrize(
+    ("column_name", "position_value"),
+    [
+        pytest.param("position", 308, id="position-python-int"),
+        pytest.param("position", np.int64(308), id="position-numpy-int"),
+        pytest.param("site_position", 308, id="site-position-python-int"),
+        pytest.param("site_position", np.int64(308), id="site-position-numpy-int"),
+    ],
+)
+def test_protein_scoped_identity_accepts_strict_integer_position_metadata(
+    column_name: str,
+    position_value: object,
+) -> None:
+    site_metadata = _with_explicit_position_metadata(
+        column_name=column_name,
+        second_position_value=position_value,
+    )
+
+    enforce_site_key_matches_metadata(
+        site_metadata=site_metadata,
+        field_name="dataset.site_metadata",
+        error_type=ValueError,
+    )
+
+
+@pytest.mark.parametrize("column_name", ["position", "site_position"])
+@pytest.mark.parametrize(
+    "invalid_position",
+    [
+        pytest.param(True, id="boolean"),
+        pytest.param(0, id="zero"),
+        pytest.param(-1, id="negative"),
+        pytest.param(308.0, id="float"),
+        pytest.param("308", id="numeric-string"),
+        pytest.param(None, id="missing"),
+        pytest.param([308], id="list"),
+        pytest.param((308,), id="tuple"),
+        pytest.param(np.array([308]), id="array"),
+    ],
+)
+def test_protein_scoped_identity_rejects_loose_explicit_position_metadata(
+    column_name: str,
+    invalid_position: object,
+) -> None:
+    site_metadata = _with_explicit_position_metadata(
+        column_name=column_name,
+        second_position_value=invalid_position,
+    )
+
+    with pytest.raises(ValueError, match=column_name):
         enforce_site_key_matches_metadata(
             site_metadata=site_metadata,
             field_name="dataset.site_metadata",

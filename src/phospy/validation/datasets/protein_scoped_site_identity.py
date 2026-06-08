@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-import numbers
-from typing import Any, TypeVar, cast
+from typing import TypeVar, cast
 
 import pandas as pd
 
@@ -16,6 +15,7 @@ from phospy.science.sites.site_keys import (
     build_protein_scoped_site_key,
     decode_site_key,
     encode_site_key,
+    require_positive_integer_position,
 )
 from phospy.science.sites.validation import (
     require_no_mixed_site_key_isoform_scope,
@@ -455,43 +455,10 @@ def _resolve_explicit_position(
         if column_name not in site_metadata.columns:
             continue
         raw_value = site_metadata.at[row_id, column_name]
-        if _is_missing(raw_value):
-            continue
-        if isinstance(raw_value, bool):
-            raise error_type(
-                f"{field_name}[{row_id!r}].{column_name} must be an integer >= 1"
-            )
-        if isinstance(raw_value, numbers.Integral):
-            integer_value = int(raw_value)
-            if integer_value < 1:
-                raise error_type(
-                    f"{field_name}[{row_id!r}].{column_name} must be an integer >= 1"
-                )
-            return integer_value
-        if isinstance(raw_value, numbers.Real):
-            numeric_value = float(cast(Any, raw_value))
-            if not numeric_value.is_integer() or numeric_value < 1:
-                raise error_type(
-                    f"{field_name}[{row_id!r}].{column_name} must be an integer >= 1"
-                )
-            return int(numeric_value)
-        if isinstance(raw_value, str):
-            stripped = raw_value.strip()
-            if stripped == "":
-                continue
-            try:
-                parsed = int(stripped)
-            except ValueError as exc:
-                raise error_type(
-                    f"{field_name}[{row_id!r}].{column_name} must be an integer >= 1"
-                ) from exc
-            if parsed < 1:
-                raise error_type(
-                    f"{field_name}[{row_id!r}].{column_name} must be an integer >= 1"
-                )
-            return int(parsed)
-        raise error_type(
-            f"{field_name}[{row_id!r}].{column_name} must be an integer >= 1"
+        return require_positive_integer_position(
+            raw_value,
+            field_name=f"{field_name}[{row_id!r}].{column_name}",
+            error_type=error_type,
         )
     return None
 

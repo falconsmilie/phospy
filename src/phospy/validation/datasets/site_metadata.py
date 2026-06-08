@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import math
-import numbers
 from dataclasses import dataclass
 from typing import TypeVar, cast
 
@@ -15,6 +14,7 @@ from phospy.science.sites.identity import (
     build_phosphosite_identity,
     validate_identity_optional_columns,
 )
+from phospy.science.sites.site_keys import require_positive_integer_position
 
 ErrorType = TypeVar("ErrorType", bound=Exception)
 _PHOSPHORYLATABLE_RESIDUES = frozenset({"S", "T", "Y"})
@@ -116,10 +116,16 @@ def validate_site_identity_metadata(
             if not _is_missing(raw_residue):
                 invalid_explicit_residue_rows.append(f"{site_id!r}:{raw_residue!r}")
 
-        explicit_position = _resolve_optional_position(site_positions.at[site_id])
-        if site_positions.name is not None and explicit_position is None:
+        explicit_position: int | None = None
+        if site_positions.name is not None:
             raw_position = site_positions.at[site_id]
-            if not _is_missing(raw_position):
+            try:
+                explicit_position = require_positive_integer_position(
+                    raw_position,
+                    field_name=f"{field_name}.{site_positions.name}",
+                    error_type=error_type,
+                )
+            except error_type:
                 invalid_explicit_position_rows.append(f"{site_id!r}:{raw_position!r}")
 
         if parsed_site is not None and explicit_residue is not None:
@@ -172,7 +178,8 @@ def validate_site_identity_metadata(
         )
     if invalid_explicit_position_rows:
         details.append(
-            f"{field_name}.{site_positions.name} must be an integer >= 1 when provided; "
+            f"{field_name}.{site_positions.name} must contain positive integer "
+            "values when the column is present; "
             + _summarise_examples(invalid_explicit_position_rows)
         )
     if inconsistent_residue_rows:
@@ -677,32 +684,6 @@ def _resolve_optional_residue(value: object) -> str | None:
     if not token.isalpha():
         return None
     return token
-
-
-def _resolve_optional_position(value: object) -> int | None:
-    if _is_missing(value):
-        return None
-    if isinstance(value, bool):
-        return None
-    if isinstance(value, numbers.Integral):
-        integer_value = int(value)
-        return integer_value if integer_value >= 1 else None
-    if isinstance(value, numbers.Real):
-        numeric_value = float(value)
-        if not numeric_value.is_integer():
-            return None
-        integer_value = int(numeric_value)
-        return integer_value if integer_value >= 1 else None
-    if isinstance(value, str):
-        stripped = value.strip()
-        if stripped == "":
-            return None
-        try:
-            parsed = int(stripped)
-        except ValueError:
-            return None
-        return parsed if parsed >= 1 else None
-    return None
 
 
 def _resolve_optional_sequence(value: object) -> str | None:
