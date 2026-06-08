@@ -80,12 +80,14 @@ def _site_key(
     gene_symbol: str,
     site: str,
     protein_identifier: str | None = None,
+    organism: str = "rat",
+    protein_namespace: str = "protein_id",
 ) -> str:
     residue = site.strip().upper()[0]
     position = int(site.strip()[1:])
     key = build_protein_scoped_site_key(
-        organism="rat",
-        protein_namespace="protein_id",
+        organism=organism,
+        protein_namespace=protein_namespace,
         protein_identifier=protein_identifier or gene_symbol,
         residue=residue,
         position=position,
@@ -282,6 +284,35 @@ def _strict_result_table() -> pd.DataFrame:
     )
 
 
+def _akt1_t309_result_table() -> pd.DataFrame:
+    site_keys = [
+        _site_key(
+            gene_symbol="AKT1",
+            site="T309",
+            protein_identifier="P31749",
+            organism="human",
+            protein_namespace="uniprot",
+        )
+    ]
+    return pd.DataFrame(
+        {
+            "site_key": site_keys,
+            "display_id": ["AKT1;T309;"],
+            "gene_symbol": ["AKT1"],
+            "site": ["T309"],
+            "organism": ["human"],
+            "protein_namespace": ["uniprot"],
+            "protein_identifier": ["P31749"],
+            "protein_id": ["P31749"],
+            "logFC": [1.0],
+            "t": [2.0],
+            "P.Value": [0.05],
+            "adj.P.Val": [0.10],
+        },
+        index=pd.Index(site_keys, name="site_key"),
+    )
+
+
 def _stat_only_display_table() -> pd.DataFrame:
     return pd.DataFrame(
         {
@@ -353,8 +384,36 @@ def test_direct_result_construction_rejects_missing_site_column() -> None:
 
 
 def test_direct_result_construction_allows_duplicate_display_ids() -> None:
-    table = _strict_result_table()
-    table.loc[:, "display_id"] = "MAPK14;Y182;"
+    site_keys = [
+        _site_key(
+            gene_symbol="MAPK14",
+            site="Y182",
+            protein_identifier="MAPK14_CANONICAL",
+        ),
+        _site_key(
+            gene_symbol="MAPK14",
+            site="Y182",
+            protein_identifier="MAPK14_ISOFORM_2",
+        ),
+    ]
+    context = site_key_context_columns(site_keys)
+    table = pd.DataFrame(
+        {
+            "site_key": site_keys,
+            "display_id": ["MAPK14;Y182;", "MAPK14;Y182;"],
+            "gene_symbol": ["MAPK14", "MAPK14"],
+            "site": ["Y182", "Y182"],
+            "organism": context["organism"],
+            "protein_namespace": context["protein_namespace"],
+            "protein_identifier": context["protein_identifier"],
+            "protein_id": ["MAPK14_A", "MAPK14_B"],
+            "logFC": [1.0, -1.0],
+            "t": [2.0, -2.0],
+            "P.Value": [0.05, 0.10],
+            "adj.P.Val": [0.10, 0.10],
+        },
+        index=pd.Index(site_keys, name="site_key"),
+    )
 
     result = _manual_result_with_table(table)
     exported = result.table_for("B_vs_A")
@@ -365,6 +424,64 @@ def test_direct_result_construction_allows_duplicate_display_ids() -> None:
     ]
     assert exported.loc[:, "site_key"].nunique() == exported.shape[0]
     assert exported.index.tolist() == table.index.tolist()
+
+
+def test_direct_result_construction_rejects_site_mismatch() -> None:
+    table = _akt1_t309_result_table()
+    table.loc[:, "site"] = "T308"
+    table.loc[:, "display_id"] = "AKT1;T308;"
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="site_key encodes T309 but row metadata site is 'T308'",
+    ):
+        _manual_result_with_table(table)
+
+
+def test_direct_result_construction_rejects_display_id_site_mismatch() -> None:
+    table = _akt1_t309_result_table()
+    table.loc[:, "display_id"] = "AKT1;T308;"
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=r"display_id does not match gene_symbol \+ site",
+    ):
+        _manual_result_with_table(table)
+
+
+def test_direct_result_construction_rejects_organism_mismatched_to_site_key() -> None:
+    table = _akt1_t309_result_table()
+    table.loc[:, "organism"] = "mouse"
+
+    with pytest.raises(PhosPyInputError, match="organism is incoherent"):
+        _manual_result_with_table(table)
+
+
+def test_direct_result_construction_rejects_protein_namespace_mismatch() -> None:
+    table = _akt1_t309_result_table()
+    table.loc[:, "protein_namespace"] = "refseq"
+
+    with pytest.raises(PhosPyInputError, match="protein_namespace is incoherent"):
+        _manual_result_with_table(table)
+
+
+def test_direct_result_construction_rejects_protein_identifier_mismatch() -> None:
+    table = _akt1_t309_result_table()
+    table.loc[:, "protein_identifier"] = "P99999"
+
+    with pytest.raises(PhosPyInputError, match="protein_identifier is incoherent"):
+        _manual_result_with_table(table)
+
+
+def test_direct_result_construction_rejects_display_id_gene_site_mismatch() -> None:
+    table = _akt1_t309_result_table()
+    table.loc[:, "display_id"] = "AKT2;T309;"
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=r"display_id does not match gene_symbol \+ site",
+    ):
+        _manual_result_with_table(table)
 
 
 def test_direct_result_construction_rejects_display_labels_as_site_key_column() -> None:
@@ -464,7 +581,7 @@ def test_reverse_contrasts_are_directionally_consistent() -> None:
     )
 
 
-def test_duplicate_display_ids_do_not_collapse_differential_rows() -> None:
+def test_workflow_rejects_incoherent_duplicate_display_ids() -> None:
     request = _request_for_reverse_contrasts(_load_matrix())
     interpreted = DifferentialAnalysisInterpreter().run(
         DifferentialAnalysisValidator().run(request)
@@ -478,13 +595,12 @@ def test_duplicate_display_ids_do_not_collapse_differential_rows() -> None:
         interpreted,
         result_identity_metadata=mutated_identity_metadata,
     )
-    result = DifferentialWorkflowExecutor().run(interpreted_with_duplicate_display_ids)
-    table = result.table_for("B_vs_A")
 
-    assert table.shape[0] == interpreted.computation_request.matrix.shape[0]
-    assert table.loc[:, "site_key"].nunique() == table.shape[0]
-    assert table.loc[:, "display_id"].nunique() == 1
-    assert table.loc[:, "site_key"].tolist() == table.index.tolist()
+    with pytest.raises(
+        PhosPyInputError,
+        match=r"display_id does not match gene_symbol \+ site",
+    ):
+        DifferentialWorkflowExecutor().run(interpreted_with_duplicate_display_ids)
 
 
 def test_workflow_keeps_duplicate_display_ids_with_distinct_site_keys() -> None:
