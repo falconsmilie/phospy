@@ -7,6 +7,10 @@ import pytest
 from phospy import AnalysisReadyPhosphoDataset
 from phospy.api import Organism
 from phospy.errors import DatasetValidationError
+from phospy.science.sites.site_keys import (
+    build_protein_scoped_site_key,
+    encode_site_key,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -15,6 +19,28 @@ from tests.support.site_keys import (
     site_key_context_columns,
     site_key_index_from_display_ids,
 )
+
+
+def _encoded_site_key(
+    *,
+    organism: str = "human",
+    protein_namespace: str = "uniprot",
+    protein_identifier: str = "P31749",
+    residue: str = "T",
+    position: int = 308,
+) -> str:
+    return encode_site_key(
+        build_protein_scoped_site_key(
+            organism=organism,
+            protein_namespace=protein_namespace,
+            protein_identifier=protein_identifier,
+            residue=residue,
+            position=position,
+            isoform_id=None,
+            field_name="test.site_key",
+            error_type=ValueError,
+        )
+    )
 
 
 def _coherent_site_identity_inputs() -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -44,15 +70,56 @@ def _coherent_site_identity_inputs() -> tuple[pd.DataFrame, pd.DataFrame]:
     return phospho, site_metadata
 
 
+def _single_akt1_t308_inputs(
+    *,
+    encoded_organism: str = "human",
+    encoded_protein_namespace: str = "uniprot",
+    encoded_protein_identifier: str = "P31749",
+    encoded_residue: str = "T",
+    encoded_position: int = 308,
+) -> tuple[pd.DataFrame, pd.DataFrame, str, str]:
+    encoded_site_key = _encoded_site_key(
+        organism=encoded_organism,
+        protein_namespace=encoded_protein_namespace,
+        protein_identifier=encoded_protein_identifier,
+        residue=encoded_residue,
+        position=encoded_position,
+    )
+    metadata_derived_site_key = _encoded_site_key()
+    index = pd.Index([encoded_site_key], name="site_key")
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0],
+            "sample_b": [2.0],
+        },
+        index=index,
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "site_key": [encoded_site_key],
+            "display_id": ["AKT1;T308;"],
+            "organism": ["human"],
+            "protein_namespace": ["uniprot"],
+            "protein_identifier": ["P31749"],
+            "gene_symbol": ["AKT1"],
+            "site": ["T308"],
+            "site_sequence": [("A" * 15) + "T" + ("A" * 15)],
+        },
+        index=index.copy(),
+    )
+    return phospho, site_metadata, encoded_site_key, metadata_derived_site_key
+
+
 def _construct_analysis_ready_dataset(
     *,
     phospho: pd.DataFrame,
     site_metadata: pd.DataFrame,
+    organism: Organism = Organism.RAT,
 ) -> AnalysisReadyPhosphoDataset:
     return AnalysisReadyPhosphoDataset(
         phospho=phospho,
         site_metadata=site_metadata,
-        organism=Organism.RAT,
+        organism=organism,
         intensity_scale_state=supported_linear_intensity_scale_state(
             has_total_matrix=False
         ),
@@ -74,6 +141,66 @@ def test_dataset_boundary_accepts_coherent_site_identity_rows() -> None:
         "MAPK14;Y182;",
         "AKT1;T308;",
     ]
+
+
+def test_dataset_boundary_rejects_encoded_t309_when_metadata_says_t308() -> None:
+    phospho, site_metadata, encoded_site_key, metadata_derived_site_key = (
+        _single_akt1_t308_inputs(encoded_position=309)
+    )
+
+    assert phospho.index.tolist() == [encoded_site_key]
+    assert site_metadata.index.tolist() == [encoded_site_key]
+    assert site_metadata.loc[:, "site_key"].tolist() == [encoded_site_key]
+
+    with pytest.raises(DatasetValidationError) as exc_info:
+        _construct_analysis_ready_dataset(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.HUMAN,
+        )
+
+    message = str(exc_info.value)
+    assert "dataset.site_metadata.site_key" in message
+    assert "metadata-derived ProteinScopedPhosphositeKey" in message
+    assert "observed=" in message
+    assert "expected=" in message
+    assert encoded_site_key in message
+    assert metadata_derived_site_key in message
+    assert "position=309" in message
+    assert "position=308" in message
+
+
+@pytest.mark.parametrize(
+    "encoded_overrides",
+    [
+        pytest.param({"encoded_position": 309}, id="position"),
+        pytest.param({"encoded_residue": "S"}, id="residue"),
+        pytest.param({"encoded_organism": "mouse"}, id="organism"),
+        pytest.param({"encoded_protein_namespace": "refseq"}, id="protein_namespace"),
+        pytest.param(
+            {"encoded_protein_identifier": "Q9Y243"},
+            id="protein_identifier",
+        ),
+    ],
+)
+def test_dataset_boundary_rejects_encoded_site_key_metadata_identity_mismatches(
+    encoded_overrides: dict[str, object],
+) -> None:
+    phospho, site_metadata, encoded_site_key, metadata_derived_site_key = (
+        _single_akt1_t308_inputs(**encoded_overrides)
+    )
+
+    with pytest.raises(DatasetValidationError) as exc_info:
+        _construct_analysis_ready_dataset(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.HUMAN,
+        )
+
+    message = str(exc_info.value)
+    assert "site_key must match metadata-derived" in message
+    assert encoded_site_key in message
+    assert metadata_derived_site_key in message
 
 
 @pytest.mark.parametrize(

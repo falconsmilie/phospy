@@ -211,6 +211,57 @@ def test_builder_rejects_explicit_site_key_that_disagrees_with_metadata(
         )
 
 
+def test_builder_rejects_explicit_t309_site_key_when_metadata_says_t308() -> None:
+    stale_site_key = _site_key(
+        organism="human",
+        protein_namespace="uniprot",
+        protein_identifier="P31749",
+        residue="T",
+        position=309,
+    )
+    expected_site_key = _site_key(
+        organism="human",
+        protein_namespace="uniprot",
+        protein_identifier="P31749",
+        residue="T",
+        position=308,
+    )
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0], "sample_b": [2.0]},
+        index=pd.Index(["AKT1;T308;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["AKT1"],
+            "site": ["T308"],
+            "organism": ["human"],
+            "protein_namespace": ["uniprot"],
+            "protein_identifier": ["P31749"],
+            "display_id": ["AKT1;T308;"],
+            "site_key": [stale_site_key],
+            "site_sequence": ["AAAAATAAAAA"],
+            "localisation_confidence": [0.95],
+        },
+        index=phospho.index.copy(),
+    )
+
+    with pytest.raises(PhosPyInputError) as exc_info:
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                organism=Organism.HUMAN,
+                input_intensity_scale="linear",
+            )
+        )
+
+    message = str(exc_info.value)
+    assert "explicit identity fields must match metadata-derived" in message
+    assert "site_key" in message
+    assert stale_site_key in message
+    assert expected_site_key in message
+
+
 def test_builder_rejects_explicit_site_key_without_protein_context() -> None:
     phospho, site_metadata = _explicit_identity_frames(include_protein_context=False)
 
