@@ -1929,7 +1929,7 @@ def test_dataset_builder_emits_machine_readable_run_provenance() -> None:
     assert site_matrix_stage.operation == "build_from_metadata"
     diagnostics = site_matrix_stage.diagnostics or {}
     assert "row_c" in set(diagnostics["dropped_missing_sequence_row_ids"])
-    assert diagnostics["duplicate_site_policy"] == "max_mean_signal"
+    assert diagnostics["duplicate_site_policy"] == "error"
     assert diagnostics["missing_data_policy"] == "drop_any_missing"
     assert set(diagnostics["final_site_keys"]) == set(built.phospho.index.tolist())
 

@@ -98,7 +98,7 @@ def _processing_state_with_diagnostics(
             constructed=False,
             missing_data_policy="drop_any_missing",
             minimum_observed_values=None,
-            duplicate_site_policy="max_mean_signal",
+            duplicate_site_policy="error",
         ),
         comparisons=ComparisonState(
             policy="none",
@@ -170,7 +170,7 @@ def _processing_payload_with_diagnostics(
             "constructed": False,
             "missing_data_policy": "drop_any_missing",
             "minimum_observed_values": None,
-            "duplicate_site_policy": "max_mean_signal",
+            "duplicate_site_policy": "error",
         },
         "comparisons": {
             "policy": "none",

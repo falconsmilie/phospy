@@ -65,14 +65,17 @@ class DatasetSiteMatrixConfig:
     fixed to `missing_data_policy="drop_any_missing"`, so only complete phospho
     rows enter strict `AnalysisReadyPhosphoDataset` construction.
 
-    `duplicate_site_policy` controls duplicate-site collapse for the retained
-    complete-case rows:
+    `duplicate_site_policy` controls duplicate-site handling for retained
+    complete-case rows that resolve to the same analysis-ready `site_key`.
+    Duplicate `display_id` values are allowed when `site_key` values differ.
+    Non-error duplicate policies are deliberate scientific row-collapse choices
+    and should be paired with inspection of the preprocessing reports:
 
-    - `"error"`: strict/scientifically cautious mode; fail when duplicate
+    - `"error"` (default): strict/scientifically cautious mode; fail when duplicate
       constructed site identifiers are present.
     - `"first"`: convenient input-order rule; keep the first encountered row and
       drop later duplicates.
-    - `"max_mean_signal"` (default): keep the highest-mean signal row among
+    - `"max_mean_signal"`: keep the highest-mean signal row among
       duplicates, which can favour higher-abundance / stronger-signal rows.
     - `"aggregate_mean"`: aggregate duplicate phospho values by column mean,
       preserving all rows numerically but potentially blurring distinct peptide
@@ -89,7 +92,7 @@ class DatasetSiteMatrixConfig:
 
     policy: DatasetSiteMatrixPolicy = DATASET_SITE_MATRIX_POLICY_AS_INPUT
     duplicate_site_policy: DatasetSiteMatrixDuplicateSitePolicy = (
-        DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL
+        DATASET_SITE_MATRIX_DUPLICATE_POLICY_ERROR
     )
     missing_data_policy: DatasetSiteMatrixMissingDataPolicy = (
         DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING
@@ -106,7 +109,7 @@ class DatasetSiteMatrixConfig:
             supported_duplicate_policies=DATASET_SITE_MATRIX_DUPLICATE_POLICIES,
             supported_missing_data_policies=DATASET_SITE_MATRIX_MISSING_DATA_POLICIES,
             policy_as_input=DATASET_SITE_MATRIX_POLICY_AS_INPUT,
-            duplicate_policy_default=DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
+            duplicate_policy_default=DATASET_SITE_MATRIX_DUPLICATE_POLICY_ERROR,
             supported_missing_data_policy=DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
         )
 

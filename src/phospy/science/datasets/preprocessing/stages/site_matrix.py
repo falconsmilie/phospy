@@ -392,7 +392,7 @@ def _format_row_drop_diagnostics(row_drop_stats: dict[str, int | str]) -> str:
         "deduplicated_site_rows="
         f"{int(row_drop_stats.get('deduplicated_site_rows', 0))}, "
         "duplicate_site_policy="
-        f"{str(row_drop_stats.get('duplicate_site_policy', 'max_mean_signal'))}, "
+        f"{str(row_drop_stats.get('duplicate_site_policy', 'error'))}, "
         f"other_dropped_rows={other_dropped_rows}, "
         f"retained_rows={retained_rows}"
     )

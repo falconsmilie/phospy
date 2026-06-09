@@ -180,10 +180,19 @@ class DuplicateSiteResolver:
             preview = ", ".join(duplicate_site_keys.tolist())
             raise PhosPyInputError(
                 "dataset build request preprocessing site-matrix construction found "
-                "duplicate site_key values and "
-                "site_matrix.duplicate_site_policy='error': "
-                f"{preview}. Use a non-error duplicate policy to emit duplicate-site "
-                "resolution and metadata-conflict diagnostics."
+                "multiple input rows that resolved to the same analysis-ready "
+                "site_key values (duplicate site_key values): "
+                f"{preview}. Duplicate site_key rows are a scientific ambiguity "
+                "because row retention, aggregation, or collapse changes the "
+                "analysis-ready phosphosite evidence model. The default "
+                "site_matrix.duplicate_site_policy='error' does not choose one "
+                "source row silently. To resolve duplicates intentionally, configure "
+                "DatasetSiteMatrixConfig(policy='build_from_metadata', "
+                "duplicate_site_policy='<policy>') with one of the explicit "
+                "non-error policies: 'max_mean_signal', 'first', "
+                "'aggregate_mean', or 'aggregate_median'. Inspect "
+                "dataset.preprocessing_report.duplicate_site_resolution and "
+                "metadata_conflicts after using a non-error policy."
             )
 
         if resolved_policy is SiteMatrixDuplicateSitePolicy.FIRST:

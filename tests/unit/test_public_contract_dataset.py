@@ -28,6 +28,11 @@ from phospy.api import (
     PhosPyInputError,
 )
 from phospy.api.configs import (
+    DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
+    DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
+    DATASET_SITE_MATRIX_DUPLICATE_POLICY_ERROR,
+    DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST,
+    DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
     DATASET_SITE_MATRIX_MISSING_DATA_POLICIES,
     DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
     DatasetMissingDataConfig,
@@ -39,6 +44,27 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def _display_ids(dataset: AnalysisReadyPhosphoDataset) -> list[str]:
     return dataset.site_metadata.loc[:, "display_id"].astype(str).tolist()
+
+
+def _duplicate_site_key_build_inputs() -> tuple[pd.DataFrame, pd.DataFrame]:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 5.0],
+            "sample_b": [2.0, 6.0],
+        },
+        index=pd.Index(["SRC_ROW_1", "SRC_ROW_2"], name="input_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "MAPK14"],
+            "site": ["Y182", "Y182"],
+            "protein_id": ["MAPK14", "MAPK14"],
+            "site_sequence": ["SEQ_A", "SEQ_A"],
+            "localisation_confidence": [0.95, 0.9],
+        },
+        index=phospho.index.copy(),
+    )
+    return phospho, site_metadata
 
 
 def _public_methods(cls: type[object]) -> set[str]:
@@ -111,6 +137,7 @@ def test_site_matrix_missing_data_public_contract_is_complete_case_only() -> Non
         config.missing_data_policy
         == DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING
     )
+    assert config.duplicate_site_policy == DATASET_SITE_MATRIX_DUPLICATE_POLICY_ERROR
     assert config.minimum_observed_values is None
 
 
@@ -251,3 +278,131 @@ def test_site_matrix_build_contract_reports_empty_when_fully_unresolvable() -> N
                 ),
             )
         )
+
+
+def test_site_matrix_duplicate_site_key_rows_fail_by_default() -> None:
+    phospho, site_metadata = _duplicate_site_key_build_inputs()
+
+    with pytest.raises(PhosPyInputError) as exc_info:
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+                preprocessing_config=DatasetPreprocessingConfig(
+                    site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
+                ),
+            )
+        )
+
+    message = str(exc_info.value)
+    assert (
+        "multiple input rows that resolved to the same analysis-ready site_key"
+        in message
+    )
+    assert "scientific ambiguity" in message
+    assert "DatasetSiteMatrixConfig(policy='build_from_metadata'" in message
+    assert "duplicate_site_policy='<policy>'" in message
+    assert "max_mean_signal" in message
+    assert "first" in message
+    assert "aggregate_mean" in message
+    assert "aggregate_median" in message
+
+
+@pytest.mark.parametrize(
+    "duplicate_site_policy",
+    (
+        DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
+        DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST,
+        DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
+        DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
+    ),
+)
+def test_site_matrix_duplicate_site_key_rows_pass_with_explicit_non_error_policy(
+    duplicate_site_policy: str,
+) -> None:
+    phospho, site_metadata = _duplicate_site_key_build_inputs()
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            input_intensity_scale="linear",
+            preprocessing_config=DatasetPreprocessingConfig(
+                site_matrix=DatasetSiteMatrixConfig(
+                    policy="build_from_metadata",
+                    duplicate_site_policy=duplicate_site_policy,
+                )
+            ),
+        )
+    )
+
+    assert built.phospho.index.name == "site_key"
+    assert built.phospho.index.is_unique
+    assert built.phospho.shape[0] == 1
+    assert built.preprocessing_report is not None
+    duplicate_resolution = built.preprocessing_report.duplicate_site_resolution
+    assert duplicate_resolution is not None
+    assert duplicate_resolution.shape[0] == 2
+    assert set(duplicate_resolution.loc[:, "source_row_id"].astype(str)) == {
+        "SRC_ROW_1",
+        "SRC_ROW_2",
+    }
+    assert set(duplicate_resolution.loc[:, "resolution_policy"].astype(str)) == {
+        duplicate_site_policy
+    }
+    if duplicate_site_policy in {
+        DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
+        DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
+    }:
+        assert duplicate_resolution.loc[:, "retained"].tolist() == [True, True]
+        assert duplicate_resolution.loc[:, "n_aggregated_rows"].astype(
+            "Int64"
+        ).tolist() == [2, 2]
+    else:
+        assert duplicate_resolution.loc[:, "retained"].tolist().count(True) == 1
+        assert duplicate_resolution.loc[:, "retained"].tolist().count(False) == 1
+
+
+def test_site_matrix_duplicate_display_ids_with_distinct_site_keys_remain_valid() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 3.0],
+            "sample_b": [2.0, 4.0],
+        },
+        index=pd.Index(["row_a", "row_b"], name="input_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "MAPK14"],
+            "site": ["Y182", "Y182"],
+            "protein_accession": ["P28482-1", "P28482-2"],
+            "site_sequence": ["SEQ_A", "SEQ_R"],
+            "localisation_confidence": [0.95, 0.9],
+        },
+        index=phospho.index.copy(),
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            input_intensity_scale="linear",
+            preprocessing_config=DatasetPreprocessingConfig(
+                site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
+            ),
+        )
+    )
+
+    assert built.phospho.shape[0] == 2
+    assert built.phospho.index.is_unique
+    assert _display_ids(built) == ["MAPK14;Y182;", "MAPK14;Y182;"]
+    assert built.preprocessing_report is not None
+    duplicate_resolution = built.preprocessing_report.duplicate_site_resolution
+    assert duplicate_resolution is not None
+    assert duplicate_resolution.empty

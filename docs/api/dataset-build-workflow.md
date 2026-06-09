@@ -428,19 +428,27 @@ For mixed datasets, row-level correction status is available in
 | Parameter | Type | Default | Allowed Values | How to Use It |
 | --- | --- | --- | --- | --- |
 | `policy` | `str` | `"as_input"` | `"as_input"`, `"build_from_metadata"` | `"as_input"` preserves interpreted site-matrix-ready rows after `site_key` derivation. `"build_from_metadata"` constructs site identity from metadata before final dataset construction. |
-| `duplicate_site_policy` | `str` | `"max_mean_signal"` | `"max_mean_signal"`, `"first"`, `"aggregate_mean"`, `"aggregate_median"`, `"error"` | Controls duplicate rows that resolve to the same `site_key` during site-matrix construction. Duplicate `display_id` values with distinct `site_key` values are valid. |
+| `duplicate_site_policy` | `str` | `"error"` | `"error"`, `"max_mean_signal"`, `"first"`, `"aggregate_mean"`, `"aggregate_median"` | Controls duplicate rows that resolve to the same `site_key` during site-matrix construction. Duplicate `display_id` values with distinct `site_key` values are valid. |
 | `missing_data_policy` | `str` | `"drop_any_missing"` | `"drop_any_missing"` | Keeps only complete rows for strict dataset construction. |
 | `minimum_observed_values` | `None` | `None` | `None` | Public strict construction requires this to stay unset. |
 
-When two or more rows resolve to the same `site_key`, the builder applies the
-configured duplicate-site policy before final analysis-ready construction.
+When two or more rows resolve to the same `site_key`, the default policy raises
+instead of collapsing evidence. Duplicate `site_key` rows are a scientific
+ambiguity because choosing one row or aggregating rows changes the
+analysis-ready phosphosite evidence model. Non-error policies are deliberate
+scientific choices: `max_mean_signal` and `first` retain one source row, while
+`aggregate_mean` and `aggregate_median` combine duplicate source rows. When you
+use a non-error policy, inspect
+`dataset.preprocessing_report.duplicate_site_resolution` and
+`dataset.preprocessing_report.metadata_conflicts`.
+
 Rows with repeated `display_id` values can pass when their derived `site_key`
-values differ.
+values differ. `display_id` is display metadata, not row identity.
 
 ```python
 site_matrix = DatasetSiteMatrixConfig(
     policy="build_from_metadata",
-    duplicate_site_policy="error",
+    duplicate_site_policy="aggregate_mean",  # intentional row-collapse policy
 )
 ```
 

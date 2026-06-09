@@ -27,8 +27,15 @@ Identity boundary summary:
 - Kinase references may remain display-ID keyed only at the reference boundary;
   the kinase workflow projects them through an explicit `display_id` ->
   `site_key` mapping before scoring.
-- Duplicate rows are not automatically aggregated beyond explicit duplicate
-  policies.
+- Duplicate rows that resolve to the same `site_key` are a scientific ambiguity
+  and fail by default during site-matrix preprocessing.
+- Non-error duplicate-site policies (`max_mean_signal`, `first`,
+  `aggregate_mean`, `aggregate_median`) are deliberate scientific choices.
+- When a non-error duplicate-site policy is used, inspect
+  `dataset.preprocessing_report.duplicate_site_resolution` and
+  `metadata_conflicts`.
+- Duplicate `display_id` values remain valid when the corresponding `site_key`
+  values differ.
 - Duplicate rows are not automatically renamed.
 - Peptide-evidence modelling scope is unchanged in this identity migration.
 

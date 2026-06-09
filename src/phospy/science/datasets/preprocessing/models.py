@@ -207,7 +207,7 @@ class PreprocessingPlan:
     site_matrix_policy: SiteMatrixPolicy = SiteMatrixPolicy.AS_INPUT
     comparison_building_policy: ComparisonBuildingPolicy = ComparisonBuildingPolicy.NONE
     site_matrix_duplicate_site_policy: SiteMatrixDuplicateSitePolicy = (
-        SiteMatrixDuplicateSitePolicy.MAX_MEAN_SIGNAL
+        SiteMatrixDuplicateSitePolicy.ERROR
     )
     site_matrix_missing_data_policy: SiteMatrixMissingDataPolicy = (
         SiteMatrixMissingDataPolicy.DROP_ANY_MISSING

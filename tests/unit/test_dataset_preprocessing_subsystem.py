@@ -1243,7 +1243,10 @@ def test_dataset_preprocessor_builds_site_matrix_from_metadata_policy() -> None:
         total=None,
         plan=_plan_without_missing_stage(
             DatasetPreprocessingConfig(
-                site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
+                site_matrix=DatasetSiteMatrixConfig(
+                    policy="build_from_metadata",
+                    duplicate_site_policy="max_mean_signal",
+                )
             )
         ),
     )

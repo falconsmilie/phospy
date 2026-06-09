@@ -722,7 +722,7 @@ def test_processing_state_payload_rejects_minimal_total_correction_without_expli
             "constructed": False,
             "missing_data_policy": "drop_any_missing",
             "minimum_observed_values": None,
-            "duplicate_site_policy": "max_mean_signal",
+            "duplicate_site_policy": "error",
         },
         "comparisons": {
             "policy": "none",
@@ -777,7 +777,7 @@ def test_processing_state_payload_rejects_applied_total_correction_without_versi
             "constructed": False,
             "missing_data_policy": "drop_any_missing",
             "minimum_observed_values": None,
-            "duplicate_site_policy": "max_mean_signal",
+            "duplicate_site_policy": "error",
         },
         "comparisons": {
             "policy": "none",
