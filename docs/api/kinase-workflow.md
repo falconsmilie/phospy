@@ -349,6 +349,20 @@ Primary scoring and prediction matrices are indexed by `site_key`. Site-level
 tables that materialize row identity, such as `substrate_list` and activity
 target tables, include both `site_key` and `display_id` for audit and display.
 
+### Result Construction Contract
+
+`KinaseWorkflowResult` is a workflow-owned container. Direct construction is
+intentionally minimal and does not re-run reference compatibility, dataset
+alignment, scoring, prediction, activity, attrition, or provenance validation.
+Use `KinaseWorkflow.run(...)` when you need a scientifically coherent public
+kinase result.
+
+The nested stage results are the directly constructible table contracts:
+`KinaseScoringResult`, `KinasePredictionResult`, and `KinaseActivityResult`
+validate their own public table schemas and defensive DataFrame ownership.
+Cross-table and cross-object identity coherence is guaranteed for
+workflow-created results, not arbitrary hand-assembled containers.
+
 Activity tables are present when activity is enabled:
 
 ```python

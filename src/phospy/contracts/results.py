@@ -36,6 +36,7 @@ from phospy.science.signalomes.models import (
     default_signalome_module_selection_diagnostics,
     default_signalome_score_preconditioning_diagnostics,
 )
+from phospy.science.sites.validation import require_site_key_series
 from phospy.tables.signalome import (
     SignalomeProteinSiteContext,
     SignalomeSiteContext,
@@ -92,7 +93,15 @@ class KinaseEligibilityReport:
 
 @dataclass(frozen=True, slots=True)
 class KinaseWorkflowResult:
-    """Top-level public kinase workflow result."""
+    """Top-level public kinase workflow result.
+
+    This is a workflow-owned container, not a direct user-construction
+    validator. Workflow execution is the supported construction path for
+    scientific coherence across `dataset`, `references`, scoring, prediction,
+    optional activity, eligibility, attrition, and provenance. The nested stage
+    result objects own their public table schemas; this container keeps the
+    workflow-assembled objects together without re-running workflow validation.
+    """
 
     dataset: AnalysisReadyPhosphoDataset
     references: ReferenceBundle
@@ -114,6 +123,11 @@ class KinaseWorkflowResult:
 class SignalomeWorkflowResult:
     """Top-level public signalome workflow result.
 
+    This is a workflow-owned result object. Direct construction is supported for
+    bundle reconstruction and tests, but the signalome workflow is the
+    recommended public construction path for scientific coherence across module
+    assignment, module summary, kinase-network, and context sidecars.
+
     `expanded_signalome` is a flattened optional DataFrame contract populated by
     the supported signalome executor lane. It includes focal-kinase rows with
     linked-kinase metadata, regulated module IDs, and selected site-membership
@@ -126,7 +140,10 @@ class SignalomeWorkflowResult:
 
     Provenance in this object describes owned internal state at creation time.
     Public export helpers return defensive snapshots; mutating exported
-    DataFrames does not mutate this owning result.
+    DataFrames does not mutate this owning result. Constructor validation is
+    intentionally limited to ownership, provenance type, and public table
+    identity contracts. It does not run clustering, mapping, scoring, reference
+    resolution, or dataset repair.
     """
 
     dataset: AnalysisReadyPhosphoDataset
@@ -241,7 +258,12 @@ class SignalomeWorkflowResult:
             error_type=WorkflowValidationError,
             assume_owned=_assume_owned,
         )
-        _validate_expanded_signalome_identity(expanded_signalome)
+        _validate_signalome_result_site_level_identity(
+            dataset=self.dataset,
+            module_assignments=self.module_assignments,
+            expanded_signalome=expanded_signalome,
+            site_membership=site_membership,
+        )
         if site_membership is not None:
             site_membership = SignalomeSiteContext(
                 frame=site_membership,
@@ -331,22 +353,46 @@ class SignalomeWorkflowResult:
         return export_optional_dataframe(self._protein_site_context)
 
 
+def _validate_signalome_result_site_level_identity(
+    *,
+    dataset: AnalysisReadyPhosphoDataset,
+    module_assignments: SignalomeAssignments,
+    expanded_signalome: pd.DataFrame | None,
+    site_membership: pd.DataFrame | None,
+) -> None:
+    dataset_identity = _signalome_dataset_identity_lookup(dataset)
+    _validate_site_level_signalome_rows(
+        table=module_assignments.table,
+        field_name="signalome_result.module_assignments.table",
+        dataset_identity=dataset_identity,
+    )
+    _validate_expanded_signalome_identity(
+        expanded_signalome,
+        dataset_identity=dataset_identity,
+    )
+    _validate_site_level_signalome_rows(
+        table=site_membership,
+        field_name="signalome_result.site_membership",
+        dataset_identity=dataset_identity,
+    )
+
+
 def _validate_expanded_signalome_identity(
     expanded_signalome: pd.DataFrame | None,
+    *,
+    dataset_identity: dict[str, str],
 ) -> None:
-    if expanded_signalome is None:
-        return
     missing = [
         column
         for column in (SITE_KEY_COLUMN, DISPLAY_ID_COLUMN)
-        if column not in expanded_signalome.columns
+        if expanded_signalome is not None and column not in expanded_signalome.columns
     ]
     if missing:
         joined = ", ".join(missing)
         raise WorkflowValidationError(
             f"signalome_result.expanded_signalome is missing required columns: {joined}"
         )
-    if expanded_signalome.empty:
+    if expanded_signalome is None or expanded_signalome.empty:
         return
     site_rows = expanded_signalome
     if EXPANDED_SIGNALOME_ROW_KIND_COLUMN in expanded_signalome.columns:
@@ -355,21 +401,126 @@ def _validate_expanded_signalome_identity(
             == EXPANDED_SIGNALOME_ROW_KIND_SITE,
             :,
         ]
-    if site_rows.empty:
+    _validate_site_level_signalome_rows(
+        table=site_rows,
+        field_name="signalome_result.expanded_signalome",
+        dataset_identity=dataset_identity,
+    )
+
+
+def _validate_site_level_signalome_rows(
+    *,
+    table: pd.DataFrame | None,
+    field_name: str,
+    dataset_identity: dict[str, str],
+) -> None:
+    if table is None:
+        return
+    missing = [
+        column for column in (SITE_KEY_COLUMN, DISPLAY_ID_COLUMN) if column not in table
+    ]
+    if missing:
+        joined = ", ".join(missing)
+        raise WorkflowValidationError(
+            f"{field_name} is missing required columns: {joined}"
+        )
+    if table.empty:
         return
     for column_name in (SITE_KEY_COLUMN, DISPLAY_ID_COLUMN):
         invalid_count = int(
             sum(
                 1
-                for value in site_rows.loc[:, column_name].tolist()
+                for value in table.loc[:, column_name].tolist()
                 if not isinstance(value, str) or value.strip() == ""
             )
         )
         if invalid_count:
             raise WorkflowValidationError(
-                "signalome_result.expanded_signalome site rows require non-empty "
+                f"{field_name} site rows require non-empty "
                 f"{column_name} values; invalid_count={invalid_count}"
             )
+    site_keys = table.loc[:, SITE_KEY_COLUMN].astype(str)
+    require_site_key_series(
+        site_keys,
+        field_name=f"{field_name}.{SITE_KEY_COLUMN}",
+        error_type=WorkflowValidationError,
+    )
+    display_ids = table.loc[:, DISPLAY_ID_COLUMN].astype(str)
+    missing_site_keys = [
+        site_key
+        for site_key in dict.fromkeys(site_keys.tolist())
+        if site_key not in dataset_identity
+    ]
+    if missing_site_keys:
+        preview = ", ".join(repr(value) for value in missing_site_keys[:5])
+        suffix = "" if len(missing_site_keys) <= 5 else " ..."
+        raise WorkflowValidationError(
+            f"{field_name}.{SITE_KEY_COLUMN} values must align to "
+            "signalome_result.dataset; missing_site_keys="
+            f"{preview}{suffix}"
+        )
+    mismatches = [
+        f"{site_key!r}: observed={display_id!r}, expected={dataset_identity[site_key]!r}"
+        for site_key, display_id in zip(
+            site_keys.tolist(),
+            display_ids.tolist(),
+            strict=True,
+        )
+        if dataset_identity[site_key] != display_id
+    ]
+    if mismatches:
+        preview = "; ".join(mismatches[:5])
+        suffix = "" if len(mismatches) <= 5 else " ..."
+        raise WorkflowValidationError(
+            f"{field_name}.{DISPLAY_ID_COLUMN} values must match "
+            "signalome_result.dataset.site_metadata.display_id for each site_key; "
+            f"mismatches={preview}{suffix}"
+        )
+
+
+def _signalome_dataset_identity_lookup(
+    dataset: AnalysisReadyPhosphoDataset,
+) -> dict[str, str]:
+    site_metadata = dataset._borrow_site_metadata_frame()
+    missing = [
+        column
+        for column in (SITE_KEY_COLUMN, DISPLAY_ID_COLUMN)
+        if column not in site_metadata.columns
+    ]
+    if missing:
+        joined = ", ".join(missing)
+        raise WorkflowValidationError(
+            "signalome_result.dataset.site_metadata is missing required columns: "
+            f"{joined}"
+        )
+    site_keys = site_metadata.loc[:, SITE_KEY_COLUMN].astype(str)
+    require_site_key_series(
+        site_keys,
+        field_name=f"signalome_result.dataset.site_metadata.{SITE_KEY_COLUMN}",
+        error_type=WorkflowValidationError,
+    )
+    display_ids = site_metadata.loc[:, DISPLAY_ID_COLUMN]
+    invalid_display_id_count = int(
+        sum(
+            1
+            for value in display_ids.tolist()
+            if not isinstance(value, str) or value.strip() == ""
+        )
+    )
+    if invalid_display_id_count:
+        raise WorkflowValidationError(
+            "signalome_result.dataset.site_metadata.display_id values must be "
+            "non-empty strings; "
+            f"invalid_count={invalid_display_id_count}"
+        )
+    return {
+        site_key: display_id
+        for site_key, display_id in zip(
+            site_keys.tolist(),
+            display_ids.astype(str).tolist(),
+            strict=True,
+        )
+    }
 
 
 __all__ = [

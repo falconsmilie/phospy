@@ -339,6 +339,22 @@ Site-level signalome outputs that materialize row identity include `site_key`
 and `display_id` where applicable, while internal alignment remains keyed by
 `site_key`.
 
+### Result Construction Contract
+
+`SignalomeWorkflowResult` is workflow-owned. The recommended public construction
+path is `SignalomeWorkflow.run(...)`, which assembles coherent module
+assignments, module summaries, kinase-network tables, sidecars, diagnostics,
+and provenance.
+
+Direct construction is supported for bundle reconstruction and focused tests,
+but validation is intentionally narrow. It checks DataFrame ownership, public
+sidecar table schemas, provenance type, and site-level public identity. Site
+rows in `module_assignments.table`, `expanded_signalome`, and `site_membership`
+must use encoded `site_key` values, non-empty `display_id` values, and align to
+`signalome_result.dataset.site_metadata`. The constructor does not perform
+clustering, reference mapping, scoring, protein grouping repair, or dataset
+repair.
+
 Sidecar tables help with interpretation and auditing:
 
 ```python

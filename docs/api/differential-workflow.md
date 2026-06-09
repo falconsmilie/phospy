@@ -186,6 +186,8 @@ identity contract. Display-indexed, stat-only, `GENE;SITE;`-keyed, and
 arbitrary non-encoded contrast tables are rejected in public construction.
 Result validation does not derive `site_key` from `display_id`, infer protein
 identity from `gene_symbol`, or repair weak identity metadata.
+It is safe to construct directly only when the caller already has complete
+public result tables that satisfy this identity-bearing contract.
 
 Stat-only contrast tables belong only to the internal statistical computation
 payload. They are not valid `DifferentialAnalysisResult` tables, even when their
