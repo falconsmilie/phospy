@@ -43,6 +43,13 @@ SUPPORTED_EMPIRICAL_BAYES_METHODS: tuple[str, ...] = (
     EMPIRICAL_BAYES_METHOD_STANDARD,
     EMPIRICAL_BAYES_METHOD_ROBUST,
 )
+_RESULT_STATISTIC_COLUMNS: tuple[str, ...] = ("logFC", "t", "P.Value", "adj.P.Val")
+_PUBLIC_RESULT_IDENTITY_COLUMNS: tuple[str, ...] = (
+    "site_key",
+    "display_id",
+    "gene_symbol",
+    "site",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -572,6 +579,250 @@ class DifferentialPolicyProvenance:
 
 
 @dataclass(frozen=True, slots=True, init=False)
+class DifferentialComputationResult:
+    """Internal stat-only output from differential model computation.
+
+    Contrast tables are indexed by the input matrix feature index and contain
+    moderated statistic columns. Workflow layers attach biological identity
+    metadata before constructing the public ``DifferentialAnalysisResult``.
+    """
+
+    residual_variance: pd.Series
+    posterior_residual_variance: pd.Series
+    prior_residual_variance: pd.Series
+    prior_degrees_of_freedom_series_value: pd.Series
+    prior_variance: float
+    prior_degrees_of_freedom: float
+    residual_degrees_of_freedom: float
+    empirical_bayes_method: str
+    empirical_bayes_robust: bool
+    empirical_bayes_trend: bool
+    prior_diagnostics: EmpiricalBayesPriorDiagnostics
+    mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None
+    _contrast_tables: Mapping[str, pd.DataFrame]
+
+    def __init__(
+        self,
+        *,
+        residual_variance: pd.Series,
+        posterior_residual_variance: pd.Series,
+        prior_residual_variance: pd.Series,
+        prior_degrees_of_freedom_series_value: pd.Series,
+        prior_variance: float,
+        prior_degrees_of_freedom: float,
+        residual_degrees_of_freedom: float,
+        empirical_bayes_method: str,
+        empirical_bayes_robust: bool,
+        empirical_bayes_trend: bool,
+        prior_diagnostics: EmpiricalBayesPriorDiagnostics,
+        mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None,
+        contrast_tables: Mapping[str, pd.DataFrame],
+        _assume_owned: bool = False,
+    ) -> None:
+        residual_variance = own_series(
+            residual_variance,
+            field_name="differential_computation_result.residual_variance",
+            error_type=PhosPyInputError,
+            assume_owned=_assume_owned,
+        )
+        posterior_residual_variance = own_series(
+            posterior_residual_variance,
+            field_name="differential_computation_result.posterior_residual_variance",
+            error_type=PhosPyInputError,
+            assume_owned=_assume_owned,
+        )
+        prior_residual_variance = own_series(
+            prior_residual_variance,
+            field_name="differential_computation_result.prior_residual_variance",
+            error_type=PhosPyInputError,
+            assume_owned=_assume_owned,
+        )
+        prior_degrees_of_freedom_series_value = own_series(
+            prior_degrees_of_freedom_series_value,
+            field_name=(
+                "differential_computation_result.prior_degrees_of_freedom_series"
+            ),
+            error_type=PhosPyInputError,
+            assume_owned=_assume_owned,
+        )
+        if not residual_variance.index.equals(posterior_residual_variance.index):
+            raise PhosPyInputError(
+                "differential_computation_result.posterior_residual_variance index "
+                "must match differential_computation_result.residual_variance index"
+            )
+        if not residual_variance.index.equals(prior_residual_variance.index):
+            raise PhosPyInputError(
+                "differential_computation_result.prior_residual_variance index must "
+                "match differential_computation_result.residual_variance index"
+            )
+        if not residual_variance.index.equals(
+            prior_degrees_of_freedom_series_value.index
+        ):
+            raise PhosPyInputError(
+                "differential_computation_result.prior_degrees_of_freedom_series "
+                "index must match differential_computation_result.residual_variance "
+                "index"
+            )
+        if not prior_diagnostics.prior_variance.index.equals(residual_variance.index):
+            raise PhosPyInputError(
+                "differential_computation_result.prior_diagnostics.prior_variance "
+                "index must match matrix feature index"
+            )
+        if not prior_diagnostics.prior_degrees_of_freedom.index.equals(
+            residual_variance.index
+        ):
+            raise PhosPyInputError(
+                "differential_computation_result.prior_diagnostics."
+                "prior_degrees_of_freedom index must match matrix feature index"
+            )
+        if (
+            mean_variance_trend_diagnostics is not None
+            and not mean_variance_trend_diagnostics.mean_intensity.index.equals(
+                residual_variance.index
+            )
+        ):
+            raise PhosPyInputError(
+                "differential_computation_result.mean_variance_trend_diagnostics "
+                "index must match matrix feature index"
+            )
+        if not contrast_tables:
+            raise PhosPyInputError(
+                "differential_computation_result.contrast_tables must include at "
+                "least one contrast"
+            )
+
+        owned_tables: dict[str, pd.DataFrame] = {}
+        for contrast_name, table in contrast_tables.items():
+            if not isinstance(cast(object, contrast_name), str) or not contrast_name:
+                raise PhosPyInputError(
+                    "differential_computation_result.contrast_tables keys must be "
+                    "non-empty strings"
+                )
+            owned_table = own_dataframe(
+                table,
+                field_name=(
+                    "differential_computation_result.contrast_tables"
+                    f"[{contrast_name!r}]"
+                ),
+                error_type=PhosPyInputError,
+                assume_owned=_assume_owned,
+            )
+            _validate_computation_result_table(
+                owned_table,
+                field_name=(
+                    "differential_computation_result.contrast_tables"
+                    f"[{contrast_name!r}]"
+                ),
+            )
+            if not owned_table.index.equals(residual_variance.index):
+                raise PhosPyInputError(
+                    "differential computation result table index must match matrix "
+                    "feature index"
+                )
+            owned_tables[contrast_name] = owned_table
+
+        object.__setattr__(self, "residual_variance", residual_variance)
+        object.__setattr__(
+            self,
+            "posterior_residual_variance",
+            posterior_residual_variance,
+        )
+        object.__setattr__(
+            self,
+            "prior_residual_variance",
+            prior_residual_variance,
+        )
+        object.__setattr__(
+            self,
+            "prior_degrees_of_freedom_series_value",
+            prior_degrees_of_freedom_series_value,
+        )
+        object.__setattr__(self, "prior_variance", float(prior_variance))
+        object.__setattr__(
+            self,
+            "prior_degrees_of_freedom",
+            float(prior_degrees_of_freedom),
+        )
+        object.__setattr__(
+            self,
+            "residual_degrees_of_freedom",
+            float(residual_degrees_of_freedom),
+        )
+        object.__setattr__(self, "empirical_bayes_method", str(empirical_bayes_method))
+        object.__setattr__(self, "empirical_bayes_robust", bool(empirical_bayes_robust))
+        object.__setattr__(self, "empirical_bayes_trend", bool(empirical_bayes_trend))
+        object.__setattr__(self, "prior_diagnostics", prior_diagnostics)
+        object.__setattr__(
+            self,
+            "mean_variance_trend_diagnostics",
+            mean_variance_trend_diagnostics,
+        )
+        object.__setattr__(self, "_contrast_tables", owned_tables)
+
+    @property
+    def contrast_tables(self) -> dict[str, pd.DataFrame]:
+        return {
+            contrast_name: export_dataframe(table)
+            for contrast_name, table in self._contrast_tables.items()
+        }
+
+    def table_for(self, contrast_name: str) -> pd.DataFrame:
+        if contrast_name not in self._contrast_tables:
+            available = ", ".join(sorted(self._contrast_tables))
+            raise KeyError(
+                f"unknown contrast {contrast_name!r}; available: {available}"
+            )
+        return export_dataframe(self._contrast_tables[contrast_name])
+
+    def residual_variance_series(self) -> pd.Series:
+        return export_series(self.residual_variance)
+
+    def posterior_residual_variance_series(self) -> pd.Series:
+        return export_series(self.posterior_residual_variance)
+
+    def prior_residual_variance_series(self) -> pd.Series:
+        return export_series(self.prior_residual_variance)
+
+    def prior_degrees_of_freedom_series(self) -> pd.Series:
+        return export_series(self.prior_degrees_of_freedom_series_value)
+
+    @classmethod
+    def _from_owned(
+        cls,
+        *,
+        residual_variance: pd.Series,
+        posterior_residual_variance: pd.Series,
+        prior_residual_variance: pd.Series,
+        prior_degrees_of_freedom_series_value: pd.Series,
+        prior_variance: float,
+        prior_degrees_of_freedom: float,
+        residual_degrees_of_freedom: float,
+        empirical_bayes_method: str,
+        empirical_bayes_robust: bool,
+        empirical_bayes_trend: bool,
+        prior_diagnostics: EmpiricalBayesPriorDiagnostics,
+        mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None,
+        contrast_tables: Mapping[str, pd.DataFrame],
+    ) -> DifferentialComputationResult:
+        return cls(
+            residual_variance=residual_variance,
+            posterior_residual_variance=posterior_residual_variance,
+            prior_residual_variance=prior_residual_variance,
+            prior_degrees_of_freedom_series_value=prior_degrees_of_freedom_series_value,
+            prior_variance=prior_variance,
+            prior_degrees_of_freedom=prior_degrees_of_freedom,
+            residual_degrees_of_freedom=residual_degrees_of_freedom,
+            empirical_bayes_method=empirical_bayes_method,
+            empirical_bayes_robust=empirical_bayes_robust,
+            empirical_bayes_trend=empirical_bayes_trend,
+            prior_diagnostics=prior_diagnostics,
+            mean_variance_trend_diagnostics=mean_variance_trend_diagnostics,
+            contrast_tables=contrast_tables,
+            _assume_owned=True,
+        )
+
+
+@dataclass(frozen=True, slots=True, init=False)
 class DifferentialAnalysisResult:
     """Differential-analysis output with per-contrast moderated tables.
 
@@ -616,14 +867,8 @@ class DifferentialAnalysisResult:
         policy_provenance: DifferentialPolicyProvenance | None = None,
         workflow_provenance: Mapping[str, object] | None = None,
         input_dataset_preprocessing_report: DatasetPreprocessingReport | None = None,
-        _require_identity_columns: bool = True,
         _assume_owned: bool = False,
     ) -> None:
-        if not _require_identity_columns and not _assume_owned:
-            raise PhosPyInputError(
-                "differential_result._require_identity_columns=False is reserved for "
-                "internal stat-only compatibility construction"
-            )
         residual_variance = own_series(
             residual_variance,
             field_name="differential_result.residual_variance",
@@ -727,7 +972,6 @@ class DifferentialAnalysisResult:
             _validate_result_table(
                 owned_table,
                 field_name=f"differential_result.contrast_tables[{contrast_name!r}]",
-                require_identity_columns=_require_identity_columns,
             )
             if not owned_table.index.equals(residual_variance.index):
                 raise PhosPyInputError(
@@ -790,7 +1034,7 @@ class DifferentialAnalysisResult:
     @property
     def contrast_tables(self) -> dict[str, pd.DataFrame]:
         return {
-            contrast_name: _export_public_contrast_table(table)
+            contrast_name: export_dataframe(table)
             for contrast_name, table in self._contrast_tables.items()
         }
 
@@ -800,8 +1044,7 @@ class DifferentialAnalysisResult:
             raise KeyError(
                 f"unknown contrast {contrast_name!r}; available: {available}"
             )
-        table = self._contrast_tables[contrast_name]
-        return _export_public_contrast_table(table)
+        return export_dataframe(self._contrast_tables[contrast_name])
 
     def residual_variance_series(self) -> pd.Series:
         return export_series(self.residual_variance)
@@ -835,7 +1078,6 @@ class DifferentialAnalysisResult:
         policy_provenance: DifferentialPolicyProvenance | None = None,
         workflow_provenance: Mapping[str, object] | None = None,
         input_dataset_preprocessing_report: DatasetPreprocessingReport | None = None,
-        require_identity_columns: bool = True,
     ) -> DifferentialAnalysisResult:
         return cls(
             residual_variance=residual_variance,
@@ -854,57 +1096,7 @@ class DifferentialAnalysisResult:
             contrast_tables=contrast_tables,
             workflow_provenance=workflow_provenance,
             input_dataset_preprocessing_report=input_dataset_preprocessing_report,
-            _require_identity_columns=require_identity_columns,
             _assume_owned=True,
-        )
-
-    @classmethod
-    def _from_owned_stat_only_tables(
-        cls,
-        *,
-        residual_variance: pd.Series,
-        posterior_residual_variance: pd.Series,
-        prior_residual_variance: pd.Series,
-        prior_degrees_of_freedom_series_value: pd.Series,
-        prior_variance: float,
-        prior_degrees_of_freedom: float,
-        residual_degrees_of_freedom: float,
-        empirical_bayes_method: str,
-        empirical_bayes_robust: bool,
-        empirical_bayes_trend: bool,
-        prior_diagnostics: EmpiricalBayesPriorDiagnostics,
-        mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None,
-        contrast_tables: Mapping[str, pd.DataFrame],
-        policy_provenance: DifferentialPolicyProvenance | None = None,
-        workflow_provenance: Mapping[str, object] | None = None,
-        input_dataset_preprocessing_report: DatasetPreprocessingReport | None = None,
-    ) -> DifferentialAnalysisResult:
-        """Internal compatibility path for computation-only result tables.
-
-        This deliberately allows stat-only contrast tables without
-        ``site_key``/``display_id``/``gene_symbol``/``site`` metadata. Workflow
-        result assembly must use ``_from_owned`` or the public constructor so the
-        public identity contract stays strict.
-        """
-
-        return cls._from_owned(
-            residual_variance=residual_variance,
-            posterior_residual_variance=posterior_residual_variance,
-            prior_residual_variance=prior_residual_variance,
-            prior_degrees_of_freedom_series_value=prior_degrees_of_freedom_series_value,
-            prior_variance=prior_variance,
-            prior_degrees_of_freedom=prior_degrees_of_freedom,
-            residual_degrees_of_freedom=residual_degrees_of_freedom,
-            empirical_bayes_method=empirical_bayes_method,
-            empirical_bayes_robust=empirical_bayes_robust,
-            empirical_bayes_trend=empirical_bayes_trend,
-            prior_diagnostics=prior_diagnostics,
-            mean_variance_trend_diagnostics=mean_variance_trend_diagnostics,
-            policy_provenance=policy_provenance,
-            contrast_tables=contrast_tables,
-            workflow_provenance=workflow_provenance,
-            input_dataset_preprocessing_report=input_dataset_preprocessing_report,
-            require_identity_columns=False,
         )
 
 
@@ -960,7 +1152,51 @@ def _validate_result_table(
     table: pd.DataFrame,
     *,
     field_name: str,
-    require_identity_columns: bool,
+) -> None:
+    _validate_result_table_statistics(table=table, field_name=field_name)
+    missing_identity = [
+        column
+        for column in _PUBLIC_RESULT_IDENTITY_COLUMNS
+        if column not in table.columns
+    ]
+    if missing_identity:
+        joined = ", ".join(missing_identity)
+        raise PhosPyInputError(f"{field_name} is missing required columns: {joined}")
+    for column_name in _PUBLIC_RESULT_IDENTITY_COLUMNS:
+        require_non_empty_string_column(
+            table,
+            field_name=field_name,
+            column_name=column_name,
+            error_type=PhosPyInputError,
+        )
+    _validate_site_key_column_matches_index(table=table, field_name=field_name)
+    _validate_result_identity_metadata_coherent(
+        table=table,
+        field_name=field_name,
+    )
+
+
+def _validate_computation_result_table(
+    table: pd.DataFrame,
+    *,
+    field_name: str,
+) -> None:
+    _validate_result_table_statistics(table=table, field_name=field_name)
+    present_identity = [
+        column for column in _PUBLIC_RESULT_IDENTITY_COLUMNS if column in table.columns
+    ]
+    if present_identity:
+        joined = ", ".join(present_identity)
+        raise PhosPyInputError(
+            f"{field_name} must be stat-only and must not include identity columns: "
+            f"{joined}"
+        )
+
+
+def _validate_result_table_statistics(
+    *,
+    table: pd.DataFrame,
+    field_name: str,
 ) -> None:
     require_dataframe(
         table,
@@ -988,14 +1224,13 @@ def _validate_result_table(
         field_name=field_name,
         error_type=PhosPyInputError,
     )
-    required_stat_columns = ("logFC", "t", "P.Value", "adj.P.Val")
     missing = [
-        column for column in required_stat_columns if column not in table.columns
+        column for column in _RESULT_STATISTIC_COLUMNS if column not in table.columns
     ]
     if missing:
         joined = ", ".join(missing)
         raise PhosPyInputError(f"{field_name} is missing required columns: {joined}")
-    stat_table = cast(pd.DataFrame, table[list(required_stat_columns)])
+    stat_table = cast(pd.DataFrame, table[list(_RESULT_STATISTIC_COLUMNS)])
     require_numeric_dataframe(
         stat_table,
         field_name=field_name,
@@ -1007,31 +1242,6 @@ def _validate_result_table(
         error_type=PhosPyInputError,
         allow_missing=False,
     )
-    enforce_identity_columns = require_identity_columns or (
-        "site_key" in table.columns or "display_id" in table.columns
-    )
-    if enforce_identity_columns:
-        identity_required = ("site_key", "display_id", "gene_symbol", "site")
-        missing_identity = [
-            column for column in identity_required if column not in table.columns
-        ]
-        if missing_identity:
-            joined = ", ".join(missing_identity)
-            raise PhosPyInputError(
-                f"{field_name} is missing required columns: {joined}"
-            )
-        for column_name in identity_required:
-            require_non_empty_string_column(
-                table,
-                field_name=field_name,
-                column_name=column_name,
-                error_type=PhosPyInputError,
-            )
-        _validate_site_key_column_matches_index(table=table, field_name=field_name)
-        _validate_result_identity_metadata_coherent(
-            table=table,
-            field_name=field_name,
-        )
     _validate_unit_interval_column(
         table=table,
         column_name="P.Value",
@@ -1239,24 +1449,3 @@ def _validate_unit_interval_column(
         f"invalid values: {examples}{suffix}; "
         f"invalid_entry_count={int(invalid_positions.size)}"
     )
-
-
-def _export_public_contrast_table(table: pd.DataFrame) -> pd.DataFrame:
-    exported = export_dataframe(table)
-    if {"site_key", "display_id", "gene_symbol", "site"}.issubset(exported.columns):
-        return exported
-    if _index_uses_site_key_identity(exported.index):
-        return exported
-    return cast(pd.DataFrame, exported[["logFC", "t", "P.Value", "adj.P.Val"]])
-
-
-def _index_uses_site_key_identity(index: pd.Index) -> bool:
-    try:
-        require_site_key_index(
-            index,
-            field_name="differential_result.contrast_table.index",
-            error_type=PhosPyInputError,
-        )
-        return True
-    except PhosPyInputError:
-        return False

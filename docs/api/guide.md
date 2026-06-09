@@ -136,6 +136,11 @@ Workflow-created differential results preserve available protein context such as
 Display-indexed or stat-only differential result tables are not valid public
 inputs.
 
+The lower-level differential statistical executor may produce an internal
+stat-only computation payload for workflow assembly. The public API result is
+only `DifferentialAnalysisResult`, after the workflow has attached dataset
+identity metadata.
+
 For concise scientist facing assumptions and interpretation notes, see
 [Workflow Contracts](../workflow_contracts.md).
 

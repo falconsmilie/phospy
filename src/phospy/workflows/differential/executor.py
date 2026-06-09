@@ -82,7 +82,6 @@ class DifferentialAnalysisExecutor:
             contrast_tables=contrast_tables,
             workflow_provenance=request.workflow_provenance,
             input_dataset_preprocessing_report=request.dataset_preprocessing_report,
-            require_identity_columns=True,
         )
 
 

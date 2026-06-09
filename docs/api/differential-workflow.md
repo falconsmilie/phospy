@@ -145,6 +145,12 @@ same stage pattern as other PhosPy workflows:
 The design contract is validated before statistical execution. The interpreter
 receives resolved matrix-ready design/contrast structures.
 
+The lower-level science executor owns numeric model computation only. Its
+internal output is a stat-only computation payload, not a public scientific
+result object. The workflow executor attaches dataset identity metadata from
+`AnalysisReadyPhosphoDataset.site_metadata` and only then constructs the public
+`DifferentialAnalysisResult`.
+
 ## Output Model
 
 `DifferentialAnalysisWorkflow.run(...)` returns `DifferentialAnalysisResult`.
@@ -180,6 +186,10 @@ identity contract. Display-indexed, stat-only, `GENE;SITE;`-keyed, and
 arbitrary non-encoded contrast tables are rejected in public construction.
 Result validation does not derive `site_key` from `display_id`, infer protein
 identity from `gene_symbol`, or repair weak identity metadata.
+
+Stat-only contrast tables belong only to the internal statistical computation
+payload. They are not valid `DifferentialAnalysisResult` tables, even when their
+row index happens to contain encoded `site_key` values.
 
 ### Statistical Method and Multiple Testing
 

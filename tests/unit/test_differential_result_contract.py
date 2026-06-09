@@ -26,6 +26,7 @@ from phospy.science.differential.models import (
 )
 from phospy.science.differential.models import (
     DifferentialAnalysisResult,
+    DifferentialComputationResult,
     EmpiricalBayesPriorDiagnostics,
 )
 from phospy.science.sites.site_keys import (
@@ -217,11 +218,7 @@ def _prior_diagnostics(index: pd.Index) -> EmpiricalBayesPriorDiagnostics:
     )
 
 
-def _manual_result_with_table(
-    table: pd.DataFrame,
-    *,
-    stat_only_compatibility: bool = False,
-) -> DifferentialAnalysisResult:
+def _manual_result_with_table(table: pd.DataFrame) -> DifferentialAnalysisResult:
     index = table.index.copy()
     payload = {
         "residual_variance": pd.Series(
@@ -254,9 +251,44 @@ def _manual_result_with_table(
         "mean_variance_trend_diagnostics": None,
         "contrast_tables": {"B_vs_A": table},
     }
-    if stat_only_compatibility:
-        return DifferentialAnalysisResult._from_owned_stat_only_tables(**payload)
     return DifferentialAnalysisResult(**payload)
+
+
+def _manual_computation_result_with_table(
+    table: pd.DataFrame,
+) -> DifferentialComputationResult:
+    index = table.index.copy()
+    return DifferentialComputationResult(
+        residual_variance=pd.Series(
+            np.full(index.size, 1.0),
+            index=index.copy(),
+            name="residual_variance",
+        ),
+        posterior_residual_variance=pd.Series(
+            np.full(index.size, 1.0),
+            index=index.copy(),
+            name="posterior_residual_variance",
+        ),
+        prior_residual_variance=pd.Series(
+            np.full(index.size, 1.0),
+            index=index.copy(),
+            name="prior_residual_variance",
+        ),
+        prior_degrees_of_freedom_series_value=pd.Series(
+            np.full(index.size, 10.0),
+            index=index.copy(),
+            name="prior_degrees_of_freedom",
+        ),
+        prior_variance=1.0,
+        prior_degrees_of_freedom=10.0,
+        residual_degrees_of_freedom=4.0,
+        empirical_bayes_method="standard",
+        empirical_bayes_robust=False,
+        empirical_bayes_trend=False,
+        prior_diagnostics=_prior_diagnostics(index),
+        mean_variance_trend_diagnostics=None,
+        contrast_tables={"B_vs_A": table},
+    )
 
 
 def _strict_result_table() -> pd.DataFrame:
@@ -518,15 +550,29 @@ def test_direct_result_construction_rejects_site_key_index_column_mismatch() -> 
         _manual_result_with_table(table)
 
 
-def test_internal_stat_only_result_constructor_is_explicit() -> None:
-    result = _manual_result_with_table(
-        _stat_only_display_table(),
-        stat_only_compatibility=True,
-    )
+def test_internal_stat_only_result_type_is_explicit() -> None:
+    result = _manual_computation_result_with_table(_stat_only_display_table())
     table = result.table_for("B_vs_A")
 
+    assert isinstance(result, DifferentialComputationResult)
+    assert not isinstance(result, DifferentialAnalysisResult)
     assert list(table.columns) == STATISTIC_COLUMNS
     assert table.index.name == "display_id"
+
+
+def test_low_level_differential_executor_returns_computation_result() -> None:
+    interpreted = DifferentialAnalysisInterpreter().run(
+        DifferentialAnalysisValidator().run(
+            _request_for_reverse_contrasts(_load_matrix())
+        )
+    )
+    result = DifferentialComputationExecutor().run(interpreted.computation_request)
+
+    assert isinstance(result, DifferentialComputationResult)
+    assert not isinstance(result, DifferentialAnalysisResult)
+    for contrast_name in ("B_vs_A", "A_vs_B"):
+        table = result.table_for(contrast_name)
+        assert list(table.columns) == STATISTIC_COLUMNS
 
 
 def test_result_tables_follow_public_differential_contract() -> None:
@@ -534,6 +580,7 @@ def test_result_tables_follow_public_differential_contract() -> None:
         _request_for_reverse_contrasts(_load_matrix())
     )
 
+    assert isinstance(result, DifferentialAnalysisResult)
     assert list(result.contrast_tables) == ["B_vs_A", "A_vs_B"]
     for contrast_name in ("B_vs_A", "A_vs_B"):
         table = result.table_for(contrast_name)
@@ -756,6 +803,7 @@ def test_display_unique_statistics_are_unchanged_by_site_key_result_identity() -
     )
     display_index_result = DifferentialComputationExecutor().run(display_index_request)
 
+    assert isinstance(display_index_result, DifferentialComputationResult)
     for contrast_name in ("B_vs_A", "A_vs_B"):
         site_key_table = site_key_result.table_for(contrast_name)
         display_index_table = display_index_result.table_for(contrast_name)

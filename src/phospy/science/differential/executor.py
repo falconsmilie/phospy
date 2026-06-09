@@ -12,7 +12,7 @@ from phospy.errors.input import PhosPyInputError
 from phospy.science.differential.empirical_bayes import fit_empirical_bayes
 from phospy.science.differential.models import (
     DifferentialAnalysisRequest,
-    DifferentialAnalysisResult,
+    DifferentialComputationResult,
     EmpiricalBayesPriorDiagnostics,
     MeanVarianceTrendDiagnostics,
 )
@@ -22,7 +22,9 @@ from phospy.science.differential.multiple_testing import benjamini_hochberg
 class DifferentialAnalysisExecutor:
     """Run OLS fitting and limma-style empirical-Bayes moderation."""
 
-    def run(self, request: DifferentialAnalysisRequest) -> DifferentialAnalysisResult:
+    def run(
+        self, request: DifferentialAnalysisRequest
+    ) -> DifferentialComputationResult:
         matrix = request.matrix
         design_frame = request.design.frame
         contrast_frame = request.contrasts.frame
@@ -208,7 +210,7 @@ class DifferentialAnalysisExecutor:
                 _assume_owned=True,
             )
 
-        return DifferentialAnalysisResult._from_owned_stat_only_tables(
+        return DifferentialComputationResult._from_owned(
             residual_variance=residual_variance_series,
             posterior_residual_variance=posterior_variance_series,
             prior_residual_variance=prior_variance_series,

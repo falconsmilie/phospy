@@ -60,7 +60,7 @@ tests/unit/test_differential_analysis.py,unit,535,11,false,false,scientific inva
 tests/unit/test_differential_dataset_eligibility_validator.py,unit,164,5,false,false,,,,,,
 tests/unit/test_differential_numerical_guards.py,unit,320,7,true,true,,,,,,
 tests/unit/test_differential_request_config_refactor.py,unit,58,6,false,false,,,,,,
-tests/unit/test_differential_result_contract.py,unit,786,26,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
+tests/unit/test_differential_result_contract.py,unit,834,27,false,false,,,,,,
 tests/unit/test_differential_technical_replicate_policy.py,unit,501,12,false,false,,,,,,
 tests/unit/test_differential_unsupported_designs.py,unit,175,5,false,false,,,,,,
 tests/unit/test_differential_workflow_components.py,unit,581,20,true,true,,,,,,
