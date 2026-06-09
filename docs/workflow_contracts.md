@@ -50,6 +50,7 @@ identical numeric outputs across different machines or dependency builds.
   Analysis-ready datasets may carry it as optional workflow/source metadata, and
   it may be absent or incomplete until a workflow such as signalome requires it.
 - `sample_metadata.index` and `total` sample index must match `phospho.columns` when provided.
+- `sample_metadata` column names must be unique when provided.
 - If site-matrix construction is enabled, `site_metadata` must provide the required site-identity fields.
 
 ### Missing-Value Policy

@@ -23,7 +23,8 @@ or blank values until a workflow explicitly requires it. Signalome is the
 workflow that requires complete `protein_id` values as algorithm-specific
 protein grouping metadata.
 
-`sample_metadata`, when provided, must align to the phospho sample columns.
+`sample_metadata`, when provided, must align to the phospho sample columns and
+must have unique column names.
 
 `total`, when provided, must be numeric, missing-value-free, and aligned to the
 phospho sample columns.
@@ -65,6 +66,7 @@ A built `AnalysisReadyPhosphoDataset` must have:
   run, may be incomplete at the dataset boundary, and is not a replacement for
   `protein_identifier` or `site_key`
 - `sample_metadata.index` exactly matching `phospho.columns` when provided
+- `sample_metadata.columns` unique when provided
 - `total.columns` exactly matching `phospho.columns` when provided
 - an `Organism` enum value or `None`
 - explicit intensity-scale and processing-state metadata

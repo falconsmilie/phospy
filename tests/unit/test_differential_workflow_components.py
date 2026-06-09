@@ -170,6 +170,37 @@ def test_differential_workflow_dependency_injection_supports_real_stage_contract
     assert isinstance(result, DifferentialAnalysisResult)
 
 
+def test_differential_workflow_uses_explicit_design_not_sample_metadata_conditions() -> (
+    None
+):
+    base_request = _request()
+    base_dataset = base_request.dataset
+    dataset_with_passive_metadata = AnalysisReadyPhosphoDataset(
+        phospho=base_dataset.phospho,
+        site_metadata=base_dataset.site_metadata,
+        sample_metadata=pd.DataFrame(
+            {
+                "condition": ["metadata_only"] * 4,
+                "batch": ["batch_1", "batch_1", "batch_2", "batch_2"],
+            },
+            index=base_dataset.phospho.columns.copy(),
+        ),
+        organism=base_dataset.organism,
+        intensity_scale_state=base_dataset.intensity_scale_state,
+        processing_state=base_dataset.processing_state,
+    )
+
+    result = DifferentialAnalysisWorkflow().run(
+        DifferentialAnalysisRequest(
+            dataset=dataset_with_passive_metadata,
+            design=base_request.design,
+            contrasts=base_request.contrasts,
+        )
+    )
+
+    assert isinstance(result, DifferentialAnalysisResult)
+
+
 def test_differential_result_references_input_dataset_preprocessing_report() -> None:
     base_dataset = _dataset()
     preprocessing_report = DatasetPreprocessingReport.from_rows()

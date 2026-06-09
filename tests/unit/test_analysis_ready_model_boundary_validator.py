@@ -574,6 +574,42 @@ def test_model_boundary_validator_parity_for_missing_sample_metadata_rows() -> N
     _assert_constructor_and_adapter_reject(payload)
 
 
+def test_model_boundary_validator_rejects_duplicate_sample_metadata_columns() -> None:
+    payload = _valid_payload()
+    payload["sample_metadata"] = pd.DataFrame(
+        [["a", "batch_1"], ["b", "batch_2"]],
+        columns=["condition", "condition"],
+        index=pd.Index(["sample_a", "sample_b"], name="sample_id"),
+    )
+
+    with pytest.raises(
+        _MODEL_BOUNDARY_ERRORS,
+        match="dataset.sample_metadata.columns must be unique",
+    ):
+        AnalysisReadyPhosphoDataset(**payload)
+    with pytest.raises(
+        _MODEL_BOUNDARY_ERRORS,
+        match="dataset.sample_metadata.columns must be unique",
+    ):
+        _BOUNDARY_VALIDATOR.run(**payload)
+
+
+def test_model_boundary_validator_accepts_distinct_sample_metadata_columns() -> None:
+    payload = _valid_payload()
+    payload["sample_metadata"] = pd.DataFrame(
+        {
+            "condition": ["a", "b"],
+            "batch": ["batch_1", "batch_2"],
+        },
+        index=pd.Index(["sample_a", "sample_b"], name="sample_id"),
+    )
+
+    dataset = AnalysisReadyPhosphoDataset(**payload)
+
+    assert dataset.sample_metadata is not None
+    assert list(dataset.sample_metadata.columns) == ["condition", "batch"]
+
+
 def test_model_boundary_validator_parity_for_missing_or_invalid_scale_state() -> None:
     payload = _valid_payload()
     payload["intensity_scale_state"] = None

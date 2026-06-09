@@ -164,6 +164,7 @@ If `sample_metadata` is provided:
 
 - it must be a `DataFrame`
 - its index must exactly match `phospho.columns`
+- its column names must be unique
 
 ### Total Matrix Invariants
 

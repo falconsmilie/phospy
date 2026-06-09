@@ -578,6 +578,30 @@ def test_builder_accepts_string_dtype_identity_columns() -> None:
     ]
 
 
+def test_builder_rejects_duplicate_sample_metadata_columns_before_returning_dataset() -> (
+    None
+):
+    sample_metadata = pd.DataFrame(
+        [["condition_a", "duplicate_condition"]],
+        columns=["condition", "condition"],
+        index=pd.Index(["sample_a"], name="sample_id"),
+    )
+
+    with pytest.raises(
+        DatasetValidationError,
+        match="dataset.sample_metadata.columns must be unique",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=_phospho(),
+                site_metadata=_site_metadata(),
+                sample_metadata=sample_metadata,
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+            )
+        )
+
+
 def test_builder_rejects_preprocessing_threshold_above_sample_count() -> None:
     with pytest.raises(
         PhosPyInputError,

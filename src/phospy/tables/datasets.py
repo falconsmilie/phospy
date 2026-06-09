@@ -257,6 +257,11 @@ class SampleMetadataTable(TableSchema):
             allow_empty=False,
             error_type=self._error_type,
         )
+        require_unique_columns(
+            frame,
+            field_name=self._field_name,
+            error_type=self._error_type,
+        )
         require_unique_index(
             frame,
             field_name=self._field_name,

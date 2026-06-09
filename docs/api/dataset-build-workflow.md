@@ -61,7 +61,7 @@ from phospy.api import (
 | --- | --- | --- | --- | --- |
 | `phospho` | `pandas.DataFrame`, `str`, or `pathlib.Path` | None | Yes | Site-by-sample intensity matrix. Rows are phosphosites and columns are samples. |
 | `site_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path` | None | Yes | Row metadata aligned to `phospho.index` at ingestion. The analysis-ready boundary requires `site_key`, `display_id`, `organism`, `protein_namespace`, `protein_identifier`, `gene_symbol`, `site`, and `site_sequence`. Builder input may omit `site_key` only when it includes enough protein context, preferably `protein_identifier` plus `protein_namespace`, to derive it. `protein_id` is additionally required for signalome. For site-level scientific workflows, include a localisation-confidence column (default: `localisation_confidence`) and configure explicit localisation policy. |
-| `sample_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Descriptive/alignment metadata aligned to phospho columns. Required when comparison building uses `sample_metadata_pairs`. It does not automatically define differential-analysis conditions, replicates, batches, or blocks. |
+| `sample_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Descriptive/alignment metadata aligned to phospho columns with unique column names. Required when comparison building uses `sample_metadata_pairs`. It does not automatically define differential-analysis conditions, replicates, batches, or blocks. |
 | `total` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Total-protein matrix used only when total-protein correction is enabled. Columns must align to phospho sample columns. |
 | `organism` | `Organism` or `None` | `None` | No | Species identity for the dataset. Use `Organism.RAT` for the bundled beginner lane. |
 | `preprocessing_config` | `DatasetPreprocessingConfig` | `DatasetPreprocessingConfig()` | No | Grouped preprocessing policy for transforms, normalisation, missing data, total-protein correction, site construction, site-sequence resolution, comparisons, and RUV readiness reporting. |
@@ -87,6 +87,7 @@ Parsing is table-role aware:
 `sample_metadata` is passive dataset metadata aligned to `phospho.columns`.
 
 - It is useful for descriptive labels and metadata-driven preprocessing features.
+- Its column names must be unique.
 - It does not perform scientific design validation.
 - It does not automatically define differential-analysis conditions,
   replicates, batches, or blocks.
