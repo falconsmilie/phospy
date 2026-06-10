@@ -72,6 +72,32 @@ All public executors use `run(request)`.
 Most short snippets below show one concept at a time. For a copy/paste run,
 use the full examples in [Quickstart](../quickstart.md) or each workflow page.
 
+## Request Validation Boundary
+
+Public request dataclasses are lightweight command payloads. Constructing
+`DatasetBuildRequest`, `DifferentialAnalysisRequest`, `KinaseWorkflowRequest`,
+or `SignalomeWorkflowRequest` does not mean the request is scientifically valid.
+
+Scientific validation happens when the relevant builder or workflow is run:
+
+- `AnalysisReadyDatasetBuilder.run(request)` validates dataset-build request
+  fields, input sources, preprocessing compatibility, and site-resolution state
+  before building a dataset.
+- `DifferentialAnalysisWorkflow.run(request)` validates the dataset, explicit
+  design, contrasts, replicate requirements, and differential config before
+  statistical execution.
+- `KinaseWorkflow.run(request)` validates the dataset, references,
+  workflow configs, localisation requirements, and reference-projection policy
+  before kinase interpretation and scoring.
+- `SignalomeWorkflow.run(request)` validates the upstream kinase result,
+  score/prediction matrices, site identity, protein grouping metadata, and
+  signalome config before signalome interpretation.
+
+Config objects may be stricter than request objects. For example, config
+dataclasses can reject invalid local policy values at construction time because
+those invariants belong to the config itself. Request dataclasses should not be
+treated as mini-workflow validators.
+
 ## Scientific Policy Module Ownership
 
 Scientific policy records are owned by domain modules, not a root dumping-ground

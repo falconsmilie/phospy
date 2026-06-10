@@ -22,6 +22,13 @@ auditable identity metadata (`site_key`, `display_id`, `organism`,
 builder may accept legacy display-indexed input only when `site_metadata`
 contains enough protein context to derive `site_key` without ambiguity.
 
+`DatasetBuildRequest` is a lightweight command payload. Constructing it stores
+the requested inputs and policies, but does not prove the dataset-build request
+is valid. `AnalysisReadyDatasetBuilder.run(...)` owns request validation and
+rejects invalid source types, unsupported site-resolution modes,
+preprocessing/input incompatibilities, and scientific dataset states before
+interpretation or dataset construction.
+
 ```python
 dataset = AnalysisReadyDatasetBuilder().run(
     DatasetBuildRequest(

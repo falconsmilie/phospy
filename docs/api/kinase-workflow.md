@@ -86,6 +86,12 @@ from phospy.api import (
 
 ## Request Parameters
 
+`KinaseWorkflowRequest` is a lightweight command payload. Constructing it does
+not prove that the dataset, references, configs, localisation metadata, or
+reference-projection policy are scientifically valid. `KinaseWorkflow.run(...)`
+validates the request before interpretation, scoring, prediction, or activity
+execution.
+
 | Parameter | Type | Default | Required | How to Use It |
 | --- | --- | --- | --- | --- |
 | `dataset` | `AnalysisReadyPhosphoDataset` | None | Yes | Dataset returned by `AnalysisReadyDatasetBuilder.run(...)`. It must already be strict and missing-value-free. |

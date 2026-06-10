@@ -70,6 +70,12 @@ from phospy.api import (
 
 ## Request Parameters
 
+`SignalomeWorkflowRequest` is a lightweight command payload. Constructing it
+does not prove that the upstream kinase result, signalome config, score and
+prediction matrices, site identity, or protein grouping metadata are valid.
+`SignalomeWorkflow.run(...)` validates the request before signalome
+interpretation, clustering, module assignment, or network construction.
+
 | Parameter | Type | Default | Required | How to Use It |
 | --- | --- | --- | --- | --- |
 | `kinase_result` | `KinaseWorkflowResult` | None | Yes | Result returned by `KinaseWorkflow.run(...)`. Its dataset must have valid `site_key` row identity and explicit, non-empty signalome grouping metadata in `site_metadata.protein_id` for all interpreted sites. |

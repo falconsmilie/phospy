@@ -47,6 +47,11 @@ from phospy.api import (
 ## Input Contract
 
 `DifferentialAnalysisWorkflow.run(...)` accepts `DifferentialAnalysisRequest`.
+`DifferentialAnalysisRequest` is a lightweight command payload: constructing it
+does not prove the dataset/design/contrast combination is valid. The workflow
+validator runs first inside `DifferentialAnalysisWorkflow.run(...)` and rejects
+invalid request fields or scientific states before interpretation or
+statistical execution.
 
 Required inputs:
 

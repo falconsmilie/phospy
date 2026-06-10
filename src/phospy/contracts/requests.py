@@ -1,4 +1,11 @@
-"""Public request models."""
+"""Public request models.
+
+Request dataclasses are lightweight command payloads. They intentionally do not
+perform scientific validation during construction; the relevant dataset builder
+or workflow validator enforces request compatibility before interpretation and
+execution. Config dataclasses may still self-validate local configuration
+invariants.
+"""
 
 from __future__ import annotations
 
@@ -59,6 +66,11 @@ DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED = (
 class DatasetBuildRequest:
     """Request for building an ``AnalysisReadyPhosphoDataset``.
 
+    Construction stores the payload only. Dataset input shape, source types,
+    preprocessing compatibility, site-resolution mode, and scientific
+    readiness are validated by ``AnalysisReadyDatasetBuilder.run(...)`` before
+    interpretation or execution.
+
     Supported public inputs are pandas ``DataFrame`` values or file paths.
     ``site_resolution_mode`` selects one of two explicit lanes:
 
@@ -94,6 +106,11 @@ class DatasetBuildRequest:
 class KinaseWorkflowRequest:
     """Request for the public kinase workflow.
 
+    Construction stores the payload only. Dataset compatibility, reference
+    compatibility, scoring/prediction/activity config coherence, localisation
+    requirements, and reference-projection policies are validated by
+    ``KinaseWorkflow.run(...)`` before interpretation or execution.
+
     `site_sequence_conflict_policy` controls how dataset and reference
     site-sequence disagreements are handled during interpretation.
 
@@ -123,6 +140,11 @@ class KinaseWorkflowRequest:
 class SignalomeWorkflowRequest:
     """Request for the public signalome workflow.
 
+    Construction stores the payload only. The upstream kinase result, signalome
+    config, score/prediction matrix alignment, site identity, and protein
+    grouping metadata are validated by ``SignalomeWorkflow.run(...)`` before
+    interpretation or execution.
+
     Signalome execution requires explicit protein grouping metadata per
     interpreted site via ``dataset.site_metadata.protein_id``.
     """
@@ -133,7 +155,13 @@ class SignalomeWorkflowRequest:
 
 @dataclass(frozen=True, slots=True)
 class DifferentialAnalysisRequest:
-    """Request for the public differential workflow."""
+    """Request for the public differential workflow.
+
+    Construction stores the payload only. Dataset eligibility, design/sample
+    alignment, contrast validity, replicate requirements, and config coherence
+    are validated by ``DifferentialAnalysisWorkflow.run(...)`` before
+    interpretation or statistical execution.
+    """
 
     dataset: AnalysisReadyPhosphoDataset
     design: ExperimentalDesign
