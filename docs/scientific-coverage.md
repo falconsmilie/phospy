@@ -28,8 +28,11 @@ not silently fall back to display-site identity. Builder input may accept legacy
 display-indexed shape only when enough protein context exists to derive
 `site_key`. Workflows operate on `site_key`, and site-level outputs that
 materialize row identity include both `site_key` and `display_id`. `display_id`
-is a human-readable label and may repeat. Differential result tables and direct
-public `DifferentialAnalysisResult` construction require encoded
+is a human-readable label and may repeat. Rows that resolve to the same
+`site_key` are a scientific ambiguity; the default duplicate-site policy fails,
+and non-error policies are deliberate preprocessing choices that change which
+evidence enters the analysis-ready dataset. Differential result tables and
+direct public `DifferentialAnalysisResult` construction require encoded
 protein-scoped `site_key` indexes plus explicit `site_key`, `display_id`,
 `gene_symbol`, and `site` columns. Workflow-created differential results
 preserve available protein context such as `organism`, `protein_namespace`,

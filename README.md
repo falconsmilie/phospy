@@ -178,6 +178,13 @@ if kinase_result.prediction_result.substrate_list is not None:
     print(kinase_result.prediction_result.substrate_list.head(5))
 ```
 
+`site_key` is the true analysis-ready phosphosite row identity. `display_id` is
+only a human-readable label and may repeat when different `site_key` values
+preserve distinct protein context. Rows that resolve to the same `site_key` are
+a scientific ambiguity; the builder fails by default, and any non-error
+duplicate-site policy should be chosen deliberately and audited in the
+preprocessing report.
+
 Differential result tables use strict protein-scoped identity. Public
 `DifferentialAnalysisResult` tables must be indexed by encoded `site_key` values
 and include `site_key`, `display_id`, `gene_symbol`, and `site`. Workflow-created

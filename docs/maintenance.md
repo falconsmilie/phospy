@@ -92,6 +92,23 @@ Regeneration scripts should be deterministic and should say which fixture family
 they update. Generated benchmark reports belong in `benchmarks/reports/`, which
 is ignored by git.
 
+## Source And Release Archive Hygiene
+
+Source and release archives must be built from tracked source state, not from a
+local working-tree zip. Use a clean tree and a source-aware command such as
+`git archive` for source snapshots, and build package distributions through the
+release workflow after the release gate passes.
+
+Do not include generated artefacts in source/release archives. Exclude build
+outputs, documentation sites, cache directories, previous archive files, and
+local benchmark reports, including `build/`, `dist/`, `site/`, `.pytest_cache/`,
+`.ruff_cache/`, `.hypothesis/`, `__pycache__/`, `benchmarks/reports/`, and
+files such as `app-src.zip`.
+
+Before publishing or handing off an archive, verify that it contains source,
+tests, docs, configuration, constraints, examples, and required metadata, but
+not generated output directories or prior release artefacts.
+
 ## Documentation Policy
 
 Docs should stay flat, beginner-friendly, and tested against the code. Prefer one

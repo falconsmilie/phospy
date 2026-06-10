@@ -27,6 +27,15 @@ results now allow an explicit `input_dataset_preprocessing_report` reference;
 kinase/signalome results expose the same provenance through their dataset
 lineage.
 
+Update note (2026-06-09, identity-bearing public results): public
+`DifferentialAnalysisResult` contrast tables are identity-bearing scientific
+outputs. Direct construction is supported only for complete public result
+tables indexed by encoded `site_key` values with matching `site_key`,
+`display_id`, `gene_symbol`, and `site` columns. Internal/stat-only
+differential computation payloads are not public result tables. Top-level
+workflow result containers remain workflow-owned unless their constructor
+explicitly documents a stricter public table contract.
+
 ## Context and Problem Statement
 
 Result models are a common place for architectural drift. Once a workflow produces data, there is often a temptation to make the result object "helpful" by adding:

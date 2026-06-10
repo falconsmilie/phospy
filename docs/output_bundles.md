@@ -62,6 +62,12 @@ Site-level outputs preserve the enforced identity contract. Dataset
 identity also include both columns where applicable; internal workflow alignment
 remains `site_key` based.
 
+Publisher outputs and reloadable bundles are generated artefacts. They are useful
+analysis outputs, but they are not source archives and should not be packaged
+into clean source/release archives. Build source archives from tracked source
+state instead, excluding generated bundle directories, `site/`, `build/`,
+`dist/`, cache directories, and prior archive files.
+
 ## Reloadable Bundle Services
 
 Public bundle services live in:

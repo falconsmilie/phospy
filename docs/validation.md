@@ -99,7 +99,12 @@ Common cross-field checks:
 - `sample_metadata_pairs` requires `sample_metadata`.
 - site-matrix construction may drop incomplete rows because the public output
   dataset must be complete.
-- duplicate-site resolution is recorded in `dataset.preprocessing_report` when it runs.
+- duplicate rows resolving to the same `site_key` are a scientific ambiguity and
+  fail by default.
+- non-error duplicate-site policies are deliberate row-retention or
+  row-collapse choices; when they run, inspect
+  `dataset.preprocessing_report.duplicate_site_resolution` and
+  `dataset.preprocessing_report.metadata_conflicts`.
 - `ruv_readiness.enabled=True` records readiness signals for future
   RUV-compatible preprocessing, including complete-matrix status, missingness
   mask provenance, control-feature availability, replicate groups, and optional
