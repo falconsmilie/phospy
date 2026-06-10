@@ -59,11 +59,11 @@ NEGATIVE_FIXTURE_DIR = (
 IDENTITY_COLUMNS = [
     "site_key",
     "display_id",
-    "gene_symbol",
-    "site",
     "organism",
     "protein_namespace",
     "protein_identifier",
+    "gene_symbol",
+    "site",
     "protein_id",
 ]
 STATISTIC_COLUMNS = ["logFC", "t", "P.Value", "adj.P.Val"]
@@ -301,11 +301,11 @@ def _strict_result_table() -> pd.DataFrame:
         {
             "site_key": site_keys,
             "display_id": ["MAPK14;Y182;", "GSK3B;S9;"],
-            "gene_symbol": ["MAPK14", "GSK3B"],
-            "site": ["Y182", "S9"],
             "organism": context["organism"],
             "protein_namespace": context["protein_namespace"],
             "protein_identifier": context["protein_identifier"],
+            "gene_symbol": ["MAPK14", "GSK3B"],
+            "site": ["Y182", "S9"],
             "protein_id": ["MAPK14", "GSK3B"],
             "logFC": [1.0, -1.0],
             "t": [2.0, -2.0],
@@ -330,11 +330,11 @@ def _akt1_t309_result_table() -> pd.DataFrame:
         {
             "site_key": site_keys,
             "display_id": ["AKT1;T309;"],
-            "gene_symbol": ["AKT1"],
-            "site": ["T309"],
             "organism": ["human"],
             "protein_namespace": ["uniprot"],
             "protein_identifier": ["P31749"],
+            "gene_symbol": ["AKT1"],
+            "site": ["T309"],
             "protein_id": ["P31749"],
             "logFC": [1.0],
             "t": [2.0],
@@ -374,7 +374,10 @@ def test_direct_result_construction_accepts_site_key_identity_table() -> None:
 def test_direct_result_construction_rejects_display_indexed_stat_only_table() -> None:
     with pytest.raises(
         PhosPyInputError,
-        match="missing required columns: site_key, display_id, gene_symbol, site",
+        match=(
+            "missing required columns: site_key, display_id, organism, "
+            "protein_namespace, protein_identifier, gene_symbol, site"
+        ),
     ):
         _manual_result_with_table(_stat_only_display_table())
 
@@ -382,7 +385,10 @@ def test_direct_result_construction_rejects_display_indexed_stat_only_table() ->
 def test_direct_result_construction_rejects_site_key_indexed_stat_only_table() -> None:
     with pytest.raises(
         PhosPyInputError,
-        match="missing required columns: site_key, display_id, gene_symbol, site",
+        match=(
+            "missing required columns: site_key, display_id, organism, "
+            "protein_namespace, protein_identifier, gene_symbol, site"
+        ),
     ):
         _manual_result_with_table(_stat_only_site_key_table())
 
@@ -415,6 +421,33 @@ def test_direct_result_construction_rejects_missing_site_column() -> None:
         _manual_result_with_table(table)
 
 
+def test_direct_result_construction_rejects_missing_organism_column() -> None:
+    table = _strict_result_table().drop(columns=["organism"])
+
+    with pytest.raises(PhosPyInputError, match="missing required columns: organism"):
+        _manual_result_with_table(table)
+
+
+def test_direct_result_construction_rejects_missing_protein_namespace_column() -> None:
+    table = _strict_result_table().drop(columns=["protein_namespace"])
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="missing required columns: protein_namespace",
+    ):
+        _manual_result_with_table(table)
+
+
+def test_direct_result_construction_rejects_missing_protein_identifier_column() -> None:
+    table = _strict_result_table().drop(columns=["protein_identifier"])
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="missing required columns: protein_identifier",
+    ):
+        _manual_result_with_table(table)
+
+
 def test_direct_result_construction_allows_duplicate_display_ids() -> None:
     site_keys = [
         _site_key(
@@ -433,11 +466,11 @@ def test_direct_result_construction_allows_duplicate_display_ids() -> None:
         {
             "site_key": site_keys,
             "display_id": ["MAPK14;Y182;", "MAPK14;Y182;"],
-            "gene_symbol": ["MAPK14", "MAPK14"],
-            "site": ["Y182", "Y182"],
             "organism": context["organism"],
             "protein_namespace": context["protein_namespace"],
             "protein_identifier": context["protein_identifier"],
+            "gene_symbol": ["MAPK14", "MAPK14"],
+            "site": ["Y182", "Y182"],
             "protein_id": ["MAPK14_A", "MAPK14_B"],
             "logFC": [1.0, -1.0],
             "t": [2.0, -2.0],
@@ -456,6 +489,45 @@ def test_direct_result_construction_allows_duplicate_display_ids() -> None:
     ]
     assert exported.loc[:, "site_key"].nunique() == exported.shape[0]
     assert exported.index.tolist() == table.index.tolist()
+
+
+def test_direct_result_construction_rejects_duplicate_display_id_identity_mismatch() -> (
+    None
+):
+    site_keys = [
+        _site_key(
+            gene_symbol="MAPK14",
+            site="Y182",
+            protein_identifier="MAPK14_CANONICAL",
+        ),
+        _site_key(
+            gene_symbol="MAPK14",
+            site="Y182",
+            protein_identifier="MAPK14_ISOFORM_2",
+        ),
+    ]
+    context = site_key_context_columns(site_keys)
+    context["protein_identifier"][1] = context["protein_identifier"][0]
+    table = pd.DataFrame(
+        {
+            "site_key": site_keys,
+            "display_id": ["MAPK14;Y182;", "MAPK14;Y182;"],
+            "organism": context["organism"],
+            "protein_namespace": context["protein_namespace"],
+            "protein_identifier": context["protein_identifier"],
+            "gene_symbol": ["MAPK14", "MAPK14"],
+            "site": ["Y182", "Y182"],
+            "protein_id": ["MAPK14_A", "MAPK14_B"],
+            "logFC": [1.0, -1.0],
+            "t": [2.0, -2.0],
+            "P.Value": [0.05, 0.10],
+            "adj.P.Val": [0.10, 0.10],
+        },
+        index=pd.Index(site_keys, name="site_key"),
+    )
+
+    with pytest.raises(PhosPyInputError, match="protein_identifier is incoherent"):
+        _manual_result_with_table(table)
 
 
 def test_direct_result_construction_rejects_site_mismatch() -> None:
@@ -774,6 +846,7 @@ def test_identity_required_result_rejects_display_indexed_table() -> None:
         {
             "site_key": site_keys,
             "display_id": display_index.astype(str).tolist(),
+            **site_key_context_columns(site_keys),
             "gene_symbol": ["AKT1", "GSK3B"],
             "site": ["T308", "S9"],
             "logFC": [1.0, -1.0],

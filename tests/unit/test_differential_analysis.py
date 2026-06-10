@@ -227,11 +227,11 @@ def test_differential_analysis_returns_per_contrast_moderated_tables() -> None:
         assert list(table.columns) == [
             "site_key",
             "display_id",
-            "gene_symbol",
-            "site",
             "organism",
             "protein_namespace",
             "protein_identifier",
+            "gene_symbol",
+            "site",
             "protein_id",
             "logFC",
             "t",

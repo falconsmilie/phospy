@@ -34,11 +34,12 @@ and non-error policies are deliberate preprocessing choices that change which
 evidence enters the analysis-ready dataset. Differential result tables and
 direct public `DifferentialAnalysisResult` construction require encoded
 protein-scoped `site_key` indexes plus explicit `site_key`, `display_id`,
-`gene_symbol`, and `site` columns. Workflow-created differential results
-preserve available protein context such as `organism`, `protein_namespace`,
-`protein_identifier`, and `protein_id`. Validation fails rather than repairing
-display-indexed, display-keyed, arbitrary-keyed, or stat-only public result
-tables. Kinase references may use display IDs only through the explicit
+`organism`, `protein_namespace`, `protein_identifier`, `gene_symbol`, and `site`
+columns. Workflow-created differential results preserve that required protein
+context and optional protein metadata such as `protein_id` when present.
+Validation fails rather than repairing display-indexed, display-keyed,
+arbitrary-keyed, or stat-only public result tables. Kinase references may use
+display IDs only through the explicit
 reference-to-dataset mapping layer; references remain reference/display
 identifiers. Analysis-ready datasets may carry `site_metadata.protein_id` as
 optional metadata, and it may be absent or incomplete at the base dataset

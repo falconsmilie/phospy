@@ -383,6 +383,23 @@ def test_workflow_validators_require_site_key_and_display_id_columns(
         run_workflow(dataset)
 
 
+@pytest.mark.parametrize(
+    "column_name",
+    ("organism", "protein_namespace", "protein_identifier"),
+)
+def test_differential_validator_requires_protein_scoped_identity_context(
+    column_name: str,
+) -> None:
+    dataset = _differential_dataset()
+    _drop_site_metadata_column(dataset, column_name)
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match=f"missing required columns: {column_name}",
+    ):
+        _run_differential_validator(dataset)
+
+
 @pytest.mark.parametrize("column_name", ("site_key", "display_id"))
 def test_signalome_site_key_and_display_id_fail_as_identity_contract(
     column_name: str,

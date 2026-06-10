@@ -171,11 +171,12 @@ identical numeric outputs across different machines or dependency builds.
 ### Expected Output Tables
 
 - Each contrast table is indexed by encoded protein-scoped `site_key`.
-- Each contrast table includes `site_key`, `display_id`, `gene_symbol`, `site`,
-  `logFC`, `t`, `P.Value`, and `adj.P.Val`.
+- Each contrast table includes `site_key`, `display_id`, `organism`,
+  `protein_namespace`, `protein_identifier`, `gene_symbol`, `site`, `logFC`,
+  `t`, `P.Value`, and `adj.P.Val`.
 - `site_key` values in the column exactly match the index.
-- Available protein context from `dataset.site_metadata`, including `organism`,
-  `protein_namespace`, `protein_identifier`, and `protein_id`, is preserved.
+- Required protein context from `dataset.site_metadata` is preserved, and
+  optional protein metadata such as `protein_id` is preserved when present.
 - Duplicate `display_id` values remain distinct rows when `site_key` differs.
 - Display-indexed, `GENE;SITE;`-keyed, arbitrary-keyed, and stat-only public
   `DifferentialAnalysisResult` tables are invalid.

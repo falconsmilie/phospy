@@ -11,6 +11,7 @@ from phospy.science.signalomes.constants import (
     EXPANDED_SIGNALOME_ROW_KIND_SITE,
     SITE_KEY_COLUMN,
 )
+from tests.support.site_keys import site_key_context_columns
 from tests.support.workflow_identity_coherence import (
     DUPLICATE_DISPLAY_ID,
     build_duplicate_display_differential_request,
@@ -39,11 +40,18 @@ def _assert_duplicate_display_rows(
 def test_differential_workflow_preserves_duplicate_display_ids_by_site_key() -> None:
     request = build_duplicate_display_differential_request()
     expected_site_keys = request.dataset.phospho.index.astype(str).tolist()
+    expected_context = site_key_context_columns(expected_site_keys)
 
     result = DifferentialAnalysisWorkflow().run(request)
     table = result.table_for("B_vs_A")
 
     _assert_duplicate_display_rows(table, expected_site_keys=expected_site_keys)
+    for column_name in ("organism", "protein_namespace", "protein_identifier"):
+        assert column_name in table.columns
+        assert (
+            table.loc[:, column_name].astype(str).tolist()
+            == (expected_context[column_name])
+        )
     assert set(("logFC", "t", "P.Value", "adj.P.Val")).issubset(table.columns)
 
 

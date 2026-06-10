@@ -237,11 +237,11 @@ def test_differential_workflow_performance_contract_for_smoke_and_medium_scales(
     identity_columns = [
         "site_key",
         "display_id",
-        "gene_symbol",
-        "site",
         "organism",
         "protein_namespace",
         "protein_identifier",
+        "gene_symbol",
+        "site",
         "protein_id",
     ]
     statistic_columns = ["logFC", "t", "P.Value", "adj.P.Val"]

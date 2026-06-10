@@ -137,11 +137,11 @@ references are rat-only.
 `AnalysisReadyPhosphoDataset` whose phospho matrix is already indexed by
 `site_key`. Differential result tables are strict public contracts: each
 per-contrast table is indexed by encoded protein-scoped `site_key` values and
-includes non-empty `site_key`, `display_id`, `gene_symbol`, and `site` columns,
-with `site_key` exactly matching the index. Workflow-created results preserve
-available protein context from dataset `site_metadata`, including `organism`,
-`protein_namespace`, `protein_identifier`, and optional protein metadata such as
-`protein_id`.
+includes non-empty `site_key`, `display_id`, `organism`, `protein_namespace`,
+`protein_identifier`, `gene_symbol`, and `site` columns, with `site_key`
+exactly matching the index. Workflow-created results preserve that required
+protein context from dataset `site_metadata` and optional protein metadata such
+as `protein_id` when present.
 
 Display-indexed, `GENE;SITE;`-keyed, arbitrary non-encoded, or stat-only
 differential result tables are invalid in public `DifferentialAnalysisResult`

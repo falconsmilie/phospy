@@ -40,7 +40,8 @@ class WorkflowIdentityContract:
 
 DIFFERENTIAL_IDENTITY_CONTRACT = WorkflowIdentityContract(
     workflow_name="differential workflow request",
-    contract_id="site_key_identity_minimum",
+    contract_id="protein_scoped_site_identity",
+    require_protein_identity=True,
 )
 KINASE_IDENTITY_CONTRACT = WorkflowIdentityContract(
     workflow_name="kinase workflow request",

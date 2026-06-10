@@ -160,11 +160,13 @@ Common outputs include:
 - `result.table_for("B_vs_A")` with columns:
   - `site_key`
   - `display_id`
+  - `organism`
+  - `protein_namespace`
+  - `protein_identifier`
   - `gene_symbol`
   - `site`
-  - available protein context columns such as `organism`,
-    `protein_namespace`, `protein_identifier`, and optional workflow-relevant
-    protein metadata
+  - optional workflow-relevant protein metadata such as `protein_id`,
+    `protein_accession`, and `isoform_id`
   - `logFC`
   - `t`
   - `P.Value`
@@ -174,18 +176,19 @@ Common outputs include:
 
 Each contrast result table is indexed by the input `site_key` values. The
 `site_key` column must exactly match the index. The minimum public identity
-columns are `site_key`, `display_id`, `gene_symbol`, and `site`. Workflow-created
-results also preserve available protein context columns from
-`dataset.site_metadata`, such as `organism`, `protein_namespace`,
-`protein_identifier`, and `protein_id`. `display_id` remains a human-readable
-label, and repeated `display_id` values remain distinct rows when their
-`site_key` values differ.
+columns are `site_key`, `display_id`, `organism`, `protein_namespace`,
+`protein_identifier`, `gene_symbol`, and `site`. Workflow-created results
+preserve that required protein-scoped context from `dataset.site_metadata` and
+also preserve optional workflow-relevant protein metadata such as `protein_id`
+when present. `display_id` remains a human-readable label, and repeated
+`display_id` values remain distinct rows when their `site_key` values differ.
 
 Direct public `DifferentialAnalysisResult` construction follows the same
 identity contract. Display-indexed, stat-only, `GENE;SITE;`-keyed, and
 arbitrary non-encoded contrast tables are rejected in public construction.
 Result validation does not derive `site_key` from `display_id`, infer protein
-identity from `gene_symbol`, or repair weak identity metadata.
+identity from `gene_symbol`, decode missing protein context for users, or repair
+weak identity metadata.
 It is safe to construct directly only when the caller already has complete
 public result tables that satisfy this identity-bearing contract.
 

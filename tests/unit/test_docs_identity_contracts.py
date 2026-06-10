@@ -92,7 +92,15 @@ def test_docs_state_public_differential_result_identity_contract() -> None:
     assert "`DifferentialAnalysisWorkflow.run(...)` returns" in text
     assert "Each contrast result table is indexed by the input `site_key`" in text
     assert "The minimum public identity columns are" in text
-    for column_name in ("`site_key`", "`display_id`", "`gene_symbol`", "`site`"):
+    for column_name in (
+        "`site_key`",
+        "`display_id`",
+        "`organism`",
+        "`protein_namespace`",
+        "`protein_identifier`",
+        "`gene_symbol`",
+        "`site`",
+    ):
         assert column_name in text
     assert "stat-only computation payload" in text
     assert "not a public scientific result object" in text
@@ -188,7 +196,15 @@ def test_documented_differential_workflow_result_identity_columns() -> None:
         "MAPK14;Y182;",
         "MAPK14;Y182;",
     ]
-    for column_name in ("site_key", "display_id", "gene_symbol", "site"):
+    for column_name in (
+        "site_key",
+        "display_id",
+        "organism",
+        "protein_namespace",
+        "protein_identifier",
+        "gene_symbol",
+        "site",
+    ):
         assert column_name in table.columns
 
 

@@ -130,9 +130,10 @@ Workflows operate on `site_key`. User-facing site-level outputs that materialize
 row identity include both `site_key` and `display_id`. Differential result
 tables are stricter public scientific outputs: direct
 `DifferentialAnalysisResult` construction requires encoded `site_key` indexes
-and non-empty `site_key`, `display_id`, `gene_symbol`, and `site` columns.
-Workflow-created differential results preserve available protein context such as
-`organism`, `protein_namespace`, `protein_identifier`, and `protein_id`.
+and non-empty `site_key`, `display_id`, `organism`, `protein_namespace`,
+`protein_identifier`, `gene_symbol`, and `site` columns. Workflow-created
+differential results preserve that required protein context and optional
+workflow-relevant protein metadata such as `protein_id` when present.
 Display-indexed or stat-only differential result tables are not valid public
 inputs.
 
@@ -147,7 +148,7 @@ Public-looking result classes do not all have the same construction contract:
 
 | Result object | Direct construction contract | Identity guarantee |
 | --- | --- | --- |
-| `DifferentialAnalysisResult` | Strict user-constructible public result. Use direct construction only with complete public contrast tables. | Requires encoded `site_key` index, matching `site_key` column, non-empty `display_id`, `gene_symbol`, and `site`, coherent display/site metadata, and contrast tables aligned to residual-statistic indexes. |
+| `DifferentialAnalysisResult` | Strict user-constructible public result. Use direct construction only with complete public contrast tables. | Requires encoded `site_key` index, matching `site_key` column, non-empty `display_id`, `organism`, `protein_namespace`, `protein_identifier`, `gene_symbol`, and `site`, coherent protein-scoped display/site metadata, and contrast tables aligned to residual-statistic indexes. |
 | `KinaseScoringResult`, `KinasePredictionResult`, `KinaseActivityResult` | Directly constructible stage result tables with schema validation. | Their own public table schemas are validated. Cross-object workflow coherence is guaranteed only when produced by `KinaseWorkflow.run(...)`. |
 | `KinaseWorkflowResult` | Workflow-owned container with intentionally minimal direct construction. | Direct construction does not revalidate nested object types, reference compatibility, dataset alignment, scoring, prediction, activity, eligibility, or provenance coherence. Use `KinaseWorkflow.run(...)` for scientifically coherent results. |
 | `SignalomeWorkflowResult` | Workflow-owned result. Direct construction is supported for reconstruction/tests and validates owned public sidecar table contracts. | Site-level public sidecars that claim analysis-ready phosphosite rows must use encoded `site_key`, non-empty `display_id`, and align to `result.dataset`. Full module/network/scoring coherence is guaranteed only when produced by `SignalomeWorkflow.run(...)`. |

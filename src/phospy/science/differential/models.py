@@ -47,6 +47,9 @@ _RESULT_STATISTIC_COLUMNS: tuple[str, ...] = ("logFC", "t", "P.Value", "adj.P.Va
 _PUBLIC_RESULT_IDENTITY_COLUMNS: tuple[str, ...] = (
     "site_key",
     "display_id",
+    "organism",
+    "protein_namespace",
+    "protein_identifier",
     "gene_symbol",
     "site",
 )

@@ -207,11 +207,16 @@ def _build_result_identity_metadata(
     site_metadata: pd.DataFrame,
     expected_index: pd.Index,
 ) -> pd.DataFrame:
-    required_columns = ("site_key", "display_id", "gene_symbol", "site")
-    optional_columns = (
+    required_columns = (
+        "site_key",
+        "display_id",
         "organism",
         "protein_namespace",
         "protein_identifier",
+        "gene_symbol",
+        "site",
+    )
+    optional_columns = (
         "protein_id",
         "protein_accession",
         "isoform_id",
@@ -225,7 +230,8 @@ def _build_result_identity_metadata(
             seam="differential.interpreter.result_identity_columns",
             next_action=(
                 "ensure resolved dataset.site_metadata includes site_key, "
-                "display_id, gene_symbol, and site"
+                "display_id, organism, protein_namespace, protein_identifier, "
+                "gene_symbol, and site"
             ),
             details={"missing_columns": missing},
             message_prefix=(
@@ -301,7 +307,7 @@ def _build_result_identity_metadata(
     identity.index = pd.Index(site_key_values.tolist(), name="site_key")
     identity.loc[:, "site_key"] = site_key_values.tolist()
     identity.loc[:, "display_id"] = display_id_values.tolist()
-    selected_columns = ("site_key", "display_id", "gene_symbol", "site") + tuple(
+    selected_columns = required_columns + tuple(
         column for column in optional_columns if column in aligned.columns
     )
     return cast(pd.DataFrame, identity.loc[:, list(selected_columns)])
