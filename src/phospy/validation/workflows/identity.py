@@ -8,18 +8,12 @@ from typing import TypeVar
 import pandas as pd
 
 from phospy.errors.base import PhosPyError
-from phospy.validation.common.dataframes import (
-    require_columns,
-    require_exact_index_match,
-)
-from phospy.validation.datasets.protein_scoped_site_identity import (
-    enforce_analysis_ready_site_key_index,
-    enforce_display_id_column,
-    enforce_site_key_column_matches_index,
-    enforce_site_key_matches_metadata,
-)
-from phospy.validation.datasets.site_metadata import (
-    enforce_centred_site_sequence_context,
+from phospy.validation.identity_contracts import (
+    WORKFLOW_PROTEIN_CONTEXT_IDENTITY_CONTRACT,
+    WORKFLOW_PROTEIN_SEQUENCE_CONTEXT_IDENTITY_CONTRACT,
+    WORKFLOW_SEQUENCE_CONTEXT_IDENTITY_CONTRACT,
+    PhosphositeIdentityContract,
+    enforce_phosphosite_identity_contract,
 )
 
 ErrorType = TypeVar("ErrorType", bound=PhosPyError)
@@ -31,29 +25,25 @@ class WorkflowIdentityContract:
 
     workflow_name: str
     contract_id: str
-    # Requires dataset-level protein-scoped row identity metadata, not the
-    # signalome-only site_metadata.protein_id grouping column.
-    require_protein_identity: bool = False
-    require_centred_sequence_context: bool = False
+    identity_contract: PhosphositeIdentityContract
     allow_gapped_sequence_context: bool = False
 
 
 DIFFERENTIAL_IDENTITY_CONTRACT = WorkflowIdentityContract(
     workflow_name="differential workflow request",
     contract_id="protein_scoped_site_identity",
-    require_protein_identity=True,
+    identity_contract=WORKFLOW_PROTEIN_CONTEXT_IDENTITY_CONTRACT,
 )
 KINASE_IDENTITY_CONTRACT = WorkflowIdentityContract(
     workflow_name="kinase workflow request",
     contract_id="sty_site_identity_plus_sequence_context",
-    require_centred_sequence_context=True,
+    identity_contract=WORKFLOW_SEQUENCE_CONTEXT_IDENTITY_CONTRACT,
     allow_gapped_sequence_context=True,
 )
 SIGNALOME_IDENTITY_CONTRACT = WorkflowIdentityContract(
     workflow_name="signalome workflow request",
     contract_id="protein_scoped_site_identity",
-    require_protein_identity=True,
-    require_centred_sequence_context=True,
+    identity_contract=WORKFLOW_PROTEIN_SEQUENCE_CONTEXT_IDENTITY_CONTRACT,
     allow_gapped_sequence_context=True,
 )
 
@@ -71,62 +61,25 @@ def enforce_workflow_site_identity_contract(
     """Enforce one workflow's declared phosphosite identity contract."""
 
     try:
-        enforce_analysis_ready_site_key_index(
-            expected_index,
-            field_name=expected_index_field_name,
-            error_type=error_type,
-        )
-        enforce_analysis_ready_site_key_index(
-            site_metadata.index,
-            field_name=f"{field_name}.index",
-            error_type=error_type,
-        )
-        enforce_site_key_column_matches_index(
+        # Keep workflow ownership explicit while delegating implementation to
+        # the shared contract layer. The composed helpers are:
+        # enforce_analysis_ready_site_key_index(...)
+        # enforce_site_key_column_matches_index(...)
+        # enforce_site_key_matches_metadata(...)
+        # enforce_display_id_column(...)
+        # require_exact_index_match(...)
+        # enforce_centred_site_sequence_context(...)
+        enforce_phosphosite_identity_contract(
             site_metadata=site_metadata,
+            expected_index=expected_index,
+            expected_index_field_name=expected_index_field_name,
             field_name=field_name,
+            contract=contract.identity_contract,
             error_type=error_type,
-            site_key_column="site_key",
+            workflow_name=contract.workflow_name,
+            allow_opaque_site_values=allow_opaque_site_values,
+            allow_gapped_sequence_context=contract.allow_gapped_sequence_context,
         )
-        enforce_display_id_column(
-            site_metadata=site_metadata,
-            field_name=field_name,
-            error_type=error_type,
-            column_name="display_id",
-        )
-        require_exact_index_match(
-            left=site_metadata.index,
-            right=expected_index,
-            left_name=f"{field_name}.index",
-            right_name=expected_index_field_name,
-            error_type=error_type,
-        )
-        if contract.require_protein_identity:
-            require_columns(
-                site_metadata,
-                field_name=field_name,
-                required_columns=(
-                    "organism",
-                    "protein_namespace",
-                    "protein_identifier",
-                    "site",
-                ),
-                error_type=error_type,
-            )
-            enforce_site_key_matches_metadata(
-                site_metadata=site_metadata,
-                field_name=field_name,
-                error_type=error_type,
-                site_key_column="site_key",
-            )
-        if contract.require_centred_sequence_context:
-            enforce_centred_site_sequence_context(
-                site_metadata=site_metadata,
-                field_name=field_name,
-                workflow_name=contract.workflow_name,
-                error_type=error_type,
-                allow_gapped_sequence_context=contract.allow_gapped_sequence_context,
-                allow_unknown_site_residue=allow_opaque_site_values,
-            )
     except error_type as exc:
         raise error_type(
             f"{contract.workflow_name} identity requirement failed "

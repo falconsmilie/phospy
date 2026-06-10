@@ -44,7 +44,7 @@ from phospy.validation.common.dataframes import (
     require_string_index,
     require_unique_index,
 )
-from phospy.validation.datasets.protein_scoped_site_identity import (
+from phospy.validation.identity_contracts import (
     enforce_analysis_ready_site_key_index,
     enforce_site_key_column_matches_index,
 )

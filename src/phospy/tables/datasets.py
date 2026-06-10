@@ -15,7 +15,6 @@ from phospy.tables.base import (
     TableSchema,
 )
 from phospy.validation.common.dataframes import (
-    require_columns,
     require_dataframe,
     require_exact_index_match,
     require_finite_numeric_dataframe,
@@ -24,19 +23,18 @@ from phospy.validation.common.dataframes import (
     require_unique_columns,
     require_unique_index,
 )
-from phospy.validation.datasets.protein_scoped_site_identity import (
-    enforce_analysis_ready_site_key_index,
-    enforce_display_id_column,
-    enforce_site_key_column_matches_index,
-    enforce_site_key_matches_metadata,
-    enforce_unique_site_key_identity,
-)
 from phospy.validation.datasets.site_metadata import (
     enforce_site_identity_rows,
     validate_localisation_confidence_column,
     validate_localisation_probability_column,
     validate_site_identity_metadata,
     validate_site_sequence_column,
+)
+from phospy.validation.identity_contracts import (
+    ANALYSIS_READY_DATASET_BASE_IDENTITY_CONTRACT,
+    enforce_analysis_ready_site_key_index,
+    enforce_phosphosite_identity_contract,
+    enforce_site_key_matches_metadata,
 )
 
 
@@ -102,47 +100,14 @@ class SiteMetadataTable(TableSchema):
             field_name=f"{self._field_name}.index",
             error_type=self._error_type,
         )
-        require_columns(
-            frame,
-            field_name=self._field_name,
-            required_columns=(
-                "site_key",
-                "display_id",
-                "organism",
-                "protein_namespace",
-                "protein_identifier",
-                "gene_symbol",
-                "site",
-                "site_sequence",
-            ),
-            error_type=self._error_type,
-        )
-        enforce_unique_site_key_identity(
+        enforce_phosphosite_identity_contract(
             site_metadata=frame,
             field_name=self._field_name,
+            contract=ANALYSIS_READY_DATASET_BASE_IDENTITY_CONTRACT,
             error_type=self._error_type,
-            site_key_column="site_key",
+            expected_index=self.expected_index,
+            expected_index_field_name="dataset.phospho.index",
         )
-        enforce_site_key_column_matches_index(
-            site_metadata=frame,
-            field_name=self._field_name,
-            error_type=self._error_type,
-            site_key_column="site_key",
-        )
-        enforce_display_id_column(
-            site_metadata=frame,
-            field_name=self._field_name,
-            error_type=self._error_type,
-            column_name="display_id",
-        )
-        if self.expected_index is not None:
-            require_exact_index_match(
-                left=frame.index,
-                right=self.expected_index,
-                left_name=f"{self._field_name}.index",
-                right_name="dataset.phospho.index",
-                error_type=self._error_type,
-            )
         require_non_empty_string_column(
             frame,
             field_name=self._field_name,

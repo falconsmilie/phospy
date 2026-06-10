@@ -16,22 +16,21 @@ from phospy.frames.ownership import (
     own_dataframe,
     own_series,
 )
-from phospy.science.sites.identifiers import (
-    canonicalize_site_components,
-    canonicalize_site_identifier,
-    try_parse_site_token,
-)
-from phospy.science.sites.site_keys import decode_site_key
-from phospy.science.sites.validation import require_site_key_index
 from phospy.validation.common.dataframes import (
     require_dataframe,
     require_finite_numeric_dataframe,
     require_non_empty_dataframe,
-    require_non_empty_string_column,
     require_numeric_dataframe,
     require_string_index,
     require_unique_columns,
     require_unique_index,
+)
+from phospy.validation.identity_contracts import (
+    RESULT_IDENTITY_COLUMNS,
+    RESULT_TABLE_IDENTITY_CONTRACT,
+    enforce_phosphosite_identity_contract,
+    enforce_required_identity_text_columns,
+    enforce_result_identity_metadata_coherence,
 )
 
 if TYPE_CHECKING:
@@ -44,15 +43,7 @@ SUPPORTED_EMPIRICAL_BAYES_METHODS: tuple[str, ...] = (
     EMPIRICAL_BAYES_METHOD_ROBUST,
 )
 _RESULT_STATISTIC_COLUMNS: tuple[str, ...] = ("logFC", "t", "P.Value", "adj.P.Val")
-_PUBLIC_RESULT_IDENTITY_COLUMNS: tuple[str, ...] = (
-    "site_key",
-    "display_id",
-    "organism",
-    "protein_namespace",
-    "protein_identifier",
-    "gene_symbol",
-    "site",
-)
+_PUBLIC_RESULT_IDENTITY_COLUMNS: tuple[str, ...] = RESULT_IDENTITY_COLUMNS
 
 
 @dataclass(frozen=True, slots=True)
@@ -1157,25 +1148,23 @@ def _validate_result_table(
     field_name: str,
 ) -> None:
     _validate_result_table_statistics(table=table, field_name=field_name)
-    missing_identity = [
-        column
-        for column in _PUBLIC_RESULT_IDENTITY_COLUMNS
-        if column not in table.columns
-    ]
-    if missing_identity:
-        joined = ", ".join(missing_identity)
-        raise PhosPyInputError(f"{field_name} is missing required columns: {joined}")
-    for column_name in _PUBLIC_RESULT_IDENTITY_COLUMNS:
-        require_non_empty_string_column(
-            table,
-            field_name=field_name,
-            column_name=column_name,
-            error_type=PhosPyInputError,
-        )
-    _validate_site_key_column_matches_index(table=table, field_name=field_name)
-    _validate_result_identity_metadata_coherent(
+    enforce_phosphosite_identity_contract(
+        site_metadata=table,
+        field_name=field_name,
+        contract=RESULT_TABLE_IDENTITY_CONTRACT,
+        error_type=PhosPyInputError,
+        compare_raw_site_key_column_before_decode=True,
+    )
+    enforce_required_identity_text_columns(
         table=table,
         field_name=field_name,
+        columns=_PUBLIC_RESULT_IDENTITY_COLUMNS,
+        error_type=PhosPyInputError,
+    )
+    enforce_result_identity_metadata_coherence(
+        table=table,
+        field_name=field_name,
+        error_type=PhosPyInputError,
     )
 
 
@@ -1254,174 +1243,6 @@ def _validate_result_table_statistics(
         table=table,
         column_name="adj.P.Val",
         field_name=field_name,
-    )
-
-
-def _validate_site_key_column_matches_index(
-    *,
-    table: pd.DataFrame,
-    field_name: str,
-) -> None:
-    require_site_key_index(
-        table.index,
-        field_name=f"{field_name}.index",
-        error_type=PhosPyInputError,
-    )
-    site_key_column = table["site_key"]
-    site_key_values = [str(value) for value in site_key_column.tolist()]
-    index_values = [str(value) for value in table.index.tolist()]
-    mismatches = [
-        idx
-        for idx, site_key in zip(index_values, site_key_values, strict=True)
-        if idx != site_key
-    ]
-    if not mismatches:
-        return
-    preview = ", ".join(repr(value) for value in mismatches[:5])
-    suffix = "" if len(mismatches) <= 5 else " ..."
-    raise PhosPyInputError(
-        f"{field_name}.site_key must exactly match {field_name}.index; "
-        f"mismatched_labels={preview}{suffix}"
-    )
-
-
-def _validate_result_identity_metadata_coherent(
-    *,
-    table: pd.DataFrame,
-    field_name: str,
-) -> None:
-    optional_key_columns = {
-        "organism": "organism",
-        "protein_namespace": "protein_namespace",
-        "protein_identifier": "protein_identifier",
-    }
-    for row_position, row_label in enumerate(table.index.tolist()):
-        encoded_site_key = table.at[row_label, "site_key"]
-        decoded_key = decode_site_key(
-            encoded_site_key,
-            field_name=f"{field_name}.site_key[{row_label!r}]",
-            error_type=PhosPyInputError,
-        )
-        encoded_site = f"{decoded_key.residue}{decoded_key.position}"
-        row_site_value = table.at[row_label, "site"]
-        parsed_site = try_parse_site_token(row_site_value)
-        if parsed_site is None:
-            raise PhosPyInputError(
-                _identity_incoherence_message(
-                    field_name=field_name,
-                    row_position=row_position,
-                    row_label=row_label,
-                    detail=(
-                        f"row metadata site is {row_site_value!r}; "
-                        "site must use strict 'S/T/Y<position>' tokens"
-                    ),
-                )
-            )
-        row_site = f"{parsed_site.residue}{parsed_site.position}"
-        if row_site != encoded_site:
-            raise PhosPyInputError(
-                _identity_incoherence_message(
-                    field_name=field_name,
-                    row_position=row_position,
-                    row_label=row_label,
-                    detail=(
-                        f"site_key encodes {encoded_site} but row metadata "
-                        f"site is {row_site_value!r}"
-                    ),
-                )
-            )
-
-        expected_display_id = canonicalize_site_components(
-            table.at[row_label, "gene_symbol"],
-            table.at[row_label, "site"],
-            field_name=f"{field_name}[{row_label!r}].gene_symbol_site",
-            error_type=PhosPyInputError,
-        )
-        observed_display_id = canonicalize_site_identifier(
-            table.at[row_label, "display_id"],
-            field_name=f"{field_name}[{row_label!r}].display_id",
-            error_type=PhosPyInputError,
-        )
-        if observed_display_id != expected_display_id:
-            raise PhosPyInputError(
-                _identity_incoherence_message(
-                    field_name=field_name,
-                    row_position=row_position,
-                    row_label=row_label,
-                    detail=(
-                        "display_id does not match gene_symbol + site; "
-                        f"expected {expected_display_id!r} but row metadata "
-                        f"display_id is {table.at[row_label, 'display_id']!r}"
-                    ),
-                )
-            )
-
-        for column_name, key_attribute in optional_key_columns.items():
-            if column_name not in table.columns:
-                continue
-            encoded_value = str(getattr(decoded_key, key_attribute))
-            row_value = _required_present_identity_text(
-                table.at[row_label, column_name],
-                field_name=field_name,
-                row_position=row_position,
-                row_label=row_label,
-                column_name=column_name,
-            )
-            if row_value == encoded_value:
-                continue
-            raise PhosPyInputError(
-                _identity_incoherence_message(
-                    field_name=field_name,
-                    row_position=row_position,
-                    row_label=row_label,
-                    detail=(
-                        f"{column_name} is incoherent: site_key encodes "
-                        f"{encoded_value!r} but row metadata {column_name} "
-                        f"is {row_value!r}"
-                    ),
-                )
-            )
-
-
-def _required_present_identity_text(
-    value: object,
-    *,
-    field_name: str,
-    row_position: int,
-    row_label: object,
-    column_name: str,
-) -> str:
-    if bool(pd.Series((value,), dtype="object").isna().iat[0]):
-        raise PhosPyInputError(
-            _identity_incoherence_message(
-                field_name=field_name,
-                row_position=row_position,
-                row_label=row_label,
-                detail=f"{column_name} must be a non-empty string when present",
-            )
-        )
-    if not isinstance(value, str) or value.strip() == "":
-        raise PhosPyInputError(
-            _identity_incoherence_message(
-                field_name=field_name,
-                row_position=row_position,
-                row_label=row_label,
-                detail=f"{column_name} must be a non-empty string when present",
-            )
-        )
-    return value.strip()
-
-
-def _identity_incoherence_message(
-    *,
-    field_name: str,
-    row_position: int,
-    row_label: object,
-    detail: str,
-) -> str:
-    return (
-        "Differential result identity metadata is inconsistent with site_key "
-        f"at row {row_position} ({row_label!r}) in {field_name}: {detail}"
     )
 
 
