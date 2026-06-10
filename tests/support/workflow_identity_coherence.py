@@ -13,7 +13,12 @@ from phospy.api import (
     SampleDesignRecord,
     SignalomeWorkflowRequest,
 )
-from phospy.api.configs import KinasePredictionConfig, KinaseScoringConfig
+from phospy.api.configs import (
+    KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS,
+    KinasePredictionConfig,
+    KinaseReferenceDisplayAmbiguityPolicy,
+    KinaseScoringConfig,
+)
 from phospy.api.results import (
     KinasePredictionResult,
     KinaseScoringResult,
@@ -135,6 +140,9 @@ def build_duplicate_display_differential_request(
 def build_duplicate_display_kinase_request(
     *,
     dataset: AnalysisReadyPhosphoDataset | None = None,
+    reference_display_ambiguity_policy: KinaseReferenceDisplayAmbiguityPolicy = (
+        KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS
+    ),
 ) -> KinaseWorkflowRequest:
     return KinaseWorkflowRequest(
         dataset=(
@@ -148,6 +156,7 @@ def build_duplicate_display_kinase_request(
             adaptive_ensemble_runs=2,
         ),
         activity_config=None,
+        reference_display_ambiguity_policy=reference_display_ambiguity_policy,
     )
 
 

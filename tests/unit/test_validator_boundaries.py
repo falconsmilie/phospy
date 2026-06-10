@@ -7,6 +7,7 @@ import pytest
 from phospy import AnalysisReadyDatasetBuilder
 from phospy.api.configs import (
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
+    KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR,
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
@@ -734,6 +735,31 @@ def test_kinase_request_rejects_non_bool_diagnostic_scoring_policy() -> None:
             min_substrates=2,
             include_diagnostic_scoring_tables="yes",  # type: ignore[arg-type]
         )
+
+
+def test_kinase_validator_rejects_unknown_reference_display_ambiguity_policy() -> None:
+    request = KinaseWorkflowRequest(
+        dataset=_dataset(),
+        references=_references(),
+        reference_display_ambiguity_policy="warn",  # type: ignore[arg-type]
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="reference_display_ambiguity_policy must be one of",
+    ):
+        KinaseWorkflowValidator().run(request)
+
+
+def test_kinase_request_default_reference_display_ambiguity_policy_is_error() -> None:
+    request = KinaseWorkflowRequest(
+        dataset=_dataset(),
+        references=_references(),
+    )
+
+    assert request.reference_display_ambiguity_policy == (
+        KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR
+    )
 
 
 @pytest.mark.parametrize(

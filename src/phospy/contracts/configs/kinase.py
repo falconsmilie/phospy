@@ -66,6 +66,20 @@ KINASE_SITE_SEQUENCE_CONFLICT_POLICIES = frozenset(
         KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET,
     }
 )
+KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR = "error"
+KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS = (
+    "allow_with_diagnostics"
+)
+KinaseReferenceDisplayAmbiguityPolicy = Literal[
+    "error",
+    "allow_with_diagnostics",
+]
+KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICIES = frozenset(
+    {
+        KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR,
+        KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS,
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -247,11 +261,15 @@ __all__ = [
     "KINASE_PROFILE_MISSING_VALUE_STRATEGIES",
     "KINASE_PROFILE_MISSING_VALUE_STRATEGY_MEDIAN_SKIPNA",
     "KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT",
+    "KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICIES",
+    "KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS",
+    "KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR",
     "KINASE_SCORING_MIN_SUBSTRATES_FLOOR",
     "KinaseActivityConfig",
     "KinaseActivityMethod",
     "KinaseActivityPValueMethod",
     "KinaseProfileMissingValueStrategy",
+    "KinaseReferenceDisplayAmbiguityPolicy",
     "KinaseSiteSequenceConflictPolicy",
     "LocalisationRequirement",
     "KinaseScoringConfig",

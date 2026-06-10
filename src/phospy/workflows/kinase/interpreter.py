@@ -19,6 +19,7 @@ from phospy.workflows.kinase.contracts import (
     ResolvedKinaseExecutionConfig,
     ResolvedKinaseWorkflowRequest,
 )
+from phospy.workflows.kinase.reference_projection import KinaseReferenceProjector
 from phospy.workflows.kinase.site_sequence_support import (
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,
     KinaseSiteSequenceSupportBuilder,
@@ -45,11 +46,13 @@ class KinaseWorkflowInterpreter:
         self,
         *,
         reference_resolver: ReferenceResolverContract | None = None,
+        reference_projector: KinaseReferenceProjector | None = None,
         site_sequence_support_builder: KinaseSiteSequenceSupportBuilder | None = None,
     ) -> None:
         self._reference_resolver = reference_resolver or ReferenceResolver(
             provider=BundledReferenceProvider()
         )
+        self._reference_projector = reference_projector or KinaseReferenceProjector()
         self._site_sequence_support_builder = (
             site_sequence_support_builder or KinaseSiteSequenceSupportBuilder()
         )
@@ -71,14 +74,14 @@ class KinaseWorkflowInterpreter:
             .astype(str)
             .nunique()
         )
-        kinase_substrate_map = self._project_reference_substrate_map(
+        projection_result = self._reference_projector.run(
             reference_kinase_substrate_map=references.kinase_substrate_map,
             site_identity_map=site_identity_map,
+            ambiguity_policy=request.reference_display_ambiguity_policy,
         )
-        display_reference_matching = self._summarize_display_reference_matching(
-            reference_kinase_substrate_map=references.kinase_substrate_map,
-            projected_kinase_substrate_map=kinase_substrate_map,
-            site_identity_map=site_identity_map,
+        kinase_substrate_map = projection_result.kinase_substrate_map
+        display_reference_matching = (
+            projection_result.display_reference_matching_payload()
         )
         merge_result = self._site_sequence_support_builder.run(
             dataset=dataset_phospho,
@@ -224,103 +227,6 @@ class KinaseWorkflowInterpreter:
             {"site_key": site_keys, "display_id": display_id_values.tolist()},
             index=pd.Index(site_keys, name="site_key"),
         )
-
-    @staticmethod
-    def _project_reference_substrate_map(
-        *,
-        reference_kinase_substrate_map: pd.DataFrame,
-        site_identity_map: pd.DataFrame,
-    ) -> pd.DataFrame:
-        display_lookup: dict[str, list[str]] = {}
-        for site_key, display_id in site_identity_map.loc[
-            :, ["site_key", "display_id"]
-        ].itertuples(index=False):
-            display_lookup.setdefault(str(display_id), []).append(str(site_key))
-
-        rows: list[dict[str, str]] = []
-        for kinase, display_id in reference_kinase_substrate_map.loc[
-            :, ["kinase", "substrate_site"]
-        ].itertuples(index=False):
-            matched_site_keys = display_lookup.get(str(display_id), [])
-            if not matched_site_keys:
-                continue
-            for site_key in matched_site_keys:
-                rows.append(
-                    {
-                        "kinase": str(kinase),
-                        "substrate_site": str(site_key),
-                        "display_id": str(display_id),
-                    }
-                )
-        if not rows:
-            return pd.DataFrame(
-                columns=pd.Index(["kinase", "substrate_site", "display_id"])
-            )
-        return pd.DataFrame.from_records(
-            rows,
-            columns=["kinase", "substrate_site", "display_id"],
-        ).drop_duplicates(ignore_index=True)
-
-    @staticmethod
-    def _summarize_display_reference_matching(
-        *,
-        reference_kinase_substrate_map: pd.DataFrame,
-        projected_kinase_substrate_map: pd.DataFrame,
-        site_identity_map: pd.DataFrame,
-    ) -> dict[str, object]:
-        display_lookup: dict[str, list[str]] = {}
-        for site_key, display_id in site_identity_map.loc[
-            :, ["site_key", "display_id"]
-        ].itertuples(index=False):
-            display_lookup.setdefault(str(display_id), []).append(str(site_key))
-        referenced_display_ids = set(
-            reference_kinase_substrate_map.loc[:, "substrate_site"].astype(str).tolist()
-        )
-        one_to_many = {
-            display_id: site_keys
-            for display_id, site_keys in display_lookup.items()
-            if len(site_keys) > 1 and display_id in referenced_display_ids
-        }
-        if not one_to_many:
-            return {
-                "reference_key": "display_id",
-                "dataset_row_identity": "site_key",
-                "one_to_many_display_reference_match_count": 0,
-                "one_to_many_display_reference_site_key_rows": 0,
-                "one_to_many_display_reference_matches": [],
-            }
-        matches: list[dict[str, object]] = []
-        for display_id in sorted(one_to_many):
-            site_keys = one_to_many[display_id]
-            reference_rows = int(
-                (
-                    reference_kinase_substrate_map.loc[:, "substrate_site"].astype(str)
-                    == display_id
-                ).sum()
-            )
-            projected_rows = int(
-                (
-                    projected_kinase_substrate_map.loc[:, "display_id"].astype(str)
-                    == display_id
-                ).sum()
-            )
-            matches.append(
-                {
-                    "display_id": display_id,
-                    "site_keys": site_keys,
-                    "reference_rows": reference_rows,
-                    "projected_rows": projected_rows,
-                }
-            )
-        return {
-            "reference_key": "display_id",
-            "dataset_row_identity": "site_key",
-            "one_to_many_display_reference_match_count": len(one_to_many),
-            "one_to_many_display_reference_site_key_rows": sum(
-                len(site_keys) for site_keys in one_to_many.values()
-            ),
-            "one_to_many_display_reference_matches": matches,
-        }
 
     @staticmethod
     def _resolve_execution_config(

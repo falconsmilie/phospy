@@ -356,3 +356,13 @@ def test_public_workflow_docs_make_localisation_policy_explicit() -> None:
     assert "## Localisation Prerequisite" in signalome_source
     assert "DatasetLocalisationConfig(" in signalome_source
     assert "dataset build fails" in signalome_source
+
+
+def test_kinase_docs_explain_reference_display_ambiguity_policy() -> None:
+    source = _read(KINASE_DOC)
+
+    assert "reference_display_ambiguity_policy" in source
+    assert '"error"' in source
+    assert '"allow_with_diagnostics"' in source
+    assert "matched `site_key` values" in source
+    assert "does not collapse duplicate display labels" in source

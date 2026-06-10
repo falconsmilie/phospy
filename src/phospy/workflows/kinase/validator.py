@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import cast
 
+from phospy.contracts.configs import KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICIES
 from phospy.contracts.requests import KinaseWorkflowRequest
 from phospy.errors.validation import WorkflowValidationError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
@@ -46,6 +47,15 @@ class KinaseWorkflowValidator:
         if not isinstance(references, (ReferencePreset, ReferenceBundle)):
             raise WorkflowValidationError(
                 "kinase workflow request references must be ReferencePreset or ReferenceBundle"
+            )
+        if (
+            request.reference_display_ambiguity_policy
+            not in KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICIES
+        ):
+            supported = ", ".join(sorted(KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICIES))
+            raise WorkflowValidationError(
+                "kinase workflow request reference_display_ambiguity_policy "
+                f"must be one of: {supported}"
             )
         scoring_config, _, _ = self._config_validator.run(
             scoring_config=request.scoring_config,

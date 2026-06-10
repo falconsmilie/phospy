@@ -52,10 +52,23 @@ upstream dataset-localisation policy is already configured.
 dataset `site_metadata.display_id` and then projected through an explicit
 `display_id` -> `site_key` mapping before scoring.
 
-`display_id` is metadata and may repeat. When one reference display ID matches
-multiple dataset `site_key` rows, the projection is one-to-many and diagnostics
-record that relationship. Reference display IDs remain reference-boundary
-identifiers and are not treated as analysis-ready row identity.
+`display_id` is metadata and may repeat. Duplicate `display_id` values remain
+valid when the corresponding `site_key` values differ, and the workflow does
+not collapse or deduplicate rows by display label.
+
+Display-level kinase-substrate reference matching can be ambiguous. If one
+reference substrate display ID matches multiple dataset `site_key` rows, the
+workflow rejects the projection by default because the reference row does not
+identify which protein-scoped phosphosite row carries the evidence.
+
+Set `reference_display_ambiguity_policy="allow_with_diagnostics"` only when
+you intentionally want the same display-level kinase-substrate evidence
+projected to every matching `site_key` row. Opt-in diagnostics include:
+
+- `display_id`
+- matched `site_key` values
+- matched row count
+- affected reference row position/index, kinase, and substrate entry
 
 ## Imports
 
@@ -81,6 +94,7 @@ from phospy.api import (
 | `prediction_config` | `KinasePredictionConfig` | `KinasePredictionConfig()` | No | Controls deterministic or adaptive kinase prediction. |
 | `activity_config` | `KinaseActivityConfig` or `None` | `KinaseActivityConfig()` | No | Controls optional activity output. Use `None` to skip activity entirely. |
 | `site_sequence_conflict_policy` | `str` | `"prefer_reference"` | No | Controls dataset-vs-reference site-sequence conflicts. Allowed values are `"prefer_reference"`, `"prefer_dataset"`, and `"error"`. |
+| `reference_display_ambiguity_policy` | `str` | `"error"` | No | Controls one-display-to-many-`site_key` kinase-substrate reference projection. Allowed values are `"error"` and `"allow_with_diagnostics"`. |
 
 Minimal call:
 
@@ -124,6 +138,25 @@ request = KinaseWorkflowRequest(
     site_sequence_conflict_policy="error",
 )
 ```
+
+## Reference Display Ambiguity Policy
+
+| Value | Behaviour | When to Use It |
+| --- | --- | --- |
+| `"error"` | Fails when a display-level kinase-substrate reference row maps to multiple dataset `site_key` rows. | Default. Use when the reference table lacks protein-scoped substrate identity. |
+| `"allow_with_diagnostics"` | Preserves one-to-many projection and records structured diagnostics. | Use only after deciding that projecting the same reference evidence to all matching protein-scoped rows is scientifically intended. |
+
+```python
+request = KinaseWorkflowRequest(
+    dataset=dataset,
+    references=custom_references,
+    reference_display_ambiguity_policy="allow_with_diagnostics",
+)
+```
+
+This policy is kinase-reference projection specific. It does not make
+`display_id` unique and does not change dataset identity validation. This policy
+does not collapse duplicate display labels.
 
 ## Scoring Configuration
 

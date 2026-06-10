@@ -8,6 +8,8 @@ types.
 from phospy.api.builders import AnalysisReadyDatasetBuilder
 from phospy.api.configs import (
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
+    KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS,
+    KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR,
     MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG,
     SUPPORTED_MULTIPLE_TESTING_METHODS,
     DatasetComparisonBuildingConfig,
@@ -140,6 +142,8 @@ __all__ = [
     "DatasetTotalProteinCorrectionIdentityConfig",
     "DatasetTotalProteinCorrectionConfig",
     "DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED",
+    "KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS",
+    "KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR",
     "DifferentialAnalysisWorkflow",
     "DifferentialAnalysisRequest",
     "DifferentialAnalysisConfig",

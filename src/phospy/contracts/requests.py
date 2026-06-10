@@ -6,11 +6,13 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from phospy.contracts.configs import (
+    KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR,
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE,
     DatasetPreprocessingConfig,
     DifferentialAnalysisConfig,
     KinaseActivityConfig,
     KinasePredictionConfig,
+    KinaseReferenceDisplayAmbiguityPolicy,
     KinaseScoringConfig,
     KinaseSiteSequenceConflictPolicy,
     SignalomeConfig,
@@ -94,6 +96,10 @@ class KinaseWorkflowRequest:
 
     `site_sequence_conflict_policy` controls how dataset and reference
     site-sequence disagreements are handled during interpretation.
+
+    `reference_display_ambiguity_policy` controls whether display-level
+    kinase-substrate reference rows may project to more than one dataset
+    `site_key`. The default is conservative and rejects ambiguous projection.
     """
 
     dataset: AnalysisReadyPhosphoDataset
@@ -107,6 +113,9 @@ class KinaseWorkflowRequest:
     )
     site_sequence_conflict_policy: KinaseSiteSequenceConflictPolicy = (
         KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE
+    )
+    reference_display_ambiguity_policy: KinaseReferenceDisplayAmbiguityPolicy = (
+        KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR
     )
 
 

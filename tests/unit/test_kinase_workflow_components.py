@@ -10,6 +10,8 @@ from phospy.api.configs import (
     KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
     KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
+    KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS,
+    KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR,
 )
 from phospy.api.requests import KinaseWorkflowRequest
 from phospy.api.results import (
@@ -35,12 +37,14 @@ from phospy.workflows.kinase.contracts import (
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
 from phospy.workflows.kinase.prediction_runner import KinasePredictionRunner
 from phospy.workflows.kinase.provenance import KinaseProvenanceBuilder
+from phospy.workflows.kinase.reference_projection import KinaseReferenceProjector
 from phospy.workflows.kinase.result_assembly import KinaseResultAssembler
 from phospy.workflows.kinase.science import (
     build_kinase_profiles,
     build_prediction_outputs,
 )
 from phospy.workflows.kinase.scoring_runner import KinaseScoringRunner
+from phospy.workflows.kinase.validator import KinaseWorkflowValidator
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -449,7 +453,13 @@ def test_interpreter_maps_one_display_reference_to_multiple_site_keys() -> None:
     dataset = _dataset_with_duplicate_display_ids()
 
     interpreted = KinaseWorkflowInterpreter().run(
-        KinaseWorkflowRequest(dataset=dataset, references=_references())
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=_references(),
+            reference_display_ambiguity_policy=(
+                KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS
+            ),
+        )
     )
 
     duplicate_rows = interpreted.kinase_substrate_map.loc[
@@ -472,13 +482,67 @@ def test_interpreter_maps_one_display_reference_to_multiple_site_keys() -> None:
     assert isinstance(matches, list)
     assert matches[0]["display_id"] == "MAPK14;Y182;"
     assert set(matches[0]["site_keys"]) == set(dataset.phospho.index.astype(str)[:2])
+    assert matches[0]["matched_row_count"] == 2
+    assert matches[0]["reference_row_count"] == 1
+
+
+def test_duplicate_display_ids_are_accepted_before_reference_projection() -> None:
+    request = KinaseWorkflowRequest(
+        dataset=_dataset_with_duplicate_display_ids(),
+        references=_references(),
+    )
+
+    validated = KinaseWorkflowValidator().run(request)
+
+    assert validated is request
+    assert validated.reference_display_ambiguity_policy == (
+        KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR
+    )
+
+
+def test_ambiguous_display_reference_projection_fails_by_default() -> None:
+    dataset = _dataset_with_duplicate_display_ids()
+    expected_site_keys = dataset.phospho.index.astype(str).tolist()[:2]
+
+    with pytest.raises(WorkflowBoundaryError) as exc_info:
+        KinaseWorkflowInterpreter().run(
+            KinaseWorkflowRequest(dataset=dataset, references=_references())
+        )
+
+    error = exc_info.value
+    message = str(error)
+    assert error.seam == "kinase.interpreter.reference_display_ambiguity"
+    assert "MAPK14;Y182;" in message
+    for site_key in expected_site_keys:
+        assert site_key in message
+    assert error.details["ambiguous_display_ids"] == ["MAPK14;Y182;"]
+    diagnostics = error.details["ambiguity_diagnostics"]
+    assert isinstance(diagnostics, list)
+    assert diagnostics[0]["display_id"] == "MAPK14;Y182;"
+    assert set(diagnostics[0]["site_keys"]) == set(expected_site_keys)
+    assert diagnostics[0]["matched_row_count"] == 2
+    assert diagnostics[0]["reference_row_count"] == 1
+    assert diagnostics[0]["reference_rows"] == [
+        {
+            "row_position": 0,
+            "row_index": "0",
+            "kinase": "MAP2K6",
+            "substrate_site": "MAPK14;Y182;",
+        }
+    ]
 
 
 def test_projected_kinase_substrate_map_preserves_site_key_identity() -> None:
     dataset = _dataset_with_duplicate_display_ids()
 
     interpreted = KinaseWorkflowInterpreter().run(
-        KinaseWorkflowRequest(dataset=dataset, references=_references())
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=_references(),
+            reference_display_ambiguity_policy=(
+                KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS
+            ),
+        )
     )
 
     substrate_sites = interpreted.kinase_substrate_map.loc[:, "substrate_site"].astype(
@@ -501,7 +565,13 @@ def test_one_to_many_reference_matching_diagnostic_includes_display_and_site_key
     dataset = _dataset_with_duplicate_display_ids()
 
     interpreted = KinaseWorkflowInterpreter().run(
-        KinaseWorkflowRequest(dataset=dataset, references=_references())
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=_references(),
+            reference_display_ambiguity_policy=(
+                KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS
+            ),
+        )
     )
 
     diagnostics = interpreted.site_sequence_merge_diagnostics[
@@ -513,8 +583,44 @@ def test_one_to_many_reference_matching_diagnostic_includes_display_and_site_key
         {
             "display_id": "MAPK14;Y182;",
             "site_keys": dataset.phospho.index.astype(str).tolist()[:2],
-            "reference_rows": 1,
+            "matched_row_count": 2,
+            "reference_row_count": 1,
+            "reference_rows": [
+                {
+                    "row_position": 0,
+                    "row_index": "0",
+                    "kinase": "MAP2K6",
+                    "substrate_site": "MAPK14;Y182;",
+                }
+            ],
             "projected_rows": 2,
+            "interpreter_version": "phospy.workflows.kinase.reference_projector.v1",
+        }
+    ]
+    assert diagnostics["ambiguity_policy"] == (
+        KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS
+    )
+
+
+def test_site_key_based_reference_projection_is_not_ambiguous() -> None:
+    dataset = _dataset_with_duplicate_display_ids()
+    site_identity_map = _site_identity_map(dataset)
+    direct_site_key = dataset.phospho.index.astype(str).tolist()[0]
+
+    result = KinaseReferenceProjector().run(
+        reference_kinase_substrate_map=pd.DataFrame(
+            {"kinase": ["MAP2K6"], "substrate_site": [direct_site_key]}
+        ),
+        site_identity_map=site_identity_map,
+        ambiguity_policy=KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR,
+    )
+
+    assert result.ambiguity_diagnostics == ()
+    assert result.kinase_substrate_map.to_dict(orient="records") == [
+        {
+            "kinase": "MAP2K6",
+            "substrate_site": direct_site_key,
+            "display_id": "MAPK14;Y182;",
         }
     ]
 
@@ -617,7 +723,13 @@ def test_prediction_output_construction_receives_normalised_kinase_ids() -> None
 def test_duplicate_display_id_does_not_overwrite_prediction_rows() -> None:
     dataset = _dataset_with_duplicate_display_ids()
     request = KinaseWorkflowInterpreter().run(
-        KinaseWorkflowRequest(dataset=dataset, references=_references())
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=_references(),
+            reference_display_ambiguity_policy=(
+                KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS
+            ),
+        )
     )
     scores = pd.DataFrame(
         {"MAP2K6": [0.95, 0.85, 0.75]},
