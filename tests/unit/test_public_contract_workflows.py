@@ -32,6 +32,28 @@ from phospy.api.results import (
 from phospy.errors import WorkflowValidationError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
+INTENTIONAL_REQUEST_COMPATIBILITY_CONSTANTS = {
+    "DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING",
+    "DATASET_MULTI_SITE_POLICY_KEEP_JOINT",
+    "DATASET_MULTI_SITE_POLICY_REJECT",
+    "DATASET_MULTI_SITE_POLICY_SPLIT",
+    "DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE",
+    "DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED",
+}
+
+EXPECTED_REQUEST_EXPORTS = {
+    "Contrast",
+    "ContrastMatrix",
+    "DesignMatrix",
+    "DatasetBuildRequest",
+    "DifferentialAnalysisRequest",
+    "EmpiricalBayesConfig",
+    "ExperimentalDesign",
+    "KinaseWorkflowRequest",
+    "SampleDesignRecord",
+    "SignalomeWorkflowRequest",
+} | INTENTIONAL_REQUEST_COMPATIBILITY_CONSTANTS
+
 
 def _public_methods(cls: type[object]) -> set[str]:
     return {
@@ -42,18 +64,7 @@ def _public_methods(cls: type[object]) -> set[str]:
 
 
 def test_public_workflow_and_request_exports_match_contract() -> None:
-    assert set(request_models.__all__) == {
-        "Contrast",
-        "ContrastMatrix",
-        "DesignMatrix",
-        "DatasetBuildRequest",
-        "DifferentialAnalysisRequest",
-        "EmpiricalBayesConfig",
-        "ExperimentalDesign",
-        "KinaseWorkflowRequest",
-        "SampleDesignRecord",
-        "SignalomeWorkflowRequest",
-    }
+    assert set(request_models.__all__) == EXPECTED_REQUEST_EXPORTS
     assert set(workflow_models.__all__) == {
         "DifferentialAnalysisWorkflow",
         "KinaseWorkflow",
@@ -70,6 +81,24 @@ def test_public_workflow_and_request_exports_match_contract() -> None:
     assert "SignalomeWorkflowResult" not in phospy.__all__
     assert "DifferentialAnalysisRequest" not in phospy.__all__
     assert "DifferentialAnalysisResult" not in phospy.__all__
+
+
+def test_request_compatibility_constants_are_public_exports() -> None:
+    assert INTENTIONAL_REQUEST_COMPATIBILITY_CONSTANTS <= set(request_models.__all__)
+
+
+def test_request_star_import_exposes_public_contract_without_internals() -> None:
+    namespace: dict[str, object] = {}
+
+    exec("from phospy.api.requests import *", namespace)
+
+    exported_names = {name for name in namespace if name != "__builtins__"}
+    assert exported_names == EXPECTED_REQUEST_EXPORTS
+    for name in EXPECTED_REQUEST_EXPORTS:
+        assert namespace[name] is getattr(request_models, name)
+    assert "_request_contracts" not in namespace
+    assert "_SIGNALOME_CONFIG_TYPE_HINT_ALIAS" not in namespace
+    assert "SignalomeConfig" not in namespace
 
 
 def test_public_workflows_expose_run_only() -> None:

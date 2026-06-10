@@ -25,8 +25,12 @@ KinaseWorkflowSiteAttritionSummary = (
 __all__ = [
     "DifferentialAnalysisResult",
     "KinaseActivityResult",
+    "KinaseEligibilityReport",
     "KinasePredictionResult",
     "KinaseScoringResult",
+    "KinaseWorkflowPreprocessingAttritionSummary",
     "KinaseWorkflowResult",
+    "KinaseWorkflowScoringAttritionSummary",
+    "KinaseWorkflowSiteAttritionSummary",
     "SignalomeWorkflowResult",
 ]

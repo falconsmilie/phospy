@@ -35,6 +35,22 @@ from tests.support.site_keys import (
     site_key_index_from_display_ids,
 )
 
+INTENTIONAL_RESULT_COMPATIBILITY_ALIASES = {
+    "KinaseEligibilityReport",
+    "KinaseWorkflowPreprocessingAttritionSummary",
+    "KinaseWorkflowScoringAttritionSummary",
+    "KinaseWorkflowSiteAttritionSummary",
+}
+
+EXPECTED_RESULT_EXPORTS = {
+    "DifferentialAnalysisResult",
+    "KinaseActivityResult",
+    "KinasePredictionResult",
+    "KinaseScoringResult",
+    "KinaseWorkflowResult",
+    "SignalomeWorkflowResult",
+} | INTENTIONAL_RESULT_COMPATIBILITY_ALIASES
+
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
     site_ids = ["MAPK14;Y182;", "GSK3B;S9;", "AKT1;T308;"]
@@ -118,14 +134,23 @@ def _kinase_result() -> KinaseWorkflowResult:
 
 
 def test_public_result_exports_match_contract() -> None:
-    assert set(result_models.__all__) == {
-        "DifferentialAnalysisResult",
-        "KinaseActivityResult",
-        "KinasePredictionResult",
-        "KinaseScoringResult",
-        "KinaseWorkflowResult",
-        "SignalomeWorkflowResult",
-    }
+    assert set(result_models.__all__) == EXPECTED_RESULT_EXPORTS
+
+
+def test_result_compatibility_aliases_are_public_exports() -> None:
+    assert INTENTIONAL_RESULT_COMPATIBILITY_ALIASES <= set(result_models.__all__)
+
+
+def test_result_star_import_exposes_public_contract_without_internals() -> None:
+    namespace: dict[str, object] = {}
+
+    exec("from phospy.api.results import *", namespace)
+
+    exported_names = {name for name in namespace if name != "__builtins__"}
+    assert exported_names == EXPECTED_RESULT_EXPORTS
+    for name in EXPECTED_RESULT_EXPORTS:
+        assert namespace[name] is getattr(result_models, name)
+    assert "_result_contracts" not in namespace
 
 
 def test_kinase_result_stays_nested_and_honest_for_supported_lane() -> None:
