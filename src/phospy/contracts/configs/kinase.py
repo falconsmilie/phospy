@@ -54,14 +54,17 @@ KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY = (
     "simplified_weighted_substrate_activity"
 )
 KINASE_ACTIVITY_METHOD_KSEA_ZSCORE = "ksea_zscore"
+KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT = "ssgsea_substrate_enrichment"
 KinaseActivityMethod = Literal[
     "simplified_weighted_substrate_activity",
     "ksea_zscore",
+    "ssgsea_substrate_enrichment",
 ]
 KINASE_ACTIVITY_METHODS = frozenset(
     {
         KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
         KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
+        KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,
     }
 )
 KINASE_ACTIVITY_KSEA_DEFAULT_MIN_SUBSTRATES = 5
@@ -71,6 +74,19 @@ KINASE_ACTIVITY_KSEA_P_VALUE_METHODS = frozenset(
     {KINASE_ACTIVITY_KSEA_P_VALUE_METHOD_NORMAL_APPROXIMATION}
 )
 KINASE_ACTIVITY_KSEA_DEFAULT_ADJUST_P_VALUES = True
+KINASE_ACTIVITY_SSGSEA_DEFAULT_MIN_SUBSTRATES = 5
+KINASE_ACTIVITY_SSGSEA_RANKING_DIRECTION_DESCENDING = "descending"
+KINASE_ACTIVITY_SSGSEA_RANKING_DIRECTION_ASCENDING = "ascending"
+KinaseActivitySsgseaRankingDirection = Literal["descending", "ascending"]
+KINASE_ACTIVITY_SSGSEA_RANKING_DIRECTIONS = frozenset(
+    {
+        KINASE_ACTIVITY_SSGSEA_RANKING_DIRECTION_DESCENDING,
+        KINASE_ACTIVITY_SSGSEA_RANKING_DIRECTION_ASCENDING,
+    }
+)
+KINASE_ACTIVITY_SSGSEA_DEFAULT_PERMUTATIONS = 0
+KINASE_ACTIVITY_SSGSEA_DEFAULT_RANDOM_SEED = 0
+KINASE_ACTIVITY_SSGSEA_DEFAULT_ADJUST_P_VALUES = True
 KINASE_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT = False
 KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR = "error"
 KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE = "prefer_reference"
@@ -218,6 +234,13 @@ class KinaseActivityConfig:
         KINASE_ACTIVITY_KSEA_P_VALUE_METHOD_NORMAL_APPROXIMATION
     )
     ksea_adjust_p_values: bool = KINASE_ACTIVITY_KSEA_DEFAULT_ADJUST_P_VALUES
+    ssgsea_min_substrates: int = KINASE_ACTIVITY_SSGSEA_DEFAULT_MIN_SUBSTRATES
+    ssgsea_ranking_direction: KinaseActivitySsgseaRankingDirection = (
+        KINASE_ACTIVITY_SSGSEA_RANKING_DIRECTION_DESCENDING
+    )
+    ssgsea_permutations: int = KINASE_ACTIVITY_SSGSEA_DEFAULT_PERMUTATIONS
+    ssgsea_random_seed: int | None = KINASE_ACTIVITY_SSGSEA_DEFAULT_RANDOM_SEED
+    ssgsea_adjust_p_values: bool = KINASE_ACTIVITY_SSGSEA_DEFAULT_ADJUST_P_VALUES
 
     def __post_init__(self) -> None:
         if not isinstance(self.enabled, bool):
@@ -269,6 +292,42 @@ class KinaseActivityConfig:
             raise WorkflowValidationError(
                 "activity_config.ksea_adjust_p_values must be a bool"
             )
+        _require_int_at_least(
+            self.ssgsea_min_substrates,
+            field_name="activity_config.ssgsea_min_substrates",
+            minimum=KINASE_ACTIVITY_MIN_SUBSTRATES_FLOOR,
+            error_type=WorkflowValidationError,
+        )
+        if (
+            self.ssgsea_ranking_direction
+            not in KINASE_ACTIVITY_SSGSEA_RANKING_DIRECTIONS
+        ):
+            allowed = ", ".join(sorted(KINASE_ACTIVITY_SSGSEA_RANKING_DIRECTIONS))
+            raise WorkflowValidationError(
+                f"activity_config.ssgsea_ranking_direction must be one of: {allowed}"
+            )
+        _require_int_at_least(
+            self.ssgsea_permutations,
+            field_name="activity_config.ssgsea_permutations",
+            minimum=0,
+            error_type=WorkflowValidationError,
+        )
+        if self.ssgsea_random_seed is not None:
+            _require_int_at_least(
+                self.ssgsea_random_seed,
+                field_name="activity_config.ssgsea_random_seed",
+                minimum=0,
+                error_type=WorkflowValidationError,
+            )
+        if self.ssgsea_permutations > 0 and self.ssgsea_random_seed is None:
+            raise WorkflowValidationError(
+                "activity_config.ssgsea_random_seed must be set when "
+                "activity_config.ssgsea_permutations is greater than 0"
+            )
+        if not isinstance(self.ssgsea_adjust_p_values, bool):
+            raise WorkflowValidationError(
+                "activity_config.ssgsea_adjust_p_values must be a bool"
+            )
 
 
 __all__ = [
@@ -287,7 +346,15 @@ __all__ = [
     "KINASE_ACTIVITY_METHODS",
     "KINASE_ACTIVITY_METHOD_KSEA_ZSCORE",
     "KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY",
+    "KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT",
     "KINASE_ACTIVITY_MIN_SUBSTRATES_FLOOR",
+    "KINASE_ACTIVITY_SSGSEA_DEFAULT_ADJUST_P_VALUES",
+    "KINASE_ACTIVITY_SSGSEA_DEFAULT_MIN_SUBSTRATES",
+    "KINASE_ACTIVITY_SSGSEA_DEFAULT_PERMUTATIONS",
+    "KINASE_ACTIVITY_SSGSEA_DEFAULT_RANDOM_SEED",
+    "KINASE_ACTIVITY_SSGSEA_RANKING_DIRECTION_ASCENDING",
+    "KINASE_ACTIVITY_SSGSEA_RANKING_DIRECTION_DESCENDING",
+    "KINASE_ACTIVITY_SSGSEA_RANKING_DIRECTIONS",
     "KINASE_ACTIVITY_TOP_N_SUBSTRATES_FLOOR",
     "KINASE_PROFILE_MISSING_VALUE_STRATEGIES",
     "KINASE_PROFILE_MISSING_VALUE_STRATEGY_MEDIAN_SKIPNA",
@@ -304,6 +371,7 @@ __all__ = [
     "KinaseActivityConfig",
     "KinaseActivityMethod",
     "KinaseActivityPValueMethod",
+    "KinaseActivitySsgseaRankingDirection",
     "KinaseProfileMissingValueStrategy",
     "KinaseReferenceDisplayAmbiguityPolicy",
     "KinaseScoringMode",

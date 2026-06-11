@@ -94,6 +94,56 @@ def build_ksea_zscore_activity_policy(
     )
 
 
+def build_ssgsea_substrate_enrichment_activity_policy(
+    *,
+    min_substrates: int,
+    ranking_direction: str,
+    permutation_count: int,
+    random_seed: int | None,
+    adjust_p_values: bool,
+    q_value_method: str | None,
+) -> ScientificPolicyRecord:
+    return ScientificPolicyRecord(
+        id=ScientificPolicyId.SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY,
+        name="ssgsea_substrate_enrichment_activity_v1",
+        version="1",
+        description=(
+            "Computes a PhosPy ssGSEA-style kinase substrate-set enrichment "
+            "score over ranked phosphosite effect values."
+        ),
+        parameters={
+            "min_substrates": int(min_substrates),
+            "ranking_direction": str(ranking_direction),
+            "rank_walk_rule": (
+                "stable rank order; hits increment by 1/n_substrates and misses "
+                "decrement by 1/n_non_substrates"
+            ),
+            "score_formula": "sum(cumulative_hit - cumulative_miss) / n_background",
+            "membership_rule": "explicit kinase-substrate membership table",
+            "permutation_count": int(permutation_count),
+            "p_value_method": (
+                "seeded site-label permutation two-sided empirical p-value"
+                if int(permutation_count) > 0
+                else None
+            ),
+            "random_seed": None if random_seed is None else int(random_seed),
+            "adjust_p_values": bool(adjust_p_values),
+            "q_value_method": None if q_value_method is None else str(q_value_method),
+        },
+        assumptions=(
+            "Kinase substrate membership defines the tested phosphosite set.",
+            "Rank concentration of substrate effects summarizes relative kinase activity support.",
+            "Permutation p-values, when requested, use seeded random substrate-set label permutations.",
+            "This is a validated PhosPy implementation and is not a PTM-SEA parity claim.",
+        ),
+        output_scale=(
+            "Condition-by-kinase rank-walk substrate-set enrichment activity "
+            "score matrix with optional empirical p-values."
+        ),
+        quantitative_meaning="rank_based_substrate_set_enrichment_score",
+    )
+
+
 def _threshold_operator_token(mode: ThresholdMode) -> str:
     if mode is ThresholdMode.GREATER_THAN:
         return ">"
@@ -105,4 +155,5 @@ def _threshold_operator_token(mode: ThresholdMode) -> str:
 __all__ = [
     "build_ksea_zscore_activity_policy",
     "build_simplified_weighted_substrate_activity_policy",
+    "build_ssgsea_substrate_enrichment_activity_policy",
 ]

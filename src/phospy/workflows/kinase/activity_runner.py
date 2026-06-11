@@ -7,12 +7,14 @@ import pandas as pd
 from phospy.contracts.configs import (
     KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
     KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
+    KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,
 )
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.activities.methods import (
     KSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG,
     KseaZScoreActivityMethod,
     SimplifiedWeightedSubstrateActivityMethod,
+    SsgseaSubstrateEnrichmentActivityMethod,
 )
 from phospy.science.activities.models import KinaseActivityResult
 from phospy.science.prediction.models import KinasePredictionResult
@@ -83,6 +85,21 @@ class KinaseActivityRunner:
                 adjust_p_values=bool(activity_config.ksea_adjust_p_values),
                 q_value_method=KSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG,
             ).run(validated_inputs)
+            return self._annotate_activity_result(
+                activity_result=result,
+                site_identity_map=site_identity_map,
+            )
+        if activity_config.method == KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT:
+            result = SsgseaSubstrateEnrichmentActivityMethod(
+                min_substrates=int(activity_config.ssgsea_min_substrates),
+                ranking_direction=str(activity_config.ssgsea_ranking_direction),
+                permutation_count=int(activity_config.ssgsea_permutations),
+                random_seed=activity_config.ssgsea_random_seed,
+                adjust_p_values=bool(activity_config.ssgsea_adjust_p_values),
+            ).run(
+                effect_matrix=request.activity_phospho_matrix,
+                kinase_substrate_membership=request.kinase_substrate_map,
+            )
             return self._annotate_activity_result(
                 activity_result=result,
                 site_identity_map=site_identity_map,

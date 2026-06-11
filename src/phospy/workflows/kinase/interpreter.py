@@ -268,6 +268,21 @@ class KinaseWorkflowInterpreter:
                 ),
                 ksea_p_value_method=request.activity_config.ksea_p_value_method,
                 ksea_adjust_p_values=bool(request.activity_config.ksea_adjust_p_values),
+                ssgsea_min_substrates=int(
+                    request.activity_config.ssgsea_min_substrates
+                ),
+                ssgsea_ranking_direction=(
+                    request.activity_config.ssgsea_ranking_direction
+                ),
+                ssgsea_permutations=int(request.activity_config.ssgsea_permutations),
+                ssgsea_random_seed=(
+                    None
+                    if request.activity_config.ssgsea_random_seed is None
+                    else int(request.activity_config.ssgsea_random_seed)
+                ),
+                ssgsea_adjust_p_values=bool(
+                    request.activity_config.ssgsea_adjust_p_values
+                ),
             )
         )
         return ResolvedKinaseExecutionConfig(

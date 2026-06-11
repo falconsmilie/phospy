@@ -15,6 +15,7 @@ from phospy.science.activities.models import (
     ActivityMethodDiagnostics,
     KinaseActivityResult,
     KseaZScoreActivityDiagnostics,
+    SsgseaSubstrateEnrichmentActivityDiagnostics,
     WeightedSubstrateActivityDiagnostics,
 )
 from phospy.science.datasets.models import (
@@ -536,6 +537,7 @@ __all__ = [
     "KinaseScoringResult",
     "KinaseWorkflowResult",
     "KseaZScoreActivityDiagnostics",
+    "SsgseaSubstrateEnrichmentActivityDiagnostics",
     "SignalomeWorkflowResult",
     "WeightedSubstrateActivityDiagnostics",
 ]

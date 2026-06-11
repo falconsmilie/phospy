@@ -8,6 +8,7 @@ from phospy.api import Organism, ReferenceBundle
 from phospy.api.configs import (
     KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
     KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
+    KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,
     KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS,
@@ -285,6 +286,9 @@ def _config(
 def _activity_config(
     *,
     method: str,
+    ssgsea_min_substrates: int = 5,
+    ssgsea_permutations: int = 0,
+    ssgsea_random_seed: int | None = 0,
 ) -> ResolvedKinaseActivityExecutionConfig:
     return ResolvedKinaseActivityExecutionConfig(
         method=method,  # type: ignore[arg-type]
@@ -295,6 +299,11 @@ def _activity_config(
         ksea_evidence_threshold=0.6,
         ksea_p_value_method="normal_approximation",
         ksea_adjust_p_values=True,
+        ssgsea_min_substrates=ssgsea_min_substrates,
+        ssgsea_ranking_direction="descending",
+        ssgsea_permutations=ssgsea_permutations,
+        ssgsea_random_seed=ssgsea_random_seed,
+        ssgsea_adjust_p_values=True,
     )
 
 
@@ -935,6 +944,39 @@ def test_activity_runner_selects_ksea_method_from_config() -> None:
     assert result.statistics_table is not None
 
 
+def test_activity_runner_selects_ssgsea_method_from_config() -> None:
+    request = _resolved_request(
+        config=_config(
+            activity=_activity_config(
+                method=KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,
+                ssgsea_min_substrates=2,
+            )
+        )
+    )
+    prediction_result = KinasePredictionResult._from_owned(
+        pred_mat=pd.DataFrame(
+            {"MAP2K6": [0.7, 0.6]},
+            index=request.scoring_site_index.copy(),
+        )
+    )
+
+    result = KinaseActivityRunner().run(
+        request=request,
+        config=request.execution_config,
+        prediction_result=prediction_result,
+    )
+
+    assert result is not None
+    assert result.activity_method.activity_method_id == (
+        "ssgsea_substrate_enrichment_activity_v1"
+    )
+    assert result.statistics_table is not None
+    assert {"site_key", "display_id"} <= set(result.target_table.columns)
+    assert set(result.target_table.loc[:, "site_key"].astype(str)) == set(
+        request.scoring_site_index.astype(str)
+    )
+
+
 def test_provenance_builder_includes_active_scientific_policies() -> None:
     activity = ResolvedKinaseActivityExecutionConfig(
         method="simplified_weighted_substrate_activity",
@@ -997,6 +1039,41 @@ def test_provenance_builder_includes_ksea_policy_when_selected() -> None:
     )
     policy_ids = {policy.id.value for policy in provenance.scientific_policies}
     assert "ksea_zscore_activity_v1" in policy_ids
+
+
+def test_provenance_builder_includes_ssgsea_policy_when_selected() -> None:
+    activity = _activity_config(
+        method=KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,
+        ssgsea_min_substrates=2,
+        ssgsea_permutations=5,
+        ssgsea_random_seed=13,
+    )
+    request = _resolved_request(config=_config(activity=activity))
+    scoring_result = KinaseScoringResult._from_owned(
+        profile_scores=pd.DataFrame(
+            {"MAP2K6": [0.7, 0.2]},
+            index=request.scoring_site_index.copy(),
+        )
+    )
+    prediction_result = KinasePredictionResult._from_owned(
+        pred_mat=pd.DataFrame(
+            {"MAP2K6": [0.7, 0.2]},
+            index=request.scoring_site_index.copy(),
+        )
+    )
+
+    provenance = KinaseProvenanceBuilder().run(
+        request=request,
+        config=request.execution_config,
+        scoring_result=scoring_result,
+        prediction_result=prediction_result,
+        activity_result=None,
+    )
+    policy_ids = {policy.id.value for policy in provenance.scientific_policies}
+    assert "ssgsea_substrate_enrichment_activity_v1" in policy_ids
+    activity_payload = provenance.workflow_parameters["activity_config"]
+    assert isinstance(activity_payload, dict)
+    assert activity_payload["ssgsea_random_seed"] == 13
 
 
 def test_result_assembler_preserves_owned_dataframe_transfer() -> None:

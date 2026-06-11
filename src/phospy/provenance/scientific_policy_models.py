@@ -20,6 +20,7 @@ class ScientificPolicyId(str, Enum):
     CANDIDATE_SUBSTRATE_SELECTION = "candidate_substrate_selection_v1"
     SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY = "simplified_weighted_substrate_activity_v1"
     KSEA_ZSCORE_ACTIVITY = "ksea_zscore_activity_v1"
+    SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY = "ssgsea_substrate_enrichment_activity_v1"
     SIGNALOME_MISSING_VALUE_CLUSTERING = "signalome_missing_value_clustering_v1"
     SIGNALOME_SCORE_PRECONDITIONING = "signalome_score_preconditioning_v1"
     PREPROCESSING_STAGE_ORDER = "preprocessing_stage_order_v1"

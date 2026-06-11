@@ -9,6 +9,7 @@ import pandas as pd
 from phospy.contracts.configs import (
     KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
     KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
+    KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,
     KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
@@ -27,11 +28,15 @@ from phospy.provenance.models import (
 from phospy.provenance.scientific_policy_models import (
     ScientificPolicyRecord,
 )
-from phospy.science.activities.methods import KSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG
+from phospy.science.activities.methods import (
+    KSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG,
+    SSGSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG,
+)
 from phospy.science.activities.models import KinaseActivityResult
 from phospy.science.activities.scientific_policies import (
     build_ksea_zscore_activity_policy,
     build_simplified_weighted_substrate_activity_policy,
+    build_ssgsea_substrate_enrichment_activity_policy,
 )
 from phospy.science.datasets.preprocessing.scientific_policies import (
     build_duplicate_site_resolution_policy,
@@ -316,6 +321,25 @@ class KinaseProvenanceBuilder:
                         ),
                     )
                 )
+            elif (
+                config.activity.method
+                == KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT
+            ):
+                scientific_policies.append(
+                    build_ssgsea_substrate_enrichment_activity_policy(
+                        min_substrates=int(config.activity.ssgsea_min_substrates),
+                        ranking_direction=str(config.activity.ssgsea_ranking_direction),
+                        permutation_count=int(config.activity.ssgsea_permutations),
+                        random_seed=config.activity.ssgsea_random_seed,
+                        adjust_p_values=bool(config.activity.ssgsea_adjust_p_values),
+                        q_value_method=(
+                            SSGSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG
+                            if config.activity.ssgsea_permutations > 0
+                            and config.activity.ssgsea_adjust_p_values
+                            else None
+                        ),
+                    )
+                )
 
         return RunProvenance(
             environment=self._collect_environment(),
@@ -370,6 +394,27 @@ class KinaseProvenanceBuilder:
                         "ksea_q_value_method": (
                             KSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG
                             if config.activity.ksea_adjust_p_values
+                            else None
+                        ),
+                        "ssgsea_min_substrates": int(
+                            config.activity.ssgsea_min_substrates
+                        ),
+                        "ssgsea_ranking_direction": str(
+                            config.activity.ssgsea_ranking_direction
+                        ),
+                        "ssgsea_permutations": int(config.activity.ssgsea_permutations),
+                        "ssgsea_random_seed": (
+                            None
+                            if config.activity.ssgsea_random_seed is None
+                            else int(config.activity.ssgsea_random_seed)
+                        ),
+                        "ssgsea_adjust_p_values": bool(
+                            config.activity.ssgsea_adjust_p_values
+                        ),
+                        "ssgsea_q_value_method": (
+                            SSGSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG
+                            if config.activity.ssgsea_permutations > 0
+                            and config.activity.ssgsea_adjust_p_values
                             else None
                         ),
                         "activity_method": (

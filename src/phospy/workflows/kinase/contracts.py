@@ -12,6 +12,7 @@ from phospy.contracts.configs import (
     KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
     KinaseActivityMethod,
     KinaseActivityPValueMethod,
+    KinaseActivitySsgseaRankingDirection,
     KinaseAdaptivePolicy,
     KinasePredictionMode,
     KinaseProfileMissingValueStrategy,
@@ -489,6 +490,11 @@ class ResolvedKinaseActivityExecutionConfig:
     ksea_evidence_threshold: float
     ksea_p_value_method: KinaseActivityPValueMethod
     ksea_adjust_p_values: bool
+    ssgsea_min_substrates: int = 5
+    ssgsea_ranking_direction: KinaseActivitySsgseaRankingDirection = "descending"
+    ssgsea_permutations: int = 0
+    ssgsea_random_seed: int | None = 0
+    ssgsea_adjust_p_values: bool = True
 
 
 @dataclass(frozen=True, slots=True)

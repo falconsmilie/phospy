@@ -12,17 +12,25 @@ from phospy.science.activities.methods.ksea_zscore import (
     KSEA_STATUS_ZERO_BACKGROUND_VARIANCE,
     KseaZScoreActivityMethod,
 )
+from phospy.science.activities.methods.ssgsea_substrate_enrichment import (
+    SSGSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG,
+    SSGSEA_STATUS_COMPUTED,
+    SSGSEA_STATUS_INSUFFICIENT_SUBSTRATES,
+    SsgseaSubstrateEnrichmentActivityMethod,
+)
 from phospy.science.activities.models import (
     KinaseActivityInputs,
     KinaseActivityResult,
     KseaZScoreActivityDiagnostics,
     PredMatOverlapSummary,
+    SsgseaSubstrateEnrichmentActivityDiagnostics,
     WeightedSubstrateActivityDiagnostics,
 )
 from phospy.science.activities.scoring import (
     SimplifiedWeightedSubstrateActivityPolicy,
     compute_activity_from_inputs,
 )
+from phospy.science.activities.statistics import benjamini_hochberg_q_values
 from phospy.science.activities.threshold_membership import (
     THRESHOLD_MEMBERSHIP_DESCRIPTION,
     THRESHOLD_MEMBERSHIP_OPERATOR,
@@ -95,6 +103,189 @@ def _ksea_result(
             top_n_substrates=1,
         )
     )
+
+
+def _membership(kinase_to_sites: dict[str, list[str]]) -> pd.DataFrame:
+    rows: list[dict[str, str]] = []
+    for kinase, display_ids in kinase_to_sites.items():
+        for site_key in _site_key_index(display_ids).astype(str).tolist():
+            rows.append({"kinase": kinase, "substrate_site": site_key})
+    return pd.DataFrame.from_records(rows)
+
+
+def _ssgsea_result(
+    *,
+    effect_matrix: pd.DataFrame,
+    kinase_to_sites: dict[str, list[str]],
+    min_substrates: int = 2,
+    ranking_direction: str = "descending",
+    permutation_count: int = 0,
+    random_seed: int | None = 0,
+    adjust_p_values: bool = True,
+):
+    return SsgseaSubstrateEnrichmentActivityMethod(
+        min_substrates=min_substrates,
+        ranking_direction=ranking_direction,
+        permutation_count=permutation_count,
+        random_seed=random_seed,
+        adjust_p_values=adjust_p_values,
+    ).run(
+        effect_matrix=_with_site_key_index(effect_matrix),
+        kinase_substrate_membership=_membership(kinase_to_sites),
+    )
+
+
+def test_ssgsea_deterministic_rank_score_on_synthetic_data() -> None:
+    effect_matrix = pd.DataFrame(
+        {"c1": [4.0, 3.0, 2.0, 1.0]},
+        index=["S1;S1;", "S2;S2;", "S3;S3;", "S4;S4;"],
+    )
+
+    result = _ssgsea_result(
+        effect_matrix=effect_matrix,
+        kinase_to_sites={
+            "K_TOP": ["S1;S1;", "S2;S2;"],
+            "K_BOTTOM": ["S3;S3;", "S4;S4;"],
+        },
+    )
+
+    assert result.activity_method.activity_method_id == (
+        "ssgsea_substrate_enrichment_activity_v1"
+    )
+    assert result.activity_scores.at["K_TOP", "c1"] == pytest.approx(0.5)
+    assert result.activity_scores.at["K_BOTTOM", "c1"] == pytest.approx(-0.5)
+    assert result.substrate_count_matrix.at["K_TOP", "c1"] == 2
+    assert result.substrate_count_matrix.at["K_BOTTOM", "c1"] == 2
+    stats = result.statistics_table
+    assert stats is not None
+    top = stats.loc[stats["kinase"] == "K_TOP"].iloc[0]
+    assert top["computability_status"] == SSGSEA_STATUS_COMPUTED
+    assert top["enrichment_score"] == pytest.approx(0.5)
+    assert top["ranking_direction"] == "descending"
+    assert result.p_value_matrix is None
+    assert result.q_value_matrix is None
+
+
+def test_ssgsea_minimum_substrate_filtering_retains_diagnostic_pair() -> None:
+    effect_matrix = pd.DataFrame(
+        {"c1": [4.0, 3.0, 2.0, 1.0]},
+        index=["S1;S1;", "S2;S2;", "S3;S3;", "S4;S4;"],
+    )
+
+    result = _ssgsea_result(
+        effect_matrix=effect_matrix,
+        kinase_to_sites={"K1": ["S1;S1;", "S2;S2;"]},
+        min_substrates=3,
+    )
+
+    assert pd.isna(result.activity_scores.at["K1", "c1"])
+    assert result.substrate_count_matrix.at["K1", "c1"] == 2
+    stats = result.statistics_table
+    assert stats is not None
+    assert int(stats.shape[0]) == 1
+    assert stats.at[0, "computability_status"] == (
+        SSGSEA_STATUS_INSUFFICIENT_SUBSTRATES
+    )
+    assert result.method_summary is not None
+    assert result.method_summary.kinase_condition_pairs_insufficient_substrates == 1
+
+
+def test_ssgsea_p_value_adjustment_is_bh_per_condition_when_enabled() -> None:
+    effect_matrix = pd.DataFrame(
+        {"c1": [6.0, 5.0, 4.0, 3.0, 2.0, 1.0]},
+        index=["S1;S1;", "S2;S2;", "S3;S3;", "S4;S4;", "S5;S5;", "S6;S6;"],
+    )
+
+    result = _ssgsea_result(
+        effect_matrix=effect_matrix,
+        kinase_to_sites={
+            "K_TOP": ["S1;S1;", "S2;S2;"],
+            "K_MID": ["S3;S3;", "S4;S4;"],
+            "K_BOTTOM": ["S5;S5;", "S6;S6;"],
+        },
+        permutation_count=25,
+        random_seed=17,
+        adjust_p_values=True,
+    )
+
+    assert result.p_value_matrix is not None
+    assert result.q_value_matrix is not None
+    stats = result.statistics_table
+    assert stats is not None
+    computed = stats.loc[
+        stats["computability_status"] == SSGSEA_STATUS_COMPUTED,
+        :,
+    ].copy()
+    expected_q = benjamini_hochberg_q_values(computed.loc[:, "p_value"].astype(float))
+    pdt.assert_series_equal(
+        computed.loc[:, "q_value"].astype(float),
+        expected_q,
+        check_names=False,
+    )
+    for kinase, q_value in expected_q.items():
+        kinase_name = str(computed.at[kinase, "kinase"])
+        assert result.q_value_matrix.at[kinase_name, "c1"] == pytest.approx(q_value)
+
+
+def test_ssgsea_seed_reproducibility_for_permutation_p_values() -> None:
+    effect_matrix = pd.DataFrame(
+        {"c1": [6.0, 5.0, 4.0, 3.0, 2.0, 1.0]},
+        index=["S1;S1;", "S2;S2;", "S3;S3;", "S4;S4;", "S5;S5;", "S6;S6;"],
+    )
+    kwargs = {
+        "effect_matrix": effect_matrix,
+        "kinase_to_sites": {
+            "K_TOP": ["S1;S1;", "S2;S2;"],
+            "K_BOTTOM": ["S5;S5;", "S6;S6;"],
+        },
+        "permutation_count": 30,
+        "random_seed": 41,
+    }
+
+    first = _ssgsea_result(**kwargs)
+    second = _ssgsea_result(**kwargs)
+
+    assert first.p_value_matrix is not None
+    assert second.p_value_matrix is not None
+    assert first.q_value_matrix is not None
+    assert second.q_value_matrix is not None
+    pdt.assert_frame_equal(first.activity_scores, second.activity_scores)
+    pdt.assert_frame_equal(first.p_value_matrix, second.p_value_matrix)
+    pdt.assert_frame_equal(first.q_value_matrix, second.q_value_matrix)
+
+
+def test_ssgsea_result_populates_contract_and_policy_provenance() -> None:
+    effect_matrix = pd.DataFrame(
+        {"c1": [4.0, 3.0, 2.0, 1.0]},
+        index=["S1;S1;", "S2;S2;", "S3;S3;", "S4;S4;"],
+    )
+
+    result = _ssgsea_result(
+        effect_matrix=effect_matrix,
+        kinase_to_sites={"K1": ["S1;S1;", "S2;S2;"]},
+        permutation_count=5,
+        random_seed=3,
+    )
+
+    pdt.assert_frame_equal(result.activity_matrix, result.activity_scores)
+    assert result.activity_substrate_counts is not None
+    pdt.assert_frame_equal(
+        result.substrate_count_matrix,
+        result.activity_substrate_counts,
+    )
+    assert isinstance(
+        result.method_diagnostics,
+        SsgseaSubstrateEnrichmentActivityDiagnostics,
+    )
+    assert result.policy_provenance
+    policy = result.policy_provenance[0]
+    assert policy.id == ScientificPolicyId.SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY
+    payload = policy.to_payload()
+    assert payload["id"] == "ssgsea_substrate_enrichment_activity_v1"
+    parameters = payload["parameters"]
+    assert isinstance(parameters, dict)
+    assert parameters["random_seed"] == 3
+    assert parameters["q_value_method"] == SSGSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG
 
 
 def test_ksea_basic_zscore_calculation_matches_hand_computed_values() -> None:

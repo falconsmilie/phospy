@@ -95,6 +95,14 @@ KSEA_ZSCORE_ACTIVITY_METHOD = ActivityMethodMetadata(
     is_phosr_kinase_activity_equivalent=False,
 )
 
+SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_METHOD = ActivityMethodMetadata(
+    activity_method_id="ssgsea_substrate_enrichment_activity_v1",
+    activity_method_family="substrate_set_enrichment",
+    activity_method_label="ssGSEA substrate enrichment activity",
+    is_ksea=False,
+    is_phosr_kinase_activity_equivalent=False,
+)
+
 
 @dataclass(frozen=True, slots=True)
 class ActivityMethodSummary:
@@ -215,6 +223,12 @@ class WeightedSubstrateActivityDiagnostics(ActivityMethodDiagnostics):
 
 class KseaZScoreActivityDiagnostics(ActivityMethodDiagnostics):
     """Diagnostics for KSEA z-score activity outputs."""
+
+    __slots__ = ()
+
+
+class SsgseaSubstrateEnrichmentActivityDiagnostics(ActivityMethodDiagnostics):
+    """Diagnostics for ssGSEA-style substrate enrichment activity outputs."""
 
     __slots__ = ()
 
@@ -619,6 +633,22 @@ class KinaseActivityResult:
                     "global post-threshold predicted target membership count"
                 ),
             }
+        if self.activity_method.activity_method_family == "substrate_set_enrichment":
+            return {
+                "substrate_count_matrix": (
+                    "condition-specific finite substrate count used for each "
+                    "kinase-condition substrate-set enrichment score"
+                ),
+                "activity_substrate_counts": (
+                    "condition-specific finite substrate count used for each "
+                    "kinase-condition substrate-set enrichment score"
+                ),
+                "thresholded_substrate_counts": (
+                    "global kinase-substrate membership count before "
+                    "condition-specific finite-value filtering"
+                ),
+                "target_counts": "global kinase-substrate membership count",
+            }
         return {
             "substrate_count_matrix": (
                 "condition-specific finite substrate count used for each primary "
@@ -775,6 +805,11 @@ def _build_activity_method_diagnostics(
     diagnostics_cls: type[ActivityMethodDiagnostics]
     if activity_method.is_ksea:
         diagnostics_cls = KseaZScoreActivityDiagnostics
+    elif (
+        activity_method.activity_method_id
+        == SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_METHOD.activity_method_id
+    ):
+        diagnostics_cls = SsgseaSubstrateEnrichmentActivityDiagnostics
     elif (
         activity_method.activity_method_id
         == SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY_METHOD.activity_method_id

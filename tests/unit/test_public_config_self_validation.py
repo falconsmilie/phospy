@@ -585,6 +585,30 @@ def test_kinase_prediction_config_rejects_removed_ensemble_size_alias() -> None:
             {"ksea_adjust_p_values": "yes"},
             "activity_config.ksea_adjust_p_values must be a bool",
         ),
+        (
+            {"ssgsea_min_substrates": 0},
+            "activity_config.ssgsea_min_substrates must be greater than or equal to 1",
+        ),
+        (
+            {"ssgsea_ranking_direction": "invalid"},
+            "activity_config.ssgsea_ranking_direction must be one of",
+        ),
+        (
+            {"ssgsea_permutations": -1},
+            "activity_config.ssgsea_permutations must be greater than or equal to 0",
+        ),
+        (
+            {"ssgsea_random_seed": -1},
+            "activity_config.ssgsea_random_seed must be greater than or equal to 0",
+        ),
+        (
+            {"ssgsea_permutations": 1, "ssgsea_random_seed": None},
+            "activity_config.ssgsea_random_seed must be set",
+        ),
+        (
+            {"ssgsea_adjust_p_values": "yes"},
+            "activity_config.ssgsea_adjust_p_values must be a bool",
+        ),
     ],
 )
 def test_kinase_activity_config_self_validates(
