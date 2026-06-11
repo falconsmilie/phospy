@@ -8,7 +8,7 @@ from phospy.contracts.configs.localisation import LocalisationRequirement
 from phospy.contracts.requests import SignalomeWorkflowRequest
 from phospy.contracts.results import KinaseWorkflowResult
 from phospy.errors.validation import WorkflowValidationError
-from phospy.science.prediction.scoring import select_downstream_score_matrix
+from phospy.science.scoring.policy_models import DownstreamScoreSource
 from phospy.validation.common.dataframes import (
     require_dataframe,
     require_exact_index_match,
@@ -124,14 +124,11 @@ class SignalomeWorkflowValidator:
                 "must contain at least one kinase column"
             )
 
-        downstream_score_matrix, downstream_score_source = (
-            select_downstream_score_matrix(
-                profile_scores=scoring_result._borrow_profile_scores_frame(),
-                rank_weighted_fusion_scores=(
-                    scoring_result._borrow_rank_weighted_fusion_scores_frame()
-                ),
-            )
+        downstream_score_source = DownstreamScoreSource.parse(
+            scoring_result.score_source,
+            field_name="signalome workflow request downstream score source",
         )
+        downstream_score_matrix = scoring_result._borrow_authoritative_scores_frame()
         score_field_name = (
             "signalome workflow request kinase_result.scoring_result."
             f"{downstream_score_source}"

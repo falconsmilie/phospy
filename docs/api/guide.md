@@ -224,7 +224,9 @@ Important fields on `KinaseWorkflowResult` include:
 - `provenance`
 
 Common tables include `profile_scores`, `rank_weighted_fusion_scores`,
-`pred_mat`, and activity tables when activity is enabled. Use
+`pred_mat`, and activity tables when activity is enabled. Opt-in Kinase
+Library scoring modes additionally expose `kinase_library_motif_scores` and,
+for combined scoring, `combined_profile_motif_scores`. Use
 `activity_result.activity_scores` as the primary activity-score matrix, and
 `weighted_activity` as a compatibility alias.
 
@@ -239,6 +241,14 @@ prediction_matrix = kinase_result.prediction_result.to_dataframe()
 `kinase_result.provenance.scientific_policies` lists the active scientific
 scoring policies with stable IDs, assumptions, parameters, and output scale
 notes for auditability.
+
+The default kinase scoring mode remains `"phosr_rank_weighted"`. To score with
+Kinase Library-style sequence motifs, pass `KinaseScoringConfig` with
+`scoring_mode="kinase_library_motif"` and provide a compatible
+`kinase_library_resource` on `KinaseWorkflowRequest`. Kinase Library workflow
+scores are relative motif support scores normalized to a unit interval per
+kinase matrix; they are not calibrated probabilities or direct activity
+evidence.
 
 ### Signalome Workflow Result
 

@@ -102,6 +102,54 @@ def publish_kinase_workflow(
             rank_weighted_fusion_scores_path
         )
 
+    if result.scoring_result.kinase_library_motif_scores is not None:
+        kinase_library_motif_scores_path = (
+            scoring_dir / f"kinase_library_motif_scores{suffix}"
+        )
+        write_table(
+            result.scoring_result.kinase_library_motif_scores,
+            kinase_library_motif_scores_path,
+        )
+        written["kinase.scoring.kinase_library_motif_scores"] = (
+            kinase_library_motif_scores_path
+        )
+
+    if result.scoring_result.combined_profile_motif_scores is not None:
+        combined_profile_motif_scores_path = (
+            scoring_dir / f"combined_profile_motif_scores{suffix}"
+        )
+        write_table(
+            result.scoring_result.combined_profile_motif_scores,
+            combined_profile_motif_scores_path,
+        )
+        written["kinase.scoring.combined_profile_motif_scores"] = (
+            combined_profile_motif_scores_path
+        )
+
+    if result.scoring_result.kinase_library_site_diagnostics is not None:
+        kinase_library_site_diagnostics_path = (
+            scoring_dir / f"kinase_library_site_diagnostics{suffix}"
+        )
+        write_table(
+            result.scoring_result.kinase_library_site_diagnostics,
+            kinase_library_site_diagnostics_path,
+        )
+        written["kinase.scoring.kinase_library_site_diagnostics"] = (
+            kinase_library_site_diagnostics_path
+        )
+
+    if result.scoring_result.kinase_library_kinase_diagnostics is not None:
+        kinase_library_kinase_diagnostics_path = (
+            scoring_dir / f"kinase_library_kinase_diagnostics{suffix}"
+        )
+        write_table(
+            result.scoring_result.kinase_library_kinase_diagnostics,
+            kinase_library_kinase_diagnostics_path,
+        )
+        written["kinase.scoring.kinase_library_kinase_diagnostics"] = (
+            kinase_library_kinase_diagnostics_path
+        )
+
     if result.scoring_result.score_fusion_weights is not None:
         score_fusion_weights_path = scoring_dir / f"score_fusion_weights{suffix}"
         write_table(
@@ -190,6 +238,9 @@ def publish_kinase_workflow(
         manifest_path,
         {
             "reference_organism": result.references.organism.value,
+            "scoring_mode": result.scoring_result.scoring_mode,
+            "score_source": result.scoring_result.score_source,
+            "score_scale": result.scoring_result.score_scale,
             "activity_enabled": result.activity_result is not None,
             "activity_method": (
                 None

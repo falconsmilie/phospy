@@ -12,6 +12,9 @@ from phospy.contracts.configs import (
     KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
+    KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF,
+    KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
+    KINASE_SCORING_MODES_REQUIRING_KINASE_LIBRARY,
 )
 from phospy.provenance.environment import collect_environment_provenance
 from phospy.provenance.hashing import fingerprint_optional_table
@@ -38,6 +41,7 @@ from phospy.science.prediction.scientific_policies import (
     PROFILE_CORRELATION_SHIFTED_UNIT_POLICY,
     CandidateSubstrateSelectionPolicy,
     KinaseProfileScoringPolicy,
+    build_kinase_library_motif_scoring_policy,
     build_motif_profile_rank_fusion_policy,
 )
 from phospy.workflows.kinase.component_models import (
@@ -94,8 +98,24 @@ class KinaseProvenanceBuilder:
                     scoring_result.rank_weighted_fusion_scores,
                 ),
                 (
+                    "outputs.scoring.kinase_library_motif_scores",
+                    scoring_result.kinase_library_motif_scores,
+                ),
+                (
+                    "outputs.scoring.combined_profile_motif_scores",
+                    scoring_result.combined_profile_motif_scores,
+                ),
+                (
                     "outputs.scoring.score_fusion_weights",
                     scoring_result.score_fusion_weights,
+                ),
+                (
+                    "outputs.scoring.kinase_library_site_diagnostics",
+                    scoring_result.kinase_library_site_diagnostics,
+                ),
+                (
+                    "outputs.scoring.kinase_library_kinase_diagnostics",
+                    scoring_result.kinase_library_kinase_diagnostics,
                 ),
                 ("outputs.prediction.pred_mat", prediction_result.pred_mat),
                 ("outputs.prediction.substrate_list", prediction_result.substrate_list),
@@ -164,6 +184,32 @@ class KinaseProvenanceBuilder:
             scoring_diagnostics["motif_library_validation"] = (
                 scoring_result.motif_library_validation.summary()
             )
+        if scoring_result.kinase_library_site_diagnostics is not None:
+            scoring_diagnostics["kinase_library_site_status_counts"] = {
+                str(key): int(value)
+                for key, value in scoring_result.kinase_library_site_diagnostics.loc[
+                    :, "status"
+                ]
+                .astype(str)
+                .value_counts()
+                .sort_index()
+                .items()
+            }
+        if scoring_result.kinase_library_kinase_diagnostics is not None:
+            scoring_diagnostics["kinase_library_matrix_status_counts"] = {
+                str(key): int(value)
+                for key, value in scoring_result.kinase_library_kinase_diagnostics.loc[
+                    :, "status"
+                ]
+                .astype(str)
+                .value_counts()
+                .sort_index()
+                .items()
+            }
+        if scoring_result.score_scale_metadata is not None:
+            scoring_diagnostics["score_scale_metadata"] = dict(
+                scoring_result.score_scale_metadata
+            )
         if scoring_result.score_source_summary is not None:
             score_source_summary = scoring_result.score_source_summary
             by_kinase: dict[str, dict[str, int]] = {}
@@ -189,16 +235,52 @@ class KinaseProvenanceBuilder:
                 min_substrates_floor=KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
                 requested_min_substrates=int(config.scoring_min_substrates),
             ).record,
-            build_motif_profile_rank_fusion_policy(
-                allow_profile_only_fallback=True,
-                emit_weights=bool(config.include_diagnostic_scoring_tables),
-            ),
+        ]
+        if config.scoring_mode in {
+            KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
+            KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF,
+        }:
+            scientific_policies.append(
+                build_motif_profile_rank_fusion_policy(
+                    allow_profile_only_fallback=True,
+                    emit_weights=bool(config.include_diagnostic_scoring_tables),
+                )
+            )
+        if config.scoring_mode in KINASE_SCORING_MODES_REQUIRING_KINASE_LIBRARY:
+            score_scale_metadata = (
+                {}
+                if scoring_result.score_scale_metadata is None
+                else dict(scoring_result.score_scale_metadata)
+            )
+            raw_sequence_window = score_scale_metadata.get("sequence_window")
+            sequence_window: Mapping[str, object] | None = (
+                {str(key): value for key, value in raw_sequence_window.items()}
+                if isinstance(raw_sequence_window, Mapping)
+                else None
+            )
+            scientific_policies.append(
+                build_kinase_library_motif_scoring_policy(
+                    scoring_mode=str(config.scoring_mode),
+                    resource_source_name=_optional_metadata_text(
+                        score_scale_metadata.get("resource_source_name")
+                    ),
+                    resource_source_version=_optional_metadata_text(
+                        score_scale_metadata.get("resource_source_version")
+                    ),
+                    resource_score_scale=_optional_metadata_text(
+                        score_scale_metadata.get("resource_score_scale")
+                    ),
+                    workflow_score_scale=str(scoring_result.score_scale),
+                    sequence_window=sequence_window,
+                )
+            )
+        scientific_policies.append(
             CandidateSubstrateSelectionPolicy(
                 top_k=int(config.prediction_top_k),
                 score_threshold=CANDIDATE_SCORE_THRESHOLD,
                 inclusion=CANDIDATE_MIN_INCLUSION,
-            ).record,
-        ]
+            ).record
+        )
         if config.prediction_mode == KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE:
             scientific_policies.append(config.prediction_sampling_policy.record)
         duplicate_site_policy = self._resolve_duplicate_site_resolution_policy(
@@ -249,15 +331,11 @@ class KinaseProvenanceBuilder:
                         else "strict_sty_residue_position"
                     )
                 },
-                "scoring_config": {
-                    "min_substrates": int(config.scoring_min_substrates),
-                    "include_diagnostic_scoring_tables": bool(
-                        config.include_diagnostic_scoring_tables
-                    ),
-                    "profile_missing_value_strategy": str(
-                        config.profile_missing_value_strategy
-                    ),
-                },
+                "scoring_config": _build_scoring_config_payload(
+                    request=request,
+                    scoring_result=scoring_result,
+                    config=config,
+                ),
                 "scoring_diagnostics": scoring_diagnostics,
                 "prediction_config": {
                     "top_k": int(config.prediction_top_k),
@@ -392,6 +470,43 @@ def _canonicalise_for_provenance_fingerprint(
     except Exception:
         pass
     return canonical
+
+
+def _build_scoring_config_payload(
+    *,
+    request: ResolvedKinaseWorkflowRequest,
+    scoring_result: KinaseScoringResult,
+    config: ResolvedKinaseExecutionConfig,
+) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "min_substrates": int(config.scoring_min_substrates),
+        "include_diagnostic_scoring_tables": bool(
+            config.include_diagnostic_scoring_tables
+        ),
+        "profile_missing_value_strategy": str(config.profile_missing_value_strategy),
+    }
+    if config.scoring_mode == KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED:
+        return payload
+    payload.update(
+        {
+            "scoring_mode": str(config.scoring_mode),
+            "score_source": scoring_result.score_source,
+            "score_scale": scoring_result.score_scale,
+            "kinase_library_resource": (
+                None
+                if request.kinase_library_resource is None
+                else dict(request.kinase_library_resource.provenance.manifest or {})
+            ),
+        }
+    )
+    return payload
+
+
+def _optional_metadata_text(value: object) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
 
 
 __all__ = ["KinaseProvenanceBuilder"]

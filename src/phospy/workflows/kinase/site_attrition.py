@@ -15,6 +15,10 @@ from phospy.science.datasets.models import (
     SiteSequenceResolutionReport,
 )
 from phospy.science.prediction.models import KinasePredictionResult
+from phospy.science.prediction.motif_scoring import (
+    KINASE_LIBRARY_SITE_STATUS_VALID_SCORED_SITE,
+    KINASE_LIBRARY_SITE_STATUS_VALID_UNSCORED_SITE,
+)
 from phospy.science.prediction.sequence_validation import (
     SEQUENCE_VALIDATION_STATUS_INVALID_SITE_ID,
 )
@@ -102,15 +106,28 @@ class KinaseSiteAttritionSummaryComposer:
         motif_sequence_validation = (
             scoring_execution.scoring_result.motif_sequence_validation
         )
+        kinase_library_site_diagnostics = scoring_execution.scoring_result._borrow_kinase_library_site_diagnostics_frame()
         sequence_supported_sites = int(len(request.scoring_site_index))
-        motif_valid_sites = int(
-            sequence_supported_sites
-            if motif_sequence_validation is None
-            else min(
-                int(motif_sequence_validation.valid_sequences),
-                sequence_supported_sites,
+        if kinase_library_site_diagnostics is not None:
+            valid_statuses = {
+                KINASE_LIBRARY_SITE_STATUS_VALID_SCORED_SITE,
+                KINASE_LIBRARY_SITE_STATUS_VALID_UNSCORED_SITE,
+            }
+            motif_valid_sites = int(
+                kinase_library_site_diagnostics.loc[:, "status"]
+                .astype(str)
+                .isin(valid_statuses)
+                .sum()
             )
-        )
+        else:
+            motif_valid_sites = int(
+                sequence_supported_sites
+                if motif_sequence_validation is None
+                else min(
+                    int(motif_sequence_validation.valid_sequences),
+                    sequence_supported_sites,
+                )
+            )
         motif_invalid_site_ids = set()
         if motif_sequence_validation is not None:
             motif_invalid_site_ids = {

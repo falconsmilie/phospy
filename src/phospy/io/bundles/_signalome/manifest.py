@@ -79,6 +79,18 @@ _SCORING_TABLE_KEYS = frozenset(
         "profile_scores",
         "motif_scores",
         "rank_weighted_fusion_scores",
+        "kinase_library_motif_scores",
+        "combined_profile_motif_scores",
+        "score_fusion_weights",
+        "kinase_library_site_diagnostics",
+        "kinase_library_kinase_diagnostics",
+    }
+)
+_SCORING_TABLE_REQUIRED_KEYS = frozenset(
+    {
+        "profile_scores",
+        "motif_scores",
+        "rank_weighted_fusion_scores",
         "score_fusion_weights",
     }
 )
@@ -404,7 +416,7 @@ def parse_manifest(payload: Mapping[str, object]) -> SignalomeManifestSections:
     _require_fields(
         scoring_tables,
         field_name="bundle manifest.upstream_kinase_outputs.scoring.tables",
-        required_fields=_SCORING_TABLE_KEYS,
+        required_fields=_SCORING_TABLE_REQUIRED_KEYS,
         unsupported_shape=True,
     )
     prediction_tables = require_mapping(

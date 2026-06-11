@@ -37,6 +37,7 @@ from phospy.science.differential.models import (
     EmpiricalBayesConfig,
 )
 from phospy.science.evidence import dataset_resolution as _dataset_resolution
+from phospy.science.references.kinase_library import KinaseLibraryResource
 from phospy.science.references.models import Organism, ReferenceBundle, ReferencePreset
 from phospy.science.transformations.models import (
     IntensityScaleKind,
@@ -134,6 +135,7 @@ class KinaseWorkflowRequest:
     reference_display_ambiguity_policy: KinaseReferenceDisplayAmbiguityPolicy = (
         KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR
     )
+    kinase_library_resource: KinaseLibraryResource | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -6,9 +6,17 @@ from typing import NoReturn, TypedDict, cast
 
 import pandas as pd
 
+from phospy.contracts.configs import (
+    KINASE_SCORING_MODES_REQUIRING_KINASE_LIBRARY,
+)
 from phospy.contracts.requests import KinaseWorkflowRequest
 from phospy.errors.workflows import PhosPyWorkflowError, WorkflowBoundaryError
+from phospy.science.prediction.motif_scoring import (
+    KINASE_LIBRARY_RESIDUE_CLASS_SER_THR,
+    KINASE_LIBRARY_RESIDUE_CLASS_TYR,
+)
 from phospy.science.prediction.policies import resolve_prediction_sampling_policy
+from phospy.science.references.kinase_library import KinaseLibraryResource
 from phospy.science.references.resolution import (
     BundledReferenceProvider,
     ReferenceResolver,
@@ -68,6 +76,9 @@ class KinaseWorkflowInterpreter:
         references = self._reference_resolver.run(
             request.references,
             dataset_organism=request.dataset.organism,
+        )
+        kinase_library_resource = self._resolve_kinase_library_resource(
+            request=request,
         )
         reference_site_count = int(
             references.kinase_substrate_map.loc[:, "substrate_site"]
@@ -135,6 +146,11 @@ class KinaseWorkflowInterpreter:
         scoring_site_keys = set(scoring_site_index.astype(str))
         site_sequences = site_sequences.reindex(scoring_site_index)
         site_identity_map = site_identity_map.reindex(scoring_site_index)
+        self._validate_kinase_library_resource_usability(
+            resource=kinase_library_resource,
+            site_sequences=site_sequences,
+            request=request,
+        )
         kinase_substrate_map = (
             kinase_substrate_map.loc[
                 kinase_substrate_map.loc[:, "substrate_site"]
@@ -156,6 +172,7 @@ class KinaseWorkflowInterpreter:
             scoring_site_index=scoring_site_index,
             activity_phospho_matrix=activity_phospho_matrix,
             execution_config=execution_config,
+            kinase_library_resource=kinase_library_resource,
             site_sequence_merge_diagnostics={
                 **merge_result.diagnostics_payload(),
                 "reference_sequence_count": int(references.site_sequences.shape[0]),
@@ -255,6 +272,7 @@ class KinaseWorkflowInterpreter:
         )
         return ResolvedKinaseExecutionConfig(
             scoring_min_substrates=int(request.scoring_config.min_substrates),
+            scoring_mode=request.scoring_config.scoring_mode,
             include_diagnostic_scoring_tables=bool(
                 request.scoring_config.include_diagnostic_scoring_tables
             ),
@@ -276,6 +294,89 @@ class KinaseWorkflowInterpreter:
                 else int(request.prediction_config.random_state)
             ),
             activity=activity,
+        )
+
+    def _resolve_kinase_library_resource(
+        self,
+        *,
+        request: KinaseWorkflowRequest,
+    ) -> KinaseLibraryResource | None:
+        scoring_mode = request.scoring_config.scoring_mode
+        if scoring_mode not in KINASE_SCORING_MODES_REQUIRING_KINASE_LIBRARY:
+            return None
+        resource = request.kinase_library_resource
+        if not isinstance(resource, KinaseLibraryResource):
+            self._raise_boundary_error(
+                seam="kinase.interpreter.kinase_library_resource_type",
+                next_action=(
+                    "provide a KinaseLibraryResource via "
+                    "KinaseWorkflowRequest.kinase_library_resource"
+                ),
+                scoring_mode=scoring_mode,
+                observed_type=type(resource).__name__,
+            )
+        dataset_organism = request.dataset.organism
+        if dataset_organism is not None and dataset_organism.value not in {
+            str(value).lower() for value in resource.organisms
+        }:
+            self._raise_boundary_error(
+                seam="kinase.interpreter.kinase_library_resource_organism",
+                next_action=(
+                    "provide a Kinase Library resource whose organisms include "
+                    "the analysis-ready dataset organism"
+                ),
+                scoring_mode=scoring_mode,
+                dataset_organism=dataset_organism.value,
+                resource_organisms=tuple(resource.organisms),
+            )
+        if not resource.sequence_window.central_residue_required:
+            self._raise_boundary_error(
+                seam="kinase.interpreter.kinase_library_resource_window",
+                next_action=(
+                    "provide a Kinase Library resource with a central "
+                    "phospho-residue window"
+                ),
+                scoring_mode=scoring_mode,
+                sequence_window=resource.sequence_window.to_payload(),
+            )
+        return resource
+
+    def _validate_kinase_library_resource_usability(
+        self,
+        *,
+        resource: KinaseLibraryResource | None,
+        site_sequences: pd.DataFrame,
+        request: KinaseWorkflowRequest,
+    ) -> None:
+        if resource is None:
+            return
+        resource_residue_classes = {
+            matrix.residue_class.value for matrix in resource.matrices
+        }
+        site_residue_classes = {
+            residue_class
+            for residue_class in (
+                _central_residue_class(
+                    value,
+                    upstream=int(resource.sequence_window.upstream_residues),
+                    downstream=int(resource.sequence_window.downstream_residues),
+                )
+                for value in site_sequences.loc[:, "site_sequence"].tolist()
+            )
+            if residue_class is not None
+        }
+        if site_residue_classes.intersection(resource_residue_classes):
+            return
+        self._raise_boundary_error(
+            seam="kinase.interpreter.kinase_library_resource_usability",
+            next_action=(
+                "provide a Kinase Library resource with residue_class lanes that "
+                "match at least one resolved scoring-site sequence"
+            ),
+            scoring_mode=request.scoring_config.scoring_mode,
+            resource_residue_classes=tuple(sorted(resource_residue_classes)),
+            scoring_site_residue_classes=tuple(sorted(site_residue_classes)),
+            scoring_site_count=int(site_sequences.shape[0]),
         )
 
     @classmethod
@@ -425,3 +526,31 @@ class KinaseWorkflowInterpreter:
             details=details,
             message_prefix="kinase workflow boundary validation failed",
         )
+
+
+def _central_residue_class(
+    value: object,
+    *,
+    upstream: int,
+    downstream: int,
+) -> str | None:
+    if not isinstance(value, str):
+        return None
+    sequence = value.strip().upper()
+    if not sequence:
+        return None
+    window_size = int(upstream) + 1 + int(downstream)
+    if len(sequence) == window_size:
+        centre_index = int(upstream)
+    elif len(sequence) >= window_size and len(sequence) % 2 == 1:
+        centre_index = len(sequence) // 2
+    else:
+        return None
+    if centre_index < 0 or centre_index >= len(sequence):
+        return None
+    residue = sequence[centre_index]
+    if residue in {"S", "T"}:
+        return KINASE_LIBRARY_RESIDUE_CLASS_SER_THR
+    if residue == "Y":
+        return KINASE_LIBRARY_RESIDUE_CLASS_TYR
+    return None

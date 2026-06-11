@@ -103,6 +103,20 @@ def save_kinase_workflow_bundle(
             written=written,
             written_key="scoring.rank_weighted_fusion_scores",
         ),
+        "kinase_library_motif_scores": write_optional_bundle_table(
+            table=result.scoring_result.kinase_library_motif_scores,
+            bundle_root=bundle_root,
+            relative_path=Path("scoring") / f"kinase_library_motif_scores{suffix}",
+            written=written,
+            written_key="scoring.kinase_library_motif_scores",
+        ),
+        "combined_profile_motif_scores": write_optional_bundle_table(
+            table=result.scoring_result.combined_profile_motif_scores,
+            bundle_root=bundle_root,
+            relative_path=Path("scoring") / f"combined_profile_motif_scores{suffix}",
+            written=written,
+            written_key="scoring.combined_profile_motif_scores",
+        ),
         "score_fusion_weights": write_optional_bundle_table(
             table=result.scoring_result.score_fusion_weights,
             bundle_root=bundle_root,
@@ -110,7 +124,23 @@ def save_kinase_workflow_bundle(
             written=written,
             written_key="scoring.score_fusion_weights",
         ),
+        "kinase_library_site_diagnostics": write_optional_bundle_table(
+            table=result.scoring_result.kinase_library_site_diagnostics,
+            bundle_root=bundle_root,
+            relative_path=Path("scoring") / f"kinase_library_site_diagnostics{suffix}",
+            written=written,
+            written_key="scoring.kinase_library_site_diagnostics",
+        ),
+        "kinase_library_kinase_diagnostics": write_optional_bundle_table(
+            table=result.scoring_result.kinase_library_kinase_diagnostics,
+            bundle_root=bundle_root,
+            relative_path=Path("scoring")
+            / f"kinase_library_kinase_diagnostics{suffix}",
+            written=written,
+            written_key="scoring.kinase_library_kinase_diagnostics",
+        ),
     }
+    scoring_tables = _drop_absent_kinase_library_scoring_tables(scoring_tables)
 
     prediction_tables = {
         "pred_mat": write_bundle_table(
@@ -229,3 +259,21 @@ def save_kinase_workflow_bundle(
     write_json(manifest_path, manifest, label="bundle manifest")
     written["manifest"] = manifest_path
     return written
+
+
+def _drop_absent_kinase_library_scoring_tables(
+    scoring_tables: dict[str, object],
+) -> dict[str, object]:
+    """Keep legacy default manifests stable while allowing new optional tables."""
+
+    optional_keys = (
+        "kinase_library_motif_scores",
+        "combined_profile_motif_scores",
+        "kinase_library_site_diagnostics",
+        "kinase_library_kinase_diagnostics",
+    )
+    return {
+        key: value
+        for key, value in scoring_tables.items()
+        if key not in optional_keys or value is not None
+    }

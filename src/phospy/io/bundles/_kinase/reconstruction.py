@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 
 from phospy.api.results import KinaseWorkflowResult
@@ -128,11 +129,44 @@ def reconstruct_kinase_result(
                 "bundle manifest.outputs.scoring.tables.rank_weighted_fusion_scores"
             ),
         ),
+        kinase_library_motif_scores=_read_absent_optional_table(
+            bundle_root=bundle_root,
+            tables=sections.scoring_tables,
+            table_key="kinase_library_motif_scores",
+            field_name=(
+                "bundle manifest.outputs.scoring.tables.kinase_library_motif_scores"
+            ),
+        ),
+        combined_profile_motif_scores=_read_absent_optional_table(
+            bundle_root=bundle_root,
+            tables=sections.scoring_tables,
+            table_key="combined_profile_motif_scores",
+            field_name=(
+                "bundle manifest.outputs.scoring.tables.combined_profile_motif_scores"
+            ),
+        ),
         score_fusion_weights=read_optional_table(
             bundle_root=bundle_root,
             tables=sections.scoring_tables,
             table_key="score_fusion_weights",
             field_name="bundle manifest.outputs.scoring.tables.score_fusion_weights",
+        ),
+        kinase_library_site_diagnostics=_read_absent_optional_table(
+            bundle_root=bundle_root,
+            tables=sections.scoring_tables,
+            table_key="kinase_library_site_diagnostics",
+            field_name=(
+                "bundle manifest.outputs.scoring.tables.kinase_library_site_diagnostics"
+            ),
+        ),
+        kinase_library_kinase_diagnostics=_read_absent_optional_table(
+            bundle_root=bundle_root,
+            tables=sections.scoring_tables,
+            table_key="kinase_library_kinase_diagnostics",
+            field_name=(
+                "bundle manifest.outputs.scoring.tables."
+                "kinase_library_kinase_diagnostics"
+            ),
         ),
     )
 
@@ -279,3 +313,20 @@ def _normalise_site_metadata_bundle_table(table):
     normalised = table.copy(deep=True)
     normalised = normalised.rename(columns={"site_key.1": "site_key"})
     return normalised
+
+
+def _read_absent_optional_table(
+    *,
+    bundle_root: Path,
+    tables: Mapping[str, object],
+    table_key: str,
+    field_name: str,
+):
+    if table_key not in tables:
+        return None
+    return read_optional_table(
+        bundle_root=bundle_root,
+        tables=tables,
+        table_key=table_key,
+        field_name=field_name,
+    )

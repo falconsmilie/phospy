@@ -133,6 +133,7 @@ execution.
 | --- | --- | --- | --- | --- |
 | `dataset` | `AnalysisReadyPhosphoDataset` | None | Yes | Dataset returned by `AnalysisReadyDatasetBuilder.run(...)`. It must already be strict and missing-value-free. |
 | `references` | `ReferencePreset` or `ReferenceBundle` | `ReferencePreset.AUTO` | No | Reference source for kinase-substrate and site-sequence support. Use `ReferencePreset.AUTO` with the bundled rat beginner lane, or pass a custom `ReferenceBundle`. |
+| `kinase_library_resource` | `KinaseLibraryResource` or `None` | `None` | Required for Kinase Library scoring modes | Kinase Library-style motif matrices and provenance. Required when `scoring_config.scoring_mode` is `"kinase_library_motif"` or `"combined_profile_motif"`. |
 | `scoring_config` | `KinaseScoringConfig` | `KinaseScoringConfig()` | No | Controls kinase scoring support thresholds, diagnostics, missing-value profile handling, and mixed total-protein guardrails. |
 | `prediction_config` | `KinasePredictionConfig` | `KinasePredictionConfig()` | No | Controls deterministic or adaptive kinase prediction. |
 | `activity_config` | `KinaseActivityConfig` or `None` | `KinaseActivityConfig()` | No | Controls optional activity output. Use `None` to skip activity entirely. |
@@ -226,6 +227,7 @@ strict_missing = KinaseScoringConfig.strict_missing_values()
 
 | Parameter | Type | Default | Allowed Values | How to Use It |
 | --- | --- | --- | --- | --- |
+| `scoring_mode` | `str` | `"phosr_rank_weighted"` | `"phosr_rank_weighted"`, `"kinase_library_motif"`, `"combined_profile_motif"` | Selects the matrix used for downstream prediction and signalome handoff. Keep the default for the parity-protected PhosR-style lane. |
 | `min_substrates` | `int` | `2` | Integer `>= 2` | Minimum quantified substrates required for a kinase to receive scoring support. Raise this for more conservative scoring. |
 | `include_diagnostic_scoring_tables` | `bool` | `False` | `True`, `False` | Includes non-primary scoring diagnostics such as motif score and score-fusion helper tables. |
 | `profile_missing_value_strategy` | `str` | `"strict"` | `"strict"`, `"median_skipna"` | Controls how profile medians handle missing values in multi-substrate kinase profiles. |
@@ -259,6 +261,66 @@ scoring = KinaseScoringConfig(
 
 Use `"median_skipna"` only when skipping missing profile values is scientifically
 acceptable for your dataset and reference coverage.
+
+### Scoring Modes
+
+`KinaseScoringConfig.scoring_mode` controls which score matrix is authoritative
+for kinase prediction and downstream signalome selection:
+
+| Mode | Authoritative Matrix | Resource Requirements | Score Interpretation |
+| --- | --- | --- | --- |
+| `"phosr_rank_weighted"` | `rank_weighted_fusion_scores` | Standard `ReferenceBundle` | Default parity-protected PhosR-style profile/motif rank fusion on a unit interval relative-support scale. |
+| `"kinase_library_motif"` | `kinase_library_motif_scores` | Standard `ReferenceBundle` plus compatible `KinaseLibraryResource` | Sequence-motif support from Kinase Library-style position matrices, normalized per kinase matrix to a unit interval. |
+| `"combined_profile_motif"` | `combined_profile_motif_scores` | Standard `ReferenceBundle` plus compatible `KinaseLibraryResource` | Rank-weighted fusion of profile evidence and normalized Kinase Library motif evidence. |
+
+The default remains `"phosr_rank_weighted"` for existing workflow and parity
+behaviour. Kinase Library modes are explicit opt-ins.
+
+Kinase Library modes validate user intent before scoring:
+
+- request validation requires `kinase_library_resource`
+- interpretation checks organism compatibility, central-residue window support,
+  and usable residue-class overlap with resolved site sequences
+- scoring records site and kinase diagnostics so sequence/resource attrition is
+  visible in the result and provenance
+
+Example Kinase Library motif scoring:
+
+```python
+from phospy.api import (
+    KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
+    KinaseScoringConfig,
+    KinaseWorkflowRequest,
+)
+
+scoring = KinaseScoringConfig(
+    scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
+    include_diagnostic_scoring_tables=True,
+)
+
+kinase_result = KinaseWorkflow().run(
+    KinaseWorkflowRequest(
+        dataset=dataset,
+        references=references,
+        kinase_library_resource=kinase_library_resource,
+        scoring_config=scoring,
+        activity_config=None,
+    )
+)
+
+motif_scores = kinase_result.scoring_result.kinase_library_motif_scores
+score_source = kinase_result.scoring_result.score_source
+score_scale = kinase_result.scoring_result.score_scale
+site_diagnostics = (
+    kinase_result.scoring_result.kinase_library_site_diagnostics
+)
+```
+
+Kinase Library workflow scores are not probabilities. The workflow-normalized
+score scale is intended for within-run ranking support after resource and
+sequence eligibility checks. Ser/Thr and Tyr motif lanes remain separate; a
+site whose central residue does not match any usable matrix lane is reported in
+the site diagnostics instead of being silently coerced.
 
 ## Prediction Configuration
 

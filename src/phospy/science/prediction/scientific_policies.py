@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from phospy.provenance.scientific_policy_models import (
@@ -122,6 +123,42 @@ def build_motif_profile_rank_fusion_policy(
     )
 
 
+def build_kinase_library_motif_scoring_policy(
+    *,
+    scoring_mode: str,
+    resource_source_name: str | None,
+    resource_source_version: str | None,
+    resource_score_scale: str | None,
+    workflow_score_scale: str,
+    sequence_window: Mapping[str, object] | None = None,
+) -> ScientificPolicyRecord:
+    return ScientificPolicyRecord(
+        id=ScientificPolicyId.KINASE_LIBRARY_MOTIF_SCORING,
+        name="kinase_library_motif_scoring_v1",
+        version="1",
+        description=(
+            "Scores phosphosite sequence windows against explicit Kinase "
+            "Library-style position-specific kinase motif matrices."
+        ),
+        parameters={
+            "scoring_mode": str(scoring_mode),
+            "resource_source_name": resource_source_name,
+            "resource_source_version": resource_source_version,
+            "resource_score_scale": resource_score_scale,
+            "workflow_score_scale": str(workflow_score_scale),
+            "sequence_window": dict(sequence_window or {}),
+        },
+        assumptions=(
+            "Motif matrices encode provider-scale relative residue-position support.",
+            "Higher motif scores indicate stronger kinase motif compatibility.",
+            "Workflow-normalized scores are relative within-run support values and "
+            "are not calibrated probabilities.",
+        ),
+        output_scale=str(workflow_score_scale),
+        quantitative_meaning="relative_motif_support_score",
+    )
+
+
 def build_kinase_profile_scoring_policy(
     *,
     profile_missing_value_strategy: str,
@@ -209,5 +246,6 @@ __all__ = [
     "PROFILE_CORRELATION_SHIFTED_UNIT_POLICY",
     "build_candidate_substrate_selection_policy",
     "build_kinase_profile_scoring_policy",
+    "build_kinase_library_motif_scoring_policy",
     "build_motif_profile_rank_fusion_policy",
 ]

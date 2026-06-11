@@ -593,6 +593,16 @@ def _downstream_score_meaning(
             "upstream downstream profile-score lane; larger values indicate stronger "
             "relative downstream support within the run"
         )
+    if resolved_source is DownstreamScoreSource.KINASE_LIBRARY_MOTIF_SCORES:
+        return (
+            "upstream Kinase Library motif-score lane normalized to within-run "
+            "unit support; larger values indicate stronger relative motif support"
+        )
+    if resolved_source is DownstreamScoreSource.COMBINED_PROFILE_MOTIF_SCORES:
+        return (
+            "upstream combined profile and Kinase Library motif lane; larger "
+            "values indicate stronger relative downstream support within the run"
+        )
     return (
         "upstream downstream score lane used for signalome construction; values are "
         "relative support scores within the run"

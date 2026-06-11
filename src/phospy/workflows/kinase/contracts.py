@@ -9,11 +9,13 @@ from typing import TYPE_CHECKING, Protocol
 import pandas as pd
 
 from phospy.contracts.configs import (
+    KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
     KinaseActivityMethod,
     KinaseActivityPValueMethod,
     KinaseAdaptivePolicy,
     KinasePredictionMode,
     KinaseProfileMissingValueStrategy,
+    KinaseScoringMode,
 )
 from phospy.contracts.requests import KinaseWorkflowRequest
 from phospy.contracts.results import KinaseWorkflowResult
@@ -45,6 +47,7 @@ from phospy.validation.datasets.protein_scoped_site_identity import (
 )
 
 if TYPE_CHECKING:
+    from phospy.science.references.kinase_library import KinaseLibraryResource
     from phospy.science.references.resolution import ReferenceResolverContract
 
 
@@ -59,6 +62,7 @@ class ResolvedKinaseWorkflowRequest:
     scoring_site_index: pd.Index
     activity_phospho_matrix: pd.DataFrame
     execution_config: ResolvedKinaseExecutionConfig
+    kinase_library_resource: KinaseLibraryResource | None = None
     site_identity_map: pd.DataFrame | None = None
     site_sequence_merge_diagnostics: dict[str, object] = field(default_factory=dict)
     _kinase_substrate_reference: pd.DataFrame = field(
@@ -505,6 +509,7 @@ class ResolvedKinaseExecutionConfig:
         DEFAULT_PREDICTION_SAMPLING_POLICY
     )
     activity: ResolvedKinaseActivityExecutionConfig | None = None
+    scoring_mode: KinaseScoringMode = KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED
 
 
 class KinaseWorkflowValidatorContract(Protocol):

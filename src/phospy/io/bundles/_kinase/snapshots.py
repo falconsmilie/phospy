@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast
 
 from phospy.api.configs import (
@@ -12,6 +12,8 @@ from phospy.api.configs import (
     KINASE_ADAPTIVE_POLICIES,
     KINASE_PREDICTION_MODES,
     KINASE_PROFILE_MISSING_VALUE_STRATEGIES,
+    KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
+    KINASE_SCORING_MODES,
     KinaseActivityConfig,
     KinaseActivityMethod,
     KinaseActivityPValueMethod,
@@ -20,6 +22,7 @@ from phospy.api.configs import (
     KinasePredictionMode,
     KinaseProfileMissingValueStrategy,
     KinaseScoringConfig,
+    KinaseScoringMode,
 )
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.primitives import (
@@ -36,6 +39,7 @@ if TYPE_CHECKING:
 _SCORING_CONFIG_ALLOWED_FIELDS = frozenset(
     {
         "min_substrates",
+        "scoring_mode",
         "include_diagnostic_scoring_tables",
         "profile_missing_value_strategy",
         "allow_mixed_total_protein_quantitative_meaning",
@@ -84,6 +88,7 @@ class KinaseWorkflowConfigSnapshot:
     scoring_config: KinaseScoringConfig
     prediction_config: KinasePredictionConfig
     activity_config: KinaseActivityConfig | None
+    _include_scoring_mode: bool = field(default=True, repr=False, compare=False)
 
     @classmethod
     def from_request(
@@ -121,19 +126,22 @@ class KinaseWorkflowConfigSnapshot:
                 "ksea_p_value_method": self.activity_config.ksea_p_value_method,
                 "ksea_adjust_p_values": self.activity_config.ksea_adjust_p_values,
             }
+        scoring_payload: dict[str, object] = {
+            "min_substrates": self.scoring_config.min_substrates,
+            "include_diagnostic_scoring_tables": (
+                self.scoring_config.include_diagnostic_scoring_tables
+            ),
+            "profile_missing_value_strategy": (
+                self.scoring_config.profile_missing_value_strategy
+            ),
+            "allow_mixed_total_protein_quantitative_meaning": (
+                self.scoring_config.allow_mixed_total_protein_quantitative_meaning
+            ),
+        }
+        if self._include_scoring_mode:
+            scoring_payload["scoring_mode"] = self.scoring_config.scoring_mode
         return {
-            "scoring_config": {
-                "min_substrates": self.scoring_config.min_substrates,
-                "include_diagnostic_scoring_tables": (
-                    self.scoring_config.include_diagnostic_scoring_tables
-                ),
-                "profile_missing_value_strategy": (
-                    self.scoring_config.profile_missing_value_strategy
-                ),
-                "allow_mixed_total_protein_quantitative_meaning": (
-                    self.scoring_config.allow_mixed_total_protein_quantitative_meaning
-                ),
-            },
+            "scoring_config": scoring_payload,
             "prediction_config": {
                 "top_k": self.prediction_config.top_k,
                 "deterministic_max_selected_kinases": (
@@ -265,6 +273,16 @@ class KinaseWorkflowConfigSnapshot:
                     scoring_payload.get("min_substrates"),
                     field_name=f"{scope}.scoring_config.min_substrates",
                 ),
+                scoring_mode=_parse_scoring_mode(
+                    require_str(
+                        scoring_payload.get(
+                            "scoring_mode",
+                            KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
+                        ),
+                        field_name=f"{scope}.scoring_config.scoring_mode",
+                    ),
+                    field_name=f"{scope}.scoring_config.scoring_mode",
+                ),
                 include_diagnostic_scoring_tables=require_bool(
                     scoring_payload.get("include_diagnostic_scoring_tables"),
                     field_name=(
@@ -337,6 +355,7 @@ class KinaseWorkflowConfigSnapshot:
                 ),
             ),
             activity_config=activity_config,
+            _include_scoring_mode="scoring_mode" in scoring_payload,
         )
 
 
@@ -376,6 +395,13 @@ def _parse_profile_missing_value_strategy(
         allowed = ", ".join(sorted(KINASE_PROFILE_MISSING_VALUE_STRATEGIES))
         raise PhosPyInputError(f"{field_name} must be one of: {allowed}")
     return cast(KinaseProfileMissingValueStrategy, value)
+
+
+def _parse_scoring_mode(value: str, *, field_name: str) -> KinaseScoringMode:
+    if value not in KINASE_SCORING_MODES:
+        allowed = ", ".join(sorted(KINASE_SCORING_MODES))
+        raise PhosPyInputError(f"{field_name} must be one of: {allowed}")
+    return cast(KinaseScoringMode, value)
 
 
 def _parse_prediction_mode(value: str, *, field_name: str) -> KinasePredictionMode:

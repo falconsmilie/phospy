@@ -12,6 +12,27 @@ from phospy.contracts.configs.localisation import LocalisationRequirement
 from phospy.errors.validation import WorkflowValidationError
 
 KINASE_SCORING_MIN_SUBSTRATES_FLOOR = 2
+KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED = "phosr_rank_weighted"
+KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF = "kinase_library_motif"
+KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF = "combined_profile_motif"
+KinaseScoringMode = Literal[
+    "phosr_rank_weighted",
+    "kinase_library_motif",
+    "combined_profile_motif",
+]
+KINASE_SCORING_MODES = frozenset(
+    {
+        KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
+        KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
+        KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF,
+    }
+)
+KINASE_SCORING_MODES_REQUIRING_KINASE_LIBRARY = frozenset(
+    {
+        KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
+        KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF,
+    }
+)
 KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT = "strict"
 KINASE_PROFILE_MISSING_VALUE_STRATEGY_MEDIAN_SKIPNA = "median_skipna"
 KinaseProfileMissingValueStrategy = Literal[
@@ -94,10 +115,14 @@ class KinaseScoringConfig:
     explicit scoring configuration. Prediction mode and reference input
     provenance (preset vs explicit bundle) do not redefine scoring behavior.
 
+    `scoring_mode` selects the authoritative downstream scoring source. The
+    default (`"phosr_rank_weighted"`) preserves the existing PhosR-style profile
+    plus motif-frequency rank-weighted lane.
+
     `include_diagnostic_scoring_tables` controls publication of non-authoritative
     diagnostic scoring outputs (`motif_scores`, `score_fusion_weights`). The
-    authoritative downstream lane (`rank_weighted_fusion_scores` with profile
-    fallback) is always computed.
+    authoritative downstream lane for the default mode (`rank_weighted_fusion_scores`
+    with profile fallback) is always computed in that mode.
 
     `profile_missing_value_strategy` controls column-wise median behavior when a
     kinase profile is built from multiple quantified substrates:
@@ -107,6 +132,7 @@ class KinaseScoringConfig:
     """
 
     min_substrates: int = KINASE_SCORING_MIN_SUBSTRATES_FLOOR
+    scoring_mode: KinaseScoringMode = KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED
     include_diagnostic_scoring_tables: bool = False
     profile_missing_value_strategy: KinaseProfileMissingValueStrategy = (
         KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
@@ -127,6 +153,11 @@ class KinaseScoringConfig:
             raise WorkflowValidationError(
                 "scoring_config.allow_mixed_total_protein_quantitative_meaning "
                 "must be a bool"
+            )
+        if self.scoring_mode not in KINASE_SCORING_MODES:
+            allowed = ", ".join(sorted(KINASE_SCORING_MODES))
+            raise WorkflowValidationError(
+                f"scoring_config.scoring_mode must be one of: {allowed}"
             )
         if (
             self.profile_missing_value_strategy
@@ -264,12 +295,18 @@ __all__ = [
     "KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICIES",
     "KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS",
     "KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR",
+    "KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF",
+    "KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF",
+    "KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED",
+    "KINASE_SCORING_MODES",
+    "KINASE_SCORING_MODES_REQUIRING_KINASE_LIBRARY",
     "KINASE_SCORING_MIN_SUBSTRATES_FLOOR",
     "KinaseActivityConfig",
     "KinaseActivityMethod",
     "KinaseActivityPValueMethod",
     "KinaseProfileMissingValueStrategy",
     "KinaseReferenceDisplayAmbiguityPolicy",
+    "KinaseScoringMode",
     "KinaseSiteSequenceConflictPolicy",
     "LocalisationRequirement",
     "KinaseScoringConfig",

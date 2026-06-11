@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from types import MappingProxyType
 
 import numpy as np
 import pandas as pd
 
+from phospy.contracts.configs import (
+    KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
+    KINASE_SCORING_MODES,
+)
 from phospy.errors.validation import PhosPyValidationError
 from phospy.frames.ownership import (
     _borrow_dataframe,
@@ -24,6 +30,7 @@ from phospy.science.prediction.scoring import (
     KINASE_SCORE_SOURCE_VALUES,
 )
 from phospy.science.prediction.sequence_validation import SequenceValidationResult
+from phospy.science.scoring.policy_models import DownstreamScoreSource
 from phospy.science.sites.validation import require_site_key_index
 from phospy.tables.base import require_canonical_label_index
 from phospy.tables.kinase import KinasePredictionMatrix, KinaseScoreMatrix
@@ -41,10 +48,15 @@ from phospy.validation.common.dataframes import (
 class KinaseScoringResult:
     """Scoring-stage outputs.
 
-    `profile_scores` and `rank_weighted_fusion_scores` define the supported
+    `score_source` identifies the authoritative downstream score matrix used by
+    prediction. The default remains the historical rank-weighted lane when it is
+    present, otherwise profile scores.
+
+    `profile_scores` and `rank_weighted_fusion_scores` define the historical
     downstream lane. `motif_scores` and `score_fusion_weights` are optional
-    diagnostic tables controlled by
-    `scoring_config.include_diagnostic_scoring_tables`.
+    diagnostic tables controlled by `scoring_config.include_diagnostic_scoring_tables`.
+    `kinase_library_motif_scores` is populated when Kinase Library motif scoring
+    is explicitly selected.
     `score_source_summary` is a compact per-kinase evidence-source diagnostic.
     `score_source_matrix` is an optional per-site/per-kinase evidence-source
     diagnostic table.
@@ -52,27 +64,74 @@ class KinaseScoringResult:
 
     motif_sequence_validation: SequenceValidationResult | None = None
     motif_library_validation: MotifLibraryValidationResult | None = None
+    scoring_mode: str = KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED
+    score_scale: str = "relative_support_score_unit_interval"
+    score_scale_metadata: Mapping[str, object] | None = None
     _profile_scores: pd.DataFrame = field(init=False, repr=False)
     _motif_scores: pd.DataFrame | None = field(init=False, repr=False)
     _rank_weighted_fusion_scores: pd.DataFrame | None = field(init=False, repr=False)
+    _kinase_library_motif_scores: pd.DataFrame | None = field(
+        init=False,
+        repr=False,
+    )
+    _combined_profile_motif_scores: pd.DataFrame | None = field(
+        init=False,
+        repr=False,
+    )
     _score_fusion_weights: pd.DataFrame | None = field(init=False, repr=False)
     _score_source_matrix: pd.DataFrame | None = field(init=False, repr=False)
     _score_source_summary: pd.DataFrame | None = field(init=False, repr=False)
+    _kinase_library_site_diagnostics: pd.DataFrame | None = field(
+        init=False,
+        repr=False,
+    )
+    _kinase_library_kinase_diagnostics: pd.DataFrame | None = field(
+        init=False,
+        repr=False,
+    )
+    _score_source: DownstreamScoreSource = field(init=False, repr=False)
 
     def __init__(
         self,
         profile_scores: pd.DataFrame,
         motif_scores: pd.DataFrame | None = None,
         rank_weighted_fusion_scores: pd.DataFrame | None = None,
+        kinase_library_motif_scores: pd.DataFrame | None = None,
+        combined_profile_motif_scores: pd.DataFrame | None = None,
         score_fusion_weights: pd.DataFrame | None = None,
         score_source_matrix: pd.DataFrame | None = None,
         score_source_summary: pd.DataFrame | None = None,
+        kinase_library_site_diagnostics: pd.DataFrame | None = None,
+        kinase_library_kinase_diagnostics: pd.DataFrame | None = None,
+        scoring_mode: str = KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
+        score_source: DownstreamScoreSource | str | None = None,
+        score_scale: str | None = None,
+        score_scale_metadata: Mapping[str, object] | None = None,
         motif_sequence_validation: SequenceValidationResult | None = None,
         motif_library_validation: MotifLibraryValidationResult | None = None,
         _assume_owned: bool = False,
     ) -> None:
         object.__setattr__(self, "motif_sequence_validation", motif_sequence_validation)
         object.__setattr__(self, "motif_library_validation", motif_library_validation)
+        resolved_scoring_mode = _validate_scoring_mode(scoring_mode)
+        resolved_score_source = _resolve_score_source(
+            score_source=score_source,
+            rank_weighted_fusion_scores=rank_weighted_fusion_scores,
+            kinase_library_motif_scores=kinase_library_motif_scores,
+            combined_profile_motif_scores=combined_profile_motif_scores,
+        )
+        resolved_score_scale = _resolve_score_scale(
+            score_scale=score_scale,
+            score_source=resolved_score_source,
+        )
+        object.__setattr__(self, "scoring_mode", resolved_scoring_mode)
+        object.__setattr__(self, "score_scale", resolved_score_scale)
+        object.__setattr__(
+            self,
+            "score_scale_metadata",
+            _own_score_scale_metadata(score_scale_metadata),
+        )
+        object.__setattr__(self, "_score_source", resolved_score_source)
         profile_scores = KinaseScoreMatrix(
             frame=profile_scores,
             field_name="scoring_result.profile_scores",
@@ -93,6 +152,26 @@ class KinaseScoringResult:
             else KinaseScoreMatrix(
                 frame=rank_weighted_fusion_scores,
                 field_name="scoring_result.rank_weighted_fusion_scores",
+                _assume_owned=_assume_owned,
+            ).frame
+        )
+        kinase_library_motif_scores = (
+            None
+            if kinase_library_motif_scores is None
+            else KinaseScoreMatrix(
+                frame=kinase_library_motif_scores,
+                field_name="scoring_result.kinase_library_motif_scores",
+                enforce_unit_interval=True,
+                _assume_owned=_assume_owned,
+            ).frame
+        )
+        combined_profile_motif_scores = (
+            None
+            if combined_profile_motif_scores is None
+            else KinaseScoreMatrix(
+                frame=combined_profile_motif_scores,
+                field_name="scoring_result.combined_profile_motif_scores",
+                enforce_unit_interval=True,
                 _assume_owned=_assume_owned,
             ).frame
         )
@@ -118,6 +197,18 @@ class KinaseScoringResult:
             error_type=PhosPyValidationError,
             assume_owned=_assume_owned,
         )
+        kinase_library_site_diagnostics = own_optional_dataframe(
+            kinase_library_site_diagnostics,
+            field_name="scoring_result.kinase_library_site_diagnostics",
+            error_type=PhosPyValidationError,
+            assume_owned=_assume_owned,
+        )
+        kinase_library_kinase_diagnostics = own_optional_dataframe(
+            kinase_library_kinase_diagnostics,
+            field_name="scoring_result.kinase_library_kinase_diagnostics",
+            error_type=PhosPyValidationError,
+            assume_owned=_assume_owned,
+        )
         score_source_matrix = _validate_score_source_matrix(
             score_source_matrix=score_source_matrix,
             profile_scores=profile_scores,
@@ -128,14 +219,37 @@ class KinaseScoringResult:
             profile_scores=profile_scores,
             rank_weighted_fusion_scores=rank_weighted_fusion_scores,
         )
+        _validate_authoritative_score_source(
+            score_source=resolved_score_source,
+            profile_scores=profile_scores,
+            rank_weighted_fusion_scores=rank_weighted_fusion_scores,
+            kinase_library_motif_scores=kinase_library_motif_scores,
+            combined_profile_motif_scores=combined_profile_motif_scores,
+        )
         object.__setattr__(self, "_profile_scores", profile_scores)
         object.__setattr__(self, "_motif_scores", motif_scores)
         object.__setattr__(
             self, "_rank_weighted_fusion_scores", rank_weighted_fusion_scores
         )
+        object.__setattr__(
+            self, "_kinase_library_motif_scores", kinase_library_motif_scores
+        )
+        object.__setattr__(
+            self, "_combined_profile_motif_scores", combined_profile_motif_scores
+        )
         object.__setattr__(self, "_score_fusion_weights", score_fusion_weights)
         object.__setattr__(self, "_score_source_matrix", score_source_matrix)
         object.__setattr__(self, "_score_source_summary", score_source_summary)
+        object.__setattr__(
+            self,
+            "_kinase_library_site_diagnostics",
+            kinase_library_site_diagnostics,
+        )
+        object.__setattr__(
+            self,
+            "_kinase_library_kinase_diagnostics",
+            kinase_library_kinase_diagnostics,
+        )
         if motif_sequence_validation is not None and not isinstance(
             motif_sequence_validation,
             SequenceValidationResult,
@@ -166,6 +280,14 @@ class KinaseScoringResult:
         return export_optional_dataframe(self._rank_weighted_fusion_scores)
 
     @property
+    def kinase_library_motif_scores(self) -> pd.DataFrame | None:
+        return export_optional_dataframe(self._kinase_library_motif_scores)
+
+    @property
+    def combined_profile_motif_scores(self) -> pd.DataFrame | None:
+        return export_optional_dataframe(self._combined_profile_motif_scores)
+
+    @property
     def score_fusion_weights(self) -> pd.DataFrame | None:
         return export_optional_dataframe(self._score_fusion_weights)
 
@@ -176,6 +298,22 @@ class KinaseScoringResult:
     @property
     def score_source_summary(self) -> pd.DataFrame | None:
         return export_optional_dataframe(self._score_source_summary)
+
+    @property
+    def kinase_library_site_diagnostics(self) -> pd.DataFrame | None:
+        return export_optional_dataframe(self._kinase_library_site_diagnostics)
+
+    @property
+    def kinase_library_kinase_diagnostics(self) -> pd.DataFrame | None:
+        return export_optional_dataframe(self._kinase_library_kinase_diagnostics)
+
+    @property
+    def score_source(self) -> str:
+        return self._score_source.value
+
+    @property
+    def authoritative_scores(self) -> pd.DataFrame:
+        return export_dataframe(self._borrow_authoritative_scores_frame())
 
     def _borrow_profile_scores_frame(self) -> pd.DataFrame:
         """Package-private borrowed profile scores for internal workflows."""
@@ -192,6 +330,16 @@ class KinaseScoringResult:
 
         return _borrow_optional_dataframe(self._rank_weighted_fusion_scores)
 
+    def _borrow_kinase_library_motif_scores_frame(self) -> pd.DataFrame | None:
+        """Package-private borrowed Kinase Library scores for internal workflows."""
+
+        return _borrow_optional_dataframe(self._kinase_library_motif_scores)
+
+    def _borrow_combined_profile_motif_scores_frame(self) -> pd.DataFrame | None:
+        """Package-private borrowed combined profile/motif scores."""
+
+        return _borrow_optional_dataframe(self._combined_profile_motif_scores)
+
     def _borrow_score_fusion_weights_frame(self) -> pd.DataFrame | None:
         """Package-private borrowed fusion weights for internal workflows."""
 
@@ -207,6 +355,30 @@ class KinaseScoringResult:
 
         return _borrow_optional_dataframe(self._score_source_summary)
 
+    def _borrow_kinase_library_site_diagnostics_frame(self) -> pd.DataFrame | None:
+        """Package-private borrowed Kinase Library site diagnostics."""
+
+        return _borrow_optional_dataframe(self._kinase_library_site_diagnostics)
+
+    def _borrow_kinase_library_kinase_diagnostics_frame(self) -> pd.DataFrame | None:
+        """Package-private borrowed Kinase Library kinase diagnostics."""
+
+        return _borrow_optional_dataframe(self._kinase_library_kinase_diagnostics)
+
+    def _borrow_authoritative_scores_frame(self) -> pd.DataFrame:
+        """Package-private borrowed authoritative downstream score matrix."""
+
+        if self._score_source is DownstreamScoreSource.RANK_WEIGHTED_FUSION_SCORES:
+            if self._rank_weighted_fusion_scores is not None:
+                return _borrow_dataframe(self._rank_weighted_fusion_scores)
+        if self._score_source is DownstreamScoreSource.KINASE_LIBRARY_MOTIF_SCORES:
+            if self._kinase_library_motif_scores is not None:
+                return _borrow_dataframe(self._kinase_library_motif_scores)
+        if self._score_source is DownstreamScoreSource.COMBINED_PROFILE_MOTIF_SCORES:
+            if self._combined_profile_motif_scores is not None:
+                return _borrow_dataframe(self._combined_profile_motif_scores)
+        return _borrow_dataframe(self._profile_scores)
+
     @classmethod
     def _from_owned(
         cls,
@@ -214,9 +386,17 @@ class KinaseScoringResult:
         profile_scores: pd.DataFrame,
         motif_scores: pd.DataFrame | None = None,
         rank_weighted_fusion_scores: pd.DataFrame | None = None,
+        kinase_library_motif_scores: pd.DataFrame | None = None,
+        combined_profile_motif_scores: pd.DataFrame | None = None,
         score_fusion_weights: pd.DataFrame | None = None,
         score_source_matrix: pd.DataFrame | None = None,
         score_source_summary: pd.DataFrame | None = None,
+        kinase_library_site_diagnostics: pd.DataFrame | None = None,
+        kinase_library_kinase_diagnostics: pd.DataFrame | None = None,
+        scoring_mode: str = KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
+        score_source: DownstreamScoreSource | str | None = None,
+        score_scale: str | None = None,
+        score_scale_metadata: Mapping[str, object] | None = None,
         motif_sequence_validation: SequenceValidationResult | None = None,
         motif_library_validation: MotifLibraryValidationResult | None = None,
     ) -> KinaseScoringResult:
@@ -233,6 +413,14 @@ class KinaseScoringResult:
             field_name="scoring_result.rank_weighted_fusion_scores",
         )
         _require_optional_frame_type(
+            kinase_library_motif_scores,
+            field_name="scoring_result.kinase_library_motif_scores",
+        )
+        _require_optional_frame_type(
+            combined_profile_motif_scores,
+            field_name="scoring_result.combined_profile_motif_scores",
+        )
+        _require_optional_frame_type(
             score_fusion_weights,
             field_name="scoring_result.score_fusion_weights",
         )
@@ -243,6 +431,14 @@ class KinaseScoringResult:
         _require_optional_frame_type(
             score_source_summary,
             field_name="scoring_result.score_source_summary",
+        )
+        _require_optional_frame_type(
+            kinase_library_site_diagnostics,
+            field_name="scoring_result.kinase_library_site_diagnostics",
+        )
+        _require_optional_frame_type(
+            kinase_library_kinase_diagnostics,
+            field_name="scoring_result.kinase_library_kinase_diagnostics",
         )
         if motif_sequence_validation is not None and not isinstance(
             motif_sequence_validation,
@@ -262,10 +458,38 @@ class KinaseScoringResult:
             )
 
         result = object.__new__(cls)
+        resolved_score_source = _resolve_score_source(
+            score_source=score_source,
+            rank_weighted_fusion_scores=rank_weighted_fusion_scores,
+            kinase_library_motif_scores=kinase_library_motif_scores,
+            combined_profile_motif_scores=combined_profile_motif_scores,
+        )
+        _validate_authoritative_score_source(
+            score_source=resolved_score_source,
+            profile_scores=profile_scores,
+            rank_weighted_fusion_scores=rank_weighted_fusion_scores,
+            kinase_library_motif_scores=kinase_library_motif_scores,
+            combined_profile_motif_scores=combined_profile_motif_scores,
+        )
         object.__setattr__(
             result, "motif_sequence_validation", motif_sequence_validation
         )
         object.__setattr__(result, "motif_library_validation", motif_library_validation)
+        object.__setattr__(result, "scoring_mode", _validate_scoring_mode(scoring_mode))
+        object.__setattr__(
+            result,
+            "score_scale",
+            _resolve_score_scale(
+                score_scale=score_scale,
+                score_source=resolved_score_source,
+            ),
+        )
+        object.__setattr__(
+            result,
+            "score_scale_metadata",
+            _own_score_scale_metadata(score_scale_metadata),
+        )
+        object.__setattr__(result, "_score_source", resolved_score_source)
         object.__setattr__(result, "_profile_scores", profile_scores)
         object.__setattr__(result, "_motif_scores", motif_scores)
         object.__setattr__(
@@ -273,9 +497,29 @@ class KinaseScoringResult:
             "_rank_weighted_fusion_scores",
             rank_weighted_fusion_scores,
         )
+        object.__setattr__(
+            result,
+            "_kinase_library_motif_scores",
+            kinase_library_motif_scores,
+        )
+        object.__setattr__(
+            result,
+            "_combined_profile_motif_scores",
+            combined_profile_motif_scores,
+        )
         object.__setattr__(result, "_score_fusion_weights", score_fusion_weights)
         object.__setattr__(result, "_score_source_matrix", score_source_matrix)
         object.__setattr__(result, "_score_source_summary", score_source_summary)
+        object.__setattr__(
+            result,
+            "_kinase_library_site_diagnostics",
+            kinase_library_site_diagnostics,
+        )
+        object.__setattr__(
+            result,
+            "_kinase_library_kinase_diagnostics",
+            kinase_library_kinase_diagnostics,
+        )
         return result
 
     def to_dataframe(self) -> pd.DataFrame:
@@ -293,6 +537,16 @@ class KinaseScoringResult:
 
         return export_optional_dataframe(self._rank_weighted_fusion_scores)
 
+    def kinase_library_motif_scores_dataframe(self) -> pd.DataFrame | None:
+        """Return optional Kinase Library motif scores isolated from this result."""
+
+        return export_optional_dataframe(self._kinase_library_motif_scores)
+
+    def combined_profile_motif_scores_dataframe(self) -> pd.DataFrame | None:
+        """Return optional combined profile/motif scores isolated from this result."""
+
+        return export_optional_dataframe(self._combined_profile_motif_scores)
+
     def score_fusion_weights_dataframe(self) -> pd.DataFrame | None:
         """Return an optional fusion-weight snapshot isolated from this result."""
 
@@ -307,6 +561,136 @@ class KinaseScoringResult:
         """Return an optional score-source summary snapshot isolated from this result."""
 
         return export_optional_dataframe(self._score_source_summary)
+
+    def kinase_library_site_diagnostics_dataframe(self) -> pd.DataFrame | None:
+        """Return optional Kinase Library site diagnostics."""
+
+        return export_optional_dataframe(self._kinase_library_site_diagnostics)
+
+    def kinase_library_kinase_diagnostics_dataframe(self) -> pd.DataFrame | None:
+        """Return optional Kinase Library matrix diagnostics."""
+
+        return export_optional_dataframe(self._kinase_library_kinase_diagnostics)
+
+    def authoritative_scores_dataframe(self) -> pd.DataFrame:
+        """Return the selected downstream score matrix."""
+
+        return export_dataframe(self._borrow_authoritative_scores_frame())
+
+
+def _validate_scoring_mode(value: object) -> str:
+    text = str(value)
+    if text not in KINASE_SCORING_MODES:
+        allowed = ", ".join(sorted(KINASE_SCORING_MODES))
+        raise PhosPyValidationError(
+            f"scoring_result.scoring_mode must be one of: {allowed}"
+        )
+    return text
+
+
+def _resolve_score_source(
+    *,
+    score_source: DownstreamScoreSource | str | None,
+    rank_weighted_fusion_scores: pd.DataFrame | None,
+    kinase_library_motif_scores: pd.DataFrame | None,
+    combined_profile_motif_scores: pd.DataFrame | None,
+) -> DownstreamScoreSource:
+    if score_source is not None:
+        return DownstreamScoreSource.parse(
+            score_source,
+            field_name="scoring_result.score_source",
+        )
+    if combined_profile_motif_scores is not None:
+        return DownstreamScoreSource.COMBINED_PROFILE_MOTIF_SCORES
+    if kinase_library_motif_scores is not None and rank_weighted_fusion_scores is None:
+        return DownstreamScoreSource.KINASE_LIBRARY_MOTIF_SCORES
+    if rank_weighted_fusion_scores is not None:
+        return DownstreamScoreSource.RANK_WEIGHTED_FUSION_SCORES
+    return DownstreamScoreSource.PROFILE_SCORES
+
+
+def _resolve_score_scale(
+    *,
+    score_scale: str | None,
+    score_source: DownstreamScoreSource,
+) -> str:
+    if score_scale is not None:
+        resolved = str(score_scale).strip()
+        if resolved:
+            return resolved
+        raise PhosPyValidationError("scoring_result.score_scale must be non-empty")
+    if score_source is DownstreamScoreSource.KINASE_LIBRARY_MOTIF_SCORES:
+        return "kinase_library_motif_minmax_unit_interval"
+    if score_source is DownstreamScoreSource.COMBINED_PROFILE_MOTIF_SCORES:
+        return "combined_profile_kinase_library_motif_unit_interval"
+    return "relative_support_score_unit_interval"
+
+
+def _own_score_scale_metadata(
+    value: Mapping[str, object] | None,
+) -> Mapping[str, object] | None:
+    if value is None:
+        return None
+    if not isinstance(value, Mapping):
+        raise PhosPyValidationError(
+            "scoring_result.score_scale_metadata must be a mapping or None"
+        )
+    return MappingProxyType({str(key): item for key, item in value.items()})
+
+
+def _validate_authoritative_score_source(
+    *,
+    score_source: DownstreamScoreSource,
+    profile_scores: pd.DataFrame,
+    rank_weighted_fusion_scores: pd.DataFrame | None,
+    kinase_library_motif_scores: pd.DataFrame | None,
+    combined_profile_motif_scores: pd.DataFrame | None,
+) -> None:
+    if score_source is DownstreamScoreSource.PROFILE_SCORES:
+        return
+    if score_source is DownstreamScoreSource.RANK_WEIGHTED_FUSION_SCORES:
+        _require_authoritative_matrix(
+            rank_weighted_fusion_scores,
+            profile_scores=profile_scores,
+            field_name="scoring_result.rank_weighted_fusion_scores",
+        )
+        return
+    if score_source is DownstreamScoreSource.KINASE_LIBRARY_MOTIF_SCORES:
+        _require_authoritative_matrix(
+            kinase_library_motif_scores,
+            profile_scores=profile_scores,
+            field_name="scoring_result.kinase_library_motif_scores",
+        )
+        return
+    if score_source is DownstreamScoreSource.COMBINED_PROFILE_MOTIF_SCORES:
+        _require_authoritative_matrix(
+            combined_profile_motif_scores,
+            profile_scores=profile_scores,
+            field_name="scoring_result.combined_profile_motif_scores",
+        )
+        return
+    raise PhosPyValidationError(
+        f"scoring_result.score_source is unsupported: {score_source.value}"
+    )
+
+
+def _require_authoritative_matrix(
+    matrix: pd.DataFrame | None,
+    *,
+    profile_scores: pd.DataFrame,
+    field_name: str,
+) -> None:
+    if matrix is None:
+        raise PhosPyValidationError(
+            f"{field_name} is required by scoring_result.score_source"
+        )
+    require_exact_index_match(
+        left=matrix.index,
+        right=profile_scores.index,
+        left_name=f"{field_name}.index",
+        right_name="scoring_result.profile_scores.index",
+        error_type=PhosPyValidationError,
+    )
 
 
 def _validate_score_source_matrix(

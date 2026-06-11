@@ -6,7 +6,9 @@ import pandas as pd
 
 from phospy.contracts.requests import SignalomeWorkflowRequest
 from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.science.prediction.scoring import select_downstream_score_matrix
+from phospy.science.prediction.scoring import (
+    select_downstream_score_matrix as _select_downstream_score_matrix,
+)
 from phospy.science.signalomes.clustering.policies import (
     resolve_candidate_scoring_policy_definition,
 )
@@ -36,6 +38,7 @@ from phospy.workflows.signalome.score_preconditioning import (
 )
 
 _SITE_KEY_COLUMN = "site_key"
+select_downstream_score_matrix = _select_downstream_score_matrix
 
 
 class SignalomeWorkflowInterpreter:
@@ -52,11 +55,14 @@ class SignalomeWorkflowInterpreter:
             SignalomeAlignmentDiagnosticsBuilder | None
         ) = None,
     ) -> None:
+        select_matrix = (
+            None
+            if select_downstream_score_matrix is _select_downstream_score_matrix
+            else select_downstream_score_matrix
+        )
         self._score_matrix_selector = (
             score_matrix_selector
-            or SignalomeScoreMatrixSelector(
-                select_matrix=select_downstream_score_matrix
-            )
+            or SignalomeScoreMatrixSelector(select_matrix=select_matrix)
         )
         self._matrix_aligner = matrix_aligner or SignalomeMatrixAligner()
         self._score_preconditioner = (

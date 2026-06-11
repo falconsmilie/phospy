@@ -70,6 +70,23 @@ def _normalize_optional_string_columns(table, *, columns: tuple[str, ...]):
     return normalized
 
 
+def _read_absent_optional_table(
+    *,
+    bundle_root: Path,
+    tables: Mapping[str, object],
+    table_key: str,
+    field_name: str,
+):
+    if table_key not in tables:
+        return None
+    return read_optional_table(
+        bundle_root=bundle_root,
+        tables=tables,
+        table_key=table_key,
+        field_name=field_name,
+    )
+
+
 def reconstruct_signalome_result(
     *,
     bundle_root: Path,
@@ -182,6 +199,24 @@ def reconstruct_signalome_result(
                 "rank_weighted_fusion_scores"
             ),
         ),
+        kinase_library_motif_scores=_read_absent_optional_table(
+            bundle_root=bundle_root,
+            tables=sections.scoring_tables,
+            table_key="kinase_library_motif_scores",
+            field_name=(
+                "bundle manifest.upstream_kinase_outputs.scoring.tables."
+                "kinase_library_motif_scores"
+            ),
+        ),
+        combined_profile_motif_scores=_read_absent_optional_table(
+            bundle_root=bundle_root,
+            tables=sections.scoring_tables,
+            table_key="combined_profile_motif_scores",
+            field_name=(
+                "bundle manifest.upstream_kinase_outputs.scoring.tables."
+                "combined_profile_motif_scores"
+            ),
+        ),
         score_fusion_weights=read_optional_table(
             bundle_root=bundle_root,
             tables=sections.scoring_tables,
@@ -189,6 +224,24 @@ def reconstruct_signalome_result(
             field_name=(
                 "bundle manifest.upstream_kinase_outputs.scoring.tables."
                 "score_fusion_weights"
+            ),
+        ),
+        kinase_library_site_diagnostics=_read_absent_optional_table(
+            bundle_root=bundle_root,
+            tables=sections.scoring_tables,
+            table_key="kinase_library_site_diagnostics",
+            field_name=(
+                "bundle manifest.upstream_kinase_outputs.scoring.tables."
+                "kinase_library_site_diagnostics"
+            ),
+        ),
+        kinase_library_kinase_diagnostics=_read_absent_optional_table(
+            bundle_root=bundle_root,
+            tables=sections.scoring_tables,
+            table_key="kinase_library_kinase_diagnostics",
+            field_name=(
+                "bundle manifest.upstream_kinase_outputs.scoring.tables."
+                "kinase_library_kinase_diagnostics"
             ),
         ),
     )

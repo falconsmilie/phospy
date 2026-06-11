@@ -4,10 +4,14 @@ from __future__ import annotations
 
 from typing import cast
 
-from phospy.contracts.configs import KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICIES
+from phospy.contracts.configs import (
+    KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICIES,
+    KINASE_SCORING_MODES_REQUIRING_KINASE_LIBRARY,
+)
 from phospy.contracts.requests import KinaseWorkflowRequest
 from phospy.errors.validation import WorkflowValidationError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.references.kinase_library import KinaseLibraryResource
 from phospy.science.references.models import ReferenceBundle, ReferencePreset
 from phospy.validation.common.dataframes import require_dataframe
 from phospy.validation.datasets.site_metadata import (
@@ -62,6 +66,17 @@ class KinaseWorkflowValidator:
             prediction_config=request.prediction_config,
             activity_config=request.activity_config,
         )
+        if scoring_config.scoring_mode in KINASE_SCORING_MODES_REQUIRING_KINASE_LIBRARY:
+            if request.kinase_library_resource is None:
+                raise WorkflowValidationError(
+                    "kinase workflow request kinase_library_resource is required "
+                    f"when scoring_config.scoring_mode={scoring_config.scoring_mode!r}"
+                )
+            if not isinstance(request.kinase_library_resource, KinaseLibraryResource):
+                raise WorkflowValidationError(
+                    "kinase workflow request kinase_library_resource must be "
+                    "KinaseLibraryResource when Kinase Library scoring is selected"
+                )
         reject_mixed_total_protein_quantitative_meaning(
             dataset=dataset,
             allow_mixed=scoring_config.allow_mixed_total_protein_quantitative_meaning,
