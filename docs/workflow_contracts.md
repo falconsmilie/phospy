@@ -11,6 +11,11 @@ For support status labels (`parity-gated`, `validated PhosPy implementation`,
 `experimental`, `open gap`, `deliberate scope difference`, `not planned`), use
 `docs/scientific-coverage.md` as the single maintained matrix.
 
+For roadmap governance, see
+[ADR-0025: Competitive Phosphoproteomics Workflow Coverage Roadmap](adr/adr_0025_competitive_phosphoproteomics_workflow_coverage.md).
+Roadmap items are not executable workflow contracts until implementation,
+documentation, and tests update this page and the scientific coverage matrix.
+
 For executable usage, see:
 
 - `examples/dataset_builder_demo.py`

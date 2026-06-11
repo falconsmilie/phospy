@@ -10,6 +10,9 @@ the Python API.
 This API guide describes executable interfaces, not global PhosR-equivalence
 claims. Scope categories and parity/open-gap status are maintained in
 [`docs/scientific-coverage.md`](../scientific-coverage.md).
+Future coverage direction is governed by
+[ADR-0025](../adr/adr_0025_competitive_phosphoproteomics_workflow_coverage.md)
+and does not expand the current API support contract by itself.
 
 ## Workflow Pages
 

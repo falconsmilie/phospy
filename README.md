@@ -68,6 +68,9 @@ using `ReferencePreset.AUTO`.
 Scientific scope categories and parity/open-gap status are maintained in
 [`docs/scientific-coverage.md`](docs/scientific-coverage.md). Parity fixture
 evidence lives in [`docs/parity.md`](docs/parity.md).
+Future coverage direction is tracked in
+[`ADR-0025`](docs/adr/adr_0025_competitive_phosphoproteomics_workflow_coverage.md);
+that roadmap is not a current feature-support claim.
 
 ## Kinase Workflow Example
 

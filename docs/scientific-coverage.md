@@ -72,6 +72,27 @@ Contract difference vs limma/PhosR surface:
 Bundled runtime references in the current release are rat-only. Human and mouse
 analysis can be run by passing an explicit `ReferenceBundle` in Python.
 
+## Roadmap Visibility and Guardrails
+
+[ADR-0025: Competitive Phosphoproteomics Workflow Coverage Roadmap](adr/adr_0025_competitive_phosphoproteomics_workflow_coverage.md)
+records intended future direction for references, kinase inference, importers,
+richer differential designs, enrichment, visualisation, and possible CLI
+support.
+
+Roadmap entries are not current feature claims. A roadmap item becomes supported
+only when executable implementation, public contracts, documentation, and tests
+exist, and this page is updated to the correct scope category.
+
+| Roadmap area | Current status | Direction, not current support |
+| --- | --- | --- |
+| References | Bundled runtime references are rat-only. Human and mouse workflows require an explicit caller-supplied `ReferenceBundle`. | Broader reference handling should use explicit provenance, compatibility checks, and external bundle validation. New bundled data requires redistribution permission, provenance, docs, and tests. |
+| Kinase inference | Kinase scoring/prediction and two explicit activity methods are executable. Scores are relative support or substrate-set summaries, not calibrated causal inference. | Additional kinase inference or activity methods should be added one method at a time with stable scientific policy records and method-specific validation. |
+| Importers | PhosPy supports analysis-ready tables and generic table I/O contracts used by Python workflows. It does not currently provide broad semantic importers for vendor, search-engine, or upstream statistical outputs. | Semantic importers should produce typed tables or requests that still pass builder and workflow validation; they must not bypass site identity or provenance contracts. |
+| Richer differential designs | Current parity-protected differential lane is two-condition unpaired simple contrasts. Batch-aware, block, paired, and repeated-measure modelling are not executable in this release. | Richer designs require explicit design/result contracts, provenance, validation, and parity or method-specific evidence before any support claim. |
+| Enrichment | KSEA-style substrate-set activity exists only inside the kinase activity lane. Broader pathway or gene-set enrichment is not a current core workflow lane. | Enrichment should be a separately contracted workflow or method, with clear null model, input universe, and output-scale documentation. |
+| Visualisation | Core PhosPy has no first-class visualisation workflow/API. | Visualisation should consume validated result objects and must not become a hidden analysis engine or source of scientific truth. |
+| CLI workflow support | Scientific workflow execution through a CLI is not currently supported; the Python API is the supported interface. | Any future CLI must be a thin wrapper over Python API requests/workflows and satisfy ADR-0022 reintroduction criteria before support is claimed. |
+
 ## Scope Categories
 
 Every scientific scope claim in public docs must map to one category:
@@ -357,6 +378,9 @@ Differential outputs now expose structured policy provenance through
   coverage matrix.
 - [Parity](parity.md) tracks PhosR comparison evidence, fixture locations, and
   parity test references.
+- [ADR-0025](adr/adr_0025_competitive_phosphoproteomics_workflow_coverage.md)
+  records future coverage direction and guardrails; it is not a current
+  support claim by itself.
 - [Performance Contracts](performance.md) covers scale limits.
 - [ADR Index](adr/index.md) stores maintainer decision records.
 
