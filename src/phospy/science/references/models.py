@@ -111,6 +111,10 @@ class ReferenceManifest:
     sequence_window: SequenceWindowDefinition
     supports: tuple[str, ...]
     limitations: tuple[str, ...]
+    source_url: str | None = None
+    license_url: str | None = None
+    retrieval_method: str | None = None
+    redistribution_basis: str | None = None
     source_files: dict[str, JsonValue] | None = None
 
     def to_payload(self) -> dict[str, JsonValue]:
@@ -128,6 +132,14 @@ class ReferenceManifest:
             "supports": self.supports,
             "limitations": self.limitations,
         }
+        if self.source_url is not None:
+            payload["source_url"] = self.source_url
+        if self.license_url is not None:
+            payload["license_url"] = self.license_url
+        if self.retrieval_method is not None:
+            payload["retrieval_method"] = self.retrieval_method
+        if self.redistribution_basis is not None:
+            payload["redistribution_basis"] = self.redistribution_basis
         if self.source_files is not None:
             payload["source_files"] = self.source_files
         return payload

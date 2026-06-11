@@ -22,3 +22,16 @@ Status:
 
 - This is an independent, unofficial implementation.
 - It is not affiliated with or endorsed by the PhosR authors unless they explicitly say so.
+
+Packaged reference data:
+
+- Runtime reference bundles are package data only when committed under
+  `src/phospy/data/reference_bundles`.
+- This release does not include packaged human or mouse reference lanes.
+- Human or mouse packaged lanes require manifest metadata documenting source
+  provenance, license, retrieval method, redistribution status, redistribution
+  basis, limitations, and supported uses before they can be bundled.
+- Restricted third-party scientific reference datasets, including
+  PhosphoSitePlus or Kinase Library data, must not be copied into this
+  repository unless redistribution is explicitly permitted by license or written
+  permission.

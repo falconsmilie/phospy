@@ -24,6 +24,12 @@ from phospy.science.sites.identifiers import (
 _BUNDLED_DEFAULTS: dict[Organism, str] = {
     Organism.RAT: "l6_native",
 }
+_REDISTRIBUTION_APPROVAL_REQUIRED_ORGANISMS = frozenset(
+    {
+        Organism.HUMAN,
+        Organism.MOUSE,
+    }
+)
 _MANIFEST_FILENAME = "manifest.json"
 _REFERENCE_BUNDLE_DOCS_URL = "https://phospy.com/docs/api/guide/#references"
 _EXPLICIT_REFERENCE_BUNDLE_GUIDANCE = (
@@ -45,6 +51,33 @@ _REQUIRED_MANIFEST_FIELDS = frozenset(
         "supports",
         "limitations",
     }
+)
+_REQUIRED_APPROVED_REDISTRIBUTION_FIELDS = frozenset(
+    {
+        "source_url",
+        "license_url",
+        "retrieval_method",
+        "redistribution_basis",
+    }
+)
+_APPROVED_REDISTRIBUTION_STATUS_TOKENS = (
+    "redistribution approved",
+    "approved for redistribution",
+    "redistribution allowed",
+    "allowed for redistribution",
+    "redistributable",
+)
+_UNAPPROVED_REDISTRIBUTION_STATUS_TOKENS = (
+    "not approved",
+    "not allowed",
+    "restricted",
+    "prohibited",
+    "forbidden",
+    "unclear",
+    "unknown",
+    "pending",
+    "todo",
+    "placeholder",
 )
 
 
@@ -331,6 +364,26 @@ def _parse_reference_manifest_payload(
         key="redistribution_status",
         context=context,
     )
+    source_url = _optional_manifest_string(
+        payload,
+        key="source_url",
+        context=context,
+    )
+    license_url = _optional_manifest_string(
+        payload,
+        key="license_url",
+        context=context,
+    )
+    retrieval_method = _optional_manifest_string(
+        payload,
+        key="retrieval_method",
+        context=context,
+    )
+    redistribution_basis = _optional_manifest_string(
+        payload,
+        key="redistribution_basis",
+        context=context,
+    )
     sequence_window = _parse_sequence_window(
         value=payload.get("sequence_window"),
         context=context,
@@ -345,6 +398,12 @@ def _parse_reference_manifest_payload(
         key="limitations",
         context=context,
     )
+    if organism in _REDISTRIBUTION_APPROVAL_REQUIRED_ORGANISMS:
+        _require_approved_redistribution_metadata(
+            payload=payload,
+            redistribution_status=redistribution_status,
+            context=context,
+        )
     expected_organism = organism.value
     declared_organism_tokens = {manifest_organism.strip().lower()}
     if organism_common_name is not None:
@@ -369,7 +428,42 @@ def _parse_reference_manifest_payload(
         sequence_window=sequence_window,
         supports=supports,
         limitations=limitations,
+        source_url=source_url,
+        license_url=license_url,
+        retrieval_method=retrieval_method,
+        redistribution_basis=redistribution_basis,
     )
+
+
+def _require_approved_redistribution_metadata(
+    *,
+    payload: dict[str, object],
+    redistribution_status: str,
+    context: str,
+) -> None:
+    missing = sorted(
+        key for key in _REQUIRED_APPROVED_REDISTRIBUTION_FIELDS if key not in payload
+    )
+    if missing:
+        missing_text = ", ".join(missing)
+        raise ReferenceResolutionError(
+            "human/mouse bundled reference manifest requires redistribution "
+            f"approval metadata for {context}: {missing_text}"
+        )
+    for key in sorted(_REQUIRED_APPROVED_REDISTRIBUTION_FIELDS):
+        _require_manifest_string(payload, key=key, context=context)
+
+    normalized_status = redistribution_status.strip().lower()
+    if any(
+        token in normalized_status for token in _UNAPPROVED_REDISTRIBUTION_STATUS_TOKENS
+    ) or not any(
+        token in normalized_status for token in _APPROVED_REDISTRIBUTION_STATUS_TOKENS
+    ):
+        raise ReferenceResolutionError(
+            "human/mouse bundled reference manifest redistribution_status must "
+            "explicitly say redistribution is approved/allowed and must not be "
+            f"ambiguous for {context}"
+        )
 
 
 def _format_supported_bundled_organisms() -> str:

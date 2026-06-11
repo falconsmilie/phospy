@@ -70,7 +70,10 @@ Contract difference vs limma/PhosR surface:
   differential model fitting.
 
 Bundled runtime references in the current release are rat-only. Human and mouse
-analysis can be run by passing an explicit `ReferenceBundle` in Python.
+analysis can be run by passing an explicit `ReferenceBundle` in Python. No
+packaged human or mouse reference lane is committed in this release because no
+approved redistributable source bundle with complete license and provenance
+metadata is included.
 
 ## Roadmap Visibility and Guardrails
 
@@ -85,7 +88,7 @@ exist, and this page is updated to the correct scope category.
 
 | Roadmap area | Current status | Direction, not current support |
 | --- | --- | --- |
-| References | Bundled runtime references are rat-only. Human and mouse workflows require an explicit caller-supplied `ReferenceBundle`. | Broader reference handling should use explicit provenance, compatibility checks, and external bundle validation. New bundled data requires redistribution permission, provenance, docs, and tests. |
+| References | Bundled runtime references are rat-only. Human and mouse workflows require an explicit caller-supplied `ReferenceBundle`. | Broader reference handling should use explicit provenance, compatibility checks, and external bundle validation. New bundled data requires redistribution permission, provenance, docs, and tests before `_BUNDLED_DEFAULTS` is updated. |
 | Kinase inference | Kinase scoring/prediction and two explicit activity methods are executable. Scores are relative support or substrate-set summaries, not calibrated causal inference. | Additional kinase inference or activity methods should be added one method at a time with stable scientific policy records and method-specific validation. |
 | Importers | PhosPy supports analysis-ready tables and generic table I/O contracts used by Python workflows. It does not currently provide broad semantic importers for vendor, search-engine, or upstream statistical outputs. | Semantic importers should produce typed tables or requests that still pass builder and workflow validation; they must not bypass site identity or provenance contracts. |
 | Richer differential designs | Current parity-protected differential lane is two-condition unpaired simple contrasts. Batch-aware, block, paired, and repeated-measure modelling are not executable in this release. | Richer designs require explicit design/result contracts, provenance, validation, and parity or method-specific evidence before any support claim. |
@@ -128,7 +131,7 @@ claimed.
 | Batch correction / RUV | `open gap` | No executable SPS/RUV correction lane in current public workflow | N/A for execution; readiness diagnostics documented in workflow contracts | `ruv_readiness` is diagnostic/report-only and must not be interpreted as correction support. |
 | Enrichment | `deliberate scope difference` | KSEA-style substrate-set enrichment exists within kinase activity lane | Unit activity tests and scientific policy provenance | Broader pathway/gene-set enrichment lane is not part of current core workflow contract. |
 | Visualisation | `deliberate scope difference` | No first-class visualization workflow/API in core PhosPy | N/A | Visualization is intentionally out of current scientific parity scope. |
-| Supported bundled organisms and references | `deliberate scope difference` | Bundled runtime references are rat-only for `ReferencePreset.AUTO` in this release | Runtime behavior, reference compatibility tests, and workflow docs | Human/mouse are valid organisms but require explicit caller-supplied `ReferenceBundle`. |
+| Supported bundled organisms and references | `deliberate scope difference` | Bundled runtime references are rat-only for `ReferencePreset.AUTO` in this release | Runtime behavior, reference compatibility tests, manifest approval checks, and workflow docs | Human/mouse are valid organisms but require explicit caller-supplied `ReferenceBundle` unless a future release commits approved redistributable packaged data. |
 | Full PhosR package equivalence claim | `not planned` | Not claimed | Guardrail documentation in this matrix and `docs/parity.md` | Any implication of global PhosR parity is out of scope. |
 
 ## Release-Gated Scientific Checks

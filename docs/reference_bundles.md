@@ -5,6 +5,31 @@ Human and mouse are valid organisms, but this release does not ship bundled
 human or mouse runtime references. Build those bundles from local source files
 with `ReferenceBundleBuilder`.
 
+## Packaged Bundles
+
+Packaged runtime reference data lives only under
+`src/phospy/data/reference_bundles/<organism>/<bundle_id>/`.
+
+Current packaged lanes:
+
+| Organism | Bundle ID | Status |
+| --- | --- | --- |
+| rat | `l6_native` | Bundled in this release |
+| human | N/A | Not bundled; no approved redistributable lane is committed |
+| mouse | N/A | Not bundled; no approved redistributable lane is committed |
+
+Human or mouse lanes may be added only when the committed manifest documents:
+
+- source name, version, URL, and retrieval method
+- license name and license URL
+- explicit redistribution status saying redistribution is approved or allowed
+- redistribution basis explaining why the license permits packaging
+- limitations and supported uses
+
+Do not commit restricted scientific reference datasets. In particular, do not
+copy PhosphoSitePlus or Kinase Library data into packaged runtime data unless
+their license or a written permission record explicitly allows redistribution.
+
 ## Local Builder
 
 ```python
