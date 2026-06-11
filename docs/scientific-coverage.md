@@ -14,6 +14,12 @@ PhosPy currently supports these public analysis lanes:
 3. run kinase scoring and prediction
 4. optionally run signalome analysis from the kinase result
 
+Separately, the prediction science layer includes a pure Kinase Library-style
+motif scorer. It scores supplied site-sequence windows against caller-supplied
+position-specific motif matrices and optional reference score distributions. It
+is not yet wired into `KinaseWorkflow`, prediction fusion, activity inference,
+or visualisation.
+
 Differential analysis requires analysis-ready numeric inputs plus valid
 `ExperimentalDesign` and `Contrast` metadata. It does not infer design from
 sample names and does not replace upstream preprocessing requirements.
@@ -119,6 +125,7 @@ claimed.
 | --- | --- | --- | --- | --- |
 | Differential analysis | `parity-gated` | `DifferentialAnalysisWorkflow` for two-condition unpaired simple contrasts with empirical-Bayes `standard`/`robust` and optional `trend` | `tests/parity/test_differential_analysis_parity.py`, `tests/parity/test_differential_limma_parity.py`, plus unit/integration design and result-contract tests | Batch-aware, block/paired, and repeated-measure designs are rejected in this release. Missing values are rejected at analysis-ready boundary before model fitting. |
 | Kinase scoring | `parity-gated` | `KinaseWorkflow` profile/motif scoring and rank-weighted fusion | `tests/parity/test_kinase_workflow_parity.py`, `tests/parity/test_prediction_science_parity.py`, `tests/parity/test_l6_prediction_parity.py` | Relative support scoring only; not calibrated causal inference. |
+| Kinase Library motif scoring | `validated PhosPy implementation` | Pure science-layer `KinaseLibraryMotifScorer` / `score_kinase_library_motifs` for supplied site sequences, residue-class-constrained matrices, window configuration, and optional empirical reference distributions | `tests/unit/test_kinase_library_motif_scoring.py`, `tests/science/test_kinase_library_motif_scoring_science.py` | Not wired into `KinaseWorkflow`, activity inference, or plotting. Raw motif scores preserve provider scale and are not probabilities. Ser/Thr and Tyr matrix lanes are not interchangeable. |
 | Kinase prediction | `parity-gated` | Deterministic and adaptive kinase prediction in `KinaseWorkflow` | `tests/parity/test_public_predmat_parity.py`, `tests/parity/test_l6_prediction_parity.py`, `tests/parity/test_adaptive_prediction_parity.py`, `tests/parity/test_adaptive_replay_parity.py` | Prediction scores are ranking support, not probabilities. |
 | Kinase activity scoring | `validated PhosPy implementation` | Supported activity methods: `simplified_weighted_substrate_activity_v1` and `ksea_zscore_activity_v1` | Unit activity tests (`tests/unit/test_activity_science.py`) and parity activity gate (`tests/parity/test_activity_stage_parity.py`) | KSEA-style activity is not a claim of full PhosR kinase activity equivalence. |
 | Signalome analysis | `parity-gated` | `SignalomeWorkflow` module assignment, network outputs, and protein-site context | `tests/parity/test_signalome_workflow_parity.py`, `tests/parity/test_signalome_clustering_backend_parity.py` | Derived summaries, not causal proof. Requires explicit signalome protein grouping metadata in `site_metadata.protein_id`. |
@@ -161,6 +168,9 @@ commands/workflows:
 - KSEA-style activity is not equivalent to full PhosR kinase activity inference.
 - Rank-weighted fusion scores combine profile-correlation and motif-frequency
   evidence using rank-derived weights.
+- Kinase Library-style motif scores are raw position-specific matrix sums on the
+  caller-supplied score scale. Optional percentiles/ranks are empirical
+  summaries against caller-supplied reference distributions only.
 - Signalome module/network scores are derived summaries, not probabilities,
   calibrated confidence values, or causal proof.
 - Missing kinase correlations stay missing. `0.0` means a finite near-zero
@@ -249,6 +259,24 @@ Differential outputs now expose structured policy provenance through
   relative downstream support for kinase-site ranking.
 - Output does not mean:
   statistical enrichment p-value or calibrated confidence.
+
+### `kinase_library_motif_scoring_v1`
+
+- What it does:
+  scores phosphosite sequence windows against Kinase Library-style
+  position-specific motif matrices.
+- Assumptions:
+  Ser/Thr and Tyr residue-class lanes are distinct and must not be substituted
+  for each other.
+- Parameters:
+  score scale, residue classes, upstream/downstream window size, sequence-window
+  semantics, and whether reference distributions were supplied.
+- Output meaning:
+  raw provider-scale motif score sums, with optional empirical percentile and
+  rank matrices.
+- Output does not mean:
+  calibrated probability, kinase-substrate edge evidence, activity inference, or
+  workflow-integrated prediction support.
 
 ### `simplified_weighted_substrate_activity_v1`
 

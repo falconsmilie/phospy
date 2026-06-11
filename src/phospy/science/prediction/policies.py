@@ -25,6 +25,76 @@ PredictionFinalScoreMode = Literal["mean_probability", "decision_sigmoid"]
 
 
 @dataclass(frozen=True, slots=True)
+class KinaseLibraryMotifScoringPolicy:
+    """Metadata policy for pure Kinase Library-style motif scoring."""
+
+    score_scale: str
+    residue_classes: tuple[str, ...]
+    upstream_residues: int
+    downstream_residues: int
+    sequence_semantics: str
+    reference_distributions_supplied: bool = False
+    higher_is_better: bool = True
+
+    @property
+    def record(self) -> ScientificPolicyRecord:
+        return ScientificPolicyRecord(
+            id=ScientificPolicyId.KINASE_LIBRARY_MOTIF_SCORING,
+            name="kinase_library_motif_scoring_v1",
+            version="1",
+            description=(
+                "Scores phosphosite sequence windows against Kinase "
+                "Library-style position-specific matrices without using known "
+                "kinase-substrate edges."
+            ),
+            parameters={
+                "score_scale": str(self.score_scale),
+                "residue_classes": "|".join(str(item) for item in self.residue_classes),
+                "upstream_residues": int(self.upstream_residues),
+                "downstream_residues": int(self.downstream_residues),
+                "sequence_semantics": str(self.sequence_semantics),
+                "reference_distributions_supplied": bool(
+                    self.reference_distributions_supplied
+                ),
+                "higher_is_better": bool(self.higher_is_better),
+                "raw_score_formula": (
+                    "sum(matrix[amino_acid_at_relative_position, relative_position])"
+                ),
+                "percentile_method": (
+                    (
+                        "100 * count(reference_score <= site_score) / n"
+                        if self.higher_is_better
+                        else "100 * count(reference_score >= site_score) / n"
+                    )
+                    if self.reference_distributions_supplied
+                    else None
+                ),
+                "rank_method": (
+                    (
+                        "1 + count(reference_score > site_score)"
+                        if self.higher_is_better
+                        else "1 + count(reference_score < site_score)"
+                    )
+                    if self.reference_distributions_supplied
+                    else None
+                ),
+            },
+            assumptions=(
+                "Ser/Thr and Tyr residue-class lanes are not interchangeable.",
+                "Missing or invalid sequence windows remain unscored rather than "
+                "receiving neutral scores.",
+                "Percentiles and ranks are empirical summaries of caller-supplied "
+                "reference distributions when those distributions are available.",
+            ),
+            output_scale=(
+                "Raw provider-scale motif score sums, with optional empirical "
+                "percentile and rank matrices."
+            ),
+            quantitative_meaning="motif_sequence_match_score",
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class PredictionSamplingPolicy:
     """Resolved adaptive-sampling policy contract for one public mode."""
 
@@ -154,6 +224,7 @@ class PredictionSamplingRandomSource:
 
 __all__ = [
     "DEFAULT_PREDICTION_SAMPLING_POLICY",
+    "KinaseLibraryMotifScoringPolicy",
     "PredictionFinalScoreMode",
     "PredictionResamplingWeightMode",
     "PredictionSamplingPolicy",

@@ -15,6 +15,7 @@ class ScientificPolicyId(str, Enum):
 
     PROFILE_CORRELATION_SHIFTED_UNIT = "profile_correlation_shifted_unit_v1"
     KINASE_PROFILE_SCORING = "kinase_profile_scoring_v1"
+    KINASE_LIBRARY_MOTIF_SCORING = "kinase_library_motif_scoring_v1"
     MOTIF_PROFILE_RANK_FUSION = "motif_profile_rank_fusion_v1"
     CANDIDATE_SUBSTRATE_SELECTION = "candidate_substrate_selection_v1"
     SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY = "simplified_weighted_substrate_activity_v1"

@@ -19,7 +19,10 @@ from phospy.science.datasets.preprocessing.scientific_policies import (
     build_duplicate_site_resolution_policy,
 )
 from phospy.science.prediction.candidates import build_candidate_substrate_list
-from phospy.science.prediction.policies import resolve_prediction_sampling_policy
+from phospy.science.prediction.policies import (
+    KinaseLibraryMotifScoringPolicy,
+    resolve_prediction_sampling_policy,
+)
 from phospy.science.prediction.scientific_policies import (
     PROFILE_CORRELATION_SHIFTED_UNIT_POLICY,
     CandidateSubstrateSelectionPolicy,
@@ -50,6 +53,9 @@ def test_scientific_policy_ids_are_stable() -> None:
     )
     assert ScientificPolicyId.KINASE_PROFILE_SCORING.value == (
         "kinase_profile_scoring_v1"
+    )
+    assert ScientificPolicyId.KINASE_LIBRARY_MOTIF_SCORING.value == (
+        "kinase_library_motif_scoring_v1"
     )
     assert ScientificPolicyId.MOTIF_PROFILE_RANK_FUSION.value == (
         "motif_profile_rank_fusion_v1"
@@ -106,6 +112,10 @@ def test_prediction_scientific_policy_ownership_is_explicit() -> None:
     assert (
         CandidateSubstrateSelectionPolicy.__module__
         == "phospy.science.prediction.scientific_policies"
+    )
+    assert (
+        KinaseLibraryMotifScoringPolicy.__module__
+        == "phospy.science.prediction.policies"
     )
 
 

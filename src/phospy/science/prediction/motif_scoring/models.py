@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Literal
 
 import numpy as np
@@ -17,6 +19,41 @@ DEFAULT_MOTIF_FLANK_SIZE = 7
 SEQUENCE_SEMANTICS_CENTRED_WINDOW = "centred_window"
 SEQUENCE_SEMANTICS_CENTRED_SEQUENCE = "centred_sequence"
 SequenceSemantics = Literal["centred_window", "centred_sequence"]
+KINASE_LIBRARY_RESIDUE_CLASS_SER_THR = "ser_thr"
+KINASE_LIBRARY_RESIDUE_CLASS_TYR = "tyr"
+KinaseLibraryResidueClassName = Literal["ser_thr", "tyr"]
+KINASE_LIBRARY_RESIDUE_CLASSES: tuple[str, ...] = (
+    KINASE_LIBRARY_RESIDUE_CLASS_SER_THR,
+    KINASE_LIBRARY_RESIDUE_CLASS_TYR,
+)
+KINASE_LIBRARY_SITE_STATUS_MISSING_SEQUENCE = "missing_sequence"
+KINASE_LIBRARY_SITE_STATUS_WRONG_CENTRAL_RESIDUE = "wrong_central_residue"
+KINASE_LIBRARY_SITE_STATUS_WRONG_RESIDUE_CLASS = "wrong_residue_class"
+KINASE_LIBRARY_SITE_STATUS_UNSUPPORTED_SEQUENCE_LENGTH = "unsupported_sequence_length"
+KINASE_LIBRARY_SITE_STATUS_UNSUPPORTED_RESIDUE = "unsupported_residue_character"
+KINASE_LIBRARY_SITE_STATUS_VALID_SCORED_SITE = "valid_scored_site"
+KINASE_LIBRARY_SITE_STATUS_VALID_UNSCORED_SITE = "valid_unscored_site"
+KinaseLibrarySiteStatus = Literal[
+    "missing_sequence",
+    "wrong_central_residue",
+    "wrong_residue_class",
+    "unsupported_sequence_length",
+    "unsupported_residue_character",
+    "valid_scored_site",
+    "valid_unscored_site",
+]
+KINASE_LIBRARY_MATRIX_STATUS_VALID = "valid"
+KINASE_LIBRARY_MATRIX_STATUS_FILTERED_RESIDUE_CLASS = "filtered_residue_class"
+KINASE_LIBRARY_MATRIX_STATUS_UNSUPPORTED_WINDOW = "unsupported_matrix_window"
+KINASE_LIBRARY_MATRIX_STATUS_DUPLICATE = "duplicate_matrix"
+KINASE_LIBRARY_MATRIX_STATUS_INVALID = "invalid_matrix"
+KinaseLibraryMatrixStatus = Literal[
+    "valid",
+    "filtered_residue_class",
+    "unsupported_matrix_window",
+    "duplicate_matrix",
+    "invalid_matrix",
+]
 _MOTIF_LIBRARY_VALIDATION_ATTR = "motif_library_validation"
 _ASCII_LOOKUP_SIZE = 256
 _INVALID_AMINO_ACID_INDEX = -1
@@ -38,6 +75,183 @@ class MotifScoringResult:
     sequence_windows: pd.Series
     sequence_validation: SequenceValidationResult
     library_validation: MotifLibraryValidationResult | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class KinaseLibraryWindowConfig:
+    """Sequence-window contract for Kinase Library-style motif scoring."""
+
+    upstream_residues: int = DEFAULT_MOTIF_FLANK_SIZE
+    downstream_residues: int = DEFAULT_MOTIF_FLANK_SIZE
+    sequence_semantics: SequenceSemantics = SEQUENCE_SEMANTICS_CENTRED_WINDOW
+
+    def __post_init__(self) -> None:
+        upstream = int(self.upstream_residues)
+        downstream = int(self.downstream_residues)
+        if upstream < 0:
+            raise ValueError("upstream_residues must be >= 0")
+        if downstream < 0:
+            raise ValueError("downstream_residues must be >= 0")
+        if self.sequence_semantics not in {
+            SEQUENCE_SEMANTICS_CENTRED_WINDOW,
+            SEQUENCE_SEMANTICS_CENTRED_SEQUENCE,
+        }:
+            raise ValueError(
+                "sequence_semantics must be 'centred_window' or 'centred_sequence'"
+            )
+        object.__setattr__(self, "upstream_residues", upstream)
+        object.__setattr__(self, "downstream_residues", downstream)
+
+    @property
+    def window_size(self) -> int:
+        return int(self.upstream_residues) + 1 + int(self.downstream_residues)
+
+    @property
+    def centre_index(self) -> int:
+        return int(self.upstream_residues)
+
+    @property
+    def positions(self) -> tuple[int, ...]:
+        return tuple(
+            range(-int(self.upstream_residues), int(self.downstream_residues) + 1)
+        )
+
+    def to_payload(self) -> dict[str, object]:
+        return {
+            "upstream_residues": int(self.upstream_residues),
+            "downstream_residues": int(self.downstream_residues),
+            "window_size": int(self.window_size),
+            "central_residue_required": True,
+            "sequence_semantics": self.sequence_semantics,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class KinaseLibraryMotifMatrix:
+    """Lightweight Kinase Library-style matrix accepted by the pure scorer."""
+
+    kinase: str
+    residue_class: KinaseLibraryResidueClassName | str
+    score_table: pd.DataFrame
+    kinase_family: str | None = None
+    kinase_group: str | None = None
+
+    def __post_init__(self) -> None:
+        kinase = str(self.kinase).strip()
+        if kinase == "":
+            raise ValueError("kinase must be a non-empty string")
+        residue_class = normalize_kinase_library_residue_class(self.residue_class)
+        if not isinstance(self.score_table, pd.DataFrame):
+            raise TypeError("score_table must be a pandas DataFrame")
+        object.__setattr__(self, "kinase", kinase)
+        object.__setattr__(self, "residue_class", residue_class)
+        object.__setattr__(self, "score_table", self.score_table.copy(deep=True))
+        object.__setattr__(
+            self,
+            "kinase_family",
+            None if self.kinase_family is None else str(self.kinase_family),
+        )
+        object.__setattr__(
+            self,
+            "kinase_group",
+            None if self.kinase_group is None else str(self.kinase_group),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class KinaseLibraryScoreScaleMetadata:
+    """Machine-readable score-scale metadata for one motif-scoring run."""
+
+    score_scale: str
+    raw_score_formula: str
+    higher_is_better: bool
+    percentile_method: str | None
+    rank_method: str | None
+    sequence_window: Mapping[str, object]
+    residue_classes: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "score_scale", str(self.score_scale))
+        object.__setattr__(self, "raw_score_formula", str(self.raw_score_formula))
+        object.__setattr__(self, "higher_is_better", bool(self.higher_is_better))
+        object.__setattr__(
+            self,
+            "percentile_method",
+            None if self.percentile_method is None else str(self.percentile_method),
+        )
+        object.__setattr__(
+            self,
+            "rank_method",
+            None if self.rank_method is None else str(self.rank_method),
+        )
+        object.__setattr__(
+            self,
+            "sequence_window",
+            MappingProxyType(
+                {str(key): value for key, value in self.sequence_window.items()}
+            ),
+        )
+        object.__setattr__(
+            self,
+            "residue_classes",
+            tuple(
+                normalize_kinase_library_residue_class(item)
+                for item in self.residue_classes
+            ),
+        )
+
+    def to_payload(self) -> dict[str, object]:
+        return {
+            "score_scale": self.score_scale,
+            "raw_score_formula": self.raw_score_formula,
+            "higher_is_better": self.higher_is_better,
+            "percentile_method": self.percentile_method,
+            "rank_method": self.rank_method,
+            "sequence_window": dict(self.sequence_window),
+            "residue_classes": list(self.residue_classes),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class KinaseLibraryMotifScoringResult:
+    """Outputs from the pure Kinase Library-style motif scoring engine."""
+
+    raw_scores: pd.DataFrame
+    percentile_ranks: pd.DataFrame | None
+    reference_ranks: pd.DataFrame | None
+    site_diagnostics: pd.DataFrame
+    kinase_diagnostics: pd.DataFrame
+    sequence_windows: pd.Series
+    score_scale_metadata: KinaseLibraryScoreScaleMetadata
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "raw_scores", self.raw_scores.copy(deep=True))
+        object.__setattr__(
+            self,
+            "percentile_ranks",
+            None
+            if self.percentile_ranks is None
+            else self.percentile_ranks.copy(deep=True),
+        )
+        object.__setattr__(
+            self,
+            "reference_ranks",
+            None
+            if self.reference_ranks is None
+            else self.reference_ranks.copy(deep=True),
+        )
+        object.__setattr__(
+            self, "site_diagnostics", self.site_diagnostics.copy(deep=True)
+        )
+        object.__setattr__(
+            self, "kinase_diagnostics", self.kinase_diagnostics.copy(deep=True)
+        )
+        object.__setattr__(
+            self, "sequence_windows", self.sequence_windows.copy(deep=True)
+        )
+
+    def score_scale_payload(self) -> dict[str, object]:
+        return self.score_scale_metadata.to_payload()
 
 
 @dataclass(frozen=True, slots=True)
@@ -149,6 +363,19 @@ class ExplicitMotifSequence:
     site_id: str | None
     kinase: str
     sequence: object
+
+
+def normalize_kinase_library_residue_class(value: object) -> str:
+    """Return the stable scorer residue-class token for supported inputs."""
+
+    text = getattr(value, "value", value)
+    normalized = str(text).strip().lower().replace("-", "_").replace("/", "_")
+    normalized = "_".join(part for part in normalized.split("_") if part)
+    if normalized in {"ser_thr", "st", "s_t", "serine_threonine"}:
+        return KINASE_LIBRARY_RESIDUE_CLASS_SER_THR
+    if normalized in {"tyr", "y", "tyrosine"}:
+        return KINASE_LIBRARY_RESIDUE_CLASS_TYR
+    raise ValueError("residue_class must be 'ser_thr' or 'tyr'")
 
 
 def _normalize_sequence_value(value: object) -> object:

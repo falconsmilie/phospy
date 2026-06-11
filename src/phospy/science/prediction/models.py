@@ -15,7 +15,10 @@ from phospy.frames.ownership import (
     export_optional_dataframe,
     own_optional_dataframe,
 )
-from phospy.science.prediction.motif_scoring import MotifLibraryValidationResult
+from phospy.science.prediction.motif_scoring import (
+    KinaseLibraryMotifScoringResult,
+    MotifLibraryValidationResult,
+)
 from phospy.science.prediction.scoring import (
     KINASE_SCORE_SOURCE_SUMMARY_COLUMNS,
     KINASE_SCORE_SOURCE_VALUES,
@@ -603,3 +606,10 @@ def _substrate_list_uses_encoded_site_keys(table: pd.DataFrame) -> bool:
     if not values:
         return False
     return all(value.startswith("phospy:v1|") for value in values)
+
+
+__all__ = [
+    "KinaseLibraryMotifScoringResult",
+    "KinasePredictionResult",
+    "KinaseScoringResult",
+]
