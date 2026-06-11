@@ -7,6 +7,7 @@ from phospy.io.bundles.kinase import (
     load_kinase_workflow_bundle,
     save_kinase_workflow_bundle,
 )
+from phospy.io.bundles.reference_sources import ReferenceSourceTableReader
 from phospy.io.bundles.signalome import (
     SIGNALOME_BUNDLE_MANIFEST_VERSION,
     LoadedSignalomeWorkflowBundle,
@@ -20,6 +21,7 @@ __all__ = [
     "KinaseWorkflowConfigSnapshot",
     "LoadedKinaseWorkflowBundle",
     "LoadedSignalomeWorkflowBundle",
+    "ReferenceSourceTableReader",
     "SIGNALOME_BUNDLE_MANIFEST_VERSION",
     "SignalomeWorkflowConfigSnapshot",
     "load_kinase_workflow_bundle",

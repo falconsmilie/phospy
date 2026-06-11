@@ -5,7 +5,7 @@ dataset/reference entrypoints, selected workflow types, and public exception
 types.
 """
 
-from phospy.api.builders import AnalysisReadyDatasetBuilder
+from phospy.api.builders import AnalysisReadyDatasetBuilder, ReferenceBundleBuilder
 from phospy.api.configs import (
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
     KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS,
@@ -102,7 +102,10 @@ from phospy.errors import (
     WorkflowValidationError,
 )
 from phospy.science.differential.policy_models import TechnicalReplicatePolicy
-from phospy.science.references.models import ReferenceBundle
+from phospy.science.references.models import (
+    ReferenceBundle,
+    ReferenceBundleBuildRequest,
+)
 from phospy.science.transformations.models import (
     IntensityScaleKind,
     IntensityScaleState,
@@ -113,6 +116,7 @@ from phospy.science.transformations.models import (
 __all__ = [
     "AnalysisReadyDatasetBuilder",
     "AnalysisReadyPhosphoDataset",
+    "ReferenceBundleBuilder",
     "ComparisonState",
     "DatasetPreprocessingReport",
     "DatasetProcessingState",
@@ -168,6 +172,7 @@ __all__ = [
     "MatrixIntensityScaleState",
     "QuantitativeMeaning",
     "ReferenceBundle",
+    "ReferenceBundleBuildRequest",
     "ReferencePreset",
     "SignalomeConfig",
     "SignalomeScientificConfig",

@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import InitVar, dataclass
 from datetime import date
 from enum import Enum
+from os import PathLike
+from pathlib import Path
 from typing import cast
 
 import pandas as pd
@@ -60,6 +62,39 @@ class SequenceWindowDefinition:
         }
 
 
+ReferenceBuildPath = str | Path | PathLike[str]
+
+
+@dataclass(frozen=True, slots=True)
+class ReferenceBundleBuildRequest:
+    """Request for building a local-source reference bundle.
+
+    Construction stores caller intent only. File existence, source metadata,
+    column mapping, organism compatibility, and reference validity are enforced
+    by ``ReferenceBundleBuilder.run(...)``.
+    """
+
+    organism: Organism
+    kinase_substrate_path: ReferenceBuildPath
+    site_sequence_path: ReferenceBuildPath
+    source_name: str
+    source_version: str
+    retrieved_at: date | str
+    license: str
+    redistribution_status: str
+    identifier_namespace: str
+    sequence_window: SequenceWindowDefinition | None = None
+    bundle_id: str | None = None
+    organism_common_name: str | None = None
+    supports: tuple[str, ...] = (
+        "kinase_workflow",
+        "site_sequence_derivation",
+    )
+    limitations: tuple[str, ...] = (
+        "caller-supplied local source files; redistribution governed by request metadata",
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class ReferenceManifest:
     """Machine-readable metadata describing one runtime reference bundle."""
@@ -76,9 +111,10 @@ class ReferenceManifest:
     sequence_window: SequenceWindowDefinition
     supports: tuple[str, ...]
     limitations: tuple[str, ...]
+    source_files: dict[str, JsonValue] | None = None
 
     def to_payload(self) -> dict[str, JsonValue]:
-        return {
+        payload: dict[str, JsonValue] = {
             "bundle_id": self.bundle_id,
             "organism": self.organism,
             "organism_common_name": self.organism_common_name,
@@ -92,6 +128,9 @@ class ReferenceManifest:
             "supports": self.supports,
             "limitations": self.limitations,
         }
+        if self.source_files is not None:
+            payload["source_files"] = self.source_files
+        return payload
 
 
 @dataclass(frozen=True, slots=True)

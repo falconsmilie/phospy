@@ -8,6 +8,9 @@ Read them in this order:
 2. `kinase_workflow_demo.py`
 3. `signalome_workflow_demo.py`
 
+Use `reference_bundle_builder_demo.py` when you need a small local-file example
+for building an explicit human/mouse-style `ReferenceBundle`.
+
 They intentionally keep the story small:
 
 - rat bundled-reference lane first

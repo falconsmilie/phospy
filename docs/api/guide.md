@@ -304,7 +304,12 @@ Their string values are:
 ```
 
 Enum presence does not mean bundled runtime data exists for every organism in
-this release. Use `ReferenceBundle` for custom references. It requires:
+this release. Rat has a bundled beginner lane in this release. Human and mouse
+workflows should use an explicit `ReferenceBundle`; the supported way to build
+one from local source files is `ReferenceBundleBuilder`.
+
+Use `ReferenceBundle` directly only when you already have validated DataFrames.
+It requires:
 
 - `organism`
 - `kinase_substrate_map` with `kinase` and `substrate_site`
@@ -327,6 +332,35 @@ references = ReferenceBundle(
     site_sequences=site_sequences,
 )
 ```
+
+For human or mouse local source files, prefer the builder so file-to-reference
+normalisation and provenance are consistent:
+
+```python
+from phospy.api import (
+    Organism,
+    ReferenceBundleBuildRequest,
+    ReferenceBundleBuilder,
+)
+
+references = ReferenceBundleBuilder().run(
+    ReferenceBundleBuildRequest(
+        organism=Organism.MOUSE,
+        kinase_substrate_path="mouse_kinase_substrates.csv",
+        site_sequence_path="mouse_site_sequences.csv",
+        source_name="local curated kinase reference",
+        source_version="2026-06-11",
+        retrieved_at="2026-06-11",
+        license="record the source license here",
+        redistribution_status="record redistribution status here",
+        identifier_namespace="display_id (GENE_SYMBOL;RESIDUE;)",
+    )
+)
+```
+
+The builder reads only local files. It does not scrape web resources, does not
+invent missing sequence windows, and fails if any kinase-substrate site lacks
+sequence context.
 
 ## Public Exceptions
 

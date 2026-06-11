@@ -8,16 +8,20 @@ __all__ = [
     "BundledReferenceLane",
     "Organism",
     "ReferenceBundle",
+    "ReferenceBundleBuildRequest",
+    "ReferenceBundleBuilder",
     "ReferenceManifest",
     "ReferencePreset",
     "SequenceWindowDefinition",
 ]
 
 if TYPE_CHECKING:
+    from phospy.science.references.builder import ReferenceBundleBuilder
     from phospy.science.references.models import (
         BundledReferenceLane,
         Organism,
         ReferenceBundle,
+        ReferenceBundleBuildRequest,
         ReferenceManifest,
         ReferencePreset,
         SequenceWindowDefinition,
@@ -25,6 +29,10 @@ if TYPE_CHECKING:
 
 
 def __getattr__(name: str) -> object:
+    if name == "ReferenceBundleBuilder":
+        from phospy.science.references.builder import ReferenceBundleBuilder
+
+        return ReferenceBundleBuilder
     if name in __all__:
         from phospy.science.references import models as _models
 
