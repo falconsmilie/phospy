@@ -16,6 +16,7 @@ from phospy.provenance.hashing import (
 )
 from phospy.provenance.models import (
     EnvironmentProvenance,
+    KinaseLibraryResourceProvenance,
     PreprocessingStageProvenance,
     ReferenceProvenance,
     RunProvenance,
@@ -35,6 +36,7 @@ __all__ = [
     "DEFAULT_TABLE_HASH_ALGORITHM",
     "DEFAULT_TOLERANCE_TABLE_HASH_ALGORITHM",
     "EnvironmentProvenance",
+    "KinaseLibraryResourceProvenance",
     "PreprocessingStageProvenance",
     "ReferenceProvenance",
     "RunProvenance",

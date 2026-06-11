@@ -115,6 +115,23 @@ class ReferenceProvenance:
 
 
 @dataclass(frozen=True, slots=True)
+class KinaseLibraryResourceProvenance:
+    """Resolved provenance for local Kinase Library-style motif resources."""
+
+    source_type: str
+    source_name: str
+    source_version: str
+    license: str
+    score_scale: str
+    organisms: tuple[str, ...]
+    sequence_window: Mapping[str, JsonValue]
+    source_files: Mapping[str, JsonValue]
+    table_fingerprints: tuple[TableFingerprint, ...]
+    retrieved_at: str | None = None
+    manifest: Mapping[str, JsonValue] | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class RunProvenance:
     """Machine-readable run provenance payload."""
 
@@ -133,6 +150,7 @@ class RunProvenance:
 __all__ = [
     "EnvironmentProvenance",
     "JsonValue",
+    "KinaseLibraryResourceProvenance",
     "PreprocessingStageProvenance",
     "ReferenceProvenance",
     "RunProvenance",

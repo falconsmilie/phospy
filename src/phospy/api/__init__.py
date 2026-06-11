@@ -102,6 +102,14 @@ from phospy.errors import (
     WorkflowValidationError,
 )
 from phospy.science.differential.policy_models import TechnicalReplicatePolicy
+from phospy.science.references.kinase_library import (
+    KinaseLibraryMatrix,
+    KinaseLibraryResidueClass,
+    KinaseLibraryResource,
+    KinaseLibraryResourceLoader,
+    KinaseLibraryResourceLoadRequest,
+    load_kinase_library_resource,
+)
 from phospy.science.references.models import (
     ReferenceBundle,
     ReferenceBundleBuildRequest,
@@ -169,6 +177,11 @@ __all__ = [
     "Organism",
     "IntensityScaleKind",
     "IntensityScaleState",
+    "KinaseLibraryMatrix",
+    "KinaseLibraryResidueClass",
+    "KinaseLibraryResource",
+    "KinaseLibraryResourceLoadRequest",
+    "KinaseLibraryResourceLoader",
     "MatrixIntensityScaleState",
     "QuantitativeMeaning",
     "ReferenceBundle",
@@ -207,4 +220,5 @@ __all__ = [
     "WorkflowBoundaryError",
     "WorkflowStageError",
     "WorkflowValidationError",
+    "load_kinase_library_resource",
 ]

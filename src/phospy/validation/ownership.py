@@ -43,6 +43,10 @@ VALIDATION_RULE_OWNERS: tuple[ValidationRuleOwner, ...] = (
         owner="ReferenceBundleValidator.run",
     ),
     ValidationRuleOwner(
+        rule="kinase library resource structural contract",
+        owner="KinaseLibraryResourceValidator.run",
+    ),
+    ValidationRuleOwner(
         rule="analysis-ready dataset structural contract",
         owner="AnalysisReadyPhosphoDataset.__post_init__",
     ),

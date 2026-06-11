@@ -110,3 +110,58 @@ The builder fails instead of repairing scientific inputs:
 
 Do not commit restricted source reference datasets. Keep source files local or
 manage them according to the original provider license.
+
+## Kinase Library-Style Matrix Resources
+
+PhosPy also has schema and loader support for local Kinase Library-style motif
+matrix resources. This is reference-resource support only: these matrices are
+not wired into `KinaseWorkflow`, and existing kinase scoring output is
+unchanged.
+
+Use `KinaseLibraryResourceLoader` for local files:
+
+```python
+from phospy.api import KinaseLibraryResourceLoader
+
+resource = KinaseLibraryResourceLoader().run("kinase_library_matrices.csv")
+```
+
+The loader accepts local CSV, TSV, or parquet tables. A long table must contain:
+
+- `kinase`
+- `residue_class` with values `ser_thr` or `tyr`
+- `position` as integer positions relative to the phospho-acceptor residue
+- `amino_acid`
+- `score`
+
+It also requires resource metadata, either as repeated table columns or as a
+`KinaseLibraryResourceLoadRequest`:
+
+- `source_name`
+- `source_version`
+- `license`
+- `score_scale`
+- `organisms`
+- `upstream_residues`
+- `downstream_residues`
+- `central_residue_required`
+
+Optional kinase metadata columns are preserved:
+
+- `kinase_family`
+- `kinase_group`
+
+Scores are preserved as numeric provider-scale values. PhosPy does not treat
+Kinase Library scores as probabilities, does not normalize them into the
+internal motif-frequency scorer, and does not force them into the
+kinase-substrate map shape.
+
+Loaded resources include explicit provenance:
+
+- source name and version
+- license
+- score scale
+- organism applicability
+- sequence-window definition
+- source-file path, SHA-256 digest, and byte count
+- matrix table fingerprints
