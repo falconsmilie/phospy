@@ -12,7 +12,13 @@ from phospy.science.activities.methods.ksea_zscore import (
     KSEA_STATUS_ZERO_BACKGROUND_VARIANCE,
     KseaZScoreActivityMethod,
 )
-from phospy.science.activities.models import KinaseActivityInputs, PredMatOverlapSummary
+from phospy.science.activities.models import (
+    KinaseActivityInputs,
+    KinaseActivityResult,
+    KseaZScoreActivityDiagnostics,
+    PredMatOverlapSummary,
+    WeightedSubstrateActivityDiagnostics,
+)
 from phospy.science.activities.scoring import (
     SimplifiedWeightedSubstrateActivityPolicy,
     compute_activity_from_inputs,
@@ -133,6 +139,39 @@ def test_ksea_activity_scores_exposes_primary_zscore_matrix() -> None:
     assert result.activity_scores.at["K1", "c1"] == pytest.approx(-1.0954451150103324)
     pdt.assert_frame_equal(result.activity_scores, result.weighted_activity)
     pdt.assert_frame_equal(result.to_dataframe(), result.activity_scores)
+
+
+def test_ksea_result_populates_extensible_activity_contract() -> None:
+    pred_mat = pd.DataFrame(
+        {"K1": [0.9, 0.8, 0.1, 0.2]},
+        index=["S1;S1;", "S2;S2;", "S3;S3;", "S4;S4;"],
+    )
+    phospho = pd.DataFrame({"c1": [1.0, 2.0, 3.0, 4.0]}, index=pred_mat.index.copy())
+
+    result = _ksea_result(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho,
+        evidence_threshold=0.5,
+        min_substrates=2,
+    )
+
+    pdt.assert_frame_equal(result.activity_matrix, result.activity_scores)
+    assert result.p_value_matrix is not None
+    assert result.q_value_matrix is not None
+    assert result.confidence_interval_low is None
+    assert result.confidence_interval_high is None
+    assert result.p_value_matrix.at["K1", "c1"] == pytest.approx(0.27332167829229814)
+    assert result.q_value_matrix.at["K1", "c1"] == pytest.approx(0.27332167829229814)
+    assert result.activity_substrate_counts is not None
+    pdt.assert_frame_equal(
+        result.substrate_count_matrix, result.activity_substrate_counts
+    )
+    assert isinstance(result.method_diagnostics, KseaZScoreActivityDiagnostics)
+    assert result.method_diagnostics.statistics_table is not None
+    assert result.policy_provenance
+    policy = result.policy_provenance[0]
+    assert policy.id == ScientificPolicyId.KSEA_ZSCORE_ACTIVITY
+    assert policy.to_payload()["id"] == "ksea_zscore_activity_v1"
 
 
 def test_ksea_computes_each_kinase_condition_pair_independently() -> None:
@@ -577,6 +616,74 @@ def test_weighted_activity_scores_exposes_primary_weighted_matrix() -> None:
     )
     pdt.assert_frame_equal(result.activity_scores, result.weighted_activity)
     pdt.assert_frame_equal(result.to_dataframe(), result.activity_scores)
+
+
+def test_weighted_result_populates_extensible_activity_contract() -> None:
+    pred_mat = pd.DataFrame(
+        {"PRKACA": [0.9, 0.8, 0.7]},
+        index=["A;S1;", "B;S2;", "C;S3;"],
+    )
+    phospho_matrix = pd.DataFrame(
+        {
+            "phospho_corrected_1": [10.0, float("nan"), 1.0],
+            "phospho_corrected_2": [20.0, 6.0, float("nan")],
+        },
+        index=pred_mat.index.copy(),
+    )
+
+    result = compute_activity_from_inputs(
+        _inputs(
+            pred_mat=pred_mat,
+            phospho_matrix=phospho_matrix,
+            threshold=0.6,
+            min_substrates=3,
+            top_n_substrates=3,
+        )
+    )
+
+    pdt.assert_frame_equal(result.activity_matrix, result.weighted_activity)
+    assert result.p_value_matrix is None
+    assert result.q_value_matrix is None
+    assert result.confidence_interval_low is None
+    assert result.confidence_interval_high is None
+    assert result.substrate_count_matrix.at["PRKACA", "phospho_corrected_1"] == 2
+    assert result.substrate_count_matrix.at["PRKACA", "phospho_corrected_2"] == 2
+    assert result.activity_substrate_counts is None
+    assert isinstance(result.method_diagnostics, WeightedSubstrateActivityDiagnostics)
+    assert result.policy_provenance
+    policy = result.policy_provenance[0]
+    assert policy.id == ScientificPolicyId.SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY
+    assert policy.to_payload()["id"] == "simplified_weighted_substrate_activity_v1"
+
+
+def test_activity_result_contract_handles_empty_optional_diagnostics_cleanly() -> None:
+    activity_matrix = pd.DataFrame(
+        {"c1": [1.0]},
+        index=pd.Index(["K1"], name="kinase"),
+        dtype=float,
+    )
+    substrate_count_matrix = pd.DataFrame(
+        {"c1": [2]},
+        index=pd.Index(["K1"], name="kinase"),
+        dtype="int64",
+    )
+
+    result = KinaseActivityResult(
+        activity_matrix=activity_matrix,
+        substrate_count_matrix=substrate_count_matrix,
+    )
+
+    pdt.assert_frame_equal(result.to_dataframe(), activity_matrix)
+    pdt.assert_frame_equal(result.weighted_activity, activity_matrix)
+    pdt.assert_frame_equal(result.substrate_count_matrix, substrate_count_matrix)
+    assert result.p_value_matrix is None
+    assert result.q_value_matrix is None
+    assert result.confidence_interval_low is None
+    assert result.confidence_interval_high is None
+    assert result.thresholded_substrate_counts.empty
+    assert result.target_counts.empty
+    assert result.target_table.empty
+    assert result.policy_provenance == ()
 
 
 def test_thresholded_substrate_mean_activity_respects_threshold_and_min_substrates() -> (

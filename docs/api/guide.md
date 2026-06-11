@@ -227,8 +227,29 @@ Common tables include `profile_scores`, `rank_weighted_fusion_scores`,
 `pred_mat`, and activity tables when activity is enabled. Opt-in Kinase
 Library scoring modes additionally expose `kinase_library_motif_scores` and,
 for combined scoring, `combined_profile_motif_scores`. Use
-`activity_result.activity_scores` as the primary activity-score matrix, and
-`weighted_activity` as a compatibility alias.
+`activity_result.activity_matrix` as the primary activity-score matrix.
+`activity_scores`, `weighted_activity`, and `to_dataframe()` are compatibility
+accessors for that same primary matrix.
+
+Stable kinase activity result fields are:
+
+- `activity_matrix`: primary kinase-by-condition activity scores for the selected method.
+- `substrate_count_matrix`: kinase-by-condition substrate counts used by the selected method when defined.
+- `method_diagnostics`: typed method diagnostics, for example weighted-substrate or KSEA diagnostics.
+- `policy_provenance`: scientific policy records attached to the activity method.
+
+Optional activity fields are present only when the selected method produces
+them:
+
+- `p_value_matrix`
+- `q_value_matrix`
+- `confidence_interval_low`
+- `confidence_interval_high`
+
+Legacy activity sidecars remain available for existing users:
+`thresholded_substrate_mean_activity`, `thresholded_substrate_counts`,
+`activity_substrate_counts`, `target_counts`, `target_table`, and
+`statistics_table`.
 
 Use export helpers on scoring, prediction, and activity result objects for safe
 snapshot copies:

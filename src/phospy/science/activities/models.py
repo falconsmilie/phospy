@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
+import numpy as np
 import pandas as pd
 
 from phospy.errors.validation import PhosPyValidationError
@@ -14,6 +15,7 @@ from phospy.frames.ownership import (
     export_optional_dataframe,
     export_series,
 )
+from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
 from phospy.science.activities.threshold_membership import (
     ActivityThresholdMembershipDiagnostics,
 )
@@ -166,6 +168,82 @@ class ActivityMethodSummary:
         )
 
 
+@dataclass(frozen=True, slots=True, init=False)
+class ActivityMethodDiagnostics:
+    """Typed method diagnostics carried alongside activity result matrices."""
+
+    method_summary: ActivityMethodSummary | None
+    threshold_membership_diagnostics: ActivityThresholdMembershipDiagnostics | None
+    _statistics_table: pd.DataFrame | None = field(init=False, repr=False)
+
+    def __init__(
+        self,
+        *,
+        method_summary: ActivityMethodSummary | None = None,
+        threshold_membership_diagnostics: ActivityThresholdMembershipDiagnostics
+        | None = None,
+        statistics_table: pd.DataFrame | None = None,
+        _assume_owned: bool = False,
+    ) -> None:
+        _validate_optional_method_summary(method_summary)
+        _validate_optional_threshold_membership_diagnostics(
+            threshold_membership_diagnostics
+        )
+        if statistics_table is not None:
+            statistics_table = ActivityStatisticsTable(
+                frame=statistics_table,
+                _assume_owned=_assume_owned,
+            ).frame
+        object.__setattr__(self, "method_summary", method_summary)
+        object.__setattr__(
+            self,
+            "threshold_membership_diagnostics",
+            threshold_membership_diagnostics,
+        )
+        object.__setattr__(self, "_statistics_table", statistics_table)
+
+    @property
+    def statistics_table(self) -> pd.DataFrame | None:
+        return export_optional_dataframe(self._statistics_table)
+
+
+class WeightedSubstrateActivityDiagnostics(ActivityMethodDiagnostics):
+    """Diagnostics for simplified weighted substrate activity outputs."""
+
+    __slots__ = ()
+
+
+class KseaZScoreActivityDiagnostics(ActivityMethodDiagnostics):
+    """Diagnostics for KSEA z-score activity outputs."""
+
+    __slots__ = ()
+
+
+def _validate_optional_method_summary(
+    method_summary: ActivityMethodSummary | None,
+) -> None:
+    if method_summary is not None and not isinstance(
+        method_summary,
+        ActivityMethodSummary,
+    ):
+        raise WorkflowBoundaryError(
+            "activity_result.method_summary must be ActivityMethodSummary or None"
+        )
+
+
+def _validate_optional_threshold_membership_diagnostics(
+    threshold_membership_diagnostics: ActivityThresholdMembershipDiagnostics | None,
+) -> None:
+    if threshold_membership_diagnostics is not None and not isinstance(
+        threshold_membership_diagnostics,
+        ActivityThresholdMembershipDiagnostics,
+    ):
+        raise WorkflowBoundaryError(
+            "activity_result.threshold_membership_diagnostics must be "
+            "ActivityThresholdMembershipDiagnostics or None"
+        )
+
+
 def _coerce_payload_int(*, payload: Mapping[str, object], field_name: str) -> int:
     value = payload.get(field_name, 0)
     if isinstance(value, bool | int | float | str | bytes | bytearray):
@@ -227,40 +305,59 @@ class KinaseActivityInputs:
 class KinaseActivityResult:
     """Activity-stage outputs.
 
-    Outputs are deliberately table-first and mirror the historical baseline stage:
+    Outputs are deliberately table-first. ``activity_matrix`` and
+    ``substrate_count_matrix`` are the stable method-neutral matrices. Legacy
+    weighted/KSEA sidecars remain available for existing callers but are no
+    longer required by the core result contract.
 
-    - ``activity_scores``: primary activity score matrix for the selected method
-    - ``weighted_activity``: compatibility alias for ``activity_scores``
+    - ``activity_matrix``: primary activity score matrix for the selected method
+    - ``activity_scores``: compatibility alias for ``activity_matrix``
+    - ``weighted_activity``: compatibility alias for ``activity_matrix``
+    - ``p_value_matrix``: optional activity p-value matrix
+    - ``q_value_matrix``: optional multiple-testing-adjusted activity q-value matrix
+    - ``confidence_interval_low``: optional lower confidence interval matrix
+    - ``confidence_interval_high``: optional upper confidence interval matrix
+    - ``substrate_count_matrix``: method-neutral count matrix for substrates used
+      per kinase-condition score when defined by the method
     - ``thresholded_substrate_mean_activity``: sample-by-kinase mean phospho
-      signal over predicted substrates above threshold
+      signal over predicted substrates above threshold for legacy weighted output
     - ``thresholded_substrate_counts``: compatibility sidecar count series
     - ``activity_substrate_counts``: method-neutral condition-specific count matrix
-      for finite substrates used per kinase-condition score when defined
+      legacy accessor retained for KSEA-style count matrices
     - ``target_counts``: thresholded predicted target counts per kinase
     - ``target_table``: thresholded kinase-target edge table
+    - ``method_diagnostics``: typed method diagnostics, not an arbitrary mapping
+    - ``policy_provenance``: scientific policy records attached to this result
     - ``threshold_membership_diagnostics``: threshold inclusion rule metadata used
       by thresholded substrate membership diagnostics
     - ``activity_method``: stable method identity metadata for these outputs
     """
 
     activity_method: ActivityMethodMetadata
-    _weighted_activity: pd.DataFrame = field(init=False, repr=False)
+    _activity_matrix: pd.DataFrame = field(init=False, repr=False)
+    _p_value_matrix: pd.DataFrame | None = field(init=False, repr=False)
+    _q_value_matrix: pd.DataFrame | None = field(init=False, repr=False)
+    _confidence_interval_low: pd.DataFrame | None = field(init=False, repr=False)
+    _confidence_interval_high: pd.DataFrame | None = field(init=False, repr=False)
+    _substrate_count_matrix: pd.DataFrame = field(init=False, repr=False)
     _thresholded_substrate_mean_activity: pd.DataFrame = field(init=False, repr=False)
     _thresholded_substrate_counts: pd.Series = field(init=False, repr=False)
     _activity_substrate_counts: pd.DataFrame | None = field(init=False, repr=False)
     _target_counts: pd.Series = field(init=False, repr=False)
     _target_table: pd.DataFrame = field(init=False, repr=False)
     _statistics_table: pd.DataFrame | None = field(init=False, repr=False)
+    method_diagnostics: ActivityMethodDiagnostics
+    policy_provenance: tuple[ScientificPolicyRecord, ...]
     threshold_membership_diagnostics: ActivityThresholdMembershipDiagnostics | None
     method_summary: ActivityMethodSummary | None
 
     def __init__(
         self,
-        weighted_activity: pd.DataFrame,
-        thresholded_substrate_mean_activity: pd.DataFrame,
-        thresholded_substrate_counts: pd.Series,
-        target_counts: pd.Series,
-        target_table: pd.DataFrame,
+        weighted_activity: pd.DataFrame | None = None,
+        thresholded_substrate_mean_activity: pd.DataFrame | None = None,
+        thresholded_substrate_counts: pd.Series | None = None,
+        target_counts: pd.Series | None = None,
+        target_table: pd.DataFrame | None = None,
         threshold_membership_diagnostics: ActivityThresholdMembershipDiagnostics
         | None = None,
         activity_substrate_counts: pd.DataFrame | None = None,
@@ -269,22 +366,79 @@ class KinaseActivityResult:
         activity_method: ActivityMethodMetadata = (
             SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY_METHOD
         ),
+        activity_matrix: pd.DataFrame | None = None,
+        p_value_matrix: pd.DataFrame | None = None,
+        q_value_matrix: pd.DataFrame | None = None,
+        confidence_interval_low: pd.DataFrame | None = None,
+        confidence_interval_high: pd.DataFrame | None = None,
+        substrate_count_matrix: pd.DataFrame | None = None,
+        method_diagnostics: ActivityMethodDiagnostics | None = None,
+        policy_provenance: tuple[ScientificPolicyRecord, ...]
+        | list[ScientificPolicyRecord]
+        | ScientificPolicyRecord
+        | None = None,
         _assume_owned: bool = False,
     ) -> None:
         if not isinstance(activity_method, ActivityMethodMetadata):
             raise WorkflowBoundaryError(
                 "activity_result.activity_method must be ActivityMethodMetadata"
             )
-        weighted_activity = ActivityMatrix(
-            frame=weighted_activity,
-            field_name="activity_result.weighted_activity",
+        if activity_matrix is not None and weighted_activity is not None:
+            raise WorkflowBoundaryError(
+                "activity_result must receive either activity_matrix or "
+                "weighted_activity, not both"
+            )
+        raw_activity_matrix = (
+            activity_matrix if activity_matrix is not None else weighted_activity
+        )
+        if raw_activity_matrix is None:
+            raise WorkflowBoundaryError(
+                "activity_result.activity_matrix must be provided"
+            )
+
+        activity_matrix = ActivityMatrix(
+            frame=raw_activity_matrix,
+            field_name="activity_result.activity_matrix",
             _assume_owned=_assume_owned,
         ).frame
+        p_value_matrix = _validate_optional_probability_matrix(
+            p_value_matrix,
+            field_name="activity_result.p_value_matrix",
+            assume_owned=_assume_owned,
+        )
+        q_value_matrix = _validate_optional_probability_matrix(
+            q_value_matrix,
+            field_name="activity_result.q_value_matrix",
+            assume_owned=_assume_owned,
+        )
+        confidence_interval_low = _validate_optional_activity_matrix(
+            confidence_interval_low,
+            field_name="activity_result.confidence_interval_low",
+            assume_owned=_assume_owned,
+        )
+        confidence_interval_high = _validate_optional_activity_matrix(
+            confidence_interval_high,
+            field_name="activity_result.confidence_interval_high",
+            assume_owned=_assume_owned,
+        )
+        if substrate_count_matrix is None:
+            substrate_count_matrix = activity_substrate_counts
+        if substrate_count_matrix is None:
+            substrate_count_matrix = _empty_count_matrix()
+        substrate_count_matrix = ActivityCountMatrix(
+            frame=substrate_count_matrix,
+            field_name="activity_result.substrate_count_matrix",
+            _assume_owned=_assume_owned,
+        ).frame
+        if thresholded_substrate_mean_activity is None:
+            thresholded_substrate_mean_activity = _empty_activity_matrix()
         thresholded_substrate_mean_activity = ActivityMatrix(
             frame=thresholded_substrate_mean_activity,
             field_name="activity_result.thresholded_substrate_mean_activity",
             _assume_owned=_assume_owned,
         ).frame
+        if thresholded_substrate_counts is None:
+            thresholded_substrate_counts = _empty_count_series("n_substrates")
         thresholded_substrate_counts = ActivityCountSeries(
             series=thresholded_substrate_counts,
             field_name="activity_result.thresholded_substrate_counts",
@@ -296,35 +450,65 @@ class KinaseActivityResult:
                 field_name="activity_result.activity_substrate_counts",
                 _assume_owned=_assume_owned,
             ).frame
+        if target_counts is None:
+            target_counts = _empty_count_series("n_targets")
         target_counts = ActivityCountSeries(
             series=target_counts,
             field_name="activity_result.target_counts",
             _assume_owned=_assume_owned,
         ).series
+        if target_table is None:
+            target_table = _empty_target_table()
         target_table = ActivityTargetTable(
             frame=target_table,
             _assume_owned=_assume_owned,
         ).frame
+        if method_diagnostics is not None:
+            if not isinstance(method_diagnostics, ActivityMethodDiagnostics):
+                raise WorkflowBoundaryError(
+                    "activity_result.method_diagnostics must be "
+                    "ActivityMethodDiagnostics or None"
+                )
+            if method_summary is None:
+                method_summary = method_diagnostics.method_summary
+            if threshold_membership_diagnostics is None:
+                threshold_membership_diagnostics = (
+                    method_diagnostics.threshold_membership_diagnostics
+                )
+            if statistics_table is None:
+                statistics_table = method_diagnostics.statistics_table
         if statistics_table is not None:
             statistics_table = ActivityStatisticsTable(
                 frame=statistics_table,
                 _assume_owned=_assume_owned,
             ).frame
-        if method_summary is not None and not isinstance(
-            method_summary, ActivityMethodSummary
-        ):
-            raise WorkflowBoundaryError(
-                "activity_result.method_summary must be ActivityMethodSummary or None"
+        _validate_optional_method_summary(method_summary)
+        _validate_optional_threshold_membership_diagnostics(
+            threshold_membership_diagnostics
+        )
+        if method_diagnostics is None:
+            method_diagnostics = _build_activity_method_diagnostics(
+                activity_method=activity_method,
+                method_summary=method_summary,
+                threshold_membership_diagnostics=threshold_membership_diagnostics,
+                statistics_table=statistics_table,
             )
-        if threshold_membership_diagnostics is not None and not isinstance(
-            threshold_membership_diagnostics,
-            ActivityThresholdMembershipDiagnostics,
-        ):
-            raise WorkflowBoundaryError(
-                "activity_result.threshold_membership_diagnostics must be "
-                "ActivityThresholdMembershipDiagnostics or None"
-            )
-        object.__setattr__(self, "_weighted_activity", weighted_activity)
+        policy_provenance_tuple = _coerce_policy_provenance(policy_provenance)
+
+        object.__setattr__(self, "_activity_matrix", activity_matrix)
+        object.__setattr__(self, "_p_value_matrix", p_value_matrix)
+        object.__setattr__(self, "_q_value_matrix", q_value_matrix)
+        object.__setattr__(
+            self,
+            "_confidence_interval_low",
+            confidence_interval_low,
+        )
+        object.__setattr__(
+            self,
+            "_confidence_interval_high",
+            confidence_interval_high,
+        )
+        object.__setattr__(self, "_substrate_count_matrix", substrate_count_matrix)
         object.__setattr__(
             self,
             "_thresholded_substrate_mean_activity",
@@ -344,6 +528,8 @@ class KinaseActivityResult:
         object.__setattr__(self, "activity_method", activity_method)
         object.__setattr__(self, "_target_table", target_table)
         object.__setattr__(self, "_statistics_table", statistics_table)
+        object.__setattr__(self, "method_diagnostics", method_diagnostics)
+        object.__setattr__(self, "policy_provenance", policy_provenance_tuple)
         object.__setattr__(
             self,
             "threshold_membership_diagnostics",
@@ -352,16 +538,42 @@ class KinaseActivityResult:
         object.__setattr__(self, "method_summary", method_summary)
 
     @property
+    def activity_matrix(self) -> pd.DataFrame:
+        """Return the primary activity matrix for the selected method."""
+
+        return export_dataframe(self._activity_matrix)
+
+    @property
     def activity_scores(self) -> pd.DataFrame:
         """Return the primary activity score matrix for the selected method."""
 
-        return export_dataframe(self._weighted_activity)
+        return self.activity_matrix
 
     @property
     def weighted_activity(self) -> pd.DataFrame:
-        """Compatibility alias for :attr:`activity_scores`."""
+        """Compatibility alias for :attr:`activity_matrix`."""
 
-        return self.activity_scores
+        return self.activity_matrix
+
+    @property
+    def p_value_matrix(self) -> pd.DataFrame | None:
+        return export_optional_dataframe(self._p_value_matrix)
+
+    @property
+    def q_value_matrix(self) -> pd.DataFrame | None:
+        return export_optional_dataframe(self._q_value_matrix)
+
+    @property
+    def confidence_interval_low(self) -> pd.DataFrame | None:
+        return export_optional_dataframe(self._confidence_interval_low)
+
+    @property
+    def confidence_interval_high(self) -> pd.DataFrame | None:
+        return export_optional_dataframe(self._confidence_interval_high)
+
+    @property
+    def substrate_count_matrix(self) -> pd.DataFrame:
+        return export_dataframe(self._substrate_count_matrix)
 
     @property
     def thresholded_substrate_mean_activity(self) -> pd.DataFrame:
@@ -391,9 +603,13 @@ class KinaseActivityResult:
     def count_field_semantics(self) -> dict[str, str]:
         if self.activity_method.is_ksea:
             return {
-                "activity_substrate_counts": (
+                "substrate_count_matrix": (
                     "condition-specific finite substrate count used for each "
                     "kinase-condition activity score"
+                ),
+                "activity_substrate_counts": (
+                    "condition-specific finite substrate count used for each "
+                    "kinase-condition activity score; legacy KSEA accessor"
                 ),
                 "thresholded_substrate_counts": (
                     "global post-threshold evidence membership count before "
@@ -404,6 +620,10 @@ class KinaseActivityResult:
                 ),
             }
         return {
+            "substrate_count_matrix": (
+                "condition-specific finite substrate count used for each primary "
+                "kinase-condition activity score when supplied by the method"
+            ),
             "thresholded_substrate_counts": (
                 "global thresholded substrate membership count per kinase"
             ),
@@ -414,11 +634,11 @@ class KinaseActivityResult:
     def _from_owned(
         cls,
         *,
-        weighted_activity: pd.DataFrame,
-        thresholded_substrate_mean_activity: pd.DataFrame,
-        thresholded_substrate_counts: pd.Series,
-        target_counts: pd.Series,
-        target_table: pd.DataFrame,
+        weighted_activity: pd.DataFrame | None = None,
+        thresholded_substrate_mean_activity: pd.DataFrame | None = None,
+        thresholded_substrate_counts: pd.Series | None = None,
+        target_counts: pd.Series | None = None,
+        target_table: pd.DataFrame | None = None,
         threshold_membership_diagnostics: ActivityThresholdMembershipDiagnostics
         | None = None,
         activity_substrate_counts: pd.DataFrame | None = None,
@@ -427,6 +647,17 @@ class KinaseActivityResult:
         activity_method: ActivityMethodMetadata = (
             SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY_METHOD
         ),
+        activity_matrix: pd.DataFrame | None = None,
+        p_value_matrix: pd.DataFrame | None = None,
+        q_value_matrix: pd.DataFrame | None = None,
+        confidence_interval_low: pd.DataFrame | None = None,
+        confidence_interval_high: pd.DataFrame | None = None,
+        substrate_count_matrix: pd.DataFrame | None = None,
+        method_diagnostics: ActivityMethodDiagnostics | None = None,
+        policy_provenance: tuple[ScientificPolicyRecord, ...]
+        | list[ScientificPolicyRecord]
+        | ScientificPolicyRecord
+        | None = None,
     ) -> KinaseActivityResult:
         return cls(
             weighted_activity=weighted_activity,
@@ -439,13 +670,46 @@ class KinaseActivityResult:
             statistics_table=statistics_table,
             method_summary=method_summary,
             activity_method=activity_method,
+            activity_matrix=activity_matrix,
+            p_value_matrix=p_value_matrix,
+            q_value_matrix=q_value_matrix,
+            confidence_interval_low=confidence_interval_low,
+            confidence_interval_high=confidence_interval_high,
+            substrate_count_matrix=substrate_count_matrix,
+            method_diagnostics=method_diagnostics,
+            policy_provenance=policy_provenance,
             _assume_owned=True,
         )
 
     def to_dataframe(self) -> pd.DataFrame:
         """Return a primary activity-score snapshot isolated from this result."""
 
-        return self.activity_scores
+        return self.activity_matrix
+
+    def p_value_matrix_dataframe(self) -> pd.DataFrame | None:
+        """Return a p-value matrix snapshot when available."""
+
+        return export_optional_dataframe(self._p_value_matrix)
+
+    def q_value_matrix_dataframe(self) -> pd.DataFrame | None:
+        """Return a q-value matrix snapshot when available."""
+
+        return export_optional_dataframe(self._q_value_matrix)
+
+    def confidence_interval_low_dataframe(self) -> pd.DataFrame | None:
+        """Return a lower confidence interval matrix snapshot when available."""
+
+        return export_optional_dataframe(self._confidence_interval_low)
+
+    def confidence_interval_high_dataframe(self) -> pd.DataFrame | None:
+        """Return an upper confidence interval matrix snapshot when available."""
+
+        return export_optional_dataframe(self._confidence_interval_high)
+
+    def substrate_count_matrix_dataframe(self) -> pd.DataFrame:
+        """Return a substrate-count matrix snapshot isolated from this result."""
+
+        return export_dataframe(self._substrate_count_matrix)
 
     def thresholded_substrate_mean_activity_dataframe(self) -> pd.DataFrame:
         """Return a thresholded-mean snapshot isolated from this result."""
@@ -461,6 +725,111 @@ class KinaseActivityResult:
         """Return a statistics-table snapshot isolated from this result."""
 
         return export_optional_dataframe(self._statistics_table)
+
+
+def _validate_optional_activity_matrix(
+    matrix: pd.DataFrame | None,
+    *,
+    field_name: str,
+    assume_owned: bool,
+) -> pd.DataFrame | None:
+    if matrix is None:
+        return None
+    return ActivityMatrix(
+        frame=matrix,
+        field_name=field_name,
+        _assume_owned=assume_owned,
+    ).frame
+
+
+def _validate_optional_probability_matrix(
+    matrix: pd.DataFrame | None,
+    *,
+    field_name: str,
+    assume_owned: bool,
+) -> pd.DataFrame | None:
+    matrix = _validate_optional_activity_matrix(
+        matrix,
+        field_name=field_name,
+        assume_owned=assume_owned,
+    )
+    if matrix is None:
+        return None
+    values = matrix.to_numpy(dtype="float64", copy=False)
+    finite_mask = np.isfinite(values)
+    finite_values = values[finite_mask]
+    if ((finite_values < 0.0) | (finite_values > 1.0)).any():
+        raise PhosPyValidationError(
+            f"{field_name} must be between 0.0 and 1.0 when present"
+        )
+    return matrix
+
+
+def _build_activity_method_diagnostics(
+    *,
+    activity_method: ActivityMethodMetadata,
+    method_summary: ActivityMethodSummary | None,
+    threshold_membership_diagnostics: ActivityThresholdMembershipDiagnostics | None,
+    statistics_table: pd.DataFrame | None,
+) -> ActivityMethodDiagnostics:
+    diagnostics_cls: type[ActivityMethodDiagnostics]
+    if activity_method.is_ksea:
+        diagnostics_cls = KseaZScoreActivityDiagnostics
+    elif (
+        activity_method.activity_method_id
+        == SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY_METHOD.activity_method_id
+    ):
+        diagnostics_cls = WeightedSubstrateActivityDiagnostics
+    else:
+        diagnostics_cls = ActivityMethodDiagnostics
+    return diagnostics_cls(
+        method_summary=method_summary,
+        threshold_membership_diagnostics=threshold_membership_diagnostics,
+        statistics_table=statistics_table,
+        _assume_owned=True,
+    )
+
+
+def _coerce_policy_provenance(
+    policy_provenance: tuple[ScientificPolicyRecord, ...]
+    | list[ScientificPolicyRecord]
+    | ScientificPolicyRecord
+    | None,
+) -> tuple[ScientificPolicyRecord, ...]:
+    if policy_provenance is None:
+        return ()
+    if isinstance(policy_provenance, ScientificPolicyRecord):
+        return (policy_provenance,)
+    if not isinstance(policy_provenance, tuple | list):
+        raise WorkflowBoundaryError(
+            "activity_result.policy_provenance must contain ScientificPolicyRecord "
+            "objects"
+        )
+    for record in policy_provenance:
+        if not isinstance(record, ScientificPolicyRecord):
+            raise WorkflowBoundaryError(
+                "activity_result.policy_provenance must contain "
+                "ScientificPolicyRecord objects"
+            )
+    return tuple(policy_provenance)
+
+
+def _empty_activity_matrix() -> pd.DataFrame:
+    return pd.DataFrame(dtype=float)
+
+
+def _empty_count_matrix() -> pd.DataFrame:
+    return pd.DataFrame(dtype="int64")
+
+
+def _empty_count_series(name: str) -> pd.Series:
+    series = pd.Series(dtype="int64", name=name)
+    series.index.name = "kinase"
+    return series
+
+
+def _empty_target_table() -> pd.DataFrame:
+    return pd.DataFrame(columns=["site_id", "kinase", "score"])
 
 
 def _export_public_target_table(table: pd.DataFrame) -> pd.DataFrame:

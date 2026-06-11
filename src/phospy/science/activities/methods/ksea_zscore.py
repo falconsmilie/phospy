@@ -12,6 +12,10 @@ from phospy.science.activities.models import (
     ActivityMethodSummary,
     KinaseActivityInputs,
     KinaseActivityResult,
+    KseaZScoreActivityDiagnostics,
+)
+from phospy.science.activities.scientific_policies import (
+    build_ksea_zscore_activity_policy,
 )
 from phospy.science.activities.statistics import (
     benjamini_hochberg_q_values,
@@ -70,6 +74,18 @@ class KseaZScoreActivityMethod:
         finite_phospho_mask = np.isfinite(phospho_values)
 
         z_scores = pd.DataFrame(
+            np.nan,
+            index=kinase_index,
+            columns=condition_index,
+            dtype=float,
+        )
+        p_value_matrix = pd.DataFrame(
+            np.nan,
+            index=kinase_index,
+            columns=condition_index,
+            dtype=float,
+        )
+        q_value_matrix = pd.DataFrame(
             np.nan,
             index=kinase_index,
             columns=condition_index,
@@ -157,6 +173,9 @@ class KseaZScoreActivityMethod:
                         )
                         p_value = two_sided_normal_p_value(float(z_score))
                         z_scores.iat[kinase_position, condition_position] = z_score
+                        p_value_matrix.iat[kinase_position, condition_position] = (
+                            p_value
+                        )
 
                 counts[status] += 1
                 rows.append(
@@ -217,6 +236,15 @@ class KseaZScoreActivityMethod:
                     dtype=float,
                     copy=False,
                 )
+                condition_rows = statistics_table.loc[selected, "kinase"].astype(str)
+                for kinase_name, q_value in zip(
+                    condition_rows.tolist(),
+                    q_values.to_numpy(dtype=float, copy=False).tolist(),
+                    strict=True,
+                ):
+                    q_value_matrix.at[str(kinase_name), str(condition_name)] = float(
+                        q_value
+                    )
 
         target_counts = pd.Series(
             membership_mask.sum(axis=0).astype("int64"),
@@ -249,17 +277,34 @@ class KseaZScoreActivityMethod:
                 KSEA_STATUS_NO_FINITE_SUBSTRATE_VALUES
             ],
         )
+        diagnostics = KseaZScoreActivityDiagnostics(
+            method_summary=summary,
+            threshold_membership_diagnostics=threshold_diagnostics,
+            statistics_table=statistics_table,
+        )
+        policy = build_ksea_zscore_activity_policy(
+            evidence_threshold=float(self.evidence_threshold),
+            min_substrates=int(self.min_substrates),
+            p_value_method=str(self.p_value_method),
+            adjust_p_values=bool(self.adjust_p_values),
+            q_value_method=(str(self.q_value_method) if self.adjust_p_values else None),
+        )
 
         return KinaseActivityResult._from_owned(
             weighted_activity=z_scores,
+            p_value_matrix=p_value_matrix,
+            q_value_matrix=q_value_matrix if self.adjust_p_values else None,
             thresholded_substrate_mean_activity=substrate_means,
             thresholded_substrate_counts=thresholded_substrate_counts,
             activity_substrate_counts=substrate_count_table,
+            substrate_count_matrix=substrate_count_table,
             target_counts=target_counts,
             target_table=target_table,
             threshold_membership_diagnostics=threshold_diagnostics,
             statistics_table=statistics_table,
             method_summary=summary,
+            method_diagnostics=diagnostics,
+            policy_provenance=(policy,),
             activity_method=KSEA_ZSCORE_ACTIVITY_METHOD,
         )
 

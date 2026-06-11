@@ -11,7 +11,12 @@ import pandas as pd
 from phospy.errors.validation import WorkflowValidationError
 from phospy.frames.ownership import export_optional_dataframe, own_optional_dataframe
 from phospy.provenance.models import RunProvenance
-from phospy.science.activities.models import KinaseActivityResult
+from phospy.science.activities.models import (
+    ActivityMethodDiagnostics,
+    KinaseActivityResult,
+    KseaZScoreActivityDiagnostics,
+    WeightedSubstrateActivityDiagnostics,
+)
 from phospy.science.datasets.models import (
     AnalysisReadyPhosphoDataset,
     DatasetPreprocessingReport,
@@ -524,10 +529,13 @@ def _signalome_dataset_identity_lookup(
 
 
 __all__ = [
+    "ActivityMethodDiagnostics",
     "DifferentialAnalysisResult",
     "KinaseActivityResult",
     "KinasePredictionResult",
     "KinaseScoringResult",
     "KinaseWorkflowResult",
+    "KseaZScoreActivityDiagnostics",
     "SignalomeWorkflowResult",
+    "WeightedSubstrateActivityDiagnostics",
 ]

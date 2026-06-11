@@ -13,6 +13,10 @@ from phospy.science.activities.models import (
     ActivityMethodSummary,
     KinaseActivityInputs,
     KinaseActivityResult,
+    WeightedSubstrateActivityDiagnostics,
+)
+from phospy.science.activities.scientific_policies import (
+    build_simplified_weighted_substrate_activity_policy,
 )
 from phospy.science.activities.threshold_membership import (
     build_activity_threshold_membership_diagnostics,
@@ -33,7 +37,7 @@ class SimplifiedWeightedSubstrateActivityMethod:
     top_n_substrates: int
 
     def run(self, inputs: KinaseActivityInputs) -> KinaseActivityResult:
-        weighted_activity = _compute_weighted_kinase_activity(
+        weighted_activity, substrate_count_matrix = _compute_weighted_kinase_activity(
             pred_mat=inputs.pred_mat,
             phospho_matrix=inputs.phospho_matrix,
             top_n_substrates=self.top_n_substrates,
@@ -90,8 +94,18 @@ class SimplifiedWeightedSubstrateActivityMethod:
             kinase_condition_pairs_no_finite_background_values=0,
             kinase_condition_pairs_no_finite_substrate_values=0,
         )
+        diagnostics = WeightedSubstrateActivityDiagnostics(
+            method_summary=summary,
+            threshold_membership_diagnostics=threshold_diagnostics,
+        )
+        policy = build_simplified_weighted_substrate_activity_policy(
+            threshold=float(self.threshold),
+            min_substrates=int(self.min_substrates),
+            top_n_substrates=int(self.top_n_substrates),
+        )
         return KinaseActivityResult._from_owned(
             weighted_activity=weighted_activity,
+            substrate_count_matrix=substrate_count_matrix,
             thresholded_substrate_mean_activity=thresholded_substrate_mean_activity,
             thresholded_substrate_counts=thresholded_substrate_counts,
             target_counts=target_counts,
@@ -99,6 +113,8 @@ class SimplifiedWeightedSubstrateActivityMethod:
             threshold_membership_diagnostics=threshold_diagnostics,
             statistics_table=None,
             method_summary=summary,
+            method_diagnostics=diagnostics,
+            policy_provenance=(policy,),
             activity_method=SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY_METHOD,
         )
 
@@ -109,10 +125,11 @@ def _compute_weighted_kinase_activity(
     phospho_matrix: pd.DataFrame,
     top_n_substrates: int,
     min_substrates: int,
-) -> pd.DataFrame:
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     kinases = pred_mat.columns.tolist()
     samples = phospho_matrix.columns.tolist()
     kinase_rows: list[np.ndarray] = []
+    count_rows: list[np.ndarray] = []
     kinase_names: list[str] = []
 
     phospho_values = phospho_matrix.to_numpy(dtype=float, copy=False)
@@ -145,19 +162,34 @@ def _compute_weighted_kinase_activity(
             continue
 
         substrate_values = phospho_values[substrate_positions, :]
-        weighted_values = _nan_aware_weighted_average(substrate_values, weights_array)
+        weighted_values, finite_counts = _nan_aware_weighted_average_with_counts(
+            substrate_values,
+            weights_array,
+        )
         if np.isnan(weighted_values).all():
             continue
 
         kinase_names.append(str(kinase_name))
         kinase_rows.append(weighted_values)
+        count_rows.append(finite_counts)
 
     if not kinase_rows:
-        return pd.DataFrame(columns=samples, dtype=float)
+        empty_scores = pd.DataFrame(columns=samples, dtype=float)
+        empty_counts = pd.DataFrame(columns=samples, dtype="int64")
+        empty_scores.index.name = "kinase"
+        empty_counts.index.name = "kinase"
+        return empty_scores, empty_counts
 
     result = pd.DataFrame(kinase_rows, index=kinase_names, columns=samples, dtype=float)
     result.index.name = "kinase"
-    return result
+    count_result = pd.DataFrame(
+        count_rows,
+        index=kinase_names,
+        columns=samples,
+        dtype="int64",
+    )
+    count_result.index.name = "kinase"
+    return result, count_result
 
 
 def _compute_thresholded_substrate_mean_activity(
@@ -274,6 +306,13 @@ def _nan_aware_weighted_average(
     values: np.ndarray,
     weights: np.ndarray,
 ) -> np.ndarray:
+    return _nan_aware_weighted_average_with_counts(values, weights)[0]
+
+
+def _nan_aware_weighted_average_with_counts(
+    values: np.ndarray,
+    weights: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
     if values.ndim != 2:
         raise ValueError("values must be a two-dimensional array")
     if weights.ndim != 1:
@@ -282,6 +321,7 @@ def _nan_aware_weighted_average(
         raise ValueError("values and weights must align by substrate")
 
     valid_mask = ~np.isnan(values)
+    valid_counts = valid_mask.sum(axis=0).astype("int64")
     broadcast_weights = weights[:, np.newaxis]
     weighted_values = np.where(valid_mask, values * broadcast_weights, 0.0)
     weight_totals = np.where(valid_mask, broadcast_weights, 0.0).sum(axis=0)
@@ -292,7 +332,7 @@ def _nan_aware_weighted_average(
         out=result,
         where=weight_totals > 0.0,
     )
-    return result
+    return result, valid_counts
 
 
 def _nan_aware_mean_array(values: np.ndarray) -> np.ndarray:

@@ -118,6 +118,11 @@ class KinaseActivityRunner:
             target_table.loc[:, "site_id"] = display_ids
         return KinaseActivityResult(
             weighted_activity=activity_result.weighted_activity,
+            p_value_matrix=activity_result.p_value_matrix,
+            q_value_matrix=activity_result.q_value_matrix,
+            confidence_interval_low=activity_result.confidence_interval_low,
+            confidence_interval_high=activity_result.confidence_interval_high,
+            substrate_count_matrix=activity_result.substrate_count_matrix,
             thresholded_substrate_mean_activity=(
                 activity_result.thresholded_substrate_mean_activity
             ),
@@ -130,6 +135,8 @@ class KinaseActivityRunner:
             activity_substrate_counts=activity_result.activity_substrate_counts,
             statistics_table=activity_result.statistics_table,
             method_summary=activity_result.method_summary,
+            method_diagnostics=activity_result.method_diagnostics,
+            policy_provenance=activity_result.policy_provenance,
             activity_method=activity_result.activity_method,
         )
 

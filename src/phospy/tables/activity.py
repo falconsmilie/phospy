@@ -148,7 +148,7 @@ class ActivityCountMatrix(TableSchema):
             error_type=self._error_type,
         )
         if frame.empty:
-            return frame.astype("int64", copy=False)
+            return frame.astype("int64")
 
         values = frame.to_numpy(dtype="float64", copy=False)
         if not np.isfinite(values).all():

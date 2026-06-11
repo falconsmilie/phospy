@@ -93,6 +93,8 @@ def test_weighted_activity_matches_rewrite_reference_fixture(
     result, _ = _activity_result()
     expected = load_activity_reference_weighted_activity()
     pdt.assert_frame_equal(result.weighted_activity.sort_index(), expected.sort_index())
+    pdt.assert_frame_equal(result.activity_matrix.sort_index(), expected.sort_index())
+    pdt.assert_frame_equal(result.to_dataframe().sort_index(), expected.sort_index())
     aligned = result.weighted_activity.sort_index() - expected.sort_index()
     absolute_delta = aligned.abs()
     record_parity_metrics(
