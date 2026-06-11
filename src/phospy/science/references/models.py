@@ -69,11 +69,11 @@ class ReferenceManifest:
     organism_common_name: str | None
     identifier_namespace: str
     source_name: str
-    source_version: str | None
-    retrieved_at: date | None
-    license: str | None
-    redistribution_status: str | None
-    sequence_window: SequenceWindowDefinition | None
+    source_version: str
+    retrieved_at: date
+    license: str
+    redistribution_status: str
+    sequence_window: SequenceWindowDefinition
     supports: tuple[str, ...]
     limitations: tuple[str, ...]
 
@@ -85,16 +85,36 @@ class ReferenceManifest:
             "identifier_namespace": self.identifier_namespace,
             "source_name": self.source_name,
             "source_version": self.source_version,
-            "retrieved_at": (
-                None if self.retrieved_at is None else self.retrieved_at.isoformat()
-            ),
+            "retrieved_at": self.retrieved_at.isoformat(),
             "license": self.license,
             "redistribution_status": self.redistribution_status,
-            "sequence_window": (
-                None
-                if self.sequence_window is None
-                else self.sequence_window.to_payload()
-            ),
+            "sequence_window": self.sequence_window.to_payload(),
+            "supports": self.supports,
+            "limitations": self.limitations,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class BundledReferenceLane:
+    """Inventory metadata for one packaged bundled reference lane."""
+
+    organism: Organism
+    bundle_id: str
+    source_name: str
+    source_version: str
+    retrieved_at: date
+    redistribution_status: str
+    supports: tuple[str, ...]
+    limitations: tuple[str, ...]
+
+    def to_payload(self) -> dict[str, JsonValue]:
+        return {
+            "organism": self.organism.value,
+            "bundle_id": self.bundle_id,
+            "source_name": self.source_name,
+            "source_version": self.source_version,
+            "retrieved_at": self.retrieved_at.isoformat(),
+            "redistribution_status": self.redistribution_status,
             "supports": self.supports,
             "limitations": self.limitations,
         }

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 __all__ = [
+    "BundledReferenceLane",
     "Organism",
     "ReferenceBundle",
     "ReferenceManifest",
@@ -14,6 +15,7 @@ __all__ = [
 
 if TYPE_CHECKING:
     from phospy.science.references.models import (
+        BundledReferenceLane,
         Organism,
         ReferenceBundle,
         ReferenceManifest,

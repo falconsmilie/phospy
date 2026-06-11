@@ -4,7 +4,7 @@
   "organism_common_name": "rat",
   "identifier_namespace": "site_id (GENE_SYMBOL;RESIDUE;)",
   "source_name": "PhosR bundled reference resources (PhosphoSite.mouse, motif.mouse.list, phospho.L6.ratio.pe-derived lane)",
-  "source_version": null,
+  "source_version": "bundled-snapshot-2026-04-16",
   "retrieved_at": "2026-04-16",
   "license": "Derived from PhosR resources; refer to upstream licenses and terms.",
   "redistribution_status": "Bundled in PhosPy for runtime reference resolution under upstream attribution and redistribution terms.",

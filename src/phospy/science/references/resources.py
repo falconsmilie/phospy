@@ -11,6 +11,7 @@ import pandas as pd
 
 from phospy.errors.references import ReferenceResolutionError, UnsupportedOrganismError
 from phospy.science.references.models import (
+    BundledReferenceLane,
     Organism,
     ReferenceManifest,
     SequenceWindowDefinition,
@@ -24,8 +25,26 @@ _BUNDLED_DEFAULTS: dict[Organism, str] = {
     Organism.RAT: "l6_native",
 }
 _MANIFEST_FILENAME = "manifest.json"
-_NON_BUNDLED_GUIDANCE = (
-    "non-bundled organism lanes require a caller-supplied ReferenceBundle"
+_REFERENCE_BUNDLE_DOCS_URL = "https://phospy.com/docs/api/guide/#references"
+_EXPLICIT_REFERENCE_BUNDLE_GUIDANCE = (
+    "provide an explicit ReferenceBundle by passing "
+    "ReferenceBundle(organism=..., kinase_substrate_map=..., site_sequences=...) "
+    "as the references input"
+)
+_REQUIRED_MANIFEST_FIELDS = frozenset(
+    {
+        "organism",
+        "bundle_id",
+        "identifier_namespace",
+        "source_name",
+        "source_version",
+        "retrieved_at",
+        "license",
+        "redistribution_status",
+        "sequence_window",
+        "supports",
+        "limitations",
+    }
 )
 
 
@@ -35,17 +54,39 @@ def supported_bundled_organisms() -> tuple[Organism, ...]:
     return tuple(sorted(_BUNDLED_DEFAULTS, key=lambda organism: organism.value))
 
 
+def available_bundled_reference_lanes() -> tuple[BundledReferenceLane, ...]:
+    """Return inventory metadata for packaged bundled reference lanes."""
+
+    lanes: list[BundledReferenceLane] = []
+    for organism in supported_bundled_organisms():
+        manifest = load_bundled_reference_manifest(organism)
+        lanes.append(
+            BundledReferenceLane(
+                organism=organism,
+                bundle_id=manifest.bundle_id,
+                source_name=manifest.source_name,
+                source_version=manifest.source_version,
+                retrieved_at=manifest.retrieved_at,
+                redistribution_status=manifest.redistribution_status,
+                supports=manifest.supports,
+                limitations=manifest.limitations,
+            )
+        )
+    return tuple(lanes)
+
+
 def bundled_reference_name_for_organism(organism: Organism) -> str:
     """Resolve one organism to its packaged bundled reference lane."""
 
     reference_name = _BUNDLED_DEFAULTS.get(organism)
     if reference_name is not None:
         return reference_name
-    supported = ", ".join(item.value for item in supported_bundled_organisms())
+    supported = _format_supported_bundled_organisms()
     raise UnsupportedOrganismError(
         f"no bundled references are available for organism '{organism.value}' in the "
         f"current release; supported bundled organisms: {supported}; "
-        f"{_NON_BUNDLED_GUIDANCE}"
+        f"{_EXPLICIT_REFERENCE_BUNDLE_GUIDANCE}; "
+        f"reference-bundle docs: {_REFERENCE_BUNDLE_DOCS_URL}"
     )
 
 
@@ -248,6 +289,7 @@ def _parse_reference_manifest_payload(
     reference_name: str,
 ) -> ReferenceManifest:
     context = f"{organism.value}/{reference_name}/{_MANIFEST_FILENAME}"
+    _require_manifest_fields(payload, context=context)
     bundle_id = _require_manifest_string(payload, key="bundle_id", context=context)
     manifest_organism = _require_manifest_string(
         payload,
@@ -269,23 +311,22 @@ def _parse_reference_manifest_payload(
         key="source_name",
         context=context,
     )
-    source_version = _optional_manifest_string(
+    source_version = _require_manifest_string(
         payload,
         key="source_version",
         context=context,
     )
-    retrieved_at_raw = payload.get("retrieved_at")
-    retrieved_at = _parse_manifest_date(
-        value=retrieved_at_raw,
+    retrieved_at = _require_manifest_date(
+        payload,
         key="retrieved_at",
         context=context,
     )
-    license_name = _optional_manifest_string(
+    license_name = _require_manifest_string(
         payload,
         key="license",
         context=context,
     )
-    redistribution_status = _optional_manifest_string(
+    redistribution_status = _require_manifest_string(
         payload,
         key="redistribution_status",
         context=context,
@@ -331,6 +372,13 @@ def _parse_reference_manifest_payload(
     )
 
 
+def _format_supported_bundled_organisms() -> str:
+    supported = tuple(item.value for item in supported_bundled_organisms())
+    if not supported:
+        return "(none)"
+    return ", ".join(supported)
+
+
 def _parse_sequence_window(
     *,
     value: object,
@@ -369,22 +417,34 @@ def _parse_sequence_window(
     )
 
 
-def _parse_manifest_date(*, value: object, key: str, context: str) -> date | None:
-    if value is None:
-        return None
-    if not isinstance(value, str):
+def _require_manifest_date(
+    payload: dict[str, object],
+    *,
+    key: str,
+    context: str,
+) -> date:
+    value = payload.get(key)
+    if not isinstance(value, str) or not value.strip():
         raise ReferenceResolutionError(
-            f"bundled reference manifest {key} must be YYYY-MM-DD or null for {context}"
+            f"bundled reference manifest {key} must be YYYY-MM-DD for {context}"
         )
     normalized = value.strip()
-    if not normalized:
-        return None
     try:
         return date.fromisoformat(normalized)
     except ValueError as exc:
         raise ReferenceResolutionError(
             f"bundled reference manifest {key} must be YYYY-MM-DD for {context}"
         ) from exc
+
+
+def _require_manifest_fields(payload: dict[str, object], *, context: str) -> None:
+    missing = sorted(key for key in _REQUIRED_MANIFEST_FIELDS if key not in payload)
+    if missing:
+        missing_text = ", ".join(missing)
+        raise ReferenceResolutionError(
+            "bundled reference manifest is missing required field(s) for "
+            f"{context}: {missing_text}"
+        )
 
 
 def _require_manifest_string(

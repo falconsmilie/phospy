@@ -61,17 +61,9 @@ class BundledReferenceProvider:
             bundle_id=bundle_id,
             source_name=manifest.source_name,
             source_version=manifest.source_version,
-            retrieved_at=(
-                None
-                if manifest.retrieved_at is None
-                else manifest.retrieved_at.isoformat()
-            ),
+            retrieved_at=manifest.retrieved_at.isoformat(),
             identifier_namespace=manifest.identifier_namespace,
-            sequence_window=(
-                None
-                if manifest.sequence_window is None
-                else manifest.sequence_window.to_payload()
-            ),
+            sequence_window=manifest.sequence_window.to_payload(),
             manifest=manifest.to_payload(),
             table_fingerprints=(
                 fingerprint_table(
