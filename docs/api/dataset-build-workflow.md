@@ -164,6 +164,61 @@ assert {"organism", "protein_namespace", "protein_identifier"}.issubset(
 )
 ```
 
+### Duplicate Display Labels
+
+`display_id` is not a row key. It is display metadata. Two rows can have the
+same human-readable label when protein-scoped identity differs:
+
+```python
+phospho = pd.DataFrame(
+    {
+        "sample_a": [1.0, 2.0],
+        "sample_b": [1.1, 2.1],
+    },
+    index=["MAPK14;Y182;", "MAPK14;Y182;"],
+)
+site_metadata = pd.DataFrame(
+    {
+        "gene_symbol": ["MAPK14", "MAPK14"],
+        "site": ["Y182", "Y182"],
+        "site_sequence": [
+            "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
+            "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
+        ],
+        "display_id": ["MAPK14;Y182;", "MAPK14;Y182;"],
+        "organism": ["rat", "rat"],
+        "protein_namespace": ["protein_id", "protein_id"],
+        "protein_identifier": ["MAPK14_A", "MAPK14_B"],
+        "protein_id": ["MAPK14_A", "MAPK14_B"],
+        "localisation_confidence": [0.95, 0.95],
+    },
+    index=phospho.index.copy(),
+)
+
+dataset = AnalysisReadyDatasetBuilder().run(
+    DatasetBuildRequest(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        organism=Organism.RAT,
+        input_intensity_scale=IntensityScaleKind.LINEAR,
+    )
+)
+
+identity = dataset.site_metadata.loc[
+    :,
+    ["site_key", "display_id", "protein_identifier"],
+]
+assert identity["display_id"].tolist() == ["MAPK14;Y182;", "MAPK14;Y182;"]
+assert identity["site_key"].is_unique
+assert identity["protein_identifier"].tolist() == ["MAPK14_A", "MAPK14_B"]
+assert dataset.phospho.shape[0] == 2
+```
+
+Rows are preserved because their `site_key` values differ. They are not
+collapsed, overwritten, aggregated, or deduplicated merely because
+`display_id` repeats. A `GENE;SITE;` display label is therefore not sufficient
+biological row identity for site-level analysis.
+
 Supported site-metadata aliases are deliberately narrow:
 
 - `gene_name` may stand in for `gene_symbol`.

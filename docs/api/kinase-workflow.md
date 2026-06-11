@@ -70,6 +70,43 @@ projected to every matching `site_key` row. Opt-in diagnostics include:
 - matched row count
 - affected reference row position/index, kinase, and substrate entry
 
+Example ambiguity:
+
+```python
+import pandas as pd
+
+from phospy.api import ReferenceBundle
+
+dataset.site_metadata.loc[
+    :,
+    ["site_key", "display_id", "protein_identifier"],
+]
+# site_key for MAPK14_A, display_id MAPK14;Y182;
+# site_key for MAPK14_B, display_id MAPK14;Y182;
+
+references = ReferenceBundle(
+    organism=dataset.organism,
+    kinase_substrate_map=pd.DataFrame(
+        {
+            "kinase": ["MAP2K6"],
+            "substrate_site": ["MAPK14;Y182;"],
+        }
+    ),
+    site_sequences=pd.DataFrame(
+        {"site_sequence": ["AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA"]},
+        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+    ),
+)
+```
+
+The reference row says only `MAPK14;Y182;`; it does not say whether the evidence
+belongs to the `MAPK14_A` or `MAPK14_B` `site_key`. With the default
+`reference_display_ambiguity_policy="error"`, `KinaseWorkflow.run(...)` fails
+before scoring. With `"allow_with_diagnostics"`, the workflow projects that one
+display-level reference row to both matching `site_key` rows and records the
+one-display-to-many-site diagnostic. In both modes, prediction and scoring
+outputs remain indexed by `site_key`.
+
 ## Imports
 
 ```python
@@ -163,6 +200,20 @@ request = KinaseWorkflowRequest(
 This policy is kinase-reference projection specific. It does not make
 `display_id` unique and does not change dataset identity validation. This policy
 does not collapse duplicate display labels.
+
+After opt-in projection, audit the ambiguity diagnostics before interpreting
+the result:
+
+```python
+assert kinase_result.provenance is not None
+scoring_diagnostics = kinase_result.provenance.workflow_parameters[
+    "scoring_diagnostics"
+]
+diagnostics = scoring_diagnostics["site_sequence_merge"][
+    "display_reference_matching"
+]
+print(diagnostics["one_to_many_display_reference_matches"])
+```
 
 ## Scoring Configuration
 

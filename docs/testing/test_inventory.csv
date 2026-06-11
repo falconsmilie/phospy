@@ -44,7 +44,7 @@ tests/unit/test_builder_and_kinase_orchestration.py,unit,595,8,false,false,inter
 tests/unit/test_config_validation_primitives.py,unit,144,7,true,true,duplicate validation matrix,consolidate,Loss of this file would reduce repeated primitive validation coverage for config validation primitives; protections must remain through a consolidated matrix before removal.,codex-audit,TST-FOLLOWUP-VAL-PRIMITIVE-INT,Validator pattern report maps this file to primitive int/range/enum families; track consolidation from optional-int matrix first.
 tests/unit/test_dataframe_validation_primitives.py,unit,306,10,true,true,duplicate validation matrix,consolidate,Loss of this file would reduce repeated primitive validation coverage for dataframe validation primitives; protections must remain through a consolidated matrix before removal.,codex-audit,TST-FOLLOWUP-VAL-PRIMITIVE-DATAFRAME,
 tests/unit/test_dataset_builder_internal_collaborators.py,unit,562,19,true,true,,,,,,
-tests/unit/test_dataset_builders_site_key_indexing.py,unit,400,12,true,true,,,,,,
+tests/unit/test_dataset_builders_site_key_indexing.py,unit,464,13,true,true,,,,,,
 tests/unit/test_dataset_normalizer_collaborators.py,unit,161,9,false,false,,,,,,
 tests/unit/test_dataset_normalizer_identity.py,unit,369,15,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for dataset normalizer identity, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_dataset_peptide_evidence_resolution.py,unit,433,13,false,false,,,,,,
@@ -164,4 +164,4 @@ tests/unit/test_workflow_identity_contracts.py,unit,533,14,true,true,,,,,,[auto-
 tests/unit/test_workflow_public_import_contract.py,unit,77,6,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for workflow public import contract and increase risk of boundary regressions.,codex-audit,,
 tests/validation/test_shared_identity_contracts.py,validation,212,5,false,false,,,,,,
 tests/validation/test_workflow_identity_validator_contracts.py,validation,126,3,true,true,,,,,,
-tests/workflows/test_identity_coherence.py,workflows,132,4,false,false,,,,,,
+tests/workflows/test_identity_coherence.py,workflows,144,4,false,false,,,,,,

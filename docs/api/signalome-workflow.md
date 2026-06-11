@@ -53,6 +53,30 @@ may repeat when `site_key` values differ. The upstream kinase result must
 already carry a valid `site_key`-indexed `AnalysisReadyPhosphoDataset`;
 signalome does not reinterpret display IDs as row identity.
 
+Signalome intersections are computed on `site_key`, not `display_id`:
+
+```python
+dataset_sites = kinase_result.dataset.phospho.index
+score_sites = kinase_result.scoring_result.profile_scores.index
+prediction_sites = kinase_result.prediction_result.pred_mat.index
+
+interpreted_sites = dataset_sites.intersection(score_sites).intersection(
+    prediction_sites
+)
+display_ids = kinase_result.dataset.site_metadata.loc[
+    interpreted_sites,
+    "display_id",
+]
+
+assert interpreted_sites.is_unique
+assert display_ids.tolist() == ["MAPK14;Y182;", "MAPK14;Y182;"]
+```
+
+Those two rows have the same display label but remain two interpreted sites
+because their `site_key` values differ. Signalome result assembly propagates
+`site_key` identity into site-level outputs instead of collapsing by
+`display_id`.
+
 ## Imports
 
 ```python
@@ -344,6 +368,23 @@ network_nodes = signalome_result.kinase_network.nodes
 Site-level signalome outputs that materialize row identity include `site_key`
 and `display_id` where applicable, while internal alignment remains keyed by
 `site_key`.
+
+For duplicate display labels, audit the public site-level outputs the same way:
+
+```python
+module_assignments = signalome_result.module_assignments.table
+site_membership = signalome_result.site_membership_dataframe()
+
+assert module_assignments["site_key"].is_unique
+assert module_assignments["display_id"].duplicated().any()
+assert set(module_assignments["site_key"]) <= set(
+    kinase_result.dataset.phospho.index.astype(str)
+)
+assert site_membership["site_key"].is_unique
+```
+
+The repeated `display_id` is safe for display, but it is not used for
+intersection, propagation, or row identity.
 
 ### Result Construction Contract
 

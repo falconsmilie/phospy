@@ -188,6 +188,27 @@ also preserve optional workflow-relevant protein metadata such as `protein_id`
 when present. `display_id` remains a human-readable label, and repeated
 `display_id` values remain distinct rows when their `site_key` values differ.
 
+For a dataset containing two protein-scoped rows that both display as
+`MAPK14;Y182;`, the differential result remains keyed by the two input
+`site_key` values:
+
+```python
+table = result.table_for("B_vs_A")
+duplicate_rows = table.loc[
+    table["display_id"] == "MAPK14;Y182;",
+    ["site_key", "display_id", "protein_identifier", "logFC", "adj.P.Val"],
+]
+
+assert duplicate_rows.index.name == "site_key"
+assert duplicate_rows["site_key"].tolist() == duplicate_rows.index.tolist()
+assert duplicate_rows["site_key"].is_unique
+assert duplicate_rows["display_id"].tolist() == ["MAPK14;Y182;", "MAPK14;Y182;"]
+```
+
+The duplicated display label is carried for readability, but statistics are
+attached to the analysis-ready `site_key` rows. Differential analysis does not
+merge result rows by `display_id`, `gene_symbol`, or `site`.
+
 Direct public `DifferentialAnalysisResult` construction follows the same
 identity contract. Display-indexed, stat-only, `GENE;SITE;`-keyed, and
 arbitrary non-encoded contrast tables are rejected in public construction.

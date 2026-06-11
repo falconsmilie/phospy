@@ -283,6 +283,7 @@ def test_builder_accepts_duplicate_explicit_display_id_with_distinct_site_key() 
     phospho, site_metadata = _explicit_identity_frames(
         protein_accessions=("P28482", "Q5S007"),
     )
+    expected_site_keys = site_metadata.loc[:, "site_key"].astype(str).tolist()
 
     dataset = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
@@ -294,11 +295,74 @@ def test_builder_accepts_duplicate_explicit_display_id_with_distinct_site_key() 
     )
 
     built_site_metadata = dataset.site_metadata
+    assert dataset.phospho.shape[0] == 2
+    assert dataset.phospho.index.astype(str).tolist() == expected_site_keys
     assert built_site_metadata.loc[:, "display_id"].tolist() == [
         "MAPK14;Y182;",
         "MAPK14;Y182;",
     ]
+    assert built_site_metadata.loc[:, "site_key"].astype(str).tolist() == (
+        expected_site_keys
+    )
     assert built_site_metadata.loc[:, "site_key"].nunique() == 2
+    assert int(built_site_metadata.loc[:, "display_id"].nunique()) == 1
+    assert dataset.phospho.loc[expected_site_keys, "sample_a"].tolist() == [1.0, 2.0]
+
+
+def test_builder_derives_distinct_site_keys_for_duplicate_display_ids() -> None:
+    duplicate_display_id = "MAPK14;Y182;"
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0],
+            "sample_b": [1.1, 2.1],
+        },
+        index=pd.Index([duplicate_display_id, duplicate_display_id], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "MAPK14"],
+            "site": ["Y182", "Y182"],
+            "organism": ["rat", "rat"],
+            "protein_namespace": ["protein_id", "protein_id"],
+            "protein_identifier": ["MAPK14_A", "MAPK14_B"],
+            "display_id": [duplicate_display_id, duplicate_display_id],
+            "site_sequence": [
+                "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
+                "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
+            ],
+            "protein_id": ["MAPK14_A", "MAPK14_B"],
+            "localisation_confidence": [0.95, 0.95],
+        },
+        index=phospho.index.copy(),
+    )
+
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            input_intensity_scale="linear",
+        )
+    )
+
+    built_site_metadata = dataset.site_metadata
+    assert dataset.phospho.shape[0] == 2
+    assert dataset.phospho.index.name == "site_key"
+    assert dataset.phospho.index.is_unique
+    assert built_site_metadata.index.equals(dataset.phospho.index)
+    assert built_site_metadata.loc[:, "site_key"].astype(str).tolist() == (
+        dataset.phospho.index.astype(str).tolist()
+    )
+    assert built_site_metadata.loc[:, "display_id"].tolist() == [
+        duplicate_display_id,
+        duplicate_display_id,
+    ]
+    assert int(built_site_metadata.loc[:, "display_id"].nunique()) == 1
+    assert built_site_metadata.loc[:, "protein_identifier"].tolist() == [
+        "MAPK14_A",
+        "MAPK14_B",
+    ]
+    assert dataset.phospho.loc[:, "sample_a"].tolist() == [1.0, 2.0]
 
 
 def test_builder_rejects_duplicate_explicit_site_key_values() -> None:

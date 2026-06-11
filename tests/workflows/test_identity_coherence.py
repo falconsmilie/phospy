@@ -46,6 +46,7 @@ def test_differential_workflow_preserves_duplicate_display_ids_by_site_key() -> 
     table = result.table_for("B_vs_A")
 
     _assert_duplicate_display_rows(table, expected_site_keys=expected_site_keys)
+    assert table.shape[0] == 2
     for column_name in ("organism", "protein_namespace", "protein_identifier"):
         assert column_name in table.columns
         assert (
@@ -53,6 +54,11 @@ def test_differential_workflow_preserves_duplicate_display_ids_by_site_key() -> 
             == (expected_context[column_name])
         )
     assert set(("logFC", "t", "P.Value", "adj.P.Val")).issubset(table.columns)
+    observed_logfc = table.loc[expected_site_keys, "logFC"].astype(float).to_dict()
+    assert observed_logfc == {
+        expected_site_keys[0]: pytest.approx(1.0),
+        expected_site_keys[1]: pytest.approx(0.05),
+    }
 
 
 def test_kinase_workflow_preserves_duplicate_display_ids_by_site_key() -> None:
@@ -67,9 +73,13 @@ def test_kinase_workflow_preserves_duplicate_display_ids_by_site_key() -> None:
     substrate_list = result.prediction_result.substrate_list
 
     assert profile_scores.index.astype(str).tolist() == expected_site_keys
+    assert profile_scores.index.is_unique
     assert fusion_scores is not None
     assert fusion_scores.index.astype(str).tolist() == expected_site_keys
+    assert fusion_scores.index.is_unique
     assert prediction_matrix.index.astype(str).tolist() == expected_site_keys
+    assert prediction_matrix.index.is_unique
+    assert prediction_matrix.shape[0] == 2
     assert substrate_list is not None
     assert substrate_list.loc[:, SITE_KEY_COLUMN].astype(str).tolist() == (
         expected_site_keys
@@ -97,6 +107,7 @@ def test_signalome_workflow_preserves_duplicate_display_ids_by_site_key() -> Non
         module_assignments,
         expected_site_keys=expected_site_keys,
     )
+    assert module_assignments.shape[0] == 2
     assert site_membership is not None
     assert site_membership.loc[:, SITE_KEY_COLUMN].astype(str).tolist() == (
         expected_site_keys
@@ -114,6 +125,7 @@ def test_signalome_workflow_preserves_duplicate_display_ids_by_site_key() -> Non
         == EXPANDED_SIGNALOME_ROW_KIND_SITE,
         :,
     ]
+    assert site_rows.loc[:, SITE_KEY_COLUMN].nunique() == 2
     assert set(site_rows.loc[:, SITE_KEY_COLUMN].astype(str)) == set(expected_site_keys)
     assert set(site_rows.loc[:, DISPLAY_ID_COLUMN].astype(str)) == {
         DUPLICATE_DISPLAY_ID
