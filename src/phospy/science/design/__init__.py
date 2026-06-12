@@ -9,7 +9,10 @@ from phospy.science.design.models import (
     FIXED_EFFECT_COVARIATE_KIND_BATCH,
     FIXED_EFFECT_COVARIATE_KIND_CATEGORICAL,
     FIXED_EFFECT_COVARIATE_KIND_CONTINUOUS,
+    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+    PAIRED_DESIGN_POLICY_REJECT,
     SUPPORTED_FIXED_EFFECT_COVARIATE_KINDS,
+    SUPPORTED_PAIRED_DESIGN_POLICIES,
     BatchCovariate,
     CategoricalCovariate,
     ContinuousCovariate,
@@ -17,6 +20,7 @@ from phospy.science.design.models import (
     ExperimentalDesign,
     FixedEffectCovariate,
     FixedEffectCovariateKind,
+    PairedDesignPolicy,
     SampleDesignRecord,
 )
 
@@ -34,6 +38,10 @@ __all__ = [
     "FIXED_EFFECT_COVARIATE_KIND_CONTINUOUS",
     "FixedEffectCovariate",
     "FixedEffectCovariateKind",
+    "PAIRED_DESIGN_POLICY_FIXED_BLOCK",
+    "PAIRED_DESIGN_POLICY_REJECT",
+    "PairedDesignPolicy",
     "SUPPORTED_FIXED_EFFECT_COVARIATE_KINDS",
+    "SUPPORTED_PAIRED_DESIGN_POLICIES",
     "SampleDesignRecord",
 ]

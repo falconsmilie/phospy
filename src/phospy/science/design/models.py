@@ -10,6 +10,13 @@ from typing import Literal, cast
 
 from phospy.errors.validation import WorkflowValidationError
 
+PairedDesignPolicy = Literal["reject", "fixed_block"]
+PAIRED_DESIGN_POLICY_REJECT: PairedDesignPolicy = "reject"
+PAIRED_DESIGN_POLICY_FIXED_BLOCK: PairedDesignPolicy = "fixed_block"
+SUPPORTED_PAIRED_DESIGN_POLICIES: tuple[PairedDesignPolicy, ...] = (
+    PAIRED_DESIGN_POLICY_REJECT,
+    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+)
 FIXED_EFFECT_COVARIATE_KIND_CATEGORICAL = "categorical"
 FIXED_EFFECT_COVARIATE_KIND_CONTINUOUS = "continuous"
 FIXED_EFFECT_COVARIATE_KIND_BATCH = "batch"
@@ -479,6 +486,10 @@ __all__ = [
     "FixedEffectCovariate",
     "FixedEffectCovariateKind",
     "ExperimentalDesign",
+    "PAIRED_DESIGN_POLICY_FIXED_BLOCK",
+    "PAIRED_DESIGN_POLICY_REJECT",
+    "PairedDesignPolicy",
     "SUPPORTED_FIXED_EFFECT_COVARIATE_KINDS",
+    "SUPPORTED_PAIRED_DESIGN_POLICIES",
     "SampleDesignRecord",
 ]

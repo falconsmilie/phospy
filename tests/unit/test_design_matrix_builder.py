@@ -7,6 +7,8 @@ import pytest
 
 from phospy.errors import WorkflowValidationError
 from phospy.science.design import (
+    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+    PAIRED_DESIGN_POLICY_REJECT,
     BatchCovariate,
     CategoricalCovariate,
     ContinuousCovariate,
@@ -190,6 +192,240 @@ def test_batch_covariate_creates_stable_columns() -> None:
     pd.testing.assert_frame_equal(result.frame, expected)
     assert dict(result.categorical_levels) == {"batch": ("batch_1", "batch_2")}
     assert dict(result.reference_levels) == {"batch": "batch_1"}
+
+
+def test_fixed_block_two_condition_design_matrix_uses_reference_block() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="pair_1_A", condition="A", block_id="pair_1"),
+            SampleDesignRecord(sample_id="pair_1_B", condition="B", block_id="pair_1"),
+            SampleDesignRecord(sample_id="pair_2_A", condition="A", block_id="pair_2"),
+            SampleDesignRecord(sample_id="pair_2_B", condition="B", block_id="pair_2"),
+        )
+    )
+
+    result = DesignMatrixBuilder().run(
+        design=design,
+        paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+    )
+
+    expected = _expected_frame(
+        {
+            "A": [1.0, 0.0, 1.0, 0.0],
+            "B": [0.0, 1.0, 0.0, 1.0],
+            "block[pair_2]": [0.0, 0.0, 1.0, 1.0],
+        },
+        samples=("pair_1_A", "pair_1_B", "pair_2_A", "pair_2_B"),
+    )
+    pd.testing.assert_frame_equal(result.frame, expected)
+    assert result.frame.shape == (4, 3)
+    assert result.coefficient_labels == ("A", "B", "block[pair_2]")
+    assert result.block_levels == ("pair_1", "pair_2")
+    assert result.block_reference_level == "pair_1"
+    assert dict(result.block_columns) == {"pair_2": "block[pair_2]"}
+    assert result.formula == "~0 + condition + block"
+
+
+def test_fixed_block_design_matrix_supports_multiple_blocks() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="pair_1_A", condition="A", block_id="pair_1"),
+            SampleDesignRecord(sample_id="pair_1_B", condition="B", block_id="pair_1"),
+            SampleDesignRecord(sample_id="pair_2_A", condition="A", block_id="pair_2"),
+            SampleDesignRecord(sample_id="pair_2_B", condition="B", block_id="pair_2"),
+            SampleDesignRecord(sample_id="pair_3_A", condition="A", block_id="pair_3"),
+            SampleDesignRecord(sample_id="pair_3_B", condition="B", block_id="pair_3"),
+        )
+    )
+
+    result = DesignMatrixBuilder().run(
+        design=design,
+        paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+    )
+
+    assert result.frame.shape == (6, 4)
+    assert result.frame.columns.tolist() == [
+        "A",
+        "B",
+        "block[pair_2]",
+        "block[pair_3]",
+    ]
+    assert result.block_levels == ("pair_1", "pair_2", "pair_3")
+    assert result.block_reference_level == "pair_1"
+    assert dict(result.block_columns) == {
+        "pair_2": "block[pair_2]",
+        "pair_3": "block[pair_3]",
+    }
+
+
+def test_fixed_block_column_names_are_deterministic_from_block_levels() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="s_c_A", condition="A", block_id="pair_c"),
+            SampleDesignRecord(sample_id="s_a_A", condition="A", block_id="pair_a"),
+            SampleDesignRecord(sample_id="s_b_B", condition="B", block_id="pair_b"),
+            SampleDesignRecord(sample_id="s_c_B", condition="B", block_id="pair_c"),
+        )
+    )
+
+    result = DesignMatrixBuilder().run(
+        design=design,
+        paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+    )
+
+    assert result.frame.columns.tolist() == [
+        "A",
+        "B",
+        "block[pair_b]",
+        "block[pair_c]",
+    ]
+    assert result.block_levels == ("pair_a", "pair_b", "pair_c")
+    assert result.block_reference_level == "pair_a"
+
+
+def test_fixed_block_design_matrix_preserves_sample_order() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="B_pair_2", condition="B", block_id="pair_2"),
+            SampleDesignRecord(sample_id="A_pair_1", condition="A", block_id="pair_1"),
+            SampleDesignRecord(sample_id="B_pair_1", condition="B", block_id="pair_1"),
+            SampleDesignRecord(sample_id="A_pair_2", condition="A", block_id="pair_2"),
+        )
+    )
+
+    result = DesignMatrixBuilder().run(
+        design=design,
+        paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+    )
+
+    assert result.frame.index.tolist() == [
+        "B_pair_2",
+        "A_pair_1",
+        "B_pair_1",
+        "A_pair_2",
+    ]
+    assert result.sample_labels == (
+        "B_pair_2",
+        "A_pair_1",
+        "B_pair_1",
+        "A_pair_2",
+    )
+    assert result.frame.loc["B_pair_2", "block[pair_2]"] == 1.0
+    assert result.frame.loc["A_pair_1", "block[pair_2]"] == 0.0
+
+
+def test_categorical_covariate_and_fixed_block_columns_are_both_encoded() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                sample_id="pair_1_A",
+                condition="A",
+                block_id="pair_1",
+                covariates={"sex": "F"},
+            ),
+            SampleDesignRecord(
+                sample_id="pair_1_B",
+                condition="B",
+                block_id="pair_1",
+                covariates={"sex": "M"},
+            ),
+            SampleDesignRecord(
+                sample_id="pair_2_A",
+                condition="A",
+                block_id="pair_2",
+                covariates={"sex": "M"},
+            ),
+            SampleDesignRecord(
+                sample_id="pair_2_B",
+                condition="B",
+                block_id="pair_2",
+                covariates={"sex": "F"},
+            ),
+            SampleDesignRecord(
+                sample_id="pair_3_A",
+                condition="A",
+                block_id="pair_3",
+                covariates={"sex": "F"},
+            ),
+            SampleDesignRecord(
+                sample_id="pair_3_B",
+                condition="B",
+                block_id="pair_3",
+                covariates={"sex": "M"},
+            ),
+        ),
+        fixed_effects=(CategoricalCovariate("sex"),),
+    )
+
+    result = DesignMatrixBuilder().run(
+        design=design,
+        paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+    )
+
+    expected = _expected_frame(
+        {
+            "A": [1.0, 0.0, 1.0, 0.0, 1.0, 0.0],
+            "B": [0.0, 1.0, 0.0, 1.0, 0.0, 1.0],
+            "sex[M]": [0.0, 1.0, 1.0, 0.0, 0.0, 1.0],
+            "block[pair_2]": [0.0, 0.0, 1.0, 1.0, 0.0, 0.0],
+            "block[pair_3]": [0.0, 0.0, 0.0, 0.0, 1.0, 1.0],
+        },
+        samples=(
+            "pair_1_A",
+            "pair_1_B",
+            "pair_2_A",
+            "pair_2_B",
+            "pair_3_A",
+            "pair_3_B",
+        ),
+    )
+    pd.testing.assert_frame_equal(result.frame, expected)
+    assert result.encoded_covariates == ("sex",)
+    assert dict(result.covariate_columns) == {"sex": ("sex[M]",)}
+    assert dict(result.block_columns) == {
+        "pair_2": "block[pair_2]",
+        "pair_3": "block[pair_3]",
+    }
+    assert result.formula == "~0 + condition + sex + block"
+
+
+def test_block_values_do_not_construct_matrix_when_policy_is_reject() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="pair_1_A", condition="A", block_id="pair_1"),
+            SampleDesignRecord(sample_id="pair_1_B", condition="B", block_id="pair_1"),
+        )
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="paired_design_policy='reject'",
+    ):
+        DesignMatrixBuilder().run(
+            design=design,
+            paired_design_policy=PAIRED_DESIGN_POLICY_REJECT,
+        )
+
+
+def test_fixed_block_policy_rejects_missing_block_ids_without_dropping_samples() -> (
+    None
+):
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="pair_1_A", condition="A", block_id="pair_1"),
+            SampleDesignRecord(sample_id="pair_1_B", condition="B"),
+            SampleDesignRecord(sample_id="pair_2_A", condition="A", block_id="pair_2"),
+        )
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="fixed_block.*missing block_id.*pair_1_B",
+    ):
+        DesignMatrixBuilder().run(
+            design=design,
+            paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+        )
 
 
 def test_sample_ordering_follows_design_sample_order() -> None:

@@ -15,8 +15,12 @@ from phospy.science.design.models import (
     FIXED_EFFECT_COVARIATE_KIND_BATCH,
     FIXED_EFFECT_COVARIATE_KIND_CATEGORICAL,
     FIXED_EFFECT_COVARIATE_KIND_CONTINUOUS,
+    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+    PAIRED_DESIGN_POLICY_REJECT,
+    SUPPORTED_PAIRED_DESIGN_POLICIES,
     ExperimentalDesign,
     FixedEffectCovariate,
+    PairedDesignPolicy,
     SampleDesignRecord,
 )
 
@@ -36,6 +40,10 @@ def _empty_continuous_column_mapping() -> Mapping[str, str]:
 
 
 def _empty_covariate_column_mapping() -> Mapping[str, tuple[str, ...]]:
+    return MappingProxyType({})
+
+
+def _empty_block_column_mapping() -> Mapping[str, str]:
     return MappingProxyType({})
 
 
@@ -63,6 +71,11 @@ class DesignMatrixBuildResult:
     )
     unused_levels: Mapping[str, tuple[str, ...]] = field(
         default_factory=_empty_level_mapping
+    )
+    block_levels: tuple[str, ...] = ()
+    block_reference_level: str | None = None
+    block_columns: Mapping[str, str] = field(
+        default_factory=_empty_block_column_mapping
     )
 
     def __post_init__(self) -> None:
@@ -121,6 +134,27 @@ class DesignMatrixBuildResult:
                 }
             ),
         )
+        object.__setattr__(
+            self,
+            "block_levels",
+            tuple(str(level) for level in self.block_levels),
+        )
+        if self.block_reference_level is not None:
+            object.__setattr__(
+                self,
+                "block_reference_level",
+                str(self.block_reference_level),
+            )
+        object.__setattr__(
+            self,
+            "block_columns",
+            MappingProxyType(
+                {
+                    str(level): str(column)
+                    for level, column in self.block_columns.items()
+                }
+            ),
+        )
 
 
 class DesignMatrixBuilder:
@@ -132,11 +166,19 @@ class DesignMatrixBuilder:
         design: ExperimentalDesign,
         condition_labels: Sequence[str] | None = None,
         categorical_levels: CategoricalLevelSpec | None = None,
+        paired_design_policy: PairedDesignPolicy = PAIRED_DESIGN_POLICY_REJECT,
     ) -> DesignMatrixBuildResult:
         if not isinstance(cast(object, design), ExperimentalDesign):
             raise WorkflowValidationError(
                 "design matrix builder requires an ExperimentalDesign"
             )
+        resolved_paired_design_policy = _normalise_paired_design_policy(
+            paired_design_policy
+        )
+        _validate_block_policy_inputs(
+            records=design.samples,
+            paired_design_policy=resolved_paired_design_policy,
+        )
 
         resolved_condition_labels = _resolve_condition_labels(
             design=design,
@@ -234,6 +276,22 @@ class DesignMatrixBuilder:
                 + ", ".join(unknown_level_specs)
             )
 
+        block_levels: tuple[str, ...] = ()
+        block_reference_level: str | None = None
+        block_columns: dict[str, str] = {}
+        if resolved_paired_design_policy == PAIRED_DESIGN_POLICY_FIXED_BLOCK:
+            block_values = _collect_block_values(records=records)
+            block_levels = tuple(sorted(set(block_values)))
+            block_reference_level = block_levels[0]
+            for level in block_levels[1:]:
+                column_name = _block_column_name(level)
+                _add_design_column(
+                    data=data,
+                    column_name=column_name,
+                    values=[1.0 if value == level else 0.0 for value in block_values],
+                )
+                block_columns[level] = column_name
+
         frame = pd.DataFrame(
             data,
             index=pd.Index(sample_labels, name="sample"),
@@ -245,27 +303,86 @@ class DesignMatrixBuilder:
             condition_labels=resolved_condition_labels,
             sample_labels=sample_labels,
             coefficient_labels=tuple(data),
-            formula=describe_fixed_effect_design(design),
+            formula=describe_fixed_effect_design(
+                design,
+                paired_design_policy=resolved_paired_design_policy,
+            ),
             encoded_covariates=tuple(encoded_covariates),
             covariate_columns=covariate_columns,
             continuous_columns=continuous_columns,
             categorical_levels=categorical_levels_by_name,
             reference_levels=reference_levels,
             unused_levels=unused_levels,
+            block_levels=block_levels,
+            block_reference_level=block_reference_level,
+            block_columns=block_columns,
         )
 
 
-def describe_fixed_effect_design(design: ExperimentalDesign) -> str:
+def describe_fixed_effect_design(
+    design: ExperimentalDesign,
+    *,
+    paired_design_policy: PairedDesignPolicy = PAIRED_DESIGN_POLICY_REJECT,
+) -> str:
     """Return the stable no-intercept fixed-effect formula for a design."""
 
+    resolved_paired_design_policy = _normalise_paired_design_policy(
+        paired_design_policy
+    )
     fixed_effect_terms = tuple(
         covariate.name
         for covariate in design.fixed_effects
         if covariate.include_in_model
     )
-    if not fixed_effect_terms:
-        return "~0 + condition"
-    return "~0 + condition + " + " + ".join(fixed_effect_terms)
+    terms = ["condition", *fixed_effect_terms]
+    if resolved_paired_design_policy == PAIRED_DESIGN_POLICY_FIXED_BLOCK:
+        terms.append("block")
+    return "~0 + " + " + ".join(terms)
+
+
+def _normalise_paired_design_policy(value: object) -> PairedDesignPolicy:
+    if not isinstance(value, str):
+        raise WorkflowValidationError(
+            "design matrix builder paired_design_policy must be a string"
+        )
+    normalised = value.strip()
+    if normalised not in SUPPORTED_PAIRED_DESIGN_POLICIES:
+        supported = ", ".join(
+            repr(policy) for policy in SUPPORTED_PAIRED_DESIGN_POLICIES
+        )
+        raise WorkflowValidationError(
+            "design matrix builder paired_design_policy must be one of: " + supported
+        )
+    return cast(PairedDesignPolicy, normalised)
+
+
+def _validate_block_policy_inputs(
+    *,
+    records: tuple[SampleDesignRecord, ...],
+    paired_design_policy: PairedDesignPolicy,
+) -> None:
+    samples_with_block_id = [
+        record.sample_id for record in records if record.block_id is not None
+    ]
+    samples_missing_block_id = [
+        record.sample_id for record in records if record.block_id is None
+    ]
+    if paired_design_policy == PAIRED_DESIGN_POLICY_REJECT:
+        if samples_with_block_id:
+            raise WorkflowValidationError(
+                "design matrix builder received block_id values while "
+                "paired_design_policy='reject'; block terms are only constructed "
+                "when paired_design_policy='fixed_block'. Samples with block_id: "
+                + ", ".join(samples_with_block_id)
+            )
+        return
+
+    if samples_missing_block_id:
+        raise WorkflowValidationError(
+            "design matrix builder paired_design_policy='fixed_block' requires "
+            "block_id for every design sample; missing block_id for samples: "
+            + ", ".join(samples_missing_block_id)
+        )
 
 
 def _resolve_condition_labels(
@@ -432,6 +549,31 @@ def _collect_categorical_values(
     return tuple(values)
 
 
+def _collect_block_values(
+    *,
+    records: tuple[SampleDesignRecord, ...],
+) -> tuple[str, ...]:
+    values: list[str] = []
+    missing_samples: list[str] = []
+    for record in records:
+        if record.block_id is None:
+            missing_samples.append(record.sample_id)
+            continue
+        values.append(record.block_id)
+    if missing_samples:
+        raise WorkflowValidationError(
+            "design matrix builder paired_design_policy='fixed_block' requires "
+            "block_id for every design sample; missing block_id for samples: "
+            + ", ".join(missing_samples)
+        )
+    if not values:
+        raise WorkflowValidationError(
+            "design matrix builder paired_design_policy='fixed_block' has no "
+            "observed block_id values"
+        )
+    return tuple(values)
+
+
 def _unique_in_order(values: Sequence[str]) -> tuple[str, ...]:
     seen: set[str] = set()
     ordered: list[str] = []
@@ -459,6 +601,10 @@ def _validate_observed_levels_are_declared(
 
 def _categorical_column_name(covariate_name: str, level: str) -> str:
     return f"{covariate_name}[{level}]"
+
+
+def _block_column_name(level: str) -> str:
+    return f"block[{level}]"
 
 
 def _continuous_column_name(covariate_name: str) -> str:
