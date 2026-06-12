@@ -281,7 +281,10 @@ def test_differential_policy_provenance_snapshot_is_stable() -> None:
         },
         "unsupported_design": {
             "intentionally_rejected_features": [
-                "blocking/paired/repeated-measure differential modelling",
+                (
+                    "correlated repeated-measure differential modelling beyond "
+                    "explicit fixed blocks"
+                ),
                 "duplicateCorrelation-style correlated-replicate modelling",
                 "mixed-effects differential modelling",
             ],

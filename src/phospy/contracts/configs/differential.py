@@ -44,8 +44,9 @@ class DifferentialAnalysisConfig:
 
     Fixed-effect covariate declarations live on ``ExperimentalDesign``.
     ``paired_design_policy`` records user intent for explicit paired or blocked
-    designs only. It does not infer ``block_id`` values, does not add block
-    terms to design matrices, and does not enable mixed-effects modelling.
+    designs only. It does not infer ``block_id`` values and does not enable
+    mixed-effects modelling. ``"fixed_block"`` requires complete block metadata
+    and validates a fixed-effect block design matrix before execution.
     """
 
     technical_replicate_policy: TechnicalReplicatePolicy = (

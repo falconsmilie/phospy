@@ -27,7 +27,7 @@ _DIFFERENTIAL_MISSING_VALUE_POLICY = (
 )
 _DIFFERENTIAL_MISSING_VALUE_STAGE = "analysis_ready_dataset_boundary"
 _DIFFERENTIAL_UNSUPPORTED_DESIGN_FEATURES: tuple[str, ...] = (
-    "blocking/paired/repeated-measure differential modelling",
+    "correlated repeated-measure differential modelling beyond explicit fixed blocks",
     "duplicateCorrelation-style correlated-replicate modelling",
     "mixed-effects differential modelling",
 )
@@ -182,7 +182,7 @@ def _design_description(
     formula: str,
     covariates: tuple[DifferentialFixedEffectCovariateProvenance, ...],
 ) -> str:
-    if not covariates:
+    if not covariates and "+ block" not in formula:
         return "condition-only fixed-effect design"
     return f"fixed-effect design: {formula}"
 

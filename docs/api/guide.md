@@ -174,17 +174,19 @@ are model covariates; they are not batch correction.
 
 Supported fixed-effect covariates are ordinary fixed terms in the differential
 linear model. This is not ComBat, RUV, `removeBatchEffect`,
-`duplicateCorrelation`, or mixed-effects modelling. Paired/block designs remain
-separate unsupported design classes unless explicitly implemented elsewhere.
+`duplicateCorrelation`, or mixed-effects modelling.
 
 Paired or blocked designs use a single public sample metadata name:
 `SampleDesignRecord.block_id`. `block_id` must be supplied explicitly by the
 caller; PhosPy does not infer it from sample names, column order, or
 `dataset.sample_metadata`. The differential config exposes
 `paired_design_policy`, which defaults to `"reject"`. Setting
-`paired_design_policy="fixed_block"` records opt-in user intent only. In the
-current release it does not add block terms to design matrices, does not enable
-mixed-effects modelling, and does not make paired/block designs executable.
+`paired_design_policy="fixed_block"` validates an explicit fixed-effect block
+design and adds block terms to the differential design matrix. Each sample must
+have `block_id`; each block must contain at least two samples and both sides of
+every requested contrast; the resolved design must be full rank and contrasts
+must be estimable. It does not enable correlated-replicate or mixed-effects
+modelling.
 
 The lower-level design-matrix builder can represent included fixed effects for
 design-domain inspection and validation. Categorical and batch covariates are

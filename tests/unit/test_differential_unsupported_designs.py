@@ -184,9 +184,7 @@ def test_differential_block_default_policy_allows_unblocked_designs() -> None:
     assert result.table_for("B_vs_A").shape[0] == 3
 
 
-def test_differential_block_fixed_block_policy_is_contract_only_and_skips_executor() -> (
-    None
-):
+def test_differential_block_fixed_block_invalid_design_skips_executor() -> None:
     calls = {"executor": 0}
 
     class _ExecutorSpy:
@@ -199,12 +197,12 @@ def test_differential_block_fixed_block_policy_is_contract_only_and_skips_execut
             SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),
             SampleDesignRecord(sample_id="A_2", condition="A", block_id="pair_2"),
             SampleDesignRecord(sample_id="B_1", condition="B", block_id="pair_1"),
-            SampleDesignRecord(sample_id="B_2", condition="B", block_id="pair_2"),
+            SampleDesignRecord(sample_id="B_2", condition="B", block_id="pair_3"),
         )
     )
     with pytest.raises(
         WorkflowValidationError,
-        match="fixed-block differential modelling.*not available",
+        match="fixed_block.*at least 2 samples.*incomplete blocks",
     ):
         DifferentialAnalysisWorkflow(
             executor=_ExecutorSpy(),  # type: ignore[arg-type]

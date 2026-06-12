@@ -469,7 +469,7 @@ def _execution_design_description(
     formula: str,
     covariate_columns: tuple[DifferentialCovariateColumnMetadata, ...],
 ) -> str:
-    if not covariate_columns:
+    if not covariate_columns and "+ block" not in formula:
         return "condition-only fixed-effect design"
     return f"fixed-effect design: {formula}"
 

@@ -214,8 +214,9 @@ def test_differential_analysis_returns_per_contrast_moderated_tables() -> None:
     assert result.policy_provenance.missing_values.policy == (
         "reject_missing_values_before_differential_execution"
     )
-    assert "blocking/paired/repeated-measure differential modelling" in (
-        result.policy_provenance.unsupported_design.intentionally_rejected_features
+    assert (
+        "correlated repeated-measure differential modelling beyond explicit fixed blocks"
+        in result.policy_provenance.unsupported_design.intentionally_rejected_features
     )
     assert result.policy_provenance.replicates.condition_replicate_counts == (
         ("A", 2),

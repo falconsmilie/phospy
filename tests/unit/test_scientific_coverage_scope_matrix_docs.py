@@ -79,4 +79,5 @@ def test_fixed_effect_differential_limitations_are_documented() -> None:
     assert "removebatcheffect" in text
     assert "duplicatecorrelation" in text
     assert "mixed-effects" in text
-    assert "paired/block" in text
+    assert "fixed-block" in text
+    assert "complete within-block contrast coverage" in text

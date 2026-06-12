@@ -166,11 +166,13 @@ identical numeric outputs across different machines or dependency builds.
   each condition+biological-replicate group.
 - Paired/block design intent is explicit via `config.paired_design_policy`,
   which defaults to `"reject"`. `paired_design_policy="fixed_block"` is an
-  opt-in policy contract only in this release; it does not infer `block_id`,
-  build block terms, or enable mixed-effects modelling.
+  opt-in fixed-effect block policy. It does not infer `block_id` and does not
+  enable mixed-effects modelling. Each sample must have `block_id`; each block
+  must contain at least two samples and both sides of every requested contrast;
+  the resolved block design must be full rank and contrasts must be estimable.
 - Current parity-protected lane is two-condition unpaired simple contrasts.
-- Blocking, paired, repeated-measure, correlated-replicate, and mixed-effects
-  modelling are not executable in this release.
+- Correlated-replicate and mixed-effects modelling are not executable in this
+  release.
 - Missing values are rejected at `AnalysisReadyPhosphoDataset` boundary before
   differential execution.
 

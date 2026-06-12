@@ -135,11 +135,13 @@ Optional inputs:
 - Paired/block designs use explicit `SampleDesignRecord.block_id` metadata.
   `block_id` is never inferred from sample names or passive sample metadata.
 - `DifferentialAnalysisConfig.paired_design_policy` defaults to `"reject"`.
-  Setting it to `"fixed_block"` records opt-in intent only; it does not yet add
-  block terms to matrix construction or make paired/block designs executable.
-- Paired/blocking, repeated-measure, `duplicateCorrelation`-style correlated
-  replicate, and mixed-effects designs remain rejected unless explicitly
-  implemented in a future release.
+  Setting it to `"fixed_block"` adds block terms as fixed effects after
+  validation. Every sample must have `block_id`, every block must contain at
+  least two samples, and every block must contain both numerator and denominator
+  conditions for each requested contrast. The resolved design matrix must be
+  full rank and requested condition contrasts must be estimable.
+- Correlated-replicate methods such as limma `duplicateCorrelation` and
+  mixed-effects differential models remain unsupported.
 
 ## Empirical-Bayes Settings
 

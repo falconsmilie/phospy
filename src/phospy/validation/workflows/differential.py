@@ -12,6 +12,7 @@ import numpy.typing as npt
 import pandas as pd
 
 from phospy.contracts.configs.differential import (
+    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     PAIRED_DESIGN_POLICY_REJECT,
     SUPPORTED_PAIRED_DESIGN_POLICIES,
     PairedDesignPolicy,
@@ -37,13 +38,6 @@ _DIFFERENTIAL_LOGFC_SCALE_ERROR_MESSAGE = (
     "log2-scale phospho intensities. Build the dataset with log2 preprocessing "
     "enabled, or provide an analysis-ready dataset with validated log2 "
     "intensity-scale state."
-)
-_FIXED_BLOCK_EXECUTION_UNSUPPORTED_MESSAGE = (
-    "fixed-block differential modelling was requested with explicit block_id "
-    "values, but block-aware differential execution is not available in this "
-    "release. Validators do not build execution matrices for blocked designs "
-    "yet; remove block_id values for an unblocked analysis or wait for "
-    "fixed-block execution support."
 )
 
 
@@ -126,6 +120,13 @@ class ExperimentalDesignContractValidator:
                 "experimental design contains samples not present in dataset: "
                 + ", ".join(extra_samples)
             )
+        if fixed_block_requested and missing_samples:
+            raise WorkflowValidationError(
+                "differential.paired_design_policy='fixed_block' requires every "
+                "dataset sample to have an explicit design row; no samples are "
+                "silently dropped from fixed-block designs. Missing design rows "
+                "for dataset samples: " + ", ".join(missing_samples)
+            )
         if missing_samples and not allow_design_subset:
             raise WorkflowValidationError(
                 "experimental design is missing required dataset samples: "
@@ -181,12 +182,20 @@ class ExperimentalDesignContractValidator:
                     )
 
         if fixed_block_requested:
-            raise WorkflowValidationError(_FIXED_BLOCK_EXECUTION_UNSUPPORTED_MESSAGE)
-
-        design_build_result = self._design_matrix_builder.run(
-            design=design,
-            condition_labels=known_conditions,
-        )
+            self._validate_fixed_block_design(
+                records=design.samples,
+                contrasts=normalized_contrasts,
+            )
+            design_build_result = self._design_matrix_builder.run(
+                design=design,
+                condition_labels=known_conditions,
+                paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+            )
+        else:
+            design_build_result = self._design_matrix_builder.run(
+                design=design,
+                condition_labels=known_conditions,
+            )
         design_frame = design_build_result.frame
         contrast_frame = self._build_contrast_frame(
             coefficient_labels=tuple(str(label) for label in design_frame.columns),
@@ -234,8 +243,7 @@ class ExperimentalDesignContractValidator:
                     "experimental design includes block_id values while "
                     "differential.paired_design_policy='reject'. Set "
                     "differential.paired_design_policy='fixed_block' to request "
-                    "fixed-block validation; fixed-block differential execution "
-                    "is not available in this release. Samples with block_id: "
+                    "fixed-block validation and execution. Samples with block_id: "
                     + ", ".join(samples_with_block_id)
                 )
             return False
@@ -247,6 +255,107 @@ class ExperimentalDesignContractValidator:
                 + ", ".join(samples_missing_block_id)
             )
         return True
+
+    @staticmethod
+    def _validate_fixed_block_design(
+        *,
+        records: tuple[SampleDesignRecord, ...],
+        contrasts: tuple[Contrast, ...],
+    ) -> None:
+        records_by_block: defaultdict[str, list[SampleDesignRecord]] = defaultdict(list)
+        for record in records:
+            if record.block_id is None:
+                raise WorkflowValidationError(
+                    "differential.paired_design_policy='fixed_block' requires "
+                    "block_id for every design sample; missing block_id for "
+                    f"samples: {record.sample_id}"
+                )
+            records_by_block[record.block_id].append(record)
+
+        incomplete_blocks: list[str] = []
+        for block_id in sorted(records_by_block):
+            block_records = records_by_block[block_id]
+            if len(block_records) >= 2:
+                continue
+            sample_ids = ", ".join(record.sample_id for record in block_records)
+            incomplete_blocks.append(f"{block_id} (samples: {sample_ids})")
+        if incomplete_blocks:
+            raise WorkflowValidationError(
+                "differential.paired_design_policy='fixed_block' requires every "
+                "block to contain at least 2 samples; incomplete blocks: "
+                + "; ".join(incomplete_blocks)
+            )
+
+        condition_sets_by_block = {
+            block_id: {record.condition for record in block_records}
+            for block_id, block_records in records_by_block.items()
+        }
+        blocks_by_condition: defaultdict[str, set[str]] = defaultdict(set)
+        for block_id, condition_set in condition_sets_by_block.items():
+            for condition in condition_set:
+                blocks_by_condition[condition].add(block_id)
+        confounded_conditions = [
+            condition
+            for condition in sorted(blocks_by_condition)
+            if all(
+                condition_sets_by_block[block_id] == {condition}
+                for block_id in blocks_by_condition[condition]
+            )
+        ]
+        if confounded_conditions:
+            raise WorkflowValidationError(
+                "differential.paired_design_policy='fixed_block' found condition "
+                "perfectly confounded with block; each condition must occur in at "
+                "least one block that also contains another condition. Confounded "
+                "conditions: " + ", ".join(confounded_conditions)
+            )
+
+        for contrast in contrasts:
+            numerator = contrast.numerator_condition
+            denominator = contrast.denominator_condition
+            numerator_blocks = {
+                block_id
+                for block_id, condition_set in condition_sets_by_block.items()
+                if numerator in condition_set
+            }
+            denominator_blocks = {
+                block_id
+                for block_id, condition_set in condition_sets_by_block.items()
+                if denominator in condition_set
+            }
+            shared_blocks = sorted(numerator_blocks & denominator_blocks)
+            if not shared_blocks:
+                raise WorkflowValidationError(
+                    "differential.paired_design_policy='fixed_block' contrast "
+                    f"{contrast.name!r} is non-estimable because condition is "
+                    "perfectly confounded with block; no block contains both "
+                    f"numerator condition {numerator!r} and denominator condition "
+                    f"{denominator!r}"
+                )
+
+            invalid_blocks: list[str] = []
+            for block_id in sorted(condition_sets_by_block):
+                condition_set = condition_sets_by_block[block_id]
+                missing_terms: list[str] = []
+                if numerator not in condition_set:
+                    missing_terms.append(f"numerator condition {numerator!r}")
+                if denominator not in condition_set:
+                    missing_terms.append(f"denominator condition {denominator!r}")
+                if not missing_terms:
+                    continue
+                observed = ", ".join(sorted(condition_set)) or "<none>"
+                missing = " and ".join(missing_terms)
+                invalid_blocks.append(
+                    f"{block_id} missing {missing} (observed conditions: {observed})"
+                )
+            if invalid_blocks:
+                raise WorkflowValidationError(
+                    "differential.paired_design_policy='fixed_block' contrast "
+                    f"{contrast.name!r} has invalid block condition coverage; "
+                    "every block must contain both "
+                    f"numerator condition {numerator!r} and denominator condition "
+                    f"{denominator!r}. Blocks: " + "; ".join(invalid_blocks)
+                )
 
     @staticmethod
     def _validate_contrasts(contrasts: tuple[Contrast, ...]) -> tuple[Contrast, ...]:

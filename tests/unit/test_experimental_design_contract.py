@@ -108,6 +108,17 @@ def _contrasts() -> tuple[Contrast, ...]:
     )
 
 
+def _paired_block_design() -> ExperimentalDesign:
+    return ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),
+            SampleDesignRecord(sample_id="A_2", condition="A", block_id="pair_2"),
+            SampleDesignRecord(sample_id="B_1", condition="B", block_id="pair_1"),
+            SampleDesignRecord(sample_id="B_2", condition="B", block_id="pair_2"),
+        )
+    )
+
+
 def test_valid_simple_two_condition_design() -> None:
     validated = ExperimentalDesignContractValidator().run(
         dataset=_dataset(),
@@ -292,6 +303,24 @@ def test_differential_block_fixed_block_policy_requires_block_identifiers() -> N
         )
 
 
+def test_differential_block_fixed_block_valid_paired_two_condition_design() -> None:
+    validated = ExperimentalDesignContractValidator().run(
+        dataset=_dataset(),
+        design=_paired_block_design(),
+        contrasts=_contrasts(),
+        allow_design_subset=False,
+        minimum_condition_replicates=2,
+        paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+    )
+
+    assert validated.analysis_sample_ids == ("A_1", "A_2", "B_1", "B_2")
+    assert validated.design_frame.columns.tolist() == ["A", "B", "block[pair_2]"]
+    assert validated.contrast_frame.index.tolist() == ["A", "B", "block[pair_2]"]
+    assert validated.contrast_frame.loc[:, "B_vs_A"].tolist() == [-1.0, 1.0, 0.0]
+    assert validated.design_build_result is not None
+    assert validated.design_build_result.block_levels == ("pair_1", "pair_2")
+
+
 def test_differential_block_fixed_block_policy_accepts_metadata_for_later_validation() -> (
     None
 ):
@@ -319,6 +348,171 @@ def test_differential_block_fixed_block_policy_accepts_metadata_for_later_valida
                 ),
             ),
             allow_design_subset=False,
+            minimum_condition_replicates=1,
+            paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+        )
+
+
+def test_differential_block_fixed_block_rejects_incomplete_pair() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),
+            SampleDesignRecord(sample_id="A_2", condition="A", block_id="pair_2"),
+            SampleDesignRecord(sample_id="B_1", condition="B", block_id="pair_1"),
+            SampleDesignRecord(sample_id="B_2", condition="B", block_id="pair_3"),
+        )
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="fixed_block.*at least 2 samples.*incomplete blocks.*pair_2",
+    ):
+        ExperimentalDesignContractValidator().run(
+            dataset=_dataset(),
+            design=design,
+            contrasts=_contrasts(),
+            allow_design_subset=False,
+            minimum_condition_replicates=1,
+            paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+        )
+
+
+def test_differential_block_fixed_block_rejects_block_with_one_condition_only() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),
+            SampleDesignRecord(sample_id="A_2", condition="A", block_id="pair_2"),
+            SampleDesignRecord(sample_id="B_1", condition="B", block_id="pair_1"),
+            SampleDesignRecord(sample_id="B_2", condition="A", block_id="pair_2"),
+        )
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="invalid block condition coverage.*pair_2 missing numerator condition 'B'",
+    ):
+        ExperimentalDesignContractValidator().run(
+            dataset=_dataset(),
+            design=design,
+            contrasts=_contrasts(),
+            allow_design_subset=False,
+            minimum_condition_replicates=1,
+            paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+        )
+
+
+def test_differential_block_fixed_block_rejects_condition_confounded_with_block() -> (
+    None
+):
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),
+            SampleDesignRecord(sample_id="A_2", condition="A", block_id="pair_1"),
+            SampleDesignRecord(sample_id="B_1", condition="B", block_id="pair_2"),
+            SampleDesignRecord(sample_id="B_2", condition="B", block_id="pair_2"),
+        )
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="condition perfectly confounded with block.*A, B",
+    ):
+        ExperimentalDesignContractValidator().run(
+            dataset=_dataset(),
+            design=design,
+            contrasts=_contrasts(),
+            allow_design_subset=False,
+            minimum_condition_replicates=1,
+            paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+        )
+
+
+def test_differential_block_fixed_block_rejects_rank_deficient_design() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                sample_id="A_1",
+                condition="A",
+                block_id="pair_1",
+                covariates={"sex": "F"},
+            ),
+            SampleDesignRecord(
+                sample_id="A_2",
+                condition="A",
+                block_id="pair_2",
+                covariates={"sex": "F"},
+            ),
+            SampleDesignRecord(
+                sample_id="B_1",
+                condition="B",
+                block_id="pair_1",
+                covariates={"sex": "M"},
+            ),
+            SampleDesignRecord(
+                sample_id="B_2",
+                condition="B",
+                block_id="pair_2",
+                covariates={"sex": "M"},
+            ),
+        ),
+        fixed_effects=(CategoricalCovariate("sex"),),
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="rank deficient.*confounded",
+    ):
+        ExperimentalDesignContractValidator().run(
+            dataset=_dataset(),
+            design=design,
+            contrasts=_contrasts(),
+            allow_design_subset=False,
+            minimum_condition_replicates=1,
+            paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+        )
+
+
+def test_differential_block_fixed_block_rejects_non_estimable_contrast() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),
+            SampleDesignRecord(sample_id="A_2", condition="C", block_id="pair_1"),
+            SampleDesignRecord(sample_id="B_1", condition="B", block_id="pair_2"),
+            SampleDesignRecord(sample_id="B_2", condition="C", block_id="pair_2"),
+        )
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="contrast 'B_vs_A' is non-estimable.*no block contains both",
+    ):
+        ExperimentalDesignContractValidator().run(
+            dataset=_dataset(),
+            design=design,
+            contrasts=_contrasts(),
+            allow_design_subset=False,
+            minimum_condition_replicates=1,
+            paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+        )
+
+
+def test_differential_block_fixed_block_rejects_silent_sample_drop() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),
+            SampleDesignRecord(sample_id="B_1", condition="B", block_id="pair_1"),
+        )
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="no samples are silently dropped.*A_2, B_2",
+    ):
+        ExperimentalDesignContractValidator().run(
+            dataset=_dataset(),
+            design=design,
+            contrasts=_contrasts(),
+            allow_design_subset=True,
             minimum_condition_replicates=1,
             paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
         )

@@ -4,9 +4,11 @@ import pandas as pd
 
 from phospy import AnalysisReadyPhosphoDataset
 from phospy.api import (
+    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     CategoricalCovariate,
     ContinuousCovariate,
     Contrast,
+    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
     ExperimentalDesign,
@@ -179,6 +181,56 @@ def test_differential_interpreter_passes_fixed_effect_inputs_to_executor() -> No
         "A",
         "B",
         "sex[M]",
+    ]
+
+
+def test_differential_block_fixed_block_inputs_are_passed_to_executor() -> None:
+    sentinel = object()
+    captured: dict[str, InterpretedDifferentialAnalysisRequest] = {}
+
+    class _ExecutorSpy:
+        def run(self, request: InterpretedDifferentialAnalysisRequest) -> object:
+            captured["request"] = request
+            return sentinel
+
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),
+            SampleDesignRecord(sample_id="A_2", condition="A", block_id="pair_2"),
+            SampleDesignRecord(sample_id="B_1", condition="B", block_id="pair_1"),
+            SampleDesignRecord(sample_id="B_2", condition="B", block_id="pair_2"),
+        )
+    )
+
+    result = DifferentialAnalysisWorkflow(
+        executor=_ExecutorSpy(),  # type: ignore[arg-type]
+    ).run(
+        DifferentialAnalysisRequest(
+            dataset=_dataset(),
+            design=design,
+            contrasts=(
+                Contrast(
+                    name="B_vs_A",
+                    numerator_condition="B",
+                    denominator_condition="A",
+                ),
+            ),
+            config=DifferentialAnalysisConfig(
+                paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+            ),
+        )
+    )
+
+    assert result is sentinel
+    interpreted = captured["request"]
+    execution_design = interpreted.execution_design
+    assert execution_design is not None
+    assert execution_design.formula == "~0 + condition + block"
+    assert execution_design.description == "fixed-effect design: ~0 + condition + block"
+    assert interpreted.computation_request.design.to_dataframe().columns.tolist() == [
+        "A",
+        "B",
+        "block[pair_2]",
     ]
 
 
