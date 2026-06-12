@@ -8,7 +8,7 @@ from typing import Protocol
 
 import pandas as pd
 
-from phospy.contracts.configs import DifferentialAnalysisConfig
+from phospy.contracts.configs import DifferentialAnalysisConfig, PairedDesignPolicy
 from phospy.science.datasets.models import (
     AnalysisReadyPhosphoDataset,
     DatasetPreprocessingReport,
@@ -78,6 +78,32 @@ class DifferentialCovariateColumnMetadata:
 
 
 @dataclass(frozen=True, slots=True)
+class DifferentialBlockColumnMetadata:
+    """Resolved fixed-block encoding metadata for execution."""
+
+    levels: tuple[str, ...]
+    reference_level: str | None
+    columns: tuple[tuple[str, str], ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "levels",
+            tuple(str(value) for value in self.levels),
+        )
+        object.__setattr__(
+            self,
+            "reference_level",
+            None if self.reference_level is None else str(self.reference_level),
+        )
+        object.__setattr__(
+            self,
+            "columns",
+            tuple((str(level), str(column)) for level, column in self.columns),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class DifferentialConditionContrastVector:
     """Resolved condition contrast vector aligned to design coefficients."""
 
@@ -112,6 +138,8 @@ class DifferentialExecutionDesignInputs:
     formula: str
     description: str
     sample_order: tuple[str, ...]
+    paired_design_policy: PairedDesignPolicy
+    block_column_metadata: DifferentialBlockColumnMetadata | None
     condition_labels: tuple[str, ...]
     coefficient_labels: tuple[str, ...]
 
@@ -128,6 +156,11 @@ class DifferentialExecutionDesignInputs:
         )
         object.__setattr__(self, "formula", str(self.formula))
         object.__setattr__(self, "description", str(self.description))
+        object.__setattr__(
+            self,
+            "paired_design_policy",
+            str(self.paired_design_policy),
+        )
         object.__setattr__(
             self,
             "sample_order",
@@ -183,6 +216,7 @@ class DifferentialAnalysisExecutorContract(Protocol):
 
 
 __all__ = [
+    "DifferentialBlockColumnMetadata",
     "DifferentialConditionContrastVector",
     "DifferentialCovariateColumnMetadata",
     "DifferentialExecutionDesignInputs",

@@ -382,6 +382,10 @@ class DifferentialDesignMatrixSummary:
     description: str = ""
     condition_columns: tuple[str, ...] = ()
     covariates: tuple[DifferentialFixedEffectCovariateProvenance, ...] = ()
+    paired_design_policy: str = "reject"
+    block_levels: tuple[str, ...] = ()
+    block_reference_level: str | None = None
+    block_columns: tuple[tuple[str, str], ...] = ()
     rank_validation_status: str = "not_recorded"
     estimability_validation_status: str = "not_recorded"
 
@@ -459,6 +463,30 @@ class DifferentialDesignMatrixSummary:
             tuple(str(value) for value in self.condition_columns),
         )
         object.__setattr__(self, "covariates", covariates)
+        object.__setattr__(
+            self,
+            "paired_design_policy",
+            str(self.paired_design_policy),
+        )
+        object.__setattr__(
+            self,
+            "block_levels",
+            tuple(str(value) for value in self.block_levels),
+        )
+        object.__setattr__(
+            self,
+            "block_reference_level",
+            (
+                None
+                if self.block_reference_level is None
+                else str(self.block_reference_level)
+            ),
+        )
+        object.__setattr__(
+            self,
+            "block_columns",
+            tuple((str(level), str(column)) for level, column in self.block_columns),
+        )
         object.__setattr__(
             self,
             "rank_validation_status",

@@ -63,15 +63,15 @@ tests/unit/test_dataset_site_sequence_resolution.py,unit,482,12,true,true,scient
 tests/unit/test_dataset_site_sequence_resolution_collaborators.py,unit,86,3,true,true,,,,,,
 tests/unit/test_dataset_transformation_state_establishment.py,unit,796,28,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset transformation state establishment and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/unit/test_design_matrix_builder.py,unit,621,20,false,false,,,,,,
-tests/unit/test_differential_analysis.py,unit,842,15,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for differential analysis behaviour, allowing numerically plausible but scientifically invalid results.",codex-audit,,New test file classified after audit-doc regeneration.
+tests/unit/test_differential_analysis.py,unit,844,15,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for differential analysis behaviour, allowing numerically plausible but scientifically invalid results.",codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_differential_dataset_eligibility_validator.py,unit,164,5,false,false,,,,,,
-tests/unit/test_differential_fixed_effect_provenance.py,unit,271,4,false,false,,,,,,
+tests/unit/test_differential_fixed_effect_provenance.py,unit,332,5,false,false,,,,,,
 tests/unit/test_differential_numerical_guards.py,unit,561,13,true,true,,,,,,
 tests/unit/test_differential_paired_block_policy_contract.py,unit,89,7,false,false,,,,,,
 tests/unit/test_differential_request_config_refactor.py,unit,58,6,false,false,,,,,,
 tests/unit/test_differential_result_contract.py,unit,907,31,false,false,,,,,,
 tests/unit/test_differential_technical_replicate_policy.py,unit,501,12,false,false,,,,,,
-tests/unit/test_differential_unsupported_designs.py,unit,253,8,false,false,,,,,,
+tests/unit/test_differential_unsupported_designs.py,unit,251,8,false,false,,,,,,
 tests/unit/test_differential_workflow_components.py,unit,615,21,true,true,,,,,,
 tests/unit/test_docs_identity_contracts.py,unit,248,7,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_docs_legacy_wording_lint.py,unit,10,1,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in docs legacy wording lint; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-ORCH-002,Route to TST-ORCH-002 to align wording-lint assertions with current public boundary terminology and remove stale internal seam references.
@@ -179,6 +179,6 @@ tests/unit/test_workflow_identity_contracts.py,unit,533,14,true,true,,,,,,[auto-
 tests/unit/test_workflow_public_import_contract.py,unit,77,6,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for workflow public import contract and increase risk of boundary regressions.,codex-audit,,
 tests/validation/test_shared_identity_contracts.py,validation,212,5,false,false,,,,,,
 tests/validation/test_workflow_identity_validator_contracts.py,validation,126,3,true,true,,,,,,
-tests/workflows/test_differential_interpreter_fixed_effects.py,workflows,298,3,false,false,,,,,,
+tests/workflows/test_differential_interpreter_fixed_effects.py,workflows,491,7,false,false,,,,,,
 tests/workflows/test_identity_coherence.py,workflows,144,4,false,false,,,,,,
 tests/workflows/test_kinase_activity_ssgsea.py,workflows,115,1,false,false,,,,,,

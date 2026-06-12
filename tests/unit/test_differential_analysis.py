@@ -303,6 +303,8 @@ def test_differential_interpreter_condition_only_design_inputs_remain_unchanged(
     assert execution_design.formula == "~0 + condition"
     assert execution_design.description == "condition-only fixed-effect design"
     assert execution_design.sample_order == ("A_1", "A_2", "B_1", "B_2", "C_1", "C_2")
+    assert execution_design.paired_design_policy == "reject"
+    assert execution_design.block_column_metadata is None
 
 
 def test_differential_interpreter_builds_categorical_covariate_inputs() -> None:

@@ -153,7 +153,7 @@ def test_workflow_differential_validation_accepts_balanced_batch_fixed_effect() 
     )
 
 
-def test_workflow_rejects_block_or_paired_modelling_in_current_release() -> None:
+def test_differential_block_default_policy_rejects_explicit_block_ids() -> None:
     design = ExperimentalDesign(
         samples=(
             SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),

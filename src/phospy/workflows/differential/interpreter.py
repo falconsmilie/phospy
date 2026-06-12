@@ -16,8 +16,10 @@ from phospy.science.design.models import (
     FIXED_EFFECT_COVARIATE_KIND_BATCH,
     FIXED_EFFECT_COVARIATE_KIND_CATEGORICAL,
     FIXED_EFFECT_COVARIATE_KIND_CONTINUOUS,
+    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     Contrast,
     ExperimentalDesign,
+    PairedDesignPolicy,
 )
 from phospy.science.differential.models import (
     ContrastMatrix,
@@ -35,6 +37,7 @@ from phospy.validation.workflows.differential import (
     ExperimentalDesignContractValidator,
 )
 from phospy.workflows.differential.models import (
+    DifferentialBlockColumnMetadata,
     DifferentialConditionContrastVector,
     DifferentialCovariateColumnMetadata,
     DifferentialExecutionDesignInputs,
@@ -192,6 +195,10 @@ class DifferentialAnalysisInterpreter:
             design_aligned=design_aligned,
             contrasts_aligned=contrasts_aligned,
             design_build_result=resolved_design_build_result,
+            paired_design_policy=cast(
+                PairedDesignPolicy,
+                request.config.paired_design_policy,
+            ),
         )
         computation_request = DifferentialComputationRequest(
             matrix=cast(pd.DataFrame, matrix_aligned),
@@ -237,6 +244,7 @@ def _build_execution_design_inputs(
     design_aligned: pd.DataFrame,
     contrasts_aligned: pd.DataFrame,
     design_build_result: DesignMatrixBuildResult | None,
+    paired_design_policy: PairedDesignPolicy,
 ) -> DifferentialExecutionDesignInputs:
     sample_order = tuple(str(label) for label in design_aligned.index)
     coefficient_labels = tuple(str(label) for label in design_aligned.columns)
@@ -249,7 +257,10 @@ def _build_execution_design_inputs(
     formula = (
         design_build_result.formula
         if design_build_result is not None
-        else describe_fixed_effect_design(design)
+        else describe_fixed_effect_design(
+            design,
+            paired_design_policy=paired_design_policy,
+        )
     )
     condition_labels = (
         design_build_result.condition_labels
@@ -265,6 +276,11 @@ def _build_execution_design_inputs(
         design_build_result=design_build_result,
         coefficient_labels=coefficient_labels,
     )
+    block_column_metadata = _build_block_column_metadata(
+        design_build_result=design_build_result,
+        coefficient_labels=coefficient_labels,
+        paired_design_policy=paired_design_policy,
+    )
     return DifferentialExecutionDesignInputs(
         design_matrix=design_matrix,
         contrast_matrix=contrast_matrix,
@@ -277,8 +293,11 @@ def _build_execution_design_inputs(
         description=_execution_design_description(
             formula=formula,
             covariate_columns=covariate_columns,
+            block_column_metadata=block_column_metadata,
         ),
         sample_order=sample_order,
+        paired_design_policy=paired_design_policy,
+        block_column_metadata=block_column_metadata,
         condition_labels=condition_labels,
         coefficient_labels=coefficient_labels,
     )
@@ -431,6 +450,62 @@ def _build_covariate_column_metadata(
     return tuple(metadata)
 
 
+def _build_block_column_metadata(
+    *,
+    design_build_result: DesignMatrixBuildResult | None,
+    coefficient_labels: tuple[str, ...],
+    paired_design_policy: PairedDesignPolicy,
+) -> DifferentialBlockColumnMetadata | None:
+    if paired_design_policy != PAIRED_DESIGN_POLICY_FIXED_BLOCK:
+        return None
+    if design_build_result is None:
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.design_build_metadata_missing",
+            next_action=(
+                "pass validator-produced design build metadata into the interpreter "
+                "for fixed-block differential designs"
+            ),
+            message_prefix="differential workflow boundary validation failed",
+        )
+    if (
+        not design_build_result.block_levels
+        or design_build_result.block_reference_level is None
+    ):
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.block_column_metadata",
+            next_action=(
+                "ensure design build metadata records fixed-block levels and "
+                "reference level for fixed-block differential designs"
+            ),
+            message_prefix="differential workflow boundary validation failed",
+        )
+
+    coefficient_set = set(coefficient_labels)
+    columns = tuple(
+        (level, column)
+        for level in design_build_result.block_levels
+        for column in (design_build_result.block_columns.get(level),)
+        if column is not None
+    )
+    missing_columns = [column for _, column in columns if column not in coefficient_set]
+    if missing_columns:
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.block_column_alignment",
+            next_action=(
+                "ensure fixed-block encoding metadata columns are present in the "
+                "execution design matrix"
+            ),
+            details={"missing_columns": missing_columns},
+            message_prefix="differential workflow boundary validation failed",
+        )
+
+    return DifferentialBlockColumnMetadata(
+        levels=design_build_result.block_levels,
+        reference_level=design_build_result.block_reference_level,
+        columns=columns,
+    )
+
+
 def _build_condition_contrast_vectors(
     *,
     contrasts: tuple[Contrast, ...],
@@ -468,8 +543,9 @@ def _execution_design_description(
     *,
     formula: str,
     covariate_columns: tuple[DifferentialCovariateColumnMetadata, ...],
+    block_column_metadata: DifferentialBlockColumnMetadata | None,
 ) -> str:
-    if not covariate_columns and "+ block" not in formula:
+    if not covariate_columns and block_column_metadata is None:
         return "condition-only fixed-effect design"
     return f"fixed-effect design: {formula}"
 

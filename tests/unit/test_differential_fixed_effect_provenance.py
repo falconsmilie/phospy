@@ -4,10 +4,12 @@ import pandas as pd
 
 from phospy import AnalysisReadyPhosphoDataset
 from phospy.api import (
+    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     BatchCovariate,
     CategoricalCovariate,
     ContinuousCovariate,
     Contrast,
+    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
     ExperimentalDesign,
@@ -61,7 +63,11 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
     )
 
 
-def _policy_for(design: ExperimentalDesign) -> DifferentialPolicyProvenance:
+def _policy_for(
+    design: ExperimentalDesign,
+    *,
+    config: DifferentialAnalysisConfig | None = None,
+) -> DifferentialPolicyProvenance:
     result = DifferentialAnalysisWorkflow().run(
         DifferentialAnalysisRequest(
             dataset=_dataset(),
@@ -73,6 +79,7 @@ def _policy_for(design: ExperimentalDesign) -> DifferentialPolicyProvenance:
                     denominator_condition="A",
                 ),
             ),
+            config=DifferentialAnalysisConfig() if config is None else config,
         )
     )
     assert result.policy_provenance is not None
@@ -115,6 +122,10 @@ def test_condition_only_design_provenance_records_design_and_validation_status()
     assert policy.design.description == "condition-only fixed-effect design"
     assert policy.design.condition_columns == ("A", "B")
     assert policy.design.covariates == ()
+    assert policy.design.paired_design_policy == "reject"
+    assert policy.design.block_levels == ()
+    assert policy.design.block_reference_level is None
+    assert policy.design.block_columns == ()
     assert policy.design.rank_validation_status == "validated_full_rank"
     assert policy.design.estimability_validation_status == "validated_estimable"
     assert policy.contrasts[0].coefficients == (("A", -1.0), ("B", 1.0))
@@ -269,3 +280,53 @@ def test_batch_fixed_effect_provenance_records_batch_as_model_covariate() -> Non
     assert covariate.columns == ("batch[batch_2]",)
     assert covariate.levels == ("batch_1", "batch_2")
     assert covariate.reference_level == "batch_1"
+
+
+def test_fixed_block_provenance_records_block_columns_and_policy() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                sample_id="A_1",
+                condition="A",
+                biological_replicate_id="A_r1",
+                block_id="pair_1",
+            ),
+            SampleDesignRecord(
+                sample_id="A_2",
+                condition="A",
+                biological_replicate_id="A_r2",
+                block_id="pair_2",
+            ),
+            SampleDesignRecord(
+                sample_id="B_1",
+                condition="B",
+                biological_replicate_id="B_r1",
+                block_id="pair_1",
+            ),
+            SampleDesignRecord(
+                sample_id="B_2",
+                condition="B",
+                biological_replicate_id="B_r2",
+                block_id="pair_2",
+            ),
+        )
+    )
+
+    policy = _policy_for(
+        design,
+        config=DifferentialAnalysisConfig(
+            paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+        ),
+    )
+
+    assert policy.design.formula == "~0 + condition + block"
+    assert policy.design.description == "fixed-effect design: ~0 + condition + block"
+    assert policy.design.paired_design_policy == PAIRED_DESIGN_POLICY_FIXED_BLOCK
+    assert policy.design.block_levels == ("pair_1", "pair_2")
+    assert policy.design.block_reference_level == "pair_1"
+    assert policy.design.block_columns == (("pair_2", "block[pair_2]"),)
+    assert policy.contrasts[0].coefficients == (
+        ("A", -1.0),
+        ("B", 1.0),
+        ("block[pair_2]", 0.0),
+    )

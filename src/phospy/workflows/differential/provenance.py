@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from phospy.science.design.matrix_builder import describe_fixed_effect_design
+from phospy.science.design.matrix_builder import (
+    DesignMatrixBuildResult,
+    describe_fixed_effect_design,
+)
 from phospy.science.design.models import ExperimentalDesign
 from phospy.science.differential.models import (
     DifferentialContrastDefinition,
@@ -92,6 +95,10 @@ def build_differential_policy_provenance(
             ),
             condition_columns=condition_columns,
             covariates=covariate_provenance,
+            paired_design_policy=request.config.paired_design_policy,
+            block_levels=_block_levels(request.design_build_result),
+            block_reference_level=_block_reference_level(request.design_build_result),
+            block_columns=_block_columns(request.design_build_result),
             rank_validation_status=_DIFFERENTIAL_RANK_VALIDATION_STATUS,
             estimability_validation_status=(
                 _DIFFERENTIAL_ESTIMABILITY_VALIDATION_STATUS
@@ -133,7 +140,39 @@ def build_differential_policy_provenance(
 def _design_formula(request: ValidatedDifferentialAnalysisRequest) -> str:
     if request.design_build_result is not None:
         return request.design_build_result.formula
-    return describe_fixed_effect_design(request.design)
+    return describe_fixed_effect_design(
+        request.design,
+        paired_design_policy=request.config.paired_design_policy,
+    )
+
+
+def _block_levels(
+    design_build_result: DesignMatrixBuildResult | None,
+) -> tuple[str, ...]:
+    if design_build_result is None:
+        return ()
+    return design_build_result.block_levels
+
+
+def _block_reference_level(
+    design_build_result: DesignMatrixBuildResult | None,
+) -> str | None:
+    if design_build_result is None:
+        return None
+    return design_build_result.block_reference_level
+
+
+def _block_columns(
+    design_build_result: DesignMatrixBuildResult | None,
+) -> tuple[tuple[str, str], ...]:
+    if design_build_result is None:
+        return ()
+    return tuple(
+        (level, column)
+        for level in design_build_result.block_levels
+        for column in (design_build_result.block_columns.get(level),)
+        if column is not None
+    )
 
 
 def _condition_columns(
