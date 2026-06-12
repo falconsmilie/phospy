@@ -30,11 +30,83 @@ Importers own:
 Importers never infer sample groups, contrasts, batches, or differential
 designs from column names.
 
+## MaxQuant Phosphosite Importer
+
+Use `MaxQuantPhosphositeImporter` for MaxQuant-style
+`Phospho (STY)Sites.txt` exports. The importer detects common MaxQuant column
+names, but every scientific field can be overridden with
+`MaxQuantColumnMapping`; do not rely on identical export headers across
+MaxQuant versions or processing templates.
+
+```python
+from phospy.api import Organism
+from phospy.io.readers import (
+    MaxQuantColumnMapping,
+    MaxQuantPhosphositeImporter,
+    MaxQuantPhosphositeImportRequest,
+)
+
+import_result = MaxQuantPhosphositeImporter().run(
+    MaxQuantPhosphositeImportRequest(
+        source="Phospho (STY)Sites.txt",
+        column_mapping=MaxQuantColumnMapping(
+            protein_accession="Leading proteins",
+            gene_symbol="Gene names",
+            amino_acid="Amino acid",
+            site_position="Positions within proteins",
+            localisation_confidence="Localization prob",
+            peptide_sequence="Sequence",
+            modified_peptide_sequence="Modified sequence",
+            intensity_columns={
+                "Intensity Control": "control",
+                "Intensity Stim": "stim",
+            },
+            potential_contaminant="Potential contaminant",
+            reverse="Reverse",
+        ),
+        contaminant_policy="remove",
+        reverse_policy="remove",
+        localisation_confidence_scale="probability",
+    )
+)
+```
+
+The localisation output column is `localisation_confidence`. It is numeric and
+normalised to a probability in `[0.0, 1.0]` by the shared importer helpers.
+MaxQuant probability strings such as `S(0.95)` are parsed by the MaxQuant
+adapter; raw score-difference columns are not converted into probabilities.
+If you map a score-like column, it must already be threshold-ready on the
+configured scale.
+
+Contaminant and reverse handling is explicit:
+
+- `contaminant_policy="remove"` and `reverse_policy="remove"` drop flagged rows.
+- `contaminant_policy="flag"` and `reverse_policy="flag"` retain rows and add
+  `maxquant_potential_contaminant` / `maxquant_reverse` metadata columns.
+- `contaminant_policy="error"` and `reverse_policy="error"` fail if flagged rows
+  are present.
+
+The importer generates protein/site-scoped source row IDs by default and stores
+protein context in `protein_accession` and `protein_id` where possible. It does
+not use display IDs such as `GENE;S123;` as row identity.
+
+Multi-site MaxQuant rows are retained as peptide evidence. Hand them to the
+builder peptide-evidence lane when site-level resolution is required:
+
+```python
+request = import_result.to_dataset_build_request(
+    site_resolution_mode="peptide_evidence",
+    multi_site_policy="split",
+    organism=Organism.HUMAN,
+    input_intensity_scale="linear",
+)
+```
+
 ## Generic Column-Mapped Importer
 
 The foundation importer is intentionally generic. Tool-specific importers such
-as MaxQuant, FragPipe, Spectronaut, or DIA-NN should be added later as small
-classes that map their known columns into this contract.
+as FragPipe, Spectronaut, or DIA-NN should stay small classes that map their
+known columns into this contract.
 
 ```python
 import pandas as pd

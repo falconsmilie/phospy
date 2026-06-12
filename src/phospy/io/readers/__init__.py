@@ -22,10 +22,18 @@ if TYPE_CHECKING:
         ColumnMappedPhosphositeImporter,
         MappedPhosphositeTableImporter,
     )
+    from phospy.io.readers.maxquant import (
+        MaxQuantColumnMapping,
+        MaxQuantPhosphositeImporter,
+        MaxQuantPhosphositeImportRequest,
+    )
 
 __all__ = [
     "ColumnMappedPhosphositeImporter",
     "MappedPhosphositeTableImporter",
+    "MaxQuantColumnMapping",
+    "MaxQuantPhosphositeImporter",
+    "MaxQuantPhosphositeImportRequest",
     "read_contrast_matrix",
     "read_design_matrix",
     "read_phospho_matrix",
@@ -48,4 +56,16 @@ def __getattr__(name: str) -> object:
         from phospy.io.readers.importers import MappedPhosphositeTableImporter
 
         return MappedPhosphositeTableImporter
+    if name == "MaxQuantColumnMapping":
+        from phospy.io.readers.maxquant import MaxQuantColumnMapping
+
+        return MaxQuantColumnMapping
+    if name == "MaxQuantPhosphositeImporter":
+        from phospy.io.readers.maxquant import MaxQuantPhosphositeImporter
+
+        return MaxQuantPhosphositeImporter
+    if name == "MaxQuantPhosphositeImportRequest":
+        from phospy.io.readers.maxquant import MaxQuantPhosphositeImportRequest
+
+        return MaxQuantPhosphositeImportRequest
     raise AttributeError(name)

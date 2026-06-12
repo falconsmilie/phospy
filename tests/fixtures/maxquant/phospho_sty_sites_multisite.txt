@@ -1,0 +1,3 @@
+Proteins	Gene names	Amino acid	Positions within proteins	Localization prob	Sequence	Modified sequence	Sequence window	Intensity Control	Intensity Stim	Potential contaminant	Reverse
+P28482	MAPK1	S;T	10;12	0.88	AAASTTAAAA	AAA(ph)ST(ph)TAAAA	AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA	10.0	12.0		
+P31749	AKT1	S	473	0.93	BBBBBSBBBB	BBBBB(ph)SBBBB	AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA	20.0	22.0		

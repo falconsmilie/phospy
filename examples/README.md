@@ -11,6 +11,9 @@ Read them in this order:
 Use `reference_bundle_builder_demo.py` when you need a small local-file example
 for building an explicit human/mouse-style `ReferenceBundle`.
 
+Use `maxquant_importer_demo.py` when you need to translate MaxQuant-style
+`Phospho (STY)Sites.txt` columns into dataset-builder input candidates.
+
 They intentionally keep the story small:
 
 - rat bundled-reference lane first
