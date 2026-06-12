@@ -10,6 +10,7 @@ import pandas as pd
 
 from phospy.errors.validation import WorkflowValidationError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.design.matrix_builder import DesignMatrixBuilder
 from phospy.science.design.models import (
     FIXED_EFFECT_COVARIATE_KIND_BATCH,
     FIXED_EFFECT_COVARIATE_KIND_CONTINUOUS,
@@ -41,6 +42,13 @@ class ValidatedExperimentalDesignContract:
 
 class ExperimentalDesignContractValidator:
     """Validate typed experimental design and contrast definitions."""
+
+    def __init__(
+        self,
+        *,
+        design_matrix_builder: DesignMatrixBuilder | None = None,
+    ) -> None:
+        self._design_matrix_builder = design_matrix_builder or DesignMatrixBuilder()
 
     def run(
         self,
@@ -154,10 +162,10 @@ class ExperimentalDesignContractValidator:
                         f"{minimum_condition_replicates}"
                     )
 
-        design_frame = self._build_design_frame(
+        design_frame = self._design_matrix_builder.run(
             design=design,
             condition_labels=known_conditions,
-        )
+        ).frame
         contrast_frame = self._build_contrast_frame(
             condition_labels=known_conditions,
             contrasts=normalized_contrasts,
@@ -302,22 +310,6 @@ class ExperimentalDesignContractValidator:
                 )
             return len({str(value) for value in biological_ids if value is not None})
         return len(records)
-
-    @staticmethod
-    def _build_design_frame(
-        *,
-        design: ExperimentalDesign,
-        condition_labels: tuple[str, ...],
-    ) -> pd.DataFrame:
-        sample_ids = design.sample_ids()
-        frame = pd.DataFrame(
-            0.0,
-            index=pd.Index(sample_ids, name="sample"),
-            columns=pd.Index(condition_labels, name="coefficient"),
-        )
-        for record in design.samples:
-            frame.at[record.sample_id, record.condition] = 1.0
-        return frame
 
     @staticmethod
     def _build_contrast_frame(
