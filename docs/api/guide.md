@@ -102,6 +102,48 @@ dataclasses can reject invalid local policy values at construction time because
 those invariants belong to the config itself. Request dataclasses should not be
 treated as mini-workflow validators.
 
+## Differential Design Declarations
+
+`ExperimentalDesign` can explicitly declare fixed-effect covariate intent
+without inferring anything from `dataset.sample_metadata`:
+
+```python
+from phospy.api import (
+    BatchCovariate,
+    CategoricalCovariate,
+    ContinuousCovariate,
+    ExperimentalDesign,
+    SampleDesignRecord,
+)
+
+design = ExperimentalDesign(
+    samples=(
+        SampleDesignRecord(
+            sample_id="control_rep1",
+            condition="control",
+            batch="run_1",
+            covariates={"sex": "F", "dose": 0.0},
+        ),
+        SampleDesignRecord(
+            sample_id="treated_rep1",
+            condition="treated",
+            batch="run_1",
+            covariates={"sex": "M", "dose": 10.0},
+        ),
+    ),
+    fixed_effects=(
+        BatchCovariate(include_in_model=False),
+        CategoricalCovariate("sex", include_in_model=False),
+        ContinuousCovariate("dose", include_in_model=False),
+    ),
+)
+```
+
+Each declaration records the covariate `name`, `kind`, whether it is
+`required`, and whether it is intended to `include_in_model`. Adjusted
+fixed-effect differential models are not wired into execution in this release;
+modelled fixed effects are rejected before statistical execution.
+
 ## Importer Boundary
 
 `PhosphositeImportRequest` and `PhosphositeImportResult` support upstream table

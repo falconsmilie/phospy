@@ -26,6 +26,8 @@ from phospy.science.sites.site_keys import (
     build_protein_scoped_site_key,
     encode_site_key,
 )
+from phospy.workflows.differential.interpreter import DifferentialAnalysisInterpreter
+from phospy.workflows.differential.validator import DifferentialAnalysisValidator
 from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
@@ -213,6 +215,9 @@ def test_differential_analysis_returns_per_contrast_moderated_tables() -> None:
     assert "batch-aware differential modelling" in (
         result.policy_provenance.unsupported_design.intentionally_rejected_features
     )
+    assert "blocking/paired/repeated-measure differential modelling" in (
+        result.policy_provenance.unsupported_design.intentionally_rejected_features
+    )
     assert result.policy_provenance.replicates.condition_replicate_counts == (
         ("A", 2),
         ("B", 2),
@@ -244,6 +249,39 @@ def test_differential_analysis_returns_per_contrast_moderated_tables() -> None:
         assert (table.loc[:, "P.Value"] <= 1.0).all()
         assert (table.loc[:, "adj.P.Val"] >= 0.0).all()
         assert (table.loc[:, "adj.P.Val"] <= 1.0).all()
+
+
+def test_simple_design_matrix_and_contrast_vectors_remain_unchanged() -> None:
+    interpreted = DifferentialAnalysisInterpreter().run(
+        DifferentialAnalysisValidator().run(_request())
+    )
+
+    expected_design = pd.DataFrame(
+        {
+            "A": [1.0, 1.0, 0.0, 0.0, 0.0, 0.0],
+            "B": [0.0, 0.0, 1.0, 1.0, 0.0, 0.0],
+            "C": [0.0, 0.0, 0.0, 0.0, 1.0, 1.0],
+        },
+        index=pd.Index(["A_1", "A_2", "B_1", "B_2", "C_1", "C_2"], name="sample"),
+    )
+    expected_design.columns = pd.Index(expected_design.columns, name="coefficient")
+    expected_contrasts = pd.DataFrame(
+        {
+            "B_vs_A": [-1.0, 1.0, 0.0],
+            "C_vs_A": [-1.0, 0.0, 1.0],
+        },
+        index=pd.Index(["A", "B", "C"], name="coefficient"),
+    )
+    expected_contrasts.columns = pd.Index(expected_contrasts.columns, name="contrast")
+
+    pdt.assert_frame_equal(
+        interpreted.computation_request.design.to_dataframe(),
+        expected_design,
+    )
+    pdt.assert_frame_equal(
+        interpreted.computation_request.contrasts.to_dataframe(),
+        expected_contrasts,
+    )
 
 
 def test_empirical_bayes_config_rejects_invalid_winsor_tail_values() -> None:

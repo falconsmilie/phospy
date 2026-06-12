@@ -42,13 +42,17 @@ INTENTIONAL_REQUEST_COMPATIBILITY_CONSTANTS = {
 }
 
 EXPECTED_REQUEST_EXPORTS = {
+    "BatchCovariate",
+    "CategoricalCovariate",
     "Contrast",
     "ContrastMatrix",
+    "ContinuousCovariate",
     "DesignMatrix",
     "DatasetBuildRequest",
     "DifferentialAnalysisRequest",
     "EmpiricalBayesConfig",
     "ExperimentalDesign",
+    "FixedEffectCovariate",
     "KinaseWorkflowRequest",
     "PhosphositeImporter",
     "PhosphositeImportRequest",

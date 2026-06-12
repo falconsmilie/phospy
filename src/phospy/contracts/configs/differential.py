@@ -32,7 +32,11 @@ class MultipleTestingConfig:
 
 @dataclass(frozen=True, slots=True)
 class DifferentialAnalysisConfig:
-    """Public configuration for differential analysis."""
+    """Public configuration for differential analysis.
+
+    Fixed-effect covariate declarations live on ``ExperimentalDesign``. This
+    config does not enable adjusted-model execution in the current release.
+    """
 
     technical_replicate_policy: TechnicalReplicatePolicy = (
         TechnicalReplicatePolicy.REJECT

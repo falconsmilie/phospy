@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 from phospy.api import (
+    BatchCovariate,
     Contrast,
     DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
@@ -118,9 +119,10 @@ def test_workflow_rejects_batch_modelling_in_current_release() -> None:
             SampleDesignRecord(sample_id="A_2", condition="A", batch="batch_1"),
             SampleDesignRecord(sample_id="B_1", condition="B", batch="batch_2"),
             SampleDesignRecord(sample_id="B_2", condition="B", batch="batch_2"),
-        )
+        ),
+        fixed_effects=(BatchCovariate(),),
     )
-    with pytest.raises(WorkflowValidationError, match="unsupported design features"):
+    with pytest.raises(WorkflowValidationError, match="fixed-effect differential"):
         DifferentialAnalysisWorkflow().run(_workflow_request(design=design))
 
 

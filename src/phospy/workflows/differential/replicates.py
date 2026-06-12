@@ -23,6 +23,7 @@ class TechnicalReplicateAggregationGroup:
     technical_replicate_ids: tuple[str, ...]
     batch: str | None
     block: str | None
+    covariates: Mapping[str, str | float]
 
 
 @dataclass(frozen=True, slots=True)
@@ -184,6 +185,11 @@ class TechnicalReplicateAggregationPlanner:
                     field_name="block",
                 )
             )
+            covariates = (
+                TechnicalReplicateAggregationPlanner._require_consistent_covariates(
+                    records=tuple(records)
+                )
+            )
             resolved_groups.append(
                 TechnicalReplicateAggregationGroup(
                     condition=condition,
@@ -193,6 +199,7 @@ class TechnicalReplicateAggregationPlanner:
                     technical_replicate_ids=technical_ids,
                     batch=batch,
                     block=block,
+                    covariates=covariates,
                 )
             )
         return tuple(resolved_groups)
@@ -211,6 +218,24 @@ class TechnicalReplicateAggregationPlanner:
             raise WorkflowValidationError(
                 "technical replicate aggregation requires consistent "
                 f"{field_name!r} within each condition+biological_replicate_id group; "
+                f"condition={records[0].condition!r}, "
+                f"biological_replicate_id={biological_replicate_id!r}, "
+                f"samples={sample_ids}"
+            )
+        return first
+
+    @staticmethod
+    def _require_consistent_covariates(
+        *,
+        records: tuple[SampleDesignRecord, ...],
+    ) -> Mapping[str, str | float]:
+        first = dict(records[0].covariates)
+        if any(dict(record.covariates) != first for record in records[1:]):
+            sample_ids = ", ".join(record.sample_id for record in records)
+            biological_replicate_id = records[0].biological_replicate_id
+            raise WorkflowValidationError(
+                "technical replicate aggregation requires consistent covariates "
+                "within each condition+biological_replicate_id group; "
                 f"condition={records[0].condition!r}, "
                 f"biological_replicate_id={biological_replicate_id!r}, "
                 f"samples={sample_ids}"
@@ -256,9 +281,11 @@ class TechnicalReplicateAggregator:
                     technical_replicate_id=None,
                     batch=group.batch,
                     block=group.block,
+                    covariates=group.covariates,
                 )
                 for group in groups
-            )
+            ),
+            fixed_effects=design.fixed_effects,
         )
         provenance_groups: list[dict[str, object]] = []
         for group in groups:

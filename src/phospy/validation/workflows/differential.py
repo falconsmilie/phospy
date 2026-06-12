@@ -11,6 +11,8 @@ import pandas as pd
 from phospy.errors.validation import WorkflowValidationError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.design.models import (
+    FIXED_EFFECT_COVARIATE_KIND_BATCH,
+    FIXED_EFFECT_COVARIATE_KIND_CONTINUOUS,
     Contrast,
     ExperimentalDesign,
     SampleDesignRecord,
@@ -97,20 +99,22 @@ class ExperimentalDesignContractValidator:
                 + ", ".join(missing_samples)
             )
 
-        self._validate_optional_field_alignment(
-            design.samples,
-            field_name="batch",
+        declares_batch = any(
+            covariate.kind == FIXED_EFFECT_COVARIATE_KIND_BATCH
+            for covariate in design.fixed_effects
         )
+        if not declares_batch:
+            self._validate_optional_field_alignment(
+                design.samples,
+                field_name="batch",
+            )
         self._validate_optional_field_alignment(
             design.samples,
             field_name="block",
         )
+        self._validate_fixed_effect_inputs(design)
+        self._reject_unsupported_modelled_fixed_effects(design)
 
-        if any(record.batch is not None for record in design.samples):
-            raise WorkflowValidationError(
-                "unsupported design features: batch-aware differential modelling is "
-                "not available in this release"
-            )
         if any(record.block is not None for record in design.samples):
             raise WorkflowValidationError(
                 "unsupported design features: blocking/paired differential modelling "
@@ -199,6 +203,81 @@ class ExperimentalDesignContractValidator:
             raise WorkflowValidationError(
                 f"experimental design optional field {field_name!r} must be set for "
                 "all samples or for no samples"
+            )
+
+    @staticmethod
+    def _validate_fixed_effect_inputs(design: ExperimentalDesign) -> None:
+        declared_covariate_names = {
+            covariate.name
+            for covariate in design.fixed_effects
+            if covariate.kind != FIXED_EFFECT_COVARIATE_KIND_BATCH
+        }
+        declares_batch = any(
+            covariate.kind == FIXED_EFFECT_COVARIATE_KIND_BATCH
+            for covariate in design.fixed_effects
+        )
+        for record in design.samples:
+            extra_names = sorted(set(record.covariates) - declared_covariate_names)
+            if extra_names:
+                raise WorkflowValidationError(
+                    "experimental design sample covariates must be explicitly "
+                    "declared as fixed effects; "
+                    f"sample={record.sample_id!r}, undeclared=" + ", ".join(extra_names)
+                )
+        if (
+            any(record.batch is not None for record in design.samples)
+            and not declares_batch
+        ):
+            raise WorkflowValidationError(
+                "experimental design batch values must be explicitly declared as a "
+                "batch fixed effect"
+            )
+
+        for covariate in design.fixed_effects:
+            missing_samples: list[str] = []
+            non_numeric_samples: list[str] = []
+            for record in design.samples:
+                if covariate.kind == FIXED_EFFECT_COVARIATE_KIND_BATCH:
+                    value = record.batch
+                    missing = value is None
+                else:
+                    missing = covariate.name not in record.covariates
+                    value = None if missing else record.covariates[covariate.name]
+                if missing:
+                    missing_samples.append(record.sample_id)
+                    continue
+                if (
+                    covariate.kind == FIXED_EFFECT_COVARIATE_KIND_CONTINUOUS
+                    and isinstance(value, str)
+                ):
+                    non_numeric_samples.append(record.sample_id)
+            if missing_samples and covariate.required:
+                raise WorkflowValidationError(
+                    "experimental design fixed-effect covariate "
+                    f"{covariate.name!r} is required but missing for samples: "
+                    + ", ".join(missing_samples)
+                )
+            if non_numeric_samples:
+                raise WorkflowValidationError(
+                    "experimental design continuous covariate "
+                    f"{covariate.name!r} must be numeric for samples: "
+                    + ", ".join(non_numeric_samples)
+                )
+
+    @staticmethod
+    def _reject_unsupported_modelled_fixed_effects(
+        design: ExperimentalDesign,
+    ) -> None:
+        modelled_effects = tuple(
+            covariate.name
+            for covariate in design.fixed_effects
+            if covariate.include_in_model
+        )
+        if modelled_effects:
+            raise WorkflowValidationError(
+                "unsupported design features: fixed-effect differential modelling "
+                "is not available in this release; declared modelled fixed effects: "
+                + ", ".join(modelled_effects)
             )
 
     @staticmethod

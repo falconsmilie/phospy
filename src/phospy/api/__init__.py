@@ -56,6 +56,9 @@ from phospy.api.datasets import (
 )
 from phospy.api.enums import Organism, ReferencePreset
 from phospy.api.requests import (
+    BatchCovariate,
+    CategoricalCovariate,
+    ContinuousCovariate,
     Contrast,
     ContrastMatrix,
     DatasetBuildRequest,
@@ -63,6 +66,7 @@ from phospy.api.requests import (
     DifferentialAnalysisRequest,
     EmpiricalBayesConfig,
     ExperimentalDesign,
+    FixedEffectCovariate,
     KinaseWorkflowRequest,
     PhosphositeImporter,
     PhosphositeImportRequest,
@@ -147,6 +151,10 @@ __all__ = [
     "DatasetIntensityTransformConfig",
     "DatasetLocalisationConfig",
     "SampleDesignRecord",
+    "BatchCovariate",
+    "CategoricalCovariate",
+    "ContinuousCovariate",
+    "FixedEffectCovariate",
     "ExperimentalDesign",
     "Contrast",
     "DesignMatrix",

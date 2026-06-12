@@ -3,6 +3,9 @@
 from phospy.contracts import requests as _request_contracts
 from phospy.contracts.configs import SignalomeConfig
 from phospy.contracts.requests import (
+    BatchCovariate,
+    CategoricalCovariate,
+    ContinuousCovariate,
     Contrast,
     ContrastMatrix,
     DatasetBuildRequest,
@@ -10,6 +13,7 @@ from phospy.contracts.requests import (
     DifferentialAnalysisRequest,
     EmpiricalBayesConfig,
     ExperimentalDesign,
+    FixedEffectCovariate,
     KinaseWorkflowRequest,
     PhosphositeImporter,
     PhosphositeImportRequest,
@@ -38,8 +42,11 @@ DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED = (
 )
 
 __all__ = [
+    "BatchCovariate",
     "Contrast",
     "ContrastMatrix",
+    "CategoricalCovariate",
+    "ContinuousCovariate",
     "DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING",
     "DATASET_MULTI_SITE_POLICY_KEEP_JOINT",
     "DATASET_MULTI_SITE_POLICY_REJECT",
@@ -51,6 +58,7 @@ __all__ = [
     "DifferentialAnalysisRequest",
     "EmpiricalBayesConfig",
     "ExperimentalDesign",
+    "FixedEffectCovariate",
     "KinaseWorkflowRequest",
     "PhosphositeImporter",
     "PhosphositeImportRequest",

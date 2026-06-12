@@ -28,8 +28,12 @@ from phospy.contracts.configs import (
 from phospy.science.datasets.builders.contracts import DatasetInput
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.design.models import (
+    BatchCovariate,
+    CategoricalCovariate,
+    ContinuousCovariate,
     Contrast,
     ExperimentalDesign,
+    FixedEffectCovariate,
     SampleDesignRecord,
 )
 from phospy.science.differential.models import (
@@ -222,14 +226,18 @@ class DifferentialAnalysisRequest:
 
 
 __all__ = [
+    "BatchCovariate",
     "ContrastMatrix",
+    "CategoricalCovariate",
     "DesignMatrix",
     "DatasetBuildRequest",
     "PhosphositeImporter",
     "PhosphositeImportRequest",
     "SampleDesignRecord",
     "ExperimentalDesign",
+    "FixedEffectCovariate",
     "Contrast",
+    "ContinuousCovariate",
     "DifferentialAnalysisRequest",
     "EmpiricalBayesConfig",
     "KinaseWorkflowRequest",

@@ -5,8 +5,12 @@ import pytest
 
 from phospy import AnalysisReadyPhosphoDataset
 from phospy.api import (
+    BatchCovariate,
+    CategoricalCovariate,
+    ContinuousCovariate,
     Contrast,
     ExperimentalDesign,
+    FixedEffectCovariate,
     Organism,
     SampleDesignRecord,
 )
@@ -243,16 +247,198 @@ def test_optional_block_field_validation_fails_when_partially_defined() -> None:
         )
 
 
-def test_supported_contract_reports_unsupported_batch_modelling() -> None:
+def test_contract_rejects_undeclared_covariate_values() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                sample_id="A_1",
+                condition="A",
+                covariates={"dose": 1.0},
+            ),
+            SampleDesignRecord(sample_id="A_2", condition="A"),
+            SampleDesignRecord(sample_id="B_1", condition="B"),
+            SampleDesignRecord(sample_id="B_2", condition="B"),
+        )
+    )
+    with pytest.raises(WorkflowValidationError, match="undeclared=dose"):
+        ExperimentalDesignContractValidator().run(
+            dataset=_dataset(),
+            design=design,
+            contrasts=_contrasts(),
+            allow_design_subset=False,
+            minimum_condition_replicates=1,
+        )
+
+
+def test_categorical_covariate_declaration_records_contract() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                sample_id="A_1",
+                condition="A",
+                covariates={"sex": "F"},
+            ),
+            SampleDesignRecord(
+                sample_id="A_2",
+                condition="A",
+                covariates={"sex": "M"},
+            ),
+            SampleDesignRecord(
+                sample_id="B_1",
+                condition="B",
+                covariates={"sex": "F"},
+            ),
+            SampleDesignRecord(
+                sample_id="B_2",
+                condition="B",
+                covariates={"sex": "M"},
+            ),
+        ),
+        fixed_effects=(
+            CategoricalCovariate(
+                name="sex",
+                required=True,
+                include_in_model=False,
+            ),
+        ),
+    )
+
+    validated = ExperimentalDesignContractValidator().run(
+        dataset=_dataset(),
+        design=design,
+        contrasts=_contrasts(),
+        allow_design_subset=False,
+        minimum_condition_replicates=1,
+    )
+
+    assert validated.design is design
+    assert design.fixed_effects[0].name == "sex"
+    assert design.fixed_effects[0].kind == "categorical"
+    assert design.fixed_effects[0].required is True
+    assert design.fixed_effects[0].include_in_model is False
+    assert validated.design_frame.columns.tolist() == ["A", "B"]
+
+
+def test_continuous_covariate_declaration_records_contract() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                sample_id="A_1",
+                condition="A",
+                covariates={"dose": 0.0},
+            ),
+            SampleDesignRecord(
+                sample_id="A_2",
+                condition="A",
+                covariates={"dose": 1.0},
+            ),
+            SampleDesignRecord(
+                sample_id="B_1",
+                condition="B",
+                covariates={"dose": 2.0},
+            ),
+            SampleDesignRecord(
+                sample_id="B_2",
+                condition="B",
+                covariates={"dose": 3.0},
+            ),
+        ),
+        fixed_effects=(
+            ContinuousCovariate(
+                name="dose",
+                required=True,
+                include_in_model=False,
+            ),
+        ),
+    )
+
+    validated = ExperimentalDesignContractValidator().run(
+        dataset=_dataset(),
+        design=design,
+        contrasts=_contrasts(),
+        allow_design_subset=False,
+        minimum_condition_replicates=1,
+    )
+
+    assert validated.design is design
+    assert design.fixed_effects[0].name == "dose"
+    assert design.fixed_effects[0].kind == "continuous"
+    assert design.fixed_effects[0].required is True
+    assert design.fixed_effects[0].include_in_model is False
+    assert validated.design_frame.columns.tolist() == ["A", "B"]
+
+
+def test_batch_covariate_declaration_records_contract() -> None:
     design = ExperimentalDesign(
         samples=(
             SampleDesignRecord(sample_id="A_1", condition="A", batch="batch_1"),
             SampleDesignRecord(sample_id="A_2", condition="A", batch="batch_1"),
             SampleDesignRecord(sample_id="B_1", condition="B", batch="batch_2"),
             SampleDesignRecord(sample_id="B_2", condition="B", batch="batch_2"),
-        )
+        ),
+        fixed_effects=(BatchCovariate(include_in_model=False),),
     )
-    with pytest.raises(WorkflowValidationError, match="unsupported design features"):
+    validated = ExperimentalDesignContractValidator().run(
+        dataset=_dataset(),
+        design=design,
+        contrasts=_contrasts(),
+        allow_design_subset=False,
+        minimum_condition_replicates=1,
+    )
+    assert validated.design is design
+    assert design.fixed_effects[0].name == "batch"
+    assert design.fixed_effects[0].kind == "batch"
+    assert design.fixed_effects[0].required is True
+    assert design.fixed_effects[0].include_in_model is False
+    assert validated.design_frame.columns.tolist() == ["A", "B"]
+
+
+def test_duplicate_covariate_names_rejected() -> None:
+    with pytest.raises(WorkflowValidationError, match="duplicate covariate names"):
+        ExperimentalDesign(
+            samples=_design().samples,
+            fixed_effects=(
+                CategoricalCovariate("sex"),
+                ContinuousCovariate("sex"),
+            ),
+        )
+
+
+def test_unsupported_covariate_kind_rejected() -> None:
+    with pytest.raises(WorkflowValidationError, match="unsupported covariate kind"):
+        FixedEffectCovariate(
+            name="age",
+            kind="ordinal",  # type: ignore[arg-type]
+        )
+
+
+def test_modelled_fixed_effect_declaration_is_not_executable_yet() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                sample_id="A_1",
+                condition="A",
+                covariates={"sex": "F"},
+            ),
+            SampleDesignRecord(
+                sample_id="A_2",
+                condition="A",
+                covariates={"sex": "M"},
+            ),
+            SampleDesignRecord(
+                sample_id="B_1",
+                condition="B",
+                covariates={"sex": "F"},
+            ),
+            SampleDesignRecord(
+                sample_id="B_2",
+                condition="B",
+                covariates={"sex": "M"},
+            ),
+        ),
+        fixed_effects=(CategoricalCovariate("sex"),),
+    )
+    with pytest.raises(WorkflowValidationError, match="fixed-effect differential"):
         ExperimentalDesignContractValidator().run(
             dataset=_dataset(),
             design=design,
