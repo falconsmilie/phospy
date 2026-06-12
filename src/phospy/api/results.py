@@ -3,6 +3,16 @@
 from phospy.contracts import results as _result_contracts
 from phospy.contracts.results import (
     DifferentialAnalysisResult,
+    DifferentialContrastDefinition,
+    DifferentialDesignMatrixSummary,
+    DifferentialEmpiricalBayesProvenance,
+    DifferentialFixedEffectCovariateProvenance,
+    DifferentialMissingValuePolicyProvenance,
+    DifferentialPolicyProvenance,
+    DifferentialReplicatePolicyProvenance,
+    DifferentialStatisticalTestingProvenance,
+    DifferentialTechnicalReplicateGroup,
+    DifferentialUnsupportedDesignPolicyProvenance,
     KinaseActivityResult,
     KinasePredictionResult,
     KinaseScoringResult,
@@ -25,6 +35,16 @@ KinaseWorkflowSiteAttritionSummary = (
 
 __all__ = [
     "DifferentialAnalysisResult",
+    "DifferentialContrastDefinition",
+    "DifferentialDesignMatrixSummary",
+    "DifferentialEmpiricalBayesProvenance",
+    "DifferentialFixedEffectCovariateProvenance",
+    "DifferentialMissingValuePolicyProvenance",
+    "DifferentialPolicyProvenance",
+    "DifferentialReplicatePolicyProvenance",
+    "DifferentialStatisticalTestingProvenance",
+    "DifferentialTechnicalReplicateGroup",
+    "DifferentialUnsupportedDesignPolicyProvenance",
     "KinaseActivityResult",
     "KinaseEligibilityReport",
     "KinasePredictionResult",

@@ -25,13 +25,9 @@ class DifferentialAnalysisExecutor:
     def run(
         self, request: DifferentialAnalysisRequest
     ) -> DifferentialComputationResult:
-        matrix = request.matrix
-        design_frame = request.design.frame
-        contrast_frame = request.contrasts.frame
-
-        matrix_aligned = matrix.loc[:, design_frame.index]
-        design_aligned = design_frame
-        contrast_aligned = contrast_frame.loc[design_aligned.columns]
+        matrix_aligned, design_aligned, contrast_aligned = _align_execution_inputs(
+            request
+        )
 
         design_values = design_aligned.to_numpy(dtype=float)
         if design_values.ndim != 2:
@@ -103,7 +99,7 @@ class DifferentialAnalysisExecutor:
             )
 
         contrasts = contrast_aligned.to_numpy(dtype=float)
-        contrast_effects = response.T @ design_values @ xtx_inv @ contrasts
+        contrast_effects = coefficients.T @ contrasts
         contrast_covariance = contrasts.T @ xtx_inv @ contrasts
         contrast_scale = np.sqrt(np.diag(contrast_covariance))
         if np.any(~np.isfinite(contrast_scale)) or np.any(contrast_scale <= 0.0):
@@ -225,6 +221,71 @@ class DifferentialAnalysisExecutor:
             mean_variance_trend_diagnostics=trend_diagnostics,
             contrast_tables=contrast_tables,
         )
+
+
+def _align_execution_inputs(
+    request: DifferentialAnalysisRequest,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    matrix = cast(pd.DataFrame, request.matrix)
+    design_frame = cast(pd.DataFrame, request.design.frame)
+    contrast_frame = cast(pd.DataFrame, request.contrasts.frame)
+
+    if matrix.shape[1] != design_frame.shape[0]:
+        raise PhosPyInputError(
+            "differential.matrix.columns count must match differential.design rows; "
+            f"matrix_columns={int(matrix.shape[1])}, "
+            f"design_rows={int(design_frame.shape[0])}"
+        )
+
+    matrix_samples = pd.Index(matrix.columns)
+    design_samples = pd.Index(design_frame.index)
+    if not matrix_samples.equals(design_samples) and (
+        not matrix_samples.isin(design_samples).all()
+        or not design_samples.isin(matrix_samples).all()
+    ):
+        missing_matrix_samples = [
+            str(sample) for sample in design_samples if sample not in matrix_samples
+        ]
+        extra_matrix_samples = [
+            str(sample) for sample in matrix_samples if sample not in design_samples
+        ]
+        raise PhosPyInputError(
+            "differential.matrix.columns must match differential.design.index "
+            "exactly as execution sample labels; "
+            f"missing_matrix_samples={missing_matrix_samples}, "
+            f"extra_matrix_samples={extra_matrix_samples}"
+        )
+
+    design_terms = pd.Index(design_frame.columns)
+    contrast_terms = pd.Index(contrast_frame.index)
+    if not design_terms.equals(contrast_terms) and (
+        not design_terms.isin(contrast_terms).all()
+        or not contrast_terms.isin(design_terms).all()
+    ):
+        missing_contrast_terms = [
+            str(term) for term in design_terms if term not in contrast_terms
+        ]
+        extra_contrast_terms = [
+            str(term) for term in contrast_terms if term not in design_terms
+        ]
+        raise PhosPyInputError(
+            "differential.contrasts.index must match differential.design.columns "
+            "exactly as execution design-term labels; "
+            f"missing_contrast_terms={missing_contrast_terms}, "
+            f"extra_contrast_terms={extra_contrast_terms}"
+        )
+
+    if int(contrast_frame.shape[1]) < 1:
+        raise PhosPyInputError(
+            "differential.contrasts must contain at least one contrast column"
+        )
+
+    matrix_aligned = cast(pd.DataFrame, matrix.loc[:, list(design_frame.index)])
+    contrast_aligned = cast(
+        pd.DataFrame,
+        contrast_frame.loc[list(design_frame.columns), :],
+    )
+    return matrix_aligned, design_frame, contrast_aligned
 
 
 def _preview_invalid_entries(

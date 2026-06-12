@@ -172,6 +172,247 @@ def _base_request(*, matrix: pd.DataFrame, empirical_bayes: EmpiricalBayesConfig
     )
 
 
+def _manual_contrast_effects(
+    *,
+    matrix: pd.DataFrame,
+    design: pd.DataFrame,
+    contrasts: pd.DataFrame,
+) -> pd.DataFrame:
+    response = matrix.loc[:, design.index].to_numpy(dtype=float).T
+    design_values = design.to_numpy(dtype=float)
+    contrast_values = contrasts.loc[design.columns].to_numpy(dtype=float)
+    coefficients = (
+        np.linalg.pinv(design_values.T @ design_values) @ design_values.T @ response
+    )
+    return pd.DataFrame(
+        coefficients.T @ contrast_values,
+        index=matrix.index.copy(),
+        columns=contrasts.columns.copy(),
+    )
+
+
+def _continuous_covariate_inputs() -> tuple[
+    pd.DataFrame,
+    pd.DataFrame,
+    pd.DataFrame,
+    pd.DataFrame,
+]:
+    samples = pd.Index(
+        ["A_1", "A_2", "A_3", "B_1", "B_2", "B_3"],
+        name="sample",
+    )
+    dose = np.array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0], dtype=float)
+    noise = np.array([0.10, -0.12, 0.06, -0.08, 0.09, -0.04], dtype=float)
+    condition_b = np.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0], dtype=float)
+    feature_values = {
+        "site1": 10.0 + 2.0 * dose + noise,
+        "site2": 5.0 + condition_b + 0.5 * dose + noise[::-1],
+        "site3": 1.0 + 0.2 * np.arange(dose.size, dtype=float) + noise * 0.3,
+    }
+    matrix = pd.DataFrame(
+        {
+            sample: [values[position] for values in feature_values.values()]
+            for position, sample in enumerate(samples)
+        },
+        index=pd.Index(tuple(feature_values), name="site_id"),
+    )
+    condition_design = pd.DataFrame(
+        {
+            "A": [1.0, 1.0, 1.0, 0.0, 0.0, 0.0],
+            "B": [0.0, 0.0, 0.0, 1.0, 1.0, 1.0],
+        },
+        index=samples.copy(),
+        dtype=float,
+    )
+    adjusted_design = condition_design.copy(deep=True)
+    adjusted_design.loc[:, "dose"] = dose
+    adjusted_contrast = pd.DataFrame(
+        {"B_vs_A": [-1.0, 1.0, 0.0]},
+        index=pd.Index(["A", "B", "dose"], name="coefficient"),
+    )
+    return matrix, condition_design, adjusted_design, adjusted_contrast
+
+
+def _categorical_covariate_inputs() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    samples = pd.Index(
+        ["A_F1", "A_F2", "A_M1", "B_F1", "B_M1", "B_M2"],
+        name="sample",
+    )
+    sex_m = np.array([0.0, 0.0, 1.0, 0.0, 1.0, 1.0], dtype=float)
+    condition_b = np.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0], dtype=float)
+    noise = np.array([0.05, -0.04, 0.03, -0.02, 0.04, -0.03], dtype=float)
+    feature_values = {
+        "site1": 10.0 + condition_b + 4.0 * sex_m + noise,
+        "site2": 8.0 - 2.0 * sex_m + noise[::-1],
+        "site3": 4.0 + 0.5 * condition_b + 0.7 * sex_m + noise * 2.0,
+    }
+    matrix = pd.DataFrame(
+        {
+            sample: [values[position] for values in feature_values.values()]
+            for position, sample in enumerate(samples)
+        },
+        index=pd.Index(tuple(feature_values), name="site_id"),
+    )
+    design = pd.DataFrame(
+        {
+            "A": [1.0, 1.0, 1.0, 0.0, 0.0, 0.0],
+            "B": [0.0, 0.0, 0.0, 1.0, 1.0, 1.0],
+            "sex[M]": sex_m,
+        },
+        index=samples.copy(),
+        dtype=float,
+    )
+    contrast = pd.DataFrame(
+        {"B_vs_A": [-1.0, 1.0, 0.0]},
+        index=pd.Index(["A", "B", "sex[M]"], name="coefficient"),
+    )
+    return matrix, design, contrast
+
+
+def test_condition_only_executor_preserves_group_mean_contrast() -> None:
+    matrix = pd.DataFrame(
+        {
+            "A_1": [1.0, 2.0, 0.8],
+            "A_2": [1.2, 2.1, 0.9],
+            "B_1": [1.8, 1.9, 1.4],
+            "B_2": [2.0, 2.2, 1.6],
+        },
+        index=pd.Index(["site1", "site2", "site3"], name="site_id"),
+    )
+    request = _base_request(matrix=matrix, empirical_bayes=EmpiricalBayesConfig())
+
+    result = DifferentialAnalysisExecutor().run(request)
+    table = result.table_for("B_vs_A")
+
+    expected = matrix.loc[:, ["B_1", "B_2"]].mean(axis=1) - matrix.loc[
+        :, ["A_1", "A_2"]
+    ].mean(axis=1)
+    np.testing.assert_allclose(
+        table.loc[:, "logFC"].to_numpy(dtype=float),
+        expected.to_numpy(dtype=float),
+        rtol=1e-12,
+        atol=1e-12,
+    )
+    assert result.residual_degrees_of_freedom == pytest.approx(2.0)
+
+
+def test_adjusted_contrast_differs_when_covariate_explains_signal() -> None:
+    matrix, condition_design, adjusted_design, adjusted_contrast = (
+        _continuous_covariate_inputs()
+    )
+    condition_contrast = pd.DataFrame(
+        {"B_vs_A": [-1.0, 1.0]},
+        index=pd.Index(["A", "B"], name="coefficient"),
+    )
+
+    unadjusted = DifferentialAnalysisExecutor().run(
+        DifferentialAnalysisRequest(
+            matrix=matrix,
+            design=condition_design,
+            contrasts=condition_contrast,
+        )
+    )
+    adjusted = DifferentialAnalysisExecutor().run(
+        DifferentialAnalysisRequest(
+            matrix=matrix,
+            design=adjusted_design,
+            contrasts=adjusted_contrast,
+        )
+    )
+
+    unadjusted_log_fc = float(unadjusted.table_for("B_vs_A").at["site1", "logFC"])
+    adjusted_log_fc = float(adjusted.table_for("B_vs_A").at["site1", "logFC"])
+    assert abs(unadjusted_log_fc) > 5.0
+    assert abs(adjusted_log_fc) < 0.1
+    assert abs(unadjusted_log_fc - adjusted_log_fc) > 5.0
+
+
+def test_categorical_covariate_adjusted_model_uses_supplied_design() -> None:
+    matrix, design, contrast = _categorical_covariate_inputs()
+
+    result = DifferentialAnalysisExecutor().run(
+        DifferentialAnalysisRequest(matrix=matrix, design=design, contrasts=contrast)
+    )
+    expected = _manual_contrast_effects(
+        matrix=matrix,
+        design=design,
+        contrasts=contrast,
+    )
+
+    np.testing.assert_allclose(
+        result.table_for("B_vs_A").loc[:, "logFC"].to_numpy(dtype=float),
+        expected.loc[:, "B_vs_A"].to_numpy(dtype=float),
+        rtol=1e-12,
+        atol=1e-12,
+    )
+    assert result.table_for("B_vs_A").at["site1", "logFC"] == pytest.approx(0.975)
+
+
+def test_continuous_covariate_adjusted_model_uses_supplied_design() -> None:
+    matrix, _, adjusted_design, adjusted_contrast = _continuous_covariate_inputs()
+
+    result = DifferentialAnalysisExecutor().run(
+        DifferentialAnalysisRequest(
+            matrix=matrix,
+            design=adjusted_design,
+            contrasts=adjusted_contrast,
+        )
+    )
+    expected = _manual_contrast_effects(
+        matrix=matrix,
+        design=adjusted_design,
+        contrasts=adjusted_contrast,
+    )
+
+    np.testing.assert_allclose(
+        result.table_for("B_vs_A").loc[:, "logFC"].to_numpy(dtype=float),
+        expected.loc[:, "B_vs_A"].to_numpy(dtype=float),
+        rtol=1e-12,
+        atol=1e-12,
+    )
+    assert result.residual_degrees_of_freedom == pytest.approx(3.0)
+
+
+def test_executor_rejects_misaligned_contrast_vector_clearly() -> None:
+    matrix, _, adjusted_design, _ = _continuous_covariate_inputs()
+    invalid_contrast = pd.DataFrame(
+        {"B_vs_A": [-1.0, 1.0, 0.0]},
+        index=pd.Index(["A", "B", "unknown"], name="coefficient"),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=r"differential\.contrasts\.index must match "
+        r"differential\.design\.columns",
+    ):
+        DifferentialAnalysisExecutor().run(
+            DifferentialAnalysisRequest(
+                matrix=matrix,
+                design=adjusted_design,
+                contrasts=invalid_contrast,
+            )
+        )
+
+
+def test_empirical_bayes_runs_with_adjusted_design() -> None:
+    matrix, _, adjusted_design, adjusted_contrast = _continuous_covariate_inputs()
+
+    result = DifferentialAnalysisExecutor().run(
+        DifferentialAnalysisRequest(
+            matrix=matrix,
+            design=adjusted_design,
+            contrasts=adjusted_contrast,
+            empirical_bayes=EmpiricalBayesConfig(method="robust", trend=True),
+        )
+    )
+
+    assert result.empirical_bayes_method == "robust"
+    assert result.empirical_bayes_robust is True
+    assert result.empirical_bayes_trend is True
+    assert result.mean_variance_trend_diagnostics is not None
+    assert np.isfinite(result.table_for("B_vs_A").loc[:, "P.Value"]).all()
+
+
 def test_executor_supports_zero_and_near_zero_variance_rows() -> None:
     matrix = pd.DataFrame(
         {

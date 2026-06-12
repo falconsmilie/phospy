@@ -44,6 +44,16 @@ INTENTIONAL_RESULT_COMPATIBILITY_ALIASES = {
 
 EXPECTED_RESULT_EXPORTS = {
     "DifferentialAnalysisResult",
+    "DifferentialContrastDefinition",
+    "DifferentialDesignMatrixSummary",
+    "DifferentialEmpiricalBayesProvenance",
+    "DifferentialFixedEffectCovariateProvenance",
+    "DifferentialMissingValuePolicyProvenance",
+    "DifferentialPolicyProvenance",
+    "DifferentialReplicatePolicyProvenance",
+    "DifferentialStatisticalTestingProvenance",
+    "DifferentialTechnicalReplicateGroup",
+    "DifferentialUnsupportedDesignPolicyProvenance",
     "KinaseActivityResult",
     "KinasePredictionResult",
     "KinaseScoringResult",

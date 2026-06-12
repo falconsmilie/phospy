@@ -153,12 +153,29 @@ def test_differential_policy_provenance_snapshot_is_stable() -> None:
     snapshot = {
         "design": {
             "formula": policy.design.formula,
+            "description": policy.design.description,
             "sample_labels": list(policy.design.sample_labels),
             "coefficient_labels": list(policy.design.coefficient_labels),
+            "condition_columns": list(policy.design.condition_columns),
+            "covariates": [
+                {
+                    "name": covariate.name,
+                    "kind": covariate.kind,
+                    "columns": list(covariate.columns),
+                    "levels": list(covariate.levels),
+                    "reference_level": covariate.reference_level,
+                    "unused_levels": list(covariate.unused_levels),
+                }
+                for covariate in policy.design.covariates
+            ],
             "sample_count": policy.design.sample_count,
             "coefficient_count": policy.design.coefficient_count,
             "rank": policy.design.rank,
             "residual_degrees_of_freedom": policy.design.residual_degrees_of_freedom,
+            "rank_validation_status": policy.design.rank_validation_status,
+            "estimability_validation_status": (
+                policy.design.estimability_validation_status
+            ),
         },
         "contrasts": [
             {
@@ -166,6 +183,7 @@ def test_differential_policy_provenance_snapshot_is_stable() -> None:
                 "numerator_condition": contrast.numerator_condition,
                 "denominator_condition": contrast.denominator_condition,
                 "coefficients": list(contrast.coefficients),
+                "description": contrast.description,
             }
             for contrast in policy.contrasts
         ],
@@ -211,17 +229,23 @@ def test_differential_policy_provenance_snapshot_is_stable() -> None:
                 policy.unsupported_design.intentionally_rejected_features
             ),
             "enforcement_stage": policy.unsupported_design.enforcement_stage,
+            "policy": policy.unsupported_design.policy,
         },
     }
     assert snapshot == {
         "design": {
             "formula": "~0 + condition",
+            "description": "condition-only fixed-effect design",
             "sample_labels": ["A_1", "A_2", "B_1", "B_2"],
             "coefficient_labels": ["A", "B"],
+            "condition_columns": ["A", "B"],
+            "covariates": [],
             "sample_count": 4,
             "coefficient_count": 2,
             "rank": 2,
             "residual_degrees_of_freedom": 2.0,
+            "rank_validation_status": "validated_full_rank",
+            "estimability_validation_status": "validated_estimable",
         },
         "contrasts": [
             {
@@ -229,6 +253,9 @@ def test_differential_policy_provenance_snapshot_is_stable() -> None:
                 "numerator_condition": "B",
                 "denominator_condition": "A",
                 "coefficients": [("A", -1.0), ("B", 1.0)],
+                "description": (
+                    "condition contrast B - A; non-condition coefficients fixed at 0"
+                ),
             }
         ],
         "replicates": {
@@ -255,9 +282,12 @@ def test_differential_policy_provenance_snapshot_is_stable() -> None:
         "unsupported_design": {
             "intentionally_rejected_features": [
                 "blocking/paired/repeated-measure differential modelling",
+                "duplicateCorrelation-style correlated-replicate modelling",
+                "mixed-effects differential modelling",
             ],
             "enforcement_stage": (
                 "validation.workflows.differential.ExperimentalDesignContractValidator"
             ),
+            "policy": "reject_unsupported_design_features_before_execution",
         },
     }

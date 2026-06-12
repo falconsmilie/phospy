@@ -1,0 +1,271 @@
+from __future__ import annotations
+
+import pandas as pd
+
+from phospy import AnalysisReadyPhosphoDataset
+from phospy.api import (
+    BatchCovariate,
+    CategoricalCovariate,
+    ContinuousCovariate,
+    Contrast,
+    DifferentialAnalysisRequest,
+    DifferentialAnalysisWorkflow,
+    ExperimentalDesign,
+    Organism,
+    SampleDesignRecord,
+)
+from phospy.api.results import DifferentialFixedEffectCovariateProvenance
+from phospy.science.differential.models import DifferentialPolicyProvenance
+from tests.support.intensity_scale_states import (
+    supported_log2_intensity_scale_state,
+    supported_log2_processing_state,
+)
+from tests.support.site_keys import protein_site_key_index, site_key_context_columns
+
+
+def _dataset() -> AnalysisReadyPhosphoDataset:
+    genes = ["MAPK14", "GSK3B", "AKT1"]
+    sites = ["Y182", "S9", "T308"]
+    site_index = protein_site_key_index(protein_identifiers=genes, sites=sites)
+    phospho = pd.DataFrame(
+        {
+            "A_1": [1.0, 2.0, 1.0],
+            "A_2": [1.1, 2.1, 1.1],
+            "B_1": [2.1, 2.0, 1.0],
+            "B_2": [2.0, 2.2, 0.9],
+        },
+        index=site_index,
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "site_key": site_index.tolist(),
+            "display_id": ["MAPK14;Y182;", "GSK3B;S9;", "AKT1;T308;"],
+            **site_key_context_columns(site_index),
+            "gene_symbol": genes,
+            "site": sites,
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15) for site in sites
+            ],
+            "protein_id": genes,
+        },
+        index=site_index.copy(),
+    )
+    return AnalysisReadyPhosphoDataset(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        organism=Organism.RAT,
+        intensity_scale_state=supported_log2_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_log2_processing_state(has_total_matrix=False),
+    )
+
+
+def _policy_for(design: ExperimentalDesign) -> DifferentialPolicyProvenance:
+    result = DifferentialAnalysisWorkflow().run(
+        DifferentialAnalysisRequest(
+            dataset=_dataset(),
+            design=design,
+            contrasts=(
+                Contrast(
+                    name="B_vs_A",
+                    numerator_condition="B",
+                    denominator_condition="A",
+                ),
+            ),
+        )
+    )
+    assert result.policy_provenance is not None
+    return result.policy_provenance
+
+
+def _condition_only_design() -> ExperimentalDesign:
+    return ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                sample_id="A_1",
+                condition="A",
+                biological_replicate_id="A_r1",
+            ),
+            SampleDesignRecord(
+                sample_id="A_2",
+                condition="A",
+                biological_replicate_id="A_r2",
+            ),
+            SampleDesignRecord(
+                sample_id="B_1",
+                condition="B",
+                biological_replicate_id="B_r1",
+            ),
+            SampleDesignRecord(
+                sample_id="B_2",
+                condition="B",
+                biological_replicate_id="B_r2",
+            ),
+        )
+    )
+
+
+def test_condition_only_design_provenance_records_design_and_validation_status() -> (
+    None
+):
+    policy = _policy_for(_condition_only_design())
+
+    assert policy.design.formula == "~0 + condition"
+    assert policy.design.description == "condition-only fixed-effect design"
+    assert policy.design.condition_columns == ("A", "B")
+    assert policy.design.covariates == ()
+    assert policy.design.rank_validation_status == "validated_full_rank"
+    assert policy.design.estimability_validation_status == "validated_estimable"
+    assert policy.contrasts[0].coefficients == (("A", -1.0), ("B", 1.0))
+    assert policy.contrasts[0].description == (
+        "condition contrast B - A; non-condition coefficients fixed at 0"
+    )
+    assert policy.unsupported_design.policy == (
+        "reject_unsupported_design_features_before_execution"
+    )
+    assert "duplicateCorrelation-style correlated-replicate modelling" in (
+        policy.unsupported_design.intentionally_rejected_features
+    )
+    assert "mixed-effects differential modelling" in (
+        policy.unsupported_design.intentionally_rejected_features
+    )
+
+
+def test_categorical_covariate_provenance_records_columns_and_kind() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                sample_id="A_1",
+                condition="A",
+                biological_replicate_id="A_r1",
+                covariates={"sex": "F"},
+            ),
+            SampleDesignRecord(
+                sample_id="A_2",
+                condition="A",
+                biological_replicate_id="A_r2",
+                covariates={"sex": "M"},
+            ),
+            SampleDesignRecord(
+                sample_id="B_1",
+                condition="B",
+                biological_replicate_id="B_r1",
+                covariates={"sex": "F"},
+            ),
+            SampleDesignRecord(
+                sample_id="B_2",
+                condition="B",
+                biological_replicate_id="B_r2",
+                covariates={"sex": "M"},
+            ),
+        ),
+        fixed_effects=(CategoricalCovariate("sex"),),
+    )
+
+    policy = _policy_for(design)
+    covariate = policy.design.covariates[0]
+
+    assert isinstance(covariate, DifferentialFixedEffectCovariateProvenance)
+    assert policy.design.formula == "~0 + condition + sex"
+    assert policy.design.condition_columns == ("A", "B")
+    assert covariate.name == "sex"
+    assert covariate.kind == "categorical"
+    assert covariate.columns == ("sex[M]",)
+    assert covariate.levels == ("F", "M")
+    assert covariate.reference_level == "F"
+    assert policy.contrasts[0].coefficients == (
+        ("A", -1.0),
+        ("B", 1.0),
+        ("sex[M]", 0.0),
+    )
+
+
+def test_continuous_covariate_provenance_records_columns_and_kind() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                sample_id="A_1",
+                condition="A",
+                biological_replicate_id="A_r1",
+                covariates={"dose": 0.0},
+            ),
+            SampleDesignRecord(
+                sample_id="A_2",
+                condition="A",
+                biological_replicate_id="A_r2",
+                covariates={"dose": 1.0},
+            ),
+            SampleDesignRecord(
+                sample_id="B_1",
+                condition="B",
+                biological_replicate_id="B_r1",
+                covariates={"dose": 0.0},
+            ),
+            SampleDesignRecord(
+                sample_id="B_2",
+                condition="B",
+                biological_replicate_id="B_r2",
+                covariates={"dose": 1.0},
+            ),
+        ),
+        fixed_effects=(ContinuousCovariate("dose"),),
+    )
+
+    policy = _policy_for(design)
+    covariate = policy.design.covariates[0]
+
+    assert policy.design.formula == "~0 + condition + dose"
+    assert covariate.name == "dose"
+    assert covariate.kind == "continuous"
+    assert covariate.columns == ("dose",)
+    assert covariate.levels == ()
+    assert covariate.reference_level is None
+    assert policy.contrasts[0].coefficients == (
+        ("A", -1.0),
+        ("B", 1.0),
+        ("dose", 0.0),
+    )
+
+
+def test_batch_fixed_effect_provenance_records_batch_as_model_covariate() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                sample_id="A_1",
+                condition="A",
+                biological_replicate_id="A_r1",
+                batch="batch_1",
+            ),
+            SampleDesignRecord(
+                sample_id="A_2",
+                condition="A",
+                biological_replicate_id="A_r2",
+                batch="batch_2",
+            ),
+            SampleDesignRecord(
+                sample_id="B_1",
+                condition="B",
+                biological_replicate_id="B_r1",
+                batch="batch_1",
+            ),
+            SampleDesignRecord(
+                sample_id="B_2",
+                condition="B",
+                biological_replicate_id="B_r2",
+                batch="batch_2",
+            ),
+        ),
+        fixed_effects=(BatchCovariate(),),
+    )
+
+    policy = _policy_for(design)
+    covariate = policy.design.covariates[0]
+
+    assert policy.design.formula == "~0 + condition + batch"
+    assert policy.design.description == "fixed-effect design: ~0 + condition + batch"
+    assert covariate.name == "batch"
+    assert covariate.kind == "batch"
+    assert covariate.columns == ("batch[batch_2]",)
+    assert covariate.levels == ("batch_1", "batch_2")
+    assert covariate.reference_level == "batch_1"

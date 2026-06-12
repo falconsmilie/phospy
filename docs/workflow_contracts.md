@@ -152,15 +152,21 @@ identical numeric outputs across different machines or dependency builds.
   subset of samples.
 - Duplicate design sample IDs, missing condition labels, and unknown contrast
   conditions are hard validation errors.
-- Batch and blocking metadata are represented in the contract for forward
-  compatibility but are not yet executable in this release.
+- Batch can be declared as a fixed-effect covariate and modelled as an ordinary
+  design term when the resolved design is full rank and requested contrasts are
+  estimable. Categorical and continuous fixed-effect covariates are supported
+  under the same validation policy.
+- Fixed-effect batch terms are not batch correction and do not implement
+  ComBat, RUV, `removeBatchEffect`, `duplicateCorrelation`, or mixed-effects
+  modelling.
 - Repeated `biological_replicate_id` values within condition groups are treated
   as technical replicates and require an explicit aggregation policy.
 - Technical-replicate aggregation requires `biological_replicate_id` for every
   design sample and consistent optional group fields (`batch`, `block`) within
   each condition+biological-replicate group.
 - Current parity-protected lane is two-condition unpaired simple contrasts.
-- Paired/repeated-measure modelling is not executable in this release.
+- Blocking, paired, repeated-measure, correlated-replicate, and mixed-effects
+  modelling are not executable in this release.
 - Missing values are rejected at `AnalysisReadyPhosphoDataset` boundary before
   differential execution.
 

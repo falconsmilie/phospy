@@ -104,7 +104,7 @@ treated as mini-workflow validators.
 
 ## Differential Design Declarations
 
-`ExperimentalDesign` can explicitly declare fixed-effect covariate intent
+`ExperimentalDesign` can explicitly declare fixed-effect covariates
 without inferring anything from `dataset.sample_metadata`:
 
 ```python
@@ -125,16 +125,40 @@ design = ExperimentalDesign(
             covariates={"sex": "F", "dose": 0.0},
         ),
         SampleDesignRecord(
+            sample_id="control_rep2",
+            condition="control",
+            batch="run_2",
+            covariates={"sex": "M", "dose": 1.0},
+        ),
+        SampleDesignRecord(
+            sample_id="control_rep3",
+            condition="control",
+            batch="run_1",
+            covariates={"sex": "M", "dose": 2.0},
+        ),
+        SampleDesignRecord(
             sample_id="treated_rep1",
             condition="treated",
+            batch="run_2",
+            covariates={"sex": "F", "dose": 0.5},
+        ),
+        SampleDesignRecord(
+            sample_id="treated_rep2",
+            condition="treated",
             batch="run_1",
-            covariates={"sex": "M", "dose": 10.0},
+            covariates={"sex": "M", "dose": 1.5},
+        ),
+        SampleDesignRecord(
+            sample_id="treated_rep3",
+            condition="treated",
+            batch="run_2",
+            covariates={"sex": "F", "dose": 2.5},
         ),
     ),
     fixed_effects=(
-        BatchCovariate(include_in_model=False),
-        CategoricalCovariate("sex", include_in_model=False),
-        ContinuousCovariate("dose", include_in_model=False),
+        BatchCovariate(),
+        CategoricalCovariate("sex"),
+        ContinuousCovariate("dose"),
     ),
 )
 ```
@@ -143,8 +167,15 @@ Each declaration records the covariate `name`, `kind`, whether it is
 `required`, and whether it is intended to `include_in_model`. Modelled fixed
 effects are validated before differential interpretation: missing covariates,
 invalid levels, non-finite continuous values, rank-deficient designs, and
-non-estimable contrasts are rejected. Fixed batch terms are model covariates;
-they are not batch correction.
+non-estimable contrasts are rejected. Result provenance records the resolved
+design formula or description, condition columns, fixed-effect covariate
+columns and kinds, contrast vectors, and validation status. Fixed batch terms
+are model covariates; they are not batch correction.
+
+Supported fixed-effect covariates are ordinary fixed terms in the differential
+linear model. This is not ComBat, RUV, `removeBatchEffect`,
+`duplicateCorrelation`, or mixed-effects modelling. Paired/block designs remain
+separate unsupported design classes unless explicitly implemented elsewhere.
 
 The lower-level design-matrix builder can represent included fixed effects for
 design-domain inspection and validation. Categorical and batch covariates are

@@ -4,10 +4,15 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SCIENTIFIC_COVERAGE_DOC = ROOT / "docs" / "scientific-coverage.md"
+API_GUIDE_DOC = ROOT / "docs" / "api" / "guide.md"
 
 
 def _scientific_coverage_text() -> str:
     return SCIENTIFIC_COVERAGE_DOC.read_text(encoding="utf-8")
+
+
+def _api_guide_text() -> str:
+    return API_GUIDE_DOC.read_text(encoding="utf-8")
 
 
 def test_scientific_coverage_doc_exists() -> None:
@@ -61,3 +66,17 @@ def test_scope_matrix_columns_and_required_rows_are_present() -> None:
         "full phosr package equivalence claim",
     ):
         assert f"| {row_name} |" in lowered
+
+
+def test_fixed_effect_differential_limitations_are_documented() -> None:
+    text = (_scientific_coverage_text() + "\n" + _api_guide_text()).lower()
+
+    assert "fixed-effect covariates" in text
+    assert "batch can be modelled" in text
+    assert "not batch correction" in text
+    assert "combat" in text
+    assert "ruv" in text
+    assert "removebatcheffect" in text
+    assert "duplicatecorrelation" in text
+    assert "mixed-effects" in text
+    assert "paired/block" in text

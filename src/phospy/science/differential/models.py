@@ -326,6 +326,49 @@ class DifferentialAnalysisRequest:
 
 
 @dataclass(frozen=True, slots=True)
+class DifferentialFixedEffectCovariateProvenance:
+    """Resolved fixed-effect covariate columns included in the fitted design."""
+
+    name: str
+    kind: str
+    columns: tuple[str, ...]
+    levels: tuple[str, ...] = ()
+    reference_level: str | None = None
+    unused_levels: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not self.name:
+            raise PhosPyInputError(
+                "differential_policy_provenance.design.covariates[].name must be "
+                "non-empty"
+            )
+        if not self.kind:
+            raise PhosPyInputError(
+                "differential_policy_provenance.design.covariates[].kind must be "
+                "non-empty"
+            )
+        if not self.columns:
+            raise PhosPyInputError(
+                "differential_policy_provenance.design.covariates[].columns must be "
+                "non-empty"
+            )
+        object.__setattr__(self, "name", str(self.name))
+        object.__setattr__(self, "kind", str(self.kind))
+        object.__setattr__(self, "columns", tuple(str(value) for value in self.columns))
+        object.__setattr__(self, "levels", tuple(str(value) for value in self.levels))
+        object.__setattr__(
+            self,
+            "reference_level",
+            None if self.reference_level is None else str(self.reference_level),
+        )
+        object.__setattr__(
+            self,
+            "unused_levels",
+            tuple(str(value) for value in self.unused_levels),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class DifferentialDesignMatrixSummary:
     """Structured summary of the resolved differential design matrix."""
 
@@ -336,6 +379,11 @@ class DifferentialDesignMatrixSummary:
     coefficient_count: int
     rank: int
     residual_degrees_of_freedom: float
+    description: str = ""
+    condition_columns: tuple[str, ...] = ()
+    covariates: tuple[DifferentialFixedEffectCovariateProvenance, ...] = ()
+    rank_validation_status: str = "not_recorded"
+    estimability_validation_status: str = "not_recorded"
 
     def __post_init__(self) -> None:
         if not self.formula:
@@ -373,6 +421,54 @@ class DifferentialDesignMatrixSummary:
                 "differential_policy_provenance.design.residual_degrees_of_freedom "
                 "must be > 0.0"
             )
+        if not self.rank_validation_status:
+            raise PhosPyInputError(
+                "differential_policy_provenance.design.rank_validation_status must "
+                "be non-empty"
+            )
+        if not self.estimability_validation_status:
+            raise PhosPyInputError(
+                "differential_policy_provenance.design."
+                "estimability_validation_status must be non-empty"
+            )
+        covariates = tuple(self.covariates)
+        for covariate in covariates:
+            if not isinstance(
+                cast(object, covariate),
+                DifferentialFixedEffectCovariateProvenance,
+            ):
+                raise PhosPyInputError(
+                    "differential_policy_provenance.design.covariates must contain "
+                    "DifferentialFixedEffectCovariateProvenance values"
+                )
+        object.__setattr__(self, "formula", str(self.formula))
+        object.__setattr__(self, "description", str(self.description))
+        object.__setattr__(
+            self,
+            "sample_labels",
+            tuple(str(value) for value in self.sample_labels),
+        )
+        object.__setattr__(
+            self,
+            "coefficient_labels",
+            tuple(str(value) for value in self.coefficient_labels),
+        )
+        object.__setattr__(
+            self,
+            "condition_columns",
+            tuple(str(value) for value in self.condition_columns),
+        )
+        object.__setattr__(self, "covariates", covariates)
+        object.__setattr__(
+            self,
+            "rank_validation_status",
+            str(self.rank_validation_status),
+        )
+        object.__setattr__(
+            self,
+            "estimability_validation_status",
+            str(self.estimability_validation_status),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -383,6 +479,7 @@ class DifferentialContrastDefinition:
     numerator_condition: str
     denominator_condition: str
     coefficients: tuple[tuple[str, float], ...]
+    description: str = ""
 
     def __post_init__(self) -> None:
         if not self.name:
@@ -404,6 +501,23 @@ class DifferentialContrastDefinition:
                 "differential_policy_provenance.contrasts[].coefficients must be "
                 "non-empty"
             )
+        object.__setattr__(self, "name", str(self.name))
+        object.__setattr__(
+            self,
+            "numerator_condition",
+            str(self.numerator_condition),
+        )
+        object.__setattr__(
+            self,
+            "denominator_condition",
+            str(self.denominator_condition),
+        )
+        object.__setattr__(
+            self,
+            "coefficients",
+            tuple((str(name), float(value)) for name, value in self.coefficients),
+        )
+        object.__setattr__(self, "description", str(self.description))
 
 
 @dataclass(frozen=True, slots=True)
@@ -539,6 +653,7 @@ class DifferentialUnsupportedDesignPolicyProvenance:
 
     intentionally_rejected_features: tuple[str, ...]
     enforcement_stage: str
+    policy: str = "reject_unsupported_design_features_before_execution"
 
     def __post_init__(self) -> None:
         if not self.intentionally_rejected_features:
@@ -551,6 +666,18 @@ class DifferentialUnsupportedDesignPolicyProvenance:
                 "differential_policy_provenance.unsupported_design.enforcement_stage "
                 "must be non-empty"
             )
+        if not self.policy:
+            raise PhosPyInputError(
+                "differential_policy_provenance.unsupported_design.policy must be "
+                "non-empty"
+            )
+        object.__setattr__(
+            self,
+            "intentionally_rejected_features",
+            tuple(str(value) for value in self.intentionally_rejected_features),
+        )
+        object.__setattr__(self, "enforcement_stage", str(self.enforcement_stage))
+        object.__setattr__(self, "policy", str(self.policy))
 
 
 @dataclass(frozen=True, slots=True)

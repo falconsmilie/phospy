@@ -86,6 +86,9 @@ Optional inputs:
 - With `config.allow_design_subset=True`, design may define a strict sample subset.
 - Conditions, replicate identity, batch fields, and block fields are taken from
   `ExperimentalDesign`, not inferred from `dataset.sample_metadata`.
+- Declared fixed-effect covariates can be included in the model as ordinary
+  fixed terms: `BatchCovariate`, `CategoricalCovariate`, and
+  `ContinuousCovariate`.
 
 ### Contrast Expectations
 
@@ -123,11 +126,14 @@ Optional inputs:
   denominator conditions.
 - Use at least two biological replicates per condition for meaningful
   differential examples and interpretation.
-- Batch/block metadata is modeled in the contract but not yet executable in the
-  differential engine; such requests fail with explicit unsupported-feature
-  errors.
-- Paired/blocking designs remain rejected unless explicitly implemented in a
-  future release.
+- Fixed-effect batch, categorical covariate, and continuous covariate terms are
+  executable as ordinary design covariates when the resolved design is full
+  rank and requested contrasts are estimable.
+- Batch fixed effects are not batch correction. They do not implement ComBat,
+  RUV, `removeBatchEffect`, or any data-cleaning/removal step.
+- Paired/blocking, repeated-measure, `duplicateCorrelation`-style correlated
+  replicate, and mixed-effects designs remain rejected unless explicitly
+  implemented in a future release.
 
 ## Empirical-Bayes Settings
 
@@ -241,13 +247,16 @@ row index happens to contain encoded `site_key` values.
   - `result.empirical_bayes_trend`
 - Trend diagnostics when enabled (`result.mean_variance_trend_diagnostics`)
 - Structured policy provenance (`result.policy_provenance`) including:
-  - design formula/matrix summary
-  - typed contrast definitions
+  - design formula/description, condition columns, fixed-effect covariate
+    columns, and fixed-effect covariate kinds
+  - rank and contrast-estimability validation status
+  - typed contrast definitions and contrast vectors
   - replicate and technical-replicate policy details
   - empirical-Bayes settings
   - p-value and adjusted p-value methods
   - missing-value handling policy
-  - intentionally rejected unsupported design features
+  - unsupported-design rejection policy and intentionally rejected unsupported
+    design features
 
 ## Limitations and Non-goals
 
@@ -258,6 +267,9 @@ row index happens to contain encoded `site_key` values.
 - Does not perform missing-value imputation unless explicitly implemented
   upstream.
 - Does not perform batch correction unless explicitly implemented upstream.
+  A batch term in `ExperimentalDesign.fixed_effects` is a fixed model covariate,
+  not ComBat, RUV, `removeBatchEffect`, `duplicateCorrelation`, or mixed-effects
+  modelling.
 - Statistical interpretation depends on design, contrast specification, and
   replicate structure.
 

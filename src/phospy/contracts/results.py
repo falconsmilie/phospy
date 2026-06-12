@@ -29,7 +29,19 @@ from phospy.science.datasets.models import (
     AnalysisReadyPhosphoDataset,
     DatasetPreprocessingReport,
 )
-from phospy.science.differential.models import DifferentialAnalysisResult
+from phospy.science.differential.models import (
+    DifferentialAnalysisResult,
+    DifferentialContrastDefinition,
+    DifferentialDesignMatrixSummary,
+    DifferentialEmpiricalBayesProvenance,
+    DifferentialFixedEffectCovariateProvenance,
+    DifferentialMissingValuePolicyProvenance,
+    DifferentialPolicyProvenance,
+    DifferentialReplicatePolicyProvenance,
+    DifferentialStatisticalTestingProvenance,
+    DifferentialTechnicalReplicateGroup,
+    DifferentialUnsupportedDesignPolicyProvenance,
+)
 from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.science.references.models import ReferenceBundle
 from phospy.science.signalomes.constants import (
@@ -782,6 +794,16 @@ def _validate_source_name(value: object) -> str:
 __all__ = [
     "ActivityMethodDiagnostics",
     "DifferentialAnalysisResult",
+    "DifferentialContrastDefinition",
+    "DifferentialDesignMatrixSummary",
+    "DifferentialEmpiricalBayesProvenance",
+    "DifferentialFixedEffectCovariateProvenance",
+    "DifferentialMissingValuePolicyProvenance",
+    "DifferentialPolicyProvenance",
+    "DifferentialReplicatePolicyProvenance",
+    "DifferentialStatisticalTestingProvenance",
+    "DifferentialTechnicalReplicateGroup",
+    "DifferentialUnsupportedDesignPolicyProvenance",
     "KinaseActivityResult",
     "KinasePredictionResult",
     "KinaseScoringResult",
