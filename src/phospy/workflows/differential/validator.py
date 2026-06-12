@@ -144,6 +144,7 @@ class DifferentialAnalysisValidator:
             technical_replicate_aggregation_plan=technical_replicate_aggregation_plan,
             workflow_provenance=None,
             dataset_preprocessing_report=(request.dataset.preprocessing_report),
+            design_build_result=validated_design_contract.design_build_result,
         )
 
 

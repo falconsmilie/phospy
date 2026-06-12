@@ -112,7 +112,7 @@ def _workflow_request(
     )
 
 
-def test_workflow_rejects_batch_modelling_in_current_release() -> None:
+def test_workflow_differential_validation_rejects_confounded_batch_design() -> None:
     design = ExperimentalDesign(
         samples=(
             SampleDesignRecord(sample_id="A_1", condition="A", batch="batch_1"),
@@ -122,8 +122,32 @@ def test_workflow_rejects_batch_modelling_in_current_release() -> None:
         ),
         fixed_effects=(BatchCovariate(),),
     )
-    with pytest.raises(WorkflowValidationError, match="fixed-effect differential"):
+    with pytest.raises(
+        WorkflowValidationError,
+        match="rank deficient.*confounded",
+    ):
         DifferentialAnalysisWorkflow().run(_workflow_request(design=design))
+
+
+def test_workflow_differential_validation_accepts_balanced_batch_fixed_effect() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="A_1", condition="A", batch="batch_1"),
+            SampleDesignRecord(sample_id="A_2", condition="A", batch="batch_2"),
+            SampleDesignRecord(sample_id="B_1", condition="B", batch="batch_1"),
+            SampleDesignRecord(sample_id="B_2", condition="B", batch="batch_2"),
+        ),
+        fixed_effects=(BatchCovariate(),),
+    )
+
+    result = DifferentialAnalysisWorkflow().run(_workflow_request(design=design))
+
+    assert result.policy_provenance is not None
+    assert result.policy_provenance.design.coefficient_labels == (
+        "A",
+        "B",
+        "batch[batch_2]",
+    )
 
 
 def test_workflow_rejects_block_or_paired_modelling_in_current_release() -> None:

@@ -2,17 +2,24 @@
 
 from __future__ import annotations
 
+import math
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from typing import cast
 
+import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
 from phospy.errors.validation import WorkflowValidationError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.design.matrix_builder import DesignMatrixBuilder
+from phospy.science.design.matrix_builder import (
+    DesignMatrixBuilder,
+    DesignMatrixBuildResult,
+)
 from phospy.science.design.models import (
     FIXED_EFFECT_COVARIATE_KIND_BATCH,
+    FIXED_EFFECT_COVARIATE_KIND_CATEGORICAL,
     FIXED_EFFECT_COVARIATE_KIND_CONTINUOUS,
     Contrast,
     ExperimentalDesign,
@@ -38,6 +45,7 @@ class ValidatedExperimentalDesignContract:
     condition_labels: tuple[str, ...]
     design_frame: pd.DataFrame
     contrast_frame: pd.DataFrame
+    design_build_result: DesignMatrixBuildResult | None = None
 
 
 class ExperimentalDesignContractValidator:
@@ -121,7 +129,6 @@ class ExperimentalDesignContractValidator:
             field_name="block",
         )
         self._validate_fixed_effect_inputs(design)
-        self._reject_unsupported_modelled_fixed_effects(design)
 
         if any(record.block is not None for record in design.samples):
             raise WorkflowValidationError(
@@ -162,13 +169,19 @@ class ExperimentalDesignContractValidator:
                         f"{minimum_condition_replicates}"
                     )
 
-        design_frame = self._design_matrix_builder.run(
+        design_build_result = self._design_matrix_builder.run(
             design=design,
             condition_labels=known_conditions,
-        ).frame
+        )
+        design_frame = design_build_result.frame
         contrast_frame = self._build_contrast_frame(
+            coefficient_labels=tuple(str(label) for label in design_frame.columns),
             condition_labels=known_conditions,
             contrasts=normalized_contrasts,
+        )
+        self._validate_resolved_fixed_effect_design(
+            design_frame=design_frame,
+            contrast_frame=contrast_frame,
         )
         return ValidatedExperimentalDesignContract(
             design=design,
@@ -177,6 +190,7 @@ class ExperimentalDesignContractValidator:
             condition_labels=known_conditions,
             design_frame=design_frame,
             contrast_frame=contrast_frame,
+            design_build_result=design_build_result,
         )
 
     @staticmethod
@@ -244,6 +258,9 @@ class ExperimentalDesignContractValidator:
         for covariate in design.fixed_effects:
             missing_samples: list[str] = []
             non_numeric_samples: list[str] = []
+            non_finite_samples: list[str] = []
+            invalid_level_samples: list[str] = []
+            observed_levels: set[str] = set()
             for record in design.samples:
                 if covariate.kind == FIXED_EFFECT_COVARIATE_KIND_BATCH:
                     value = record.batch
@@ -254,15 +271,31 @@ class ExperimentalDesignContractValidator:
                 if missing:
                     missing_samples.append(record.sample_id)
                     continue
-                if (
-                    covariate.kind == FIXED_EFFECT_COVARIATE_KIND_CONTINUOUS
-                    and isinstance(value, str)
-                ):
-                    non_numeric_samples.append(record.sample_id)
-            if missing_samples and covariate.required:
+                if covariate.kind == FIXED_EFFECT_COVARIATE_KIND_CONTINUOUS:
+                    if isinstance(value, bool) or not isinstance(value, int | float):
+                        non_numeric_samples.append(record.sample_id)
+                        continue
+                    if not math.isfinite(float(value)):
+                        non_finite_samples.append(record.sample_id)
+                    continue
+                if covariate.kind in {
+                    FIXED_EFFECT_COVARIATE_KIND_BATCH,
+                    FIXED_EFFECT_COVARIATE_KIND_CATEGORICAL,
+                }:
+                    level = _normalize_categorical_level_for_validation(value)
+                    if level is None:
+                        invalid_level_samples.append(record.sample_id)
+                    else:
+                        observed_levels.add(level)
+            if missing_samples and (covariate.required or covariate.include_in_model):
+                requirement = (
+                    "is required for modelling"
+                    if covariate.include_in_model
+                    else "is required"
+                )
                 raise WorkflowValidationError(
                     "experimental design fixed-effect covariate "
-                    f"{covariate.name!r} is required but missing for samples: "
+                    f"{covariate.name!r} {requirement} but missing for samples: "
                     + ", ".join(missing_samples)
                 )
             if non_numeric_samples:
@@ -271,21 +304,131 @@ class ExperimentalDesignContractValidator:
                     f"{covariate.name!r} must be numeric for samples: "
                     + ", ".join(non_numeric_samples)
                 )
+            if non_finite_samples:
+                raise WorkflowValidationError(
+                    "experimental design continuous covariate "
+                    f"{covariate.name!r} must contain finite values for samples: "
+                    + ", ".join(non_finite_samples)
+                )
+            if invalid_level_samples:
+                raise WorkflowValidationError(
+                    "experimental design categorical covariate "
+                    f"{covariate.name!r} must have non-empty finite string or "
+                    "numeric levels for samples: " + ", ".join(invalid_level_samples)
+                )
+            if (
+                covariate.include_in_model
+                and covariate.kind
+                in {
+                    FIXED_EFFECT_COVARIATE_KIND_BATCH,
+                    FIXED_EFFECT_COVARIATE_KIND_CATEGORICAL,
+                }
+                and len(observed_levels) < 2
+            ):
+                observed = ", ".join(sorted(observed_levels)) or "<none>"
+                raise WorkflowValidationError(
+                    "experimental design categorical fixed-effect covariate "
+                    f"{covariate.name!r} must have at least two observed levels "
+                    "when included in the differential model; observed levels: "
+                    f"{observed}"
+                )
 
     @staticmethod
-    def _reject_unsupported_modelled_fixed_effects(
-        design: ExperimentalDesign,
+    def _validate_resolved_fixed_effect_design(
+        *,
+        design_frame: pd.DataFrame,
+        contrast_frame: pd.DataFrame,
     ) -> None:
-        modelled_effects = tuple(
-            covariate.name
-            for covariate in design.fixed_effects
-            if covariate.include_in_model
-        )
-        if modelled_effects:
+        if not design_frame.index.is_unique:
             raise WorkflowValidationError(
-                "unsupported design features: fixed-effect differential modelling "
-                "is not available in this release; declared modelled fixed effects: "
-                + ", ".join(modelled_effects)
+                "experimental design matrix sample labels must be unique"
+            )
+        if not design_frame.columns.is_unique:
+            raise WorkflowValidationError(
+                "experimental design matrix coefficient labels must be unique"
+            )
+        if not contrast_frame.index.equals(design_frame.columns):
+            raise WorkflowValidationError(
+                "experimental design contrast vectors must be aligned to every "
+                "design coefficient, including fixed-effect coefficients"
+            )
+        try:
+            design_values: npt.NDArray[np.float64] = np.asarray(
+                design_frame.to_numpy(dtype=float),
+                dtype=np.float64,
+            )
+            contrast_values: npt.NDArray[np.float64] = np.asarray(
+                contrast_frame.to_numpy(dtype=float),
+                dtype=np.float64,
+            )
+        except (TypeError, ValueError) as exc:
+            raise WorkflowValidationError(
+                "experimental design and contrast matrices must contain numeric values"
+            ) from exc
+        if not np.isfinite(design_values).all():
+            raise WorkflowValidationError(
+                "experimental design matrix must contain only finite numeric values"
+            )
+        if not np.isfinite(contrast_values).all():
+            raise WorkflowValidationError(
+                "experimental design contrast vectors must contain only finite "
+                "numeric values"
+            )
+
+        coefficient_count = int(design_values.shape[1])
+        rank = int(np.linalg.matrix_rank(design_values))
+        if rank < coefficient_count:
+            coefficients = ", ".join(str(label) for label in design_frame.columns)
+            raise WorkflowValidationError(
+                "experimental design matrix is rank deficient; condition and "
+                "fixed-effect terms are collinear or confounded. Remove redundant "
+                "or confounded covariates before running differential analysis; "
+                f"rank={rank}, columns={coefficient_count}, coefficients="
+                f"{coefficients}"
+            )
+
+        zero_contrasts = [
+            str(name)
+            for name, values in contrast_frame.items()
+            if np.allclose(values.to_numpy(dtype=float), 0.0)
+        ]
+        if zero_contrasts:
+            raise WorkflowValidationError(
+                "experimental design contrast vectors must not be zero-length; "
+                "invalid contrasts: " + ", ".join(zero_contrasts)
+            )
+
+        design_transpose = np.transpose(design_values)
+        contrast_transpose = np.transpose(contrast_values)
+        design_crossproduct = cast(
+            npt.NDArray[np.float64],
+            np.matmul(design_transpose, design_values),
+        )
+        xtx_inv = cast(
+            npt.NDArray[np.float64],
+            np.linalg.pinv(design_crossproduct),
+        )
+        contrast_covariance = cast(
+            npt.NDArray[np.float64],
+            np.matmul(np.matmul(contrast_transpose, xtx_inv), contrast_values),
+        )
+        contrast_scale = cast(
+            npt.NDArray[np.float64],
+            np.sqrt(np.diagonal(contrast_covariance)),
+        )
+        invalid_positions = np.flatnonzero(
+            ~np.isfinite(contrast_scale) | (contrast_scale <= 0.0)
+        )
+        if invalid_positions.size:
+            invalid_contrasts = [
+                str(contrast_frame.columns[int(position)])
+                for position in invalid_positions
+            ]
+            raise WorkflowValidationError(
+                "experimental design contrast vectors are not estimable under the "
+                "resolved fixed-effect design matrix; update contrasts or remove "
+                "collinear design terms. Invalid contrasts: "
+                + ", ".join(invalid_contrasts)
             )
 
     @staticmethod
@@ -314,12 +457,24 @@ class ExperimentalDesignContractValidator:
     @staticmethod
     def _build_contrast_frame(
         *,
+        coefficient_labels: tuple[str, ...],
         condition_labels: tuple[str, ...],
         contrasts: tuple[Contrast, ...],
     ) -> pd.DataFrame:
+        missing_condition_coefficients = [
+            condition
+            for condition in condition_labels
+            if condition not in set(coefficient_labels)
+        ]
+        if missing_condition_coefficients:
+            raise WorkflowValidationError(
+                "experimental design contrast vectors are invalid because the "
+                "design matrix is missing condition coefficients: "
+                + ", ".join(missing_condition_coefficients)
+            )
         frame = pd.DataFrame(
             0.0,
-            index=pd.Index(condition_labels, name="coefficient"),
+            index=pd.Index(coefficient_labels, name="coefficient"),
             columns=pd.Index(
                 [contrast.name for contrast in contrasts], name="contrast"
             ),
@@ -351,3 +506,14 @@ __all__ = [
     "ExperimentalDesignContractValidator",
     "ValidatedExperimentalDesignContract",
 ]
+
+
+def _normalize_categorical_level_for_validation(value: object) -> str | None:
+    if isinstance(value, bool) or not isinstance(value, str | int | float):
+        return None
+    if isinstance(value, str):
+        level = value.strip()
+        return level or None
+    if not math.isfinite(float(value)):
+        return None
+    return str(value).strip() or None

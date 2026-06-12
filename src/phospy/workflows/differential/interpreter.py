@@ -8,6 +8,17 @@ import numpy as np
 import pandas as pd
 
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.science.design.matrix_builder import (
+    DesignMatrixBuildResult,
+    describe_fixed_effect_design,
+)
+from phospy.science.design.models import (
+    FIXED_EFFECT_COVARIATE_KIND_BATCH,
+    FIXED_EFFECT_COVARIATE_KIND_CATEGORICAL,
+    FIXED_EFFECT_COVARIATE_KIND_CONTINUOUS,
+    Contrast,
+    ExperimentalDesign,
+)
 from phospy.science.differential.models import (
     ContrastMatrix,
     DesignMatrix,
@@ -24,6 +35,9 @@ from phospy.validation.workflows.differential import (
     ExperimentalDesignContractValidator,
 )
 from phospy.workflows.differential.models import (
+    DifferentialConditionContrastVector,
+    DifferentialCovariateColumnMetadata,
+    DifferentialExecutionDesignInputs,
     InterpretedDifferentialAnalysisRequest,
     ValidatedDifferentialAnalysisRequest,
 )
@@ -62,6 +76,7 @@ class DifferentialAnalysisInterpreter:
         resolved_design_matrix = request.design_matrix
         resolved_contrast_matrix = request.contrast_matrix
         resolved_workflow_provenance = request.workflow_provenance
+        resolved_design_build_result = request.design_build_result
 
         if aggregation_plan is not None and aggregation_plan.requires_aggregation:
             technical_replicate_resolution = self._technical_replicate_aggregator.run(
@@ -87,6 +102,7 @@ class DifferentialAnalysisInterpreter:
             resolved_contrast_matrix = ContrastMatrix(
                 resolved_design_contract.contrast_frame
             )
+            resolved_design_build_result = resolved_design_contract.design_build_result
 
         analysis_sample_ids = resolved_analysis_sample_ids
         matrix = resolved_dataset._borrow_phospho_frame().loc[
@@ -169,12 +185,17 @@ class DifferentialAnalysisInterpreter:
                 message_prefix="differential workflow boundary validation failed",
             )
 
+        execution_design = _build_execution_design_inputs(
+            design=resolved_design,
+            contrasts=resolved_contrasts,
+            design_aligned=design_aligned,
+            contrasts_aligned=contrasts_aligned,
+            design_build_result=resolved_design_build_result,
+        )
         computation_request = DifferentialComputationRequest(
             matrix=cast(pd.DataFrame, matrix_aligned),
-            design=DesignMatrix(cast(pd.DataFrame, design_aligned.copy(deep=True))),
-            contrasts=ContrastMatrix(
-                cast(pd.DataFrame, contrasts_aligned.copy(deep=True))
-            ),
+            design=execution_design.design_matrix,
+            contrasts=execution_design.contrast_matrix,
             empirical_bayes=request.config.empirical_bayes,
         )
         provenance_request = ValidatedDifferentialAnalysisRequest(
@@ -188,6 +209,7 @@ class DifferentialAnalysisInterpreter:
             technical_replicate_aggregation_plan=aggregation_plan,
             workflow_provenance=resolved_workflow_provenance,
             dataset_preprocessing_report=resolved_dataset.preprocessing_report,
+            design_build_result=resolved_design_build_result,
         )
         policy_provenance = build_differential_policy_provenance(
             request=provenance_request,
@@ -203,7 +225,252 @@ class DifferentialAnalysisInterpreter:
             policy_provenance=policy_provenance,
             workflow_provenance=resolved_workflow_provenance,
             dataset_preprocessing_report=resolved_dataset.preprocessing_report,
+            execution_design=execution_design,
         )
+
+
+def _build_execution_design_inputs(
+    *,
+    design: ExperimentalDesign,
+    contrasts: tuple[Contrast, ...],
+    design_aligned: pd.DataFrame,
+    contrasts_aligned: pd.DataFrame,
+    design_build_result: DesignMatrixBuildResult | None,
+) -> DifferentialExecutionDesignInputs:
+    sample_order = tuple(str(label) for label in design_aligned.index)
+    coefficient_labels = tuple(str(label) for label in design_aligned.columns)
+    if design_build_result is not None:
+        _validate_design_build_result_alignment(
+            design_build_result=design_build_result,
+            sample_order=sample_order,
+            coefficient_labels=coefficient_labels,
+        )
+    formula = (
+        design_build_result.formula
+        if design_build_result is not None
+        else describe_fixed_effect_design(design)
+    )
+    condition_labels = (
+        design_build_result.condition_labels
+        if design_build_result is not None
+        else design.condition_labels()
+    )
+    design_matrix = DesignMatrix(cast(pd.DataFrame, design_aligned.copy(deep=True)))
+    contrast_matrix = ContrastMatrix(
+        cast(pd.DataFrame, contrasts_aligned.copy(deep=True))
+    )
+    covariate_columns = _build_covariate_column_metadata(
+        design=design,
+        design_build_result=design_build_result,
+        coefficient_labels=coefficient_labels,
+    )
+    return DifferentialExecutionDesignInputs(
+        design_matrix=design_matrix,
+        contrast_matrix=contrast_matrix,
+        condition_contrast_vectors=_build_condition_contrast_vectors(
+            contrasts=contrasts,
+            contrasts_aligned=contrasts_aligned,
+        ),
+        covariate_columns=covariate_columns,
+        formula=formula,
+        description=_execution_design_description(
+            formula=formula,
+            covariate_columns=covariate_columns,
+        ),
+        sample_order=sample_order,
+        condition_labels=condition_labels,
+        coefficient_labels=coefficient_labels,
+    )
+
+
+def _validate_design_build_result_alignment(
+    *,
+    design_build_result: DesignMatrixBuildResult,
+    sample_order: tuple[str, ...],
+    coefficient_labels: tuple[str, ...],
+) -> None:
+    build_samples = tuple(str(label) for label in design_build_result.sample_labels)
+    build_coefficients = tuple(
+        str(label) for label in design_build_result.coefficient_labels
+    )
+    if build_samples != sample_order or build_coefficients != coefficient_labels:
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.design_build_metadata_alignment",
+            next_action=(
+                "ensure validated design build metadata describes the exact "
+                "execution design matrix"
+            ),
+            details={
+                "build_samples": list(build_samples),
+                "execution_samples": list(sample_order),
+                "build_coefficients": list(build_coefficients),
+                "execution_coefficients": list(coefficient_labels),
+            },
+            message_prefix="differential workflow boundary validation failed",
+        )
+
+
+def _build_covariate_column_metadata(
+    *,
+    design: ExperimentalDesign,
+    design_build_result: DesignMatrixBuildResult | None,
+    coefficient_labels: tuple[str, ...],
+) -> tuple[DifferentialCovariateColumnMetadata, ...]:
+    modelled_covariates = tuple(
+        covariate for covariate in design.fixed_effects if covariate.include_in_model
+    )
+    if not modelled_covariates:
+        return ()
+    if design_build_result is None:
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.design_build_metadata_missing",
+            next_action=(
+                "pass validator-produced design build metadata into the interpreter "
+                "for fixed-effect differential designs"
+            ),
+            details={
+                "covariates": [covariate.name for covariate in modelled_covariates],
+            },
+            message_prefix="differential workflow boundary validation failed",
+        )
+
+    encoded_covariates = set(design_build_result.encoded_covariates)
+    missing_encoded_covariates = [
+        covariate.name
+        for covariate in modelled_covariates
+        if covariate.name not in encoded_covariates
+    ]
+    if missing_encoded_covariates:
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.covariate_encoding_metadata",
+            next_action=(
+                "ensure design build metadata includes every modelled fixed-effect "
+                "covariate"
+            ),
+            details={"missing_covariates": missing_encoded_covariates},
+            message_prefix="differential workflow boundary validation failed",
+        )
+
+    coefficient_set = set(coefficient_labels)
+    metadata: list[DifferentialCovariateColumnMetadata] = []
+    for covariate in modelled_covariates:
+        columns = tuple(design_build_result.covariate_columns.get(covariate.name, ()))
+        if not columns:
+            raise WorkflowBoundaryError(
+                seam="differential.interpreter.covariate_column_metadata",
+                next_action=(
+                    "ensure design build metadata records execution columns for "
+                    "every modelled fixed-effect covariate"
+                ),
+                details={"covariate": covariate.name},
+                message_prefix="differential workflow boundary validation failed",
+            )
+        missing_columns = [
+            column for column in columns if column not in coefficient_set
+        ]
+        if missing_columns:
+            raise WorkflowBoundaryError(
+                seam="differential.interpreter.covariate_column_alignment",
+                next_action=(
+                    "ensure covariate encoding metadata columns are present in the "
+                    "execution design matrix"
+                ),
+                details={
+                    "covariate": covariate.name,
+                    "missing_columns": missing_columns,
+                },
+                message_prefix="differential workflow boundary validation failed",
+            )
+
+        levels: tuple[str, ...] = ()
+        reference_level: str | None = None
+        unused_levels: tuple[str, ...] = ()
+        if covariate.kind == FIXED_EFFECT_COVARIATE_KIND_CONTINUOUS:
+            pass
+        elif covariate.kind in {
+            FIXED_EFFECT_COVARIATE_KIND_BATCH,
+            FIXED_EFFECT_COVARIATE_KIND_CATEGORICAL,
+        }:
+            if (
+                covariate.name not in design_build_result.categorical_levels
+                or covariate.name not in design_build_result.reference_levels
+                or covariate.name not in design_build_result.unused_levels
+            ):
+                raise WorkflowBoundaryError(
+                    seam="differential.interpreter.categorical_covariate_metadata",
+                    next_action=(
+                        "ensure design build metadata records categorical levels "
+                        "for every modelled categorical fixed-effect covariate"
+                    ),
+                    details={"covariate": covariate.name},
+                    message_prefix="differential workflow boundary validation failed",
+                )
+            levels = tuple(design_build_result.categorical_levels[covariate.name])
+            reference_level = design_build_result.reference_levels[covariate.name]
+            unused_levels = tuple(design_build_result.unused_levels[covariate.name])
+        else:
+            raise WorkflowBoundaryError(
+                seam="differential.interpreter.unsupported_covariate_kind",
+                next_action=(
+                    "validate fixed-effect covariate kinds before interpretation"
+                ),
+                details={"covariate": covariate.name, "kind": covariate.kind},
+                message_prefix="differential workflow boundary validation failed",
+            )
+        metadata.append(
+            DifferentialCovariateColumnMetadata(
+                name=covariate.name,
+                kind=covariate.kind,
+                columns=columns,
+                levels=levels,
+                reference_level=reference_level,
+                unused_levels=unused_levels,
+            )
+        )
+    return tuple(metadata)
+
+
+def _build_condition_contrast_vectors(
+    *,
+    contrasts: tuple[Contrast, ...],
+    contrasts_aligned: pd.DataFrame,
+) -> tuple[DifferentialConditionContrastVector, ...]:
+    contrast_vectors: list[DifferentialConditionContrastVector] = []
+    for contrast in contrasts:
+        if contrast.name not in contrasts_aligned.columns:
+            raise WorkflowBoundaryError(
+                seam="differential.interpreter.contrast_vector_missing",
+                next_action=(
+                    "ensure validated contrast matrix includes every requested "
+                    "condition contrast"
+                ),
+                details={"contrast": contrast.name},
+                message_prefix="differential workflow boundary validation failed",
+            )
+        vector = contrasts_aligned.loc[:, contrast.name]
+        coefficients = tuple(
+            (str(coefficient_name), float(vector.loc[coefficient_name]))
+            for coefficient_name in contrasts_aligned.index
+        )
+        contrast_vectors.append(
+            DifferentialConditionContrastVector(
+                name=contrast.name,
+                numerator_condition=contrast.numerator_condition,
+                denominator_condition=contrast.denominator_condition,
+                coefficients=coefficients,
+            )
+        )
+    return tuple(contrast_vectors)
+
+
+def _execution_design_description(
+    *,
+    formula: str,
+    covariate_columns: tuple[DifferentialCovariateColumnMetadata, ...],
+) -> str:
+    if not covariate_columns:
+        return "condition-only fixed-effect design"
+    return f"fixed-effect design: {formula}"
 
 
 def _build_result_identity_metadata(

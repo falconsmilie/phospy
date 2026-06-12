@@ -34,8 +34,9 @@ class MultipleTestingConfig:
 class DifferentialAnalysisConfig:
     """Public configuration for differential analysis.
 
-    Fixed-effect covariate declarations live on ``ExperimentalDesign``. This
-    config does not enable adjusted-model execution in the current release.
+    Fixed-effect covariate declarations live on ``ExperimentalDesign``; paired,
+    blocked, and mixed-effect repeated-measure designs are intentionally not
+    enabled by this config.
     """
 
     technical_replicate_policy: TechnicalReplicatePolicy = (

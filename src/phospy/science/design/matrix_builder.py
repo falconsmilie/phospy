@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from types import MappingProxyType
@@ -30,6 +31,14 @@ def _empty_reference_mapping() -> Mapping[str, str]:
     return MappingProxyType({})
 
 
+def _empty_continuous_column_mapping() -> Mapping[str, str]:
+    return MappingProxyType({})
+
+
+def _empty_covariate_column_mapping() -> Mapping[str, tuple[str, ...]]:
+    return MappingProxyType({})
+
+
 @dataclass(frozen=True, slots=True)
 class DesignMatrixBuildResult:
     """Owned design matrix plus encoding metadata."""
@@ -38,7 +47,14 @@ class DesignMatrixBuildResult:
     condition_labels: tuple[str, ...]
     sample_labels: tuple[str, ...]
     coefficient_labels: tuple[str, ...]
+    formula: str
     encoded_covariates: tuple[str, ...] = ()
+    covariate_columns: Mapping[str, tuple[str, ...]] = field(
+        default_factory=_empty_covariate_column_mapping
+    )
+    continuous_columns: Mapping[str, str] = field(
+        default_factory=_empty_continuous_column_mapping
+    )
     categorical_levels: Mapping[str, tuple[str, ...]] = field(
         default_factory=_empty_level_mapping
     )
@@ -54,7 +70,30 @@ class DesignMatrixBuildResult:
         object.__setattr__(self, "condition_labels", tuple(self.condition_labels))
         object.__setattr__(self, "sample_labels", tuple(self.sample_labels))
         object.__setattr__(self, "coefficient_labels", tuple(self.coefficient_labels))
+        if not isinstance(self.formula, str) or self.formula.strip() == "":
+            raise WorkflowValidationError("design matrix formula must be non-empty")
+        object.__setattr__(self, "formula", self.formula.strip())
         object.__setattr__(self, "encoded_covariates", tuple(self.encoded_covariates))
+        object.__setattr__(
+            self,
+            "covariate_columns",
+            MappingProxyType(
+                {
+                    str(name): tuple(str(column) for column in columns)
+                    for name, columns in self.covariate_columns.items()
+                }
+            ),
+        )
+        object.__setattr__(
+            self,
+            "continuous_columns",
+            MappingProxyType(
+                {
+                    str(name): str(column)
+                    for name, column in self.continuous_columns.items()
+                }
+            ),
+        )
         object.__setattr__(
             self,
             "categorical_levels",
@@ -85,7 +124,7 @@ class DesignMatrixBuildResult:
 
 
 class DesignMatrixBuilder:
-    """Build deterministic condition and categorical fixed-effect matrices."""
+    """Build deterministic condition and fixed-effect design matrices."""
 
     def run(
         self,
@@ -126,16 +165,28 @@ class DesignMatrixBuilder:
         categorical_levels_by_name: dict[str, tuple[str, ...]] = {}
         reference_levels: dict[str, str] = {}
         unused_levels: dict[str, tuple[str, ...]] = {}
+        continuous_columns: dict[str, str] = {}
+        covariate_columns: dict[str, tuple[str, ...]] = {}
         encoded_covariates: list[str] = []
-        modelled_effect_names: set[str] = set()
+        categorical_effect_names: set[str] = set()
         for covariate in design.fixed_effects:
             if not covariate.include_in_model:
                 continue
-            modelled_effect_names.add(covariate.name)
             if covariate.kind == FIXED_EFFECT_COVARIATE_KIND_CONTINUOUS:
-                raise WorkflowValidationError(
-                    "design matrix builder does not support continuous fixed effects"
+                values = _collect_continuous_values(
+                    records=records,
+                    covariate=covariate,
                 )
+                column_name = _continuous_column_name(covariate.name)
+                _add_design_column(
+                    data=data,
+                    column_name=column_name,
+                    values=values,
+                )
+                continuous_columns[covariate.name] = column_name
+                covariate_columns[covariate.name] = (column_name,)
+                encoded_covariates.append(covariate.name)
+                continue
             if covariate.kind not in {
                 FIXED_EFFECT_COVARIATE_KIND_BATCH,
                 FIXED_EFFECT_COVARIATE_KIND_CATEGORICAL,
@@ -145,6 +196,7 @@ class DesignMatrixBuilder:
                     f"kind {covariate.kind!r}"
                 )
 
+            categorical_effect_names.add(covariate.name)
             values = _collect_categorical_values(
                 records=records,
                 covariate=covariate,
@@ -163,15 +215,23 @@ class DesignMatrixBuilder:
                 level for level in levels if level not in set(observed_levels)
             )
             encoded_covariates.append(covariate.name)
+            encoded_columns: list[str] = []
             for level in levels[1:]:
                 column_name = _categorical_column_name(covariate.name, level)
-                data[column_name] = [1.0 if value == level else 0.0 for value in values]
+                _add_design_column(
+                    data=data,
+                    column_name=column_name,
+                    values=[1.0 if value == level else 0.0 for value in values],
+                )
+                encoded_columns.append(column_name)
+            covariate_columns[covariate.name] = tuple(encoded_columns)
 
-        unknown_level_specs = sorted(set(explicit_levels) - modelled_effect_names)
+        unknown_level_specs = sorted(set(explicit_levels) - categorical_effect_names)
         if unknown_level_specs:
             raise WorkflowValidationError(
                 "design matrix builder received categorical level order for "
-                "non-modelled covariates: " + ", ".join(unknown_level_specs)
+                "non-categorical or non-modelled covariates: "
+                + ", ".join(unknown_level_specs)
             )
 
         frame = pd.DataFrame(
@@ -185,11 +245,27 @@ class DesignMatrixBuilder:
             condition_labels=resolved_condition_labels,
             sample_labels=sample_labels,
             coefficient_labels=tuple(data),
+            formula=describe_fixed_effect_design(design),
             encoded_covariates=tuple(encoded_covariates),
+            covariate_columns=covariate_columns,
+            continuous_columns=continuous_columns,
             categorical_levels=categorical_levels_by_name,
             reference_levels=reference_levels,
             unused_levels=unused_levels,
         )
+
+
+def describe_fixed_effect_design(design: ExperimentalDesign) -> str:
+    """Return the stable no-intercept fixed-effect formula for a design."""
+
+    fixed_effect_terms = tuple(
+        covariate.name
+        for covariate in design.fixed_effects
+        if covariate.include_in_model
+    )
+    if not fixed_effect_terms:
+        return "~0 + condition"
+    return "~0 + condition + " + " + ".join(fixed_effect_terms)
 
 
 def _resolve_condition_labels(
@@ -268,6 +344,55 @@ def _normalise_explicit_levels(
     return normalised
 
 
+def _collect_continuous_values(
+    *,
+    records: tuple[SampleDesignRecord, ...],
+    covariate: FixedEffectCovariate,
+) -> tuple[float, ...]:
+    values: list[float] = []
+    missing_samples: list[str] = []
+    non_numeric_samples: list[str] = []
+    non_finite_samples: list[str] = []
+    for record in records:
+        missing = covariate.name not in record.covariates
+        value = None if missing else record.covariates[covariate.name]
+        if missing:
+            missing_samples.append(record.sample_id)
+            continue
+        if isinstance(value, bool) or not isinstance(value, int | float):
+            non_numeric_samples.append(record.sample_id)
+            continue
+        numeric_value = float(value)
+        if not math.isfinite(numeric_value):
+            non_finite_samples.append(record.sample_id)
+            continue
+        values.append(numeric_value)
+    if missing_samples:
+        raise WorkflowValidationError(
+            "design matrix builder continuous fixed-effect covariate "
+            f"{covariate.name!r} has missing values for samples: "
+            + ", ".join(missing_samples)
+        )
+    if non_numeric_samples:
+        raise WorkflowValidationError(
+            "design matrix builder continuous fixed-effect covariate "
+            f"{covariate.name!r} must be numeric for samples: "
+            + ", ".join(non_numeric_samples)
+        )
+    if non_finite_samples:
+        raise WorkflowValidationError(
+            "design matrix builder continuous fixed-effect covariate "
+            f"{covariate.name!r} must be finite for samples: "
+            + ", ".join(non_finite_samples)
+        )
+    if not values:
+        raise WorkflowValidationError(
+            "design matrix builder continuous fixed-effect covariate "
+            f"{covariate.name!r} has no observed values"
+        )
+    return tuple(values)
+
+
 def _collect_categorical_values(
     *,
     records: tuple[SampleDesignRecord, ...],
@@ -336,6 +461,23 @@ def _categorical_column_name(covariate_name: str, level: str) -> str:
     return f"{covariate_name}[{level}]"
 
 
+def _continuous_column_name(covariate_name: str) -> str:
+    return covariate_name
+
+
+def _add_design_column(
+    *,
+    data: dict[str, list[float]],
+    column_name: str,
+    values: Sequence[float],
+) -> None:
+    if column_name in data:
+        raise WorkflowValidationError(
+            f"design matrix builder produced duplicate coefficient label: {column_name}"
+        )
+    data[column_name] = [float(value) for value in values]
+
+
 def _normalise_level_label(value: object, *, field_name: str) -> str:
     if isinstance(value, bool) or not isinstance(value, str | int | float):
         raise WorkflowValidationError(f"{field_name} values must be strings or numbers")
@@ -345,4 +487,8 @@ def _normalise_level_label(value: object, *, field_name: str) -> str:
     return label
 
 
-__all__ = ["DesignMatrixBuildResult", "DesignMatrixBuilder"]
+__all__ = [
+    "DesignMatrixBuildResult",
+    "DesignMatrixBuilder",
+    "describe_fixed_effect_design",
+]

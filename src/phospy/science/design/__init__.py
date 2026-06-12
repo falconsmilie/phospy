@@ -3,6 +3,7 @@
 from phospy.science.design.matrix_builder import (
     DesignMatrixBuilder,
     DesignMatrixBuildResult,
+    describe_fixed_effect_design,
 )
 from phospy.science.design.models import (
     FIXED_EFFECT_COVARIATE_KIND_BATCH,
@@ -26,6 +27,7 @@ __all__ = [
     "ContinuousCovariate",
     "DesignMatrixBuilder",
     "DesignMatrixBuildResult",
+    "describe_fixed_effect_design",
     "ExperimentalDesign",
     "FIXED_EFFECT_COVARIATE_KIND_BATCH",
     "FIXED_EFFECT_COVARIATE_KIND_CATEGORICAL",

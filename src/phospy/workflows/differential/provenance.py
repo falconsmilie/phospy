@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from phospy.science.design.matrix_builder import describe_fixed_effect_design
 from phospy.science.design.models import ExperimentalDesign
 from phospy.science.differential.models import (
     DifferentialContrastDefinition,
@@ -18,7 +19,6 @@ from phospy.science.differential.models import (
 )
 from phospy.workflows.differential.models import ValidatedDifferentialAnalysisRequest
 
-_DIFFERENTIAL_DESIGN_FORMULA = "~0 + condition"
 _DIFFERENTIAL_TEST_STATISTIC = "moderated_t"
 _DIFFERENTIAL_P_VALUE_METHOD = "two_sided_t_distribution_survival_function"
 _DIFFERENTIAL_MISSING_VALUE_POLICY = (
@@ -26,7 +26,6 @@ _DIFFERENTIAL_MISSING_VALUE_POLICY = (
 )
 _DIFFERENTIAL_MISSING_VALUE_STAGE = "analysis_ready_dataset_boundary"
 _DIFFERENTIAL_UNSUPPORTED_DESIGN_FEATURES: tuple[str, ...] = (
-    "batch-aware differential modelling",
     "blocking/paired/repeated-measure differential modelling",
 )
 _DIFFERENTIAL_UNSUPPORTED_ENFORCEMENT_STAGE = (
@@ -65,7 +64,7 @@ def build_differential_policy_provenance(
 
     return DifferentialPolicyProvenance(
         design=DifferentialDesignMatrixSummary(
-            formula=_DIFFERENTIAL_DESIGN_FORMULA,
+            formula=describe_fixed_effect_design(request.design),
             sample_labels=sample_labels,
             coefficient_labels=coefficient_labels,
             sample_count=len(sample_labels),

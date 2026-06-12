@@ -254,7 +254,6 @@ def test_differential_policy_provenance_snapshot_is_stable() -> None:
         },
         "unsupported_design": {
             "intentionally_rejected_features": [
-                "batch-aware differential modelling",
                 "blocking/paired/repeated-measure differential modelling",
             ],
             "enforcement_stage": (

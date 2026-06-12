@@ -1,5 +1,5 @@
 path,test_area,line_count,test_function_count,uses_pytest_mark,uses_parametrization,primary_category,recommended_action,protected_risk_or_contract,reviewer,followup_ticket,notes
-tests/golden/test_differential_fixture_provenance_golden.py,golden,264,3,true,false,,,,,,
+tests/golden/test_differential_fixture_provenance_golden.py,golden,263,3,true,false,,,,,,
 tests/integration/test_dataset_builder_boundary_honesty_integration.py,integration,496,11,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset builder boundary honesty integration and increase risk of boundary regressions.,codex-audit,,
 tests/integration/test_dataset_builder_integration.py,integration,1987,36,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset builder integration and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/integration/test_dataset_builder_intensity_scale_provenance.py,integration,318,9,true,false,,,,,,
@@ -62,13 +62,14 @@ tests/unit/test_dataset_site_sequence_deriver.py,unit,96,4,false,false,,,,,,
 tests/unit/test_dataset_site_sequence_resolution.py,unit,482,12,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for dataset site sequence resolution, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_dataset_site_sequence_resolution_collaborators.py,unit,86,3,true,true,,,,,,
 tests/unit/test_dataset_transformation_state_establishment.py,unit,796,28,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset transformation state establishment and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
-tests/unit/test_differential_analysis.py,unit,573,12,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for differential analysis behaviour, allowing numerically plausible but scientifically invalid results.",codex-audit,,New test file classified after audit-doc regeneration.
+tests/unit/test_design_matrix_builder.py,unit,383,13,false,false,,,,,,
+tests/unit/test_differential_analysis.py,unit,841,15,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for differential analysis behaviour, allowing numerically plausible but scientifically invalid results.",codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_differential_dataset_eligibility_validator.py,unit,164,5,false,false,,,,,,
 tests/unit/test_differential_numerical_guards.py,unit,320,7,true,true,,,,,,
 tests/unit/test_differential_request_config_refactor.py,unit,58,6,false,false,,,,,,
 tests/unit/test_differential_result_contract.py,unit,907,31,false,false,,,,,,
 tests/unit/test_differential_technical_replicate_policy.py,unit,501,12,false,false,,,,,,
-tests/unit/test_differential_unsupported_designs.py,unit,177,5,false,false,,,,,,
+tests/unit/test_differential_unsupported_designs.py,unit,201,6,false,false,,,,,,
 tests/unit/test_differential_workflow_components.py,unit,612,21,true,true,,,,,,
 tests/unit/test_docs_identity_contracts.py,unit,248,7,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_docs_legacy_wording_lint.py,unit,10,1,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in docs legacy wording lint; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-ORCH-002,Route to TST-ORCH-002 to align wording-lint assertions with current public boundary terminology and remove stale internal seam references.
@@ -77,7 +78,7 @@ tests/unit/test_domain_boundaries.py,unit,1022,49,true,true,public API contract,
 tests/unit/test_duplicate_site_resolution_reports.py,unit,685,16,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for duplicate site resolution reports, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_error_taxonomy_boundaries.py,unit,190,5,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for error taxonomy boundaries and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_evidence_multi_site_handling.py,unit,176,9,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for multi-site evidence handling, increasing risk of incorrect peptide-to-site interpretation.",codex-audit,,New test file classified after audit-doc regeneration.
-tests/unit/test_experimental_design_contract.py,unit,461,17,false,false,,,,,,
+tests/unit/test_experimental_design_contract.py,unit,712,24,false,false,,,,,,
 tests/unit/test_fasta_sequence_repository.py,unit,125,8,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for fasta sequence repository and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_fragpipe_ptmprophet_importer.py,unit,154,6,false,false,,,,,,
 tests/unit/test_frame_ownership_policy.py,unit,1302,27,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for frame ownership policy and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 53 hit(s); indicators: private_member_access
@@ -176,5 +177,6 @@ tests/unit/test_workflow_identity_contracts.py,unit,533,14,true,true,,,,,,[auto-
 tests/unit/test_workflow_public_import_contract.py,unit,77,6,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for workflow public import contract and increase risk of boundary regressions.,codex-audit,,
 tests/validation/test_shared_identity_contracts.py,validation,212,5,false,false,,,,,,
 tests/validation/test_workflow_identity_validator_contracts.py,validation,126,3,true,true,,,,,,
+tests/workflows/test_differential_interpreter_fixed_effects.py,workflows,128,1,false,false,,,,,,
 tests/workflows/test_identity_coherence.py,workflows,144,4,false,false,,,,,,
 tests/workflows/test_kinase_activity_ssgsea.py,workflows,115,1,false,false,,,,,,

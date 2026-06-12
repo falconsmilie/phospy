@@ -140,9 +140,19 @@ design = ExperimentalDesign(
 ```
 
 Each declaration records the covariate `name`, `kind`, whether it is
-`required`, and whether it is intended to `include_in_model`. Adjusted
-fixed-effect differential models are not wired into execution in this release;
-modelled fixed effects are rejected before statistical execution.
+`required`, and whether it is intended to `include_in_model`. Modelled fixed
+effects are validated before differential interpretation: missing covariates,
+invalid levels, non-finite continuous values, rank-deficient designs, and
+non-estimable contrasts are rejected. Fixed batch terms are model covariates;
+they are not batch correction.
+
+The lower-level design-matrix builder can represent included fixed effects for
+design-domain inspection and validation. Categorical and batch covariates are
+dummy-encoded with deterministic level order. Continuous covariates are emitted
+as one raw numeric column named by the covariate; sample order is preserved,
+values must be numeric and finite, string values such as `"2.5"` or
+`"unknown"` are rejected instead of parsed or treated as missing, and no
+centering or scaling is applied.
 
 ## Importer Boundary
 

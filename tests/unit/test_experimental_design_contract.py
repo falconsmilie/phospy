@@ -368,6 +368,86 @@ def test_continuous_covariate_declaration_records_contract() -> None:
     assert validated.design_frame.columns.tolist() == ["A", "B"]
 
 
+def test_differential_validation_accepts_condition_and_categorical_covariate() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                sample_id="A_1",
+                condition="A",
+                covariates={"sex": "F"},
+            ),
+            SampleDesignRecord(
+                sample_id="A_2",
+                condition="A",
+                covariates={"sex": "M"},
+            ),
+            SampleDesignRecord(
+                sample_id="B_1",
+                condition="B",
+                covariates={"sex": "F"},
+            ),
+            SampleDesignRecord(
+                sample_id="B_2",
+                condition="B",
+                covariates={"sex": "M"},
+            ),
+        ),
+        fixed_effects=(CategoricalCovariate("sex"),),
+    )
+
+    validated = ExperimentalDesignContractValidator().run(
+        dataset=_dataset(),
+        design=design,
+        contrasts=_contrasts(),
+        allow_design_subset=False,
+        minimum_condition_replicates=1,
+    )
+
+    assert validated.design_frame.columns.tolist() == ["A", "B", "sex[M]"]
+    assert validated.contrast_frame.index.tolist() == ["A", "B", "sex[M]"]
+    assert validated.contrast_frame.loc[:, "B_vs_A"].tolist() == [-1.0, 1.0, 0.0]
+
+
+def test_differential_validation_accepts_condition_and_continuous_covariate() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                sample_id="A_1",
+                condition="A",
+                covariates={"dose": 0.0},
+            ),
+            SampleDesignRecord(
+                sample_id="A_2",
+                condition="A",
+                covariates={"dose": 1.0},
+            ),
+            SampleDesignRecord(
+                sample_id="B_1",
+                condition="B",
+                covariates={"dose": 0.0},
+            ),
+            SampleDesignRecord(
+                sample_id="B_2",
+                condition="B",
+                covariates={"dose": 1.0},
+            ),
+        ),
+        fixed_effects=(ContinuousCovariate("dose"),),
+    )
+
+    validated = ExperimentalDesignContractValidator().run(
+        dataset=_dataset(),
+        design=design,
+        contrasts=_contrasts(),
+        allow_design_subset=False,
+        minimum_condition_replicates=1,
+    )
+
+    assert validated.design_frame.columns.tolist() == ["A", "B", "dose"]
+    assert validated.contrast_frame.index.tolist() == ["A", "B", "dose"]
+    assert validated.contrast_frame.loc[:, "B_vs_A"].tolist() == [-1.0, 1.0, 0.0]
+
+
 def test_batch_covariate_declaration_records_contract() -> None:
     design = ExperimentalDesign(
         samples=(
@@ -412,7 +492,7 @@ def test_unsupported_covariate_kind_rejected() -> None:
         )
 
 
-def test_modelled_fixed_effect_declaration_is_not_executable_yet() -> None:
+def test_differential_validation_rejects_missing_modelled_covariate() -> None:
     design = ExperimentalDesign(
         samples=(
             SampleDesignRecord(
@@ -420,11 +500,7 @@ def test_modelled_fixed_effect_declaration_is_not_executable_yet() -> None:
                 condition="A",
                 covariates={"sex": "F"},
             ),
-            SampleDesignRecord(
-                sample_id="A_2",
-                condition="A",
-                covariates={"sex": "M"},
-            ),
+            SampleDesignRecord(sample_id="A_2", condition="A"),
             SampleDesignRecord(
                 sample_id="B_1",
                 condition="B",
@@ -438,10 +514,185 @@ def test_modelled_fixed_effect_declaration_is_not_executable_yet() -> None:
         ),
         fixed_effects=(CategoricalCovariate("sex"),),
     )
-    with pytest.raises(WorkflowValidationError, match="fixed-effect differential"):
+    with pytest.raises(
+        WorkflowValidationError,
+        match="covariate 'sex' is required for modelling but missing.*A_2",
+    ):
         ExperimentalDesignContractValidator().run(
             dataset=_dataset(),
             design=design,
+            contrasts=_contrasts(),
+            allow_design_subset=False,
+            minimum_condition_replicates=1,
+        )
+
+
+def test_differential_validation_rejects_non_numeric_continuous_covariate() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                sample_id="A_1",
+                condition="A",
+                covariates={"dose": 0.0},
+            ),
+            SampleDesignRecord(
+                sample_id="A_2",
+                condition="A",
+                covariates={"dose": "2.5"},
+            ),
+            SampleDesignRecord(
+                sample_id="B_1",
+                condition="B",
+                covariates={"dose": 0.0},
+            ),
+            SampleDesignRecord(
+                sample_id="B_2",
+                condition="B",
+                covariates={"dose": 1.0},
+            ),
+        ),
+        fixed_effects=(ContinuousCovariate("dose"),),
+    )
+    with pytest.raises(
+        WorkflowValidationError,
+        match="continuous covariate 'dose' must be numeric.*A_2",
+    ):
+        ExperimentalDesignContractValidator().run(
+            dataset=_dataset(),
+            design=design,
+            contrasts=_contrasts(),
+            allow_design_subset=False,
+            minimum_condition_replicates=1,
+        )
+
+
+def test_differential_validation_rejects_single_level_categorical_covariate() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                sample_id="A_1",
+                condition="A",
+                covariates={"sex": "F"},
+            ),
+            SampleDesignRecord(
+                sample_id="A_2",
+                condition="A",
+                covariates={"sex": "F"},
+            ),
+            SampleDesignRecord(
+                sample_id="B_1",
+                condition="B",
+                covariates={"sex": "F"},
+            ),
+            SampleDesignRecord(
+                sample_id="B_2",
+                condition="B",
+                covariates={"sex": "F"},
+            ),
+        ),
+        fixed_effects=(CategoricalCovariate("sex"),),
+    )
+    with pytest.raises(
+        WorkflowValidationError,
+        match="categorical fixed-effect covariate 'sex' must have at least two",
+    ):
+        ExperimentalDesignContractValidator().run(
+            dataset=_dataset(),
+            design=design,
+            contrasts=_contrasts(),
+            allow_design_subset=False,
+            minimum_condition_replicates=1,
+        )
+
+
+def test_differential_validation_rejects_rank_deficient_fixed_effect_design() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                sample_id="A_1",
+                condition="A",
+                covariates={"sex": "F"},
+            ),
+            SampleDesignRecord(
+                sample_id="A_2",
+                condition="A",
+                covariates={"sex": "F"},
+            ),
+            SampleDesignRecord(
+                sample_id="B_1",
+                condition="B",
+                covariates={"sex": "M"},
+            ),
+            SampleDesignRecord(
+                sample_id="B_2",
+                condition="B",
+                covariates={"sex": "M"},
+            ),
+        ),
+        fixed_effects=(CategoricalCovariate("sex"),),
+    )
+    with pytest.raises(
+        WorkflowValidationError,
+        match="rank deficient.*confounded",
+    ):
+        ExperimentalDesignContractValidator().run(
+            dataset=_dataset(),
+            design=design,
+            contrasts=_contrasts(),
+            allow_design_subset=False,
+            minimum_condition_replicates=1,
+        )
+
+
+def test_differential_validation_rejects_confounded_condition_batch_design() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="A_1", condition="A", batch="batch_1"),
+            SampleDesignRecord(sample_id="A_2", condition="A", batch="batch_1"),
+            SampleDesignRecord(sample_id="B_1", condition="B", batch="batch_2"),
+            SampleDesignRecord(sample_id="B_2", condition="B", batch="batch_2"),
+        ),
+        fixed_effects=(BatchCovariate(),),
+    )
+    with pytest.raises(
+        WorkflowValidationError,
+        match="rank deficient.*confounded",
+    ):
+        ExperimentalDesignContractValidator().run(
+            dataset=_dataset(),
+            design=design,
+            contrasts=_contrasts(),
+            allow_design_subset=False,
+            minimum_condition_replicates=1,
+        )
+
+
+def test_differential_validation_rejects_invalid_contrast_vector_alignment() -> None:
+    class _MissingConditionCoefficientBuilder:
+        def run(
+            self,
+            *,
+            design: ExperimentalDesign,
+            condition_labels: tuple[str, ...],
+        ) -> object:
+            frame = pd.DataFrame(
+                {"A": [1.0, 1.0, 0.0, 0.0]},
+                index=pd.Index(design.sample_ids(), name="sample"),
+            )
+            frame.columns = pd.Index(["A"], name="coefficient")
+            return type("_BuildResult", (), {"frame": frame})()
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="contrast vectors are invalid.*missing condition coefficients: B",
+    ):
+        ExperimentalDesignContractValidator(
+            design_matrix_builder=(  # type: ignore[arg-type]
+                _MissingConditionCoefficientBuilder()
+            ),
+        ).run(
+            dataset=_dataset(),
+            design=_design(),
             contrasts=_contrasts(),
             allow_design_subset=False,
             minimum_condition_replicates=1,

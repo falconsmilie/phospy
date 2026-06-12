@@ -8,6 +8,8 @@ import pandas.testing as pdt
 import pytest
 
 from phospy.api import (
+    CategoricalCovariate,
+    ContinuousCovariate,
     Contrast,
     DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
@@ -212,9 +214,6 @@ def test_differential_analysis_returns_per_contrast_moderated_tables() -> None:
     assert result.policy_provenance.missing_values.policy == (
         "reject_missing_values_before_differential_execution"
     )
-    assert "batch-aware differential modelling" in (
-        result.policy_provenance.unsupported_design.intentionally_rejected_features
-    )
     assert "blocking/paired/repeated-measure differential modelling" in (
         result.policy_provenance.unsupported_design.intentionally_rejected_features
     )
@@ -251,7 +250,9 @@ def test_differential_analysis_returns_per_contrast_moderated_tables() -> None:
         assert (table.loc[:, "adj.P.Val"] <= 1.0).all()
 
 
-def test_simple_design_matrix_and_contrast_vectors_remain_unchanged() -> None:
+def test_differential_interpreter_condition_only_design_inputs_remain_unchanged() -> (
+    None
+):
     interpreted = DifferentialAnalysisInterpreter().run(
         DifferentialAnalysisValidator().run(_request())
     )
@@ -281,6 +282,273 @@ def test_simple_design_matrix_and_contrast_vectors_remain_unchanged() -> None:
     pdt.assert_frame_equal(
         interpreted.computation_request.contrasts.to_dataframe(),
         expected_contrasts,
+    )
+    execution_design = interpreted.execution_design
+    assert execution_design is not None
+    pdt.assert_frame_equal(
+        execution_design.design_matrix.to_dataframe(),
+        expected_design,
+    )
+    pdt.assert_frame_equal(
+        execution_design.contrast_matrix.to_dataframe(),
+        expected_contrasts,
+    )
+    assert execution_design.condition_contrast_vectors[0].coefficients == (
+        ("A", -1.0),
+        ("B", 1.0),
+        ("C", 0.0),
+    )
+    assert execution_design.covariate_columns == ()
+    assert execution_design.formula == "~0 + condition"
+    assert execution_design.description == "condition-only fixed-effect design"
+    assert execution_design.sample_order == ("A_1", "A_2", "B_1", "B_2", "C_1", "C_2")
+
+
+def test_differential_interpreter_builds_categorical_covariate_inputs() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                sample_id="A_1",
+                condition="A",
+                biological_replicate_id="A_r1",
+                covariates={"sex": "F"},
+            ),
+            SampleDesignRecord(
+                sample_id="A_2",
+                condition="A",
+                biological_replicate_id="A_r2",
+                covariates={"sex": "M"},
+            ),
+            SampleDesignRecord(
+                sample_id="B_1",
+                condition="B",
+                biological_replicate_id="B_r1",
+                covariates={"sex": "F"},
+            ),
+            SampleDesignRecord(
+                sample_id="B_2",
+                condition="B",
+                biological_replicate_id="B_r2",
+                covariates={"sex": "M"},
+            ),
+            SampleDesignRecord(
+                sample_id="C_1",
+                condition="C",
+                biological_replicate_id="C_r1",
+                covariates={"sex": "F"},
+            ),
+            SampleDesignRecord(
+                sample_id="C_2",
+                condition="C",
+                biological_replicate_id="C_r2",
+                covariates={"sex": "M"},
+            ),
+        ),
+        fixed_effects=(CategoricalCovariate("sex"),),
+    )
+
+    interpreted = DifferentialAnalysisInterpreter().run(
+        DifferentialAnalysisValidator().run(_request(design=design))
+    )
+
+    expected_design = pd.DataFrame(
+        {
+            "A": [1.0, 1.0, 0.0, 0.0, 0.0, 0.0],
+            "B": [0.0, 0.0, 1.0, 1.0, 0.0, 0.0],
+            "C": [0.0, 0.0, 0.0, 0.0, 1.0, 1.0],
+            "sex[M]": [0.0, 1.0, 0.0, 1.0, 0.0, 1.0],
+        },
+        index=pd.Index(["A_1", "A_2", "B_1", "B_2", "C_1", "C_2"], name="sample"),
+    )
+    expected_design.columns = pd.Index(expected_design.columns, name="coefficient")
+    expected_contrasts = pd.DataFrame(
+        {
+            "B_vs_A": [-1.0, 1.0, 0.0, 0.0],
+            "C_vs_A": [-1.0, 0.0, 1.0, 0.0],
+        },
+        index=pd.Index(["A", "B", "C", "sex[M]"], name="coefficient"),
+    )
+    expected_contrasts.columns = pd.Index(expected_contrasts.columns, name="contrast")
+    execution_design = interpreted.execution_design
+    assert execution_design is not None
+
+    pdt.assert_frame_equal(
+        interpreted.computation_request.design.to_dataframe(),
+        expected_design,
+    )
+    pdt.assert_frame_equal(
+        execution_design.design_matrix.to_dataframe(),
+        expected_design,
+    )
+    pdt.assert_frame_equal(
+        execution_design.contrast_matrix.to_dataframe(),
+        expected_contrasts,
+    )
+    assert execution_design.condition_contrast_vectors[0].coefficients == (
+        ("A", -1.0),
+        ("B", 1.0),
+        ("C", 0.0),
+        ("sex[M]", 0.0),
+    )
+    assert execution_design.condition_contrast_vectors[1].coefficients == (
+        ("A", -1.0),
+        ("B", 0.0),
+        ("C", 1.0),
+        ("sex[M]", 0.0),
+    )
+    assert len(execution_design.covariate_columns) == 1
+    covariate = execution_design.covariate_columns[0]
+    assert covariate.name == "sex"
+    assert covariate.kind == "categorical"
+    assert covariate.columns == ("sex[M]",)
+    assert covariate.levels == ("F", "M")
+    assert covariate.reference_level == "F"
+    assert covariate.unused_levels == ()
+    assert execution_design.formula == "~0 + condition + sex"
+    assert execution_design.description == "fixed-effect design: ~0 + condition + sex"
+
+
+def test_differential_interpreter_builds_continuous_covariate_inputs() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                sample_id="A_1",
+                condition="A",
+                biological_replicate_id="A_r1",
+                covariates={"dose": 0.0},
+            ),
+            SampleDesignRecord(
+                sample_id="A_2",
+                condition="A",
+                biological_replicate_id="A_r2",
+                covariates={"dose": 1.0},
+            ),
+            SampleDesignRecord(
+                sample_id="B_1",
+                condition="B",
+                biological_replicate_id="B_r1",
+                covariates={"dose": 0.0},
+            ),
+            SampleDesignRecord(
+                sample_id="B_2",
+                condition="B",
+                biological_replicate_id="B_r2",
+                covariates={"dose": 1.0},
+            ),
+            SampleDesignRecord(
+                sample_id="C_1",
+                condition="C",
+                biological_replicate_id="C_r1",
+                covariates={"dose": 0.0},
+            ),
+            SampleDesignRecord(
+                sample_id="C_2",
+                condition="C",
+                biological_replicate_id="C_r2",
+                covariates={"dose": 1.0},
+            ),
+        ),
+        fixed_effects=(ContinuousCovariate("dose"),),
+    )
+
+    interpreted = DifferentialAnalysisInterpreter().run(
+        DifferentialAnalysisValidator().run(_request(design=design))
+    )
+
+    expected_design = pd.DataFrame(
+        {
+            "A": [1.0, 1.0, 0.0, 0.0, 0.0, 0.0],
+            "B": [0.0, 0.0, 1.0, 1.0, 0.0, 0.0],
+            "C": [0.0, 0.0, 0.0, 0.0, 1.0, 1.0],
+            "dose": [0.0, 1.0, 0.0, 1.0, 0.0, 1.0],
+        },
+        index=pd.Index(["A_1", "A_2", "B_1", "B_2", "C_1", "C_2"], name="sample"),
+    )
+    expected_design.columns = pd.Index(expected_design.columns, name="coefficient")
+    execution_design = interpreted.execution_design
+    assert execution_design is not None
+
+    pdt.assert_frame_equal(
+        interpreted.computation_request.design.to_dataframe(),
+        expected_design,
+    )
+    pdt.assert_frame_equal(
+        execution_design.design_matrix.to_dataframe(),
+        expected_design,
+    )
+    assert execution_design.condition_contrast_vectors[0].coefficients == (
+        ("A", -1.0),
+        ("B", 1.0),
+        ("C", 0.0),
+        ("dose", 0.0),
+    )
+    assert len(execution_design.covariate_columns) == 1
+    covariate = execution_design.covariate_columns[0]
+    assert covariate.name == "dose"
+    assert covariate.kind == "continuous"
+    assert covariate.columns == ("dose",)
+    assert covariate.levels == ()
+    assert covariate.reference_level is None
+    assert execution_design.formula == "~0 + condition + dose"
+
+
+def test_differential_interpreter_preserves_execution_sample_order() -> None:
+    sample_order = ("B_2", "A_1", "C_2", "B_1", "A_2", "C_1")
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(
+                sample_id="B_2",
+                condition="B",
+                biological_replicate_id="B_r2",
+                covariates={"dose": 1.0},
+            ),
+            SampleDesignRecord(
+                sample_id="A_1",
+                condition="A",
+                biological_replicate_id="A_r1",
+                covariates={"dose": 0.0},
+            ),
+            SampleDesignRecord(
+                sample_id="C_2",
+                condition="C",
+                biological_replicate_id="C_r2",
+                covariates={"dose": 1.0},
+            ),
+            SampleDesignRecord(
+                sample_id="B_1",
+                condition="B",
+                biological_replicate_id="B_r1",
+                covariates={"dose": 0.0},
+            ),
+            SampleDesignRecord(
+                sample_id="A_2",
+                condition="A",
+                biological_replicate_id="A_r2",
+                covariates={"dose": 1.0},
+            ),
+            SampleDesignRecord(
+                sample_id="C_1",
+                condition="C",
+                biological_replicate_id="C_r1",
+                covariates={"dose": 0.0},
+            ),
+        ),
+        fixed_effects=(ContinuousCovariate("dose"),),
+    )
+    matrix = _matrix().loc[:, ["C_1", "B_1", "A_2", "C_2", "B_2", "A_1"]]
+
+    interpreted = DifferentialAnalysisInterpreter().run(
+        DifferentialAnalysisValidator().run(
+            _request(dataset=_dataset(matrix), design=design)
+        )
+    )
+
+    execution_design = interpreted.execution_design
+    assert execution_design is not None
+    assert execution_design.sample_order == sample_order
+    assert interpreted.computation_request.matrix.columns.tolist() == list(sample_order)
+    assert execution_design.design_matrix.to_dataframe().index.tolist() == list(
+        sample_order
     )
 
 

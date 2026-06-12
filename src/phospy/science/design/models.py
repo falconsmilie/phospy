@@ -128,8 +128,9 @@ def _normalize_covariate_mapping(
 class FixedEffectCovariate:
     """Explicit fixed-effect covariate declaration.
 
-    The declaration records user intent only. It does not build a design matrix
-    and does not make adjusted differential models executable.
+    The declaration records user intent only. Design-matrix construction and
+    workflow interpretation are responsible for making adjusted differential
+    models executable.
     """
 
     name: str
@@ -237,7 +238,10 @@ class CategoricalCovariate(FixedEffectCovariate):
 
 @dataclass(frozen=True, slots=True)
 class ContinuousCovariate(FixedEffectCovariate):
-    """Explicit continuous fixed-effect covariate declaration."""
+    """Explicit continuous fixed-effect covariate declaration.
+
+    Design-matrix construction requires declared values to be numeric and finite.
+    """
 
     kind: FixedEffectCovariateKind = field(
         default=FIXED_EFFECT_COVARIATE_KIND_CONTINUOUS,
