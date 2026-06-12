@@ -18,6 +18,11 @@ from phospy.io.readers.tables import (
 )
 
 if TYPE_CHECKING:
+    from phospy.io.readers.fragpipe import (
+        FragPipeColumnMapping,
+        FragPipePTMProphetImporter,
+        FragPipePTMProphetImportRequest,
+    )
     from phospy.io.readers.importers import (
         ColumnMappedPhosphositeImporter,
         MappedPhosphositeTableImporter,
@@ -30,6 +35,9 @@ if TYPE_CHECKING:
 
 __all__ = [
     "ColumnMappedPhosphositeImporter",
+    "FragPipeColumnMapping",
+    "FragPipePTMProphetImporter",
+    "FragPipePTMProphetImportRequest",
     "MappedPhosphositeTableImporter",
     "MaxQuantColumnMapping",
     "MaxQuantPhosphositeImporter",
@@ -48,6 +56,18 @@ __all__ = [
 
 
 def __getattr__(name: str) -> object:
+    if name == "FragPipeColumnMapping":
+        from phospy.io.readers.fragpipe import FragPipeColumnMapping
+
+        return FragPipeColumnMapping
+    if name == "FragPipePTMProphetImporter":
+        from phospy.io.readers.fragpipe import FragPipePTMProphetImporter
+
+        return FragPipePTMProphetImporter
+    if name == "FragPipePTMProphetImportRequest":
+        from phospy.io.readers.fragpipe import FragPipePTMProphetImportRequest
+
+        return FragPipePTMProphetImportRequest
     if name == "ColumnMappedPhosphositeImporter":
         from phospy.io.readers.importers import ColumnMappedPhosphositeImporter
 

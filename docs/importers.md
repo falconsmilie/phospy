@@ -102,6 +102,65 @@ request = import_result.to_dataset_build_request(
 )
 ```
 
+## FragPipe/PTMProphet Importer
+
+Use `FragPipePTMProphetImporter` for FragPipe/Philosopher peptide or site
+tables that include PTMProphet localisation probabilities. The importer parses
+protein accessions, modified peptide strings, PTMProphet site probabilities,
+protein positions, intensity columns, and contaminant/decoy flags before
+delegating to the common PhosPy importer result contract.
+
+```python
+from phospy.io.readers import (
+    FragPipeColumnMapping,
+    FragPipePTMProphetImporter,
+    FragPipePTMProphetImportRequest,
+)
+
+import_result = FragPipePTMProphetImporter().run(
+    FragPipePTMProphetImportRequest(
+        source="combined_peptide.tsv",
+        column_mapping=FragPipeColumnMapping(
+            protein_accession="Protein",
+            gene_symbol="Gene",
+            peptide_sequence="Peptide",
+            modified_peptide_sequence="Modified Peptide",
+            protein_start="Protein Start",
+            ptmprophet_probabilities="PTMProphet Probability",
+            intensity_columns={
+                "Intensity Control": "control",
+                "Intensity Stim": "stim",
+            },
+            contaminant="Contaminant",
+            decoy="Decoy",
+        ),
+        contaminant_policy="remove",
+        decoy_policy="remove",
+    )
+)
+```
+
+By default, PTMProphet positions such as `S4(0.95)` are interpreted as
+peptide-relative positions and translated with `protein_start`. If your table
+already reports protein-relative tokens such as `S473(0.98)`, set
+`ptmprophet_position_reference="protein"`.
+
+The importer does not accept localisation strings as opaque labels. Supported
+probability tokens include forms such as `S4(0.95)` and `S4:0.95`; malformed
+strings fail fast. Modified peptides are parsed for common phospho annotations
+such as `[pS]`, `S[+79.9663]`, and `(ph)S`.
+
+Ambiguous PTMProphet evidence is represented explicitly. If a single-phospho
+peptide has tied top candidates, the importer emits a joint multi-site row
+such as `S10,T11` rather than silently selecting the first site. It also adds
+`fragpipe_ptmprophet_candidate_sites`,
+`fragpipe_ptmprophet_site_probabilities`, and
+`fragpipe_ptmprophet_ambiguous` metadata columns for auditability.
+
+The localisation output column remains the shared
+`localisation_confidence` probability column, so it can be enforced by
+`DatasetLocalisationConfig` during dataset building.
+
 ## Generic Column-Mapped Importer
 
 The foundation importer is intentionally generic. Tool-specific importers such

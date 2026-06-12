@@ -33,6 +33,12 @@ from phospy.science.evidence.models import (
     PeptideEvidenceTable,
     SiteEvidenceMapping,
 )
+from phospy.science.evidence.modified_peptides import (
+    ModifiedPeptideParseResult,
+    ModifiedResidue,
+    is_phosphorylation_label,
+    parse_modified_peptide_sequence,
+)
 from phospy.science.evidence.multi_site import (
     MULTI_SITE_POLICY_ERROR,
     MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING,
@@ -49,6 +55,10 @@ __all__ = [
     "PeptideEvidenceRecord",
     "PeptideEvidenceTable",
     "SiteEvidenceMapping",
+    "ModifiedPeptideParseResult",
+    "ModifiedResidue",
+    "is_phosphorylation_label",
+    "parse_modified_peptide_sequence",
     "LOCALISATION_CONFIDENCE_OUTPUT_COLUMN",
     "LOCALISATION_CONFIDENCE_SCALE_PERCENT",
     "LOCALISATION_CONFIDENCE_SCALE_PROBABILITY",
