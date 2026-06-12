@@ -228,16 +228,16 @@ def test_optional_batch_field_validation_fails_when_partially_defined() -> None:
         )
 
 
-def test_optional_block_field_validation_fails_when_partially_defined() -> None:
+def test_optional_block_id_field_validation_fails_when_partially_defined() -> None:
     design = ExperimentalDesign(
         samples=(
-            SampleDesignRecord(sample_id="A_1", condition="A", block="pair_1"),
+            SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),
             SampleDesignRecord(sample_id="A_2", condition="A"),
-            SampleDesignRecord(sample_id="B_1", condition="B", block="pair_1"),
-            SampleDesignRecord(sample_id="B_2", condition="B", block="pair_2"),
+            SampleDesignRecord(sample_id="B_1", condition="B", block_id="pair_1"),
+            SampleDesignRecord(sample_id="B_2", condition="B", block_id="pair_2"),
         )
     )
-    with pytest.raises(WorkflowValidationError, match="optional field 'block'"):
+    with pytest.raises(WorkflowValidationError, match="optional field 'block_id'"):
         ExperimentalDesignContractValidator().run(
             dataset=_dataset(),
             design=design,

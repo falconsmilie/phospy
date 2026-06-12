@@ -5,9 +5,13 @@ from __future__ import annotations
 from phospy.contracts.configs.dataset import DatasetPreprocessingConfig
 from phospy.contracts.configs.differential import (
     MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG,
+    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+    PAIRED_DESIGN_POLICY_REJECT,
     SUPPORTED_MULTIPLE_TESTING_METHODS,
+    SUPPORTED_PAIRED_DESIGN_POLICIES,
     DifferentialAnalysisConfig,
     MultipleTestingConfig,
+    PairedDesignPolicy,
 )
 from phospy.contracts.configs.kinase import (
     KINASE_ACTIVITY_DEFAULT_MIN_SUBSTRATES,
@@ -362,6 +366,8 @@ __all__ = [
     "DatasetTotalProteinCorrectionPolicy",
     "DatasetTotalProteinCorrectionUnmatchedPolicy",
     "DifferentialAnalysisConfig",
+    "PAIRED_DESIGN_POLICY_FIXED_BLOCK",
+    "PAIRED_DESIGN_POLICY_REJECT",
     "KinaseAdaptivePolicy",
     "KinaseActivityMethod",
     "KinaseActivityPValueMethod",
@@ -387,5 +393,7 @@ __all__ = [
     "SignalomeValidationConfig",
     "MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG",
     "MultipleTestingConfig",
+    "PairedDesignPolicy",
+    "SUPPORTED_PAIRED_DESIGN_POLICIES",
     "SUPPORTED_MULTIPLE_TESTING_METHODS",
 ]

@@ -66,6 +66,7 @@ Optional inputs:
 
 - `config` (`DifferentialAnalysisConfig()` by default), including:
   - `technical_replicate_policy` (`TechnicalReplicatePolicy.REJECT`)
+  - `paired_design_policy` (`"reject"`)
   - `allow_design_subset` (`False`)
   - `minimum_condition_replicates` (`2`)
   - `empirical_bayes` (`EmpiricalBayesConfig()`)
@@ -84,7 +85,7 @@ Optional inputs:
 - Duplicate `sample_id` values are rejected.
 - By default, all dataset samples must appear in the design.
 - With `config.allow_design_subset=True`, design may define a strict sample subset.
-- Conditions, replicate identity, batch fields, and block fields are taken from
+- Conditions, replicate identity, batch fields, and `block_id` fields are taken from
   `ExperimentalDesign`, not inferred from `dataset.sample_metadata`.
 - Declared fixed-effect covariates can be included in the model as ordinary
   fixed terms: `BatchCovariate`, `CategoricalCovariate`, and
@@ -131,6 +132,11 @@ Optional inputs:
   rank and requested contrasts are estimable.
 - Batch fixed effects are not batch correction. They do not implement ComBat,
   RUV, `removeBatchEffect`, or any data-cleaning/removal step.
+- Paired/block designs use explicit `SampleDesignRecord.block_id` metadata.
+  `block_id` is never inferred from sample names or passive sample metadata.
+- `DifferentialAnalysisConfig.paired_design_policy` defaults to `"reject"`.
+  Setting it to `"fixed_block"` records opt-in intent only; it does not yet add
+  block terms to matrix construction or make paired/block designs executable.
 - Paired/blocking, repeated-measure, `duplicateCorrelation`-style correlated
   replicate, and mixed-effects designs remain rejected unless explicitly
   implemented in a future release.

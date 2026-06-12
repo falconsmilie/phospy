@@ -177,6 +177,15 @@ linear model. This is not ComBat, RUV, `removeBatchEffect`,
 `duplicateCorrelation`, or mixed-effects modelling. Paired/block designs remain
 separate unsupported design classes unless explicitly implemented elsewhere.
 
+Paired or blocked designs use a single public sample metadata name:
+`SampleDesignRecord.block_id`. `block_id` must be supplied explicitly by the
+caller; PhosPy does not infer it from sample names, column order, or
+`dataset.sample_metadata`. The differential config exposes
+`paired_design_policy`, which defaults to `"reject"`. Setting
+`paired_design_policy="fixed_block"` records opt-in user intent only. In the
+current release it does not add block terms to design matrices, does not enable
+mixed-effects modelling, and does not make paired/block designs executable.
+
 The lower-level design-matrix builder can represent included fixed effects for
 design-domain inspection and validation. Categorical and batch covariates are
 dummy-encoded with deterministic level order. Continuous covariates are emitted

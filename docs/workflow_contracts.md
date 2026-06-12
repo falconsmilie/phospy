@@ -137,7 +137,7 @@ identical numeric outputs across different machines or dependency builds.
 
 - `dataset.phospho`: numeric feature-by-sample table from `AnalysisReadyPhosphoDataset`.
 - `design`: typed `ExperimentalDesign` sample records aligned to dataset sample
-  IDs (`sample_id`, `condition`, optional replicate/batch/block metadata).
+  IDs (`sample_id`, `condition`, optional replicate/batch/`block_id` metadata).
 - `contrasts`: typed `Contrast` condition-vs-condition definitions.
 
 ### Experimental-Design Contract Policy
@@ -162,8 +162,12 @@ identical numeric outputs across different machines or dependency builds.
 - Repeated `biological_replicate_id` values within condition groups are treated
   as technical replicates and require an explicit aggregation policy.
 - Technical-replicate aggregation requires `biological_replicate_id` for every
-  design sample and consistent optional group fields (`batch`, `block`) within
+  design sample and consistent optional group fields (`batch`, `block_id`) within
   each condition+biological-replicate group.
+- Paired/block design intent is explicit via `config.paired_design_policy`,
+  which defaults to `"reject"`. `paired_design_policy="fixed_block"` is an
+  opt-in policy contract only in this release; it does not infer `block_id`,
+  build block terms, or enable mixed-effects modelling.
 - Current parity-protected lane is two-condition unpaired simple contrasts.
 - Blocking, paired, repeated-measure, correlated-replicate, and mixed-effects
   modelling are not executable in this release.

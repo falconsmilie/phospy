@@ -22,7 +22,7 @@ class TechnicalReplicateAggregationGroup:
     input_sample_ids: tuple[str, ...]
     technical_replicate_ids: tuple[str, ...]
     batch: str | None
-    block: str | None
+    block_id: str | None
     covariates: Mapping[str, str | float]
 
 
@@ -179,10 +179,10 @@ class TechnicalReplicateAggregationPlanner:
                     field_name="batch",
                 )
             )
-            block = (
+            block_id = (
                 TechnicalReplicateAggregationPlanner._require_consistent_optional_field(
                     records=tuple(records),
-                    field_name="block",
+                    field_name="block_id",
                 )
             )
             covariates = (
@@ -198,7 +198,7 @@ class TechnicalReplicateAggregationPlanner:
                     input_sample_ids=tuple(record.sample_id for record in records),
                     technical_replicate_ids=technical_ids,
                     batch=batch,
-                    block=block,
+                    block_id=block_id,
                     covariates=covariates,
                 )
             )
@@ -280,7 +280,7 @@ class TechnicalReplicateAggregator:
                     biological_replicate_id=group.biological_replicate_id,
                     technical_replicate_id=None,
                     batch=group.batch,
-                    block=group.block,
+                    block_id=group.block_id,
                     covariates=group.covariates,
                 )
                 for group in groups

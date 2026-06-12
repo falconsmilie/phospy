@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 from phospy.api import (
+    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     BatchCovariate,
     Contrast,
     DifferentialAnalysisConfig,
@@ -95,6 +96,7 @@ def _workflow_request(
     design: ExperimentalDesign,
     samples: tuple[str, ...] = ("A_1", "A_2", "B_1", "B_2"),
     minimum_condition_replicates: int = 2,
+    paired_design_policy: str = "reject",
 ) -> DifferentialAnalysisRequest:
     return DifferentialAnalysisRequest(
         dataset=_dataset(samples=samples),
@@ -107,7 +109,8 @@ def _workflow_request(
             ),
         ),
         config=DifferentialAnalysisConfig(
-            minimum_condition_replicates=minimum_condition_replicates
+            minimum_condition_replicates=minimum_condition_replicates,
+            paired_design_policy=paired_design_policy,
         ),
     )
 
@@ -153,16 +156,36 @@ def test_workflow_differential_validation_accepts_balanced_batch_fixed_effect() 
 def test_workflow_rejects_block_or_paired_modelling_in_current_release() -> None:
     design = ExperimentalDesign(
         samples=(
-            SampleDesignRecord(sample_id="A_1", condition="A", block="pair_1"),
-            SampleDesignRecord(sample_id="A_2", condition="A", block="pair_2"),
-            SampleDesignRecord(sample_id="B_1", condition="B", block="pair_1"),
-            SampleDesignRecord(sample_id="B_2", condition="B", block="pair_2"),
+            SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),
+            SampleDesignRecord(sample_id="A_2", condition="A", block_id="pair_2"),
+            SampleDesignRecord(sample_id="B_1", condition="B", block_id="pair_1"),
+            SampleDesignRecord(sample_id="B_2", condition="B", block_id="pair_2"),
         )
     )
     with pytest.raises(
         WorkflowValidationError, match="blocking/paired differential modelling"
     ):
         DifferentialAnalysisWorkflow().run(_workflow_request(design=design))
+
+
+def test_fixed_block_policy_is_contract_only_and_does_not_enable_execution() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),
+            SampleDesignRecord(sample_id="A_2", condition="A", block_id="pair_2"),
+            SampleDesignRecord(sample_id="B_1", condition="B", block_id="pair_1"),
+            SampleDesignRecord(sample_id="B_2", condition="B", block_id="pair_2"),
+        )
+    )
+    with pytest.raises(
+        WorkflowValidationError, match="blocking/paired differential modelling"
+    ):
+        DifferentialAnalysisWorkflow().run(
+            _workflow_request(
+                design=design,
+                paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+            )
+        )
 
 
 def test_workflow_rejects_non_positive_residual_dof_for_small_n_design() -> None:

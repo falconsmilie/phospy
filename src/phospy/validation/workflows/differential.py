@@ -126,11 +126,11 @@ class ExperimentalDesignContractValidator:
             )
         self._validate_optional_field_alignment(
             design.samples,
-            field_name="block",
+            field_name="block_id",
         )
         self._validate_fixed_effect_inputs(design)
 
-        if any(record.block is not None for record in design.samples):
+        if any(record.block_id is not None for record in design.samples):
             raise WorkflowValidationError(
                 "unsupported design features: blocking/paired differential modelling "
                 "is not available in this release"

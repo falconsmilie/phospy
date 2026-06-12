@@ -25,6 +25,7 @@ SUPPORTED_FIXED_EFFECT_COVARIATE_KINDS = frozenset(
 _RESERVED_SAMPLE_FIELD_NAMES = {
     "biological_replicate_id",
     "block",
+    "block_id",
     "condition",
     "sample",
     "sample_id",
@@ -281,14 +282,19 @@ def _normalize_fixed_effects(
 
 @dataclass(frozen=True, slots=True)
 class SampleDesignRecord:
-    """Design metadata for a single sample."""
+    """Design metadata for a single sample.
+
+    ``block_id`` is explicit user-provided design metadata for paired or
+    blocked designs. It is recorded as user intent only and is not inferred
+    from sample names.
+    """
 
     sample_id: str
     condition: str
     biological_replicate_id: str | None = None
     technical_replicate_id: str | None = None
     batch: str | None = None
-    block: str | None = None
+    block_id: str | None = None
     covariates: Mapping[str, str | int | float] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -334,10 +340,10 @@ class SampleDesignRecord:
         )
         object.__setattr__(
             self,
-            "block",
+            "block_id",
             _normalize_optional_text(
-                self.block,
-                field_name="experimental_design.samples[].block",
+                self.block_id,
+                field_name="experimental_design.samples[].block_id",
             ),
         )
         object.__setattr__(

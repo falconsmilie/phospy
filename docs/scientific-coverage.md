@@ -85,7 +85,7 @@ modelling, or mixed-effects modelling.
 
 Explicitly unsupported in this release:
 
-- block/paired/repeated-measure differential modelling (`block`)
+- block/paired/repeated-measure differential modelling (`block_id`)
 - limma `duplicateCorrelation`-style correlated-replicate modelling
 - mixed-effect differential modelling
 
