@@ -64,6 +64,8 @@ from phospy.api.requests import (
     EmpiricalBayesConfig,
     ExperimentalDesign,
     KinaseWorkflowRequest,
+    PhosphositeImporter,
+    PhosphositeImportRequest,
     SampleDesignRecord,
     SignalomeWorkflowRequest,
 )
@@ -73,6 +75,7 @@ from phospy.api.results import (
     KinasePredictionResult,
     KinaseScoringResult,
     KinaseWorkflowResult,
+    PhosphositeImportResult,
     SignalomeWorkflowResult,
 )
 from phospy.api.workflows import (
@@ -149,6 +152,9 @@ __all__ = [
     "DesignMatrix",
     "ContrastMatrix",
     "DatasetBuildRequest",
+    "PhosphositeImporter",
+    "PhosphositeImportRequest",
+    "PhosphositeImportResult",
     "DatasetMissingDataConfig",
     "DatasetNormalisationConfig",
     "DatasetPreprocessingConfig",

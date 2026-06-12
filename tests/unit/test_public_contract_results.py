@@ -48,6 +48,7 @@ EXPECTED_RESULT_EXPORTS = {
     "KinasePredictionResult",
     "KinaseScoringResult",
     "KinaseWorkflowResult",
+    "PhosphositeImportResult",
     "SignalomeWorkflowResult",
 } | INTENTIONAL_RESULT_COMPATIBILITY_ALIASES
 

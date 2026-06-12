@@ -9,8 +9,9 @@ invariants.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 from phospy.contracts.configs import (
     KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR,
@@ -45,7 +46,7 @@ from phospy.science.transformations.models import (
 )
 
 if TYPE_CHECKING:
-    from phospy.contracts.results import KinaseWorkflowResult
+    from phospy.contracts.results import KinaseWorkflowResult, PhosphositeImportResult
 
 DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING = (
     _dataset_resolution.DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING
@@ -61,6 +62,53 @@ DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE = (
 DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED = (
     _dataset_resolution.DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED
 )
+
+
+@dataclass(frozen=True, slots=True)
+class PhosphositeImportRequest:
+    """Request for translating an upstream phosphosite table into builder inputs.
+
+    Construction stores the payload only. Import-source type checks, required
+    column mapping validation, localisation-confidence parsing, and candidate
+    table construction are owned by ``PhosphositeImporter.run(...)``. Dataset
+    scientific readiness remains owned by ``AnalysisReadyDatasetBuilder``.
+
+    ``sample_intensity_columns`` is explicit by design. It accepts either a
+    sequence of source column names, which keeps sample IDs equal to source
+    column names, or a mapping of ``source_column -> sample_id``. Importers do
+    not infer sample groups, contrasts, batches, or differential designs from
+    these names.
+    """
+
+    source: DatasetInput
+    sample_intensity_columns: Mapping[str, str] | Sequence[str]
+    gene_symbol_column: str = "gene_symbol"
+    site_column: str = "site"
+    row_id_column: str | None = None
+    protein_id_column: str | None = None
+    protein_accession_column: str | None = None
+    protein_identifier_column: str | None = None
+    protein_namespace_column: str | None = None
+    organism_column: str | None = None
+    isoform_id_column: str | None = None
+    site_sequence_column: str | None = None
+    display_id_column: str | None = None
+    site_key_column: str | None = None
+    localisation_confidence_column: str | None = None
+    localisation_confidence_scale: str = "probability"
+    peptide_row_id_column: str | None = None
+    unique_feature_id_column: str | None = None
+    peptide_sequence_column: str | None = None
+    modified_peptide_sequence_column: str | None = None
+    peptide_site_string_column: str | None = None
+    peptide_site_id_column: str | None = None
+    source_name: str = "phosphosite_import"
+
+
+class PhosphositeImporter(Protocol):
+    """Protocol for upstream phosphosite importers."""
+
+    def run(self, request: PhosphositeImportRequest) -> PhosphositeImportResult: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -177,6 +225,8 @@ __all__ = [
     "ContrastMatrix",
     "DesignMatrix",
     "DatasetBuildRequest",
+    "PhosphositeImporter",
+    "PhosphositeImportRequest",
     "SampleDesignRecord",
     "ExperimentalDesign",
     "Contrast",

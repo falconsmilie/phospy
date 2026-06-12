@@ -11,6 +11,8 @@ from phospy.contracts.requests import (
     EmpiricalBayesConfig,
     ExperimentalDesign,
     KinaseWorkflowRequest,
+    PhosphositeImporter,
+    PhosphositeImportRequest,
     SampleDesignRecord,
     SignalomeWorkflowRequest,
 )
@@ -50,6 +52,8 @@ __all__ = [
     "EmpiricalBayesConfig",
     "ExperimentalDesign",
     "KinaseWorkflowRequest",
+    "PhosphositeImporter",
+    "PhosphositeImportRequest",
     "SampleDesignRecord",
     "SignalomeWorkflowRequest",
 ]

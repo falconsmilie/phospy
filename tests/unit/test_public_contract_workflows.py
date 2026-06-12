@@ -50,6 +50,8 @@ EXPECTED_REQUEST_EXPORTS = {
     "EmpiricalBayesConfig",
     "ExperimentalDesign",
     "KinaseWorkflowRequest",
+    "PhosphositeImporter",
+    "PhosphositeImportRequest",
     "SampleDesignRecord",
     "SignalomeWorkflowRequest",
 } | INTENTIONAL_REQUEST_COMPATIBILITY_CONSTANTS

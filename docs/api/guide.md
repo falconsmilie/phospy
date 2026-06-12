@@ -21,6 +21,7 @@ The workflow documentation is split into dedicated pages:
 | Workflow | Page | Description |
 | --- | --- | --- |
 | Dataset | [Dataset Workflow](dataset-build-workflow.md) | Start here when you have phosphosite intensity data and want a strict `AnalysisReadyPhosphoDataset` for kinase and signalome analysis.|
+| Importers | [Phosphosite Importers](../importers.md) | Translate upstream search-engine outputs into dataset-builder input candidates without bypassing builder validation. |
 | Differential | [Differential Workflow](differential-workflow.md) | `DifferentialAnalysisWorkflow` runs moderated differential analysis over an `AnalysisReadyPhosphoDataset` using explicit design and contrast definitions. |
 | Kinase | [Kinase Workflow](kinase-workflow.md) | `KinaseWorkflow` resolves references, scores kinase-substrate evidence, predicts candidate kinase regulation, and can optionally compute kinase activity tables. |
 | Signalome | [Signalome Workflow](signalome-workflow.md) | `SignalomeWorkflow` interprets kinase score profiles into module assignments, signalome module summaries, kinase networks, and protein-site context tables |
@@ -100,6 +101,40 @@ Config objects may be stricter than request objects. For example, config
 dataclasses can reject invalid local policy values at construction time because
 those invariants belong to the config itself. Request dataclasses should not be
 treated as mini-workflow validators.
+
+## Importer Boundary
+
+`PhosphositeImportRequest` and `PhosphositeImportResult` support upstream table
+translation before dataset building. Importers produce:
+
+- `phospho_matrix_candidate`
+- `site_metadata_candidate`
+- optional `peptide_evidence`
+- explicit `sample_column_mapping`
+- `localisation_confidence_column`
+- `warnings` and `diagnostics`
+
+Importer output still feeds `AnalysisReadyDatasetBuilder`:
+
+```python
+from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import Organism, PhosphositeImportRequest
+from phospy.io.readers import MappedPhosphositeTableImporter
+
+import_result = MappedPhosphositeTableImporter().run(import_request)
+
+dataset = AnalysisReadyDatasetBuilder().run(
+    import_result.to_dataset_build_request(
+        organism=Organism.RAT,
+        input_intensity_scale="linear",
+    )
+)
+```
+
+Importers do not infer sample groups from column names and do not infer
+differential design. Peptide-evidence handoff requires an explicit
+`multi_site_policy`; ambiguous localisation and multi-site rows are retained
+with diagnostics instead of being silently dropped.
 
 ## Scientific Policy Module Ownership
 

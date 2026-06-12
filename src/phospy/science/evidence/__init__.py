@@ -20,6 +20,14 @@ from phospy.science.evidence.dataset_resolution import (
     PeptideEvidenceResolutionSummary,
     build_multi_site_handling_config_for_dataset_policy,
 )
+from phospy.science.evidence.localisation import (
+    LOCALISATION_CONFIDENCE_OUTPUT_COLUMN,
+    LOCALISATION_CONFIDENCE_SCALE_PERCENT,
+    LOCALISATION_CONFIDENCE_SCALE_PROBABILITY,
+    SUPPORTED_LOCALISATION_CONFIDENCE_SCALES,
+    LocalisationConfidenceNormalisationReport,
+    normalise_localisation_confidence_series,
+)
 from phospy.science.evidence.models import (
     PeptideEvidenceRecord,
     PeptideEvidenceTable,
@@ -41,6 +49,12 @@ __all__ = [
     "PeptideEvidenceRecord",
     "PeptideEvidenceTable",
     "SiteEvidenceMapping",
+    "LOCALISATION_CONFIDENCE_OUTPUT_COLUMN",
+    "LOCALISATION_CONFIDENCE_SCALE_PERCENT",
+    "LOCALISATION_CONFIDENCE_SCALE_PROBABILITY",
+    "SUPPORTED_LOCALISATION_CONFIDENCE_SCALES",
+    "LocalisationConfidenceNormalisationReport",
+    "normalise_localisation_confidence_series",
     "DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED",
     "DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE",
     "SUPPORTED_DATASET_SITE_RESOLUTION_MODES",

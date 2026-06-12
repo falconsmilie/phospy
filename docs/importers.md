@@ -1,0 +1,109 @@
+# Phosphosite Importers
+
+Importers translate upstream search-engine phosphosite tables into PhosPy
+dataset-builder input candidates. They do not construct
+`AnalysisReadyPhosphoDataset` objects and they do not infer differential design.
+
+Use importers when a table comes from an upstream search or quantification tool
+and needs consistent column mapping before the strict dataset builder runs.
+
+## Responsibility Boundary
+
+Importers own:
+
+- explicit source-column mapping
+- sample intensity column extraction
+- localisation-confidence normalisation to `localisation_confidence`
+- site metadata candidate assembly
+- optional peptide-evidence candidate assembly
+- duplicate and multi-site diagnostics
+
+`AnalysisReadyDatasetBuilder` still owns:
+
+- input-source and analysis-ready validation
+- site-key derivation
+- site-sequence handling
+- missing-value and localisation policy enforcement
+- duplicate-site handling
+- peptide-evidence resolution into site-level matrices
+
+Importers never infer sample groups, contrasts, batches, or differential
+designs from column names.
+
+## Generic Column-Mapped Importer
+
+The foundation importer is intentionally generic. Tool-specific importers such
+as MaxQuant, FragPipe, Spectronaut, or DIA-NN should be added later as small
+classes that map their known columns into this contract.
+
+```python
+import pandas as pd
+
+from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import Organism, PhosphositeImportRequest
+from phospy.io.readers import MappedPhosphositeTableImporter
+
+source = pd.DataFrame(
+    {
+        "gene": ["MAPK14", "GSK3B"],
+        "site": ["Y182", "S9"],
+        "protein": ["MAPK14", "GSK3B"],
+        "sequence_window": [
+            "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
+            "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
+        ],
+        "localisation_percent": [95.0, 92.0],
+        "intensity_a": [10.0, 20.0],
+        "intensity_b": [11.0, 21.0],
+    }
+)
+
+import_result = MappedPhosphositeTableImporter().run(
+    PhosphositeImportRequest(
+        source=source,
+        sample_intensity_columns={
+            "intensity_a": "sample_a",
+            "intensity_b": "sample_b",
+        },
+        gene_symbol_column="gene",
+        site_column="site",
+        protein_id_column="protein",
+        site_sequence_column="sequence_window",
+        localisation_confidence_column="localisation_percent",
+        localisation_confidence_scale="percent",
+    )
+)
+
+dataset = AnalysisReadyDatasetBuilder().run(
+    import_result.to_dataset_build_request(
+        organism=Organism.RAT,
+        input_intensity_scale="linear",
+    )
+)
+```
+
+`import_result.phospho_matrix_candidate` and
+`import_result.site_metadata_candidate` are defensive snapshots. Inspect
+`import_result.warnings` and `import_result.diagnostics` before running the
+builder when upstream output may contain duplicate site rows, multi-site
+peptides, missing localisation scores, or invalid localisation scores.
+
+## Peptide Evidence
+
+When peptide-level evidence columns are mapped, importer output can be handed to
+the builder peptide-evidence lane:
+
+```python
+request = import_result.to_dataset_build_request(
+    site_resolution_mode="peptide_evidence",
+    multi_site_policy="split",
+    organism=Organism.RAT,
+    input_intensity_scale="linear",
+)
+
+dataset = AnalysisReadyDatasetBuilder().run(request)
+```
+
+The explicit `multi_site_policy` is required. Ambiguous localisation or
+multi-site rows are retained in importer output and reported; they are not
+silently dropped by importers.

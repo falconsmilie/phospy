@@ -12,6 +12,9 @@ if TYPE_CHECKING:
         DISPLAY_SITE_CONTEXT_COLUMNS,
         enforce_unique_display_site_identity_rows,
     )
+    from phospy.validation.datasets.importers import (
+        PhosphositeImportRequestValidator,
+    )
     from phospy.validation.datasets.inputs import DatasetInputSourceValidator
     from phospy.validation.datasets.preprocessing import (
         DatasetPreprocessingConfigValidator,
@@ -28,6 +31,7 @@ __all__ = [
     "AnalysisReadyDatasetModelBoundaryValidator",
     "DISPLAY_SITE_CONTEXT_COLUMNS",
     "DatasetInputSourceValidator",
+    "PhosphositeImportRequestValidator",
     "DatasetPreprocessingConfigValidator",
     "enforce_display_id_column",
     "enforce_site_key_column",
@@ -49,6 +53,12 @@ def __getattr__(name: str) -> object:
         from phospy.validation.datasets.inputs import DatasetInputSourceValidator
 
         return DatasetInputSourceValidator
+    if name == "PhosphositeImportRequestValidator":
+        from phospy.validation.datasets.importers import (
+            PhosphositeImportRequestValidator,
+        )
+
+        return PhosphositeImportRequestValidator
     if name == "DISPLAY_SITE_CONTEXT_COLUMNS":
         from phospy.validation.datasets.display_site_identity import (
             DISPLAY_SITE_CONTEXT_COLUMNS,

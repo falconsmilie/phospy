@@ -5,11 +5,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
+from phospy.errors.input import PhosPyInputError
 from phospy.errors.validation import WorkflowValidationError
-from phospy.frames.ownership import export_optional_dataframe, own_optional_dataframe
+from phospy.frames.ownership import (
+    export_dataframe,
+    export_optional_dataframe,
+    own_dataframe,
+    own_optional_dataframe,
+)
 from phospy.provenance.models import RunProvenance
 from phospy.science.activities.models import (
     ActivityMethodDiagnostics,
@@ -47,6 +54,204 @@ from phospy.tables.signalome import (
     SignalomeProteinSiteContext,
     SignalomeSiteContext,
 )
+
+if TYPE_CHECKING:
+    from phospy.contracts.requests import DatasetBuildRequest
+
+
+@dataclass(frozen=True, slots=True, init=False)
+class PhosphositeImportResult:
+    """Candidate tables produced by an upstream phosphosite importer.
+
+    Import results are not analysis-ready datasets. They expose normalized
+    PhosPy input candidates plus diagnostics so callers can pass the candidate
+    tables into ``AnalysisReadyDatasetBuilder`` without bypassing the builder's
+    validation, preprocessing, site-key derivation, or peptide-evidence
+    resolution responsibilities.
+    """
+
+    _phospho_matrix_candidate: pd.DataFrame
+    _site_metadata_candidate: pd.DataFrame
+    _peptide_evidence: pd.DataFrame | None
+    _sample_column_mapping: dict[str, str]
+    localisation_confidence_column: str | None
+    warnings: tuple[str, ...]
+    diagnostics: dict[str, object]
+    source_name: str
+
+    def __init__(
+        self,
+        *,
+        phospho_matrix_candidate: pd.DataFrame,
+        site_metadata_candidate: pd.DataFrame,
+        peptide_evidence: pd.DataFrame | None = None,
+        sample_column_mapping: dict[str, str],
+        localisation_confidence_column: str | None = None,
+        warnings: tuple[str, ...] = (),
+        diagnostics: dict[str, object] | None = None,
+        source_name: str = "phosphosite_import",
+        _assume_owned: bool = False,
+    ) -> None:
+        phospho = own_dataframe(
+            phospho_matrix_candidate,
+            field_name="phosphosite_import_result.phospho_matrix_candidate",
+            error_type=PhosPyInputError,
+            assume_owned=_assume_owned,
+        )
+        site_metadata = own_dataframe(
+            site_metadata_candidate,
+            field_name="phosphosite_import_result.site_metadata_candidate",
+            error_type=PhosPyInputError,
+            assume_owned=_assume_owned,
+        )
+        evidence = own_optional_dataframe(
+            peptide_evidence,
+            field_name="phosphosite_import_result.peptide_evidence",
+            error_type=PhosPyInputError,
+            assume_owned=_assume_owned,
+        )
+        mapping = _validate_sample_column_mapping(sample_column_mapping)
+        if localisation_confidence_column is not None and not isinstance(
+            localisation_confidence_column,
+            str,
+        ):
+            raise PhosPyInputError(
+                "phosphosite_import_result.localisation_confidence_column must be "
+                "a string or None"
+            )
+        if (
+            isinstance(localisation_confidence_column, str)
+            and localisation_confidence_column.strip() == ""
+        ):
+            raise PhosPyInputError(
+                "phosphosite_import_result.localisation_confidence_column must be "
+                "non-empty when provided"
+            )
+        warning_values = tuple(_validate_warning(value) for value in warnings)
+        if diagnostics is not None and not isinstance(diagnostics, dict):
+            raise PhosPyInputError(
+                "phosphosite_import_result.diagnostics must be a dict or None"
+            )
+        source_name_value = _validate_source_name(source_name)
+
+        object.__setattr__(self, "_phospho_matrix_candidate", phospho)
+        object.__setattr__(self, "_site_metadata_candidate", site_metadata)
+        object.__setattr__(self, "_peptide_evidence", evidence)
+        object.__setattr__(self, "_sample_column_mapping", mapping)
+        object.__setattr__(
+            self,
+            "localisation_confidence_column",
+            localisation_confidence_column,
+        )
+        object.__setattr__(self, "warnings", warning_values)
+        object.__setattr__(self, "diagnostics", dict(diagnostics or {}))
+        object.__setattr__(self, "source_name", source_name_value)
+
+    @property
+    def phospho_matrix_candidate(self) -> pd.DataFrame:
+        """Return a defensive snapshot of the site-by-sample matrix candidate."""
+
+        return export_dataframe(self._phospho_matrix_candidate)
+
+    @property
+    def site_metadata_candidate(self) -> pd.DataFrame:
+        """Return a defensive snapshot of the site metadata candidate."""
+
+        return export_dataframe(self._site_metadata_candidate)
+
+    @property
+    def peptide_evidence(self) -> pd.DataFrame | None:
+        """Return a defensive snapshot of optional peptide evidence."""
+
+        return export_optional_dataframe(self._peptide_evidence)
+
+    @property
+    def sample_column_mapping(self) -> dict[str, str]:
+        """Return ``source_column -> sample_id`` intensity mapping."""
+
+        return dict(self._sample_column_mapping)
+
+    @property
+    def peptide_evidence_sample_intensity_columns(self) -> tuple[str, ...]:
+        """Return PhosPy sample IDs used as peptide-evidence intensity columns."""
+
+        return tuple(self._sample_column_mapping.values())
+
+    def to_dataset_build_request(
+        self,
+        *,
+        site_resolution_mode: str = "site_level_resolved",
+        multi_site_policy: str | None = None,
+        sample_metadata: object | None = None,
+        total: object | None = None,
+        organism: object | None = None,
+        preprocessing_config: object | None = None,
+        allow_opaque_site_values: bool = False,
+        input_intensity_scale: object | None = None,
+        quantitative_meaning: object | None = None,
+    ) -> DatasetBuildRequest:
+        """Create a ``DatasetBuildRequest`` from importer candidates.
+
+        This method intentionally returns a builder request rather than a
+        dataset. The builder still owns analysis-ready validation,
+        preprocessing, site identity derivation, and peptide-evidence
+        resolution.
+        """
+
+        from phospy.contracts.requests import DatasetBuildRequest
+        from phospy.science.evidence.dataset_resolution import (
+            DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+            DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
+        )
+
+        common_kwargs = {
+            "sample_metadata": sample_metadata,
+            "total": total,
+            "organism": organism,
+            "allow_opaque_site_values": allow_opaque_site_values,
+            "input_intensity_scale": input_intensity_scale,
+            "quantitative_meaning": quantitative_meaning,
+        }
+        if preprocessing_config is not None:
+            common_kwargs["preprocessing_config"] = preprocessing_config
+
+        if site_resolution_mode == DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED:
+            if multi_site_policy is not None:
+                raise PhosPyInputError(
+                    "phosphosite import result multi_site_policy is only valid for "
+                    "site_resolution_mode='peptide_evidence'"
+                )
+            return DatasetBuildRequest(
+                phospho=self.phospho_matrix_candidate,
+                site_metadata=self.site_metadata_candidate,
+                site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
+                **common_kwargs,
+            )
+
+        if site_resolution_mode == DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE:
+            if self._peptide_evidence is None:
+                raise PhosPyInputError(
+                    "phosphosite import result has no peptide_evidence candidate"
+                )
+            if multi_site_policy is None:
+                raise PhosPyInputError(
+                    "phosphosite import result peptide_evidence handoff requires "
+                    "multi_site_policy"
+                )
+            return DatasetBuildRequest(
+                site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+                peptide_evidence=self.peptide_evidence,
+                peptide_evidence_sample_intensity_columns=(
+                    self.peptide_evidence_sample_intensity_columns
+                ),
+                multi_site_policy=multi_site_policy,
+                **common_kwargs,
+            )
+
+        raise PhosPyInputError(
+            "phosphosite import result site_resolution_mode must be one of: "
+            "'site_level_resolved', 'peptide_evidence'"
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -529,6 +734,51 @@ def _signalome_dataset_identity_lookup(
     }
 
 
+def _validate_sample_column_mapping(value: dict[str, str]) -> dict[str, str]:
+    if not isinstance(value, dict):
+        raise PhosPyInputError(
+            "phosphosite_import_result.sample_column_mapping must be a dict"
+        )
+    if not value:
+        raise PhosPyInputError(
+            "phosphosite_import_result.sample_column_mapping must not be empty"
+        )
+    normalized: dict[str, str] = {}
+    for source_column, sample_id in value.items():
+        if not isinstance(source_column, str) or source_column.strip() == "":
+            raise PhosPyInputError(
+                "phosphosite_import_result.sample_column_mapping source columns "
+                "must be non-empty strings"
+            )
+        if not isinstance(sample_id, str) or sample_id.strip() == "":
+            raise PhosPyInputError(
+                "phosphosite_import_result.sample_column_mapping sample IDs must "
+                "be non-empty strings"
+            )
+        normalized[source_column.strip()] = sample_id.strip()
+    if len(set(normalized.values())) != len(normalized):
+        raise PhosPyInputError(
+            "phosphosite_import_result.sample_column_mapping sample IDs must be unique"
+        )
+    return normalized
+
+
+def _validate_warning(value: object) -> str:
+    if not isinstance(value, str) or value.strip() == "":
+        raise PhosPyInputError(
+            "phosphosite_import_result.warnings must contain non-empty strings"
+        )
+    return value.strip()
+
+
+def _validate_source_name(value: object) -> str:
+    if not isinstance(value, str) or value.strip() == "":
+        raise PhosPyInputError(
+            "phosphosite_import_result.source_name must be a non-empty string"
+        )
+    return value.strip()
+
+
 __all__ = [
     "ActivityMethodDiagnostics",
     "DifferentialAnalysisResult",
@@ -537,6 +787,7 @@ __all__ = [
     "KinaseScoringResult",
     "KinaseWorkflowResult",
     "KseaZScoreActivityDiagnostics",
+    "PhosphositeImportResult",
     "SsgseaSubstrateEnrichmentActivityDiagnostics",
     "SignalomeWorkflowResult",
     "WeightedSubstrateActivityDiagnostics",

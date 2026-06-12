@@ -66,6 +66,7 @@ nav:
       - Signalome Workflow: api/signalome-workflow.md
   - CLI Status: cli.md
   - User Guides:
+      - Phosphosite Importers: importers.md
       - Workflow Contracts: workflow_contracts.md
       - Validation Guide: validation.md
       - Output Bundles: output_bundles.md
