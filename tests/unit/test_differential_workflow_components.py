@@ -563,9 +563,11 @@ def test_differential_validator_passes_config_values_to_collaborators() -> None:
             contrasts,
             allow_design_subset,
             minimum_condition_replicates,
+            paired_design_policy,
         ):
             calls["allow_design_subset"] = allow_design_subset
             calls["minimum_condition_replicates"] = minimum_condition_replicates
+            calls["paired_design_policy"] = paired_design_policy
             from phospy.validation.workflows.differential import (
                 ValidatedExperimentalDesignContract,
             )
@@ -610,3 +612,4 @@ def test_differential_validator_passes_config_values_to_collaborators() -> None:
     assert calls["technical_replicate_policy"] is TechnicalReplicatePolicy.MEAN
     assert calls["allow_design_subset"] is True
     assert calls["minimum_condition_replicates"] == 1
+    assert calls["paired_design_policy"] == "reject"

@@ -5,6 +5,7 @@ import pytest
 
 from phospy import AnalysisReadyPhosphoDataset
 from phospy.api import (
+    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     BatchCovariate,
     CategoricalCovariate,
     ContinuousCovariate,
@@ -228,7 +229,9 @@ def test_optional_batch_field_validation_fails_when_partially_defined() -> None:
         )
 
 
-def test_optional_block_id_field_validation_fails_when_partially_defined() -> None:
+def test_differential_block_fixed_block_policy_rejects_partial_block_identifiers() -> (
+    None
+):
     design = ExperimentalDesign(
         samples=(
             SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),
@@ -237,13 +240,87 @@ def test_optional_block_id_field_validation_fails_when_partially_defined() -> No
             SampleDesignRecord(sample_id="B_2", condition="B", block_id="pair_2"),
         )
     )
-    with pytest.raises(WorkflowValidationError, match="optional field 'block_id'"):
+    with pytest.raises(
+        WorkflowValidationError,
+        match="fixed_block.*requires block_id.*A_2",
+    ):
         ExperimentalDesignContractValidator().run(
             dataset=_dataset(),
             design=design,
             contrasts=_contrasts(),
             allow_design_subset=False,
             minimum_condition_replicates=1,
+            paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+        )
+
+
+def test_differential_block_metadata_rejected_under_default_policy() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),
+            SampleDesignRecord(sample_id="A_2", condition="A", block_id="pair_2"),
+            SampleDesignRecord(sample_id="B_1", condition="B", block_id="pair_1"),
+            SampleDesignRecord(sample_id="B_2", condition="B", block_id="pair_2"),
+        )
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="paired_design_policy='fixed_block'",
+    ):
+        ExperimentalDesignContractValidator().run(
+            dataset=_dataset(),
+            design=design,
+            contrasts=_contrasts(),
+            allow_design_subset=False,
+            minimum_condition_replicates=1,
+        )
+
+
+def test_differential_block_fixed_block_policy_requires_block_identifiers() -> None:
+    with pytest.raises(
+        WorkflowValidationError,
+        match="fixed_block.*requires block_id.*A_1",
+    ):
+        ExperimentalDesignContractValidator().run(
+            dataset=_dataset(),
+            design=_design(),
+            contrasts=_contrasts(),
+            allow_design_subset=False,
+            minimum_condition_replicates=1,
+            paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+        )
+
+
+def test_differential_block_fixed_block_policy_accepts_metadata_for_later_validation() -> (
+    None
+):
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),
+            SampleDesignRecord(sample_id="A_2", condition="A", block_id="pair_2"),
+            SampleDesignRecord(sample_id="B_1", condition="B", block_id="pair_1"),
+            SampleDesignRecord(sample_id="B_2", condition="B", block_id="pair_2"),
+        )
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="unknown denominator condition",
+    ):
+        ExperimentalDesignContractValidator().run(
+            dataset=_dataset(),
+            design=design,
+            contrasts=(
+                Contrast(
+                    name="B_vs_missing",
+                    numerator_condition="B",
+                    denominator_condition="missing",
+                ),
+            ),
+            allow_design_subset=False,
+            minimum_condition_replicates=1,
+            paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
         )
 
 

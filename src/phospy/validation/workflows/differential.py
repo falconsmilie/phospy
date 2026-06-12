@@ -11,6 +11,11 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
+from phospy.contracts.configs.differential import (
+    PAIRED_DESIGN_POLICY_REJECT,
+    SUPPORTED_PAIRED_DESIGN_POLICIES,
+    PairedDesignPolicy,
+)
 from phospy.errors.validation import WorkflowValidationError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.design.matrix_builder import (
@@ -32,6 +37,13 @@ _DIFFERENTIAL_LOGFC_SCALE_ERROR_MESSAGE = (
     "log2-scale phospho intensities. Build the dataset with log2 preprocessing "
     "enabled, or provide an analysis-ready dataset with validated log2 "
     "intensity-scale state."
+)
+_FIXED_BLOCK_EXECUTION_UNSUPPORTED_MESSAGE = (
+    "fixed-block differential modelling was requested with explicit block_id "
+    "values, but block-aware differential execution is not available in this "
+    "release. Validators do not build execution matrices for blocked designs "
+    "yet; remove block_id values for an unblocked analysis or wait for "
+    "fixed-block execution support."
 )
 
 
@@ -66,6 +78,7 @@ class ExperimentalDesignContractValidator:
         contrasts: tuple[Contrast, ...],
         allow_design_subset: bool,
         minimum_condition_replicates: int,
+        paired_design_policy: PairedDesignPolicy = PAIRED_DESIGN_POLICY_REJECT,
     ) -> ValidatedExperimentalDesignContract:
         if not isinstance(cast(object, dataset), AnalysisReadyPhosphoDataset):
             raise WorkflowValidationError(
@@ -87,6 +100,10 @@ class ExperimentalDesignContractValidator:
             raise WorkflowValidationError(
                 "differential workflow request minimum_condition_replicates must be >= 1"
             )
+        fixed_block_requested = self._validate_paired_design_policy(
+            records=design.samples,
+            paired_design_policy=paired_design_policy,
+        )
 
         normalized_contrasts = self._validate_contrasts(contrasts)
         if not normalized_contrasts:
@@ -130,12 +147,6 @@ class ExperimentalDesignContractValidator:
         )
         self._validate_fixed_effect_inputs(design)
 
-        if any(record.block_id is not None for record in design.samples):
-            raise WorkflowValidationError(
-                "unsupported design features: blocking/paired differential modelling "
-                "is not available in this release"
-            )
-
         condition_to_records = self._records_by_condition(design.samples)
         known_conditions = tuple(condition_to_records.keys())
         if len(known_conditions) < 2:
@@ -169,6 +180,9 @@ class ExperimentalDesignContractValidator:
                         f"{minimum_condition_replicates}"
                     )
 
+        if fixed_block_requested:
+            raise WorkflowValidationError(_FIXED_BLOCK_EXECUTION_UNSUPPORTED_MESSAGE)
+
         design_build_result = self._design_matrix_builder.run(
             design=design,
             condition_labels=known_conditions,
@@ -192,6 +206,47 @@ class ExperimentalDesignContractValidator:
             contrast_frame=contrast_frame,
             design_build_result=design_build_result,
         )
+
+    @staticmethod
+    def _validate_paired_design_policy(
+        *,
+        records: tuple[SampleDesignRecord, ...],
+        paired_design_policy: PairedDesignPolicy,
+    ) -> bool:
+        if paired_design_policy not in SUPPORTED_PAIRED_DESIGN_POLICIES:
+            supported = ", ".join(
+                repr(value) for value in SUPPORTED_PAIRED_DESIGN_POLICIES
+            )
+            raise WorkflowValidationError(
+                "differential.paired_design_policy must be one of: " + supported
+            )
+
+        samples_with_block_id = [
+            record.sample_id for record in records if record.block_id is not None
+        ]
+        samples_missing_block_id = [
+            record.sample_id for record in records if record.block_id is None
+        ]
+
+        if paired_design_policy == PAIRED_DESIGN_POLICY_REJECT:
+            if samples_with_block_id:
+                raise WorkflowValidationError(
+                    "experimental design includes block_id values while "
+                    "differential.paired_design_policy='reject'. Set "
+                    "differential.paired_design_policy='fixed_block' to request "
+                    "fixed-block validation; fixed-block differential execution "
+                    "is not available in this release. Samples with block_id: "
+                    + ", ".join(samples_with_block_id)
+                )
+            return False
+
+        if samples_missing_block_id:
+            raise WorkflowValidationError(
+                "differential.paired_design_policy='fixed_block' requires block_id "
+                "for every design sample; missing block_id for samples: "
+                + ", ".join(samples_missing_block_id)
+            )
+        return True
 
     @staticmethod
     def _validate_contrasts(contrasts: tuple[Contrast, ...]) -> tuple[Contrast, ...]:

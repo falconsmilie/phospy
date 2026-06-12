@@ -128,6 +128,7 @@ class DifferentialAnalysisValidator:
             contrasts=request.contrasts,
             allow_design_subset=config.allow_design_subset,
             minimum_condition_replicates=config.minimum_condition_replicates,
+            paired_design_policy=config.paired_design_policy,
         )
 
         design_matrix = DesignMatrix(validated_design_contract.design_frame)

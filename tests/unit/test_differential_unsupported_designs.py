@@ -163,12 +163,37 @@ def test_workflow_rejects_block_or_paired_modelling_in_current_release() -> None
         )
     )
     with pytest.raises(
-        WorkflowValidationError, match="blocking/paired differential modelling"
+        WorkflowValidationError,
+        match="paired_design_policy='fixed_block'",
     ):
         DifferentialAnalysisWorkflow().run(_workflow_request(design=design))
 
 
-def test_fixed_block_policy_is_contract_only_and_does_not_enable_execution() -> None:
+def test_differential_block_default_policy_allows_unblocked_designs() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="A_1", condition="A"),
+            SampleDesignRecord(sample_id="A_2", condition="A"),
+            SampleDesignRecord(sample_id="B_1", condition="B"),
+            SampleDesignRecord(sample_id="B_2", condition="B"),
+        )
+    )
+
+    result = DifferentialAnalysisWorkflow().run(_workflow_request(design=design))
+
+    assert result.table_for("B_vs_A").shape[0] == 3
+
+
+def test_differential_block_fixed_block_policy_is_contract_only_and_skips_executor() -> (
+    None
+):
+    calls = {"executor": 0}
+
+    class _ExecutorSpy:
+        def run(self, request: object) -> object:
+            calls["executor"] += 1
+            raise AssertionError("executor should not be called")
+
     design = ExperimentalDesign(
         samples=(
             SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),
@@ -178,14 +203,18 @@ def test_fixed_block_policy_is_contract_only_and_does_not_enable_execution() -> 
         )
     )
     with pytest.raises(
-        WorkflowValidationError, match="blocking/paired differential modelling"
+        WorkflowValidationError,
+        match="fixed-block differential modelling.*not available",
     ):
-        DifferentialAnalysisWorkflow().run(
+        DifferentialAnalysisWorkflow(
+            executor=_ExecutorSpy(),  # type: ignore[arg-type]
+        ).run(
             _workflow_request(
                 design=design,
                 paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
             )
         )
+    assert calls["executor"] == 0
 
 
 def test_workflow_rejects_non_positive_residual_dof_for_small_n_design() -> None:

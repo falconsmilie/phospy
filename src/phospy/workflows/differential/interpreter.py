@@ -95,6 +95,7 @@ class DifferentialAnalysisInterpreter:
                 contrasts=request.contrasts,
                 allow_design_subset=request.config.allow_design_subset,
                 minimum_condition_replicates=request.config.minimum_condition_replicates,
+                paired_design_policy=request.config.paired_design_policy,
             )
             resolved_contrasts = resolved_design_contract.contrasts
             resolved_analysis_sample_ids = resolved_design_contract.analysis_sample_ids
