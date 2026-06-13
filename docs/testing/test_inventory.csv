@@ -88,6 +88,7 @@ tests/unit/test_duplicate_site_resolution_reports.py,unit,685,16,true,true,scien
 tests/unit/test_enrichment_collections.py,unit,96,5,false,false,,,,,,
 tests/unit/test_enrichment_multiple_testing_correction.py,unit,158,9,false,false,,,,,,
 tests/unit/test_enrichment_ora.py,unit,185,7,false,false,,,,,,
+tests/unit/test_enrichment_workflow_validation.py,unit,191,10,false,false,,,,,,
 tests/unit/test_error_taxonomy_boundaries.py,unit,190,5,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for error taxonomy boundaries and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_evidence_multi_site_handling.py,unit,176,9,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for multi-site evidence handling, increasing risk of incorrect peptide-to-site interpretation.",codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_experimental_design_contract.py,unit,983,34,false,false,,,,,,
