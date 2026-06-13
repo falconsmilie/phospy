@@ -112,12 +112,13 @@ these objects.
 
 Enrichment requests must provide exactly one identifier source:
 `input_table` or `selected_identifiers`. They also require an
-`identifier_column`, an explicit `identifier_kind`, a `GeneSetCollection` or
-`PtmSetCollection`, an explicit non-empty `background_universe`, and an
-`EnrichmentConfig`. Supported identifier kinds are `gene_symbol`, `protein_id`,
-`site_key`, `display_id`, and `phosphosite`. Gene-set collections are separate
-from PTM-set collections so gene-level and phosphosite-level semantics are not
-collapsed into a generic string flag.
+`identifier_column`, an explicit `identifier_kind`, a homogeneous
+`EnrichmentSetCollection`, `GeneSetCollection`, or `PtmSetCollection`, an
+explicit non-empty `background_universe`, and an `EnrichmentConfig`. Supported
+identifier kinds are `gene_symbol`, `protein_id`, `site_key`, `display_id`,
+and `phosphosite`. Gene-set collections are separate from PTM-set collections
+so gene-level and phosphosite-level semantics are not collapsed into a generic
+string flag.
 
 The initial config supports `method="over_representation"` and
 `multiple_testing_correction` values `"none"` or `"benjamini_hochberg"`.
@@ -127,11 +128,62 @@ resources are loaded.
 ```python
 from phospy.api import (
     EnrichmentConfig,
+    EnrichmentSet,
+    EnrichmentSetCollection,
     EnrichmentWorkflowRequest,
     GeneSetCollection,
     PtmSetCollection,
 )
 ```
+
+Collections can be created directly from set records. Duplicate identifiers
+inside one set are de-duplicated in first-seen order, and a collection must use
+one explicit `identifier_kind` throughout.
+
+```python
+collection = EnrichmentSetCollection(
+    sets=(
+        EnrichmentSet(
+            set_id="MAPK_PATHWAY",
+            name="MAPK pathway",
+            identifiers=("AKT1", "MAPK1", "AKT1"),
+            identifier_kind="gene_symbol",
+            source_name="local curated sets",
+            source_version="2026.06",
+            description="Example offline gene set",
+        ),
+    )
+)
+
+assert collection.members_by_set_id["MAPK_PATHWAY"] == ("AKT1", "MAPK1")
+```
+
+Local enrichment-set readers live under `phospy.io.readers`:
+
+```python
+from phospy.io.readers import (
+    read_enrichment_sets_gmt,
+    read_enrichment_sets_table,
+)
+
+gmt_collection = read_enrichment_sets_gmt(
+    "gene_sets.gmt",
+    identifier_kind="gene_symbol",
+    source_name="local GMT",
+)
+
+table_collection = read_enrichment_sets_table("sets.csv")
+```
+
+GMT-like files are interpreted as
+`set_id<TAB>description<TAB>identifier...` and require the caller to pass
+`identifier_kind` because GMT does not carry identifier semantics. CSV/TSV
+tables require `set_id`, `name`, and `identifier` columns, may include
+`identifier_kind`, `source_name`, `source_version`, and `description`, and also
+require an explicit `identifier_kind` argument when the file has no
+`identifier_kind` column. These readers only parse local files. They do not
+fetch GO, KEGG, Reactome, PTMsigDB, Enrichr, gseapy, clusterProfiler, or any
+online database.
 
 ## Differential Design Declarations
 

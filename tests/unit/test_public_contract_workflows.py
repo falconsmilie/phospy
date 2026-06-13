@@ -52,6 +52,7 @@ EXPECTED_REQUEST_EXPORTS = {
     "DifferentialAnalysisRequest",
     "EmpiricalBayesConfig",
     "EnrichmentIdentifierKind",
+    "EnrichmentSet",
     "EnrichmentSetCollection",
     "EnrichmentWorkflowRequest",
     "ExperimentalDesign",

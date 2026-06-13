@@ -4,6 +4,16 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from phospy.io.readers.enrichment_sets import (
+    load_enrichment_sets_csv,
+    load_enrichment_sets_gmt,
+    load_enrichment_sets_table,
+    load_enrichment_sets_tsv,
+    read_enrichment_sets_csv,
+    read_enrichment_sets_gmt,
+    read_enrichment_sets_table,
+    read_enrichment_sets_tsv,
+)
 from phospy.io.readers.tables import (
     read_contrast_matrix,
     read_design_matrix,
@@ -38,12 +48,20 @@ __all__ = [
     "FragPipeColumnMapping",
     "FragPipePTMProphetImporter",
     "FragPipePTMProphetImportRequest",
+    "load_enrichment_sets_csv",
+    "load_enrichment_sets_gmt",
+    "load_enrichment_sets_table",
+    "load_enrichment_sets_tsv",
     "MappedPhosphositeTableImporter",
     "MaxQuantColumnMapping",
     "MaxQuantPhosphositeImporter",
     "MaxQuantPhosphositeImportRequest",
     "read_contrast_matrix",
     "read_design_matrix",
+    "read_enrichment_sets_csv",
+    "read_enrichment_sets_gmt",
+    "read_enrichment_sets_table",
+    "read_enrichment_sets_tsv",
     "read_phospho_matrix",
     "read_sample_metadata",
     "read_site_metadata",

@@ -1,0 +1,3 @@
+set_id	name	identifier	source_name	source_version	description
+MOTIF_A	Motif A	rat|P12345|S10	local_ptm	2026.06	Local PTM set
+MOTIF_A	Motif A	rat|P12345|T20	local_ptm	2026.06	Local PTM set

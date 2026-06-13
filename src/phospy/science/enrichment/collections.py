@@ -1,4 +1,4 @@
-"""Enrichment domain contracts."""
+"""Enrichment set collection models."""
 
 from phospy.science.enrichment.models import (
     ENRICHMENT_COLLECTION_KIND_GENE_SET,
@@ -8,23 +8,15 @@ from phospy.science.enrichment.models import (
     ENRICHMENT_IDENTIFIER_KIND_PHOSPHOSITE,
     ENRICHMENT_IDENTIFIER_KIND_PROTEIN_ID,
     ENRICHMENT_IDENTIFIER_KIND_SITE_KEY,
-    ENRICHMENT_METHOD_OVER_REPRESENTATION,
     GENE_LEVEL_ENRICHMENT_IDENTIFIER_KINDS,
-    MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
-    MULTIPLE_TESTING_CORRECTION_NONE,
     PTM_LEVEL_ENRICHMENT_IDENTIFIER_KINDS,
     SUPPORTED_ENRICHMENT_COLLECTION_KINDS,
     SUPPORTED_ENRICHMENT_IDENTIFIER_KINDS,
-    SUPPORTED_ENRICHMENT_METHODS,
-    SUPPORTED_MULTIPLE_TESTING_CORRECTIONS,
     EnrichmentCollectionKind,
     EnrichmentIdentifierKind,
-    EnrichmentMethod,
-    EnrichmentResultRecord,
     EnrichmentSet,
     EnrichmentSetCollection,
     GeneSetCollection,
-    MultipleTestingCorrection,
     PtmSetCollection,
 )
 
@@ -36,22 +28,14 @@ __all__ = [
     "ENRICHMENT_IDENTIFIER_KIND_PHOSPHOSITE",
     "ENRICHMENT_IDENTIFIER_KIND_PROTEIN_ID",
     "ENRICHMENT_IDENTIFIER_KIND_SITE_KEY",
-    "ENRICHMENT_METHOD_OVER_REPRESENTATION",
     "GENE_LEVEL_ENRICHMENT_IDENTIFIER_KINDS",
-    "MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG",
-    "MULTIPLE_TESTING_CORRECTION_NONE",
     "PTM_LEVEL_ENRICHMENT_IDENTIFIER_KINDS",
     "SUPPORTED_ENRICHMENT_COLLECTION_KINDS",
     "SUPPORTED_ENRICHMENT_IDENTIFIER_KINDS",
-    "SUPPORTED_ENRICHMENT_METHODS",
-    "SUPPORTED_MULTIPLE_TESTING_CORRECTIONS",
     "EnrichmentCollectionKind",
     "EnrichmentIdentifierKind",
-    "EnrichmentMethod",
-    "EnrichmentResultRecord",
     "EnrichmentSet",
     "EnrichmentSetCollection",
     "GeneSetCollection",
-    "MultipleTestingCorrection",
     "PtmSetCollection",
 ]

@@ -1,0 +1,4 @@
+set_id,name,identifier,identifier_kind,source_name,source_version,description
+KINASE_RESPONSE,Kinase response,AKT1,gene_symbol,curated_unit,2026.06,Response genes
+KINASE_RESPONSE,Kinase response,MAPK1,gene_symbol,curated_unit,2026.06,Response genes
+CELL_CYCLE,Cell cycle,CDK1,gene_symbol,curated_unit,2026.06,Cell-cycle genes

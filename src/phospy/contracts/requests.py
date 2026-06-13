@@ -45,6 +45,7 @@ from phospy.science.differential.models import (
 )
 from phospy.science.enrichment.models import (
     EnrichmentIdentifierKind,
+    EnrichmentSet,
     EnrichmentSetCollection,
     GeneSetCollection,
     PtmSetCollection,
@@ -316,6 +317,7 @@ __all__ = [
     "DifferentialAnalysisRequest",
     "EmpiricalBayesConfig",
     "EnrichmentIdentifierKind",
+    "EnrichmentSet",
     "EnrichmentSetCollection",
     "EnrichmentWorkflowRequest",
     "GeneSetCollection",
