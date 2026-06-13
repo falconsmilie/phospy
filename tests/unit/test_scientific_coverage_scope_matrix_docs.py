@@ -153,3 +153,27 @@ def test_protein_aware_preparation_scope_is_separate_from_modelling() -> None:
     assert "does not run joint ptm/protein differential modelling" in normalized
     assert "does not claim msstatsptm-style inference" in normalized
     assert "current `differentialanalysisworkflow` does not consume" in normalized
+
+
+def test_enrichment_scope_is_offline_ora_with_user_supplied_collections() -> None:
+    text = (
+        _scientific_coverage_text()
+        + "\n"
+        + _api_guide_text()
+        + "\n"
+        + _workflow_contracts_text()
+    ).lower()
+    normalized = " ".join(text.split())
+
+    assert "| enrichment | `validated phospy implementation` |" in normalized
+    assert "offline over-representation analysis" in normalized
+    assert "caller-supplied `genesetcollection`, `ptmsetcollection`" in normalized
+    assert "background universe is explicit and required" in normalized
+    assert "go, kegg, reactome, ptm-sea" in normalized
+    assert "are not bundled" in normalized
+    assert "enrichr, gseapy, clusterprofiler" in normalized
+    assert "not native core workflow behavior" in normalized
+    assert "ora is not gsea, ssgsea, or ptm-sea support" in normalized
+    assert "gene-level and site-level enrichment require explicit identifier" in (
+        normalized
+    )

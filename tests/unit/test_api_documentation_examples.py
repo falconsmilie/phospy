@@ -15,7 +15,11 @@ from phospy.api import (
     DatasetNormalisationConfig,
     DatasetPreprocessingConfig,
     DifferentialAnalysisRequest,
+    EnrichmentConfig,
+    EnrichmentWorkflow,
+    EnrichmentWorkflowRequest,
     ExperimentalDesign,
+    GeneSetCollection,
     IntensityScaleKind,
     KinaseActivityConfig,
     KinasePredictionConfig,
@@ -159,12 +163,68 @@ def test_api_docs_public_imports_are_valid() -> None:
 )""",
         namespace,
     )
+    exec(
+        """from phospy.api import (
+    EnrichmentConfig,
+    EnrichmentWorkflow,
+    EnrichmentWorkflowRequest,
+    GeneSetCollection,
+)""",
+        namespace,
+    )
 
     assert "AnalysisReadyDatasetBuilder" in namespace
     assert "DifferentialAnalysisWorkflow" in namespace
+    assert "EnrichmentWorkflow" in namespace
     assert "DatasetBuildRequest" in namespace
     assert "DifferentialAnalysisRequest" in namespace
+    assert "EnrichmentWorkflowRequest" in namespace
     assert "SignalomeWorkflowRequest" in namespace
+
+
+def test_api_docs_enrichment_example_uses_public_api_and_runs_offline() -> None:
+    source = _read(API_DOCS_DIR / "guide.md")
+    normalized = " ".join(source.split())
+
+    assert "Minimal offline example with a tiny in-memory gene-set collection" in source
+    assert "EnrichmentWorkflow" in source
+    assert "GeneSetCollection(" in source
+    assert "background_universe=" in source
+    assert "offline_no_online_resource_policy" in source
+    assert "GO, KEGG, Reactome" in source
+    assert "Enrichr, gseapy, clusterProfiler" in normalized
+    assert "not GSEA, ssGSEA, or PTM-SEA support" in normalized
+
+    collection = GeneSetCollection(
+        sets={
+            "kinase_response": ("AKT1", "MAPK1", "MTOR"),
+            "cell_cycle": ("CDK1", "CDK2", "MAPK1"),
+        },
+        identifier_kind="gene_symbol",
+        term_names={
+            "kinase_response": "Kinase response",
+            "cell_cycle": "Cell cycle",
+        },
+        source_name="example in-memory gene sets",
+        source_version="2026-06",
+    )
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind="gene_symbol",
+        set_collection=collection,
+        selected_identifiers=("AKT1", "MAPK1"),
+        background_universe=("AKT1", "MAPK1", "MTOR", "CDK1", "CDK2"),
+        config=EnrichmentConfig(
+            method="over_representation",
+            multiple_testing_correction="benjamini_hochberg",
+        ),
+    )
+
+    result = EnrichmentWorkflow().run(request)
+
+    assert tuple(result.table["term_id"]) == ("kinase_response", "cell_cycle")
+    assert result.provenance is not None
+    assert result.provenance.workflow_parameters["background_universe_size"] == 5
 
 
 def test_api_docs_dataset_build_request_example_is_constructible() -> None:

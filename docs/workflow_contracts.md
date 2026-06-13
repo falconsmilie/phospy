@@ -6,6 +6,7 @@ This page gives scientist-facing contracts for each public workflow lane:
 2. `DifferentialAnalysisWorkflow`
 3. `KinaseWorkflow`
 4. `SignalomeWorkflow`
+5. `EnrichmentWorkflow`
 
 For support status labels (`parity-gated`, `validated PhosPy implementation`,
 `experimental`, `open gap`, `deliberate scope difference`, `not planned`), use
@@ -21,6 +22,8 @@ For executable usage, see:
 - `examples/dataset_builder_demo.py`
 - `examples/kinase_workflow_demo.py`
 - `examples/signalome_workflow_demo.py`
+- `docs/api/guide.md#enrichment-contract-boundary` for a minimal offline
+  enrichment example
 
 For explicit performance and scale contracts (input sizes, guardrails,
 approximation behavior, and failure modes), see `docs/performance.md`.
@@ -191,6 +194,72 @@ identical numeric outputs across different machines or dependency builds.
 - optional `dataset.protein_aware_preparation` containing
   `ProteinAwarePreparationResult` when protein-aware preparation is enabled
 - optional preprocessing report tables (`row_counts`, `operations`, `row_audit`, and sidecars)
+
+## EnrichmentWorkflow Contract
+
+### Required Input Tables
+
+- `selected_identifiers` or `input_table` with the configured
+  `identifier_column`; exactly one source is required.
+- `set_collection`: a caller-supplied `GeneSetCollection`,
+  `PtmSetCollection`, or homogeneous `EnrichmentSetCollection`.
+- `background_universe`: explicit, non-empty, and in the same identifier
+  namespace as the selected identifiers and set collection.
+- `config`: `EnrichmentConfig` with `method="over_representation"` and an
+  explicit multiple-testing correction policy.
+
+### Identifiers and Alignment Assumptions
+
+- `identifier_kind` is required and must match the collection:
+  `gene_symbol` and `protein_id` are gene-level; `site_key`, `display_id`, and
+  `phosphosite` are PTM/site-level.
+- Gene-level and site-level enrichment are not interchangeable. The workflow
+  does not convert gene identifiers to phosphosite identifiers or collapse
+  site identifiers to genes.
+- Selected identifiers must already be members of `background_universe`.
+  Validation fails instead of silently dropping selected identifiers.
+- Set members outside the background are excluded from each ORA test and
+  reported in summaries/diagnostics.
+
+### Statistical Policy
+
+- Native enrichment is offline over-representation analysis only.
+- ORA uses a hypergeometric test over the explicit background universe and the
+  supplied set collection.
+- Supported multiple-testing correction values are `"benjamini_hochberg"` and
+  `"none"`.
+- Background universes are not inferred from datasets, reference bundles, or
+  set membership.
+
+### Provenance Guarantees
+
+- `EnrichmentWorkflowResult.provenance` is populated by workflow execution.
+- Provenance records method, identifier column and kind, collection kind,
+  analysis level, explicit background universe size, selected identifier
+  count, selected identifier source, set collection source/name/version
+  metadata when supplied, multiple-testing correction, and result-table
+  fingerprints.
+- Provenance records the offline/no-online-resource policy and explicit
+  limitations.
+
+### Known Limitations
+
+- GO, KEGG, Reactome, PTM-SEA, and PTMsigDB resources are not bundled by this
+  feature unless the caller supplies them as ordinary local collections.
+- Online Enrichr, gseapy, clusterProfiler, or other remote-service calls are
+  not part of the core workflow.
+- This workflow does not implement GSEA, ssGSEA, or PTM-SEA. Kinase activity
+  ssGSEA-style scoring is a separate kinase-activity lane, not pathway or
+  PTM-SEA enrichment support.
+
+### Expected Output Tables
+
+- `result.table` / `result.to_dataframe()` with one row per tested term,
+  including overlap counts, overlap identifiers, p-value, adjusted p-value,
+  correction method, and enrichment ratio.
+- `result.background_summary`, `result.set_collection_summary`,
+  `result.method_metadata`, and `result.diagnostics` sidecars for execution
+  audit.
 
 ## DifferentialAnalysisWorkflow Contract
 

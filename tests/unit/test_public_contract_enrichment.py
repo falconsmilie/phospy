@@ -227,9 +227,11 @@ def test_enrichment_public_imports_include_native_workflow() -> None:
     assert "EnrichmentConfig" in public_api.__all__
     assert "EnrichmentWorkflowRequest" in public_api.__all__
     assert "EnrichmentWorkflowResult" in public_api.__all__
-    assert "EnrichmentWorkflow" not in public_api.__all__
+    assert "EnrichmentWorkflow" in public_api.__all__
     assert "EnrichmentWorkflowRequest" not in phospy.__all__
     assert "EnrichmentWorkflowResult" not in phospy.__all__
     assert "EnrichmentWorkflow" not in phospy.__all__
-    assert "EnrichmentWorkflow" not in workflow_models.__all__
+    assert "EnrichmentWorkflow" in workflow_models.__all__
     assert "EnrichmentWorkflow" in native_workflows.__all__
+    assert public_api.EnrichmentWorkflow is workflow_models.EnrichmentWorkflow
+    assert public_api.EnrichmentWorkflow is native_workflows.EnrichmentWorkflow

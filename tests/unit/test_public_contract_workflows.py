@@ -8,7 +8,11 @@ import pytest
 import phospy
 import phospy.api.requests as request_models
 import phospy.api.workflows as workflow_models
-from phospy import DifferentialAnalysisWorkflow, KinaseWorkflow, SignalomeWorkflow
+from phospy import (
+    DifferentialAnalysisWorkflow,
+    KinaseWorkflow,
+    SignalomeWorkflow,
+)
 from phospy.api.configs import (
     DifferentialAnalysisConfig,
     KinaseScoringConfig,
@@ -20,15 +24,18 @@ from phospy.api.requests import (
     Contrast,
     DatasetBuildRequest,
     DifferentialAnalysisRequest,
+    EnrichmentWorkflowRequest,
     ExperimentalDesign,
     KinaseWorkflowRequest,
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import (
     DifferentialAnalysisResult,
+    EnrichmentWorkflowResult,
     KinaseWorkflowResult,
     SignalomeWorkflowResult,
 )
+from phospy.api.workflows import EnrichmentWorkflow
 from phospy.errors import WorkflowValidationError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
@@ -79,6 +86,7 @@ def test_public_workflow_and_request_exports_match_contract() -> None:
     assert set(request_models.__all__) == EXPECTED_REQUEST_EXPORTS
     assert set(workflow_models.__all__) == {
         "DifferentialAnalysisWorkflow",
+        "EnrichmentWorkflow",
         "KinaseWorkflow",
         "SignalomeWorkflow",
     }
@@ -87,6 +95,7 @@ def test_public_workflow_and_request_exports_match_contract() -> None:
         "KinaseWorkflow",
         "SignalomeWorkflow",
     }.issubset(set(phospy.__all__))
+    assert "EnrichmentWorkflow" not in phospy.__all__
     assert "KinaseWorkflowRequest" not in phospy.__all__
     assert "SignalomeWorkflowRequest" not in phospy.__all__
     assert "KinaseWorkflowResult" not in phospy.__all__
@@ -117,23 +126,29 @@ def test_public_workflows_expose_run_only() -> None:
     assert _public_methods(KinaseWorkflow) == {"run"}
     assert _public_methods(SignalomeWorkflow) == {"run"}
     assert _public_methods(DifferentialAnalysisWorkflow) == {"run"}
+    assert _public_methods(EnrichmentWorkflow) == {"run"}
     assert not hasattr(KinaseWorkflow, "execute")
     assert not hasattr(SignalomeWorkflow, "execute")
     assert not hasattr(DifferentialAnalysisWorkflow, "execute")
+    assert not hasattr(EnrichmentWorkflow, "execute")
     assert not hasattr(KinaseWorkflow, "run_from_analysis_ready")
     assert not hasattr(SignalomeWorkflow, "run_from_analysis_ready")
     assert not hasattr(DifferentialAnalysisWorkflow, "run_from_analysis_ready")
+    assert not hasattr(EnrichmentWorkflow, "run_from_analysis_ready")
 
 
 def test_workflow_run_type_contracts_are_request_to_result() -> None:
     differential_top_level_hints = get_type_hints(DifferentialAnalysisWorkflow.run)
     differential_hints = get_type_hints(DifferentialAnalysisWorkflow.run)
+    enrichment_hints = get_type_hints(EnrichmentWorkflow.run)
     kinase_hints = get_type_hints(KinaseWorkflow.run)
     signalome_hints = get_type_hints(SignalomeWorkflow.run)
     assert differential_top_level_hints["request"] is DifferentialAnalysisRequest
     assert differential_top_level_hints["return"] is DifferentialAnalysisResult
     assert differential_hints["request"] is DifferentialAnalysisRequest
     assert differential_hints["return"] is DifferentialAnalysisResult
+    assert enrichment_hints["request"] is EnrichmentWorkflowRequest
+    assert enrichment_hints["return"] is EnrichmentWorkflowResult
     assert kinase_hints["request"] is KinaseWorkflowRequest
     assert kinase_hints["return"] is KinaseWorkflowResult
     assert signalome_hints["request"] is SignalomeWorkflowRequest

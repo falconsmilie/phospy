@@ -11,6 +11,7 @@ import phospy.workflows.enrichment as enrichment_package
 import phospy.workflows.kinase as kinase_package
 import phospy.workflows.signalome as signalome_package
 from phospy.api.workflows import DifferentialAnalysisWorkflow as ApiDifferentialWorkflow
+from phospy.api.workflows import EnrichmentWorkflow as ApiEnrichmentWorkflow
 from phospy.api.workflows import KinaseWorkflow as ApiKinaseWorkflow
 from phospy.api.workflows import SignalomeWorkflow as ApiSignalomeWorkflow
 
@@ -46,7 +47,8 @@ def test_supported_public_enrichment_workflow_imports() -> None:
         EnrichmentWorkflow as PackageEnrichmentWorkflow,
     )
 
-    assert EnrichmentWorkflow is PackageEnrichmentWorkflow
+    assert EnrichmentWorkflow is ApiEnrichmentWorkflow
+    assert PackageEnrichmentWorkflow is ApiEnrichmentWorkflow
 
 
 def test_supported_public_signalome_workflow_imports() -> None:

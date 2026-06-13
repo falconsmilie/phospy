@@ -72,6 +72,42 @@ def test_enrichment_workflow_happy_path_with_gene_symbols() -> None:
     assert tuple(result.table["term_id"])[:1] == ("KINASE_RESPONSE",)
 
 
+def test_enrichment_workflow_provenance_records_method_and_limitations() -> None:
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=_gene_collection(),
+        selected_identifiers=("AKT1", "MAPK1"),
+        background_universe=("AKT1", "MAPK1", "MTOR", "CDK1", "CDK2"),
+        config=EnrichmentConfig(
+            multiple_testing_correction="benjamini_hochberg",
+        ),
+    )
+
+    result = EnrichmentWorkflow().run(request)
+
+    provenance = result.provenance
+    assert provenance is not None
+    parameters = provenance.workflow_parameters
+    assert parameters["method"] == "over_representation"
+    assert parameters["identifier_kind"] == ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL
+    assert parameters["background_universe_size"] == 5
+    assert parameters["selected_identifier_count"] == 2
+    assert parameters["multiple_testing_correction"] == "benjamini_hochberg"
+    assert parameters["offline_no_online_resource_policy"] == (
+        "offline_user_supplied_collections_only"
+    )
+    assert parameters["online_resources_used"] is False
+
+    set_collection = parameters["set_collection"]
+    assert isinstance(set_collection, dict)
+    assert set_collection["source_name"] == "unit_test"
+    assert set_collection["source_version"] == "2026.06"
+    limitations = tuple(parameters["limitations"])
+    assert "offline over-representation analysis only" in limitations
+    assert any("GO, KEGG, Reactome, and PTM-SEA" in item for item in limitations)
+
+
 def test_enrichment_workflow_happy_path_with_site_keys() -> None:
     request = EnrichmentWorkflowRequest(
         identifier_column="site_key",

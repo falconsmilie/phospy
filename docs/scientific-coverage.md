@@ -13,6 +13,8 @@ PhosPy currently supports these public analysis lanes:
 2. run differential phosphorylation analysis
 3. run kinase scoring and prediction
 4. optionally run signalome analysis from the kinase result
+5. run offline over-representation enrichment against caller-supplied gene-set
+   or PTM-set collections
 
 The prediction science layer includes a pure Kinase Library-style motif scorer.
 `KinaseWorkflow` exposes it through explicit scoring modes only; the default
@@ -20,6 +22,15 @@ kinase lane remains the PhosR-style rank-weighted scoring mode. Kinase Library
 workflow scoring requires a caller-supplied `KinaseLibraryResource` with
 compatible organism, residue-class lanes, score matrices, sequence-window
 definition, and provenance.
+
+Native enrichment support is offline over-representation analysis (ORA) over
+caller-supplied `GeneSetCollection`, `PtmSetCollection`, or homogeneous
+`EnrichmentSetCollection` inputs. The background universe is explicit and
+required. PhosPy does not bundle GO, KEGG, Reactome, PTM-SEA, or PTMsigDB
+resources for this feature, and the core workflow does not call Enrichr,
+gseapy, clusterProfiler, or other online services. Those online calls are not
+native core workflow behavior. ORA does not imply GSEA, ssGSEA, or PTM-SEA
+support.
 
 Differential analysis requires analysis-ready numeric inputs plus valid
 `ExperimentalDesign` and `Contrast` metadata. It does not infer design from
@@ -141,7 +152,7 @@ exist, and this page is updated to the correct scope category.
 | Kinase inference | Kinase scoring/prediction and three explicit activity methods are executable. Scores are relative support or substrate-set summaries, not calibrated causal inference. | Additional kinase inference or activity methods should be added one method at a time with stable scientific policy records and method-specific validation. |
 | Importers | PhosPy supports analysis-ready tables and generic table I/O contracts used by Python workflows. It does not currently provide broad semantic importers for vendor, search-engine, or upstream statistical outputs. | Semantic importers should produce typed tables or requests that still pass builder and workflow validation; they must not bypass site identity or provenance contracts. |
 | Richer differential designs | Current parity-protected differential lane is two-condition unpaired simple contrasts. Fixed-effect batch, categorical covariate, continuous covariate, and explicit complete fixed-block terms are executable as ordinary fixed covariates with completeness, rank, and estimability validation. Correlated repeated-measure, `duplicateCorrelation`-style, and mixed-effect modelling are not executable in this release. | Additional richer designs require explicit design/result contracts, provenance, validation, and parity or method-specific evidence before any support claim. |
-| Enrichment | KSEA-style and ssGSEA-style substrate-set activity exists only inside the kinase activity lane. Broader pathway or gene-set enrichment is not a current core workflow lane. | Enrichment should be a separately contracted workflow or method, with clear null model, input universe, and output-scale documentation. |
+| Enrichment | Native support is offline ORA over caller-supplied gene-set or PTM-set collections with explicit identifier semantics and background. No online resource access is bundled or executed. | Additional enrichment methods or curated resource integrations require explicit data provenance, redistribution approval where relevant, identifier semantics, validation, docs, and tests before support is claimed. |
 | Visualisation | Core PhosPy has no first-class visualisation workflow/API. | Visualisation should consume validated result objects and must not become a hidden analysis engine or source of scientific truth. |
 | CLI workflow support | Scientific workflow execution through a CLI is not currently supported; the Python API is the supported interface. | Any future CLI must be a thin wrapper over Python API requests/workflows and satisfy ADR-0022 reintroduction criteria before support is claimed. |
 
@@ -183,7 +194,7 @@ claimed.
 | Batch correction: `linear_residualize_batch` | `validated PhosPy implementation` | Dataset preprocessing supports opt-in `linear_residualize_batch` fixed-effect residualisation with explicit batch/condition metadata, condition-preserving design, design adequacy validation, and typed reports | Unit batch-correction engine, metadata, validation, and report tests; dataset integration tests for no-op, applied correction, invalid metadata/designs, and downstream differential consumption | Only this fixed-effect residualisation method is supported. Confounded batch/condition designs are rejected because preserving condition effects would otherwise be impossible. This is not ComBat, not RUV, not limma `removeBatchEffect` parity, not limma `duplicateCorrelation`, and not mixed-effects modelling. It does not solve all batch-effect problems. Differential batch fixed effects are model covariates, not preprocessing correction. |
 | Joint PTM/protein modelling and MSstatsPTM-style inference | `open gap` | No executable joint phosphosite/total-protein differential modelling lane is supported | N/A | Do not interpret total-protein subtraction or protein-aware preparation as MSstatsPTM-style inference, protein-adjusted differential modelling, or equivalence to MSstatsPTM. |
 | RUV, ComBat, and `removeBatchEffect` parity | `open gap` | No executable RUV, ComBat, or limma `removeBatchEffect` parity lane is supported. `ruv_readiness` is diagnostic/report-only metadata readiness reporting. | Readiness/report tests only; no correction parity or execution claim | Do not interpret `ruv_readiness` as RUV support. Do not interpret `linear_residualize_batch` as ComBat, RUV, limma `removeBatchEffect`, or mixed-effects support. |
-| Enrichment | `deliberate scope difference` | KSEA-style and ssGSEA-style substrate-set enrichment exists within kinase activity lane | Unit activity tests, workflow activity tests, and scientific policy provenance | Broader pathway/gene-set enrichment lane is not part of current core workflow contract. ssGSEA-style activity is not PTM-SEA parity-backed. |
+| Enrichment | `validated PhosPy implementation` | `EnrichmentWorkflow` runs offline over-representation analysis over caller-supplied `GeneSetCollection`, `PtmSetCollection`, or homogeneous `EnrichmentSetCollection` inputs with explicit identifier kind, selected identifiers, background universe, and multiple-testing correction | `tests/unit/test_enrichment_ora.py`, `tests/unit/test_enrichment_workflow_validation.py`, `tests/unit/test_public_contract_enrichment.py`, `tests/workflows/test_enrichment_workflow.py` | Requires user-supplied collections and explicit background. GO, KEGG, Reactome, PTM-SEA, and PTMsigDB resources are not bundled unless supplied as ordinary local collections. Online Enrichr, gseapy, clusterProfiler, and similar calls are not native core workflow behavior. ORA is not GSEA, ssGSEA, or PTM-SEA support. Gene-level and site-level enrichment require explicit identifier semantics. |
 | Visualisation | `deliberate scope difference` | No first-class visualization workflow/API in core PhosPy | N/A | Visualization is intentionally out of current scientific parity scope. |
 | Supported bundled organisms and references | `deliberate scope difference` | Bundled runtime references are rat-only for `ReferencePreset.AUTO` in this release | Runtime behavior, reference compatibility tests, manifest approval checks, and workflow docs | Human/mouse are valid organisms but require explicit caller-supplied `ReferenceBundle` unless a future release commits approved redistributable packaged data. |
 | Full PhosR package equivalence claim | `not planned` | Not claimed | Guardrail documentation in this matrix and `docs/parity.md` | Any implication of global PhosR parity is out of scope. |
@@ -251,6 +262,14 @@ commands/workflows:
   sample-alignment, transformation-state, and limitation fields, but it does
   not modify phosphosite values, run a differential model, or claim
   MSstatsPTM equivalence.
+- Enrichment workflow support is offline ORA against supplied gene-set or
+  PTM-set collections. It uses the caller's explicit background universe and
+  identifier semantics.
+- Enrichment workflow support does not bundle or fetch GO, KEGG, Reactome,
+  PTM-SEA, or PTMsigDB resources. Online Enrichr, gseapy, clusterProfiler, and
+  similar calls are not native core workflow behavior.
+- Enrichment ORA results must not be interpreted as GSEA, ssGSEA, or PTM-SEA
+  support.
 - Joint PTM/protein differential modelling is not implemented in this release.
   `DifferentialAnalysisWorkflow` does not consume
   `ProteinAwarePreparationResult`.
@@ -314,6 +333,14 @@ active preparation summary in
 records state that the stage does not modify phosphosite values, subtract total
 protein, normalise intensities, run joint PTM/protein differential modelling,
 or claim MSstatsPTM equivalence.
+
+Enrichment workflow provenance records the ORA method, identifier column and
+kind, collection kind, analysis level, explicit background universe size,
+selected identifier count, selected identifier source, set collection
+source/name/version metadata when available, multiple-testing correction,
+offline/no-online-resource policy, and explicit limitations. These records
+state what was executed; they do not imply bundled GO, KEGG, Reactome, PTM-SEA,
+online enrichment service access, GSEA, ssGSEA, or PTM-SEA support.
 
 ### `profile_correlation_shifted_unit_v1`
 

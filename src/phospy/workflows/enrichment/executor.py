@@ -31,6 +31,17 @@ from phospy.workflows.enrichment.models import (
     OraEngineContract,
 )
 
+ENRICHMENT_OFFLINE_NO_ONLINE_RESOURCE_POLICY = "offline_user_supplied_collections_only"
+ENRICHMENT_LIMITATIONS: tuple[str, ...] = (
+    "offline over-representation analysis only",
+    "gene-set or PTM-set collections must be supplied by the caller",
+    "background universe is explicit and required; it is not inferred",
+    "GO, KEGG, Reactome, and PTM-SEA resources are not bundled or fetched",
+    "Enrichr, gseapy, and clusterProfiler online calls are not executed",
+    "GSEA, ssGSEA, and PTM-SEA are not implemented by this workflow",
+    "gene-level and site-level enrichment require explicit identifier semantics",
+)
+
 
 class EnrichmentWorkflowExecutor:
     """Run ORA and assemble a typed enrichment workflow result."""
@@ -251,6 +262,29 @@ def _build_run_provenance(
     request: InterpretedEnrichmentWorkflowRequest,
     result_table: pd.DataFrame,
 ) -> RunProvenance:
+    workflow_parameters = {
+        "method": request.config.method,
+        "identifier_kind": request.identifier_semantics.identifier_kind,
+        "identifier_column": request.identifier_semantics.identifier_column,
+        "collection_kind": request.identifier_semantics.collection_kind,
+        "analysis_level": request.identifier_semantics.analysis_level,
+        "background_universe_source": "explicit",
+        "background_universe_size": len(request.background_universe),
+        "selected_identifier_count": len(request.selected_identifiers),
+        "selected_identifier_source": request.selected_identifier_source,
+        "multiple_testing_correction": (
+            request.method_config.multiple_testing_correction
+        ),
+        "set_collection": _set_collection_provenance(request),
+        "offline_no_online_resource_policy": (
+            ENRICHMENT_OFFLINE_NO_ONLINE_RESOURCE_POLICY
+        ),
+        "online_resources_used": False,
+        "limitations": ENRICHMENT_LIMITATIONS,
+        "method_metadata": request.method_metadata,
+        "background_summary": request.background_summary,
+        "set_collection_summary": request.set_collection_summary,
+    }
     return RunProvenance(
         environment=collect_environment_provenance(),
         input_tables=(
@@ -270,22 +304,34 @@ def _build_run_provenance(
         preprocessing_stages=(),
         reference=None,
         workflow_name="enrichment",
-        workflow_parameters={
-            "method": request.config.method,
-            "identifier_kind": request.identifier_semantics.identifier_kind,
-            "collection_kind": request.identifier_semantics.collection_kind,
-            "analysis_level": request.identifier_semantics.analysis_level,
-            "multiple_testing_correction": (
-                request.method_config.multiple_testing_correction
-            ),
-            "selected_identifier_source": request.selected_identifier_source,
-        },
+        workflow_parameters=workflow_parameters,
         random_state=None,
         random_seed_policy=None,
         output_tables=(
             fingerprint_table(result_table, name="enrichment.result_table"),
         ),
     )
+
+
+def _set_collection_provenance(
+    request: InterpretedEnrichmentWorkflowRequest,
+) -> dict[str, object]:
+    return {
+        "collection_kind": request.set_collection.collection_kind,
+        "identifier_kind": request.set_collection.identifier_kind,
+        "source_name": request.set_collection.source_name,
+        "source_version": request.set_collection.source_version,
+        "set_count": len(request.set_collection.enrichment_sets),
+        "sets": tuple(
+            {
+                "set_id": enrichment_set.set_id,
+                "name": enrichment_set.name,
+                "source_name": enrichment_set.source_name,
+                "source_version": enrichment_set.source_version,
+            }
+            for enrichment_set in request.set_collection.enrichment_sets
+        ),
+    }
 
 
 def _identifier_table(identifiers: tuple[str, ...]) -> pd.DataFrame:

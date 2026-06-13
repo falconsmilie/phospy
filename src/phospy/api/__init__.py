@@ -131,6 +131,7 @@ from phospy.api.results import (
 )
 from phospy.api.workflows import (
     DifferentialAnalysisWorkflow,
+    EnrichmentWorkflow,
     KinaseWorkflow,
     SignalomeWorkflow,
 )
@@ -256,6 +257,7 @@ __all__ = [
     "DifferentialTechnicalReplicateGroup",
     "DifferentialUnsupportedDesignPolicyProvenance",
     "EmpiricalBayesConfig",
+    "EnrichmentWorkflow",
     "EnrichmentConfig",
     "EnrichmentIdentifierKind",
     "EnrichmentMethod",

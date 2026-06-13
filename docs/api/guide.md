@@ -25,6 +25,7 @@ The workflow documentation is split into dedicated pages:
 | Differential | [Differential Workflow](differential-workflow.md) | `DifferentialAnalysisWorkflow` runs moderated differential analysis over an `AnalysisReadyPhosphoDataset` using explicit design and contrast definitions. |
 | Kinase | [Kinase Workflow](kinase-workflow.md) | `KinaseWorkflow` resolves references, scores kinase-substrate evidence, predicts candidate kinase regulation, and can optionally compute kinase activity tables. |
 | Signalome | [Signalome Workflow](signalome-workflow.md) | `SignalomeWorkflow` interprets kinase score profiles into module assignments, signalome module summaries, kinase networks, and protein-site context tables |
+| Enrichment | [Enrichment Contract Boundary](#enrichment-contract-boundary) | `EnrichmentWorkflow` runs offline over-representation analysis over caller-supplied gene-set or PTM-set collections with explicit identifier semantics and background. |
 
 The usual order is:
 
@@ -105,10 +106,11 @@ treated as mini-workflow validators.
 ## Enrichment Contract Boundary
 
 `EnrichmentWorkflowRequest`, `EnrichmentConfig`, and
-`EnrichmentWorkflowResult` provide a typed foundation for future native
-enrichment support. They are contracts only; PhosPy does not yet expose an
-`EnrichmentWorkflow` executor and does not calculate enrichment statistics from
-these objects.
+`EnrichmentWorkflowResult` define native enrichment support. `EnrichmentWorkflow`
+runs offline over-representation analysis (ORA) against the caller-supplied
+gene-set or PTM-set collection. PhosPy does not bundle GO, KEGG, Reactome, or
+PTM-SEA resources for this feature, and the workflow does not call Enrichr,
+gseapy, clusterProfiler, or other online services.
 
 Enrichment requests must provide exactly one identifier source:
 `input_table` or `selected_identifiers`. They also require an
@@ -118,15 +120,18 @@ explicit non-empty `background_universe`, and an `EnrichmentConfig`. Supported
 identifier kinds are `gene_symbol`, `protein_id`, `site_key`, `display_id`,
 and `phosphosite`. Gene-set collections are separate from PTM-set collections
 so gene-level and phosphosite-level semantics are not collapsed into a generic
-string flag.
+string flag. Gene-level and site-level enrichment require explicit identifier
+semantics; PhosPy does not reinterpret a gene-symbol collection as a PTM
+collection, or the reverse.
 
 The initial config supports `method="over_representation"` and
 `multiple_testing_correction` values `"none"` or `"benjamini_hochberg"`.
-Background universes are never inferred by these contracts, and no online
-resources are loaded.
+Background universes are required and never inferred. This workflow is not
+GSEA, ssGSEA, or PTM-SEA support; it is ORA over the supplied collection.
 
 ```python
 from phospy.api import (
+    EnrichmentWorkflow,
     EnrichmentConfig,
     EnrichmentSet,
     EnrichmentSetCollection,
@@ -134,6 +139,47 @@ from phospy.api import (
     GeneSetCollection,
     PtmSetCollection,
 )
+```
+
+Minimal offline example with a tiny in-memory gene-set collection:
+
+```python
+from phospy.api import (
+    EnrichmentConfig,
+    EnrichmentWorkflow,
+    EnrichmentWorkflowRequest,
+    GeneSetCollection,
+)
+
+collection = GeneSetCollection(
+    sets={
+        "kinase_response": ("AKT1", "MAPK1", "MTOR"),
+        "cell_cycle": ("CDK1", "CDK2", "MAPK1"),
+    },
+    identifier_kind="gene_symbol",
+    term_names={
+        "kinase_response": "Kinase response",
+        "cell_cycle": "Cell cycle",
+    },
+    source_name="example in-memory gene sets",
+    source_version="2026-06",
+)
+
+request = EnrichmentWorkflowRequest(
+    identifier_column="gene_symbol",
+    identifier_kind="gene_symbol",
+    set_collection=collection,
+    selected_identifiers=("AKT1", "MAPK1"),
+    background_universe=("AKT1", "MAPK1", "MTOR", "CDK1", "CDK2"),
+    config=EnrichmentConfig(
+        method="over_representation",
+        multiple_testing_correction="benjamini_hochberg",
+    ),
+)
+
+result = EnrichmentWorkflow().run(request)
+print(result.table.loc[:, ["term_id", "input_overlap_count", "p_value"]])
+print(result.provenance.workflow_parameters["offline_no_online_resource_policy"])
 ```
 
 Collections can be created directly from set records. Duplicate identifiers
@@ -182,8 +228,13 @@ tables require `set_id`, `name`, and `identifier` columns, may include
 `identifier_kind`, `source_name`, `source_version`, and `description`, and also
 require an explicit `identifier_kind` argument when the file has no
 `identifier_kind` column. These readers only parse local files. They do not
-fetch GO, KEGG, Reactome, PTMsigDB, Enrichr, gseapy, clusterProfiler, or any
-online database.
+fetch GO, KEGG, Reactome, PTM-SEA resources, PTMsigDB, Enrichr, gseapy,
+clusterProfiler, or any online database.
+
+Result provenance records the enrichment method, identifier column and kind,
+analysis level, explicit background universe size, selected identifier count,
+set collection source metadata when supplied, multiple-testing correction,
+offline/no-online-resource policy, and workflow limitations.
 
 ## Differential Design Declarations
 
@@ -345,6 +396,7 @@ module.
 2. `DifferentialAnalysisRequest` -> `DifferentialAnalysisWorkflow.run(...)` -> `DifferentialAnalysisResult`
 3. `KinaseWorkflowRequest` -> `KinaseWorkflow.run(...)` -> `KinaseWorkflowResult`
 4. `SignalomeWorkflowRequest` -> `SignalomeWorkflow.run(...)` -> `SignalomeWorkflowResult`
+5. `EnrichmentWorkflowRequest` -> `EnrichmentWorkflow.run(...)` -> `EnrichmentWorkflowResult`
 
 The beginner lane is rat first because bundled runtime references in the current
 release are rat only. Human and mouse workflows need an explicit
