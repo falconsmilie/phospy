@@ -72,6 +72,12 @@ Future coverage direction is tracked in
 [`ADR-0025`](docs/adr/adr_0025_competitive_phosphoproteomics_workflow_coverage.md);
 that roadmap is not a current feature-support claim.
 
+Dataset preprocessing supports one opt-in batch-correction method:
+`linear_residualize_batch`, a fixed-effect residualisation step that preserves
+condition effects by design and rejects confounded batch/condition metadata.
+This is not ComBat, RUV, limma `removeBatchEffect` parity, or mixed-effects
+modelling; broader batch-effect methods remain outside the supported scope.
+
 ## Kinase Workflow Example
 
 ```python

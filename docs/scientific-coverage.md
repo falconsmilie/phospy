@@ -32,6 +32,16 @@ passive sample metadata. A batch fixed effect is a model covariate; it is not
 batch correction and is not ComBat, RUV, `removeBatchEffect`, limma
 `duplicateCorrelation`, or mixed-effects modelling.
 
+Separately, dataset preprocessing supports one opt-in batch-correction method:
+`linear_residualize_batch`. It is fixed-effect residualisation of batch terms.
+It preserves condition effects by design: condition terms are included in the
+residualisation design. Batch and condition metadata must be supplied
+explicitly through `sample_metadata` and `DatasetBatchCorrectionConfig`.
+Confounded batch/condition designs, rank-deficient designs, singleton batches,
+and designs without residual degrees of freedom are rejected before correction.
+This support is not ComBat, not RUV, not limma `removeBatchEffect` parity, and
+not mixed-effects modelling.
+
 At dataset-construction boundary, PhosPy uses a protein-scoped analysis-ready
 row key (`site_key`) and keeps `display_id` (for example `GENE;SITE;`) as a
 human-readable label. `site_key` is required to be unique, while `display_id`
@@ -168,7 +178,8 @@ claimed.
 | Missing values | `parity-gated` | Missing-data policy execution in preprocessing and downstream score preconditioning | `tests/parity/test_preprocessing_science_parity.py`, unit missing-data tests | Policy choice changes retained rows and downstream behavior. |
 | Imputation | `validated PhosPy implementation` | Supported policies include `row_median`, `minprob`, `knn` | Unit preprocessing/scientific invariant tests | Policy-dependent behavior; not blanket PhosR-equivalent imputation. |
 | Normalisation | `parity-gated` | Supported methods: `none`, `median_center`, `quantile` with stage-order provenance | `tests/parity/test_preprocessing_science_parity.py`, unit preprocessing tests | Method-specific claims only; no blanket normalisation equivalence claim. |
-| Batch correction / RUV | `validated PhosPy implementation` | Dataset preprocessing supports opt-in `linear_residualize_batch` fixed-effect residualisation with explicit batch/condition metadata, design adequacy validation, and typed reports | Unit batch-correction engine, metadata, validation, and report tests; dataset integration tests for no-op, applied correction, invalid metadata/designs, and downstream differential consumption | `linear_residualize_batch` is not ComBat, RUV, SPS, or limma `removeBatchEffect` parity. `ruv_readiness` remains diagnostic/report-only and must not be interpreted as correction support. Differential batch fixed effects are model covariates, not correction. |
+| Batch correction: `linear_residualize_batch` | `validated PhosPy implementation` | Dataset preprocessing supports opt-in `linear_residualize_batch` fixed-effect residualisation with explicit batch/condition metadata, condition-preserving design, design adequacy validation, and typed reports | Unit batch-correction engine, metadata, validation, and report tests; dataset integration tests for no-op, applied correction, invalid metadata/designs, and downstream differential consumption | Only this fixed-effect residualisation method is supported. Confounded batch/condition designs are rejected because preserving condition effects would otherwise be impossible. This is not ComBat, not RUV, not limma `removeBatchEffect` parity, not limma `duplicateCorrelation`, and not mixed-effects modelling. It does not solve all batch-effect problems. Differential batch fixed effects are model covariates, not preprocessing correction. |
+| RUV, ComBat, and `removeBatchEffect` parity | `open gap` | No executable RUV, ComBat, or limma `removeBatchEffect` parity lane is supported. `ruv_readiness` is diagnostic/report-only metadata readiness reporting. | Readiness/report tests only; no correction parity or execution claim | Do not interpret `ruv_readiness` as RUV support. Do not interpret `linear_residualize_batch` as ComBat, RUV, limma `removeBatchEffect`, or mixed-effects support. |
 | Enrichment | `deliberate scope difference` | KSEA-style and ssGSEA-style substrate-set enrichment exists within kinase activity lane | Unit activity tests, workflow activity tests, and scientific policy provenance | Broader pathway/gene-set enrichment lane is not part of current core workflow contract. ssGSEA-style activity is not PTM-SEA parity-backed. |
 | Visualisation | `deliberate scope difference` | No first-class visualization workflow/API in core PhosPy | N/A | Visualization is intentionally out of current scientific parity scope. |
 | Supported bundled organisms and references | `deliberate scope difference` | Bundled runtime references are rat-only for `ReferencePreset.AUTO` in this release | Runtime behavior, reference compatibility tests, manifest approval checks, and workflow docs | Human/mouse are valid organisms but require explicit caller-supplied `ReferenceBundle` unless a future release commits approved redistributable packaged data. |
@@ -222,6 +233,12 @@ commands/workflows:
 - Differential analysis does not resolve peptide/site ambiguity, localisation
   confidence, imputation, normalisation, or batch correction unless those steps
   were already performed or explicitly configured in the route.
+- Dataset preprocessing `linear_residualize_batch` is opt-in fixed-effect
+  residualisation. It preserves condition effects by including condition terms
+  in the residualisation design, rejects confounded batch/condition designs, and
+  records a typed `BatchCorrectionReport`. It is not ComBat, RUV,
+  `removeBatchEffect` parity, `duplicateCorrelation`, or mixed-effects
+  modelling, and it does not solve all batch-effect problems.
 - Fixed-effect covariates in differential analysis are ordinary fixed terms in
   the design matrix. Batch can be modelled this way, but this does not remove
   batch effects from data and does not implement ComBat, RUV,

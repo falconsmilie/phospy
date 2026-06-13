@@ -5,6 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SCIENTIFIC_COVERAGE_DOC = ROOT / "docs" / "scientific-coverage.md"
 API_GUIDE_DOC = ROOT / "docs" / "api" / "guide.md"
+WORKFLOW_CONTRACTS_DOC = ROOT / "docs" / "workflow_contracts.md"
 
 
 def _scientific_coverage_text() -> str:
@@ -13,6 +14,10 @@ def _scientific_coverage_text() -> str:
 
 def _api_guide_text() -> str:
     return API_GUIDE_DOC.read_text(encoding="utf-8")
+
+
+def _workflow_contracts_text() -> str:
+    return WORKFLOW_CONTRACTS_DOC.read_text(encoding="utf-8")
 
 
 def test_scientific_coverage_doc_exists() -> None:
@@ -59,7 +64,8 @@ def test_scope_matrix_columns_and_required_rows_are_present() -> None:
         "missing values",
         "normalisation",
         "imputation",
-        "batch correction / ruv",
+        "batch correction: `linear_residualize_batch`",
+        "ruv, combat, and `removebatcheffect` parity",
         "enrichment",
         "visualisation",
         "supported bundled organisms and references",
@@ -98,3 +104,26 @@ def test_differential_provenance_docs_name_fixed_block_limitations() -> None:
     assert "incomplete or partially covered blocks are rejected" in normalized
     assert "does not drop those blocks or samples" in normalized
     assert "simple unpaired workflows" in normalized
+
+
+def test_batch_correction_scope_names_only_linear_residualize_batch_supported() -> None:
+    text = (
+        _scientific_coverage_text()
+        + "\n"
+        + _api_guide_text()
+        + "\n"
+        + _workflow_contracts_text()
+    ).lower()
+    normalized = " ".join(text.split())
+
+    assert "| batch correction: `linear_residualize_batch` |" in normalized
+    assert "| ruv, combat, and `removebatcheffect` parity | `open gap` |" in normalized
+    assert "`linear_residualize_batch` fixed-effect residualisation" in normalized
+    assert "preserves condition effects by design" in normalized
+    assert "confounded batch/condition designs are rejected" in normalized
+    assert "not combat" in normalized
+    assert "not ruv" in normalized
+    assert "not limma `removebatcheffect` parity" in normalized
+    assert "not mixed-effects modelling" in normalized
+    assert "does not solve all batch-effect problems" in normalized
+    assert "do not interpret `ruv_readiness` as ruv support" in normalized

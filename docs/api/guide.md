@@ -333,11 +333,13 @@ preprocessing = DatasetPreprocessingConfig(
 
 `linear_residualize_batch` means fixed-effect residualisation of batch terms
 while preserving condition effects by design. It is not ComBat, not RUV, and not
-limma `removeBatchEffect` parity. During dataset build, preprocessing resolves
-the configured batch and condition columns from `sample_metadata`, validates
-design adequacy, and applies correction before total-protein correction,
-site-matrix construction, normalisation, and comparison building. If a log2
-intensity transform is configured, correction runs after that transform.
+limma `removeBatchEffect` parity, and not mixed-effects modelling. During
+dataset build, preprocessing resolves the configured batch and condition columns
+from `sample_metadata`, validates design adequacy, and applies correction before
+total-protein correction, site-matrix construction, normalisation, and
+comparison building. If a log2 intensity transform is configured, correction
+runs after that transform. Perfectly confounded batch/condition designs are
+rejected because removing batch would also remove protected condition signal.
 
 Dataset preprocessing reports can include a typed `batch_correction` sidecar:
 `BatchCorrectionReport` with `BatchCorrectionPolicy` and
@@ -349,6 +351,87 @@ status, warnings, and limitations. The builder reports default `method="none"`
 as `"disabled"`. Requested correction either returns `"applied"` with the
 corrected phosphosite matrix in the analysis-ready dataset, or fails clearly
 when metadata or design adequacy is invalid.
+
+Minimal dataset-build example with batch and condition metadata:
+
+```python
+import pandas as pd
+
+from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import (
+    DatasetBatchCorrectionConfig,
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
+    IntensityScaleKind,
+    Organism,
+)
+
+phospho = pd.DataFrame(
+    {
+        "sample_1": [10.0, 2.0],
+        "sample_2": [15.0, 7.0],
+        "sample_3": [14.0, 1.0],
+        "sample_4": [19.0, 6.0],
+    },
+    index=["MAPK14;Y182;", "AKT1;T308;"],
+)
+site_metadata = pd.DataFrame(
+    {
+        "gene_symbol": ["MAPK14", "AKT1"],
+        "site": ["Y182", "T308"],
+        "site_sequence": [
+            "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
+            "AAAAAAAAAAAAAAATAAAAAAAAAAAAAAA",
+        ],
+        "display_id": ["MAPK14;Y182;", "AKT1;T308;"],
+        "organism": ["rat", "rat"],
+        "protein_namespace": ["protein_id", "protein_id"],
+        "protein_identifier": ["MAPK14", "AKT1"],
+        "protein_id": ["MAPK14", "AKT1"],
+        "localisation_confidence": [0.95, 0.92],
+    },
+    index=phospho.index.copy(),
+)
+sample_metadata = pd.DataFrame(
+    {
+        "batch": ["run_1", "run_2", "run_1", "run_2"],
+        "condition": ["control", "control", "treated", "treated"],
+    },
+    index=phospho.columns.copy(),
+)
+preprocessing = DatasetPreprocessingConfig(
+    batch_correction=DatasetBatchCorrectionConfig(
+        method="linear_residualize_batch",
+        batch_column="batch",
+        condition_column="condition",
+        preserve_condition_effects=True,
+    )
+)
+
+dataset = AnalysisReadyDatasetBuilder().run(
+    DatasetBuildRequest(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=sample_metadata,
+        organism=Organism.RAT,
+        input_intensity_scale=IntensityScaleKind.LOG2,
+        preprocessing_config=preprocessing,
+    )
+)
+
+report = dataset.preprocessing_report.batch_correction
+assert report is not None
+print(report.status)
+print(report.method)
+print(report.confounding_check_status)
+print(report.batch_levels)
+print(report.condition_levels)
+print(report.limitations)
+```
+
+The `condition` column is used here only to protect condition effects during
+batch residualisation. It does not replace the explicit
+`ExperimentalDesign` required by differential analysis.
 
 ## Result Construction Contracts
 

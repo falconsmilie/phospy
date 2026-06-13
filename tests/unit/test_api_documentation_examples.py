@@ -7,6 +7,7 @@ import pandas as pd
 from phospy import AnalysisReadyDatasetBuilder
 from phospy.api import (
     Contrast,
+    DatasetBatchCorrectionConfig,
     DatasetBuildRequest,
     DatasetIntensityTransformConfig,
     DatasetLocalisationConfig,
@@ -15,6 +16,7 @@ from phospy.api import (
     DatasetPreprocessingConfig,
     DifferentialAnalysisRequest,
     ExperimentalDesign,
+    IntensityScaleKind,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -187,6 +189,80 @@ def test_api_docs_dataset_build_request_example_is_constructible() -> None:
     assert request.preprocessing_config.normalisation.policy == "median_center"
 
 
+def test_api_docs_batch_correction_example_is_constructible() -> None:
+    source = _read(API_DOCS_DIR / "guide.md")
+
+    assert "Minimal dataset-build example with batch and condition metadata" in source
+    assert "DatasetBatchCorrectionConfig(" in source
+    assert 'method="linear_residualize_batch"' in source
+    assert "dataset.preprocessing_report.batch_correction" in source
+    assert "confounding_check_status" in source
+    assert "not ComBat, not RUV" in source
+    assert "not mixed-effects modelling" in source
+
+    phospho = pd.DataFrame(
+        {
+            "sample_1": [10.0, 2.0],
+            "sample_2": [15.0, 7.0],
+            "sample_3": [14.0, 1.0],
+            "sample_4": [19.0, 6.0],
+        },
+        index=["MAPK14;Y182;", "AKT1;T308;"],
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1"],
+            "site": ["Y182", "T308"],
+            "site_sequence": [
+                "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
+                "AAAAAAAAAAAAAAATAAAAAAAAAAAAAAA",
+            ],
+            "display_id": ["MAPK14;Y182;", "AKT1;T308;"],
+            "organism": ["rat", "rat"],
+            "protein_namespace": ["protein_id", "protein_id"],
+            "protein_identifier": ["MAPK14", "AKT1"],
+            "protein_id": ["MAPK14", "AKT1"],
+            "localisation_confidence": [0.95, 0.92],
+        },
+        index=phospho.index.copy(),
+    )
+    sample_metadata = pd.DataFrame(
+        {
+            "batch": ["run_1", "run_2", "run_1", "run_2"],
+            "condition": ["control", "control", "treated", "treated"],
+        },
+        index=phospho.columns.copy(),
+    )
+    preprocessing = DatasetPreprocessingConfig(
+        batch_correction=DatasetBatchCorrectionConfig(
+            method="linear_residualize_batch",
+            batch_column="batch",
+            condition_column="condition",
+            preserve_condition_effects=True,
+        )
+    )
+
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            sample_metadata=sample_metadata,
+            organism=Organism.RAT,
+            input_intensity_scale=IntensityScaleKind.LOG2,
+            preprocessing_config=preprocessing,
+        )
+    )
+
+    assert dataset.preprocessing_report is not None
+    report = dataset.preprocessing_report.batch_correction
+    assert report is not None
+    assert report.status == "applied"
+    assert report.method == "linear_residualize_batch"
+    assert report.confounding_check_status == "passed"
+    assert report.batch_levels == ("run_1", "run_2")
+    assert report.condition_levels == ("control", "treated")
+
+
 def test_api_docs_differential_request_example_is_constructible() -> None:
     dataset = _build_dataset()
     assert dataset.intensity_scale_state.kind.value == "log2"
@@ -313,6 +389,7 @@ def test_api_docs_differential_import_route_uses_supported_public_path() -> None
 
 def test_readme_and_differential_docs_keep_scientific_scope_contracts() -> None:
     readme_source = _read(README)
+    readme_normalized = " ".join(readme_source.split())
     differential_source = _read(DIFFERENTIAL_DOC)
 
     assert "minimum_condition_replicates=1" not in readme_source
@@ -321,6 +398,10 @@ def test_readme_and_differential_docs_keep_scientific_scope_contracts() -> None:
     assert "KinaseWorkflowRequest(" in readme_source
     assert "site_sequence" in readme_source
     assert "ReferencePreset.AUTO" in readme_source
+    assert "`linear_residualize_batch`" in readme_source
+    assert "rejects confounded batch/condition metadata" in readme_source
+    assert "not ComBat, RUV, limma `removeBatchEffect` parity" in readme_source
+    assert "mixed-effects modelling" in readme_normalized
     assert "control_rep1" in differential_source
     assert "control_rep2" in differential_source
     assert "treatment_rep1" in differential_source

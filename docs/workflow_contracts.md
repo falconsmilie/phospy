@@ -82,9 +82,19 @@ identical numeric outputs across different machines or dependency builds.
   - intensity transform (`identity` or `log2`)
   - normalisation (`none`, `median_center`, `quantile`)
   - optional total-protein correction
+  - optional batch correction with `linear_residualize_batch`
   - optional site-matrix and comparison construction
   - optional `ruv_readiness` reporting for future RUV-compatible preprocessing
 - No hidden transforms are applied outside this configuration.
+- `linear_residualize_batch` is fixed-effect residualisation of batch terms
+  while preserving condition effects by design. It requires explicit batch and
+  condition columns in `sample_metadata`; those columns are used only for this
+  preprocessing step and do not define differential-analysis design.
+- Confounded batch/condition designs are rejected before correction because the
+  method cannot preserve condition effects when batch and condition are
+  perfectly confounded.
+- `linear_residualize_batch` is not ComBat, not RUV, not limma
+  `removeBatchEffect` parity, and not mixed-effects modelling.
 - Prefer intent presets (`DatasetPreprocessingConfig.default()`,
   `DatasetPreprocessingConfig.strict()`, and
   `DatasetPreprocessingConfig.from_raw_phosphosite_table()`) for common lanes.
@@ -110,6 +120,10 @@ identical numeric outputs across different machines or dependency builds.
   `resolved_stage_order` with per-stage order index and rationale.
 - `intensity_scale_state` and `processing_state` are attached and validated at boundary.
 - `preprocessing_report` provides row-level and operation-level preprocessing audit tables.
+- `preprocessing_report.batch_correction` is a typed `BatchCorrectionReport`.
+  It records the method, status (`"disabled"`, `"applied"`, or `"rejected"`),
+  batch and condition columns, observed levels, matrix shapes, condition
+  preservation policy, confounding-check status, warnings, and limitations.
 - `processing_state.ruv_readiness` reports whether required controls/groups/batch and
   missingness provenance are present for future RUV-compatible correction stages.
   This is report-only and does not run correction or block dataset construction.
@@ -120,6 +134,10 @@ identical numeric outputs across different machines or dependency builds.
 - Protein identity is not derived automatically from display labels; provide
   protein context for `site_key` derivation and explicit, complete `protein_id`
   only for downstream signalome analysis.
+- The only executable batch-correction preprocessing method is
+  `linear_residualize_batch`. Broader batch-effect modelling, ComBat, RUV,
+  limma `removeBatchEffect` parity, and mixed-effects modelling are not provided
+  by the dataset builder.
 
 ### Expected Output Tables
 
