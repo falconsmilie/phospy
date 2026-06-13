@@ -37,33 +37,102 @@ scientific coverage matrix is updated to the correct claim category.
 
 The supported scientific workflow interface is the Python API.
 
-Current executable public lanes are:
+Current executable analysis/workflow lanes are:
 
 - `AnalysisReadyDatasetBuilder`
 - `DifferentialAnalysisWorkflow`
 - `KinaseWorkflow`
 - optional kinase activity tables within the kinase workflow
 - optional `SignalomeWorkflow` after kinase prediction
+- `EnrichmentWorkflow` for offline over-representation analysis (ORA)
 
-Current differential support is scoped to two-condition unpaired simple
-contrasts with explicit `ExperimentalDesign` and `Contrast` objects,
-empirical-Bayes `standard` or `robust` modes, optional trend moderation, and
-Benjamini-Hochberg adjustment. Batch-aware, block, paired, and repeated-measure
-modeling are not executable in the current public workflow lane.
+Current public input-preparation support includes generic column-mapped
+phosphosite import, MaxQuant phosphosite import, and
+FragPipe/Philosopher/PTMProphet phosphosite import. These importers emit
+`PhosphositeImportResult` candidates and dataset-builder requests; they do not
+construct `AnalysisReadyPhosphoDataset` objects, infer sample groups, infer
+contrasts, infer batches, infer paired blocks, or bypass builder validation.
+They are targeted importer adapters, not broad support for all vendor,
+search-engine, or upstream statistical outputs.
+
+Current differential support has a parity-protected core lane: two-condition
+unpaired simple contrasts with explicit `ExperimentalDesign` and `Contrast`
+objects, empirical-Bayes `standard` or `robust` modes, optional trend
+moderation, and Benjamini-Hochberg adjustment.
+
+Additional validated PhosPy differential support includes explicit
+fixed-effect covariates declared on `ExperimentalDesign`: batch, categorical
+covariates, and continuous covariates. It also includes explicit complete
+fixed-block paired/block designs through
+`paired_design_policy="fixed_block"` when every block has complete condition
+coverage for each requested contrast. These ordinary fixed-effect linear-model
+terms are validated for required metadata, rank, and contrast estimability
+before execution.
+
+Fixed-effect batch terms in differential analysis are model covariates; they
+do not correct the input data. They are not ComBat, not RUV, not limma
+`removeBatchEffect`, not limma `duplicateCorrelation`, not mixed-effects
+modelling, not random effects, and not a general batch-correction method.
+Fixed-block terms are ordinary fixed effects over explicit
+`SampleDesignRecord.block_id` values; they are not random subject modelling,
+mixed-effects modelling, or
+`duplicateCorrelation`-style correlated-replicate modelling. Correlated
+repeated-measure and mixed-effect differential modelling remain unsupported.
+
+Dataset preprocessing supports one opt-in batch-residualisation method:
+`linear_residualize_batch`. It uses fixed-effect residualisation of batch terms
+while preserving condition effects by including condition terms in the
+residualisation design. It requires explicit `sample_metadata` and
+`DatasetBatchCorrectionConfig` settings, rejects confounded or otherwise
+inadequate designs before correction, and records typed diagnostics. It is not
+ComBat, not RUV, not limma `removeBatchEffect` parity, not
+`duplicateCorrelation`, not mixed-effects modelling, or a solution to all
+batch-effect problems.
+
+Dataset preprocessing also supports total-protein subtraction through
+`subtract_log_total` and protein-aware model-input preparation through
+`DatasetProteinAwarePreparationConfig(policy="prepare_model_inputs")`.
+Protein-aware preparation builds matched phosphosite/protein pairs,
+sample-aligned protein covariates, eligibility rows, mapping diagnostics,
+sample-alignment diagnostics, transformation-state diagnostics, and explicit
+limitations. It does not modify phosphosite values, subtract total protein,
+normalise intensities, run differential modelling, or claim MSstatsPTM-style
+joint PTM/protein inference. It does not claim MSstatsPTM-style equivalence.
+Current `DifferentialAnalysisWorkflow` execution does not consume the prepared
+protein covariate matrix.
 
 Current kinase support provides profile/motif scoring, rank-weighted fusion,
-deterministic/adaptive prediction, and two explicit activity methods:
-`simplified_weighted_substrate_activity_v1` and
-`ksea_zscore_activity_v1`. These outputs are support summaries or
-substrate-set enrichment statistics, not calibrated causal inference.
+deterministic/adaptive prediction, and three explicit activity methods:
+`simplified_weighted_substrate_activity_v1`,
+`ksea_zscore_activity_v1`, and
+`ssgsea_substrate_enrichment_activity_v1`. These outputs are support summaries
+or substrate-set enrichment statistics, not calibrated causal inference.
+
+Current Kinase Library-style support includes a pure motif scorer, local
+`KinaseLibraryResource` / `KinaseLibraryResourceLoader` contracts, and opt-in
+`KinaseWorkflow` scoring modes `kinase_library_motif` and
+`combined_profile_motif`. These paths require caller-supplied compatible local
+Kinase Library-style resources with explicit provenance. PhosPy does not bundle
+official Kinase Library data and does not claim validated Kinase Library parity.
+Workflow motif scores are normalized support scores for within-run ranking;
+they are not probabilities and do not imply kinase activity unless an explicit
+activity method is run.
+
+The ssGSEA-style kinase activity method is a PhosPy rank-walk
+substrate-set activity implementation over kinase-substrate membership and
+phosphosite effect/statistic values. It is not PTM-SEA parity and is separate
+from the native ORA enrichment workflow.
 
 Current bundled runtime reference data is rat-only. Human and mouse analyses
-can be run only when the caller supplies an explicit `ReferenceBundle`.
+can be run when the caller supplies an explicit `ReferenceBundle`.
 
-Current ingestion supports analysis-ready tables and generic table I/O
-contracts used by Python workflows. PhosPy does not currently provide broad
-semantic importers for vendor, search-engine, or upstream statistical tool
-outputs.
+Current native enrichment support is offline ORA through `EnrichmentWorkflow`
+against caller-supplied `GeneSetCollection`, `PtmSetCollection`, or homogeneous
+`EnrichmentSetCollection` inputs with explicit identifier semantics and an
+explicit background universe. PhosPy does not bundle GO, KEGG, Reactome,
+PTM-SEA, or PTMsigDB resources for this feature, and core workflow execution
+does not call Enrichr, gseapy, clusterProfiler, or other online services. ORA
+does not imply GSEA, ssGSEA, or PTM-SEA support.
 
 Current core PhosPy does not provide a first-class visualization workflow/API.
 
@@ -80,15 +149,19 @@ workflow stack:
 
 - richer reference handling with explicit provenance, compatibility checks,
   and user-supplied external reference bundles
-- improved kinase inference and activity methods with method-specific
+- additional kinase inference and activity methods with method-specific
   validation and clear output meaning
-- semantic importers for common phosphoproteomics table outputs, without
-  bypassing dataset validation or site identity contracts
-- richer differential designs, including batch-aware and repeated-measure
-  designs, only after explicit design/result contracts and parity or validation
-  evidence exist
-- enrichment workflows that are separate from kinase scoring unless the method
-  is explicitly a kinase activity or substrate-set activity method
+- additional semantic importers beyond the current generic, MaxQuant, and
+  FragPipe/PTMProphet adapters, without bypassing dataset validation or site
+  identity contracts
+- richer differential designs beyond ordinary fixed covariates and complete
+  fixed-block terms, especially correlated repeated-measure,
+  `duplicateCorrelation`-style, random-effect, mixed-effect, or additional
+  batch-effect methods, only after explicit design/result contracts and parity
+  or validation evidence exist
+- enrichment workflows and resource integrations beyond current offline ORA,
+  kept separate from kinase scoring unless the method is explicitly a kinase
+  activity or substrate-set activity method
 - visualization adapters that consume validated result objects without becoming
   the source of scientific truth
 - possible CLI workflow support only as a thin, validated wrapper over the
@@ -127,24 +200,30 @@ Phases are directional, not calendar commitments.
 
 - Harden `ReferenceBundle` provenance, compatibility diagnostics, and
   external bundle validation.
-- Add semantic importer contracts only when they emit typed tables or requests
-  that still pass existing builder/workflow validation.
+- Maintain current generic, MaxQuant, and FragPipe/PTMProphet importer
+  contracts as dataset-builder input adapters, not hidden analysis engines.
+- Add additional semantic importer contracts only when they emit typed tables or
+  requests that still pass existing builder/workflow validation.
 - Keep raw/vendor/search-engine format interpretation out of core workflows
   unless a dedicated importer contract owns it.
 
 ### Phase 2: Differential Design Depth
 
-- Extend experimental-design contracts before adding batch, block, paired, or
-  repeated-measure execution.
+- Preserve current fixed-effect covariate and complete fixed-block support as
+  ordinary fixed-term linear-model execution.
+- Extend experimental-design contracts before adding correlated repeated-measure
+  execution, `duplicateCorrelation`-style modelling, random-effect or
+  mixed-effect modelling, or additional batch-effect methods.
 - Preserve explicit contrast definitions and provenance.
 - Add validation and parity/evidence tests before public support claims.
 
 ### Phase 3: Kinase, Activity, and Enrichment Depth
 
-- Add kinase inference/activity methods one method at a time with stable policy
-  IDs, output-scale definitions, and tests.
-- Separate broad pathway/gene-set enrichment from kinase scoring unless the
-  method is explicitly a kinase activity method.
+- Add additional kinase inference/activity methods one method at a time with
+  stable policy IDs, output-scale definitions, and tests.
+- Maintain current offline ORA as a separate enrichment workflow, and keep any
+  future broad pathway/gene-set enrichment separate from kinase scoring unless
+  the method is explicitly a kinase activity method.
 - Keep prediction scores, activity scores, and enrichment statistics labeled by
   their actual statistical meaning.
 

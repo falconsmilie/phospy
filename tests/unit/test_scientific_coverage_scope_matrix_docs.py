@@ -6,6 +6,13 @@ ROOT = Path(__file__).resolve().parents[2]
 SCIENTIFIC_COVERAGE_DOC = ROOT / "docs" / "scientific-coverage.md"
 API_GUIDE_DOC = ROOT / "docs" / "api" / "guide.md"
 WORKFLOW_CONTRACTS_DOC = ROOT / "docs" / "workflow_contracts.md"
+IMPORTERS_DOC = ROOT / "docs" / "importers.md"
+ADR_0025_DOC = (
+    ROOT
+    / "docs"
+    / "adr"
+    / "adr_0025_competitive_phosphoproteomics_workflow_coverage.md"
+)
 
 
 def _scientific_coverage_text() -> str:
@@ -18,6 +25,14 @@ def _api_guide_text() -> str:
 
 def _workflow_contracts_text() -> str:
     return WORKFLOW_CONTRACTS_DOC.read_text(encoding="utf-8")
+
+
+def _importers_text() -> str:
+    return IMPORTERS_DOC.read_text(encoding="utf-8")
+
+
+def _adr_0025_text() -> str:
+    return ADR_0025_DOC.read_text(encoding="utf-8")
 
 
 def test_scientific_coverage_doc_exists() -> None:
@@ -61,6 +76,7 @@ def test_scope_matrix_columns_and_required_rows_are_present() -> None:
         "signalome analysis",
         "sequence context",
         "localisation handling",
+        "phosphosite importers",
         "missing values",
         "normalisation",
         "imputation",
@@ -177,3 +193,73 @@ def test_enrichment_scope_is_offline_ora_with_user_supplied_collections() -> Non
     assert "gene-level and site-level enrichment require explicit identifier" in (
         normalized
     )
+
+
+def test_importer_scope_documents_targeted_maxquant_fragpipe_support() -> None:
+    text = (
+        _scientific_coverage_text()
+        + "\n"
+        + _api_guide_text()
+        + "\n"
+        + _importers_text()
+        + "\n"
+        + _adr_0025_text()
+    ).lower()
+    normalized = " ".join(text.split())
+
+    assert "| phosphosite importers | `validated phospy implementation` |" in (
+        normalized
+    )
+    assert "maxquantphosphositeimporter" in normalized
+    assert "fragpipeptmprophetimporter" in normalized
+    assert "mappedphosphositetableimporter" in normalized
+    assert "phosphositeimportresult" in normalized
+    assert "dataset-builder requests" in normalized
+    assert "do not construct analysis-ready datasets" in normalized
+    assert "infer sample groups" in normalized
+    assert "infer contrasts" in normalized
+    assert "infer batches or blocks" in normalized
+    assert "infer differential design" in normalized
+    assert "bypass builder validation" in normalized
+    assert "not broad support for all vendor" in normalized
+    assert "spectronaut/dia-nn support" in normalized
+    assert "upstream statistical result import" in normalized
+    assert "does not currently provide broad semantic importers" not in normalized
+
+
+def test_adr_0025_current_state_names_implemented_support_without_parity_claims() -> (
+    None
+):
+    normalized = " ".join(_adr_0025_text().lower().split())
+
+    assert "current executable analysis/workflow lanes" in normalized
+    assert "`enrichmentworkflow` for offline over-representation analysis" in (
+        normalized
+    )
+    assert "maxquant phosphosite import" in normalized
+    assert "fragpipe/philosopher/ptmprophet phosphosite import" in normalized
+    assert '`paired_design_policy="fixed_block"`' in normalized
+    assert "`linear_residualize_batch`" in normalized
+    assert '`datasetproteinawarepreparationconfig(policy="prepare_model_inputs")`' in (
+        normalized
+    )
+    assert "`kinaselibraryresource` / `kinaselibraryresourceloader`" in normalized
+    assert "`ssgsea_substrate_enrichment_activity_v1`" in normalized
+    assert "offline ora through `enrichmentworkflow`" in normalized
+
+    assert "not combat" in normalized
+    assert "not ruv" in normalized
+    assert "does not bundle official kinase library data" in normalized
+    assert "does not claim validated kinase library parity" in normalized
+    assert "not ptm-sea parity" in normalized
+    assert "does not imply gsea, ssgsea, or ptm-sea support" in normalized
+    assert "does not claim msstatsptm-style" in normalized
+    assert "duplicatecorrelation" in normalized
+    assert "mixed-effects modelling" in normalized
+
+    stale_fragments = (
+        "batch-aware, block, paired, and repeated-measure modeling are not executable",
+        "does not currently provide broad semantic importers",
+    )
+    for fragment in stale_fragments:
+        assert fragment not in normalized

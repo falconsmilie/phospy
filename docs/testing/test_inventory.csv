@@ -158,7 +158,7 @@ tests/unit/test_reference_runtime_policy.py,unit,100,5,true,true,public API cont
 tests/unit/test_request_validation_boundaries.py,unit,283,6,true,true,,,,,,
 tests/unit/test_runtime_contract_guards.py,unit,118,4,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for runtime contract guards and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_science_package_ownership.py,unit,113,6,true,true,,,,,,
-tests/unit/test_scientific_coverage_scope_matrix_docs.py,unit,179,9,false,false,,,,,,
+tests/unit/test_scientific_coverage_scope_matrix_docs.py,unit,265,11,false,false,,,,,,
 tests/unit/test_scientific_invariants.py,unit,704,19,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for scientific invariants, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_scientific_policies.py,unit,409,21,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for scientific policies, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_signalome_bundle_compatibility.py,unit,524,23,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for signalome bundle compatibility, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
