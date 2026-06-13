@@ -1,5 +1,9 @@
 """Dataset preprocessing stages."""
 
+from phospy.science.datasets.preprocessing.stages.batch_correction import (
+    BATCH_CORRECTION_STAGE_CONTRACT,
+    BatchCorrectionStage,
+)
 from phospy.science.datasets.preprocessing.stages.comparisons import (
     COMPARISONS_STAGE_CONTRACT,
     ComparisonsStage,
@@ -34,6 +38,8 @@ from phospy.science.datasets.preprocessing.stages.total_protein_correction impor
 )
 
 __all__ = [
+    "BATCH_CORRECTION_STAGE_CONTRACT",
+    "BatchCorrectionStage",
     "COMPARISONS_STAGE_CONTRACT",
     "ComparisonsStage",
     "INTENSITY_TRANSFORM_STAGE_CONTRACT",

@@ -6,11 +6,19 @@ from phospy.api import DatasetBatchCorrectionConfig
 from phospy.api.configs import (
     DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
     DATASET_BATCH_CORRECTION_METHOD_NONE,
+    DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
+    DatasetTotalProteinCorrectionConfig,
 )
 from phospy.errors import PhosPyInputError
-from phospy.science.datasets.preprocessing.models import PreprocessingPlan
+from phospy.science.datasets.preprocessing.models import (
+    DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
+    DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
+    DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+    DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
+    PreprocessingPlan,
+)
 from phospy.science.datasets.preprocessing.stage_registry import (
     list_registered_preprocessing_stages,
 )
@@ -90,16 +98,25 @@ def test_existing_preprocessing_config_construction_remains_backward_compatible(
     )
 
 
-def test_declared_batch_correction_is_not_executed_by_preprocessing_plan_yet() -> None:
+def test_declared_batch_correction_is_scheduled_after_intensity_transform() -> None:
     plan = PreprocessingPlan.from_config(
         DatasetPreprocessingConfig(
+            intensity_transform=DatasetIntensityTransformConfig(policy="log2"),
             batch_correction=DatasetBatchCorrectionConfig(
                 method=DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH
-            )
+            ),
+            total_protein_correction=DatasetTotalProteinCorrectionConfig(policy="none"),
         )
     )
 
-    assert "batch_correction" not in plan.stage_order
+    assert DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION in plan.stage_order
     assert {
         stage.stage_key for stage in list_registered_preprocessing_stages()
-    }.isdisjoint({"batch_correction"})
+    }.issuperset({DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION})
+    assert plan.stage_order.index(DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION) > (
+        plan.stage_order.index(DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM)
+    )
+    assert plan.stage_order.index(DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION) > (
+        plan.stage_order.index(DATASET_PREPROCESSING_STAGE_MISSING_DATA)
+    )
+    assert DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION not in plan.stage_order

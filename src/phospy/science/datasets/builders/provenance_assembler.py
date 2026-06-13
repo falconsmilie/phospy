@@ -21,6 +21,7 @@ from phospy.science.datasets.builders.contracts import (
     PreprocessedDatasetBuildTables,
 )
 from phospy.science.datasets.preprocessing.models import (
+    DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
     DATASET_PREPROCESSING_STAGE_LOCALISATION,
@@ -45,6 +46,7 @@ _SUPPORTED_PREPROCESSING_STAGE_ORDER = (
     DATASET_PREPROCESSING_STAGE_LOCALISATION,
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
+    DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
     DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
     DATASET_PREPROCESSING_STAGE_NORMALISATION,
@@ -265,6 +267,12 @@ def _preprocessing_plan_to_payload(plan: PreprocessingPlan) -> dict[str, object]
             plan.ruv_readiness_replicate_group_column
         ),
         "ruv_readiness_batch_column": plan.ruv_readiness_batch_column,
+        "batch_correction_method": plan.batch_correction_method,
+        "batch_correction_batch_column": plan.batch_correction_batch_column,
+        "batch_correction_condition_column": plan.batch_correction_condition_column,
+        "batch_correction_preserve_condition_effects": (
+            plan.batch_correction_preserve_condition_effects
+        ),
         "stage_order": list(plan.stage_order),
         "resolved_stage_order": _stage_order_resolution_to_payload(
             plan.stage_order_resolution

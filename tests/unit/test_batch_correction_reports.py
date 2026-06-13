@@ -159,9 +159,7 @@ def test_dataset_builder_records_disabled_batch_correction_report_without_execut
     )
 
 
-def test_dataset_builder_records_rejected_declared_batch_correction_without_execution() -> (
-    None
-):
+def test_dataset_builder_records_applied_declared_batch_correction_execution() -> None:
     built = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
             phospho=_phospho(),
@@ -180,14 +178,12 @@ def test_dataset_builder_records_rejected_declared_batch_correction_without_exec
     assert built.preprocessing_report is not None
     report = built.preprocessing_report.batch_correction
     assert report is not None
-    assert report.status == "rejected"
+    assert report.status == "applied"
     assert report.method == "linear_residualize_batch"
     assert report.confounding_check_status == "passed"
     assert report.matrix_shape_before == report.matrix_shape_after == (2, 4)
-    assert report.warnings == (
-        "batch correction was declared but no correction was executed",
-    )
-    assert "batch_correction" not in set(
+    assert report.warnings == ()
+    assert "batch_correction" in set(
         built.preprocessing_report.operations.loc[:, "stage"].astype(str).tolist()
     )
 

@@ -124,7 +124,7 @@ def test_rejects_missing_batch_label_value() -> None:
         )
 
 
-def test_dataset_builder_resolves_declared_batch_metadata_without_execution() -> None:
+def test_dataset_builder_resolves_declared_batch_metadata_during_execution() -> None:
     built = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
             phospho=_adequate_phospho(),
@@ -145,11 +145,11 @@ def test_dataset_builder_resolves_declared_batch_metadata_without_execution() ->
     assert built.preprocessing_report is not None
     report = built.preprocessing_report.batch_correction
     assert report is not None
-    assert report.status == "rejected"
+    assert report.status == "applied"
     assert report.confounding_check_status == "passed"
     assert report.batch_levels == ("run_1", "run_2")
     assert report.condition_levels == ("control", "treated")
-    assert "batch_correction" not in set(
+    assert "batch_correction" in set(
         built.preprocessing_report.operations.loc[:, "stage"].astype(str).tolist()
     )
 

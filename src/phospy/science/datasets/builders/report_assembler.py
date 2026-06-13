@@ -74,6 +74,7 @@ class DatasetPreprocessingReportAssembler:
         preprocessing_plan: PreprocessingPlan | None = None,
         sample_metadata: pd.DataFrame | None = None,
         batch_correction_metadata: ResolvedBatchCorrectionMetadata | None = None,
+        batch_correction_report: BatchCorrectionReport | None = None,
         matrix_shape_before: tuple[int, int] | None = None,
         matrix_shape_after: tuple[int, int] | None = None,
         declared_input_intensity_scale_kind: str | None = None,
@@ -184,6 +185,7 @@ class DatasetPreprocessingReportAssembler:
             plan=preprocessing_plan,
             sample_metadata=sample_metadata,
             batch_correction_metadata=batch_correction_metadata,
+            batch_correction_report=batch_correction_report,
             matrix_shape_before=matrix_shape_before,
             matrix_shape_after=matrix_shape_after,
         )
@@ -270,9 +272,12 @@ def _build_batch_correction_report(
     plan: PreprocessingPlan | None,
     sample_metadata: pd.DataFrame | None,
     batch_correction_metadata: ResolvedBatchCorrectionMetadata | None,
+    batch_correction_report: BatchCorrectionReport | None,
     matrix_shape_before: tuple[int, int] | None,
     matrix_shape_after: tuple[int, int] | None,
 ) -> BatchCorrectionReport | None:
+    if batch_correction_report is not None:
+        return batch_correction_report
     if plan is None:
         return None
     method = str(plan.batch_correction_method).strip()
@@ -307,11 +312,11 @@ def _build_batch_correction_report(
             if batch_correction_metadata is not None
             else BATCH_CORRECTION_CONFOUNDING_NOT_CHECKED
         )
-        warnings = ("batch correction was declared but no correction was executed",)
-        limitations = (
-            "batch correction execution is not implemented yet; matrix values "
-            "are unchanged",
+        warnings = (
+            "batch correction was requested but no preprocessing stage report was "
+            "provided",
         )
+        limitations = ("batch correction was not applied",)
     no_op_matrix_shape = (
         matrix_shape_after if matrix_shape_after is not None else matrix_shape_before
     )

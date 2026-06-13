@@ -13,6 +13,7 @@ from phospy.science.datasets.preprocessing.batch_correction_metadata import (
     ResolvedBatchCorrectionMetadata,
 )
 from phospy.science.datasets.preprocessing.models import (
+    DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
     DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
@@ -39,6 +40,7 @@ from phospy.science.datasets.preprocessing.policy_models import (
 )
 
 __all__ = [
+    "DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION",
     "DATASET_PREPROCESSING_STAGE_COMPARISONS",
     "DATASET_PREPROCESSING_STAGE_MISSING_DATA",
     "DATASET_PREPROCESSING_STAGE_SITE_MATRIX",

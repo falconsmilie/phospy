@@ -201,24 +201,27 @@ def test_batch_validation_rejects_when_condition_effects_not_preserved() -> None
         )
 
 
-def test_batch_validation_fails_before_preprocessing_pipeline_execution() -> None:
-    preprocessor = DatasetPreprocessor(pipeline=_PipelineShouldNotRun())
-
+def test_batch_validation_fails_during_preprocessing_stage_execution() -> None:
     with pytest.raises(
         PhosPyInputError,
         match="perfectly confounded",
     ):
-        preprocessor.run(
+        DatasetPreprocessor().run(
             phospho=_phospho(),
             site_metadata=_site_metadata(),
             sample_metadata=_confounded_sample_metadata(),
-            plan=PreprocessingPlan(batch_correction_method="linear_residualize_batch"),
+            total=None,
+            plan=PreprocessingPlan(
+                localisation_mode="ignore",
+                batch_correction_method="linear_residualize_batch",
+                stage_order=("batch_correction",),
+            ),
         )
 
 
-class _PipelineShouldNotRun:
-    def run_with_trace(self, state: object) -> object:
-        raise AssertionError("preprocessing pipeline ran before batch validation")
+def test_batch_correction_plan_rejects_requested_method_without_stage() -> None:
+    with pytest.raises(PhosPyInputError, match="stage_order.*batch_correction"):
+        PreprocessingPlan(batch_correction_method="linear_residualize_batch")
 
 
 def _phospho() -> pd.DataFrame:

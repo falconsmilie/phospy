@@ -11,6 +11,7 @@ from typing import Protocol
 import pandas as pd
 
 from phospy.contracts.configs import (
+    DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
     DATASET_BATCH_CORRECTION_METHOD_NONE,
     DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN,
     DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICY_ERROR,
@@ -31,6 +32,12 @@ from phospy.provenance.models import (
     PREPROCESSING_STAGE_DETERMINISM_PURE,
     PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
     TableFingerprint,
+)
+from phospy.science.datasets.preprocessing.batch_correction import (
+    BatchCorrectionReport,
+)
+from phospy.science.datasets.preprocessing.batch_correction_metadata import (
+    ResolvedBatchCorrectionMetadata,
 )
 from phospy.science.datasets.preprocessing.policy_models import (
     ComparisonBuildingPolicy,
@@ -83,6 +90,7 @@ DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION = "site_sequence_resolution
 DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION = "total_protein_correction"
 DATASET_PREPROCESSING_STAGE_SITE_MATRIX = "site_matrix"
 DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM = "intensity_transform"
+DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION = "batch_correction"
 DATASET_PREPROCESSING_STAGE_NORMALISATION = "normalisation"
 DATASET_PREPROCESSING_STAGE_COMPARISONS = "comparisons"
 DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT = (
@@ -102,6 +110,11 @@ PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_MISSING_DATA = (
 )
 PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_INTENSITY_TRANSFORM = (
     "optional log2 transformation runs after non-minprob missing-data handling."
+)
+PREPROCESSING_STAGE_ORDER_RATIONALE_BATCH_CORRECTION = (
+    "batch correction runs after any configured intensity transformation and "
+    "before total-protein correction, site-matrix construction, normalisation, "
+    "and comparison building."
 )
 PREPROCESSING_STAGE_ORDER_RATIONALE_CONFIGURED_STAGE = (
     "stage included because preprocessing configuration enables it."
@@ -385,6 +398,55 @@ class PreprocessingPlan:
                 ),
             ),
         )
+        batch_correction_method = str(self.batch_correction_method).strip()
+        if not batch_correction_method:
+            batch_correction_method = DATASET_BATCH_CORRECTION_METHOD_NONE
+        if batch_correction_method not in {
+            DATASET_BATCH_CORRECTION_METHOD_NONE,
+            DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
+        }:
+            raise PhosPyInputError(
+                "dataset preprocessing plan batch_correction_method "
+                "(internal model) must be one of: none, linear_residualize_batch"
+            )
+        object.__setattr__(
+            self,
+            "batch_correction_method",
+            batch_correction_method,
+        )
+        batch_column = str(self.batch_correction_batch_column).strip()
+        condition_column = str(self.batch_correction_condition_column).strip()
+        if batch_column == "":
+            raise PhosPyInputError(
+                "dataset preprocessing plan batch_correction_batch_column "
+                "(internal model) must be a non-empty string"
+            )
+        if condition_column == "":
+            raise PhosPyInputError(
+                "dataset preprocessing plan batch_correction_condition_column "
+                "(internal model) must be a non-empty string"
+            )
+        object.__setattr__(self, "batch_correction_batch_column", batch_column)
+        object.__setattr__(self, "batch_correction_condition_column", condition_column)
+        if (
+            batch_correction_method != DATASET_BATCH_CORRECTION_METHOD_NONE
+            and self.batch_correction_preserve_condition_effects is not True
+        ):
+            raise PhosPyInputError(
+                "dataset preprocessing plan "
+                "batch_correction_preserve_condition_effects (internal model) "
+                "must be True for linear_residualize_batch"
+            )
+        if (
+            batch_correction_method != DATASET_BATCH_CORRECTION_METHOD_NONE
+            and DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION not in self.stage_order
+        ):
+            raise PhosPyInputError(
+                "dataset preprocessing plan requests batch correction but "
+                "stage_order does not include 'batch_correction'. Build plans "
+                "from DatasetPreprocessingConfig or include the batch_correction "
+                "stage explicitly."
+            )
         object.__setattr__(
             self,
             "stage_order_resolution",
@@ -458,6 +520,7 @@ class PreprocessingPlan:
             config.missing_data.policy,
             field_name="preprocessing_config.missing_data.policy",
         )
+        batch_correction_method = str(config.batch_correction.method).strip()
         total_correction_policy = TotalProteinCorrectionPolicy.parse(
             config.total_protein_correction.policy,
             field_name="preprocessing_config.total_protein_correction.policy",
@@ -493,6 +556,11 @@ class PreprocessingPlan:
                         PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_INTENSITY_TRANSFORM
                     ),
                 )
+        if batch_correction_method != DATASET_BATCH_CORRECTION_METHOD_NONE:
+            _append_stage(
+                DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
+                rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_BATCH_CORRECTION,
+            )
         if total_correction_policy is not TotalProteinCorrectionPolicy.NONE:
             _append_stage(
                 DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
@@ -588,7 +656,7 @@ class PreprocessingPlan:
                 config.ruv_readiness.replicate_group_column
             ),
             ruv_readiness_batch_column=config.ruv_readiness.batch_column,
-            batch_correction_method=config.batch_correction.method,
+            batch_correction_method=batch_correction_method,
             batch_correction_batch_column=config.batch_correction.batch_column,
             batch_correction_condition_column=config.batch_correction.condition_column,
             batch_correction_preserve_condition_effects=(
@@ -618,6 +686,8 @@ class PreprocessingState:
     duplicate_site_resolution: pd.DataFrame | None = None
     metadata_conflicts: pd.DataFrame | None = None
     row_audit: pd.DataFrame | None = None
+    batch_correction_metadata: ResolvedBatchCorrectionMetadata | None = None
+    batch_correction_report: BatchCorrectionReport | None = None
     report_rows: tuple[PreprocessingReportRow, ...] = ()
 
 
@@ -733,6 +803,7 @@ class PreprocessingStage(Protocol):
 
 __all__ = [
     "DATASET_PREPROCESSING_STAGE_COMPARISONS",
+    "DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION",
     "DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM",
     "DATASET_PREPROCESSING_STAGE_LOCALISATION",
     "DATASET_PREPROCESSING_STAGE_MISSING_DATA",
@@ -741,6 +812,7 @@ __all__ = [
     "DATASET_PREPROCESSING_STAGE_SITE_MATRIX",
     "DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION",
     "DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION",
+    "PREPROCESSING_STAGE_ORDER_RATIONALE_BATCH_CORRECTION",
     "PREPROCESSING_STATE_TABLE_KEYS",
     "ComparisonBuildResult",
     "DuplicateSiteResolutionResult",

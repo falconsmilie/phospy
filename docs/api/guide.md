@@ -304,11 +304,10 @@ stat-only computation payload for workflow assembly. The public API result is
 only `DifferentialAnalysisResult`, after the workflow has attached dataset
 identity metadata.
 
-## Batch Correction Preprocessing Intent
+## Batch Correction Preprocessing
 
-Dataset preprocessing exposes an explicit batch-correction intent contract, but
-the dataset builder does not execute batch correction yet. The default remains
-disabled:
+Dataset preprocessing exposes an explicit batch-correction contract. The
+default remains disabled:
 
 ```python
 from phospy.api import DatasetBatchCorrectionConfig, DatasetPreprocessingConfig
@@ -319,8 +318,7 @@ preprocessing = DatasetPreprocessingConfig(
 assert preprocessing.batch_correction.method == "none"
 ```
 
-Users who want to declare future fixed-effect residualisation can opt in by
-name:
+Users who want fixed-effect residualisation can opt in by name:
 
 ```python
 preprocessing = DatasetPreprocessingConfig(
@@ -335,9 +333,11 @@ preprocessing = DatasetPreprocessingConfig(
 
 `linear_residualize_batch` means fixed-effect residualisation of batch terms
 while preserving condition effects by design. It is not ComBat, not RUV, and not
-limma `removeBatchEffect` parity. The config records user intent only: it does
-not validate whether a dataset has suitable batch or condition columns and does
-not perform correction.
+limma `removeBatchEffect` parity. During dataset build, preprocessing resolves
+the configured batch and condition columns from `sample_metadata`, validates
+design adequacy, and applies correction before total-protein correction,
+site-matrix construction, normalisation, and comparison building. If a log2
+intensity transform is configured, correction runs after that transform.
 
 Dataset preprocessing reports can include a typed `batch_correction` sidecar:
 `BatchCorrectionReport` with `BatchCorrectionPolicy` and
@@ -345,11 +345,10 @@ Dataset preprocessing reports can include a typed `batch_correction` sidecar:
 `"applied"`, or `"rejected"`), batch and condition columns, observed batch and
 condition levels when available, matrix shapes before and after the
 batch-correction boundary, the design-preservation policy, confounding-check
-status, warnings, and
-limitations. Until correction execution exists, the builder reports default
-`method="none"` as `"disabled"` and declared correction methods as `"rejected"`;
-the reported batch-correction before/after matrix shapes are equal and matrix
-values are unchanged.
+status, warnings, and limitations. The builder reports default `method="none"`
+as `"disabled"`. Requested correction either returns `"applied"` with the
+corrected phosphosite matrix in the analysis-ready dataset, or fails clearly
+when metadata or design adequacy is invalid.
 
 ## Result Construction Contracts
 

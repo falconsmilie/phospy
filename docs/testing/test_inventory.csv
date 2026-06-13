@@ -1,6 +1,6 @@
 path,test_area,line_count,test_function_count,uses_pytest_mark,uses_parametrization,primary_category,recommended_action,protected_risk_or_contract,reviewer,followup_ticket,notes
 tests/golden/test_differential_fixture_provenance_golden.py,golden,332,3,true,false,,,,,,
-tests/integration/test_dataset_batch_correction_validation.py,integration,118,2,true,false,,,,,,
+tests/integration/test_dataset_batch_correction_validation.py,integration,294,6,true,false,,,,,,
 tests/integration/test_dataset_builder_boundary_honesty_integration.py,integration,496,11,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset builder boundary honesty integration and increase risk of boundary regressions.,codex-audit,,
 tests/integration/test_dataset_builder_integration.py,integration,1987,36,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset builder integration and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/integration/test_dataset_builder_intensity_scale_provenance.py,integration,318,9,true,false,,,,,,
@@ -46,10 +46,10 @@ tests/unit/test_analysis_ready_model_boundary_validator.py,unit,659,31,true,true
 tests/unit/test_api_configs_refactor_contract.py,unit,44,3,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for api configs refactor contract and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_api_documentation_examples.py,unit,368,9,false,false,,,,,,
 tests/unit/test_batch_correction_metadata_resolution.py,unit,217,8,false,false,,,,,,
-tests/unit/test_batch_correction_preprocessing_config.py,unit,105,7,false,false,,,,,,
-tests/unit/test_batch_correction_reports.py,unit,230,7,false,false,,,,,,
+tests/unit/test_batch_correction_preprocessing_config.py,unit,124,7,false,false,,,,,,
+tests/unit/test_batch_correction_reports.py,unit,228,7,false,false,,,,,,
 tests/unit/test_batch_correction_residualize.py,unit,150,7,false,false,,,,,,
-tests/unit/test_batch_correction_validation.py,unit,256,10,false,false,,,,,,
+tests/unit/test_batch_correction_validation.py,unit,259,11,false,false,,,,,,
 tests/unit/test_benchmark_scripts_smoke.py,unit,151,7,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for benchmark scripts smoke and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_boundary_constructor_no_repair.py,unit,33,3,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in boundary constructor no repair; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-AUDIT-004,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_builder_and_kinase_orchestration.py,unit,595,8,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in builder and kinase orchestration; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-ORCH-002,Route to TST-ORCH-002 for boundary-focused orchestration rewrite coverage that removes incidental collaborator-coupled assertions while preserving workflow contracts.
@@ -122,7 +122,7 @@ tests/unit/test_prediction_svm_dependency_guard.py,unit,51,2,false,false,public 
 tests/unit/test_preprocessing_report_schema.py,unit,286,8,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for preprocessing report schema and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_preprocessing_row_audit.py,unit,465,9,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for preprocessing row audit, making artifact and output drift unsafe.",codex-audit,,
 tests/unit/test_preprocessing_stage_provenance_fingerprints.py,unit,245,5,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for preprocessing stage provenance fingerprints, making artifact and output drift unsafe.",codex-audit,,
-tests/unit/test_preprocessing_stage_registry.py,unit,372,14,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for preprocessing stage registry and increase risk of boundary regressions.,codex-audit,,
+tests/unit/test_preprocessing_stage_registry.py,unit,375,14,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for preprocessing stage registry and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_preprocessing_stage_results.py,unit,1205,29,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for preprocessing stage results and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_processing_state_bundle_payload.py,unit,954,25,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for processing state bundle payload, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_processing_state_import_contract.py,unit,26,1,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for processing state import contract and increase risk of boundary regressions.,codex-audit,,

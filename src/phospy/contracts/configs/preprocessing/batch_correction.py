@@ -25,12 +25,14 @@ class DatasetBatchCorrectionConfig:
     """Public batch-correction intent for dataset preprocessing.
 
     - `"none"`: do not request batch correction.
-    - `"linear_residualize_batch"`: request future fixed-effect residualisation
-      of batch terms while preserving condition effects by design.
+    - `"linear_residualize_batch"`: run fixed-effect residualisation of batch
+      terms while preserving condition effects by design during dataset
+      preprocessing.
 
     `"linear_residualize_batch"` is not ComBat, not RUV, and not limma
-    `removeBatchEffect` parity. This config only records user intent; it does
-    not validate dataset adequacy, execute correction, or create reports.
+    `removeBatchEffect` parity. Dataset-build execution resolves sample
+    metadata, validates design adequacy, applies correction, and records a
+    typed preprocessing report.
     """
 
     method: DatasetBatchCorrectionMethod = DATASET_BATCH_CORRECTION_METHOD_NONE

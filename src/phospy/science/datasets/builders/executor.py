@@ -108,6 +108,7 @@ class DatasetBuildExecutor:
             preprocessing_plan=request.preprocessing_plan,
             sample_metadata=preprocessed.sample_metadata,
             batch_correction_metadata=preprocessed.batch_correction_metadata,
+            batch_correction_report=preprocessed.batch_correction_report,
             matrix_shape_before=(
                 int(request.phospho.shape[0]),
                 int(request.phospho.shape[1]),
