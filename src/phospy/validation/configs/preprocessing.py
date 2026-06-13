@@ -124,6 +124,35 @@ def validate_batch_correction_config(
         )
 
 
+def validate_protein_aware_preparation_config(
+    *,
+    policy: object,
+    protein_mapping_policy: object,
+    supported_policies: Collection[str],
+    supported_mapping_policies: Collection[str],
+) -> None:
+    """Validate public protein-aware preparation intent config fields."""
+
+    require_supported_literal(
+        policy,
+        field_name=(
+            "dataset build request preprocessing_config.protein_aware_preparation."
+            "policy"
+        ),
+        supported_values=supported_policies,
+        error_type=PhosPyInputError,
+    )
+    require_supported_literal(
+        protein_mapping_policy,
+        field_name=(
+            "dataset build request preprocessing_config.protein_aware_preparation."
+            "protein_mapping_policy"
+        ),
+        supported_values=supported_mapping_policies,
+        error_type=PhosPyInputError,
+    )
+
+
 def validate_localisation_config(
     *,
     mode: object,

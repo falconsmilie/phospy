@@ -8,6 +8,7 @@ from typing import Literal
 import pandas as pd
 
 from phospy.validation.configs.preprocessing import (
+    validate_protein_aware_preparation_config,
     validate_total_protein_correction_config,
     validate_total_protein_correction_identity_config,
 )
@@ -22,6 +23,34 @@ DATASET_TOTAL_PROTEIN_CORRECTION_POLICIES = frozenset(
     {
         DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
         DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL,
+    }
+)
+DATASET_PROTEIN_AWARE_PREPARATION_POLICY_DISABLED = "disabled"
+DATASET_PROTEIN_AWARE_PREPARATION_POLICY_PREPARE_MODEL_INPUTS = "prepare_model_inputs"
+DatasetProteinAwarePreparationPolicy = Literal[
+    "disabled",
+    "prepare_model_inputs",
+]
+DATASET_PROTEIN_AWARE_PREPARATION_POLICIES = frozenset(
+    {
+        DATASET_PROTEIN_AWARE_PREPARATION_POLICY_DISABLED,
+        DATASET_PROTEIN_AWARE_PREPARATION_POLICY_PREPARE_MODEL_INPUTS,
+    }
+)
+DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_REQUIRE_UNAMBIGUOUS = (
+    "require_unambiguous"
+)
+DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_ALLOW_MISSING_WITH_REPORT = (
+    "allow_missing_with_report"
+)
+DatasetProteinAwarePreparationMappingPolicy = Literal[
+    "require_unambiguous",
+    "allow_missing_with_report",
+]
+DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICIES = frozenset(
+    {
+        DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_REQUIRE_UNAMBIGUOUS,
+        DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_ALLOW_MISSING_WITH_REPORT,
     }
 )
 DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT = "direct"
@@ -159,7 +188,42 @@ class DatasetTotalProteinCorrectionConfig:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class DatasetProteinAwarePreparationConfig:
+    """Config-only intent for future protein-aware model-input preparation.
+
+    This contract is separate from `DatasetTotalProteinCorrectionConfig`: it
+    does not subtract total protein, align matrices, decide site eligibility, or
+    run full joint PTM/protein modelling. `policy="prepare_model_inputs"` only
+    declares that a future preparation lane should build aligned
+    phosphosite/protein inputs.
+    """
+
+    policy: DatasetProteinAwarePreparationPolicy = (
+        DATASET_PROTEIN_AWARE_PREPARATION_POLICY_DISABLED
+    )
+    protein_mapping_policy: DatasetProteinAwarePreparationMappingPolicy = (
+        DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_REQUIRE_UNAMBIGUOUS
+    )
+
+    def __post_init__(self) -> None:
+        validate_protein_aware_preparation_config(
+            policy=self.policy,
+            protein_mapping_policy=self.protein_mapping_policy,
+            supported_policies=DATASET_PROTEIN_AWARE_PREPARATION_POLICIES,
+            supported_mapping_policies=(
+                DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICIES
+            ),
+        )
+
+
 __all__ = [
+    "DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICIES",
+    "DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_ALLOW_MISSING_WITH_REPORT",
+    "DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_REQUIRE_UNAMBIGUOUS",
+    "DATASET_PROTEIN_AWARE_PREPARATION_POLICIES",
+    "DATASET_PROTEIN_AWARE_PREPARATION_POLICY_DISABLED",
+    "DATASET_PROTEIN_AWARE_PREPARATION_POLICY_PREPARE_MODEL_INPUTS",
     "DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICIES",
     "DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICY_ERROR",
     "DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICIES",
@@ -174,6 +238,9 @@ __all__ = [
     "DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICIES",
     "DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED",
     "DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ERROR",
+    "DatasetProteinAwarePreparationConfig",
+    "DatasetProteinAwarePreparationMappingPolicy",
+    "DatasetProteinAwarePreparationPolicy",
     "DatasetTotalProteinCorrectionConfig",
     "DatasetTotalProteinCorrectionDuplicatePolicy",
     "DatasetTotalProteinCorrectionIdentityConfig",

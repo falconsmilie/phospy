@@ -304,6 +304,50 @@ stat-only computation payload for workflow assembly. The public API result is
 only `DifferentialAnalysisResult`, after the workflow has attached dataset
 identity metadata.
 
+## Total Protein And Protein-Aware Preparation
+
+Total-protein correction and protein-aware preparation are separate
+preprocessing contracts.
+
+`DatasetTotalProteinCorrectionConfig(policy="subtract_log_total")` subtracts
+matched log-scale total-protein abundance from log-scale phosphosite abundance:
+`log2_phospho - log2_total`. This is the existing dataset-build correction lane.
+
+`DatasetProteinAwarePreparationConfig(policy="prepare_model_inputs")` declares
+intent for a future lane that prepares aligned phosphosite/protein inputs for
+protein-aware differential modelling. The default is disabled, and declaring the
+config does not align matrices, decide site eligibility, or run a model during
+dataset build.
+
+Full joint PTM/protein modelling is not a dataset-preprocessing policy. It is
+not enabled by total-protein subtraction and is not executed by protein-aware
+preparation config.
+
+```python
+from phospy.api import (
+    DatasetPreprocessingConfig,
+    DatasetProteinAwarePreparationConfig,
+    DatasetTotalProteinCorrectionConfig,
+)
+
+preprocessing = DatasetPreprocessingConfig()
+assert preprocessing.total_protein_correction.policy == "none"
+assert preprocessing.protein_aware_preparation.policy == "disabled"
+
+subtraction = DatasetPreprocessingConfig(
+    total_protein_correction=DatasetTotalProteinCorrectionConfig(
+        policy="subtract_log_total"
+    )
+)
+
+preparation_intent = DatasetPreprocessingConfig(
+    protein_aware_preparation=DatasetProteinAwarePreparationConfig(
+        policy="prepare_model_inputs",
+        protein_mapping_policy="require_unambiguous",
+    )
+)
+```
+
 ## Batch Correction Preprocessing
 
 Dataset preprocessing exposes an explicit batch-correction contract. The

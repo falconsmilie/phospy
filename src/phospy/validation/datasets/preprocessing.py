@@ -14,6 +14,7 @@ from phospy.contracts.configs import (
     DatasetMissingDataConfig,
     DatasetNormalisationConfig,
     DatasetPreprocessingConfig,
+    DatasetProteinAwarePreparationConfig,
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
 )
@@ -35,6 +36,7 @@ class DatasetPreprocessingConfigValidator:
         self._validate_comparisons(config.comparisons)
         self._validate_localisation(config.localisation)
         self._validate_batch_correction(config.batch_correction)
+        self._validate_protein_aware_preparation(config.protein_aware_preparation)
         self._validate_total_protein_correction_scale_contract(config)
         self._validate_minprob_scale_contract(config)
         return config
@@ -99,6 +101,17 @@ class DatasetPreprocessingConfigValidator:
             config,
             field_name="dataset build request preprocessing_config.batch_correction",
             expected_type=DatasetBatchCorrectionConfig,
+        )
+
+    def _validate_protein_aware_preparation(
+        self, config: DatasetProteinAwarePreparationConfig
+    ) -> None:
+        validate_preprocessing_section_type(
+            config,
+            field_name=(
+                "dataset build request preprocessing_config.protein_aware_preparation"
+            ),
+            expected_type=DatasetProteinAwarePreparationConfig,
         )
 
     def _validate_total_protein_correction_scale_contract(

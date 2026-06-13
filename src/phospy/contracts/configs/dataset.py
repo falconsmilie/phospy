@@ -23,6 +23,7 @@ from phospy.contracts.configs.preprocessing import (
     DatasetLocalisationConfig,
     DatasetMissingDataConfig,
     DatasetNormalisationConfig,
+    DatasetProteinAwarePreparationConfig,
     DatasetRuvReadinessConfig,
     DatasetSiteMatrixConfig,
     DatasetSiteSequenceResolutionConfig,
@@ -44,6 +45,9 @@ class DatasetPreprocessingConfig:
     - `normalisation`: sample-wise normalisation policy.
     - `missing_data`: missing-value handling policy.
     - `total_protein_correction`: total/protein correction policy.
+    - `protein_aware_preparation`: config-only intent for future aligned
+      phosphosite/protein model input preparation. It does not run preparation
+      or modelling during dataset build.
     - `site_matrix`: site-matrix construction policy.
     - `site_sequence_resolution`: optional local FASTA-backed site-sequence
       resolution policy.
@@ -84,6 +88,9 @@ class DatasetPreprocessingConfig:
     )
     ruv_readiness: DatasetRuvReadinessConfig = field(
         default_factory=DatasetRuvReadinessConfig
+    )
+    protein_aware_preparation: DatasetProteinAwarePreparationConfig = field(
+        default_factory=DatasetProteinAwarePreparationConfig
     )
 
     def __post_init__(self) -> None:
@@ -142,6 +149,13 @@ class DatasetPreprocessingConfig:
             self.ruv_readiness,
             field_name="dataset build request preprocessing_config.ruv_readiness",
             expected_type=DatasetRuvReadinessConfig,
+        )
+        validate_preprocessing_section_type(
+            self.protein_aware_preparation,
+            field_name=(
+                "dataset build request preprocessing_config.protein_aware_preparation"
+            ),
+            expected_type=DatasetProteinAwarePreparationConfig,
         )
 
     @classmethod
