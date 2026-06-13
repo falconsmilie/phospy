@@ -303,6 +303,11 @@ class EnrichmentWorkflowResult:
     unmatched_identifiers: tuple[str, ...] = ()
     warnings: tuple[str, ...] = ()
     diagnostics: Mapping[str, object] = field(default_factory=dict)
+    method_metadata: Mapping[str, object] = field(default_factory=dict)
+    background_summary: Mapping[str, object] = field(default_factory=dict)
+    set_collection_summary: Mapping[str, object] = field(default_factory=dict)
+    provenance: RunProvenance | None = None
+    _result_table: pd.DataFrame = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         identifier_kind = _require_identifier_kind(
@@ -345,12 +350,98 @@ class EnrichmentWorkflowResult:
             raise WorkflowValidationError(
                 "enrichment_result.diagnostics must be a mapping"
             )
+        if not isinstance(self.method_metadata, Mapping):
+            raise WorkflowValidationError(
+                "enrichment_result.method_metadata must be a mapping"
+            )
+        if not isinstance(self.background_summary, Mapping):
+            raise WorkflowValidationError(
+                "enrichment_result.background_summary must be a mapping"
+            )
+        if not isinstance(self.set_collection_summary, Mapping):
+            raise WorkflowValidationError(
+                "enrichment_result.set_collection_summary must be a mapping"
+            )
+        if self.provenance is not None and not isinstance(
+            self.provenance, RunProvenance
+        ):
+            raise WorkflowValidationError(
+                "enrichment_result.provenance must be RunProvenance or None"
+            )
+        result_table = own_dataframe(
+            _enrichment_records_to_dataframe(records),
+            field_name="enrichment_result.table",
+            error_type=WorkflowValidationError,
+            assume_owned=True,
+        )
         object.__setattr__(self, "identifier_kind", identifier_kind)
         object.__setattr__(self, "set_collection", set_collection)
         object.__setattr__(self, "records", records)
         object.__setattr__(self, "unmatched_identifiers", unmatched_identifiers)
         object.__setattr__(self, "warnings", warnings)
         object.__setattr__(self, "diagnostics", dict(self.diagnostics))
+        object.__setattr__(self, "method_metadata", dict(self.method_metadata))
+        object.__setattr__(self, "background_summary", dict(self.background_summary))
+        object.__setattr__(
+            self,
+            "set_collection_summary",
+            dict(self.set_collection_summary),
+        )
+        object.__setattr__(self, "_result_table", result_table)
+
+    @property
+    def table(self) -> pd.DataFrame:
+        """Return a defensive snapshot of the enrichment result table."""
+
+        return export_dataframe(self._result_table)
+
+    @property
+    def result_table(self) -> pd.DataFrame:
+        """Return a defensive snapshot of the enrichment result table."""
+
+        return export_dataframe(self._result_table)
+
+    def to_dataframe(self) -> pd.DataFrame:
+        """Return a defensive snapshot of the enrichment result table."""
+
+        return export_dataframe(self._result_table)
+
+
+def _enrichment_records_to_dataframe(
+    records: tuple[EnrichmentResultRecord, ...],
+) -> pd.DataFrame:
+    columns = [
+        "term_id",
+        "term_name",
+        "collection_kind",
+        "identifier_kind",
+        "input_overlap_count",
+        "background_overlap_count",
+        "set_size",
+        "overlap_identifiers",
+        "p_value",
+        "adjusted_p_value",
+        "correction_method",
+        "enrichment_ratio",
+    ]
+    rows = [
+        {
+            "term_id": record.term_id,
+            "term_name": record.term_name,
+            "collection_kind": record.collection_kind,
+            "identifier_kind": record.identifier_kind,
+            "input_overlap_count": record.input_overlap_count,
+            "background_overlap_count": record.background_overlap_count,
+            "set_size": record.set_size,
+            "overlap_identifiers": record.overlap_identifiers,
+            "p_value": record.p_value,
+            "adjusted_p_value": record.adjusted_p_value,
+            "correction_method": record.correction_method,
+            "enrichment_ratio": record.enrichment_ratio,
+        }
+        for record in records
+    ]
+    return pd.DataFrame(rows, columns=columns)
 
 
 @dataclass(frozen=True, slots=True)

@@ -12,6 +12,7 @@ import phospy.api as public_api
 import phospy.api.requests as request_models
 import phospy.api.results as result_models
 import phospy.api.workflows as workflow_models
+import phospy.workflows as native_workflows
 from phospy.api import (
     ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
     ENRICHMENT_IDENTIFIER_KIND_SITE_KEY,
@@ -220,13 +221,15 @@ def test_enrichment_public_contract_remains_typed_and_narrow() -> None:
     assert "analysis_level" not in request_field_names
 
 
-def test_enrichment_public_imports_are_api_only_and_do_not_add_executor() -> None:
+def test_enrichment_public_imports_include_native_workflow() -> None:
     assert "EnrichmentWorkflowRequest" in request_models.__all__
     assert "EnrichmentWorkflowResult" in result_models.__all__
     assert "EnrichmentConfig" in public_api.__all__
     assert "EnrichmentWorkflowRequest" in public_api.__all__
     assert "EnrichmentWorkflowResult" in public_api.__all__
+    assert "EnrichmentWorkflow" not in public_api.__all__
     assert "EnrichmentWorkflowRequest" not in phospy.__all__
     assert "EnrichmentWorkflowResult" not in phospy.__all__
+    assert "EnrichmentWorkflow" not in phospy.__all__
     assert "EnrichmentWorkflow" not in workflow_models.__all__
-    assert not hasattr(public_api, "EnrichmentWorkflow")
+    assert "EnrichmentWorkflow" in native_workflows.__all__

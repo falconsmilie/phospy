@@ -7,6 +7,7 @@ import pytest
 
 import phospy.workflows as workflows_package
 import phospy.workflows.differential as differential_package
+import phospy.workflows.enrichment as enrichment_package
 import phospy.workflows.kinase as kinase_package
 import phospy.workflows.signalome as signalome_package
 from phospy.api.workflows import DifferentialAnalysisWorkflow as ApiDifferentialWorkflow
@@ -39,6 +40,15 @@ def test_supported_public_differential_workflow_imports() -> None:
     assert PackageDifferentialWorkflow is ApiDifferentialWorkflow
 
 
+def test_supported_public_enrichment_workflow_imports() -> None:
+    from phospy.workflows import EnrichmentWorkflow
+    from phospy.workflows.enrichment import (
+        EnrichmentWorkflow as PackageEnrichmentWorkflow,
+    )
+
+    assert EnrichmentWorkflow is PackageEnrichmentWorkflow
+
+
 def test_supported_public_signalome_workflow_imports() -> None:
     from phospy.workflows import SignalomeWorkflow
     from phospy.workflows.signalome import SignalomeWorkflow as PackageSignalomeWorkflow
@@ -56,10 +66,12 @@ def test_removed_workflow_compatibility_imports_fail(import_path: str) -> None:
 def test_workflow_package_exports_only_intended_public_symbols() -> None:
     assert set(workflows_package.__all__) == {
         "DifferentialAnalysisWorkflow",
+        "EnrichmentWorkflow",
         "KinaseWorkflow",
         "SignalomeWorkflow",
     }
     assert set(differential_package.__all__) == {"DifferentialAnalysisWorkflow"}
+    assert set(enrichment_package.__all__) == {"EnrichmentWorkflow"}
     assert set(kinase_package.__all__) == {"KinaseWorkflow"}
     assert set(signalome_package.__all__) == {"SignalomeWorkflow"}
 

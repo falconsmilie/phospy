@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Literal, cast
@@ -322,6 +323,7 @@ class EnrichmentResultRecord:
     p_value: float | None = None
     adjusted_p_value: float | None = None
     correction_method: MultipleTestingCorrection | None = None
+    enrichment_ratio: float | None = None
 
     def __post_init__(self) -> None:
         term_id = _require_non_empty_string(
@@ -414,6 +416,14 @@ class EnrichmentResultRecord:
             _normalise_optional_multiple_testing_correction(
                 self.correction_method,
                 field_name="enrichment_result_record.correction_method",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "enrichment_ratio",
+            _normalise_optional_non_negative_float(
+                self.enrichment_ratio,
+                field_name="enrichment_result_record.enrichment_ratio",
             ),
         )
 
@@ -739,6 +749,21 @@ def _normalise_optional_unit_interval(
     normalised = float(value)
     if normalised < 0.0 or normalised > 1.0:
         raise WorkflowValidationError(f"{field_name} must be within [0.0, 1.0]")
+    return normalised
+
+
+def _normalise_optional_non_negative_float(
+    value: object | None,
+    *,
+    field_name: str,
+) -> float | None:
+    if value is None:
+        return None
+    if not isinstance(value, int | float) or isinstance(value, bool):
+        raise WorkflowValidationError(f"{field_name} must be numeric or None")
+    normalised = float(value)
+    if not math.isfinite(normalised) or normalised < 0.0:
+        raise WorkflowValidationError(f"{field_name} must be finite and >= 0.0")
     return normalised
 
 

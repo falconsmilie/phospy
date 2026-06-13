@@ -88,6 +88,7 @@ tests/unit/test_duplicate_site_resolution_reports.py,unit,685,16,true,true,scien
 tests/unit/test_enrichment_collections.py,unit,96,5,false,false,,,,,,
 tests/unit/test_enrichment_multiple_testing_correction.py,unit,158,9,false,false,,,,,,
 tests/unit/test_enrichment_ora.py,unit,185,7,false,false,,,,,,
+tests/unit/test_enrichment_workflow_boundaries.py,unit,9,1,false,false,,,,,,
 tests/unit/test_enrichment_workflow_validation.py,unit,191,10,false,false,,,,,,
 tests/unit/test_error_taxonomy_boundaries.py,unit,190,5,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for error taxonomy boundaries and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_evidence_multi_site_handling.py,unit,176,9,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for multi-site evidence handling, increasing risk of incorrect peptide-to-site interpretation.",codex-audit,,New test file classified after audit-doc regeneration.
@@ -141,7 +142,7 @@ tests/unit/test_provenance_regressions.py,unit,629,13,true,false,provenance/gold
 tests/unit/test_public_config_self_validation.py,unit,868,30,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public config self validation and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_public_contract_boundary_honesty.py,unit,320,7,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract boundary honesty and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_contract_dataset.py,unit,408,16,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract dataset and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
-tests/unit/test_public_contract_enrichment.py,unit,232,11,false,false,,,,,,
+tests/unit/test_public_contract_enrichment.py,unit,235,11,false,false,,,,,,
 tests/unit/test_public_contract_errors.py,unit,740,24,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract errors and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_contract_import_routes.py,unit,107,7,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract import routes and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_public_contract_results.py,unit,365,8,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract results and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
@@ -194,9 +195,10 @@ tests/unit/test_validation_ownership_contracts.py,unit,72,2,false,false,,,,,,[au
 tests/unit/test_validator_boundaries.py,unit,1791,64,true,true,duplicate validation matrix,consolidate,Loss of this file would reduce repeated primitive validation coverage for validator boundaries; protections must remain through a consolidated matrix before removal.,codex-audit,TST-VAL-002,Umbrella validator-boundary consolidation ticket that coordinates existing mapped follow-ups in consolidation_coverage_map.md (primitive int/range/enum/dataframe plus signalome/reference domain matrices); auto-orchestration private-member hit is non-routing noise. | [auto-orchestration] 15 hit(s); indicators: private_member_access
 tests/unit/test_workflow_boundary_error.py,unit,334,9,false,false,regression for past bug,keep,Loss of this file would remove regression protection for previously fragile behavior in workflow boundary error and increase risk of silent reintroduction.,codex-audit,,
 tests/unit/test_workflow_identity_contracts.py,unit,533,14,true,true,,,,,,[auto-orchestration] 12 hit(s); indicators: private_member_access
-tests/unit/test_workflow_public_import_contract.py,unit,77,6,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for workflow public import contract and increase risk of boundary regressions.,codex-audit,,
+tests/unit/test_workflow_public_import_contract.py,unit,89,7,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for workflow public import contract and increase risk of boundary regressions.,codex-audit,,
 tests/validation/test_shared_identity_contracts.py,validation,212,5,false,false,,,,,,
 tests/validation/test_workflow_identity_validator_contracts.py,validation,126,3,true,true,,,,,,
 tests/workflows/test_differential_interpreter_fixed_effects.py,workflows,522,8,false,false,,,,,,
+tests/workflows/test_enrichment_workflow.py,workflows,265,8,false,false,,,,,,
 tests/workflows/test_identity_coherence.py,workflows,144,4,false,false,,,,,,
 tests/workflows/test_kinase_activity_ssgsea.py,workflows,115,1,false,false,,,,,,
