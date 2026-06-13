@@ -7,6 +7,7 @@ def test_public_config_imports_remain_stable() -> None:
         DatasetIntensityTransformConfig,
         DatasetPreprocessingConfig,
         DatasetTotalProteinCorrectionConfig,
+        EnrichmentConfig,
         KinaseActivityConfig,
         KinasePredictionConfig,
         SignalomeConfig,
@@ -16,6 +17,7 @@ def test_public_config_imports_remain_stable() -> None:
     assert DatasetPreprocessingConfig is not None
     assert DatasetIntensityTransformConfig is not None
     assert DatasetTotalProteinCorrectionConfig is not None
+    assert EnrichmentConfig is not None
     assert KinaseActivityConfig is not None
     assert KinasePredictionConfig is not None
     assert SignalomeConfig is not None
@@ -30,6 +32,7 @@ def test_config_all_exports_public_api() -> None:
     assert "SignalomeConfig" in configs.__all__
     assert "DatasetTotalProteinCorrectionConfig" in configs.__all__
     assert "DatasetBatchCorrectionConfig" in configs.__all__
+    assert "EnrichmentConfig" in configs.__all__
 
 
 def test_config_refactor_does_not_create_import_cycles() -> None:

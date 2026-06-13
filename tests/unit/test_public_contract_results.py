@@ -57,6 +57,8 @@ EXPECTED_RESULT_EXPORTS = {
     "DifferentialStatisticalTestingProvenance",
     "DifferentialTechnicalReplicateGroup",
     "DifferentialUnsupportedDesignPolicyProvenance",
+    "EnrichmentResultRecord",
+    "EnrichmentWorkflowResult",
     "KinaseActivityResult",
     "KinasePredictionResult",
     "KinaseScoringResult",

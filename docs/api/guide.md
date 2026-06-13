@@ -102,6 +102,37 @@ dataclasses can reject invalid local policy values at construction time because
 those invariants belong to the config itself. Request dataclasses should not be
 treated as mini-workflow validators.
 
+## Enrichment Contract Boundary
+
+`EnrichmentWorkflowRequest`, `EnrichmentConfig`, and
+`EnrichmentWorkflowResult` provide a typed foundation for future native
+enrichment support. They are contracts only; PhosPy does not yet expose an
+`EnrichmentWorkflow` executor and does not calculate enrichment statistics from
+these objects.
+
+Enrichment requests must provide exactly one identifier source:
+`input_table` or `selected_identifiers`. They also require an
+`identifier_column`, an explicit `identifier_kind`, a `GeneSetCollection` or
+`PtmSetCollection`, an explicit non-empty `background_universe`, and an
+`EnrichmentConfig`. Supported identifier kinds are `gene_symbol`, `protein_id`,
+`site_key`, `display_id`, and `phosphosite`. Gene-set collections are separate
+from PTM-set collections so gene-level and phosphosite-level semantics are not
+collapsed into a generic string flag.
+
+The initial config supports `method="over_representation"` and
+`multiple_testing_correction` values `"none"` or `"benjamini_hochberg"`.
+Background universes are never inferred by these contracts, and no online
+resources are loaded.
+
+```python
+from phospy.api import (
+    EnrichmentConfig,
+    EnrichmentWorkflowRequest,
+    GeneSetCollection,
+    PtmSetCollection,
+)
+```
+
 ## Differential Design Declarations
 
 `ExperimentalDesign` can explicitly declare fixed-effect covariates

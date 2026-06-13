@@ -4,11 +4,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 import pandas as pd
 
+from phospy.contracts.configs import EnrichmentConfig
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.validation import WorkflowValidationError
 from phospy.frames.ownership import (
@@ -52,6 +54,14 @@ from phospy.science.differential.models import (
     DifferentialStatisticalTestingProvenance,
     DifferentialTechnicalReplicateGroup,
     DifferentialUnsupportedDesignPolicyProvenance,
+)
+from phospy.science.enrichment.models import (
+    EnrichmentIdentifierKind,
+    EnrichmentResultRecord,
+    EnrichmentSetCollection,
+    _normalise_identifier_sequence,
+    _require_collection_matches_identifier_kind,
+    _require_identifier_kind,
 )
 from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.science.references.models import ReferenceBundle
@@ -275,6 +285,72 @@ class PhosphositeImportResult:
             "phosphosite import result site_resolution_mode must be one of: "
             "'site_level_resolved', 'peptide_evidence'"
         )
+
+
+@dataclass(frozen=True, slots=True)
+class EnrichmentWorkflowResult:
+    """Top-level native enrichment result container.
+
+    The result contract stores an explicit enrichment result shape. Direct
+    construction validates only local container consistency; no enrichment
+    statistics are calculated here.
+    """
+
+    identifier_kind: EnrichmentIdentifierKind
+    set_collection: EnrichmentSetCollection
+    config: EnrichmentConfig
+    records: tuple[EnrichmentResultRecord, ...] = ()
+    unmatched_identifiers: tuple[str, ...] = ()
+    warnings: tuple[str, ...] = ()
+    diagnostics: Mapping[str, object] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        identifier_kind = _require_identifier_kind(
+            self.identifier_kind,
+            field_name="enrichment_result.identifier_kind",
+        )
+        set_collection = _require_collection_matches_identifier_kind(
+            self.set_collection,
+            identifier_kind=identifier_kind,
+            field_name="enrichment_result.set_collection",
+        )
+        if not isinstance(self.config, EnrichmentConfig):
+            raise WorkflowValidationError(
+                "enrichment_result.config must be EnrichmentConfig"
+            )
+        records = tuple(self.records)
+        for record in records:
+            if not isinstance(record, EnrichmentResultRecord):
+                raise WorkflowValidationError(
+                    "enrichment_result.records must contain "
+                    "EnrichmentResultRecord values"
+                )
+            if record.identifier_kind != identifier_kind:
+                raise WorkflowValidationError(
+                    "enrichment_result.records identifier_kind values must match "
+                    "enrichment_result.identifier_kind"
+                )
+            if record.collection_kind != set_collection.collection_kind:
+                raise WorkflowValidationError(
+                    "enrichment_result.records collection_kind values must match "
+                    "enrichment_result.set_collection"
+                )
+        unmatched_identifiers = _normalise_identifier_sequence(
+            self.unmatched_identifiers,
+            field_name="enrichment_result.unmatched_identifiers",
+            allow_empty=True,
+        )
+        warnings = tuple(_validate_enrichment_warning(value) for value in self.warnings)
+        if not isinstance(self.diagnostics, Mapping):
+            raise WorkflowValidationError(
+                "enrichment_result.diagnostics must be a mapping"
+            )
+        object.__setattr__(self, "identifier_kind", identifier_kind)
+        object.__setattr__(self, "set_collection", set_collection)
+        object.__setattr__(self, "records", records)
+        object.__setattr__(self, "unmatched_identifiers", unmatched_identifiers)
+        object.__setattr__(self, "warnings", warnings)
+        object.__setattr__(self, "diagnostics", dict(self.diagnostics))
 
 
 @dataclass(frozen=True, slots=True)
@@ -802,6 +878,14 @@ def _validate_source_name(value: object) -> str:
     return value.strip()
 
 
+def _validate_enrichment_warning(value: object) -> str:
+    if not isinstance(value, str) or value.strip() == "":
+        raise WorkflowValidationError(
+            "enrichment_result.warnings must contain non-empty strings"
+        )
+    return value.strip()
+
+
 __all__ = [
     "ActivityMethodDiagnostics",
     "BatchCorrectionDiagnostics",
@@ -818,6 +902,8 @@ __all__ = [
     "DifferentialStatisticalTestingProvenance",
     "DifferentialTechnicalReplicateGroup",
     "DifferentialUnsupportedDesignPolicyProvenance",
+    "EnrichmentResultRecord",
+    "EnrichmentWorkflowResult",
     "KinaseActivityResult",
     "KinasePredictionResult",
     "KinaseScoringResult",
