@@ -19,6 +19,9 @@ from phospy.frames.ownership import (
     own_optional_dataframe,
 )
 from phospy.provenance.models import RunProvenance
+from phospy.science.datasets.preprocessing.batch_correction import (
+    BatchCorrectionReport,
+)
 from phospy.science.datasets.preprocessing.report_schema import (
     COMPARISON_GROUP_STATS_COLUMNS,
     COMPARISON_PAIR_STATS_COLUMNS,
@@ -116,6 +119,7 @@ class DatasetPreprocessingReport:
         init=False,
         repr=False,
     )
+    _batch_correction: BatchCorrectionReport | None = field(init=False, repr=False)
 
     def __init__(
         self,
@@ -127,6 +131,7 @@ class DatasetPreprocessingReport:
         comparison_group_stats: pd.DataFrame | None = None,
         comparison_pair_stats: pd.DataFrame | None = None,
         site_sequence_resolution: SiteSequenceResolutionReport | None = None,
+        batch_correction: BatchCorrectionReport | None = None,
         _assume_owned: bool = False,
     ) -> None:
         row_counts = own_dataframe(
@@ -250,6 +255,7 @@ class DatasetPreprocessingReport:
         object.__setattr__(self, "_comparison_group_stats", comparison_group_stats)
         object.__setattr__(self, "_comparison_pair_stats", comparison_pair_stats)
         object.__setattr__(self, "_site_sequence_resolution", site_sequence_resolution)
+        object.__setattr__(self, "_batch_correction", batch_correction)
 
     @property
     def row_counts(self) -> pd.DataFrame:
@@ -282,6 +288,10 @@ class DatasetPreprocessingReport:
     @property
     def site_sequence_resolution(self) -> SiteSequenceResolutionReport | None:
         return self._site_sequence_resolution
+
+    @property
+    def batch_correction(self) -> BatchCorrectionReport | None:
+        return self._batch_correction
 
     def _borrow_row_counts_frame(self) -> pd.DataFrame:
         """Package-private borrowed row-count table for internal workflows."""
@@ -358,6 +368,11 @@ class DatasetPreprocessingReport:
 
         return self._site_sequence_resolution
 
+    def batch_correction_summary(self) -> BatchCorrectionReport | None:
+        """Return structured batch-correction provenance when available."""
+
+        return self._batch_correction
+
     def site_attrition_summary(self) -> PreprocessingSiteAttritionSummary:
         """Return compact preprocessing-owned site attrition counters."""
 
@@ -402,6 +417,7 @@ class DatasetPreprocessingReport:
         comparison_group_stats_rows: Sequence[ComparisonGroupStatsRow] = (),
         comparison_pair_stats_rows: Sequence[ComparisonPairStatsRow] = (),
         site_sequence_resolution: SiteSequenceResolutionReport | None = None,
+        batch_correction: BatchCorrectionReport | None = None,
     ) -> DatasetPreprocessingReport:
         return cls._from_owned(
             row_counts=dataframe_from_row_count_rows(row_count_rows),
@@ -420,6 +436,7 @@ class DatasetPreprocessingReport:
                 comparison_pair_stats_rows
             ),
             site_sequence_resolution=site_sequence_resolution,
+            batch_correction=batch_correction,
         )
 
     @classmethod
@@ -434,6 +451,7 @@ class DatasetPreprocessingReport:
         comparison_group_stats: pd.DataFrame | None = None,
         comparison_pair_stats: pd.DataFrame | None = None,
         site_sequence_resolution: SiteSequenceResolutionReport | None = None,
+        batch_correction: BatchCorrectionReport | None = None,
     ) -> DatasetPreprocessingReport:
         return cls(
             row_counts=row_counts,
@@ -444,6 +462,7 @@ class DatasetPreprocessingReport:
             comparison_group_stats=comparison_group_stats,
             comparison_pair_stats=comparison_pair_stats,
             site_sequence_resolution=site_sequence_resolution,
+            batch_correction=batch_correction,
             _assume_owned=True,
         )
 

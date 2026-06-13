@@ -79,6 +79,9 @@ from phospy.api.requests import (
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import (
+    BatchCorrectionDiagnostics,
+    BatchCorrectionPolicy,
+    BatchCorrectionReport,
     DifferentialAnalysisResult,
     DifferentialContrastDefinition,
     DifferentialDesignMatrixSummary,
@@ -151,6 +154,9 @@ __all__ = [
     "AnalysisReadyDatasetBuilder",
     "AnalysisReadyPhosphoDataset",
     "ReferenceBundleBuilder",
+    "BatchCorrectionDiagnostics",
+    "BatchCorrectionPolicy",
+    "BatchCorrectionReport",
     "ComparisonState",
     "DatasetPreprocessingReport",
     "DatasetProcessingState",

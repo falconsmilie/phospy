@@ -336,8 +336,20 @@ preprocessing = DatasetPreprocessingConfig(
 `linear_residualize_batch` means fixed-effect residualisation of batch terms
 while preserving condition effects by design. It is not ComBat, not RUV, and not
 limma `removeBatchEffect` parity. The config records user intent only: it does
-not validate whether a dataset has suitable batch or condition columns, does not
-perform correction, and does not create a preprocessing report.
+not validate whether a dataset has suitable batch or condition columns and does
+not perform correction.
+
+Dataset preprocessing reports can include a typed `batch_correction` sidecar:
+`BatchCorrectionReport` with `BatchCorrectionPolicy` and
+`BatchCorrectionDiagnostics`. The report records method, status (`"disabled"`,
+`"applied"`, or `"rejected"`), batch and condition columns, observed batch and
+condition levels when available, matrix shapes before and after the
+batch-correction boundary, the design-preservation policy, confounding-check
+status, warnings, and
+limitations. Until correction execution exists, the builder reports default
+`method="none"` as `"disabled"` and declared correction methods as `"rejected"`;
+the reported batch-correction before/after matrix shapes are equal and matrix
+values are unchanged.
 
 ## Result Construction Contracts
 

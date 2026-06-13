@@ -16,6 +16,9 @@ TOP_LEVEL_CONVENIENCE_SURFACE = {
 }
 
 API_ONLY_CONTRACT_TYPES = {
+    "BatchCorrectionDiagnostics",
+    "BatchCorrectionPolicy",
+    "BatchCorrectionReport",
     "DatasetBuildRequest",
     "DatasetBatchCorrectionConfig",
     "DatasetPreprocessingReport",

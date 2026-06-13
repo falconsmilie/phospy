@@ -2,6 +2,9 @@
 
 from phospy.contracts import results as _result_contracts
 from phospy.contracts.results import (
+    BatchCorrectionDiagnostics,
+    BatchCorrectionPolicy,
+    BatchCorrectionReport,
     DifferentialAnalysisResult,
     DifferentialContrastDefinition,
     DifferentialDesignMatrixSummary,
@@ -34,6 +37,9 @@ KinaseWorkflowSiteAttritionSummary = (
 )
 
 __all__ = [
+    "BatchCorrectionDiagnostics",
+    "BatchCorrectionPolicy",
+    "BatchCorrectionReport",
     "DifferentialAnalysisResult",
     "DifferentialContrastDefinition",
     "DifferentialDesignMatrixSummary",

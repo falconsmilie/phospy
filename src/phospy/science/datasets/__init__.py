@@ -4,6 +4,11 @@ from phospy.science.datasets.models import (
     AnalysisReadyPhosphoDataset,
     DatasetPreprocessingReport,
 )
+from phospy.science.datasets.preprocessing.batch_correction import (
+    BatchCorrectionDiagnostics,
+    BatchCorrectionPolicy,
+    BatchCorrectionReport,
+)
 from phospy.science.datasets.processing_state import (
     ComparisonState,
     DatasetProcessingState,
@@ -17,6 +22,9 @@ from phospy.science.datasets.processing_state import (
 
 __all__ = [
     "AnalysisReadyPhosphoDataset",
+    "BatchCorrectionDiagnostics",
+    "BatchCorrectionPolicy",
+    "BatchCorrectionReport",
     "ComparisonState",
     "DatasetPreprocessingReport",
     "DatasetProcessingState",

@@ -1,5 +1,10 @@
 """Internal dataset preprocessing subsystem."""
 
+from phospy.science.datasets.preprocessing.batch_correction import (
+    BatchCorrectionDiagnostics,
+    BatchCorrectionPolicy,
+    BatchCorrectionReport,
+)
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
@@ -31,6 +36,9 @@ __all__ = [
     "DATASET_PREPROCESSING_STAGE_MISSING_DATA",
     "DATASET_PREPROCESSING_STAGE_SITE_MATRIX",
     "DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION",
+    "BatchCorrectionDiagnostics",
+    "BatchCorrectionPolicy",
+    "BatchCorrectionReport",
     "ComparisonBuildingPolicy",
     "IntensityTransformPolicy",
     "LocalisationEligibilityMode",

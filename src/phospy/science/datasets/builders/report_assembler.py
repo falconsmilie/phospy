@@ -6,13 +6,25 @@ from collections.abc import Mapping
 
 import pandas as pd
 
+from phospy.contracts.configs import DATASET_BATCH_CORRECTION_METHOD_NONE
 from phospy.science.datasets.models import (
     DatasetPreprocessingReport,
     SiteSequenceResolutionReport,
 )
+from phospy.science.datasets.preprocessing.batch_correction import (
+    BATCH_CORRECTION_CONFOUNDING_NOT_APPLICABLE,
+    BATCH_CORRECTION_CONFOUNDING_NOT_CHECKED,
+    BATCH_CORRECTION_DESIGN_PRESERVATION_PRESERVE_CONDITION_EFFECTS,
+    BATCH_CORRECTION_STATUS_DISABLED,
+    BATCH_CORRECTION_STATUS_REJECTED,
+    BatchCorrectionDiagnostics,
+    BatchCorrectionPolicy,
+    BatchCorrectionReport,
+)
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
     DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
+    PreprocessingPlan,
     PreprocessingStageExecution,
 )
 from phospy.science.datasets.preprocessing.report_schema import (
@@ -54,6 +66,10 @@ class DatasetPreprocessingReportAssembler:
         intensity_scale_establishment: Mapping[str, object],
         quantitative_meaning: str,
         peptide_evidence_resolution: dict[str, object] | None,
+        preprocessing_plan: PreprocessingPlan | None = None,
+        sample_metadata: pd.DataFrame | None = None,
+        matrix_shape_before: tuple[int, int] | None = None,
+        matrix_shape_after: tuple[int, int] | None = None,
         declared_input_intensity_scale_kind: str | None = None,
     ) -> DatasetPreprocessingReport:
         row_count_rows = list(row_count_rows_from_dataframe(row_counts))
@@ -158,6 +174,12 @@ class DatasetPreprocessingReportAssembler:
             total_sites=int(input_site_count),
             final_sequence_complete_sites=int(final_dataset_rows),
         )
+        batch_correction = _build_batch_correction_report(
+            plan=preprocessing_plan,
+            sample_metadata=sample_metadata,
+            matrix_shape_before=matrix_shape_before,
+            matrix_shape_after=matrix_shape_after,
+        )
         return DatasetPreprocessingReport.from_rows(
             row_count_rows=tuple(row_count_rows),
             operation_rows=tuple(operation_rows),
@@ -167,6 +189,7 @@ class DatasetPreprocessingReportAssembler:
             comparison_group_stats_rows=comparison_group_stats_rows,
             comparison_pair_stats_rows=comparison_pair_stats_rows,
             site_sequence_resolution=site_sequence_resolution,
+            batch_correction=batch_correction,
         )
 
 
@@ -233,6 +256,110 @@ def _build_site_sequence_resolution_report(
         conflict_policy=_SITE_SEQUENCE_CONFLICT_POLICY_NOT_APPLIED,
         final_sequence_complete_sites=int(max(final_sequence_complete_sites, 0)),
     )
+
+
+def _build_batch_correction_report(
+    *,
+    plan: PreprocessingPlan | None,
+    sample_metadata: pd.DataFrame | None,
+    matrix_shape_before: tuple[int, int] | None,
+    matrix_shape_after: tuple[int, int] | None,
+) -> BatchCorrectionReport | None:
+    if plan is None:
+        return None
+    method = str(plan.batch_correction_method).strip()
+    if not method:
+        method = DATASET_BATCH_CORRECTION_METHOD_NONE
+    batch_column = str(plan.batch_correction_batch_column).strip()
+    condition_column = str(plan.batch_correction_condition_column).strip()
+    has_batch_column = _sample_metadata_has_column(sample_metadata, batch_column)
+    batch_levels = _sample_metadata_levels(sample_metadata, batch_column)
+    condition_levels = _sample_metadata_levels(sample_metadata, condition_column)
+    number_of_batches = len(batch_levels) if has_batch_column else None
+    if method == DATASET_BATCH_CORRECTION_METHOD_NONE:
+        status = BATCH_CORRECTION_STATUS_DISABLED
+        confounding_status = BATCH_CORRECTION_CONFOUNDING_NOT_APPLICABLE
+        warnings: tuple[str, ...] = ()
+        limitations = ("batch correction disabled by preprocessing configuration",)
+    else:
+        status = BATCH_CORRECTION_STATUS_REJECTED
+        confounding_status = BATCH_CORRECTION_CONFOUNDING_NOT_CHECKED
+        warnings = ("batch correction was declared but no correction was executed",)
+        limitations = (
+            "batch correction execution is not implemented yet; matrix values "
+            "are unchanged",
+        )
+    no_op_matrix_shape = (
+        matrix_shape_after if matrix_shape_after is not None else matrix_shape_before
+    )
+    return BatchCorrectionReport(
+        status=status,
+        policy=BatchCorrectionPolicy(
+            method=method,
+            batch_column=batch_column,
+            condition_column=condition_column,
+            design_preservation_policy=(
+                BATCH_CORRECTION_DESIGN_PRESERVATION_PRESERVE_CONDITION_EFFECTS
+            ),
+            preserve_condition_effects=bool(
+                plan.batch_correction_preserve_condition_effects
+            ),
+        ),
+        diagnostics=BatchCorrectionDiagnostics(
+            number_of_batches=number_of_batches,
+            batch_levels=batch_levels,
+            condition_levels=condition_levels,
+            confounding_check_status=confounding_status,
+            matrix_shape_before=no_op_matrix_shape,
+            matrix_shape_after=no_op_matrix_shape,
+            warnings=warnings,
+            limitations=limitations,
+        ),
+    )
+
+
+def _sample_metadata_has_column(
+    sample_metadata: pd.DataFrame | None,
+    column: str | None,
+) -> bool:
+    if sample_metadata is None:
+        return False
+    if column is None or str(column).strip() == "":
+        return False
+    normalized_column = str(column).strip()
+    return (
+        sum(
+            1
+            for sample_column in sample_metadata.columns
+            if sample_column == normalized_column
+        )
+        == 1
+    )
+
+
+def _sample_metadata_levels(
+    sample_metadata: pd.DataFrame | None,
+    column: str | None,
+) -> tuple[str, ...]:
+    if not _sample_metadata_has_column(sample_metadata, column):
+        return ()
+    assert sample_metadata is not None
+    assert column is not None
+    levels: list[str] = []
+    seen: set[str] = set()
+    for value in sample_metadata.loc[:, str(column).strip()].tolist():
+        if _is_missing_metadata_value(value):
+            continue
+        level = str(value).strip()
+        if level == "" or level in seen:
+            continue
+        seen.add(level)
+        levels.append(level)
+    return tuple(levels)
+
+
+def _is_missing_metadata_value(value: object) -> bool:
+    return bool(pd.Series((value,), dtype="object").isna().iat[0])
 
 
 def _resolve_site_sequence_stage_diagnostics(

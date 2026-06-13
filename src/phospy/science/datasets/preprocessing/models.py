@@ -11,6 +11,7 @@ from typing import Protocol
 import pandas as pd
 
 from phospy.contracts.configs import (
+    DATASET_BATCH_CORRECTION_METHOD_NONE,
     DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN,
     DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICY_ERROR,
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT,
@@ -221,6 +222,10 @@ class PreprocessingPlan:
     ruv_readiness_control_feature_column: str = "is_control_feature"
     ruv_readiness_replicate_group_column: str = "replicate_group"
     ruv_readiness_batch_column: str | None = "batch"
+    batch_correction_method: str = DATASET_BATCH_CORRECTION_METHOD_NONE
+    batch_correction_batch_column: str = "batch"
+    batch_correction_condition_column: str = "condition"
+    batch_correction_preserve_condition_effects: bool = True
     stage_order: tuple[str, ...] = DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT
     stage_order_resolution: tuple[PreprocessingStageOrderResolution, ...] = ()
 
@@ -583,6 +588,12 @@ class PreprocessingPlan:
                 config.ruv_readiness.replicate_group_column
             ),
             ruv_readiness_batch_column=config.ruv_readiness.batch_column,
+            batch_correction_method=config.batch_correction.method,
+            batch_correction_batch_column=config.batch_correction.batch_column,
+            batch_correction_condition_column=config.batch_correction.condition_column,
+            batch_correction_preserve_condition_effects=(
+                config.batch_correction.preserve_condition_effects
+            ),
             stage_order=tuple(stage_order),
             stage_order_resolution=tuple(stage_order_resolution),
         )

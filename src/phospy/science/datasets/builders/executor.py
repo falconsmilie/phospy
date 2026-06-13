@@ -105,6 +105,16 @@ class DatasetBuildExecutor:
             ),
             quantitative_meaning=transformed.quantitative_meaning,
             peptide_evidence_resolution=request.peptide_evidence_resolution,
+            preprocessing_plan=request.preprocessing_plan,
+            sample_metadata=preprocessed.sample_metadata,
+            matrix_shape_before=(
+                int(request.phospho.shape[0]),
+                int(request.phospho.shape[1]),
+            ),
+            matrix_shape_after=(
+                int(transformed.phospho.shape[0]),
+                int(transformed.phospho.shape[1]),
+            ),
         )
         provenance = self._provenance_assembler.run(
             request=request,

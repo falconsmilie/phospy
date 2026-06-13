@@ -29,6 +29,11 @@ from phospy.science.datasets.models import (
     AnalysisReadyPhosphoDataset,
     DatasetPreprocessingReport,
 )
+from phospy.science.datasets.preprocessing.batch_correction import (
+    BatchCorrectionDiagnostics,
+    BatchCorrectionPolicy,
+    BatchCorrectionReport,
+)
 from phospy.science.differential.models import (
     DifferentialAnalysisResult,
     DifferentialContrastDefinition,
@@ -793,6 +798,9 @@ def _validate_source_name(value: object) -> str:
 
 __all__ = [
     "ActivityMethodDiagnostics",
+    "BatchCorrectionDiagnostics",
+    "BatchCorrectionPolicy",
+    "BatchCorrectionReport",
     "DifferentialAnalysisResult",
     "DifferentialContrastDefinition",
     "DifferentialDesignMatrixSummary",

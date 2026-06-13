@@ -43,6 +43,9 @@ INTENTIONAL_RESULT_COMPATIBILITY_ALIASES = {
 }
 
 EXPECTED_RESULT_EXPORTS = {
+    "BatchCorrectionDiagnostics",
+    "BatchCorrectionPolicy",
+    "BatchCorrectionReport",
     "DifferentialAnalysisResult",
     "DifferentialContrastDefinition",
     "DifferentialDesignMatrixSummary",
