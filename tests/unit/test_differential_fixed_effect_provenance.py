@@ -123,9 +123,28 @@ def test_condition_only_design_provenance_records_design_and_validation_status()
     assert policy.design.condition_columns == ("A", "B")
     assert policy.design.covariates == ()
     assert policy.design.paired_design_policy == "reject"
+    assert policy.design.block_id_field_name == "block_id"
+    assert policy.design.block_count == 0
     assert policy.design.block_levels == ()
+    assert policy.design.block_levels_included == ()
     assert policy.design.block_reference_level is None
     assert policy.design.block_columns == ()
+    assert policy.design.block_column_names == ()
+    assert policy.design.condition_coverage_rule == (
+        "block terms are not constructed under paired_design_policy='reject'; "
+        "explicit block_id values are rejected before design-matrix construction"
+    )
+    assert policy.design.limitations == (
+        "paired_design_policy='reject' does not construct fixed-block terms",
+        (
+            "explicit block_id metadata is rejected unless "
+            "paired_design_policy='fixed_block'"
+        ),
+        (
+            "unpaired condition and covariate workflows do not fit "
+            "duplicateCorrelation, mixed-effects, or random subject-effect models"
+        ),
+    )
     assert policy.design.rank_validation_status == "validated_full_rank"
     assert policy.design.estimability_validation_status == "validated_estimable"
     assert policy.contrasts[0].coefficients == (("A", -1.0), ("B", 1.0))
@@ -322,9 +341,30 @@ def test_fixed_block_provenance_records_block_columns_and_policy() -> None:
     assert policy.design.formula == "~0 + condition + block"
     assert policy.design.description == "fixed-effect design: ~0 + condition + block"
     assert policy.design.paired_design_policy == PAIRED_DESIGN_POLICY_FIXED_BLOCK
+    assert policy.design.block_id_field_name == "block_id"
+    assert policy.design.block_count == 2
     assert policy.design.block_levels == ("pair_1", "pair_2")
+    assert policy.design.block_levels_included == ("pair_1", "pair_2")
     assert policy.design.block_reference_level == "pair_1"
     assert policy.design.block_columns == (("pair_2", "block[pair_2]"),)
+    assert policy.design.block_column_names == ("block[pair_2]",)
+    assert policy.design.condition_coverage_rule == (
+        "for every requested condition contrast, every block must contain both "
+        "numerator and denominator conditions; incomplete or partially covered "
+        "blocks are rejected before execution"
+    )
+    assert policy.design.limitations == (
+        "fixed_block adds block_id levels as ordinary fixed-effect design columns",
+        (
+            "fixed_block does not estimate within-block correlation and is not "
+            "limma duplicateCorrelation"
+        ),
+        "fixed_block does not fit mixed-effects or random subject-effect models",
+        (
+            "incomplete blocks are rejected before execution; samples are not "
+            "silently dropped"
+        ),
+    )
     assert policy.contrasts[0].coefficients == (
         ("A", -1.0),
         ("B", 1.0),

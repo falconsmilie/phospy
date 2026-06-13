@@ -33,12 +33,46 @@ _DIFFERENTIAL_UNSUPPORTED_DESIGN_FEATURES: tuple[str, ...] = (
     "correlated repeated-measure differential modelling beyond explicit fixed blocks",
     "duplicateCorrelation-style correlated-replicate modelling",
     "mixed-effects differential modelling",
+    "random subject-effect differential modelling",
 )
 _DIFFERENTIAL_UNSUPPORTED_ENFORCEMENT_STAGE = (
     "validation.workflows.differential.ExperimentalDesignContractValidator"
 )
 _DIFFERENTIAL_RANK_VALIDATION_STATUS = "validated_full_rank"
 _DIFFERENTIAL_ESTIMABILITY_VALIDATION_STATUS = "validated_estimable"
+_DIFFERENTIAL_BLOCK_ID_FIELD_NAME = "block_id"
+_DIFFERENTIAL_REJECT_BLOCK_CONDITION_COVERAGE_RULE = (
+    "block terms are not constructed under paired_design_policy='reject'; "
+    "explicit block_id values are rejected before design-matrix construction"
+)
+_DIFFERENTIAL_FIXED_BLOCK_CONDITION_COVERAGE_RULE = (
+    "for every requested condition contrast, every block must contain both "
+    "numerator and denominator conditions; incomplete or partially covered "
+    "blocks are rejected before execution"
+)
+_DIFFERENTIAL_UNPAIRED_LIMITATIONS: tuple[str, ...] = (
+    "paired_design_policy='reject' does not construct fixed-block terms",
+    (
+        "explicit block_id metadata is rejected unless "
+        "paired_design_policy='fixed_block'"
+    ),
+    (
+        "unpaired condition and covariate workflows do not fit "
+        "duplicateCorrelation, mixed-effects, or random subject-effect models"
+    ),
+)
+_DIFFERENTIAL_FIXED_BLOCK_LIMITATIONS: tuple[str, ...] = (
+    "fixed_block adds block_id levels as ordinary fixed-effect design columns",
+    (
+        "fixed_block does not estimate within-block correlation and is not "
+        "limma duplicateCorrelation"
+    ),
+    "fixed_block does not fit mixed-effects or random subject-effect models",
+    (
+        "incomplete blocks are rejected before execution; samples are not "
+        "silently dropped"
+    ),
+)
 
 
 def build_differential_policy_provenance(
@@ -96,9 +130,17 @@ def build_differential_policy_provenance(
             condition_columns=condition_columns,
             covariates=covariate_provenance,
             paired_design_policy=request.config.paired_design_policy,
+            block_id_field_name=_DIFFERENTIAL_BLOCK_ID_FIELD_NAME,
+            block_count=_block_count(request.design_build_result),
             block_levels=_block_levels(request.design_build_result),
+            block_levels_included=_block_levels(request.design_build_result),
             block_reference_level=_block_reference_level(request.design_build_result),
             block_columns=_block_columns(request.design_build_result),
+            block_column_names=_block_column_names(request.design_build_result),
+            condition_coverage_rule=_condition_coverage_rule(
+                request.config.paired_design_policy
+            ),
+            limitations=_design_limitations(request.config.paired_design_policy),
             rank_validation_status=_DIFFERENTIAL_RANK_VALIDATION_STATUS,
             estimability_validation_status=(
                 _DIFFERENTIAL_ESTIMABILITY_VALIDATION_STATUS
@@ -154,6 +196,12 @@ def _block_levels(
     return design_build_result.block_levels
 
 
+def _block_count(
+    design_build_result: DesignMatrixBuildResult | None,
+) -> int:
+    return len(_block_levels(design_build_result))
+
+
 def _block_reference_level(
     design_build_result: DesignMatrixBuildResult | None,
 ) -> str | None:
@@ -173,6 +221,24 @@ def _block_columns(
         for column in (design_build_result.block_columns.get(level),)
         if column is not None
     )
+
+
+def _block_column_names(
+    design_build_result: DesignMatrixBuildResult | None,
+) -> tuple[str, ...]:
+    return tuple(column for _, column in _block_columns(design_build_result))
+
+
+def _condition_coverage_rule(paired_design_policy: str) -> str:
+    if paired_design_policy == "fixed_block":
+        return _DIFFERENTIAL_FIXED_BLOCK_CONDITION_COVERAGE_RULE
+    return _DIFFERENTIAL_REJECT_BLOCK_CONDITION_COVERAGE_RULE
+
+
+def _design_limitations(paired_design_policy: str) -> tuple[str, ...]:
+    if paired_design_policy == "fixed_block":
+        return _DIFFERENTIAL_FIXED_BLOCK_LIMITATIONS
+    return _DIFFERENTIAL_UNPAIRED_LIMITATIONS
 
 
 def _condition_columns(

@@ -172,6 +172,16 @@ def test_differential_policy_provenance_snapshot_is_stable() -> None:
             "coefficient_count": policy.design.coefficient_count,
             "rank": policy.design.rank,
             "residual_degrees_of_freedom": policy.design.residual_degrees_of_freedom,
+            "paired_design_policy": policy.design.paired_design_policy,
+            "block_id_field_name": policy.design.block_id_field_name,
+            "block_count": policy.design.block_count,
+            "block_levels": list(policy.design.block_levels),
+            "block_levels_included": list(policy.design.block_levels_included),
+            "block_reference_level": policy.design.block_reference_level,
+            "block_columns": list(policy.design.block_columns),
+            "block_column_names": list(policy.design.block_column_names),
+            "condition_coverage_rule": policy.design.condition_coverage_rule,
+            "limitations": list(policy.design.limitations),
             "rank_validation_status": policy.design.rank_validation_status,
             "estimability_validation_status": (
                 policy.design.estimability_validation_status
@@ -244,6 +254,31 @@ def test_differential_policy_provenance_snapshot_is_stable() -> None:
             "coefficient_count": 2,
             "rank": 2,
             "residual_degrees_of_freedom": 2.0,
+            "paired_design_policy": "reject",
+            "block_id_field_name": "block_id",
+            "block_count": 0,
+            "block_levels": [],
+            "block_levels_included": [],
+            "block_reference_level": None,
+            "block_columns": [],
+            "block_column_names": [],
+            "condition_coverage_rule": (
+                "block terms are not constructed under "
+                "paired_design_policy='reject'; explicit block_id values are "
+                "rejected before design-matrix construction"
+            ),
+            "limitations": [
+                "paired_design_policy='reject' does not construct fixed-block terms",
+                (
+                    "explicit block_id metadata is rejected unless "
+                    "paired_design_policy='fixed_block'"
+                ),
+                (
+                    "unpaired condition and covariate workflows do not fit "
+                    "duplicateCorrelation, mixed-effects, or random subject-effect "
+                    "models"
+                ),
+            ],
             "rank_validation_status": "validated_full_rank",
             "estimability_validation_status": "validated_estimable",
         },
@@ -287,6 +322,7 @@ def test_differential_policy_provenance_snapshot_is_stable() -> None:
                 ),
                 "duplicateCorrelation-style correlated-replicate modelling",
                 "mixed-effects differential modelling",
+                "random subject-effect differential modelling",
             ],
             "enforcement_stage": (
                 "validation.workflows.differential.ExperimentalDesignContractValidator"

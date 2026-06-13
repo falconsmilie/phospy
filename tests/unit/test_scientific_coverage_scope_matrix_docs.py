@@ -81,3 +81,20 @@ def test_fixed_effect_differential_limitations_are_documented() -> None:
     assert "mixed-effects" in text
     assert "fixed-block" in text
     assert "complete within-block contrast coverage" in text
+
+
+def test_differential_provenance_docs_name_fixed_block_limitations() -> None:
+    text = (_scientific_coverage_text() + "\n" + _api_guide_text()).lower()
+    normalized = " ".join(text.split())
+
+    assert 'paired_design_policy="fixed_block"' in normalized
+    assert "fixed-block paired designs are supported only when" in normalized
+    assert "block terms are ordinary fixed effects" in normalized
+    assert "block terms are fixed effects" in normalized
+    assert "not limma `duplicatecorrelation`" in normalized
+    assert "not mixed-effects modelling" in normalized
+    assert "no mixed effects are fitted" in normalized
+    assert "not random subject modelling" in normalized
+    assert "incomplete or partially covered blocks are rejected" in normalized
+    assert "does not drop those blocks or samples" in normalized
+    assert "simple unpaired workflows" in normalized

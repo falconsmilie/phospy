@@ -341,6 +341,39 @@ def test_differential_block_valid_paired_two_condition_design_executes() -> None
     )
 
 
+def test_differential_fixed_block_provenance_records_block_count_and_columns() -> None:
+    design = ExperimentalDesign(
+        samples=(
+            SampleDesignRecord(sample_id="A_1", condition="A", block_id="pair_1"),
+            SampleDesignRecord(sample_id="A_2", condition="A", block_id="pair_2"),
+            SampleDesignRecord(sample_id="B_1", condition="B", block_id="pair_1"),
+            SampleDesignRecord(sample_id="B_2", condition="B", block_id="pair_2"),
+        )
+    )
+
+    result = DifferentialAnalysisWorkflow().run(
+        DifferentialAnalysisRequest(
+            dataset=_dataset(),
+            design=design,
+            contrasts=_b_vs_a_contrast(),
+            config=DifferentialAnalysisConfig(
+                paired_design_policy=PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+            ),
+        )
+    )
+
+    assert result.policy_provenance is not None
+    design_provenance = result.policy_provenance.design
+    assert design_provenance.block_id_field_name == "block_id"
+    assert design_provenance.block_count == 2
+    assert design_provenance.block_levels_included == ("pair_1", "pair_2")
+    assert design_provenance.block_column_names == ("block[pair_2]",)
+    assert "incomplete or partially covered blocks are rejected" in (
+        design_provenance.condition_coverage_rule
+    )
+    assert "limma duplicateCorrelation" in design_provenance.limitations[1]
+
+
 def test_differential_block_adjusted_contrast_differs_when_block_effect_exists() -> (
     None
 ):

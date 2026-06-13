@@ -85,6 +85,18 @@ These fixed-effect covariate models are support for ordinary fixed terms in the
 linear design. They are not batch-correction methods, correlated-replicate
 modelling, or mixed-effects modelling.
 
+Fixed-block paired designs are supported only when the caller explicitly sets
+`paired_design_policy="fixed_block"` and supplies `SampleDesignRecord.block_id`
+for every analysed sample. The block terms are ordinary fixed effects in the
+design matrix. This is not limma `duplicateCorrelation`, not mixed-effects
+modelling, and not random subject modelling; no mixed effects are fitted. For
+every requested condition contrast, every block must contain both numerator and
+denominator conditions.
+Incomplete or partially covered blocks are rejected before execution; PhosPy
+does not drop those blocks or samples to make the design fit. Simple unpaired
+workflows keep the default `paired_design_policy="reject"` behavior and are not
+changed by fixed-block support.
+
 Explicitly unsupported in this release:
 
 - limma `duplicateCorrelation`-style correlated-replicate modelling
@@ -144,7 +156,7 @@ claimed.
 
 | Area | Scope category | Current executable support | Evidence and release checks | Limits and non-claims |
 | --- | --- | --- | --- | --- |
-| Differential analysis | `parity-gated` | `DifferentialAnalysisWorkflow` for two-condition unpaired simple contrasts with empirical-Bayes `standard`/`robust` and optional `trend`; fixed-effect batch, categorical covariate, continuous covariate, and complete fixed-block terms are executable as ordinary design covariates | `tests/parity/test_differential_analysis_parity.py`, `tests/parity/test_differential_limma_parity.py`, plus unit/integration design, fixed-effect provenance, and result-contract tests | Fixed-effect batch terms are not batch correction. Fixed-block terms require complete within-block contrast coverage and full-rank/estimable designs. Correlated repeated-measure, limma `duplicateCorrelation`-style, and mixed-effect designs are rejected in this release. Missing values are rejected at analysis-ready boundary before model fitting. |
+| Differential analysis | `parity-gated` | `DifferentialAnalysisWorkflow` for two-condition unpaired simple contrasts with empirical-Bayes `standard`/`robust` and optional `trend`; fixed-effect batch, categorical covariate, continuous covariate, and complete fixed-block terms are executable as ordinary design covariates | `tests/parity/test_differential_analysis_parity.py`, `tests/parity/test_differential_limma_parity.py`, plus unit/integration design, fixed-effect provenance, and result-contract tests | Fixed-effect batch terms are not batch correction. Fixed-block terms require complete within-block contrast coverage and full-rank/estimable designs. Correlated repeated-measure, limma `duplicateCorrelation`-style, mixed-effect, and random subject-effect designs are rejected in this release. Missing values are rejected at analysis-ready boundary before model fitting. |
 | Kinase scoring | `parity-gated` | `KinaseWorkflow` default `scoring_mode="phosr_rank_weighted"` profile/motif scoring and rank-weighted fusion | `tests/parity/test_kinase_workflow_parity.py`, `tests/parity/test_prediction_science_parity.py`, `tests/parity/test_l6_prediction_parity.py` | Relative support scoring only; not calibrated causal inference. Kinase Library scoring is not the default parity lane. |
 | Kinase Library motif scoring | `validated PhosPy implementation` | Pure science-layer `KinaseLibraryMotifScorer` / `score_kinase_library_motifs`, plus opt-in `KinaseWorkflow` modes `kinase_library_motif` and `combined_profile_motif` for supplied Kinase Library-style resources | `tests/unit/test_kinase_library_motif_scoring.py`, `tests/science/test_kinase_library_motif_scoring_science.py`, `tests/integration/test_kinase_library_workflow_scoring.py` | Requires explicit compatible resource. Workflow motif scores are normalized to unit interval per kinase matrix for within-run ranking support; raw science-layer motif scores preserve provider scale. Scores are not probabilities. Ser/Thr and Tyr matrix lanes are not interchangeable. |
 | Kinase prediction | `parity-gated` | Deterministic and adaptive kinase prediction in `KinaseWorkflow` | `tests/parity/test_public_predmat_parity.py`, `tests/parity/test_l6_prediction_parity.py`, `tests/parity/test_adaptive_prediction_parity.py`, `tests/parity/test_adaptive_replay_parity.py` | Prediction scores are ranking support, not probabilities. |
@@ -247,6 +259,9 @@ Differential outputs now expose structured policy provenance through
 
 - design formula/description, condition columns, covariate columns, and
   covariate kinds
+- paired-design policy, `block_id` field name, block count, included block
+  levels, block column names, condition-coverage rule, and fixed-block
+  limitations when applicable
 - rank and contrast-estimability validation status
 - explicit contrast definitions and contrast vectors
 - replicate/group requirements and technical-replicate lineage
@@ -255,7 +270,7 @@ Differential outputs now expose structured policy provenance through
 - missing-value handling policy
 - unsupported-design rejection policy and intentionally rejected unsupported
   design features (`duplicateCorrelation`-style correlated-replicate and
-  mixed-effect modelling)
+  mixed-effect or random subject-effect modelling)
 
 ### `profile_correlation_shifted_unit_v1`
 

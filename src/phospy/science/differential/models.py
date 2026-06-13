@@ -383,9 +383,15 @@ class DifferentialDesignMatrixSummary:
     condition_columns: tuple[str, ...] = ()
     covariates: tuple[DifferentialFixedEffectCovariateProvenance, ...] = ()
     paired_design_policy: str = "reject"
+    block_id_field_name: str = "block_id"
+    block_count: int = 0
     block_levels: tuple[str, ...] = ()
+    block_levels_included: tuple[str, ...] = ()
     block_reference_level: str | None = None
     block_columns: tuple[tuple[str, str], ...] = ()
+    block_column_names: tuple[str, ...] = ()
+    condition_coverage_rule: str = ""
+    limitations: tuple[str, ...] = ()
     rank_validation_status: str = "not_recorded"
     estimability_validation_status: str = "not_recorded"
 
@@ -424,6 +430,10 @@ class DifferentialDesignMatrixSummary:
             raise PhosPyInputError(
                 "differential_policy_provenance.design.residual_degrees_of_freedom "
                 "must be > 0.0"
+            )
+        if self.block_count < 0:
+            raise PhosPyInputError(
+                "differential_policy_provenance.design.block_count must be >= 0"
             )
         if not self.rank_validation_status:
             raise PhosPyInputError(
@@ -470,8 +480,19 @@ class DifferentialDesignMatrixSummary:
         )
         object.__setattr__(
             self,
+            "block_id_field_name",
+            str(self.block_id_field_name),
+        )
+        object.__setattr__(self, "block_count", int(self.block_count))
+        object.__setattr__(
+            self,
             "block_levels",
             tuple(str(value) for value in self.block_levels),
+        )
+        object.__setattr__(
+            self,
+            "block_levels_included",
+            tuple(str(value) for value in self.block_levels_included),
         )
         object.__setattr__(
             self,
@@ -486,6 +507,21 @@ class DifferentialDesignMatrixSummary:
             self,
             "block_columns",
             tuple((str(level), str(column)) for level, column in self.block_columns),
+        )
+        object.__setattr__(
+            self,
+            "block_column_names",
+            tuple(str(value) for value in self.block_column_names),
+        )
+        object.__setattr__(
+            self,
+            "condition_coverage_rule",
+            str(self.condition_coverage_rule),
+        )
+        object.__setattr__(
+            self,
+            "limitations",
+            tuple(str(value) for value in self.limitations),
         )
         object.__setattr__(
             self,

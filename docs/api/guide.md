@@ -185,8 +185,12 @@ caller; PhosPy does not infer it from sample names, column order, or
 design and adds block terms to the differential design matrix. Each sample must
 have `block_id`; each block must contain at least two samples and both sides of
 every requested contrast; the resolved design must be full rank and contrasts
-must be estimable. It does not enable correlated-replicate or mixed-effects
-modelling.
+must be estimable. The block terms are fixed effects. This is not limma
+`duplicateCorrelation`, not mixed-effects modelling, and not random subject
+modelling; no mixed effects are fitted. Incomplete or partially covered blocks
+are rejected before execution; PhosPy does not drop them to continue. Simple
+unpaired workflows are unchanged unless the caller explicitly opts into
+`paired_design_policy="fixed_block"`.
 
 The lower-level design-matrix builder can represent included fixed effects for
 design-domain inspection and validation. Categorical and batch covariates are
