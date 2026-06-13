@@ -87,6 +87,7 @@ def test_dataset_builder_outputs_support_protein_aware_alignment_diagnostics() -
     assert diagnostics.excluded_from_preparation == ()
     assert built.processing_state.total_protein_correction.policy == "none"
     assert built.provenance is not None
+    assert "protein_aware_preparation" not in built.provenance.workflow_parameters
     assert {stage.stage for stage in built.provenance.preprocessing_stages}.isdisjoint(
         {"protein_aware_preparation"}
     )
@@ -160,3 +161,17 @@ def test_dataset_builder_integrates_protein_aware_preparation_report() -> None:
     assert operation["operation"] == "prepare_model_inputs"
     assert operation["parameters"]["eligible_site_count"] == 2
     assert operation["parameters"]["performs_model_adjustment"] is False
+    assert operation["parameters"]["performs_differential_modelling"] is False
+    assert operation["parameters"]["claims_msstatsptm_equivalence"] is False
+    assert built.provenance is not None
+    preparation_provenance = built.provenance.workflow_parameters[
+        "protein_aware_preparation"
+    ]
+    assert preparation_provenance["status"] == "prepared"
+    assert preparation_provenance["preparation_policy"] == "prepare_model_inputs"
+    assert preparation_provenance["protein_mapping_policy"] == "require_unambiguous"
+    assert preparation_provenance["eligible_site_count"] == 2
+    assert preparation_provenance["performs_total_protein_subtraction"] is False
+    assert preparation_provenance["performs_normalisation"] is False
+    assert preparation_provenance["performs_differential_modelling"] is False
+    assert preparation_provenance["claims_msstatsptm_equivalence"] is False

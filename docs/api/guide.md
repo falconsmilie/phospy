@@ -311,13 +311,15 @@ preprocessing contracts.
 
 `DatasetTotalProteinCorrectionConfig(policy="subtract_log_total")` subtracts
 matched log-scale total-protein abundance from log-scale phosphosite abundance:
-`log2_phospho - log2_total`. This is the existing dataset-build correction lane.
+`log2_phospho - log2_total`. This changes the phosphosite matrix values and the
+dataset quantitative meaning. It requires total-protein input data and
+log2-scale phospho/total values. It is not joint PTM/protein modelling.
 
-`DatasetProteinAwarePreparationConfig(policy="prepare_model_inputs")` declares
-intent for a future lane that prepares aligned phosphosite/protein inputs for
-protein-aware differential modelling. The default is disabled, and declaring the
-config does not align matrices, decide site eligibility, or run a model during
-dataset build.
+`DatasetProteinAwarePreparationConfig(policy="prepare_model_inputs")` prepares
+aligned phosphosite/protein input contracts and diagnostics. It does not change
+the phosphosite matrix, does not subtract total protein, does not normalise
+intensities, and does not run differential analysis. The default policy is
+`"disabled"`.
 
 Prepared protein-aware inputs are represented by
 `ProteinAwarePreparationResult` and `ProteinAwarePreparationReport`. These are
@@ -328,15 +330,39 @@ mapping diagnostics, sample-alignment diagnostics, and policy/provenance fields.
 The covariate matrix is a future modelling input contract; current
 `DifferentialAnalysisWorkflow` execution does not consume it.
 
+The public builder preparation stage uses explicit protein identifiers from
+`site_metadata` (`protein_accession`, `protein_id`, or `protein_group_id`) and
+matches them to `total.index`. Gene-symbol matching is not the public default.
+`protein_mapping_policy="require_unambiguous"` makes missing or ambiguous
+mappings ineligible for preparation. `protein_mapping_policy="allow_missing_with_report"`
+allows missing site-protein identifiers or missing total-protein rows to remain
+as phospho-only fallback rows in the report. Ambiguous site-to-protein mappings
+or ambiguous total-protein row mappings are still excluded and reported.
+
+Protein-aware preparation requires `total` input data. Missing total-protein
+rows are per-site diagnostics; missing total input data is a build error when
+`policy="prepare_model_inputs"` is selected. Phospho and total sample columns
+must match in the same order at the builder boundary. Reordered, missing, or
+extra total-protein sample columns are reported and make sites ineligible; the
+builder does not reorder matrices for this preparation stage. Phospho and total
+transformation states must also be compatible, meaning the same scale kind and
+transformed flag. Incompatible transformation state is reported and excludes
+sites from preparation.
+
 Full joint PTM/protein modelling is not a dataset-preprocessing policy. It is
 not enabled by total-protein subtraction and is not executed by protein-aware
-preparation config.
+preparation config. PhosPy does not claim MSstatsPTM-style inference or
+MSstatsPTM equivalence for this preparation stage. Protein-aware preparation
+does not run joint PTM/protein differential modelling.
 
 ```python
+from phospy import AnalysisReadyDatasetBuilder
 from phospy.api import (
+    DatasetBuildRequest,
     DatasetPreprocessingConfig,
     DatasetProteinAwarePreparationConfig,
     DatasetTotalProteinCorrectionConfig,
+    Organism,
 )
 
 preprocessing = DatasetPreprocessingConfig()
@@ -355,6 +381,28 @@ preparation_intent = DatasetPreprocessingConfig(
         protein_mapping_policy="require_unambiguous",
     )
 )
+
+dataset = AnalysisReadyDatasetBuilder().run(
+    DatasetBuildRequest(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        total=total,
+        organism=Organism.RAT,
+        input_intensity_scale="log2",
+        preprocessing_config=preparation_intent,
+    )
+)
+
+preparation = dataset.protein_aware_preparation
+assert preparation is not None
+
+matched_pairs = preparation.matched_pairs_dataframe()
+protein_covariates = preparation.protein_covariate_matrix_dataframe()
+report = dataset.preprocessing_report.protein_aware_preparation
+site_eligibility = report.site_eligibility_dataframe()
+missing_total_rows = report.missing_protein_abundance_diagnostics
+ambiguous_mappings = report.ambiguous_mapping_diagnostics
+sample_alignment = report.sample_alignment_diagnostics.to_payload()
 ```
 
 ## Batch Correction Preprocessing

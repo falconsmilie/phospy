@@ -707,6 +707,7 @@ def _build_preparation_report(
         preparation_policy=preparation_policy,
         protein_mapping_policy=protein_mapping_policy,
         policy_parameters={
+            "preparation_mode": "aligned_model_input_preparation_only",
             "allow_reordered_samples": False,
             "missing_mapping_policy": (
                 DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_ALLOW_MISSING_WITH_REPORT
@@ -715,7 +716,18 @@ def _build_preparation_report(
                 else DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_REQUIRE_UNAMBIGUOUS
             ),
             "modifies_phospho_matrix": False,
+            "performs_total_protein_subtraction": False,
+            "performs_normalisation": False,
             "performs_model_adjustment": False,
+            "performs_differential_modelling": False,
+            "claims_msstatsptm_equivalence": False,
+            "limitations": (
+                "preparation-only; aligned phosphosite/protein inputs and diagnostics",
+                "does not subtract total protein from phosphosite intensities",
+                "does not normalise phosphosite intensities",
+                "does not run joint PTM/protein differential modelling",
+                "does not claim MSstatsPTM-style inference or equivalence",
+            ),
         },
     )
 

@@ -127,3 +127,29 @@ def test_batch_correction_scope_names_only_linear_residualize_batch_supported() 
     assert "not mixed-effects modelling" in normalized
     assert "does not solve all batch-effect problems" in normalized
     assert "do not interpret `ruv_readiness` as ruv support" in normalized
+
+
+def test_protein_aware_preparation_scope_is_separate_from_modelling() -> None:
+    text = (
+        _scientific_coverage_text()
+        + "\n"
+        + _api_guide_text()
+        + "\n"
+        + _workflow_contracts_text()
+    ).lower()
+    normalized = " ".join(text.split())
+
+    assert "| total-protein subtraction: `subtract_log_total` |" in normalized
+    assert (
+        "| protein-aware preparation | `validated phospy implementation` |"
+        in normalized
+    )
+    assert (
+        "| joint ptm/protein modelling and msstatsptm-style inference | `open gap` |"
+    ) in normalized
+    assert "`log2_phospho - log2_total`" in normalized
+    assert "preparation only" in normalized
+    assert "does not modify phosphosite values" in normalized
+    assert "does not run joint ptm/protein differential modelling" in normalized
+    assert "does not claim msstatsptm-style inference" in normalized
+    assert "current `differentialanalysisworkflow` does not consume" in normalized

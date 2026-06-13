@@ -70,6 +70,16 @@ def test_protein_aware_preparation_exact_one_site_to_one_protein() -> None:
     assert result.report.eligible_site_keys == ("MAPK14;Y182;",)
     assert result.report.fallback_site_keys == ()
     assert result.report.excluded_site_keys == ()
+    assert result.report.policy_parameters["preparation_mode"] == (
+        "aligned_model_input_preparation_only"
+    )
+    assert result.report.policy_parameters["modifies_phospho_matrix"] is False
+    assert result.report.policy_parameters["performs_total_protein_subtraction"] is (
+        False
+    )
+    assert result.report.policy_parameters["performs_normalisation"] is False
+    assert result.report.policy_parameters["performs_differential_modelling"] is False
+    assert result.report.policy_parameters["claims_msstatsptm_equivalence"] is False
     assert result.matched_pairs.to_dict(orient="records") == [
         {
             "site_key": "MAPK14;Y182;",

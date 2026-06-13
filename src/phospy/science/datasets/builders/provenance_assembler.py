@@ -36,6 +36,9 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingStageOrderResolution,
     TotalProteinCorrectionIdentityPolicy,
 )
+from phospy.science.datasets.preprocessing.protein_aware_preparation import (
+    ProteinAwarePreparationReport,
+)
 from phospy.science.datasets.preprocessing.scientific_policies import (
     PreprocessingStageOrderPolicy,
     build_duplicate_site_resolution_policy,
@@ -70,6 +73,7 @@ class DatasetRunProvenanceAssembler:
         intensity_scale_establishment: Mapping[str, object],
         quantitative_meaning: str,
         allow_opaque_site_values: bool,
+        protein_aware_preparation_report: ProteinAwarePreparationReport | None = None,
     ) -> RunProvenance:
         input_tables = _collect_fingerprints(
             (
@@ -88,6 +92,32 @@ class DatasetRunProvenanceAssembler:
                 ("dataset.comparisons", preprocessed.comparisons),
             )
         )
+        workflow_parameters: dict[str, object] = {
+            "preprocessing_plan": _preprocessing_plan_to_payload(
+                request.preprocessing_plan
+            ),
+            "intensity_scale_label": intensity_scale_label,
+            "intensity_scale_establishment": dict(intensity_scale_establishment),
+            "quantitative_meaning": quantitative_meaning,
+            "site_identifier_normalisation": (
+                None
+                if request.site_identifier_normalisation is None
+                else request.site_identifier_normalisation.to_payload()
+            ),
+            "site_sequence_derivation": request.site_sequence_derivation,
+            "site_resolution_mode": request.site_resolution_mode,
+            "multi_site_policy": request.multi_site_policy,
+            "peptide_evidence_resolution": request.peptide_evidence_resolution,
+            "site_token_validation": (
+                {"mode": "opaque_opt_in"}
+                if allow_opaque_site_values
+                else {"mode": "strict_sty_residue_position"}
+            ),
+        }
+        if protein_aware_preparation_report is not None:
+            workflow_parameters["protein_aware_preparation"] = (
+                _protein_aware_preparation_to_payload(protein_aware_preparation_report)
+            )
         return RunProvenance(
             environment=collect_environment_provenance(),
             input_tables=input_tables,
@@ -97,28 +127,7 @@ class DatasetRunProvenanceAssembler:
             ),
             reference=None,
             workflow_name="dataset_builder",
-            workflow_parameters={
-                "preprocessing_plan": _preprocessing_plan_to_payload(
-                    request.preprocessing_plan
-                ),
-                "intensity_scale_label": intensity_scale_label,
-                "intensity_scale_establishment": dict(intensity_scale_establishment),
-                "quantitative_meaning": quantitative_meaning,
-                "site_identifier_normalisation": (
-                    None
-                    if request.site_identifier_normalisation is None
-                    else request.site_identifier_normalisation.to_payload()
-                ),
-                "site_sequence_derivation": request.site_sequence_derivation,
-                "site_resolution_mode": request.site_resolution_mode,
-                "multi_site_policy": request.multi_site_policy,
-                "peptide_evidence_resolution": request.peptide_evidence_resolution,
-                "site_token_validation": (
-                    {"mode": "opaque_opt_in"}
-                    if allow_opaque_site_values
-                    else {"mode": "strict_sty_residue_position"}
-                ),
-            },
+            workflow_parameters=workflow_parameters,
             random_state=None,
             random_seed_policy=None,
             output_tables=output_tables,
@@ -314,6 +323,37 @@ def _total_correction_identity_policy_to_payload(
         ),
         "duplicate_policy": str(policy.duplicate_policy),
         "unmatched_policy": str(policy.unmatched_policy),
+    }
+
+
+def _protein_aware_preparation_to_payload(
+    report: ProteinAwarePreparationReport,
+) -> dict[str, object]:
+    transformation_state = report.transformation_state
+    return {
+        "status": "prepared",
+        "preparation_policy": report.preparation_policy,
+        "protein_mapping_policy": report.protein_mapping_policy,
+        "eligible_site_count": int(len(report.eligible_site_keys)),
+        "fallback_site_count": int(len(report.fallback_site_keys)),
+        "excluded_site_count": int(len(report.excluded_site_keys)),
+        "sample_order_compatible": report.sample_alignment.sample_order_compatible,
+        "exact_sample_order_match": report.sample_alignment.exact_sample_order_match,
+        "transformation_state_compatible": (
+            None if transformation_state is None else transformation_state.compatible
+        ),
+        "modifies_phospho_matrix": False,
+        "performs_total_protein_subtraction": False,
+        "performs_normalisation": False,
+        "performs_differential_modelling": False,
+        "claims_msstatsptm_equivalence": False,
+        "limitations": [
+            "preparation-only; aligned phosphosite/protein inputs and diagnostics",
+            "does not subtract total protein from phosphosite intensities",
+            "does not normalise phosphosite intensities",
+            "does not run joint PTM/protein differential modelling",
+            "does not claim MSstatsPTM-style inference or equivalence",
+        ],
     }
 
 

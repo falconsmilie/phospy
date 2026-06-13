@@ -133,7 +133,11 @@ class KinaseLibraryResourceProvenance:
 
 @dataclass(frozen=True, slots=True)
 class RunProvenance:
-    """Machine-readable run provenance payload."""
+    """Machine-readable run provenance payload.
+
+    Workflow-specific audit details that are not table-transforming stages, such
+    as protein-aware preparation summaries, belong in `workflow_parameters`.
+    """
 
     environment: EnvironmentProvenance
     input_tables: tuple[TableFingerprint, ...]

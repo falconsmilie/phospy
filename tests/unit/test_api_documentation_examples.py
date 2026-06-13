@@ -263,6 +263,23 @@ def test_api_docs_batch_correction_example_is_constructible() -> None:
     assert report.condition_levels == ("control", "treated")
 
 
+def test_api_docs_protein_aware_preparation_boundary_is_documented() -> None:
+    source = _read(API_DOCS_DIR / "guide.md")
+    normalized = " ".join(source.split())
+
+    assert "## Total Protein And Protein-Aware Preparation" in source
+    assert 'policy="subtract_log_total"' in source
+    assert "`log2_phospho - log2_total`" in source
+    assert 'policy="prepare_model_inputs"' in source
+    assert "does not change the phosphosite matrix" in normalized
+    assert "does not subtract total protein" in normalized
+    assert "does not normalise intensities" in normalized
+    assert "does not run differential analysis" in normalized
+    assert "PhosPy does not claim MSstatsPTM-style inference" in source
+    assert "dataset.protein_aware_preparation" in source
+    assert "report.site_eligibility_dataframe()" in source
+
+
 def test_api_docs_differential_request_example_is_constructible() -> None:
     dataset = _build_dataset()
     assert dataset.intensity_scale_state.kind.value == "log2"

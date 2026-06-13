@@ -149,6 +149,11 @@ class DatasetBuildExecutor:
             intensity_scale_establishment=transformed.intensity_scale_establishment,
             quantitative_meaning=transformed.quantitative_meaning,
             allow_opaque_site_values=request.allow_opaque_site_values,
+            protein_aware_preparation_report=(
+                None
+                if protein_aware_preparation is None
+                else protein_aware_preparation.report
+            ),
         )
         return AnalysisReadyPhosphoDataset._from_owned(
             phospho=transformed.phospho,

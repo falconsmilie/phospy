@@ -36,7 +36,7 @@ identical numeric outputs across different machines or dependency builds.
 - `phospho` (required): numeric phosphosite-by-sample matrix.
 - `site_metadata` (required): row metadata aligned to `phospho.index`.
 - `sample_metadata` (optional): sample metadata aligned to `phospho.columns`.
-- `total` (optional): total-protein matrix aligned to `phospho.columns` when total-protein correction is used.
+- `total` (optional): total-protein matrix aligned to `phospho.columns` when total-protein correction or protein-aware preparation is used.
 
 ### Identifiers and Alignment Assumptions
 
@@ -82,10 +82,38 @@ identical numeric outputs across different machines or dependency builds.
   - intensity transform (`identity` or `log2`)
   - normalisation (`none`, `median_center`, `quantile`)
   - optional total-protein correction
+  - optional protein-aware preparation
   - optional batch correction with `linear_residualize_batch`
   - optional site-matrix and comparison construction
   - optional `ruv_readiness` reporting for future RUV-compatible preprocessing
 - No hidden transforms are applied outside this configuration.
+- `total_protein_correction.policy="subtract_log_total"` is a direct
+  phosphosite-minus-total transformation on log-scale values. It changes
+  phosphosite matrix values and quantitative meaning. It is not protein-aware
+  modelling and is not MSstatsPTM-style inference.
+- `protein_aware_preparation.policy="prepare_model_inputs"` prepares aligned
+  phosphosite/protein input contracts and diagnostics only. It does not modify
+  phosphosite values, subtract total protein, normalise intensities, or run a
+  differential model.
+- Public builder protein-aware preparation maps explicit protein identifiers
+  from `site_metadata` (`protein_accession`, `protein_id`, or
+  `protein_group_id`) to `total.index`. Gene-symbol matching is not the public
+  default.
+- `protein_mapping_policy="require_unambiguous"` excludes missing and ambiguous
+  mappings from preparation. `protein_mapping_policy="allow_missing_with_report"`
+  reports missing site protein identifiers or missing total-protein rows as
+  phospho-only fallback rows. Ambiguous site-to-protein or total-protein-row
+  mappings remain excluded.
+- Protein-aware preparation requires total-protein input data. Missing
+  total-protein rows are per-site diagnostics; missing `total` input is an
+  error when `policy="prepare_model_inputs"` is selected.
+- Phospho and total sample columns must match in the same order for builder
+  protein-aware preparation. Missing, extra, or reordered total-protein sample
+  columns are diagnostics and make sites ineligible; the builder does not
+  reorder matrices for this preparation stage.
+- Phospho and total transformation states must be compatible: same scale kind
+  and transformed flag. Incompatible states are diagnostics and make sites
+  ineligible for protein-aware preparation.
 - `linear_residualize_batch` is fixed-effect residualisation of batch terms
   while preserving condition effects by design. It requires explicit batch and
   condition columns in `sample_metadata`; those columns are used only for this
@@ -124,6 +152,16 @@ identical numeric outputs across different machines or dependency builds.
   It records the method, status (`"disabled"`, `"applied"`, or `"rejected"`),
   batch and condition columns, observed levels, matrix shapes, condition
   preservation policy, confounding-check status, warnings, and limitations.
+- `preprocessing_report.protein_aware_preparation` is a typed
+  `ProteinAwarePreparationReport` when preparation is enabled. It records the
+  preparation policy, protein-mapping policy, eligibility counts,
+  site-eligibility table, missing-total and ambiguous-mapping diagnostics,
+  sample-alignment diagnostics, transformation-state diagnostics, and explicit
+  limitations: no phospho-matrix modification, no total-protein subtraction, no
+  normalisation, no differential modelling, and no MSstatsPTM equivalence claim.
+- Dataset run provenance includes the active protein-aware preparation summary
+  under `provenance.workflow_parameters["protein_aware_preparation"]` when the
+  preparation stage runs.
 - `processing_state.ruv_readiness` reports whether required controls/groups/batch and
   missingness provenance are present for future RUV-compatible correction stages.
   This is report-only and does not run correction or block dataset construction.
@@ -134,6 +172,9 @@ identical numeric outputs across different machines or dependency builds.
 - Protein identity is not derived automatically from display labels; provide
   protein context for `site_key` derivation and explicit, complete `protein_id`
   only for downstream signalome analysis.
+- Protein-aware preparation is not a supported joint PTM/protein differential
+  model. Current differential analysis does not consume
+  `ProteinAwarePreparationResult`, and no MSstatsPTM-style inference is claimed.
 - The only executable batch-correction preprocessing method is
   `linear_residualize_batch`. Broader batch-effect modelling, ComBat, RUV,
   limma `removeBatchEffect` parity, and mixed-effects modelling are not provided
@@ -147,6 +188,8 @@ identical numeric outputs across different machines or dependency builds.
   `site_sequence`, and optional workflow/source metadata such as `protein_id`.
   `protein_id` is signalome grouping metadata, not a `site_key` identity field.
 - optional `dataset.sample_metadata`, `dataset.total`, `dataset.comparisons`
+- optional `dataset.protein_aware_preparation` containing
+  `ProteinAwarePreparationResult` when protein-aware preparation is enabled
 - optional preprocessing report tables (`row_counts`, `operations`, `row_audit`, and sidecars)
 
 ## DifferentialAnalysisWorkflow Contract

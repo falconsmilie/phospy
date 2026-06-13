@@ -256,7 +256,18 @@ def _protein_aware_preparation_parameters(
             None if transformation_state is None else transformation_state.compatible
         ),
         "modifies_phospho_matrix": False,
+        "performs_total_protein_subtraction": False,
+        "performs_normalisation": False,
         "performs_model_adjustment": False,
+        "performs_differential_modelling": False,
+        "claims_msstatsptm_equivalence": False,
+        "limitations": [
+            "preparation-only; aligned phosphosite/protein inputs and diagnostics",
+            "does not subtract total protein from phosphosite intensities",
+            "does not normalise phosphosite intensities",
+            "does not run joint PTM/protein differential modelling",
+            "does not claim MSstatsPTM-style inference or equivalence",
+        ],
     }
 
 
