@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import pandas as pd
 
+from phospy.contracts.configs import DATASET_BATCH_CORRECTION_METHOD_NONE
 from phospy.science.datasets.builders.contracts import PreprocessedDatasetBuildTables
+from phospy.science.datasets.preprocessing.batch_correction_metadata import (
+    BatchCorrectionMetadataResolver,
+)
 from phospy.science.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingStageExecution,
@@ -35,10 +39,15 @@ class DatasetPreprocessor:
         *,
         pipeline: PreprocessingPipeline | None = None,
         provenance_adapter: PreprocessingProvenanceAdapter | None = None,
+        batch_correction_metadata_resolver: BatchCorrectionMetadataResolver
+        | None = None,
     ) -> None:
         self._pipeline = pipeline or PreprocessingPipeline()
         self._provenance_adapter = (
             provenance_adapter or PreprocessingProvenanceAdapter()
+        )
+        self._batch_correction_metadata_resolver = (
+            batch_correction_metadata_resolver or BatchCorrectionMetadataResolver()
         )
 
     def run(
@@ -51,6 +60,16 @@ class DatasetPreprocessor:
         plan: PreprocessingPlan,
     ) -> PreprocessedDatasetBuildTables:
         input_row_count = int(len(phospho.index))
+        batch_correction_metadata = None
+        if str(plan.batch_correction_method).strip() != (
+            DATASET_BATCH_CORRECTION_METHOD_NONE
+        ):
+            batch_correction_metadata = self._batch_correction_metadata_resolver.run(
+                phospho=phospho,
+                sample_metadata=sample_metadata,
+                batch_column=plan.batch_correction_batch_column,
+                condition_column=plan.batch_correction_condition_column,
+            )
         preprocessed_state, trace = self._pipeline.run_with_trace(
             PreprocessingState(
                 phospho=phospho,
@@ -83,6 +102,7 @@ class DatasetPreprocessor:
             preprocessing_trace=trace,
             duplicate_site_resolution=report_tables.duplicate_site_resolution,
             metadata_conflicts=report_tables.metadata_conflicts,
+            batch_correction_metadata=batch_correction_metadata,
         )
 
 

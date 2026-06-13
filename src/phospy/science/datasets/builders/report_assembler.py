@@ -21,6 +21,10 @@ from phospy.science.datasets.preprocessing.batch_correction import (
     BatchCorrectionPolicy,
     BatchCorrectionReport,
 )
+from phospy.science.datasets.preprocessing.batch_correction_metadata import (
+    ResolvedBatchCorrectionMetadata,
+    levels_in_sample_order,
+)
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
     DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
@@ -68,6 +72,7 @@ class DatasetPreprocessingReportAssembler:
         peptide_evidence_resolution: dict[str, object] | None,
         preprocessing_plan: PreprocessingPlan | None = None,
         sample_metadata: pd.DataFrame | None = None,
+        batch_correction_metadata: ResolvedBatchCorrectionMetadata | None = None,
         matrix_shape_before: tuple[int, int] | None = None,
         matrix_shape_after: tuple[int, int] | None = None,
         declared_input_intensity_scale_kind: str | None = None,
@@ -177,6 +182,7 @@ class DatasetPreprocessingReportAssembler:
         batch_correction = _build_batch_correction_report(
             plan=preprocessing_plan,
             sample_metadata=sample_metadata,
+            batch_correction_metadata=batch_correction_metadata,
             matrix_shape_before=matrix_shape_before,
             matrix_shape_after=matrix_shape_after,
         )
@@ -262,6 +268,7 @@ def _build_batch_correction_report(
     *,
     plan: PreprocessingPlan | None,
     sample_metadata: pd.DataFrame | None,
+    batch_correction_metadata: ResolvedBatchCorrectionMetadata | None,
     matrix_shape_before: tuple[int, int] | None,
     matrix_shape_after: tuple[int, int] | None,
 ) -> BatchCorrectionReport | None:
@@ -272,9 +279,20 @@ def _build_batch_correction_report(
         method = DATASET_BATCH_CORRECTION_METHOD_NONE
     batch_column = str(plan.batch_correction_batch_column).strip()
     condition_column = str(plan.batch_correction_condition_column).strip()
-    has_batch_column = _sample_metadata_has_column(sample_metadata, batch_column)
-    batch_levels = _sample_metadata_levels(sample_metadata, batch_column)
-    condition_levels = _sample_metadata_levels(sample_metadata, condition_column)
+    if batch_correction_metadata is not None:
+        batch_levels = levels_in_sample_order(
+            batch_correction_metadata.batch_by_sample,
+            sample_order=batch_correction_metadata.sample_order,
+        )
+        condition_levels = levels_in_sample_order(
+            batch_correction_metadata.condition_by_sample,
+            sample_order=batch_correction_metadata.sample_order,
+        )
+        has_batch_column = True
+    else:
+        has_batch_column = _sample_metadata_has_column(sample_metadata, batch_column)
+        batch_levels = _sample_metadata_levels(sample_metadata, batch_column)
+        condition_levels = _sample_metadata_levels(sample_metadata, condition_column)
     number_of_batches = len(batch_levels) if has_batch_column else None
     if method == DATASET_BATCH_CORRECTION_METHOD_NONE:
         status = BATCH_CORRECTION_STATUS_DISABLED

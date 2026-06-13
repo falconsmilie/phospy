@@ -9,6 +9,9 @@ from typing import TYPE_CHECKING, Protocol
 
 import pandas as pd
 
+from phospy.science.datasets.preprocessing.batch_correction_metadata import (
+    ResolvedBatchCorrectionMetadata,
+)
 from phospy.science.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingStageExecution,
@@ -70,6 +73,7 @@ class PreprocessedDatasetBuildTables:
     preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None = None
     duplicate_site_resolution: pd.DataFrame | None = None
     metadata_conflicts: pd.DataFrame | None = None
+    batch_correction_metadata: ResolvedBatchCorrectionMetadata | None = None
 
 
 class DatasetBuildValidatorContract(Protocol):
