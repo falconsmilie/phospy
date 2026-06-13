@@ -38,6 +38,13 @@ from phospy.science.datasets.preprocessing.policy_models import (
     TotalProteinCorrectionIdentityMatchingPolicy,
     TotalProteinCorrectionPolicy,
 )
+from phospy.science.datasets.preprocessing.protein_mapping import (
+    ProteinMappingConfig,
+    ProteinMappingRecord,
+    ProteinMappingResolver,
+    ProteinMappingResult,
+    ProteinMappingStatus,
+)
 
 __all__ = [
     "DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION",
@@ -60,6 +67,11 @@ __all__ = [
     "PreprocessingPipeline",
     "PreprocessingPlan",
     "ResolvedBatchCorrectionMetadata",
+    "ProteinMappingConfig",
+    "ProteinMappingRecord",
+    "ProteinMappingResolver",
+    "ProteinMappingResult",
+    "ProteinMappingStatus",
     "PreprocessingStageResult",
     "PreprocessingStage",
     "PreprocessingState",
