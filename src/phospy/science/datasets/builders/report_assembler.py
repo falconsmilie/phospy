@@ -28,9 +28,13 @@ from phospy.science.datasets.preprocessing.batch_correction_metadata import (
 )
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
+    DATASET_PREPROCESSING_STAGE_PROTEIN_AWARE_PREPARATION,
     DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
     PreprocessingPlan,
     PreprocessingStageExecution,
+)
+from phospy.science.datasets.preprocessing.protein_aware_preparation import (
+    ProteinAwarePreparationReport,
 )
 from phospy.science.datasets.preprocessing.report_schema import (
     PreprocessingOperationRow,
@@ -75,6 +79,7 @@ class DatasetPreprocessingReportAssembler:
         sample_metadata: pd.DataFrame | None = None,
         batch_correction_metadata: ResolvedBatchCorrectionMetadata | None = None,
         batch_correction_report: BatchCorrectionReport | None = None,
+        protein_aware_preparation_report: ProteinAwarePreparationReport | None = None,
         matrix_shape_before: tuple[int, int] | None = None,
         matrix_shape_after: tuple[int, int] | None = None,
         declared_input_intensity_scale_kind: str | None = None,
@@ -129,6 +134,38 @@ class DatasetPreprocessingReportAssembler:
                     output_rows=unique_site_ids,
                     notes=(
                         "peptide evidence ambiguity policy and site-resolution summary"
+                    ),
+                )
+            )
+
+        if protein_aware_preparation_report is not None:
+            row_count_rows.append(
+                PreprocessingRowCountRow(
+                    stage=DATASET_PREPROCESSING_STAGE_PROTEIN_AWARE_PREPARATION,
+                    input_rows=final_dataset_rows,
+                    output_rows=final_dataset_rows,
+                    dropped_rows=0,
+                )
+            )
+            if not operation_rows:
+                protein_aware_step_order = 1
+            else:
+                protein_aware_step_order = (
+                    int(max(row.step_order for row in operation_rows)) + 1
+                )
+            operation_rows.append(
+                PreprocessingOperationRow(
+                    step_order=protein_aware_step_order,
+                    stage=DATASET_PREPROCESSING_STAGE_PROTEIN_AWARE_PREPARATION,
+                    operation=protein_aware_preparation_report.preparation_policy,
+                    parameters=_protein_aware_preparation_parameters(
+                        protein_aware_preparation_report
+                    ),
+                    input_rows=final_dataset_rows,
+                    output_rows=final_dataset_rows,
+                    notes=(
+                        "prepared protein-aware model input contract; no phospho "
+                        "matrix modification"
                     ),
                 )
             )
@@ -199,7 +236,28 @@ class DatasetPreprocessingReportAssembler:
             comparison_pair_stats_rows=comparison_pair_stats_rows,
             site_sequence_resolution=site_sequence_resolution,
             batch_correction=batch_correction,
+            protein_aware_preparation=protein_aware_preparation_report,
         )
+
+
+def _protein_aware_preparation_parameters(
+    report: ProteinAwarePreparationReport,
+) -> dict[str, object]:
+    transformation_state = report.transformation_state
+    return {
+        "preparation_policy": report.preparation_policy,
+        "protein_mapping_policy": report.protein_mapping_policy,
+        "eligible_site_count": int(len(report.eligible_site_keys)),
+        "fallback_site_count": int(len(report.fallback_site_keys)),
+        "excluded_site_count": int(len(report.excluded_site_keys)),
+        "sample_order_compatible": report.sample_alignment.sample_order_compatible,
+        "exact_sample_order_match": report.sample_alignment.exact_sample_order_match,
+        "transformation_state_compatible": (
+            None if transformation_state is None else transformation_state.compatible
+        ),
+        "modifies_phospho_matrix": False,
+        "performs_model_adjustment": False,
+    }
 
 
 def _build_site_sequence_resolution_report(

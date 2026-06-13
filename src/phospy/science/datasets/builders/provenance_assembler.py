@@ -250,6 +250,10 @@ def _preprocessing_plan_to_payload(plan: PreprocessingPlan) -> dict[str, object]
                 plan.total_protein_correction_identity_policy
             )
         ),
+        "protein_aware_preparation_policy": (plan.protein_aware_preparation_policy),
+        "protein_aware_preparation_mapping_policy": (
+            plan.protein_aware_preparation_mapping_policy
+        ),
         "site_matrix_policy": plan.site_matrix_policy.value,
         "comparison_building_policy": plan.comparison_building_policy.value,
         "site_matrix_duplicate_site_policy": plan.site_matrix_duplicate_site_policy.value,

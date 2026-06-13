@@ -6,7 +6,10 @@ from phospy.science.datasets.builders.contracts import (
     DatasetPreprocessorContract,
     InterpretedDatasetBuildRequest,
 )
-from phospy.science.datasets.builders.preprocessing import DatasetPreprocessor
+from phospy.science.datasets.builders.preprocessing import (
+    DatasetPreprocessor,
+    DatasetProteinAwarePreparationRunner,
+)
 from phospy.science.datasets.builders.provenance_assembler import (
     DatasetRunProvenanceAssembler,
 )
@@ -40,6 +43,8 @@ class DatasetBuildExecutor:
         transformation_state_resolver: DatasetTransformationStateResolver | None = None,
         preprocessing_report_assembler: DatasetPreprocessingReportAssembler
         | None = None,
+        protein_aware_preparation_runner: DatasetProteinAwarePreparationRunner
+        | None = None,
         provenance_assembler: DatasetRunProvenanceAssembler | None = None,
     ) -> None:
         self._intensity_scale_resolver = (
@@ -60,6 +65,9 @@ class DatasetBuildExecutor:
         )
         self._preprocessing_report_assembler = (
             preprocessing_report_assembler or DatasetPreprocessingReportAssembler()
+        )
+        self._protein_aware_preparation_runner = (
+            protein_aware_preparation_runner or DatasetProteinAwarePreparationRunner()
         )
         self._provenance_assembler = (
             provenance_assembler or DatasetRunProvenanceAssembler()
@@ -83,6 +91,13 @@ class DatasetBuildExecutor:
             request=request,
             preprocessed=preprocessed,
             validated_site_metadata=validated_site_metadata,
+        )
+        protein_aware_preparation = self._protein_aware_preparation_runner.run(
+            phospho=transformed.phospho,
+            site_metadata=validated_site_metadata,
+            total=transformed.total,
+            intensity_scale_state=transformed.intensity_scale_state,
+            plan=request.preprocessing_plan,
         )
         report = self._preprocessing_report_assembler.run(
             row_counts=preprocessed.preprocessing_row_counts,
@@ -109,6 +124,11 @@ class DatasetBuildExecutor:
             sample_metadata=preprocessed.sample_metadata,
             batch_correction_metadata=preprocessed.batch_correction_metadata,
             batch_correction_report=preprocessed.batch_correction_report,
+            protein_aware_preparation_report=(
+                None
+                if protein_aware_preparation is None
+                else protein_aware_preparation.report
+            ),
             matrix_shape_before=(
                 int(request.phospho.shape[0]),
                 int(request.phospho.shape[1]),
@@ -140,6 +160,7 @@ class DatasetBuildExecutor:
             intensity_scale_state=transformed.intensity_scale_state,
             processing_state=transformed.processing_state,
             preprocessing_report=report,
+            protein_aware_preparation=protein_aware_preparation,
             provenance=provenance,
             allow_opaque_site_values=request.allow_opaque_site_values,
         )

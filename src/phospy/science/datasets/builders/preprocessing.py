@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import pandas as pd
 
+from phospy.contracts.configs.preprocessing.total_protein import (
+    DatasetProteinAwarePreparationConfig,
+)
 from phospy.science.datasets.builders.contracts import PreprocessedDatasetBuildTables
 from phospy.science.datasets.preprocessing.models import (
     PreprocessingPlan,
@@ -11,6 +14,10 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingState,
 )
 from phospy.science.datasets.preprocessing.pipeline import PreprocessingPipeline
+from phospy.science.datasets.preprocessing.protein_aware_preparation import (
+    ProteinAwarePreparationResult,
+    ProteinAwarePreparationStage,
+)
 from phospy.science.datasets.preprocessing.provenance_adapter import (
     PreprocessingProvenanceAdapter,
 )
@@ -85,6 +92,37 @@ class DatasetPreprocessor:
             metadata_conflicts=report_tables.metadata_conflicts,
             batch_correction_metadata=preprocessed_state.batch_correction_metadata,
             batch_correction_report=preprocessed_state.batch_correction_report,
+        )
+
+
+class DatasetProteinAwarePreparationRunner:
+    """Builder-facing adapter for protein-aware preparation after scale setup."""
+
+    def __init__(
+        self,
+        *,
+        stage: ProteinAwarePreparationStage | None = None,
+    ) -> None:
+        self._stage = stage or ProteinAwarePreparationStage()
+
+    def run(
+        self,
+        *,
+        phospho: pd.DataFrame,
+        site_metadata: pd.DataFrame,
+        total: pd.DataFrame | None,
+        intensity_scale_state: IntensityScaleState,
+        plan: PreprocessingPlan,
+    ) -> ProteinAwarePreparationResult | None:
+        return self._stage.run(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            total=total,
+            transformation_state=intensity_scale_state,
+            config=DatasetProteinAwarePreparationConfig(
+                policy=plan.protein_aware_preparation_policy,
+                protein_mapping_policy=(plan.protein_aware_preparation_mapping_policy),
+            ),
         )
 
 

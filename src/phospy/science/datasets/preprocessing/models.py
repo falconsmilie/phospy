@@ -6,7 +6,7 @@ import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from enum import Enum
-from typing import Protocol
+from typing import Protocol, cast
 
 import pandas as pd
 
@@ -14,12 +14,18 @@ from phospy.contracts.configs import (
     DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
     DATASET_BATCH_CORRECTION_METHOD_NONE,
     DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN,
+    DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICIES,
+    DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_REQUIRE_UNAMBIGUOUS,
+    DATASET_PROTEIN_AWARE_PREPARATION_POLICIES,
+    DATASET_PROTEIN_AWARE_PREPARATION_POLICY_DISABLED,
     DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICY_ERROR,
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT,
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_MAPPING_TABLE,
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ERROR,
     DatasetComparisonPair,
     DatasetPreprocessingConfig,
+    DatasetProteinAwarePreparationMappingPolicy,
+    DatasetProteinAwarePreparationPolicy,
     DatasetSiteSequenceConflictPolicy,
     DatasetTotalProteinCorrectionDuplicatePolicy,
     DatasetTotalProteinCorrectionIdentityConfig,
@@ -63,6 +69,9 @@ from phospy.science.datasets.preprocessing.report_schema import (
     dataframe_from_row_audit_rows,
     reorder_columns,
 )
+from phospy.validation.configs.preprocessing import (
+    validate_protein_aware_preparation_config,
+)
 
 
 class PreprocessingStateTableKey(str, Enum):
@@ -88,6 +97,7 @@ DATASET_PREPROCESSING_STAGE_MISSING_DATA = "missing_data"
 DATASET_PREPROCESSING_STAGE_LOCALISATION = "localisation_confidence"
 DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION = "site_sequence_resolution"
 DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION = "total_protein_correction"
+DATASET_PREPROCESSING_STAGE_PROTEIN_AWARE_PREPARATION = "protein_aware_preparation"
 DATASET_PREPROCESSING_STAGE_SITE_MATRIX = "site_matrix"
 DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM = "intensity_transform"
 DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION = "batch_correction"
@@ -218,6 +228,10 @@ class PreprocessingPlan:
             mapping_table_fingerprint=None,
         )
     )
+    protein_aware_preparation_policy: DatasetProteinAwarePreparationPolicy = (
+        DATASET_PROTEIN_AWARE_PREPARATION_POLICY_DISABLED
+    )
+    protein_aware_preparation_mapping_policy: DatasetProteinAwarePreparationMappingPolicy = DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_REQUIRE_UNAMBIGUOUS
     site_matrix_policy: SiteMatrixPolicy = SiteMatrixPolicy.AS_INPUT
     comparison_building_policy: ComparisonBuildingPolicy = ComparisonBuildingPolicy.NONE
     site_matrix_duplicate_site_policy: SiteMatrixDuplicateSitePolicy = (
@@ -396,6 +410,30 @@ class PreprocessingPlan:
                     "dataset preprocessing plan total_protein_correction_policy "
                     "(internal model)"
                 ),
+            ),
+        )
+        validate_protein_aware_preparation_config(
+            policy=self.protein_aware_preparation_policy,
+            protein_mapping_policy=self.protein_aware_preparation_mapping_policy,
+            supported_policies=DATASET_PROTEIN_AWARE_PREPARATION_POLICIES,
+            supported_mapping_policies=(
+                DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICIES
+            ),
+        )
+        object.__setattr__(
+            self,
+            "protein_aware_preparation_policy",
+            cast(
+                DatasetProteinAwarePreparationPolicy,
+                str(self.protein_aware_preparation_policy).strip(),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "protein_aware_preparation_mapping_policy",
+            cast(
+                DatasetProteinAwarePreparationMappingPolicy,
+                str(self.protein_aware_preparation_mapping_policy).strip(),
             ),
         )
         batch_correction_method = str(self.batch_correction_method).strip()
@@ -637,6 +675,10 @@ class PreprocessingPlan:
             total_protein_correction_identity_policy=_resolve_total_correction_identity_policy(
                 config.total_protein_correction.identity
             ),
+            protein_aware_preparation_policy=(config.protein_aware_preparation.policy),
+            protein_aware_preparation_mapping_policy=(
+                config.protein_aware_preparation.protein_mapping_policy
+            ),
             site_matrix_policy=site_matrix_policy,
             site_matrix_duplicate_site_policy=site_matrix_duplicate_site_policy,
             site_matrix_missing_data_policy=site_matrix_missing_data_policy,
@@ -809,6 +851,7 @@ __all__ = [
     "DATASET_PREPROCESSING_STAGE_MISSING_DATA",
     "DATASET_PREPROCESSING_STAGE_NORMALISATION",
     "DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT",
+    "DATASET_PREPROCESSING_STAGE_PROTEIN_AWARE_PREPARATION",
     "DATASET_PREPROCESSING_STAGE_SITE_MATRIX",
     "DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION",
     "DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION",

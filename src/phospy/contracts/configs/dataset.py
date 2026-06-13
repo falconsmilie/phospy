@@ -45,9 +45,9 @@ class DatasetPreprocessingConfig:
     - `normalisation`: sample-wise normalisation policy.
     - `missing_data`: missing-value handling policy.
     - `total_protein_correction`: total/protein correction policy.
-    - `protein_aware_preparation`: config-only intent for future aligned
-      phosphosite/protein model input preparation. It does not run preparation
-      or modelling during dataset build.
+    - `protein_aware_preparation`: prepare aligned phosphosite/protein model
+      inputs and audit diagnostics. It does not run modelling during dataset
+      build.
     - `site_matrix`: site-matrix construction policy.
     - `site_sequence_resolution`: optional local FASTA-backed site-sequence
       resolution policy.

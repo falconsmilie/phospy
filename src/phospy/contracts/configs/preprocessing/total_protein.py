@@ -190,13 +190,12 @@ class DatasetTotalProteinCorrectionConfig:
 
 @dataclass(frozen=True, slots=True)
 class DatasetProteinAwarePreparationConfig:
-    """Config-only intent for future protein-aware model-input preparation.
+    """Protein-aware model-input preparation policy.
 
     This contract is separate from `DatasetTotalProteinCorrectionConfig`: it
-    does not subtract total protein, align matrices, decide site eligibility, or
-    run full joint PTM/protein modelling. `policy="prepare_model_inputs"` only
-    declares that a future preparation lane should build aligned
-    phosphosite/protein inputs.
+    does not subtract total protein or run full joint PTM/protein modelling.
+    `policy="prepare_model_inputs"` builds aligned phosphosite/protein input
+    contracts and an audit report for later modelling.
     """
 
     policy: DatasetProteinAwarePreparationPolicy = (

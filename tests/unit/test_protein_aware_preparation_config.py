@@ -61,15 +61,20 @@ def test_protein_aware_preparation_unsupported_policy_value_is_rejected() -> Non
         )
 
 
-def test_protein_aware_preparation_declaration_does_not_execute_any_stage() -> None:
+def test_protein_aware_preparation_declaration_resolves_plan_without_total_correction() -> (
+    None
+):
     plan = PreprocessingPlan.from_config(
         DatasetPreprocessingConfig(
             protein_aware_preparation=DatasetProteinAwarePreparationConfig(
-                policy="prepare_model_inputs"
+                policy="prepare_model_inputs",
+                protein_mapping_policy="allow_missing_with_report",
             )
         )
     )
 
+    assert plan.protein_aware_preparation_policy == "prepare_model_inputs"
+    assert plan.protein_aware_preparation_mapping_policy == "allow_missing_with_report"
     assert "protein_aware_preparation" not in plan.stage_order
     assert DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION not in plan.stage_order
     assert plan.total_protein_correction_policy.value == "none"

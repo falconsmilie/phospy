@@ -16,6 +16,7 @@ from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+    DATASET_PREPROCESSING_STAGE_PROTEIN_AWARE_PREPARATION,
     DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
     PreprocessingPlan,
@@ -51,6 +52,7 @@ from phospy.science.datasets.preprocessing.protein_aware_preparation import (
     ProteinAwareMappingDiagnostics,
     ProteinAwarePreparationReport,
     ProteinAwarePreparationResult,
+    ProteinAwarePreparationStage,
     ProteinAwareSiteEligibility,
 )
 from phospy.science.datasets.preprocessing.protein_mapping import (
@@ -65,6 +67,7 @@ __all__ = [
     "DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION",
     "DATASET_PREPROCESSING_STAGE_COMPARISONS",
     "DATASET_PREPROCESSING_STAGE_MISSING_DATA",
+    "DATASET_PREPROCESSING_STAGE_PROTEIN_AWARE_PREPARATION",
     "DATASET_PREPROCESSING_STAGE_SITE_MATRIX",
     "DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION",
     "BatchCorrectionDiagnostics",
@@ -97,6 +100,7 @@ __all__ = [
     "ProteinAwareMappingDiagnostics",
     "ProteinAwarePreparationReport",
     "ProteinAwarePreparationResult",
+    "ProteinAwarePreparationStage",
     "ProteinAwareSiteEligibility",
     "PreprocessingStageResult",
     "PreprocessingStage",

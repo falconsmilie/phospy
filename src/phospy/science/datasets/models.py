@@ -22,6 +22,10 @@ from phospy.provenance.models import RunProvenance
 from phospy.science.datasets.preprocessing.batch_correction import (
     BatchCorrectionReport,
 )
+from phospy.science.datasets.preprocessing.protein_aware_preparation import (
+    ProteinAwarePreparationReport,
+    ProteinAwarePreparationResult,
+)
 from phospy.science.datasets.preprocessing.report_schema import (
     COMPARISON_GROUP_STATS_COLUMNS,
     COMPARISON_PAIR_STATS_COLUMNS,
@@ -120,6 +124,10 @@ class DatasetPreprocessingReport:
         repr=False,
     )
     _batch_correction: BatchCorrectionReport | None = field(init=False, repr=False)
+    _protein_aware_preparation: ProteinAwarePreparationReport | None = field(
+        init=False,
+        repr=False,
+    )
 
     def __init__(
         self,
@@ -132,6 +140,7 @@ class DatasetPreprocessingReport:
         comparison_pair_stats: pd.DataFrame | None = None,
         site_sequence_resolution: SiteSequenceResolutionReport | None = None,
         batch_correction: BatchCorrectionReport | None = None,
+        protein_aware_preparation: ProteinAwarePreparationReport | None = None,
         _assume_owned: bool = False,
     ) -> None:
         row_counts = own_dataframe(
@@ -256,6 +265,19 @@ class DatasetPreprocessingReport:
         object.__setattr__(self, "_comparison_pair_stats", comparison_pair_stats)
         object.__setattr__(self, "_site_sequence_resolution", site_sequence_resolution)
         object.__setattr__(self, "_batch_correction", batch_correction)
+        _require_optional_instance(
+            protein_aware_preparation,
+            expected_type=ProteinAwarePreparationReport,
+            error_message=(
+                "dataset.preprocessing_report.protein_aware_preparation must be "
+                "ProteinAwarePreparationReport or None"
+            ),
+        )
+        object.__setattr__(
+            self,
+            "_protein_aware_preparation",
+            protein_aware_preparation,
+        )
 
     @property
     def row_counts(self) -> pd.DataFrame:
@@ -292,6 +314,10 @@ class DatasetPreprocessingReport:
     @property
     def batch_correction(self) -> BatchCorrectionReport | None:
         return self._batch_correction
+
+    @property
+    def protein_aware_preparation(self) -> ProteinAwarePreparationReport | None:
+        return self._protein_aware_preparation
 
     def _borrow_row_counts_frame(self) -> pd.DataFrame:
         """Package-private borrowed row-count table for internal workflows."""
@@ -373,6 +399,13 @@ class DatasetPreprocessingReport:
 
         return self._batch_correction
 
+    def protein_aware_preparation_summary(
+        self,
+    ) -> ProteinAwarePreparationReport | None:
+        """Return protein-aware preparation provenance when available."""
+
+        return self._protein_aware_preparation
+
     def site_attrition_summary(self) -> PreprocessingSiteAttritionSummary:
         """Return compact preprocessing-owned site attrition counters."""
 
@@ -418,6 +451,7 @@ class DatasetPreprocessingReport:
         comparison_pair_stats_rows: Sequence[ComparisonPairStatsRow] = (),
         site_sequence_resolution: SiteSequenceResolutionReport | None = None,
         batch_correction: BatchCorrectionReport | None = None,
+        protein_aware_preparation: ProteinAwarePreparationReport | None = None,
     ) -> DatasetPreprocessingReport:
         return cls._from_owned(
             row_counts=dataframe_from_row_count_rows(row_count_rows),
@@ -437,6 +471,7 @@ class DatasetPreprocessingReport:
             ),
             site_sequence_resolution=site_sequence_resolution,
             batch_correction=batch_correction,
+            protein_aware_preparation=protein_aware_preparation,
         )
 
     @classmethod
@@ -452,6 +487,7 @@ class DatasetPreprocessingReport:
         comparison_pair_stats: pd.DataFrame | None = None,
         site_sequence_resolution: SiteSequenceResolutionReport | None = None,
         batch_correction: BatchCorrectionReport | None = None,
+        protein_aware_preparation: ProteinAwarePreparationReport | None = None,
     ) -> DatasetPreprocessingReport:
         return cls(
             row_counts=row_counts,
@@ -463,6 +499,7 @@ class DatasetPreprocessingReport:
             comparison_pair_stats=comparison_pair_stats,
             site_sequence_resolution=site_sequence_resolution,
             batch_correction=batch_correction,
+            protein_aware_preparation=protein_aware_preparation,
             _assume_owned=True,
         )
 
@@ -538,6 +575,7 @@ class AnalysisReadyPhosphoDataset:
     processing_state: DatasetProcessingState
     organism: Organism | None = None
     preprocessing_report: DatasetPreprocessingReport | None = None
+    protein_aware_preparation: ProteinAwarePreparationResult | None = None
     provenance: RunProvenance | None = None
     allow_opaque_site_values: bool = False
     _phospho: pd.DataFrame = field(init=False, repr=False)
@@ -570,6 +608,7 @@ class AnalysisReadyPhosphoDataset:
         comparisons: pd.DataFrame | None = None,
         organism: Organism | None = None,
         preprocessing_report: DatasetPreprocessingReport | None = None,
+        protein_aware_preparation: ProteinAwarePreparationResult | None = None,
         provenance: RunProvenance | None = None,
         allow_opaque_site_values: bool = False,
         _assume_owned: bool = False,
@@ -583,6 +622,11 @@ class AnalysisReadyPhosphoDataset:
         object.__setattr__(self, "processing_state", processing_state)
         object.__setattr__(self, "organism", organism)
         object.__setattr__(self, "preprocessing_report", preprocessing_report)
+        object.__setattr__(
+            self,
+            "protein_aware_preparation",
+            protein_aware_preparation,
+        )
         object.__setattr__(self, "provenance", provenance)
         object.__setattr__(self, "allow_opaque_site_values", allow_opaque_site_values)
         object.__setattr__(
@@ -761,6 +805,14 @@ class AnalysisReadyPhosphoDataset:
             ),
         )
         _require_optional_instance(
+            self.protein_aware_preparation,
+            expected_type=ProteinAwarePreparationResult,
+            error_message=(
+                "dataset.protein_aware_preparation must be "
+                "ProteinAwarePreparationResult or None"
+            ),
+        )
+        _require_optional_instance(
             self.provenance,
             expected_type=RunProvenance,
             error_message="dataset.provenance must be RunProvenance or None",
@@ -845,6 +897,7 @@ class AnalysisReadyPhosphoDataset:
         comparisons: pd.DataFrame | None = None,
         organism: Organism | None = None,
         preprocessing_report: DatasetPreprocessingReport | None = None,
+        protein_aware_preparation: ProteinAwarePreparationResult | None = None,
         provenance: RunProvenance | None = None,
         allow_opaque_site_values: bool = False,
     ) -> AnalysisReadyPhosphoDataset:
@@ -858,6 +911,7 @@ class AnalysisReadyPhosphoDataset:
             comparisons=comparisons,
             organism=organism,
             preprocessing_report=preprocessing_report,
+            protein_aware_preparation=protein_aware_preparation,
             provenance=provenance,
             allow_opaque_site_values=allow_opaque_site_values,
             _assume_owned=True,
