@@ -3,6 +3,7 @@ from __future__ import annotations
 
 def test_public_config_imports_remain_stable() -> None:
     from phospy.api.configs import (
+        DatasetBatchCorrectionConfig,
         DatasetIntensityTransformConfig,
         DatasetPreprocessingConfig,
         DatasetTotalProteinCorrectionConfig,
@@ -11,6 +12,7 @@ def test_public_config_imports_remain_stable() -> None:
         SignalomeConfig,
     )
 
+    assert DatasetBatchCorrectionConfig is not None
     assert DatasetPreprocessingConfig is not None
     assert DatasetIntensityTransformConfig is not None
     assert DatasetTotalProteinCorrectionConfig is not None
@@ -27,6 +29,7 @@ def test_config_all_exports_public_api() -> None:
     assert "KinasePredictionConfig" in configs.__all__
     assert "SignalomeConfig" in configs.__all__
     assert "DatasetTotalProteinCorrectionConfig" in configs.__all__
+    assert "DatasetBatchCorrectionConfig" in configs.__all__
 
 
 def test_config_refactor_does_not_create_import_cycles() -> None:

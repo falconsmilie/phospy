@@ -304,6 +304,41 @@ stat-only computation payload for workflow assembly. The public API result is
 only `DifferentialAnalysisResult`, after the workflow has attached dataset
 identity metadata.
 
+## Batch Correction Preprocessing Intent
+
+Dataset preprocessing exposes an explicit batch-correction intent contract, but
+the dataset builder does not execute batch correction yet. The default remains
+disabled:
+
+```python
+from phospy.api import DatasetBatchCorrectionConfig, DatasetPreprocessingConfig
+
+preprocessing = DatasetPreprocessingConfig(
+    batch_correction=DatasetBatchCorrectionConfig()
+)
+assert preprocessing.batch_correction.method == "none"
+```
+
+Users who want to declare future fixed-effect residualisation can opt in by
+name:
+
+```python
+preprocessing = DatasetPreprocessingConfig(
+    batch_correction=DatasetBatchCorrectionConfig(
+        method="linear_residualize_batch",
+        batch_column="batch",
+        condition_column="condition",
+        preserve_condition_effects=True,
+    )
+)
+```
+
+`linear_residualize_batch` means fixed-effect residualisation of batch terms
+while preserving condition effects by design. It is not ComBat, not RUV, and not
+limma `removeBatchEffect` parity. The config records user intent only: it does
+not validate whether a dataset has suitable batch or condition columns, does not
+perform correction, and does not create a preprocessing report.
+
 ## Result Construction Contracts
 
 Public-looking result classes do not all have the same construction contract:

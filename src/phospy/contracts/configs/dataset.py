@@ -17,6 +17,7 @@ from phospy.contracts.configs.preprocessing import (
     DATASET_SITE_MATRIX_POLICY_AS_INPUT,
     DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
+    DatasetBatchCorrectionConfig,
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetLocalisationConfig,
@@ -48,6 +49,8 @@ class DatasetPreprocessingConfig:
       resolution policy.
     - `comparisons`: comparison-building policy.
     - `localisation`: phosphosite-localisation eligibility policy.
+    - `batch_correction`: batch-correction intent declaration. Currently
+      config-only; no correction is executed by the dataset builder.
     - `ruv_readiness`: readiness reporting contract for future RUV-compatible
       preprocessing (report-only; no correction).
     """
@@ -75,6 +78,9 @@ class DatasetPreprocessingConfig:
     )
     localisation: DatasetLocalisationConfig = field(
         default_factory=DatasetLocalisationConfig
+    )
+    batch_correction: DatasetBatchCorrectionConfig = field(
+        default_factory=DatasetBatchCorrectionConfig
     )
     ruv_readiness: DatasetRuvReadinessConfig = field(
         default_factory=DatasetRuvReadinessConfig
@@ -126,6 +132,11 @@ class DatasetPreprocessingConfig:
             self.localisation,
             field_name="dataset build request preprocessing_config.localisation",
             expected_type=DatasetLocalisationConfig,
+        )
+        validate_preprocessing_section_type(
+            self.batch_correction,
+            field_name="dataset build request preprocessing_config.batch_correction",
+            expected_type=DatasetBatchCorrectionConfig,
         )
         validate_preprocessing_section_type(
             self.ruv_readiness,

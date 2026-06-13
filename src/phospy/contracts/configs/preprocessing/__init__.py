@@ -2,6 +2,13 @@
 
 from __future__ import annotations
 
+from phospy.contracts.configs.preprocessing.batch_correction import (
+    DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
+    DATASET_BATCH_CORRECTION_METHOD_NONE,
+    DATASET_BATCH_CORRECTION_METHODS,
+    DatasetBatchCorrectionConfig,
+    DatasetBatchCorrectionMethod,
+)
 from phospy.contracts.configs.preprocessing.comparisons import (
     DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN,
     DATASET_COMPARISON_BUILDING_POLICIES,
@@ -100,6 +107,9 @@ from phospy.contracts.configs.preprocessing.total_protein import (
 )
 
 __all__ = [
+    "DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH",
+    "DATASET_BATCH_CORRECTION_METHOD_NONE",
+    "DATASET_BATCH_CORRECTION_METHODS",
     "DATASET_LOCALISATION_MODES",
     "DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER",
     "DATASET_LOCALISATION_MODE_IGNORE",
@@ -156,6 +166,8 @@ __all__ = [
     "DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ERROR",
     "DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED",
     "DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICIES",
+    "DatasetBatchCorrectionConfig",
+    "DatasetBatchCorrectionMethod",
     "DatasetComparisonBuildingConfig",
     "DatasetComparisonPair",
     "DatasetComparisonBuildingPolicy",

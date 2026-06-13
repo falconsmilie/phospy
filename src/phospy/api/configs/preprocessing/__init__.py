@@ -1,6 +1,9 @@
 """Public compatibility wrapper for internal contract ownership."""
 
 from phospy.contracts.configs.preprocessing import (
+    DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
+    DATASET_BATCH_CORRECTION_METHOD_NONE,
+    DATASET_BATCH_CORRECTION_METHODS,
     DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN,
     DATASET_COMPARISON_BUILDING_POLICIES,
     DATASET_COMPARISON_BUILDING_POLICY_NONE,
@@ -55,6 +58,8 @@ from phospy.contracts.configs.preprocessing import (
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICIES,
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ERROR,
+    DatasetBatchCorrectionConfig,
+    DatasetBatchCorrectionMethod,
     DatasetComparisonBuildingConfig,
     DatasetComparisonBuildingPolicy,
     DatasetComparisonPair,
@@ -84,6 +89,9 @@ from phospy.contracts.configs.preprocessing import (
 )
 
 __all__ = [
+    "DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH",
+    "DATASET_BATCH_CORRECTION_METHOD_NONE",
+    "DATASET_BATCH_CORRECTION_METHODS",
     "DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN",
     "DATASET_COMPARISON_BUILDING_POLICIES",
     "DATASET_COMPARISON_BUILDING_POLICY_NONE",
@@ -138,6 +146,8 @@ __all__ = [
     "DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICIES",
     "DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED",
     "DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ERROR",
+    "DatasetBatchCorrectionConfig",
+    "DatasetBatchCorrectionMethod",
     "DatasetComparisonBuildingConfig",
     "DatasetComparisonBuildingPolicy",
     "DatasetComparisonPair",

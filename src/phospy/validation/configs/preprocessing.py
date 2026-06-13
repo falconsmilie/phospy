@@ -85,6 +85,45 @@ def validate_normalisation_config(
     )
 
 
+def validate_batch_correction_config(
+    *,
+    method: object,
+    batch_column: object,
+    condition_column: object,
+    preserve_condition_effects: object,
+    supported_methods: Collection[str],
+) -> None:
+    """Validate public batch-correction intent config fields."""
+
+    require_supported_literal(
+        method,
+        field_name="dataset build request preprocessing_config.batch_correction.method",
+        supported_values=supported_methods,
+        error_type=PhosPyInputError,
+    )
+    require_non_empty_string(
+        batch_column,
+        field_name=(
+            "dataset build request preprocessing_config.batch_correction.batch_column"
+        ),
+        error_type=PhosPyInputError,
+    )
+    require_non_empty_string(
+        condition_column,
+        field_name=(
+            "dataset build request preprocessing_config.batch_correction."
+            "condition_column"
+        ),
+        error_type=PhosPyInputError,
+    )
+    if preserve_condition_effects is not True:
+        raise PhosPyInputError(
+            "dataset build request preprocessing_config.batch_correction."
+            "preserve_condition_effects must be True because "
+            "linear_residualize_batch preserves condition effects by design"
+        )
+
+
 def validate_localisation_config(
     *,
     mode: object,
