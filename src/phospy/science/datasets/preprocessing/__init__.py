@@ -38,6 +38,15 @@ from phospy.science.datasets.preprocessing.policy_models import (
     TotalProteinCorrectionIdentityMatchingPolicy,
     TotalProteinCorrectionPolicy,
 )
+from phospy.science.datasets.preprocessing.protein_aware_alignment import (
+    ProteinAwareAlignmentConfig,
+    ProteinAwareAlignmentEligibilityDiagnostics,
+    ProteinAwareAlignmentEligibilityResolver,
+    ProteinAwarePreparationEligibility,
+    ProteinAwareSampleAlignmentDiagnostics,
+    ProteinAwareSiteEligibilityDiagnostic,
+    ProteinAwareTransformationStateDiagnostics,
+)
 from phospy.science.datasets.preprocessing.protein_mapping import (
     ProteinMappingConfig,
     ProteinMappingRecord,
@@ -67,6 +76,13 @@ __all__ = [
     "PreprocessingPipeline",
     "PreprocessingPlan",
     "ResolvedBatchCorrectionMetadata",
+    "ProteinAwareAlignmentConfig",
+    "ProteinAwareAlignmentEligibilityDiagnostics",
+    "ProteinAwareAlignmentEligibilityResolver",
+    "ProteinAwarePreparationEligibility",
+    "ProteinAwareSampleAlignmentDiagnostics",
+    "ProteinAwareSiteEligibilityDiagnostic",
+    "ProteinAwareTransformationStateDiagnostics",
     "ProteinMappingConfig",
     "ProteinMappingRecord",
     "ProteinMappingResolver",

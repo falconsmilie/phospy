@@ -153,6 +153,29 @@ def validate_protein_aware_preparation_config(
     )
 
 
+def validate_protein_aware_sample_alignment_config(
+    *,
+    protein_mapping_policy: object,
+    allow_reordered_samples: object,
+    supported_mapping_policies: Collection[str],
+) -> None:
+    """Validate protein-aware alignment diagnostics configuration fields."""
+
+    require_supported_literal(
+        protein_mapping_policy,
+        field_name=(
+            "protein-aware sample alignment diagnostics protein_mapping_policy"
+        ),
+        supported_values=supported_mapping_policies,
+        error_type=PhosPyInputError,
+    )
+    if not isinstance(allow_reordered_samples, bool):
+        raise PhosPyInputError(
+            "protein-aware sample alignment diagnostics allow_reordered_samples "
+            "must be a bool"
+        )
+
+
 def validate_localisation_config(
     *,
     mode: object,
