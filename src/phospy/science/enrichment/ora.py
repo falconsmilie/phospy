@@ -3,16 +3,22 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Literal, cast
 
 from scipy.stats import hypergeom
 
 from phospy.science.enrichment.models import (
     ENRICHMENT_METHOD_OVER_REPRESENTATION,
+    MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
+    SUPPORTED_MULTIPLE_TESTING_CORRECTIONS,
     EnrichmentCollectionKind,
     EnrichmentIdentifierKind,
     EnrichmentSetCollection,
+    MultipleTestingCorrection,
+)
+from phospy.science.statistics.multiple_testing import (
+    run as run_multiple_testing_correction,
 )
 
 ORA_STATISTICAL_TEST_HYPERGEOMETRIC = "hypergeometric"
@@ -44,6 +50,9 @@ class OraConfig:
     )
     set_outside_background_policy: OraOutsideBackgroundPolicy = (
         ORA_OUTSIDE_BACKGROUND_POLICY_DROP
+    )
+    multiple_testing_correction: MultipleTestingCorrection = (
+        MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG
     )
 
     def __post_init__(self) -> None:
@@ -83,6 +92,18 @@ class OraConfig:
                 ),
             ),
         )
+        object.__setattr__(
+            self,
+            "multiple_testing_correction",
+            cast(
+                MultipleTestingCorrection,
+                _require_supported_value(
+                    self.multiple_testing_correction,
+                    field_name="ora_config.multiple_testing_correction",
+                    supported=SUPPORTED_MULTIPLE_TESTING_CORRECTIONS,
+                ),
+            ),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,6 +123,8 @@ class OraResultRecord:
     p_value: float
     enrichment_ratio: float | None
     set_identifiers_outside_background_count: int
+    adjusted_p_value: float | None = None
+    correction_method: MultipleTestingCorrection | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -226,6 +249,11 @@ def run(
             )
         )
 
+    corrected_records = _apply_multiple_testing_correction(
+        records=tuple(records),
+        method=resolved_config.multiple_testing_correction,
+    )
+
     return OraResult(
         method=ENRICHMENT_METHOD_OVER_REPRESENTATION,
         config=resolved_config,
@@ -234,8 +262,35 @@ def run(
         selected_identifiers=selected,
         dropped_selected_identifiers=dropped_selected,
         records=tuple(
-            sorted(records, key=lambda record: (record.p_value, record.set_id))
+            sorted(
+                corrected_records, key=lambda record: (record.p_value, record.set_id)
+            )
         ),
+    )
+
+
+def _apply_multiple_testing_correction(
+    *,
+    records: tuple[OraResultRecord, ...],
+    method: MultipleTestingCorrection,
+) -> tuple[OraResultRecord, ...]:
+    if not records:
+        return ()
+    adjusted_p_values = run_multiple_testing_correction(
+        tuple(record.p_value for record in records),
+        method=method,
+    )
+    return tuple(
+        replace(
+            record,
+            adjusted_p_value=adjusted_p_value,
+            correction_method=method,
+        )
+        for record, adjusted_p_value in zip(
+            records,
+            adjusted_p_values,
+            strict=True,
+        )
     )
 
 

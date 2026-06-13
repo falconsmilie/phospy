@@ -7,19 +7,17 @@ from dataclasses import dataclass
 from typing import Literal, cast
 
 from phospy.errors.validation import WorkflowValidationError
+from phospy.science.statistics.multiple_testing import (
+    MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
+    MULTIPLE_TESTING_CORRECTION_NONE,
+    SUPPORTED_MULTIPLE_TESTING_CORRECTIONS,
+    MultipleTestingCorrection,
+)
 
 ENRICHMENT_METHOD_OVER_REPRESENTATION = "over_representation"
 EnrichmentMethod = Literal["over_representation"]
 SUPPORTED_ENRICHMENT_METHODS: tuple[EnrichmentMethod, ...] = (
     ENRICHMENT_METHOD_OVER_REPRESENTATION,
-)
-
-MULTIPLE_TESTING_CORRECTION_NONE = "none"
-MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG = "benjamini_hochberg"
-MultipleTestingCorrection = Literal["none", "benjamini_hochberg"]
-SUPPORTED_MULTIPLE_TESTING_CORRECTIONS: tuple[MultipleTestingCorrection, ...] = (
-    MULTIPLE_TESTING_CORRECTION_NONE,
-    MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
 )
 
 ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL = "gene_symbol"
@@ -323,6 +321,7 @@ class EnrichmentResultRecord:
     overlap_identifiers: tuple[str, ...] = ()
     p_value: float | None = None
     adjusted_p_value: float | None = None
+    correction_method: MultipleTestingCorrection | None = None
 
     def __post_init__(self) -> None:
         term_id = _require_non_empty_string(
@@ -407,6 +406,14 @@ class EnrichmentResultRecord:
             _normalise_optional_unit_interval(
                 self.adjusted_p_value,
                 field_name="enrichment_result_record.adjusted_p_value",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "correction_method",
+            _normalise_optional_multiple_testing_correction(
+                self.correction_method,
+                field_name="enrichment_result_record.correction_method",
             ),
         )
 
@@ -733,6 +740,23 @@ def _normalise_optional_unit_interval(
     if normalised < 0.0 or normalised > 1.0:
         raise WorkflowValidationError(f"{field_name} must be within [0.0, 1.0]")
     return normalised
+
+
+def _normalise_optional_multiple_testing_correction(
+    value: object | None,
+    *,
+    field_name: str,
+) -> MultipleTestingCorrection | None:
+    if value is None:
+        return None
+    return cast(
+        MultipleTestingCorrection,
+        _require_supported_value(
+            value,
+            field_name=field_name,
+            supported=SUPPORTED_MULTIPLE_TESTING_CORRECTIONS,
+        ),
+    )
 
 
 __all__ = [
