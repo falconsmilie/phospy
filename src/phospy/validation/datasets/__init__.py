@@ -8,6 +8,9 @@ if TYPE_CHECKING:
     from phospy.validation.datasets.analysis_ready import (
         AnalysisReadyDatasetModelBoundaryValidator,
     )
+    from phospy.validation.datasets.batch_correction import (
+        BatchCorrectionAdequacyValidator,
+    )
     from phospy.validation.datasets.display_site_identity import (
         DISPLAY_SITE_CONTEXT_COLUMNS,
         enforce_unique_display_site_identity_rows,
@@ -29,6 +32,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "AnalysisReadyDatasetModelBoundaryValidator",
+    "BatchCorrectionAdequacyValidator",
     "DISPLAY_SITE_CONTEXT_COLUMNS",
     "DatasetInputSourceValidator",
     "PhosphositeImportRequestValidator",
@@ -49,6 +53,12 @@ def __getattr__(name: str) -> object:
         )
 
         return AnalysisReadyDatasetModelBoundaryValidator
+    if name == "BatchCorrectionAdequacyValidator":
+        from phospy.validation.datasets.batch_correction import (
+            BatchCorrectionAdequacyValidator,
+        )
+
+        return BatchCorrectionAdequacyValidator
     if name == "DatasetInputSourceValidator":
         from phospy.validation.datasets.inputs import DatasetInputSourceValidator
 

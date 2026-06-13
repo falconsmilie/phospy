@@ -127,10 +127,10 @@ def test_rejects_missing_batch_label_value() -> None:
 def test_dataset_builder_resolves_declared_batch_metadata_without_execution() -> None:
     built = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
-            phospho=_phospho(),
-            site_metadata=_site_metadata(),
+            phospho=_adequate_phospho(),
+            site_metadata=_adequate_site_metadata(),
             sample_metadata=_sample_metadata(
-                index=["sample_c", "sample_a", "sample_b"]
+                index=["sample_d", "sample_b", "sample_a", "sample_c"]
             ),
             organism=Organism.RAT,
             input_intensity_scale="linear",
@@ -146,8 +146,9 @@ def test_dataset_builder_resolves_declared_batch_metadata_without_execution() ->
     report = built.preprocessing_report.batch_correction
     assert report is not None
     assert report.status == "rejected"
-    assert report.batch_levels == ("run_2", "run_1")
-    assert report.condition_levels == ("treated", "control")
+    assert report.confounding_check_status == "passed"
+    assert report.batch_levels == ("run_1", "run_2")
+    assert report.condition_levels == ("control", "treated")
     assert "batch_correction" not in set(
         built.preprocessing_report.operations.loc[:, "stage"].astype(str).tolist()
     )
@@ -180,11 +181,30 @@ def _site_metadata() -> pd.DataFrame:
     )
 
 
+def _adequate_phospho() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0],
+            "sample_b": [2.0, 3.0],
+            "sample_c": [4.0, 5.0],
+            "sample_d": [5.0, 6.0],
+        },
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+    )
+
+
+def _adequate_site_metadata() -> pd.DataFrame:
+    site_metadata = _site_metadata()
+    site_metadata.index = _adequate_phospho().index.copy()
+    return site_metadata
+
+
 def _sample_metadata(index: list[str] | None = None) -> pd.DataFrame:
     source = {
         "sample_a": ("run_1", "control"),
         "sample_b": ("run_2", "treated"),
         "sample_c": ("run_1", "treated"),
+        "sample_d": ("run_2", "control"),
         "sample_extra": ("run_9", "control"),
     }
     resolved_index = ["sample_a", "sample_b", "sample_c"] if index is None else index

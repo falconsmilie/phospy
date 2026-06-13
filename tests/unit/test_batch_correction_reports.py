@@ -182,7 +182,7 @@ def test_dataset_builder_records_rejected_declared_batch_correction_without_exec
     assert report is not None
     assert report.status == "rejected"
     assert report.method == "linear_residualize_batch"
-    assert report.confounding_check_status == "not_checked"
+    assert report.confounding_check_status == "passed"
     assert report.matrix_shape_before == report.matrix_shape_after == (2, 4)
     assert report.warnings == (
         "batch correction was declared but no correction was executed",

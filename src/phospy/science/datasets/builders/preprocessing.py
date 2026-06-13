@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.contracts.configs import DATASET_BATCH_CORRECTION_METHOD_NONE
+from phospy.contracts.configs import (
+    DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
+    DATASET_BATCH_CORRECTION_METHOD_NONE,
+)
+from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.builders.contracts import PreprocessedDatasetBuildTables
 from phospy.science.datasets.preprocessing.batch_correction_metadata import (
     BatchCorrectionMetadataResolver,
@@ -29,6 +33,9 @@ from phospy.science.transformations.models import (
     IntensityScaleState,
     QuantitativeMeaning,
 )
+from phospy.validation.datasets.batch_correction import (
+    BatchCorrectionAdequacyValidator,
+)
 
 
 class DatasetPreprocessor:
@@ -41,6 +48,8 @@ class DatasetPreprocessor:
         provenance_adapter: PreprocessingProvenanceAdapter | None = None,
         batch_correction_metadata_resolver: BatchCorrectionMetadataResolver
         | None = None,
+        batch_correction_adequacy_validator: BatchCorrectionAdequacyValidator
+        | None = None,
     ) -> None:
         self._pipeline = pipeline or PreprocessingPipeline()
         self._provenance_adapter = (
@@ -48,6 +57,9 @@ class DatasetPreprocessor:
         )
         self._batch_correction_metadata_resolver = (
             batch_correction_metadata_resolver or BatchCorrectionMetadataResolver()
+        )
+        self._batch_correction_adequacy_validator = (
+            batch_correction_adequacy_validator or BatchCorrectionAdequacyValidator()
         )
 
     def run(
@@ -61,14 +73,29 @@ class DatasetPreprocessor:
     ) -> PreprocessedDatasetBuildTables:
         input_row_count = int(len(phospho.index))
         batch_correction_metadata = None
-        if str(plan.batch_correction_method).strip() != (
-            DATASET_BATCH_CORRECTION_METHOD_NONE
-        ):
+        batch_correction_method = str(plan.batch_correction_method).strip()
+        if batch_correction_method != DATASET_BATCH_CORRECTION_METHOD_NONE:
+            if (
+                batch_correction_method
+                != DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH
+            ):
+                raise PhosPyInputError(
+                    "dataset preprocessing plan contains unsupported "
+                    f"batch_correction_method={batch_correction_method!r}"
+                )
             batch_correction_metadata = self._batch_correction_metadata_resolver.run(
                 phospho=phospho,
                 sample_metadata=sample_metadata,
                 batch_column=plan.batch_correction_batch_column,
                 condition_column=plan.batch_correction_condition_column,
+            )
+            self._batch_correction_adequacy_validator.run(
+                batch_by_sample=batch_correction_metadata.batch_by_sample,
+                condition_by_sample=batch_correction_metadata.condition_by_sample,
+                sample_order=batch_correction_metadata.sample_order,
+                preserve_condition_effects=(
+                    plan.batch_correction_preserve_condition_effects
+                ),
             )
         preprocessed_state, trace = self._pipeline.run_with_trace(
             PreprocessingState(

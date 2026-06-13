@@ -7,6 +7,7 @@ from phospy.contracts.configs import (
     DATASET_MISSING_DATA_POLICY_IMPUTE_MINPROB,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL,
+    DatasetBatchCorrectionConfig,
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetLocalisationConfig,
@@ -33,6 +34,7 @@ class DatasetPreprocessingConfigValidator:
         self._validate_site_matrix(config.site_matrix)
         self._validate_comparisons(config.comparisons)
         self._validate_localisation(config.localisation)
+        self._validate_batch_correction(config.batch_correction)
         self._validate_total_protein_correction_scale_contract(config)
         self._validate_minprob_scale_contract(config)
         return config
@@ -90,6 +92,13 @@ class DatasetPreprocessingConfigValidator:
             config,
             field_name="dataset build request preprocessing_config.localisation",
             expected_type=DatasetLocalisationConfig,
+        )
+
+    def _validate_batch_correction(self, config: DatasetBatchCorrectionConfig) -> None:
+        validate_preprocessing_section_type(
+            config,
+            field_name="dataset build request preprocessing_config.batch_correction",
+            expected_type=DatasetBatchCorrectionConfig,
         )
 
     def _validate_total_protein_correction_scale_contract(

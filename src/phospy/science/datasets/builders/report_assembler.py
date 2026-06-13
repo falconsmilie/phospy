@@ -14,6 +14,7 @@ from phospy.science.datasets.models import (
 from phospy.science.datasets.preprocessing.batch_correction import (
     BATCH_CORRECTION_CONFOUNDING_NOT_APPLICABLE,
     BATCH_CORRECTION_CONFOUNDING_NOT_CHECKED,
+    BATCH_CORRECTION_CONFOUNDING_PASSED,
     BATCH_CORRECTION_DESIGN_PRESERVATION_PRESERVE_CONDITION_EFFECTS,
     BATCH_CORRECTION_STATUS_DISABLED,
     BATCH_CORRECTION_STATUS_REJECTED,
@@ -301,7 +302,11 @@ def _build_batch_correction_report(
         limitations = ("batch correction disabled by preprocessing configuration",)
     else:
         status = BATCH_CORRECTION_STATUS_REJECTED
-        confounding_status = BATCH_CORRECTION_CONFOUNDING_NOT_CHECKED
+        confounding_status = (
+            BATCH_CORRECTION_CONFOUNDING_PASSED
+            if batch_correction_metadata is not None
+            else BATCH_CORRECTION_CONFOUNDING_NOT_CHECKED
+        )
         warnings = ("batch correction was declared but no correction was executed",)
         limitations = (
             "batch correction execution is not implemented yet; matrix values "
