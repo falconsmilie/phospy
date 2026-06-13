@@ -2,8 +2,11 @@
 
 from phospy.science.datasets.preprocessing.batch_correction import (
     BatchCorrectionDiagnostics,
+    BatchCorrectionEngine,
     BatchCorrectionPolicy,
     BatchCorrectionReport,
+    BatchCorrectionResult,
+    LinearResidualizeBatchCorrectionEngine,
 )
 from phospy.science.datasets.preprocessing.batch_correction_metadata import (
     BatchCorrectionMetadataResolver,
@@ -41,12 +44,15 @@ __all__ = [
     "DATASET_PREPROCESSING_STAGE_SITE_MATRIX",
     "DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION",
     "BatchCorrectionDiagnostics",
+    "BatchCorrectionEngine",
     "BatchCorrectionMetadataResolver",
     "BatchCorrectionPolicy",
     "BatchCorrectionReport",
+    "BatchCorrectionResult",
     "ComparisonBuildingPolicy",
     "IntensityTransformPolicy",
     "LocalisationEligibilityMode",
+    "LinearResidualizeBatchCorrectionEngine",
     "MissingDataPolicy",
     "NormalisationPolicy",
     "PreprocessingPipeline",

@@ -1,6 +1,6 @@
 path,test_area,line_count,test_function_count,uses_pytest_mark,uses_parametrization,primary_category,recommended_action,protected_risk_or_contract,reviewer,followup_ticket,notes
 tests/golden/test_differential_fixture_provenance_golden.py,golden,332,3,true,false,,,,,,
-tests/integration/test_dataset_batch_correction_validation.py,integration,120,2,true,false,,,,,,
+tests/integration/test_dataset_batch_correction_validation.py,integration,118,2,true,false,,,,,,
 tests/integration/test_dataset_builder_boundary_honesty_integration.py,integration,496,11,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset builder boundary honesty integration and increase risk of boundary regressions.,codex-audit,,
 tests/integration/test_dataset_builder_integration.py,integration,1987,36,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset builder integration and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/integration/test_dataset_builder_intensity_scale_provenance.py,integration,318,9,true,false,,,,,,
@@ -48,7 +48,8 @@ tests/unit/test_api_documentation_examples.py,unit,368,9,false,false,,,,,,
 tests/unit/test_batch_correction_metadata_resolution.py,unit,217,8,false,false,,,,,,
 tests/unit/test_batch_correction_preprocessing_config.py,unit,105,7,false,false,,,,,,
 tests/unit/test_batch_correction_reports.py,unit,230,7,false,false,,,,,,
-tests/unit/test_batch_correction_validation.py,unit,258,10,false,false,,,,,,
+tests/unit/test_batch_correction_residualize.py,unit,150,7,false,false,,,,,,
+tests/unit/test_batch_correction_validation.py,unit,256,10,false,false,,,,,,
 tests/unit/test_benchmark_scripts_smoke.py,unit,151,7,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for benchmark scripts smoke and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_boundary_constructor_no_repair.py,unit,33,3,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in boundary constructor no repair; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-AUDIT-004,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_builder_and_kinase_orchestration.py,unit,595,8,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in builder and kinase orchestration; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-ORCH-002,Route to TST-ORCH-002 for boundary-focused orchestration rewrite coverage that removes incidental collaborator-coupled assertions while preserving workflow contracts.
