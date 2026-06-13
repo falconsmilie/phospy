@@ -27,6 +27,8 @@ API_ONLY_CONTRACT_TYPES = {
     "KinaseWorkflowRequest",
     "KinaseWorkflowResult",
     "Organism",
+    "ProteinAwarePreparationResult",
+    "ProteinAwarePreparationReport",
     "ReferenceBundle",
     "ReferencePreset",
     "SignalomeConfig",

@@ -21,6 +21,10 @@ from phospy.contracts.results import (
     KinaseScoringResult,
     KinaseWorkflowResult,
     PhosphositeImportResult,
+    ProteinAwareMappingDiagnostics,
+    ProteinAwarePreparationReport,
+    ProteinAwarePreparationResult,
+    ProteinAwareSiteEligibility,
     SignalomeWorkflowResult,
 )
 
@@ -60,5 +64,9 @@ __all__ = [
     "KinaseWorkflowScoringAttritionSummary",
     "KinaseWorkflowSiteAttritionSummary",
     "PhosphositeImportResult",
+    "ProteinAwareMappingDiagnostics",
+    "ProteinAwarePreparationReport",
+    "ProteinAwarePreparationResult",
+    "ProteinAwareSiteEligibility",
     "SignalomeWorkflowResult",
 ]

@@ -319,6 +319,15 @@ protein-aware differential modelling. The default is disabled, and declaring the
 config does not align matrices, decide site eligibility, or run a model during
 dataset build.
 
+Prepared protein-aware inputs are represented by
+`ProteinAwarePreparationResult` and `ProteinAwarePreparationReport`. These are
+preparation/audit objects, not model results. They expose matched
+phosphosite/protein pairs, a sample-aligned protein covariate matrix,
+per-site eligibility rows, missing protein-abundance diagnostics, ambiguous
+mapping diagnostics, sample-alignment diagnostics, and policy/provenance fields.
+The covariate matrix is a future modelling input contract; current
+`DifferentialAnalysisWorkflow` execution does not consume it.
+
 Full joint PTM/protein modelling is not a dataset-preprocessing policy. It is
 not enabled by total-protein subtraction and is not executed by protein-aware
 preparation config.

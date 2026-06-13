@@ -34,6 +34,12 @@ from phospy.science.datasets.preprocessing.batch_correction import (
     BatchCorrectionPolicy,
     BatchCorrectionReport,
 )
+from phospy.science.datasets.preprocessing.protein_aware_preparation import (
+    ProteinAwareMappingDiagnostics,
+    ProteinAwarePreparationReport,
+    ProteinAwarePreparationResult,
+    ProteinAwareSiteEligibility,
+)
 from phospy.science.differential.models import (
     DifferentialAnalysisResult,
     DifferentialContrastDefinition,
@@ -818,6 +824,10 @@ __all__ = [
     "KinaseWorkflowResult",
     "KseaZScoreActivityDiagnostics",
     "PhosphositeImportResult",
+    "ProteinAwareMappingDiagnostics",
+    "ProteinAwarePreparationReport",
+    "ProteinAwarePreparationResult",
+    "ProteinAwareSiteEligibility",
     "SsgseaSubstrateEnrichmentActivityDiagnostics",
     "SignalomeWorkflowResult",
     "WeightedSubstrateActivityDiagnostics",

@@ -62,6 +62,10 @@ EXPECTED_RESULT_EXPORTS = {
     "KinaseScoringResult",
     "KinaseWorkflowResult",
     "PhosphositeImportResult",
+    "ProteinAwareMappingDiagnostics",
+    "ProteinAwarePreparationReport",
+    "ProteinAwarePreparationResult",
+    "ProteinAwareSiteEligibility",
     "SignalomeWorkflowResult",
 } | INTENTIONAL_RESULT_COMPATIBILITY_ALIASES
 

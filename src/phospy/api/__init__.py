@@ -99,6 +99,10 @@ from phospy.api.results import (
     KinaseScoringResult,
     KinaseWorkflowResult,
     PhosphositeImportResult,
+    ProteinAwareMappingDiagnostics,
+    ProteinAwarePreparationReport,
+    ProteinAwarePreparationResult,
+    ProteinAwareSiteEligibility,
     SignalomeWorkflowResult,
 )
 from phospy.api.workflows import (
@@ -186,6 +190,10 @@ __all__ = [
     "PhosphositeImporter",
     "PhosphositeImportRequest",
     "PhosphositeImportResult",
+    "ProteinAwareMappingDiagnostics",
+    "ProteinAwarePreparationReport",
+    "ProteinAwarePreparationResult",
+    "ProteinAwareSiteEligibility",
     "DatasetMissingDataConfig",
     "DatasetNormalisationConfig",
     "DatasetPreprocessingConfig",

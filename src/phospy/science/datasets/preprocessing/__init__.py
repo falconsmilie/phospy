@@ -47,6 +47,12 @@ from phospy.science.datasets.preprocessing.protein_aware_alignment import (
     ProteinAwareSiteEligibilityDiagnostic,
     ProteinAwareTransformationStateDiagnostics,
 )
+from phospy.science.datasets.preprocessing.protein_aware_preparation import (
+    ProteinAwareMappingDiagnostics,
+    ProteinAwarePreparationReport,
+    ProteinAwarePreparationResult,
+    ProteinAwareSiteEligibility,
+)
 from phospy.science.datasets.preprocessing.protein_mapping import (
     ProteinMappingConfig,
     ProteinMappingRecord,
@@ -88,6 +94,10 @@ __all__ = [
     "ProteinMappingResolver",
     "ProteinMappingResult",
     "ProteinMappingStatus",
+    "ProteinAwareMappingDiagnostics",
+    "ProteinAwarePreparationReport",
+    "ProteinAwarePreparationResult",
+    "ProteinAwareSiteEligibility",
     "PreprocessingStageResult",
     "PreprocessingStage",
     "PreprocessingState",
