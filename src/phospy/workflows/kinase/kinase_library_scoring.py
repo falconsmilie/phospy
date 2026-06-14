@@ -30,7 +30,12 @@ class KinaseLibraryWorkflowScoringResult:
 
 
 class KinaseLibraryWorkflowScorer:
-    """Run pure Kinase Library scoring and normalize output for prediction."""
+    """Run pure motif scoring and adapt it to workflow support scores.
+
+    The pure scorer returns provider-scale raw values. This adapter preserves
+    those raw scores in diagnostics and exposes a per-kinase min-max normalized
+    matrix for workflow prediction support.
+    """
 
     def __init__(
         self,

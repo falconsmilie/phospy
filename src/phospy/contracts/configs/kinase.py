@@ -135,6 +135,15 @@ class KinaseScoringConfig:
     default (`"phosr_rank_weighted"`) preserves the existing PhosR-style profile
     plus motif-frequency rank-weighted lane.
 
+    `"kinase_library_motif"` and `"combined_profile_motif"` are workflow-level
+    opt-ins for caller-supplied Kinase Library-style resources. They still run
+    inside normal kinase workflow interpretation: reference resolution,
+    display-ID projection, site-sequence support, and eligible
+    kinase-substrate-map context remain required. The local
+    `KinaseLibraryResource` supplies motif matrices for workflow support
+    scores; it is not a replacement for the workflow reference bundle and does
+    not imply official Kinase Library predictor parity.
+
     `include_diagnostic_scoring_tables` controls publication of non-authoritative
     diagnostic scoring outputs (`motif_scores`, `score_fusion_weights`). The
     authoritative downstream lane for the default mode (`rank_weighted_fusion_scores`

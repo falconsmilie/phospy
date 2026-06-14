@@ -28,9 +28,12 @@ ambiguity edge cases; it is not full vendor-tool parity.
 The prediction science layer includes a pure Kinase Library-style motif scorer.
 `KinaseWorkflow` exposes it through explicit scoring modes only; the default
 kinase lane remains the PhosR-style rank-weighted scoring mode. Kinase Library
-workflow scoring requires a caller-supplied `KinaseLibraryResource` with
+workflow scoring is still a kinase workflow lane, not a fully independent
+official Kinase Library implementation. It requires the normal workflow
+reference context plus a caller-supplied `KinaseLibraryResource` with
 compatible organism, residue-class lanes, score matrices, sequence-window
-definition, and provenance.
+definition, and provenance. No official Kinase Library compatibility or parity
+claim is made.
 
 Native enrichment support is offline over-representation analysis (ORA) over
 caller-supplied `GeneSetCollection`, `PtmSetCollection`, or homogeneous
@@ -188,7 +191,7 @@ claimed.
 | --- | --- | --- | --- | --- |
 | Differential analysis | `parity-gated` | `DifferentialAnalysisWorkflow` for two-condition unpaired simple contrasts with empirical-Bayes `standard`/`robust` and optional `trend`; fixed-effect batch, categorical covariate, continuous covariate, and complete fixed-block terms are executable as ordinary design covariates | `tests/parity/test_differential_analysis_parity.py`, `tests/parity/test_differential_limma_parity.py`, plus unit/integration design, fixed-effect provenance, and result-contract tests | Fixed-effect batch terms are not batch correction. Fixed-block terms require complete within-block contrast coverage and full-rank/estimable designs. Correlated repeated-measure, limma `duplicateCorrelation`-style, mixed-effect, and random subject-effect designs are rejected in this release. Missing values are rejected at analysis-ready boundary before model fitting. |
 | Kinase scoring | `parity-gated` | `KinaseWorkflow` default `scoring_mode="phosr_rank_weighted"` profile/motif scoring and rank-weighted fusion | `tests/parity/test_kinase_workflow_parity.py`, `tests/parity/test_prediction_science_parity.py`, `tests/parity/test_l6_prediction_parity.py` | Relative support scoring only; not calibrated causal inference. Kinase Library scoring is not the default parity lane. |
-| Kinase Library motif scoring | `validated PhosPy implementation` | Pure science-layer `KinaseLibraryMotifScorer` / `score_kinase_library_motifs`, plus opt-in `KinaseWorkflow` modes `kinase_library_motif` and `combined_profile_motif` for supplied Kinase Library-style resources | `tests/unit/test_kinase_library_motif_scoring.py`, `tests/science/test_kinase_library_motif_scoring_science.py`, `tests/integration/test_kinase_library_workflow_scoring.py` | Requires explicit compatible resource. Workflow motif scores are normalized to unit interval per kinase matrix for within-run ranking support; raw science-layer motif scores preserve provider scale. Scores are not probabilities. Ser/Thr and Tyr matrix lanes are not interchangeable. |
+| Kinase Library motif scoring | `validated PhosPy implementation` | Pure science-layer `KinaseLibraryMotifScorer` / `score_kinase_library_motifs`, plus opt-in `KinaseWorkflow` modes `kinase_library_motif` and `combined_profile_motif` for supplied Kinase Library-style resources | `tests/unit/test_kinase_library_motif_scoring.py`, `tests/unit/test_kinase_library_workflow_requirements.py`, `tests/science/test_kinase_library_motif_scoring_science.py`, `tests/integration/test_kinase_library_workflow_scoring.py` | Workflow mode still requires resolved `ReferenceBundle` context with `kinase_substrate_map` overlap, eligible kinases at `min_substrates`, and resolved site sequences. It also requires an explicit compatible local `KinaseLibraryResource`. Missing matching residue-class lanes fail validation; they do not fall back to PhosR-style motif scoring. Workflow motif scores are normalized to unit interval per kinase matrix for within-run ranking support; raw science-layer motif scores preserve provider scale. Scores are not probabilities. Ser/Thr and Tyr matrix lanes are not interchangeable. No official Kinase Library parity claim is made. |
 | Kinase prediction | `parity-gated` | Deterministic and adaptive kinase prediction in `KinaseWorkflow` | `tests/parity/test_public_predmat_parity.py`, `tests/parity/test_l6_prediction_parity.py`, `tests/parity/test_adaptive_prediction_parity.py`, `tests/parity/test_adaptive_replay_parity.py` | Prediction scores are ranking support, not probabilities. |
 | Kinase activity scoring | `validated PhosPy implementation` | Supported activity methods: `simplified_weighted_substrate_activity_v1`, `ksea_zscore_activity_v1`, and `ssgsea_substrate_enrichment_activity_v1` | Unit activity tests (`tests/unit/test_activity_science.py`), workflow activity tests (`tests/workflows/test_kinase_activity_ssgsea.py`), and parity activity gate (`tests/parity/test_activity_stage_parity.py`) | KSEA-style activity is not a claim of full PhosR kinase activity equivalence. ssGSEA-style activity is a PhosPy rank-walk implementation and is not a PTM-SEA parity claim. |
 | Signalome analysis | `parity-gated` | `SignalomeWorkflow` module assignment, network outputs, and protein-site context | `tests/parity/test_signalome_workflow_parity.py`, `tests/parity/test_signalome_clustering_backend_parity.py` | Derived summaries, not causal proof. Requires explicit signalome protein grouping metadata in `site_metadata.protein_id`. |
@@ -248,6 +251,12 @@ commands/workflows:
 - Kinase Library workflow motif scores are normalized per kinase matrix to a
   unit interval for within-run ranking support. They are not calibrated
   probabilities and do not imply activity without an explicit activity method.
+- In `KinaseWorkflow`, `scoring_mode="kinase_library_motif"` still runs inside
+  normal kinase workflow orchestration. Reference discovery and display-to-row
+  projection happen before scoring; profile context from the resolved
+  kinase-substrate map is still required to establish eligible kinases. The
+  Kinase Library-style resource supplies motif matrices for the authoritative
+  workflow score matrix, not substrate-map membership or activity inference.
 - Signalome module/network scores are derived summaries, not probabilities,
   calibrated confidence values, or causal proof.
 - Missing kinase correlations stay missing. `0.0` means a finite near-zero

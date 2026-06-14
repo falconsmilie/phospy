@@ -46,7 +46,12 @@ from phospy.workflows.kinase.science import (
 
 
 class KinaseScoringRunner:
-    """Run profile/motif scoring and resolve the downstream score lane."""
+    """Run workflow scoring and resolve the downstream score lane.
+
+    Kinase Library motif mode is still workflow orchestration: profile context
+    is built from the resolved kinase-substrate map before the mode-specific
+    branch selects Kinase Library motif scores as the downstream support matrix.
+    """
 
     def __init__(
         self,
@@ -113,6 +118,8 @@ class KinaseScoringRunner:
         )
         sequence_series = request.site_sequences.loc[:, "site_sequence"]
         site_identity_series = request.site_sequences.loc[:, "display_id"]
+        # Kinase Library modes intentionally branch here. They must not reuse or
+        # fall back to the PhosR-style motif-frequency scorer below.
         if config.scoring_mode == KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF:
             return self._run_kinase_library_motif_mode(
                 request=request,

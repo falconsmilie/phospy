@@ -342,6 +342,25 @@ identical numeric outputs across different machines or dependency builds.
 - Resolved references with:
   - `kinase_substrate_map` (`kinase`, `substrate_site`)
   - `site_sequences` (`site_sequence` indexed by display site ID)
+- For `scoring_config.scoring_mode="kinase_library_motif"` or
+  `"combined_profile_motif"`, the normal resolved reference requirements still
+  apply. The projected `kinase_substrate_map` must overlap dataset `display_id`
+  values and must contain at least one kinase with
+  `scoring_config.min_substrates` quantified substrates.
+- Kinase Library-style workflow modes additionally require
+  `KinaseWorkflowRequest.kinase_library_resource` to be a local
+  `KinaseLibraryResource` with compatible organism metadata, a central
+  phospho-residue sequence-window definition, matrix lanes, score scale, and
+  provenance.
+- Site sequences are required for workflow scoring rows. Reference
+  `site_sequences` are projected by `display_id`; dataset
+  `site_metadata.site_sequence` can supplement missing reference rows. If no
+  scoring row has resolved sequence support, interpretation fails before
+  scoring.
+- The supplied Kinase Library-style resource must include at least one
+  residue-class lane matching the resolved scoring-site sequences. For example,
+  an all-Ser/Thr scoring set with only Tyr resource lanes fails validation at
+  `kinase.interpreter.kinase_library_resource_usability`.
 
 ### Identifiers and Alignment Assumptions
 
@@ -380,6 +399,22 @@ identical numeric outputs across different machines or dependency builds.
 - Site-vs-profile Pearson correlations are shifted to `[0, 1]` support scores.
 - Motif and profile evidence are fused by rank-weighted fusion with profile fallback.
 - `profile_missing_value_strategy` controls strict vs skip-missing profile medians.
+- The default `scoring_mode="phosr_rank_weighted"` uses the PhosR-style
+  profile plus motif-frequency rank-fusion lane.
+- `scoring_mode="kinase_library_motif"` still builds profile context from the
+  resolved kinase-substrate map to validate eligible workflow kinases, but the
+  authoritative downstream score matrix is `kinase_library_motif_scores`.
+- Kinase Library-style workflow modes do not silently fall back to PhosR-style
+  motif scoring. Missing `kinase_library_resource`, organism/window mismatch,
+  or missing matching residue-class lanes fail validation.
+- Raw science-layer `score_kinase_library_motifs` outputs preserve the
+  caller-supplied provider score scale. Workflow
+  `kinase_library_motif_scores` are per-kinase min-max normalized support
+  scores for within-run ranking and prediction support.
+- Substrate-map activity inference is separate from motif-based kinase
+  prediction support. Kinase Library motif scores alone do not imply activity;
+  activity is produced only by an enabled activity method over workflow
+  prediction outputs.
 - Prefer `KinaseScoringConfig.default()` or
   `KinaseScoringConfig.strict_missing_values()` before low-level field tuning.
 
@@ -408,6 +443,9 @@ identical numeric outputs across different machines or dependency builds.
 ### Known Limitations
 
 - Scores are relative support values within a run, not calibrated probabilities.
+- Kinase Library-style workflow scoring is a PhosPy workflow integration over
+  caller-supplied local resources. It is not an official Kinase Library
+  implementation and is not parity-tested against an official predictor.
 - Activity supports two explicit methods:
   - `simplified_weighted_substrate_activity_v1` (heuristic weighted substrate activity)
   - `ksea_zscore_v1` (KSEA-style z-score substrate-set enrichment)
@@ -416,7 +454,13 @@ identical numeric outputs across different machines or dependency builds.
 
 ### Expected Output Tables
 
-- Scoring: `profile_scores`, `rank_weighted_fusion_scores` (plus optional diagnostics)
+- Scoring, default mode: `profile_scores`, `rank_weighted_fusion_scores` (plus optional diagnostics)
+- Scoring, Kinase Library motif mode: `profile_scores`,
+  `kinase_library_motif_scores`, `kinase_library_site_diagnostics`, and
+  `kinase_library_kinase_diagnostics`
+- Scoring, combined profile/motif mode: `profile_scores`,
+  `kinase_library_motif_scores`, `combined_profile_motif_scores`, diagnostics,
+  and optional fusion weights
 - Prediction: `pred_mat`, `substrate_list`
 - Optional activity: primary `activity_scores` matrix (with `weighted_activity` as compatibility alias), `thresholded_substrate_mean_activity`, `thresholded_substrate_counts`, `target_counts`, `target_table`, optional `statistics_table`
 - Primary matrices are indexed by `site_key`; site-level tables that materialize
