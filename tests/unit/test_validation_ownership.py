@@ -147,9 +147,7 @@ def test_dataset_validation_composition_is_outside_validation_subdomains() -> No
     dataset_validator_source = inspect.getsource(
         AnalysisReadyDatasetModelBoundaryValidator
     )
-    dataset_post_init_source = inspect.getsource(
-        AnalysisReadyPhosphoDataset.__post_init__
-    )
+    dataset_constructor_source = inspect.getsource(AnalysisReadyPhosphoDataset.__init__)
     assert "AnalysisReadyPhosphoDataset(" in dataset_validator_source
     assert "PhosphoIntensityMatrix(" not in dataset_validator_source
     assert "SiteMetadataTable(" not in dataset_validator_source
@@ -158,11 +156,11 @@ def test_dataset_validation_composition_is_outside_validation_subdomains() -> No
         "intensity_scale_state"
         in inspect.signature(AnalysisReadyDatasetModelBoundaryValidator.run).parameters
     )
-    assert "PhosphoIntensityMatrix(" in dataset_post_init_source
-    assert "SiteMetadataTable(" in dataset_post_init_source
-    assert "SampleMetadataTable(" in dataset_post_init_source
-    assert "TotalProteinMatrix(" in dataset_post_init_source
-    assert "_INTENSITY_SCALE_STATE_VALIDATOR.run(" in dataset_post_init_source
+    assert "PhosphoIntensityMatrix(" in dataset_constructor_source
+    assert "SiteMetadataTable(" in dataset_constructor_source
+    assert "SampleMetadataTable(" in dataset_constructor_source
+    assert "TotalProteinMatrix(" in dataset_constructor_source
+    assert "_INTENSITY_SCALE_STATE_VALIDATOR.run(" in dataset_constructor_source
 
 
 def test_major_validation_rules_have_documented_owners() -> None:
@@ -188,7 +186,7 @@ def test_major_validation_rules_have_documented_owners() -> None:
     assert documented["reference bundle structural contract"]
     assert (
         documented["analysis-ready dataset structural contract"]
-        == "AnalysisReadyPhosphoDataset.__post_init__"
+        == "AnalysisReadyPhosphoDataset.__init__"
     )
     assert documented["dataset/intensity-scale-state coherence"]
     assert (

@@ -584,18 +584,6 @@ class AnalysisReadyPhosphoDataset:
     _total: pd.DataFrame | None = field(init=False, repr=False)
     _comparisons: pd.DataFrame | None = field(init=False, repr=False)
     _allow_opaque_site_values: bool = field(init=False, repr=False, default=False)
-    _init_payload: (
-        tuple[
-            pd.DataFrame,
-            pd.DataFrame,
-            pd.DataFrame | None,
-            pd.DataFrame | None,
-            pd.DataFrame | None,
-            bool,
-            bool,
-        ]
-        | None
-    ) = field(init=False, repr=False, default=None)
 
     def __init__(
         self,
@@ -618,47 +606,6 @@ class AnalysisReadyPhosphoDataset:
             expected_type=bool,
             error_message="dataset.allow_opaque_site_values must be a bool",
         )
-        object.__setattr__(self, "intensity_scale_state", intensity_scale_state)
-        object.__setattr__(self, "processing_state", processing_state)
-        object.__setattr__(self, "organism", organism)
-        object.__setattr__(self, "preprocessing_report", preprocessing_report)
-        object.__setattr__(
-            self,
-            "protein_aware_preparation",
-            protein_aware_preparation,
-        )
-        object.__setattr__(self, "provenance", provenance)
-        object.__setattr__(self, "allow_opaque_site_values", allow_opaque_site_values)
-        object.__setattr__(
-            self,
-            "_init_payload",
-            (
-                phospho,
-                site_metadata,
-                sample_metadata,
-                total,
-                comparisons,
-                allow_opaque_site_values,
-                _assume_owned,
-            ),
-        )
-        self.__post_init__()
-
-    def __post_init__(self) -> None:
-        payload = self._init_payload
-        if payload is None:
-            raise DatasetValidationError(
-                "dataset internal initialization payload missing"
-            )
-        (
-            phospho,
-            site_metadata,
-            sample_metadata,
-            total,
-            comparisons,
-            allow_opaque_site_values,
-            _assume_owned,
-        ) = payload
         phospho = own_dataframe(
             phospho,
             field_name="dataset.phospho",
@@ -754,24 +701,24 @@ class AnalysisReadyPhosphoDataset:
             )
             comparisons = comparisons_frame
         validated_intensity_scale_state = _INTENSITY_SCALE_STATE_VALIDATOR.run(
-            intensity_scale_state=self.intensity_scale_state,
+            intensity_scale_state=intensity_scale_state,
             has_total_matrix=total_table is not None,
             require_established=True,
         )
         _require_optional_instance(
-            self.organism,
+            organism,
             expected_type=Organism,
             error_message="dataset.organism must be an Organism enum value or None",
         )
         _require_instance(
-            self.processing_state,
+            processing_state,
             expected_type=DatasetProcessingState,
             error_message=(
                 "dataset.processing_state must be a DatasetProcessingState instance"
             ),
         )
         _require_instance(
-            self.processing_state.ruv_readiness,
+            processing_state.ruv_readiness,
             expected_type=RuvReadinessState,
             error_message=(
                 "dataset.processing_state.ruv_readiness must be a "
@@ -779,25 +726,25 @@ class AnalysisReadyPhosphoDataset:
             ),
         )
         if (
-            not self.processing_state.ruv_readiness.enabled
-            and self.processing_state.ruv_readiness.ready
+            not processing_state.ruv_readiness.enabled
+            and processing_state.ruv_readiness.ready
         ):
             raise DatasetValidationError(
                 "dataset.processing_state.ruv_readiness.ready must be False when "
                 "ruv_readiness.enabled is False"
             )
-        if self.processing_state.intensity_scale != validated_intensity_scale_state:
+        if processing_state.intensity_scale != validated_intensity_scale_state:
             raise DatasetValidationError(
                 "dataset.processing_state.intensity_scale must match "
                 "dataset.intensity_scale_state"
             )
-        if not bool(self.processing_state.missing_data.complete_matrix):
+        if not bool(processing_state.missing_data.complete_matrix):
             raise DatasetValidationError(
                 "dataset.processing_state.missing_data.complete_matrix must be True "
                 "at AnalysisReadyPhosphoDataset boundary"
             )
         _require_optional_instance(
-            self.preprocessing_report,
+            preprocessing_report,
             expected_type=DatasetPreprocessingReport,
             error_message=(
                 "dataset.preprocessing_report must be DatasetPreprocessingReport "
@@ -805,7 +752,7 @@ class AnalysisReadyPhosphoDataset:
             ),
         )
         _require_optional_instance(
-            self.protein_aware_preparation,
+            protein_aware_preparation,
             expected_type=ProteinAwarePreparationResult,
             error_message=(
                 "dataset.protein_aware_preparation must be "
@@ -813,10 +760,23 @@ class AnalysisReadyPhosphoDataset:
             ),
         )
         _require_optional_instance(
-            self.provenance,
+            provenance,
             expected_type=RunProvenance,
             error_message="dataset.provenance must be RunProvenance or None",
         )
+        object.__setattr__(
+            self, "intensity_scale_state", validated_intensity_scale_state
+        )
+        object.__setattr__(self, "processing_state", processing_state)
+        object.__setattr__(self, "organism", organism)
+        object.__setattr__(self, "preprocessing_report", preprocessing_report)
+        object.__setattr__(
+            self,
+            "protein_aware_preparation",
+            protein_aware_preparation,
+        )
+        object.__setattr__(self, "provenance", provenance)
+        object.__setattr__(self, "allow_opaque_site_values", allow_opaque_site_values)
         object.__setattr__(self, "_phospho", phospho_table.frame)
         object.__setattr__(self, "_site_metadata", site_metadata_table.frame)
         object.__setattr__(
@@ -829,11 +789,6 @@ class AnalysisReadyPhosphoDataset:
         )
         object.__setattr__(self, "_comparisons", comparisons)
         object.__setattr__(self, "_allow_opaque_site_values", allow_opaque_site_values)
-        object.__setattr__(self, "allow_opaque_site_values", allow_opaque_site_values)
-        object.__setattr__(
-            self, "intensity_scale_state", validated_intensity_scale_state
-        )
-        object.__setattr__(self, "_init_payload", None)
 
     @property
     def phospho(self) -> pd.DataFrame:

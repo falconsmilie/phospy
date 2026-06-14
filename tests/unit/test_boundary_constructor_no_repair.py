@@ -11,9 +11,11 @@ from phospy.science.references.models import ReferenceBundle
 def test_dataset_boundary_constructor_has_no_canonicalization_or_default_repair() -> (
     None
 ):
-    post_init_source = inspect.getsource(AnalysisReadyPhosphoDataset.__post_init__)
+    constructor_source = inspect.getsource(AnalysisReadyPhosphoDataset.__init__)
     from_owned_source = inspect.getsource(AnalysisReadyPhosphoDataset._from_owned)
-    assert "canonicalize_site_" not in post_init_source
+    assert "_init_payload" not in AnalysisReadyPhosphoDataset.__dict__
+    assert "__post_init__" not in AnalysisReadyPhosphoDataset.__dict__
+    assert "canonicalize_site_" not in constructor_source
     assert "IntensityScaleState.raw" not in from_owned_source
 
 

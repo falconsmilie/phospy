@@ -16,12 +16,17 @@ from phospy.science.sites.site_keys import (
     build_protein_scoped_site_key,
     encode_site_key,
 )
+from phospy.science.transformations.models import (
+    IntensityScaleState,
+    MatrixIntensityScaleState,
+)
 from phospy.validation.datasets.analysis_ready import (
     AnalysisReadyDatasetModelBoundaryValidator,
 )
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
+    supported_log2_processing_state,
 )
 
 _BOUNDARY_VALIDATOR = AnalysisReadyDatasetModelBoundaryValidator()
@@ -130,6 +135,70 @@ def test_model_boundary_validator_accepts_valid_payload() -> None:
     assert constructed.site_metadata.loc[:, "site_key"].tolist() == (
         constructed.site_metadata.index.tolist()
     )
+
+
+def test_analysis_ready_dataset_constructor_preserves_frame_ownership() -> None:
+    payload = _valid_payload()
+    phospho = payload["phospho"]
+    site_metadata = payload["site_metadata"]
+    sample_metadata = payload["sample_metadata"]
+    assert isinstance(phospho, pd.DataFrame)
+    assert isinstance(site_metadata, pd.DataFrame)
+    assert isinstance(sample_metadata, pd.DataFrame)
+
+    dataset = AnalysisReadyPhosphoDataset(**payload)
+
+    assert dataset._phospho is not phospho
+    assert dataset._site_metadata is not site_metadata
+    assert dataset._sample_metadata is not sample_metadata
+
+    phospho.iloc[0, 0] = 999.0
+    site_metadata.loc[site_metadata.index[0], "gene_symbol"] = "CHANGED"
+    sample_metadata.loc[sample_metadata.index[0], "condition"] = "changed"
+    assert float(dataset._phospho.iloc[0, 0]) == 1.0
+    assert str(dataset._site_metadata.loc[site_metadata.index[0], "gene_symbol"]) == (
+        "MAPK14"
+    )
+    assert dataset._sample_metadata is not None
+    assert str(dataset._sample_metadata.loc[sample_metadata.index[0], "condition"]) == (
+        "a"
+    )
+
+    exported_phospho = dataset.phospho
+    exported_phospho.iloc[0, 0] = 777.0
+    assert exported_phospho is not dataset._phospho
+    assert float(dataset._phospho.iloc[0, 0]) == 1.0
+
+
+def test_analysis_ready_dataset_constructor_requires_site_sequence() -> None:
+    payload = _valid_payload()
+    payload["site_metadata"] = payload["site_metadata"].drop(columns=["site_sequence"])
+
+    with pytest.raises(_MODEL_BOUNDARY_ERRORS, match="site_sequence"):
+        AnalysisReadyPhosphoDataset(**payload)
+
+
+def test_analysis_ready_dataset_constructor_requires_established_log2_state() -> None:
+    payload = _valid_payload()
+    payload["intensity_scale_state"] = IntensityScaleState(
+        phospho=MatrixIntensityScaleState.log2(established_by="test.unestablished")
+    )
+    payload["processing_state"] = supported_log2_processing_state(
+        has_total_matrix=False
+    )
+
+    with pytest.raises(TransformationValidationError, match="must be established"):
+        AnalysisReadyPhosphoDataset(**payload)
+
+
+def test_analysis_ready_dataset_internal_construction_does_not_bypass_validation() -> (
+    None
+):
+    payload = _valid_payload()
+    payload["site_metadata"] = payload["site_metadata"].drop(columns=["site_sequence"])
+
+    with pytest.raises(_MODEL_BOUNDARY_ERRORS, match="site_sequence"):
+        AnalysisReadyPhosphoDataset._from_owned(**payload)
 
 
 @pytest.mark.parametrize(
