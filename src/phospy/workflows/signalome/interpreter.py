@@ -6,6 +6,8 @@ import pandas as pd
 
 from phospy.contracts.requests import SignalomeWorkflowRequest
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.science.datasets.internal_view import DatasetInternalView
+from phospy.science.prediction.internal_view import KinasePredictionInternalView
 from phospy.science.prediction.scoring import (
     select_downstream_score_matrix as _select_downstream_score_matrix,
 )
@@ -77,14 +79,17 @@ class SignalomeWorkflowInterpreter:
         self, request: SignalomeWorkflowRequest
     ) -> ResolvedSignalomeWorkflowRequest:
         dataset = request.kinase_result.dataset
-        dataset_phospho = dataset._borrow_phospho_frame()
-        dataset_site_metadata = dataset._borrow_site_metadata_frame()
+        dataset_view = DatasetInternalView(dataset)
+        dataset_phospho = dataset_view.phospho
+        dataset_site_metadata = dataset_view.site_metadata
         dataset_sites = pd.Index(
             dataset_phospho.index.astype(str),
             name=dataset_phospho.index.name,
         )
         prediction_result = request.kinase_result.prediction_result
-        prediction_matrix_input = prediction_result._borrow_pred_mat_frame()
+        prediction_matrix_input = KinasePredictionInternalView(
+            prediction_result
+        ).pred_mat
         score_selection = self._score_matrix_selector.run(
             request.kinase_result.scoring_result
         )

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import re
 from pathlib import Path
 
@@ -26,6 +27,7 @@ from phospy.errors import (
     UnsupportedOrganismError,
 )
 from phospy.science.datasets.builders.public import AnalysisReadyDatasetBuilder
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.references.models import Organism, ReferenceBundle, ReferencePreset
 from phospy.science.references.resolution import ReferenceResolver
@@ -68,6 +70,19 @@ _FORBIDDEN_ACCESSION_CASE_NORMALISATION = re.compile(
     r"accession[^\n]{0,120}\.(?:upper|lower)\(",
     re.IGNORECASE,
 )
+_WORKFLOW_BORROW_METHOD_PATTERN = re.compile(r"\._borrow_[A-Za-z0-9_]*\s*\(")
+_WORKFLOW_BORROW_GUARD_DIRS = (
+    "src/phospy/workflows",
+    "src/phospy/validation/workflows",
+)
+_DATASET_INTERNAL_VIEW_FRAME_PROPERTIES = {
+    "comparisons",
+    "imputation_observed_mask",
+    "phospho",
+    "sample_metadata",
+    "site_metadata",
+    "total",
+}
 
 
 def _phospho() -> pd.DataFrame:
@@ -949,6 +964,91 @@ def test_builder_establishes_intensity_scale_state_with_supported_path() -> None
         built.intensity_scale_state.phospho.established_by
         == "phospy.science.datasets.builders.executor.input_intensity_scale"
     )
+
+
+def test_workflows_do_not_call_borrow_methods_directly() -> None:
+    violations: list[str] = []
+    for relative_dir in _WORKFLOW_BORROW_GUARD_DIRS:
+        for path in (ROOT / relative_dir).rglob("*.py"):
+            source = path.read_text(encoding="utf-8")
+            lines = source.splitlines()
+            for match in _WORKFLOW_BORROW_METHOD_PATTERN.finditer(source):
+                line_number = source.count("\n", 0, match.start()) + 1
+                line = lines[line_number - 1].strip()
+                relative_path = path.relative_to(ROOT).as_posix()
+                violations.append(f"{relative_path}:{line_number}: {line}")
+
+    assert not violations, (
+        "workflow modules must access borrowed frames through domain-owned "
+        "internal views, not direct _borrow_* methods:\n" + "\n".join(violations)
+    )
+
+
+def test_dataset_internal_view_exposes_only_required_frames() -> None:
+    view_properties = {
+        name
+        for name, value in inspect.getmembers(DatasetInternalView)
+        if isinstance(value, property)
+    }
+
+    assert view_properties == _DATASET_INTERNAL_VIEW_FRAME_PROPERTIES
+    assert not hasattr(
+        DatasetInternalView(
+            AnalysisReadyPhosphoDataset(
+                phospho=_phospho(),
+                site_metadata=_site_metadata(),
+                organism=Organism.RAT,
+                **_supported_dataset_state(has_total_matrix=False),
+            )
+        ),
+        "dataset",
+    )
+
+
+def test_dataset_internal_view_preserves_internal_frame_borrowing_semantics() -> None:
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=_phospho(),
+        site_metadata=_site_metadata(),
+        sample_metadata=pd.DataFrame(
+            {"condition": ["treated"]},
+            index=pd.Index(["sample_a"], name="sample_id"),
+        ),
+        total=pd.DataFrame({"sample_a": [2.0]}, index=pd.Index(["MAPK14"])),
+        comparisons=pd.DataFrame({"p_group1_group4": [0.05]}, index=_SITE_INDEX.copy()),
+        imputation_observation_mask=pd.DataFrame(
+            {"sample_a": [True]},
+            index=_SITE_INDEX.copy(),
+        ),
+        organism=Organism.RAT,
+        **_supported_dataset_state(has_total_matrix=True),
+    )
+    view = DatasetInternalView(dataset)
+
+    borrowed_phospho = view.phospho
+    borrowed_site_metadata = view.site_metadata
+    borrowed_total = view.total
+    borrowed_comparisons = view.comparisons
+    borrowed_mask = view.imputation_observed_mask
+
+    borrowed_phospho.iloc[0, 0] = 999.0
+    borrowed_site_metadata.loc[_SITE_KEY, "gene_symbol"] = "MUTATED"
+    assert borrowed_total is not None
+    borrowed_total.iloc[0, 0] = 999.0
+    assert borrowed_comparisons is not None
+    borrowed_comparisons.iloc[0, 0] = 0.99
+    assert borrowed_mask is not None
+    borrowed_mask.iloc[0, 0] = False
+
+    assert borrowed_phospho is not dataset._phospho
+    assert borrowed_site_metadata is not dataset._site_metadata
+    assert float(dataset.phospho.iloc[0, 0]) == 1.0
+    assert str(dataset.site_metadata.loc[_SITE_KEY, "gene_symbol"]) == "MAPK14"
+    assert dataset.total is not None
+    assert float(dataset.total.iloc[0, 0]) == 2.0
+    assert dataset.comparisons is not None
+    assert float(dataset.comparisons.iloc[0, 0]) == 0.05
+    assert dataset.imputation_observation_metadata is not None
+    assert bool(dataset.imputation_observation_metadata.observed_mask.iloc[0, 0])
 
 
 def test_kinase_reference_identifier_cleanup_is_owned_by_reference_ingestion_boundary() -> (

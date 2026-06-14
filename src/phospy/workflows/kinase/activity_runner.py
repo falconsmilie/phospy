@@ -17,6 +17,7 @@ from phospy.science.activities.methods import (
     SsgseaSubstrateEnrichmentActivityMethod,
 )
 from phospy.science.activities.models import KinaseActivityResult
+from phospy.science.prediction.internal_view import KinasePredictionInternalView
 from phospy.science.prediction.models import KinasePredictionResult
 from phospy.validation.workflows.activity import KinaseActivityInputValidator
 from phospy.workflows.kinase.contracts import (
@@ -48,6 +49,7 @@ class KinaseActivityRunner:
         if activity_config is None:
             return None
         site_identity_map = _require_site_identity_map(request.site_identity_map)
+        prediction_view = KinasePredictionInternalView(prediction_result)
         if (
             activity_config.method
             == KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY
@@ -55,7 +57,7 @@ class KinaseActivityRunner:
             # Prediction matrix kinase columns are expected to already be
             # normalized upstream by the reference-ingestion boundary.
             validated_inputs = self._activity_input_validator.run(
-                pred_mat=prediction_result._borrow_pred_mat_frame(),
+                pred_mat=prediction_view.pred_mat,
                 phospho_matrix=request.activity_phospho_matrix,
                 threshold=activity_config.threshold,
                 min_substrates=activity_config.min_substrates,
@@ -72,7 +74,7 @@ class KinaseActivityRunner:
             )
         if activity_config.method == KINASE_ACTIVITY_METHOD_KSEA_ZSCORE:
             validated_inputs = self._activity_input_validator.run(
-                pred_mat=prediction_result._borrow_pred_mat_frame(),
+                pred_mat=prediction_view.pred_mat,
                 phospho_matrix=request.activity_phospho_matrix,
                 threshold=activity_config.ksea_evidence_threshold,
                 min_substrates=activity_config.ksea_min_substrates,

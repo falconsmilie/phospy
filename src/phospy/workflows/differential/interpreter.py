@@ -12,6 +12,7 @@ from phospy.contracts.configs.differential import (
     IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES,
 )
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.design.matrix_builder import (
     DesignMatrixBuildResult,
     describe_fixed_effect_design,
@@ -117,12 +118,12 @@ class DifferentialAnalysisInterpreter:
             resolved_design_build_result = resolved_design_contract.design_build_result
 
         analysis_sample_ids = resolved_analysis_sample_ids
-        matrix = resolved_dataset._borrow_phospho_frame().loc[
-            :, list(analysis_sample_ids)
-        ]
+        resolved_dataset_view = DatasetInternalView(resolved_dataset)
+        resolved_site_metadata = resolved_dataset_view.site_metadata
+        matrix = resolved_dataset_view.phospho.loc[:, list(analysis_sample_ids)]
         matrix = _prefer_site_key_index_for_differential_results(
             matrix=matrix,
-            site_metadata=resolved_dataset._borrow_site_metadata_frame(),  # pyright: ignore[reportPrivateUsage] - workflow boundary reads trusted internal dataset snapshots
+            site_metadata=resolved_site_metadata,
         )
         design_aligned = resolved_design_matrix.frame
         contrasts_aligned = resolved_contrast_matrix.frame
@@ -144,11 +145,11 @@ class DifferentialAnalysisInterpreter:
             )
         matrix_aligned = cast(pd.DataFrame, matrix.copy(deep=True))
         result_identity_metadata = _build_result_identity_metadata(
-            site_metadata=resolved_dataset._borrow_site_metadata_frame(),  # pyright: ignore[reportPrivateUsage] - workflow boundary reads trusted internal dataset snapshots
+            site_metadata=resolved_site_metadata,
             expected_index=matrix_aligned.index,
         )
         imputation_policy_inputs = _build_imputation_policy_inputs(
-            dataset=resolved_dataset,
+            dataset_view=resolved_dataset_view,
             matrix_index=matrix_aligned.index,
             analysis_sample_ids=analysis_sample_ids,
             design=resolved_design,
@@ -680,7 +681,7 @@ def _build_result_identity_metadata(
 
 def _build_imputation_policy_inputs(
     *,
-    dataset: object,
+    dataset_view: DatasetInternalView,
     matrix_index: pd.Index,
     analysis_sample_ids: tuple[str, ...],
     design: ExperimentalDesign,
@@ -698,16 +699,7 @@ def _build_imputation_policy_inputs(
             details={"policy": policy},
             message_prefix="differential workflow boundary validation failed",
         )
-    if not hasattr(dataset, "_borrow_imputation_observed_mask_frame"):
-        raise WorkflowBoundaryError(
-            seam="differential.interpreter.imputation_metadata",
-            next_action=(
-                "pass an AnalysisReadyPhosphoDataset with imputation observation "
-                "metadata into the differential workflow"
-            ),
-            message_prefix="differential workflow boundary validation failed",
-        )
-    observed_mask = dataset._borrow_imputation_observed_mask_frame()  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType] - guarded workflow-internal dataset access
+    observed_mask = dataset_view.imputation_observed_mask
     if observed_mask is None:
         raise WorkflowBoundaryError(
             seam="differential.interpreter.imputation_metadata",

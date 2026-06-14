@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.contracts.results import KinaseScoringResult
+from phospy.science.prediction.internal_view import KinaseScoringInternalView
 from phospy.science.prediction.scoring import (
     SIGNALOME_DOWNSTREAM_SCORE_RANK_WEIGHTED_PREFERRED_POLICY,
     DownstreamScoreSelectionPolicy,
@@ -37,12 +38,11 @@ class SignalomeScoreMatrixSelector:
         self._selection_policy = selection_policy
 
     def run(self, scoring_result: KinaseScoringResult) -> SignalomeScoreMatrixSelection:
+        scoring_view = KinaseScoringInternalView(scoring_result)
         if self._select_matrix is not None:
             downstream_score_matrix, raw_source = self._select_matrix(
-                profile_scores=scoring_result._borrow_profile_scores_frame(),
-                rank_weighted_fusion_scores=(
-                    scoring_result._borrow_rank_weighted_fusion_scores_frame()
-                ),
+                profile_scores=scoring_view.profile_scores,
+                rank_weighted_fusion_scores=scoring_view.rank_weighted_fusion_scores,
             )
             source_value = (
                 raw_source.value
@@ -62,7 +62,7 @@ class SignalomeScoreMatrixSelector:
             scoring_result.score_source,
             field_name="signalome downstream score source",
         )
-        downstream_score_matrix = scoring_result._borrow_authoritative_scores_frame()
+        downstream_score_matrix = scoring_view.authoritative_scores
         return SignalomeScoreMatrixSelection(
             downstream_score_matrix=downstream_score_matrix,
             downstream_score_source=downstream_score_source,

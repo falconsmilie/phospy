@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.workflows.signalome.boundary_errors import raise_signalome_boundary_error
 from phospy.workflows.signalome.constants import (
@@ -24,7 +25,7 @@ class SignalomeProteinResolver:
         site_index: pd.Index,
         removed_by_score_preconditioning_count: int,
     ) -> pd.Series:
-        metadata = dataset._borrow_site_metadata_frame()
+        metadata = DatasetInternalView(dataset).site_metadata
         if self._PROTEIN_COLUMN not in metadata.columns:
             raise_signalome_boundary_error(
                 seam=SIGNALOME_INTERPRETER_PROTEIN_MAPPING_SEAM,

@@ -10,6 +10,7 @@ from phospy.contracts.configs import (
 )
 from phospy.contracts.requests import KinaseWorkflowRequest
 from phospy.errors.validation import WorkflowValidationError
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.references.kinase_library import KinaseLibraryResource
 from phospy.science.references.models import ReferenceBundle, ReferencePreset
@@ -82,15 +83,16 @@ class KinaseWorkflowValidator:
             allow_mixed=scoring_config.allow_mixed_total_protein_quantitative_meaning,
             context="kinase workflow request dataset",
         )
+        dataset_view = DatasetInternalView(dataset)
         site_metadata = require_dataframe(
-            dataset._borrow_site_metadata_frame(),
+            dataset_view.site_metadata,
             field_name="kinase workflow request dataset.site_metadata",
             allow_empty=False,
             error_type=WorkflowValidationError,
         )
         enforce_workflow_site_identity_contract(
             site_metadata=site_metadata,
-            expected_index=dataset._borrow_phospho_frame().index,
+            expected_index=dataset_view.phospho.index,
             expected_index_field_name="kinase workflow request dataset.phospho.index",
             field_name="kinase workflow request dataset.site_metadata",
             contract=KINASE_IDENTITY_CONTRACT,

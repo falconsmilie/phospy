@@ -20,6 +20,7 @@ from phospy.contracts.configs.differential import (
     PairedDesignPolicy,
 )
 from phospy.errors.validation import WorkflowValidationError
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.design.matrix_builder import (
     DesignMatrixBuilder,
@@ -113,8 +114,7 @@ class ExperimentalDesignContractValidator:
             )
 
         dataset_sample_ids = tuple(
-            str(label)
-            for label in dataset._borrow_phospho_frame().columns  # pyright: ignore[reportPrivateUsage] - workflow boundary reads trusted internal dataset snapshots
+            str(label) for label in DatasetInternalView(dataset).phospho.columns
         )
         design_sample_ids = design.sample_ids()
         dataset_sample_set = set(dataset_sample_ids)

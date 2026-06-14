@@ -11,6 +11,7 @@ from phospy.contracts.configs import (
 )
 from phospy.contracts.requests import KinaseWorkflowRequest
 from phospy.errors.workflows import PhosPyWorkflowError, WorkflowBoundaryError
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.prediction.motif_scoring import (
     KINASE_LIBRARY_RESIDUE_CLASS_SER_THR,
     KINASE_LIBRARY_RESIDUE_CLASS_TYR,
@@ -66,8 +67,9 @@ class KinaseWorkflowInterpreter:
         )
 
     def run(self, request: KinaseWorkflowRequest) -> ResolvedKinaseWorkflowRequest:
-        dataset_phospho = request.dataset._borrow_phospho_frame()
-        dataset_site_metadata = request.dataset._borrow_site_metadata_frame()
+        dataset_view = DatasetInternalView(request.dataset)
+        dataset_phospho = dataset_view.phospho
+        dataset_site_metadata = dataset_view.site_metadata
         site_identity_map = self._build_site_identity_map(
             dataset=dataset_phospho,
             site_metadata=dataset_site_metadata,

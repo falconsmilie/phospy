@@ -8,6 +8,11 @@ from phospy.contracts.configs.localisation import LocalisationRequirement
 from phospy.contracts.requests import SignalomeWorkflowRequest
 from phospy.contracts.results import KinaseWorkflowResult
 from phospy.errors.validation import WorkflowValidationError
+from phospy.science.datasets.internal_view import DatasetInternalView
+from phospy.science.prediction.internal_view import (
+    KinasePredictionInternalView,
+    KinaseScoringInternalView,
+)
 from phospy.science.scoring.policy_models import DownstreamScoreSource
 from phospy.validation.common.dataframes import (
     require_dataframe,
@@ -66,8 +71,11 @@ class SignalomeWorkflowValidator:
             )
         config = self._config_validator.run(request.config)
         dataset = request.kinase_result.dataset
+        dataset_view = DatasetInternalView(dataset)
         prediction_result = request.kinase_result.prediction_result
         scoring_result = request.kinase_result.scoring_result
+        prediction_view = KinasePredictionInternalView(prediction_result)
+        scoring_view = KinaseScoringInternalView(scoring_result)
         reject_mixed_total_protein_quantitative_meaning(
             dataset=dataset,
             allow_mixed=config.validation.allow_mixed_total_protein_quantitative_meaning,
@@ -75,7 +83,7 @@ class SignalomeWorkflowValidator:
         )
 
         prediction_matrix = require_dataframe(
-            prediction_result._borrow_pred_mat_frame(),
+            prediction_view.pred_mat,
             field_name=(
                 "signalome workflow request kinase_result.prediction_result.pred_mat"
             ),
@@ -128,7 +136,7 @@ class SignalomeWorkflowValidator:
             scoring_result.score_source,
             field_name="signalome workflow request downstream score source",
         )
-        downstream_score_matrix = scoring_result._borrow_authoritative_scores_frame()
+        downstream_score_matrix = scoring_view.authoritative_scores
         score_field_name = (
             "signalome workflow request kinase_result.scoring_result."
             f"{downstream_score_source}"
@@ -173,8 +181,8 @@ class SignalomeWorkflowValidator:
                 f"{score_field_name} must contain at least one kinase column"
             )
         self._require_site_identity_and_protein_grouping_metadata(
-            site_metadata=dataset._borrow_site_metadata_frame(),
-            dataset_sites=dataset._borrow_phospho_frame().index,
+            site_metadata=dataset_view.site_metadata,
+            dataset_sites=dataset_view.phospho.index,
             prediction_sites=prediction_matrix.index,
             score_sites=score_matrix.index,
             score_field_name=score_field_name,

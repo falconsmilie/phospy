@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.errors.validation import WorkflowValidationError
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.design.models import ExperimentalDesign, SampleDesignRecord
 from phospy.science.differential.policy_models import TechnicalReplicatePolicy
@@ -92,11 +93,12 @@ class TechnicalReplicateAggregationPlanner:
             dataset=dataset,
             groups=groups,
         )
+        dataset_view = DatasetInternalView(dataset)
         return TechnicalReplicateAggregationPlan(
             technical_replicate_policy=technical_replicate_policy,
             groups=groups,
             aggregate_phospho=True,
-            aggregate_total_protein=dataset._borrow_total_frame() is not None,
+            aggregate_total_protein=dataset_view.total is not None,
         )
 
     @staticmethod
@@ -105,7 +107,7 @@ class TechnicalReplicateAggregationPlanner:
         dataset: AnalysisReadyPhosphoDataset,
         groups: tuple[TechnicalReplicateAggregationGroup, ...],
     ) -> None:
-        phospho = dataset._borrow_phospho_frame()
+        phospho = DatasetInternalView(dataset).phospho
         required_sample_ids = [
             sample_id for group in groups for sample_id in group.input_sample_ids
         ]
@@ -332,13 +334,14 @@ class TechnicalReplicateAggregator:
         groups: tuple[TechnicalReplicateAggregationGroup, ...],
         technical_replicate_policy: TechnicalReplicatePolicy,
     ) -> AnalysisReadyPhosphoDataset:
-        phospho = dataset._borrow_phospho_frame()
+        dataset_view = DatasetInternalView(dataset)
+        phospho = dataset_view.phospho
         aggregated_phospho = TechnicalReplicateAggregator._aggregate_numeric_matrix(
             matrix=phospho,
             groups=groups,
             technical_replicate_policy=technical_replicate_policy,
         )
-        total = dataset._borrow_total_frame()
+        total = dataset_view.total
         aggregated_total = None
         if total is not None:
             aggregated_total = TechnicalReplicateAggregator._aggregate_numeric_matrix(
@@ -346,7 +349,7 @@ class TechnicalReplicateAggregator:
                 groups=groups,
                 technical_replicate_policy=technical_replicate_policy,
             )
-        sample_metadata = dataset._borrow_sample_metadata_frame()
+        sample_metadata = dataset_view.sample_metadata
         aggregated_sample_metadata = None
         if sample_metadata is not None:
             aggregated_sample_metadata = (
@@ -355,8 +358,8 @@ class TechnicalReplicateAggregator:
                     groups=groups,
                 )
             )
-        comparisons = dataset._borrow_comparisons_frame()
-        imputation_observation_mask = dataset._borrow_imputation_observed_mask_frame()
+        comparisons = dataset_view.comparisons
+        imputation_observation_mask = dataset_view.imputation_observed_mask
         aggregated_imputation_observation_mask = None
         if imputation_observation_mask is not None:
             aggregated_imputation_observation_mask = (
@@ -367,7 +370,7 @@ class TechnicalReplicateAggregator:
             )
         return AnalysisReadyPhosphoDataset._from_owned(
             phospho=aggregated_phospho,
-            site_metadata=dataset._borrow_site_metadata_frame().copy(deep=True),
+            site_metadata=dataset_view.site_metadata.copy(deep=True),
             intensity_scale_state=dataset.intensity_scale_state,
             processing_state=dataset.processing_state,
             sample_metadata=aggregated_sample_metadata,

@@ -13,6 +13,7 @@ from phospy.contracts.configs import (
     KinasePredictionConfig,
 )
 from phospy.errors.workflows import WorkflowBoundaryError, WorkflowStageError
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.prediction.candidates import (
     CandidateShortfallDiagnostics,
     build_candidate_substrate_list,
@@ -93,7 +94,7 @@ class KinasePredictionRunner:
         config: ResolvedKinaseExecutionConfig,
         scoring_execution: KinaseScoringRunResult,
     ) -> KinasePredictionResult:
-        dataset_sample_count = request.dataset._borrow_phospho_frame().shape[1]
+        dataset_sample_count = DatasetInternalView(request.dataset).phospho.shape[1]
         downstream_score_matrix = scoring_execution.downstream_score_matrix
         candidate_substrates = self._build_candidates(
             scores=downstream_score_matrix,
@@ -158,7 +159,7 @@ class KinasePredictionRunner:
         config: ResolvedKinaseExecutionConfig,
         scoring_execution: KinaseScoringRunResult,
     ) -> KinasePredictionResult:
-        dataset_sample_count = request.dataset._borrow_phospho_frame().shape[1]
+        dataset_sample_count = DatasetInternalView(request.dataset).phospho.shape[1]
         downstream_score_matrix = scoring_execution.downstream_score_matrix
         candidate_substrates = self._build_candidates(
             scores=downstream_score_matrix,

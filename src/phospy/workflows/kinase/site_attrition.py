@@ -14,6 +14,7 @@ from phospy.science.datasets.models import (
     PreprocessingSiteAttritionSummary,
     SiteSequenceResolutionReport,
 )
+from phospy.science.prediction.internal_view import KinaseScoringInternalView
 from phospy.science.prediction.models import KinasePredictionResult
 from phospy.science.prediction.motif_scoring import (
     KINASE_LIBRARY_SITE_STATUS_VALID_SCORED_SITE,
@@ -106,7 +107,8 @@ class KinaseSiteAttritionSummaryComposer:
         motif_sequence_validation = (
             scoring_execution.scoring_result.motif_sequence_validation
         )
-        kinase_library_site_diagnostics = scoring_execution.scoring_result._borrow_kinase_library_site_diagnostics_frame()
+        scoring_view = KinaseScoringInternalView(scoring_execution.scoring_result)
+        kinase_library_site_diagnostics = scoring_view.kinase_library_site_diagnostics
         sequence_supported_sites = int(len(request.scoring_site_index))
         if kinase_library_site_diagnostics is not None:
             valid_statuses = {

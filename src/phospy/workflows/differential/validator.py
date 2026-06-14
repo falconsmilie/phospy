@@ -7,6 +7,7 @@ from typing import cast
 from phospy.contracts.configs import DifferentialAnalysisConfig, MultipleTestingConfig
 from phospy.contracts.requests import DifferentialAnalysisRequest
 from phospy.errors.validation import WorkflowValidationError
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.differential.models import (
     ContrastMatrix,
@@ -64,15 +65,16 @@ class DifferentialAnalysisValidator:
             raise WorkflowValidationError(
                 "differential workflow request dataset must be AnalysisReadyPhosphoDataset"
             )
+        dataset_view = DatasetInternalView(request.dataset)
         site_metadata = require_dataframe(
-            request.dataset._borrow_site_metadata_frame(),  # pyright: ignore[reportPrivateUsage] - workflow boundary reads trusted internal dataset snapshots
+            dataset_view.site_metadata,
             field_name="differential workflow request dataset.site_metadata",
             allow_empty=False,
             error_type=WorkflowValidationError,
         )
         enforce_workflow_site_identity_contract(
             site_metadata=site_metadata,
-            expected_index=request.dataset._borrow_phospho_frame().index,  # pyright: ignore[reportPrivateUsage] - workflow boundary reads trusted internal dataset snapshots
+            expected_index=dataset_view.phospho.index,
             expected_index_field_name=(
                 "differential workflow request dataset.phospho.index"
             ),

@@ -7,6 +7,7 @@ from collections.abc import Callable
 import pandas as pd
 
 from phospy.errors.workflows import WorkflowStageError
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.signalomes.clustering import ClusterSitesResult
 from phospy.science.signalomes.constants import MODULE_ID_COLUMN
 from phospy.science.signalomes.science import (
@@ -146,10 +147,11 @@ class SignalomeModuleTableBuilder:
         execution_metadata: SignalomeExecutionMetadata,
     ) -> pd.DataFrame:
         try:
+            dataset_view = DatasetInternalView(request.dataset)
             return self._build_assignments(
                 prediction_matrix=request.prediction_matrix,
                 site_to_protein=request.site_to_protein,
-                site_metadata=request.dataset._borrow_site_metadata_frame(),
+                site_metadata=dataset_view.site_metadata,
                 protein_modules=protein_modules,
             )
         except WorkflowStageError as exc:

@@ -27,6 +27,7 @@ from phospy.science.activities.models import (
     SsgseaSubstrateEnrichmentActivityDiagnostics,
     WeightedSubstrateActivityDiagnostics,
 )
+from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import (
     AnalysisReadyPhosphoDataset,
     DatasetPreprocessingReport,
@@ -892,7 +893,7 @@ def _validate_site_level_signalome_rows(
 def _signalome_dataset_identity_lookup(
     dataset: AnalysisReadyPhosphoDataset,
 ) -> dict[str, str]:
-    site_metadata = dataset._borrow_site_metadata_frame()
+    site_metadata = DatasetInternalView(dataset).site_metadata
     missing = [
         column
         for column in (SITE_KEY_COLUMN, DISPLAY_ID_COLUMN)

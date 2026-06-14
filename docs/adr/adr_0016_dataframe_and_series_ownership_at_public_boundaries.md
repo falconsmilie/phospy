@@ -75,6 +75,13 @@ Package-private borrow helpers are allowed for trusted internal collaboration
 only. They are not part of the public contract and must stay out of public API
 routes.
 
+Implementation note (2026-06-14): workflow access to borrowed dataset frames
+is mediated by the dataset-owned `DatasetInternalView`. Workflows may depend on
+that narrow internal view for the specific frames they require, but must not
+call dataset `_borrow_*` methods directly. Workflow access to borrowed
+prediction and scoring result frames follows the same domain-owned internal
+view pattern.
+
 ### Provenance
 
 Provenance fields describe owned state at creation time. Caller mutation of
