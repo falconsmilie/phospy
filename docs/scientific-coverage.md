@@ -206,7 +206,7 @@ claimed.
 | Imputation | `validated PhosPy implementation` | Supported policies include `row_median`, `minprob`, `knn` | Unit preprocessing/scientific invariant tests | Policy-dependent behavior; not blanket PhosR-equivalent imputation. |
 | Normalisation | `parity-gated` | Supported methods: `none`, `median_center`, `quantile` with stage-order provenance | `tests/parity/test_preprocessing_science_parity.py`, unit preprocessing tests | Method-specific claims only; no blanket normalisation equivalence claim. |
 | Total-protein subtraction: `subtract_log_total` | `validated PhosPy implementation` | Dataset preprocessing can subtract matched log-scale total-protein abundance from log-scale phosphosite abundance (`log2_phospho - log2_total`) | Unit total-protein correction tests and dataset integration tests | Direct transformation only. Requires total-protein input and compatible log2 preprocessing. Not protein-aware modelling, not normalisation, not joint PTM/protein inference, and not MSstatsPTM equivalence. |
-| Protein-aware preparation | `validated PhosPy implementation` | `DatasetProteinAwarePreparationConfig(policy="prepare_model_inputs")` builds `ProteinAwarePreparationResult` and `ProteinAwarePreparationReport` with matched phosphosite/protein pairs, sample-aligned protein covariates, eligibility rows, mapping diagnostics, sample-alignment diagnostics, transformation-state diagnostics, and explicit limitations | Unit protein-aware preparation/mapping/sample-alignment tests and dataset integration diagnostics tests | Preparation only. Does not modify phosphosite values, subtract total protein, normalise intensities, run differential modelling, or claim MSstatsPTM-style inference. Current `DifferentialAnalysisWorkflow` does not consume the prepared covariate matrix. |
+| Protein-aware preparation | `validated PhosPy implementation` | `DatasetProteinAwarePreparationConfig(policy="prepare_model_inputs")` builds `ProteinAwarePreparationResult` and `ProteinAwarePreparationReport` with matched phosphosite/protein pairs, sample-aligned protein covariates, eligibility rows, mapping diagnostics, sample-alignment diagnostics, transformation-state diagnostics, and explicit limitations | Unit protein-aware preparation/mapping/sample-alignment tests and dataset integration diagnostics tests | Preparation-only model-input preparation. Does not modify phosphosite values, subtract total protein, normalise intensities, run joint PTM/protein modelling, adjust differential models, or claim MSstatsPTM-style inference or equivalence. Current `DifferentialAnalysisWorkflow` does not consume the prepared covariate matrix. |
 | Batch correction: `linear_residualize_batch` | `validated PhosPy implementation` | Dataset preprocessing supports opt-in `linear_residualize_batch` fixed-effect residualisation with explicit batch/condition metadata, condition-preserving design, design adequacy validation, and typed reports | Unit batch-correction engine, metadata, validation, and report tests; dataset integration tests for no-op, applied correction, invalid metadata/designs, and downstream differential consumption | Only this fixed-effect residualisation method is supported. Confounded batch/condition designs are rejected because preserving condition effects would otherwise be impossible. This is not ComBat, not RUV, not limma `removeBatchEffect` parity, not limma `duplicateCorrelation`, and not mixed-effects modelling. It does not solve all batch-effect problems. Differential batch fixed effects are model covariates, not preprocessing correction. |
 | Joint PTM/protein modelling and MSstatsPTM-style inference | `open gap` | No executable joint phosphosite/total-protein differential modelling lane is supported | N/A | Do not interpret total-protein subtraction or protein-aware preparation as MSstatsPTM-style inference, protein-adjusted differential modelling, or equivalence to MSstatsPTM. |
 | RUV, ComBat, and `removeBatchEffect` parity | `open gap` | No executable RUV, ComBat, or limma `removeBatchEffect` parity lane is supported. `ruv_readiness` is diagnostic/report-only metadata readiness reporting. | Readiness/report tests only; no correction parity or execution claim | Do not interpret `ruv_readiness` as RUV support. Do not interpret `linear_residualize_batch` as ComBat, RUV, limma `removeBatchEffect`, or mixed-effects support. |
@@ -279,11 +279,12 @@ commands/workflows:
   `log2_phospho - log2_total` transformation for matched rows. It is not
   protein-aware differential modelling, not normalisation, and not
   MSstatsPTM-style inference.
-- Protein-aware preparation produces aligned phosphosite/protein input
-  contracts and diagnostics only. It records mapping, missing-total,
-  sample-alignment, transformation-state, and limitation fields, but it does
-  not modify phosphosite values, run a differential model, or claim
-  MSstatsPTM equivalence.
+- Protein-aware preparation is preparation-only model-input preparation. It
+  produces aligned phosphosite/protein input contracts and diagnostics only. It
+  records mapping, missing-total, sample-alignment, transformation-state, and
+  limitation fields, but it does not modify phosphosite values, subtract total
+  protein, run joint PTM/protein modelling, adjust differential models, or
+  claim MSstatsPTM-style inference or equivalence.
 - Enrichment workflow support is offline ORA against supplied gene-set or
   PTM-set collections. It uses the caller's explicit background universe and
   identifier semantics.
@@ -345,16 +346,17 @@ Differential outputs now expose structured policy provenance through
   design features (`duplicateCorrelation`-style correlated-replicate and
   mixed-effect or random subject-effect modelling)
 
-Protein-aware preparation records preparation provenance without implying a
-downstream model. `ProteinAwarePreparationReport` records the preparation mode,
-protein-mapping policy, eligibility counts, sample-alignment and
+Protein-aware preparation records preparation-only model-input preparation
+provenance without implying a downstream model. `ProteinAwarePreparationReport`
+records the preparation mode, protein-mapping policy, eligibility counts,
+sample-alignment and
 transformation-state diagnostics, missing-total and ambiguous-mapping
 diagnostics, and explicit limitations. Dataset run provenance also records the
 active preparation summary in
 `workflow_parameters["protein_aware_preparation"]` when preparation runs. These
 records state that the stage does not modify phosphosite values, subtract total
 protein, normalise intensities, run joint PTM/protein differential modelling,
-or claim MSstatsPTM equivalence.
+adjust differential models, or claim MSstatsPTM equivalence.
 
 Enrichment workflow provenance records the ORA method, identifier column and
 kind, collection kind, analysis level, explicit background universe size,

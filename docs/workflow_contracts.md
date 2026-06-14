@@ -106,10 +106,11 @@ the result models.
   phosphosite-minus-total transformation on log-scale values. It changes
   phosphosite matrix values and quantitative meaning. It is not protein-aware
   modelling and is not MSstatsPTM-style inference.
-- `protein_aware_preparation.policy="prepare_model_inputs"` prepares aligned
+- `protein_aware_preparation.policy="prepare_model_inputs"` is
+  preparation-only model-input preparation. It prepares aligned
   phosphosite/protein input contracts and diagnostics only. It does not modify
-  phosphosite values, subtract total protein, normalise intensities, or run a
-  differential model.
+  phosphosite values, subtract total protein, normalise intensities, run joint
+  PTM/protein modelling, or adjust downstream differential models.
 - Public builder protein-aware preparation maps explicit protein identifiers
   from `site_metadata` (`protein_accession`, `protein_id`, or
   `protein_group_id`) to `total.index`. Gene-symbol matching is not the public
@@ -173,7 +174,8 @@ the result models.
   site-eligibility table, missing-total and ambiguous-mapping diagnostics,
   sample-alignment diagnostics, transformation-state diagnostics, and explicit
   limitations: no phospho-matrix modification, no total-protein subtraction, no
-  normalisation, no differential modelling, and no MSstatsPTM equivalence claim.
+  normalisation, no joint modelling, no differential model adjustment, and no
+  MSstatsPTM equivalence claim.
 - Dataset run provenance includes the active protein-aware preparation summary
   under `provenance.workflow_parameters["protein_aware_preparation"]` when the
   preparation stage runs.
@@ -187,9 +189,11 @@ the result models.
 - Protein identity is not derived automatically from display labels; provide
   protein context for `site_key` derivation and explicit, complete `protein_id`
   only for downstream signalome analysis.
-- Protein-aware preparation is not a supported joint PTM/protein differential
-  model. Current differential analysis does not consume
-  `ProteinAwarePreparationResult`, and no MSstatsPTM-style inference is claimed.
+- Protein-aware preparation is preparation-only and is not a supported joint
+  PTM/protein differential model. Current differential analysis does not
+  consume `ProteinAwarePreparationResult`, does not adjust differential models
+  from its covariate matrix, and no MSstatsPTM-style inference or equivalence is
+  claimed.
 - The only executable batch-correction preprocessing method is
   `linear_residualize_batch`. Broader batch-effect modelling, ComBat, RUV,
   limma `removeBatchEffect` parity, and mixed-effects modelling are not provided

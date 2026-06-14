@@ -450,10 +450,12 @@ matched log-scale total-protein abundance from log-scale phosphosite abundance:
 dataset quantitative meaning. It requires total-protein input data and
 log2-scale phospho/total values. It is not joint PTM/protein modelling.
 
-`DatasetProteinAwarePreparationConfig(policy="prepare_model_inputs")` prepares
-aligned phosphosite/protein input contracts and diagnostics. It does not change
-the phosphosite matrix, does not subtract total protein, does not normalise
-intensities, and does not run differential analysis. The default policy is
+`DatasetProteinAwarePreparationConfig(policy="prepare_model_inputs")` is
+preparation-only model-input preparation. It prepares aligned
+phosphosite/protein input contracts and diagnostics. It does not change the
+phosphosite matrix, does not subtract total protein, does not normalise
+intensities, does not run differential analysis, does not run joint PTM/protein
+modelling, and does not adjust differential models. The default policy is
 `"disabled"`.
 
 Prepared protein-aware inputs are represented by
@@ -488,7 +490,8 @@ Full joint PTM/protein modelling is not a dataset-preprocessing policy. It is
 not enabled by total-protein subtraction and is not executed by protein-aware
 preparation config. PhosPy does not claim MSstatsPTM-style inference or
 MSstatsPTM equivalence for this preparation stage. Protein-aware preparation
-does not run joint PTM/protein differential modelling.
+does not run joint PTM/protein differential modelling or differential model
+adjustment.
 
 ```python
 from phospy import AnalysisReadyDatasetBuilder

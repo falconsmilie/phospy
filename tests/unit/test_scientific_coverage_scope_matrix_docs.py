@@ -164,9 +164,11 @@ def test_protein_aware_preparation_scope_is_separate_from_modelling() -> None:
         "| joint ptm/protein modelling and msstatsptm-style inference | `open gap` |"
     ) in normalized
     assert "`log2_phospho - log2_total`" in normalized
-    assert "preparation only" in normalized
+    assert "preparation-only" in normalized
     assert "does not modify phosphosite values" in normalized
+    assert "does not subtract total protein" in normalized
     assert "does not run joint ptm/protein differential modelling" in normalized
+    assert "does not adjust differential models" in normalized
     assert "does not claim msstatsptm-style inference" in normalized
     assert "current `differentialanalysisworkflow` does not consume" in normalized
 

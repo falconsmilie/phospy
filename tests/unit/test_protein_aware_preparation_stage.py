@@ -6,6 +6,7 @@ import pandas.testing as pdt
 from phospy.api import DatasetProteinAwarePreparationConfig
 from phospy.science.datasets.preprocessing.protein_aware_alignment import (
     PROTEIN_AWARE_REASON_AMBIGUOUS_PROTEIN_MAPPING,
+    PROTEIN_AWARE_REASON_INCOMPATIBLE_TRANSFORMATION_STATE,
     PROTEIN_AWARE_REASON_MISSING_TOTAL_PROTEIN_ROW,
     PROTEIN_AWARE_REASON_SAMPLE_MISMATCH,
     ProteinAwarePreparationEligibility,
@@ -26,6 +27,13 @@ def _state() -> IntensityScaleState:
     return IntensityScaleState(
         phospho=MatrixIntensityScaleState.log2(established_by="test.phospho"),
         total=MatrixIntensityScaleState.log2(established_by="test.total"),
+    )
+
+
+def _incompatible_state() -> IntensityScaleState:
+    return IntensityScaleState(
+        phospho=MatrixIntensityScaleState.log2(established_by="test.phospho"),
+        total=MatrixIntensityScaleState.linear(established_by="test.total"),
     )
 
 
@@ -216,3 +224,43 @@ def test_protein_aware_preparation_sample_mismatch_is_diagnostic_exclusion() -> 
         "sample_b",
     ]
     assert result.protein_covariate_matrix.empty
+
+
+def test_protein_aware_preparation_transformation_mismatch_is_diagnostic_exclusion() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0], "sample_b": [2.0]},
+        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+    )
+    original = phospho.copy(deep=True)
+    site_metadata = pd.DataFrame(
+        {"protein_id": ["P53778"], "gene_symbol": ["MAPK14"], "site": ["Y182"]},
+        index=phospho.index.copy(),
+    )
+    total = pd.DataFrame(
+        {"sample_a": [10.0], "sample_b": [11.0]},
+        index=pd.Index(["P53778"], name="protein_id"),
+    )
+
+    result = ProteinAwarePreparationStage().run(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        total=total,
+        transformation_state=_incompatible_state(),
+        config=_config(),
+        mapping_config=_mapping_config(),
+    )
+
+    assert result is not None
+    assert result.report.eligible_site_keys == ()
+    assert result.report.excluded_site_keys == ("MAPK14;Y182;",)
+    assert result.report.transformation_state is not None
+    assert result.report.transformation_state.compatible is False
+    table = result.site_eligibility_table
+    assert (
+        PROTEIN_AWARE_REASON_INCOMPATIBLE_TRANSFORMATION_STATE
+        in table.loc[0, "reasons"]
+    )
+    assert result.protein_covariate_matrix.empty
+    pdt.assert_frame_equal(phospho, original)
