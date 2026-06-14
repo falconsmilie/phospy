@@ -675,16 +675,34 @@ def _resolve_site_call(
     ptmprophet_position_reference: str,
     row_position: int,
 ) -> _SiteCall:
-    protein_start = _resolve_protein_start(
-        row, resolved=resolved, row_position=row_position
-    )
     localisation_candidates = _parse_ptmprophet_localisation_candidates(
         row[resolved.ptmprophet_probabilities],
         modified_phospho_sites=modified_phospho_sites,
         field_name=f"FragPipe {resolved.ptmprophet_probabilities}",
         row_position=row_position,
     )
+    protein_start: int | None = None
+    protein_start_was_resolved = False
+
+    def resolve_protein_start() -> int | None:
+        nonlocal protein_start, protein_start_was_resolved
+        if not protein_start_was_resolved:
+            protein_start = _resolve_protein_start(
+                row,
+                resolved=resolved,
+                row_position=row_position,
+            )
+            protein_start_was_resolved = True
+        return protein_start
+
     if resolved.site is not None:
+        protein_start_for_localisation = (
+            resolve_protein_start()
+            if localisation_candidates
+            and ptmprophet_position_reference
+            == FRAGPIPE_PTMPROPHET_POSITION_REFERENCE_PEPTIDE
+            else None
+        )
         selected = tuple(
             _ProteinSiteCandidate(
                 residue=token.residue,
@@ -692,7 +710,7 @@ def _resolve_site_call(
                 probability=_probability_for_site_token(
                     token.token,
                     candidates=localisation_candidates,
-                    protein_start=protein_start,
+                    protein_start=protein_start_for_localisation,
                     ptmprophet_position_reference=ptmprophet_position_reference,
                     row_position=row_position,
                 ),
@@ -704,23 +722,33 @@ def _resolve_site_call(
         )
         all_candidates = _convert_candidates_to_protein_sites(
             localisation_candidates,
-            protein_start=protein_start,
+            protein_start=protein_start_for_localisation,
             ptmprophet_position_reference=ptmprophet_position_reference,
             row_position=row_position,
         )
         if not all_candidates:
             all_candidates = selected
+        _, ambiguous = _select_localised_sites(
+            all_candidates,
+            phospho_site_count=len(modified_phospho_sites),
+        )
         return _site_call_from_candidates(
             selected,
             all_candidates=all_candidates,
-            ambiguous=False,
+            ambiguous=ambiguous,
             phospho_site_count=len(modified_phospho_sites),
         )
 
     if localisation_candidates:
+        protein_start_for_localisation = (
+            resolve_protein_start()
+            if ptmprophet_position_reference
+            == FRAGPIPE_PTMPROPHET_POSITION_REFERENCE_PEPTIDE
+            else None
+        )
         protein_candidates = _convert_candidates_to_protein_sites(
             localisation_candidates,
-            protein_start=protein_start,
+            protein_start=protein_start_for_localisation,
             ptmprophet_position_reference=ptmprophet_position_reference,
             row_position=row_position,
         )
@@ -745,7 +773,7 @@ def _resolve_site_call(
             residue=site.residue,
             peptide_position=site.position,
             probability=None,
-            protein_start=protein_start,
+            protein_start=resolve_protein_start(),
             row_position=row_position,
         )
         for site in modified_phospho_sites

@@ -12,15 +12,19 @@ from phospy.io.readers import (
     FragPipePTMProphetImporter,
     FragPipePTMProphetImportRequest,
 )
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "tests" / "fixtures" / "fragpipe"
 
 
-def _import_fixture(**kwargs: object) -> PhosphositeImportResult:
+def _import_fixture(
+    filename: str = "ptmprophet_sites.tsv",
+    **kwargs: object,
+) -> PhosphositeImportResult:
     return FragPipePTMProphetImporter().run(
         FragPipePTMProphetImportRequest(
-            source=FIXTURES / "ptmprophet_sites.tsv",
+            source=FIXTURES / filename,
             **kwargs,
         )
     )
@@ -152,3 +156,152 @@ def test_fragpipe_ptmprophet_supports_protein_position_localisation_strings() ->
     assert result.site_metadata_candidate.iloc[0][
         "localisation_confidence"
     ] == pytest.approx(0.93)
+
+
+def test_fragpipe_explicit_protein_site_fixture_remains_import_candidate() -> None:
+    result = _import_fixture(
+        "ptmprophet_explicit_site_edge_cases.tsv",
+        ptmprophet_position_reference="protein",
+    )
+
+    assert isinstance(result, PhosphositeImportResult)
+    assert not isinstance(result, AnalysisReadyPhosphoDataset)
+    metadata = result.site_metadata_candidate
+    assert list(result.phospho_matrix_candidate.columns) == ["Control", "Stim"]
+    assert metadata.loc[:, "protein_accession"].tolist() == [
+        "P28482",
+        "Q9Y243",
+        "P49841",
+        "Q13554",
+    ]
+    assert metadata.loc[:, "gene_symbol"].tolist() == [
+        "MAPK1",
+        "AKT3",
+        "GSK3B",
+        "CAMK2B",
+    ]
+    assert metadata.loc[:, "site"].tolist() == ["S10", "S472,T474", "S9", "S17"]
+    assert metadata.iloc[0]["localisation_confidence"] == pytest.approx(0.95)
+    assert metadata.iloc[0]["fragpipe_ptmprophet_site_probabilities"] == "S10:0.95"
+
+    request = result.to_dataset_build_request(input_intensity_scale="linear")
+    assert request.phospho is not None
+    assert request.site_metadata is not None
+    assert request.peptide_evidence is None
+
+
+def test_fragpipe_peptide_position_fixture_maps_ptmprophet_string_variants() -> None:
+    result = _import_fixture("ptmprophet_peptide_position_edge_cases.tsv")
+
+    metadata = result.site_metadata_candidate
+    assert metadata.loc[:, "site"].tolist() == [
+        "Y182",
+        "S473,T475",
+        "S10",
+        "S203",
+    ]
+    assert metadata.loc[:, "fragpipe_ptmprophet_site_probabilities"].tolist() == [
+        "Y182:0.93",
+        "S473:0.98;T475:0.97",
+        "S10:0.88",
+        "S203:0.91",
+    ]
+    assert metadata.loc[:, "localisation_confidence"].tolist() == pytest.approx(
+        [0.93, 0.97, 0.88, 0.91]
+    )
+
+    evidence = result.peptide_evidence
+    assert evidence is not None
+    assert evidence.loc[:, "site_string"].tolist() == [
+        "Y182",
+        "S473;T475",
+        "S10",
+        "S203",
+    ]
+    assert evidence.loc[:, "multi_site"].tolist() == [False, True, False, False]
+    assert result.diagnostics["fragpipe"]["adaptation"]["multi_site_rows"] == 1
+
+
+def test_fragpipe_explicit_site_ambiguous_localisation_is_diagnostic() -> None:
+    result = _import_fixture(
+        "ptmprophet_explicit_site_edge_cases.tsv",
+        ptmprophet_position_reference="protein",
+    )
+
+    metadata = result.site_metadata_candidate
+    ambiguous = metadata.loc[metadata.loc[:, "gene_symbol"] == "GSK3B"].iloc[0]
+    assert ambiguous["site"] == "S9"
+    assert ambiguous["fragpipe_ptmprophet_candidate_sites"] == "S9;T10"
+    assert ambiguous["fragpipe_ptmprophet_site_probabilities"] == "S9:0.5;T10:0.5"
+    assert bool(ambiguous["fragpipe_ptmprophet_ambiguous"]) is True
+    assert (
+        result.diagnostics["fragpipe"]["adaptation"]["ambiguous_localisation_rows"] == 1
+    )
+    assert any("ambiguous localisation" in warning for warning in result.warnings)
+
+
+def test_fragpipe_reports_protein_group_collapse_and_sequence_mismatch() -> None:
+    result = _import_fixture(
+        "ptmprophet_explicit_site_edge_cases.tsv",
+        ptmprophet_position_reference="protein",
+    )
+
+    diagnostics = result.diagnostics["fragpipe"]["adaptation"]
+    assert diagnostics["protein_group_rows_collapsed_to_first_accession"] == 1
+    assert diagnostics["peptide_sequence_mismatch_rows"] == 1
+    assert any("protein-group rows" in warning for warning in result.warnings)
+    assert any("peptide sequence" in warning for warning in result.warnings)
+
+
+def test_fragpipe_excludes_decoys_and_contaminants_by_default() -> None:
+    result = _import_fixture(
+        "ptmprophet_explicit_site_edge_cases.tsv",
+        ptmprophet_position_reference="protein",
+    )
+
+    filtering = result.diagnostics["fragpipe"]["filtering"]
+    assert filtering["input_row_count"] == 6
+    assert filtering["contaminant_rows"] == 1
+    assert filtering["decoy_rows"] == 1
+    assert filtering["removed_rows"] == 2
+    assert filtering["retained_row_count"] == 4
+    retained_genes = result.site_metadata_candidate.loc[:, "gene_symbol"].tolist()
+    assert "CONGENE" not in retained_genes
+    assert "DECOY" not in retained_genes
+
+
+def test_fragpipe_can_flag_decoys_and_contaminants_when_requested() -> None:
+    result = _import_fixture(
+        "ptmprophet_explicit_site_edge_cases.tsv",
+        ptmprophet_position_reference="protein",
+        contaminant_policy="flag",
+        decoy_policy="flag",
+    )
+
+    metadata = result.site_metadata_candidate
+    assert metadata.shape[0] == 6
+    assert metadata.loc[:, "fragpipe_contaminant"].tolist() == [
+        False,
+        False,
+        False,
+        False,
+        True,
+        False,
+    ]
+    assert metadata.loc[:, "fragpipe_decoy"].tolist() == [
+        False,
+        False,
+        False,
+        False,
+        False,
+        True,
+    ]
+    assert result.diagnostics["fragpipe"]["filtering"]["removed_rows"] == 0
+
+
+def test_fragpipe_missing_required_protein_start_rejects_peptide_positions() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="FragPipe Protein Start must contain non-empty values",
+    ):
+        _import_fixture("ptmprophet_missing_required_start.tsv")

@@ -1,0 +1,2 @@
+Spectrum	Protein	Gene	Peptide	Modified Peptide	Protein Start	PTMProphet Probability	Sequence Window	Intensity Control	Intensity Stim	Contaminant	Decoy
+scan_missing_start	sp|P28482|MK01_HUMAN	MAPK1	AAASAAA	AAA[pS]AAA		S4(0.95)	AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA	10.0	12.0		
