@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 from phospy.api import PhosphositeImportResult
+from phospy.errors import PhosPyInputError
 from phospy.io.readers import (
     MaxQuantColumnMapping,
     MaxQuantPhosphositeImporter,
@@ -40,6 +41,51 @@ def test_maxquant_importer_reads_standard_phospho_sty_sites_columns() -> None:
         [0.95, 0.91]
     )
     assert result.diagnostics["maxquant"]["filtering"]["removed_rows"] == 2
+
+
+def test_maxquant_realistic_grouped_multisite_rows_remain_candidates() -> None:
+    result = MaxQuantPhosphositeImporter().run(
+        MaxQuantPhosphositeImportRequest(
+            source=FIXTURES / "phospho_sty_sites_realistic_variants.txt"
+        )
+    )
+
+    phospho = result.phospho_matrix_candidate
+    assert list(phospho.columns) == ["Control", "Stim"]
+    assert phospho.shape == (2, 2)
+    assert float(phospho.iloc[0]["Control"]) == pytest.approx(1000.0)
+    metadata = result.site_metadata_candidate
+    assert metadata.loc[:, "gene_symbol"].tolist() == ["MAPK1", "AKT1"]
+    assert metadata.loc[:, "site"].tolist() == ["S10", "S473,T308"]
+    assert metadata.loc[:, "protein_accession"].tolist() == ["P28482", "P31749"]
+    assert metadata.index.astype(str).tolist() == [
+        "maxquant:P28482:S10:row1",
+        "maxquant:P31749:S473,T308:row2",
+    ]
+    assert "site_sequence" not in metadata.columns
+    assert metadata.loc[:, "localisation_confidence"].tolist() == pytest.approx(
+        [0.97, 0.78]
+    )
+
+    evidence = result.peptide_evidence
+    assert evidence is not None
+    assert evidence.loc[:, "site_string"].tolist() == ["S10", "S473;T308"]
+    assert evidence.loc[:, "site_id"].tolist() == [
+        "MAPK1;S10;",
+        "AKT1;S473,T308;",
+    ]
+    assert evidence.loc[:, "multi_site"].tolist() == [False, True]
+    assert "site_sequence" not in evidence.columns
+
+    maxquant_diagnostics = result.diagnostics["maxquant"]
+    assert maxquant_diagnostics["filtering"]["removed_rows"] == 2
+    adaptation = maxquant_diagnostics["adaptation"]
+    assert adaptation["protein_group_rows_collapsed_to_first_accession"] == 1
+    assert adaptation["gene_group_rows_collapsed_to_first_symbol"] == 1
+    assert adaptation["multi_site_rows"] == 1
+    assert any("protein-group rows" in warning for warning in result.warnings)
+    assert any("gene-name group rows" in warning for warning in result.warnings)
+    assert any("multi-site candidates" in warning for warning in result.warnings)
 
 
 def test_maxquant_importer_supports_custom_column_mapping() -> None:
@@ -90,6 +136,58 @@ def test_maxquant_importer_supports_custom_column_mapping() -> None:
     assert result.site_metadata_candidate.loc[
         :, "localisation_confidence"
     ].tolist() == (pytest.approx([0.95, 0.92]))
+
+
+def test_maxquant_explicit_intensity_override_selects_lfq_columns() -> None:
+    result = MaxQuantPhosphositeImporter().run(
+        MaxQuantPhosphositeImportRequest(
+            source=FIXTURES / "phospho_sty_sites_raw_and_lfq.txt",
+            column_mapping=MaxQuantColumnMapping(
+                intensity_columns={
+                    "LFQ intensity Control": "control_lfq",
+                    "LFQ intensity Stim": "stim_lfq",
+                },
+            ),
+        )
+    )
+
+    assert result.sample_column_mapping == {
+        "LFQ intensity Control": "control_lfq",
+        "LFQ intensity Stim": "stim_lfq",
+    }
+    phospho = result.phospho_matrix_candidate
+    assert list(phospho.columns) == ["control_lfq", "stim_lfq"]
+    assert phospho.iloc[:, 0].tolist() == pytest.approx([100.0, 200.0])
+    assert phospho.iloc[:, 1].tolist() == pytest.approx([120.0, 210.0])
+
+
+def test_maxquant_lfq_intensity_columns_are_detected_when_raw_absent() -> None:
+    result = MaxQuantPhosphositeImporter().run(
+        MaxQuantPhosphositeImportRequest(
+            source=FIXTURES / "phospho_sty_sites_lfq_only.txt"
+        )
+    )
+
+    assert result.sample_column_mapping == {
+        "LFQ intensity Control": "Control",
+        "LFQ intensity Stim": "Stim",
+    }
+    phospho = result.phospho_matrix_candidate
+    assert list(phospho.columns) == ["Control", "Stim"]
+    assert phospho.iloc[:, 0].tolist() == pytest.approx([101.0, 202.0])
+    assert phospho.iloc[:, 1].tolist() == pytest.approx([121.0, 222.0])
+
+
+def test_maxquant_mixed_raw_and_lfq_detection_requires_explicit_mapping() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="multiple intensity columns for the same inferred sample IDs",
+    ):
+        MaxQuantPhosphositeImporter().run(
+            MaxQuantPhosphositeImportRequest(
+                source=FIXTURES / "phospho_sty_sites_raw_and_lfq.txt"
+            )
+        )
 
 
 def test_maxquant_localisation_probability_strings_become_threshold_ready_numeric() -> (

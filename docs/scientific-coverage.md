@@ -21,9 +21,9 @@ phosphosite import, MaxQuant phosphosite import, and
 FragPipe/Philosopher/PTMProphet phosphosite import. Importers emit
 `PhosphositeImportResult` candidates and dataset-builder requests; they do not
 construct analysis-ready datasets, infer differential design, or bypass builder
-validation. FragPipe/PTMProphet fixture coverage is targeted to selected
-localisation, mapping, flagging, and ambiguity edge cases; it is not full
-FragPipe/PTMProphet parity.
+validation. MaxQuant and FragPipe/PTMProphet fixture coverage is targeted to
+selected localisation, mapping, flagging, grouped-row, intensity-column, and
+ambiguity edge cases; it is not full vendor-tool parity.
 
 The prediction science layer includes a pure Kinase Library-style motif scorer.
 `KinaseWorkflow` exposes it through explicit scoring modes only; the default

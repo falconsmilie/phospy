@@ -1,0 +1,5 @@
+id	Proteins	Gene names	Modified site	Phospho (STY) Probabilities	Sequence	Modified sequence	Intensity Control	Intensity Stim	Potential contaminant	Reverse
+1	P28482;Q9XYZ1	MAPK1;ERK2	S10	S(0.97)	AAAAASAAAA	AAAAA(ph)SAAAA	1000.0	1250.0		
+2	P31749	AKT1	S473;T308	S(0.84);T(0.78)	BBBBBSTBBB	BBBBB(ph)S(ph)TBBB	2100.0	2300.0		
+3	CON__P99999	CONGENE	S20	S(0.99)	CCCCCSCCCC	CCCCC(ph)SCCCC	3100.0	3300.0	+	
+4	REV__P88888	REVGENE	T30	T(0.99)	DDDDDTDDDD	DDDDD(ph)TDDDD	4100.0	4300.0		+

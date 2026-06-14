@@ -480,6 +480,13 @@ def _adapt_maxquant_source(
         )
         for position, value in enumerate(source.loc[:, resolved.gene_symbol])
     ]
+    gene_group_rows = int(
+        sum(
+            1
+            for value in source.loc[:, resolved.gene_symbol]
+            if _multi_value_count(value) > 1
+        )
+    )
     site_values: list[str] = []
     peptide_site_values: list[str] = []
     protein_group_rows = 0
@@ -537,6 +544,7 @@ def _adapt_maxquant_source(
     diagnostics = {
         "resolved_columns": _resolved_columns_payload(resolved),
         "protein_group_rows_collapsed_to_first_accession": int(protein_group_rows),
+        "gene_group_rows_collapsed_to_first_symbol": int(gene_group_rows),
         "multi_site_rows": int(
             sum(1 for site_value in site_values if len(site_value.split(",")) > 1)
         ),
@@ -551,6 +559,11 @@ def _adapt_maxquant_source(
         warnings.append(
             "MaxQuant protein-group rows were represented by the first listed "
             "protein accession for protein-scoped identity"
+        )
+    if gene_group_rows:
+        warnings.append(
+            "MaxQuant gene-name group rows were represented by the first listed "
+            "gene symbol for display metadata"
         )
     return adapted, diagnostics, tuple(warnings)
 
@@ -720,13 +733,31 @@ def _resolve_intensity_columns(
             "non-empty strings"
         )
     mapping: dict[str, str] = {}
+    inferred_sample_columns: dict[str, list[str]] = {}
     for column in source.columns.astype(str).tolist():
         for prefix in prefixes:
             if not column.startswith(prefix):
                 continue
             sample_id = column[len(prefix) :].strip() or column
             mapping[column] = sample_id
+            inferred_sample_columns.setdefault(sample_id, []).append(column)
             break
+    duplicate_sample_ids = {
+        sample_id: columns
+        for sample_id, columns in inferred_sample_columns.items()
+        if len(columns) > 1
+    }
+    if duplicate_sample_ids:
+        details = "; ".join(
+            f"{sample_id!r}: {', '.join(columns)}"
+            for sample_id, columns in duplicate_sample_ids.items()
+        )
+        raise PhosPyInputError(
+            "MaxQuant importer inferred multiple intensity columns for the same "
+            "inferred sample IDs. Configure "
+            "MaxQuantColumnMapping.intensity_columns to select one quantitative "
+            f"family or provide unique sample IDs. ambiguous_sample_ids={details}"
+        )
     if not mapping:
         accepted = ", ".join(repr(prefix) for prefix in prefixes)
         raise PhosPyInputError(
