@@ -44,6 +44,12 @@ gseapy, clusterProfiler, or other online services. Those online calls are not
 native core workflow behavior. ORA does not imply GSEA, ssGSEA, or PTM-SEA
 support.
 
+The shared Benjamini-Hochberg helper adjusts only finite p-values. Its
+denominator is the number of finite p-values passed to the helper, and
+non-finite input positions remain missing in the adjusted output. This is the
+generic multiple-testing helper contract; workflow-specific eligibility can be
+stricter.
+
 Differential analysis requires analysis-ready numeric inputs plus valid
 `ExperimentalDesign` and `Contrast` metadata. It does not infer design from
 sample names and does not replace upstream preprocessing requirements.
@@ -153,6 +159,8 @@ Contract difference vs limma/PhosR surface:
 - analysis-ready inputs must be complete at boundary; missing values are
   rejected before differential execution instead of being handled inside
   differential model fitting.
+- differential execution validates generated `P.Value` values are finite and
+  within `[0, 1]` before Benjamini-Hochberg adjustment.
 - upstream-imputed analysis-ready inputs are rejected by default. The explicit
   `withhold_imputed_features` policy can withhold rows above
   `imputed_value_max_fraction` or with insufficient originally observed samples
@@ -294,6 +302,12 @@ commands/workflows:
   `logFC`, `t`, `P.Value`, and `adj.P.Val`, and are excluded from the
   Benjamini-Hochberg denominator. This policy does not implement observed-only
   fitting or feature-specific residual degrees of freedom.
+- Shared Benjamini-Hochberg adjustment ranks finite p-values only; the
+  denominator is the finite p-value count passed to the helper. Non-finite
+  positions remain missing in adjusted output. Differential workflow output is
+  stricter for tested rows: generated `P.Value` values must be finite and in
+  `[0, 1]` before BH is called, while imputation-withheld rows are excluded
+  before adjustment.
 - Dataset preprocessing `linear_residualize_batch` is opt-in fixed-effect
   residualisation. It preserves condition effects by including condition terms
   in the residualisation design, rejects confounded batch/condition designs, and

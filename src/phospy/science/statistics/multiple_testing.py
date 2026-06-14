@@ -21,7 +21,10 @@ def run(
     *,
     method: MultipleTestingCorrection,
 ) -> tuple[float | None, ...]:
-    """Return adjusted p-values for ``p_values`` using ``method``."""
+    """Return adjusted p-values for ``p_values`` using ``method``.
+
+    Non-finite adjusted values are returned as ``None``.
+    """
 
     adjusted = adjust_p_values(p_values, method=method)
     return tuple(
@@ -47,7 +50,12 @@ def adjust_p_values(
 
 
 def benjamini_hochberg(p_values: Sequence[float | None] | np.ndarray) -> np.ndarray:
-    """Return Benjamini-Hochberg adjusted p-values."""
+    """Return Benjamini-Hochberg adjusted p-values.
+
+    Only finite input p-values are ranked and adjusted. The BH denominator is
+    the number of finite p-values passed to this helper, and non-finite input
+    positions are preserved as ``NaN`` in the adjusted output.
+    """
 
     values = _normalise_p_values(p_values)
     _validate_unit_interval(values)

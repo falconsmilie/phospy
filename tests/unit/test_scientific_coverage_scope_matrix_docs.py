@@ -105,6 +105,22 @@ def test_fixed_effect_differential_limitations_are_documented() -> None:
     assert "complete within-block contrast coverage" in text
 
 
+def test_bh_finite_denominator_and_differential_validation_are_documented() -> None:
+    normalized = " ".join(_scientific_coverage_text().lower().split())
+
+    assert "shared benjamini-hochberg helper adjusts only finite p-values" in (
+        normalized
+    )
+    assert "denominator is the number of finite p-values passed to the helper" in (
+        normalized
+    )
+    assert "differential execution validates generated `p.value` values are finite" in (
+        normalized
+    )
+    assert "withheld rows receive missing" in normalized
+    assert "are excluded from the benjamini-hochberg denominator" in normalized
+
+
 def test_differential_provenance_docs_name_fixed_block_limitations() -> None:
     text = (_scientific_coverage_text() + "\n" + _api_guide_text()).lower()
     normalized = " ".join(text.split())

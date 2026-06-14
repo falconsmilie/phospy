@@ -74,7 +74,7 @@ tests/unit/test_differential_analysis.py,unit,844,15,false,false,scientific inva
 tests/unit/test_differential_dataset_eligibility_validator.py,unit,205,7,false,false,,,,,,
 tests/unit/test_differential_fixed_effect_provenance.py,unit,372,5,false,false,,,,,,
 tests/unit/test_differential_imputation_policy.py,unit,236,6,false,false,,,,,,
-tests/unit/test_differential_numerical_guards.py,unit,561,13,true,true,,,,,,
+tests/unit/test_differential_numerical_guards.py,unit,602,14,true,true,,,,,,
 tests/unit/test_differential_paired_block_policy_contract.py,unit,89,7,false,false,,,,,,
 tests/unit/test_differential_request_config_refactor.py,unit,58,6,false,false,,,,,,
 tests/unit/test_differential_result_contract.py,unit,907,31,false,false,,,,,,
@@ -85,7 +85,7 @@ tests/unit/test_docs_identity_contracts.py,unit,248,7,false,false,,,,,,[auto-orc
 tests/unit/test_docs_legacy_wording_lint.py,unit,10,1,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in docs legacy wording lint; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-ORCH-002,Route to TST-ORCH-002 to align wording-lint assertions with current public boundary terminology and remove stale internal seam references.
 tests/unit/test_docs_support_claim_guard.py,unit,432,3,false,false,,,,,,
 tests/unit/test_docs_terminology_contracts.py,unit,41,2,false,false,,,,,,
-tests/unit/test_domain_boundaries.py,unit,1123,52,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for domain boundaries and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
+tests/unit/test_domain_boundaries.py,unit,1122,52,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for domain boundaries and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/unit/test_duplicate_site_resolution_reports.py,unit,685,16,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for duplicate site resolution reports, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_enrichment_collections.py,unit,96,5,false,false,,,,,,
 tests/unit/test_enrichment_multiple_testing_correction.py,unit,158,9,false,false,,,,,,
@@ -119,6 +119,7 @@ tests/unit/test_log2_transformer.py,unit,176,6,true,true,,,,,,[auto-orchestratio
 tests/unit/test_maintainer_scripts_smoke.py,unit,283,8,true,true,provenance/golden contract,keep,"Active maintainer scripts for parity fixtures, provenance goldens, and public workflow references must remain import-safe and path-stable without generation side effects on import.",codex-audit,TST-SCRIPTS-001,"Smoke coverage for protected release-maintainer scripts under scripts/active, scripts/support, and scripts/run_pyright.py."
 tests/unit/test_maxquant_phosphosite_importer.py,unit,281,10,false,false,,,,,,
 tests/unit/test_missing_data_split_modules.py,unit,398,14,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for missing data split modules, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
+tests/unit/test_multiple_testing_correction.py,unit,30,2,false,false,,,,,,
 tests/unit/test_peptide_evidence_models.py,unit,162,6,true,true,public API contract,keep,Loss of this file would weaken peptide evidence model contract coverage and increase risk of invalid evidence objects crossing domain boundaries.,codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_peptide_to_site_aggregation.py,unit,212,8,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for peptide-to-site aggregation, increasing risk of incorrect site-level evidence summarisation.",codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_phosphosite_identity.py,unit,333,19,true,true,,,,,,
@@ -166,7 +167,7 @@ tests/unit/test_request_validation_boundaries.py,unit,283,6,true,true,,,,,,
 tests/unit/test_result_snapshot_helpers.py,unit,533,9,false,false,,,,,,
 tests/unit/test_runtime_contract_guards.py,unit,118,4,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for runtime contract guards and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_science_package_ownership.py,unit,113,6,true,true,,,,,,
-tests/unit/test_scientific_coverage_scope_matrix_docs.py,unit,267,11,false,false,,,,,,
+tests/unit/test_scientific_coverage_scope_matrix_docs.py,unit,283,12,false,false,,,,,,
 tests/unit/test_scientific_invariants.py,unit,704,19,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for scientific invariants, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_scientific_policies.py,unit,409,21,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for scientific policies, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_signalome_bundle_compatibility.py,unit,524,23,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for signalome bundle compatibility, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
