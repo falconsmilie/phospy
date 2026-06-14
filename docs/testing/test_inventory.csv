@@ -43,7 +43,7 @@ tests/science/test_kinase_library_motif_scoring_science.py,science,51,1,false,fa
 tests/science/test_signalome_identity_coherence.py,science,66,1,false,false,,,,,,
 tests/unit/test_activity_science.py,unit,1085,34,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for activity science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_adr_docs_governance.py,unit,131,4,false,false,,,,,,
-tests/unit/test_analysis_ready_model_boundary_validator.py,unit,732,35,true,true,,,,,,[auto-orchestration] 11 hit(s); indicators: private_member_access
+tests/unit/test_analysis_ready_model_boundary_validator.py,unit,728,35,true,true,,,,,,[auto-orchestration] 11 hit(s); indicators: private_member_access
 tests/unit/test_api_configs_refactor_contract.py,unit,47,3,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for api configs refactor contract and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_api_documentation_examples.py,unit,526,12,false,false,,,,,,
 tests/unit/test_batch_correction_metadata_resolution.py,unit,217,8,false,false,,,,,,
@@ -97,10 +97,11 @@ tests/unit/test_evidence_multi_site_handling.py,unit,176,9,true,true,scientific 
 tests/unit/test_experimental_design_contract.py,unit,983,34,false,false,,,,,,
 tests/unit/test_fasta_sequence_repository.py,unit,125,8,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for fasta sequence repository and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_fragpipe_ptmprophet_importer.py,unit,307,13,false,false,,,,,,
-tests/unit/test_frame_ownership_policy.py,unit,1302,27,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for frame ownership policy and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 53 hit(s); indicators: private_member_access
+tests/unit/test_frame_ownership_policy.py,unit,1304,27,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for frame ownership policy and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 53 hit(s); indicators: private_member_access
 tests/unit/test_generate_test_inventory_tool.py,unit,132,1,true,true,public API contract,keep,Loss of this file would weaken protection for the testing audit inventory generator and could allow manual audit classifications to be lost during regeneration.,codex-audit,TST-AUDIT-TOOL-001,Audit tooling regression coverage; keep as part of testing-governance infrastructure.
 tests/unit/test_historical_baseline_science.py,unit,424,8,true,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for historical baseline science, making artifact and output drift unsafe.",codex-audit,,
 tests/unit/test_importer_analysis_ready_boundary.py,unit,180,5,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/unit/test_imputation_observation_metadata.py,unit,176,5,false,false,,,,,,
 tests/unit/test_intensity_scale_establishment.py,unit,255,9,false,false,,,,,,
 tests/unit/test_io_table_readers.py,unit,275,9,true,true,public API contract,keep,Loss of this file would weaken table-reader input contract coverage and increase risk of invalid external data being accepted or parsed inconsistently.,codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_kinase_bundle_snapshots.py,unit,95,4,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle snapshots, making artifact and output drift unsafe.",codex-audit,,

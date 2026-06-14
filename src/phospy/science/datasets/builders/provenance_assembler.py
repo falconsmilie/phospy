@@ -90,6 +90,10 @@ class DatasetRunProvenanceAssembler:
                 ("dataset.sample_metadata", preprocessed.sample_metadata),
                 ("dataset.total", resolved_total),
                 ("dataset.comparisons", preprocessed.comparisons),
+                (
+                    "dataset.imputation_observation_mask",
+                    preprocessed.imputation_observation_mask,
+                ),
             )
         )
         workflow_parameters: dict[str, object] = {

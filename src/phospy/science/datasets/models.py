@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import TypeVar
 
+import numpy as np
 import pandas as pd
 
 from phospy.errors.validation import DatasetValidationError
@@ -77,6 +78,11 @@ _INTENSITY_SCALE_STATE_VALIDATOR = IntensityScaleStateValidator()
 _SITE_ID_REASON_PATTERN = re.compile(r"site identifier|site_id|site id")
 _INVALID_REASON_PATTERN = re.compile(r"invalid|missing|blank|empty")
 _ExpectedType = TypeVar("_ExpectedType")
+IMPUTATION_FEATURE_METADATA_COLUMNS = (
+    "imputed_cell_count",
+    "observed_cell_count",
+    "imputed_fraction",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -549,6 +555,89 @@ class DatasetPreprocessingReport:
 
 
 @dataclass(frozen=True, slots=True, init=False)
+class ImputationObservationMetadata:
+    """Dataset-owned originally-observed vs imputed-cell metadata.
+
+    The internal mask is aligned to `dataset.phospho`: rows are phosphosite
+    features, columns are samples, and True means the value was originally
+    observed rather than imputed. Public accessors return defensive snapshots.
+    """
+
+    _observed_mask: pd.DataFrame = field(init=False, repr=False)
+    _feature_summary: pd.DataFrame = field(init=False, repr=False)
+
+    def __init__(
+        self,
+        *,
+        observed_mask: pd.DataFrame,
+        phospho_index: pd.Index,
+        sample_index: pd.Index,
+        _assume_owned: bool = False,
+    ) -> None:
+        mask = own_dataframe(
+            observed_mask,
+            field_name="dataset.imputation_observation_mask",
+            error_type=DatasetValidationError,
+            assume_owned=_assume_owned,
+        )
+        require_dataframe(
+            mask,
+            field_name="dataset.imputation_observation_mask",
+            allow_empty=False,
+            error_type=DatasetValidationError,
+        )
+        require_exact_index_match(
+            left=mask.index,
+            right=phospho_index,
+            left_name="dataset.imputation_observation_mask.index",
+            right_name="dataset.phospho.index",
+            error_type=DatasetValidationError,
+        )
+        require_exact_index_match(
+            left=mask.columns,
+            right=sample_index,
+            left_name="dataset.imputation_observation_mask.columns",
+            right_name="dataset.phospho.columns",
+            error_type=DatasetValidationError,
+        )
+        _require_boolean_observation_mask(mask)
+
+        observed = pd.DataFrame(
+            mask.to_numpy(dtype=bool),
+            index=mask.index,
+            columns=mask.columns,
+        )
+        observed.index.name = mask.index.name
+        observed.columns.name = mask.columns.name
+        feature_summary = _build_imputation_feature_summary(observed)
+        object.__setattr__(self, "_observed_mask", observed)
+        object.__setattr__(self, "_feature_summary", feature_summary)
+
+    @property
+    def feature_summary(self) -> pd.DataFrame:
+        return export_dataframe(self._feature_summary)
+
+    @property
+    def observed_mask(self) -> pd.DataFrame:
+        return export_dataframe(self._observed_mask)
+
+    def feature_summary_dataframe(self) -> pd.DataFrame:
+        """Return per-feature imputation counts isolated from this metadata."""
+
+        return export_dataframe(self._feature_summary)
+
+    def observed_mask_dataframe(self) -> pd.DataFrame:
+        """Return a defensive observed-cell mask snapshot."""
+
+        return export_dataframe(self._observed_mask)
+
+    def _borrow_observed_mask_frame(self) -> pd.DataFrame:
+        """Package-private borrowed mask for trusted internal workflows."""
+
+        return borrow_dataframe(self._observed_mask)
+
+
+@dataclass(frozen=True, slots=True, init=False)
 class AnalysisReadyPhosphoDataset:
     """Public analysis-ready dataset contract.
 
@@ -583,6 +672,10 @@ class AnalysisReadyPhosphoDataset:
     _sample_metadata: pd.DataFrame | None = field(init=False, repr=False)
     _total: pd.DataFrame | None = field(init=False, repr=False)
     _comparisons: pd.DataFrame | None = field(init=False, repr=False)
+    _imputation_observation_metadata: ImputationObservationMetadata | None = field(
+        init=False,
+        repr=False,
+    )
     _allow_opaque_site_values: bool = field(init=False, repr=False, default=False)
 
     def __init__(
@@ -594,6 +687,7 @@ class AnalysisReadyPhosphoDataset:
         sample_metadata: pd.DataFrame | None = None,
         total: pd.DataFrame | None = None,
         comparisons: pd.DataFrame | None = None,
+        imputation_observation_mask: pd.DataFrame | None = None,
         organism: Organism | None = None,
         preprocessing_report: DatasetPreprocessingReport | None = None,
         protein_aware_preparation: ProteinAwarePreparationResult | None = None,
@@ -633,6 +727,12 @@ class AnalysisReadyPhosphoDataset:
         comparisons = own_optional_dataframe(
             comparisons,
             field_name="dataset.comparisons",
+            error_type=DatasetValidationError,
+            assume_owned=_assume_owned,
+        )
+        imputation_observation_mask = own_optional_dataframe(
+            imputation_observation_mask,
+            field_name="dataset.imputation_observation_mask",
             error_type=DatasetValidationError,
             assume_owned=_assume_owned,
         )
@@ -700,6 +800,16 @@ class AnalysisReadyPhosphoDataset:
                 error_type=DatasetValidationError,
             )
             comparisons = comparisons_frame
+        imputation_observation_metadata = (
+            None
+            if imputation_observation_mask is None
+            else ImputationObservationMetadata(
+                observed_mask=imputation_observation_mask,
+                phospho_index=phospho_table.frame.index,
+                sample_index=phospho_table.frame.columns,
+                _assume_owned=True,
+            )
+        )
         validated_intensity_scale_state = _INTENSITY_SCALE_STATE_VALIDATOR.run(
             intensity_scale_state=intensity_scale_state,
             has_total_matrix=total_table is not None,
@@ -788,6 +898,11 @@ class AnalysisReadyPhosphoDataset:
             self, "_total", None if total_table is None else total_table.frame
         )
         object.__setattr__(self, "_comparisons", comparisons)
+        object.__setattr__(
+            self,
+            "_imputation_observation_metadata",
+            imputation_observation_metadata,
+        )
         object.__setattr__(self, "_allow_opaque_site_values", allow_opaque_site_values)
 
     @property
@@ -809,6 +924,19 @@ class AnalysisReadyPhosphoDataset:
     @property
     def comparisons(self) -> pd.DataFrame | None:
         return export_optional_dataframe(self._comparisons)
+
+    @property
+    def imputation_observation_metadata(
+        self,
+    ) -> ImputationObservationMetadata | None:
+        return self._imputation_observation_metadata
+
+    @property
+    def imputation_feature_metadata(self) -> pd.DataFrame | None:
+        metadata = self._imputation_observation_metadata
+        if metadata is None:
+            return None
+        return metadata.feature_summary
 
     @property
     def opaque_site_values_allowed(self) -> bool:
@@ -839,6 +967,14 @@ class AnalysisReadyPhosphoDataset:
 
         return borrow_optional_dataframe(self._comparisons)
 
+    def _borrow_imputation_observed_mask_frame(self) -> pd.DataFrame | None:
+        """Package-private borrowed observation mask for internal workflows."""
+
+        metadata = self._imputation_observation_metadata
+        if metadata is None:
+            return None
+        return metadata.observed_mask_dataframe()
+
     @classmethod
     def _from_owned(
         cls,
@@ -850,6 +986,7 @@ class AnalysisReadyPhosphoDataset:
         sample_metadata: pd.DataFrame | None = None,
         total: pd.DataFrame | None = None,
         comparisons: pd.DataFrame | None = None,
+        imputation_observation_mask: pd.DataFrame | None = None,
         organism: Organism | None = None,
         preprocessing_report: DatasetPreprocessingReport | None = None,
         protein_aware_preparation: ProteinAwarePreparationResult | None = None,
@@ -864,6 +1001,7 @@ class AnalysisReadyPhosphoDataset:
             sample_metadata=sample_metadata,
             total=total,
             comparisons=comparisons,
+            imputation_observation_mask=imputation_observation_mask,
             organism=organism,
             preprocessing_report=preprocessing_report,
             protein_aware_preparation=protein_aware_preparation,
@@ -896,6 +1034,60 @@ class AnalysisReadyPhosphoDataset:
         """Return an optional comparisons snapshot isolated from this dataset."""
 
         return export_optional_dataframe(self._comparisons)
+
+    def imputation_feature_metadata_dataframe(self) -> pd.DataFrame | None:
+        """Return per-feature imputation metadata isolated from this dataset."""
+
+        metadata = self._imputation_observation_metadata
+        if metadata is None:
+            return None
+        return metadata.feature_summary_dataframe()
+
+    def imputation_observed_mask_dataframe(self) -> pd.DataFrame | None:
+        """Return an optional observed-cell mask snapshot."""
+
+        metadata = self._imputation_observation_metadata
+        if metadata is None:
+            return None
+        return metadata.observed_mask_dataframe()
+
+
+def _require_boolean_observation_mask(mask: pd.DataFrame) -> None:
+    values = mask.to_numpy(dtype="object")
+    for row_index in range(values.shape[0]):
+        for column_index in range(values.shape[1]):
+            value = values[row_index, column_index]
+            if _is_missing_value(value):
+                raise DatasetValidationError(
+                    "dataset.imputation_observation_mask must not contain "
+                    "missing values"
+                )
+            if isinstance(value, (bool, np.bool_)):
+                continue
+            raise DatasetValidationError(
+                "dataset.imputation_observation_mask must contain only boolean "
+                "values; "
+                f"invalid_cell=({mask.index[row_index]!r}, "
+                f"{mask.columns[column_index]!r})"
+            )
+
+
+def _build_imputation_feature_summary(observed_mask: pd.DataFrame) -> pd.DataFrame:
+    sample_count = int(observed_mask.shape[1])
+    observed_values = observed_mask.to_numpy(dtype=bool)
+    observed_counts = observed_values.sum(axis=1).astype(np.int64)
+    imputed_counts = (sample_count - observed_counts).astype(np.int64)
+    imputed_fraction = imputed_counts.astype(float) / float(sample_count)
+    summary = pd.DataFrame(
+        {
+            "imputed_cell_count": imputed_counts,
+            "observed_cell_count": observed_counts,
+            "imputed_fraction": imputed_fraction,
+        },
+        index=observed_mask.index,
+    )
+    summary.index.name = observed_mask.index.name
+    return summary
 
 
 def _is_missing_value(value: object) -> bool:

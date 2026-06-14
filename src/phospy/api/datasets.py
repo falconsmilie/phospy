@@ -3,6 +3,7 @@
 from phospy.science.datasets.models import (
     AnalysisReadyPhosphoDataset,
     DatasetPreprocessingReport,
+    ImputationObservationMetadata,
 )
 from phospy.science.datasets.preprocessing.batch_correction import (
     BatchCorrectionDiagnostics,
@@ -29,6 +30,7 @@ __all__ = [
     "BatchCorrectionReport",
     "ComparisonState",
     "DatasetPreprocessingReport",
+    "ImputationObservationMetadata",
     "DatasetProcessingState",
     "MissingDataState",
     "NormalisationState",

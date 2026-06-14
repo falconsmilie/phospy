@@ -82,6 +82,9 @@ class DatasetPreprocessor:
             sample_metadata=preprocessed_state.sample_metadata,
             total=preprocessed_state.total,
             comparisons=preprocessed_state.comparisons,
+            imputation_observation_mask=(
+                preprocessed_state.imputation_observation_mask
+            ),
             comparison_group_stats=report_tables.comparison_group_stats,
             comparison_pair_stats=report_tables.comparison_pair_stats,
             preprocessing_row_counts=row_counts,

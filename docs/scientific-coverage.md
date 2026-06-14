@@ -52,7 +52,10 @@ mean fully observed when upstream imputation filled cells. By default,
 `DifferentialAnalysisWorkflow` rejects datasets where
 `dataset.processing_state.missing_data.imputed` is true because current
 differential model fitting does not treat imputed cells as observed
-measurements.
+measurements. Datasets built after imputation carry dataset-owned observation
+metadata for future imputation-aware modelling, including per-feature
+`imputed_cell_count`, `observed_cell_count`, `imputed_fraction`, and a
+defensively exported observed-cell mask aligned to the phosphosite matrix.
 Differential designs may explicitly declare fixed-effect covariates on
 `ExperimentalDesign`: batch, categorical covariates, and continuous covariates.
 Modelled fixed-effect covariates are included in the fitted differential design
@@ -212,7 +215,7 @@ claimed.
 | Localisation handling | `validated PhosPy implementation` | Localisation confidence validation and fail-fast threshold policies are supported | `tests/unit/test_localisation_policy_preprocessing.py`, `tests/unit/test_validator_boundaries.py` | No full localisation-filter workflow parity claim in this release. |
 | Phosphosite importers | `validated PhosPy implementation` | Generic `MappedPhosphositeTableImporter`, `MaxQuantPhosphositeImporter`, and `FragPipePTMProphetImporter` translate upstream phosphosite tables into `PhosphositeImportResult` candidates and dataset-builder requests | `tests/unit/test_maxquant_phosphosite_importer.py`, `tests/unit/test_fragpipe_ptmprophet_importer.py`, `tests/integration/test_maxquant_importer_dataset_integration.py`, `tests/integration/test_fragpipe_importer_dataset_integration.py` | Importers do not construct analysis-ready datasets, infer sample groups, infer contrasts, infer batches or blocks, infer differential design, or bypass builder validation. Targeted MaxQuant and FragPipe/PTMProphet adapters are not broad vendor/search-engine parity, Spectronaut/DIA-NN support, or upstream statistical result import. |
 | Missing values | `parity-gated` | Missing-data policy execution in preprocessing and downstream score preconditioning | `tests/parity/test_preprocessing_science_parity.py`, unit missing-data tests | Policy choice changes retained rows and downstream behavior. |
-| Imputation | `validated PhosPy implementation` | Supported policies include `row_median`, `minprob`, `knn` | Unit preprocessing/scientific invariant tests | Policy-dependent behavior; not blanket PhosR-equivalent imputation. |
+| Imputation | `validated PhosPy implementation` | Supported policies include `row_median`, `minprob`, `knn`; imputed datasets expose typed per-feature observation metadata (`imputed_cell_count`, `observed_cell_count`, `imputed_fraction`) and an aligned defensive observed-cell mask export | Unit preprocessing/scientific invariant tests | Policy-dependent behavior; not blanket PhosR-equivalent imputation. Metadata records observed-vs-imputed provenance for downstream decisions, but current differential modelling still rejects upstream-imputed datasets by default. |
 | Normalisation | `parity-gated` | Supported methods: `none`, `median_center`, `quantile` with stage-order provenance | `tests/parity/test_preprocessing_science_parity.py`, unit preprocessing tests | Method-specific claims only; no blanket normalisation equivalence claim. |
 | Total-protein subtraction: `subtract_log_total` | `validated PhosPy implementation` | Dataset preprocessing can subtract matched log-scale total-protein abundance from log-scale phosphosite abundance (`log2_phospho - log2_total`) | Unit total-protein correction tests and dataset integration tests | Direct transformation only. Requires total-protein input and compatible log2 preprocessing. Not protein-aware modelling, not normalisation, not joint PTM/protein inference, and not MSstatsPTM equivalence. |
 | Protein-aware preparation | `validated PhosPy implementation` | `DatasetProteinAwarePreparationConfig(policy="prepare_model_inputs")` builds `ProteinAwarePreparationResult` and `ProteinAwarePreparationReport` with matched phosphosite/protein pairs, sample-aligned protein covariates, eligibility rows, mapping diagnostics, sample-alignment diagnostics, transformation-state diagnostics, and explicit limitations | Unit protein-aware preparation/mapping/sample-alignment tests and dataset integration diagnostics tests | Preparation-only model-input preparation. Does not modify phosphosite values, subtract total protein, normalise intensities, run joint PTM/protein modelling, adjust differential models, or claim MSstatsPTM-style inference or equivalence. Current `DifferentialAnalysisWorkflow` does not consume the prepared covariate matrix. |
@@ -280,6 +283,8 @@ commands/workflows:
   were already performed or explicitly configured in the route.
 - Differential analysis currently rejects upstream-imputed datasets by default;
   it does not count imputed cells as observed measurements in model fitting.
+  The dataset can report imputation observation metadata, but current
+  differential fitting does not yet consume it.
 - Dataset preprocessing `linear_residualize_batch` is opt-in fixed-effect
   residualisation. It preserves condition effects by including condition terms
   in the residualisation design, rejects confounded batch/condition designs, and

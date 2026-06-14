@@ -153,6 +153,7 @@ def run_knn_policy(state: PreprocessingState) -> KnnPolicyOutcome:
     return KnnPolicyOutcome(
         phospho=imputed,
         site_metadata=filtered_site_metadata,
+        imputed_mask=imputed_mask,
         k=k_value,
         distance=distance_value,
         max_missing_fraction_per_row=max_missing_fraction_value,

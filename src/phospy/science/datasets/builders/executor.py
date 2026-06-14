@@ -161,6 +161,7 @@ class DatasetBuildExecutor:
             sample_metadata=preprocessed.sample_metadata,
             total=transformed.total,
             comparisons=preprocessed.comparisons,
+            imputation_observation_mask=preprocessed.imputation_observation_mask,
             organism=request.organism,
             intensity_scale_state=transformed.intensity_scale_state,
             processing_state=transformed.processing_state,

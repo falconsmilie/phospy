@@ -515,6 +515,8 @@ def _resolve_state_table(
         return state.total
     if key is PreprocessingStateTableKey.DATASET_COMPARISONS:
         return state.comparisons
+    if key is PreprocessingStateTableKey.DATASET_IMPUTATION_OBSERVATION_MASK:
+        return state.imputation_observation_mask
     if key is PreprocessingStateTableKey.REPORT_COMPARISON_GROUP_STATS:
         return state.comparison_group_stats
     if key is PreprocessingStateTableKey.REPORT_COMPARISON_PAIR_STATS:

@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 
+import pandas as pd
+
 from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets._processing_state.json_contracts import (
     MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
@@ -160,10 +162,7 @@ def _run_row_median_policy(
     input_profile: MissingDataInputProfile,
 ) -> PreprocessingStageResult:
     outcome = run_row_median_policy(state)
-    imputation_mask_hash = hash_imputation_mask(
-        before=state.phospho,
-        after=outcome.phospho,
-    )
+    imputation_mask_hash = hash_imputation_mask(outcome.imputed_mask)
     row_audit_records = build_row_median_audit_records(
         plan=state.plan,
         input_profile=input_profile,
@@ -216,10 +215,7 @@ def _run_knn_policy(
     input_profile: MissingDataInputProfile,
 ) -> PreprocessingStageResult:
     outcome = run_knn_policy(state)
-    imputation_mask_hash = hash_imputation_mask(
-        before=state.phospho,
-        after=outcome.phospho,
-    )
+    imputation_mask_hash = hash_imputation_mask(outcome.imputed_mask)
     row_audit_records = build_knn_audit_records(
         plan=state.plan,
         input_profile=input_profile,
@@ -276,10 +272,7 @@ def _run_minprob_policy(
     input_profile: MissingDataInputProfile,
 ) -> PreprocessingStageResult:
     outcome = run_minprob_policy(state)
-    imputation_mask_hash = hash_imputation_mask(
-        before=state.phospho,
-        after=outcome.phospho,
-    )
+    imputation_mask_hash = hash_imputation_mask(outcome.imputed_mask)
     row_audit_records = build_minprob_audit_records(
         plan=state.plan,
         input_profile=input_profile,
@@ -340,11 +333,13 @@ def _finalize_outcome(
     diagnostics: Mapping[str, JsonValue],
 ) -> PreprocessingStageResult:
     next_state = append_row_audit_records(state, row_audit_records)
+    observation_mask = _observation_mask_from_outcome(outcome)
     return PreprocessingStageResult(
         state=replace(
             next_state,
             phospho=outcome.phospho,
             site_metadata=outcome.site_metadata,
+            imputation_observation_mask=observation_mask,
         ),
         report_rows=report_rows_from_row_audit_rows(row_audit_records),
         diagnostics=_stage_diagnostics_payload(
@@ -355,6 +350,23 @@ def _finalize_outcome(
             diagnostics=diagnostics,
         ),
     )
+
+
+def _observation_mask_from_outcome(
+    outcome: RowMedianPolicyOutcome | KnnPolicyOutcome | MinProbPolicyOutcome,
+) -> pd.DataFrame:
+    imputed_mask = outcome.imputed_mask
+    if not imputed_mask.index.equals(outcome.phospho.index):
+        raise PhosPyInputError(
+            "dataset preprocessing stage 'missing_data' produced an "
+            "imputation mask with rows not aligned to phospho output"
+        )
+    if not imputed_mask.columns.equals(outcome.phospho.columns):
+        raise PhosPyInputError(
+            "dataset preprocessing stage 'missing_data' produced an "
+            "imputation mask with columns not aligned to phospho output"
+        )
+    return (~imputed_mask.astype(bool)).copy(deep=True)
 
 
 def _stage_diagnostics_payload(
@@ -424,6 +436,7 @@ MISSING_DATA_STAGE_CONTRACT = PreprocessingStageContract(
     produced_output_tables=(
         PreprocessingStateTableKey.DATASET_PHOSPHO,
         PreprocessingStateTableKey.DATASET_SITE_METADATA,
+        PreprocessingStateTableKey.DATASET_IMPUTATION_OBSERVATION_MASK,
         PreprocessingStateTableKey.REPORT_ROW_AUDIT,
     ),
     stage_factory=MissingDataStage,

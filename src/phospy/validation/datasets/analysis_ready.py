@@ -32,6 +32,7 @@ class AnalysisReadyDatasetModelBoundaryValidator:
         total: pd.DataFrame | None,
         comparisons: pd.DataFrame | None,
         organism: Organism | None,
+        imputation_observation_mask: pd.DataFrame | None = None,
         preprocessing_report: DatasetPreprocessingReport | None = None,
         provenance: RunProvenance | None = None,
     ) -> AnalysisReadyPhosphoDataset:
@@ -43,6 +44,7 @@ class AnalysisReadyDatasetModelBoundaryValidator:
             sample_metadata=sample_metadata,
             total=total,
             comparisons=comparisons,
+            imputation_observation_mask=imputation_observation_mask,
             organism=organism,
             preprocessing_report=preprocessing_report,
             provenance=provenance,

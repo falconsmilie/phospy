@@ -76,6 +76,7 @@ def run_row_median_policy(state: PreprocessingState) -> RowMedianPolicyOutcome:
     return RowMedianPolicyOutcome(
         phospho=imputed,
         site_metadata=filtered_site_metadata,
+        imputed_mask=imputed_mask,
         min_observed_values=int(min_observed_values),
         dropped_row_ids=dropped_row_ids,
         dropped_row_observed_values=dropped_row_observed_values,

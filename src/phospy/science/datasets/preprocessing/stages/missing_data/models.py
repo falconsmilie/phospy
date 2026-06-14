@@ -42,6 +42,7 @@ class RowMedianPolicyOutcome:
 
     phospho: pd.DataFrame
     site_metadata: pd.DataFrame
+    imputed_mask: pd.DataFrame
     min_observed_values: int
     dropped_row_ids: tuple[str, ...]
     dropped_row_observed_values: tuple[tuple[str, int], ...]
@@ -60,6 +61,7 @@ class KnnPolicyOutcome:
 
     phospho: pd.DataFrame
     site_metadata: pd.DataFrame
+    imputed_mask: pd.DataFrame
     k: int
     distance: str
     max_missing_fraction_per_row: float
@@ -79,6 +81,7 @@ class MinProbPolicyOutcome:
 
     phospho: pd.DataFrame
     site_metadata: pd.DataFrame
+    imputed_mask: pd.DataFrame
     q: float
     width: float
     seed: int

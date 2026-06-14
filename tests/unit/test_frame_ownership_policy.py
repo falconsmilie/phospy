@@ -494,6 +494,8 @@ def test_public_dataframe_accessors_do_not_accept_copy_keyword() -> None:
         (AnalysisReadyPhosphoDataset, "sample_metadata_dataframe"),
         (AnalysisReadyPhosphoDataset, "total_dataframe"),
         (AnalysisReadyPhosphoDataset, "comparisons_dataframe"),
+        (AnalysisReadyPhosphoDataset, "imputation_feature_metadata_dataframe"),
+        (AnalysisReadyPhosphoDataset, "imputation_observed_mask_dataframe"),
         (DatasetPreprocessingReport, "row_counts_dataframe"),
         (DatasetPreprocessingReport, "operations_dataframe"),
         (DatasetPreprocessingReport, "row_audit_dataframe"),

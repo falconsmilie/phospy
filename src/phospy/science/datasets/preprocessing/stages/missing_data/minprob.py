@@ -266,6 +266,7 @@ def run_minprob_policy(state: PreprocessingState) -> MinProbPolicyOutcome:
     return MinProbPolicyOutcome(
         phospho=filtered_phospho,
         site_metadata=filtered_site_metadata,
+        imputed_mask=imputed_mask,
         q=q_value,
         width=width_value,
         seed=seed_value,

@@ -82,6 +82,7 @@ class PreprocessingStateTableKey(str, Enum):
     DATASET_SAMPLE_METADATA = "dataset.sample_metadata"
     DATASET_TOTAL = "dataset.total"
     DATASET_COMPARISONS = "dataset.comparisons"
+    DATASET_IMPUTATION_OBSERVATION_MASK = "dataset.imputation_observation_mask"
     REPORT_COMPARISON_GROUP_STATS = "report.comparison_group_stats"
     REPORT_COMPARISON_PAIR_STATS = "report.comparison_pair_stats"
     REPORT_DUPLICATE_SITE_RESOLUTION = "report.duplicate_site_resolution"
@@ -723,6 +724,7 @@ class PreprocessingState:
     total: pd.DataFrame | None
     plan: PreprocessingPlan
     comparisons: pd.DataFrame | None = None
+    imputation_observation_mask: pd.DataFrame | None = None
     comparison_group_stats: pd.DataFrame | None = None
     comparison_pair_stats: pd.DataFrame | None = None
     duplicate_site_resolution: pd.DataFrame | None = None

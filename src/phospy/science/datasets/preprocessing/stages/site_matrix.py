@@ -226,12 +226,23 @@ class SiteMatrixStage:
                 f"produced no retained rows after filtering; {diagnostics}"
             )
 
+        realigned_observation_mask = _realign_imputation_observation_mask(
+            observation_mask=state.imputation_observation_mask,
+            input_phospho=state.phospho,
+            policy_filtered_row_key=policy_filtered_row_key,
+            policy_filtered_phospho=missing_data_result.phospho,
+            duplicate_site_policy=state.plan.site_matrix_duplicate_site_policy,
+            duplicate_site_resolution=duplicate_site_result.duplicate_site_resolution,
+            output_index=provenance.phospho.index,
+            output_columns=provenance.phospho.columns,
+        )
         next_state = replace(
             state_with_row_audit,
             phospho=provenance.phospho,
             site_metadata=provenance.site_metadata,
             duplicate_site_resolution=duplicate_site_result.duplicate_site_resolution,
             metadata_conflicts=duplicate_site_result.metadata_conflicts,
+            imputation_observation_mask=realigned_observation_mask,
         )
         diagnostics = provenance.diagnostics
         stage_report_rows = (
@@ -398,6 +409,93 @@ def _format_row_drop_diagnostics(row_drop_stats: dict[str, int | str]) -> str:
     )
 
 
+def _realign_imputation_observation_mask(
+    *,
+    observation_mask: pd.DataFrame | None,
+    input_phospho: pd.DataFrame,
+    policy_filtered_row_key: pd.Series,
+    policy_filtered_phospho: pd.DataFrame,
+    duplicate_site_policy: SiteMatrixDuplicateSitePolicy,
+    duplicate_site_resolution: pd.DataFrame,
+    output_index: pd.Index,
+    output_columns: pd.Index,
+) -> pd.DataFrame | None:
+    if observation_mask is None:
+        return None
+    if not observation_mask.index.equals(input_phospho.index):
+        raise PhosPyInputError(
+            "dataset preprocessing stage 'site_matrix' requires "
+            "imputation_observation_mask rows aligned to phospho input"
+        )
+    if not observation_mask.columns.equals(input_phospho.columns):
+        raise PhosPyInputError(
+            "dataset preprocessing stage 'site_matrix' requires "
+            "imputation_observation_mask columns aligned to phospho input"
+        )
+
+    policy_filtered_mask = observation_mask.loc[
+        policy_filtered_phospho.index,
+        policy_filtered_phospho.columns,
+    ].copy(deep=True)
+    duplicate_policy = SiteMatrixDuplicateSitePolicy.parse(
+        duplicate_site_policy,
+        field_name="site_matrix.duplicate_site_policy",
+    )
+    aggregate_policies = {
+        SiteMatrixDuplicateSitePolicy.AGGREGATE_MEAN,
+        SiteMatrixDuplicateSitePolicy.AGGREGATE_MEDIAN,
+    }
+    if duplicate_policy in aggregate_policies:
+        grouped = policy_filtered_mask.groupby(
+            policy_filtered_row_key, sort=False
+        ).all()
+        grouped.index = pd.Index(
+            grouped.index.astype(str).tolist(),
+            name=output_index.name,
+        )
+        realigned = grouped.loc[output_index, output_columns].copy(deep=True)
+        return realigned.astype(bool)
+
+    source_label_by_text = {
+        str(source_label): source_label
+        for source_label in policy_filtered_mask.index.tolist()
+    }
+    selected_source_by_site: dict[str, object] = {}
+    if not duplicate_site_resolution.empty:
+        retained_mask = duplicate_site_resolution.loc[:, "retained"].astype(bool)
+        retained_rows = duplicate_site_resolution.loc[retained_mask]
+        for row in retained_rows.to_dict(orient="records"):
+            site_key = str(row["site_key"])
+            source_row_id = str(row["source_row_id"])
+            source_label = source_label_by_text.get(source_row_id)
+            if source_label is None:
+                raise PhosPyInputError(
+                    "dataset preprocessing stage 'site_matrix' could not align "
+                    "imputation_observation_mask to retained duplicate source rows"
+                )
+            selected_source_by_site[site_key] = source_label
+
+    for source_label, site_key in policy_filtered_row_key.astype(str).items():
+        selected_source_by_site.setdefault(str(site_key), source_label)
+
+    selected_source_labels: list[object] = []
+    for site_key in output_index.astype(str).tolist():
+        source_label = selected_source_by_site.get(site_key)
+        if source_label is None:
+            raise PhosPyInputError(
+                "dataset preprocessing stage 'site_matrix' could not align "
+                "imputation_observation_mask to output site rows"
+            )
+        selected_source_labels.append(source_label)
+
+    realigned = policy_filtered_mask.loc[
+        selected_source_labels,
+        output_columns,
+    ].copy(deep=True)
+    realigned.index = output_index.copy()
+    return realigned.astype(bool)
+
+
 def _apply_duplicate_site_policy(
     *,
     phospho: pd.DataFrame,
@@ -498,10 +596,12 @@ SITE_MATRIX_STAGE_CONTRACT = PreprocessingStageContract(
     consumed_input_tables=(
         PreprocessingStateTableKey.DATASET_PHOSPHO,
         PreprocessingStateTableKey.DATASET_SITE_METADATA,
+        PreprocessingStateTableKey.DATASET_IMPUTATION_OBSERVATION_MASK,
     ),
     produced_output_tables=(
         PreprocessingStateTableKey.DATASET_PHOSPHO,
         PreprocessingStateTableKey.DATASET_SITE_METADATA,
+        PreprocessingStateTableKey.DATASET_IMPUTATION_OBSERVATION_MASK,
         PreprocessingStateTableKey.REPORT_DUPLICATE_SITE_RESOLUTION,
         PreprocessingStateTableKey.REPORT_METADATA_CONFLICTS,
         PreprocessingStateTableKey.REPORT_ROW_AUDIT,

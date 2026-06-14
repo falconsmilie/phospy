@@ -39,17 +39,11 @@ def hash_missingness_mask(mask: pd.DataFrame) -> str:
     )
 
 
-def hash_imputation_mask(
-    *,
-    before: pd.DataFrame,
-    after: pd.DataFrame,
-) -> str:
-    """Return stable fingerprint for observed-vs-imputed cell transitions."""
+def hash_imputation_mask(mask: pd.DataFrame) -> str:
+    """Return stable fingerprint for policy-owned imputed-cell mask."""
 
-    aligned_before = before.reindex(index=after.index, columns=after.columns)
-    imputation_mask = aligned_before.isna() & after.notna()
     return hash_table(
-        imputation_mask.astype("int8"),
+        mask.astype("int8"),
         name="missing_data.imputation_mask",
     )
 
