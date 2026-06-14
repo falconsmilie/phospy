@@ -200,7 +200,7 @@ class PhosphositeImportResult:
 
     @property
     def sample_column_mapping(self) -> dict[str, str]:
-        """Return ``source_column -> sample_id`` intensity mapping."""
+        """Return a defensive ``source_column -> sample_id`` mapping snapshot."""
 
         return dict(self._sample_column_mapping)
 
@@ -294,6 +294,10 @@ class EnrichmentWorkflowResult:
     The result contract stores an explicit enrichment result shape. Direct
     construction validates only local container consistency; no enrichment
     statistics are calculated here.
+
+    ``table``, ``result_table``, and ``to_dataframe()`` return in-memory
+    defensive snapshots only. Exporting, formatting, plotting, and report
+    generation belong to IO or presentation adapters.
     """
 
     identifier_kind: EnrichmentIdentifierKind
@@ -544,7 +548,7 @@ class SignalomeWorkflowResult:
     DataFrames does not mutate this owning result. Constructor validation is
     intentionally limited to ownership, provenance type, and public table
     identity contracts. It does not run clustering, mapping, scoring, reference
-    resolution, or dataset repair.
+    resolution, dataset repair, file export, plotting, or report formatting.
     """
 
     dataset: AnalysisReadyPhosphoDataset
@@ -688,14 +692,20 @@ class SignalomeWorkflowResult:
 
     @property
     def expanded_signalome(self) -> pd.DataFrame | None:
+        """Return an expanded-signalome snapshot when available."""
+
         return export_optional_dataframe(self._expanded_signalome)
 
     @property
     def site_membership(self) -> pd.DataFrame | None:
+        """Return a site-membership snapshot when available."""
+
         return export_optional_dataframe(self._site_membership)
 
     @property
     def protein_site_context(self) -> pd.DataFrame | None:
+        """Return a protein-site context snapshot when available."""
+
         return export_optional_dataframe(self._protein_site_context)
 
     @property
@@ -739,17 +749,17 @@ class SignalomeWorkflowResult:
         )
 
     def to_dataframe(self) -> pd.DataFrame | None:
-        """Return an expanded-signalome snapshot when available."""
+        """Return an expanded-signalome snapshot, not an export."""
 
         return export_optional_dataframe(self._expanded_signalome)
 
     def site_membership_dataframe(self) -> pd.DataFrame | None:
-        """Return a site-membership snapshot when available."""
+        """Return a site-membership snapshot, not an export."""
 
         return export_optional_dataframe(self._site_membership)
 
     def protein_site_context_dataframe(self) -> pd.DataFrame | None:
-        """Return a protein-site context snapshot when available."""
+        """Return a protein-site context snapshot, not an export."""
 
         return export_optional_dataframe(self._protein_site_context)
 

@@ -40,6 +40,8 @@ class ActivityMethodMetadata:
     is_phosr_kinase_activity_equivalent: bool
 
     def to_payload(self) -> dict[str, object]:
+        """Return a scalar metadata snapshot, not an export/report payload."""
+
         return {
             "activity_method_id": self.activity_method_id,
             "activity_method_family": self.activity_method_family,
@@ -117,6 +119,8 @@ class ActivityMethodSummary:
     kinase_condition_pairs_no_finite_substrate_values: int
 
     def to_payload(self) -> dict[str, int]:
+        """Return computability counters as a plain defensive snapshot."""
+
         return {
             "kinases_evaluated": int(self.kinases_evaluated),
             "kinase_condition_pairs_evaluated": int(
@@ -212,6 +216,8 @@ class ActivityMethodDiagnostics:
 
     @property
     def statistics_table(self) -> pd.DataFrame | None:
+        """Return an optional statistics-table snapshot, not a report export."""
+
         return export_optional_dataframe(self._statistics_table)
 
 
@@ -345,6 +351,9 @@ class KinaseActivityResult:
     - ``threshold_membership_diagnostics``: threshold inclusion rule metadata used
       by thresholded substrate membership diagnostics
     - ``activity_method``: stable method identity metadata for these outputs
+
+    Public DataFrame helpers are defensive in-memory snapshots. They do not
+    write files, format reports, plot figures, or run additional science.
     """
 
     activity_method: ActivityMethodMetadata
@@ -615,6 +624,8 @@ class KinaseActivityResult:
 
     @property
     def count_field_semantics(self) -> dict[str, str]:
+        """Return count-field meaning text as a fresh mapping snapshot."""
+
         if self.activity_method.is_ksea:
             return {
                 "substrate_count_matrix": (
@@ -717,22 +728,22 @@ class KinaseActivityResult:
         return self.activity_matrix
 
     def p_value_matrix_dataframe(self) -> pd.DataFrame | None:
-        """Return a p-value matrix snapshot when available."""
+        """Return a p-value matrix snapshot when available, not an export."""
 
         return export_optional_dataframe(self._p_value_matrix)
 
     def q_value_matrix_dataframe(self) -> pd.DataFrame | None:
-        """Return a q-value matrix snapshot when available."""
+        """Return a q-value matrix snapshot when available, not an export."""
 
         return export_optional_dataframe(self._q_value_matrix)
 
     def confidence_interval_low_dataframe(self) -> pd.DataFrame | None:
-        """Return a lower confidence interval matrix snapshot when available."""
+        """Return a lower confidence interval snapshot when available."""
 
         return export_optional_dataframe(self._confidence_interval_low)
 
     def confidence_interval_high_dataframe(self) -> pd.DataFrame | None:
-        """Return an upper confidence interval matrix snapshot when available."""
+        """Return an upper confidence interval snapshot when available."""
 
         return export_optional_dataframe(self._confidence_interval_high)
 
@@ -752,7 +763,7 @@ class KinaseActivityResult:
         return _export_public_target_table(self._target_table)
 
     def statistics_table_dataframe(self) -> pd.DataFrame | None:
-        """Return a statistics-table snapshot isolated from this result."""
+        """Return a statistics-table snapshot, not a formatted report."""
 
         return export_optional_dataframe(self._statistics_table)
 

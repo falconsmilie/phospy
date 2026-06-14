@@ -32,6 +32,18 @@ Environment provenance supports reproducibility audits (runtime versions,
 platform, backend, and execution settings), but it does not guarantee bitwise
 identical numeric outputs across different machines or dependency builds.
 
+## Result Snapshot Helper Boundary
+
+Result models are typed containers. Public helpers such as `to_dataframe()`,
+`*_dataframe()`, `table`, `result_table`, and `to_payload()` return defensive
+in-memory snapshots for inspection or handoff only. They are not exporters,
+formatters, plotting helpers, report generators, or places to run additional
+scientific post-processing.
+
+File writing and bundle publication belong under IO/exporter modules. Plotting
+and presentation formatting belong to plotting or reporting adapters outside
+the result models.
+
 ## AnalysisReadyDatasetBuilder Contract
 
 ### Required Input Tables

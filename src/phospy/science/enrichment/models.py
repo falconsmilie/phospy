@@ -185,6 +185,8 @@ class EnrichmentSetCollection:
 
     @property
     def set_by_id(self) -> dict[str, EnrichmentSet]:
+        """Return a fresh set-id lookup snapshot."""
+
         return {
             enrichment_set.set_id: enrichment_set
             for enrichment_set in self.enrichment_sets
@@ -192,6 +194,8 @@ class EnrichmentSetCollection:
 
     @property
     def term_names(self) -> dict[str, str]:
+        """Return a fresh term-name mapping snapshot."""
+
         return {
             enrichment_set.set_id: enrichment_set.name
             for enrichment_set in self.enrichment_sets
@@ -199,6 +203,8 @@ class EnrichmentSetCollection:
 
     @property
     def members_by_set_id(self) -> dict[str, tuple[str, ...]]:
+        """Return a fresh set-member mapping snapshot, not an export."""
+
         return {
             enrichment_set.set_id: tuple(enrichment_set.identifiers)
             for enrichment_set in self.enrichment_sets
@@ -255,6 +261,8 @@ class GeneSetCollection(EnrichmentSetCollection):
 
     @property
     def sets(self) -> dict[str, tuple[str, ...]]:
+        """Return a gene-set member mapping snapshot."""
+
         return self.members_by_set_id
 
 
@@ -301,6 +309,8 @@ class PtmSetCollection(EnrichmentSetCollection):
 
     @property
     def sets(self) -> dict[str, tuple[str, ...]]:
+        """Return a PTM-set member mapping snapshot."""
+
         return self.members_by_set_id
 
 
