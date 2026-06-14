@@ -103,7 +103,7 @@ tests/unit/test_io_table_readers.py,unit,275,9,true,true,public API contract,kee
 tests/unit/test_kinase_bundle_snapshots.py,unit,95,4,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle snapshots, making artifact and output drift unsafe.",codex-audit,,
 tests/unit/test_kinase_library_motif_scoring.py,unit,232,7,false,false,,,,,,
 tests/unit/test_kinase_library_references.py,unit,161,6,false,false,,,,,,
-tests/unit/test_kinase_library_workflow_requirements.py,unit,394,8,false,false,,,,,,
+tests/unit/test_kinase_library_workflow_requirements.py,unit,388,8,false,false,,,,,,
 tests/unit/test_kinase_science.py,unit,381,11,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for kinase science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_kinase_scoring_transforms.py,unit,25,1,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for kinase scoring transforms, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_kinase_site_sequence_support_collaborators.py,unit,370,7,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in kinase site sequence support collaborators; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-ORCH-002,Route to TST-ORCH-002 for site-sequence collaborator rewrite toward interpreter/workflow boundary behavior assertions.
@@ -152,9 +152,9 @@ tests/unit/test_public_documentation_examples.py,unit,116,6,false,false,,,,,,
 tests/unit/test_public_examples_contract.py,unit,41,3,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public examples contract and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_reader_enrichment_sets.py,unit,93,5,false,false,,,,,,
 tests/unit/test_reference_bundle_builder.py,unit,303,8,false,false,,,,,,
-tests/unit/test_reference_bundle_manifests.py,unit,486,20,true,true,,,,,,[auto-orchestration] 5 hit(s); indicators: private_member_access
+tests/unit/test_reference_bundle_manifests.py,unit,571,22,true,true,,,,,,[auto-orchestration] 5 hit(s); indicators: private_member_access
 tests/unit/test_reference_identifier_normalisation.py,unit,614,20,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for reference identifier normalisation and increase risk of boundary regressions.,codex-audit,,
-tests/unit/test_reference_provenance.py,unit,229,7,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for reference provenance, making artifact and output drift unsafe.",codex-audit,,
+tests/unit/test_reference_provenance.py,unit,233,7,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for reference provenance, making artifact and output drift unsafe.",codex-audit,,
 tests/unit/test_reference_runtime_policy.py,unit,100,5,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for reference runtime policy and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_request_validation_boundaries.py,unit,283,6,true,true,,,,,,
 tests/unit/test_runtime_contract_guards.py,unit,118,4,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for runtime contract guards and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access

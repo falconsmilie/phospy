@@ -3,11 +3,51 @@
   "organism": "Rattus norvegicus",
   "organism_common_name": "rat",
   "identifier_namespace": "site_id (GENE_SYMBOL;RESIDUE;)",
-  "source_name": "PhosR bundled reference resources (PhosphoSite.mouse, motif.mouse.list, phospho.L6.ratio.pe-derived lane)",
+  "source_name": "PhosR-derived L6 reference bundle (phospho.L6.ratio.pe, PhosphoSite.mouse, motif.mouse.list)",
   "source_version": "bundled-snapshot-2026-04-16",
+  "source_url": "https://github.com/PYangLab/PhosR",
   "retrieved_at": "2026-04-16",
-  "license": "Derived from PhosR resources; refer to upstream licenses and terms.",
-  "redistribution_status": "Bundled in PhosPy for runtime reference resolution under upstream attribution and redistribution terms.",
+  "retrieval_method": "Generated from locally installed PhosR R package data objects with scripts/active/generate_r_l6_fixtures.R; packaged as CSVs under src/phospy/data/reference_bundles/rat/l6_native on 2026-04-16.",
+  "license": "Upstream PhosR package metadata declares GPL-3 + file LICENSE. Upstream PhosR documentation also identifies PhosphoSite.mouse as extracted from PhosphoSitePlus and phospho.L6.ratio.pe as PRIDE-sourced; no separate license grant for this derived CSV snapshot is recorded here.",
+  "license_url": "https://github.com/PYangLab/PhosR/blob/master/LICENSE",
+  "redistribution_status": "Redistribution approval for this exact derived rat bundle is not independently verified; packaged with PhosR attribution and explicit third-party source caveats, and must not be used as approval precedent for other reference bundles.",
+  "redistribution_basis": "PhosR package metadata and repository declare GPL-3 + file LICENSE, but upstream docs identify PhosphoSitePlus and PRIDE-derived source content. No independent written redistribution permission for the exact derived bundle is recorded.",
+  "provenance_notes": [
+    "Generation script loads PhosR objects phospho.L6.ratio.pe, PhosphoSite.mouse, and motif.mouse.list.",
+    "Upstream PhosR documentation says PhosphoSite.mouse is extracted from PhosphoSitePlus and phospho.L6.ratio.pe is an L6 myotube phosphoproteome dataset with PRIDE accession notes.",
+    "The exact local PhosR package version used to create the 2026-04-16 CSV snapshot is not captured in the packaged files; source_version identifies the PhosPy packaged snapshot.",
+    "Packaged CSV hashes fingerprint the redistributed files only; they are not independent upstream license approvals."
+  ],
+  "source_files": {
+    "motif_scores": {
+      "path": "src/phospy/data/reference_bundles/rat/l6_native/motif_scores.csv",
+      "role": "packaged motif score table",
+      "row_count": 589,
+      "column_count": 115,
+      "sha256": "66905f60e65294b20dc7300faaf461c8d58943def63b488515096e79f65e790c"
+    },
+    "motif_sizes": {
+      "path": "src/phospy/data/reference_bundles/rat/l6_native/motif_sizes.csv",
+      "role": "packaged motif input-size metadata",
+      "row_count": 249,
+      "column_count": 2,
+      "sha256": "9ab23117b6d489f2ab8a131fa590a8d26cce549162b479238b992274bde8fda0"
+    },
+    "site_sequences": {
+      "path": "src/phospy/data/reference_bundles/rat/l6_native/site_sequences.csv",
+      "role": "packaged site sequence table",
+      "row_count": 589,
+      "column_count": 2,
+      "sha256": "11afdb3aefd82d58f6d3c04af481afeb0ea0c3a3627679cfaa5e648371d8af3f"
+    },
+    "substrate_map": {
+      "path": "src/phospy/data/reference_bundles/rat/l6_native/substrate_map.csv",
+      "role": "packaged kinase-substrate map",
+      "row_count": 117,
+      "column_count": 2,
+      "sha256": "dc5ad357a6aaf2ef29d1fa931f117b06522ff2abe51146f0cfbc84aa4f36c32d"
+    }
+  },
   "sequence_window": {
     "upstream_residues": 15,
     "downstream_residues": 15,
@@ -20,6 +60,9 @@
   ],
   "limitations": [
     "Rat-only bundled reference lane in this release.",
+    "Uses mouse PhosR kinase-substrate and motif objects with a rat L6 phosphoproteome lane, matching the generation script; this is scientific provenance, not a new organism-support claim.",
+    "Exact upstream PhosR package version, PhosphoSitePlus license grant, and PRIDE dataset redistribution terms for the derived CSV snapshot are not independently verified in this repository.",
+    "Do not treat this bundle as approval to redistribute other PhosR, PhosphoSitePlus, Kinase Library, or PRIDE-derived resources.",
     "Not suitable for unsupported organisms unless caller supplies an explicit external ReferenceBundle."
   ]
 }

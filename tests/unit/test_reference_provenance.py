@@ -54,6 +54,8 @@ def test_bundled_reference_resolution_sets_bundled_provenance() -> None:
     assert (
         resolved.provenance.manifest.get("bundle_id") == resolved.provenance.bundle_id
     )
+    assert "source_files" in resolved.provenance.manifest
+    assert "provenance_notes" in resolved.provenance.manifest
 
 
 def test_reference_resolver_keeps_explicit_bundle_identity_and_provenance() -> None:
@@ -109,6 +111,8 @@ def test_bundled_reference_provenance_serialization_round_trip_preserves_manifes
     assert restored.reference is not None
     assert restored.reference.manifest is not None
     assert restored.reference.manifest.get("bundle_id") == "l6_native"
+    assert "source_files" in restored.reference.manifest
+    assert "provenance_notes" in restored.reference.manifest
     assert restored.reference.source_name is not None
     assert restored.reference.identifier_namespace is not None
 

@@ -116,6 +116,7 @@ class ReferenceManifest:
     retrieval_method: str | None = None
     redistribution_basis: str | None = None
     source_files: dict[str, JsonValue] | None = None
+    provenance_notes: tuple[str, ...] | None = None
 
     def to_payload(self) -> dict[str, JsonValue]:
         payload: dict[str, JsonValue] = {
@@ -142,6 +143,8 @@ class ReferenceManifest:
             payload["redistribution_basis"] = self.redistribution_basis
         if self.source_files is not None:
             payload["source_files"] = self.source_files
+        if self.provenance_notes is not None:
+            payload["provenance_notes"] = self.provenance_notes
         return payload
 
 

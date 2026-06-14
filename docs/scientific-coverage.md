@@ -145,7 +145,10 @@ Bundled runtime references in the current release are rat-only. Human and mouse
 analysis can be run by passing an explicit `ReferenceBundle` in Python. No
 packaged human or mouse reference lane is committed in this release because no
 approved redistributable source bundle with complete license and provenance
-metadata is included.
+metadata is included. The packaged rat `l6_native` lane records a PhosR-derived
+lineage and explicit redistribution caveats in its manifest; redistribution
+approval for that exact derived CSV snapshot is not independently verified in
+this repository.
 
 ## Roadmap Visibility and Guardrails
 
@@ -160,7 +163,7 @@ exist, and this page is updated to the correct scope category.
 
 | Roadmap area | Current status | Direction, not current support |
 | --- | --- | --- |
-| References | Bundled runtime references are rat-only. Human and mouse workflows require an explicit caller-supplied `ReferenceBundle`. | Broader reference handling should use explicit provenance, compatibility checks, and external bundle validation. New bundled data requires redistribution permission, provenance, docs, and tests before `_BUNDLED_DEFAULTS` is updated. |
+| References | Bundled runtime references are rat-only. The packaged rat lane has explicit provenance and redistribution caveats. Human and mouse workflows require an explicit caller-supplied `ReferenceBundle`. | Broader reference handling should use explicit provenance, compatibility checks, and external bundle validation. New bundled data requires redistribution permission, provenance, docs, and tests before `_BUNDLED_DEFAULTS` is updated. |
 | Kinase inference | Kinase scoring/prediction and three explicit activity methods are executable. Scores are relative support or substrate-set summaries, not calibrated causal inference. | Additional kinase inference or activity methods should be added one method at a time with stable scientific policy records and method-specific validation. |
 | Importers | PhosPy supports analysis-ready tables, generic table I/O contracts, generic column-mapped phosphosite import, MaxQuant phosphosite import, and FragPipe/Philosopher/PTMProphet phosphosite import. These are input-preparation adapters that feed dataset-builder validation. They are not broad support for all vendor, search-engine, or upstream statistical outputs. | Additional semantic importers should produce typed tables or requests that still pass builder and workflow validation; they must not bypass site identity or provenance contracts. |
 | Richer differential designs | Current parity-protected differential lane is two-condition unpaired simple contrasts. Fixed-effect batch, categorical covariate, continuous covariate, and explicit complete fixed-block terms are executable as ordinary fixed covariates with completeness, rank, and estimability validation. Correlated repeated-measure, `duplicateCorrelation`-style, and mixed-effect modelling are not executable in this release. | Additional richer designs require explicit design/result contracts, provenance, validation, and parity or method-specific evidence before any support claim. |
@@ -209,7 +212,7 @@ claimed.
 | RUV, ComBat, and `removeBatchEffect` parity | `open gap` | No executable RUV, ComBat, or limma `removeBatchEffect` parity lane is supported. `ruv_readiness` is diagnostic/report-only metadata readiness reporting. | Readiness/report tests only; no correction parity or execution claim | Do not interpret `ruv_readiness` as RUV support. Do not interpret `linear_residualize_batch` as ComBat, RUV, limma `removeBatchEffect`, or mixed-effects support. |
 | Enrichment | `validated PhosPy implementation` | `EnrichmentWorkflow` runs offline over-representation analysis over caller-supplied `GeneSetCollection`, `PtmSetCollection`, or homogeneous `EnrichmentSetCollection` inputs with explicit identifier kind, selected identifiers, background universe, and multiple-testing correction | `tests/unit/test_enrichment_ora.py`, `tests/unit/test_enrichment_workflow_validation.py`, `tests/unit/test_public_contract_enrichment.py`, `tests/workflows/test_enrichment_workflow.py` | Requires user-supplied collections and explicit background. GO, KEGG, Reactome, PTM-SEA, and PTMsigDB resources are not bundled unless supplied as ordinary local collections. Online Enrichr, gseapy, clusterProfiler, and similar calls are not native core workflow behavior. ORA is not GSEA, ssGSEA, or PTM-SEA support. Gene-level and site-level enrichment require explicit identifier semantics. |
 | Visualisation | `deliberate scope difference` | No first-class visualization workflow/API in core PhosPy | N/A | Visualization is intentionally out of current scientific parity scope. |
-| Supported bundled organisms and references | `deliberate scope difference` | Bundled runtime references are rat-only for `ReferencePreset.AUTO` in this release | Runtime behavior, reference compatibility tests, manifest approval checks, and workflow docs | Human/mouse are valid organisms but require explicit caller-supplied `ReferenceBundle` unless a future release commits approved redistributable packaged data. |
+| Supported bundled organisms and references | `deliberate scope difference` | Bundled runtime references are rat-only for `ReferencePreset.AUTO` in this release | Runtime behavior, reference compatibility tests, manifest approval checks, rat manifest provenance caveats, and workflow docs | Human/mouse are valid organisms but require explicit caller-supplied `ReferenceBundle` unless a future release commits approved redistributable packaged data. The rat `l6_native` bundle should not be treated as redistribution approval for other reference data. |
 | Full PhosR package equivalence claim | `not planned` | Not claimed | Guardrail documentation in this matrix and `docs/parity.md` | Any implication of global PhosR parity is out of scope. |
 
 ## Release-Gated Scientific Checks

@@ -100,12 +100,30 @@ def test_valid_bundled_manifest_loads_for_supported_runtime_lane() -> None:
     assert manifest.source_name
     assert manifest.source_version == "bundled-snapshot-2026-04-16"
     assert manifest.retrieved_at.isoformat() == "2026-04-16"
+    assert manifest.source_url == "https://github.com/PYangLab/PhosR"
+    assert manifest.license_url
+    assert manifest.retrieval_method
+    assert manifest.redistribution_basis
     assert manifest.license
+    assert "gpl-3" in manifest.license.lower()
+    assert "phosphositeplus" in manifest.license.lower()
+    assert "pride" in manifest.license.lower()
     assert manifest.redistribution_status
+    assert "not independently verified" in manifest.redistribution_status.lower()
+    assert manifest.source_files is not None
+    assert "substrate_map" in manifest.source_files
+    assert manifest.provenance_notes is not None
+    assert any(
+        "not independent" in note.lower()
+        or "not captured" in note.lower()
+        or "not independently" in note.lower()
+        for note in manifest.provenance_notes
+    )
     assert manifest.sequence_window.upstream_residues == 15
     assert manifest.sequence_window.downstream_residues == 15
     assert "site_sequence_derivation" in manifest.supports
     assert manifest.limitations
+    assert any("not independently" in item.lower() for item in manifest.limitations)
 
 
 def test_available_bundled_reference_lanes_reports_manifest_metadata() -> None:
@@ -120,6 +138,7 @@ def test_available_bundled_reference_lanes_reports_manifest_metadata() -> None:
     assert lane.source_version == "bundled-snapshot-2026-04-16"
     assert lane.retrieved_at.isoformat() == "2026-04-16"
     assert lane.redistribution_status
+    assert "not independently verified" in lane.redistribution_status.lower()
     assert "site_sequence_derivation" in lane.supports
     assert lane.limitations
     assert lane.to_payload()["organism"] == Organism.RAT.value
@@ -283,6 +302,72 @@ def test_bundled_manifest_missing_required_metadata_fails_clearly(
         ReferenceResolutionError,
         match=rf"missing required field\(s\).*{missing_field}",
     ):
+        load_bundled_reference_manifest(Organism.RAT)
+
+
+def test_bundled_manifest_preserves_optional_provenance_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    reference_resources.clear_bundled_reference_manifest_cache()
+    payload = _valid_manifest_payload()
+    payload.update(
+        {
+            "source_files": {
+                "substrate_map": {
+                    "path": "reference/substrate_map.csv",
+                    "sha256": "a" * 64,
+                }
+            },
+            "provenance_notes": ["unit test provenance note"],
+        }
+    )
+
+    def _manifest_with_optional_metadata(**_: object) -> object:
+        return payload
+
+    monkeypatch.setattr(
+        reference_resources,
+        "_read_json_resource",
+        _manifest_with_optional_metadata,
+    )
+
+    manifest = load_bundled_reference_manifest(Organism.RAT)
+
+    assert manifest.source_files == payload["source_files"]
+    assert manifest.provenance_notes == ("unit test provenance note",)
+    manifest_payload = manifest.to_payload()
+    assert manifest_payload["source_files"] == payload["source_files"]
+    assert manifest_payload["provenance_notes"] == ("unit test provenance note",)
+
+
+@pytest.mark.parametrize(
+    ("field_name", "invalid_value", "message"),
+    [
+        ("source_files", [], "source_files must be an object"),
+        ("source_files", {}, "source_files must not be empty"),
+        ("provenance_notes", ["valid", ""], r"provenance_notes\[1\]"),
+    ],
+)
+def test_bundled_manifest_rejects_invalid_optional_provenance_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+    field_name: str,
+    invalid_value: object,
+    message: str,
+) -> None:
+    reference_resources.clear_bundled_reference_manifest_cache()
+    payload = _valid_manifest_payload()
+    payload[field_name] = invalid_value
+
+    def _manifest_with_invalid_optional_metadata(**_: object) -> object:
+        return payload
+
+    monkeypatch.setattr(
+        reference_resources,
+        "_read_json_resource",
+        _manifest_with_invalid_optional_metadata,
+    )
+
+    with pytest.raises(ReferenceResolutionError, match=message):
         load_bundled_reference_manifest(Organism.RAT)
 
 

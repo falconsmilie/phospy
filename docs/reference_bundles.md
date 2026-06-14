@@ -14,9 +14,26 @@ Current packaged lanes:
 
 | Organism | Bundle ID | Status |
 | --- | --- | --- |
-| rat | `l6_native` | Bundled in this release |
+| rat | `l6_native` | Bundled in this release with explicit provenance and redistribution caveats |
 | human | N/A | Not bundled; no approved redistributable lane is committed |
 | mouse | N/A | Not bundled; no approved redistributable lane is committed |
+
+### Rat `l6_native` Provenance
+
+The packaged rat lane is a PhosR-derived snapshot packaged on 2026-04-16.
+Its manifest records the generation lineage as PhosR data objects
+`phospho.L6.ratio.pe`, `PhosphoSite.mouse`, and `motif.mouse.list`, generated
+through `scripts/active/generate_r_l6_fixtures.R` and redistributed as CSVs
+under `src/phospy/data/reference_bundles/rat/l6_native/`.
+
+The upstream PhosR package metadata declares GPL-3 + file `LICENSE`. That is
+not the same as independent approval for every underlying scientific source:
+PhosR documentation identifies `PhosphoSite.mouse` as extracted from
+PhosphoSitePlus and identifies the L6 phosphoproteome object with PRIDE
+accession notes. The rat manifest therefore records redistribution for this
+exact derived CSV snapshot as not independently verified. Do not use this
+bundle as approval precedent for human, mouse, PhosphoSitePlus, Kinase Library,
+PRIDE, or other third-party reference data.
 
 Human or mouse lanes may be added only when the committed manifest documents:
 

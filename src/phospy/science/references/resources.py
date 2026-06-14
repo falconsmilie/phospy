@@ -10,6 +10,7 @@ from importlib import resources
 import pandas as pd
 
 from phospy.errors.references import ReferenceResolutionError, UnsupportedOrganismError
+from phospy.provenance.models import JsonValue
 from phospy.science.references.models import (
     BundledReferenceLane,
     Organism,
@@ -384,6 +385,16 @@ def _parse_reference_manifest_payload(
         key="redistribution_basis",
         context=context,
     )
+    source_files = _optional_manifest_json_object(
+        payload,
+        key="source_files",
+        context=context,
+    )
+    provenance_notes = _optional_manifest_string_list(
+        payload,
+        key="provenance_notes",
+        context=context,
+    )
     sequence_window = _parse_sequence_window(
         value=payload.get("sequence_window"),
         context=context,
@@ -432,6 +443,8 @@ def _parse_reference_manifest_payload(
         license_url=license_url,
         retrieval_method=retrieval_method,
         redistribution_basis=redistribution_basis,
+        source_files=source_files,
+        provenance_notes=provenance_notes,
     )
 
 
@@ -596,6 +609,80 @@ def _require_manifest_string_list(
             f"bundled reference manifest {key} must not be empty for {context}"
         )
     return tuple(resolved)
+
+
+def _optional_manifest_string_list(
+    payload: dict[str, object],
+    *,
+    key: str,
+    context: str,
+) -> tuple[str, ...] | None:
+    if key not in payload:
+        return None
+    return _require_manifest_string_list(payload, key=key, context=context)
+
+
+def _optional_manifest_json_object(
+    payload: dict[str, object],
+    *,
+    key: str,
+    context: str,
+) -> dict[str, JsonValue] | None:
+    value = payload.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise ReferenceResolutionError(
+            f"bundled reference manifest {key} must be an object for {context}"
+        )
+    if not value:
+        raise ReferenceResolutionError(
+            f"bundled reference manifest {key} must not be empty for {context}"
+        )
+    resolved: dict[str, JsonValue] = {}
+    for raw_key, raw_item in value.items():
+        if not isinstance(raw_key, str) or not raw_key.strip():
+            raise ReferenceResolutionError(
+                f"bundled reference manifest {key} keys must be non-empty strings "
+                f"for {context}"
+            )
+        resolved[raw_key.strip()] = _require_json_value(
+            raw_item,
+            context=f"{context}.{key}.{raw_key}",
+        )
+    return resolved
+
+
+def _require_json_value(value: object, *, context: str) -> JsonValue:
+    if (
+        value is None
+        or isinstance(value, str)
+        or isinstance(value, bool)
+        or isinstance(value, int)
+        or isinstance(value, float)
+    ):
+        return value
+    if isinstance(value, list):
+        return [
+            _require_json_value(item, context=f"{context}[{index}]")
+            for index, item in enumerate(value)
+        ]
+    if isinstance(value, dict):
+        resolved: dict[str, JsonValue] = {}
+        for raw_key, raw_item in value.items():
+            if not isinstance(raw_key, str) or not raw_key.strip():
+                raise ReferenceResolutionError(
+                    "bundled reference manifest JSON object keys must be "
+                    f"non-empty strings for {context}"
+                )
+            resolved[raw_key.strip()] = _require_json_value(
+                raw_item,
+                context=f"{context}.{raw_key}",
+            )
+        return resolved
+    raise ReferenceResolutionError(
+        f"bundled reference manifest value must be JSON-serializable for {context}"
+    )
 
 
 def _require_manifest_int(
