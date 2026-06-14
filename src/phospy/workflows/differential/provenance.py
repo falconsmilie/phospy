@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from phospy.contracts.configs.differential import (
+    IMPUTED_VALUE_POLICY_REJECT,
+    IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES,
+)
 from phospy.science.design.matrix_builder import (
     DesignMatrixBuildResult,
     describe_fixed_effect_design,
@@ -29,6 +33,31 @@ _DIFFERENTIAL_MISSING_VALUE_POLICY = (
     "reject_missing_values_before_differential_execution"
 )
 _DIFFERENTIAL_MISSING_VALUE_STAGE = "analysis_ready_dataset_boundary"
+_DIFFERENTIAL_BH_SCOPE_ALL_TESTED_FEATURES = (
+    "benjamini_hochberg_adjustment_over_tested_features_only"
+)
+_DIFFERENTIAL_REJECT_IMPUTATION_LIMITATIONS: tuple[str, ...] = (
+    "upstream-imputed datasets are rejected before differential execution",
+)
+_DIFFERENTIAL_WITHHOLD_IMPUTATION_LIMITATIONS: tuple[str, ...] = (
+    (
+        "features above differential.imputed_value_max_fraction are withheld "
+        "from model fitting and receive missing test statistics"
+    ),
+    (
+        "features with insufficient originally observed samples in any contrast "
+        "condition are withheld from model fitting"
+    ),
+    (
+        "Benjamini-Hochberg adjusted p-values are computed over tested features "
+        "only; withheld features are not part of the denominator"
+    ),
+    (
+        "tested features are fit on the analysis-ready matrix; this policy is "
+        "not observed-only fitting and does not use feature-specific residual "
+        "degrees of freedom"
+    ),
+)
 _DIFFERENTIAL_UNSUPPORTED_DESIGN_FEATURES: tuple[str, ...] = (
     "correlated repeated-measure differential modelling beyond explicit fixed blocks",
     "duplicateCorrelation-style correlated-replicate modelling",
@@ -171,6 +200,15 @@ def build_differential_policy_provenance(
         missing_values=DifferentialMissingValuePolicyProvenance(
             policy=_DIFFERENTIAL_MISSING_VALUE_POLICY,
             stage=_DIFFERENTIAL_MISSING_VALUE_STAGE,
+            imputed_value_policy=request.config.imputed_value_policy,
+            imputed_value_max_fraction=request.config.imputed_value_max_fraction,
+            imputation_metadata_required=(
+                request.config.imputed_value_policy != IMPUTED_VALUE_POLICY_REJECT
+            ),
+            adjusted_p_value_scope=_DIFFERENTIAL_BH_SCOPE_ALL_TESTED_FEATURES,
+            limitations=_imputation_policy_limitations(
+                request.config.imputed_value_policy
+            ),
         ),
         unsupported_design=DifferentialUnsupportedDesignPolicyProvenance(
             intentionally_rejected_features=_DIFFERENTIAL_UNSUPPORTED_DESIGN_FEATURES,
@@ -186,6 +224,12 @@ def _design_formula(request: ValidatedDifferentialAnalysisRequest) -> str:
         request.design,
         paired_design_policy=request.config.paired_design_policy,
     )
+
+
+def _imputation_policy_limitations(policy: str) -> tuple[str, ...]:
+    if policy == IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES:
+        return _DIFFERENTIAL_WITHHOLD_IMPUTATION_LIMITATIONS
+    return _DIFFERENTIAL_REJECT_IMPUTATION_LIMITATIONS
 
 
 def _block_levels(

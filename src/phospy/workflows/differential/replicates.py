@@ -356,6 +356,15 @@ class TechnicalReplicateAggregator:
                 )
             )
         comparisons = dataset._borrow_comparisons_frame()
+        imputation_observation_mask = dataset._borrow_imputation_observed_mask_frame()
+        aggregated_imputation_observation_mask = None
+        if imputation_observation_mask is not None:
+            aggregated_imputation_observation_mask = (
+                TechnicalReplicateAggregator._aggregate_observed_mask(
+                    mask=imputation_observation_mask,
+                    groups=groups,
+                )
+            )
         return AnalysisReadyPhosphoDataset._from_owned(
             phospho=aggregated_phospho,
             site_metadata=dataset._borrow_site_metadata_frame().copy(deep=True),
@@ -364,6 +373,7 @@ class TechnicalReplicateAggregator:
             sample_metadata=aggregated_sample_metadata,
             total=None if aggregated_total is None else aggregated_total,
             comparisons=None if comparisons is None else comparisons.copy(deep=True),
+            imputation_observation_mask=aggregated_imputation_observation_mask,
             organism=dataset.organism,
             preprocessing_report=dataset.preprocessing_report,
             provenance=dataset.provenance,
@@ -414,6 +424,25 @@ class TechnicalReplicateAggregator:
             ),
             columns=metadata.columns.copy(),
         )
+        return aggregated
+
+    @staticmethod
+    def _aggregate_observed_mask(
+        *,
+        mask: pd.DataFrame,
+        groups: tuple[TechnicalReplicateAggregationGroup, ...],
+    ) -> pd.DataFrame:
+        aggregated_columns: list[pd.Series] = []
+        output_labels: list[str] = []
+        for group in groups:
+            source = mask.loc[:, list(group.input_sample_ids)]
+            collapsed = source.all(axis=1)
+            collapsed.name = group.output_sample_id
+            aggregated_columns.append(collapsed.astype(bool))
+            output_labels.append(group.output_sample_id)
+        aggregated = pd.concat(aggregated_columns, axis=1)
+        aggregated.columns = pd.Index(output_labels)
+        aggregated.index = mask.index.copy()
         return aggregated
 
 

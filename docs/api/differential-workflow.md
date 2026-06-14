@@ -67,6 +67,8 @@ Optional inputs:
 - `config` (`DifferentialAnalysisConfig()` by default), including:
   - `technical_replicate_policy` (`TechnicalReplicatePolicy.REJECT`)
   - `paired_design_policy` (`"reject"`)
+  - `imputed_value_policy` (`"reject"`)
+  - `imputed_value_max_fraction` (`0.0`)
   - `allow_design_subset` (`False`)
   - `minimum_condition_replicates` (`2`)
   - `empirical_bayes` (`EmpiricalBayesConfig()`)
@@ -116,10 +118,14 @@ Optional inputs:
   matrix is not necessarily a fully observed matrix. Values filled by upstream
   imputation remain imputed measurements in `dataset.processing_state`.
 - By default, differential analysis rejects datasets where
-  `dataset.processing_state.missing_data.imputed` is true. Current differential
-  fitting does not treat imputed cells as observed measurements. Use a
-  non-imputed dataset, filter features before imputation, or wait for/enable an
-  explicit imputation-aware differential policy.
+  `dataset.processing_state.missing_data.imputed` is true. Differential fitting
+  does not treat imputed cells as fully observed measurements by default. Use a
+  non-imputed dataset, filter features before imputation, or explicitly set
+  `DifferentialAnalysisConfig(imputed_value_policy="withhold_imputed_features")`
+  for the supported withhold policy. That policy requires dataset-owned
+  imputation observation metadata, reports feature-level imputation counts and
+  status, and excludes withheld rows from model fitting and adjusted-p-value
+  denominators.
 
 ## Design and Contrast Requirements
 
@@ -193,6 +199,9 @@ Common outputs include:
   - `site`
   - optional workflow-relevant protein metadata such as `protein_id`,
     `protein_accession`, and `isoform_id`
+  - imputation policy columns when an imputation-aware policy is used:
+    `imputed_cell_count`, `observed_cell_count`, `imputed_fraction`,
+    `imputation_policy`, `imputation_fraction_threshold`, and `result_status`
   - `logFC`
   - `t`
   - `P.Value`
@@ -269,7 +278,8 @@ row index happens to contain encoded `site_key` values.
   - replicate and technical-replicate policy details
   - empirical-Bayes settings
   - p-value and adjusted p-value methods
-  - missing-value handling policy
+  - missing-value handling policy, imputed-value policy, imputation threshold,
+    and adjusted-p-value scope
   - unsupported-design rejection policy and intentionally rejected unsupported
     design features
 
@@ -283,6 +293,12 @@ row index happens to contain encoded `site_key` values.
   upstream.
 - Rejects upstream-imputed datasets by default because current differential
   model fitting does not treat imputed cells as observed measurements.
+- Supports explicit `imputed_value_policy="withhold_imputed_features"` for
+  imputed datasets with observation metadata. This policy withholds features
+  above `imputed_value_max_fraction` or with insufficient originally observed
+  samples in any contrast condition. Withheld rows receive missing statistics
+  and are excluded from Benjamini-Hochberg adjustment. It is not observed-only
+  fitting and does not use feature-specific residual degrees of freedom.
 - Does not perform batch correction unless explicitly implemented upstream.
   A batch term in `ExperimentalDesign.fixed_effects` is a fixed model covariate,
   not ComBat, RUV, `removeBatchEffect`, `duplicateCorrelation`, or mixed-effects

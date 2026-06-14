@@ -50,6 +50,26 @@ class ValidatedDifferentialAnalysisRequest:
 
 
 @dataclass(frozen=True, slots=True)
+class DifferentialImputationPolicyInputs:
+    """Aligned imputation-policy inputs resolved before execution."""
+
+    feature_metadata: pd.DataFrame
+    result_status: pd.Series
+    testable_feature_ids: tuple[str, ...]
+    policy: str
+    max_fraction: float
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "policy", str(self.policy))
+        object.__setattr__(self, "max_fraction", float(self.max_fraction))
+        object.__setattr__(
+            self,
+            "testable_feature_ids",
+            tuple(str(value) for value in self.testable_feature_ids),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class DifferentialCovariateColumnMetadata:
     """Resolved fixed-effect covariate encoding metadata for execution."""
 
@@ -191,6 +211,7 @@ class InterpretedDifferentialAnalysisRequest:
     workflow_provenance: Mapping[str, object] | None = None
     dataset_preprocessing_report: DatasetPreprocessingReport | None = None
     execution_design: DifferentialExecutionDesignInputs | None = None
+    imputation_policy_inputs: DifferentialImputationPolicyInputs | None = None
 
 
 class DifferentialAnalysisValidatorContract(Protocol):
@@ -220,6 +241,7 @@ __all__ = [
     "DifferentialConditionContrastVector",
     "DifferentialCovariateColumnMetadata",
     "DifferentialExecutionDesignInputs",
+    "DifferentialImputationPolicyInputs",
     "DifferentialAnalysisExecutorContract",
     "DifferentialAnalysisInterpreterContract",
     "DifferentialAnalysisValidatorContract",

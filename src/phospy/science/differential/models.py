@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
@@ -44,6 +45,24 @@ SUPPORTED_EMPIRICAL_BAYES_METHODS: tuple[str, ...] = (
 )
 _RESULT_STATISTIC_COLUMNS: tuple[str, ...] = ("logFC", "t", "P.Value", "adj.P.Val")
 _PUBLIC_RESULT_IDENTITY_COLUMNS: tuple[str, ...] = RESULT_IDENTITY_COLUMNS
+DIFFERENTIAL_RESULT_STATUS_COLUMN = "result_status"
+DIFFERENTIAL_RESULT_STATUS_TESTED = "tested"
+DIFFERENTIAL_RESULT_STATUS_WITHHELD_HIGH_IMPUTATION = "withheld_high_imputation"
+DIFFERENTIAL_RESULT_STATUS_WITHHELD_INSUFFICIENT_OBSERVED = (
+    "withheld_insufficient_observed_samples"
+)
+DIFFERENTIAL_RESULT_WITHHELD_STATUSES: tuple[str, ...] = (
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_HIGH_IMPUTATION,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_INSUFFICIENT_OBSERVED,
+)
+DIFFERENTIAL_IMPUTATION_RESULT_COLUMNS: tuple[str, ...] = (
+    "imputed_cell_count",
+    "observed_cell_count",
+    "imputed_fraction",
+    "imputation_policy",
+    "imputation_fraction_threshold",
+    DIFFERENTIAL_RESULT_STATUS_COLUMN,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -699,6 +718,11 @@ class DifferentialMissingValuePolicyProvenance:
 
     policy: str
     stage: str
+    imputed_value_policy: str = "reject"
+    imputed_value_max_fraction: float = 0.0
+    imputation_metadata_required: bool = False
+    adjusted_p_value_scope: str = "all_tested_features"
+    limitations: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.policy:
@@ -709,6 +733,38 @@ class DifferentialMissingValuePolicyProvenance:
             raise PhosPyInputError(
                 "differential_policy_provenance.missing_values.stage must be non-empty"
             )
+        if not self.imputed_value_policy:
+            raise PhosPyInputError(
+                "differential_policy_provenance.missing_values."
+                "imputed_value_policy must be non-empty"
+            )
+        object.__setattr__(self, "policy", str(self.policy))
+        object.__setattr__(self, "stage", str(self.stage))
+        object.__setattr__(
+            self,
+            "imputed_value_policy",
+            str(self.imputed_value_policy),
+        )
+        object.__setattr__(
+            self,
+            "imputed_value_max_fraction",
+            float(self.imputed_value_max_fraction),
+        )
+        object.__setattr__(
+            self,
+            "imputation_metadata_required",
+            bool(self.imputation_metadata_required),
+        )
+        object.__setattr__(
+            self,
+            "adjusted_p_value_scope",
+            str(self.adjusted_p_value_scope),
+        )
+        object.__setattr__(
+            self,
+            "limitations",
+            tuple(str(value) for value in self.limitations),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -1338,7 +1394,11 @@ def _validate_result_table(
     *,
     field_name: str,
 ) -> None:
-    _validate_result_table_statistics(table=table, field_name=field_name)
+    _validate_result_table_statistics(
+        table=table,
+        field_name=field_name,
+        allow_imputation_withheld_status=True,
+    )
     enforce_phosphosite_identity_contract(
         site_metadata=table,
         field_name=field_name,
@@ -1364,7 +1424,11 @@ def _validate_computation_result_table(
     *,
     field_name: str,
 ) -> None:
-    _validate_result_table_statistics(table=table, field_name=field_name)
+    _validate_result_table_statistics(
+        table=table,
+        field_name=field_name,
+        allow_imputation_withheld_status=False,
+    )
     present_identity = [
         column for column in _PUBLIC_RESULT_IDENTITY_COLUMNS if column in table.columns
     ]
@@ -1380,6 +1444,7 @@ def _validate_result_table_statistics(
     *,
     table: pd.DataFrame,
     field_name: str,
+    allow_imputation_withheld_status: bool,
 ) -> None:
     require_dataframe(
         table,
@@ -1419,12 +1484,22 @@ def _validate_result_table_statistics(
         field_name=field_name,
         error_type=PhosPyInputError,
     )
-    require_finite_numeric_dataframe(
-        stat_table,
-        field_name=field_name,
-        error_type=PhosPyInputError,
-        allow_missing=False,
-    )
+    if (
+        allow_imputation_withheld_status
+        and DIFFERENTIAL_RESULT_STATUS_COLUMN in table.columns
+    ):
+        _validate_imputation_status_statistics(
+            table=table,
+            stat_table=stat_table,
+            field_name=field_name,
+        )
+    else:
+        require_finite_numeric_dataframe(
+            stat_table,
+            field_name=field_name,
+            error_type=PhosPyInputError,
+            allow_missing=False,
+        )
     _validate_unit_interval_column(
         table=table,
         column_name="P.Value",
@@ -1435,6 +1510,79 @@ def _validate_result_table_statistics(
         column_name="adj.P.Val",
         field_name=field_name,
     )
+
+
+def _validate_imputation_status_statistics(
+    *,
+    table: pd.DataFrame,
+    stat_table: pd.DataFrame,
+    field_name: str,
+) -> None:
+    status_values = table[DIFFERENTIAL_RESULT_STATUS_COLUMN].astype(str)
+    allowed_statuses = {
+        DIFFERENTIAL_RESULT_STATUS_TESTED,
+        *DIFFERENTIAL_RESULT_WITHHELD_STATUSES,
+    }
+    unknown_statuses = sorted(set(status_values.tolist()) - allowed_statuses)
+    if unknown_statuses:
+        raise PhosPyInputError(
+            f"{field_name}.{DIFFERENTIAL_RESULT_STATUS_COLUMN} contains unsupported "
+            "values: " + ", ".join(repr(value) for value in unknown_statuses)
+        )
+
+    status_array = status_values.to_numpy(dtype=str)
+    tested_mask: npt.NDArray[np.bool_] = np.asarray(
+        status_array == DIFFERENTIAL_RESULT_STATUS_TESTED,
+        dtype=bool,
+    )
+    withheld_mask: npt.NDArray[np.bool_] = np.isin(
+        status_array,
+        DIFFERENTIAL_RESULT_WITHHELD_STATUSES,
+    )
+    stat_values_float: npt.NDArray[np.float64] = np.asarray(
+        stat_table.to_numpy(dtype=float),
+        dtype=np.float64,
+    )
+    invalid_tested_mask = ~np.isfinite(stat_values_float[tested_mask, :])
+    if bool(invalid_tested_mask.any()):
+        raise PhosPyInputError(
+            f"{field_name} rows with "
+            f"{DIFFERENTIAL_RESULT_STATUS_COLUMN}="
+            f"{DIFFERENTIAL_RESULT_STATUS_TESTED!r} must contain finite "
+            "numeric logFC, t, P.Value, and adj.P.Val values"
+        )
+
+    withheld_row_positions = np.flatnonzero(withheld_mask)
+    if not int(withheld_row_positions.size):
+        return
+    withheld_values: npt.NDArray[np.object_] = np.asarray(
+        stat_table.to_numpy(dtype=object)[withheld_mask, :],
+        dtype=object,
+    )
+    non_missing_mask: npt.NDArray[np.bool_] = np.asarray(
+        ~pd.isna(withheld_values),
+        dtype=bool,
+    )
+    if bool(non_missing_mask.any()):
+        invalid_positions = np.argwhere(non_missing_mask)
+        previews: list[str] = []
+        for row_position, column_position in invalid_positions[:3]:
+            source_row_position = int(withheld_row_positions[int(row_position)])
+            previews.append(
+                f"({stat_table.index[source_row_position]!r}, "
+                f"{stat_table.columns[int(column_position)]!r})"
+            )
+        suffix = (
+            ""
+            if int(invalid_positions.shape[0]) <= 3
+            else f", +{int(invalid_positions.shape[0] - 3)} more"
+        )
+        raise PhosPyInputError(
+            f"{field_name} withheld imputation-policy rows must contain missing "
+            "values for logFC, t, P.Value, and adj.P.Val; invalid values: "
+            + ", ".join(previews)
+            + suffix
+        )
 
 
 def _validate_unit_interval_column(

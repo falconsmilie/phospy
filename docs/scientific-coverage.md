@@ -51,11 +51,15 @@ sample names and does not replace upstream preprocessing requirements.
 mean fully observed when upstream imputation filled cells. By default,
 `DifferentialAnalysisWorkflow` rejects datasets where
 `dataset.processing_state.missing_data.imputed` is true because current
-differential model fitting does not treat imputed cells as observed
-measurements. Datasets built after imputation carry dataset-owned observation
-metadata for future imputation-aware modelling, including per-feature
-`imputed_cell_count`, `observed_cell_count`, `imputed_fraction`, and a
-defensively exported observed-cell mask aligned to the phosphosite matrix.
+differential model fitting does not treat imputed cells as fully observed
+measurements. An explicit `imputed_value_policy="withhold_imputed_features"`
+path is supported only when dataset-owned imputation observation metadata is
+present. That policy marks features as `tested`,
+`withheld_high_imputation`, or `withheld_insufficient_observed_samples`, reports
+per-feature `imputed_cell_count`, `observed_cell_count`, `imputed_fraction`, and
+`imputation_policy`, and fits statistics only for tested rows. It is not
+observed-only fitting and does not use feature-specific residual degrees of
+freedom.
 Differential designs may explicitly declare fixed-effect covariates on
 `ExperimentalDesign`: batch, categorical covariates, and continuous covariates.
 Modelled fixed-effect covariates are included in the fitted differential design
@@ -149,9 +153,11 @@ Contract difference vs limma/PhosR surface:
 - analysis-ready inputs must be complete at boundary; missing values are
   rejected before differential execution instead of being handled inside
   differential model fitting.
-- upstream-imputed analysis-ready inputs are rejected by default. A complete
-  imputed matrix is not treated as a fully observed matrix for differential
-  residual degrees of freedom or model fitting.
+- upstream-imputed analysis-ready inputs are rejected by default. The explicit
+  `withhold_imputed_features` policy can withhold rows above
+  `imputed_value_max_fraction` or with insufficient originally observed samples
+  in contrast conditions. Withheld rows are excluded from model fitting and
+  Benjamini-Hochberg adjustment, and receive missing test statistics.
 
 Bundled runtime references in the current release are rat-only. Human and mouse
 analysis can be run by passing an explicit `ReferenceBundle` in Python. No
@@ -204,7 +210,7 @@ claimed.
 
 | Area | Scope category | Current executable support | Evidence and release checks | Limits and non-claims |
 | --- | --- | --- | --- | --- |
-| Differential analysis | `parity-gated` | `DifferentialAnalysisWorkflow` for two-condition unpaired simple contrasts with empirical-Bayes `standard`/`robust` and optional `trend`; fixed-effect batch, categorical covariate, continuous covariate, and complete fixed-block terms are executable as ordinary design covariates | `tests/parity/test_differential_analysis_parity.py`, `tests/parity/test_differential_limma_parity.py`, plus unit/integration design, fixed-effect provenance, and result-contract tests | Fixed-effect batch terms are not batch correction. Fixed-block terms require complete within-block contrast coverage and full-rank/estimable designs. Correlated repeated-measure, limma `duplicateCorrelation`-style, mixed-effect, and random subject-effect designs are rejected in this release. Missing values are rejected at analysis-ready boundary before model fitting. Upstream-imputed complete matrices are rejected by default because complete does not mean fully observed. |
+| Differential analysis | `parity-gated` | `DifferentialAnalysisWorkflow` for two-condition unpaired simple contrasts with empirical-Bayes `standard`/`robust` and optional `trend`; fixed-effect batch, categorical covariate, continuous covariate, and complete fixed-block terms are executable as ordinary design covariates. Upstream-imputed datasets remain rejected by default; `imputed_value_policy="withhold_imputed_features"` is an explicit validated PhosPy policy when imputation observation metadata is present. | `tests/parity/test_differential_analysis_parity.py`, `tests/parity/test_differential_limma_parity.py`, plus unit/integration design, fixed-effect provenance, result-contract tests, and `tests/unit/test_differential_imputation_policy.py` | Fixed-effect batch terms are not batch correction. Fixed-block terms require complete within-block contrast coverage and full-rank/estimable designs. Correlated repeated-measure, limma `duplicateCorrelation`-style, mixed-effect, and random subject-effect designs are rejected in this release. Missing values are rejected at analysis-ready boundary before model fitting. Imputed cells are not treated as fully observed by default. `withhold_imputed_features` withholds high-imputation or insufficient-observation rows, reports status, and excludes withheld rows from model fitting and the Benjamini-Hochberg denominator. It is not observed-only fitting. |
 | Kinase scoring | `parity-gated` | `KinaseWorkflow` default `scoring_mode="phosr_rank_weighted"` profile/motif scoring and rank-weighted fusion | `tests/parity/test_kinase_workflow_parity.py`, `tests/parity/test_prediction_science_parity.py`, `tests/parity/test_l6_prediction_parity.py` | Relative support scoring only; not calibrated causal inference. Kinase Library scoring is not the default parity lane. |
 | Kinase Library motif scoring | `validated PhosPy implementation` | Pure science-layer `KinaseLibraryMotifScorer` / `score_kinase_library_motifs`, plus opt-in `KinaseWorkflow` modes `kinase_library_motif` and `combined_profile_motif` for supplied Kinase Library-style resources | `tests/unit/test_kinase_library_motif_scoring.py`, `tests/unit/test_kinase_library_workflow_requirements.py`, `tests/science/test_kinase_library_motif_scoring_science.py`, `tests/integration/test_kinase_library_workflow_scoring.py` | Workflow mode still requires resolved `ReferenceBundle` context with `kinase_substrate_map` overlap, eligible kinases at `min_substrates`, and resolved site sequences. It also requires an explicit compatible local `KinaseLibraryResource`. Missing matching residue-class lanes fail validation; they do not fall back to PhosR-style motif scoring. Workflow motif scores are normalized to unit interval per kinase matrix for within-run ranking support; raw science-layer motif scores preserve provider scale. Scores are not probabilities. Ser/Thr and Tyr matrix lanes are not interchangeable. No official Kinase Library parity claim is made. |
 | Kinase prediction | `parity-gated` | Deterministic and adaptive kinase prediction in `KinaseWorkflow` | `tests/parity/test_public_predmat_parity.py`, `tests/parity/test_l6_prediction_parity.py`, `tests/parity/test_adaptive_prediction_parity.py`, `tests/parity/test_adaptive_replay_parity.py` | Prediction scores are ranking support, not probabilities. |
@@ -215,7 +221,7 @@ claimed.
 | Localisation handling | `validated PhosPy implementation` | Localisation confidence validation and fail-fast threshold policies are supported | `tests/unit/test_localisation_policy_preprocessing.py`, `tests/unit/test_validator_boundaries.py` | No full localisation-filter workflow parity claim in this release. |
 | Phosphosite importers | `validated PhosPy implementation` | Generic `MappedPhosphositeTableImporter`, `MaxQuantPhosphositeImporter`, and `FragPipePTMProphetImporter` translate upstream phosphosite tables into `PhosphositeImportResult` candidates and dataset-builder requests | `tests/unit/test_maxquant_phosphosite_importer.py`, `tests/unit/test_fragpipe_ptmprophet_importer.py`, `tests/integration/test_maxquant_importer_dataset_integration.py`, `tests/integration/test_fragpipe_importer_dataset_integration.py` | Importers do not construct analysis-ready datasets, infer sample groups, infer contrasts, infer batches or blocks, infer differential design, or bypass builder validation. Targeted MaxQuant and FragPipe/PTMProphet adapters are not broad vendor/search-engine parity, Spectronaut/DIA-NN support, or upstream statistical result import. |
 | Missing values | `parity-gated` | Missing-data policy execution in preprocessing and downstream score preconditioning | `tests/parity/test_preprocessing_science_parity.py`, unit missing-data tests | Policy choice changes retained rows and downstream behavior. |
-| Imputation | `validated PhosPy implementation` | Supported policies include `row_median`, `minprob`, `knn`; imputed datasets expose typed per-feature observation metadata (`imputed_cell_count`, `observed_cell_count`, `imputed_fraction`) and an aligned defensive observed-cell mask export | Unit preprocessing/scientific invariant tests | Policy-dependent behavior; not blanket PhosR-equivalent imputation. Metadata records observed-vs-imputed provenance for downstream decisions, but current differential modelling still rejects upstream-imputed datasets by default. |
+| Imputation | `validated PhosPy implementation` | Supported preprocessing policies include `row_median`, `minprob`, `knn`; imputed datasets expose typed per-feature observation metadata (`imputed_cell_count`, `observed_cell_count`, `imputed_fraction`) and an aligned defensive observed-cell mask export. Differential analysis can consume that metadata only through explicit `imputed_value_policy="withhold_imputed_features"`. | Unit preprocessing/scientific invariant tests plus `tests/unit/test_differential_imputation_policy.py` | Policy-dependent behavior; not blanket PhosR-equivalent imputation. Differential analysis still rejects upstream-imputed datasets by default. The withhold policy reports deterministic row statuses and excludes withheld rows from testing; it does not implement observed-only fitting. |
 | Normalisation | `parity-gated` | Supported methods: `none`, `median_center`, `quantile` with stage-order provenance | `tests/parity/test_preprocessing_science_parity.py`, unit preprocessing tests | Method-specific claims only; no blanket normalisation equivalence claim. |
 | Total-protein subtraction: `subtract_log_total` | `validated PhosPy implementation` | Dataset preprocessing can subtract matched log-scale total-protein abundance from log-scale phosphosite abundance (`log2_phospho - log2_total`) | Unit total-protein correction tests and dataset integration tests | Direct transformation only. Requires total-protein input and compatible log2 preprocessing. Not protein-aware modelling, not normalisation, not joint PTM/protein inference, and not MSstatsPTM equivalence. |
 | Protein-aware preparation | `validated PhosPy implementation` | `DatasetProteinAwarePreparationConfig(policy="prepare_model_inputs")` builds `ProteinAwarePreparationResult` and `ProteinAwarePreparationReport` with matched phosphosite/protein pairs, sample-aligned protein covariates, eligibility rows, mapping diagnostics, sample-alignment diagnostics, transformation-state diagnostics, and explicit limitations | Unit protein-aware preparation/mapping/sample-alignment tests and dataset integration diagnostics tests | Preparation-only model-input preparation. Does not modify phosphosite values, subtract total protein, normalise intensities, run joint PTM/protein modelling, adjust differential models, or claim MSstatsPTM-style inference or equivalence. Current `DifferentialAnalysisWorkflow` does not consume the prepared covariate matrix. |
@@ -281,10 +287,13 @@ commands/workflows:
 - Differential analysis does not resolve peptide/site ambiguity, localisation
   confidence, imputation, normalisation, or batch correction unless those steps
   were already performed or explicitly configured in the route.
-- Differential analysis currently rejects upstream-imputed datasets by default;
-  it does not count imputed cells as observed measurements in model fitting.
-  The dataset can report imputation observation metadata, but current
-  differential fitting does not yet consume it.
+- Differential analysis rejects upstream-imputed datasets by default. The
+  explicit `withhold_imputed_features` policy consumes dataset-owned imputation
+  observation metadata to mark `tested`, `withheld_high_imputation`, and
+  `withheld_insufficient_observed_samples` rows. Withheld rows receive missing
+  `logFC`, `t`, `P.Value`, and `adj.P.Val`, and are excluded from the
+  Benjamini-Hochberg denominator. This policy does not implement observed-only
+  fitting or feature-specific residual degrees of freedom.
 - Dataset preprocessing `linear_residualize_batch` is opt-in fixed-effect
   residualisation. It preserves condition effects by including condition terms
   in the residualisation design, rejects confounded batch/condition designs, and
@@ -357,7 +366,8 @@ Differential outputs now expose structured policy provenance through
 - replicate/group requirements and technical-replicate lineage
 - empirical-Bayes moderation settings
 - p-value and adjusted p-value methods
-- missing-value handling policy
+- missing-value handling policy, differential imputed-value policy, imputation
+  fraction threshold, and adjusted-p-value scope
 - unsupported-design rejection policy and intentionally rejected unsupported
   design features (`duplicateCorrelation`-style correlated-replicate and
   mixed-effect or random subject-effect modelling)

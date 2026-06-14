@@ -12,9 +12,11 @@ import numpy.typing as npt
 import pandas as pd
 
 from phospy.contracts.configs.differential import (
+    IMPUTED_VALUE_POLICY_REJECT,
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     PAIRED_DESIGN_POLICY_REJECT,
     SUPPORTED_PAIRED_DESIGN_POLICIES,
+    DifferentialImputedValuePolicy,
     PairedDesignPolicy,
 )
 from phospy.errors.validation import WorkflowValidationError
@@ -657,12 +659,33 @@ class ExperimentalDesignContractValidator:
 class DifferentialDatasetEligibilityValidator:
     """Validate dataset quantitative-scale eligibility for differential logFC."""
 
-    def run(self, *, dataset: AnalysisReadyPhosphoDataset) -> None:
+    def run(
+        self,
+        *,
+        dataset: AnalysisReadyPhosphoDataset,
+        imputed_value_policy: DifferentialImputedValuePolicy = (
+            IMPUTED_VALUE_POLICY_REJECT
+        ),
+    ) -> None:
         if not isinstance(cast(object, dataset), AnalysisReadyPhosphoDataset):
             raise WorkflowValidationError(
                 "differential workflow request dataset must be AnalysisReadyPhosphoDataset"
             )
-        if dataset.processing_state.missing_data.imputed:
+        if (
+            imputed_value_policy != IMPUTED_VALUE_POLICY_REJECT
+            and dataset.imputation_observation_metadata is None
+        ):
+            raise WorkflowValidationError(
+                "differential imputed_value_policy="
+                f"{imputed_value_policy!r} requires dataset-owned imputation "
+                "observation metadata. Build the analysis-ready dataset through "
+                "a supported imputation preprocessing path that preserves the "
+                "observed-cell mask."
+            )
+        if (
+            dataset.processing_state.missing_data.imputed
+            and imputed_value_policy == IMPUTED_VALUE_POLICY_REJECT
+        ):
             raise WorkflowValidationError(_DIFFERENTIAL_IMPUTED_DATA_ERROR_MESSAGE)
         phospho_scale = dataset.intensity_scale_state.phospho
         if (

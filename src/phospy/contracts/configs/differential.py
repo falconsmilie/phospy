@@ -10,15 +10,27 @@ from phospy.science.differential.models import EmpiricalBayesConfig
 from phospy.science.differential.policy_models import TechnicalReplicatePolicy
 
 PairedDesignPolicy = Literal["reject", "fixed_block"]
+DifferentialImputedValuePolicy = Literal["reject", "withhold_imputed_features"]
 MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG = "benjamini_hochberg"
 SUPPORTED_MULTIPLE_TESTING_METHODS: tuple[str, ...] = (
     MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG,
 )
 PAIRED_DESIGN_POLICY_REJECT: PairedDesignPolicy = "reject"
 PAIRED_DESIGN_POLICY_FIXED_BLOCK: PairedDesignPolicy = "fixed_block"
+IMPUTED_VALUE_POLICY_REJECT: DifferentialImputedValuePolicy = "reject"
+IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES: DifferentialImputedValuePolicy = (
+    "withhold_imputed_features"
+)
 SUPPORTED_PAIRED_DESIGN_POLICIES: tuple[PairedDesignPolicy, ...] = (
     PAIRED_DESIGN_POLICY_REJECT,
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+)
+SUPPORTED_DIFFERENTIAL_IMPUTED_VALUE_POLICIES: tuple[
+    DifferentialImputedValuePolicy,
+    ...,
+] = (
+    IMPUTED_VALUE_POLICY_REJECT,
+    IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES,
 )
 
 
@@ -47,12 +59,16 @@ class DifferentialAnalysisConfig:
     designs only. It does not infer ``block_id`` values and does not enable
     mixed-effects modelling. ``"fixed_block"`` requires complete block metadata
     and validates a fixed-effect block design matrix before execution.
+    ``imputed_value_policy`` defaults to ``"reject"``. Non-default policies are
+    explicit opt-ins and require dataset-owned imputation observation metadata.
     """
 
     technical_replicate_policy: TechnicalReplicatePolicy = (
         TechnicalReplicatePolicy.REJECT
     )
     paired_design_policy: PairedDesignPolicy = PAIRED_DESIGN_POLICY_REJECT
+    imputed_value_policy: DifferentialImputedValuePolicy = IMPUTED_VALUE_POLICY_REJECT
+    imputed_value_max_fraction: float = 0.0
     allow_design_subset: bool = False
     minimum_condition_replicates: int = 2
     empirical_bayes: EmpiricalBayesConfig = field(default_factory=EmpiricalBayesConfig)
@@ -68,20 +84,55 @@ class DifferentialAnalysisConfig:
             raise WorkflowValidationError(
                 f"differential.paired_design_policy must be one of: {supported}"
             )
+        if (
+            self.imputed_value_policy
+            not in SUPPORTED_DIFFERENTIAL_IMPUTED_VALUE_POLICIES
+        ):
+            supported = ", ".join(
+                repr(value) for value in SUPPORTED_DIFFERENTIAL_IMPUTED_VALUE_POLICIES
+            )
+            raise WorkflowValidationError(
+                f"differential.imputed_value_policy must be one of: {supported}"
+            )
+        if isinstance(cast(object, self.imputed_value_max_fraction), bool) or not (
+            isinstance(cast(object, self.imputed_value_max_fraction), int | float)
+        ):
+            raise WorkflowValidationError(
+                "differential.imputed_value_max_fraction must be a numeric value"
+            )
+        imputed_value_max_fraction = float(self.imputed_value_max_fraction)
+        if not 0.0 <= imputed_value_max_fraction <= 1.0:
+            raise WorkflowValidationError(
+                "differential.imputed_value_max_fraction must be in [0.0, 1.0]"
+            )
         object.__setattr__(
             self,
             "paired_design_policy",
             cast(PairedDesignPolicy, self.paired_design_policy),
         )
+        object.__setattr__(
+            self,
+            "imputed_value_policy",
+            cast(DifferentialImputedValuePolicy, self.imputed_value_policy),
+        )
+        object.__setattr__(
+            self,
+            "imputed_value_max_fraction",
+            imputed_value_max_fraction,
+        )
 
 
 __all__ = [
+    "DifferentialImputedValuePolicy",
     "DifferentialAnalysisConfig",
+    "IMPUTED_VALUE_POLICY_REJECT",
+    "IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES",
     "MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG",
     "MultipleTestingConfig",
     "PAIRED_DESIGN_POLICY_FIXED_BLOCK",
     "PAIRED_DESIGN_POLICY_REJECT",
     "PairedDesignPolicy",
+    "SUPPORTED_DIFFERENTIAL_IMPUTED_VALUE_POLICIES",
     "SUPPORTED_PAIRED_DESIGN_POLICIES",
     "SUPPORTED_MULTIPLE_TESTING_METHODS",
 ]

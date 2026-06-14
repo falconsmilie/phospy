@@ -7,6 +7,10 @@ from typing import cast
 import numpy as np
 import pandas as pd
 
+from phospy.contracts.configs.differential import (
+    IMPUTED_VALUE_POLICY_REJECT,
+    IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES,
+)
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.design.matrix_builder import (
     DesignMatrixBuildResult,
@@ -22,6 +26,9 @@ from phospy.science.design.models import (
     PairedDesignPolicy,
 )
 from phospy.science.differential.models import (
+    DIFFERENTIAL_RESULT_STATUS_TESTED,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_HIGH_IMPUTATION,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_INSUFFICIENT_OBSERVED,
     ContrastMatrix,
     DesignMatrix,
 )
@@ -41,6 +48,7 @@ from phospy.workflows.differential.models import (
     DifferentialConditionContrastVector,
     DifferentialCovariateColumnMetadata,
     DifferentialExecutionDesignInputs,
+    DifferentialImputationPolicyInputs,
     InterpretedDifferentialAnalysisRequest,
     ValidatedDifferentialAnalysisRequest,
 )
@@ -139,6 +147,16 @@ class DifferentialAnalysisInterpreter:
             site_metadata=resolved_dataset._borrow_site_metadata_frame(),  # pyright: ignore[reportPrivateUsage] - workflow boundary reads trusted internal dataset snapshots
             expected_index=matrix_aligned.index,
         )
+        imputation_policy_inputs = _build_imputation_policy_inputs(
+            dataset=resolved_dataset,
+            matrix_index=matrix_aligned.index,
+            analysis_sample_ids=analysis_sample_ids,
+            design=resolved_design,
+            contrasts=resolved_contrasts,
+            policy=request.config.imputed_value_policy,
+            max_fraction=request.config.imputed_value_max_fraction,
+            minimum_condition_replicates=request.config.minimum_condition_replicates,
+        )
 
         design_values = design_aligned.to_numpy(dtype=float)
         design_shape = cast(tuple[int, int], design_values.shape)
@@ -234,6 +252,7 @@ class DifferentialAnalysisInterpreter:
             workflow_provenance=resolved_workflow_provenance,
             dataset_preprocessing_report=resolved_dataset.preprocessing_report,
             execution_design=execution_design,
+            imputation_policy_inputs=imputation_policy_inputs,
         )
 
 
@@ -657,6 +676,168 @@ def _build_result_identity_metadata(
         column for column in optional_columns if column in aligned.columns
     )
     return cast(pd.DataFrame, identity.loc[:, list(selected_columns)])
+
+
+def _build_imputation_policy_inputs(
+    *,
+    dataset: object,
+    matrix_index: pd.Index,
+    analysis_sample_ids: tuple[str, ...],
+    design: ExperimentalDesign,
+    contrasts: tuple[Contrast, ...],
+    policy: str,
+    max_fraction: float,
+    minimum_condition_replicates: int,
+) -> DifferentialImputationPolicyInputs | None:
+    if policy == IMPUTED_VALUE_POLICY_REJECT:
+        return None
+    if policy != IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES:
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.imputation_policy",
+            next_action="use a supported differential imputation policy",
+            details={"policy": policy},
+            message_prefix="differential workflow boundary validation failed",
+        )
+    if not hasattr(dataset, "_borrow_imputation_observed_mask_frame"):
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.imputation_metadata",
+            next_action=(
+                "pass an AnalysisReadyPhosphoDataset with imputation observation "
+                "metadata into the differential workflow"
+            ),
+            message_prefix="differential workflow boundary validation failed",
+        )
+    observed_mask = dataset._borrow_imputation_observed_mask_frame()  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType] - guarded workflow-internal dataset access
+    if observed_mask is None:
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.imputation_metadata",
+            next_action=(
+                "build the analysis-ready dataset through a supported imputation "
+                "preprocessing path that preserves the observed-cell mask"
+            ),
+            message_prefix="differential workflow boundary validation failed",
+        )
+    try:
+        aligned_mask = cast(
+            pd.DataFrame,
+            observed_mask.loc[list(matrix_index), list(analysis_sample_ids)],
+        )
+    except KeyError as exc:
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.imputation_metadata_alignment",
+            next_action=(
+                "ensure imputation observation metadata is aligned to the "
+                "differential feature and sample labels"
+            ),
+            details={
+                "feature_count": int(matrix_index.size),
+                "sample_count": len(analysis_sample_ids),
+            },
+            message_prefix="differential workflow boundary validation failed",
+        ) from exc
+    if not aligned_mask.index.equals(matrix_index) or tuple(
+        aligned_mask.columns.astype(str)
+    ) != tuple(analysis_sample_ids):
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.imputation_metadata_alignment",
+            next_action=(
+                "ensure imputation observation metadata order exactly matches the "
+                "differential execution matrix"
+            ),
+            message_prefix="differential workflow boundary validation failed",
+        )
+
+    observed_values = aligned_mask.to_numpy(dtype=bool)
+    sample_count = int(observed_values.shape[1])
+    observed_counts = observed_values.sum(axis=1).astype(np.int64)
+    imputed_counts = (sample_count - observed_counts).astype(np.int64)
+    imputed_fraction = imputed_counts.astype(float) / float(sample_count)
+    feature_metadata = pd.DataFrame(
+        {
+            "imputed_cell_count": imputed_counts,
+            "observed_cell_count": observed_counts,
+            "imputed_fraction": imputed_fraction,
+        },
+        index=matrix_index.copy(),
+    )
+    feature_metadata.index.name = matrix_index.name
+
+    condition_sample_ids = _condition_sample_ids_for_analysis(
+        design=design,
+        analysis_sample_ids=analysis_sample_ids,
+    )
+    statuses: list[str] = []
+    for row_position in range(int(aligned_mask.shape[0])):
+        observed_row = aligned_mask.iloc[row_position, :]
+        if _has_insufficient_observed_samples_for_contrasts(
+            observed_row=observed_row,
+            condition_sample_ids=condition_sample_ids,
+            contrasts=contrasts,
+            minimum_condition_replicates=minimum_condition_replicates,
+        ):
+            statuses.append(DIFFERENTIAL_RESULT_STATUS_WITHHELD_INSUFFICIENT_OBSERVED)
+            continue
+        if float(imputed_fraction[row_position]) > float(max_fraction):
+            statuses.append(DIFFERENTIAL_RESULT_STATUS_WITHHELD_HIGH_IMPUTATION)
+            continue
+        statuses.append(DIFFERENTIAL_RESULT_STATUS_TESTED)
+
+    result_status = pd.Series(
+        statuses,
+        index=matrix_index.copy(),
+        name="result_status",
+    )
+    testable_feature_ids = tuple(
+        str(feature_id)
+        for feature_id in result_status.index[
+            result_status == DIFFERENTIAL_RESULT_STATUS_TESTED
+        ].tolist()
+    )
+    return DifferentialImputationPolicyInputs(
+        feature_metadata=feature_metadata,
+        result_status=result_status,
+        testable_feature_ids=testable_feature_ids,
+        policy=policy,
+        max_fraction=max_fraction,
+    )
+
+
+def _condition_sample_ids_for_analysis(
+    *,
+    design: ExperimentalDesign,
+    analysis_sample_ids: tuple[str, ...],
+) -> dict[str, tuple[str, ...]]:
+    analysis_sample_set = set(analysis_sample_ids)
+    grouped: dict[str, list[str]] = {}
+    for record in design.samples:
+        sample_id = str(record.sample_id)
+        if sample_id not in analysis_sample_set:
+            continue
+        grouped.setdefault(record.condition, []).append(sample_id)
+    return {condition: tuple(sample_ids) for condition, sample_ids in grouped.items()}
+
+
+def _has_insufficient_observed_samples_for_contrasts(
+    *,
+    observed_row: pd.Series,
+    condition_sample_ids: dict[str, tuple[str, ...]],
+    contrasts: tuple[Contrast, ...],
+    minimum_condition_replicates: int,
+) -> bool:
+    for contrast in contrasts:
+        for condition in (
+            contrast.numerator_condition,
+            contrast.denominator_condition,
+        ):
+            sample_ids = condition_sample_ids.get(condition, ())
+            if not sample_ids:
+                return True
+            observed_count = int(
+                observed_row.loc[list(sample_ids)].to_numpy(dtype=bool).sum()
+            )
+            if observed_count < int(minimum_condition_replicates):
+                return True
+    return False
 
 
 def _prefer_site_key_index_for_differential_results(

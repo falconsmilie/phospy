@@ -4,12 +4,16 @@ from __future__ import annotations
 
 from phospy.contracts.configs.dataset import DatasetPreprocessingConfig
 from phospy.contracts.configs.differential import (
+    IMPUTED_VALUE_POLICY_REJECT,
+    IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES,
     MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG,
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     PAIRED_DESIGN_POLICY_REJECT,
+    SUPPORTED_DIFFERENTIAL_IMPUTED_VALUE_POLICIES,
     SUPPORTED_MULTIPLE_TESTING_METHODS,
     SUPPORTED_PAIRED_DESIGN_POLICIES,
     DifferentialAnalysisConfig,
+    DifferentialImputedValuePolicy,
     MultipleTestingConfig,
     PairedDesignPolicy,
 )
@@ -413,6 +417,7 @@ __all__ = [
     "DatasetTotalProteinCorrectionPolicy",
     "DatasetTotalProteinCorrectionUnmatchedPolicy",
     "DifferentialAnalysisConfig",
+    "DifferentialImputedValuePolicy",
     "ENRICHMENT_IDENTIFIER_KIND_DISPLAY_ID",
     "ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL",
     "ENRICHMENT_IDENTIFIER_KIND_PHOSPHOSITE",
@@ -423,6 +428,8 @@ __all__ = [
     "EnrichmentIdentifierKind",
     "EnrichmentMethod",
     "GENE_LEVEL_ENRICHMENT_IDENTIFIER_KINDS",
+    "IMPUTED_VALUE_POLICY_REJECT",
+    "IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES",
     "PAIRED_DESIGN_POLICY_FIXED_BLOCK",
     "PAIRED_DESIGN_POLICY_REJECT",
     "KinaseAdaptivePolicy",
@@ -455,6 +462,7 @@ __all__ = [
     "MultipleTestingCorrection",
     "PairedDesignPolicy",
     "PTM_LEVEL_ENRICHMENT_IDENTIFIER_KINDS",
+    "SUPPORTED_DIFFERENTIAL_IMPUTED_VALUE_POLICIES",
     "SUPPORTED_ENRICHMENT_IDENTIFIER_KINDS",
     "SUPPORTED_ENRICHMENT_METHODS",
     "SUPPORTED_MULTIPLE_TESTING_CORRECTIONS",

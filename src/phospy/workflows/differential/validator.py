@@ -81,12 +81,15 @@ class DifferentialAnalysisValidator:
             error_type=WorkflowValidationError,
             allow_opaque_site_values=request.dataset.opaque_site_values_allowed,
         )
-        self._dataset_eligibility_validator.run(dataset=request.dataset)
         config = request.config
         if not isinstance(cast(object, config), DifferentialAnalysisConfig):
             raise WorkflowValidationError(
                 "differential workflow request config must be DifferentialAnalysisConfig"
             )
+        self._dataset_eligibility_validator.run(
+            dataset=request.dataset,
+            imputed_value_policy=config.imputed_value_policy,
+        )
         technical_replicate_policy = config.technical_replicate_policy
         if not isinstance(
             cast(object, technical_replicate_policy), TechnicalReplicatePolicy
