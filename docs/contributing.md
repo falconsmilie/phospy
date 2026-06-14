@@ -84,18 +84,20 @@ The checked scope is explicitly configured in `pyproject.toml` under
 `[tool.pyright].include` and covers:
 
 - `src/phospy/api`
-- `src/phospy/science/datasets`
-- `src/phospy/io` (including result publishing/export paths)
-- `src/phospy/science/prediction`
+- `src/phospy/errors`
+- `src/phospy/frames`
+- `src/phospy/io`
+- `src/phospy/policies`
 - `src/phospy/provenance`
-- `src/phospy/science/references`
-- `src/phospy/science/signalomes/clustering`
+- `src/phospy/science`
 - `src/phospy/tables`
 - `src/phospy/validation`
 - `src/phospy/workflows`
 
 Expectations for typing changes:
 
+- `src/phospy/science/datasets/models.py` is listed under
+  `[tool.pyright].strict` and is already strict-checked
 - prefer precise public/model/protocol boundary types over `Any`
 - keep suppressions narrow and local
 - avoid broad ignores and config-wide suppression

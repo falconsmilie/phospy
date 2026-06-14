@@ -100,7 +100,8 @@ the result models.
   - optional protein-aware preparation
   - optional batch correction with `linear_residualize_batch`
   - optional site-matrix and comparison construction
-  - optional `ruv_readiness` reporting for future RUV-compatible preprocessing
+  - optional `ruv_readiness` reporting for possible future RUV/SPS/RUV-III
+    preprocessing
 - No hidden transforms are applied outside this configuration.
 - `total_protein_correction.policy="subtract_log_total"` is a direct
   phosphosite-minus-total transformation on log-scale values. It changes
@@ -180,8 +181,9 @@ the result models.
   under `provenance.workflow_parameters["protein_aware_preparation"]` when the
   preparation stage runs.
 - `processing_state.ruv_readiness` reports whether required controls/groups/batch and
-  missingness provenance are present for future RUV-compatible correction stages.
-  This is report-only and does not run correction or block dataset construction.
+  missingness provenance are present for possible future RUV/SPS/RUV-III
+  preprocessing. This is report-only and does not select SPS controls, run
+  correction, or block dataset construction.
 
 ### Known Limitations
 
@@ -196,8 +198,8 @@ the result models.
   claimed.
 - The only executable batch-correction preprocessing method is
   `linear_residualize_batch`. Broader batch-effect modelling, ComBat, RUV,
-  limma `removeBatchEffect` parity, and mixed-effects modelling are not provided
-  by the dataset builder.
+  RUV/SPS/RUV-III correction, limma `removeBatchEffect` parity, and
+  mixed-effects modelling are not provided by the dataset builder.
 
 ### Expected Output Tables
 

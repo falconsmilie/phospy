@@ -249,7 +249,7 @@ provide matching `site_key` indexes and all required identity metadata up front.
 | `site_sequence_resolution` | `DatasetSiteSequenceResolutionConfig` | `mode="validate_existing_and_fill_missing"` | Controls optional local FASTA-backed site-sequence resolution. |
 | `comparisons` | `DatasetComparisonBuildingConfig` | `policy="none"` | Controls optional pairwise comparison construction from sample metadata. |
 | `localisation` | `DatasetLocalisationConfig` | `mode="require_threshold"`, `min_confidence=0.75`, `confidence_column="localisation_confidence"` | Controls site-level localisation-confidence eligibility at dataset-build time. |
-| `ruv_readiness` | `DatasetRuvReadinessConfig` | `enabled=False` | Adds readiness reporting for future RUV-compatible workflows; it does not apply correction. |
+| `ruv_readiness` | `DatasetRuvReadinessConfig` | `enabled=False` | Adds readiness reporting for possible future RUV/SPS/RUV-III preprocessing; it does not select SPS controls or apply correction. |
 
 Use presets for common lanes:
 
@@ -603,8 +603,8 @@ comparisons = DatasetComparisonBuildingConfig(
 ## RUV-Readiness Parameters
 
 `DatasetRuvReadinessConfig` is report-only. It helps audit whether metadata
-needed for future RUV-compatible correction is present; it does not correct the
-matrix.
+needed for possible future RUV/SPS/RUV-III preprocessing is present; it does not
+select SPS controls or correct the matrix.
 It does not make sample metadata scientific design input for differential
 analysis.
 

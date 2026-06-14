@@ -7,6 +7,22 @@ dataset-builder input candidates. They do not construct
 Use importers when a table comes from an upstream search or quantification tool
 and needs consistent column mapping before the strict dataset builder runs.
 
+## Current Support Summary
+
+Current public phosphosite importer support is:
+
+- `MappedPhosphositeTableImporter` for caller-supplied explicit column mapping
+- `MaxQuantPhosphositeImporter` for MaxQuant-style `Phospho (STY)Sites.txt`
+  exports
+- `FragPipePTMProphetImporter` for FragPipe/Philosopher peptide or site tables
+  with PTMProphet localisation probabilities
+
+Spectronaut and DIA-NN phosphosite importers are not currently implemented as
+dedicated semantic importers. A caller may still use
+`MappedPhosphositeTableImporter` for a manually mapped compatible table, but
+that is generic mapped-table support, not Spectronaut/DIA-NN support and not
+upstream statistical result import.
+
 ## Responsibility Boundary
 
 Importers own:
@@ -163,9 +179,11 @@ The localisation output column remains the shared
 
 ## Generic Column-Mapped Importer
 
-The foundation importer is intentionally generic. Tool-specific importers such
-as FragPipe, Spectronaut, or DIA-NN should stay small classes that map their
-known columns into this contract.
+The foundation importer is intentionally generic. The current dedicated
+tool-specific phosphosite importers are MaxQuant and FragPipe/PTMProphet. Any
+future dedicated Spectronaut or DIA-NN importer should stay a small adapter
+that maps known columns into this contract, emits `PhosphositeImportResult`
+candidates, and still relies on dataset-builder validation.
 
 ```python
 import pandas as pd

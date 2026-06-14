@@ -37,6 +37,29 @@ Current active parity coverage includes:
 - selected preprocessing and activity-stage behaviours with explicit fixtures
 - signalome workflow and clustering backend fixture lanes
 
+## Non-Parity Support And Scope Differences
+
+Some implemented PhosPy features are not PhosR parity claims. They are
+validated PhosPy implementations:
+
+- `EnrichmentWorkflow` is implemented as offline ORA over caller-supplied
+  gene-set or PTM-set collections. It is not a PhosR enrichment parity lane and
+  does not imply GSEA, ssGSEA, PTM-SEA, Enrichr, gseapy, or clusterProfiler
+  support.
+- `MappedPhosphositeTableImporter`, `MaxQuantPhosphositeImporter`, and
+  `FragPipePTMProphetImporter` are input-preparation adapters that feed
+  dataset-builder validation. They are not PhosR parity lanes, broad vendor
+  parity, Spectronaut/DIA-NN support, or upstream statistical result import.
+- `linear_residualize_batch` is limited fixed-effect residualisation under the
+  dataset preprocessing `batch_correction` config group. It is not native
+  RUV/SPS/RUV-III correction, not PhosR-equivalent batch correction, not ComBat,
+  not limma `removeBatchEffect` parity, not `duplicateCorrelation`, and not
+  mixed-effects modelling.
+- Differential fixed-effect batch covariates are ordinary model terms. They are
+  not a data-cleaning batch-correction step.
+- `ruv_readiness` is diagnostic/report-only metadata readiness reporting. It is
+  not RUV/SPS/RUV-III correction support.
+
 ## Fixture Scope By Lane
 
 | Lane | Main fixture/evidence scope |
@@ -100,3 +123,9 @@ pytest tests/parity -m parity -s
 Open gaps should be described as open gaps, not as partial equivalence. Common
 examples include broader organism-specific bundled references, additional PhosR
 workflow surfaces, and any method not protected by fixture-backed comparison.
+
+PhosPy is not currently parity-equivalent with PhosR for SPS/RUV-III
+correction. There are no SPS control-selection fixtures, no native RUV-III
+correction kernel fixtures, and no PhosR `RUVphospho` corrected-output parity
+fixtures. ADR-0027 records this as planned future preprocessing/normalisation
+work, not current parity.

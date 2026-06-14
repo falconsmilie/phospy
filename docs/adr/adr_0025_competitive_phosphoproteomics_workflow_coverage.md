@@ -53,7 +53,10 @@ FragPipe/Philosopher/PTMProphet phosphosite import. These importers emit
 construct `AnalysisReadyPhosphoDataset` objects, infer sample groups, infer
 contrasts, infer batches, infer paired blocks, or bypass builder validation.
 They are targeted importer adapters, not broad support for all vendor,
-search-engine, or upstream statistical outputs.
+search-engine, or upstream statistical outputs. No dedicated Spectronaut or
+DIA-NN semantic importer is current support; those remain future/demand-driven
+candidates unless executable adapters, public contracts, docs, and tests are
+added.
 
 Current differential support has a parity-protected core lane: two-condition
 unpaired simple contrasts with explicit `ExperimentalDesign` and `Contrast`
@@ -86,7 +89,7 @@ residualisation design. It requires explicit `sample_metadata` and
 `DatasetBatchCorrectionConfig` settings, rejects confounded or otherwise
 inadequate designs before correction, and records typed diagnostics. It is not
 ComBat, not RUV, not limma `removeBatchEffect` parity, not
-`duplicateCorrelation`, not mixed-effects modelling, or a solution to all
+`duplicateCorrelation`, not mixed-effects modelling, and not a solution to all
 batch-effect problems.
 
 Dataset preprocessing also supports total-protein subtraction through
@@ -204,6 +207,9 @@ Phases are directional, not calendar commitments.
   contracts as dataset-builder input adapters, not hidden analysis engines.
 - Add additional semantic importer contracts only when they emit typed tables or
   requests that still pass existing builder/workflow validation.
+- Treat Spectronaut and DIA-NN importers as future/demand-driven candidates,
+  not current support, until they meet the same contract, documentation, and
+  test requirements as existing adapters.
 - Keep raw/vendor/search-engine format interpretation out of core workflows
   unless a dedicated importer contract owns it.
 

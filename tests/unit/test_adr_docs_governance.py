@@ -19,6 +19,16 @@ _RELATIVE_LINK_PATTERN = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 _SOURCE_REF_PATTERN = re.compile(r"src/phospy/[A-Za-z0-9_./-]+")
 
 _ALLOWED_STATUSES = {"Accepted", "Superseded", "Amended", "Deprecated", "Draft"}
+_FUTURE_SOURCE_REFS_BY_ADR: dict[str, frozenset[str]] = {
+    "adr_0027_target_future_native_phosr_style_sps_ruv_iii_correction.md": frozenset(
+        {
+            "src/phospy/science/batch_correction/",
+            "src/phospy/science/normalisation/",
+            "src/phospy/workflows/batch_correction/",
+            "src/phospy/validation/workflows/batch_correction/",
+        }
+    ),
+}
 
 
 def _read_text(path: Path) -> str:
@@ -119,6 +129,12 @@ def test_adr_source_file_references_exist() -> None:
         for match in _SOURCE_REF_PATTERN.finditer(text):
             raw = match.group(0).rstrip(".,)")
             resolved = (ROOT / raw).resolve()
+            if raw in _FUTURE_SOURCE_REFS_BY_ADR.get(path.name, frozenset()):
+                assert not resolved.exists(), (
+                    "future-facing ADR path allowlist should not hide an "
+                    f"existing path: {raw}"
+                )
+                continue
             assert resolved.exists(), (
                 f"stale source path in {path.as_posix()}: "
                 f"{raw} -> {resolved.as_posix()}"

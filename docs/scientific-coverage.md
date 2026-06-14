@@ -24,6 +24,10 @@ construct analysis-ready datasets, infer differential design, or bypass builder
 validation. MaxQuant and FragPipe/PTMProphet fixture coverage is targeted to
 selected localisation, mapping, flagging, grouped-row, intensity-column, and
 ambiguity edge cases; it is not full vendor-tool parity.
+Dedicated Spectronaut and DIA-NN semantic importers are not currently
+supported. Manually mapping a compatible table through
+`MappedPhosphositeTableImporter` remains generic mapped-table support, not
+Spectronaut/DIA-NN support or upstream statistical result import.
 
 The prediction science layer includes a pure Kinase Library-style motif scorer.
 `KinaseWorkflow` exposes it through explicit scoring modes only; the default
@@ -80,15 +84,39 @@ ties by stable row identity rather than input row order. Reproducibility-marked
 unit tests cover repeated output, tie-heavy input, diagnostics, and provenance
 for the configured `k`, distance, and row-filtering policy.
 
-Separately, dataset preprocessing supports one opt-in batch-correction method:
-`linear_residualize_batch`. It is fixed-effect residualisation of batch terms.
-It preserves condition effects by design: condition terms are included in the
-residualisation design. Batch and condition metadata must be supplied
-explicitly through `sample_metadata` and `DatasetBatchCorrectionConfig`.
-Confounded batch/condition designs, rank-deficient designs, singleton batches,
-and designs without residual degrees of freedom are rejected before correction.
-This support is not ComBat, not RUV, not limma `removeBatchEffect` parity, and
-not mixed-effects modelling.
+Separately, dataset preprocessing supports one opt-in residualisation method
+under the `batch_correction` configuration group: `linear_residualize_batch`.
+It is fixed-effect residualisation of batch terms. It preserves condition
+effects by design: condition terms are included in the residualisation design.
+Batch and condition metadata must be supplied explicitly through
+`sample_metadata` and `DatasetBatchCorrectionConfig`. Confounded
+batch/condition designs, rank-deficient designs, singleton batches, and designs
+without residual degrees of freedom are rejected before correction. This support
+is not ComBat, not RUV, not limma `removeBatchEffect` parity, and not
+mixed-effects modelling.
+
+### RUV/SPS/RUV-III Batch-Correction Posture
+
+Supported today:
+
+- `linear_residualize_batch`, a limited fixed-effect residualisation method
+  under dataset preprocessing.
+- `ruv_readiness`, when enabled, as diagnostic/report-only metadata readiness
+  reporting.
+
+Not supported today:
+
+- no native RUV/SPS/RUV-III correction.
+- no PhosR-equivalent SPS/RUV-III batch correction.
+- no treatment of linear residualisation as equivalent to SPS/RUV/RUV-III
+  correction.
+- no treatment of `ruv_readiness` or similar diagnostics as correction support.
+
+Planned future direction:
+
+- [ADR-0027](adr/adr_0027_target_future_native_phosr_style_sps_ruv_iii_correction.md)
+  targets native PhosR-style SPS/RUV-III correction as a separate future
+  preprocessing/normalisation implementation epic. This is not current support.
 
 At dataset-construction boundary, PhosPy uses a protein-scoped analysis-ready
 row key (`site_key`) and keeps `display_id` (for example `GENE;SITE;`) as a
@@ -197,8 +225,9 @@ exist, and this page is updated to the correct scope category.
 | --- | --- | --- |
 | References | Bundled runtime references are rat-only. The packaged rat lane has explicit provenance and redistribution caveats. Human and mouse workflows require an explicit caller-supplied `ReferenceBundle`. | Broader reference handling should use explicit provenance, compatibility checks, and external bundle validation. New bundled data requires redistribution permission, provenance, docs, and tests before `_BUNDLED_DEFAULTS` is updated. |
 | Kinase inference | Kinase scoring/prediction and three explicit activity methods are executable. Scores are relative support or substrate-set summaries, not calibrated causal inference. | Additional kinase inference or activity methods should be added one method at a time with stable scientific policy records and method-specific validation. |
-| Importers | PhosPy supports analysis-ready tables, generic table I/O contracts, generic column-mapped phosphosite import, MaxQuant phosphosite import, and FragPipe/Philosopher/PTMProphet phosphosite import. These are input-preparation adapters that feed dataset-builder validation. They are not broad support for all vendor, search-engine, or upstream statistical outputs. | Additional semantic importers should produce typed tables or requests that still pass builder and workflow validation; they must not bypass site identity or provenance contracts. |
+| Importers | PhosPy supports analysis-ready tables, generic table I/O contracts, generic column-mapped phosphosite import, MaxQuant phosphosite import, and FragPipe/Philosopher/PTMProphet phosphosite import. These are input-preparation adapters that feed dataset-builder validation. They are not broad support for all vendor, search-engine, upstream statistical outputs, Spectronaut, or DIA-NN. | Additional semantic importers should produce typed tables or requests that still pass builder and workflow validation; they must not bypass site identity or provenance contracts. Spectronaut and DIA-NN remain future/demand-driven candidates, not current support. |
 | Richer differential designs | Current parity-protected differential lane is two-condition unpaired simple contrasts. Fixed-effect batch, categorical covariate, continuous covariate, and explicit complete fixed-block terms are executable as ordinary fixed covariates with completeness, rank, and estimability validation. Correlated repeated-measure, `duplicateCorrelation`-style, and mixed-effect modelling are not executable in this release. | Additional richer designs require explicit design/result contracts, provenance, validation, and parity or method-specific evidence before any support claim. |
+| Batch correction | Current executable preprocessing support is limited to `linear_residualize_batch`; `ruv_readiness` is diagnostic/report-only metadata readiness reporting. Native RUV/SPS/RUV-III correction and PhosR-equivalent SPS/RUV-III batch correction are not supported today. | ADR-0027 targets native PhosR-style SPS/RUV-III correction as a future preprocessing/normalisation implementation epic. Future support requires explicit control-set, design, imputation, diagnostics, provenance, downstream eligibility, and validation contracts before any support claim. |
 | Enrichment | Native support is offline ORA over caller-supplied gene-set or PTM-set collections with explicit identifier semantics and background. No online resource access is bundled or executed. | Additional enrichment methods or curated resource integrations require explicit data provenance, redistribution approval where relevant, identifier semantics, validation, docs, and tests before support is claimed. |
 | Visualisation | Core PhosPy has no first-class visualisation workflow/API. | Visualisation should consume validated result objects and must not become a hidden analysis engine or source of scientific truth. |
 | CLI workflow support | Scientific workflow execution through a CLI is not currently supported; the Python API is the supported interface. | Any future CLI must be a thin wrapper over Python API requests/workflows and satisfy ADR-0022 reintroduction criteria before support is claimed. |
@@ -233,15 +262,15 @@ claimed.
 | Signalome sampled candidate scoring policy | `experimental` | `SignalomeConfig.sampled_candidate_scoring()` approximates candidate module-count scoring | Parity/contract coverage through signalome parity tests and workflow contract checks | Approximation applies to candidate scoring only; tree generation remains exact-policy governed. |
 | Sequence context | `parity-gated` | `site_sequence` required at analysis-ready boundary and used in kinase scoring/prediction | `tests/parity/test_l6_prediction_parity.py`, `tests/parity/test_prediction_science_parity.py` | Sequence quality remains an upstream dependency. |
 | Localisation handling | `validated PhosPy implementation` | Localisation confidence validation and fail-fast threshold policies are supported | `tests/unit/test_localisation_policy_preprocessing.py`, `tests/unit/test_validator_boundaries.py` | No full localisation-filter workflow parity claim in this release. |
-| Phosphosite importers | `validated PhosPy implementation` | Generic `MappedPhosphositeTableImporter`, `MaxQuantPhosphositeImporter`, and `FragPipePTMProphetImporter` translate upstream phosphosite tables into `PhosphositeImportResult` candidates and dataset-builder requests | `tests/unit/test_maxquant_phosphosite_importer.py`, `tests/unit/test_fragpipe_ptmprophet_importer.py`, `tests/integration/test_maxquant_importer_dataset_integration.py`, `tests/integration/test_fragpipe_importer_dataset_integration.py` | Importers do not construct analysis-ready datasets, infer sample groups, infer contrasts, infer batches or blocks, infer differential design, or bypass builder validation. Targeted MaxQuant and FragPipe/PTMProphet adapters are not broad vendor/search-engine parity, Spectronaut/DIA-NN support, or upstream statistical result import. |
+| Phosphosite importers | `validated PhosPy implementation` | Generic `MappedPhosphositeTableImporter`, `MaxQuantPhosphositeImporter`, and `FragPipePTMProphetImporter` translate upstream phosphosite tables into `PhosphositeImportResult` candidates and dataset-builder requests | `tests/unit/test_maxquant_phosphosite_importer.py`, `tests/unit/test_fragpipe_ptmprophet_importer.py`, `tests/integration/test_maxquant_importer_dataset_integration.py`, `tests/integration/test_fragpipe_importer_dataset_integration.py` | Importers do not construct analysis-ready datasets, infer sample groups, infer contrasts, infer batches or blocks, infer differential design, or bypass builder validation. Targeted MaxQuant and FragPipe/PTMProphet adapters are not broad vendor/search-engine parity, Spectronaut/DIA-NN support, or upstream statistical result import. Generic mapped import of a caller-mapped compatible table is not a dedicated Spectronaut or DIA-NN importer. |
 | Missing values | `parity-gated` | Missing-data policy execution in preprocessing and downstream score preconditioning | `tests/parity/test_preprocessing_science_parity.py`, unit missing-data tests | Policy choice changes retained rows and downstream behavior. |
 | Imputation | `validated PhosPy implementation` | Supported preprocessing policies include `row_median`, `minprob`, `knn`; imputed datasets expose typed per-feature observation metadata (`imputed_cell_count`, `observed_cell_count`, `imputed_fraction`) and an aligned defensive observed-cell mask export. Differential analysis can consume that metadata only through explicit `imputed_value_policy="withhold_imputed_features"`. | Unit preprocessing/scientific invariant tests plus `tests/unit/test_differential_imputation_policy.py` | Policy-dependent behavior; not blanket PhosR-equivalent imputation. Differential analysis still rejects upstream-imputed datasets by default. The withhold policy reports deterministic row statuses and excludes withheld rows from testing; it does not implement observed-only fitting. |
 | Normalisation | `parity-gated` | Supported methods: `none`, `median_center`, `quantile` with stage-order provenance | `tests/parity/test_preprocessing_science_parity.py`, unit preprocessing tests | Method-specific claims only; no blanket normalisation equivalence claim. |
 | Total-protein subtraction: `subtract_log_total` | `validated PhosPy implementation` | Dataset preprocessing can subtract matched log-scale total-protein abundance from log-scale phosphosite abundance (`log2_phospho - log2_total`) | Unit total-protein correction tests and dataset integration tests | Direct transformation only. Requires total-protein input and compatible log2 preprocessing. Not protein-aware modelling, not normalisation, not joint PTM/protein inference, and not MSstatsPTM equivalence. |
 | Protein-aware preparation | `validated PhosPy implementation` | `DatasetProteinAwarePreparationConfig(policy="prepare_model_inputs")` builds `ProteinAwarePreparationResult` and `ProteinAwarePreparationReport` with matched phosphosite/protein pairs, sample-aligned protein covariates, eligibility rows, mapping diagnostics, sample-alignment diagnostics, transformation-state diagnostics, and explicit limitations | Unit protein-aware preparation/mapping/sample-alignment tests and dataset integration diagnostics tests | Preparation-only model-input preparation. Does not modify phosphosite values, subtract total protein, normalise intensities, run joint PTM/protein modelling, adjust differential models, or claim MSstatsPTM-style inference or equivalence. Current `DifferentialAnalysisWorkflow` does not consume the prepared covariate matrix. |
-| Batch correction: `linear_residualize_batch` | `validated PhosPy implementation` | Dataset preprocessing supports opt-in `linear_residualize_batch` fixed-effect residualisation with explicit batch/condition metadata, condition-preserving design, design adequacy validation, and typed reports | Unit batch-correction engine, metadata, validation, and report tests; dataset integration tests for no-op, applied correction, invalid metadata/designs, and downstream differential consumption | Only this fixed-effect residualisation method is supported. Confounded batch/condition designs are rejected because preserving condition effects would otherwise be impossible. This is not ComBat, not RUV, not limma `removeBatchEffect` parity, not limma `duplicateCorrelation`, and not mixed-effects modelling. It does not solve all batch-effect problems. Differential batch fixed effects are model covariates, not preprocessing correction. |
+| Batch correction: `linear_residualize_batch` | `validated PhosPy implementation` | Dataset preprocessing supports opt-in `linear_residualize_batch` fixed-effect residualisation with explicit batch/condition metadata, condition-preserving design, design adequacy validation, and typed reports | Unit batch-correction engine, metadata, validation, and report tests; dataset integration tests for no-op, applied correction, invalid metadata/designs, and downstream differential consumption | Only this limited fixed-effect residualisation method is supported under the `batch_correction` config group. Confounded batch/condition designs are rejected because preserving condition effects would otherwise be impossible. This is not ComBat, not RUV, not limma `removeBatchEffect` parity, not limma `duplicateCorrelation`, and not mixed-effects modelling. It does not solve all batch-effect problems. Differential batch fixed effects are model covariates, not preprocessing correction. |
 | Joint PTM/protein modelling and MSstatsPTM-style inference | `open gap` | No executable joint phosphosite/total-protein differential modelling lane is supported | N/A | Do not interpret total-protein subtraction or protein-aware preparation as MSstatsPTM-style inference, protein-adjusted differential modelling, or equivalence to MSstatsPTM. |
-| RUV, ComBat, and `removeBatchEffect` parity | `open gap` | No executable RUV, ComBat, or limma `removeBatchEffect` parity lane is supported. `ruv_readiness` is diagnostic/report-only metadata readiness reporting. | Readiness/report tests only; no correction parity or execution claim | Do not interpret `ruv_readiness` as RUV support. Do not interpret `linear_residualize_batch` as ComBat, RUV, limma `removeBatchEffect`, or mixed-effects support. |
+| RUV/SPS/RUV-III, ComBat, and `removeBatchEffect` parity | `open gap` | No executable RUV/SPS/RUV-III, ComBat, or limma `removeBatchEffect` parity lane is supported. PhosPy does not currently provide PhosR-equivalent SPS/RUV-III batch correction. `ruv_readiness` is diagnostic/report-only metadata readiness reporting. | Readiness/report tests only; no SPS control-selection, RUV-III correction kernel, correction parity, or execution claim | Do not interpret `ruv_readiness` as RUV support. Do not interpret `linear_residualize_batch` as ComBat, RUV, SPS/RUV-III, limma `removeBatchEffect`, or mixed-effects support. ADR-0027 records future PhosR-style SPS/RUV-III preprocessing/normalisation direction, not current support. |
 | Enrichment | `validated PhosPy implementation` | `EnrichmentWorkflow` runs offline over-representation analysis over caller-supplied `GeneSetCollection`, `PtmSetCollection`, or homogeneous `EnrichmentSetCollection` inputs with explicit identifier kind, selected identifiers, background universe, and multiple-testing correction | `tests/unit/test_enrichment_ora.py`, `tests/unit/test_enrichment_workflow_validation.py`, `tests/unit/test_public_contract_enrichment.py`, `tests/workflows/test_enrichment_workflow.py` | Requires user-supplied collections and explicit background. GO, KEGG, Reactome, PTM-SEA, and PTMsigDB resources are not bundled unless supplied as ordinary local collections. Online Enrichr, gseapy, clusterProfiler, and similar calls are not native core workflow behavior. ORA is not GSEA, ssGSEA, or PTM-SEA support. Gene-level and site-level enrichment require explicit identifier semantics. |
 | Visualisation | `deliberate scope difference` | No first-class visualization workflow/API in core PhosPy | N/A | Visualization is intentionally out of current scientific parity scope. |
 | Supported bundled organisms and references | `deliberate scope difference` | Bundled runtime references are rat-only for `ReferencePreset.AUTO` in this release | Runtime behavior, reference compatibility tests, manifest approval checks, rat manifest provenance caveats, and workflow docs | Human/mouse are valid organisms but require explicit caller-supplied `ReferenceBundle` unless a future release commits approved redistributable packaged data. The rat `l6_native` bundle should not be treated as redistribution approval for other reference data. |
@@ -299,8 +328,9 @@ commands/workflows:
 - Differential phosphorylation results depend on valid design matrices, contrast
   definitions, replicate structure, and upstream preprocessing quality.
 - Differential analysis does not resolve peptide/site ambiguity, localisation
-  confidence, imputation, normalisation, or batch correction unless those steps
-  were already performed or explicitly configured in the route.
+  confidence, imputation, normalisation, or broad batch-effect correction. The
+  only PhosPy preprocessing method in this area is opt-in
+  `linear_residualize_batch` residualisation before differential execution.
 - Differential analysis rejects upstream-imputed datasets by default. The
   explicit `withhold_imputed_features` policy consumes dataset-owned imputation
   observation metadata to mark `tested`, `withheld_high_imputation`, and
@@ -320,6 +350,12 @@ commands/workflows:
   records a typed `BatchCorrectionReport`. It is not ComBat, RUV,
   `removeBatchEffect` parity, `duplicateCorrelation`, or mixed-effects
   modelling, and it does not solve all batch-effect problems.
+- Native PhosR-style SPS/RUV-III correction is not implemented in this release.
+  `ruv_readiness` diagnostics are metadata readiness signals only and must not
+  be interpreted as correction support or PhosR-equivalent batch correction.
+- ADR-0027 positions any future SPS/RUV-III support as
+  preprocessing/normalisation. Differential, kinase, enrichment, and signalome
+  workflows must not own correction logic.
 - Total-protein correction `subtract_log_total` is a direct
   `log2_phospho - log2_total` transformation for matched rows. It is not
   protein-aware differential modelling, not normalisation, and not

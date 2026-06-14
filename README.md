@@ -2,8 +2,9 @@
 
 PhosPy is a Python package for selected phosphoproteomics workflows inspired by
 PhosR. It is aimed at scientists who want a clear Python lane from phosphosite
-intensity tables to differential phosphorylation analysis, kinase scoring,
-kinase prediction, and optional signalome analysis.
+intensity tables to differential phosphorylation analysis, offline
+over-representation enrichment, kinase scoring and prediction, and optional
+signalome analysis.
 
 "PhosR-inspired" in PhosPy docs means scoped, feature-level comparison lanes. It
 does not imply full PhosR package parity or full PhosR API compatibility.
@@ -54,10 +55,12 @@ make test-release-gate
 ## Quick Start
 
 1. Build an analysis-ready phosphoproteomics dataset.
-2. Run a kinase workflow.
+2. Run the supported workflow lane you need: differential, enrichment, kinase,
+   or signalome.
 3. Explore full API workflow documentation:
    - [Dataset building](docs/api/dataset-build-workflow.md)
    - [Differential workflow](docs/api/differential-workflow.md)
+   - [Enrichment workflow](docs/api/guide.md#enrichment-contract-boundary)
    - [Kinase workflow](docs/api/kinase-workflow.md)
    - [Signalome workflow](docs/api/signalome-workflow.md)
 
@@ -71,12 +74,17 @@ evidence lives in [`docs/parity.md`](docs/parity.md).
 Future coverage direction is tracked in
 [`ADR-0025`](docs/adr/adr_0025_competitive_phosphoproteomics_workflow_coverage.md);
 that roadmap is not a current feature-support claim.
+Future native PhosR-style SPS/RUV-III correction direction is recorded in
+[`ADR-0027`](docs/adr/adr_0027_target_future_native_phosr_style_sps_ruv_iii_correction.md);
+that ADR is a future architecture commitment, not a current feature claim.
 
-Dataset preprocessing supports one opt-in batch-correction method:
-`linear_residualize_batch`, a fixed-effect residualisation step that preserves
-condition effects by design and rejects confounded batch/condition metadata.
-This is not ComBat, RUV, limma `removeBatchEffect` parity, or mixed-effects
-modelling; broader batch-effect methods remain outside the supported scope.
+The `batch_correction` preprocessing group currently exposes one opt-in method:
+`linear_residualize_batch`, a limited fixed-effect residualisation step that
+preserves condition effects by design and rejects confounded batch/condition metadata.
+This is not native RUV/SPS/RUV-III correction, not PhosR-equivalent batch
+correction, not ComBat, not limma `removeBatchEffect` parity, and not
+mixed-effects modelling. Any `ruv_readiness` diagnostics are report-only
+readiness signals and do not apply correction.
 
 ## Kinase Workflow Example
 
@@ -203,7 +211,8 @@ stat-only result tables are not valid public inputs.
 
 ## Import Contract
 
-Use top-level `phospy` for the five main entrypoints:
+Use top-level `phospy` for the dataset, differential, kinase, and signalome
+convenience entrypoints:
 
 ```python
 from phospy import AnalysisReadyDatasetBuilder, AnalysisReadyPhosphoDataset
@@ -211,7 +220,13 @@ from phospy import DifferentialAnalysisWorkflow, KinaseWorkflow, SignalomeWorkfl
 ```
 
 Use `phospy.api` for requests, configs, results, enums, references, and public
-exceptions.
+exceptions. `EnrichmentWorkflow` is a supported public workflow from
+`phospy.api` and `phospy.workflows`:
+
+```python
+from phospy.api import EnrichmentConfig, EnrichmentWorkflow
+from phospy.api import EnrichmentWorkflowRequest, GeneSetCollection
+```
 
 ## Documentation
 

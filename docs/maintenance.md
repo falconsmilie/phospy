@@ -62,19 +62,20 @@ Pyright is the configured type checker. The checked scope is listed in
 `pyproject.toml` under `[tool.pyright]` and includes:
 
 - `src/phospy/api`
-- `src/phospy/science/datasets`
-- `src/phospy/io` (including publishing/export paths)
-- `src/phospy/science/prediction`
+- `src/phospy/errors`
+- `src/phospy/frames`
+- `src/phospy/io`
+- `src/phospy/policies`
 - `src/phospy/provenance`
-- `src/phospy/science/references`
-- `src/phospy/science/signalomes/clustering`
+- `src/phospy/science`
 - `src/phospy/tables`
 - `src/phospy/validation`
 - `src/phospy/workflows`
 
 Strict checking is enabled for selected stable scientific/core modules listed
-under `[tool.pyright].strict` (for example provenance/reference model modules),
-and can be expanded incrementally.
+under `[tool.pyright].strict`. This strict list currently includes
+`src/phospy/science/datasets/models.py`; that file is already strict-checked,
+not a future target. Strict scope can be expanded incrementally.
 
 Avoid suppressions by default. Use them only when Pyright cannot model correct
 runtime behaviour. Every suppression must be narrow, error-code-specific,
