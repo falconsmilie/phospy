@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyPhosphoDataset
-from phospy.api import Organism, ReferenceBundle
+from phospy.api import KinaseWorkflow, Organism, ReferenceBundle, ReferencePreset
 from phospy.api.configs import (
     KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
     KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
@@ -35,6 +35,7 @@ from phospy.workflows.kinase.contracts import (
     ResolvedKinaseExecutionConfig,
     ResolvedKinaseWorkflowRequest,
 )
+from phospy.workflows.kinase.executor import KinaseWorkflowExecutor
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
 from phospy.workflows.kinase.prediction_runner import KinasePredictionRunner
 from phospy.workflows.kinase.provenance import KinaseProvenanceBuilder
@@ -329,6 +330,235 @@ def _resolved_request(
         activity_phospho_matrix=dataset.phospho.loc[scoring_site_index].copy(deep=True),
         execution_config=config or _config(),
     )
+
+
+def test_kinase_workflow_calls_validator_interpreter_executor_in_order() -> None:
+    events: list[str] = []
+    validated = object()
+    interpreted = object()
+    expected_result = object()
+
+    class _Validator:
+        def run(self, request: object) -> object:
+            events.append("validator")
+            return validated
+
+    class _Interpreter:
+        def run(self, request: object) -> object:
+            events.append("interpreter")
+            assert request is validated
+            return interpreted
+
+    class _Executor:
+        def run(self, request: object) -> object:
+            events.append("executor")
+            assert request is interpreted
+            return expected_result
+
+    result = KinaseWorkflow(
+        validator=_Validator(),  # type: ignore[arg-type]
+        interpreter=_Interpreter(),  # type: ignore[arg-type]
+        executor=_Executor(),  # type: ignore[arg-type]
+    ).run(object())  # type: ignore[arg-type]
+
+    assert events == ["validator", "interpreter", "executor"]
+    assert result is expected_result
+
+
+def test_kinase_stage_components_expose_run() -> None:
+    for stage_type in (
+        KinaseWorkflow,
+        KinaseWorkflowValidator,
+        KinaseWorkflowInterpreter,
+        KinaseWorkflowExecutor,
+    ):
+        assert callable(getattr(stage_type, "run", None))
+
+
+def test_kinase_validator_preserves_reference_preset_until_interpretation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from phospy.science.references.resolution import ReferenceResolver
+
+    def fail_if_called(*args: object, **kwargs: object) -> object:
+        raise AssertionError("reference resolution must not run during validation")
+
+    monkeypatch.setattr(ReferenceResolver, "run", fail_if_called)
+
+    request = KinaseWorkflowRequest(dataset=_dataset(), references=ReferencePreset.RAT)
+    validated = KinaseWorkflowValidator().run(request)
+
+    assert validated is request
+    assert validated.references is ReferencePreset.RAT
+
+
+def test_kinase_interpreter_resolves_and_projects_references_for_execution() -> None:
+    dataset = _dataset()
+    resolved_references = _mixed_case_references()
+    calls: list[tuple[object, object]] = []
+
+    class _ReferenceResolverSpy:
+        def run(self, reference_input: object, *, dataset_organism: object):
+            calls.append((reference_input, dataset_organism))
+            return resolved_references
+
+    interpreted = KinaseWorkflowInterpreter(
+        reference_resolver=_ReferenceResolverSpy(),  # type: ignore[arg-type]
+    ).run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=ReferencePreset.RAT,
+        )
+    )
+
+    assert calls == [(ReferencePreset.RAT, Organism.RAT)]
+    assert interpreted.references is resolved_references
+    assert set(interpreted.kinase_substrate_map.loc[:, "kinase"]) == {"MAP2K6"}
+    assert set(interpreted.kinase_substrate_map.loc[:, "substrate_site"]) == set(
+        dataset.phospho.index.astype(str)
+    )
+    assert set(interpreted.site_sequences.index.astype(str)) == set(
+        interpreted.scoring_site_index.astype(str)
+    )
+
+
+def test_kinase_executor_consumes_resolved_request_without_reference_discovery() -> (
+    None
+):
+    resolved = _resolved_request()
+    events: list[str] = []
+    expected_eligibility_report = object()
+    expected_scoring_result = object()
+    expected_prediction_result = object()
+    expected_activity_result = object()
+    expected_site_attrition_summary = object()
+    expected_provenance = object()
+    expected_result = object()
+
+    class _ScoringExecution:
+        def __init__(self, scoring_result: object) -> None:
+            self.scoring_result = scoring_result
+
+    expected_scoring_execution = _ScoringExecution(expected_scoring_result)
+
+    class _EligibilityReportComposer:
+        def run(self, *, request: object, config: object) -> object:
+            events.append("eligibility")
+            assert request is resolved
+            assert config is resolved.execution_config
+            return expected_eligibility_report
+
+    class _ScoringRunner:
+        def run(self, *, request: object, config: object) -> object:
+            events.append("scoring")
+            assert request is resolved
+            assert config is resolved.execution_config
+            return expected_scoring_execution
+
+    class _PredictionRunner:
+        def run(
+            self,
+            *,
+            request: object,
+            config: object,
+            scoring_execution: object,
+        ) -> object:
+            events.append("prediction")
+            assert request is resolved
+            assert config is resolved.execution_config
+            assert scoring_execution is expected_scoring_execution
+            return expected_prediction_result
+
+    class _ActivityRunner:
+        def run(
+            self,
+            *,
+            request: object,
+            config: object,
+            prediction_result: object,
+        ) -> object:
+            events.append("activity")
+            assert request is resolved
+            assert config is resolved.execution_config
+            assert prediction_result is expected_prediction_result
+            return expected_activity_result
+
+    class _SiteAttritionSummaryComposer:
+        def run(
+            self,
+            *,
+            request: object,
+            scoring_execution: object,
+            prediction_result: object,
+            activity_enabled: bool,
+        ) -> object:
+            events.append("site_attrition")
+            assert request is resolved
+            assert scoring_execution is expected_scoring_execution
+            assert prediction_result is expected_prediction_result
+            assert activity_enabled is True
+            return expected_site_attrition_summary
+
+    class _ProvenanceBuilder:
+        def run(
+            self,
+            *,
+            request: object,
+            config: object,
+            scoring_result: object,
+            prediction_result: object,
+            activity_result: object,
+        ) -> object:
+            events.append("provenance")
+            assert request is resolved
+            assert config is resolved.execution_config
+            assert scoring_result is expected_scoring_result
+            assert prediction_result is expected_prediction_result
+            assert activity_result is expected_activity_result
+            return expected_provenance
+
+    class _ResultAssembler:
+        def run(
+            self,
+            *,
+            request: object,
+            scoring_result: object,
+            prediction_result: object,
+            eligibility_report: object,
+            site_attrition_summary: object,
+            activity_result: object,
+            provenance: object,
+        ) -> object:
+            events.append("assembly")
+            assert request is resolved
+            assert scoring_result is expected_scoring_result
+            assert prediction_result is expected_prediction_result
+            assert eligibility_report is expected_eligibility_report
+            assert site_attrition_summary is expected_site_attrition_summary
+            assert activity_result is expected_activity_result
+            assert provenance is expected_provenance
+            return expected_result
+
+    result = KinaseWorkflowExecutor(
+        eligibility_report_composer=_EligibilityReportComposer(),  # type: ignore[arg-type]
+        scoring_runner=_ScoringRunner(),  # type: ignore[arg-type]
+        prediction_runner=_PredictionRunner(),  # type: ignore[arg-type]
+        activity_runner=_ActivityRunner(),  # type: ignore[arg-type]
+        site_attrition_summary_composer=_SiteAttritionSummaryComposer(),  # type: ignore[arg-type]
+        provenance_builder=_ProvenanceBuilder(),  # type: ignore[arg-type]
+        result_assembler=_ResultAssembler(),  # type: ignore[arg-type]
+    ).run(resolved)
+
+    assert events == [
+        "eligibility",
+        "scoring",
+        "prediction",
+        "activity",
+        "site_attrition",
+        "provenance",
+        "assembly",
+    ]
+    assert result is expected_result
 
 
 def test_direct_unnormalised_kinase_ids_are_rejected_by_execution_contract() -> None:

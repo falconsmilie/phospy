@@ -33,6 +33,9 @@ from phospy.science.datasets.preprocessing.protein_aware_preparation import (
     ProteinAwareSiteEligibility,
 )
 from phospy.science.datasets.preprocessing.protein_mapping import ProteinMappingStatus
+from phospy.science.differential.executor import (
+    DifferentialAnalysisExecutor as DifferentialComputationExecutor,
+)
 from phospy.science.differential.models import EmpiricalBayesConfig
 from phospy.science.transformations.models import (
     IntensityScaleState,
@@ -438,6 +441,23 @@ def test_differential_validator_rejects_unknown_contrast_term_before_interpretat
         DifferentialAnalysisValidator().run(bad_request)
 
 
+def test_differential_validator_does_not_run_statistical_execution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_if_called(*args: object, **kwargs: object) -> object:
+        raise AssertionError("statistical execution must not run during validation")
+
+    monkeypatch.setattr(DifferentialComputationExecutor, "run", fail_if_called)
+
+    request = _request()
+    validated = DifferentialAnalysisValidator().run(request)
+
+    assert isinstance(validated, ValidatedDifferentialAnalysisRequest)
+    assert validated.dataset is request.dataset
+    assert not hasattr(validated, "computation_request")
+    assert not hasattr(validated, "result_identity_metadata")
+
+
 def test_differential_interpreter_checks_sample_to_design_alignment() -> None:
     request = _request()
     validated = DifferentialAnalysisValidator().run(request)
@@ -466,6 +486,39 @@ def test_differential_executor_accepts_only_interpreted_requests() -> None:
         match="differential.executor.interpreted_request_type",
     ):
         DifferentialAnalysisExecutor().run(object())  # type: ignore[arg-type]
+
+
+def test_differential_executor_consumes_interpreter_resolved_design_inputs() -> None:
+    interpreted = DifferentialAnalysisInterpreter().run(
+        DifferentialAnalysisValidator().run(_request())
+    )
+    assert interpreted.execution_design is not None
+
+    class _ComputationExecutorSpy:
+        def __init__(self) -> None:
+            self.received_request = None
+            self._real_executor = DifferentialComputationExecutor()
+
+        def run(self, request):
+            self.received_request = request
+            assert request is interpreted.computation_request
+            return self._real_executor.run(request)
+
+    computation_executor = _ComputationExecutorSpy()
+    result = DifferentialAnalysisExecutor(
+        computation_executor=computation_executor,  # type: ignore[arg-type]
+    ).run(interpreted)
+
+    assert computation_executor.received_request is interpreted.computation_request
+    pd.testing.assert_frame_equal(
+        interpreted.computation_request.design.to_dataframe(),
+        interpreted.execution_design.design_matrix.to_dataframe(),
+    )
+    pd.testing.assert_frame_equal(
+        interpreted.computation_request.contrasts.to_dataframe(),
+        interpreted.execution_design.contrast_matrix.to_dataframe(),
+    )
+    assert "B_vs_A" in result.contrast_tables
 
 
 def test_differential_invalid_contrast_fails_before_executor() -> None:
