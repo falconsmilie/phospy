@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
-from sklearn.impute import KNNImputer
 
 from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.preprocessing.models import PreprocessingState
@@ -48,11 +48,10 @@ def run_knn_policy(state: PreprocessingState) -> KnnPolicyOutcome:
                 f"affected column labels (preview): {label_preview(all_missing_columns.tolist())}. "
                 "adjust missing_data.max_missing_fraction_per_row or input data."
             )
-        imputer = KNNImputer(
+        imputed_values = _deterministic_knn_impute(
+            filtered_phospho,
             n_neighbors=k_value,
-            metric="nan_euclidean",
         )
-        imputed_values = imputer.fit_transform(filtered_phospho)
         if imputed_values.shape[1] != filtered_phospho.shape[1]:
             raise PhosPyInputError(
                 "dataset preprocessing stage 'missing_data' cannot apply "
@@ -166,3 +165,63 @@ def run_knn_policy(state: PreprocessingState) -> KnnPolicyOutcome:
         rows_not_imputable=dropped_row_ids,
         imputed_rows=imputed_rows,
     )
+
+
+def _deterministic_knn_impute(
+    phospho: pd.DataFrame,
+    *,
+    n_neighbors: int,
+) -> np.ndarray:
+    """Impute with nan-euclidean KNN and PhosPy-owned deterministic ties."""
+
+    if n_neighbors < 1:
+        raise PhosPyInputError(
+            "dataset preprocessing stage 'missing_data' cannot apply "
+            "missing_data.policy='impute_knn' because k must be at least 1."
+        )
+    values = phospho.to_numpy(dtype=float, copy=True)
+    imputed_values = values.copy()
+    column_means = np.nanmean(values, axis=0)
+    row_sort_keys = tuple(
+        (str(row_id), int(position)) for position, row_id in enumerate(phospho.index)
+    )
+
+    for row_position, column_position in np.argwhere(np.isnan(values)):
+        row_index = int(row_position)
+        column_index = int(column_position)
+        donor_positions = np.flatnonzero(~np.isnan(values[:, column_index]))
+        candidates: list[tuple[float, tuple[str, int], int]] = []
+        for donor_position_raw in donor_positions:
+            donor_position = int(donor_position_raw)
+            distance = _nan_euclidean_distance(
+                values[row_index],
+                values[donor_position],
+            )
+            if distance is not None:
+                candidates.append(
+                    (distance, row_sort_keys[donor_position], donor_position)
+                )
+
+        if candidates:
+            selected_positions = [
+                donor_position
+                for _, _, donor_position in sorted(candidates)[:n_neighbors]
+            ]
+            imputed_values[row_index, column_index] = float(
+                np.mean(values[selected_positions, column_index])
+            )
+        else:
+            imputed_values[row_index, column_index] = float(column_means[column_index])
+
+    return imputed_values
+
+
+def _nan_euclidean_distance(row: np.ndarray, donor: np.ndarray) -> float | None:
+    observed_mask = ~np.isnan(row) & ~np.isnan(donor)
+    observed_count = int(observed_mask.sum())
+    if observed_count == 0:
+        return None
+    differences = row[observed_mask] - donor[observed_mask]
+    squared_distance = float(np.dot(differences, differences))
+    scaled_squared_distance = squared_distance * float(row.shape[0]) / observed_count
+    return float(np.sqrt(scaled_squared_distance))

@@ -11,6 +11,10 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingState,
 )
+from phospy.science.datasets.preprocessing.pipeline import PreprocessingPipeline
+from phospy.science.datasets.preprocessing.provenance_adapter import (
+    PreprocessingProvenanceAdapter,
+)
 from phospy.science.datasets.preprocessing.stages.missing_data import (
     minprob as minprob_module,
 )
@@ -76,6 +80,56 @@ def _minprob_state(phospho: pd.DataFrame, *, seed: int = 12345) -> Preprocessing
             stage_order=("intensity_transform", "missing_data"),
         ),
     )
+
+
+def _knn_tie_phospho(
+    row_order: tuple[str, ...] = ("target", "b_ref", "a_ref", "row_drop"),
+) -> pd.DataFrame:
+    row_values = {
+        "target": {"sample_a": 0.0, "sample_b": float("nan"), "sample_c": 0.0},
+        "a_ref": {"sample_a": 0.0, "sample_b": 10.0, "sample_c": 0.0},
+        "b_ref": {"sample_a": 0.0, "sample_b": 20.0, "sample_c": 0.0},
+        "row_drop": {
+            "sample_a": 10.0,
+            "sample_b": float("nan"),
+            "sample_c": float("nan"),
+        },
+    }
+    return pd.DataFrame(
+        [row_values[row_id] for row_id in row_order],
+        index=pd.Index(row_order),
+        columns=["sample_a", "sample_b", "sample_c"],
+    )
+
+
+def _knn_state(phospho: pd.DataFrame) -> PreprocessingState:
+    return PreprocessingState(
+        phospho=phospho,
+        site_metadata=_site_metadata(phospho.index),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan(
+            missing_data_policy="impute_knn",
+            missing_data_k=1,
+            missing_data_distance="nan_euclidean",
+            missing_data_max_missing_fraction_per_row=0.5,
+            stage_order=("missing_data",),
+        ),
+    )
+
+
+def _knn_provenance_tables(
+    phospho: pd.DataFrame,
+) -> tuple[tuple[object, ...], pd.DataFrame, pd.DataFrame]:
+    state = _knn_state(phospho)
+    final_state, trace = PreprocessingPipeline().run_with_trace(state)
+    row_counts, operations = PreprocessingProvenanceAdapter().build_tables(
+        plan=state.plan,
+        input_row_count=int(len(state.phospho.index)),
+        output_row_count=int(len(final_state.phospho.index)),
+        trace=trace,
+    )
+    return trace, row_counts, operations
 
 
 def test_forbid_policy_rejects_missing_values_without_full_pipeline() -> None:
@@ -146,6 +200,77 @@ def test_knn_policy_is_independently_testable() -> None:
     assert float(outcome.phospho.loc["row_impute", "sample_c"]) == pytest.approx(3.0)
     assert int(outcome.phospho.isna().to_numpy().sum()) == 0
     assert outcome.dropped_row_ids == ("row_drop",)
+
+
+@pytest.mark.reproducibility
+def test_knn_imputation_is_reproducible_across_repeated_runs() -> None:
+    first = run_knn_policy(_knn_state(_knn_tie_phospho().copy(deep=True)))
+    second = run_knn_policy(_knn_state(_knn_tie_phospho().copy(deep=True)))
+
+    pdt.assert_frame_equal(first.phospho, second.phospho)
+    pdt.assert_frame_equal(first.imputed_mask, second.imputed_mask)
+    assert first.imputed_rows == second.imputed_rows
+    assert first.dropped_rows_missing_fraction == second.dropped_rows_missing_fraction
+
+
+@pytest.mark.reproducibility
+def test_knn_imputation_tie_fixture_is_deterministic() -> None:
+    b_ref_first = run_knn_policy(
+        _knn_state(_knn_tie_phospho(("target", "b_ref", "a_ref", "row_drop")))
+    )
+    a_ref_first = run_knn_policy(
+        _knn_state(_knn_tie_phospho(("target", "a_ref", "b_ref", "row_drop")))
+    )
+
+    assert float(b_ref_first.phospho.loc["target", "sample_b"]) == pytest.approx(10.0)
+    assert float(a_ref_first.phospho.loc["target", "sample_b"]) == pytest.approx(10.0)
+    pdt.assert_frame_equal(
+        b_ref_first.phospho.sort_index(),
+        a_ref_first.phospho.sort_index(),
+    )
+
+
+@pytest.mark.reproducibility
+def test_knn_imputation_diagnostics_are_reproducible() -> None:
+    first = MissingDataStage().run(_knn_state(_knn_tie_phospho().copy(deep=True)))
+    second = MissingDataStage().run(_knn_state(_knn_tie_phospho().copy(deep=True)))
+
+    assert first.diagnostics == second.diagnostics
+    diagnostics = first.diagnostics["diagnostics"]
+    assert diagnostics["imputation_method_id"] == "knn"
+    assert diagnostics["random_seed"] is None
+    assert diagnostics["method_parameters"] == {
+        "k": 1,
+        "distance": "nan_euclidean",
+        "max_missing_fraction_per_row": 0.5,
+    }
+
+
+@pytest.mark.reproducibility
+def test_knn_imputation_provenance_is_reproducible() -> None:
+    first_trace, first_row_counts, first_operations = _knn_provenance_tables(
+        _knn_tie_phospho().copy(deep=True)
+    )
+    second_trace, second_row_counts, second_operations = _knn_provenance_tables(
+        _knn_tie_phospho().copy(deep=True)
+    )
+
+    assert first_trace == second_trace
+    pdt.assert_frame_equal(first_row_counts, second_row_counts)
+    pdt.assert_frame_equal(first_operations, second_operations)
+    missing_data_row = first_operations.loc[
+        first_operations.loc[:, "stage"] == "missing_data"
+    ].iloc[0]
+    parameters = missing_data_row["parameters"]
+    assert isinstance(parameters, dict)
+    assert parameters["missing_data_policy"] == "impute_knn"
+    assert parameters["missing_data_k"] == 1
+    assert parameters["missing_data_distance"] == "nan_euclidean"
+    assert parameters["missing_data_max_missing_fraction_per_row"] == 0.5
+    summary = parameters["execution_summary"]
+    assert isinstance(summary, dict)
+    assert summary["imputation_scope"] == "global_matrix"
+    assert summary["diagnostic_summary"]["imputation_method_id"] == "knn"
 
 
 def test_minprob_policy_is_independently_testable() -> None:

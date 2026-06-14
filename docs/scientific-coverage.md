@@ -74,6 +74,12 @@ passive sample metadata. A batch fixed effect is a model covariate; it is not
 batch correction and is not ComBat, RUV, `removeBatchEffect`, limma
 `duplicateCorrelation`, or mixed-effects modelling.
 
+Dataset preprocessing KNN imputation is deterministic. PhosPy computes
+`nan_euclidean` neighbour distances for `impute_knn` and breaks exact-distance
+ties by stable row identity rather than input row order. Reproducibility-marked
+unit tests cover repeated output, tie-heavy input, diagnostics, and provenance
+for the configured `k`, distance, and row-filtering policy.
+
 Separately, dataset preprocessing supports one opt-in batch-correction method:
 `linear_residualize_batch`. It is fixed-effect residualisation of batch terms.
 It preserves condition effects by design: condition terms are included in the

@@ -48,6 +48,9 @@ as scientific-output policy.
 6. Missing-seed errors are intentional and must not be downgraded to warnings.
 7. Replayability is more important than convenience for stochastic scientific
    modes.
+8. Deterministic scientific imputers that do not use RNG still require
+   reproducibility regression coverage for repeated output, diagnostics, and
+   provenance.
 
 ## Consequences
 
@@ -58,6 +61,8 @@ as scientific-output policy.
 5. Golden/provenance tests must cover seed and policy metadata.
 6. Stochastic imputation paths must serialize seed, method parameters, and
    imputation summary diagnostics.
+7. Deterministic imputation paths must keep tie-breaking deterministic and must
+   be covered by replay-oriented tests even when no seed is recorded.
 
 ## Affected Modules
 
