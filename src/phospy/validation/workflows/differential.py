@@ -39,6 +39,11 @@ _DIFFERENTIAL_LOGFC_SCALE_ERROR_MESSAGE = (
     "enabled, or provide an analysis-ready dataset with validated log2 "
     "intensity-scale state."
 )
+_DIFFERENTIAL_IMPUTED_DATA_ERROR_MESSAGE = (
+    "Differential analysis does not currently treat imputed cells as observed "
+    "measurements. Use a non-imputed dataset, filter features before imputation, "
+    "or wait for/enable an explicit imputation-aware differential policy."
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -657,6 +662,8 @@ class DifferentialDatasetEligibilityValidator:
             raise WorkflowValidationError(
                 "differential workflow request dataset must be AnalysisReadyPhosphoDataset"
             )
+        if dataset.processing_state.missing_data.imputed:
+            raise WorkflowValidationError(_DIFFERENTIAL_IMPUTED_DATA_ERROR_MESSAGE)
         phospho_scale = dataset.intensity_scale_state.phospho
         if (
             not dataset.intensity_scale_state.is_established

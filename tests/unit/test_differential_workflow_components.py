@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import inspect
-from dataclasses import fields
+from dataclasses import fields, replace
 from typing import Any
 
 import pandas as pd
@@ -664,6 +664,41 @@ def test_differential_invalid_scale_fails_before_executor() -> None:
                 dataset=linear_dataset,
                 design=_request().design,
                 contrasts=_request().contrasts,
+            )
+        )
+    assert calls["executor"] == 0
+
+
+def test_differential_workflow_rejects_imputed_dataset_before_executor() -> None:
+    calls = {"executor": 0}
+
+    class _ExecutorSpy:
+        def run(self, request: InterpretedDifferentialAnalysisRequest):
+            calls["executor"] += 1
+            raise AssertionError("executor should not be called")
+
+    request = _request()
+    processing_state = request.dataset.processing_state
+    imputed_dataset = AnalysisReadyPhosphoDataset(
+        phospho=request.dataset.phospho,
+        site_metadata=request.dataset.site_metadata,
+        organism=request.dataset.organism,
+        intensity_scale_state=request.dataset.intensity_scale_state,
+        processing_state=replace(
+            processing_state,
+            missing_data=replace(processing_state.missing_data, imputed=True),
+        ),
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="imputed cells as observed measurements",
+    ):
+        DifferentialAnalysisWorkflow(executor=_ExecutorSpy()).run(  # type: ignore[arg-type]
+            DifferentialAnalysisRequest(
+                dataset=imputed_dataset,
+                design=request.design,
+                contrasts=request.contrasts,
             )
         )
     assert calls["executor"] == 0

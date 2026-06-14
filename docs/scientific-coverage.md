@@ -47,6 +47,12 @@ support.
 Differential analysis requires analysis-ready numeric inputs plus valid
 `ExperimentalDesign` and `Contrast` metadata. It does not infer design from
 sample names and does not replace upstream preprocessing requirements.
+`AnalysisReadyPhosphoDataset` requires a complete matrix, but complete does not
+mean fully observed when upstream imputation filled cells. By default,
+`DifferentialAnalysisWorkflow` rejects datasets where
+`dataset.processing_state.missing_data.imputed` is true because current
+differential model fitting does not treat imputed cells as observed
+measurements.
 Differential designs may explicitly declare fixed-effect covariates on
 `ExperimentalDesign`: batch, categorical covariates, and continuous covariates.
 Modelled fixed-effect covariates are included in the fitted differential design
@@ -140,6 +146,9 @@ Contract difference vs limma/PhosR surface:
 - analysis-ready inputs must be complete at boundary; missing values are
   rejected before differential execution instead of being handled inside
   differential model fitting.
+- upstream-imputed analysis-ready inputs are rejected by default. A complete
+  imputed matrix is not treated as a fully observed matrix for differential
+  residual degrees of freedom or model fitting.
 
 Bundled runtime references in the current release are rat-only. Human and mouse
 analysis can be run by passing an explicit `ReferenceBundle` in Python. No
@@ -192,7 +201,7 @@ claimed.
 
 | Area | Scope category | Current executable support | Evidence and release checks | Limits and non-claims |
 | --- | --- | --- | --- | --- |
-| Differential analysis | `parity-gated` | `DifferentialAnalysisWorkflow` for two-condition unpaired simple contrasts with empirical-Bayes `standard`/`robust` and optional `trend`; fixed-effect batch, categorical covariate, continuous covariate, and complete fixed-block terms are executable as ordinary design covariates | `tests/parity/test_differential_analysis_parity.py`, `tests/parity/test_differential_limma_parity.py`, plus unit/integration design, fixed-effect provenance, and result-contract tests | Fixed-effect batch terms are not batch correction. Fixed-block terms require complete within-block contrast coverage and full-rank/estimable designs. Correlated repeated-measure, limma `duplicateCorrelation`-style, mixed-effect, and random subject-effect designs are rejected in this release. Missing values are rejected at analysis-ready boundary before model fitting. |
+| Differential analysis | `parity-gated` | `DifferentialAnalysisWorkflow` for two-condition unpaired simple contrasts with empirical-Bayes `standard`/`robust` and optional `trend`; fixed-effect batch, categorical covariate, continuous covariate, and complete fixed-block terms are executable as ordinary design covariates | `tests/parity/test_differential_analysis_parity.py`, `tests/parity/test_differential_limma_parity.py`, plus unit/integration design, fixed-effect provenance, and result-contract tests | Fixed-effect batch terms are not batch correction. Fixed-block terms require complete within-block contrast coverage and full-rank/estimable designs. Correlated repeated-measure, limma `duplicateCorrelation`-style, mixed-effect, and random subject-effect designs are rejected in this release. Missing values are rejected at analysis-ready boundary before model fitting. Upstream-imputed complete matrices are rejected by default because complete does not mean fully observed. |
 | Kinase scoring | `parity-gated` | `KinaseWorkflow` default `scoring_mode="phosr_rank_weighted"` profile/motif scoring and rank-weighted fusion | `tests/parity/test_kinase_workflow_parity.py`, `tests/parity/test_prediction_science_parity.py`, `tests/parity/test_l6_prediction_parity.py` | Relative support scoring only; not calibrated causal inference. Kinase Library scoring is not the default parity lane. |
 | Kinase Library motif scoring | `validated PhosPy implementation` | Pure science-layer `KinaseLibraryMotifScorer` / `score_kinase_library_motifs`, plus opt-in `KinaseWorkflow` modes `kinase_library_motif` and `combined_profile_motif` for supplied Kinase Library-style resources | `tests/unit/test_kinase_library_motif_scoring.py`, `tests/unit/test_kinase_library_workflow_requirements.py`, `tests/science/test_kinase_library_motif_scoring_science.py`, `tests/integration/test_kinase_library_workflow_scoring.py` | Workflow mode still requires resolved `ReferenceBundle` context with `kinase_substrate_map` overlap, eligible kinases at `min_substrates`, and resolved site sequences. It also requires an explicit compatible local `KinaseLibraryResource`. Missing matching residue-class lanes fail validation; they do not fall back to PhosR-style motif scoring. Workflow motif scores are normalized to unit interval per kinase matrix for within-run ranking support; raw science-layer motif scores preserve provider scale. Scores are not probabilities. Ser/Thr and Tyr matrix lanes are not interchangeable. No official Kinase Library parity claim is made. |
 | Kinase prediction | `parity-gated` | Deterministic and adaptive kinase prediction in `KinaseWorkflow` | `tests/parity/test_public_predmat_parity.py`, `tests/parity/test_l6_prediction_parity.py`, `tests/parity/test_adaptive_prediction_parity.py`, `tests/parity/test_adaptive_replay_parity.py` | Prediction scores are ranking support, not probabilities. |
@@ -269,6 +278,8 @@ commands/workflows:
 - Differential analysis does not resolve peptide/site ambiguity, localisation
   confidence, imputation, normalisation, or batch correction unless those steps
   were already performed or explicitly configured in the route.
+- Differential analysis currently rejects upstream-imputed datasets by default;
+  it does not count imputed cells as observed measurements in model fitting.
 - Dataset preprocessing `linear_residualize_batch` is opt-in fixed-effect
   residualisation. It preserves condition effects by including condition terms
   in the residualisation design, rejects confounded batch/condition designs, and

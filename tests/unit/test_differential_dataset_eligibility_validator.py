@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pandas as pd
 import pytest
 
@@ -106,8 +108,47 @@ def _dataset_with_linear_scale() -> AnalysisReadyPhosphoDataset:
     )
 
 
-def test_eligibility_validator_accepts_established_log2_phospho_scale() -> None:
+def _dataset_with_imputed_missing_data_state() -> AnalysisReadyPhosphoDataset:
+    dataset = _dataset_with_log2_scale()
+    processing_state = dataset.processing_state
+    return AnalysisReadyPhosphoDataset(
+        phospho=dataset.phospho,
+        site_metadata=dataset.site_metadata,
+        organism=dataset.organism,
+        intensity_scale_state=dataset.intensity_scale_state,
+        processing_state=replace(
+            processing_state,
+            missing_data=replace(processing_state.missing_data, imputed=True),
+        ),
+    )
+
+
+def test_differential_accepts_non_imputed_dataset() -> None:
     DifferentialDatasetEligibilityValidator().run(dataset=_dataset_with_log2_scale())
+
+
+def test_differential_rejects_imputed_dataset_by_default() -> None:
+    with pytest.raises(WorkflowValidationError) as exc_info:
+        DifferentialDatasetEligibilityValidator().run(
+            dataset=_dataset_with_imputed_missing_data_state()
+        )
+
+    message = str(exc_info.value)
+    assert "Differential analysis" in message
+    assert "imputed cells" in message
+    assert "observed measurements" in message
+
+
+def test_differential_imputation_error_is_actionable() -> None:
+    with pytest.raises(WorkflowValidationError) as exc_info:
+        DifferentialDatasetEligibilityValidator().run(
+            dataset=_dataset_with_imputed_missing_data_state()
+        )
+
+    message = str(exc_info.value)
+    assert "Use a non-imputed dataset" in message
+    assert "filter features before imputation" in message
+    assert "imputation-aware differential policy" in message
 
 
 def test_eligibility_validator_rejects_established_linear_phospho_scale() -> None:

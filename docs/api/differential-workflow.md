@@ -112,7 +112,14 @@ Optional inputs:
 - Differential analysis assumes valid upstream preprocessing.
 - It does not build datasets, perform sequence resolution, localisation
   filtering, imputation, normalisation, or batch correction.
-- Missing-value policy is inherited from the analysis-ready dataset boundary.
+- `AnalysisReadyPhosphoDataset` requires a complete matrix, but a complete
+  matrix is not necessarily a fully observed matrix. Values filled by upstream
+  imputation remain imputed measurements in `dataset.processing_state`.
+- By default, differential analysis rejects datasets where
+  `dataset.processing_state.missing_data.imputed` is true. Current differential
+  fitting does not treat imputed cells as observed measurements. Use a
+  non-imputed dataset, filter features before imputation, or wait for/enable an
+  explicit imputation-aware differential policy.
 
 ## Design and Contrast Requirements
 
@@ -274,6 +281,8 @@ row index happens to contain encoded `site_key` values.
 - Does not perform localisation filtering unless explicitly implemented upstream.
 - Does not perform missing-value imputation unless explicitly implemented
   upstream.
+- Rejects upstream-imputed datasets by default because current differential
+  model fitting does not treat imputed cells as observed measurements.
 - Does not perform batch correction unless explicitly implemented upstream.
   A batch term in `ExperimentalDesign.fixed_effects` is a fixed model covariate,
   not ComBat, RUV, `removeBatchEffect`, `duplicateCorrelation`, or mixed-effects
