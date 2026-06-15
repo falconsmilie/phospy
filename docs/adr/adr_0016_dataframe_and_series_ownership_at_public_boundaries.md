@@ -42,7 +42,7 @@ ownership and export semantics at package boundaries.
 1. Keep public API semantics predictable and easy to reason about.
 2. Preserve provenance and replay meaning after public data export.
 3. Prevent boundary aliasing between caller-owned and package-owned pandas state.
-4. Keep high-volume output workflows explicit rather than implicit borrow paths.
+4. Keep high-volume output workflows explicit rather than implicit mutable-frame paths.
 5. Accept boundary copy cost in exchange for contract clarity.
 
 ## Decision
@@ -52,8 +52,8 @@ PhosPy adopts and enforces the following ownership rules:
 1. Internal models and workflow objects own mutable pandas state.
 2. Public pandas accessors return defensive snapshots for both DataFrames and
    Series.
-3. Borrowed (non-copying) access is package-private and limited to controlled
-   internal boundaries.
+3. Mutation-isolated internal frame access is package-private and limited to
+   controlled internal boundaries.
 4. Provenance fingerprints describe owned internal state at result creation
    time.
 5. Mutating pandas objects returned by public accessors must not mutate internal
@@ -69,18 +69,17 @@ PhosPy adopts and enforces the following ownership rules:
 Public accessors must expose mutation-isolated snapshots. Public APIs must not
 offer user-facing `copy=False` toggles for owned boundary data.
 
-### Internal Borrow Paths
+### Internal Frame Snapshot Paths
 
-Package-private borrow helpers are allowed for trusted internal collaboration
-only. They are not part of the public contract and must stay out of public API
-routes.
+Package-private `_borrow_*` helpers are allowed for trusted internal
+collaboration only. They return mutation-isolated internal snapshots, are not
+part of the public contract, and must stay out of public API routes.
 
-Implementation note (2026-06-14): workflow access to borrowed dataset frames
-is mediated by the dataset-owned `DatasetInternalView`. Workflows may depend on
-that narrow internal view for the specific frames they require, but must not
-call dataset `_borrow_*` methods directly. Workflow access to borrowed
-prediction and scoring result frames follows the same domain-owned internal
-view pattern.
+Implementation note (2026-06-14): workflow dataset access is mediated by the
+dataset-owned `DatasetInternalView`. Workflows may depend on that defensive
+internal view for the specific frame snapshots they require, but must not call
+dataset `_borrow_*` methods directly. Workflow access to prediction and scoring
+result frames follows the same domain-owned internal view pattern.
 
 ### Provenance
 
@@ -99,7 +98,7 @@ exported snapshots must not alter those recorded fingerprints.
 ### Negative Consequences
 
 - Public accessor calls allocate copies and add memory/CPU overhead.
-- Contributors must maintain stricter discipline around internal borrow helpers.
+- Contributors must maintain stricter discipline around internal frame helpers.
 - Some high-throughput paths need explicit publisher/export APIs for
   performance.
 
@@ -167,7 +166,7 @@ Those concerns are governed by other ADRs.
 Future changes must satisfy all of the following:
 
 1. Do public accessors return mutation-isolated snapshots?
-2. Are package-private borrow paths still private/internal only?
+2. Are package-private internal frame paths still private/internal only?
 3. Do provenance-sensitive paths avoid aliasing with exported objects?
 4. Are new accessor behaviors covered by explicit boundary-mutation tests?
 5. Are high-throughput persistence paths kept in explicit publisher/export APIs?

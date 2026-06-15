@@ -211,7 +211,7 @@ def _kinase_result():
     )
 
 
-def _signalome_request_with_borrowed_frames() -> SignalomeWorkflowRequest:
+def _signalome_request_for_read_path_mutation_checks() -> SignalomeWorkflowRequest:
     dataset = AnalysisReadyPhosphoDataset(
         phospho=_phospho(),
         site_metadata=_site_metadata(),
@@ -600,8 +600,8 @@ def test_internal_borrowed_prediction_and_scoring_access_is_mutation_isolated() 
     assert not hasattr(scoring_result, "borrow_profile_scores_frame")
 
 
-def test_signalome_validator_borrowed_reads_do_not_mutate_internal_frames() -> None:
-    request = _signalome_request_with_borrowed_frames()
+def test_signalome_validator_read_path_does_not_mutate_internal_frames() -> None:
+    request = _signalome_request_for_read_path_mutation_checks()
     dataset = request.kinase_result.dataset
     prediction_result = request.kinase_result.prediction_result
     scoring_result = request.kinase_result.scoring_result
@@ -663,10 +663,8 @@ def test_signalome_validator_borrowed_reads_do_not_mutate_internal_frames() -> N
     assert rank_weighted_before.hash_value == rank_weighted_after.hash_value
 
 
-def test_signalome_interpreter_read_path_does_not_mutate_borrowed_dataset_frames() -> (
-    None
-):
-    request = _signalome_request_with_borrowed_frames()
+def test_signalome_interpreter_read_path_does_not_mutate_dataset_frames() -> None:
+    request = _signalome_request_for_read_path_mutation_checks()
     dataset = request.kinase_result.dataset
 
     phospho_before = fingerprint_table(

@@ -121,8 +121,8 @@ class SiteSequenceResolutionReport:
 class DatasetPreprocessingReport:
     """Public provenance report for dataset preprocessing.
 
-    Internal `_borrow_*` accessors expose mutation-isolated borrowed snapshots
-    for trusted internal read paths only.
+    Internal `_borrow_*` accessors return mutation-isolated internal table
+    snapshots for trusted internal read paths only.
     """
 
     _row_counts: pd.DataFrame = field(init=False, repr=False)
@@ -333,37 +333,37 @@ class DatasetPreprocessingReport:
         return self._protein_aware_preparation
 
     def _borrow_row_counts_frame(self) -> pd.DataFrame:
-        """Package-private borrowed row-count table for internal workflows."""
+        """Package-private row-count snapshot for internal read paths."""
 
         return borrow_dataframe(self._row_counts)
 
     def _borrow_operations_frame(self) -> pd.DataFrame:
-        """Package-private borrowed operations table for internal workflows."""
+        """Package-private operations snapshot for internal read paths."""
 
         return borrow_dataframe(self._operations)
 
     def _borrow_row_audit_frame(self) -> pd.DataFrame:
-        """Package-private borrowed row-audit table for internal workflows."""
+        """Package-private row-audit snapshot for internal read paths."""
 
         return borrow_dataframe(self._row_audit)
 
     def _borrow_duplicate_site_resolution_frame(self) -> pd.DataFrame | None:
-        """Package-private borrowed duplicate-resolution table for internals."""
+        """Package-private duplicate-resolution snapshot for internals."""
 
         return borrow_optional_dataframe(self._duplicate_site_resolution)
 
     def _borrow_metadata_conflicts_frame(self) -> pd.DataFrame | None:
-        """Package-private borrowed metadata-conflict table for internals."""
+        """Package-private metadata-conflict snapshot for internals."""
 
         return borrow_optional_dataframe(self._metadata_conflicts)
 
     def _borrow_comparison_group_stats_frame(self) -> pd.DataFrame | None:
-        """Package-private borrowed comparison-group stats for internals."""
+        """Package-private comparison-group stats snapshot for internals."""
 
         return borrow_optional_dataframe(self._comparison_group_stats)
 
     def _borrow_comparison_pair_stats_frame(self) -> pd.DataFrame | None:
-        """Package-private borrowed comparison-pair stats for internals."""
+        """Package-private comparison-pair stats snapshot for internals."""
 
         return borrow_optional_dataframe(self._comparison_pair_stats)
 
@@ -740,7 +740,7 @@ class ImputationObservationMetadata:
         return export_dataframe(aggregated)
 
     def _borrow_observed_mask_frame(self) -> pd.DataFrame:
-        """Package-private borrowed mask for trusted internal workflows."""
+        """Package-private defensive mask snapshot for internal read paths."""
 
         return borrow_dataframe(self._observed_mask)
 
@@ -764,8 +764,8 @@ class AnalysisReadyPhosphoDataset:
     Provenance in this object describes owned internal state at creation time.
     Public export helpers return defensive snapshots; mutating exports does not
     mutate this owning dataset.
-    Internal `_borrow_*` accessors are reserved for trusted internal paths and
-    return mutation-isolated borrowed snapshots.
+    Internal `_borrow_*` accessors are reserved for dataset-domain internal
+    view construction and return mutation-isolated internal frame snapshots.
     """
 
     intensity_scale_state: IntensityScaleState
@@ -1051,32 +1051,32 @@ class AnalysisReadyPhosphoDataset:
         return bool(self._allow_opaque_site_values)
 
     def _borrow_phospho_frame(self) -> pd.DataFrame:
-        """Package-private borrowed phospho matrix for internal workflows."""
+        """Package-private phospho snapshot for DatasetInternalView."""
 
         return borrow_dataframe(self._phospho)
 
     def _borrow_site_metadata_frame(self) -> pd.DataFrame:
-        """Package-private borrowed site-metadata table for internals."""
+        """Package-private site-metadata snapshot for DatasetInternalView."""
 
         return borrow_dataframe(self._site_metadata)
 
     def _borrow_sample_metadata_frame(self) -> pd.DataFrame | None:
-        """Package-private borrowed sample-metadata table for internals."""
+        """Package-private sample-metadata snapshot for DatasetInternalView."""
 
         return borrow_optional_dataframe(self._sample_metadata)
 
     def _borrow_total_frame(self) -> pd.DataFrame | None:
-        """Package-private borrowed total-protein table for internals."""
+        """Package-private total-protein snapshot for DatasetInternalView."""
 
         return borrow_optional_dataframe(self._total)
 
     def _borrow_comparisons_frame(self) -> pd.DataFrame | None:
-        """Package-private borrowed comparisons table for internals."""
+        """Package-private comparisons snapshot for DatasetInternalView."""
 
         return borrow_optional_dataframe(self._comparisons)
 
     def _borrow_imputation_observed_mask_frame(self) -> pd.DataFrame | None:
-        """Package-private borrowed observation mask for internal workflows."""
+        """Package-private observation-mask snapshot for internal read paths."""
 
         metadata = self._imputation_observation_metadata
         if metadata is None:

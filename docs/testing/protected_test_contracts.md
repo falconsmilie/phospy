@@ -33,8 +33,8 @@ The following tests are high-risk and should not be removed without a direct equ
 - `tests/unit/test_frame_ownership_policy.py::test_builder_dataframe_copy_churn_regression_budget`
 - `tests/unit/test_frame_ownership_policy.py::test_internal_borrowed_dataset_access_aliases_owned_frames_without_copy`
 - `tests/unit/test_frame_ownership_policy.py::test_internal_borrowed_prediction_and_scoring_access_aliases_owned_frames`
-- `tests/unit/test_frame_ownership_policy.py::test_signalome_validator_borrowed_reads_do_not_mutate_internal_frames`
-- `tests/unit/test_frame_ownership_policy.py::test_signalome_interpreter_read_path_does_not_mutate_borrowed_dataset_frames`
+- `tests/unit/test_frame_ownership_policy.py::test_signalome_validator_read_path_does_not_mutate_internal_frames`
+- `tests/unit/test_frame_ownership_policy.py::test_signalome_interpreter_read_path_does_not_mutate_dataset_frames`
 - `tests/unit/test_frame_ownership_policy.py::test_owned_construction_frames_can_be_mutated_after_owned_transfer`
 - `tests/unit/test_frame_ownership_policy.py::test_safe_public_export_does_not_change_owned_provenance_state`
 - `tests/unit/test_frame_ownership_policy.py::test_kinase_activity_result_series_properties_are_defensive_snapshots`

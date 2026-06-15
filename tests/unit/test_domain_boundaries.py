@@ -82,6 +82,10 @@ _DATASET_INTERNAL_VIEW_FRAME_PROPERTIES = {
     "site_metadata",
     "total",
 }
+_DATASET_INTERNAL_VIEW_PUBLIC_MEMBERS = _DATASET_INTERNAL_VIEW_FRAME_PROPERTIES | {
+    "aggregate_imputation_observation_mask",
+    "imputation_observation_summary",
+}
 
 
 def _phospho() -> pd.DataFrame:
@@ -978,18 +982,22 @@ def test_workflows_do_not_call_borrow_methods_directly() -> None:
                 violations.append(f"{relative_path}:{line_number}: {line}")
 
     assert not violations, (
-        "workflow modules must access borrowed frames through domain-owned "
-        "internal views, not direct _borrow_* methods:\n" + "\n".join(violations)
+        "workflow modules must use narrow domain-owned internal views, "
+        "not direct dataset _borrow_* methods:\n" + "\n".join(violations)
     )
 
 
 def test_dataset_internal_view_exposes_only_required_frames() -> None:
+    public_members = {
+        name for name in dir(DatasetInternalView) if not name.startswith("_")
+    }
     view_properties = {
         name
         for name, value in inspect.getmembers(DatasetInternalView)
         if isinstance(value, property)
     }
 
+    assert public_members == _DATASET_INTERNAL_VIEW_PUBLIC_MEMBERS
     assert view_properties == _DATASET_INTERNAL_VIEW_FRAME_PROPERTIES
     assert hasattr(DatasetInternalView, "imputation_observation_summary")
     assert not hasattr(DatasetInternalView, "imputation_observed_mask")
@@ -1006,7 +1014,7 @@ def test_dataset_internal_view_exposes_only_required_frames() -> None:
     )
 
 
-def test_dataset_internal_view_preserves_internal_frame_borrowing_semantics() -> None:
+def test_dataset_internal_view_returns_defensive_frame_snapshots() -> None:
     dataset = AnalysisReadyPhosphoDataset(
         phospho=_phospho(),
         site_metadata=_site_metadata(),
@@ -1025,28 +1033,33 @@ def test_dataset_internal_view_preserves_internal_frame_borrowing_semantics() ->
     )
     view = DatasetInternalView(dataset)
 
-    borrowed_phospho = view.phospho
-    borrowed_site_metadata = view.site_metadata
-    borrowed_total = view.total
-    borrowed_comparisons = view.comparisons
+    phospho_snapshot = view.phospho
+    site_metadata_snapshot = view.site_metadata
+    sample_metadata_snapshot = view.sample_metadata
+    total_snapshot = view.total
+    comparisons_snapshot = view.comparisons
     imputation_summary = view.imputation_observation_summary(
         feature_ids=_SITE_INDEX,
         sample_ids=["sample_a"],
     )
 
-    borrowed_phospho.iloc[0, 0] = 999.0
-    borrowed_site_metadata.loc[_SITE_KEY, "gene_symbol"] = "MUTATED"
-    assert borrowed_total is not None
-    borrowed_total.iloc[0, 0] = 999.0
-    assert borrowed_comparisons is not None
-    borrowed_comparisons.iloc[0, 0] = 0.99
+    phospho_snapshot.iloc[0, 0] = 999.0
+    site_metadata_snapshot.loc[_SITE_KEY, "gene_symbol"] = "MUTATED"
+    assert sample_metadata_snapshot is not None
+    sample_metadata_snapshot.loc["sample_a", "condition"] = "mutated"
+    assert total_snapshot is not None
+    total_snapshot.iloc[0, 0] = 999.0
+    assert comparisons_snapshot is not None
+    comparisons_snapshot.iloc[0, 0] = 0.99
     assert imputation_summary is not None
     imputation_summary.loc[_SITE_KEY, "observed_cell_count"] = 0
 
-    assert borrowed_phospho is not dataset._phospho
-    assert borrowed_site_metadata is not dataset._site_metadata
+    assert phospho_snapshot is not dataset._phospho
+    assert site_metadata_snapshot is not dataset._site_metadata
     assert float(dataset.phospho.iloc[0, 0]) == 1.0
     assert str(dataset.site_metadata.loc[_SITE_KEY, "gene_symbol"]) == "MAPK14"
+    assert dataset.sample_metadata is not None
+    assert str(dataset.sample_metadata.loc["sample_a", "condition"]) == "treated"
     assert dataset.total is not None
     assert float(dataset.total.iloc[0, 0]) == 2.0
     assert dataset.comparisons is not None

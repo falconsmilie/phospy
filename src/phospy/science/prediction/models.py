@@ -316,57 +316,57 @@ class KinaseScoringResult:
         return export_dataframe(self._borrow_authoritative_scores_frame())
 
     def _borrow_profile_scores_frame(self) -> pd.DataFrame:
-        """Package-private borrowed profile scores for internal workflows."""
+        """Package-private profile-score snapshot for internal views."""
 
         return _borrow_dataframe(self._profile_scores)
 
     def _borrow_motif_scores_frame(self) -> pd.DataFrame | None:
-        """Package-private borrowed motif scores for internal workflows."""
+        """Package-private motif-score snapshot for internal views."""
 
         return _borrow_optional_dataframe(self._motif_scores)
 
     def _borrow_rank_weighted_fusion_scores_frame(self) -> pd.DataFrame | None:
-        """Package-private borrowed fusion scores for internal workflows."""
+        """Package-private fusion-score snapshot for internal views."""
 
         return _borrow_optional_dataframe(self._rank_weighted_fusion_scores)
 
     def _borrow_kinase_library_motif_scores_frame(self) -> pd.DataFrame | None:
-        """Package-private borrowed Kinase Library scores for internal workflows."""
+        """Package-private Kinase Library score snapshot for internal views."""
 
         return _borrow_optional_dataframe(self._kinase_library_motif_scores)
 
     def _borrow_combined_profile_motif_scores_frame(self) -> pd.DataFrame | None:
-        """Package-private borrowed combined profile/motif scores."""
+        """Package-private combined profile/motif score snapshot."""
 
         return _borrow_optional_dataframe(self._combined_profile_motif_scores)
 
     def _borrow_score_fusion_weights_frame(self) -> pd.DataFrame | None:
-        """Package-private borrowed fusion weights for internal workflows."""
+        """Package-private fusion-weight snapshot for internal views."""
 
         return _borrow_optional_dataframe(self._score_fusion_weights)
 
     def _borrow_score_source_matrix_frame(self) -> pd.DataFrame | None:
-        """Package-private borrowed score-source matrix for internal workflows."""
+        """Package-private score-source matrix snapshot for internal views."""
 
         return _borrow_optional_dataframe(self._score_source_matrix)
 
     def _borrow_score_source_summary_frame(self) -> pd.DataFrame | None:
-        """Package-private borrowed score-source summary for internal workflows."""
+        """Package-private score-source summary snapshot for internal views."""
 
         return _borrow_optional_dataframe(self._score_source_summary)
 
     def _borrow_kinase_library_site_diagnostics_frame(self) -> pd.DataFrame | None:
-        """Package-private borrowed Kinase Library site diagnostics."""
+        """Package-private Kinase Library site-diagnostics snapshot."""
 
         return _borrow_optional_dataframe(self._kinase_library_site_diagnostics)
 
     def _borrow_kinase_library_kinase_diagnostics_frame(self) -> pd.DataFrame | None:
-        """Package-private borrowed Kinase Library kinase diagnostics."""
+        """Package-private Kinase Library kinase-diagnostics snapshot."""
 
         return _borrow_optional_dataframe(self._kinase_library_kinase_diagnostics)
 
     def _borrow_authoritative_scores_frame(self) -> pd.DataFrame:
-        """Package-private borrowed authoritative downstream score matrix."""
+        """Package-private authoritative downstream score snapshot."""
 
         if self._score_source is DownstreamScoreSource.RANK_WEIGHTED_FUSION_SCORES:
             if self._rank_weighted_fusion_scores is not None:
@@ -922,12 +922,12 @@ class KinasePredictionResult:
         return _export_public_substrate_list(self._substrate_list)
 
     def _borrow_pred_mat_frame(self) -> pd.DataFrame:
-        """Package-private borrowed prediction matrix for internal workflows."""
+        """Package-private prediction-matrix snapshot for internal views."""
 
         return _borrow_dataframe(self._pred_mat)
 
     def _borrow_substrate_list_frame(self) -> pd.DataFrame | None:
-        """Package-private borrowed substrate list for internal workflows."""
+        """Package-private substrate-list snapshot for internal views."""
 
         return _borrow_optional_dataframe(self._substrate_list)
 

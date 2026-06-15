@@ -1,4 +1,4 @@
-"""Dataset-owned internal frame view for trusted workflow collaborators."""
+"""Dataset-owned defensive internal view for workflow collaborators."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
 
 class DatasetInternalView:
-    """Narrow borrowed-frame contract for internal workflow access."""
+    """Narrow dataset-domain access to defensive internal frame snapshots."""
 
     __slots__ = ("_dataset",)
 

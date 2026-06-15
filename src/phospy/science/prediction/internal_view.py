@@ -1,4 +1,4 @@
-"""Prediction-domain internal frame views for trusted workflow collaborators."""
+"""Prediction-domain defensive internal views for workflow collaborators."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from phospy.science.prediction.models import KinasePredictionResult, KinaseScori
 
 
 class KinasePredictionInternalView:
-    """Narrow borrowed-frame contract for prediction-result internals."""
+    """Narrow prediction-domain access to defensive frame snapshots."""
 
     __slots__ = ("_result",)
 
@@ -21,7 +21,7 @@ class KinasePredictionInternalView:
 
 
 class KinaseScoringInternalView:
-    """Narrow borrowed-frame contract for scoring-result internals."""
+    """Narrow scoring-domain access to defensive frame snapshots."""
 
     __slots__ = ("_result",)
 
