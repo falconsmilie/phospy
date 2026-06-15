@@ -108,23 +108,44 @@ def test_sequence_support_filter_preserves_supported_and_dropped_rows() -> None:
         },
         index=phospho.index.copy(),
     )
-    constructed_site_id = pd.Series(
+    scientific_row_key = pd.Series(
         ["A;S1;", "B;S2;", "C;S3;", "D;S4;"],
         index=phospho.index.copy(),
-        name="site_id",
+        name="site_key",
     )
 
     result = SequenceSupportFilter().filter(
         phospho=phospho,
         site_metadata=site_metadata,
-        constructed_site_id=constructed_site_id,
+        scientific_row_key=scientific_row_key,
     )
 
     assert result.phospho.index.tolist() == ["row_a", "row_d"]
     assert result.site_metadata.index.tolist() == ["row_a", "row_d"]
-    assert result.constructed_site_id.tolist() == ["A;S1;", "D;S4;"]
+    assert result.scientific_row_key.tolist() == ["A;S1;", "D;S4;"]
     assert result.dropped_row_count == 2
     assert result.dropped_rows == (("row_b", "B;S2;"), ("row_c", "C;S3;"))
+
+
+def test_sequence_support_filter_rejects_missing_scientific_row_key() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0]},
+        index=pd.Index(["row_a"], name="source_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {"site_sequence": ["SEQ_A"]},
+        index=phospho.index.copy(),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="sequence-support filtering requires scientific_row_key",
+    ):
+        SequenceSupportFilter().filter(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            scientific_row_key=None,
+        )
 
 
 @pytest.mark.parametrize(
@@ -173,15 +194,15 @@ def test_missing_data_site_filter_preserves_policy_specific_row_selection(
         },
         index=pd.Index(["row_a", "row_b", "row_c"], name="source_row"),
     )
-    constructed_site_id = pd.Series(
+    scientific_row_key = pd.Series(
         ["A;S1;", "B;S2;", "C;S3;"],
         index=phospho.index.copy(),
-        name="site_id",
+        name="site_key",
     )
 
     result = MissingDataSiteFilter().filter(
         phospho=phospho,
-        constructed_site_id=constructed_site_id,
+        scientific_row_key=scientific_row_key,
         missing_data_policy=policy,
         minimum_observed_values=minimum_observed_values,
     )
@@ -190,6 +211,24 @@ def test_missing_data_site_filter_preserves_policy_specific_row_selection(
     assert result.required_observed_count == expected_required
     assert result.dropped_rows == dropped
     assert result.dropped_row_count == len(dropped)
+
+
+def test_missing_data_site_filter_rejects_missing_scientific_row_key() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0]},
+        index=pd.Index(["row_a"], name="source_row"),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="missing-data site filtering requires scientific_row_key",
+    ):
+        MissingDataSiteFilter().filter(
+            phospho=phospho,
+            scientific_row_key=None,
+            missing_data_policy=DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
+            minimum_observed_values=None,
+        )
 
 
 def test_site_matrix_assembler_preserves_index_order_and_dropped_row_ids() -> None:
@@ -307,7 +346,7 @@ def test_site_matrix_provenance_builder_preserves_fields_and_diagnostics() -> No
         "duplicate_site_policy": "first",
         "missing_data_policy": "drop_any_missing",
         "required_observed_count": 2,
-        "final_constructed_site_ids": ("AKT1;T308;", "MAPK14;Y182;"),
+        "final_site_keys": ("AKT1;T308;", "MAPK14;Y182;"),
         "duplicate_aggregation": {
             "aggregation_method": "first",
             "missing_value_policy": "not_applicable_row_selection",
@@ -319,7 +358,7 @@ def test_site_matrix_provenance_builder_preserves_fields_and_diagnostics() -> No
             "metadata_resolution_policy": "retain_earliest_input_row_per_site",
         },
     }
-    assert result.diagnostics["final_constructed_site_ids"] == [
+    assert result.diagnostics["final_site_keys"] == [
         "AKT1;T308;",
         "MAPK14;Y182;",
     ]

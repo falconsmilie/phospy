@@ -555,7 +555,6 @@ SITE_MATRIX_STAGE_CONTRACT = PreprocessingStageContract(
             "missing_data_policy",
             "required_observed_count",
             "final_site_keys",
-            "final_constructed_site_ids",
             "duplicate_aggregation",
             "duplicate_site_decisions",
         )

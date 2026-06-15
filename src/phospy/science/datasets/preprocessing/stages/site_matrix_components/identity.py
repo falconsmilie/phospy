@@ -21,10 +21,6 @@ class SequenceSupportFilterResult:
     dropped_row_count: int
     dropped_rows: tuple[tuple[str, str], ...]
 
-    @property
-    def constructed_site_id(self) -> pd.Series:
-        return self.scientific_row_key
-
 
 @dataclass(frozen=True, slots=True)
 class MissingDataSiteFilterResult:
@@ -52,16 +48,13 @@ class SequenceSupportFilter:
         *,
         phospho: pd.DataFrame,
         site_metadata: pd.DataFrame,
-        scientific_row_key: pd.Series | None = None,
-        constructed_site_id: pd.Series | None = None,
+        scientific_row_key: pd.Series,
     ) -> SequenceSupportFilterResult:
-        if scientific_row_key is None:
-            if constructed_site_id is None:
-                raise PhosPyInputError(
-                    "sequence-support filtering requires scientific_row_key "
-                    "(or legacy constructed_site_id)"
-                )
-            scientific_row_key = constructed_site_id
+        scientific_row_key = _require_scientific_row_key(
+            scientific_row_key,
+            expected_index=phospho.index,
+            context="sequence-support filtering",
+        )
         if _SITE_SEQUENCE_COLUMN in site_metadata.columns:
             site_sequence = _resolve_optional_string_column(
                 site_metadata,
@@ -99,18 +92,15 @@ class MissingDataSiteFilter:
         self,
         *,
         phospho: pd.DataFrame,
-        scientific_row_key: pd.Series | None = None,
-        constructed_site_id: pd.Series | None = None,
+        scientific_row_key: pd.Series,
         missing_data_policy: SiteMatrixMissingDataPolicy | str,
         minimum_observed_values: int | None,
     ) -> MissingDataSiteFilterResult:
-        if scientific_row_key is None:
-            if constructed_site_id is None:
-                raise PhosPyInputError(
-                    "missing-data site filtering requires scientific_row_key "
-                    "(or legacy constructed_site_id)"
-                )
-            scientific_row_key = constructed_site_id
+        scientific_row_key = _require_scientific_row_key(
+            scientific_row_key,
+            expected_index=phospho.index,
+            context="missing-data site filtering",
+        )
         resolved_policy = SiteMatrixMissingDataPolicy.parse(
             missing_data_policy,
             field_name="site_matrix.missing_data_policy",
@@ -224,6 +214,19 @@ def _resolve_optional_string_column(
     normalized = column.astype("string").str.strip()
     missing_mask = column.isna() | normalized.isna() | (normalized == "")
     return normalized.where(~missing_mask, other=pd.NA)
+
+
+def _require_scientific_row_key(
+    scientific_row_key: pd.Series | None,
+    *,
+    expected_index: pd.Index,
+    context: str,
+) -> pd.Series:
+    if scientific_row_key is None:
+        raise PhosPyInputError(f"{context} requires scientific_row_key")
+    if not scientific_row_key.index.equals(expected_index):
+        raise PhosPyInputError(f"{context} requires scientific_row_key aligned to rows")
+    return scientific_row_key
 
 
 def _unique_strings_preserve_order(values: tuple[str, ...]) -> tuple[str, ...]:

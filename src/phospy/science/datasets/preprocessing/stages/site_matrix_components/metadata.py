@@ -117,7 +117,7 @@ class SiteMatrixProvenanceBuilder:
             "missing_data_policy": resolved_missing_data_policy.value,
             "required_observed_count": required_observed_count,
         }
-        site_matrix_provenance["final_constructed_site_ids"] = tuple(
+        site_matrix_provenance["final_site_keys"] = tuple(
             str(site_id) for site_id in final_phospho.index.tolist()
         )
         if duplicate_aggregation_diagnostics is not None:
@@ -130,12 +130,7 @@ class SiteMatrixProvenanceBuilder:
         )
 
         diagnostics = dict(site_matrix_provenance)
-        diagnostics["final_site_keys"] = list(
-            str(site_id) for site_id in final_phospho.index.tolist()
-        )
-        diagnostics["final_constructed_site_ids"] = list(
-            diagnostics["final_constructed_site_ids"]
-        )
+        diagnostics["final_site_keys"] = list(diagnostics["final_site_keys"])
         if duplicate_aggregation_diagnostics is not None:
             diagnostics["duplicate_aggregation"] = dict(
                 duplicate_aggregation_diagnostics
