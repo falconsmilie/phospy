@@ -438,8 +438,9 @@ to PhosR kinase activity inference.
 - for `simplified_weighted_substrate_activity_v1`, values are weighted substrate activity scores
 - for `ksea_zscore_v1`, values are KSEA z-scores
 
-`activity_scores` and `weighted_activity` remain compatibility aliases for
-existing callers.
+`activity_scores` and `weighted_activity` are deprecated compatibility aliases
+for existing callers. They still return the same values during the warning
+window, but new and migrated code should read `activity_matrix`.
 
 ## Full Kinase Workflow Example
 

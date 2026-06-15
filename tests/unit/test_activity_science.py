@@ -328,7 +328,12 @@ def test_activity_scores_compatibility_alias_matches_activity_matrix() -> None:
 
     assert result.activity_method.activity_method_id == "ksea_zscore_v1"
     assert result.activity_matrix.at["K1", "c1"] == pytest.approx(-1.0954451150103324)
-    pdt.assert_frame_equal(result.activity_scores, result.activity_matrix)
+    with pytest.warns(
+        DeprecationWarning,
+        match="KinaseActivityResult.activity_scores.*activity_matrix",
+    ):
+        activity_scores = result.activity_scores
+    pdt.assert_frame_equal(activity_scores, result.activity_matrix)
 
 
 def test_ksea_result_populates_extensible_activity_contract() -> None:
@@ -804,7 +809,12 @@ def test_weighted_activity_compatibility_alias_matches_activity_matrix() -> None
     assert result.activity_matrix.at["PRKACA", "phospho_corrected_2"] == pytest.approx(
         (20 * 0.9 + 6 * 0.8) / (0.9 + 0.8)
     )
-    pdt.assert_frame_equal(result.weighted_activity, result.activity_matrix)
+    with pytest.warns(
+        DeprecationWarning,
+        match="KinaseActivityResult.weighted_activity.*activity_matrix",
+    ):
+        weighted_activity = result.weighted_activity
+    pdt.assert_frame_equal(weighted_activity, result.activity_matrix)
 
 
 def test_weighted_result_populates_extensible_activity_contract() -> None:

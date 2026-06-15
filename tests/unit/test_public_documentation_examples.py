@@ -124,10 +124,12 @@ def test_public_kinase_docs_prefer_activity_matrix() -> None:
     )
 
     assert "`activity_result.activity_matrix` as the primary" in guide_source
+    assert "migrate callers to `activity_matrix`" in guide_source
     assert (
         "`activity_result.activity_matrix` is the method-neutral primary activity matrix"
         in kinase_source
     )
+    assert "new and migrated code should read `activity_matrix`" in kinase_source
     assert "activity_matrix = kinase_result.activity_result.activity_matrix" in (
         kinase_source
     )

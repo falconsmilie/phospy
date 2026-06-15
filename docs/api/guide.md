@@ -729,8 +729,9 @@ Common tables include `profile_scores`, `rank_weighted_fusion_scores`,
 Library scoring modes additionally expose `kinase_library_motif_scores` and,
 for combined scoring, `combined_profile_motif_scores`. Use
 `activity_result.activity_matrix` as the primary activity-score matrix.
-`activity_scores`, `weighted_activity`, and `to_dataframe()` are compatibility
-accessors for that same primary matrix.
+`to_dataframe()` returns a snapshot of that same primary matrix.
+`activity_scores` and `weighted_activity` are deprecated compatibility
+accessors during the warning window; migrate callers to `activity_matrix`.
 
 Stable kinase activity result fields are:
 

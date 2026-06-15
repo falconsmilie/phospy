@@ -170,7 +170,7 @@ def publish_kinase_workflow(
     if result.activity_result is not None:
         activity_dir = workflow_dir / "activity"
         weighted_activity_path = activity_dir / f"weighted_activity{suffix}"
-        write_table(result.activity_result.activity_scores, weighted_activity_path)
+        write_table(result.activity_result.activity_matrix, weighted_activity_path)
         written["kinase.activity.weighted_activity"] = weighted_activity_path
 
         thresholded_substrate_mean_activity_path = (

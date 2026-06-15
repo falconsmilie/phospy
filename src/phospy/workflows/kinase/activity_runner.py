@@ -136,7 +136,7 @@ class KinaseActivityRunner:
             target_table.loc[:, "display_id"] = display_ids
             target_table.loc[:, "site_id"] = display_ids
         return KinaseActivityResult(
-            weighted_activity=activity_result.weighted_activity,
+            activity_matrix=activity_result.activity_matrix,
             p_value_matrix=activity_result.p_value_matrix,
             q_value_matrix=activity_result.q_value_matrix,
             confidence_interval_low=activity_result.confidence_interval_low,

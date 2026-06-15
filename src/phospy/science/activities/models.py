@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
@@ -331,8 +332,8 @@ class KinaseActivityResult:
     longer required by the core result contract.
 
     - ``activity_matrix``: primary activity score matrix for the selected method
-    - ``activity_scores``: compatibility alias for ``activity_matrix``
-    - ``weighted_activity``: compatibility alias for ``activity_matrix``
+    - ``activity_scores``: deprecated compatibility alias for ``activity_matrix``
+    - ``weighted_activity``: deprecated compatibility alias for ``activity_matrix``
     - ``p_value_matrix``: optional activity p-value matrix
     - ``q_value_matrix``: optional multiple-testing-adjusted activity q-value matrix
     - ``confidence_interval_low``: optional lower confidence interval matrix
@@ -568,14 +569,32 @@ class KinaseActivityResult:
 
     @property
     def activity_scores(self) -> pd.DataFrame:
-        """Compatibility alias for :attr:`activity_matrix`."""
+        """Deprecated compatibility alias for :attr:`activity_matrix`."""
 
+        warnings.warn(
+            (
+                "KinaseActivityResult.activity_scores is deprecated and will be "
+                "removed in a future release; use "
+                "KinaseActivityResult.activity_matrix instead."
+            ),
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self.activity_matrix
 
     @property
     def weighted_activity(self) -> pd.DataFrame:
-        """Compatibility alias for :attr:`activity_matrix`."""
+        """Deprecated compatibility alias for :attr:`activity_matrix`."""
 
+        warnings.warn(
+            (
+                "KinaseActivityResult.weighted_activity is deprecated and will be "
+                "removed in a future release; use "
+                "KinaseActivityResult.activity_matrix instead."
+            ),
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self.activity_matrix
 
     @property

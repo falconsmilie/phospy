@@ -57,6 +57,25 @@ def test_kinase_bundle_round_trip_preserves_outputs_and_config(
     assert loaded.config_snapshot == config_snapshot
     assert loaded.result.provenance == result.provenance
     _assert_kinase_result_equal(loaded.result, result)
+    assert loaded.result.activity_result is not None
+    with pytest.warns(
+        DeprecationWarning,
+        match="KinaseActivityResult.activity_scores.*activity_matrix",
+    ):
+        activity_scores = loaded.result.activity_result.activity_scores
+    pd.testing.assert_frame_equal(
+        activity_scores,
+        loaded.result.activity_result.activity_matrix,
+    )
+    with pytest.warns(
+        DeprecationWarning,
+        match="KinaseActivityResult.weighted_activity.*activity_matrix",
+    ):
+        weighted_activity = loaded.result.activity_result.weighted_activity
+    pd.testing.assert_frame_equal(
+        weighted_activity,
+        loaded.result.activity_result.activity_matrix,
+    )
 
 
 def test_kinase_bundle_round_trip_preserves_adaptive_prediction_seed(

@@ -128,7 +128,7 @@ class KinaseProvenanceBuilder:
                     "outputs.activity.weighted_activity",
                     None
                     if activity_result is None
-                    else activity_result.activity_scores,
+                    else activity_result.activity_matrix,
                 ),
                 (
                     "outputs.activity.thresholded_substrate_mean_activity",

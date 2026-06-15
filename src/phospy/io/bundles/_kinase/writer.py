@@ -164,7 +164,7 @@ def save_kinase_workflow_bundle(
             table=(
                 None
                 if result.activity_result is None
-                else result.activity_result.activity_scores
+                else result.activity_result.activity_matrix
             ),
             bundle_root=bundle_root,
             relative_path=Path("activity") / f"weighted_activity{suffix}",
