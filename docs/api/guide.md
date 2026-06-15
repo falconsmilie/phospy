@@ -72,6 +72,40 @@ from phospy.api import (
 )
 ```
 
+### Public and Semi-Public Import Routes
+
+The supported public API remains:
+
+- `phospy` for the small top-level workflow convenience surface.
+- `phospy.api` for public request, config, result, enum, reference, workflow,
+  and exception contracts.
+
+Selected `phospy.science.*` routes are supported as semi-public compatibility
+routes for advanced extension, parity, and backend-contract use. They are not
+promoted to `phospy.api`, and they do not make neighbouring science modules or
+private helpers public. Semi-public support means the documented route and
+non-underscored symbols exported through that module's `__all__` require normal
+deprecation/release-note handling before removal.
+
+| Status | Supported route | Supported names |
+| --- | --- | --- |
+| Public | `phospy` | Top-level workflow entrypoints listed above. |
+| Public | `phospy.api` | Public request/config/result/enum/reference/workflow/exception names listed in `phospy.api.__all__`. |
+| Semi-public | `phospy.science.datasets.preprocessing.stage_registry` | `PreprocessingStageMetadata` and the registry helper functions exported in `__all__`. |
+| Semi-public | `phospy.science.signalomes.clustering.protocol` | `ClusterTreeEngine`, `SignalomeClusteringEngine`. |
+| Semi-public | `phospy.science.signalomes.clustering.exact_python` | Exact-Python clustering compatibility facade names exported in `__all__`. |
+| Semi-public | `phospy.science.prediction.scoring` | `fuse_profile_and_motif_scores_by_rank_weight` for parity and advanced scoring checks. |
+
+Unsupported import routes include underscored helpers such as private
+rank-fusion implementations, private exact-tree builder aliases, and root/API
+imports for semi-public science helpers. For example,
+`from phospy.api import PreprocessingStageMetadata` and
+`from phospy.api import fuse_profile_and_motif_scores_by_rank_weight` are not
+supported.
+
+The rationale and removal/deprecation rules are recorded in
+[ADR-0028](../adr/adr_0028_semi_public_science_import_policy.md).
+
 All public executors use `run(request)`.
 
 Most short snippets below show one concept at a time. For a copy/paste run,
