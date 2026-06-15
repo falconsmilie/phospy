@@ -109,6 +109,18 @@ def _construct_dataset_with_mask(
     )
 
 
+def _aligned_observation_mask(index: pd.Index) -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            [True, False],
+            [False, True],
+            [True, True],
+        ],
+        index=index.copy(),
+        columns=pd.Index(["sample_a", "sample_b"]),
+    )
+
+
 def test_imputation_metadata_records_feature_imputed_counts() -> None:
     dataset = _build_imputed_dataset()
 
@@ -198,6 +210,95 @@ def test_dataset_imputation_summary_fails_when_imputed_state_lacks_mask() -> Non
             feature_ids=[index[0]],
             sample_ids=["sample_a"],
         )
+
+
+def test_dataset_rejects_imputation_observation_mask_with_wrong_feature_labels() -> (
+    None
+):
+    index = _site_index()
+    mask = _aligned_observation_mask(index)
+    mask.index = pd.Index(
+        ["wrong_feature_a", "wrong_feature_b", "wrong_feature_c"],
+        name=index.name,
+    )
+
+    with pytest.raises(DatasetValidationError) as exc_info:
+        _construct_dataset_with_mask(mask)
+
+    message = str(exc_info.value)
+    assert "dataset.imputation_observation_mask.index" in message
+    assert "dataset.phospho.index" in message
+    assert "must exactly match" in message
+    assert "wrong_feature_a" in message
+
+
+def test_dataset_rejects_imputation_observation_mask_with_wrong_sample_labels() -> None:
+    index = _site_index()
+    mask = _aligned_observation_mask(index)
+    mask.columns = pd.Index(["wrong_sample_a", "wrong_sample_b"])
+
+    with pytest.raises(DatasetValidationError) as exc_info:
+        _construct_dataset_with_mask(mask)
+
+    message = str(exc_info.value)
+    assert "dataset.imputation_observation_mask.columns" in message
+    assert "dataset.phospho.columns" in message
+    assert "must exactly match" in message
+    assert "wrong_sample_a" in message
+
+
+def test_dataset_rejects_imputation_observation_mask_with_wrong_shape() -> None:
+    index = _site_index()
+    mask = _aligned_observation_mask(index).loc[:, ["sample_a"]]
+
+    with pytest.raises(DatasetValidationError) as exc_info:
+        _construct_dataset_with_mask(mask)
+
+    message = str(exc_info.value)
+    assert "dataset.imputation_observation_mask.columns" in message
+    assert "dataset.phospho.columns" in message
+    assert "expected_length=2" in message
+    assert "actual_length=1" in message
+
+
+def test_dataset_rejects_imputation_observation_mask_with_reordered_feature_labels() -> (
+    None
+):
+    index = _site_index()
+    mask = _aligned_observation_mask(index)
+    mask = mask.loc[list(reversed(mask.index.tolist())), :]
+
+    with pytest.raises(DatasetValidationError) as exc_info:
+        _construct_dataset_with_mask(mask)
+
+    message = str(exc_info.value)
+    assert "dataset.imputation_observation_mask.index" in message
+    assert "Labels match as a set but order differs: true" in message
+
+
+def test_dataset_rejects_imputation_observation_mask_with_reordered_sample_labels() -> (
+    None
+):
+    index = _site_index()
+    mask = _aligned_observation_mask(index).loc[:, ["sample_b", "sample_a"]]
+
+    with pytest.raises(DatasetValidationError) as exc_info:
+        _construct_dataset_with_mask(mask)
+
+    message = str(exc_info.value)
+    assert "dataset.imputation_observation_mask.columns" in message
+    assert "Labels match as a set but order differs: true" in message
+
+
+def test_dataset_accepts_aligned_imputation_observation_mask() -> None:
+    index = _site_index()
+    mask = _aligned_observation_mask(index)
+
+    dataset = _construct_dataset_with_mask(mask)
+
+    observed_mask = dataset.imputation_observed_mask_dataframe()
+    assert observed_mask is not None
+    pd.testing.assert_frame_equal(observed_mask, mask)
 
 
 def test_imputation_metadata_rejects_misaligned_rows() -> None:
