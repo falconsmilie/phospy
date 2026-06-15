@@ -83,6 +83,13 @@ IMPUTATION_FEATURE_METADATA_COLUMNS = (
     "observed_cell_count",
     "imputed_fraction",
 )
+IMPUTATION_OBSERVATION_SUMMARY_COLUMNS = (
+    "feature_id",
+    "observed_cell_count",
+    "imputed_cell_count",
+    "total_analysed_cell_count",
+    "imputed_fraction",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -631,6 +638,107 @@ class ImputationObservationMetadata:
 
         return export_dataframe(self._observed_mask)
 
+    def feature_observation_summary_dataframe(
+        self,
+        *,
+        feature_ids: Sequence[object],
+        sample_ids: Sequence[object],
+    ) -> pd.DataFrame:
+        """Return feature-level observation counts for a requested subset."""
+
+        requested_feature_ids = _requested_label_list(
+            feature_ids,
+            field_name="dataset.imputation_observation_summary.feature_ids",
+        )
+        requested_sample_ids = _requested_label_list(
+            sample_ids,
+            field_name="dataset.imputation_observation_summary.sample_ids",
+        )
+        _require_requested_labels_present(
+            requested_feature_ids,
+            available_labels=self._observed_mask.index,
+            field_name="dataset.imputation_observation_summary.feature_ids",
+            available_field_name="dataset.imputation_observation_mask.index",
+        )
+        _require_requested_labels_present(
+            requested_sample_ids,
+            available_labels=self._observed_mask.columns,
+            field_name="dataset.imputation_observation_summary.sample_ids",
+            available_field_name="dataset.imputation_observation_mask.columns",
+        )
+        observed_values = self._observed_mask.to_numpy(dtype=bool)
+        feature_positions = _label_positions(
+            requested_feature_ids,
+            available_labels=self._observed_mask.index,
+        )
+        sample_positions = _label_positions(
+            requested_sample_ids,
+            available_labels=self._observed_mask.columns,
+        )
+        observed_subset = pd.DataFrame(
+            observed_values[np.ix_(feature_positions, sample_positions)],
+            index=pd.Index(
+                requested_feature_ids,
+                name=self._observed_mask.index.name,
+            ),
+            columns=pd.Index(
+                requested_sample_ids,
+                name=self._observed_mask.columns.name,
+            ),
+        )
+        summary = _build_imputation_observation_summary(observed_subset)
+        return export_dataframe(summary)
+
+    def aggregated_observed_mask_dataframe(
+        self,
+        *,
+        sample_groups: Sequence[tuple[object, Sequence[object]]],
+    ) -> pd.DataFrame:
+        """Return an observed-cell mask collapsed to requested sample groups."""
+
+        if not sample_groups:
+            raise DatasetValidationError(
+                "dataset.imputation_observation_mask sample_groups must contain "
+                "at least one sample group"
+            )
+        observed_values = self._observed_mask.to_numpy(dtype=bool)
+        aggregated_column_values: list[np.ndarray] = []
+        output_labels: list[object] = []
+        for output_label, input_sample_ids in sample_groups:
+            requested_sample_ids = _requested_label_list(
+                input_sample_ids,
+                field_name=(
+                    "dataset.imputation_observation_mask sample_groups."
+                    f"{output_label!r}.sample_ids"
+                ),
+            )
+            _require_requested_labels_present(
+                requested_sample_ids,
+                available_labels=self._observed_mask.columns,
+                field_name=(
+                    "dataset.imputation_observation_mask sample_groups."
+                    f"{output_label!r}.sample_ids"
+                ),
+                available_field_name="dataset.imputation_observation_mask.columns",
+            )
+            sample_positions = _label_positions(
+                requested_sample_ids,
+                available_labels=self._observed_mask.columns,
+            )
+            collapsed = np.all(observed_values[:, sample_positions], axis=1)
+            aggregated_column_values.append(collapsed.astype(bool))
+            output_labels.append(output_label)
+        aggregated_values = np.column_stack(aggregated_column_values).astype(bool)
+        aggregated = pd.DataFrame(
+            aggregated_values,
+            index=pd.Index(
+                self._observed_mask.index.tolist(),
+                name=self._observed_mask.index.name,
+            ),
+            columns=pd.Index(output_labels, name=self._observed_mask.columns.name),
+        )
+        return export_dataframe(aggregated)
+
     def _borrow_observed_mask_frame(self) -> pd.DataFrame:
         """Package-private borrowed mask for trusted internal workflows."""
 
@@ -975,6 +1083,19 @@ class AnalysisReadyPhosphoDataset:
             return None
         return metadata.observed_mask_dataframe()
 
+    def _imputation_observation_summary_frame(
+        self,
+        *,
+        feature_ids: Sequence[object],
+        sample_ids: Sequence[object],
+    ) -> pd.DataFrame | None:
+        """Package-private summary of imputation observations for internals."""
+
+        return self.imputation_observation_summary_dataframe(
+            feature_ids=feature_ids,
+            sample_ids=sample_ids,
+        )
+
     @classmethod
     def _from_owned(
         cls,
@@ -1043,6 +1164,46 @@ class AnalysisReadyPhosphoDataset:
             return None
         return metadata.feature_summary_dataframe()
 
+    def imputation_observation_summary_dataframe(
+        self,
+        *,
+        feature_ids: Sequence[object],
+        sample_ids: Sequence[object],
+    ) -> pd.DataFrame | None:
+        """Return imputation observation counts for requested features/samples."""
+
+        metadata = self._imputation_observation_metadata
+        if metadata is None:
+            if bool(self.processing_state.missing_data.imputed):
+                raise DatasetValidationError(
+                    "dataset.imputation_observation_summary requires "
+                    "dataset.imputation_observation_mask because "
+                    "dataset.processing_state.missing_data.imputed is True"
+                )
+            return None
+        return metadata.feature_observation_summary_dataframe(
+            feature_ids=feature_ids,
+            sample_ids=sample_ids,
+        )
+
+    def _aggregated_imputation_observation_mask_frame(
+        self,
+        *,
+        sample_groups: Sequence[tuple[object, Sequence[object]]],
+    ) -> pd.DataFrame | None:
+        """Package-private aggregated observation mask for dataset rebuilding."""
+
+        metadata = self._imputation_observation_metadata
+        if metadata is None:
+            if bool(self.processing_state.missing_data.imputed):
+                raise DatasetValidationError(
+                    "dataset.imputation_observation_mask aggregation requires "
+                    "dataset.imputation_observation_mask because "
+                    "dataset.processing_state.missing_data.imputed is True"
+                )
+            return None
+        return metadata.aggregated_observed_mask_dataframe(sample_groups=sample_groups)
+
     def imputation_observed_mask_dataframe(self) -> pd.DataFrame | None:
         """Return an optional observed-cell mask snapshot."""
 
@@ -1088,6 +1249,89 @@ def _build_imputation_feature_summary(observed_mask: pd.DataFrame) -> pd.DataFra
     )
     summary.index.name = observed_mask.index.name
     return summary
+
+
+def _build_imputation_observation_summary(observed_mask: pd.DataFrame) -> pd.DataFrame:
+    sample_count = int(observed_mask.shape[1])
+    observed_values = observed_mask.to_numpy(dtype=bool)
+    observed_counts = observed_values.sum(axis=1).astype(np.int64)
+    imputed_counts = (sample_count - observed_counts).astype(np.int64)
+    imputed_fraction = imputed_counts.astype(float) / float(sample_count)
+    feature_ids = observed_mask.index.tolist()
+    summary = pd.DataFrame(
+        {
+            "feature_id": feature_ids,
+            "observed_cell_count": observed_counts,
+            "imputed_cell_count": imputed_counts,
+            "total_analysed_cell_count": np.full(
+                shape=observed_counts.shape,
+                fill_value=sample_count,
+                dtype=np.int64,
+            ),
+            "imputed_fraction": imputed_fraction,
+        },
+        index=pd.Index(feature_ids, name=observed_mask.index.name),
+        columns=list(IMPUTATION_OBSERVATION_SUMMARY_COLUMNS),
+    )
+    return summary
+
+
+def _requested_label_list(
+    labels: Sequence[object],
+    *,
+    field_name: str,
+) -> list[object]:
+    requested: list[object]
+    if isinstance(labels, str | bytes):
+        requested = [labels]
+    else:
+        try:
+            requested = list(labels)
+        except TypeError as exc:
+            raise DatasetValidationError(
+                f"{field_name} must be a sequence of labels"
+            ) from exc
+    if not requested:
+        raise DatasetValidationError(f"{field_name} must contain at least one label")
+    return requested
+
+
+def _label_positions(
+    requested_labels: Sequence[object],
+    *,
+    available_labels: pd.Index,
+) -> list[int]:
+    positions_by_label = {
+        label: int(position) for position, label in enumerate(available_labels.tolist())
+    }
+    return [positions_by_label[label] for label in requested_labels]
+
+
+def _require_requested_labels_present(
+    requested_labels: Sequence[object],
+    *,
+    available_labels: pd.Index,
+    field_name: str,
+    available_field_name: str,
+) -> None:
+    available = set(available_labels.tolist())
+    missing: list[object] = []
+    for label in requested_labels:
+        if label in available:
+            continue
+        missing.append(label)
+    if missing:
+        raise DatasetValidationError(
+            f"{field_name} contains labels absent from {available_field_name}: "
+            + _format_label_preview(missing)
+        )
+
+
+def _format_label_preview(labels: Sequence[object]) -> str:
+    preview = [repr(label) for label in labels[:5]]
+    if len(labels) > 5:
+        preview.append("...")
+    return ", ".join(preview)
 
 
 def _is_missing_value(value: object) -> bool:

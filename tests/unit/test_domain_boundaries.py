@@ -77,7 +77,6 @@ _WORKFLOW_BORROW_GUARD_DIRS = (
 )
 _DATASET_INTERNAL_VIEW_FRAME_PROPERTIES = {
     "comparisons",
-    "imputation_observed_mask",
     "phospho",
     "sample_metadata",
     "site_metadata",
@@ -992,6 +991,8 @@ def test_dataset_internal_view_exposes_only_required_frames() -> None:
     }
 
     assert view_properties == _DATASET_INTERNAL_VIEW_FRAME_PROPERTIES
+    assert hasattr(DatasetInternalView, "imputation_observation_summary")
+    assert not hasattr(DatasetInternalView, "imputation_observed_mask")
     assert not hasattr(
         DatasetInternalView(
             AnalysisReadyPhosphoDataset(
@@ -1028,7 +1029,10 @@ def test_dataset_internal_view_preserves_internal_frame_borrowing_semantics() ->
     borrowed_site_metadata = view.site_metadata
     borrowed_total = view.total
     borrowed_comparisons = view.comparisons
-    borrowed_mask = view.imputation_observed_mask
+    imputation_summary = view.imputation_observation_summary(
+        feature_ids=_SITE_INDEX,
+        sample_ids=["sample_a"],
+    )
 
     borrowed_phospho.iloc[0, 0] = 999.0
     borrowed_site_metadata.loc[_SITE_KEY, "gene_symbol"] = "MUTATED"
@@ -1036,8 +1040,8 @@ def test_dataset_internal_view_preserves_internal_frame_borrowing_semantics() ->
     borrowed_total.iloc[0, 0] = 999.0
     assert borrowed_comparisons is not None
     borrowed_comparisons.iloc[0, 0] = 0.99
-    assert borrowed_mask is not None
-    borrowed_mask.iloc[0, 0] = False
+    assert imputation_summary is not None
+    imputation_summary.loc[_SITE_KEY, "observed_cell_count"] = 0
 
     assert borrowed_phospho is not dataset._phospho
     assert borrowed_site_metadata is not dataset._site_metadata
@@ -1047,8 +1051,12 @@ def test_dataset_internal_view_preserves_internal_frame_borrowing_semantics() ->
     assert float(dataset.total.iloc[0, 0]) == 2.0
     assert dataset.comparisons is not None
     assert float(dataset.comparisons.iloc[0, 0]) == 0.05
-    assert dataset.imputation_observation_metadata is not None
-    assert bool(dataset.imputation_observation_metadata.observed_mask.iloc[0, 0])
+    reread_summary = dataset.imputation_observation_summary_dataframe(
+        feature_ids=_SITE_INDEX,
+        sample_ids=["sample_a"],
+    )
+    assert reread_summary is not None
+    assert int(reread_summary.loc[_SITE_KEY, "observed_cell_count"]) == 1
 
 
 def test_kinase_reference_identifier_cleanup_is_owned_by_reference_ingestion_boundary() -> (

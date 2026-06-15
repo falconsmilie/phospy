@@ -102,7 +102,7 @@ def _imputed_dataset(*, with_metadata: bool = True) -> AnalysisReadyPhosphoDatas
     )
 
 
-def _design() -> ExperimentalDesign:
+def _design(sample_ids: tuple[str, ...] = _SAMPLES) -> ExperimentalDesign:
     return ExperimentalDesign(
         samples=tuple(
             SampleDesignRecord(
@@ -110,7 +110,7 @@ def _design() -> ExperimentalDesign:
                 condition=sample_id.split("_", maxsplit=1)[0],
                 biological_replicate_id=sample_id,
             )
-            for sample_id in _SAMPLES
+            for sample_id in sample_ids
         )
     )
 
@@ -187,6 +187,64 @@ def test_differential_withhold_policy_marks_high_imputation_features() -> None:
         DIFFERENTIAL_RESULT_STATUS_WITHHELD_HIGH_IMPUTATION,
         DIFFERENTIAL_RESULT_STATUS_WITHHELD_INSUFFICIENT_OBSERVED,
     ]
+
+
+def test_differential_imputation_subset_summary_uses_dataset_owned_summary_contract(
+    monkeypatch,
+) -> None:
+    summary_calls: list[tuple[tuple[object, ...], tuple[object, ...]]] = []
+    original_summary = (
+        AnalysisReadyPhosphoDataset.imputation_observation_summary_dataframe
+    )
+
+    def summary_spy(
+        self: AnalysisReadyPhosphoDataset,
+        *,
+        feature_ids,
+        sample_ids,
+    ):
+        summary_calls.append((tuple(feature_ids), tuple(sample_ids)))
+        return original_summary(
+            self,
+            feature_ids=feature_ids,
+            sample_ids=sample_ids,
+        )
+
+    def raw_mask_guard(self: AnalysisReadyPhosphoDataset):
+        raise AssertionError("differential interpreter must use dataset summaries")
+
+    monkeypatch.setattr(
+        AnalysisReadyPhosphoDataset,
+        "imputation_observation_summary_dataframe",
+        summary_spy,
+    )
+    monkeypatch.setattr(
+        AnalysisReadyPhosphoDataset,
+        "_borrow_imputation_observed_mask_frame",
+        raw_mask_guard,
+    )
+    analysis_sample_ids = ("A_1", "A_2", "B_1", "B_2")
+
+    result = DifferentialAnalysisWorkflow().run(
+        DifferentialAnalysisRequest(
+            dataset=_imputed_dataset(),
+            design=_design(analysis_sample_ids),
+            contrasts=_contrasts(),
+            config=DifferentialAnalysisConfig(
+                imputed_value_policy="withhold_imputed_features",
+                imputed_value_max_fraction=0.20,
+                allow_design_subset=True,
+            ),
+        )
+    )
+    table = result.table_for("B_vs_A")
+
+    assert table["imputed_cell_count"].tolist() == [0, 0, 0, 1]
+    assert table["observed_cell_count"].tolist() == [4, 4, 4, 3]
+    assert summary_calls
+    assert summary_calls[0] == (tuple(_site_index()), analysis_sample_ids)
+    assert (tuple(_site_index()), ("A_1", "A_2")) in summary_calls
+    assert (tuple(_site_index()), ("B_1", "B_2")) in summary_calls
 
 
 def test_differential_withhold_policy_excludes_withheld_features_from_testing() -> None:

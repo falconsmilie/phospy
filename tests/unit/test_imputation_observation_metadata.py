@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -125,6 +127,77 @@ def test_imputation_metadata_records_observed_counts() -> None:
 
     assert summary is not None
     assert summary["observed_cell_count"].tolist() == [4, 3, 1]
+
+
+def test_dataset_imputation_summary_preserves_requested_feature_order() -> None:
+    dataset = _build_imputed_dataset()
+    requested_features = [dataset.phospho.index[2], dataset.phospho.index[0]]
+
+    summary = dataset.imputation_observation_summary_dataframe(
+        feature_ids=requested_features,
+        sample_ids=["sample_b", "sample_a"],
+    )
+
+    assert summary is not None
+    assert summary.index.tolist() == requested_features
+    assert summary["feature_id"].tolist() == requested_features
+    assert summary["observed_cell_count"].tolist() == [1, 2]
+    assert summary["imputed_cell_count"].tolist() == [1, 0]
+    assert summary["total_analysed_cell_count"].tolist() == [2, 2]
+    assert summary["imputed_fraction"].tolist() == [0.5, 0.0]
+
+
+def test_dataset_imputation_summary_validates_sample_labels() -> None:
+    dataset = _build_imputed_dataset()
+
+    with pytest.raises(
+        DatasetValidationError,
+        match="sample_ids.*unknown_sample",
+    ):
+        dataset.imputation_observation_summary_dataframe(
+            feature_ids=[dataset.phospho.index[0]],
+            sample_ids=["sample_a", "unknown_sample"],
+        )
+
+
+def test_dataset_imputation_summary_validates_feature_labels() -> None:
+    dataset = _build_imputed_dataset()
+
+    with pytest.raises(
+        DatasetValidationError,
+        match="feature_ids.*unknown_feature",
+    ):
+        dataset.imputation_observation_summary_dataframe(
+            feature_ids=["unknown_feature"],
+            sample_ids=["sample_a"],
+        )
+
+
+def test_dataset_imputation_summary_fails_when_imputed_state_lacks_mask() -> None:
+    index = _site_index()
+    processing_state = supported_linear_processing_state(has_total_matrix=False)
+    imputed_processing_state = replace(
+        processing_state,
+        missing_data=replace(processing_state.missing_data, imputed=True),
+    )
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=_complete_phospho(index),
+        site_metadata=_site_metadata(index),
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=imputed_processing_state,
+    )
+
+    with pytest.raises(
+        DatasetValidationError,
+        match="imputation_observation_mask.*missing_data\\.imputed",
+    ):
+        dataset.imputation_observation_summary_dataframe(
+            feature_ids=[index[0]],
+            sample_ids=["sample_a"],
+        )
 
 
 def test_imputation_metadata_rejects_misaligned_rows() -> None:

@@ -11,6 +11,7 @@ from phospy.contracts.configs.differential import (
     IMPUTED_VALUE_POLICY_REJECT,
     IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES,
 )
+from phospy.errors.validation import DatasetValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.design.matrix_builder import (
@@ -699,71 +700,26 @@ def _build_imputation_policy_inputs(
             details={"policy": policy},
             message_prefix="differential workflow boundary validation failed",
         )
-    observed_mask = dataset_view.imputation_observed_mask
-    if observed_mask is None:
-        raise WorkflowBoundaryError(
-            seam="differential.interpreter.imputation_metadata",
-            next_action=(
-                "build the analysis-ready dataset through a supported imputation "
-                "preprocessing path that preserves the observed-cell mask"
-            ),
-            message_prefix="differential workflow boundary validation failed",
-        )
-    try:
-        aligned_mask = cast(
-            pd.DataFrame,
-            observed_mask.loc[list(matrix_index), list(analysis_sample_ids)],
-        )
-    except KeyError as exc:
-        raise WorkflowBoundaryError(
-            seam="differential.interpreter.imputation_metadata_alignment",
-            next_action=(
-                "ensure imputation observation metadata is aligned to the "
-                "differential feature and sample labels"
-            ),
-            details={
-                "feature_count": int(matrix_index.size),
-                "sample_count": len(analysis_sample_ids),
-            },
-            message_prefix="differential workflow boundary validation failed",
-        ) from exc
-    if not aligned_mask.index.equals(matrix_index) or tuple(
-        aligned_mask.columns.astype(str)
-    ) != tuple(analysis_sample_ids):
-        raise WorkflowBoundaryError(
-            seam="differential.interpreter.imputation_metadata_alignment",
-            next_action=(
-                "ensure imputation observation metadata order exactly matches the "
-                "differential execution matrix"
-            ),
-            message_prefix="differential workflow boundary validation failed",
-        )
-
-    observed_values = aligned_mask.to_numpy(dtype=bool)
-    sample_count = int(observed_values.shape[1])
-    observed_counts = observed_values.sum(axis=1).astype(np.int64)
-    imputed_counts = (sample_count - observed_counts).astype(np.int64)
-    imputed_fraction = imputed_counts.astype(float) / float(sample_count)
-    feature_metadata = pd.DataFrame(
-        {
-            "imputed_cell_count": imputed_counts,
-            "observed_cell_count": observed_counts,
-            "imputed_fraction": imputed_fraction,
-        },
-        index=matrix_index.copy(),
+    feature_metadata = _imputation_summary_for_differential(
+        dataset_view=dataset_view,
+        matrix_index=matrix_index,
+        sample_ids=analysis_sample_ids,
     )
-    feature_metadata.index.name = matrix_index.name
-
+    imputed_fraction = feature_metadata["imputed_fraction"].to_numpy(dtype=float)
     condition_sample_ids = _condition_sample_ids_for_analysis(
         design=design,
         analysis_sample_ids=analysis_sample_ids,
     )
+    condition_observed_counts = _condition_observed_counts_for_analysis(
+        dataset_view=dataset_view,
+        matrix_index=matrix_index,
+        condition_sample_ids=condition_sample_ids,
+    )
     statuses: list[str] = []
-    for row_position in range(int(aligned_mask.shape[0])):
-        observed_row = aligned_mask.iloc[row_position, :]
+    for row_position in range(int(matrix_index.size)):
         if _has_insufficient_observed_samples_for_contrasts(
-            observed_row=observed_row,
-            condition_sample_ids=condition_sample_ids,
+            row_position=row_position,
+            condition_observed_counts=condition_observed_counts,
             contrasts=contrasts,
             minimum_condition_replicates=minimum_condition_replicates,
         ):
@@ -809,10 +765,98 @@ def _condition_sample_ids_for_analysis(
     return {condition: tuple(sample_ids) for condition, sample_ids in grouped.items()}
 
 
+def _condition_observed_counts_for_analysis(
+    *,
+    dataset_view: DatasetInternalView,
+    matrix_index: pd.Index,
+    condition_sample_ids: dict[str, tuple[str, ...]],
+) -> dict[str, pd.Series]:
+    observed_counts: dict[str, pd.Series] = {}
+    for condition, sample_ids in condition_sample_ids.items():
+        if not sample_ids:
+            continue
+        summary = _imputation_summary_for_differential(
+            dataset_view=dataset_view,
+            matrix_index=matrix_index,
+            sample_ids=sample_ids,
+        )
+        observed_counts[condition] = cast(
+            pd.Series,
+            summary.loc[:, "observed_cell_count"].copy(deep=True),
+        )
+    return observed_counts
+
+
+def _imputation_summary_for_differential(
+    *,
+    dataset_view: DatasetInternalView,
+    matrix_index: pd.Index,
+    sample_ids: tuple[str, ...],
+) -> pd.DataFrame:
+    try:
+        summary = dataset_view.imputation_observation_summary(
+            feature_ids=tuple(matrix_index.tolist()),
+            sample_ids=sample_ids,
+        )
+    except DatasetValidationError as exc:
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.imputation_metadata_alignment",
+            next_action=(
+                "ensure imputation observation metadata is aligned to the "
+                "differential feature and sample labels"
+            ),
+            details={
+                "feature_count": int(matrix_index.size),
+                "sample_count": len(sample_ids),
+                "error": str(exc),
+            },
+            message_prefix="differential workflow boundary validation failed",
+        ) from exc
+    if summary is None:
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.imputation_metadata",
+            next_action=(
+                "build the analysis-ready dataset through a supported imputation "
+                "preprocessing path that preserves the observed-cell mask"
+            ),
+            message_prefix="differential workflow boundary validation failed",
+        )
+    required_columns = (
+        "feature_id",
+        "observed_cell_count",
+        "imputed_cell_count",
+        "total_analysed_cell_count",
+        "imputed_fraction",
+    )
+    missing_columns = [
+        column for column in required_columns if column not in summary.columns
+    ]
+    if missing_columns:
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.imputation_metadata_contract",
+            next_action=(
+                "ensure the dataset imputation summary includes feature-level "
+                "observed and imputed cell counts"
+            ),
+            details={"missing_columns": missing_columns},
+            message_prefix="differential workflow boundary validation failed",
+        )
+    if not summary.index.equals(matrix_index):
+        raise WorkflowBoundaryError(
+            seam="differential.interpreter.imputation_metadata_alignment",
+            next_action=(
+                "ensure imputation observation summary order exactly matches the "
+                "differential execution matrix"
+            ),
+            message_prefix="differential workflow boundary validation failed",
+        )
+    return cast(pd.DataFrame, summary.copy(deep=True))
+
+
 def _has_insufficient_observed_samples_for_contrasts(
     *,
-    observed_row: pd.Series,
-    condition_sample_ids: dict[str, tuple[str, ...]],
+    row_position: int,
+    condition_observed_counts: dict[str, pd.Series],
     contrasts: tuple[Contrast, ...],
     minimum_condition_replicates: int,
 ) -> bool:
@@ -821,12 +865,10 @@ def _has_insufficient_observed_samples_for_contrasts(
             contrast.numerator_condition,
             contrast.denominator_condition,
         ):
-            sample_ids = condition_sample_ids.get(condition, ())
-            if not sample_ids:
+            observed_counts = condition_observed_counts.get(condition)
+            if observed_counts is None:
                 return True
-            observed_count = int(
-                observed_row.loc[list(sample_ids)].to_numpy(dtype=bool).sum()
-            )
+            observed_count = int(observed_counts.iloc[row_position])
             if observed_count < int(minimum_condition_replicates):
                 return True
     return False

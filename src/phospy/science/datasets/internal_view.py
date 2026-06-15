@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import pandas as pd
 
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
@@ -35,9 +37,25 @@ class DatasetInternalView:
     def comparisons(self) -> pd.DataFrame | None:
         return self._dataset._borrow_comparisons_frame()
 
-    @property
-    def imputation_observed_mask(self) -> pd.DataFrame | None:
-        return self._dataset._borrow_imputation_observed_mask_frame()
+    def imputation_observation_summary(
+        self,
+        *,
+        feature_ids: Sequence[object],
+        sample_ids: Sequence[object],
+    ) -> pd.DataFrame | None:
+        return self._dataset._imputation_observation_summary_frame(
+            feature_ids=feature_ids,
+            sample_ids=sample_ids,
+        )
+
+    def aggregate_imputation_observation_mask(
+        self,
+        *,
+        sample_groups: Sequence[tuple[object, Sequence[object]]],
+    ) -> pd.DataFrame | None:
+        return self._dataset._aggregated_imputation_observation_mask_frame(
+            sample_groups=sample_groups,
+        )
 
 
 __all__ = ["DatasetInternalView"]

@@ -81,8 +81,8 @@ that ADR is a future architecture commitment, not a current feature claim.
 The `batch_correction` preprocessing group currently exposes one opt-in method:
 `linear_residualize_batch`, a limited fixed-effect residualisation step that
 preserves condition effects by design and rejects confounded batch/condition metadata.
-This is not native RUV/SPS/RUV-III correction, not PhosR-equivalent batch
-correction, not ComBat, not limma `removeBatchEffect` parity, and not
+This is not ComBat, RUV, limma `removeBatchEffect` parity, not native
+RUV/SPS/RUV-III correction, not PhosR-equivalent batch correction, and not
 mixed-effects modelling. Any `ruv_readiness` diagnostics are report-only
 readiness signals and do not apply correction.
 

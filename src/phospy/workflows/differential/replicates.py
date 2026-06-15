@@ -359,15 +359,13 @@ class TechnicalReplicateAggregator:
                 )
             )
         comparisons = dataset_view.comparisons
-        imputation_observation_mask = dataset_view.imputation_observed_mask
-        aggregated_imputation_observation_mask = None
-        if imputation_observation_mask is not None:
-            aggregated_imputation_observation_mask = (
-                TechnicalReplicateAggregator._aggregate_observed_mask(
-                    mask=imputation_observation_mask,
-                    groups=groups,
+        aggregated_imputation_observation_mask = (
+            dataset_view.aggregate_imputation_observation_mask(
+                sample_groups=tuple(
+                    (group.output_sample_id, group.input_sample_ids) for group in groups
                 )
             )
+        )
         return AnalysisReadyPhosphoDataset._from_owned(
             phospho=aggregated_phospho,
             site_metadata=dataset_view.site_metadata.copy(deep=True),
@@ -427,25 +425,6 @@ class TechnicalReplicateAggregator:
             ),
             columns=metadata.columns.copy(),
         )
-        return aggregated
-
-    @staticmethod
-    def _aggregate_observed_mask(
-        *,
-        mask: pd.DataFrame,
-        groups: tuple[TechnicalReplicateAggregationGroup, ...],
-    ) -> pd.DataFrame:
-        aggregated_columns: list[pd.Series] = []
-        output_labels: list[str] = []
-        for group in groups:
-            source = mask.loc[:, list(group.input_sample_ids)]
-            collapsed = source.all(axis=1)
-            collapsed.name = group.output_sample_id
-            aggregated_columns.append(collapsed.astype(bool))
-            output_labels.append(group.output_sample_id)
-        aggregated = pd.concat(aggregated_columns, axis=1)
-        aggregated.columns = pd.Index(output_labels)
-        aggregated.index = mask.index.copy()
         return aggregated
 
 
