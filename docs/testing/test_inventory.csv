@@ -41,7 +41,7 @@ tests/performance/test_signalome_clustering_benchmark.py,performance,82,1,true,f
 tests/performance/test_workflow_scale_contracts.py,performance,260,2,true,true,,,,,,
 tests/science/test_kinase_library_motif_scoring_science.py,science,51,1,false,false,,,,,,
 tests/science/test_signalome_identity_coherence.py,science,66,1,false,false,,,,,,
-tests/unit/test_activity_science.py,unit,1095,34,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for activity science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
+tests/unit/test_activity_science.py,unit,1083,34,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for activity science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_adr_docs_governance.py,unit,147,4,false,false,,,,,,
 tests/unit/test_analysis_ready_model_boundary_validator.py,unit,728,35,true,true,,,,,,[auto-orchestration] 11 hit(s); indicators: private_member_access
 tests/unit/test_api_configs_refactor_contract.py,unit,47,3,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for api configs refactor contract and increase risk of boundary regressions.,codex-audit,,
@@ -157,7 +157,7 @@ tests/unit/test_public_contract_results.py,unit,365,8,false,false,public API con
 tests/unit/test_public_contract_workflows.py,unit,188,7,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract workflows and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_documentation_examples.py,unit,134,7,false,false,,,,,,
 tests/unit/test_public_examples_contract.py,unit,41,3,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public examples contract and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
-tests/unit/test_reader_enrichment_sets.py,unit,93,5,false,false,,,,,,
+tests/unit/test_reader_enrichment_sets.py,unit,151,6,true,true,,,,,,
 tests/unit/test_reference_bundle_builder.py,unit,303,8,false,false,,,,,,
 tests/unit/test_reference_bundle_manifests.py,unit,571,22,true,true,,,,,,[auto-orchestration] 5 hit(s); indicators: private_member_access
 tests/unit/test_reference_identifier_normalisation.py,unit,614,20,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for reference identifier normalisation and increase risk of boundary regressions.,codex-audit,,

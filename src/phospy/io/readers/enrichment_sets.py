@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -178,6 +179,10 @@ def load_enrichment_sets_gmt(
 ) -> EnrichmentSetCollection:
     """Alias for ``read_enrichment_sets_gmt``."""
 
+    _warn_deprecated_load_alias(
+        "load_enrichment_sets_gmt",
+        "read_enrichment_sets_gmt",
+    )
     return read_enrichment_sets_gmt(
         path,
         identifier_kind=identifier_kind,
@@ -197,6 +202,10 @@ def load_enrichment_sets_table(
 ) -> EnrichmentSetCollection:
     """Alias for ``read_enrichment_sets_table``."""
 
+    _warn_deprecated_load_alias(
+        "load_enrichment_sets_table",
+        "read_enrichment_sets_table",
+    )
     return read_enrichment_sets_table(
         path,
         identifier_kind=identifier_kind,
@@ -216,6 +225,10 @@ def load_enrichment_sets_csv(
 ) -> EnrichmentSetCollection:
     """Alias for ``read_enrichment_sets_csv``."""
 
+    _warn_deprecated_load_alias(
+        "load_enrichment_sets_csv",
+        "read_enrichment_sets_csv",
+    )
     return read_enrichment_sets_csv(
         path,
         identifier_kind=identifier_kind,
@@ -235,12 +248,27 @@ def load_enrichment_sets_tsv(
 ) -> EnrichmentSetCollection:
     """Alias for ``read_enrichment_sets_tsv``."""
 
+    _warn_deprecated_load_alias(
+        "load_enrichment_sets_tsv",
+        "read_enrichment_sets_tsv",
+    )
     return read_enrichment_sets_tsv(
         path,
         identifier_kind=identifier_kind,
         collection_kind=collection_kind,
         source_name=source_name,
         source_version=source_version,
+    )
+
+
+def _warn_deprecated_load_alias(alias_name: str, replacement_name: str) -> None:
+    warnings.warn(
+        (
+            f"{alias_name} is deprecated and will be removed in a future release; "
+            f"use {replacement_name} instead."
+        ),
+        DeprecationWarning,
+        stacklevel=3,
     )
 
 

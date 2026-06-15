@@ -6,8 +6,14 @@ import pytest
 
 from phospy.errors import PhosPyInputError
 from phospy.io.readers.enrichment_sets import (
+    load_enrichment_sets_csv,
+    load_enrichment_sets_gmt,
+    load_enrichment_sets_table,
+    load_enrichment_sets_tsv,
+    read_enrichment_sets_csv,
     read_enrichment_sets_gmt,
     read_enrichment_sets_table,
+    read_enrichment_sets_tsv,
 )
 
 
@@ -91,3 +97,55 @@ def test_reader_enrichment_empty_set_handling(tmp_path: Path) -> None:
 
     with pytest.raises(PhosPyInputError, match="identifiers must not be empty"):
         read_enrichment_sets_gmt(path, identifier_kind="gene_symbol")
+
+
+@pytest.mark.parametrize(
+    ("alias", "reader", "fixture_name", "kwargs", "replacement_name"),
+    [
+        (
+            load_enrichment_sets_gmt,
+            read_enrichment_sets_gmt,
+            "gene_sets.gmt",
+            {"identifier_kind": "gene_symbol"},
+            "read_enrichment_sets_gmt",
+        ),
+        (
+            load_enrichment_sets_table,
+            read_enrichment_sets_table,
+            "gene_sets.csv",
+            {},
+            "read_enrichment_sets_table",
+        ),
+        (
+            load_enrichment_sets_csv,
+            read_enrichment_sets_csv,
+            "gene_sets.csv",
+            {},
+            "read_enrichment_sets_csv",
+        ),
+        (
+            load_enrichment_sets_tsv,
+            read_enrichment_sets_tsv,
+            "ptm_sets.tsv",
+            {"identifier_kind": "site_key"},
+            "read_enrichment_sets_tsv",
+        ),
+    ],
+)
+def test_reader_enrichment_load_aliases_warn_and_forward(
+    alias,
+    reader,
+    fixture_name: str,
+    kwargs: dict[str, str],
+    replacement_name: str,
+) -> None:
+    path = _fixture_path(fixture_name)
+    expected = reader(path, **kwargs)
+
+    with pytest.warns(
+        DeprecationWarning,
+        match=rf"{alias.__name__}.*{replacement_name}",
+    ):
+        observed = alias(path, **kwargs)
+
+    assert observed == expected

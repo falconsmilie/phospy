@@ -28,6 +28,12 @@ All notable changes to this project are documented here.
   by workflows that require protein grouping such as signalome.
 - expanded strict typing across dataset, validation, prediction, differential, kinase, and signalome boundaries.
 
+### Deprecated
+
+- `load_enrichment_sets_gmt`, `load_enrichment_sets_table`, `load_enrichment_sets_csv`, and
+  `load_enrichment_sets_tsv` now emit `DeprecationWarning`; migrate to the matching `read_enrichment_sets_*`
+  functions.
+
 ### Fixed
 
 - rejected unsafe display-ID fallbacks, mismatched explicit builder `site_key` values, and semantic `site_key`/metadata
