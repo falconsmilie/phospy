@@ -9,7 +9,6 @@ import pandas as pd
 from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
-    DuplicateSiteResolutionResult,
     PreprocessingPlan,
     PreprocessingStageResult,
     PreprocessingState,
@@ -26,15 +25,11 @@ from phospy.science.datasets.preprocessing.report_rows import (
     report_rows_from_metadata_conflicts_dataframe,
     report_rows_from_row_audit_rows,
 )
-from phospy.science.datasets.preprocessing.report_schema import (
-    PreprocessingRowAuditRow,
-)
 from phospy.science.datasets.preprocessing.stage_contract import (
     PreprocessingStageContract,
 )
 from phospy.science.datasets.preprocessing.stages.site_matrix_components import (
     DuplicateSiteResolver,
-    MetadataConflictDetector,
     MissingDataSiteFilter,
     SequenceSupportFilter,
     SiteMatrixAssembler,
@@ -496,40 +491,6 @@ def _realign_imputation_observation_mask(
     return realigned.astype(bool)
 
 
-def _apply_duplicate_site_policy(
-    *,
-    phospho: pd.DataFrame,
-    site_metadata: pd.DataFrame,
-    scientific_row_key: pd.Series,
-    constructed_display_id: pd.Series,
-    duplicate_site_policy: SiteMatrixDuplicateSitePolicy,
-) -> DuplicateSiteResolutionResult:
-    """Compatibility wrapper for legacy direct tests of duplicate policy logic."""
-
-    return DuplicateSiteResolver().resolve(
-        phospho=phospho,
-        site_metadata=site_metadata,
-        scientific_row_key=scientific_row_key,
-        constructed_display_id=constructed_display_id,
-        duplicate_site_policy=duplicate_site_policy,
-    )
-
-
-def _build_metadata_conflicts(
-    *,
-    site_metadata: pd.DataFrame,
-    scientific_row_key: pd.Series,
-    constructed_display_id: pd.Series,
-) -> pd.DataFrame:
-    """Compatibility wrapper for legacy direct metadata-conflict tests."""
-
-    return MetadataConflictDetector().detect(
-        site_metadata=site_metadata,
-        scientific_row_key=scientific_row_key,
-        display_id=constructed_display_id,
-    )
-
-
 def _resolve_scientific_row_key(
     *,
     site_metadata: pd.DataFrame,
@@ -548,29 +509,6 @@ def _resolve_scientific_row_key(
         index=row_index.copy(),
         name=_SITE_KEY_COLUMN,
         dtype="object",
-    )
-
-
-def _build_site_matrix_row_audit_records(
-    *,
-    dropped_missing_sequence_rows: tuple[tuple[str, str], ...],
-    dropped_incomplete_rows: tuple[tuple[str, str, int], ...],
-    duplicate_site_resolution: pd.DataFrame,
-    site_matrix_policy: SiteMatrixPolicy,
-    site_matrix_missing_data_policy: SiteMatrixMissingDataPolicy,
-    site_matrix_duplicate_site_policy: SiteMatrixDuplicateSitePolicy,
-    required_observed_count: int,
-) -> list[PreprocessingRowAuditRow]:
-    """Compatibility wrapper for legacy row-audit construction tests."""
-
-    return SiteMatrixRowAuditBuilder().build(
-        dropped_missing_sequence_rows=dropped_missing_sequence_rows,
-        dropped_incomplete_rows=dropped_incomplete_rows,
-        duplicate_site_resolution=duplicate_site_resolution,
-        site_matrix_policy=site_matrix_policy,
-        site_matrix_missing_data_policy=site_matrix_missing_data_policy,
-        site_matrix_duplicate_site_policy=site_matrix_duplicate_site_policy,
-        required_observed_count=required_observed_count,
     )
 
 

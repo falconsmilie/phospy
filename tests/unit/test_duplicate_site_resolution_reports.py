@@ -13,9 +13,6 @@ from phospy.api.configs import (
 )
 from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.preprocessing.models import DuplicateSiteResolutionResult
-from phospy.science.datasets.preprocessing.stages.site_matrix import (
-    _apply_duplicate_site_policy,
-)
 from phospy.science.datasets.preprocessing.stages.site_matrix_components import (
     DuplicateSiteResolver,
 )
@@ -60,11 +57,11 @@ def _duplicate_policy_inputs() -> tuple[
     return phospho, site_metadata, scientific_row_key, constructed_display_id
 
 
-def test_apply_duplicate_site_policy_returns_structured_result() -> None:
+def test_duplicate_site_resolver_returns_structured_result() -> None:
     phospho, site_metadata, scientific_row_key, constructed_display_id = (
         _duplicate_policy_inputs()
     )
-    result = _apply_duplicate_site_policy(
+    result = DuplicateSiteResolver().resolve(
         phospho=phospho,
         site_metadata=site_metadata,
         scientific_row_key=scientific_row_key,
@@ -78,7 +75,7 @@ def test_duplicate_site_policy_first_reports_retained_and_dropped_rows() -> None
     phospho, site_metadata, scientific_row_key, constructed_display_id = (
         _duplicate_policy_inputs()
     )
-    result = _apply_duplicate_site_policy(
+    result = DuplicateSiteResolver().resolve(
         phospho=phospho,
         site_metadata=site_metadata,
         scientific_row_key=scientific_row_key,
@@ -125,7 +122,7 @@ def test_duplicate_site_policy_max_mean_signal_reports_mean_and_selection() -> N
     phospho, site_metadata, scientific_row_key, constructed_display_id = (
         _duplicate_policy_inputs()
     )
-    result = _apply_duplicate_site_policy(
+    result = DuplicateSiteResolver().resolve(
         phospho=phospho,
         site_metadata=site_metadata,
         scientific_row_key=scientific_row_key,
@@ -148,7 +145,7 @@ def test_duplicate_site_policy_aggregate_mean_reports_all_contributing_rows() ->
     phospho, site_metadata, scientific_row_key, constructed_display_id = (
         _duplicate_policy_inputs()
     )
-    result = _apply_duplicate_site_policy(
+    result = DuplicateSiteResolver().resolve(
         phospho=phospho,
         site_metadata=site_metadata,
         scientific_row_key=scientific_row_key,
@@ -167,7 +164,7 @@ def test_duplicate_site_policy_aggregate_median_reports_all_contributing_rows() 
     phospho, site_metadata, scientific_row_key, constructed_display_id = (
         _duplicate_policy_inputs()
     )
-    result = _apply_duplicate_site_policy(
+    result = DuplicateSiteResolver().resolve(
         phospho=phospho,
         site_metadata=site_metadata,
         scientific_row_key=scientific_row_key,
@@ -186,7 +183,7 @@ def test_duplicate_site_policy_reports_metadata_conflicts() -> None:
     phospho, site_metadata, scientific_row_key, constructed_display_id = (
         _duplicate_policy_inputs()
     )
-    result = _apply_duplicate_site_policy(
+    result = DuplicateSiteResolver().resolve(
         phospho=phospho,
         site_metadata=site_metadata,
         scientific_row_key=scientific_row_key,
@@ -312,7 +309,7 @@ def test_duplicate_site_policy_preserves_existing_outputs_for_current_policies(
     phospho, site_metadata, scientific_row_key, constructed_display_id = (
         _duplicate_policy_inputs()
     )
-    result = _apply_duplicate_site_policy(
+    result = DuplicateSiteResolver().resolve(
         phospho=phospho,
         site_metadata=site_metadata,
         scientific_row_key=scientific_row_key,
@@ -360,7 +357,7 @@ def test_duplicate_site_aggregate_complete_observations_preserve_values(
         name="display_id",
     )
 
-    result = _apply_duplicate_site_policy(
+    result = DuplicateSiteResolver().resolve(
         phospho=phospho,
         site_metadata=site_metadata,
         scientific_row_key=scientific_row_key,
@@ -421,7 +418,7 @@ def test_duplicate_site_aggregate_partial_missing_uses_explicit_skip_missing_pol
         name="display_id",
     )
 
-    result = _apply_duplicate_site_policy(
+    result = DuplicateSiteResolver().resolve(
         phospho=phospho,
         site_metadata=site_metadata,
         scientific_row_key=scientific_row_key,
@@ -480,7 +477,7 @@ def test_duplicate_site_aggregate_one_source_row_all_missing_is_not_dropped(
         name="display_id",
     )
 
-    result = _apply_duplicate_site_policy(
+    result = DuplicateSiteResolver().resolve(
         phospho=phospho,
         site_metadata=site_metadata,
         scientific_row_key=scientific_row_key,
@@ -521,7 +518,7 @@ def test_duplicate_site_aggregate_all_missing_duplicates_keep_group_row() -> Non
         name="display_id",
     )
 
-    result = _apply_duplicate_site_policy(
+    result = DuplicateSiteResolver().resolve(
         phospho=phospho,
         site_metadata=site_metadata,
         scientific_row_key=scientific_row_key,
@@ -568,7 +565,7 @@ def test_duplicate_display_ids_with_distinct_site_keys_are_not_treated_as_duplic
         name="display_id",
     )
 
-    result = _apply_duplicate_site_policy(
+    result = DuplicateSiteResolver().resolve(
         phospho=phospho,
         site_metadata=site_metadata,
         scientific_row_key=scientific_row_key,
@@ -586,7 +583,7 @@ def test_duplicate_site_keys_fail_under_strict_policy() -> None:
     )
 
     with pytest.raises(PhosPyInputError, match="duplicate site_key values"):
-        _apply_duplicate_site_policy(
+        DuplicateSiteResolver().resolve(
             phospho=phospho,
             site_metadata=site_metadata,
             scientific_row_key=scientific_row_key,
@@ -616,7 +613,7 @@ def test_duplicate_resolution_rejects_raw_invalid_site_key_strings() -> None:
     )
 
     with pytest.raises(PhosPyInputError, match="must start with 'phospy:v1'"):
-        _apply_duplicate_site_policy(
+        DuplicateSiteResolver().resolve(
             phospho=phospho,
             site_metadata=site_metadata,
             scientific_row_key=invalid_site_key,
@@ -676,7 +673,7 @@ def test_missing_and_specified_isoform_scope_collision_fails() -> None:
     )
 
     with pytest.raises(PhosPyInputError, match="mixed isoform scope"):
-        _apply_duplicate_site_policy(
+        DuplicateSiteResolver().resolve(
             phospho=phospho,
             site_metadata=site_metadata,
             scientific_row_key=site_keys,

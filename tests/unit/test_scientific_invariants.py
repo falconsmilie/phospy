@@ -31,8 +31,8 @@ from phospy.science.datasets.preprocessing.models import (
 from phospy.science.datasets.preprocessing.stages.normalisation import (
     NormalisationStage,
 )
-from phospy.science.datasets.preprocessing.stages.site_matrix import (
-    _apply_duplicate_site_policy,
+from phospy.science.datasets.preprocessing.stages.site_matrix_components import (
+    DuplicateSiteResolver,
 )
 from phospy.science.prediction.scoring import (
     fuse_profile_and_motif_scores_by_rank_weight,
@@ -374,14 +374,14 @@ def test_duplicate_site_resolution_is_deterministic_for_max_mean_signal_policy()
         name="display_id",
     )
 
-    first = _apply_duplicate_site_policy(
+    first = DuplicateSiteResolver().resolve(
         phospho=phospho,
         site_metadata=site_metadata,
         scientific_row_key=site_keys,
         constructed_display_id=display_ids,
         duplicate_site_policy=DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
     )
-    second = _apply_duplicate_site_policy(
+    second = DuplicateSiteResolver().resolve(
         phospho=phospho,
         site_metadata=site_metadata,
         scientific_row_key=site_keys,
