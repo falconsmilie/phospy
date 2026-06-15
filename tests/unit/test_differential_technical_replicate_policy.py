@@ -26,6 +26,7 @@ from phospy.workflows.differential.executor import DifferentialAnalysisExecutor
 from phospy.workflows.differential.replicates import (
     TechnicalReplicateAggregationPlanner,
     TechnicalReplicateAggregator,
+    TechnicalReplicateResolver,
 )
 from phospy.workflows.differential.validator import DifferentialAnalysisValidator
 from tests.support.intensity_scale_states import (
@@ -436,6 +437,42 @@ def test_phospho_and_total_matrices_are_both_aggregated_when_total_present() -> 
         "total_protein": True,
     }
     assert resolved.workflow_provenance["both_phospho_and_total_aggregated"] is True
+
+
+def test_technical_replicate_resolver_warns_and_preserves_wrapper_behaviour() -> None:
+    with pytest.warns(
+        DeprecationWarning,
+        match="TechnicalReplicateResolver is deprecated",
+    ) as construction_warnings:
+        resolver = TechnicalReplicateResolver()
+    assert "TechnicalReplicateAggregationPlanner" in str(
+        construction_warnings[0].message
+    )
+    assert "TechnicalReplicateAggregator" in str(construction_warnings[0].message)
+
+    dataset = _dataset_with_technical_replicates()
+    design = _repeated_design()
+    with pytest.warns(
+        DeprecationWarning,
+        match="TechnicalReplicateResolver is deprecated",
+    ) as run_warnings:
+        resolved = resolver.run(
+            dataset=dataset,
+            design=design,
+            technical_replicate_policy=TechnicalReplicatePolicy.MEAN,
+        )
+
+    assert "TechnicalReplicateAggregationPlanner" in str(run_warnings[0].message)
+    assert "TechnicalReplicateAggregator" in str(run_warnings[0].message)
+    assert resolved.dataset.phospho.columns.tolist() == ["A1", "A2", "B1", "B2"]
+    assert [record.sample_id for record in resolved.design.samples] == [
+        "A1",
+        "A2",
+        "B1",
+        "B2",
+    ]
+    assert resolved.workflow_provenance is not None
+    assert resolved.workflow_provenance["aggregation_method"] == "mean"
 
 
 def test_provenance_records_technical_replicate_lineage() -> None:

@@ -183,6 +183,44 @@ result object. The workflow executor attaches dataset identity metadata from
 `AnalysisReadyPhosphoDataset.site_metadata` and only then constructs the public
 `DifferentialAnalysisResult`.
 
+## Technical-Replicate Aggregation
+
+`DifferentialAnalysisWorkflow` owns normal technical-replicate handling through
+`DifferentialAnalysisConfig.technical_replicate_policy`. Keep using the workflow
+entrypoint for standard analysis. It validates the request, creates an explicit
+technical-replicate aggregation plan when repeated
+`condition` + `biological_replicate_id` groups are present, applies aggregation
+before model interpretation, and records workflow provenance.
+
+The old low-level `TechnicalReplicateResolver` wrapper is deprecated and emits
+`DeprecationWarning` when constructed or run. Its behaviour is unchanged during
+the deprecation window, but new low-level code should use the two owned
+components directly:
+
+```python
+from phospy.workflows.differential.replicates import (
+    TechnicalReplicateAggregationPlanner,
+    TechnicalReplicateAggregator,
+)
+
+planner = TechnicalReplicateAggregationPlanner()
+plan = planner.run(
+    dataset=dataset,
+    design=design,
+    technical_replicate_policy=TechnicalReplicatePolicy.MEAN,
+)
+
+resolved = TechnicalReplicateAggregator().run(
+    dataset=dataset,
+    design=design,
+    aggregation_plan=plan,
+)
+```
+
+Do not bypass workflow validation when using the public workflow. The planner
+and aggregator split is intended for internal or advanced orchestration that
+already preserves the same validated dataset, design, and policy contracts.
+
 ## Output Model
 
 `DifferentialAnalysisWorkflow.run(...)` returns `DifferentialAnalysisResult`.

@@ -15,6 +15,10 @@ All notable changes to this project are documented here.
   reproduction and migrate new analyses to `fixed_effect_meta`,
   `random_effect_meta`, or `stouffer_z` based on the intended uncertainty
   model.
+- `TechnicalReplicateResolver` now emits `DeprecationWarning` when constructed
+  or run; migrate low-level callers to `TechnicalReplicateAggregationPlanner`
+  plus `TechnicalReplicateAggregator`, or use `DifferentialAnalysisWorkflow`
+  for normal workflow execution.
 
 ## [1.5.3] - 2026-06-08
 

@@ -14,6 +14,11 @@
   reproduction during the warning window, but new analyses should select
   `fixed_effect_meta`, `random_effect_meta`, or `stouffer_z` according to the
   intended site-level uncertainty model.
+- `TechnicalReplicateResolver` now emits `DeprecationWarning` when constructed
+  or run. Normal callers should use `DifferentialAnalysisWorkflow`; low-level
+  callers that need explicit technical-replicate resolution should run
+  `TechnicalReplicateAggregationPlanner` and then apply the resulting plan with
+  `TechnicalReplicateAggregator`.
 
 ## Version 1.5.3 (2026-06-08)
 
