@@ -28,3 +28,17 @@ def test_bh_adjustment_preserves_nan_positions() -> None:
         rtol=1e-12,
         atol=0.0,
     )
+
+
+def test_bh_adjustment_preserves_inf_positions_as_nan() -> None:
+    adjusted = benjamini_hochberg(np.array([0.01, np.inf, 0.04, -np.inf, 0.03]))
+
+    assert adjusted.shape == (5,)
+    assert np.isnan(adjusted[1])
+    assert np.isnan(adjusted[3])
+    np.testing.assert_allclose(
+        adjusted[np.array([True, False, True, False, True])],
+        np.array([0.03, 0.04, 0.04]),
+        rtol=1e-12,
+        atol=0.0,
+    )
