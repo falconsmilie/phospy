@@ -53,9 +53,20 @@ Differential workflows use a typed contract:
    - missing-value handling policy
    - intentionally rejected unsupported design features (`batch`, `block`)
 
-Technical-replicate resolution runs in
-`phospy.workflows.differential.replicates.TechnicalReplicateResolver` before
-design/contrast validation and matrix assembly.
+Technical-replicate handling is owned by the public
+`DifferentialAnalysisWorkflow.run(...)` pipeline. Normal users should call that
+workflow rather than internal replicate helpers. The workflow validator uses
+`phospy.workflows.differential.replicates.TechnicalReplicateAggregationPlanner`
+to enforce the explicit `technical_replicate_policy` contract and construct a
+`TechnicalReplicateAggregationPlan` before design-matrix assembly. When that
+plan requires aggregation, the workflow interpreter uses
+`phospy.workflows.differential.replicates.TechnicalReplicateAggregator` to apply
+the plan, aggregate the supported matrices, record technical-replicate lineage,
+and revalidate the resolved design before execution.
+
+`phospy.workflows.differential.replicates.TechnicalReplicateResolver` remains a
+backward-compatible wrapper around the planner and aggregator. It is not the
+current ownership point for differential workflow enforcement.
 
 Differential workflow eligibility requires dataset phospho intensity scale to be
 both:
@@ -110,7 +121,7 @@ allowed.
   `src/phospy/science/differential/policy_models.py`.
 - Differential structured policy provenance model:
   `src/phospy/science/differential/models.py`.
-- Resolver and aggregation behavior:
+- Planner, aggregator, and compatibility-resolver behavior:
   `src/phospy/workflows/differential/replicates.py`.
 - Differential request validation pipeline:
   `src/phospy/workflows/differential/validator.py`.
