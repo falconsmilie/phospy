@@ -802,8 +802,8 @@ def _assert_kinase_result_equal(left, right) -> None:
         assert left.activity_result is right.activity_result
         return
     pd.testing.assert_frame_equal(
-        left.activity_result.weighted_activity,
-        right.activity_result.weighted_activity,
+        left.activity_result.activity_matrix,
+        right.activity_result.activity_matrix,
         check_dtype=False,
         check_names=False,
         check_index_type=False,

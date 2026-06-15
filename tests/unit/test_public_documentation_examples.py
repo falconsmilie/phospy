@@ -114,3 +114,21 @@ def test_api_guide_small_working_example_includes_localisation_policy() -> None:
     assert "DatasetLocalisationConfig(" in source
     assert 'confidence_column="localisation_confidence"' in source
     assert "min_confidence=0.75" in source
+
+
+def test_public_kinase_docs_prefer_activity_matrix() -> None:
+    guide_source = _read(API_GUIDE)
+    kinase_source = _read(KINASE_WORKFLOW_DOC)
+    old_primary_phrase = (
+        "`activity_result.activity_" + "scores` is the method-neutral primary"
+    )
+
+    assert "`activity_result.activity_matrix` as the primary" in guide_source
+    assert (
+        "`activity_result.activity_matrix` is the method-neutral primary activity matrix"
+        in kinase_source
+    )
+    assert "activity_matrix = kinase_result.activity_result.activity_matrix" in (
+        kinase_source
+    )
+    assert old_primary_phrase not in kinase_source

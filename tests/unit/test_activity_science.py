@@ -152,8 +152,8 @@ def test_ssgsea_deterministic_rank_score_on_synthetic_data() -> None:
     assert result.activity_method.activity_method_id == (
         "ssgsea_substrate_enrichment_activity_v1"
     )
-    assert result.activity_scores.at["K_TOP", "c1"] == pytest.approx(0.5)
-    assert result.activity_scores.at["K_BOTTOM", "c1"] == pytest.approx(-0.5)
+    assert result.activity_matrix.at["K_TOP", "c1"] == pytest.approx(0.5)
+    assert result.activity_matrix.at["K_BOTTOM", "c1"] == pytest.approx(-0.5)
     assert result.substrate_count_matrix.at["K_TOP", "c1"] == 2
     assert result.substrate_count_matrix.at["K_BOTTOM", "c1"] == 2
     stats = result.statistics_table
@@ -178,7 +178,7 @@ def test_ssgsea_minimum_substrate_filtering_retains_diagnostic_pair() -> None:
         min_substrates=3,
     )
 
-    assert pd.isna(result.activity_scores.at["K1", "c1"])
+    assert pd.isna(result.activity_matrix.at["K1", "c1"])
     assert result.substrate_count_matrix.at["K1", "c1"] == 2
     stats = result.statistics_table
     assert stats is not None
@@ -249,7 +249,7 @@ def test_ssgsea_seed_reproducibility_for_permutation_p_values() -> None:
     assert second.p_value_matrix is not None
     assert first.q_value_matrix is not None
     assert second.q_value_matrix is not None
-    pdt.assert_frame_equal(first.activity_scores, second.activity_scores)
+    pdt.assert_frame_equal(first.activity_matrix, second.activity_matrix)
     pdt.assert_frame_equal(first.p_value_matrix, second.p_value_matrix)
     pdt.assert_frame_equal(first.q_value_matrix, second.q_value_matrix)
 
@@ -267,7 +267,7 @@ def test_ssgsea_result_populates_contract_and_policy_provenance() -> None:
         random_seed=3,
     )
 
-    pdt.assert_frame_equal(result.activity_matrix, result.activity_scores)
+    pdt.assert_frame_equal(result.to_dataframe(), result.activity_matrix)
     assert result.activity_substrate_counts is not None
     pdt.assert_frame_equal(
         result.substrate_count_matrix,
@@ -302,7 +302,7 @@ def test_ksea_basic_zscore_calculation_matches_hand_computed_values() -> None:
         min_substrates=2,
     )
 
-    assert result.weighted_activity.at["K1", "c1"] == pytest.approx(-1.0954451150103324)
+    assert result.activity_matrix.at["K1", "c1"] == pytest.approx(-1.0954451150103324)
     stats = result.statistics_table
     assert stats is not None
     row = stats.iloc[0]
@@ -312,7 +312,7 @@ def test_ksea_basic_zscore_calculation_matches_hand_computed_values() -> None:
     assert row["n_background_sites"] == 4
 
 
-def test_ksea_activity_scores_exposes_primary_zscore_matrix() -> None:
+def test_activity_scores_compatibility_alias_matches_activity_matrix() -> None:
     pred_mat = pd.DataFrame(
         {"K1": [0.9, 0.8, 0.1, 0.2]},
         index=["S1;S1;", "S2;S2;", "S3;S3;", "S4;S4;"],
@@ -327,9 +327,8 @@ def test_ksea_activity_scores_exposes_primary_zscore_matrix() -> None:
     )
 
     assert result.activity_method.activity_method_id == "ksea_zscore_v1"
-    assert result.activity_scores.at["K1", "c1"] == pytest.approx(-1.0954451150103324)
-    pdt.assert_frame_equal(result.activity_scores, result.weighted_activity)
-    pdt.assert_frame_equal(result.to_dataframe(), result.activity_scores)
+    assert result.activity_matrix.at["K1", "c1"] == pytest.approx(-1.0954451150103324)
+    pdt.assert_frame_equal(result.activity_scores, result.activity_matrix)
 
 
 def test_ksea_result_populates_extensible_activity_contract() -> None:
@@ -346,7 +345,7 @@ def test_ksea_result_populates_extensible_activity_contract() -> None:
         min_substrates=2,
     )
 
-    pdt.assert_frame_equal(result.activity_matrix, result.activity_scores)
+    pdt.assert_frame_equal(result.to_dataframe(), result.activity_matrix)
     assert result.p_value_matrix is not None
     assert result.q_value_matrix is not None
     assert result.confidence_interval_low is None
@@ -388,10 +387,10 @@ def test_ksea_computes_each_kinase_condition_pair_independently() -> None:
         min_substrates=2,
     )
 
-    assert result.weighted_activity.at["K1", "c1"] == pytest.approx(-0.7071067811865476)
-    assert result.weighted_activity.at["K2", "c1"] == pytest.approx(0.7071067811865476)
-    assert result.weighted_activity.at["K1", "c2"] == pytest.approx(0.7071067811865476)
-    assert result.weighted_activity.at["K2", "c2"] == pytest.approx(-0.7071067811865476)
+    assert result.activity_matrix.at["K1", "c1"] == pytest.approx(-0.7071067811865476)
+    assert result.activity_matrix.at["K2", "c1"] == pytest.approx(0.7071067811865476)
+    assert result.activity_matrix.at["K1", "c2"] == pytest.approx(0.7071067811865476)
+    assert result.activity_matrix.at["K2", "c2"] == pytest.approx(-0.7071067811865476)
 
 
 def test_ksea_reports_insufficient_substrates_without_dropping_pairs() -> None:
@@ -408,7 +407,7 @@ def test_ksea_reports_insufficient_substrates_without_dropping_pairs() -> None:
         min_substrates=2,
     )
 
-    assert pd.isna(result.weighted_activity.at["K1", "c1"])
+    assert pd.isna(result.activity_matrix.at["K1", "c1"])
     stats = result.statistics_table
     assert stats is not None
     assert int(stats.shape[0]) == 1
@@ -765,15 +764,15 @@ def test_weighted_activity_ignores_missing_values_per_sample() -> None:
         )
     )
 
-    assert result.weighted_activity.at[
-        "PRKACA", "phospho_corrected_1"
-    ] == pytest.approx(6.0625)
-    assert result.weighted_activity.at[
-        "PRKACA", "phospho_corrected_2"
-    ] == pytest.approx((20 * 0.9 + 6 * 0.8) / (0.9 + 0.8))
+    assert result.activity_matrix.at["PRKACA", "phospho_corrected_1"] == pytest.approx(
+        6.0625
+    )
+    assert result.activity_matrix.at["PRKACA", "phospho_corrected_2"] == pytest.approx(
+        (20 * 0.9 + 6 * 0.8) / (0.9 + 0.8)
+    )
 
 
-def test_weighted_activity_scores_exposes_primary_weighted_matrix() -> None:
+def test_weighted_activity_compatibility_alias_matches_activity_matrix() -> None:
     pred_mat = pd.DataFrame(
         {"PRKACA": [0.9, 0.8, 0.7]},
         index=["A;S1;", "B;S2;", "C;S3;"],
@@ -799,14 +798,13 @@ def test_weighted_activity_scores_exposes_primary_weighted_matrix() -> None:
     assert result.activity_method.activity_method_id == (
         "simplified_weighted_substrate_activity_v1"
     )
-    assert result.activity_scores.at["PRKACA", "phospho_corrected_1"] == pytest.approx(
+    assert result.activity_matrix.at["PRKACA", "phospho_corrected_1"] == pytest.approx(
         6.0625
     )
-    assert result.activity_scores.at["PRKACA", "phospho_corrected_2"] == pytest.approx(
+    assert result.activity_matrix.at["PRKACA", "phospho_corrected_2"] == pytest.approx(
         (20 * 0.9 + 6 * 0.8) / (0.9 + 0.8)
     )
-    pdt.assert_frame_equal(result.activity_scores, result.weighted_activity)
-    pdt.assert_frame_equal(result.to_dataframe(), result.activity_scores)
+    pdt.assert_frame_equal(result.weighted_activity, result.activity_matrix)
 
 
 def test_weighted_result_populates_extensible_activity_contract() -> None:
@@ -832,7 +830,7 @@ def test_weighted_result_populates_extensible_activity_contract() -> None:
         )
     )
 
-    pdt.assert_frame_equal(result.activity_matrix, result.weighted_activity)
+    pdt.assert_frame_equal(result.to_dataframe(), result.activity_matrix)
     assert result.p_value_matrix is None
     assert result.q_value_matrix is None
     assert result.confidence_interval_low is None
@@ -865,7 +863,7 @@ def test_activity_result_contract_handles_empty_optional_diagnostics_cleanly() -
     )
 
     pdt.assert_frame_equal(result.to_dataframe(), activity_matrix)
-    pdt.assert_frame_equal(result.weighted_activity, activity_matrix)
+    pdt.assert_frame_equal(result.activity_matrix, activity_matrix)
     pdt.assert_frame_equal(result.substrate_count_matrix, substrate_count_matrix)
     assert result.p_value_matrix is None
     assert result.q_value_matrix is None
@@ -969,7 +967,7 @@ def test_top_n_substrate_selection_is_deterministic_for_ties() -> None:
         )
     )
 
-    assert result.weighted_activity.at["MAP2K6", "sample_a"] == pytest.approx(5.5)
+    assert result.activity_matrix.at["MAP2K6", "sample_a"] == pytest.approx(5.5)
 
 
 def test_target_count_and_target_table_outputs_are_consistent() -> None:
@@ -1077,9 +1075,9 @@ def test_activity_result_exposes_explicit_method_identity_without_changing_score
     )
     assert result.activity_method.is_ksea is False
     assert result.activity_method.is_phosr_kinase_activity_equivalent is False
-    assert result.weighted_activity.at[
-        "PRKACA", "phospho_corrected_1"
-    ] == pytest.approx(6.0625)
-    assert result.weighted_activity.at[
-        "PRKACA", "phospho_corrected_2"
-    ] == pytest.approx((20 * 0.9 + 6 * 0.8) / (0.9 + 0.8))
+    assert result.activity_matrix.at["PRKACA", "phospho_corrected_1"] == pytest.approx(
+        6.0625
+    )
+    assert result.activity_matrix.at["PRKACA", "phospho_corrected_2"] == pytest.approx(
+        (20 * 0.9 + 6 * 0.8) / (0.9 + 0.8)
+    )

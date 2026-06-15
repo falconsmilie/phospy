@@ -406,7 +406,7 @@ def test_activity_parity_lock_historical_baseline_uses_rewrite_owned_fixture_pat
     )
     assert "from tests.support.rewrite_fixture_data import (" in source
     assert "load_activity_reference_predmat" in source
-    assert "load_activity_reference_weighted_activity" in source
+    assert "load_activity_reference_activity_matrix" in source
     assert "load_activity_reference_thresholded_substrate_mean_activity" in source
     assert "load_activity_reference_target_table" in source
     assert "legacy_archive" not in source

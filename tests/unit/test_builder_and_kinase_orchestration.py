@@ -271,7 +271,7 @@ def test_request_config_and_result_models_construct() -> None:
         )
     )
     activity = KinaseActivityResult(
-        weighted_activity=pd.DataFrame(),
+        activity_matrix=pd.DataFrame(),
         thresholded_substrate_mean_activity=pd.DataFrame(),
         thresholded_substrate_counts=pd.Series(dtype="int64", name="n_substrates"),
         target_counts=pd.Series(dtype="int64", name="n_targets"),

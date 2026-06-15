@@ -824,10 +824,10 @@ def test_activity_stage_returns_weighted_thresholded_mean_and_target_outputs() -
         prediction_result=prediction_result,
     )
     assert result is not None
-    assert result.weighted_activity.at["MAP2K6", "sample_a"] == pytest.approx(
+    assert result.activity_matrix.at["MAP2K6", "sample_a"] == pytest.approx(
         (1.0 * 0.9 + 2.0 * 0.5) / (0.9 + 0.5)
     )
-    assert result.weighted_activity.at["AKT1", "sample_b"] == pytest.approx(
+    assert result.activity_matrix.at["AKT1", "sample_b"] == pytest.approx(
         (2.0 * 0.4 + 4.0 * 0.2) / (0.4 + 0.2)
     )
     assert list(result.thresholded_substrate_mean_activity.index) == ["MAP2K6"]
@@ -896,9 +896,9 @@ def test_weighted_activity_is_stable_under_zero_padding_matrix_growth() -> None:
 
     assert compact is not None
     assert padded is not None
-    assert compact.weighted_activity.at["MAP2K6", "sample_a"] == pytest.approx(
-        padded.weighted_activity.at["MAP2K6", "sample_a"]
+    assert compact.activity_matrix.at["MAP2K6", "sample_a"] == pytest.approx(
+        padded.activity_matrix.at["MAP2K6", "sample_a"]
     )
-    assert compact.weighted_activity.at["MAP2K6", "sample_b"] == pytest.approx(
-        padded.weighted_activity.at["MAP2K6", "sample_b"]
+    assert compact.activity_matrix.at["MAP2K6", "sample_b"] == pytest.approx(
+        padded.activity_matrix.at["MAP2K6", "sample_b"]
     )

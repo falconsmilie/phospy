@@ -1177,7 +1177,7 @@ def test_kinase_result_table_properties_are_defensive_snapshots() -> None:
     )
 
     activity_result = KinaseActivityResult._from_owned(
-        weighted_activity=pd.DataFrame(
+        activity_matrix=pd.DataFrame(
             {"MAP2K6": [1.0, 2.0]},
             index=pd.Index(["sample_a", "sample_b"]),
         ),
@@ -1204,8 +1204,7 @@ def test_kinase_result_table_properties_are_defensive_snapshots() -> None:
         ),
     )
     for getter in (
-        lambda: activity_result.weighted_activity,
-        lambda: activity_result.activity_scores,
+        lambda: activity_result.activity_matrix,
         lambda: activity_result.thresholded_substrate_mean_activity,
         lambda: activity_result.target_table,
     ):
@@ -1214,7 +1213,7 @@ def test_kinase_result_table_properties_are_defensive_snapshots() -> None:
 
 def test_kinase_activity_result_series_properties_are_defensive_snapshots() -> None:
     activity_result = KinaseActivityResult._from_owned(
-        weighted_activity=pd.DataFrame(
+        activity_matrix=pd.DataFrame(
             {"MAP2K6": [1.0, 2.0]},
             index=pd.Index(["sample_a", "sample_b"]),
         ),

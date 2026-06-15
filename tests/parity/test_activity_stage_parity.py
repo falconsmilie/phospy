@@ -14,13 +14,13 @@ from tests.support.rewrite_fixture_data import (
     ACTIVITY_PARITY_FIXTURE_FILES,
     ACTIVITY_REFERENCE_PROVENANCE,
     activity_parity_fixture_paths,
+    load_activity_reference_activity_matrix,
     load_activity_reference_predmat,
     load_activity_reference_provenance_text,
     load_activity_reference_target_counts,
     load_activity_reference_target_table,
     load_activity_reference_thresholded_substrate_counts,
     load_activity_reference_thresholded_substrate_mean_activity,
-    load_activity_reference_weighted_activity,
     load_rat_l6_phospho,
 )
 from tests.support.site_keys import site_key_index_from_display_ids
@@ -87,26 +87,25 @@ def test_activity_parity_fixture_set_is_present_readable_and_provenanced(
     )
 
 
-def test_weighted_activity_matches_rewrite_reference_fixture(
+def test_activity_matrix_matches_rewrite_reference_fixture(
     request: pytest.FixtureRequest,
 ) -> None:
     result, _ = _activity_result()
-    expected = load_activity_reference_weighted_activity()
-    pdt.assert_frame_equal(result.weighted_activity.sort_index(), expected.sort_index())
+    expected = load_activity_reference_activity_matrix()
     pdt.assert_frame_equal(result.activity_matrix.sort_index(), expected.sort_index())
     pdt.assert_frame_equal(result.to_dataframe().sort_index(), expected.sort_index())
-    aligned = result.weighted_activity.sort_index() - expected.sort_index()
+    aligned = result.activity_matrix.sort_index() - expected.sort_index()
     absolute_delta = aligned.abs()
     record_parity_metrics(
         request.config,
         family="activity_stage",
         metrics=[
-            ("weighted activity shape", format_shape(*result.weighted_activity.shape)),
+            ("activity matrix shape", format_shape(*result.activity_matrix.shape)),
             (
-                "weighted activity mean abs diff",
+                "activity matrix mean abs diff",
                 float(absolute_delta.to_numpy().mean()),
             ),
-            ("weighted activity max abs diff", float(absolute_delta.to_numpy().max())),
+            ("activity matrix max abs diff", float(absolute_delta.to_numpy().max())),
         ],
     )
 

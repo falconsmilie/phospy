@@ -433,10 +433,13 @@ activity = KinaseActivityConfig(
 per-condition computability statuses and statistics output. It is not equivalent
 to PhosR kinase activity inference.
 
-`activity_result.activity_scores` is the method-neutral primary activity matrix:
+`activity_result.activity_matrix` is the method-neutral primary activity matrix:
 
 - for `simplified_weighted_substrate_activity_v1`, values are weighted substrate activity scores
 - for `ksea_zscore_v1`, values are KSEA z-scores
+
+`activity_scores` and `weighted_activity` remain compatibility aliases for
+existing callers.
 
 ## Full Kinase Workflow Example
 
@@ -484,7 +487,7 @@ kinase_result = KinaseWorkflow().run(
 print(kinase_result.scoring_result.profile_scores.shape)
 print(kinase_result.prediction_result.pred_mat.round(4))
 if kinase_result.activity_result is not None:
-    print(kinase_result.activity_result.activity_scores.round(4))
+    print(kinase_result.activity_result.activity_matrix.round(4))
 ```
 
 ## Output Tables
@@ -518,7 +521,7 @@ workflow-created results, not arbitrary hand-assembled containers.
 Activity tables are present when activity is enabled:
 
 ```python
-activity_scores = kinase_result.activity_result.activity_scores
+activity_matrix = kinase_result.activity_result.activity_matrix
 activity_method = kinase_result.activity_result.activity_method
 ```
 

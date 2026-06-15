@@ -49,7 +49,9 @@ RAT_L6_PHOSPHO = REWRITE_PARITY_REFERENCE / "l6_phospho_matrix.csv"
 RAT_L6_EXPECTED_PROFILE = REWRITE_PARITY_REFERENCE / "native_profile_scores.csv"
 ACTIVITY_REFERENCE_PROVENANCE = REWRITE_PARITY_REFERENCE / "PROVENANCE.md"
 ACTIVITY_REFERENCE_PREDMAT = REWRITE_PARITY_REFERENCE / "predMat.csv"
-ACTIVITY_REFERENCE_WEIGHTED = REWRITE_PARITY_REFERENCE / "kinase_activity_matrix.csv"
+ACTIVITY_REFERENCE_ACTIVITY_MATRIX = (
+    REWRITE_PARITY_REFERENCE / "kinase_activity_matrix.csv"
+)
 ACTIVITY_REFERENCE_THRESHOLDED_SUBSTRATE_MEAN_ACTIVITY = (
     REWRITE_PARITY_REFERENCE / "thresholded_substrate_mean_activity.csv"
 )
@@ -180,8 +182,8 @@ def load_activity_reference_predmat() -> pd.DataFrame:
 
 
 @lru_cache(maxsize=1)
-def load_activity_reference_weighted_activity() -> pd.DataFrame:
-    frame = pd.read_csv(ACTIVITY_REFERENCE_WEIGHTED, index_col=0)
+def load_activity_reference_activity_matrix() -> pd.DataFrame:
+    frame = pd.read_csv(ACTIVITY_REFERENCE_ACTIVITY_MATRIX, index_col=0)
     frame.index = pd.Index(frame.index.astype(str), name="kinase")
     return frame.astype(float)
 

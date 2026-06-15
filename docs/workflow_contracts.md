@@ -480,7 +480,7 @@ the result models.
   `kinase_library_motif_scores`, `combined_profile_motif_scores`, diagnostics,
   and optional fusion weights
 - Prediction: `pred_mat`, `substrate_list`
-- Optional activity: primary `activity_scores` matrix (with `weighted_activity` as compatibility alias), `thresholded_substrate_mean_activity`, `thresholded_substrate_counts`, `target_counts`, `target_table`, optional `statistics_table`
+- Optional activity: primary `activity_matrix` (with `activity_scores` and `weighted_activity` as compatibility aliases), `thresholded_substrate_mean_activity`, `thresholded_substrate_counts`, `target_counts`, `target_table`, optional `statistics_table`
 - Primary matrices are indexed by `site_key`; site-level tables that materialize
   row identity include both `site_key` and `display_id`.
 

@@ -568,7 +568,7 @@ class KinaseActivityResult:
 
     @property
     def activity_scores(self) -> pd.DataFrame:
-        """Return the primary activity score matrix for the selected method."""
+        """Compatibility alias for :attr:`activity_matrix`."""
 
         return self.activity_matrix
 

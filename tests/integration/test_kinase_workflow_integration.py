@@ -391,7 +391,7 @@ def test_kinase_workflow_runs_dataset_to_kinase_path() -> None:
     finite_values = pred_values[np.isfinite(pred_values)]
     assert (finite_values >= 0.0).all()
     assert result.activity_result is not None
-    assert not result.activity_result.weighted_activity.empty
+    assert not result.activity_result.activity_matrix.empty
     assert not result.activity_result.thresholded_substrate_mean_activity.empty
     assert not result.activity_result.thresholded_substrate_counts.empty
     assert not result.activity_result.target_counts.empty
@@ -505,12 +505,8 @@ def test_kinase_workflow_supports_ksea_activity_method_with_statistics_output() 
         is False
     )
     pd.testing.assert_frame_equal(
-        result.activity_result.activity_scores,
-        result.activity_result.weighted_activity,
-    )
-    pd.testing.assert_frame_equal(
         result.activity_result.to_dataframe(),
-        result.activity_result.activity_scores,
+        result.activity_result.activity_matrix,
     )
     assert result.activity_result.statistics_table is not None
     assert {
@@ -624,14 +620,8 @@ def test_weighted_and_ksea_activity_methods_are_independently_selectable() -> No
         "simplified_weighted_substrate_activity_v1"
     )
     assert ksea.activity_result.activity_method.activity_method_id == "ksea_zscore_v1"
-    pd.testing.assert_frame_equal(
-        weighted.activity_result.activity_scores,
-        weighted.activity_result.weighted_activity,
-    )
-    pd.testing.assert_frame_equal(
-        ksea.activity_result.activity_scores,
-        ksea.activity_result.weighted_activity,
-    )
+    assert not weighted.activity_result.activity_matrix.empty
+    assert not ksea.activity_result.activity_matrix.empty
     assert ksea.activity_result.statistics_table is not None
 
 

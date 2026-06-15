@@ -99,10 +99,10 @@ def test_kinase_workflow_runs_ssgsea_substrate_enrichment_activity() -> None:
     assert activity.activity_method.activity_method_id == (
         "ssgsea_substrate_enrichment_activity_v1"
     )
-    assert activity.activity_scores.at["K_TOP", "condition_positive"] == pytest.approx(
+    assert activity.activity_matrix.at["K_TOP", "condition_positive"] == pytest.approx(
         0.5
     )
-    assert activity.activity_scores.at["K_TOP", "condition_negative"] == pytest.approx(
+    assert activity.activity_matrix.at["K_TOP", "condition_negative"] == pytest.approx(
         -0.5
     )
     assert activity.p_value_matrix is not None
