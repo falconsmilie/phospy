@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased]
+
+### Deprecated
+
+- bare motif sequence strings passed to `build_motif_library_from_sequences` now
+  emit `DeprecationWarning`; migrate to `ExplicitMotifSequence` values or
+  structured mapping entries with stable `reference_id`, optional `site_id`,
+  `kinase`, and `sequence` fields.
+- `PeptideToSiteAggregationConfig(strategy="compat_best_p_value")` now emits
+  `DeprecationWarning`; keep it only for historical minimum-p-value
+  reproduction and migrate new analyses to `fixed_effect_meta`,
+  `random_effect_meta`, or `stouffer_z` based on the intended uncertainty
+  model.
+
 ## [1.5.3] - 2026-06-08
 
 ### Added

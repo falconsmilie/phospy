@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
 from phospy.science.differential.aggregation import (
     PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE,
@@ -109,14 +110,15 @@ def test_compatibility_mode_reproduces_minimum_p_value_selection() -> None:
         frame=_evidence_frame(),
         sample_intensity_columns=("sample_a", "sample_b"),
     )
-    aggregated = PeptideToSiteAggregator().run_table(
-        peptide_differential_table=_differential_table(),
-        evidence=evidence,
-        config=PeptideToSiteAggregationConfig(
-            strategy=PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE
-        ),
-        contrast_name="B_vs_A",
-    )
+    with pytest.warns(DeprecationWarning, match="compat_best_p_value is deprecated"):
+        aggregated = PeptideToSiteAggregator().run_table(
+            peptide_differential_table=_differential_table(),
+            evidence=evidence,
+            config=PeptideToSiteAggregationConfig(
+                strategy=PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE
+            ),
+            contrast_name="B_vs_A",
+        )
     table = aggregated.to_dataframe()
     site_row = table.loc["MAPK1;S10;"]
 
@@ -151,14 +153,15 @@ def test_scientific_policy_metadata_warns_for_compatibility_min_p_mode() -> None
         frame=_evidence_frame(),
         sample_intensity_columns=("sample_a", "sample_b"),
     )
-    result = PeptideToSiteAggregator().run_table(
-        peptide_differential_table=_differential_table(),
-        evidence=evidence,
-        config=PeptideToSiteAggregationConfig(
-            strategy=PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE
-        ),
-        contrast_name="B_vs_A",
-    )
+    with pytest.warns(DeprecationWarning, match="compat_best_p_value is deprecated"):
+        result = PeptideToSiteAggregator().run_table(
+            peptide_differential_table=_differential_table(),
+            evidence=evidence,
+            config=PeptideToSiteAggregationConfig(
+                strategy=PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE
+            ),
+            contrast_name="B_vs_A",
+        )
     policy = result.scientific_policies[0]
     assert result.warnings
     assert policy.parameters["compatibility_mode_warning"] is True

@@ -322,6 +322,48 @@ sequence eligibility checks. Ser/Thr and Tyr motif lanes remain separate; a
 site whose central residue does not match any usable matrix lane is reported in
 the site diagnostics instead of being silently coerced.
 
+## Motif Sequence Input Migration
+
+`build_motif_library_from_sequences(...)` still accepts bare sequence strings
+such as `{"K1": ["AAAAAAASAAAAAAA"]}` during the deprecation window, but that
+shape now emits `DeprecationWarning`. The numerical motif profile output is
+unchanged while the warning window is open.
+
+Bare strings weaken auditability because they do not carry a stable
+`reference_id`, the intended `site_id`, or explicit kinase metadata. Without
+`site_id`, motif-library validation cannot check that the sequence centre
+matches the intended phosphosite residue, and diagnostics must fall back to
+generated identifiers.
+
+Prefer structured entries:
+
+```python
+from phospy.science.prediction.motif_scoring import (
+    ExplicitMotifSequence,
+    build_motif_library_from_sequences,
+)
+
+motif_frequency_matrices, motif_sizes = build_motif_library_from_sequences(
+    motif_sequences={
+        "K1": [
+            ExplicitMotifSequence(
+                reference_id="curated_ref_001",
+                site_id="MAPK1;S202;",
+                kinase="K1",
+                sequence="AAAAAAASAAAAAAA",
+            ),
+        ]
+    }
+)
+```
+
+If the source sequence has a stable reference row but no trustworthy site
+identity, pass a structured mapping with `reference_id` and `sequence` and omit
+`site_id` deliberately. That preserves provenance while making the missing
+site-residue validation explicit. For curated libraries, include `site_id` so
+short windows, unsupported residues, off-centre windows, non-phospho centres,
+and site-residue mismatches are all reproducible validation outcomes.
+
 ## Prediction Configuration
 
 Use intent presets for the two common prediction lanes:

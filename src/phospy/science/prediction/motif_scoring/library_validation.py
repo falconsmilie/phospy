@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from collections import Counter
 from collections.abc import Mapping, Sequence
 
@@ -32,6 +33,14 @@ from phospy.science.prediction.sequence_validation import (
     SEQUENCE_VALIDATION_STATUS_VALID,
     MotifSequenceValidator,
     SequenceValidationInput,
+)
+
+_BARE_MOTIF_SEQUENCE_DEPRECATION_MESSAGE = (
+    "Bare motif sequence strings in motif_sequences are deprecated and will be "
+    "rejected in a future release because they omit stable reference and site "
+    "identity metadata needed for reproducible motif-library validation. Pass "
+    "ExplicitMotifSequence values or mapping entries with reference_id, site_id, "
+    "kinase, and sequence fields."
 )
 
 
@@ -99,9 +108,11 @@ def build_motif_library_from_sequences(
         raise ValueError("flank_size must be >= 0")
 
     candidates: list[_LibraryCandidate] = []
+    saw_bare_sequence = False
     for kinase, sequences in motif_sequences.items():
         kinase_name = str(kinase)
         for index, entry in enumerate(sequences):
+            saw_bare_sequence = saw_bare_sequence or isinstance(entry, str)
             explicit_entry = _normalize_explicit_motif_sequence(
                 entry=entry,
                 default_kinase=kinase_name,
@@ -115,6 +126,12 @@ def build_motif_library_from_sequences(
                     sequence_input=_normalize_sequence_value(explicit_entry.sequence),
                 )
             )
+    if saw_bare_sequence:
+        warnings.warn(
+            _BARE_MOTIF_SEQUENCE_DEPRECATION_MESSAGE,
+            DeprecationWarning,
+            stacklevel=2,
+        )
     frequency_matrices, size_series, validation = _build_motif_library_from_candidates(
         candidates,
         flank_size=flank_size,

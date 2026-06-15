@@ -1,5 +1,20 @@
 # PhosPy Release Notes
 
+## Unreleased
+
+### Deprecations
+
+- Bare motif sequence strings passed to
+  `build_motif_library_from_sequences(...)` now emit `DeprecationWarning`.
+  Use `ExplicitMotifSequence` values or structured mapping entries so motif
+  library validation records stable reference identity and, when available,
+  site-residue identity.
+- `PeptideToSiteAggregationConfig(strategy="compat_best_p_value")` now emits
+  `DeprecationWarning`. It remains available for historical minimum-p-value
+  reproduction during the warning window, but new analyses should select
+  `fixed_effect_meta`, `random_effect_meta`, or `stouffer_z` according to the
+  intended site-level uncertainty model.
+
 ## Version 1.5.3 (2026-06-08)
 
 ## Release Overview

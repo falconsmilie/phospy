@@ -261,6 +261,29 @@ row index happens to contain encoded `site_key` values.
 - Multiple-testing-adjusted p-values are reported in `adj.P.Val`.
 - Current multiple-testing policy supports Benjamini-Hochberg adjustment.
 
+### Peptide-To-Site Aggregation Migration
+
+Lower-level peptide-to-site aggregation still accepts
+`PeptideToSiteAggregationConfig(strategy="compat_best_p_value")` for historical
+reproduction, but selecting it now emits `DeprecationWarning`. The compatibility
+strategy continues to select the peptide row with the smallest `P.Value` for a
+site during the warning window; numerical outputs are not changed by the
+warning.
+
+Use `compat_best_p_value` only when reproducing an archived minimum-p-value
+analysis. For new or migrated analyses, choose the aggregation method according
+to the statistical evidence available:
+
+- `fixed_effect_meta` is the default and combines peptide `logFC` values using
+  variance derived from peptide-level uncertainty statistics.
+- `random_effect_meta` keeps the same effect-scale interpretation while adding
+  between-peptide heterogeneity to the uncertainty model.
+- `stouffer_z` combines signed peptide-level significance when the effect-scale
+  variance model is not the intended summary.
+
+Do not treat migration as a silent name change. Pick the method that matches
+the scientific question and document it in the analysis provenance.
+
 ### Result Structure and Metadata
 
 - Per-contrast result tables (`result.table_for(contrast_name)`)

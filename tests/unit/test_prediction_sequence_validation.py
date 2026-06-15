@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import warnings
+
 import pandas as pd
 
 from phospy import AnalysisReadyPhosphoDataset, KinaseWorkflow
@@ -48,6 +50,14 @@ def _validator() -> MotifSequenceValidator:
     return MotifSequenceValidator(
         expected_window_size=(2 * DEFAULT_MOTIF_FLANK_SIZE) + 1
     )
+
+
+def _structured_motif_sequence(
+    sequence: str,
+    *,
+    reference_id: str = "REF",
+) -> dict[str, object]:
+    return {"reference_id": reference_id, "sequence": sequence}
 
 
 def test_valid_centred_site_sequence_passes_validation() -> None:
@@ -175,9 +185,15 @@ def test_motif_scoring_excludes_invalid_sequences_and_reports_diagnostics() -> N
     motif_frequency_matrices, motif_sizes = build_motif_library_from_sequences(
         motif_sequences={
             "K1": [
-                "AAAAAAASAAAAAAA",
-                "VVVVVVVTVVVVVVV",
-                "SSSSSSSSSSSSSSS",
+                _structured_motif_sequence(
+                    "AAAAAAASAAAAAAA", reference_id="REF_VALID_S"
+                ),
+                _structured_motif_sequence(
+                    "VVVVVVVTVVVVVVV", reference_id="REF_VALID_T"
+                ),
+                _structured_motif_sequence(
+                    "SSSSSSSSSSSSSSS", reference_id="REF_VALID_POLY_S"
+                ),
             ]
         },
         flank_size=DEFAULT_MOTIF_FLANK_SIZE,
@@ -220,7 +236,11 @@ def test_motif_scoring_excludes_invalid_sequences_and_reports_diagnostics() -> N
 
 def test_motif_scoring_requires_exact_centred_windows_by_default() -> None:
     motif_frequency_matrices, motif_sizes = build_motif_library_from_sequences(
-        motif_sequences={"K1": ["AAAAAAASAAAAAAA"]},
+        motif_sequences={
+            "K1": [
+                _structured_motif_sequence("AAAAAAASAAAAAAA", reference_id="REF_VALID")
+            ]
+        },
         flank_size=DEFAULT_MOTIF_FLANK_SIZE,
     )
     result = score_phosphosite_motifs(
@@ -243,7 +263,11 @@ def test_motif_scoring_can_explicitly_extract_window_from_centred_long_sequence(
     None
 ):
     motif_frequency_matrices, motif_sizes = build_motif_library_from_sequences(
-        motif_sequences={"K1": ["AAAAAAASAAAAAAA"]},
+        motif_sequences={
+            "K1": [
+                _structured_motif_sequence("AAAAAAASAAAAAAA", reference_id="REF_VALID")
+            ]
+        },
         flank_size=DEFAULT_MOTIF_FLANK_SIZE,
     )
     result = score_phosphosite_motifs(
@@ -265,7 +289,11 @@ def test_centre_extraction_mode_ignores_unsupported_tail_characters_outside_wind
     None
 ):
     motif_frequency_matrices, motif_sizes = build_motif_library_from_sequences(
-        motif_sequences={"K1": ["AAAAAAASAAAAAAA"]},
+        motif_sequences={
+            "K1": [
+                _structured_motif_sequence("AAAAAAASAAAAAAA", reference_id="REF_VALID")
+            ]
+        },
         flank_size=DEFAULT_MOTIF_FLANK_SIZE,
     )
     result = score_phosphosite_motifs(
@@ -287,7 +315,11 @@ def test_motif_scoring_rejects_long_off_centre_sequence_even_with_centre_extract
     None
 ):
     motif_frequency_matrices, motif_sizes = build_motif_library_from_sequences(
-        motif_sequences={"K1": ["AAAAAAASAAAAAAA"]},
+        motif_sequences={
+            "K1": [
+                _structured_motif_sequence("AAAAAAASAAAAAAA", reference_id="REF_VALID")
+            ]
+        },
         flank_size=DEFAULT_MOTIF_FLANK_SIZE,
     )
     result = score_phosphosite_motifs(
@@ -309,7 +341,11 @@ def test_motif_scoring_rejects_non_site_identifier_without_explicit_position_sup
     None
 ):
     motif_frequency_matrices, motif_sizes = build_motif_library_from_sequences(
-        motif_sequences={"K1": ["AAAAAAASAAAAAAA"]},
+        motif_sequences={
+            "K1": [
+                _structured_motif_sequence("AAAAAAASAAAAAAA", reference_id="REF_VALID")
+            ]
+        },
         flank_size=DEFAULT_MOTIF_FLANK_SIZE,
     )
     result = score_phosphosite_motifs(
@@ -329,7 +365,11 @@ def test_motif_scoring_rejects_non_site_identifier_without_explicit_position_sup
 
 def test_motif_scoring_reports_missing_sequence_when_required_for_scoring() -> None:
     motif_frequency_matrices, motif_sizes = build_motif_library_from_sequences(
-        motif_sequences={"K1": ["AAAAAAASAAAAAAA"]},
+        motif_sequences={
+            "K1": [
+                _structured_motif_sequence("AAAAAAASAAAAAAA", reference_id="REF_VALID")
+            ]
+        },
         flank_size=DEFAULT_MOTIF_FLANK_SIZE,
     )
     result = score_phosphosite_motifs(
@@ -349,7 +389,11 @@ def test_motif_scoring_reports_missing_sequence_when_required_for_scoring() -> N
 
 def test_motif_scoring_rejects_non_phospho_centre_residue() -> None:
     motif_frequency_matrices, motif_sizes = build_motif_library_from_sequences(
-        motif_sequences={"K1": ["AAAAAAASAAAAAAA"]},
+        motif_sequences={
+            "K1": [
+                _structured_motif_sequence("AAAAAAASAAAAAAA", reference_id="REF_VALID")
+            ]
+        },
         flank_size=DEFAULT_MOTIF_FLANK_SIZE,
     )
     result = score_phosphosite_motifs(
@@ -884,13 +928,42 @@ def test_structured_explicit_sequence_rejects_invalid_site_id_format() -> None:
     assert validation.rows[0].status == SEQUENCE_VALIDATION_STATUS_INVALID_SITE_ID
 
 
-def test_bare_explicit_sequences_remain_supported_without_site_mismatch_claims() -> (
+def test_structured_explicit_sequences_do_not_emit_bare_string_warning() -> None:
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        _, motif_sizes = build_motif_library_from_sequences(
+            motif_sequences={
+                "K1": [
+                    {
+                        "reference_id": "REF_VALID",
+                        "site_id": "MAPK1;S202;",
+                        "kinase": "K1",
+                        "sequence": "AAAAAAASAAAAAAA",
+                    }
+                ]
+            },
+            flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+        )
+
+    validation = get_motif_library_validation(motif_sizes)
+    assert validation is not None
+    assert validation.accepted_reference_sequences == 1
+    assert not any(
+        issubclass(item.category, DeprecationWarning)
+        and "Bare motif sequence strings" in str(item.message)
+        for item in caught
+    )
+
+
+def test_bare_explicit_sequences_warn_and_remain_supported_without_site_mismatch_claims() -> (
     None
 ):
-    _, motif_sizes = build_motif_library_from_sequences(
-        motif_sequences={"K1": ["AAAAAAASAAAAAAA", "AAAAAAATAAAAAAA"]},
-        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
-    )
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        _, motif_sizes = build_motif_library_from_sequences(
+            motif_sequences={"K1": ["AAAAAAASAAAAAAA", "AAAAAAATAAAAAAA"]},
+            flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+        )
 
     validation = get_motif_library_validation(motif_sizes)
     assert validation is not None
@@ -903,13 +976,21 @@ def test_bare_explicit_sequences_remain_supported_without_site_mismatch_claims()
         assert row.status == "valid"
         assert row.site_id is None
         assert row.expected_centre_residue is None
+    assert any(
+        issubclass(item.category, DeprecationWarning)
+        and "Bare motif sequence strings" in str(item.message)
+        and "ExplicitMotifSequence" in str(item.message)
+        for item in caught
+    )
 
 
 def test_bare_explicit_invalid_sequence_is_rejected_and_reported() -> None:
-    _, motif_sizes = build_motif_library_from_sequences(
-        motif_sequences={"K1": ["AAAAAAAXAAAAAAA"]},
-        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
-    )
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        _, motif_sizes = build_motif_library_from_sequences(
+            motif_sequences={"K1": ["AAAAAAAXAAAAAAA"]},
+            flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+        )
 
     validation = get_motif_library_validation(motif_sizes)
     assert validation is not None
@@ -920,6 +1001,11 @@ def test_bare_explicit_invalid_sequence_is_rejected_and_reported() -> None:
     assert (
         validation.rows[0].status
         == SEQUENCE_VALIDATION_STATUS_UNSUPPORTED_RESIDUE_CHARACTER
+    )
+    assert any(
+        issubclass(item.category, DeprecationWarning)
+        and "Bare motif sequence strings" in str(item.message)
+        for item in caught
     )
 
 

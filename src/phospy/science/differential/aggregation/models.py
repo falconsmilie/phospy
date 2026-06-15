@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
@@ -33,6 +34,13 @@ SUPPORTED_STOUFFER_WEIGHTING: tuple[str, ...] = (
 )
 MISSING_VARIANCE_POLICY_DROP = "drop"
 SUPPORTED_MISSING_VARIANCE_POLICIES: tuple[str, ...] = (MISSING_VARIANCE_POLICY_DROP,)
+_COMPAT_BEST_P_VALUE_DEPRECATION_MESSAGE = (
+    "compat_best_p_value is deprecated and will be removed in a future release. "
+    "It selects the minimum peptide p-value per site for historical "
+    "reproduction only and can bias site-level significance. Use "
+    "fixed_effect_meta, random_effect_meta, or stouffer_z according to the "
+    "peptide-level uncertainty available for the analysis."
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,6 +60,12 @@ class PeptideToSiteAggregationConfig:
             )
             raise PhosPyInputError(
                 f"peptide_to_site_aggregation.strategy must be one of: {supported}"
+            )
+        if self.strategy == PEPTIDE_TO_SITE_STRATEGY_COMPAT_BEST_P_VALUE:
+            warnings.warn(
+                _COMPAT_BEST_P_VALUE_DEPRECATION_MESSAGE,
+                DeprecationWarning,
+                stacklevel=2,
             )
         min_peptides_per_site = cast(object, self.min_peptides_per_site)
         if not isinstance(min_peptides_per_site, int) or min_peptides_per_site < 1:
