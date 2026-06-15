@@ -67,6 +67,11 @@ def _adr_0027_text() -> str:
     return _read(ADR_0027_DOC)
 
 
+def _package_description() -> str:
+    pyproject_data = tomllib.loads(_read(PYPROJECT))
+    return pyproject_data["project"]["description"]
+
+
 def test_scientific_coverage_doc_exists() -> None:
     assert SCIENTIFIC_COVERAGE_DOC.is_file()
 
@@ -90,6 +95,21 @@ def test_scope_matrix_is_the_single_source_of_truth() -> None:
     assert "## Scientific Scope Matrix (Single Source Of Truth)" in text
     assert "full phosr package equivalence is not" in lowered
     assert "not claimed" in lowered
+
+
+def test_package_metadata_does_not_claim_phosr_parity() -> None:
+    description = _package_description()
+    normalized = " ".join(description.lower().split())
+
+    assert description == (
+        "Python package for selected PhosR-inspired phosphoproteomics workflows"
+    )
+    assert "phosr-inspired" in normalized
+    assert "parity" not in normalized
+    assert "ruv" not in normalized
+    assert "sps" not in normalized
+    assert "ruv-iii" not in normalized
+    assert "support" not in normalized
 
 
 def test_scope_matrix_columns_and_required_rows_are_present() -> None:
