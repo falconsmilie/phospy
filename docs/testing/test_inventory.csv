@@ -38,7 +38,7 @@ tests/parity/test_signalome_clustering_backend_parity.py,parity,94,2,true,false,
 tests/parity/test_signalome_workflow_parity.py,parity,369,7,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for signalome workflow parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/performance/test_performance_contracts.py,performance,1265,16,true,false,performance/memory contract,keep,"Loss of this file would remove runtime and memory envelope checks for performance contracts, allowing performance regressions to ship undetected.",codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/performance/test_signalome_clustering_benchmark.py,performance,82,1,true,false,performance/memory contract,keep,"Loss of this file would remove runtime and memory envelope checks for signalome clustering benchmark, allowing performance regressions to ship undetected.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/performance/test_workflow_scale_contracts.py,performance,260,2,true,true,,,,,,
+tests/performance/test_workflow_scale_contracts.py,performance,261,2,true,true,,,,,,
 tests/science/test_kinase_library_motif_scoring_science.py,science,51,1,false,false,,,,,,
 tests/science/test_signalome_identity_coherence.py,science,66,1,false,false,,,,,,
 tests/unit/test_activity_science.py,unit,1093,34,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for activity science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
