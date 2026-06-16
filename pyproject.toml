@@ -76,7 +76,7 @@ dev = [
   "pandas-stubs>=3.0.0.260204; python_version >= '3.11'",
   "scipy-stubs>=1.17.1.0",
   "pre-commit>=4.0",
-  "pyright>=1.1.409",
+  "pyright>=1.1.410",
   "pytest>=8.0",
   "ruff>=0.15.7",
 ]

@@ -429,12 +429,7 @@ def _build_import_diagnostics(
 ) -> tuple[dict[str, object], tuple[str, ...]]:
     site_labels = _diagnostic_site_labels(site_metadata)
     duplicate_site_rows = int(pd.Series(site_labels, dtype="object").duplicated().sum())
-    multi_site_rows = int(
-        site_metadata.loc[:, "site"]
-        .astype(str)
-        .map(lambda value: "," in value or ";" in value)
-        .sum()
-    )
+    multi_site_rows = _diagnostic_multi_site_rows(site_metadata)
     diagnostics: dict[str, object] = {
         "source_name": source_name,
         "input_row_count": int(source.shape[0]),
@@ -600,6 +595,15 @@ def _diagnostic_site_labels(site_metadata: pd.DataFrame) -> list[str]:
             f"{str(gene_symbol).strip().upper()};{str(site).strip().upper()};"
         )
     return labels
+
+
+def _diagnostic_multi_site_rows(site_metadata: pd.DataFrame) -> int:
+    count = 0
+    for site in site_metadata.loc[:, "site"].tolist():
+        site_text = str(site)
+        if "," in site_text or ";" in site_text:
+            count += 1
+    return count
 
 
 def _required_text(
