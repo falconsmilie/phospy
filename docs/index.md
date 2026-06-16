@@ -20,8 +20,9 @@ PhosPy supports clear public workflow lanes:
 
 1. build an `AnalysisReadyPhosphoDataset`
 2. run `DifferentialAnalysisWorkflow` with explicit design and contrasts
-3. run `KinaseWorkflow`
-4. optionally run `SignalomeWorkflow`
+3. run `EnrichmentWorkflow` with caller-supplied sets and background
+4. run `KinaseWorkflow`
+5. optionally run `SignalomeWorkflow`
 
 The package does not provide HTTP endpoints. Use the Python API for DataFrame
 work and explicit references.
@@ -31,7 +32,7 @@ work and explicit references.
 | Need | Page                                                                  |
 | --- |-----------------------------------------------------------------------|
 | First successful run | [Quickstart](quickstart.md)                                           |
-| Public Python classes and parameters | [API Guide](api/guide.md)                                             |
+| Public Python classes and parameters | [API Guide](api/guide.md) and [Workflow API Pages](api/workflows/index.md) |
 | Human/mouse local references | [Reference Bundles](reference_bundles.md)                              |
 | Input rules and common errors | [Validation Guide](validation.md)                                     |
 | Workflow expectations, assumptions, and result interpretation | [Workflow Contracts](workflow_contracts.md)                           |

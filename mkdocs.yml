@@ -72,6 +72,7 @@ nav:
       - Phosphosite Importers: importers.md
       - Workflow Contracts: workflow_contracts.md
       - Validation Guide: validation.md
+      - Reference Bundles: reference_bundles.md
       - Output Bundles: output_bundles.md
       - Performance Contracts: performance.md
       - Scientific Coverage: scientific-coverage.md

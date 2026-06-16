@@ -123,7 +123,7 @@ This ADR does not:
 - freeze private helper names
 - change workflow behavior or scientific algorithms
 
-## References
+## Related Records
 
 - [ADR-0001: Public API Contract for PhosPy](adr_0001_public_api_contract.md)
 - [API Guide](../api/guide.md)

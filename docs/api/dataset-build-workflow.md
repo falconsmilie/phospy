@@ -2,7 +2,7 @@
 
 This page explains the dataset build API in detail. Start here when you have
 phosphosite intensity data and want a strict `AnalysisReadyPhosphoDataset` for
-kinase and signalome analysis.
+differential, kinase, and signalome analysis.
 
 ## Purpose
 

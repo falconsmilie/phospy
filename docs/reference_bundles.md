@@ -131,9 +131,15 @@ manage them according to the original provider license.
 ## Kinase Library-Style Matrix Resources
 
 PhosPy also has schema and loader support for local Kinase Library-style motif
-matrix resources. This is reference-resource support only: these matrices are
-not wired into `KinaseWorkflow`, and existing kinase scoring output is
-unchanged.
+matrix resources. These resources can be used by opt-in `KinaseWorkflow`
+scoring modes through `KinaseWorkflowRequest.kinase_library_resource`:
+
+- `KinaseScoringConfig(scoring_mode="kinase_library_motif")`
+- `KinaseScoringConfig(scoring_mode="combined_profile_motif")`
+
+This is support for caller-supplied local resources with explicit provenance.
+PhosPy does not bundle official Kinase Library data and does not claim official
+Kinase Library parity.
 
 Use `KinaseLibraryResourceLoader` for local files:
 
@@ -168,10 +174,10 @@ Optional kinase metadata columns are preserved:
 - `kinase_family`
 - `kinase_group`
 
-Scores are preserved as numeric provider-scale values. PhosPy does not treat
-Kinase Library scores as probabilities, does not normalize them into the
-internal motif-frequency scorer, and does not force them into the
-kinase-substrate map shape.
+Scores are preserved as numeric provider-scale values in the loaded resource.
+Workflow motif scores are normalized support scores for within-run ranking; they
+are not calibrated probabilities and do not replace kinase-substrate reference
+membership or activity inference.
 
 Loaded resources include explicit provenance:
 
