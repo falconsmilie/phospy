@@ -86,7 +86,9 @@ def test_docs_state_duplicate_display_ids_and_duplicate_site_key_policy() -> Non
 
 def test_docs_state_public_differential_result_identity_contract() -> None:
     text = _normalise_whitespace(
-        (DOCS_ROOT / "api" / "differential-workflow.md").read_text(encoding="utf-8")
+        (DOCS_ROOT / "api" / "workflows" / "differential-analysis.md").read_text(
+            encoding="utf-8"
+        )
     )
 
     assert "`DifferentialAnalysisWorkflow.run(...)` returns" in text

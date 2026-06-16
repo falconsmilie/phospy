@@ -6,9 +6,11 @@ ROOT = Path(__file__).resolve().parents[2]
 README = ROOT / "README.md"
 API_GUIDE = ROOT / "docs" / "api" / "guide.md"
 DATASET_WORKFLOW_DOC = ROOT / "docs" / "api" / "dataset-build-workflow.md"
-DIFFERENTIAL_WORKFLOW_DOC = ROOT / "docs" / "api" / "differential-workflow.md"
-KINASE_WORKFLOW_DOC = ROOT / "docs" / "api" / "kinase-workflow.md"
-SIGNALOME_WORKFLOW_DOC = ROOT / "docs" / "api" / "signalome-workflow.md"
+WORKFLOW_DOCS_DIR = ROOT / "docs" / "api" / "workflows"
+DIFFERENTIAL_WORKFLOW_DOC = WORKFLOW_DOCS_DIR / "differential-analysis.md"
+ENRICHMENT_WORKFLOW_DOC = WORKFLOW_DOCS_DIR / "enrichment.md"
+KINASE_WORKFLOW_DOC = WORKFLOW_DOCS_DIR / "kinase.md"
+SIGNALOME_WORKFLOW_DOC = WORKFLOW_DOCS_DIR / "signalome.md"
 
 README_IMPORT_SNIPPET = """from phospy import AnalysisReadyDatasetBuilder, AnalysisReadyPhosphoDataset
 from phospy import DifferentialAnalysisWorkflow, KinaseWorkflow, SignalomeWorkflow
@@ -88,12 +90,16 @@ def test_readme_links_to_existing_api_workflow_docs() -> None:
     source = _read(README)
 
     assert "[Dataset building](docs/api/dataset-build-workflow.md)" in source
-    assert "[Differential workflow](docs/api/differential-workflow.md)" in source
-    assert "[Kinase workflow](docs/api/kinase-workflow.md)" in source
-    assert "[Signalome workflow](docs/api/signalome-workflow.md)" in source
+    assert (
+        "[Differential workflow](docs/api/workflows/differential-analysis.md)" in source
+    )
+    assert "[Enrichment workflow](docs/api/workflows/enrichment.md)" in source
+    assert "[Kinase workflow](docs/api/workflows/kinase.md)" in source
+    assert "[Signalome workflow](docs/api/workflows/signalome.md)" in source
 
     assert DATASET_WORKFLOW_DOC.exists()
     assert DIFFERENTIAL_WORKFLOW_DOC.exists()
+    assert ENRICHMENT_WORKFLOW_DOC.exists()
     assert KINASE_WORKFLOW_DOC.exists()
     assert SIGNALOME_WORKFLOW_DOC.exists()
 
@@ -123,14 +129,14 @@ def test_public_kinase_docs_prefer_activity_matrix() -> None:
         "`activity_result.activity_" + "scores` is the method-neutral primary"
     )
 
-    assert "`activity_result.activity_matrix` as the primary" in guide_source
-    assert "migrate callers to `activity_matrix`" in guide_source
+    assert "Result models are typed containers" in guide_source
     assert (
         "`activity_result.activity_matrix` is the method-neutral primary activity matrix"
         in kinase_source
     )
-    assert "new and migrated code should read `activity_matrix`" in kinase_source
-    assert "activity_matrix = kinase_result.activity_result.activity_matrix" in (
-        kinase_source
+    assert (
+        "Deprecated compatibility aliases such as `activity_scores` and"
+        in kinase_source
     )
+    assert "are not preferred for new documentation or code" in kinase_source
     assert old_primary_phrase not in kinase_source

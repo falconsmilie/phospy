@@ -53,6 +53,7 @@ from phospy.api import (
     DatasetMissingDataConfig,
     DatasetNormalisationConfig,
     DatasetPreprocessingConfig,
+    DatasetProteinAwarePreparationConfig,
     DatasetRuvReadinessConfig,
     DatasetSiteMatrixConfig,
     DatasetSiteSequenceResolutionConfig,
@@ -72,7 +73,7 @@ from phospy.api import (
 | `sample_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Descriptive/alignment metadata aligned to phospho columns with unique column names. Required when comparison building uses `sample_metadata_pairs`. It does not automatically define differential-analysis conditions, replicates, batches, or blocks. |
 | `total` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Total-protein matrix used only when total-protein correction is enabled. Columns must align to phospho sample columns. |
 | `organism` | `Organism` or `None` | `None` | No | Species identity for the dataset. Use `Organism.RAT` for the bundled beginner lane. |
-| `preprocessing_config` | `DatasetPreprocessingConfig` | `DatasetPreprocessingConfig()` | No | Grouped preprocessing policy for transforms, normalisation, missing data, optional `linear_residualize_batch` batch correction, total-protein correction, site construction, site-sequence resolution, comparisons, and RUV readiness reporting. |
+| `preprocessing_config` | `DatasetPreprocessingConfig` | `DatasetPreprocessingConfig()` | No | Grouped preprocessing policy for transforms, normalisation, missing data, optional `linear_residualize_batch` batch correction, total-protein correction, protein-aware preparation, site construction, site-sequence resolution, comparisons, and RUV readiness reporting. |
 | `input_intensity_scale` | `IntensityScaleKind`, `str`, or `None` | `None` | No | Required when your preprocessing path keeps `intensity_transform.policy="identity"` and you still need a trusted intensity scale (`"linear"` or `"log2"`). |
 | `quantitative_meaning` | `QuantitativeMeaning`, `str`, or `None` | `None` | No | Optional explicit scientific meaning for phospho values (for example `phosphosite_abundance` or `phosphosite_log_abundance`). |
 
@@ -244,6 +245,7 @@ provide matching `site_key` indexes and all required identity metadata up front.
 | `normalisation` | `DatasetNormalisationConfig` | `policy="none"` | Controls sample-wise normalisation. |
 | `missing_data` | `DatasetMissingDataConfig` | `policy="forbid"` | Controls missing-value rejection or imputation. |
 | `total_protein_correction` | `DatasetTotalProteinCorrectionConfig` | `policy="none"` | Controls phosphosite-to-total correction. |
+| `protein_aware_preparation` | `DatasetProteinAwarePreparationConfig` | `policy="disabled"` | Prepares aligned phosphosite/protein model-input contracts and diagnostics only. |
 | `batch_correction` | `DatasetBatchCorrectionConfig` | `method="none"` | Controls optional `linear_residualize_batch` fixed-effect residualisation. |
 | `site_matrix` | `DatasetSiteMatrixConfig` | `policy="as_input"` | Controls construction and duplicate-site handling. |
 | `site_sequence_resolution` | `DatasetSiteSequenceResolutionConfig` | `mode="validate_existing_and_fill_missing"` | Controls optional local FASTA-backed site-sequence resolution. |
@@ -518,6 +520,47 @@ Quantitative meaning is explicit after preprocessing:
 
 For mixed datasets, row-level correction status is available in
 `dataset.processing_state.total_protein_correction.diagnostics`.
+
+## Protein-Aware Preparation Parameters
+
+`DatasetProteinAwarePreparationConfig` is a preparation-only policy for aligned
+phosphosite/protein model inputs and diagnostics. It does not change the
+phosphosite matrix, does not subtract total protein, does not normalise
+intensities, and does not run differential analysis.
+
+Use it only when you provide `total` input data and want an auditable
+`ProteinAwarePreparationResult` on the built dataset:
+
+```python
+from phospy.api import (
+    DatasetPreprocessingConfig,
+    DatasetProteinAwarePreparationConfig,
+)
+
+preprocessing = DatasetPreprocessingConfig(
+    protein_aware_preparation=DatasetProteinAwarePreparationConfig(
+        policy="prepare_model_inputs",
+        protein_mapping_policy="require_unambiguous",
+    )
+)
+```
+
+The public preparation stage maps explicit protein identifiers from
+`site_metadata` (`protein_accession`, `protein_id`, or `protein_group_id`) to
+`total.index`. Gene-symbol matching is not the public default. Missing or
+ambiguous mappings are reported according to the configured mapping policy.
+
+After build, inspect:
+
+```python
+preparation = dataset.protein_aware_preparation
+report = dataset.preprocessing_report.protein_aware_preparation
+site_eligibility = report.site_eligibility_dataframe()
+```
+
+PhosPy does not claim MSstatsPTM-style inference or equivalence for this
+preparation stage. Current `DifferentialAnalysisWorkflow` execution does not
+consume `ProteinAwarePreparationResult`.
 
 ## Site-Matrix Parameters
 

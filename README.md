@@ -59,10 +59,10 @@ make test-release-gate
    or signalome.
 3. Explore full API workflow documentation:
    - [Dataset building](docs/api/dataset-build-workflow.md)
-   - [Differential workflow](docs/api/differential-workflow.md)
-   - [Enrichment workflow](docs/api/guide.md#enrichment-contract-boundary)
-   - [Kinase workflow](docs/api/kinase-workflow.md)
-   - [Signalome workflow](docs/api/signalome-workflow.md)
+   - [Differential workflow](docs/api/workflows/differential-analysis.md)
+   - [Enrichment workflow](docs/api/workflows/enrichment.md)
+   - [Kinase workflow](docs/api/workflows/kinase.md)
+   - [Signalome workflow](docs/api/workflows/signalome.md)
 
 Bundled runtime references in the current release are rat-only. For human or
 mouse work, create and pass an explicit `ReferenceBundle` in Python instead of

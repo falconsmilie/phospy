@@ -43,10 +43,12 @@ from phospy.api.results import KinasePredictionResult, KinaseScoringResult
 ROOT = Path(__file__).resolve().parents[2]
 README = ROOT / "README.md"
 API_DOCS_DIR = ROOT / "docs" / "api"
+WORKFLOW_DOCS_DIR = API_DOCS_DIR / "workflows"
 DATASET_BUILD_DOC = API_DOCS_DIR / "dataset-build-workflow.md"
-DIFFERENTIAL_DOC = API_DOCS_DIR / "differential-workflow.md"
-KINASE_DOC = API_DOCS_DIR / "kinase-workflow.md"
-SIGNALOME_DOC = API_DOCS_DIR / "signalome-workflow.md"
+DIFFERENTIAL_DOC = WORKFLOW_DOCS_DIR / "differential-analysis.md"
+ENRICHMENT_DOC = WORKFLOW_DOCS_DIR / "enrichment.md"
+KINASE_DOC = WORKFLOW_DOCS_DIR / "kinase.md"
+SIGNALOME_DOC = WORKFLOW_DOCS_DIR / "signalome.md"
 
 
 def _read(path: Path) -> str:
@@ -182,18 +184,55 @@ def test_api_docs_public_imports_are_valid() -> None:
     assert "SignalomeWorkflowRequest" in namespace
 
 
+def test_each_public_workflow_has_dedicated_api_page_with_contract_classes() -> None:
+    expected = {
+        DIFFERENTIAL_DOC: (
+            "DifferentialAnalysisWorkflow",
+            "DifferentialAnalysisRequest",
+            "DifferentialAnalysisConfig",
+            "DifferentialAnalysisResult",
+        ),
+        ENRICHMENT_DOC: (
+            "EnrichmentWorkflow",
+            "EnrichmentWorkflowRequest",
+            "EnrichmentConfig",
+            "EnrichmentWorkflowResult",
+        ),
+        KINASE_DOC: (
+            "KinaseWorkflow",
+            "KinaseWorkflowRequest",
+            "KinaseScoringConfig",
+            "KinasePredictionConfig",
+            "KinaseActivityConfig",
+            "KinaseWorkflowResult",
+        ),
+        SIGNALOME_DOC: (
+            "SignalomeWorkflow",
+            "SignalomeWorkflowRequest",
+            "SignalomeConfig",
+            "SignalomeWorkflowResult",
+        ),
+    }
+
+    for path, class_names in expected.items():
+        assert path.exists(), f"missing workflow API page: {path}"
+        source = _read(path)
+        for class_name in class_names:
+            assert class_name in source, f"{class_name} missing from {path}"
+
+
 def test_api_docs_enrichment_example_uses_public_api_and_runs_offline() -> None:
-    source = _read(API_DOCS_DIR / "guide.md")
+    source = _read(ENRICHMENT_DOC)
     normalized = " ".join(source.split())
 
-    assert "Minimal offline example with a tiny in-memory gene-set collection" in source
+    assert "## Minimal example" in source
     assert "EnrichmentWorkflow" in source
     assert "GeneSetCollection(" in source
     assert "background_universe=" in source
-    assert "offline_no_online_resource_policy" in source
+    assert "offline/no-online-resource policy" in source
     assert "GO, KEGG, Reactome" in source
     assert "Enrichr, gseapy, clusterProfiler" in normalized
-    assert "not GSEA, ssGSEA, or PTM-SEA support" in normalized
+    assert "does not implement GSEA, ssGSEA, or PTM-SEA" in normalized
 
     collection = GeneSetCollection(
         sets={
@@ -250,13 +289,12 @@ def test_api_docs_dataset_build_request_example_is_constructible() -> None:
 
 
 def test_api_docs_batch_correction_example_is_constructible() -> None:
-    source = _read(API_DOCS_DIR / "guide.md")
+    source = _read(DATASET_BUILD_DOC)
 
-    assert "Minimal dataset-build example with batch and condition metadata" in source
     assert "DatasetBatchCorrectionConfig(" in source
     assert 'method="linear_residualize_batch"' in source
     assert "dataset.preprocessing_report.batch_correction" in source
-    assert "confounding_check_status" in source
+    assert "confounding-check status" in source
     assert "not ComBat, not RUV" in source
     assert "not mixed-effects modelling" in source
 
@@ -324,12 +362,10 @@ def test_api_docs_batch_correction_example_is_constructible() -> None:
 
 
 def test_api_docs_protein_aware_preparation_boundary_is_documented() -> None:
-    source = _read(API_DOCS_DIR / "guide.md")
+    source = _read(DATASET_BUILD_DOC)
     normalized = " ".join(source.split())
 
-    assert "## Total Protein And Protein-Aware Preparation" in source
-    assert 'policy="subtract_log_total"' in source
-    assert "`log2_phospho - log2_total`" in source
+    assert "## Protein-Aware Preparation Parameters" in source
     assert 'policy="prepare_model_inputs"' in source
     assert "does not change the phosphosite matrix" in normalized
     assert "does not subtract total protein" in normalized

@@ -174,8 +174,9 @@ modelling, or mixed-effects modelling.
 Fixed-block paired designs are supported only when the caller explicitly sets
 `paired_design_policy="fixed_block"` and supplies `SampleDesignRecord.block_id`
 for every analysed sample. The block terms are ordinary fixed effects in the
-design matrix. This is not limma `duplicateCorrelation`, not mixed-effects
-modelling, and not random subject modelling; no mixed effects are fitted. For
+design matrix; block terms are fixed effects, not random effects. This is not
+limma `duplicateCorrelation`, not mixed-effects modelling, and not random
+subject modelling; no mixed effects are fitted. For
 every requested condition contrast, every block must contain both numerator and
 denominator conditions.
 Incomplete or partially covered blocks are rejected before execution; PhosPy
@@ -363,9 +364,10 @@ commands/workflows:
 - Protein-aware preparation is preparation-only model-input preparation. It
   produces aligned phosphosite/protein input contracts and diagnostics only. It
   records mapping, missing-total, sample-alignment, transformation-state, and
-  limitation fields, but it does not modify phosphosite values, subtract total
-  protein, run joint PTM/protein modelling, adjust differential models, or
-  claim MSstatsPTM-style inference or equivalence.
+  limitation fields. It does not modify phosphosite values, does not subtract
+  total protein, does not run joint PTM/protein differential modelling, does
+  not adjust differential models, and does not claim MSstatsPTM-style inference
+  or equivalence.
 - Enrichment workflow support is offline ORA against supplied gene-set or
   PTM-set collections. It uses the caller's explicit background universe and
   identifier semantics.
@@ -436,9 +438,10 @@ transformation-state diagnostics, missing-total and ambiguous-mapping
 diagnostics, and explicit limitations. Dataset run provenance also records the
 active preparation summary in
 `workflow_parameters["protein_aware_preparation"]` when preparation runs. These
-records state that the stage does not modify phosphosite values, subtract total
-protein, normalise intensities, run joint PTM/protein differential modelling,
-adjust differential models, or claim MSstatsPTM equivalence.
+records state that the stage does not modify phosphosite values, does not
+subtract total protein, does not normalise intensities, does not run joint
+PTM/protein differential modelling, does not adjust differential models, and
+does not claim MSstatsPTM equivalence.
 
 Enrichment workflow provenance records the ORA method, identifier column and
 kind, collection kind, analysis level, explicit background universe size,
@@ -666,6 +669,9 @@ table-hash semantics are unchanged.
 
 ## Where Details Live
 
+- [API Guide](api/guide.md) links to each workflow-specific API page.
+- [Workflow API Pages](api/workflows/index.md) document public workflow request,
+  config, and result objects.
 - [Scientific Coverage](scientific-coverage.md) is the maintained scope and
   coverage matrix.
 - [Parity](parity.md) tracks PhosR comparison evidence, fixture locations, and

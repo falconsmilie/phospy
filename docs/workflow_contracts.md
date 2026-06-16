@@ -19,11 +19,11 @@ documentation, and tests update this page and the scientific coverage matrix.
 
 For executable usage, see:
 
-- `examples/dataset_builder_demo.py`
-- `examples/kinase_workflow_demo.py`
-- `examples/signalome_workflow_demo.py`
-- `docs/api/guide.md#enrichment-contract-boundary` for a minimal offline
-  enrichment example
+- [Dataset Build API](api/dataset-build-workflow.md)
+- [Differential Analysis Workflow API](api/workflows/differential-analysis.md)
+- [Enrichment Workflow API](api/workflows/enrichment.md)
+- [Kinase Workflow API](api/workflows/kinase.md)
+- [Signalome Workflow API](api/workflows/signalome.md)
 
 For explicit performance and scale contracts (input sizes, guardrails,
 approximation behavior, and failure modes), see `docs/performance.md`.

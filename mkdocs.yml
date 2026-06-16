@@ -60,10 +60,13 @@ nav:
   - Quickstart: quickstart.md
   - API:
       - API Guide: api/guide.md
-      - Dataset Build Workflow: api/dataset-build-workflow.md
-      - Differential Workflow: api/differential-workflow.md
-      - Kinase Workflow: api/kinase-workflow.md
-      - Signalome Workflow: api/signalome-workflow.md
+      - Dataset Build API: api/dataset-build-workflow.md
+      - Workflows:
+          - Overview: api/workflows/index.md
+          - Differential Analysis: api/workflows/differential-analysis.md
+          - Enrichment: api/workflows/enrichment.md
+          - Kinase: api/workflows/kinase.md
+          - Signalome: api/workflows/signalome.md
   - CLI Status: cli.md
   - User Guides:
       - Phosphosite Importers: importers.md
