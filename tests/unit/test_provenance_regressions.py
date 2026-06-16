@@ -28,7 +28,7 @@ from phospy.io.bundles._shared.processing_state import (
     processing_state_from_payload,
     processing_state_to_payload,
 )
-from phospy.provenance.hashing import hash_table, hash_table_exact, hash_table_tolerance
+from phospy.provenance.hashing import hash_table_exact, hash_table_tolerance
 from phospy.provenance.scientific_policy_models import ScientificPolicyId
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
@@ -125,7 +125,7 @@ def test_table_hash_changes_when_values_change() -> None:
     table = _base_table()
     changed = table.copy(deep=True)
     changed.at["A;S1;", "sample_a"] = 99.0
-    assert hash_table(table, name="dataset.phospho") != hash_table(
+    assert hash_table_tolerance(table, name="dataset.phospho") != hash_table_tolerance(
         changed, name="dataset.phospho"
     )
 
@@ -133,7 +133,7 @@ def test_table_hash_changes_when_values_change() -> None:
 def test_table_hash_changes_when_dtypes_change() -> None:
     table = _base_table()
     changed = table.astype({"sample_b": "int64"})
-    assert hash_table(table, name="dataset.phospho") != hash_table(
+    assert hash_table_tolerance(table, name="dataset.phospho") != hash_table_tolerance(
         changed, name="dataset.phospho"
     )
 
@@ -147,7 +147,7 @@ def test_table_hash_changes_when_column_label_type_changes() -> None:
         {"1": [1.0, 2.0]},
         index=pd.Index(["A", "B"], name="row_id"),
     )
-    assert hash_table(numeric_label, name="table") != hash_table(
+    assert hash_table_tolerance(numeric_label, name="table") != hash_table_tolerance(
         string_label, name="table"
     )
 
@@ -159,11 +159,15 @@ def test_table_hash_changes_when_axis_names_change() -> None:
     )
     second = first.copy(deep=True)
     second.index = second.index.rename("site_id")
-    assert hash_table(first, name="table") != hash_table(second, name="table")
+    assert hash_table_tolerance(first, name="table") != hash_table_tolerance(
+        second, name="table"
+    )
 
     third = first.copy(deep=True)
     third.columns = third.columns.rename("sample_id")
-    assert hash_table(first, name="table") != hash_table(third, name="table")
+    assert hash_table_tolerance(first, name="table") != hash_table_tolerance(
+        third, name="table"
+    )
 
 
 def test_dataset_output_fingerprints_match_observed_numeric_outputs() -> None:
@@ -199,7 +203,7 @@ def test_dataset_output_fingerprints_match_observed_numeric_outputs() -> None:
         if item.name == "dataset.phospho"
     )
 
-    assert output_fingerprint.hash_value == hash_table(
+    assert output_fingerprint.tolerance_hash_value == hash_table_tolerance(
         built.phospho,
         name="dataset.phospho",
     )
@@ -618,8 +622,6 @@ def test_workflow_provenance_fingerprints_and_policy_versions_are_stable() -> No
         assert provenance.input_tables
         assert provenance.output_tables
         for fingerprint in (*provenance.input_tables, *provenance.output_tables):
-            assert fingerprint.hash_algorithm == "sha256"
-            assert len(fingerprint.hash_value) == 64
             assert fingerprint.exact_hash_algorithm == "sha256-stable-json-v1"
             assert len(str(fingerprint.exact_hash_value)) == 64
             assert fingerprint.tolerance_hash_algorithm == "sha256-float-round-8dp-v1"

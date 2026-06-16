@@ -46,7 +46,10 @@ class KinaseManifestSections:
     config_snapshot_path: str
 
 
-_REGENERATE_BUNDLE_HINT = "Regenerate this bundle with the current PhosPy version."
+_LEGACY_KINASE_BUNDLE_SCHEMA_ERROR = (
+    "Legacy kinase bundle schemas are no longer supported. Regenerate the bundle "
+    "with the current PhosPy version."
+)
 _MANIFEST_ALLOWED_FIELDS = frozenset(
     {
         "bundle_type",
@@ -445,7 +448,7 @@ def parse_manifest(payload: Mapping[str, object]) -> KinaseManifestSections:
 
 
 def _raise_unsupported_manifest_shape(message: str) -> None:
-    raise PhosPyInputError(f"{message}. {_REGENERATE_BUNDLE_HINT}")
+    raise PhosPyInputError(f"{_LEGACY_KINASE_BUNDLE_SCHEMA_ERROR} {message}.")
 
 
 def _require_fields(
@@ -478,4 +481,6 @@ def _reject_unsupported_fields(
     )
     if unknown_fields:
         unknown = ", ".join(unknown_fields)
-        raise PhosPyInputError(f"{field_name} contains unsupported field(s): {unknown}")
+        _raise_unsupported_manifest_shape(
+            f"{field_name} contains unsupported field(s): {unknown}"
+        )

@@ -13,6 +13,7 @@ from phospy.api import (
     DatasetPreprocessingConfig,
     Organism,
 )
+from phospy.errors.input import PhosPyInputError
 from phospy.provenance import environment as provenance_environment
 from phospy.provenance.environment import collect_environment_provenance
 from phospy.provenance.scientific_policy_models import ScientificPolicyId
@@ -269,7 +270,6 @@ def test_dataset_builder_emits_run_provenance_and_stage_details() -> None:
     assert "dataset.phospho" in produced_names
     assert missing_stage.backend in {"pandas", "numpy", None}
     assert missing_stage.determinism == "pure"
-    assert missing_stage.is_deterministic is True
     assert missing_stage.random_seed is None
     assert isinstance(missing_stage.phospho_input_hash, str)
     assert isinstance(missing_stage.phospho_output_hash, str)
@@ -449,7 +449,6 @@ def test_run_provenance_serializes_resolved_stage_order_for_minprob_with_log2() 
         if stage.stage == "missing_data"
     )
     assert missing_stage.determinism == "seeded_stochastic"
-    assert missing_stage.is_deterministic is False
     assert missing_stage.random_seed == 123
 
 
@@ -545,7 +544,7 @@ def test_run_provenance_serialization_round_trip_preserves_payload() -> None:
     assert to_payload(restored) == payload
 
 
-def test_run_provenance_from_payload_accepts_legacy_stage_shape() -> None:
+def test_run_provenance_from_payload_rejects_legacy_stage_shape() -> None:
     phospho = pd.DataFrame(
         {"sample_a": [1.0], "sample_b": [2.0]},
         index=pd.Index(["MAPK14;Y182;"], name="site_id"),
@@ -599,21 +598,11 @@ def test_run_provenance_from_payload_accepts_legacy_stage_shape() -> None:
         stage.pop("phospho_output_hash", None)
     payload.pop("scientific_policies", None)
 
-    restored = from_payload(payload)
-    stage = next(item for item in restored.preprocessing_stages if item.stage)
-    assert restored.environment.schema_version == 1
-    assert restored.environment.blas_lapack == {}
-    assert restored.environment.thread_environment == {}
-    assert restored.environment.timezone is None
-    assert restored.environment.locale == {}
-    assert restored.environment.constraints_fingerprint == {}
-    assert stage.schema_version == 1
-    assert stage.consumed_input_tables == ()
-    assert stage.produced_output_tables == ()
-    assert stage.backend is None
-    assert stage.random_seed is None
-    assert stage.determinism == "pure"
-    assert stage.is_deterministic is True
-    assert stage.phospho_input_hash == stage.input_hash
-    assert stage.phospho_output_hash == stage.output_hash
-    assert restored.scientific_policies == ()
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "Legacy provenance schemas are no longer supported. "
+            "Regenerate the result with the current PhosPy version."
+        ),
+    ):
+        from_payload(payload)

@@ -33,7 +33,7 @@ from phospy.contracts.configs import (
     DatasetTotalProteinCorrectionUnmatchedPolicy,
 )
 from phospy.errors.input import PhosPyInputError
-from phospy.provenance.hashing import hash_table
+from phospy.provenance.hashing import hash_table_tolerance
 from phospy.provenance.models import (
     PREPROCESSING_STAGE_DETERMINISM_PURE,
     PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
@@ -1002,7 +1002,7 @@ def _resolve_total_correction_identity_policy(
         mapping_table=mapping_rows,
         mapping_phosphosite_key=mapping_phosphosite_key,
         mapping_total_protein_key=mapping_total_protein_key,
-        mapping_table_fingerprint=hash_table(
+        mapping_table_fingerprint=hash_table_tolerance(
             fingerprint_table,
             name="total_protein_correction.identity.mapping_table",
         ),

@@ -10,7 +10,6 @@ from phospy.provenance.hashing import (
     DEFAULT_TOLERANCE_TABLE_HASH_ALGORITHM,
     fingerprint_optional_table,
     fingerprint_table,
-    hash_table,
     hash_table_exact,
     hash_table_tolerance,
 )
@@ -49,7 +48,6 @@ __all__ = [
     "fingerprint_local_reference_source_file",
     "fingerprint_table",
     "from_payload",
-    "hash_table",
     "hash_table_exact",
     "hash_table_tolerance",
     "to_payload",

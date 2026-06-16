@@ -13,7 +13,7 @@ from phospy.contracts.configs import (
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ERROR,
 )
 from phospy.errors.input import PhosPyInputError
-from phospy.provenance.hashing import hash_table
+from phospy.provenance.hashing import hash_table_tolerance
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
     PreprocessingPlan,
@@ -252,15 +252,15 @@ def _build_diagnostics(
         "unused_total_protein_row_ids": list(mapping.unused_total_rows),
         "gene_symbol_matching_used": bool(mapping.gene_symbol_matching_used),
         "gene_symbol_identity_warning": mapping.gene_symbol_warning,
-        "total_table_hash": hash_table(
+        "total_table_hash": hash_table_tolerance(
             total,
             name="total_protein_correction.total",
         ),
-        "input_phospho_hash": hash_table(
+        "input_phospho_hash": hash_table_tolerance(
             phospho,
             name="total_protein_correction.input.phospho",
         ),
-        "output_phospho_hash": hash_table(
+        "output_phospho_hash": hash_table_tolerance(
             corrected,
             name="total_protein_correction.output.phospho",
         ),

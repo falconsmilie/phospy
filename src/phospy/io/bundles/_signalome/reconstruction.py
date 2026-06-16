@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from pathlib import Path
+from typing import NoReturn
 
 from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.errors.input import PhosPyInputError
@@ -23,17 +24,19 @@ from phospy.io.bundles._shared.tables import (
     read_optional_table,
     read_required_table,
 )
-from phospy.io.bundles._signalome.compatibility import (
-    normalize_module_assignments_table,
+from phospy.io.bundles._signalome.diagnostics import (
     signalome_alignment_diagnostics_from_payload,
     signalome_module_selection_diagnostics_from_payload,
     signalome_network_correlation_diagnostics_from_payload,
     signalome_score_preconditioning_diagnostics_from_payload,
 )
 from phospy.io.bundles._signalome.manifest import SignalomeManifestSections
+from phospy.io.bundles._signalome.tables import normalize_module_assignments_table
+from phospy.provenance.models import RunProvenance
 from phospy.provenance.serialization import from_payload as provenance_from_payload
 from phospy.science.activities.models import KinaseActivityResult
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.datasets.processing_state import DatasetProcessingState
 from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.science.references.models import ReferenceBundle
 from phospy.science.signalomes.context import SITE_MEMBERSHIP_EXCLUDED_REASON_COLUMN
@@ -44,6 +47,13 @@ from phospy.science.signalomes.models import (
     SignalomeModules,
     default_signalome_alignment_diagnostics,
 )
+from phospy.science.transformations.models import IntensityScaleState
+
+_LEGACY_SIGNALOME_BUNDLE_SCHEMA_ERROR = (
+    "Legacy signalome bundle schemas are no longer supported. Regenerate the bundle "
+    "with the current PhosPy version."
+)
+_LEGACY_SIGNALOME_DIAGNOSTIC_FIELDS = frozenset({"tree_engine", "tree_engine_version"})
 
 
 def _normalize_site_metadata_for_dataset_contract(site_metadata):
@@ -94,7 +104,11 @@ def reconstruct_signalome_result(
 ) -> SignalomeWorkflowResult:
     """Rebuild a SignalomeWorkflowResult from validated manifest sections."""
 
-    signalome_provenance = provenance_from_payload(sections.provenance_payload)
+    signalome_provenance = _parse_bundle_provenance(sections.provenance_payload)
+    _reject_legacy_signalome_diagnostic_fields(
+        signalome_provenance.workflow_parameters,
+        field_path="bundle manifest.provenance.workflow_parameters",
+    )
     upstream_raw = signalome_provenance.workflow_parameters.get(
         "upstream_kinase_provenance"
     )
@@ -104,12 +118,12 @@ def reconstruct_signalome_result(
             "is required for signalome bundles; regenerate this bundle with the "
             "current PhosPy version"
         )
-    upstream_kinase_provenance = provenance_from_payload(upstream_raw)
+    upstream_kinase_provenance = _parse_bundle_provenance(upstream_raw)
     processing_state_payload = require_mapping(
         sections.dataset_metadata.get("processing_state"),
         field_name="bundle manifest.dataset.metadata.processing_state",
     )
-    processing_state = processing_state_from_payload(processing_state_payload)
+    processing_state = _parse_bundle_processing_state(processing_state_payload)
     intensity_scale_payload = require_mapping(
         sections.dataset_metadata.get("intensity_scale_state"),
         field_name="bundle manifest.dataset.metadata.intensity_scale_state",
@@ -148,8 +162,8 @@ def reconstruct_signalome_result(
             sections.dataset_metadata.get("organism"),
             field_name="bundle manifest.dataset.metadata.organism",
         ),
-        intensity_scale_state=intensity_scale_state_from_payload(
-            intensity_scale_payload,
+        intensity_scale_state=_parse_bundle_intensity_scale_state(
+            intensity_scale_payload
         ),
         processing_state=processing_state,
     )
@@ -515,3 +529,63 @@ def reconstruct_signalome_result(
         protein_site_context=protein_site_context,
         provenance=signalome_provenance,
     )
+
+
+def _parse_bundle_provenance(payload: Mapping[str, object]) -> RunProvenance:
+    try:
+        return provenance_from_payload(payload)
+    except PhosPyInputError as exc:
+        _raise_legacy_bundle_schema(exc)
+
+
+def _parse_bundle_processing_state(
+    payload: Mapping[str, object],
+) -> DatasetProcessingState:
+    try:
+        return processing_state_from_payload(payload)
+    except PhosPyInputError as exc:
+        _raise_legacy_bundle_schema(exc)
+
+
+def _parse_bundle_intensity_scale_state(
+    payload: Mapping[str, object],
+) -> IntensityScaleState:
+    try:
+        return intensity_scale_state_from_payload(payload)
+    except PhosPyInputError as exc:
+        _raise_legacy_bundle_schema(exc)
+
+
+def _reject_legacy_signalome_diagnostic_fields(
+    value: object,
+    *,
+    field_path: str,
+) -> None:
+    if isinstance(value, Mapping):
+        present = sorted(
+            key for key in _LEGACY_SIGNALOME_DIAGNOSTIC_FIELDS if key in value
+        )
+        if present:
+            fields = ", ".join(present)
+            _raise_legacy_bundle_schema(
+                PhosPyInputError(
+                    f"{field_path} contains legacy signalome diagnostic field(s): "
+                    f"{fields}"
+                )
+            )
+        for key, item in value.items():
+            _reject_legacy_signalome_diagnostic_fields(
+                item,
+                field_path=f"{field_path}.{str(key)}",
+            )
+        return
+    if isinstance(value, (list, tuple)):
+        for position, item in enumerate(value):
+            _reject_legacy_signalome_diagnostic_fields(
+                item,
+                field_path=f"{field_path}[{position}]",
+            )
+
+
+def _raise_legacy_bundle_schema(exc: PhosPyInputError) -> NoReturn:
+    raise PhosPyInputError(f"{_LEGACY_SIGNALOME_BUNDLE_SCHEMA_ERROR} {exc}") from exc

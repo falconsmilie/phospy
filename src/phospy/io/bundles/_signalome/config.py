@@ -7,7 +7,6 @@ from collections.abc import Mapping
 from phospy.api.configs import (
     SIGNALOME_ASSIGNMENT_POLICIES,
     SIGNALOME_CANDIDATE_SCORING_POLICIES,
-    SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
     SIGNALOME_CLUSTERING_ENGINES,
     SIGNALOME_KINASE_NETWORK_POLICIES,
     SIGNALOME_SCORE_PRECONDITIONING_POLICIES,
@@ -25,7 +24,7 @@ from phospy.io.bundles._shared.primitives import (
     require_mapping,
     require_str,
 )
-from phospy.io.bundles._signalome.compatibility.primitives import (
+from phospy.io.bundles._signalome.primitives import (
     _parse_optional_int,
     _reject_unsupported_fields,
     _require_fields,
@@ -52,9 +51,7 @@ _CLUSTERING_ALLOWED_FIELDS = frozenset(
         "clustering_engine",
     }
 )
-_CLUSTERING_REQUIRED_FIELDS = frozenset(
-    field for field in _CLUSTERING_ALLOWED_FIELDS if field not in {"clustering_engine"}
-)
+_CLUSTERING_REQUIRED_FIELDS = _CLUSTERING_ALLOWED_FIELDS
 
 _VALIDATION_ALLOWED_FIELDS = frozenset(
     {
@@ -62,7 +59,7 @@ _VALIDATION_ALLOWED_FIELDS = frozenset(
         "allow_mixed_total_protein_quantitative_meaning",
     }
 )
-_VALIDATION_REQUIRED_FIELDS = frozenset({"score_preconditioning_policy"})
+_VALIDATION_REQUIRED_FIELDS = _VALIDATION_ALLOWED_FIELDS
 
 _OUTPUT_ALLOWED_FIELDS = frozenset({"network_correlation_threshold", "network_policy"})
 _OUTPUT_REQUIRED_FIELDS = _OUTPUT_ALLOWED_FIELDS
@@ -142,17 +139,10 @@ def signalome_config_from_payload(
             "must be one of: "
             f"{allowed}"
         )
-    clustering_engine = clustering_payload.get("clustering_engine")
-    if clustering_engine is None:
-        # Keep historical bundle replay deterministic: payloads created before
-        # `clustering.clustering_engine` was serialized are interpreted as the
-        # legacy exact backend rather than today's public default.
-        clustering_engine = SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON
-    else:
-        clustering_engine = require_str(
-            clustering_engine,
-            field_name=f"{scope}.signalome_config.clustering.clustering_engine",
-        )
+    clustering_engine = require_str(
+        clustering_payload.get("clustering_engine"),
+        field_name=f"{scope}.signalome_config.clustering.clustering_engine",
+    )
     if clustering_engine not in SIGNALOME_CLUSTERING_ENGINES:
         allowed = ", ".join(sorted(SIGNALOME_CLUSTERING_ENGINES))
         raise PhosPyInputError(
@@ -189,7 +179,7 @@ def signalome_config_from_payload(
         ),
     )
     allow_mixed_total_protein_quantitative_meaning = require_bool(
-        validation_payload.get("allow_mixed_total_protein_quantitative_meaning", False),
+        validation_payload.get("allow_mixed_total_protein_quantitative_meaning"),
         field_name=(
             f"{scope}.signalome_config.validation."
             "allow_mixed_total_protein_quantitative_meaning"

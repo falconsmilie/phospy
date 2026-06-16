@@ -202,10 +202,7 @@ class SignalomeClusteringRunner:
         ) -> str:
             if payload is None:
                 return "unknown_tree_backend"
-            implementation = payload.get("tree_implementation")
-            if implementation is not None:
-                return str(implementation)
-            return str(payload["tree_engine"])
+            return str(payload["tree_implementation"])
 
         input_protein_count = int(
             pd.Index(site_to_protein.astype(str)).nunique(dropna=True)

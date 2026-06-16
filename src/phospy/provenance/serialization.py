@@ -7,10 +7,11 @@ from typing import TYPE_CHECKING, cast
 
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.models import (
-    ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V1,
+    ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V2,
     PREPROCESSING_STAGE_DETERMINISM_EXTERNAL_DEPENDENCY,
     PREPROCESSING_STAGE_DETERMINISM_PURE,
     PREPROCESSING_STAGE_DETERMINISM_SEEDED_STOCHASTIC,
+    PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
     EnvironmentProvenance,
     JsonValue,
     PreprocessingStageProvenance,
@@ -25,6 +26,14 @@ if TYPE_CHECKING:
         ReferenceIdentifierNormalisationRecord,
         ReferenceIdentifierNormalisationReport,
     )
+
+
+_LEGACY_PROVENANCE_SCHEMA_ERROR = (
+    "Legacy provenance schemas are no longer supported. Regenerate the result "
+    "with the current PhosPy version."
+)
+_LEGACY_TABLE_FINGERPRINT_FIELDS = frozenset({"hash_algorithm", "hash_value"})
+_LEGACY_PREPROCESSING_STAGE_FIELDS = frozenset({"is_deterministic"})
 
 
 def to_payload(provenance: RunProvenance) -> dict[str, object]:
@@ -152,28 +161,6 @@ def from_payload(payload: Mapping[str, object]) -> RunProvenance:
 
 
 def _table_fingerprint_to_payload(fingerprint: TableFingerprint) -> dict[str, object]:
-    legacy_hash_algorithm = fingerprint.hash_algorithm
-    legacy_hash_value = fingerprint.hash_value
-    exact_hash_algorithm = (
-        fingerprint.hash_algorithm
-        if fingerprint.exact_hash_algorithm is None
-        else fingerprint.exact_hash_algorithm
-    )
-    exact_hash_value = (
-        fingerprint.hash_value
-        if fingerprint.exact_hash_value is None
-        else fingerprint.exact_hash_value
-    )
-    tolerance_hash_algorithm = (
-        fingerprint.hash_algorithm
-        if fingerprint.tolerance_hash_algorithm is None
-        else fingerprint.tolerance_hash_algorithm
-    )
-    tolerance_hash_value = (
-        fingerprint.hash_value
-        if fingerprint.tolerance_hash_value is None
-        else fingerprint.tolerance_hash_value
-    )
     return {
         "name": fingerprint.name,
         "rows": int(fingerprint.rows),
@@ -181,13 +168,10 @@ def _table_fingerprint_to_payload(fingerprint: TableFingerprint) -> dict[str, ob
         "index_name": fingerprint.index_name,
         "column_names": list(fingerprint.column_names),
         "dtypes": list(fingerprint.dtypes),
-        # Compatibility aliases retained for existing consumers.
-        "hash_algorithm": legacy_hash_algorithm,
-        "hash_value": legacy_hash_value,
-        "exact_hash_algorithm": exact_hash_algorithm,
-        "exact_hash_value": exact_hash_value,
-        "tolerance_hash_algorithm": tolerance_hash_algorithm,
-        "tolerance_hash_value": tolerance_hash_value,
+        "exact_hash_algorithm": fingerprint.exact_hash_algorithm,
+        "exact_hash_value": fingerprint.exact_hash_value,
+        "tolerance_hash_algorithm": fingerprint.tolerance_hash_algorithm,
+        "tolerance_hash_value": fingerprint.tolerance_hash_value,
         "index_structure": (
             None
             if fingerprint.index_structure is None
@@ -202,6 +186,11 @@ def _table_fingerprint_to_payload(fingerprint: TableFingerprint) -> dict[str, ob
 
 
 def _table_fingerprint_from_payload(payload: Mapping[str, object]) -> TableFingerprint:
+    _reject_legacy_provenance_fields(
+        payload,
+        field_name="table_fingerprint",
+        legacy_fields=_LEGACY_TABLE_FINGERPRINT_FIELDS,
+    )
     index_structure = _optional_mapping(
         payload.get("index_structure"),
         field_name="table_fingerprint.index_structure",
@@ -210,71 +199,21 @@ def _table_fingerprint_from_payload(payload: Mapping[str, object]) -> TableFinge
         payload.get("column_index_structure"),
         field_name="table_fingerprint.column_index_structure",
     )
-    hash_algorithm = _optional_str(
-        payload.get("hash_algorithm"),
-        field_name="table_fingerprint.hash_algorithm",
-    )
-    hash_value = _optional_str(
-        payload.get("hash_value"),
-        field_name="table_fingerprint.hash_value",
-    )
-    exact_hash_algorithm = _optional_str(
+    exact_hash_algorithm = _require_str(
         payload.get("exact_hash_algorithm"),
         field_name="table_fingerprint.exact_hash_algorithm",
     )
-    exact_hash_value = _optional_str(
+    exact_hash_value = _require_str(
         payload.get("exact_hash_value"),
         field_name="table_fingerprint.exact_hash_value",
     )
-    tolerance_hash_algorithm = _optional_str(
+    tolerance_hash_algorithm = _require_str(
         payload.get("tolerance_hash_algorithm"),
         field_name="table_fingerprint.tolerance_hash_algorithm",
     )
-    tolerance_hash_value = _optional_str(
+    tolerance_hash_value = _require_str(
         payload.get("tolerance_hash_value"),
         field_name="table_fingerprint.tolerance_hash_value",
-    )
-    resolved_tolerance_hash_algorithm = _resolve_fingerprint_hash_field(
-        primary=tolerance_hash_algorithm,
-        fallback=(
-            hash_algorithm if hash_algorithm is not None else exact_hash_algorithm
-        ),
-        field_name="table_fingerprint.tolerance_hash_algorithm",
-    )
-    resolved_tolerance_hash_value = _resolve_fingerprint_hash_field(
-        primary=tolerance_hash_value,
-        fallback=(hash_value if hash_value is not None else exact_hash_value),
-        field_name="table_fingerprint.tolerance_hash_value",
-    )
-    resolved_exact_hash_algorithm = _resolve_fingerprint_hash_field(
-        primary=exact_hash_algorithm,
-        fallback=(
-            hash_algorithm if hash_algorithm is not None else tolerance_hash_algorithm
-        ),
-        field_name="table_fingerprint.exact_hash_algorithm",
-    )
-    resolved_exact_hash_value = _resolve_fingerprint_hash_field(
-        primary=exact_hash_value,
-        fallback=(hash_value if hash_value is not None else tolerance_hash_value),
-        field_name="table_fingerprint.exact_hash_value",
-    )
-    resolved_hash_algorithm = _resolve_fingerprint_hash_field(
-        primary=hash_algorithm,
-        fallback=(
-            tolerance_hash_algorithm
-            if tolerance_hash_algorithm is not None
-            else exact_hash_algorithm
-        ),
-        field_name="table_fingerprint.hash_algorithm",
-    )
-    resolved_hash_value = _resolve_fingerprint_hash_field(
-        primary=hash_value,
-        fallback=(
-            tolerance_hash_value
-            if tolerance_hash_value is not None
-            else exact_hash_value
-        ),
-        field_name="table_fingerprint.hash_value",
     )
     return TableFingerprint(
         name=_require_str(payload.get("name"), field_name="table_fingerprint.name"),
@@ -301,12 +240,10 @@ def _table_fingerprint_from_payload(payload: Mapping[str, object]) -> TableFinge
                 field_name="table_fingerprint.dtypes",
             )
         ),
-        hash_algorithm=resolved_hash_algorithm,
-        hash_value=resolved_hash_value,
-        exact_hash_algorithm=resolved_exact_hash_algorithm,
-        exact_hash_value=resolved_exact_hash_value,
-        tolerance_hash_algorithm=resolved_tolerance_hash_algorithm,
-        tolerance_hash_value=resolved_tolerance_hash_value,
+        exact_hash_algorithm=exact_hash_algorithm,
+        exact_hash_value=exact_hash_value,
+        tolerance_hash_algorithm=tolerance_hash_algorithm,
+        tolerance_hash_value=tolerance_hash_value,
         index_structure=None
         if index_structure is None
         else {
@@ -319,19 +256,6 @@ def _table_fingerprint_from_payload(payload: Mapping[str, object]) -> TableFinge
             for key, value in column_index_structure.items()
         },
     )
-
-
-def _resolve_fingerprint_hash_field(
-    *,
-    primary: str | None,
-    fallback: str | None,
-    field_name: str,
-) -> str:
-    if primary is not None:
-        return primary
-    if fallback is not None:
-        return fallback
-    raise PhosPyInputError(f"{field_name} must be provided")
 
 
 def _environment_to_payload(environment: EnvironmentProvenance) -> dict[str, object]:
@@ -376,13 +300,7 @@ def _environment_from_payload(payload: Mapping[str, object]) -> EnvironmentProve
         field_name="provenance.environment.constraints_fingerprint",
     )
     return EnvironmentProvenance(
-        schema_version=_require_int(
-            payload.get(
-                "schema_version",
-                ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V1,
-            ),
-            field_name="provenance.environment.schema_version",
-        ),
+        schema_version=_require_current_environment_schema_version(payload),
         package_name=_require_str(
             payload.get("package_name"),
             field_name="provenance.environment.package_name",
@@ -466,6 +384,14 @@ def _stage_to_payload(stage: PreprocessingStageProvenance) -> dict[str, object]:
         stage.determinism,
         field_name="preprocessing_stage.determinism",
     )
+    phospho_input_hash = _require_str(
+        stage.phospho_input_hash,
+        field_name="preprocessing_stage.phospho_input_hash",
+    )
+    phospho_output_hash = _require_str(
+        stage.phospho_output_hash,
+        field_name="preprocessing_stage.phospho_output_hash",
+    )
     return {
         "stage": stage.stage,
         "operation": stage.operation,
@@ -474,16 +400,8 @@ def _stage_to_payload(stage: PreprocessingStageProvenance) -> dict[str, object]:
         "output_shape": [int(stage.output_shape[0]), int(stage.output_shape[1])],
         "input_hash": stage.input_hash,
         "output_hash": stage.output_hash,
-        "phospho_input_hash": (
-            stage.input_hash
-            if stage.phospho_input_hash is None
-            else stage.phospho_input_hash
-        ),
-        "phospho_output_hash": (
-            stage.output_hash
-            if stage.phospho_output_hash is None
-            else stage.phospho_output_hash
-        ),
+        "phospho_input_hash": phospho_input_hash,
+        "phospho_output_hash": phospho_output_hash,
         "schema_version": int(stage.schema_version),
         "consumed_input_tables": [
             _table_fingerprint_to_payload(item) for item in stage.consumed_input_tables
@@ -494,7 +412,6 @@ def _stage_to_payload(stage: PreprocessingStageProvenance) -> dict[str, object]:
         "backend": stage.backend,
         "random_seed": stage.random_seed,
         "determinism": determinism,
-        "is_deterministic": _determinism_is_deterministic(determinism),
         "dropped_row_ids": list(stage.dropped_row_ids),
         "dropped_row_count": int(stage.dropped_row_count),
         "imputed_cell_count": int(stage.imputed_cell_count),
@@ -507,6 +424,12 @@ def _stage_to_payload(stage: PreprocessingStageProvenance) -> dict[str, object]:
 
 
 def _stage_from_payload(payload: Mapping[str, object]) -> PreprocessingStageProvenance:
+    _reject_legacy_provenance_fields(
+        payload,
+        field_name="preprocessing_stage",
+        legacy_fields=_LEGACY_PREPROCESSING_STAGE_FIELDS,
+    )
+    schema_version = _require_current_stage_schema_version(payload)
     parameters = _require_mapping(
         payload.get("parameters"),
         field_name="preprocessing_stage.parameters",
@@ -545,11 +468,11 @@ def _stage_from_payload(payload: Mapping[str, object]) -> PreprocessingStageProv
             ).items()
         }
     )
-    consumed_input_tables = _optional_table_fingerprints(
+    consumed_input_tables = _table_fingerprints_from_payload(
         payload.get("consumed_input_tables"),
         field_name="preprocessing_stage.consumed_input_tables",
     )
-    produced_output_tables = _optional_table_fingerprints(
+    produced_output_tables = _table_fingerprints_from_payload(
         payload.get("produced_output_tables"),
         field_name="preprocessing_stage.produced_output_tables",
     )
@@ -557,36 +480,23 @@ def _stage_from_payload(payload: Mapping[str, object]) -> PreprocessingStageProv
         payload.get("random_seed"),
         field_name="preprocessing_stage.random_seed",
     )
-    deterministic_alias_raw = payload.get("is_deterministic")
-    deterministic_alias = (
-        None
-        if deterministic_alias_raw is None
-        else _require_bool(
-            deterministic_alias_raw,
-            field_name="preprocessing_stage.is_deterministic",
-        )
+    determinism = _resolve_determinism(
+        payload.get("determinism"),
+        field_name="preprocessing_stage.determinism",
     )
-    determinism = _resolve_stage_determinism_from_payload(
-        payload=payload,
-        random_seed=random_seed,
-        is_deterministic=deterministic_alias,
+    input_hash = _require_str(
+        payload.get("input_hash"),
+        field_name="preprocessing_stage.input_hash",
     )
-    is_deterministic = _determinism_is_deterministic(determinism)
-    input_hash = _resolve_primary_hash(
-        payload=payload,
-        primary_field_name="input_hash",
-        alias_field_name="phospho_input_hash",
+    output_hash = _require_str(
+        payload.get("output_hash"),
+        field_name="preprocessing_stage.output_hash",
     )
-    output_hash = _resolve_primary_hash(
-        payload=payload,
-        primary_field_name="output_hash",
-        alias_field_name="phospho_output_hash",
-    )
-    phospho_input_hash = _optional_str(
+    phospho_input_hash = _require_str(
         payload.get("phospho_input_hash"),
         field_name="preprocessing_stage.phospho_input_hash",
     )
-    phospho_output_hash = _optional_str(
+    phospho_output_hash = _require_str(
         payload.get("phospho_output_hash"),
         field_name="preprocessing_stage.phospho_output_hash",
     )
@@ -605,21 +515,14 @@ def _stage_from_payload(payload: Mapping[str, object]) -> PreprocessingStageProv
         output_shape=output_shape,
         input_hash=input_hash,
         output_hash=output_hash,
-        phospho_input_hash=(
-            input_hash if phospho_input_hash is None else phospho_input_hash
-        ),
-        phospho_output_hash=(
-            output_hash if phospho_output_hash is None else phospho_output_hash
-        ),
+        phospho_input_hash=phospho_input_hash,
+        phospho_output_hash=phospho_output_hash,
         dropped_row_ids=dropped_row_ids,
         dropped_row_count=_require_int(
             payload.get("dropped_row_count"),
             field_name="preprocessing_stage.dropped_row_count",
         ),
-        schema_version=_require_int(
-            payload.get("schema_version", 1),
-            field_name="preprocessing_stage.schema_version",
-        ),
+        schema_version=schema_version,
         consumed_input_tables=consumed_input_tables,
         produced_output_tables=produced_output_tables,
         backend=_optional_str(
@@ -628,7 +531,6 @@ def _stage_from_payload(payload: Mapping[str, object]) -> PreprocessingStageProv
         ),
         random_seed=random_seed,
         determinism=determinism,
-        is_deterministic=is_deterministic,
         imputed_cell_count=_require_int(
             payload.get("imputed_cell_count", 0),
             field_name="preprocessing_stage.imputed_cell_count",
@@ -958,62 +860,45 @@ def _optional_int(value: object, *, field_name: str) -> int | None:
     return _require_int(value, field_name=field_name)
 
 
-def _require_bool(value: object, *, field_name: str) -> bool:
-    if not isinstance(value, bool):
-        raise PhosPyInputError(f"{field_name} must be a bool")
-    return bool(value)
+def _require_current_environment_schema_version(
+    payload: Mapping[str, object],
+) -> int:
+    if "schema_version" not in payload:
+        _raise_legacy_provenance_schema()
+    schema_version = _require_int(
+        payload.get("schema_version"),
+        field_name="provenance.environment.schema_version",
+    )
+    if schema_version != ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V2:
+        _raise_legacy_provenance_schema()
+    return schema_version
 
 
-def _optional_table_fingerprints(
+def _require_current_stage_schema_version(payload: Mapping[str, object]) -> int:
+    if "schema_version" not in payload:
+        _raise_legacy_provenance_schema()
+    schema_version = _require_int(
+        payload.get("schema_version"),
+        field_name="preprocessing_stage.schema_version",
+    )
+    if schema_version != PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3:
+        _raise_legacy_provenance_schema()
+    return schema_version
+
+
+def _table_fingerprints_from_payload(
     value: object,
     *,
     field_name: str,
 ) -> tuple[TableFingerprint, ...]:
     if value is None:
-        return ()
+        _raise_legacy_provenance_schema()
     payload = _require_sequence(value, field_name=field_name)
     return tuple(
         _table_fingerprint_from_payload(
             _require_mapping(item, field_name=f"{field_name}[{position}]")
         )
         for position, item in enumerate(payload)
-    )
-
-
-def _resolve_primary_hash(
-    *,
-    payload: Mapping[str, object],
-    primary_field_name: str,
-    alias_field_name: str,
-) -> str:
-    raw_value = payload.get(primary_field_name)
-    if raw_value is None:
-        raw_value = payload.get(alias_field_name)
-        if raw_value is None:
-            raise PhosPyInputError(
-                f"preprocessing_stage.{primary_field_name} is required"
-            )
-    return _require_str(
-        raw_value, field_name=f"preprocessing_stage.{primary_field_name}"
-    )
-
-
-def _resolve_stage_determinism_from_payload(
-    *,
-    payload: Mapping[str, object],
-    random_seed: int | None,
-    is_deterministic: bool | None,
-) -> str:
-    determinism_raw = payload.get("determinism")
-    if determinism_raw is None:
-        if random_seed is not None:
-            return PREPROCESSING_STAGE_DETERMINISM_SEEDED_STOCHASTIC
-        if is_deterministic is False:
-            return PREPROCESSING_STAGE_DETERMINISM_EXTERNAL_DEPENDENCY
-        return PREPROCESSING_STAGE_DETERMINISM_PURE
-    return _resolve_determinism(
-        determinism_raw,
-        field_name="preprocessing_stage.determinism",
     )
 
 
@@ -1033,8 +918,19 @@ def _resolve_determinism(value: object, *, field_name: str) -> str:
     return normalized
 
 
-def _determinism_is_deterministic(determinism: str) -> bool:
-    return determinism == PREPROCESSING_STAGE_DETERMINISM_PURE
+def _reject_legacy_provenance_fields(
+    payload: Mapping[str, object],
+    *,
+    field_name: str,
+    legacy_fields: frozenset[str],
+) -> None:
+    present = sorted(str(key) for key in legacy_fields if str(key) in payload)
+    if present:
+        _raise_legacy_provenance_schema()
+
+
+def _raise_legacy_provenance_schema() -> None:
+    raise PhosPyInputError(_LEGACY_PROVENANCE_SCHEMA_ERROR)
 
 
 def _require_shape(value: object, *, field_name: str) -> tuple[int, int]:

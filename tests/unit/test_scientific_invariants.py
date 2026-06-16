@@ -21,7 +21,7 @@ from phospy.api.results import (
     KinaseScoringResult,
     KinaseWorkflowResult,
 )
-from phospy.provenance.hashing import hash_table
+from phospy.provenance.hashing import hash_table_tolerance
 from phospy.science.activities.models import KinaseActivityInputs, PredMatOverlapSummary
 from phospy.science.activities.scoring import compute_activity_from_inputs
 from phospy.science.datasets.preprocessing.models import (
@@ -167,7 +167,7 @@ def test_normalisation_noop_preserves_values_and_hash() -> None:
 
     assert result.state is state
     pdt.assert_frame_equal(result.state.phospho, phospho)
-    assert hash_table(phospho, name="phospho") == hash_table(
+    assert hash_table_tolerance(phospho, name="phospho") == hash_table_tolerance(
         result.state.phospho, name="phospho"
     )
 

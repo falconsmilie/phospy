@@ -42,12 +42,10 @@ class TableFingerprint:
     index_name: str | None
     column_names: tuple[str, ...]
     dtypes: tuple[str, ...]
-    hash_algorithm: str
-    hash_value: str
-    exact_hash_algorithm: str | None = None
-    exact_hash_value: str | None = None
-    tolerance_hash_algorithm: str | None = None
-    tolerance_hash_value: str | None = None
+    exact_hash_algorithm: str
+    exact_hash_value: str
+    tolerance_hash_algorithm: str
+    tolerance_hash_value: str
     index_structure: Mapping[str, JsonValue] | None = None
     column_index_structure: Mapping[str, JsonValue] | None = None
 
@@ -90,7 +88,6 @@ class PreprocessingStageProvenance:
     backend: str | None = None
     random_seed: int | None = None
     determinism: str = PREPROCESSING_STAGE_DETERMINISM_PURE
-    is_deterministic: bool = True
     imputed_cell_count: int = 0
     imputed_row_ids: tuple[str, ...] = ()
     notes: str | None = None

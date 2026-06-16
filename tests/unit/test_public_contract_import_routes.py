@@ -219,13 +219,14 @@ def test_exact_python_compatibility_facade_does_not_export_internal_aliases() ->
     assert all(not symbol.startswith("_") for symbol in exact_clustering.__all__)
 
 
-def test_split_module_import_routes_remain_backward_compatible() -> None:
-    from phospy.io.bundles._signalome.compatibility import (
-        signalome_config_from_payload,
-    )
+def test_removed_signalome_bundle_compatibility_import_fails() -> None:
+    with pytest.raises(ModuleNotFoundError):
+        exec("import phospy.io.bundles._signalome.compatibility", {})
+
+
+def test_split_module_import_routes_remain_supported() -> None:
     from phospy.science.prediction.motif_scoring import score_phosphosite_motifs
     from phospy.tables.signalome import SignalomeSiteContext
 
     assert SignalomeSiteContext.__name__ == "SignalomeSiteContext"
-    assert callable(signalome_config_from_payload)
     assert callable(score_phosphosite_motifs)

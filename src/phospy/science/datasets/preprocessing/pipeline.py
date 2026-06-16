@@ -11,7 +11,10 @@ from typing import TypedDict
 import pandas as pd
 
 from phospy.errors.build import DatasetBuildError
-from phospy.provenance.hashing import fingerprint_optional_table, hash_table
+from phospy.provenance.hashing import (
+    fingerprint_optional_table,
+    hash_table_tolerance,
+)
 from phospy.provenance.models import (
     PREPROCESSING_STAGE_DETERMINISM_PURE,
     PREPROCESSING_STAGE_DETERMINISM_SEEDED_STOCHASTIC,
@@ -120,11 +123,11 @@ class PreprocessingPipeline:
                 )
             current = stage_result.state
             report_rows.extend(_normalize_report_rows(stage_result.report_rows))
-            phospho_input_hash = hash_table(
+            phospho_input_hash = hash_table_tolerance(
                 previous.phospho,
                 name=f"{stage_key}.input.phospho",
             )
-            phospho_output_hash = hash_table(
+            phospho_output_hash = hash_table_tolerance(
                 current.phospho,
                 name=f"{stage_key}.output.phospho",
             )
@@ -437,28 +440,10 @@ def _hash_stage_table_fingerprints(
                 "name": item.name,
                 "rows": int(item.rows),
                 "columns": int(item.columns),
-                "hash_algorithm": item.hash_algorithm,
-                "hash_value": item.hash_value,
-                "exact_hash_algorithm": (
-                    item.hash_algorithm
-                    if item.exact_hash_algorithm is None
-                    else item.exact_hash_algorithm
-                ),
-                "exact_hash_value": (
-                    item.hash_value
-                    if item.exact_hash_value is None
-                    else item.exact_hash_value
-                ),
-                "tolerance_hash_algorithm": (
-                    item.hash_algorithm
-                    if item.tolerance_hash_algorithm is None
-                    else item.tolerance_hash_algorithm
-                ),
-                "tolerance_hash_value": (
-                    item.hash_value
-                    if item.tolerance_hash_value is None
-                    else item.tolerance_hash_value
-                ),
+                "exact_hash_algorithm": item.exact_hash_algorithm,
+                "exact_hash_value": item.exact_hash_value,
+                "tolerance_hash_algorithm": item.tolerance_hash_algorithm,
+                "tolerance_hash_value": item.tolerance_hash_value,
             }
             for item in table_fingerprints
         ],

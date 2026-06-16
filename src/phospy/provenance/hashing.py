@@ -38,21 +38,6 @@ _PANDAS_MISSING_SCALAR_TYPES = (
 )
 
 
-def hash_table(
-    table: pd.DataFrame,
-    *,
-    name: str,
-    algorithm: str = DEFAULT_TABLE_HASH_ALGORITHM,
-) -> str:
-    """Return a deterministic tolerance-oriented digest for a table.
-
-    This is preserved as a compatibility alias for the historical provenance
-    digest behavior (float rounding before hashing).
-    """
-
-    return hash_table_tolerance(table, name=name, algorithm=algorithm)
-
-
 def hash_table_exact(
     table: pd.DataFrame,
     *,
@@ -124,8 +109,6 @@ def fingerprint_table(
         ),
         column_names=tuple(str(label) for label in canonical_table.columns.tolist()),
         dtypes=tuple(str(dtype) for dtype in canonical_table.dtypes.tolist()),
-        hash_algorithm=algorithm,
-        hash_value=tolerance_hash,
         exact_hash_algorithm=exact_hash_algorithm,
         exact_hash_value=exact_hash,
         tolerance_hash_algorithm=tolerance_hash_algorithm,
@@ -349,7 +332,6 @@ __all__ = [
     "DEFAULT_TOLERANCE_TABLE_HASH_ALGORITHM",
     "fingerprint_optional_table",
     "fingerprint_table",
-    "hash_table",
     "hash_table_exact",
     "hash_table_tolerance",
 ]

@@ -96,8 +96,6 @@ def _fingerprints_by_name(
         str(item.name): {
             "rows": int(item.rows),
             "columns": int(item.columns),
-            "hash_algorithm": str(item.hash_algorithm),
-            "hash_value": str(item.hash_value),
             "exact_hash_algorithm": str(item.exact_hash_algorithm),
             "exact_hash_value": str(item.exact_hash_value),
             "tolerance_hash_algorithm": str(item.tolerance_hash_algorithm),
@@ -131,10 +129,12 @@ def _assert_expected_fingerprint_map(
         expected_payload = {
             "rows": int(table_expected["rows"]),
             "columns": int(table_expected["columns"]),
-            "hash_algorithm": str(table_expected["hash_algorithm"]),
+            "tolerance_hash_algorithm": str(table_expected["tolerance_hash_algorithm"]),
         }
         if compare_hash_values:
-            expected_payload["hash_value"] = str(table_expected["hash_value"])
+            expected_payload["tolerance_hash_value"] = str(
+                table_expected["tolerance_hash_value"]
+            )
             for key, value in expected_payload.items():
                 assert table_observed[key] == value, (
                     f"fingerprint mismatch for table: {table_name}, key={key}"
@@ -146,9 +146,6 @@ def _assert_expected_fingerprint_map(
         assert int(table_observed["columns"]) == expected_payload["columns"], (
             f"column-count mismatch for table: {table_name}"
         )
-        assert (
-            str(table_observed["hash_algorithm"]) == expected_payload["hash_algorithm"]
-        ), f"hash-algorithm mismatch for table: {table_name}"
         assert str(table_observed["exact_hash_algorithm"]) == "sha256-stable-json-v1"
         assert len(str(table_observed["exact_hash_value"])) == 64
         assert (
@@ -162,7 +159,9 @@ def _hash_overrides_from_observed(
     observed: Mapping[str, Mapping[str, object]],
 ) -> dict[str, dict[str, object]]:
     return {
-        str(table_name): {"hash_value": str(table_fingerprint["hash_value"])}
+        str(table_name): {
+            "tolerance_hash_value": str(table_fingerprint["tolerance_hash_value"])
+        }
         for table_name, table_fingerprint in observed.items()
     }
 
@@ -354,6 +353,8 @@ def test_kinase_workflow_site_sequence_conflict_policy_is_public_request_option(
     conflict_rows = site_sequence_merge["conflict_diagnostics"]
     assert isinstance(conflict_rows, list)
     assert len(conflict_rows) == 1
+    assert "site_id" not in conflict_rows[0]
+    assert conflict_rows[0]["display_id"] == "MAPK14;Y182;"
     assert conflict_rows[0]["selected_sequence_source"] == expected_selected_source
 
 

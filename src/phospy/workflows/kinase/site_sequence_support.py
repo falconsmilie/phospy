@@ -36,8 +36,6 @@ class KinaseSiteSequenceConflictDiagnostic:
         return {
             "site_key": self.site_key,
             "display_id": self.display_id,
-            # Backward-compatible alias for external payload consumers.
-            "site_id": self.display_id,
             "dataset_sequence": self.dataset_sequence,
             "reference_sequence": self.reference_sequence,
             "selected_policy": self.selected_policy,

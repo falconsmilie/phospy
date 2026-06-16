@@ -21,7 +21,7 @@ from phospy.api.results import KinaseScoringResult, KinaseWorkflowResult
 from phospy.errors.workflows import SignalomeScaleError
 from phospy.io.bundles._signalome.snapshots import SignalomeWorkflowConfigSnapshot
 from phospy.io.bundles.signalome import save_signalome_workflow_bundle
-from phospy.provenance.hashing import hash_table
+from phospy.provenance.hashing import hash_table_tolerance
 from phospy.science.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingState,
@@ -1237,14 +1237,23 @@ def test_provenance_hashing_performance_contract_large_dataframes() -> None:
     (phospho_hash, metadata_hash), runtime_seconds, peak_mib = (
         measure_runtime_and_peak_mib(
             lambda: (
-                hash_table(phospho, name="performance_contracts.phospho"),
-                hash_table(site_metadata, name="performance_contracts.site_metadata"),
+                hash_table_tolerance(
+                    phospho,
+                    name="performance_contracts.phospho",
+                ),
+                hash_table_tolerance(
+                    site_metadata,
+                    name="performance_contracts.site_metadata",
+                ),
             ),
             warmup=True,
         )
     )
-    repeated_phospho_hash = hash_table(phospho, name="performance_contracts.phospho")
-    repeated_metadata_hash = hash_table(
+    repeated_phospho_hash = hash_table_tolerance(
+        phospho,
+        name="performance_contracts.phospho",
+    )
+    repeated_metadata_hash = hash_table_tolerance(
         site_metadata, name="performance_contracts.site_metadata"
     )
 

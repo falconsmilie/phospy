@@ -316,7 +316,7 @@ def save_signalome_workflow_bundle(
 def _drop_absent_kinase_library_scoring_tables(
     scoring_tables: dict[str, object],
 ) -> dict[str, object]:
-    """Keep legacy default manifests stable while allowing new optional tables."""
+    """Omit absent optional Kinase Library extension tables from manifests."""
 
     optional_keys = (
         "kinase_library_motif_scores",

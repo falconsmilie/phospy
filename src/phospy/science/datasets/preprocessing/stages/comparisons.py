@@ -11,7 +11,7 @@ from phospy.contracts.configs import (
     DatasetComparisonPair,
 )
 from phospy.errors.input import PhosPyInputError
-from phospy.provenance.hashing import hash_table
+from phospy.provenance.hashing import hash_table_tolerance
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
     ComparisonBuildResult,
@@ -130,7 +130,7 @@ class ComparisonsStage:
                     "sample_group_column": state.plan.comparison_sample_group_column,
                     "resolved_comparison_pairs": _resolve_comparison_pairs(next_state),
                     "group_labels": _resolve_group_labels_from_stats(next_state),
-                    "output_comparison_hash": hash_table(
+                    "output_comparison_hash": hash_table_tolerance(
                         build_result.comparisons,
                         name="comparisons.output.table",
                     ),

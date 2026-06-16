@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from phospy.errors.input import PhosPyInputError
-from phospy.provenance.hashing import hash_table
+from phospy.provenance.hashing import hash_table_tolerance
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
     PreprocessingPlan,
@@ -56,11 +56,11 @@ class IntensityTransformStage:
         )
         diagnostics = {
             **dict(transformed.provenance),
-            "input_phospho_hash": hash_table(
+            "input_phospho_hash": hash_table_tolerance(
                 state.phospho,
                 name="intensity_transform.input.phospho",
             ),
-            "output_phospho_hash": hash_table(
+            "output_phospho_hash": hash_table_tolerance(
                 transformed_phospho,
                 name="intensity_transform.output.phospho",
             ),
@@ -82,12 +82,12 @@ class IntensityTransformStage:
             ["phospho"] if transformed_total is None else ["phospho", "total"],
         )
         if state.total is not None:
-            diagnostics["input_total_hash"] = hash_table(
+            diagnostics["input_total_hash"] = hash_table_tolerance(
                 state.total,
                 name="intensity_transform.input.total",
             )
         if transformed_total is not None:
-            diagnostics["output_total_hash"] = hash_table(
+            diagnostics["output_total_hash"] = hash_table_tolerance(
                 transformed_total,
                 name="intensity_transform.output.total",
             )

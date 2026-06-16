@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from pathlib import Path
+from typing import NoReturn
 
 from phospy.api.results import KinaseWorkflowResult
 from phospy.errors.input import PhosPyInputError
@@ -24,6 +25,7 @@ from phospy.io.bundles._shared.tables import (
     read_optional_table,
     read_required_table,
 )
+from phospy.provenance.models import RunProvenance
 from phospy.provenance.serialization import from_payload as provenance_from_payload
 from phospy.science.activities.models import (
     ActivityMethodMetadata,
@@ -31,8 +33,15 @@ from phospy.science.activities.models import (
     KinaseActivityResult,
 )
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.datasets.processing_state import DatasetProcessingState
 from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.science.references.models import ReferenceBundle
+from phospy.science.transformations.models import IntensityScaleState
+
+_LEGACY_KINASE_BUNDLE_SCHEMA_ERROR = (
+    "Legacy kinase bundle schemas are no longer supported. Regenerate the bundle "
+    "with the current PhosPy version."
+)
 
 
 def reconstruct_kinase_result(
@@ -42,12 +51,12 @@ def reconstruct_kinase_result(
 ) -> KinaseWorkflowResult:
     """Rebuild a KinaseWorkflowResult from already-validated manifest sections."""
 
-    provenance = provenance_from_payload(sections.provenance_payload)
+    provenance = _parse_bundle_provenance(sections.provenance_payload)
     processing_state_payload = require_mapping(
         sections.dataset_metadata.get("processing_state"),
         field_name="bundle manifest.dataset.metadata.processing_state",
     )
-    processing_state = processing_state_from_payload(processing_state_payload)
+    processing_state = _parse_bundle_processing_state(processing_state_payload)
     intensity_scale_payload = require_mapping(
         sections.dataset_metadata.get("intensity_scale_state"),
         field_name="bundle manifest.dataset.metadata.intensity_scale_state",
@@ -83,8 +92,8 @@ def reconstruct_kinase_result(
             sections.dataset_metadata.get("organism"),
             field_name="bundle manifest.dataset.metadata.organism",
         ),
-        intensity_scale_state=intensity_scale_state_from_payload(
-            intensity_scale_payload,
+        intensity_scale_state=_parse_bundle_intensity_scale_state(
+            intensity_scale_payload
         ),
         processing_state=processing_state,
     )
@@ -313,6 +322,35 @@ def _normalise_site_metadata_bundle_table(table):
     normalised = table.copy(deep=True)
     normalised = normalised.rename(columns={"site_key.1": "site_key"})
     return normalised
+
+
+def _parse_bundle_provenance(payload: Mapping[str, object]) -> RunProvenance:
+    try:
+        return provenance_from_payload(payload)
+    except PhosPyInputError as exc:
+        _raise_legacy_bundle_schema(exc)
+
+
+def _parse_bundle_processing_state(
+    payload: Mapping[str, object],
+) -> DatasetProcessingState:
+    try:
+        return processing_state_from_payload(payload)
+    except PhosPyInputError as exc:
+        _raise_legacy_bundle_schema(exc)
+
+
+def _parse_bundle_intensity_scale_state(
+    payload: Mapping[str, object],
+) -> IntensityScaleState:
+    try:
+        return intensity_scale_state_from_payload(payload)
+    except PhosPyInputError as exc:
+        _raise_legacy_bundle_schema(exc)
+
+
+def _raise_legacy_bundle_schema(exc: PhosPyInputError) -> NoReturn:
+    raise PhosPyInputError(f"{_LEGACY_KINASE_BUNDLE_SCHEMA_ERROR} {exc}") from exc
 
 
 def _read_absent_optional_table(

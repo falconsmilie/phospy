@@ -653,14 +653,22 @@ def test_signalome_validator_read_path_does_not_mutate_internal_frames() -> None
         name="scoring_result.rank_weighted_fusion_scores",
     )
 
-    assert dataset_phospho_before.hash_value == dataset_phospho_after.hash_value
     assert (
-        dataset_site_metadata_before.hash_value
-        == dataset_site_metadata_after.hash_value
+        dataset_phospho_before.tolerance_hash_value
+        == dataset_phospho_after.tolerance_hash_value
     )
-    assert prediction_before.hash_value == prediction_after.hash_value
-    assert score_before.hash_value == score_after.hash_value
-    assert rank_weighted_before.hash_value == rank_weighted_after.hash_value
+    assert (
+        dataset_site_metadata_before.tolerance_hash_value
+        == dataset_site_metadata_after.tolerance_hash_value
+    )
+    assert (
+        prediction_before.tolerance_hash_value == prediction_after.tolerance_hash_value
+    )
+    assert score_before.tolerance_hash_value == score_after.tolerance_hash_value
+    assert (
+        rank_weighted_before.tolerance_hash_value
+        == rank_weighted_after.tolerance_hash_value
+    )
 
 
 def test_signalome_interpreter_read_path_does_not_mutate_dataset_frames() -> None:
@@ -687,8 +695,11 @@ def test_signalome_interpreter_read_path_does_not_mutate_dataset_frames() -> Non
         name="dataset.site_metadata",
     )
 
-    assert phospho_before.hash_value == phospho_after.hash_value
-    assert site_metadata_before.hash_value == site_metadata_after.hash_value
+    assert phospho_before.tolerance_hash_value == phospho_after.tolerance_hash_value
+    assert (
+        site_metadata_before.tolerance_hash_value
+        == site_metadata_after.tolerance_hash_value
+    )
 
 
 def test_owned_construction_frames_can_be_mutated_after_owned_transfer() -> None:
@@ -805,7 +816,10 @@ def test_safe_public_export_does_not_change_owned_provenance_state() -> None:
     safe_copy.iloc[0, 0] = 999.0
 
     fingerprint_after = fingerprint_table(built.phospho, name="dataset.phospho")
-    assert fingerprint_before.hash_value == fingerprint_after.hash_value
+    assert (
+        fingerprint_before.tolerance_hash_value
+        == fingerprint_after.tolerance_hash_value
+    )
 
 
 @pytest.mark.parametrize(
@@ -1256,7 +1270,10 @@ def test_kinase_activity_result_series_properties_are_defensive_snapshots() -> N
         activity_result.thresholded_substrate_counts.to_frame(name="n_substrates"),
         name="outputs.activity.thresholded_substrate_counts",
     )
-    assert thresholded_before.hash_value == thresholded_after.hash_value
+    assert (
+        thresholded_before.tolerance_hash_value
+        == thresholded_after.tolerance_hash_value
+    )
 
     target_before = fingerprint_table(
         activity_result.target_counts.to_frame(name="n_targets"),
@@ -1271,7 +1288,7 @@ def test_kinase_activity_result_series_properties_are_defensive_snapshots() -> N
         activity_result.target_counts.to_frame(name="n_targets"),
         name="outputs.activity.target_counts",
     )
-    assert target_before.hash_value == target_after.hash_value
+    assert target_before.tolerance_hash_value == target_after.tolerance_hash_value
 
 
 def test_signalome_result_table_properties_are_defensive_snapshots() -> None:

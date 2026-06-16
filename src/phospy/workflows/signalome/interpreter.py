@@ -230,6 +230,9 @@ class SignalomeWorkflowInterpreter:
             score_preconditioning_policy=(
                 request.config.validation.score_preconditioning_policy
             ),
+            allow_mixed_total_protein_quantitative_meaning=bool(
+                request.config.validation.allow_mixed_total_protein_quantitative_meaning
+            ),
             module_selection_primary_threshold=float(
                 request.config.clustering.module_selection_primary_correlation_threshold
             ),

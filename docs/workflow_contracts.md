@@ -32,6 +32,12 @@ Environment provenance supports reproducibility audits (runtime versions,
 platform, backend, and execution settings), but it does not guarantee bitwise
 identical numeric outputs across different machines or dependency builds.
 
+Saved workflow bundles and provenance payloads are supported only for the
+current PhosPy schema. Legacy saved-result compatibility has been intentionally
+removed. Regenerate older development-version outputs instead of relying on
+schema repair during loading. Provenance remains supported for current outputs,
+and current table-hash semantics are unchanged.
+
 ## Result Snapshot Helper Boundary
 
 Result models are typed containers. Public helpers such as `to_dataframe()`,
@@ -160,7 +166,8 @@ the result models.
   (`declared`, `transformed`, `identity`, or `derived`) and establishment source.
 - Normalisation provenance is explicit: method, parameters, matrix-shape before/after,
   per-sample summary before/after, and row/column drop diagnostics.
-- Each table fingerprint carries both `exact_hash_*` (audit/regression) and `tolerance_hash_*` (cross-platform tolerant comparison) metadata; legacy `hash_*` fields are compatibility aliases of the tolerance hash.
+- Each table fingerprint carries explicit `exact_hash_*` (audit/regression)
+  and `tolerance_hash_*` (cross-platform tolerant comparison) metadata.
 - `provenance.workflow_parameters["preprocessing_plan"]` includes both `stage_order` and
   `resolved_stage_order` with per-stage order index and rationale.
 - `intensity_scale_state` and `processing_state` are attached and validated at boundary.

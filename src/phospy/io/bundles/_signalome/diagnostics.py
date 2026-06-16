@@ -9,7 +9,7 @@ from phospy.io.bundles._shared.primitives import (
     require_mapping,
     require_str,
 )
-from phospy.io.bundles._signalome.compatibility.primitives import (
+from phospy.io.bundles._signalome.primitives import (
     _parse_optional_int,
     _reject_unsupported_fields,
     _require_fields,

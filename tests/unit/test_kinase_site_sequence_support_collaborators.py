@@ -212,7 +212,8 @@ def test_interpreter_conflict_error_policy_fails_before_executor_runs() -> None:
     assert error.seam == "kinase.interpreter.site_sequence_conflict"
     diagnostics = cast(list[dict[str, object]], error.details["conflict_diagnostics"])
     assert len(diagnostics) == 1
-    assert diagnostics[0]["site_id"] == "MAPK14;Y182;"
+    assert diagnostics[0]["display_id"] == "MAPK14;Y182;"
+    assert "site_id" not in diagnostics[0]
     assert diagnostics[0]["dataset_sequence"] == "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA"
     assert diagnostics[0]["reference_sequence"] == "AAAAAAAAAAAAAAATAAAAAAAAAAAAAAA"
     assert isinstance(error.next_action, str)
@@ -263,6 +264,8 @@ def test_interpreter_default_prefer_reference_records_conflict_diagnostics_in_pr
         list[dict[str, object]], site_sequence_merge["conflict_diagnostics"]
     )
     assert len(conflict_rows) == 1
+    assert conflict_rows[0]["display_id"] == "MAPK14;Y182;"
+    assert "site_id" not in conflict_rows[0]
     assert conflict_rows[0]["selected_sequence_source"] == "reference"
     assert conflict_rows[0]["selected_sequence"] == "AAAAAAAAAAAAAAATAAAAAAAAAAAAAAA"
 
@@ -304,6 +307,7 @@ def test_interpreter_prefer_dataset_selects_dataset_sequence_and_contract_accept
     diagnostics = interpreted.site_sequence_merge_diagnostics
     assert diagnostics["conflict_policy"] == "prefer_dataset"
     conflict_rows = cast(list[dict[str, object]], diagnostics["conflict_diagnostics"])
+    assert "site_id" not in conflict_rows[0]
     assert conflict_rows[0]["selected_sequence_source"] == "dataset"
 
 

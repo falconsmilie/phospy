@@ -127,7 +127,7 @@ Without governance:
 - `src/phospy/workflows/signalome/interpreter.py`
 - `src/phospy/workflows/signalome/executor.py`
 - `src/phospy/workflows/signalome/provenance.py`
-- `src/phospy/io/bundles/_signalome/compatibility/`
+- `src/phospy/io/bundles/_signalome/{config,diagnostics,tables}.py`
 - `src/phospy/validation/references/compatibility.py`
 
 ## Scope Boundaries

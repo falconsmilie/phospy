@@ -19,16 +19,16 @@ from phospy.io.bundles._shared.primitives import (
 from phospy.io.bundles._shared.processing_state import (
     processing_state_to_payload,
 )
-from phospy.io.bundles._signalome.compatibility import (
-    signalome_alignment_diagnostics_to_payload,
-    signalome_module_selection_diagnostics_to_payload,
-    signalome_network_correlation_diagnostics_to_payload,
-    signalome_score_preconditioning_diagnostics_to_payload,
-)
 from phospy.io.bundles._signalome.constants import (
     CONFIG_SNAPSHOT_RELATIVE_PATH,
     SIGNALOME_BUNDLE_KIND,
     SIGNALOME_BUNDLE_MANIFEST_VERSION,
+)
+from phospy.io.bundles._signalome.diagnostics import (
+    signalome_alignment_diagnostics_to_payload,
+    signalome_module_selection_diagnostics_to_payload,
+    signalome_network_correlation_diagnostics_to_payload,
+    signalome_score_preconditioning_diagnostics_to_payload,
 )
 from phospy.provenance.serialization import to_payload as provenance_to_payload
 
@@ -52,7 +52,10 @@ class SignalomeManifestSections:
     config_snapshot_path: str
 
 
-_REGENERATE_BUNDLE_HINT = "Regenerate this bundle with the current PhosPy version."
+_LEGACY_SIGNALOME_BUNDLE_SCHEMA_ERROR = (
+    "Legacy signalome bundle schemas are no longer supported. Regenerate the bundle "
+    "with the current PhosPy version."
+)
 _MANIFEST_ALLOWED_FIELDS = frozenset(
     {
         "bundle_type",
@@ -515,7 +518,7 @@ def parse_manifest(payload: Mapping[str, object]) -> SignalomeManifestSections:
 
 
 def _raise_unsupported_manifest_shape(message: str) -> None:
-    raise PhosPyInputError(f"{message}. {_REGENERATE_BUNDLE_HINT}")
+    raise PhosPyInputError(f"{_LEGACY_SIGNALOME_BUNDLE_SCHEMA_ERROR} {message}.")
 
 
 def _require_fields(
@@ -548,4 +551,6 @@ def _reject_unsupported_fields(
     )
     if unknown_fields:
         unknown = ", ".join(unknown_fields)
-        raise PhosPyInputError(f"{field_name} contains unsupported field(s): {unknown}")
+        _raise_unsupported_manifest_shape(
+            f"{field_name} contains unsupported field(s): {unknown}"
+        )

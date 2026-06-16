@@ -1911,7 +1911,6 @@ def test_dataset_builder_emits_machine_readable_run_provenance() -> None:
     assert "dataset.phospho" in produced_names
     assert missing_stage.backend in {"pandas", "numpy", None}
     assert missing_stage.determinism == "pure"
-    assert missing_stage.is_deterministic is True
     assert missing_stage.random_seed is None
     assert isinstance(missing_stage.phospho_input_hash, str)
     assert isinstance(missing_stage.phospho_output_hash, str)
@@ -1983,5 +1982,4 @@ def test_dataset_builder_marks_minprob_stage_as_seeded_stochastic() -> None:
         if stage.stage == "missing_data"
     )
     assert missing_stage.determinism == "seeded_stochastic"
-    assert missing_stage.is_deterministic is False
     assert missing_stage.random_seed == 123

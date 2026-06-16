@@ -183,7 +183,6 @@ def _stage_trace_to_provenance(
                 if str(item.determinism).strip()
                 else PREPROCESSING_STAGE_DETERMINISM_PURE
             ),
-            is_deterministic=bool(item.is_deterministic),
             imputed_cell_count=int(item.imputed_cell_count),
             imputed_row_ids=item.imputed_row_ids,
             notes=item.notes,

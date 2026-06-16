@@ -139,7 +139,6 @@ for one representative kinase lane and one representative signalome lane.
 These fixtures intentionally include:
 
 - deterministic input/output table fingerprints (`rows`, `columns`,
-  `hash_algorithm`, `hash_value`, `exact_hash_algorithm`, `exact_hash_value`,
   `tolerance_hash_algorithm`, `tolerance_hash_value`);
 - workflow name;
 - workflow configuration values used by the lane;
@@ -150,8 +149,10 @@ These fixtures intentionally include:
 These fixtures intentionally exclude unstable environment/runtime values such as
 timestamp-like data, machine paths, and exact Python patch runtime strings.
 
-For scientific audit and strict regression decisions, use `exact_hash_value`.
-Use `tolerance_hash_value` only for explicitly tolerance-aware comparisons.
+Generated provenance also includes `exact_hash_algorithm` and
+`exact_hash_value`. For scientific audit and strict regression decisions, use
+the exact hash fields. Use `tolerance_hash_value` only for explicitly
+tolerance-aware comparisons.
 
 ## Updating Golden Fixtures Intentionally
 

@@ -448,6 +448,16 @@ offline/no-online-resource policy, and explicit limitations. These records
 state what was executed; they do not imply bundled GO, KEGG, Reactome, PTM-SEA,
 online enrichment service access, GSEA, ssGSEA, or PTM-SEA support.
 
+## Saved Output and Provenance Schemas
+
+Only current PhosPy-generated bundles and provenance payloads are supported.
+Legacy saved-result compatibility has been intentionally removed. Regenerate
+older development-version outputs rather than relying on schema repair during
+loading.
+
+Provenance remains supported for current outputs. Current exact and tolerance
+table-hash semantics are unchanged.
+
 ### `profile_correlation_shifted_unit_v1`
 
 - What it does:

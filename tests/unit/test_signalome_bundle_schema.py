@@ -12,8 +12,7 @@ from phospy.api.configs import (
     SignalomeValidationConfig,
 )
 from phospy.errors.input import PhosPyInputError
-from phospy.io.bundles._signalome.compatibility import (
-    normalize_module_assignments_table,
+from phospy.io.bundles._signalome.diagnostics import (
     signalome_alignment_diagnostics_from_payload,
     signalome_alignment_diagnostics_to_payload,
     signalome_module_selection_diagnostics_from_payload,
@@ -23,6 +22,7 @@ from phospy.io.bundles._signalome.compatibility import (
     signalome_score_preconditioning_diagnostics_from_payload,
     signalome_score_preconditioning_diagnostics_to_payload,
 )
+from phospy.io.bundles._signalome.tables import normalize_module_assignments_table
 from phospy.io.bundles.signalome import SignalomeWorkflowConfigSnapshot
 from phospy.science.signalomes.models import (
     SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS,
@@ -234,6 +234,35 @@ def test_signalome_snapshot_rejects_unknown_clustering_engine_value() -> None:
         )
 
 
+def test_signalome_snapshot_rejects_missing_clustering_engine() -> None:
+    payload = _full_signalome_snapshot_payload()
+    clustering = payload["signalome_config"]["clustering"]
+    assert isinstance(clustering, dict)
+    clustering.pop("clustering_engine", None)
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="clustering is missing required field\\(s\\): clustering_engine",
+    ):
+        SignalomeWorkflowConfigSnapshot.from_payload(payload)
+
+
+def test_signalome_snapshot_rejects_missing_mixed_total_protein_flag() -> None:
+    payload = _full_signalome_snapshot_payload()
+    validation = payload["signalome_config"]["validation"]
+    assert isinstance(validation, dict)
+    validation.pop("allow_mixed_total_protein_quantitative_meaning", None)
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "validation is missing required field\\(s\\): "
+            "allow_mixed_total_protein_quantitative_meaning"
+        ),
+    ):
+        SignalomeWorkflowConfigSnapshot.from_payload(payload)
+
+
 def test_signalome_snapshot_accepts_engine_policy_fields() -> None:
     snapshot = SignalomeWorkflowConfigSnapshot.from_payload(
         _full_signalome_snapshot_payload(
@@ -315,6 +344,27 @@ def test_module_assignment_normalization_parses_serialized_fields() -> None:
         (("AKT1", 0.4),),
         (("MAPK1", 0.9),),
     ]
+
+
+def test_module_assignment_normalization_does_not_repair_legacy_identity_columns() -> (
+    None
+):
+    table = pd.DataFrame(
+        {
+            "site_key.1": [
+                "phospy:v1|organism=rat|protein_namespace=gene|protein_identifier=MAPK14|site=Y182"
+            ],
+            "display_id.1": ["MAPK14;Y182;"],
+            "module_candidates": ["('AKT1',)"],
+        }
+    )
+
+    normalized = normalize_module_assignments_table(table)
+
+    assert "site_key" in normalized.columns
+    assert "site_key.1" not in normalized.columns
+    assert "display_id" not in normalized.columns
+    assert "display_id.1" in normalized.columns
 
 
 def test_module_selection_diagnostics_payload_round_trip() -> None:

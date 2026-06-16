@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from phospy.api.configs import SignalomeConfig
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.primitives import require_mapping
-from phospy.io.bundles._signalome.compatibility import (
+from phospy.io.bundles._signalome.config import (
     signalome_config_from_payload,
 )
 

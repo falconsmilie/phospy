@@ -227,6 +227,9 @@ class SignalomeProvenanceBuilder:
                         "score_preconditioning_policy": str(
                             config.score_preconditioning_policy
                         ),
+                        "allow_mixed_total_protein_quantitative_meaning": bool(
+                            config.allow_mixed_total_protein_quantitative_meaning
+                        ),
                     },
                     "output": {
                         "network_correlation_threshold": float(

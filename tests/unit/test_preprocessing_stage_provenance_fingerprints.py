@@ -100,7 +100,9 @@ def _hash_by_name(
     fingerprints: tuple[TableFingerprint, ...],
     table_name: str,
 ) -> str:
-    return next(item.hash_value for item in fingerprints if item.name == table_name)
+    return next(
+        item.tolerance_hash_value for item in fingerprints if item.name == table_name
+    )
 
 
 def test_site_metadata_change_updates_site_matrix_stage_provenance() -> None:

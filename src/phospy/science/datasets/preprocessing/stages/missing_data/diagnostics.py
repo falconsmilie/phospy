@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.provenance.hashing import hash_table
+from phospy.provenance.hashing import hash_table_tolerance
 from phospy.science.datasets.processing_state import (
     MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
     JsonValue,
@@ -33,7 +33,7 @@ def build_input_profile(phospho: pd.DataFrame) -> MissingDataInputProfile:
 def hash_missingness_mask(mask: pd.DataFrame) -> str:
     """Return stable fingerprint for input missingness structure."""
 
-    return hash_table(
+    return hash_table_tolerance(
         mask.astype("int8"),
         name="missing_data.input_missingness_mask",
     )
@@ -42,7 +42,7 @@ def hash_missingness_mask(mask: pd.DataFrame) -> str:
 def hash_imputation_mask(mask: pd.DataFrame) -> str:
     """Return stable fingerprint for policy-owned imputed-cell mask."""
 
-    return hash_table(
+    return hash_table_tolerance(
         mask.astype("int8"),
         name="missing_data.imputation_mask",
     )

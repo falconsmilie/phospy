@@ -193,8 +193,10 @@ def test_reference_provenance_from_payload_supports_legacy_missing_identifier_no
         index_name=None,
         column_names=("kinase", "substrate_site"),
         dtypes=("object", "object"),
-        hash_algorithm="sha256",
-        hash_value="a" * 64,
+        exact_hash_algorithm="sha256-stable-json-v1",
+        exact_hash_value="a" * 64,
+        tolerance_hash_algorithm="sha256-float-round-8dp-v1",
+        tolerance_hash_value="a" * 64,
     )
     run_provenance = RunProvenance(
         environment=EnvironmentProvenance(

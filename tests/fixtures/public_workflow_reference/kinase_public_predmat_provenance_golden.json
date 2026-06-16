@@ -26,14 +26,14 @@
       "references.kinase_substrate_map": {
         "rows": 8,
         "columns": 2,
-        "hash_algorithm": "sha256",
-        "hash_value": "79d1de19449b0273721c2de2c91fabad142cf00204a87f119a79f961857c8c4d"
+        "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
+        "tolerance_hash_value": "79d1de19449b0273721c2de2c91fabad142cf00204a87f119a79f961857c8c4d"
       },
       "references.site_sequences": {
         "rows": 8,
         "columns": 1,
-        "hash_algorithm": "sha256",
-        "hash_value": "061e9eaf989ddfb9d5adb1bffeb3d2a3f1bb9c3d84d294775d40b169034fb160"
+        "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
+        "tolerance_hash_value": "061e9eaf989ddfb9d5adb1bffeb3d2a3f1bb9c3d84d294775d40b169034fb160"
       }
     }
   },
@@ -41,52 +41,52 @@
     "dataset.phospho": {
       "rows": 8,
       "columns": 3,
-      "hash_algorithm": "sha256",
-      "hash_value": "cbfe5e8253fb4bd09556a9d8150492ed03b1d3ebeccd20e21483ea99dbb2dd24"
+      "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
+      "tolerance_hash_value": "cbfe5e8253fb4bd09556a9d8150492ed03b1d3ebeccd20e21483ea99dbb2dd24"
     },
     "dataset.site_metadata": {
       "rows": 8,
       "columns": 4,
-      "hash_algorithm": "sha256",
-      "hash_value": "60abd3a54a4ba6b192fb0595525a211f17e409759b21a093104852d51af615d8"
+      "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
+      "tolerance_hash_value": "60abd3a54a4ba6b192fb0595525a211f17e409759b21a093104852d51af615d8"
     },
     "references.kinase_substrate_map": {
       "rows": 8,
       "columns": 2,
-      "hash_algorithm": "sha256",
-      "hash_value": "79d1de19449b0273721c2de2c91fabad142cf00204a87f119a79f961857c8c4d"
+      "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
+      "tolerance_hash_value": "79d1de19449b0273721c2de2c91fabad142cf00204a87f119a79f961857c8c4d"
     },
     "references.site_sequences": {
       "rows": 8,
       "columns": 1,
-      "hash_algorithm": "sha256",
-      "hash_value": "061e9eaf989ddfb9d5adb1bffeb3d2a3f1bb9c3d84d294775d40b169034fb160"
+      "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
+      "tolerance_hash_value": "061e9eaf989ddfb9d5adb1bffeb3d2a3f1bb9c3d84d294775d40b169034fb160"
     }
   },
   "output_tables": {
     "outputs.scoring.profile_scores": {
       "rows": 8,
       "columns": 2,
-      "hash_algorithm": "sha256",
-      "hash_value": "a949a256d32c782de15f577fcbfdbd92474ed8b950e8fdceaad661e52a1bd2f3"
+      "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
+      "tolerance_hash_value": "a949a256d32c782de15f577fcbfdbd92474ed8b950e8fdceaad661e52a1bd2f3"
     },
     "outputs.scoring.rank_weighted_fusion_scores": {
       "rows": 8,
       "columns": 2,
-      "hash_algorithm": "sha256",
-      "hash_value": "083f890ec572dd68eb76444b2a048d2a822a9f8bf3804bd9017eb7be2e84d1b7"
+      "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
+      "tolerance_hash_value": "083f890ec572dd68eb76444b2a048d2a822a9f8bf3804bd9017eb7be2e84d1b7"
     },
     "outputs.prediction.pred_mat": {
       "rows": 8,
       "columns": 2,
-      "hash_algorithm": "sha256",
-      "hash_value": "78231ef54da1a90ab2f4c27565c524ebcdeb4d967bb9db3d56769cd52842b07c"
+      "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
+      "tolerance_hash_value": "78231ef54da1a90ab2f4c27565c524ebcdeb4d967bb9db3d56769cd52842b07c"
     },
     "outputs.prediction.substrate_list": {
       "rows": 8,
       "columns": 4,
-      "hash_algorithm": "sha256",
-      "hash_value": "0903d95eb12dff3372c2e4a6959a7100adebacffebd98907475b181e3bda88c1"
+      "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
+      "tolerance_hash_value": "0903d95eb12dff3372c2e4a6959a7100adebacffebd98907475b181e3bda88c1"
     }
   },
   "scientific_policies": [

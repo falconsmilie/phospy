@@ -212,6 +212,9 @@ def _resolved_signalome_execution_config(
         network_policy=config.output.network_policy,
         assignment_policy=config.scientific.assignment_policy,
         score_preconditioning_policy=config.validation.score_preconditioning_policy,
+        allow_mixed_total_protein_quantitative_meaning=(
+            config.validation.allow_mixed_total_protein_quantitative_meaning
+        ),
         module_selection_primary_threshold=float(
             config.clustering.module_selection_primary_correlation_threshold
         ),

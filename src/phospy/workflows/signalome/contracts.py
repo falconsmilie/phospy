@@ -44,6 +44,7 @@ class ResolvedSignalomeExecutionConfig:
     network_policy: SignalomeKinaseNetworkPolicy
     assignment_policy: SignalomeAssignmentPolicy
     score_preconditioning_policy: SignalomeScorePreconditioningPolicy
+    allow_mixed_total_protein_quantitative_meaning: bool
     module_selection_primary_threshold: float
     module_selection_fallback_threshold: float
     module_selection_max_clusters: int

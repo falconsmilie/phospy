@@ -35,6 +35,20 @@ from phospy.io.bundles.kinase import (
 pytestmark = pytest.mark.integration
 
 
+def _collect_keys(value: object) -> set[str]:
+    if isinstance(value, dict):
+        keys = {str(key) for key in value}
+        for item in value.values():
+            keys.update(_collect_keys(item))
+        return keys
+    if isinstance(value, list):
+        keys: set[str] = set()
+        for item in value:
+            keys.update(_collect_keys(item))
+        return keys
+    return set()
+
+
 def test_kinase_bundle_round_trip_preserves_outputs_and_config(
     tmp_path: Path,
 ) -> None:
@@ -153,7 +167,7 @@ def test_kinase_bundle_round_trip_preserves_stage_table_fingerprints(
     )
     assert restored_stage.backend == original_stage.backend
     assert restored_stage.random_seed == original_stage.random_seed
-    assert restored_stage.is_deterministic == original_stage.is_deterministic
+    assert restored_stage.determinism == original_stage.determinism
 
 
 def test_kinase_bundle_round_trip_preserves_total_protein_correction_state(
@@ -297,6 +311,10 @@ def test_kinase_bundle_manifest_v1_is_explicit(tmp_path: Path) -> None:
     assert correction_diagnostics["quantitative_meaning"] == "phosphosite_abundance"
     assert "provenance" in manifest
     provenance = manifest["provenance"]
+    provenance_keys = _collect_keys(provenance)
+    assert "hash_algorithm" not in provenance_keys
+    assert "hash_value" not in provenance_keys
+    assert "is_deterministic" not in provenance_keys
     assert provenance["environment"]["package_name"] == "phospy"
     assert provenance["environment"]["python_version"]
     dependency_versions = provenance["environment"]["dependency_versions"]
@@ -358,8 +376,9 @@ def test_kinase_bundle_round_trip_supports_disabled_activity(
             False,
             "missing_provenance",
             (
+                "Legacy kinase bundle schemas are no longer supported.*"
+                "Regenerate the bundle with the current PhosPy version.*"
                 "bundle manifest is missing required field\\(s\\): provenance.*"
-                "Regenerate this bundle with the current PhosPy version"
             ),
             id="missing-provenance",
         ),
@@ -368,8 +387,9 @@ def test_kinase_bundle_round_trip_supports_disabled_activity(
             False,
             "null_provenance",
             (
+                "Legacy kinase bundle schemas are no longer supported.*"
+                "Regenerate the bundle with the current PhosPy version.*"
                 "bundle manifest.provenance is required.*"
-                "Regenerate this bundle with the current PhosPy version"
             ),
             id="null-provenance",
         ),
@@ -378,16 +398,31 @@ def test_kinase_bundle_round_trip_supports_disabled_activity(
             False,
             "missing_activity_enabled",
             (
+                "Legacy kinase bundle schemas are no longer supported.*"
+                "Regenerate the bundle with the current PhosPy version.*"
                 "bundle manifest.outputs.activity is missing required field\\(s\\): "
-                "enabled.*Regenerate this bundle with the current PhosPy version"
+                "enabled"
             ),
             id="missing-activity-enabled",
+        ),
+        pytest.param(
+            "legacy_provenance_hash_alias",
+            False,
+            "legacy_provenance_hash_alias",
+            (
+                "Legacy kinase bundle schemas are no longer supported.*"
+                "Regenerate the bundle with the current PhosPy version.*"
+                "Legacy provenance schemas are no longer supported"
+            ),
+            id="legacy-provenance-hash-alias",
         ),
         pytest.param(
             "legacy_minimal_total_correction",
             True,
             "legacy_minimal_total_correction",
             (
+                "Legacy kinase bundle schemas are no longer supported.*"
+                "Regenerate the bundle with the current PhosPy version.*"
                 "dataset.metadata.processing_state.total_protein_correction."
                 "requires_log_scale is required"
             ),
@@ -398,6 +433,8 @@ def test_kinase_bundle_round_trip_supports_disabled_activity(
             True,
             "missing_total_correction_quantitative_meaning",
             (
+                "Legacy kinase bundle schemas are no longer supported.*"
+                "Regenerate the bundle with the current PhosPy version.*"
                 "dataset.metadata.processing_state.total_protein_correction."
                 "quantitative_meaning is required"
             ),
@@ -408,6 +445,8 @@ def test_kinase_bundle_round_trip_supports_disabled_activity(
             True,
             "missing_total_correction_diagnostics_schema_version",
             (
+                "Legacy kinase bundle schemas are no longer supported.*"
+                "Regenerate the bundle with the current PhosPy version.*"
                 "dataset.metadata.processing_state.total_protein_correction."
                 "diagnostics.diagnostics_schema_version is required"
             ),
@@ -445,6 +484,10 @@ def test_kinase_bundle_contract_rejection_matrix(
         manifest["provenance"] = None
     elif mutation_kind == "missing_activity_enabled":
         manifest["outputs"]["activity"].pop("enabled", None)
+    elif mutation_kind == "legacy_provenance_hash_alias":
+        table_payload = manifest["provenance"]["input_tables"][0]
+        table_payload["hash_algorithm"] = "sha256"
+        table_payload["hash_value"] = table_payload["tolerance_hash_value"]
     elif mutation_kind == "legacy_minimal_total_correction":
         correction_payload = manifest["dataset"]["metadata"]["processing_state"][
             "total_protein_correction"

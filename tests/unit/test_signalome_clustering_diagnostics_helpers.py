@@ -114,6 +114,35 @@ def test_invalid_backend_diagnostics_values_rejected_early() -> None:
         validate_backend_diagnostics(
             {
                 "backend_name": "exact_python",
+                "backend_version": "1",
+                "tree_implementation": "exact_python_tree",
+                "tree_implementation_version": "1",
+                "uses_scipy": False,
+                "linkage_method": "ward",
+                "distance_metric": "euclidean",
+                "selected_module_count": 2,
+                "input_site_count": 4,
+                "exact_tree_path_used": True,
+                "tree_generation_mode": "unexpected_mode",
+                "tree_generation_is_approximate": False,
+                "tree_generation_scope": (
+                    "module_count_selection_and_final_assignment"
+                ),
+                "candidate_scoring_scope": ("candidate_module_count_evaluation_only"),
+            },
+            field_name="backend_diagnostics",
+        )
+
+
+def test_legacy_backend_diagnostics_tree_engine_fields_are_rejected() -> None:
+    with pytest.raises(
+        ValueError,
+        match="backend_diagnostics schema mismatch",
+    ):
+        validate_backend_diagnostics(
+            {
+                "backend_name": "exact_python",
+                "backend_version": "1",
                 "tree_engine": "exact_python_tree",
                 "tree_engine_version": "1",
                 "uses_scipy": False,
@@ -122,7 +151,7 @@ def test_invalid_backend_diagnostics_values_rejected_early() -> None:
                 "selected_module_count": 2,
                 "input_site_count": 4,
                 "exact_tree_path_used": True,
-                "tree_generation_mode": "unexpected_mode",
+                "tree_generation_mode": "full_exact_tree_construction",
                 "tree_generation_is_approximate": False,
                 "tree_generation_scope": (
                     "module_count_selection_and_final_assignment"

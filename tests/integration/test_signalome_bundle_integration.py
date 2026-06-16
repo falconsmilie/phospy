@@ -39,6 +39,20 @@ from tests.support.signalome_config import build_signalome_config
 pytestmark = pytest.mark.integration
 
 
+def _collect_keys(value: object) -> set[str]:
+    if isinstance(value, dict):
+        keys = {str(key) for key in value}
+        for item in value.values():
+            keys.update(_collect_keys(item))
+        return keys
+    if isinstance(value, list):
+        keys: set[str] = set()
+        for item in value:
+            keys.update(_collect_keys(item))
+        return keys
+    return set()
+
+
 def test_signalome_bundle_round_trip_preserves_outputs_and_config(
     tmp_path: Path,
 ) -> None:
@@ -133,6 +147,12 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     assert int(network_correlation_payload["edges_skipped_non_finite_correlation"]) >= 0
     assert "provenance" in manifest
     provenance = manifest["provenance"]
+    provenance_keys = _collect_keys(provenance)
+    assert "hash_algorithm" not in provenance_keys
+    assert "hash_value" not in provenance_keys
+    assert "is_deterministic" not in provenance_keys
+    assert "tree_engine" not in provenance_keys
+    assert "tree_engine_version" not in provenance_keys
     assert provenance["workflow_name"] == "signalome_workflow"
     assert provenance["environment"]["package_name"] == "phospy"
     assert "signalome_config" in provenance["workflow_parameters"]
@@ -142,10 +162,16 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
         signalome_config["validation"]["score_preconditioning_policy"]
         == "error_on_drop"
     )
+    assert (
+        signalome_config["validation"]["allow_mixed_total_protein_quantitative_meaning"]
+        is False
+    )
     assert signalome_config["performance"]["max_exact_tree_sites"] == 2000
     assert signalome_config["performance"]["max_full_candidate_scoring_sites"] == 2000
     assert "scale_guard" in provenance["workflow_parameters"]
     scale_guard = provenance["workflow_parameters"]["scale_guard"]
+    assert "tree_engine" not in scale_guard
+    assert "tree_engine_version" not in scale_guard
     assert scale_guard["site_count"] >= 1
     assert scale_guard["input_protein_count"] >= 1
     assert scale_guard["input_kinase_count"] >= 1
@@ -301,8 +327,9 @@ def test_signalome_bundle_manifest_tracks_absent_expanded_output_when_none(
             "missing_provenance",
             "missing_provenance",
             (
+                "Legacy signalome bundle schemas are no longer supported.*"
+                "Regenerate the bundle with the current PhosPy version.*"
                 "bundle manifest is missing required field\\(s\\): provenance.*"
-                "Regenerate this bundle with the current PhosPy version"
             ),
             id="missing-provenance",
         ),
@@ -310,8 +337,9 @@ def test_signalome_bundle_manifest_tracks_absent_expanded_output_when_none(
             "null_provenance",
             "null_provenance",
             (
+                "Legacy signalome bundle schemas are no longer supported.*"
+                "Regenerate the bundle with the current PhosPy version.*"
                 "bundle manifest.provenance is required.*"
-                "Regenerate this bundle with the current PhosPy version"
             ),
             id="null-provenance",
         ),
@@ -319,9 +347,10 @@ def test_signalome_bundle_manifest_tracks_absent_expanded_output_when_none(
             "missing_candidate_correlations",
             "missing_candidate_correlations",
             (
+                "Legacy signalome bundle schemas are no longer supported.*"
+                "Regenerate the bundle with the current PhosPy version.*"
                 "bundle manifest.signalome_outputs.tables is missing required field\\(s\\): "
-                "kinase_network_candidate_correlations.*"
-                "Regenerate this bundle with the current PhosPy version"
+                "kinase_network_candidate_correlations"
             ),
             id="missing-candidate-correlations",
         ),
@@ -329,10 +358,32 @@ def test_signalome_bundle_manifest_tracks_absent_expanded_output_when_none(
             "missing_site_membership",
             "missing_site_membership",
             (
+                "Legacy signalome bundle schemas are no longer supported.*"
+                "Regenerate the bundle with the current PhosPy version.*"
                 "bundle manifest.signalome_outputs.tables is missing required field\\(s\\): "
-                "site_membership.*Regenerate this bundle with the current PhosPy version"
+                "site_membership"
             ),
             id="missing-site-membership",
+        ),
+        pytest.param(
+            "legacy_provenance_hash_alias",
+            "legacy_provenance_hash_alias",
+            (
+                "Legacy signalome bundle schemas are no longer supported.*"
+                "Regenerate the bundle with the current PhosPy version.*"
+                "Legacy provenance schemas are no longer supported"
+            ),
+            id="legacy-provenance-hash-alias",
+        ),
+        pytest.param(
+            "legacy_scale_guard_tree_engine",
+            "legacy_scale_guard_tree_engine",
+            (
+                "Legacy signalome bundle schemas are no longer supported.*"
+                "Regenerate the bundle with the current PhosPy version.*"
+                "legacy signalome diagnostic field\\(s\\): tree_engine"
+            ),
+            id="legacy-scale-guard-tree-engine",
         ),
         pytest.param(
             "malformed_site_membership_entry",
@@ -376,6 +427,13 @@ def test_signalome_bundle_contract_rejection_matrix(
         )
     elif mutation_kind == "missing_site_membership":
         manifest["signalome_outputs"]["tables"].pop("site_membership", None)
+    elif mutation_kind == "legacy_provenance_hash_alias":
+        table_payload = manifest["provenance"]["input_tables"][0]
+        table_payload["hash_algorithm"] = "sha256"
+        table_payload["hash_value"] = table_payload["tolerance_hash_value"]
+    elif mutation_kind == "legacy_scale_guard_tree_engine":
+        scale_guard = manifest["provenance"]["workflow_parameters"]["scale_guard"]
+        scale_guard["tree_engine"] = scale_guard["tree_implementation"]
     elif mutation_kind == "malformed_site_membership_entry":
         manifest["signalome_outputs"]["tables"]["site_membership"] = {
             "path": "signalome/site_membership.csv"

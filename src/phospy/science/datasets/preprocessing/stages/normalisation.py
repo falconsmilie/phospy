@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
-from phospy.provenance.hashing import hash_table
+from phospy.provenance.hashing import hash_table_tolerance
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_NORMALISATION,
     PreprocessingPlan,
@@ -159,11 +159,11 @@ def _build_diagnostics(
         "dropped_column_ids": dropped_column_ids,
         "dropped_row_count": len(dropped_row_ids),
         "dropped_column_count": len(dropped_column_ids),
-        "input_phospho_hash": hash_table(
+        "input_phospho_hash": hash_table_tolerance(
             before,
             name="normalisation.input.phospho",
         ),
-        "output_phospho_hash": hash_table(
+        "output_phospho_hash": hash_table_tolerance(
             after,
             name="normalisation.output.phospho",
         ),

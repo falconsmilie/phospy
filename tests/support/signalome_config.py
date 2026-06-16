@@ -45,7 +45,6 @@ def build_signalome_config(
         SIGNALOME_MODULE_SELECTION_FALLBACK_THRESHOLD_DEFAULT
     ),
     module_selection_max_clusters: int = SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT,
-    tree_engine: str = "exact",
     candidate_scoring_policy: SignalomeCandidateScoringPolicy = (
         SIGNALOME_CANDIDATE_SCORING_POLICY_FULL
     ),
