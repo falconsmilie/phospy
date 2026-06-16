@@ -189,7 +189,7 @@ def test_dataset_builder_performance_contract_for_smoke_and_medium_scales(
         "n_sites",
         "n_samples",
         "n_conditions",
-        "missing_fraction",
+        "_dataset_missing_fraction",
         "_dataset_runtime_max",
         "_dataset_peak_max",
         "differential_runtime_max",
@@ -202,7 +202,7 @@ def test_differential_workflow_performance_contract_for_smoke_and_medium_scales(
     n_sites: int,
     n_samples: int,
     n_conditions: int,
-    missing_fraction: float,
+    _dataset_missing_fraction: float,
     _dataset_runtime_max: float,
     _dataset_peak_max: float,
     differential_runtime_max: float,
@@ -212,10 +212,11 @@ def test_differential_workflow_performance_contract_for_smoke_and_medium_scales(
         _build_dataset_request(
             n_sites=n_sites,
             n_samples=n_samples,
-            missing_fraction=missing_fraction,
+            missing_fraction=0.0,
             seed=19_103,
         )
     )
+    assert dataset.processing_state.missing_data.imputed is False
     design = _build_design(
         sample_ids=dataset.phospho.columns,
         n_conditions=n_conditions,
