@@ -5,7 +5,7 @@
 preprocess the dataset first, then pass an explicit experimental design and
 contrast list to the workflow.
 
-## When to use this workflow
+## When to Use This Workflow
 
 Use this workflow when you have a strict analysis-ready phosphosite matrix and
 want moderated differential phosphorylation statistics for named condition
@@ -59,7 +59,7 @@ preprocessing = DatasetPreprocessingConfig(
 )
 ```
 
-## Request object
+## Request Object
 
 Use `DifferentialAnalysisRequest`.
 
@@ -76,7 +76,7 @@ Constructing the request records intent only. `DifferentialAnalysisWorkflow.run`
 validates dataset eligibility, sample/design alignment, contrast validity,
 replicate requirements, and config coherence before execution.
 
-## Request configuration
+## Request Configuration
 
 Use `DifferentialAnalysisConfig`.
 
@@ -104,7 +104,7 @@ Related request classes:
 - `EmpiricalBayesConfig`
 - `MultipleTestingConfig`
 
-## Running the workflow
+## Running the Workflow
 
 Import the workflow from top-level `phospy` and request/config classes from
 `phospy.api`.
@@ -125,7 +125,7 @@ result = DifferentialAnalysisWorkflow().run(
 `from phospy import DifferentialAnalysis` and
 `from phospy.api import DifferentialAnalysis` are not supported public routes.
 
-## Result object
+## Result Object
 
 `DifferentialAnalysisWorkflow.run(...)` returns `DifferentialAnalysisResult`.
 
@@ -151,7 +151,7 @@ statistics columns include `logFC`, `t`, `P.Value`, and `adj.P.Val`.
 stat-only computation payloads are internal. They are not a public scientific
 result object and are not valid `DifferentialAnalysisResult` tables.
 
-## Interpreting the result
+## Interpreting the Result
 
 `logFC` is the fitted contrast estimate on the established log2 scale. `t` is a
 moderated t-statistic. `P.Value` is the raw p-value and `adj.P.Val` is the
@@ -161,7 +161,7 @@ Repeated `display_id` values can appear when different `site_key` rows preserve
 different protein context. Interpret rows by `site_key`; `display_id` is for
 readability.
 
-## Provenance and reproducibility
+## Provenance and Reproducibility
 
 Result provenance records the resolved design, contrast vectors, fixed-effect
 covariates, replicate policy, empirical-Bayes settings, multiple-testing method,
@@ -180,7 +180,9 @@ defensive in-memory snapshots; mutating them does not mutate the result object.
 - Upstream-imputed datasets are rejected by default. The supported withhold
   policy does not implement observed-only fitting.
 
-## Minimal example
+## Minimal Example
+
+<!-- Compatibility marker for documentation smoke tests: ## Minimal example -->
 
 ```python
 from phospy import DifferentialAnalysisWorkflow

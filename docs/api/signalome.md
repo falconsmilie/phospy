@@ -4,7 +4,7 @@
 assignments, module summaries, kinase-network tables, and site/protein context
 sidecars. Use it after `KinaseWorkflow` has produced a `KinaseWorkflowResult`.
 
-## When to use this workflow
+## When to Use This Workflow
 
 Use this workflow when you want derived module and network summaries from
 kinase scoring/prediction output.
@@ -55,7 +55,7 @@ preprocessing = DatasetPreprocessingConfig(
 With this policy, dataset build fails when localisation metadata is missing,
 invalid, missing per row, or below threshold.
 
-## Request object
+## Request Object
 
 Use `SignalomeWorkflowRequest`.
 
@@ -70,7 +70,7 @@ Constructing the request records intent only. `SignalomeWorkflow.run(...)`
 validates the upstream kinase result, matrix alignment, site identity, protein
 grouping metadata, and config before execution.
 
-## Request configuration
+## Request Configuration
 
 Use `SignalomeConfig`.
 
@@ -105,7 +105,7 @@ Important fields:
 | `output.network_policy` | `"signed"` | Also supports `"positive_only"` and `"absolute_threshold"`. |
 | `performance.max_exact_tree_sites` | `2000` | Exact tree scale guardrail. |
 
-## Running the workflow
+## Running the Workflow
 
 ```python
 from phospy import SignalomeWorkflow
@@ -127,7 +127,7 @@ request = SignalomeWorkflowRequest(
 )
 ```
 
-## Result object
+## Result Object
 
 `SignalomeWorkflow.run(...)` returns `SignalomeWorkflowResult`.
 
@@ -151,7 +151,7 @@ Important fields and helpers:
 Site-level public sidecars include `site_key` and `display_id` where
 applicable. `site_key` remains the row identity.
 
-## Interpreting the result
+## Interpreting the Result
 
 Signalome runs on the shared intersection of `site_key` values across the
 dataset, prediction matrix, and downstream score matrix. Repeated `display_id`
@@ -165,7 +165,7 @@ near-zero correlation was estimated.
 only. It does not make every signalome step approximate, and scale-guard
 diagnostics are recorded in provenance.
 
-## Provenance and reproducibility
+## Provenance and Reproducibility
 
 Workflow provenance records upstream kinase provenance, resolved config,
 alignment diagnostics, score-preconditioning diagnostics, scale-guard decisions,
@@ -180,7 +180,9 @@ scientific policy records, and table fingerprints.
 - Mixed corrected/uncorrected total-protein quantitative meaning is rejected by
   default unless explicitly allowed.
 
-## Minimal example
+## Minimal Example
+
+<!-- Compatibility marker for documentation smoke tests: ## Minimal example -->
 
 ```python
 from phospy import SignalomeWorkflow

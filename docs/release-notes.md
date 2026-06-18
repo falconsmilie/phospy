@@ -1,10 +1,14 @@
 # PhosPy Release Notes
 
-## Version 1.6.0 (17.06.2026)
+## Version 1.6.0
+
+These notes describe the next planned release. The package metadata and
+citation file still identify the current packaged release as `1.5.2` until the
+release version is bumped.
 
 ## Release Overview
 
-The release is centred on stricter phosphosite identity, broader workflow
+The draft release is centred on stricter phosphosite identity, broader workflow
 coverage, and clearer scientific boundaries. Analysis-ready datasets now use
 protein-scoped encoded `site_key` values as row identity while preserving
 `display_id` for human-readable reporting. The public workflow surface also
@@ -21,8 +25,11 @@ ssGSEA-style kinase activity, and offline enrichment ORA.
 - Local reference-bundle builder support, stricter reference manifest and
   provenance validation, approved human/mouse reference-bundle handling, and
   tightened rat bundled-reference licence/provenance metadata.
-- Kinase Library reference schema loading, motif scoring, reference
-  display-ambiguity policy handling, and KinaseWorkflow integration.
+- Kinase Library-style reference schema loading, motif scoring, reference
+  display-ambiguity policy handling, and KinaseWorkflow integration for
+  caller-supplied local `KinaseLibraryResource` values. This is not an official
+  Kinase Library implementation and does not bundle official Kinase Library
+  data.
 - ssGSEA-style kinase substrate-enrichment activity scoring, alongside
   method-specific activity diagnostics and preferred method-neutral
   `activity_matrix` and `substrate_count_matrix` outputs.
@@ -57,7 +64,7 @@ ssGSEA-style kinase activity, and offline enrichment ORA.
   provenance ownership are now separated by clearer workflow contracts.
 - Public request/result validation is stricter, including duplicate
   sample-metadata rejection, duplicate site-key resolution policies,
-  dataframe/payload snapshot helper constraints, and output-table identity
+  DataFrame/payload snapshot helper constraints, and output-table identity
   checks.
 - `protein_id` is optional source/workflow metadata at the base dataset
   boundary. Completeness is enforced only by workflows that require protein

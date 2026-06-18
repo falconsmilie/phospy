@@ -8,20 +8,20 @@ For current support status, use
 [Scientific Coverage](scientific-coverage.md). For fixture-backed comparison
 evidence, use [Parity](parity.md). Roadmap ADRs are not current support claims.
 
-## Public workflow map
+## Public Workflow Map
 
 | Area | Detailed API page | Public entrypoint | Request | Result |
 | --- | --- | --- | --- | --- |
 | Dataset building | [Dataset Build API](api/dataset-build-workflow.md) | `AnalysisReadyDatasetBuilder.run(...)` | `DatasetBuildRequest` | `AnalysisReadyPhosphoDataset` |
-| Differential analysis | [Differential Analysis Workflow](api/workflows/differential-analysis.md) | `DifferentialAnalysisWorkflow.run(...)` | `DifferentialAnalysisRequest` | `DifferentialAnalysisResult` |
-| Enrichment | [Enrichment Workflow](api/workflows/enrichment.md) | `EnrichmentWorkflow.run(...)` | `EnrichmentWorkflowRequest` | `EnrichmentWorkflowResult` |
-| Kinase | [Kinase Workflow](api/workflows/kinase.md) | `KinaseWorkflow.run(...)` | `KinaseWorkflowRequest` | `KinaseWorkflowResult` |
-| Signalome | [Signalome Workflow](api/workflows/signalome.md) | `SignalomeWorkflow.run(...)` | `SignalomeWorkflowRequest` | `SignalomeWorkflowResult` |
+| Differential analysis | [Differential Analysis Workflow](api/differential-analysis.md) | `DifferentialAnalysisWorkflow.run(...)` | `DifferentialAnalysisRequest` | `DifferentialAnalysisResult` |
+| Enrichment | [Enrichment Workflow](api/enrichment.md) | `EnrichmentWorkflow.run(...)` | `EnrichmentWorkflowRequest` | `EnrichmentWorkflowResult` |
+| Kinase | [Kinase Workflow](api/kinase.md) | `KinaseWorkflow.run(...)` | `KinaseWorkflowRequest` | `KinaseWorkflowResult` |
+| Signalome | [Signalome Workflow](api/signalome.md) | `SignalomeWorkflow.run(...)` | `SignalomeWorkflowRequest` | `SignalomeWorkflowResult` |
 
 Public workflow classes expose `run(...)` only. User-facing docs should focus on
 workflow classes, request objects, config objects, and result objects.
 
-## Shared boundary rules
+## Shared Boundary Rules
 
 `AnalysisReadyPhosphoDataset` is the strict analysis-ready dataset boundary for
 downstream dataset, differential, kinase, and signalome work.
@@ -47,7 +47,7 @@ in-memory snapshots for inspection or handoff only. They are not exporters,
 formatters, plotting helpers, report generators, or places to run additional
 scientific post-processing.
 
-## Dataset builder contract
+## Dataset Builder Contract
 
 The builder validates input tables, applies explicit preprocessing policy, and
 returns a complete `AnalysisReadyPhosphoDataset`.
@@ -89,7 +89,7 @@ protein, does not run joint PTM/protein differential modelling, does not adjust
 differential models, and does not claim MSstatsPTM-style inference. Current
 `DifferentialAnalysisWorkflow` does not consume `ProteinAwarePreparationResult`.
 
-## Differential analysis contract
+## Differential Analysis Contract
 
 `DifferentialAnalysisWorkflow` consumes an `AnalysisReadyPhosphoDataset`, an
 explicit `ExperimentalDesign`, explicit `Contrast` objects, and
@@ -115,9 +115,9 @@ Important user-facing assumptions:
 
 Each contrast result table is indexed by the input `site_key` and includes the
 minimum public identity columns documented in the
-[Differential Analysis Workflow](api/workflows/differential-analysis.md).
+[Differential Analysis Workflow](api/differential-analysis.md).
 
-## Enrichment contract
+## Enrichment Contract
 
 `EnrichmentWorkflow` runs offline over-representation analysis against
 caller-supplied `GeneSetCollection`, `PtmSetCollection`, or homogeneous
@@ -138,7 +138,7 @@ Important user-facing assumptions:
   workflow behavior.
 - ORA is not GSEA, ssGSEA, or PTM-SEA support.
 
-## Kinase contract
+## Kinase Contract
 
 `KinaseWorkflow` consumes an analysis-ready dataset and either a
 `ReferencePreset` or explicit `ReferenceBundle`.
@@ -160,7 +160,7 @@ Important user-facing assumptions:
 - KSEA-style activity is not equivalent to PhosR kinase activity inference, and
   ssGSEA-style activity is not PTM-SEA support.
 
-## Signalome contract
+## Signalome Contract
 
 `SignalomeWorkflow` consumes a `KinaseWorkflowResult`.
 
@@ -178,7 +178,7 @@ Important user-facing assumptions:
 - Mixed corrected/uncorrected total-protein quantitative meaning is rejected by
   default unless explicitly allowed.
 
-## Provenance and reproducibility
+## Provenance and Reproducibility
 
 Workflow provenance records resolved request/config choices, table
 fingerprints, relevant scientific policy records, diagnostics, and environment
@@ -192,12 +192,11 @@ removed. Regenerate older development-version outputs instead of relying on
 schema repair during loading. Provenance remains supported for current outputs,
 and current table-hash semantics are unchanged.
 
-## Where details live
+## Where Details Live
 
 - [API Guide](api/guide.md) links to supported imports and workflow pages.
-- [Dataset Build API](api/dataset-build-workflow.md) owns dataset request and
-  preprocessing configuration details.
-- [Workflow API Pages](api/workflows/index.md) own workflow-specific request,
+- [Dataset Build API](api/dataset-build-workflow.md) owns dataset request,
+  preprocessing configuration details, workflow-specific request,
   config, result, example, provenance, and limitation details.
 - [Scientific Coverage](scientific-coverage.md) is the maintained scope and
   coverage matrix.

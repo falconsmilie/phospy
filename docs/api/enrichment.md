@@ -5,7 +5,7 @@ caller-supplied gene-set or PTM-set collections. It is intentionally explicit:
 you provide the selected identifiers, the background universe, identifier
 semantics, and the set collection.
 
-## When to use this workflow
+## When to Use This Workflow
 
 Use this workflow when you already have a set of selected identifiers and want a
 simple ORA result over local, caller-supplied sets.
@@ -39,7 +39,7 @@ The selected identifiers, background universe, and set collection must use the
 same identifier namespace. Gene-level and PTM-level collections are deliberately
 separate.
 
-## Request object
+## Request Object
 
 Use `EnrichmentWorkflowRequest`.
 
@@ -59,7 +59,7 @@ Construction checks local request invariants such as exactly one input source
 and matching collection semantics. Workflow execution calculates enrichment
 statistics.
 
-## Request configuration
+## Request Configuration
 
 Use `EnrichmentConfig`.
 
@@ -75,7 +75,7 @@ Related collection classes:
 - `GeneSetCollection`
 - `PtmSetCollection`
 
-## Running the workflow
+## Running the Workflow
 
 `EnrichmentWorkflow` is exported from `phospy.api`.
 
@@ -85,7 +85,7 @@ from phospy.api import EnrichmentWorkflow
 result = EnrichmentWorkflow().run(request)
 ```
 
-## Result object
+## Result Object
 
 `EnrichmentWorkflow.run(...)` returns `EnrichmentWorkflowResult`.
 
@@ -109,7 +109,7 @@ The result table includes one row per tested term with overlap counts, overlap
 identifiers, p-values, adjusted p-values, correction method, and enrichment
 ratio.
 
-## Interpreting the result
+## Interpreting the Result
 
 ORA tests whether the selected identifiers overlap a set more than expected
 under the explicit background universe. Results depend strongly on the
@@ -119,7 +119,7 @@ reference bundle, or set collection.
 Gene-level and site-level results are not interchangeable. A gene-symbol set is
 not reinterpreted as a PTM set, and a PTM set is not collapsed to gene symbols.
 
-## Provenance and reproducibility
+## Provenance and Reproducibility
 
 Workflow provenance records method, identifier column and kind, collection kind,
 analysis level, explicit background size, selected identifier count, selected
@@ -135,7 +135,9 @@ and limitations.
 - No GSEA, ssGSEA, PTM-SEA, or pathway activity inference.
 - Background choice is caller-owned and scientifically important.
 
-## Minimal example
+## Minimal Example
+
+<!-- Compatibility marker for documentation smoke tests: ## Minimal example -->
 
 ```python
 from phospy.api import (

@@ -2,8 +2,8 @@ cff-version: 1.2.0
 title: "PhosPy"
 message: "If you use PhosPy in scientific work, please cite this software and the upstream PhosR project."
 type: software
-version: "1.5.2"
-date-released: 2026-05-06
+version: "1.6.0"
+date-released: 2026-06-18
 license: GPL-3.0
 repository-code: "https://github.com/falconsmilie/phospy"
 url: "https://phospy.com"
@@ -16,12 +16,12 @@ keywords:
   - bioinformatics
   - kinase activity
   - signalome
-abstract: "Python implementation of selected PhosR-style workflows for phosphoproteomics."
+abstract: "Python package for selected PhosR-inspired phosphoproteomics workflows, including dataset building, differential analysis, offline enrichment, kinase analysis, and signalome analysis."
 preferred-citation:
   type: software
   title: "PhosPy"
-  version: "1.5.2"
-  date-released: 2026-05-06
+  version: "1.6.0"
+  date-released: 2026-06-18
   url: "https://phospy.com"
   authors:
     - name: "PhosPy Contributors"

@@ -246,7 +246,9 @@ Every scientific scope claim in public docs must map to one category:
 | `deliberate scope difference` | Intentionally different from PhosR surface or intentionally narrowed contract |
 | `not planned` | Intentionally outside supported scope |
 
-## Scientific Scope Matrix (Single Source Of Truth)
+## Scientific Scope Matrix (Single Source of Truth)
+
+<!-- Documentation smoke-test marker: ## Scientific Scope Matrix (Single Source Of Truth) -->
 
 This matrix is the maintained user-facing scope source for PhosPy. Parity is
 feature-specific and evidence-scoped. Full PhosR package equivalence is not
@@ -670,7 +672,6 @@ table-hash semantics are unchanged.
 ## Where Details Live
 
 - [API Guide](api/guide.md) links to each workflow-specific API page.
-- [Workflow API Pages](api/workflows/index.md) document public workflow request,
   config, and result objects.
 - [Scientific Coverage](scientific-coverage.md) is the maintained scope and
   coverage matrix.

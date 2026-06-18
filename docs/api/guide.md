@@ -4,25 +4,26 @@ Welcome to the PhosPy API guide. This page shows the supported Python import
 contract, the workflow map, and the main boundaries to keep in mind when writing
 analysis code.
 
-PhosPy does not expose HTTP endpoints. The supported user interface is the
-Python API.
+## API Endpoint Status
+
+PhosPy does not expose HTTP endpoints, REST routes, or a web service. The supported user interface is the Python API. In this guide, "API" means importable Python classes, request objects, configuration objects, workflow entrypoints, and result objects.
 
 This guide describes executable interfaces, not broad PhosR-equivalence claims.
 Scope categories and parity/open-gap status live in
 [Scientific Coverage](../scientific-coverage.md), with fixture comparison
 details in [Parity](../parity.md).
 
-## Workflow pages
+## Workflow Pages
 
 Each public workflow has its own API page:
 
 | Area | Page | Public API |
 | --- | --- | --- |
 | Dataset builder | [Dataset Build API](dataset-build-workflow.md) | `AnalysisReadyDatasetBuilder.run(DatasetBuildRequest)` returns `AnalysisReadyPhosphoDataset`. |
-| Differential analysis | [Differential Analysis Workflow](workflows/differential-analysis.md) | `DifferentialAnalysisWorkflow.run(DifferentialAnalysisRequest)` returns `DifferentialAnalysisResult`. |
-| Enrichment | [Enrichment Workflow](workflows/enrichment.md) | `EnrichmentWorkflow.run(EnrichmentWorkflowRequest)` returns `EnrichmentWorkflowResult`. |
-| Kinase | [Kinase Workflow](workflows/kinase.md) | `KinaseWorkflow.run(KinaseWorkflowRequest)` returns `KinaseWorkflowResult`. |
-| Signalome | [Signalome Workflow](workflows/signalome.md) | `SignalomeWorkflow.run(SignalomeWorkflowRequest)` returns `SignalomeWorkflowResult`. |
+| Differential analysis | [Differential Analysis Workflow](differential-analysis.md) | `DifferentialAnalysisWorkflow.run(DifferentialAnalysisRequest)` returns `DifferentialAnalysisResult`. |
+| Enrichment | [Enrichment Workflow](enrichment.md) | `EnrichmentWorkflow.run(EnrichmentWorkflowRequest)` returns `EnrichmentWorkflowResult`. |
+| Kinase | [Kinase Workflow](kinase.md) | `KinaseWorkflow.run(KinaseWorkflowRequest)` returns `KinaseWorkflowResult`. |
+| Signalome | [Signalome Workflow](signalome.md) | `SignalomeWorkflow.run(SignalomeWorkflowRequest)` returns `SignalomeWorkflowResult`. |
 | Importers | [Phosphosite Importers](../importers.md) | Importers produce builder input candidates; they do not bypass dataset validation. |
 
 The usual workflow shape is:
@@ -40,7 +41,7 @@ Enrichment is independent of the dataset/kinase/signalome chain:
 enrichment_result = EnrichmentWorkflow().run(enrichment_request)
 ```
 
-## Import contract
+## Import Contract
 
 Use top-level `phospy` for the main convenience entrypoints:
 
@@ -87,7 +88,7 @@ from phospy.api import (
 )
 ```
 
-### Public and semi-public routes
+### Public and Semi-Public Routes
 
 The supported public API remains:
 
@@ -115,7 +116,7 @@ semi-public science helpers. For example,
 See [ADR-0028](../adr/adr_0028_semi_public_science_import_policy.md) for the
 semi-public route policy.
 
-## Request validation boundary
+## Request Validation Boundary
 
 Public request dataclasses are lightweight command payloads. Constructing a
 request records user intent, but it does not mean the request is scientifically
@@ -138,7 +139,7 @@ Validation happens when the relevant builder or workflow is run:
 Config objects may reject invalid local policy values at construction time
 because those invariants belong to the config itself.
 
-## Dataset boundary
+## Dataset Boundary
 
 `AnalysisReadyPhosphoDataset` is the strict analysis-ready dataset boundary.
 Downstream workflows expect it to be complete, auditable, and keyed by
@@ -163,7 +164,7 @@ reporting, see [Dataset Build API](dataset-build-workflow.md).
 `ruv_readiness` is report-only. It does not select SPS controls, run RUV/SPS/RUV-III
 correction, or imply PhosR-equivalent batch correction.
 
-## Result snapshots
+## Result Snapshots
 
 Result models are typed containers. Public helpers such as `to_dataframe()`,
 `*_dataframe()`, `table`, `result_table`, and `to_payload()` return defensive
@@ -181,7 +182,7 @@ Use `ReferenceBundleBuilder` when building references from local source files so
 provenance and validation are recorded consistently. The builder reads local
 files only; it does not scrape web resources or invent missing sequence windows.
 
-## Public exceptions
+## Public Exceptions
 
 Common user-facing exception types are available from `phospy.api`:
 

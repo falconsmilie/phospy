@@ -15,7 +15,7 @@ interface is the Python API.
 ## Recommended Reading
 You can view the full documentation here: [PhosPy Docs](https://phospy.com/docs)
 
-## Install
+## Installation
 
 PhosPy requires Python 3.10 or newer.
 
@@ -59,10 +59,10 @@ make test-release-gate
    or signalome.
 3. Explore full API workflow documentation:
    - [Dataset building](docs/api/dataset-build-workflow.md)
-   - [Differential workflow](docs/api/workflows/differential-analysis.md)
-   - [Enrichment workflow](docs/api/workflows/enrichment.md)
-   - [Kinase workflow](docs/api/workflows/kinase.md)
-   - [Signalome workflow](docs/api/workflows/signalome.md)
+   - [Differential workflow](docs/api/differential-analysis.md)
+   - [Enrichment workflow](docs/api/enrichment.md)
+   - [Kinase workflow](docs/api/kinase.md)
+   - [Signalome workflow](docs/api/signalome.md)
 
 Bundled runtime references in the current release are rat-only. For human or
 mouse work, create and pass an explicit `ReferenceBundle` in Python instead of

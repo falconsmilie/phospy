@@ -1,10 +1,10 @@
-# Quickstart
+# Quick Start
 
 This page gives you one small, tested workflow. Keep it small first; add custom
 references, total-protein correction, and larger signalome runs only after this
 works.
 
-## 1. Install
+## 1. Installation
 
 ```bash
 pip install phospy

@@ -8,7 +8,7 @@ Legend:
 - `keep`: private seam is protecting a real contract (public/scientific/perf/provenance).
 - `rewrite`: private coupling was incidental and replaced with public/interpreted behavior.
 
-## Decisions By Candidate File
+## Decisions by Candidate File
 
 | File | Decision | Protected Contract / Reason |
 | --- | --- | --- |

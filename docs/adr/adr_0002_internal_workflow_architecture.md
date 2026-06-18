@@ -347,7 +347,7 @@ This option was rejected because it encourages classes that mix validation, inte
 
 This option was rejected because it introduces infrastructure-oriented complexity that is not justified by the size or product goal of the package.
 
-### Alternative 3: Thin Wrappers Around Many Small Helpers With No Strict Stage Boundaries
+### Alternative 3: Thin Wrappers Around Many Small Helpers with No Strict Stage Boundaries
 
 This option was rejected because it tends to create pass-through layers, duplicated plumbing, and unclear ownership of decisions.
 

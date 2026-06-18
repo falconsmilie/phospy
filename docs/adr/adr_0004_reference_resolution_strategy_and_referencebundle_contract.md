@@ -183,7 +183,7 @@ Reference provenance emitted by workflows should carry, at minimum, bundle ID, o
 
 The following compatibility rules apply.
 
-### Explicit Bundle With Organism
+### Explicit Bundle with Organism
 
 If a user-supplied `ReferenceBundle` organism and the dataset organism are both present, the two must be checked for compatibility.
 

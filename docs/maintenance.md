@@ -93,7 +93,7 @@ Regeneration scripts should be deterministic and should say which fixture family
 they update. Generated benchmark reports belong in `benchmarks/reports/`, which
 is ignored by git.
 
-## Source And Release Archive Hygiene
+## Source and Release Archive Hygiene
 
 Source and release archives must be built from tracked source state, not from a
 local working-tree zip. Use a clean tree and a source-aware command such as

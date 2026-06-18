@@ -4,7 +4,7 @@
 regulation, and can optionally compute kinase activity tables. Use it after
 building an `AnalysisReadyPhosphoDataset`.
 
-## When to use this workflow
+## When to Use This Workflow
 
 Use this workflow when your analysis-ready phosphosite dataset has site
 sequences, protein-scoped row identity, and suitable kinase reference data.
@@ -56,7 +56,7 @@ preprocessing = DatasetPreprocessingConfig(
 With this policy, dataset build fails when the localisation column is missing,
 invalid, missing per row, or below threshold.
 
-## Request object
+## Request Object
 
 Use `KinaseWorkflowRequest`.
 
@@ -77,7 +77,7 @@ Constructing the request records intent only. `KinaseWorkflow.run(...)` validate
 dataset, reference, config, localisation, sequence, and projection compatibility
 before interpretation and execution.
 
-## Request configuration
+## Request Configuration
 
 Use these config objects:
 
@@ -122,7 +122,7 @@ Important `KinaseActivityConfig` fields:
 | `ssgsea_min_substrates` | `5` | ssGSEA-style substrate floor. |
 | `ssgsea_random_seed` | `0` | Required when permutations are enabled. |
 
-## Running the workflow
+## Running the Workflow
 
 ```python
 from phospy import KinaseWorkflow
@@ -140,7 +140,7 @@ kinase_result = KinaseWorkflow().run(
 `ReferencePreset.AUTO` is suitable for the bundled rat beginner lane. For human
 or mouse analysis, pass an explicit `ReferenceBundle` with local provenance.
 
-## Result object
+## Result Object
 
 `KinaseWorkflow.run(...)` returns `KinaseWorkflowResult`.
 
@@ -175,7 +175,7 @@ Important nested result fields:
 Deprecated compatibility aliases such as `activity_scores` and
 `weighted_activity` are not preferred for new documentation or code.
 
-## Interpreting the result
+## Interpreting the Result
 
 Primary scoring and prediction matrices are indexed by `site_key`. Site-level
 tables that materialize row identity include both `site_key` and `display_id`.
@@ -195,7 +195,7 @@ KSEA-style and ssGSEA-style activity methods are explicit PhosPy activity
 summaries. KSEA-style activity is not equivalent to PhosR kinase activity
 inference. ssGSEA-style activity is not PTM-SEA support.
 
-## Provenance and reproducibility
+## Provenance and Reproducibility
 
 Workflow provenance records resolved references, scoring/prediction/activity
 configuration, scientific policy records, table fingerprints, and workflow
@@ -211,7 +211,9 @@ diagnostics. Adaptive prediction requires `random_state` when
 - Activity is optional and method-specific.
 - No broad PhosR activity equivalence is claimed.
 
-## Minimal example
+## Minimal Example
+
+<!-- Compatibility marker for documentation smoke tests: ## Minimal example -->
 
 ```python
 from phospy import KinaseWorkflow

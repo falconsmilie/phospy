@@ -37,7 +37,7 @@ Current active parity coverage includes:
 - selected preprocessing and activity-stage behaviours with explicit fixtures
 - signalome workflow and clustering backend fixture lanes
 
-## Non-Parity Support And Scope Differences
+## Non-Parity Support and Scope Differences
 
 Some implemented PhosPy features are not PhosR parity claims. They are
 validated PhosPy implementations:
@@ -60,7 +60,7 @@ validated PhosPy implementations:
 - `ruv_readiness` is diagnostic/report-only metadata readiness reporting. It is
   not RUV/SPS/RUV-III correction support.
 
-## Fixture Scope By Lane
+## Fixture Scope by Lane
 
 | Lane | Main fixture/evidence scope |
 | --- | --- |

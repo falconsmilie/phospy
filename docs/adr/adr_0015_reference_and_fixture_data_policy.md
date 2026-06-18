@@ -346,7 +346,7 @@ This option was rejected because it weakens the distinction between runtime refe
 
 This option was rejected because the project is a PhosR port and the primary parity target should remain PhosR outputs.
 
-### Alternative 3: Ship Parity Outputs With the Runtime Package by Default
+### Alternative 3: Ship Parity Outputs with the Runtime Package by Default
 
 This option was rejected because parity outputs are test assets, not runtime reference resources.
 

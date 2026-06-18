@@ -32,7 +32,7 @@ work and explicit references.
 | Need | Page                                                                  |
 | --- |-----------------------------------------------------------------------|
 | First successful run | [Quickstart](quickstart.md)                                           |
-| Public Python classes and parameters | [API Guide](api/guide.md) and [Workflow API Pages](api/workflows/index.md) |
+| Public Python classes and parameters | [API Guide](api/guide.md) |
 | Human/mouse local references | [Reference Bundles](reference_bundles.md)                              |
 | Input rules and common errors | [Validation Guide](validation.md)                                     |
 | Workflow expectations, assumptions, and result interpretation | [Workflow Contracts](workflow_contracts.md)                           |

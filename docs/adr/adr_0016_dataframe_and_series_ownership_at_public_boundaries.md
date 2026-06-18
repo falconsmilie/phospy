@@ -119,7 +119,7 @@ public boundaries.
 Rejected. This allows caller mutation to alter internal state and provenance
 assumptions.
 
-### Alternative 3: Claim Deep Immutability for Public pandas Objects
+### Alternative 3: Claim Deep Immutability for Public Pandas Objects
 
 Rejected. pandas objects are mutable. PhosPy can enforce snapshot boundaries
 but cannot claim deep immutability.
