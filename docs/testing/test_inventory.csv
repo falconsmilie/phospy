@@ -81,7 +81,7 @@ tests/unit/test_differential_result_contract.py,unit,907,31,false,false,,,,,,
 tests/unit/test_differential_technical_replicate_policy.py,unit,538,13,false,false,,,,,,
 tests/unit/test_differential_unsupported_designs.py,unit,251,8,false,false,,,,,,
 tests/unit/test_differential_workflow_components.py,unit,873,26,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/unit/test_docs_identity_contracts.py,unit,250,7,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
+tests/unit/test_docs_identity_contracts.py,unit,248,7,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_docs_legacy_wording_lint.py,unit,10,1,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in docs legacy wording lint; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-ORCH-002,Route to TST-ORCH-002 to align wording-lint assertions with current public boundary terminology and remove stale internal seam references.
 tests/unit/test_docs_support_claim_guard.py,unit,432,3,false,false,,,,,,
 tests/unit/test_docs_terminology_contracts.py,unit,41,2,false,false,,,,,,
