@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[2]
 README = ROOT / "README.md"
 API_GUIDE = ROOT / "docs" / "api" / "guide.md"
 DATASET_WORKFLOW_DOC = ROOT / "docs" / "api" / "dataset-build-workflow.md"
-WORKFLOW_DOCS_DIR = ROOT / "docs" / "api" / "workflows"
+WORKFLOW_DOCS_DIR = ROOT / "docs" / "api"
 DIFFERENTIAL_WORKFLOW_DOC = WORKFLOW_DOCS_DIR / "differential-analysis.md"
 ENRICHMENT_WORKFLOW_DOC = WORKFLOW_DOCS_DIR / "enrichment.md"
 KINASE_WORKFLOW_DOC = WORKFLOW_DOCS_DIR / "kinase.md"
@@ -90,12 +90,10 @@ def test_readme_links_to_existing_api_workflow_docs() -> None:
     source = _read(README)
 
     assert "[Dataset building](docs/api/dataset-build-workflow.md)" in source
-    assert (
-        "[Differential workflow](docs/api/workflows/differential-analysis.md)" in source
-    )
-    assert "[Enrichment workflow](docs/api/workflows/enrichment.md)" in source
-    assert "[Kinase workflow](docs/api/workflows/kinase.md)" in source
-    assert "[Signalome workflow](docs/api/workflows/signalome.md)" in source
+    assert "[Differential workflow](docs/api/differential-analysis.md)" in source
+    assert "[Enrichment workflow](docs/api/enrichment.md)" in source
+    assert "[Kinase workflow](docs/api/kinase.md)" in source
+    assert "[Signalome workflow](docs/api/signalome.md)" in source
 
     assert DATASET_WORKFLOW_DOC.exists()
     assert DIFFERENTIAL_WORKFLOW_DOC.exists()

@@ -43,7 +43,7 @@ from phospy.api.results import KinasePredictionResult, KinaseScoringResult
 ROOT = Path(__file__).resolve().parents[2]
 README = ROOT / "README.md"
 API_DOCS_DIR = ROOT / "docs" / "api"
-WORKFLOW_DOCS_DIR = API_DOCS_DIR / "workflows"
+WORKFLOW_DOCS_DIR = API_DOCS_DIR
 DATASET_BUILD_DOC = API_DOCS_DIR / "dataset-build-workflow.md"
 DIFFERENTIAL_DOC = WORKFLOW_DOCS_DIR / "differential-analysis.md"
 ENRICHMENT_DOC = WORKFLOW_DOCS_DIR / "enrichment.md"
