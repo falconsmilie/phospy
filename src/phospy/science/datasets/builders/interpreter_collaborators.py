@@ -20,6 +20,9 @@ from phospy.science.datasets.builders.site_identity_derivation import (
     DatasetSiteIdentityDeriver,
 )
 from phospy.science.datasets.preprocessing.models import PreprocessingPlan
+from phospy.science.datasets.preprocessing.plan_interpreter import (
+    PreprocessingPlanInterpreter,
+)
 from phospy.science.datasets.preprocessing.policy_models import (
     SiteMatrixDuplicateSitePolicy,
     SiteMatrixPolicy,
@@ -412,8 +415,15 @@ class DatasetBuildSourceResolver:
 class DatasetBuildPreprocessingPlanner:
     """Resolve request preprocessing config into a concrete preprocessing plan."""
 
+    def __init__(
+        self,
+        *,
+        plan_interpreter: PreprocessingPlanInterpreter | None = None,
+    ) -> None:
+        self._plan_interpreter = plan_interpreter or PreprocessingPlanInterpreter()
+
     def run(self, request: DatasetBuildRequest) -> PreprocessingPlan:
-        return PreprocessingPlan.from_config(request.preprocessing_config)
+        return self._plan_interpreter.run(request.preprocessing_config)
 
 
 class DatasetBuildSiteSequenceResolver:
