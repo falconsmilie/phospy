@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -53,6 +54,108 @@ SIGNALOME_DOC = WORKFLOW_DOCS_DIR / "signalome.md"
 
 def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
+
+
+def _normalise_whitespace(text: str) -> str:
+    return " ".join(text.split())
+
+
+def _assert_heading(source: str, heading: str, *, level: int = 2) -> None:
+    marker = "#" * level
+    pattern = rf"^{re.escape(marker)}\s+{re.escape(heading)}\s*$"
+    assert re.search(pattern, source, flags=re.MULTILINE), (
+        f"missing Markdown heading: {marker} {heading}"
+    )
+
+
+def _assert_contains_all(source: str, expected: tuple[str, ...]) -> None:
+    missing = [fragment for fragment in expected if fragment not in source]
+    assert not missing, f"missing expected documentation fragments: {missing}"
+
+
+def _iter_documentation_statements(source: str) -> tuple[str, ...]:
+    statements: list[str] = []
+    for block in re.split(r"\n\s*\n", source):
+        stripped_block = block.strip()
+        if not stripped_block:
+            continue
+        if stripped_block.startswith("|"):
+            chunks = stripped_block.splitlines()
+        else:
+            chunks = re.split(r"\n(?=\s*[-*]\s+)", stripped_block)
+        for chunk in chunks:
+            normalised = _normalise_whitespace(chunk)
+            if not normalised or normalised.startswith("```"):
+                continue
+            statements.extend(
+                sentence
+                for sentence in re.split(r"(?<=[.!?])\s+", normalised)
+                if sentence
+            )
+    return tuple(statements)
+
+
+_NEGATED_SCOPE_PATTERN = re.compile(
+    r"\b(no|not|without|unsupported|report-only)\b|"
+    r"\b(does|do|is|are)\s+not\b",
+    flags=re.IGNORECASE,
+)
+_FAILURE_PATTERN = re.compile(r"\bfail(?:s|ed|ing)?\b", flags=re.IGNORECASE)
+
+
+def _statement_contains_term(statement: str, term: str) -> bool:
+    return bool(
+        re.search(
+            rf"(?<![a-z0-9_]){re.escape(term.lower())}(?![a-z0-9_])",
+            statement.lower(),
+        )
+    )
+
+
+def _assert_negated_scope_statement(
+    source: str,
+    unsupported_terms: tuple[str, ...],
+    *,
+    context: str,
+) -> None:
+    statements = _iter_documentation_statements(source)
+    missing = []
+    for term in unsupported_terms:
+        if not any(
+            _statement_contains_term(statement, term)
+            and _NEGATED_SCOPE_PATTERN.search(statement)
+            for statement in statements
+        ):
+            missing.append(term)
+
+    assert not missing, (
+        f"{context} must state unsupported scope with negation for: {missing}"
+    )
+
+
+def _assert_statement_contains_all(
+    source: str,
+    required_terms: tuple[str, ...],
+    *,
+    context: str,
+) -> None:
+    assert any(
+        all(_statement_contains_term(statement, term) for term in required_terms)
+        for statement in _iter_documentation_statements(source)
+    ), f"{context} must include a statement containing {required_terms}"
+
+
+def _assert_failure_boundary_statement(
+    source: str,
+    required_terms: tuple[str, ...],
+    *,
+    context: str,
+) -> None:
+    assert any(
+        _FAILURE_PATTERN.search(statement)
+        and all(_statement_contains_term(statement, term) for term in required_terms)
+        for statement in _iter_documentation_statements(source)
+    ), f"{context} must include a failure statement containing {required_terms}"
 
 
 def _tiny_inputs() -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -223,16 +326,32 @@ def test_each_public_workflow_has_dedicated_api_page_with_contract_classes() -> 
 
 def test_api_docs_enrichment_example_uses_public_api_and_runs_offline() -> None:
     source = _read(ENRICHMENT_DOC)
-    normalized = " ".join(source.split())
 
-    assert "## Minimal example" in source
-    assert "EnrichmentWorkflow" in source
-    assert "GeneSetCollection(" in source
-    assert "background_universe=" in source
-    assert "offline/no-online-resource policy" in source
-    assert "GO, KEGG, Reactome" in source
-    assert "Enrichr, gseapy, clusterProfiler" in normalized
-    assert "does not implement GSEA, ssGSEA, or PTM-SEA" in normalized
+    _assert_heading(source, "Minimal Example")
+    _assert_contains_all(
+        source,
+        (
+            "EnrichmentWorkflow",
+            "GeneSetCollection(",
+            "background_universe=",
+            "EnrichmentWorkflow().run(",
+        ),
+    )
+    _assert_statement_contains_all(
+        source,
+        ("provenance", "offline", "online-resource"),
+        context="enrichment provenance scope",
+    )
+    _assert_negated_scope_statement(
+        source,
+        ("GO", "KEGG", "Reactome", "PTM-SEA", "Enrichr", "gseapy"),
+        context="enrichment bundled/online resource scope",
+    )
+    _assert_negated_scope_statement(
+        source,
+        ("GSEA", "ssGSEA", "PTM-SEA"),
+        context="enrichment method scope",
+    )
 
     collection = GeneSetCollection(
         sets={
@@ -291,12 +410,25 @@ def test_api_docs_dataset_build_request_example_is_constructible() -> None:
 def test_api_docs_batch_correction_example_is_constructible() -> None:
     source = _read(DATASET_BUILD_DOC)
 
-    assert "DatasetBatchCorrectionConfig(" in source
-    assert 'method="linear_residualize_batch"' in source
-    assert "dataset.preprocessing_report.batch_correction" in source
-    assert "confounding-check status" in source
-    assert "not ComBat, not RUV" in source
-    assert "not mixed-effects modelling" in source
+    _assert_heading(source, "Batch-Correction Parameters")
+    _assert_contains_all(
+        source,
+        (
+            "DatasetBatchCorrectionConfig(",
+            'method="linear_residualize_batch"',
+            "dataset.preprocessing_report.batch_correction",
+        ),
+    )
+    _assert_statement_contains_all(
+        source,
+        ("confounding", "status"),
+        context="batch-correction report fields",
+    )
+    _assert_negated_scope_statement(
+        source,
+        ("ComBat", "RUV", "removeBatchEffect", "mixed-effects modelling"),
+        context="batch-correction scientific scope",
+    )
 
     phospho = pd.DataFrame(
         {
@@ -363,17 +495,27 @@ def test_api_docs_batch_correction_example_is_constructible() -> None:
 
 def test_api_docs_protein_aware_preparation_boundary_is_documented() -> None:
     source = _read(DATASET_BUILD_DOC)
-    normalized = " ".join(source.split())
 
-    assert "## Protein-Aware Preparation Parameters" in source
-    assert 'policy="prepare_model_inputs"' in source
-    assert "does not change the phosphosite matrix" in normalized
-    assert "does not subtract total protein" in normalized
-    assert "does not normalise intensities" in normalized
-    assert "does not run differential analysis" in normalized
-    assert "PhosPy does not claim MSstatsPTM-style inference" in source
-    assert "dataset.protein_aware_preparation" in source
-    assert "report.site_eligibility_dataframe()" in source
+    _assert_heading(source, "Protein-Aware Preparation Parameters")
+    _assert_contains_all(
+        source,
+        (
+            'policy="prepare_model_inputs"',
+            "dataset.protein_aware_preparation",
+            "report.site_eligibility_dataframe()",
+        ),
+    )
+    _assert_negated_scope_statement(
+        source,
+        (
+            "phosphosite matrix",
+            "subtract total protein",
+            "normalise intensities",
+            "differential analysis",
+            "MSstatsPTM-style inference",
+        ),
+        context="protein-aware preparation boundary",
+    )
 
 
 def test_api_docs_differential_request_example_is_constructible() -> None:
@@ -493,33 +635,60 @@ def test_api_docs_signalome_request_example_is_constructible() -> None:
 def test_api_docs_differential_import_route_uses_supported_public_path() -> None:
     source = _read(DIFFERENTIAL_DOC)
 
-    assert "from phospy import DifferentialAnalysisWorkflow" in source
-    assert "from phospy.api import (" in source
-    assert "DifferentialAnalysisRequest," in source
-    assert "`from phospy import DifferentialAnalysis` and" in source
-    assert "`from phospy.api import DifferentialAnalysis` are not supported" in source
+    _assert_contains_all(
+        source,
+        (
+            "from phospy import DifferentialAnalysisWorkflow",
+            "from phospy.api import (",
+            "DifferentialAnalysisRequest,",
+        ),
+    )
+    _assert_negated_scope_statement(
+        source,
+        (
+            "from phospy import DifferentialAnalysis",
+            "from phospy.api import DifferentialAnalysis",
+        ),
+        context="unsupported differential import routes",
+    )
 
 
 def test_readme_and_differential_docs_keep_scientific_scope_contracts() -> None:
     readme_source = _read(README)
-    readme_normalized = " ".join(readme_source.split())
     differential_source = _read(DIFFERENTIAL_DOC)
 
     assert "minimum_condition_replicates=1" not in readme_source
     assert "minimum_condition_replicates=1" not in differential_source
-    assert "KinaseWorkflow().run(" in readme_source
-    assert "KinaseWorkflowRequest(" in readme_source
-    assert "site_sequence" in readme_source
-    assert "ReferencePreset.AUTO" in readme_source
-    assert "`linear_residualize_batch`" in readme_source
-    assert "rejects confounded batch/condition metadata" in readme_source
-    assert "not ComBat, RUV, limma `removeBatchEffect` parity" in readme_source
-    assert "mixed-effects modelling" in readme_normalized
-    assert "control_rep1" in differential_source
-    assert "control_rep2" in differential_source
-    assert "treatment_rep1" in differential_source
-    assert "treatment_rep2" in differential_source
-    assert 'policy="log2"' in differential_source
+    _assert_contains_all(
+        readme_source,
+        (
+            "KinaseWorkflow().run(",
+            "KinaseWorkflowRequest(",
+            "site_sequence",
+            "ReferencePreset.AUTO",
+            "`linear_residualize_batch`",
+        ),
+    )
+    _assert_statement_contains_all(
+        readme_source,
+        ("confounded", "batch/condition"),
+        context="README batch confounding warning",
+    )
+    _assert_negated_scope_statement(
+        readme_source,
+        ("ComBat", "RUV", "removeBatchEffect", "mixed-effects"),
+        context="README batch-correction scope",
+    )
+    _assert_contains_all(
+        differential_source,
+        (
+            "control_rep1",
+            "control_rep2",
+            "treatment_rep1",
+            "treatment_rep2",
+            'policy="log2"',
+        ),
+    )
 
 
 def test_public_workflow_docs_make_localisation_policy_explicit() -> None:
@@ -529,34 +698,85 @@ def test_public_workflow_docs_make_localisation_policy_explicit() -> None:
     kinase_source = _read(KINASE_DOC)
     signalome_source = _read(SIGNALOME_DOC)
 
-    assert "DatasetLocalisationConfig(" in readme_source
-    assert 'confidence_column="localisation_confidence"' in readme_source
-    assert "min_confidence=0.75" in readme_source
+    _assert_contains_all(
+        readme_source,
+        (
+            "DatasetLocalisationConfig(",
+            'confidence_column="localisation_confidence"',
+            "min_confidence=0.75",
+        ),
+    )
 
-    assert "## Localisation-Confidence Parameters" in dataset_source
-    assert "fails dataset build when" in dataset_source
-    assert 'mode="require_threshold"' in dataset_source
-    assert 'confidence_column="localisation_confidence"' in dataset_source
-    assert "min_confidence=0.75" in dataset_source
+    _assert_heading(source=dataset_source, heading="Localisation-Confidence Parameters")
+    _assert_contains_all(
+        dataset_source,
+        (
+            'mode="require_threshold"',
+            'confidence_column="localisation_confidence"',
+            "min_confidence=0.75",
+        ),
+    )
+    _assert_failure_boundary_statement(
+        dataset_source,
+        ("missing",),
+        context="dataset localisation missing-value boundary",
+    )
+    _assert_failure_boundary_statement(
+        dataset_source,
+        ("invalid",),
+        context="dataset localisation invalid-value boundary",
+    )
+    _assert_failure_boundary_statement(
+        dataset_source,
+        ("min_confidence",),
+        context="dataset localisation threshold boundary",
+    )
 
-    assert "DatasetLocalisationConfig(" in differential_source
-    assert "localisation_confidence" in differential_source
-    assert "low-confidence phosphosite assignments fail fast" in differential_source
+    _assert_contains_all(
+        differential_source,
+        ("DatasetLocalisationConfig(", "localisation_confidence"),
+    )
+    _assert_failure_boundary_statement(
+        differential_source,
+        ("low-confidence", "phosphosite"),
+        context="differential localisation prerequisite",
+    )
 
-    assert "## Localisation Prerequisite" in kinase_source
-    assert "DatasetLocalisationConfig(" in kinase_source
-    assert "dataset build fails" in kinase_source
+    _assert_heading(kinase_source, "Localisation Prerequisite")
+    _assert_contains_all(kinase_source, ("DatasetLocalisationConfig(",))
+    _assert_failure_boundary_statement(
+        kinase_source,
+        ("localisation", "missing"),
+        context="kinase localisation prerequisite",
+    )
 
-    assert "## Localisation Prerequisite" in signalome_source
-    assert "DatasetLocalisationConfig(" in signalome_source
-    assert "dataset build fails" in signalome_source
+    _assert_heading(signalome_source, "Localisation Prerequisite")
+    _assert_contains_all(signalome_source, ("DatasetLocalisationConfig(",))
+    _assert_failure_boundary_statement(
+        signalome_source,
+        ("localisation", "missing"),
+        context="signalome localisation prerequisite",
+    )
 
 
 def test_kinase_docs_explain_reference_display_ambiguity_policy() -> None:
     source = _read(KINASE_DOC)
 
-    assert "reference_display_ambiguity_policy" in source
-    assert '"error"' in source
-    assert '"allow_with_diagnostics"' in source
-    assert "matched `site_key` values" in source
-    assert "does not collapse duplicate display labels" in source
+    _assert_contains_all(
+        source,
+        (
+            "reference_display_ambiguity_policy",
+            '"error"',
+            '"allow_with_diagnostics"',
+        ),
+    )
+    _assert_statement_contains_all(
+        source,
+        ("diagnostics", "matched", "site_key"),
+        context="reference display ambiguity diagnostics",
+    )
+    _assert_negated_scope_statement(
+        source,
+        ("collapse", "duplicate display labels"),
+        context="reference display ambiguity non-collapse policy",
+    )

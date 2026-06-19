@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -46,6 +47,51 @@ API_GUIDE_API_IMPORT_SNIPPET = """from phospy.api import (
 
 def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
+
+
+def _normalise_whitespace(text: str) -> str:
+    return " ".join(text.split())
+
+
+def _iter_documentation_statements(source: str) -> tuple[str, ...]:
+    statements: list[str] = []
+    for block in re.split(r"\n\s*\n", source):
+        stripped_block = block.strip()
+        if not stripped_block:
+            continue
+        chunks = (
+            stripped_block.splitlines()
+            if stripped_block.startswith("|")
+            else re.split(r"\n(?=\s*[-*]\s+)", stripped_block)
+        )
+        for chunk in chunks:
+            normalised = _normalise_whitespace(chunk)
+            if not normalised or normalised.startswith("```"):
+                continue
+            statements.extend(
+                sentence
+                for sentence in re.split(r"(?<=[.!?])\s+", normalised)
+                if sentence
+            )
+    return tuple(statements)
+
+
+def _assert_statement_contains_all(
+    source: str,
+    required_terms: tuple[str, ...],
+    *,
+    context: str,
+) -> None:
+    assert any(
+        all(
+            re.search(
+                rf"(?<![a-z0-9_]){re.escape(term.lower())}(?![a-z0-9_])",
+                statement.lower(),
+            )
+            for term in required_terms
+        )
+        for statement in _iter_documentation_statements(source)
+    ), f"{context} must include a statement containing {required_terms}"
 
 
 def test_documented_public_imports_are_importable() -> None:
@@ -127,14 +173,19 @@ def test_public_kinase_docs_prefer_activity_matrix() -> None:
         "`activity_result.activity_" + "scores` is the method-neutral primary"
     )
 
-    assert "Result models are typed containers" in guide_source
-    assert (
-        "`activity_result.activity_matrix` is the method-neutral primary activity matrix"
-        in kinase_source
+    _assert_statement_contains_all(
+        guide_source,
+        ("result models", "typed containers"),
+        context="API guide result model contract",
     )
-    assert (
-        "Deprecated compatibility aliases such as `activity_scores` and"
-        in kinase_source
+    _assert_statement_contains_all(
+        kinase_source,
+        ("activity_result.activity_matrix", "primary", "activity matrix"),
+        context="kinase activity primary result contract",
     )
-    assert "are not preferred for new documentation or code" in kinase_source
+    _assert_statement_contains_all(
+        kinase_source,
+        ("activity_scores", "weighted_activity", "not preferred"),
+        context="kinase activity compatibility alias guidance",
+    )
     assert old_primary_phrase not in kinase_source

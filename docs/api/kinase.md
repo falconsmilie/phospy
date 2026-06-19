@@ -213,8 +213,6 @@ diagnostics. Adaptive prediction requires `random_state` when
 
 ## Minimal Example
 
-<!-- Compatibility marker for documentation smoke tests: ## Minimal example -->
-
 ```python
 from phospy import KinaseWorkflow
 from phospy.api import (

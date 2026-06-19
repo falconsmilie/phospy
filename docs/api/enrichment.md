@@ -137,8 +137,6 @@ and limitations.
 
 ## Minimal Example
 
-<!-- Compatibility marker for documentation smoke tests: ## Minimal example -->
-
 ```python
 from phospy.api import (
     EnrichmentConfig,

@@ -182,8 +182,6 @@ defensive in-memory snapshots; mutating them does not mutate the result object.
 
 ## Minimal Example
 
-<!-- Compatibility marker for documentation smoke tests: ## Minimal example -->
-
 ```python
 from phospy import DifferentialAnalysisWorkflow
 from phospy.api import (

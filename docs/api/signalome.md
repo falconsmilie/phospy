@@ -182,8 +182,6 @@ scientific policy records, and table fingerprints.
 
 ## Minimal Example
 
-<!-- Compatibility marker for documentation smoke tests: ## Minimal example -->
-
 ```python
 from phospy import SignalomeWorkflow
 from phospy.api import (
