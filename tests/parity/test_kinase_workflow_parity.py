@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pandas as pd
 import pytest
 
@@ -16,6 +18,8 @@ from phospy.api import (
     ReferenceBundle,
     ReferencePreset,
 )
+from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
+from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
 from tests.support.parity_reporting import (
     format_bool,
     format_shape,
@@ -38,6 +42,24 @@ def _site_key_for_display_id(site_metadata: pd.DataFrame, display_id: str) -> st
     ].astype(str)
     assert len(matches) == 1
     return str(matches[0])
+
+
+class _MixedMissingActivityInterpreter(KinaseWorkflowInterpreter):
+    def __init__(self, *, missing_display_id: str, missing_sample: str) -> None:
+        super().__init__()
+        self.missing_display_id = missing_display_id
+        self.missing_sample = missing_sample
+
+    def run(self, request: KinaseWorkflowRequest) -> ResolvedKinaseWorkflowRequest:
+        interpreted = super().run(request)
+        activity_phospho = interpreted.activity_phospho_matrix.copy(deep=True)
+        assert interpreted.site_identity_map is not None
+        site_key = _site_key_for_display_id(
+            interpreted.site_identity_map,
+            self.missing_display_id,
+        )
+        activity_phospho.loc[site_key, self.missing_sample] = float("nan")
+        return replace(interpreted, activity_phospho_matrix=activity_phospho)
 
 
 def test_scoring_outputs_match_selected_reference_profile_values(
@@ -255,8 +277,6 @@ def test_profile_missing_value_policy_changes_downstream_lane_for_mixed_missing_
             input_intensity_scale="linear",
         )
     )
-    genea_s2_key = _site_key_for_display_id(dataset.site_metadata, "GENEA;S2;")
-    dataset._phospho.loc[genea_s2_key, "sample_c"] = float("nan")
     references = ReferenceBundle(
         organism=Organism.RAT,
         kinase_substrate_map=pd.DataFrame(
@@ -276,7 +296,16 @@ def test_profile_missing_value_policy_changes_downstream_lane_for_mixed_missing_
         ),
     )
 
-    strict = KinaseWorkflow().run(
+    # The public dataset remains complete at the analysis-ready boundary. This
+    # intentionally exercises the resolved execution contract, where missing
+    # values are allowed in the activity matrix used by the scoring lane.
+    assert dataset.phospho.notna().all().all()
+    strict = KinaseWorkflow(
+        interpreter=_MixedMissingActivityInterpreter(
+            missing_display_id="GENEA;S2;",
+            missing_sample="sample_c",
+        )
+    ).run(
         KinaseWorkflowRequest(
             dataset=dataset,
             references=references,
@@ -292,7 +321,12 @@ def test_profile_missing_value_policy_changes_downstream_lane_for_mixed_missing_
             activity_config=None,
         )
     )
-    median_skipna = KinaseWorkflow().run(
+    median_skipna = KinaseWorkflow(
+        interpreter=_MixedMissingActivityInterpreter(
+            missing_display_id="GENEA;S2;",
+            missing_sample="sample_c",
+        )
+    ).run(
         KinaseWorkflowRequest(
             dataset=dataset,
             references=references,
