@@ -60,7 +60,7 @@ class SignalomeProvenanceBuilder:
     ) -> None:
         self._collect_environment = collect_environment
 
-    def build(
+    def run(
         self,
         *,
         request: ResolvedSignalomeWorkflowRequest,

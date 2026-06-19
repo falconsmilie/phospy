@@ -41,7 +41,10 @@ from phospy.workflows.signalome.interpreter import SignalomeWorkflowInterpreter
 from phospy.workflows.signalome.module_tables import SignalomeModuleTableBuilder
 from phospy.workflows.signalome.network_builder import SignalomeNetworkBuilder
 from phospy.workflows.signalome.provenance import SignalomeProvenanceBuilder
-from phospy.workflows.signalome.result_assembly import SignalomeResultAssembler
+from phospy.workflows.signalome.result_assembly import (
+    SignalomeExpandedSignalomeBuilder,
+    SignalomeResultAssembler,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -434,7 +437,7 @@ def test_signalome_provenance_builder_records_scale_and_backend_fields() -> None
         downstream_score_kinases=metadata.downstream_score_kinases,
         clustering_result=clustering.clustering_result,
     )
-    provenance = SignalomeProvenanceBuilder().build(
+    provenance = SignalomeProvenanceBuilder().run(
         request=resolved,
         config=resolved.execution_config,
         clustering_result=clustering.clustering_result,
@@ -530,8 +533,7 @@ def test_signalome_result_assembly_preserves_public_result_shape() -> None:
         support_summary=module_stage.support_summary,
         execution_metadata=metadata,
     )
-    assembler = SignalomeResultAssembler()
-    expanded_signalome = assembler.build_expanded_signalome(
+    expanded_signalome = SignalomeExpandedSignalomeBuilder().run(
         request=resolved,
         config=resolved.execution_config,
         module_assignments=module_stage.module_assignments,
@@ -548,7 +550,7 @@ def test_signalome_result_assembly_preserves_public_result_shape() -> None:
         downstream_score_kinases=metadata.downstream_score_kinases,
         clustering_result=clustering.clustering_result,
     )
-    provenance = SignalomeProvenanceBuilder().build(
+    provenance = SignalomeProvenanceBuilder().run(
         request=resolved,
         config=resolved.execution_config,
         clustering_result=clustering.clustering_result,
@@ -563,7 +565,7 @@ def test_signalome_result_assembly_preserves_public_result_shape() -> None:
         protein_site_context=context_stage.protein_site_context,
         scale_guard_decision=scale_guard,
     )
-    result = assembler.assemble_result(
+    result = SignalomeResultAssembler().run(
         request=resolved,
         clustering_result=clustering.clustering_result,
         module_assignments=module_stage.module_assignments,

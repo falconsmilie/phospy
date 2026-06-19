@@ -29,7 +29,10 @@ from phospy.workflows.signalome.contracts import (
 from phospy.workflows.signalome.module_tables import SignalomeModuleTableBuilder
 from phospy.workflows.signalome.network_builder import SignalomeNetworkBuilder
 from phospy.workflows.signalome.provenance import SignalomeProvenanceBuilder
-from phospy.workflows.signalome.result_assembly import SignalomeResultAssembler
+from phospy.workflows.signalome.result_assembly import (
+    SignalomeExpandedSignalomeBuilder,
+    SignalomeResultAssembler,
+)
 
 
 class SignalomeWorkflowExecutor:
@@ -42,6 +45,7 @@ class SignalomeWorkflowExecutor:
         module_table_builder: SignalomeModuleTableBuilder | None = None,
         network_builder: SignalomeNetworkBuilder | None = None,
         context_table_builder: SignalomeContextTableBuilder | None = None,
+        expanded_signalome_builder: SignalomeExpandedSignalomeBuilder | None = None,
         provenance_builder: SignalomeProvenanceBuilder | None = None,
         result_assembler: SignalomeResultAssembler | None = None,
     ) -> None:
@@ -68,10 +72,14 @@ class SignalomeWorkflowExecutor:
                 build_protein_context=build_protein_site_context_table,
             )
         )
-        self._provenance_builder = provenance_builder or SignalomeProvenanceBuilder()
-        self._result_assembler = result_assembler or SignalomeResultAssembler(
-            build_expanded=build_expanded_signalome_table
+        self._expanded_signalome_builder = (
+            expanded_signalome_builder
+            or SignalomeExpandedSignalomeBuilder(
+                build_expanded=build_expanded_signalome_table
+            )
         )
+        self._provenance_builder = provenance_builder or SignalomeProvenanceBuilder()
+        self._result_assembler = result_assembler or SignalomeResultAssembler()
 
     def run(self, request: ResolvedSignalomeWorkflowRequest) -> SignalomeWorkflowResult:
         config = request.execution_config
@@ -104,7 +112,7 @@ class SignalomeWorkflowExecutor:
             support_summary=module_stage.support_summary,
             execution_metadata=execution_metadata,
         )
-        expanded_signalome = self._result_assembler.build_expanded_signalome(
+        expanded_signalome = self._expanded_signalome_builder.run(
             request=request,
             config=config,
             module_assignments=module_stage.module_assignments,
@@ -122,7 +130,7 @@ class SignalomeWorkflowExecutor:
             support_summary=module_stage.support_summary,
             execution_metadata=execution_metadata,
         )
-        provenance = self._provenance_builder.build(
+        provenance = self._provenance_builder.run(
             request=request,
             config=config,
             clustering_result=clustering_stage.clustering_result,
@@ -137,7 +145,7 @@ class SignalomeWorkflowExecutor:
             protein_site_context=context_stage.protein_site_context,
             scale_guard_decision=scale_guard_decision,
         )
-        return self._result_assembler.assemble_result(
+        return self._result_assembler.run(
             request=request,
             clustering_result=clustering_stage.clustering_result,
             module_assignments=module_stage.module_assignments,

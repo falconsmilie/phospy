@@ -35,8 +35,8 @@ from phospy.workflows.signalome.contracts import (
 )
 
 
-class SignalomeResultAssembler:
-    """Build expanded signalome output and assemble the public workflow result."""
+class SignalomeExpandedSignalomeBuilder:
+    """Build expanded signalome output for signalome workflow execution."""
 
     _EXPANDED_SIGNALOME_SEAM = SIGNALOME_EXECUTOR_EXPANDED_SIGNALOME_SEAM
 
@@ -47,7 +47,7 @@ class SignalomeResultAssembler:
     ) -> None:
         self._build_expanded = build_expanded
 
-    def build_expanded_signalome(
+    def run(
         self,
         *,
         request: ResolvedSignalomeWorkflowRequest,
@@ -81,8 +81,12 @@ class SignalomeResultAssembler:
                 stage_error=str(exc),
             )
 
+
+class SignalomeResultAssembler:
+    """Assemble the public signalome workflow result."""
+
     @staticmethod
-    def assemble_result(
+    def run(
         *,
         request: ResolvedSignalomeWorkflowRequest,
         clustering_result: ClusterSitesResult,
@@ -120,4 +124,4 @@ class SignalomeResultAssembler:
         )
 
 
-__all__ = ["SignalomeResultAssembler"]
+__all__ = ["SignalomeExpandedSignalomeBuilder", "SignalomeResultAssembler"]
