@@ -17,7 +17,7 @@ You can view the full documentation here: [PhosPy Docs](https://phospy.com/docs)
 
 ## Installation
 
-PhosPy requires Python 3.10 or newer.
+PhosPy requires Python 3.10, 3.11, or 3.12.
 
 ```bash
 pip install phospy
