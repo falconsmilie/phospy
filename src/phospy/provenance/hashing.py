@@ -90,32 +90,32 @@ def fingerprint_table(
 ) -> TableFingerprint:
     """Build a typed deterministic table fingerprint."""
 
-    canonical_table = _canonicalize_provenance_table_view(table, name=name)
+    normalized_table = _normalize_provenance_table_view(table, name=name)
     exact_hash_algorithm = _exact_hash_algorithm_name(algorithm)
     tolerance_hash_algorithm = _tolerance_hash_algorithm_name(algorithm)
-    exact_hash = hash_table_exact(canonical_table, name=name, algorithm=algorithm)
+    exact_hash = hash_table_exact(normalized_table, name=name, algorithm=algorithm)
     tolerance_hash = hash_table_tolerance(
-        canonical_table, name=name, algorithm=algorithm
+        normalized_table, name=name, algorithm=algorithm
     )
 
     return TableFingerprint(
         name=name,
-        rows=int(canonical_table.shape[0]),
-        columns=int(canonical_table.shape[1]),
+        rows=int(normalized_table.shape[0]),
+        columns=int(normalized_table.shape[1]),
         index_name=(
             None
-            if canonical_table.index.name is None
-            else str(canonical_table.index.name)
+            if normalized_table.index.name is None
+            else str(normalized_table.index.name)
         ),
-        column_names=tuple(str(label) for label in canonical_table.columns.tolist()),
-        dtypes=tuple(str(dtype) for dtype in canonical_table.dtypes.tolist()),
+        column_names=tuple(str(label) for label in normalized_table.columns.tolist()),
+        dtypes=tuple(str(dtype) for dtype in normalized_table.dtypes.tolist()),
         exact_hash_algorithm=exact_hash_algorithm,
         exact_hash_value=exact_hash,
         tolerance_hash_algorithm=tolerance_hash_algorithm,
         tolerance_hash_value=tolerance_hash,
-        index_structure=_index_structure(canonical_table.index, round_floats=False),
+        index_structure=_index_structure(normalized_table.index, round_floats=False),
         column_index_structure=_index_structure(
-            canonical_table.columns, round_floats=False
+            normalized_table.columns, round_floats=False
         ),
     )
 
@@ -131,6 +131,20 @@ def fingerprint_optional_table(
     if table is None:
         return None
     return fingerprint_table(table, name=name, algorithm=algorithm)
+
+
+def _fingerprint_optional_table_with_normalized_axes(
+    table: pd.DataFrame | None,
+    *,
+    name: str,
+    algorithm: str = DEFAULT_TABLE_HASH_ALGORITHM,
+) -> TableFingerprint | None:
+    """Build an optional table fingerprint after deterministic axis sorting."""
+
+    if table is None:
+        return None
+    normalized_table = _normalize_table_axes_for_fingerprint(table)
+    return fingerprint_table(normalized_table, name=name, algorithm=algorithm)
 
 
 def _update(hasher: hashlib._Hash, payload: Any) -> None:  # type: ignore[attr-defined]
@@ -281,7 +295,7 @@ def _is_missing_scalar(value: object) -> bool:
 
 
 def _normalize_float_string(value: float) -> str:
-    # Canonicalize floats to a fixed decimal precision so tiny parser/ULP
+    # Normalize floats to a fixed decimal precision so tiny parser/ULP
     # differences across environments do not churn provenance fingerprints.
     if value == 0.0:
         return "0"
@@ -307,7 +321,7 @@ def _tolerance_hash_algorithm_name(algorithm: str) -> str:
     return f"{algorithm}-float-round-{_FLOAT_HASH_DECIMAL_PLACES}dp-v1"
 
 
-def _canonicalize_provenance_table_view(
+def _normalize_provenance_table_view(
     table: pd.DataFrame,
     *,
     name: str,
@@ -324,6 +338,19 @@ def _canonicalize_provenance_table_view(
     # Keep provenance contracts stable while builder-owned identity fields are
     # introduced. A later provenance schema ticket can make this explicit.
     return table.drop(columns=removable)
+
+
+def _normalize_table_axes_for_fingerprint(table: pd.DataFrame) -> pd.DataFrame:
+    normalized = table
+    try:
+        normalized = normalized.sort_index(axis=0, kind="mergesort")
+    except Exception:
+        pass
+    try:
+        normalized = normalized.sort_index(axis=1, kind="mergesort")
+    except Exception:
+        pass
+    return normalized
 
 
 __all__ = [

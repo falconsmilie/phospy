@@ -18,7 +18,7 @@ from phospy.contracts.configs import (
     KINASE_SCORING_MODES_REQUIRING_KINASE_LIBRARY,
 )
 from phospy.provenance.environment import collect_environment_provenance
-from phospy.provenance.hashing import fingerprint_optional_table
+from phospy.provenance.hashing import _fingerprint_optional_table_with_normalized_axes
 from phospy.provenance.models import (
     EnvironmentProvenance,
     PreprocessingStageProvenance,
@@ -80,266 +80,26 @@ class KinaseProvenanceBuilder:
         prediction_result: KinasePredictionResult,
         activity_result: KinaseActivityResult | None,
     ) -> RunProvenance:
-        input_tables = self._collect_fingerprints(
-            (
-                ("dataset.phospho", request.dataset.phospho),
-                ("dataset.site_metadata", request.dataset.site_metadata),
-                ("dataset.sample_metadata", request.dataset.sample_metadata),
-                ("dataset.total", request.dataset.total),
-                ("dataset.comparisons", request.dataset.comparisons),
-                (
-                    "references.kinase_substrate_map",
-                    request.references.kinase_substrate_map,
-                ),
-                ("references.site_sequences", request.references.site_sequences),
-            )
+        input_tables = _build_input_table_fingerprints(request)
+        output_tables = _build_output_table_fingerprints(
+            scoring_result=scoring_result,
+            prediction_result=prediction_result,
+            activity_result=activity_result,
         )
-        output_tables = self._collect_fingerprints(
-            (
-                ("outputs.scoring.profile_scores", scoring_result.profile_scores),
-                ("outputs.scoring.motif_scores", scoring_result.motif_scores),
-                (
-                    "outputs.scoring.rank_weighted_fusion_scores",
-                    scoring_result.rank_weighted_fusion_scores,
-                ),
-                (
-                    "outputs.scoring.kinase_library_motif_scores",
-                    scoring_result.kinase_library_motif_scores,
-                ),
-                (
-                    "outputs.scoring.combined_profile_motif_scores",
-                    scoring_result.combined_profile_motif_scores,
-                ),
-                (
-                    "outputs.scoring.score_fusion_weights",
-                    scoring_result.score_fusion_weights,
-                ),
-                (
-                    "outputs.scoring.kinase_library_site_diagnostics",
-                    scoring_result.kinase_library_site_diagnostics,
-                ),
-                (
-                    "outputs.scoring.kinase_library_kinase_diagnostics",
-                    scoring_result.kinase_library_kinase_diagnostics,
-                ),
-                ("outputs.prediction.pred_mat", prediction_result.pred_mat),
-                ("outputs.prediction.substrate_list", prediction_result.substrate_list),
-                (
-                    "outputs.activity.weighted_activity",
-                    None
-                    if activity_result is None
-                    else activity_result.activity_matrix,
-                ),
-                (
-                    "outputs.activity.thresholded_substrate_mean_activity",
-                    (
-                        None
-                        if activity_result is None
-                        else activity_result.thresholded_substrate_mean_activity
-                    ),
-                ),
-                (
-                    "outputs.activity.thresholded_substrate_counts",
-                    (
-                        None
-                        if activity_result is None
-                        else activity_result.thresholded_substrate_counts.to_frame(
-                            name="n_substrates"
-                        )
-                    ),
-                ),
-                (
-                    "outputs.activity.activity_substrate_counts",
-                    (
-                        None
-                        if activity_result is None
-                        else activity_result.activity_substrate_counts
-                    ),
-                ),
-                (
-                    "outputs.activity.target_counts",
-                    (
-                        None
-                        if activity_result is None
-                        else activity_result.target_counts.to_frame(name="n_targets")
-                    ),
-                ),
-                (
-                    "outputs.activity.target_table",
-                    None if activity_result is None else activity_result.target_table,
-                ),
-                (
-                    "outputs.activity.statistics_table",
-                    None
-                    if activity_result is None
-                    else activity_result.statistics_table,
-                ),
-            )
+        workflow_parameters = _build_workflow_parameters(
+            request=request,
+            config=config,
+            scoring_result=scoring_result,
+            activity_result=activity_result,
         )
-        scoring_diagnostics: dict[str, object] = (
-            {}
-            if scoring_result.motif_sequence_validation is None
-            else dict(scoring_result.motif_sequence_validation.summary())
-        )
-        if scoring_result.motif_sequence_validation is not None:
-            scoring_diagnostics["motif_site_sequence_coverage"] = (
-                scoring_result.motif_sequence_validation.site_sequence_coverage_summary()
-            )
-        if scoring_result.motif_library_validation is not None:
-            scoring_diagnostics["motif_library_validation"] = (
-                scoring_result.motif_library_validation.summary()
-            )
-        if scoring_result.kinase_library_site_diagnostics is not None:
-            scoring_diagnostics["kinase_library_site_status_counts"] = {
-                str(key): int(value)
-                for key, value in scoring_result.kinase_library_site_diagnostics.loc[
-                    :, "status"
-                ]
-                .astype(str)
-                .value_counts()
-                .sort_index()
-                .items()
-            }
-        if scoring_result.kinase_library_kinase_diagnostics is not None:
-            scoring_diagnostics["kinase_library_matrix_status_counts"] = {
-                str(key): int(value)
-                for key, value in scoring_result.kinase_library_kinase_diagnostics.loc[
-                    :, "status"
-                ]
-                .astype(str)
-                .value_counts()
-                .sort_index()
-                .items()
-            }
-        if scoring_result.score_scale_metadata is not None:
-            scoring_diagnostics["score_scale_metadata"] = dict(
-                scoring_result.score_scale_metadata
-            )
-        if scoring_result.score_source_summary is not None:
-            score_source_summary = scoring_result.score_source_summary
-            by_kinase: dict[str, dict[str, int]] = {}
-            for kinase, row in score_source_summary.iterrows():
-                by_kinase[str(kinase)] = {
-                    str(column): int(value) for column, value in row.items()
-                }
-            scoring_diagnostics["kinase_score_source_counts_by_kinase"] = by_kinase
-            scoring_diagnostics["kinase_score_source_counts_total"] = {
-                str(column): int(value)
-                for column, value in score_source_summary.sum(axis=0).items()
-            }
-        if request.site_sequence_merge_diagnostics:
-            scoring_diagnostics["site_sequence_merge"] = dict(
-                request.site_sequence_merge_diagnostics
-            )
-        scientific_policies = [
-            PROFILE_CORRELATION_SHIFTED_UNIT_POLICY,
-            KinaseProfileScoringPolicy(
-                profile_missing_value_strategy=str(
-                    config.profile_missing_value_strategy
-                ),
-                min_substrates_floor=KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
-                requested_min_substrates=int(config.scoring_min_substrates),
-            ).record,
-        ]
-        if config.scoring_mode in {
-            KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
-            KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF,
-        }:
-            scientific_policies.append(
-                build_motif_profile_rank_fusion_policy(
-                    allow_profile_only_fallback=True,
-                    emit_weights=bool(config.include_diagnostic_scoring_tables),
-                )
-            )
-        if config.scoring_mode in KINASE_SCORING_MODES_REQUIRING_KINASE_LIBRARY:
-            score_scale_metadata = (
-                {}
-                if scoring_result.score_scale_metadata is None
-                else dict(scoring_result.score_scale_metadata)
-            )
-            raw_sequence_window = score_scale_metadata.get("sequence_window")
-            sequence_window: Mapping[str, object] | None = (
-                {str(key): value for key, value in raw_sequence_window.items()}
-                if isinstance(raw_sequence_window, Mapping)
-                else None
-            )
-            scientific_policies.append(
-                build_kinase_library_motif_scoring_policy(
-                    scoring_mode=str(config.scoring_mode),
-                    resource_source_name=_optional_metadata_text(
-                        score_scale_metadata.get("resource_source_name")
-                    ),
-                    resource_source_version=_optional_metadata_text(
-                        score_scale_metadata.get("resource_source_version")
-                    ),
-                    resource_score_scale=_optional_metadata_text(
-                        score_scale_metadata.get("resource_score_scale")
-                    ),
-                    workflow_score_scale=str(scoring_result.score_scale),
-                    sequence_window=sequence_window,
-                )
-            )
-        scientific_policies.append(
-            CandidateSubstrateSelectionPolicy(
-                top_k=int(config.prediction_top_k),
-                score_threshold=CANDIDATE_SCORE_THRESHOLD,
-                inclusion=CANDIDATE_MIN_INCLUSION,
-            ).record
-        )
-        if config.prediction_mode == KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE:
-            scientific_policies.append(config.prediction_sampling_policy.record)
         duplicate_site_policy = self._resolve_duplicate_site_resolution_policy(
             request=request
         )
-        if duplicate_site_policy is not None:
-            scientific_policies.append(duplicate_site_policy)
-        if config.activity is not None:
-            if (
-                config.activity.method
-                == KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY
-            ):
-                scientific_policies.append(
-                    build_simplified_weighted_substrate_activity_policy(
-                        threshold=float(config.activity.threshold),
-                        min_substrates=int(config.activity.min_substrates),
-                        top_n_substrates=int(config.activity.top_n_substrates),
-                    )
-                )
-            elif config.activity.method == KINASE_ACTIVITY_METHOD_KSEA_ZSCORE:
-                scientific_policies.append(
-                    build_ksea_zscore_activity_policy(
-                        evidence_threshold=float(
-                            config.activity.ksea_evidence_threshold
-                        ),
-                        min_substrates=int(config.activity.ksea_min_substrates),
-                        p_value_method=str(config.activity.ksea_p_value_method),
-                        adjust_p_values=bool(config.activity.ksea_adjust_p_values),
-                        q_value_method=(
-                            KSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG
-                            if config.activity.ksea_adjust_p_values
-                            else None
-                        ),
-                    )
-                )
-            elif (
-                config.activity.method
-                == KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT
-            ):
-                scientific_policies.append(
-                    build_ssgsea_substrate_enrichment_activity_policy(
-                        min_substrates=int(config.activity.ssgsea_min_substrates),
-                        ranking_direction=str(config.activity.ssgsea_ranking_direction),
-                        permutation_count=int(config.activity.ssgsea_permutations),
-                        random_seed=config.activity.ssgsea_random_seed,
-                        adjust_p_values=bool(config.activity.ssgsea_adjust_p_values),
-                        q_value_method=(
-                            SSGSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG
-                            if config.activity.ssgsea_permutations > 0
-                            and config.activity.ssgsea_adjust_p_values
-                            else None
-                        ),
-                    )
-                )
+        scientific_policies = _build_scientific_policy_records(
+            config=config,
+            scoring_result=scoring_result,
+            duplicate_site_policy=duplicate_site_policy,
+        )
 
         return RunProvenance(
             environment=self._collect_environment(),
@@ -347,100 +107,11 @@ class KinaseProvenanceBuilder:
             preprocessing_stages=self._dataset_preprocessing_stages(request),
             reference=request.references.provenance,
             workflow_name="kinase_workflow",
-            workflow_parameters={
-                "site_token_validation": {
-                    "mode": (
-                        "opaque_opt_in"
-                        if request.dataset.opaque_site_values_allowed
-                        else "strict_sty_residue_position"
-                    )
-                },
-                "scoring_config": _build_scoring_config_payload(
-                    request=request,
-                    scoring_result=scoring_result,
-                    config=config,
-                ),
-                "scoring_diagnostics": scoring_diagnostics,
-                "prediction_config": {
-                    "top_k": int(config.prediction_top_k),
-                    "deterministic_max_selected_kinases": int(
-                        config.prediction_deterministic_max_selected_kinases
-                    ),
-                    "adaptive_ensemble_runs": int(
-                        config.prediction_adaptive_ensemble_runs
-                    ),
-                    "mode": str(config.prediction_mode),
-                    "adaptive_policy": str(config.prediction_adaptive_policy),
-                    "n_iterations": int(config.prediction_n_iterations),
-                    "random_state": config.prediction_random_state,
-                },
-                "activity_config": (
-                    None
-                    if config.activity is None
-                    else {
-                        "method": str(config.activity.method),
-                        "threshold": float(config.activity.threshold),
-                        "min_substrates": int(config.activity.min_substrates),
-                        "top_n_substrates": int(config.activity.top_n_substrates),
-                        "ksea_min_substrates": int(config.activity.ksea_min_substrates),
-                        "ksea_evidence_threshold": float(
-                            config.activity.ksea_evidence_threshold
-                        ),
-                        "ksea_p_value_method": str(config.activity.ksea_p_value_method),
-                        "ksea_adjust_p_values": bool(
-                            config.activity.ksea_adjust_p_values
-                        ),
-                        "ksea_formula_version": "v1",
-                        "ksea_q_value_method": (
-                            KSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG
-                            if config.activity.ksea_adjust_p_values
-                            else None
-                        ),
-                        "ssgsea_min_substrates": int(
-                            config.activity.ssgsea_min_substrates
-                        ),
-                        "ssgsea_ranking_direction": str(
-                            config.activity.ssgsea_ranking_direction
-                        ),
-                        "ssgsea_permutations": int(config.activity.ssgsea_permutations),
-                        "ssgsea_random_seed": (
-                            None
-                            if config.activity.ssgsea_random_seed is None
-                            else int(config.activity.ssgsea_random_seed)
-                        ),
-                        "ssgsea_adjust_p_values": bool(
-                            config.activity.ssgsea_adjust_p_values
-                        ),
-                        "ssgsea_q_value_method": (
-                            SSGSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG
-                            if config.activity.ssgsea_permutations > 0
-                            and config.activity.ssgsea_adjust_p_values
-                            else None
-                        ),
-                        "activity_method": (
-                            None
-                            if activity_result is None
-                            else activity_result.activity_method.to_payload()
-                        ),
-                        "activity_method_summary": (
-                            None
-                            if activity_result is None
-                            or activity_result.method_summary is None
-                            else activity_result.method_summary.to_payload()
-                        ),
-                        "threshold_membership_diagnostics": (
-                            None
-                            if activity_result is None
-                            or activity_result.threshold_membership_diagnostics is None
-                            else activity_result.threshold_membership_diagnostics.to_payload()
-                        ),
-                    }
-                ),
-            },
+            workflow_parameters=workflow_parameters,
             random_state=config.prediction_random_state,
             random_seed_policy=self._resolve_seed_policy(config),
             output_tables=output_tables,
-            scientific_policies=tuple(scientific_policies),
+            scientific_policies=scientific_policies,
         )
 
     @staticmethod
@@ -486,35 +157,232 @@ class KinaseProvenanceBuilder:
             duplicate_site_policy=duplicate_site_policy
         )
 
-    @staticmethod
-    def _collect_fingerprints(
-        entries: tuple[tuple[str, pd.DataFrame | None], ...],
-    ) -> tuple[TableFingerprint, ...]:
-        fingerprints: list[TableFingerprint] = []
-        for name, table in entries:
-            canonical_table = _canonicalise_for_provenance_fingerprint(table)
-            fingerprint = fingerprint_optional_table(canonical_table, name=name)
-            if fingerprint is None:
-                continue
-            fingerprints.append(fingerprint)
-        return tuple(fingerprints)
+
+def _build_input_table_fingerprints(
+    request: ResolvedKinaseWorkflowRequest,
+) -> tuple[TableFingerprint, ...]:
+    return _collect_fingerprints(
+        (
+            ("dataset.phospho", request.dataset.phospho),
+            ("dataset.site_metadata", request.dataset.site_metadata),
+            ("dataset.sample_metadata", request.dataset.sample_metadata),
+            ("dataset.total", request.dataset.total),
+            ("dataset.comparisons", request.dataset.comparisons),
+            (
+                "references.kinase_substrate_map",
+                request.references.kinase_substrate_map,
+            ),
+            ("references.site_sequences", request.references.site_sequences),
+        )
+    )
 
 
-def _canonicalise_for_provenance_fingerprint(
-    table: pd.DataFrame | None,
-) -> pd.DataFrame | None:
-    if table is None:
+def _build_output_table_fingerprints(
+    *,
+    scoring_result: KinaseScoringResult,
+    prediction_result: KinasePredictionResult,
+    activity_result: KinaseActivityResult | None,
+) -> tuple[TableFingerprint, ...]:
+    return _collect_fingerprints(
+        (
+            ("outputs.scoring.profile_scores", scoring_result.profile_scores),
+            ("outputs.scoring.motif_scores", scoring_result.motif_scores),
+            (
+                "outputs.scoring.rank_weighted_fusion_scores",
+                scoring_result.rank_weighted_fusion_scores,
+            ),
+            (
+                "outputs.scoring.kinase_library_motif_scores",
+                scoring_result.kinase_library_motif_scores,
+            ),
+            (
+                "outputs.scoring.combined_profile_motif_scores",
+                scoring_result.combined_profile_motif_scores,
+            ),
+            (
+                "outputs.scoring.score_fusion_weights",
+                scoring_result.score_fusion_weights,
+            ),
+            (
+                "outputs.scoring.kinase_library_site_diagnostics",
+                scoring_result.kinase_library_site_diagnostics,
+            ),
+            (
+                "outputs.scoring.kinase_library_kinase_diagnostics",
+                scoring_result.kinase_library_kinase_diagnostics,
+            ),
+            ("outputs.prediction.pred_mat", prediction_result.pred_mat),
+            ("outputs.prediction.substrate_list", prediction_result.substrate_list),
+            (
+                "outputs.activity.weighted_activity",
+                None if activity_result is None else activity_result.activity_matrix,
+            ),
+            (
+                "outputs.activity.thresholded_substrate_mean_activity",
+                (
+                    None
+                    if activity_result is None
+                    else activity_result.thresholded_substrate_mean_activity
+                ),
+            ),
+            (
+                "outputs.activity.thresholded_substrate_counts",
+                (
+                    None
+                    if activity_result is None
+                    else activity_result.thresholded_substrate_counts.to_frame(
+                        name="n_substrates"
+                    )
+                ),
+            ),
+            (
+                "outputs.activity.activity_substrate_counts",
+                (
+                    None
+                    if activity_result is None
+                    else activity_result.activity_substrate_counts
+                ),
+            ),
+            (
+                "outputs.activity.target_counts",
+                (
+                    None
+                    if activity_result is None
+                    else activity_result.target_counts.to_frame(name="n_targets")
+                ),
+            ),
+            (
+                "outputs.activity.target_table",
+                None if activity_result is None else activity_result.target_table,
+            ),
+            (
+                "outputs.activity.statistics_table",
+                None if activity_result is None else activity_result.statistics_table,
+            ),
+        )
+    )
+
+
+def _collect_fingerprints(
+    entries: tuple[tuple[str, pd.DataFrame | None], ...],
+) -> tuple[TableFingerprint, ...]:
+    fingerprints: list[TableFingerprint] = []
+    for name, table in entries:
+        fingerprint = _fingerprint_optional_table_with_normalized_axes(table, name=name)
+        if fingerprint is None:
+            continue
+        fingerprints.append(fingerprint)
+    return tuple(fingerprints)
+
+
+def _build_workflow_parameters(
+    *,
+    request: ResolvedKinaseWorkflowRequest,
+    config: ResolvedKinaseExecutionConfig,
+    scoring_result: KinaseScoringResult,
+    activity_result: KinaseActivityResult | None,
+) -> dict[str, object]:
+    return {
+        "site_token_validation": _build_site_token_validation_payload(request),
+        "scoring_config": _build_scoring_config_payload(
+            request=request,
+            scoring_result=scoring_result,
+            config=config,
+        ),
+        "scoring_diagnostics": _build_scoring_diagnostics_payload(
+            request=request,
+            scoring_result=scoring_result,
+        ),
+        "prediction_config": _build_prediction_config_payload(config),
+        "activity_config": _build_activity_config_payload(
+            config=config,
+            activity_result=activity_result,
+        ),
+    }
+
+
+def _build_site_token_validation_payload(
+    request: ResolvedKinaseWorkflowRequest,
+) -> dict[str, object]:
+    return {
+        "mode": (
+            "opaque_opt_in"
+            if request.dataset.opaque_site_values_allowed
+            else "strict_sty_residue_position"
+        )
+    }
+
+
+def _build_prediction_config_payload(
+    config: ResolvedKinaseExecutionConfig,
+) -> dict[str, object]:
+    return {
+        "top_k": int(config.prediction_top_k),
+        "deterministic_max_selected_kinases": int(
+            config.prediction_deterministic_max_selected_kinases
+        ),
+        "adaptive_ensemble_runs": int(config.prediction_adaptive_ensemble_runs),
+        "mode": str(config.prediction_mode),
+        "adaptive_policy": str(config.prediction_adaptive_policy),
+        "n_iterations": int(config.prediction_n_iterations),
+        "random_state": config.prediction_random_state,
+    }
+
+
+def _build_activity_config_payload(
+    *,
+    config: ResolvedKinaseExecutionConfig,
+    activity_result: KinaseActivityResult | None,
+) -> dict[str, object] | None:
+    if config.activity is None:
         return None
-    canonical = table
-    try:
-        canonical = canonical.sort_index(axis=0, kind="mergesort")
-    except Exception:
-        pass
-    try:
-        canonical = canonical.sort_index(axis=1, kind="mergesort")
-    except Exception:
-        pass
-    return canonical
+    return {
+        "method": str(config.activity.method),
+        "threshold": float(config.activity.threshold),
+        "min_substrates": int(config.activity.min_substrates),
+        "top_n_substrates": int(config.activity.top_n_substrates),
+        "ksea_min_substrates": int(config.activity.ksea_min_substrates),
+        "ksea_evidence_threshold": float(config.activity.ksea_evidence_threshold),
+        "ksea_p_value_method": str(config.activity.ksea_p_value_method),
+        "ksea_adjust_p_values": bool(config.activity.ksea_adjust_p_values),
+        "ksea_formula_version": "v1",
+        "ksea_q_value_method": (
+            KSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG
+            if config.activity.ksea_adjust_p_values
+            else None
+        ),
+        "ssgsea_min_substrates": int(config.activity.ssgsea_min_substrates),
+        "ssgsea_ranking_direction": str(config.activity.ssgsea_ranking_direction),
+        "ssgsea_permutations": int(config.activity.ssgsea_permutations),
+        "ssgsea_random_seed": (
+            None
+            if config.activity.ssgsea_random_seed is None
+            else int(config.activity.ssgsea_random_seed)
+        ),
+        "ssgsea_adjust_p_values": bool(config.activity.ssgsea_adjust_p_values),
+        "ssgsea_q_value_method": (
+            SSGSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG
+            if config.activity.ssgsea_permutations > 0
+            and config.activity.ssgsea_adjust_p_values
+            else None
+        ),
+        "activity_method": (
+            None
+            if activity_result is None
+            else activity_result.activity_method.to_payload()
+        ),
+        "activity_method_summary": (
+            None
+            if activity_result is None or activity_result.method_summary is None
+            else activity_result.method_summary.to_payload()
+        ),
+        "threshold_membership_diagnostics": (
+            None
+            if activity_result is None
+            or activity_result.threshold_membership_diagnostics is None
+            else activity_result.threshold_membership_diagnostics.to_payload()
+        ),
+    }
 
 
 def _build_scoring_config_payload(
@@ -545,6 +413,193 @@ def _build_scoring_config_payload(
         }
     )
     return payload
+
+
+def _build_scoring_diagnostics_payload(
+    *,
+    request: ResolvedKinaseWorkflowRequest,
+    scoring_result: KinaseScoringResult,
+) -> dict[str, object]:
+    scoring_diagnostics: dict[str, object] = (
+        {}
+        if scoring_result.motif_sequence_validation is None
+        else dict(scoring_result.motif_sequence_validation.summary())
+    )
+    if scoring_result.motif_sequence_validation is not None:
+        scoring_diagnostics["motif_site_sequence_coverage"] = (
+            scoring_result.motif_sequence_validation.site_sequence_coverage_summary()
+        )
+    if scoring_result.motif_library_validation is not None:
+        scoring_diagnostics["motif_library_validation"] = (
+            scoring_result.motif_library_validation.summary()
+        )
+    if scoring_result.kinase_library_site_diagnostics is not None:
+        scoring_diagnostics["kinase_library_site_status_counts"] = {
+            str(key): int(value)
+            for key, value in scoring_result.kinase_library_site_diagnostics.loc[
+                :, "status"
+            ]
+            .astype(str)
+            .value_counts()
+            .sort_index()
+            .items()
+        }
+    if scoring_result.kinase_library_kinase_diagnostics is not None:
+        scoring_diagnostics["kinase_library_matrix_status_counts"] = {
+            str(key): int(value)
+            for key, value in scoring_result.kinase_library_kinase_diagnostics.loc[
+                :, "status"
+            ]
+            .astype(str)
+            .value_counts()
+            .sort_index()
+            .items()
+        }
+    if scoring_result.score_scale_metadata is not None:
+        scoring_diagnostics["score_scale_metadata"] = dict(
+            scoring_result.score_scale_metadata
+        )
+    if scoring_result.score_source_summary is not None:
+        score_source_summary = scoring_result.score_source_summary
+        by_kinase: dict[str, dict[str, int]] = {}
+        for kinase, row in score_source_summary.iterrows():
+            by_kinase[str(kinase)] = {
+                str(column): int(value) for column, value in row.items()
+            }
+        scoring_diagnostics["kinase_score_source_counts_by_kinase"] = by_kinase
+        scoring_diagnostics["kinase_score_source_counts_total"] = {
+            str(column): int(value)
+            for column, value in score_source_summary.sum(axis=0).items()
+        }
+    if request.site_sequence_merge_diagnostics:
+        scoring_diagnostics["site_sequence_merge"] = dict(
+            request.site_sequence_merge_diagnostics
+        )
+    return scoring_diagnostics
+
+
+def _build_scientific_policy_records(
+    *,
+    config: ResolvedKinaseExecutionConfig,
+    scoring_result: KinaseScoringResult,
+    duplicate_site_policy: ScientificPolicyRecord | None,
+) -> tuple[ScientificPolicyRecord, ...]:
+    scientific_policies = [
+        PROFILE_CORRELATION_SHIFTED_UNIT_POLICY,
+        KinaseProfileScoringPolicy(
+            profile_missing_value_strategy=str(config.profile_missing_value_strategy),
+            min_substrates_floor=KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
+            requested_min_substrates=int(config.scoring_min_substrates),
+        ).record,
+    ]
+    if config.scoring_mode in {
+        KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
+        KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF,
+    }:
+        scientific_policies.append(
+            build_motif_profile_rank_fusion_policy(
+                allow_profile_only_fallback=True,
+                emit_weights=bool(config.include_diagnostic_scoring_tables),
+            )
+        )
+    kinase_library_policy = _build_kinase_library_scoring_policy(
+        config=config,
+        scoring_result=scoring_result,
+    )
+    if kinase_library_policy is not None:
+        scientific_policies.append(kinase_library_policy)
+    scientific_policies.append(
+        CandidateSubstrateSelectionPolicy(
+            top_k=int(config.prediction_top_k),
+            score_threshold=CANDIDATE_SCORE_THRESHOLD,
+            inclusion=CANDIDATE_MIN_INCLUSION,
+        ).record
+    )
+    if config.prediction_mode == KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE:
+        scientific_policies.append(config.prediction_sampling_policy.record)
+    if duplicate_site_policy is not None:
+        scientific_policies.append(duplicate_site_policy)
+    activity_policy = _build_activity_policy_record(config)
+    if activity_policy is not None:
+        scientific_policies.append(activity_policy)
+    return tuple(scientific_policies)
+
+
+def _build_kinase_library_scoring_policy(
+    *,
+    config: ResolvedKinaseExecutionConfig,
+    scoring_result: KinaseScoringResult,
+) -> ScientificPolicyRecord | None:
+    if config.scoring_mode not in KINASE_SCORING_MODES_REQUIRING_KINASE_LIBRARY:
+        return None
+    score_scale_metadata = (
+        {}
+        if scoring_result.score_scale_metadata is None
+        else dict(scoring_result.score_scale_metadata)
+    )
+    raw_sequence_window = score_scale_metadata.get("sequence_window")
+    sequence_window: Mapping[str, object] | None = (
+        {str(key): value for key, value in raw_sequence_window.items()}
+        if isinstance(raw_sequence_window, Mapping)
+        else None
+    )
+    return build_kinase_library_motif_scoring_policy(
+        scoring_mode=str(config.scoring_mode),
+        resource_source_name=_optional_metadata_text(
+            score_scale_metadata.get("resource_source_name")
+        ),
+        resource_source_version=_optional_metadata_text(
+            score_scale_metadata.get("resource_source_version")
+        ),
+        resource_score_scale=_optional_metadata_text(
+            score_scale_metadata.get("resource_score_scale")
+        ),
+        workflow_score_scale=str(scoring_result.score_scale),
+        sequence_window=sequence_window,
+    )
+
+
+def _build_activity_policy_record(
+    config: ResolvedKinaseExecutionConfig,
+) -> ScientificPolicyRecord | None:
+    if config.activity is None:
+        return None
+    if (
+        config.activity.method
+        == KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY
+    ):
+        return build_simplified_weighted_substrate_activity_policy(
+            threshold=float(config.activity.threshold),
+            min_substrates=int(config.activity.min_substrates),
+            top_n_substrates=int(config.activity.top_n_substrates),
+        )
+    if config.activity.method == KINASE_ACTIVITY_METHOD_KSEA_ZSCORE:
+        return build_ksea_zscore_activity_policy(
+            evidence_threshold=float(config.activity.ksea_evidence_threshold),
+            min_substrates=int(config.activity.ksea_min_substrates),
+            p_value_method=str(config.activity.ksea_p_value_method),
+            adjust_p_values=bool(config.activity.ksea_adjust_p_values),
+            q_value_method=(
+                KSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG
+                if config.activity.ksea_adjust_p_values
+                else None
+            ),
+        )
+    if config.activity.method == KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT:
+        return build_ssgsea_substrate_enrichment_activity_policy(
+            min_substrates=int(config.activity.ssgsea_min_substrates),
+            ranking_direction=str(config.activity.ssgsea_ranking_direction),
+            permutation_count=int(config.activity.ssgsea_permutations),
+            random_seed=config.activity.ssgsea_random_seed,
+            adjust_p_values=bool(config.activity.ssgsea_adjust_p_values),
+            q_value_method=(
+                SSGSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG
+                if config.activity.ssgsea_permutations > 0
+                and config.activity.ssgsea_adjust_p_values
+                else None
+            ),
+        )
+    return None
 
 
 def _optional_metadata_text(value: object) -> str | None:

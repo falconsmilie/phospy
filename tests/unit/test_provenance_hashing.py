@@ -6,6 +6,7 @@ import pytest
 
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.hashing import (
+    _fingerprint_optional_table_with_normalized_axes,
     fingerprint_table,
     hash_table_exact,
     hash_table_tolerance,
@@ -112,6 +113,33 @@ def test_hash_changes_when_column_order_changes() -> None:
         reordered,
         name="dataset.phospho",
     )
+
+
+def test_normalized_axis_fingerprint_is_stable_for_row_and_column_order() -> None:
+    table = pd.DataFrame(
+        {
+            "sample_b": [4.0, 3.0],
+            "sample_a": [2.0, 1.0],
+        },
+        index=pd.Index(["B;S2;", "A;S1;"], name="site_id"),
+    )
+    reordered = table.loc[["A;S1;", "B;S2;"], ["sample_a", "sample_b"]]
+
+    first = _fingerprint_optional_table_with_normalized_axes(
+        table,
+        name="dataset.phospho",
+    )
+    second = _fingerprint_optional_table_with_normalized_axes(
+        reordered,
+        name="dataset.phospho",
+    )
+
+    assert first is not None
+    assert second is not None
+    assert first.exact_hash_value == second.exact_hash_value
+    assert first.tolerance_hash_value == second.tolerance_hash_value
+    assert first.column_names == ("sample_a", "sample_b")
+    assert second.column_names == ("sample_a", "sample_b")
 
 
 def test_hash_changes_when_value_changes() -> None:

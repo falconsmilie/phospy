@@ -8,7 +8,7 @@ from dataclasses import asdict
 import pandas as pd
 
 from phospy.provenance.environment import collect_environment_provenance
-from phospy.provenance.hashing import fingerprint_optional_table
+from phospy.provenance.hashing import _fingerprint_optional_table_with_normalized_axes
 from phospy.provenance.models import (
     EnvironmentProvenance,
     PreprocessingStageProvenance,
@@ -77,34 +77,16 @@ class SignalomeProvenanceBuilder:
         protein_site_context: pd.DataFrame,
         scale_guard_decision: SignalomeScaleGuardDecision,
     ) -> RunProvenance:
-        input_tables = self._collect_fingerprints(
-            (
-                ("dataset.phospho", request.dataset.phospho),
-                ("dataset.site_metadata", request.dataset.site_metadata),
-                ("dataset.sample_metadata", request.dataset.sample_metadata),
-                ("dataset.total", request.dataset.total),
-                ("dataset.comparisons", request.dataset.comparisons),
-                ("upstream.prediction.pred_mat", request.prediction_matrix),
-                (
-                    "upstream.scoring.downstream_score_matrix",
-                    request.downstream_score_matrix,
-                ),
-            )
-        )
-        output_tables = self._collect_fingerprints(
-            (
-                ("outputs.signalome.module_assignments", module_assignments),
-                ("outputs.signalome.signalome_modules", signalome_modules),
-                ("outputs.signalome.kinase_network.edges", network_edges),
-                ("outputs.signalome.kinase_network.nodes", network_nodes),
-                (
-                    "outputs.signalome.kinase_network.candidate_correlations",
-                    candidate_correlations,
-                ),
-                ("outputs.signalome.expanded_signalome", expanded_signalome),
-                ("outputs.signalome.site_membership", site_membership),
-                ("outputs.signalome.protein_site_context", protein_site_context),
-            )
+        input_tables = _build_input_table_fingerprints(request)
+        output_tables = _build_output_table_fingerprints(
+            module_assignments=module_assignments,
+            signalome_modules=signalome_modules,
+            network_edges=network_edges,
+            network_nodes=network_nodes,
+            candidate_correlations=candidate_correlations,
+            expanded_signalome=expanded_signalome,
+            site_membership=site_membership,
+            protein_site_context=protein_site_context,
         )
         upstream_provenance = request.kinase_result.provenance
         clustering_missing_value_diagnostics = (
@@ -112,281 +94,33 @@ class SignalomeProvenanceBuilder:
                 request.downstream_score_matrix.to_numpy(dtype=float, copy=False)
             )
         )
-        scientific_policies: list[ScientificPolicyRecord] = [
-            build_signalome_module_candidate_score_policy(
-                requested_policy=str(
-                    scale_guard_decision.candidate_scoring_requested_policy
-                ),
-                candidate_scoring_policy=str(config.candidate_scoring_policy),
-                candidate_scoring_mode=str(clustering_result.candidate_scoring_mode),
-                max_exact_tree_sites=(
-                    None
-                    if config.max_exact_tree_sites is None
-                    else int(config.max_exact_tree_sites)
-                ),
-                max_full_candidate_scoring_sites=int(
-                    config.max_full_candidate_scoring_sites
-                ),
-                candidate_scoring_evaluated=bool(
-                    clustering_result.candidate_scoring_evaluated
-                ),
-                candidate_scoring_skip_reason=(
-                    None
-                    if clustering_result.candidate_scoring_skip_reason is None
-                    else str(clustering_result.candidate_scoring_skip_reason)
-                ),
-                candidate_scoring_scope=str(
-                    scale_guard_decision.candidate_scoring_applies_to
-                ),
-                tree_generation_mode=str(scale_guard_decision.tree_generation_mode),
-                tree_generation_is_approximate=bool(
-                    scale_guard_decision.tree_generation_is_approximate
-                ),
-            ),
-            SignalomeMissingValueClusteringPolicy(
-                missing_value_policy=str(clustering_missing_value_diagnostics.policy),
-                applies_to=str(SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_APPLIES_TO),
-                imputed_values_exposed_in_output_tables=bool(
-                    SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_IMPUTED_VALUES_EXPOSED_IN_OUTPUT_TABLES
-                ),
-            ).record,
-            _build_signalome_assignment_policy_record(
-                assignment_policy=str(config.assignment_policy)
-            ),
-            _build_signalome_network_policy_record(
-                network_policy=str(config.network_policy),
-                network_correlation_threshold=float(
-                    config.network_correlation_threshold
-                ),
-            ),
-            ScorePreconditioningPolicy(
-                policy=str(request.score_preconditioning_diagnostics.policy),
-                input_row_count=int(
-                    request.score_preconditioning_diagnostics.input_row_count
-                ),
-                dropped_all_missing_row_count=int(
-                    request.score_preconditioning_diagnostics.dropped_all_missing_row_count
-                ),
-                retained_row_count=int(
-                    request.score_preconditioning_diagnostics.retained_row_count
-                ),
-            ).record,
-            PROTEIN_MODULE_FROM_SITE_MEMBERSHIP_POLICY,
-        ]
-        if request.downstream_score_selection_policy is not None:
-            scientific_policies.append(request.downstream_score_selection_policy.record)
-        if config.candidate_scoring_policy_definition is not None:
-            scientific_policies.append(
-                config.candidate_scoring_policy_definition.record
-            )
+        scientific_policies = _build_scientific_policy_records(
+            request=request,
+            config=config,
+            clustering_result=clustering_result,
+            scale_guard_decision=scale_guard_decision,
+            clustering_missing_value_diagnostics=clustering_missing_value_diagnostics,
+        )
+        workflow_parameters = _build_workflow_parameters(
+            request=request,
+            config=config,
+            clustering_result=clustering_result,
+            network_correlation_diagnostics=network_correlation_diagnostics,
+            scale_guard_decision=scale_guard_decision,
+            clustering_missing_value_diagnostics=clustering_missing_value_diagnostics,
+            upstream_provenance=upstream_provenance,
+        )
         return RunProvenance(
             environment=self._collect_environment(),
             input_tables=input_tables,
             preprocessing_stages=self._dataset_preprocessing_stages(request),
             reference=request.kinase_result.references.provenance,
             workflow_name="signalome_workflow",
-            workflow_parameters={
-                "site_token_validation": {
-                    "mode": (
-                        "opaque_opt_in"
-                        if request.dataset.opaque_site_values_allowed
-                        else "strict_sty_residue_position"
-                    )
-                },
-                "signalome_config": {
-                    "scientific": {
-                        "substrate_support_cutoff": float(
-                            config.substrate_support_cutoff
-                        ),
-                        "assignment_policy": str(config.assignment_policy),
-                    },
-                    "clustering": {
-                        "module_selection_primary_correlation_threshold": float(
-                            config.module_selection_primary_threshold
-                        ),
-                        "module_selection_fallback_correlation_threshold": float(
-                            config.module_selection_fallback_threshold
-                        ),
-                        "module_selection_max_clusters": int(
-                            config.module_selection_max_clusters
-                        ),
-                        "candidate_scoring_policy": str(
-                            config.candidate_scoring_policy
-                        ),
-                        "missing_value_policy": str(
-                            clustering_missing_value_diagnostics.policy
-                        ),
-                        "clustering_engine": str(config.clustering_engine),
-                        "module_count": (
-                            None
-                            if config.requested_module_count is None
-                            else int(config.requested_module_count)
-                        ),
-                    },
-                    "validation": {
-                        "score_preconditioning_policy": str(
-                            config.score_preconditioning_policy
-                        ),
-                        "allow_mixed_total_protein_quantitative_meaning": bool(
-                            config.allow_mixed_total_protein_quantitative_meaning
-                        ),
-                    },
-                    "output": {
-                        "network_correlation_threshold": float(
-                            config.network_correlation_threshold
-                        ),
-                        "network_policy": str(config.network_policy),
-                    },
-                    "performance": {
-                        "max_exact_tree_sites": int(config.max_exact_tree_sites),
-                        "max_full_candidate_scoring_sites": int(
-                            config.max_full_candidate_scoring_sites
-                        ),
-                    },
-                },
-                "scale_guard": {
-                    "site_count": int(scale_guard_decision.site_count),
-                    "input_protein_count": int(
-                        scale_guard_decision.input_protein_count
-                    ),
-                    "input_kinase_count": int(scale_guard_decision.input_kinase_count),
-                    "selected_module_count": int(
-                        scale_guard_decision.selected_module_count
-                    ),
-                    "candidate_module_counts_evaluated": int(
-                        scale_guard_decision.candidate_module_counts_evaluated
-                    ),
-                    "candidate_module_count_upper_bound": int(
-                        scale_guard_decision.candidate_module_count_upper_bound
-                    ),
-                    "clustering_engine": str(scale_guard_decision.clustering_engine),
-                    "clustering_engine_version": str(
-                        scale_guard_decision.clustering_engine_version
-                    ),
-                    "backend_diagnostics": (
-                        None
-                        if scale_guard_decision.backend_diagnostics is None
-                        else backend_diagnostics_to_payload(
-                            scale_guard_decision.backend_diagnostics
-                        )
-                    ),
-                    "tree_implementation": str(
-                        scale_guard_decision.tree_implementation
-                    ),
-                    "tree_generation_backend": str(
-                        scale_guard_decision.tree_generation_backend
-                    ),
-                    "tree_generation_mode": str(
-                        scale_guard_decision.tree_generation_mode
-                    ),
-                    "tree_generation_is_approximate": bool(
-                        scale_guard_decision.tree_generation_is_approximate
-                    ),
-                    "tree_generation_scope": str(
-                        scale_guard_decision.tree_generation_scope
-                    ),
-                    "tree_generation_guard_triggered": bool(
-                        scale_guard_decision.tree_generation_guard_triggered
-                    ),
-                    "candidate_scoring_policy": str(
-                        scale_guard_decision.candidate_scoring_policy
-                    ),
-                    "candidate_scoring_requested_policy": str(
-                        scale_guard_decision.candidate_scoring_requested_policy
-                    ),
-                    "candidate_scoring_strategy": str(
-                        scale_guard_decision.candidate_scoring_strategy
-                    ),
-                    "candidate_scoring_is_approximate": bool(
-                        scale_guard_decision.candidate_scoring_is_approximate
-                    ),
-                    "candidate_scoring_guard_triggered": bool(
-                        scale_guard_decision.candidate_scoring_guard_triggered
-                    ),
-                    "candidate_scoring_sampled_site_total": (
-                        None
-                        if scale_guard_decision.candidate_scoring_sampled_site_total
-                        is None
-                        else int(
-                            scale_guard_decision.candidate_scoring_sampled_site_total
-                        )
-                    ),
-                    "candidate_scoring_sampled_pair_count": (
-                        None
-                        if scale_guard_decision.candidate_scoring_sampled_pair_count
-                        is None
-                        else int(
-                            scale_guard_decision.candidate_scoring_sampled_pair_count
-                        )
-                    ),
-                    "max_exact_tree_sites": int(
-                        scale_guard_decision.max_exact_tree_sites
-                    ),
-                    "max_full_candidate_scoring_sites": int(
-                        scale_guard_decision.max_full_candidate_scoring_sites
-                    ),
-                    "exact_cluster_tree_built": bool(
-                        scale_guard_decision.exact_cluster_tree_built
-                    ),
-                    "candidate_scoring_mode": str(
-                        scale_guard_decision.candidate_scoring_mode
-                    ),
-                    "candidate_scoring_evaluated": bool(
-                        scale_guard_decision.candidate_scoring_evaluated
-                    ),
-                    "candidate_scoring_skip_reason": (
-                        None
-                        if scale_guard_decision.candidate_scoring_skip_reason is None
-                        else str(scale_guard_decision.candidate_scoring_skip_reason)
-                    ),
-                    "candidate_scoring_sampling": (
-                        None
-                        if scale_guard_decision.candidate_scoring_sampling is None
-                        else candidate_scoring_sampling_diagnostics_to_payload(
-                            scale_guard_decision.candidate_scoring_sampling
-                        )
-                    ),
-                    "candidate_scoring_applies_to": str(
-                        scale_guard_decision.candidate_scoring_applies_to
-                    ),
-                    "final_module_assignment_backend": str(
-                        scale_guard_decision.final_module_assignment_backend
-                    ),
-                    "final_module_assignment_uses_candidate_scoring": bool(
-                        scale_guard_decision.final_module_assignment_uses_candidate_scoring
-                    ),
-                    "scale_guard_passed": bool(scale_guard_decision.scale_guard_passed),
-                },
-                "module_selection_diagnostics": asdict(
-                    clustering_result.module_selection_diagnostics
-                ),
-                "score_preconditioning_diagnostics": asdict(
-                    request.score_preconditioning_diagnostics
-                ),
-                "alignment_diagnostics": asdict(request.alignment_diagnostics),
-                "network_correlation_diagnostics": asdict(
-                    network_correlation_diagnostics
-                ),
-                "signalome_score_semantics": _build_signalome_score_semantics(
-                    request=request,
-                    config=config,
-                    clustering_result=clustering_result,
-                    network_correlation_diagnostics=network_correlation_diagnostics,
-                    scale_guard_decision=scale_guard_decision,
-                    clustering_missing_value_diagnostics=(
-                        clustering_missing_value_diagnostics
-                    ),
-                ),
-                "upstream_kinase_provenance": (
-                    None
-                    if upstream_provenance is None
-                    else provenance_to_payload(upstream_provenance)
-                ),
-            },
+            workflow_parameters=workflow_parameters,
             random_state=None,
             random_seed_policy=None,
             output_tables=output_tables,
-            scientific_policies=tuple(scientific_policies),
+            scientific_policies=scientific_policies,
         )
 
     @staticmethod
@@ -398,18 +132,331 @@ class SignalomeProvenanceBuilder:
             return ()
         return tuple(provenance.preprocessing_stages)
 
-    @staticmethod
-    def _collect_fingerprints(
-        entries: tuple[tuple[str, pd.DataFrame | None], ...],
-    ) -> tuple[TableFingerprint, ...]:
-        fingerprints: list[TableFingerprint] = []
-        for name, table in entries:
-            canonical_table = _canonicalise_for_provenance_fingerprint(table)
-            fingerprint = fingerprint_optional_table(canonical_table, name=name)
-            if fingerprint is None:
-                continue
-            fingerprints.append(fingerprint)
-        return tuple(fingerprints)
+
+def _build_input_table_fingerprints(
+    request: ResolvedSignalomeWorkflowRequest,
+) -> tuple[TableFingerprint, ...]:
+    return _collect_fingerprints(
+        (
+            ("dataset.phospho", request.dataset.phospho),
+            ("dataset.site_metadata", request.dataset.site_metadata),
+            ("dataset.sample_metadata", request.dataset.sample_metadata),
+            ("dataset.total", request.dataset.total),
+            ("dataset.comparisons", request.dataset.comparisons),
+            ("upstream.prediction.pred_mat", request.prediction_matrix),
+            (
+                "upstream.scoring.downstream_score_matrix",
+                request.downstream_score_matrix,
+            ),
+        )
+    )
+
+
+def _build_output_table_fingerprints(
+    *,
+    module_assignments: pd.DataFrame,
+    signalome_modules: pd.DataFrame,
+    network_edges: pd.DataFrame,
+    network_nodes: pd.DataFrame,
+    candidate_correlations: pd.DataFrame,
+    expanded_signalome: pd.DataFrame,
+    site_membership: pd.DataFrame,
+    protein_site_context: pd.DataFrame,
+) -> tuple[TableFingerprint, ...]:
+    return _collect_fingerprints(
+        (
+            ("outputs.signalome.module_assignments", module_assignments),
+            ("outputs.signalome.signalome_modules", signalome_modules),
+            ("outputs.signalome.kinase_network.edges", network_edges),
+            ("outputs.signalome.kinase_network.nodes", network_nodes),
+            (
+                "outputs.signalome.kinase_network.candidate_correlations",
+                candidate_correlations,
+            ),
+            ("outputs.signalome.expanded_signalome", expanded_signalome),
+            ("outputs.signalome.site_membership", site_membership),
+            ("outputs.signalome.protein_site_context", protein_site_context),
+        )
+    )
+
+
+def _collect_fingerprints(
+    entries: tuple[tuple[str, pd.DataFrame | None], ...],
+) -> tuple[TableFingerprint, ...]:
+    fingerprints: list[TableFingerprint] = []
+    for name, table in entries:
+        fingerprint = _fingerprint_optional_table_with_normalized_axes(table, name=name)
+        if fingerprint is None:
+            continue
+        fingerprints.append(fingerprint)
+    return tuple(fingerprints)
+
+
+def _build_workflow_parameters(
+    *,
+    request: ResolvedSignalomeWorkflowRequest,
+    config: ResolvedSignalomeExecutionConfig,
+    clustering_result: ClusterSitesResult,
+    network_correlation_diagnostics: SignalomeNetworkCorrelationDiagnostics,
+    scale_guard_decision: SignalomeScaleGuardDecision,
+    clustering_missing_value_diagnostics: SignalomeClusteringMissingValueDiagnostics,
+    upstream_provenance: RunProvenance | None,
+) -> dict[str, object]:
+    return {
+        "site_token_validation": _build_site_token_validation_payload(request),
+        "signalome_config": _build_signalome_config_payload(
+            config=config,
+            clustering_missing_value_diagnostics=(clustering_missing_value_diagnostics),
+        ),
+        "scale_guard": _build_scale_guard_payload(scale_guard_decision),
+        "module_selection_diagnostics": asdict(
+            clustering_result.module_selection_diagnostics
+        ),
+        "score_preconditioning_diagnostics": asdict(
+            request.score_preconditioning_diagnostics
+        ),
+        "alignment_diagnostics": asdict(request.alignment_diagnostics),
+        "network_correlation_diagnostics": asdict(network_correlation_diagnostics),
+        "signalome_score_semantics": _build_signalome_score_semantics(
+            request=request,
+            config=config,
+            clustering_result=clustering_result,
+            network_correlation_diagnostics=network_correlation_diagnostics,
+            scale_guard_decision=scale_guard_decision,
+            clustering_missing_value_diagnostics=(clustering_missing_value_diagnostics),
+        ),
+        "upstream_kinase_provenance": (
+            None
+            if upstream_provenance is None
+            else provenance_to_payload(upstream_provenance)
+        ),
+    }
+
+
+def _build_site_token_validation_payload(
+    request: ResolvedSignalomeWorkflowRequest,
+) -> dict[str, object]:
+    return {
+        "mode": (
+            "opaque_opt_in"
+            if request.dataset.opaque_site_values_allowed
+            else "strict_sty_residue_position"
+        )
+    }
+
+
+def _build_signalome_config_payload(
+    *,
+    config: ResolvedSignalomeExecutionConfig,
+    clustering_missing_value_diagnostics: SignalomeClusteringMissingValueDiagnostics,
+) -> dict[str, object]:
+    return {
+        "scientific": {
+            "substrate_support_cutoff": float(config.substrate_support_cutoff),
+            "assignment_policy": str(config.assignment_policy),
+        },
+        "clustering": {
+            "module_selection_primary_correlation_threshold": float(
+                config.module_selection_primary_threshold
+            ),
+            "module_selection_fallback_correlation_threshold": float(
+                config.module_selection_fallback_threshold
+            ),
+            "module_selection_max_clusters": int(config.module_selection_max_clusters),
+            "candidate_scoring_policy": str(config.candidate_scoring_policy),
+            "missing_value_policy": str(clustering_missing_value_diagnostics.policy),
+            "clustering_engine": str(config.clustering_engine),
+            "module_count": (
+                None
+                if config.requested_module_count is None
+                else int(config.requested_module_count)
+            ),
+        },
+        "validation": {
+            "score_preconditioning_policy": str(config.score_preconditioning_policy),
+            "allow_mixed_total_protein_quantitative_meaning": bool(
+                config.allow_mixed_total_protein_quantitative_meaning
+            ),
+        },
+        "output": {
+            "network_correlation_threshold": float(
+                config.network_correlation_threshold
+            ),
+            "network_policy": str(config.network_policy),
+        },
+        "performance": {
+            "max_exact_tree_sites": int(config.max_exact_tree_sites),
+            "max_full_candidate_scoring_sites": int(
+                config.max_full_candidate_scoring_sites
+            ),
+        },
+    }
+
+
+def _build_scale_guard_payload(
+    scale_guard_decision: SignalomeScaleGuardDecision,
+) -> dict[str, object]:
+    return {
+        "site_count": int(scale_guard_decision.site_count),
+        "input_protein_count": int(scale_guard_decision.input_protein_count),
+        "input_kinase_count": int(scale_guard_decision.input_kinase_count),
+        "selected_module_count": int(scale_guard_decision.selected_module_count),
+        "candidate_module_counts_evaluated": int(
+            scale_guard_decision.candidate_module_counts_evaluated
+        ),
+        "candidate_module_count_upper_bound": int(
+            scale_guard_decision.candidate_module_count_upper_bound
+        ),
+        "clustering_engine": str(scale_guard_decision.clustering_engine),
+        "clustering_engine_version": str(
+            scale_guard_decision.clustering_engine_version
+        ),
+        "backend_diagnostics": (
+            None
+            if scale_guard_decision.backend_diagnostics is None
+            else backend_diagnostics_to_payload(
+                scale_guard_decision.backend_diagnostics
+            )
+        ),
+        "tree_implementation": str(scale_guard_decision.tree_implementation),
+        "tree_generation_backend": str(scale_guard_decision.tree_generation_backend),
+        "tree_generation_mode": str(scale_guard_decision.tree_generation_mode),
+        "tree_generation_is_approximate": bool(
+            scale_guard_decision.tree_generation_is_approximate
+        ),
+        "tree_generation_scope": str(scale_guard_decision.tree_generation_scope),
+        "tree_generation_guard_triggered": bool(
+            scale_guard_decision.tree_generation_guard_triggered
+        ),
+        "candidate_scoring_policy": str(scale_guard_decision.candidate_scoring_policy),
+        "candidate_scoring_requested_policy": str(
+            scale_guard_decision.candidate_scoring_requested_policy
+        ),
+        "candidate_scoring_strategy": str(
+            scale_guard_decision.candidate_scoring_strategy
+        ),
+        "candidate_scoring_is_approximate": bool(
+            scale_guard_decision.candidate_scoring_is_approximate
+        ),
+        "candidate_scoring_guard_triggered": bool(
+            scale_guard_decision.candidate_scoring_guard_triggered
+        ),
+        "candidate_scoring_sampled_site_total": (
+            None
+            if scale_guard_decision.candidate_scoring_sampled_site_total is None
+            else int(scale_guard_decision.candidate_scoring_sampled_site_total)
+        ),
+        "candidate_scoring_sampled_pair_count": (
+            None
+            if scale_guard_decision.candidate_scoring_sampled_pair_count is None
+            else int(scale_guard_decision.candidate_scoring_sampled_pair_count)
+        ),
+        "max_exact_tree_sites": int(scale_guard_decision.max_exact_tree_sites),
+        "max_full_candidate_scoring_sites": int(
+            scale_guard_decision.max_full_candidate_scoring_sites
+        ),
+        "exact_cluster_tree_built": bool(scale_guard_decision.exact_cluster_tree_built),
+        "candidate_scoring_mode": str(scale_guard_decision.candidate_scoring_mode),
+        "candidate_scoring_evaluated": bool(
+            scale_guard_decision.candidate_scoring_evaluated
+        ),
+        "candidate_scoring_skip_reason": (
+            None
+            if scale_guard_decision.candidate_scoring_skip_reason is None
+            else str(scale_guard_decision.candidate_scoring_skip_reason)
+        ),
+        "candidate_scoring_sampling": (
+            None
+            if scale_guard_decision.candidate_scoring_sampling is None
+            else candidate_scoring_sampling_diagnostics_to_payload(
+                scale_guard_decision.candidate_scoring_sampling
+            )
+        ),
+        "candidate_scoring_applies_to": str(
+            scale_guard_decision.candidate_scoring_applies_to
+        ),
+        "final_module_assignment_backend": str(
+            scale_guard_decision.final_module_assignment_backend
+        ),
+        "final_module_assignment_uses_candidate_scoring": bool(
+            scale_guard_decision.final_module_assignment_uses_candidate_scoring
+        ),
+        "scale_guard_passed": bool(scale_guard_decision.scale_guard_passed),
+    }
+
+
+def _build_scientific_policy_records(
+    *,
+    request: ResolvedSignalomeWorkflowRequest,
+    config: ResolvedSignalomeExecutionConfig,
+    clustering_result: ClusterSitesResult,
+    scale_guard_decision: SignalomeScaleGuardDecision,
+    clustering_missing_value_diagnostics: SignalomeClusteringMissingValueDiagnostics,
+) -> tuple[ScientificPolicyRecord, ...]:
+    scientific_policies: list[ScientificPolicyRecord] = [
+        build_signalome_module_candidate_score_policy(
+            requested_policy=str(
+                scale_guard_decision.candidate_scoring_requested_policy
+            ),
+            candidate_scoring_policy=str(config.candidate_scoring_policy),
+            candidate_scoring_mode=str(clustering_result.candidate_scoring_mode),
+            max_exact_tree_sites=(
+                None
+                if config.max_exact_tree_sites is None
+                else int(config.max_exact_tree_sites)
+            ),
+            max_full_candidate_scoring_sites=int(
+                config.max_full_candidate_scoring_sites
+            ),
+            candidate_scoring_evaluated=bool(
+                clustering_result.candidate_scoring_evaluated
+            ),
+            candidate_scoring_skip_reason=(
+                None
+                if clustering_result.candidate_scoring_skip_reason is None
+                else str(clustering_result.candidate_scoring_skip_reason)
+            ),
+            candidate_scoring_scope=str(
+                scale_guard_decision.candidate_scoring_applies_to
+            ),
+            tree_generation_mode=str(scale_guard_decision.tree_generation_mode),
+            tree_generation_is_approximate=bool(
+                scale_guard_decision.tree_generation_is_approximate
+            ),
+        ),
+        SignalomeMissingValueClusteringPolicy(
+            missing_value_policy=str(clustering_missing_value_diagnostics.policy),
+            applies_to=str(SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_APPLIES_TO),
+            imputed_values_exposed_in_output_tables=bool(
+                SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_IMPUTED_VALUES_EXPOSED_IN_OUTPUT_TABLES
+            ),
+        ).record,
+        _build_signalome_assignment_policy_record(
+            assignment_policy=str(config.assignment_policy)
+        ),
+        _build_signalome_network_policy_record(
+            network_policy=str(config.network_policy),
+            network_correlation_threshold=float(config.network_correlation_threshold),
+        ),
+        ScorePreconditioningPolicy(
+            policy=str(request.score_preconditioning_diagnostics.policy),
+            input_row_count=int(
+                request.score_preconditioning_diagnostics.input_row_count
+            ),
+            dropped_all_missing_row_count=int(
+                request.score_preconditioning_diagnostics.dropped_all_missing_row_count
+            ),
+            retained_row_count=int(
+                request.score_preconditioning_diagnostics.retained_row_count
+            ),
+        ).record,
+        PROTEIN_MODULE_FROM_SITE_MEMBERSHIP_POLICY,
+    ]
+    if request.downstream_score_selection_policy is not None:
+        scientific_policies.append(request.downstream_score_selection_policy.record)
+    if config.candidate_scoring_policy_definition is not None:
+        scientific_policies.append(config.candidate_scoring_policy_definition.record)
+    return tuple(scientific_policies)
 
 
 def _build_signalome_score_semantics(
@@ -633,23 +680,6 @@ def _negative_correlation_handling(
             "meets threshold; edge correlation values retain sign"
         )
     return "negative-correlation handling depends on configured network_policy"
-
-
-def _canonicalise_for_provenance_fingerprint(
-    table: pd.DataFrame | None,
-) -> pd.DataFrame | None:
-    if table is None:
-        return None
-    canonical = table
-    try:
-        canonical = canonical.sort_index(axis=0, kind="mergesort")
-    except Exception:
-        pass
-    try:
-        canonical = canonical.sort_index(axis=1, kind="mergesort")
-    except Exception:
-        pass
-    return canonical
 
 
 def _build_signalome_assignment_policy_record(
