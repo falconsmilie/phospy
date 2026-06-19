@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.intensity_scale_state import (
@@ -34,6 +35,18 @@ from phospy.science.datasets.processing_state import (
     default_ruv_readiness_state,
 )
 from phospy.science.transformations.models import QuantitativeMeaning
+
+
+@dataclass(frozen=True, slots=True)
+class _ProcessingStatePayloads:
+    missing_data: Mapping[str, object]
+    normalisation: Mapping[str, object]
+    total_protein_correction: Mapping[str, object]
+    site_matrix: Mapping[str, object]
+    comparisons: Mapping[str, object]
+    site_sequence_resolution: Mapping[str, object]
+    intensity_scale: Mapping[str, object]
+    ruv_readiness_raw: object
 
 
 def processing_state_to_payload(state: DatasetProcessingState) -> dict[str, object]:
@@ -156,6 +169,86 @@ def processing_state_from_payload(
 ) -> DatasetProcessingState:
     """Deserialize dataset processing state from manifest payload."""
 
+    payloads = _require_processing_state_payloads(payload)
+    minimum_observed_values = _require_optional_int(
+        payloads.missing_data.get("min_observed_values"),
+        field_name="dataset.metadata.processing_state.missing_data.min_observed_values",
+    )
+    missing_data_diagnostics = _parse_optional_missing_data_diagnostics(
+        payloads.missing_data.get("diagnostics"),
+        field_name="dataset.metadata.processing_state.missing_data.diagnostics",
+    )
+    site_matrix_minimum_observed_values = _require_optional_int(
+        payloads.site_matrix.get("minimum_observed_values"),
+        field_name="dataset.metadata.processing_state.site_matrix.minimum_observed_values",
+    )
+    correction_applied = require_bool(
+        payloads.total_protein_correction.get("applied"),
+        field_name="dataset.metadata.processing_state.total_protein_correction.applied",
+    )
+    _require_payload_key(
+        payloads.total_protein_correction,
+        key="requires_log_scale",
+        field_name="dataset.metadata.processing_state.total_protein_correction",
+    )
+    _require_payload_key(
+        payloads.total_protein_correction,
+        key="quantitative_meaning",
+        field_name="dataset.metadata.processing_state.total_protein_correction",
+    )
+    _require_payload_key(
+        payloads.total_protein_correction,
+        key="diagnostics",
+        field_name="dataset.metadata.processing_state.total_protein_correction",
+    )
+    requires_log_scale = _require_optional_bool(
+        payloads.total_protein_correction.get("requires_log_scale"),
+        field_name=(
+            "dataset.metadata.processing_state.total_protein_correction."
+            "requires_log_scale"
+        ),
+    )
+    intensity_scale_state = intensity_scale_state_from_payload(payloads.intensity_scale)
+    correction_diagnostics = _parse_total_correction_diagnostics(
+        payloads.total_protein_correction.get("diagnostics"),
+        field_name=(
+            "dataset.metadata.processing_state.total_protein_correction.diagnostics"
+        ),
+    )
+    correction_quantitative_meaning = _require_total_correction_quantitative_meaning(
+        correction_payload=payloads.total_protein_correction,
+        correction_diagnostics=correction_diagnostics,
+    )
+    return DatasetProcessingState(
+        intensity_scale=intensity_scale_state,
+        site_sequence_resolution=_parse_site_sequence_resolution_state(
+            payloads.site_sequence_resolution
+        ),
+        missing_data=_parse_missing_data_state(
+            payloads.missing_data,
+            minimum_observed_values=minimum_observed_values,
+            diagnostics=missing_data_diagnostics,
+        ),
+        normalisation=_parse_normalisation_state(payloads.normalisation),
+        total_protein_correction=_parse_total_protein_correction_state(
+            payloads.total_protein_correction,
+            applied=correction_applied,
+            requires_log_scale=requires_log_scale,
+            quantitative_meaning=correction_quantitative_meaning,
+            diagnostics=correction_diagnostics,
+        ),
+        site_matrix=_parse_site_matrix_state(
+            payloads.site_matrix,
+            minimum_observed_values=site_matrix_minimum_observed_values,
+        ),
+        comparisons=_parse_comparison_state(payloads.comparisons),
+        ruv_readiness=_parse_ruv_readiness_state(payloads.ruv_readiness_raw),
+    )
+
+
+def _require_processing_state_payloads(
+    payload: Mapping[str, object],
+) -> _ProcessingStatePayloads:
     missing_data_payload = require_mapping(
         payload.get("missing_data"),
         field_name="dataset.metadata.processing_state.missing_data",
@@ -189,280 +282,262 @@ def processing_state_from_payload(
         payload.get("intensity_scale"),
         field_name="dataset.metadata.processing_state.intensity_scale",
     )
-    ruv_readiness_payload_raw = payload.get("ruv_readiness")
-    minimum_observed_values = _require_optional_int(
-        missing_data_payload.get("min_observed_values"),
-        field_name="dataset.metadata.processing_state.missing_data.min_observed_values",
+    return _ProcessingStatePayloads(
+        missing_data=missing_data_payload,
+        normalisation=normalisation_payload,
+        total_protein_correction=correction_payload,
+        site_matrix=site_matrix_payload,
+        comparisons=comparisons_payload,
+        site_sequence_resolution=site_sequence_resolution_payload,
+        intensity_scale=intensity_scale_payload,
+        ruv_readiness_raw=payload.get("ruv_readiness"),
     )
-    missing_data_diagnostics = _parse_optional_missing_data_diagnostics(
-        missing_data_payload.get("diagnostics"),
-        field_name="dataset.metadata.processing_state.missing_data.diagnostics",
-    )
-    site_matrix_minimum_observed_values = _require_optional_int(
-        site_matrix_payload.get("minimum_observed_values"),
-        field_name="dataset.metadata.processing_state.site_matrix.minimum_observed_values",
-    )
-    correction_applied = require_bool(
-        correction_payload.get("applied"),
-        field_name="dataset.metadata.processing_state.total_protein_correction.applied",
-    )
-    _require_payload_key(
-        correction_payload,
-        key="requires_log_scale",
-        field_name="dataset.metadata.processing_state.total_protein_correction",
-    )
-    _require_payload_key(
-        correction_payload,
-        key="quantitative_meaning",
-        field_name="dataset.metadata.processing_state.total_protein_correction",
-    )
-    _require_payload_key(
-        correction_payload,
-        key="diagnostics",
-        field_name="dataset.metadata.processing_state.total_protein_correction",
-    )
-    requires_log_scale = _require_optional_bool(
-        correction_payload.get("requires_log_scale"),
-        field_name=(
-            "dataset.metadata.processing_state.total_protein_correction."
-            "requires_log_scale"
-        ),
-    )
-    intensity_scale_state = intensity_scale_state_from_payload(intensity_scale_payload)
-    correction_diagnostics = _parse_total_correction_diagnostics(
-        correction_payload.get("diagnostics"),
-        field_name=(
-            "dataset.metadata.processing_state.total_protein_correction.diagnostics"
-        ),
-    )
-    correction_quantitative_meaning = _require_total_correction_quantitative_meaning(
-        correction_payload=correction_payload,
-        correction_diagnostics=correction_diagnostics,
-    )
-    return DatasetProcessingState(
-        intensity_scale=intensity_scale_state,
-        site_sequence_resolution=SiteSequenceResolutionState(
-            configured=require_bool(
-                site_sequence_resolution_payload.get("configured", False),
-                field_name=(
-                    "dataset.metadata.processing_state.site_sequence_resolution."
-                    "configured"
-                ),
-            ),
-            mode=_require_optional_str(
-                site_sequence_resolution_payload.get("mode"),
-                field_name=(
-                    "dataset.metadata.processing_state.site_sequence_resolution.mode"
-                ),
-            ),
-            flank_size=_require_optional_int(
-                site_sequence_resolution_payload.get("flank_size"),
-                field_name=(
-                    "dataset.metadata.processing_state.site_sequence_resolution."
-                    "flank_size"
-                ),
-            ),
-            fasta_source_path=_require_optional_str(
-                site_sequence_resolution_payload.get("fasta_source_path"),
-                field_name=(
-                    "dataset.metadata.processing_state.site_sequence_resolution."
-                    "fasta_source_path"
-                ),
-            ),
-            fasta_source_label=_require_optional_str(
-                site_sequence_resolution_payload.get("fasta_source_label"),
-                field_name=(
-                    "dataset.metadata.processing_state.site_sequence_resolution."
-                    "fasta_source_label"
-                ),
-            ),
-            fasta_sha256=_require_optional_str(
-                site_sequence_resolution_payload.get("fasta_sha256"),
-                field_name=(
-                    "dataset.metadata.processing_state.site_sequence_resolution."
-                    "fasta_sha256"
-                ),
-            ),
-            resolver_version=_require_optional_str(
-                site_sequence_resolution_payload.get("resolver_version"),
-                field_name=(
-                    "dataset.metadata.processing_state.site_sequence_resolution."
-                    "resolver_version"
-                ),
-            ),
-            resolved_site_count=require_int(
-                site_sequence_resolution_payload.get("resolved_site_count", 0),
-                field_name=(
-                    "dataset.metadata.processing_state.site_sequence_resolution."
-                    "resolved_site_count"
-                ),
-            ),
-            unresolved_site_count=require_int(
-                site_sequence_resolution_payload.get("unresolved_site_count", 0),
-                field_name=(
-                    "dataset.metadata.processing_state.site_sequence_resolution."
-                    "unresolved_site_count"
-                ),
-            ),
-            unresolved_counts_by_reason=_parse_optional_string_int_mapping(
-                site_sequence_resolution_payload.get("unresolved_counts_by_reason"),
-                field_name=(
-                    "dataset.metadata.processing_state.site_sequence_resolution."
-                    "unresolved_counts_by_reason"
-                ),
-            ),
-            filled_missing_count=require_int(
-                site_sequence_resolution_payload.get("filled_missing_count", 0),
-                field_name=(
-                    "dataset.metadata.processing_state.site_sequence_resolution."
-                    "filled_missing_count"
-                ),
-            ),
-            replaced_existing_count=require_int(
-                site_sequence_resolution_payload.get("replaced_existing_count", 0),
-                field_name=(
-                    "dataset.metadata.processing_state.site_sequence_resolution."
-                    "replaced_existing_count"
-                ),
-            ),
-            preserved_existing_count=require_int(
-                site_sequence_resolution_payload.get("preserved_existing_count", 0),
-                field_name=(
-                    "dataset.metadata.processing_state.site_sequence_resolution."
-                    "preserved_existing_count"
-                ),
-            ),
-            existing_sequence_conflict_count=require_int(
-                site_sequence_resolution_payload.get(
-                    "existing_sequence_conflict_count", 0
-                ),
-                field_name=(
-                    "dataset.metadata.processing_state.site_sequence_resolution."
-                    "existing_sequence_conflict_count"
-                ),
-            ),
-            conflict_policy=_require_optional_str(
-                site_sequence_resolution_payload.get("conflict_policy"),
-                field_name=(
-                    "dataset.metadata.processing_state.site_sequence_resolution."
-                    "conflict_policy"
-                ),
-            ),
-            row_diagnostics=_parse_optional_site_sequence_row_diagnostics(
-                site_sequence_resolution_payload.get("row_diagnostics"),
-                field_name=(
-                    "dataset.metadata.processing_state.site_sequence_resolution."
-                    "row_diagnostics"
-                ),
+
+
+def _parse_site_sequence_resolution_state(
+    payload: Mapping[str, object],
+) -> SiteSequenceResolutionState:
+    return SiteSequenceResolutionState(
+        configured=require_bool(
+            payload.get("configured", False),
+            field_name=(
+                "dataset.metadata.processing_state.site_sequence_resolution.configured"
             ),
         ),
-        missing_data=MissingDataState(
-            policy=MissingDataPolicy.parse(
-                require_str(
-                    missing_data_payload.get("policy"),
-                    field_name="dataset.metadata.processing_state.missing_data.policy",
-                ),
+        mode=_require_optional_str(
+            payload.get("mode"),
+            field_name="dataset.metadata.processing_state.site_sequence_resolution.mode",
+        ),
+        flank_size=_require_optional_int(
+            payload.get("flank_size"),
+            field_name=(
+                "dataset.metadata.processing_state.site_sequence_resolution.flank_size"
+            ),
+        ),
+        fasta_source_path=_require_optional_str(
+            payload.get("fasta_source_path"),
+            field_name=(
+                "dataset.metadata.processing_state.site_sequence_resolution."
+                "fasta_source_path"
+            ),
+        ),
+        fasta_source_label=_require_optional_str(
+            payload.get("fasta_source_label"),
+            field_name=(
+                "dataset.metadata.processing_state.site_sequence_resolution."
+                "fasta_source_label"
+            ),
+        ),
+        fasta_sha256=_require_optional_str(
+            payload.get("fasta_sha256"),
+            field_name=(
+                "dataset.metadata.processing_state.site_sequence_resolution."
+                "fasta_sha256"
+            ),
+        ),
+        resolver_version=_require_optional_str(
+            payload.get("resolver_version"),
+            field_name=(
+                "dataset.metadata.processing_state.site_sequence_resolution."
+                "resolver_version"
+            ),
+        ),
+        resolved_site_count=require_int(
+            payload.get("resolved_site_count", 0),
+            field_name=(
+                "dataset.metadata.processing_state.site_sequence_resolution."
+                "resolved_site_count"
+            ),
+        ),
+        unresolved_site_count=require_int(
+            payload.get("unresolved_site_count", 0),
+            field_name=(
+                "dataset.metadata.processing_state.site_sequence_resolution."
+                "unresolved_site_count"
+            ),
+        ),
+        unresolved_counts_by_reason=_parse_optional_string_int_mapping(
+            payload.get("unresolved_counts_by_reason"),
+            field_name=(
+                "dataset.metadata.processing_state.site_sequence_resolution."
+                "unresolved_counts_by_reason"
+            ),
+        ),
+        filled_missing_count=require_int(
+            payload.get("filled_missing_count", 0),
+            field_name=(
+                "dataset.metadata.processing_state.site_sequence_resolution."
+                "filled_missing_count"
+            ),
+        ),
+        replaced_existing_count=require_int(
+            payload.get("replaced_existing_count", 0),
+            field_name=(
+                "dataset.metadata.processing_state.site_sequence_resolution."
+                "replaced_existing_count"
+            ),
+        ),
+        preserved_existing_count=require_int(
+            payload.get("preserved_existing_count", 0),
+            field_name=(
+                "dataset.metadata.processing_state.site_sequence_resolution."
+                "preserved_existing_count"
+            ),
+        ),
+        existing_sequence_conflict_count=require_int(
+            payload.get("existing_sequence_conflict_count", 0),
+            field_name=(
+                "dataset.metadata.processing_state.site_sequence_resolution."
+                "existing_sequence_conflict_count"
+            ),
+        ),
+        conflict_policy=_require_optional_str(
+            payload.get("conflict_policy"),
+            field_name=(
+                "dataset.metadata.processing_state.site_sequence_resolution."
+                "conflict_policy"
+            ),
+        ),
+        row_diagnostics=_parse_optional_site_sequence_row_diagnostics(
+            payload.get("row_diagnostics"),
+            field_name=(
+                "dataset.metadata.processing_state.site_sequence_resolution."
+                "row_diagnostics"
+            ),
+        ),
+    )
+
+
+def _parse_missing_data_state(
+    payload: Mapping[str, object],
+    *,
+    minimum_observed_values: int | None,
+    diagnostics: MissingDataDiagnostics | None,
+) -> MissingDataState:
+    return MissingDataState(
+        policy=MissingDataPolicy.parse(
+            require_str(
+                payload.get("policy"),
                 field_name="dataset.metadata.processing_state.missing_data.policy",
             ),
-            min_observed_values=minimum_observed_values,
-            complete_matrix=require_bool(
-                missing_data_payload.get("complete_matrix"),
-                field_name=(
-                    "dataset.metadata.processing_state.missing_data.complete_matrix"
-                ),
-            ),
-            imputed=require_bool(
-                missing_data_payload.get("imputed"),
-                field_name="dataset.metadata.processing_state.missing_data.imputed",
-            ),
-            diagnostics=missing_data_diagnostics,
+            field_name="dataset.metadata.processing_state.missing_data.policy",
         ),
-        normalisation=NormalisationState(
-            policy=require_str(
-                normalisation_payload.get("policy"),
-                field_name="dataset.metadata.processing_state.normalisation.policy",
-            )
+        min_observed_values=minimum_observed_values,
+        complete_matrix=require_bool(
+            payload.get("complete_matrix"),
+            field_name="dataset.metadata.processing_state.missing_data.complete_matrix",
         ),
-        total_protein_correction=TotalProteinCorrectionState(
-            policy=TotalProteinCorrectionPolicy.parse(
-                require_str(
-                    correction_payload.get("policy"),
-                    field_name=(
-                        "dataset.metadata.processing_state.total_protein_correction.policy"
-                    ),
-                ),
+        imputed=require_bool(
+            payload.get("imputed"),
+            field_name="dataset.metadata.processing_state.missing_data.imputed",
+        ),
+        diagnostics=diagnostics,
+    )
+
+
+def _parse_normalisation_state(
+    payload: Mapping[str, object],
+) -> NormalisationState:
+    return NormalisationState(
+        policy=require_str(
+            payload.get("policy"),
+            field_name="dataset.metadata.processing_state.normalisation.policy",
+        )
+    )
+
+
+def _parse_total_protein_correction_state(
+    payload: Mapping[str, object],
+    *,
+    applied: bool,
+    requires_log_scale: bool | None,
+    quantitative_meaning: QuantitativeMeaning,
+    diagnostics: TotalProteinCorrectionDiagnostics,
+) -> TotalProteinCorrectionState:
+    return TotalProteinCorrectionState(
+        policy=TotalProteinCorrectionPolicy.parse(
+            require_str(
+                payload.get("policy"),
                 field_name=(
                     "dataset.metadata.processing_state.total_protein_correction.policy"
                 ),
             ),
-            applied=correction_applied,
-            formula=_require_optional_str(
-                correction_payload.get("formula"),
-                field_name=(
-                    "dataset.metadata.processing_state.total_protein_correction.formula"
-                ),
-            ),
-            requires_log_scale=requires_log_scale,
-            input_scale=_require_optional_str(
-                correction_payload.get("input_scale"),
-                field_name=(
-                    "dataset.metadata.processing_state.total_protein_correction."
-                    "input_scale"
-                ),
-            ),
-            output_scale=_require_optional_str(
-                correction_payload.get("output_scale"),
-                field_name=(
-                    "dataset.metadata.processing_state.total_protein_correction."
-                    "output_scale"
-                ),
-            ),
-            quantitative_meaning=correction_quantitative_meaning,
-            diagnostics=correction_diagnostics,
-        ),
-        site_matrix=SiteMatrixState(
-            policy=require_str(
-                site_matrix_payload.get("policy"),
-                field_name="dataset.metadata.processing_state.site_matrix.policy",
-            ),
-            constructed=require_bool(
-                site_matrix_payload.get("constructed"),
-                field_name=(
-                    "dataset.metadata.processing_state.site_matrix.constructed"
-                ),
-            ),
-            missing_data_policy=require_str(
-                site_matrix_payload.get("missing_data_policy"),
-                field_name=(
-                    "dataset.metadata.processing_state.site_matrix.missing_data_policy"
-                ),
-            ),
-            minimum_observed_values=site_matrix_minimum_observed_values,
-            duplicate_site_policy=require_str(
-                site_matrix_payload.get("duplicate_site_policy"),
-                field_name=(
-                    "dataset.metadata.processing_state."
-                    "site_matrix.duplicate_site_policy"
-                ),
+            field_name=(
+                "dataset.metadata.processing_state.total_protein_correction.policy"
             ),
         ),
-        comparisons=ComparisonState(
-            policy=require_str(
-                comparisons_payload.get("policy"),
-                field_name="dataset.metadata.processing_state.comparisons.policy",
-            ),
-            sample_group_column=require_str(
-                comparisons_payload.get("sample_group_column"),
-                field_name=(
-                    "dataset.metadata.processing_state.comparisons.sample_group_column"
-                ),
-            ),
-            pairs=_parse_optional_pairs(
-                comparisons_payload.get("pairs"),
-                field_name="dataset.metadata.processing_state.comparisons.pairs",
+        applied=applied,
+        formula=_require_optional_str(
+            payload.get("formula"),
+            field_name="dataset.metadata.processing_state.total_protein_correction.formula",
+        ),
+        requires_log_scale=requires_log_scale,
+        input_scale=_require_optional_str(
+            payload.get("input_scale"),
+            field_name=(
+                "dataset.metadata.processing_state.total_protein_correction.input_scale"
             ),
         ),
-        ruv_readiness=_parse_ruv_readiness_state(ruv_readiness_payload_raw),
+        output_scale=_require_optional_str(
+            payload.get("output_scale"),
+            field_name=(
+                "dataset.metadata.processing_state.total_protein_correction."
+                "output_scale"
+            ),
+        ),
+        quantitative_meaning=quantitative_meaning,
+        diagnostics=diagnostics,
+    )
+
+
+def _parse_site_matrix_state(
+    payload: Mapping[str, object],
+    *,
+    minimum_observed_values: int | None,
+) -> SiteMatrixState:
+    return SiteMatrixState(
+        policy=require_str(
+            payload.get("policy"),
+            field_name="dataset.metadata.processing_state.site_matrix.policy",
+        ),
+        constructed=require_bool(
+            payload.get("constructed"),
+            field_name="dataset.metadata.processing_state.site_matrix.constructed",
+        ),
+        missing_data_policy=require_str(
+            payload.get("missing_data_policy"),
+            field_name=(
+                "dataset.metadata.processing_state.site_matrix.missing_data_policy"
+            ),
+        ),
+        minimum_observed_values=minimum_observed_values,
+        duplicate_site_policy=require_str(
+            payload.get("duplicate_site_policy"),
+            field_name=(
+                "dataset.metadata.processing_state.site_matrix.duplicate_site_policy"
+            ),
+        ),
+    )
+
+
+def _parse_comparison_state(
+    payload: Mapping[str, object],
+) -> ComparisonState:
+    return ComparisonState(
+        policy=require_str(
+            payload.get("policy"),
+            field_name="dataset.metadata.processing_state.comparisons.policy",
+        ),
+        sample_group_column=require_str(
+            payload.get("sample_group_column"),
+            field_name=(
+                "dataset.metadata.processing_state.comparisons.sample_group_column"
+            ),
+        ),
+        pairs=_parse_optional_pairs(
+            payload.get("pairs"),
+            field_name="dataset.metadata.processing_state.comparisons.pairs",
+        ),
     )
 
 

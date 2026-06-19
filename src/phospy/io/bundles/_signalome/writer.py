@@ -33,7 +33,40 @@ def save_signalome_workflow_bundle(
     normalized_format = output_format.strip().lower()
     written: dict[str, Path] = {}
 
-    dataset_tables = {
+    dataset_tables = _write_dataset_tables(result, bundle_root, suffix, written)
+    reference_tables = _write_reference_tables(result, bundle_root, suffix, written)
+    scoring_tables = _write_scoring_tables(result, bundle_root, suffix, written)
+    prediction_tables = _write_prediction_tables(result, bundle_root, suffix, written)
+    activity_tables = _write_activity_tables(result, bundle_root, suffix, written)
+    signalome_tables = _write_signalome_tables(result, bundle_root, suffix, written)
+
+    config_path = bundle_root / Path(CONFIG_SNAPSHOT_RELATIVE_PATH)
+    write_json(config_path, config_snapshot.to_payload(), label="config snapshot")
+    written["config_snapshot"] = config_path
+
+    manifest = build_manifest(
+        result=result,
+        table_format=normalized_format,
+        dataset_tables=dataset_tables,
+        reference_tables=reference_tables,
+        scoring_tables=scoring_tables,
+        prediction_tables=prediction_tables,
+        activity_tables=activity_tables,
+        signalome_tables=signalome_tables,
+    )
+    manifest_path = bundle_root / MANIFEST_FILENAME
+    write_json(manifest_path, manifest, label="bundle manifest")
+    written["manifest"] = manifest_path
+    return written
+
+
+def _write_dataset_tables(
+    result: SignalomeWorkflowResult,
+    bundle_root: Path,
+    suffix: str,
+    written: dict[str, Path],
+) -> dict[str, object]:
+    return {
         "phospho": write_bundle_table(
             table=result.dataset.phospho,
             bundle_root=bundle_root,
@@ -64,7 +97,14 @@ def save_signalome_workflow_bundle(
         ),
     }
 
-    reference_tables = {
+
+def _write_reference_tables(
+    result: SignalomeWorkflowResult,
+    bundle_root: Path,
+    suffix: str,
+    written: dict[str, Path],
+) -> dict[str, object]:
+    return {
         "kinase_substrate_map": write_bundle_table(
             table=result.kinase_result.references.kinase_substrate_map,
             bundle_root=bundle_root,
@@ -81,6 +121,13 @@ def save_signalome_workflow_bundle(
         ),
     }
 
+
+def _write_scoring_tables(
+    result: SignalomeWorkflowResult,
+    bundle_root: Path,
+    suffix: str,
+    written: dict[str, Path],
+) -> dict[str, object]:
     scoring_tables = {
         "profile_scores": write_bundle_table(
             table=result.kinase_result.scoring_result.profile_scores,
@@ -140,9 +187,16 @@ def save_signalome_workflow_bundle(
             written_key="scoring.kinase_library_kinase_diagnostics",
         ),
     }
-    scoring_tables = _drop_absent_kinase_library_scoring_tables(scoring_tables)
+    return _drop_absent_kinase_library_scoring_tables(scoring_tables)
 
-    prediction_tables = {
+
+def _write_prediction_tables(
+    result: SignalomeWorkflowResult,
+    bundle_root: Path,
+    suffix: str,
+    written: dict[str, Path],
+) -> dict[str, object]:
+    return {
         "pred_mat": write_bundle_table(
             table=result.kinase_result.prediction_result.pred_mat,
             bundle_root=bundle_root,
@@ -159,13 +213,17 @@ def save_signalome_workflow_bundle(
         ),
     }
 
-    activity_tables = {
+
+def _write_activity_tables(
+    result: SignalomeWorkflowResult,
+    bundle_root: Path,
+    suffix: str,
+    written: dict[str, Path],
+) -> dict[str, object]:
+    activity_result = result.kinase_result.activity_result
+    return {
         "weighted_activity": write_optional_bundle_table(
-            table=(
-                None
-                if result.kinase_result.activity_result is None
-                else result.kinase_result.activity_result.activity_matrix
-            ),
+            table=None if activity_result is None else activity_result.activity_matrix,
             bundle_root=bundle_root,
             relative_path=Path("activity") / f"weighted_activity{suffix}",
             written=written,
@@ -174,8 +232,8 @@ def save_signalome_workflow_bundle(
         "thresholded_substrate_mean_activity": write_optional_bundle_table(
             table=(
                 None
-                if result.kinase_result.activity_result is None
-                else result.kinase_result.activity_result.thresholded_substrate_mean_activity
+                if activity_result is None
+                else activity_result.thresholded_substrate_mean_activity
             ),
             bundle_root=bundle_root,
             relative_path=Path("activity")
@@ -186,8 +244,8 @@ def save_signalome_workflow_bundle(
         "thresholded_substrate_counts": write_optional_bundle_table(
             table=(
                 None
-                if result.kinase_result.activity_result is None
-                else result.kinase_result.activity_result.thresholded_substrate_counts.to_frame(
+                if activity_result is None
+                else activity_result.thresholded_substrate_counts.to_frame(
                     name="n_substrates"
                 )
             ),
@@ -199,8 +257,8 @@ def save_signalome_workflow_bundle(
         "activity_substrate_counts": write_optional_bundle_table(
             table=(
                 None
-                if result.kinase_result.activity_result is None
-                else result.kinase_result.activity_result.activity_substrate_counts
+                if activity_result is None
+                else activity_result.activity_substrate_counts
             ),
             bundle_root=bundle_root,
             relative_path=Path("activity") / f"activity_substrate_counts{suffix}",
@@ -210,10 +268,8 @@ def save_signalome_workflow_bundle(
         "target_counts": write_optional_bundle_table(
             table=(
                 None
-                if result.kinase_result.activity_result is None
-                else result.kinase_result.activity_result.target_counts.to_frame(
-                    name="n_targets"
-                )
+                if activity_result is None
+                else activity_result.target_counts.to_frame(name="n_targets")
             ),
             bundle_root=bundle_root,
             relative_path=Path("activity") / f"target_counts{suffix}",
@@ -221,11 +277,7 @@ def save_signalome_workflow_bundle(
             written_key="activity.target_counts",
         ),
         "target_table": write_optional_bundle_table(
-            table=(
-                None
-                if result.kinase_result.activity_result is None
-                else result.kinase_result.activity_result.target_table
-            ),
+            table=None if activity_result is None else activity_result.target_table,
             bundle_root=bundle_root,
             relative_path=Path("activity") / f"target_table{suffix}",
             written=written,
@@ -233,7 +285,14 @@ def save_signalome_workflow_bundle(
         ),
     }
 
-    signalome_tables = {
+
+def _write_signalome_tables(
+    result: SignalomeWorkflowResult,
+    bundle_root: Path,
+    suffix: str,
+    written: dict[str, Path],
+) -> dict[str, object]:
+    return {
         "module_assignments": write_bundle_table(
             table=result.module_assignments.table,
             bundle_root=bundle_root,
@@ -292,25 +351,6 @@ def save_signalome_workflow_bundle(
             written_key="signalome.protein_site_context",
         ),
     }
-
-    config_path = bundle_root / Path(CONFIG_SNAPSHOT_RELATIVE_PATH)
-    write_json(config_path, config_snapshot.to_payload(), label="config snapshot")
-    written["config_snapshot"] = config_path
-
-    manifest = build_manifest(
-        result=result,
-        table_format=normalized_format,
-        dataset_tables=dataset_tables,
-        reference_tables=reference_tables,
-        scoring_tables=scoring_tables,
-        prediction_tables=prediction_tables,
-        activity_tables=activity_tables,
-        signalome_tables=signalome_tables,
-    )
-    manifest_path = bundle_root / MANIFEST_FILENAME
-    write_json(manifest_path, manifest, label="bundle manifest")
-    written["manifest"] = manifest_path
-    return written
 
 
 def _drop_absent_kinase_library_scoring_tables(

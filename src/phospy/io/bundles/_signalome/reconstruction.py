@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
-from typing import NoReturn
+from typing import Any, NoReturn
 
 from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.errors.input import PhosPyInputError
@@ -45,6 +46,9 @@ from phospy.science.signalomes.models import (
     SignalomeAlignmentDiagnostics,
     SignalomeAssignments,
     SignalomeModules,
+    SignalomeModuleSelectionDiagnostics,
+    SignalomeNetworkCorrelationDiagnostics,
+    SignalomeScorePreconditioningDiagnostics,
     default_signalome_alignment_diagnostics,
 )
 from phospy.science.transformations.models import IntensityScaleState
@@ -54,6 +58,28 @@ _LEGACY_SIGNALOME_BUNDLE_SCHEMA_ERROR = (
     "with the current PhosPy version."
 )
 _LEGACY_SIGNALOME_DIAGNOSTIC_FIELDS = frozenset({"tree_engine", "tree_engine_version"})
+
+
+@dataclass(frozen=True, slots=True)
+class _BundleProvenances:
+    signalome: RunProvenance
+    upstream_kinase: RunProvenance
+
+
+@dataclass(frozen=True, slots=True)
+class _SignalomeDiagnostics:
+    module_selection: SignalomeModuleSelectionDiagnostics
+    score_preconditioning: SignalomeScorePreconditioningDiagnostics
+    alignment: SignalomeAlignmentDiagnostics
+    network_correlation: SignalomeNetworkCorrelationDiagnostics
+
+
+@dataclass(frozen=True, slots=True)
+class _SignalomeOptionalTables:
+    candidate_correlations: Any | None
+    site_membership: Any | None
+    protein_site_context: Any | None
+    expanded_signalome: Any | None
 
 
 def _normalize_site_metadata_for_dataset_contract(site_metadata):
@@ -104,6 +130,72 @@ def reconstruct_signalome_result(
 ) -> SignalomeWorkflowResult:
     """Rebuild a SignalomeWorkflowResult from validated manifest sections."""
 
+    provenances = _parse_bundle_provenances(sections)
+    dataset = _reconstruct_dataset(bundle_root=bundle_root, sections=sections)
+    references = _reconstruct_references(bundle_root=bundle_root, sections=sections)
+    kinase_result = _reconstruct_kinase_result(
+        bundle_root=bundle_root,
+        sections=sections,
+        dataset=dataset,
+        references=references,
+        provenance=provenances.upstream_kinase,
+    )
+    diagnostics = _reconstruct_signalome_diagnostics(sections)
+    optional_tables = _read_signalome_optional_tables(
+        bundle_root=bundle_root,
+        sections=sections,
+    )
+
+    return SignalomeWorkflowResult(
+        dataset=dataset,
+        kinase_result=kinase_result,
+        module_assignments=SignalomeAssignments(
+            table=normalize_module_assignments_table(
+                read_required_table(
+                    bundle_root=bundle_root,
+                    tables=sections.signalome_tables,
+                    table_key="module_assignments",
+                    field_name="bundle manifest.signalome_outputs.tables.module_assignments",
+                )
+            )
+        ),
+        signalome_modules=SignalomeModules(
+            table=read_required_table(
+                bundle_root=bundle_root,
+                tables=sections.signalome_tables,
+                table_key="signalome_modules",
+                field_name="bundle manifest.signalome_outputs.tables.signalome_modules",
+            )
+        ),
+        kinase_network=KinaseNetwork(
+            edges=read_required_table(
+                bundle_root=bundle_root,
+                tables=sections.signalome_tables,
+                table_key="kinase_network_edges",
+                field_name="bundle manifest.signalome_outputs.tables.kinase_network_edges",
+            ),
+            nodes=read_optional_table(
+                bundle_root=bundle_root,
+                tables=sections.signalome_tables,
+                table_key="kinase_network_nodes",
+                field_name="bundle manifest.signalome_outputs.tables.kinase_network_nodes",
+            ),
+            candidate_correlations=optional_tables.candidate_correlations,
+            correlation_diagnostics=diagnostics.network_correlation,
+        ),
+        module_selection_diagnostics=diagnostics.module_selection,
+        score_preconditioning_diagnostics=diagnostics.score_preconditioning,
+        alignment_diagnostics=diagnostics.alignment,
+        expanded_signalome=optional_tables.expanded_signalome,
+        site_membership=optional_tables.site_membership,
+        protein_site_context=optional_tables.protein_site_context,
+        provenance=provenances.signalome,
+    )
+
+
+def _parse_bundle_provenances(
+    sections: SignalomeManifestSections,
+) -> _BundleProvenances:
     signalome_provenance = _parse_bundle_provenance(sections.provenance_payload)
     _reject_legacy_signalome_diagnostic_fields(
         signalome_provenance.workflow_parameters,
@@ -118,7 +210,17 @@ def reconstruct_signalome_result(
             "is required for signalome bundles; regenerate this bundle with the "
             "current PhosPy version"
         )
-    upstream_kinase_provenance = _parse_bundle_provenance(upstream_raw)
+    return _BundleProvenances(
+        signalome=signalome_provenance,
+        upstream_kinase=_parse_bundle_provenance(upstream_raw),
+    )
+
+
+def _reconstruct_dataset(
+    *,
+    bundle_root: Path,
+    sections: SignalomeManifestSections,
+) -> AnalysisReadyPhosphoDataset:
     processing_state_payload = require_mapping(
         sections.dataset_metadata.get("processing_state"),
         field_name="bundle manifest.dataset.metadata.processing_state",
@@ -138,7 +240,7 @@ def reconstruct_signalome_result(
     dataset_site_metadata = _normalize_site_metadata_for_dataset_contract(
         dataset_site_metadata
     )
-    dataset = AnalysisReadyPhosphoDataset._from_owned(
+    return AnalysisReadyPhosphoDataset._from_owned(
         phospho=read_required_table(
             bundle_root=bundle_root,
             tables=sections.dataset_tables,
@@ -168,7 +270,13 @@ def reconstruct_signalome_result(
         processing_state=processing_state,
     )
 
-    references = ReferenceBundle(
+
+def _reconstruct_references(
+    *,
+    bundle_root: Path,
+    sections: SignalomeManifestSections,
+) -> ReferenceBundle:
+    return ReferenceBundle(
         organism=parse_required_organism(
             sections.references_metadata.get("organism"),
             field_name="bundle manifest.resolved_references.metadata.organism",
@@ -187,7 +295,40 @@ def reconstruct_signalome_result(
         ),
     )
 
-    scoring_result = KinaseScoringResult(
+
+def _reconstruct_kinase_result(
+    *,
+    bundle_root: Path,
+    sections: SignalomeManifestSections,
+    dataset: AnalysisReadyPhosphoDataset,
+    references: ReferenceBundle,
+    provenance: RunProvenance,
+) -> KinaseWorkflowResult:
+    return KinaseWorkflowResult(
+        dataset=dataset,
+        references=references,
+        scoring_result=_reconstruct_scoring_result(
+            bundle_root=bundle_root,
+            sections=sections,
+        ),
+        prediction_result=_reconstruct_prediction_result(
+            bundle_root=bundle_root,
+            sections=sections,
+        ),
+        activity_result=_reconstruct_activity_result(
+            bundle_root=bundle_root,
+            sections=sections,
+        ),
+        provenance=provenance,
+    )
+
+
+def _reconstruct_scoring_result(
+    *,
+    bundle_root: Path,
+    sections: SignalomeManifestSections,
+) -> KinaseScoringResult:
+    return KinaseScoringResult(
         profile_scores=read_required_table(
             bundle_root=bundle_root,
             tables=sections.scoring_tables,
@@ -260,7 +401,13 @@ def reconstruct_signalome_result(
         ),
     )
 
-    prediction_result = KinasePredictionResult(
+
+def _reconstruct_prediction_result(
+    *,
+    bundle_root: Path,
+    sections: SignalomeManifestSections,
+) -> KinasePredictionResult:
+    return KinasePredictionResult(
         pred_mat=read_required_table(
             bundle_root=bundle_root,
             tables=sections.prediction_tables,
@@ -280,6 +427,12 @@ def reconstruct_signalome_result(
         ),
     )
 
+
+def _reconstruct_activity_result(
+    *,
+    bundle_root: Path,
+    sections: SignalomeManifestSections,
+) -> KinaseActivityResult | None:
     weighted_activity = read_optional_table(
         bundle_root=bundle_root,
         tables=sections.activity_tables,
@@ -338,7 +491,7 @@ def reconstruct_signalome_result(
             raise PhosPyInputError(
                 "bundle manifest upstream_kinase_outputs.activity.tables are incomplete for enabled activity outputs"
             )
-        activity_result = KinaseActivityResult(
+        return KinaseActivityResult(
             weighted_activity=weighted_activity,
             thresholded_substrate_mean_activity=thresholded_substrate_mean_activity,
             thresholded_substrate_counts=thresholded_substrate_counts,
@@ -346,29 +499,25 @@ def reconstruct_signalome_result(
             target_counts=target_counts,
             target_table=target_table,
         )
-    else:
-        if (
-            weighted_activity is not None
-            or thresholded_substrate_mean_activity is not None
-            or thresholded_substrate_counts is not None
-            or activity_substrate_counts is not None
-            or target_counts is not None
-            or target_table is not None
-        ):
-            raise PhosPyInputError(
-                "bundle manifest upstream_kinase_outputs.activity.enabled=false must "
-                "not declare populated activity tables"
-            )
-        activity_result = None
 
-    kinase_result = KinaseWorkflowResult(
-        dataset=dataset,
-        references=references,
-        scoring_result=scoring_result,
-        prediction_result=prediction_result,
-        activity_result=activity_result,
-        provenance=upstream_kinase_provenance,
-    )
+    if (
+        weighted_activity is not None
+        or thresholded_substrate_mean_activity is not None
+        or thresholded_substrate_counts is not None
+        or activity_substrate_counts is not None
+        or target_counts is not None
+        or target_table is not None
+    ):
+        raise PhosPyInputError(
+            "bundle manifest upstream_kinase_outputs.activity.enabled=false must "
+            "not declare populated activity tables"
+        )
+    return None
+
+
+def _reconstruct_signalome_diagnostics(
+    sections: SignalomeManifestSections,
+) -> _SignalomeDiagnostics:
     module_selection_diagnostics = signalome_module_selection_diagnostics_from_payload(
         sections.signalome_metadata.get("module_selection_diagnostics"),
         scope="bundle manifest.signalome_outputs.metadata",
@@ -394,12 +543,47 @@ def reconstruct_signalome_result(
             scope="bundle manifest.signalome_outputs.metadata",
         )
     )
+    return _SignalomeDiagnostics(
+        module_selection=module_selection_diagnostics,
+        score_preconditioning=score_preconditioning_diagnostics,
+        alignment=alignment_diagnostics,
+        network_correlation=network_correlation_diagnostics,
+    )
+
+
+def _read_signalome_optional_tables(
+    *,
+    bundle_root: Path,
+    sections: SignalomeManifestSections,
+) -> _SignalomeOptionalTables:
     candidate_correlations = read_optional_table(
         bundle_root=bundle_root,
         tables=sections.signalome_tables,
         table_key="kinase_network_candidate_correlations",
         field_name="bundle manifest.signalome_outputs.tables.kinase_network_candidate_correlations",
     )
+    return _SignalomeOptionalTables(
+        candidate_correlations=candidate_correlations,
+        site_membership=_read_site_membership_table(
+            bundle_root=bundle_root,
+            sections=sections,
+        ),
+        protein_site_context=_read_protein_site_context_table(
+            bundle_root=bundle_root,
+            sections=sections,
+        ),
+        expanded_signalome=_read_expanded_signalome_table(
+            bundle_root=bundle_root,
+            sections=sections,
+        ),
+    )
+
+
+def _read_site_membership_table(
+    *,
+    bundle_root: Path,
+    sections: SignalomeManifestSections,
+) -> Any | None:
     site_membership = read_optional_table(
         bundle_root=bundle_root,
         tables=sections.signalome_tables,
@@ -432,6 +616,14 @@ def reconstruct_signalome_result(
                 "excluded_reason",
             ),
         )
+    return site_membership
+
+
+def _read_protein_site_context_table(
+    *,
+    bundle_root: Path,
+    sections: SignalomeManifestSections,
+) -> Any | None:
     protein_site_context = read_optional_table(
         bundle_root=bundle_root,
         tables=sections.signalome_tables,
@@ -456,6 +648,14 @@ def reconstruct_signalome_result(
                 "site_key_to_display_id",
             ),
         )
+    return protein_site_context
+
+
+def _read_expanded_signalome_table(
+    *,
+    bundle_root: Path,
+    sections: SignalomeManifestSections,
+) -> Any | None:
     expanded_signalome = read_optional_table(
         bundle_root=bundle_root,
         tables=sections.signalome_tables,
@@ -483,52 +683,7 @@ def reconstruct_signalome_result(
                 "expanded_signalome_support_kinases",
             ),
         )
-
-    return SignalomeWorkflowResult(
-        dataset=dataset,
-        kinase_result=kinase_result,
-        module_assignments=SignalomeAssignments(
-            table=normalize_module_assignments_table(
-                read_required_table(
-                    bundle_root=bundle_root,
-                    tables=sections.signalome_tables,
-                    table_key="module_assignments",
-                    field_name="bundle manifest.signalome_outputs.tables.module_assignments",
-                )
-            )
-        ),
-        signalome_modules=SignalomeModules(
-            table=read_required_table(
-                bundle_root=bundle_root,
-                tables=sections.signalome_tables,
-                table_key="signalome_modules",
-                field_name="bundle manifest.signalome_outputs.tables.signalome_modules",
-            )
-        ),
-        kinase_network=KinaseNetwork(
-            edges=read_required_table(
-                bundle_root=bundle_root,
-                tables=sections.signalome_tables,
-                table_key="kinase_network_edges",
-                field_name="bundle manifest.signalome_outputs.tables.kinase_network_edges",
-            ),
-            nodes=read_optional_table(
-                bundle_root=bundle_root,
-                tables=sections.signalome_tables,
-                table_key="kinase_network_nodes",
-                field_name="bundle manifest.signalome_outputs.tables.kinase_network_nodes",
-            ),
-            candidate_correlations=candidate_correlations,
-            correlation_diagnostics=network_correlation_diagnostics,
-        ),
-        module_selection_diagnostics=module_selection_diagnostics,
-        score_preconditioning_diagnostics=score_preconditioning_diagnostics,
-        alignment_diagnostics=alignment_diagnostics,
-        expanded_signalome=expanded_signalome,
-        site_membership=site_membership,
-        protein_site_context=protein_site_context,
-        provenance=signalome_provenance,
-    )
+    return expanded_signalome
 
 
 def _parse_bundle_provenance(payload: Mapping[str, object]) -> RunProvenance:
