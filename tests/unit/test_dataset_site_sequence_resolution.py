@@ -18,6 +18,13 @@ from phospy.science.datasets.builders.preprocessing import (
     build_dataset_processing_state,
 )
 from phospy.science.datasets.preprocessing.models import PreprocessingPlan
+from phospy.science.datasets.preprocessing.policy_models import (
+    SiteSequenceConflictPolicy,
+    SiteSequenceResolutionMode,
+)
+from phospy.science.datasets.preprocessing.site_sequence.reference_loader import (
+    SiteSequenceReferenceLoader,
+)
 
 
 def _phospho() -> pd.DataFrame:
@@ -251,6 +258,25 @@ def test_replace_existing_mode_replaces_conflicting_sequence(tmp_path: Path) -> 
     assert diagnostics["existing_sequence_conflict_count"] == 1
     assert diagnostics["replaced_existing_count"] == 1
     assert diagnostics["row_diagnostics"][0]["action"] == "replace_existing"
+
+
+def test_legacy_replace_existing_plan_mode_overrides_preserve_policy(
+    tmp_path: Path,
+) -> None:
+    plan = PreprocessingPlan(
+        site_sequence_resolution_enabled=True,
+        site_sequence_resolution_fasta_path=_write_fasta(tmp_path),
+        site_sequence_resolution_mode=SiteSequenceResolutionMode.REPLACE_EXISTING,
+        site_sequence_resolution_conflict_policy=(
+            SiteSequenceConflictPolicy.PRESERVE_EXISTING
+        ),
+        site_sequence_resolution_flank_size=2,
+    )
+
+    context = SiteSequenceReferenceLoader().load(plan)
+
+    assert context.mode is SiteSequenceResolutionMode.REPLACE_EXISTING
+    assert context.conflict_policy is SiteSequenceConflictPolicy.REPLACE_EXISTING
 
 
 def test_error_conflict_policy_raises_with_structured_row_diagnostics(

@@ -98,10 +98,9 @@ def build_motif_library_from_sequences(
 ) -> tuple[dict[str, pd.DataFrame], pd.Series]:
     """Build motif frequency matrices from explicit per-kinase sequences.
 
-    Each per-kinase entry can be either:
-    - a bare sequence string (legacy/less-informative mode), or
-    - structured metadata carrying `reference_id`, optional `site_id`,
-      optional `kinase`, and `sequence`.
+    Prefer structured metadata carrying `reference_id`, optional `site_id`,
+    optional `kinase`, and `sequence`. Bare sequence strings remain accepted
+    during the deprecation window but emit `DeprecationWarning`.
     """
 
     if flank_size < 0:

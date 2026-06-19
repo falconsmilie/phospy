@@ -105,6 +105,22 @@ def test_differential_analysis_is_not_supported_from_phospy_api_namespace() -> N
         exec("from phospy.api import DifferentialAnalysis")
 
 
+def test_deprecated_differential_analysis_shell_warns_and_delegates() -> None:
+    from phospy.science.differential.public import DifferentialAnalysis
+
+    class _Workflow:
+        def run(self, request: object) -> str:
+            return f"delegated:{request!r}"
+
+    with pytest.warns(
+        DeprecationWarning,
+        match="DifferentialAnalysis is deprecated",
+    ):
+        shell = DifferentialAnalysis(workflow=_Workflow())  # type: ignore[arg-type]
+
+    assert shell.run("request") == "delegated:'request'"  # type: ignore[arg-type]
+
+
 def test_differential_workflow_supported_import_routes() -> None:
     namespace: dict[str, object] = {}
 

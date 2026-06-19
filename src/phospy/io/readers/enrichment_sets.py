@@ -177,7 +177,7 @@ def load_enrichment_sets_gmt(
     source_name: str | None = None,
     source_version: str | None = None,
 ) -> EnrichmentSetCollection:
-    """Alias for ``read_enrichment_sets_gmt``."""
+    """Deprecated alias for ``read_enrichment_sets_gmt``."""
 
     _warn_deprecated_load_alias(
         "load_enrichment_sets_gmt",
@@ -200,7 +200,7 @@ def load_enrichment_sets_table(
     source_name: str | None = None,
     source_version: str | None = None,
 ) -> EnrichmentSetCollection:
-    """Alias for ``read_enrichment_sets_table``."""
+    """Deprecated alias for ``read_enrichment_sets_table``."""
 
     _warn_deprecated_load_alias(
         "load_enrichment_sets_table",
@@ -223,7 +223,7 @@ def load_enrichment_sets_csv(
     source_name: str | None = None,
     source_version: str | None = None,
 ) -> EnrichmentSetCollection:
-    """Alias for ``read_enrichment_sets_csv``."""
+    """Deprecated alias for ``read_enrichment_sets_csv``."""
 
     _warn_deprecated_load_alias(
         "load_enrichment_sets_csv",
@@ -246,7 +246,7 @@ def load_enrichment_sets_tsv(
     source_name: str | None = None,
     source_version: str | None = None,
 ) -> EnrichmentSetCollection:
-    """Alias for ``read_enrichment_sets_tsv``."""
+    """Deprecated alias for ``read_enrichment_sets_tsv``."""
 
     _warn_deprecated_load_alias(
         "load_enrichment_sets_tsv",

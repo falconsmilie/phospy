@@ -437,7 +437,7 @@ class TechnicalReplicateAggregator:
 
 
 class TechnicalReplicateResolver:
-    """Backward-compatible wrapper that plans and then applies aggregation."""
+    """Deprecated wrapper that plans and then applies aggregation."""
 
     def __init__(
         self,
