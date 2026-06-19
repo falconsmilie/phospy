@@ -12,12 +12,26 @@ import pandas as pd
 from phospy.contracts.requests import PhosphositeImportRequest
 from phospy.contracts.results import PhosphositeImportResult
 from phospy.errors.input import PhosPyInputError
+from phospy.io.readers._table_parsing import (
+    build_row_ids,
+    build_unique_feature_ids,
+    first_list_token,
+    multi_value_count,
+    optional_text,
+    raise_for_forbidden_flags,
+    require_non_empty_unique_columns,
+    required_text,
+    resolve_column,
+    resolve_flag_series,
+    resolve_intensity_columns,
+    resolve_required_column,
+    split_multi_value,
+)
 from phospy.io.readers.importers import (
     MappedPhosphositeTableImporter,
     _read_upstream_table,
 )
 from phospy.science.evidence.multi_site import parse_phospho_site_tokens
-from phospy.validation.datasets.importers import normalise_sample_column_mapping
 from phospy.validation.datasets.maxquant import (
     MAXQUANT_FLAG_POLICY_ERROR,
     MAXQUANT_FLAG_POLICY_FLAG,
@@ -113,7 +127,6 @@ _REVERSE_CANDIDATES = (
     "Reverse",
     "Reverse?",
 )
-_MULTI_VALUE_SPLIT_PATTERN = re.compile(r"\s*[,;]\s*")
 _LOCALISATION_PROBABILITY_TOKEN_PATTERN = re.compile(
     r"[STYsty]\s*\(\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*\)"
 )
@@ -391,12 +404,12 @@ def _apply_flag_policies(
     reverse_policy: str,
 ) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, object], tuple[str, ...]]:
     flags = pd.DataFrame(index=source.index.copy())
-    contaminant_flags = _resolve_flag_series(
+    contaminant_flags = resolve_flag_series(
         source,
         column=resolved.potential_contaminant,
         field_name="MaxQuant potential contaminant flag",
     )
-    reverse_flags = _resolve_flag_series(
+    reverse_flags = resolve_flag_series(
         source,
         column=resolved.reverse,
         field_name="MaxQuant reverse flag",
@@ -465,7 +478,7 @@ def _adapt_maxquant_source(
     adapted = source.copy(deep=True)
     source_row_numbers = [position + 1 for position in range(int(source.shape[0]))]
     protein_values = [
-        _first_list_token(
+        first_list_token(
             value,
             field_name=f"MaxQuant {resolved.protein_accession}",
             row_position=position,
@@ -473,7 +486,7 @@ def _adapt_maxquant_source(
         for position, value in enumerate(source.loc[:, resolved.protein_accession])
     ]
     gene_values = [
-        _first_list_token(
+        first_list_token(
             value,
             field_name=f"MaxQuant {resolved.gene_symbol}",
             row_position=position,
@@ -484,7 +497,7 @@ def _adapt_maxquant_source(
         sum(
             1
             for value in source.loc[:, resolved.gene_symbol]
-            if _multi_value_count(value) > 1
+            if multi_value_count(value) > 1
         )
     )
     site_values: list[str] = []
@@ -494,7 +507,7 @@ def _adapt_maxquant_source(
         row_lookup: dict[str, object] = dict(
             zip(source.columns.astype(str).tolist(), row, strict=True)
         )
-        if _multi_value_count(row_lookup[resolved.protein_accession]) > 1:
+        if multi_value_count(row_lookup[resolved.protein_accession]) > 1:
             protein_group_rows += 1
         site_tokens = _resolve_row_site_tokens(
             row_lookup,
@@ -524,7 +537,7 @@ def _adapt_maxquant_source(
         source_row_numbers=source_row_numbers,
     )
     adapted[_ADAPTED_PEPTIDE_SEQUENCE_COLUMN] = [
-        _required_text(
+        required_text(
             value,
             field_name=f"MaxQuant {resolved.peptide_sequence}",
             row_position=position,
@@ -537,7 +550,7 @@ def _adapt_maxquant_source(
     adapted[_ADAPTED_PEPTIDE_SITE_STRING_COLUMN] = peptide_site_values
     if resolved.site_sequence is not None:
         adapted[_ADAPTED_SITE_SEQUENCE_COLUMN] = [
-            _optional_text(value)
+            optional_text(value)
             for value in source.loc[:, resolved.site_sequence].tolist()
         ]
 
@@ -641,19 +654,14 @@ def _resolve_required_column(
     candidates: tuple[str, ...],
     field_name: str,
 ) -> str:
-    resolved = _resolve_column(
+    return resolve_required_column(
         columns,
         explicit=explicit,
         candidates=candidates,
         field_name=field_name,
-        required=True,
+        importer_label="MaxQuant",
+        validate_column_name=validate_optional_maxquant_column_name,
     )
-    if resolved is None:  # pragma: no cover - _resolve_column raises first.
-        raise PhosPyInputError(
-            f"MaxQuant importer could not infer {field_name}; configure an explicit "
-            "column mapping."
-        )
-    return resolved
 
 
 def _resolve_column(
@@ -664,44 +672,15 @@ def _resolve_column(
     field_name: str,
     required: bool,
 ) -> str | None:
-    override = validate_optional_maxquant_column_name(
-        explicit,
+    return resolve_column(
+        columns,
+        explicit=explicit,
+        candidates=candidates,
         field_name=field_name,
+        importer_label="MaxQuant",
+        required=required,
+        validate_column_name=validate_optional_maxquant_column_name,
     )
-    if override is not None:
-        if override in columns:
-            return override
-        raise PhosPyInputError(f"{field_name}={override!r} is not present in source")
-    for candidate in candidates:
-        match = _find_column(columns, candidate)
-        if match is not None:
-            return match
-    if not required:
-        return None
-    accepted = ", ".join(repr(candidate) for candidate in candidates)
-    raise PhosPyInputError(
-        f"MaxQuant importer could not infer {field_name}; configure an explicit "
-        f"column mapping. tried: {accepted}"
-    )
-
-
-def _find_column(columns: pd.Index, wanted: str) -> str | None:
-    if wanted in columns:
-        return str(wanted)
-    normalised_wanted = _normalise_column_label(wanted)
-    matches = [
-        str(column)
-        for column in columns.tolist()
-        if _normalise_column_label(str(column)) == normalised_wanted
-    ]
-    if len(matches) > 1:
-        joined = ", ".join(repr(item) for item in matches)
-        raise PhosPyInputError(
-            f"MaxQuant importer found ambiguous source columns for {wanted!r}: {joined}"
-        )
-    if matches:
-        return matches[0]
-    return None
 
 
 def _resolve_intensity_columns(
@@ -710,83 +689,14 @@ def _resolve_intensity_columns(
     *,
     intensity_column_prefixes: Sequence[str],
 ) -> dict[str, str]:
-    if value is not None:
-        mapping = normalise_sample_column_mapping(value)
-        missing = [column for column in mapping if column not in source.columns]
-        if missing:
-            joined = ", ".join(missing)
-            raise PhosPyInputError(
-                f"MaxQuant intensity column mapping includes missing columns: {joined}"
-            )
-        return mapping
-    if isinstance(intensity_column_prefixes, str) or not isinstance(
-        intensity_column_prefixes, Sequence
-    ):
-        raise PhosPyInputError(
-            "maxquant import request intensity_column_prefixes must be a sequence "
-            "of strings"
-        )
-    prefixes = tuple(str(prefix) for prefix in intensity_column_prefixes)
-    if not prefixes or any(prefix.strip() == "" for prefix in prefixes):
-        raise PhosPyInputError(
-            "maxquant import request intensity_column_prefixes must contain "
-            "non-empty strings"
-        )
-    mapping: dict[str, str] = {}
-    inferred_sample_columns: dict[str, list[str]] = {}
-    for column in source.columns.astype(str).tolist():
-        for prefix in prefixes:
-            if not column.startswith(prefix):
-                continue
-            sample_id = column[len(prefix) :].strip() or column
-            mapping[column] = sample_id
-            inferred_sample_columns.setdefault(sample_id, []).append(column)
-            break
-    duplicate_sample_ids = {
-        sample_id: columns
-        for sample_id, columns in inferred_sample_columns.items()
-        if len(columns) > 1
-    }
-    if duplicate_sample_ids:
-        details = "; ".join(
-            f"{sample_id!r}: {', '.join(columns)}"
-            for sample_id, columns in duplicate_sample_ids.items()
-        )
-        raise PhosPyInputError(
-            "MaxQuant importer inferred multiple intensity columns for the same "
-            "inferred sample IDs. Configure "
-            "MaxQuantColumnMapping.intensity_columns to select one quantitative "
-            f"family or provide unique sample IDs. ambiguous_sample_ids={details}"
-        )
-    if not mapping:
-        accepted = ", ".join(repr(prefix) for prefix in prefixes)
-        raise PhosPyInputError(
-            "MaxQuant importer could not infer intensity columns. Configure "
-            "MaxQuantColumnMapping.intensity_columns or adjust "
-            f"intensity_column_prefixes. tried prefixes: {accepted}"
-        )
-    return normalise_sample_column_mapping(mapping)
-
-
-def _resolve_flag_series(
-    source: pd.DataFrame,
-    *,
-    column: str | None,
-    field_name: str,
-) -> pd.Series | None:
-    if column is None:
-        return None
-    return pd.Series(
-        [
-            _parse_maxquant_flag(
-                value,
-                field_name=field_name,
-                row_position=position,
-            )
-            for position, value in enumerate(source.loc[:, column].tolist())
-        ],
-        index=source.index.copy(),
-        dtype=bool,
+    return resolve_intensity_columns(
+        source,
+        value,
+        intensity_column_prefixes=intensity_column_prefixes,
+        importer_label="MaxQuant",
+        request_label="maxquant",
+        mapping_class_name="MaxQuantColumnMapping",
+        reject_duplicate_inferred_sample_ids=True,
     )
 
 
@@ -796,40 +706,12 @@ def _raise_for_forbidden_flags(
     policy: str,
     label: str,
 ) -> None:
-    if policy != MAXQUANT_FLAG_POLICY_ERROR:
-        return
-    count = int(values.astype(bool).sum())
-    if not count:
-        return
-    raise PhosPyInputError(
-        f"MaxQuant importer encountered {count} {label} row(s) under policy='error'"
-    )
-
-
-def _parse_maxquant_flag(
-    value: object,
-    *,
-    field_name: str,
-    row_position: int,
-) -> bool:
-    if _is_missing(value):
-        return False
-    if isinstance(value, bool):
-        return bool(value)
-    if isinstance(value, (int, float)) and not isinstance(value, bool):
-        numeric = float(value)
-        if numeric == 0.0:
-            return False
-        if numeric == 1.0:
-            return True
-    token = str(value).strip().lower()
-    if token in {"", "-", "false", "f", "no", "n", "0"}:
-        return False
-    if token in {"+", "true", "t", "yes", "y", "1"}:
-        return True
-    raise PhosPyInputError(
-        f"{field_name} row_position={row_position} contains unsupported flag "
-        f"value {value!r}; expected '+', blank, boolean, or 0/1 style values"
+    raise_for_forbidden_flags(
+        values,
+        policy=policy,
+        error_policy=MAXQUANT_FLAG_POLICY_ERROR,
+        importer_label="MaxQuant",
+        label=label,
     )
 
 
@@ -849,9 +731,9 @@ def _resolve_row_site_tokens(
         raise PhosPyInputError(
             "MaxQuant importer requires modified_site or amino_acid/site_position"
         )
-    residue_tokens = _split_multi_value(row[resolved.amino_acid])
-    position_tokens = _split_multi_value(row[resolved.site_position])
-    protein_tokens = _split_multi_value(row[resolved.protein_accession])
+    residue_tokens = split_multi_value(row[resolved.amino_acid])
+    position_tokens = split_multi_value(row[resolved.site_position])
+    protein_tokens = split_multi_value(row[resolved.protein_accession])
     if (
         len(residue_tokens) == 1
         and len(position_tokens) > 1
@@ -895,7 +777,7 @@ def _parse_site_tokens(
 
 
 def _normalise_residue(value: object, *, row_position: int) -> str:
-    token = _required_text(
+    token = required_text(
         value,
         field_name="MaxQuant amino_acid",
         row_position=row_position,
@@ -909,7 +791,7 @@ def _normalise_residue(value: object, *, row_position: int) -> str:
 
 
 def _normalise_position(value: object, *, row_position: int) -> int:
-    token = _required_text(
+    token = required_text(
         value,
         field_name="MaxQuant site_position",
         row_position=row_position,
@@ -972,7 +854,7 @@ def _resolve_modified_peptide_sequences(
 ) -> list[str]:
     if resolved.modified_peptide_sequence is None:
         return [
-            _required_text(
+            required_text(
                 value,
                 field_name=f"MaxQuant {resolved.peptide_sequence}",
                 row_position=position,
@@ -980,7 +862,7 @@ def _resolve_modified_peptide_sequences(
             for position, value in enumerate(source.loc[:, resolved.peptide_sequence])
         ]
     return [
-        _required_text(
+        required_text(
             value,
             field_name=f"MaxQuant {resolved.modified_peptide_sequence}",
             row_position=position,
@@ -999,24 +881,15 @@ def _build_row_ids(
     site_values: list[str],
     source_row_numbers: list[int],
 ) -> list[str]:
-    if resolved.row_id is not None:
-        return [
-            _required_text(
-                value,
-                field_name=f"MaxQuant {resolved.row_id}",
-                row_position=position,
-            )
-            for position, value in enumerate(source.loc[:, resolved.row_id])
-        ]
-    return [
-        f"maxquant:{protein}:{site}:row{row_number}"
-        for protein, site, row_number in zip(
-            protein_values,
-            site_values,
-            source_row_numbers,
-            strict=True,
-        )
-    ]
+    return build_row_ids(
+        source=source,
+        explicit_column=resolved.row_id,
+        protein_values=protein_values,
+        site_values=site_values,
+        source_row_numbers=source_row_numbers,
+        importer_label="MaxQuant",
+        generated_prefix="maxquant",
+    )
 
 
 def _build_unique_feature_ids(
@@ -1025,16 +898,13 @@ def _build_unique_feature_ids(
     resolved: _ResolvedMaxQuantColumns,
     source_row_numbers: list[int],
 ) -> list[str]:
-    if resolved.unique_feature_id is not None:
-        return [
-            _required_text(
-                value,
-                field_name=f"MaxQuant {resolved.unique_feature_id}",
-                row_position=position,
-            )
-            for position, value in enumerate(source.loc[:, resolved.unique_feature_id])
-        ]
-    return [f"maxquant_feature_{row_number}" for row_number in source_row_numbers]
+    return build_unique_feature_ids(
+        source=source,
+        explicit_column=resolved.unique_feature_id,
+        source_row_numbers=source_row_numbers,
+        importer_label="MaxQuant",
+        generated_prefix="maxquant",
+    )
 
 
 def _resolved_columns_payload(resolved: _ResolvedMaxQuantColumns) -> dict[str, object]:
@@ -1056,85 +926,8 @@ def _resolved_columns_payload(resolved: _ResolvedMaxQuantColumns) -> dict[str, o
     }
 
 
-def _first_list_token(
-    value: object,
-    *,
-    field_name: str,
-    row_position: int,
-) -> str:
-    tokens = _split_multi_value(value)
-    if not tokens:
-        raise PhosPyInputError(
-            f"{field_name} must contain non-empty values; row_position={row_position}"
-        )
-    return tokens[0]
-
-
-def _multi_value_count(value: object) -> int:
-    return len(_split_multi_value(value))
-
-
-def _split_multi_value(value: object) -> list[str]:
-    if _is_missing(value):
-        return []
-    if isinstance(value, str):
-        stripped = value.strip()
-        if stripped == "":
-            return []
-        return [
-            token.strip()
-            for token in _MULTI_VALUE_SPLIT_PATTERN.split(stripped)
-            if token.strip()
-        ]
-    return [str(value).strip()]
-
-
-def _required_text(
-    value: object,
-    *,
-    field_name: str,
-    row_position: int,
-) -> str:
-    if _is_missing(value):
-        raise PhosPyInputError(
-            f"{field_name} must not contain missing values; row_position={row_position}"
-        )
-    token = str(value).strip()
-    if token == "":
-        raise PhosPyInputError(
-            f"{field_name} must contain non-empty values; row_position={row_position}"
-        )
-    return token
-
-
-def _optional_text(value: object) -> str | None:
-    if _is_missing(value):
-        return None
-    token = str(value).strip()
-    if token == "":
-        return None
-    return token
-
-
 def _require_non_empty_unique_columns(source: pd.DataFrame) -> None:
-    if not isinstance(source, pd.DataFrame):
-        raise PhosPyInputError("MaxQuant import source must be a pandas DataFrame")
-    if source.empty:
-        raise PhosPyInputError("MaxQuant import source must not be empty")
-    column_labels = [str(column) for column in source.columns.tolist()]
-    if len(set(column_labels)) != len(column_labels):
-        raise PhosPyInputError("MaxQuant import source columns must be unique")
-
-
-def _normalise_column_label(value: str) -> str:
-    return " ".join(str(value).strip().lower().split())
-
-
-def _is_missing(value: object) -> bool:
-    try:
-        return bool(pd.Series((value,), dtype="object").isna().iat[0])
-    except (TypeError, ValueError):
-        return False
+    require_non_empty_unique_columns(source, importer_label="MaxQuant")
 
 
 __all__ = [

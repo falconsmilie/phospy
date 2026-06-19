@@ -12,6 +12,22 @@ import pandas as pd
 from phospy.contracts.requests import PhosphositeImportRequest
 from phospy.contracts.results import PhosphositeImportResult
 from phospy.errors.input import PhosPyInputError
+from phospy.io.readers._table_parsing import (
+    build_row_ids,
+    build_unique_feature_ids,
+    first_list_token,
+    is_missing,
+    multi_value_count,
+    optional_text,
+    raise_for_forbidden_flags,
+    require_non_empty_unique_columns,
+    required_text,
+    resolve_column,
+    resolve_flag_series,
+    resolve_intensity_columns,
+    resolve_required_column,
+    split_multi_value,
+)
 from phospy.io.readers.importers import (
     MappedPhosphositeTableImporter,
     _read_upstream_table,
@@ -31,7 +47,6 @@ from phospy.validation.datasets.fragpipe import (
     validate_optional_fragpipe_column_name,
     validate_ptmprophet_position_reference,
 )
-from phospy.validation.datasets.importers import normalise_sample_column_mapping
 
 _ADAPTED_ROW_ID_COLUMN = "__phospy_fragpipe_row_id"
 _ADAPTED_PROTEIN_ACCESSION_COLUMN = "__phospy_fragpipe_protein_accession"
@@ -140,7 +155,6 @@ _DECOY_CANDIDATES = (
     "Protein Decoy",
 )
 _ROW_ID_CANDIDATES: tuple[str, ...] = ()
-_MULTI_VALUE_SPLIT_PATTERN = re.compile(r"\s*[,;]\s*")
 _NUMERIC_PATTERN = r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?"
 _POSITIONED_LOCALISATION_PATTERNS = (
     re.compile(
@@ -449,12 +463,12 @@ def _apply_flag_policies(
     decoy_policy: str,
 ) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, object], tuple[str, ...]]:
     protein_values = source.loc[:, resolved.protein_accession]
-    contaminant_flags = _resolve_flag_series(
+    contaminant_flags = resolve_flag_series(
         source,
         column=resolved.contaminant,
         field_name="FragPipe contaminant flag",
     )
-    decoy_flags = _resolve_flag_series(
+    decoy_flags = resolve_flag_series(
         source,
         column=resolved.decoy,
         field_name="FragPipe decoy flag",
@@ -548,7 +562,7 @@ def _adapt_fragpipe_source(
     columns = source.columns.astype(str).tolist()
     for position, row in enumerate(source.itertuples(index=False, name=None)):
         row_lookup = dict(zip(columns, row, strict=True))
-        if _multi_value_count(row_lookup[resolved.protein_accession]) > 1:
+        if multi_value_count(row_lookup[resolved.protein_accession]) > 1:
             protein_group_rows += 1
         protein_values.append(
             _parse_protein_accession(
@@ -558,7 +572,7 @@ def _adapt_fragpipe_source(
             )
         )
         gene_values.append(
-            _first_list_token(
+            first_list_token(
                 row_lookup[resolved.gene_symbol],
                 field_name=f"FragPipe {resolved.gene_symbol}",
                 row_position=position,
@@ -570,7 +584,7 @@ def _adapt_fragpipe_source(
                 f"FragPipe {resolved.modified_peptide_sequence} row_position={position}"
             ),
         )
-        peptide_sequence = _required_text(
+        peptide_sequence = required_text(
             row_lookup[resolved.peptide_sequence],
             field_name=f"FragPipe {resolved.peptide_sequence}",
             row_position=position,
@@ -610,7 +624,7 @@ def _adapt_fragpipe_source(
         source_row_numbers=source_row_numbers,
     )
     adapted[_ADAPTED_PEPTIDE_SEQUENCE_COLUMN] = [
-        _required_text(
+        required_text(
             value,
             field_name=f"FragPipe {resolved.peptide_sequence}",
             row_position=position,
@@ -618,7 +632,7 @@ def _adapt_fragpipe_source(
         for position, value in enumerate(source.loc[:, resolved.peptide_sequence])
     ]
     adapted[_ADAPTED_MODIFIED_PEPTIDE_SEQUENCE_COLUMN] = [
-        _required_text(
+        required_text(
             value,
             field_name=f"FragPipe {resolved.modified_peptide_sequence}",
             row_position=position,
@@ -634,7 +648,7 @@ def _adapt_fragpipe_source(
     adapted[_ADAPTED_MODIFIED_PHOSPHO_COUNT_COLUMN] = phospho_counts
     if resolved.site_sequence is not None:
         adapted[_ADAPTED_SITE_SEQUENCE_COLUMN] = [
-            _optional_text(value)
+            optional_text(value)
             for value in source.loc[:, resolved.site_sequence].tolist()
         ]
 
@@ -793,7 +807,7 @@ def _parse_ptmprophet_localisation_candidates(
     field_name: str,
     row_position: int,
 ) -> tuple[_LocalisationCandidate, ...]:
-    if _is_missing(value):
+    if is_missing(value):
         return ()
     if isinstance(value, int | float) and not isinstance(value, bool):
         probability = _parse_probability(
@@ -1070,19 +1084,14 @@ def _resolve_required_column(
     candidates: tuple[str, ...],
     field_name: str,
 ) -> str:
-    resolved = _resolve_column(
+    return resolve_required_column(
         columns,
         explicit=explicit,
         candidates=candidates,
         field_name=field_name,
-        required=True,
+        importer_label="FragPipe",
+        validate_column_name=validate_optional_fragpipe_column_name,
     )
-    if resolved is None:  # pragma: no cover - _resolve_column raises first.
-        raise PhosPyInputError(
-            f"FragPipe importer could not infer {field_name}; configure an explicit "
-            "column mapping."
-        )
-    return resolved
 
 
 def _resolve_column(
@@ -1093,44 +1102,15 @@ def _resolve_column(
     field_name: str,
     required: bool,
 ) -> str | None:
-    override = validate_optional_fragpipe_column_name(
-        explicit,
+    return resolve_column(
+        columns,
+        explicit=explicit,
+        candidates=candidates,
         field_name=field_name,
+        importer_label="FragPipe",
+        required=required,
+        validate_column_name=validate_optional_fragpipe_column_name,
     )
-    if override is not None:
-        if override in columns:
-            return override
-        raise PhosPyInputError(f"{field_name}={override!r} is not present in source")
-    for candidate in candidates:
-        match = _find_column(columns, candidate)
-        if match is not None:
-            return match
-    if not required:
-        return None
-    accepted = ", ".join(repr(candidate) for candidate in candidates)
-    raise PhosPyInputError(
-        f"FragPipe importer could not infer {field_name}; configure an explicit "
-        f"column mapping. tried: {accepted}"
-    )
-
-
-def _find_column(columns: pd.Index, wanted: str) -> str | None:
-    if wanted in columns:
-        return str(wanted)
-    normalised_wanted = _normalise_column_label(wanted)
-    matches = [
-        str(column)
-        for column in columns.tolist()
-        if _normalise_column_label(str(column)) == normalised_wanted
-    ]
-    if len(matches) > 1:
-        joined = ", ".join(repr(item) for item in matches)
-        raise PhosPyInputError(
-            f"FragPipe importer found ambiguous source columns for {wanted!r}: {joined}"
-        )
-    if matches:
-        return matches[0]
-    return None
 
 
 def _resolve_intensity_columns(
@@ -1139,45 +1119,15 @@ def _resolve_intensity_columns(
     *,
     intensity_column_prefixes: Sequence[str],
 ) -> dict[str, str]:
-    if value is not None:
-        mapping = normalise_sample_column_mapping(value)
-        missing = [column for column in mapping if column not in source.columns]
-        if missing:
-            joined = ", ".join(missing)
-            raise PhosPyInputError(
-                f"FragPipe intensity column mapping includes missing columns: {joined}"
-            )
-        return mapping
-    if isinstance(intensity_column_prefixes, str) or not isinstance(
-        intensity_column_prefixes,
-        Sequence,
-    ):
-        raise PhosPyInputError(
-            "fragpipe import request intensity_column_prefixes must be a sequence "
-            "of strings"
-        )
-    prefixes = tuple(str(prefix) for prefix in intensity_column_prefixes)
-    if not prefixes or any(prefix.strip() == "" for prefix in prefixes):
-        raise PhosPyInputError(
-            "fragpipe import request intensity_column_prefixes must contain "
-            "non-empty strings"
-        )
-    mapping: dict[str, str] = {}
-    for column in source.columns.astype(str).tolist():
-        for prefix in prefixes:
-            if not column.startswith(prefix):
-                continue
-            sample_id = column[len(prefix) :].strip() or column
-            mapping[column] = sample_id
-            break
-    if not mapping:
-        accepted = ", ".join(repr(prefix) for prefix in prefixes)
-        raise PhosPyInputError(
-            "FragPipe importer could not infer intensity columns. Configure "
-            "FragPipeColumnMapping.intensity_columns or adjust "
-            f"intensity_column_prefixes. tried prefixes: {accepted}"
-        )
-    return normalise_sample_column_mapping(mapping)
+    return resolve_intensity_columns(
+        source,
+        value,
+        intensity_column_prefixes=intensity_column_prefixes,
+        importer_label="FragPipe",
+        request_label="fragpipe",
+        mapping_class_name="FragPipeColumnMapping",
+        reject_duplicate_inferred_sample_ids=False,
+    )
 
 
 def _augment_mapped_result(
@@ -1363,68 +1313,18 @@ def _next_modified_site_with_residue(
     )
 
 
-def _resolve_flag_series(
-    source: pd.DataFrame,
-    *,
-    column: str | None,
-    field_name: str,
-) -> pd.Series | None:
-    if column is None:
-        return None
-    return pd.Series(
-        [
-            _parse_fragpipe_flag(
-                value,
-                field_name=field_name,
-                row_position=position,
-            )
-            for position, value in enumerate(source.loc[:, column].tolist())
-        ],
-        index=source.index.copy(),
-        dtype=bool,
-    )
-
-
 def _raise_for_forbidden_flags(
     values: pd.Series,
     *,
     policy: str,
     label: str,
 ) -> None:
-    if policy != FRAGPIPE_FLAG_POLICY_ERROR:
-        return
-    count = int(values.astype(bool).sum())
-    if not count:
-        return
-    raise PhosPyInputError(
-        f"FragPipe importer encountered {count} {label} row(s) under policy='error'"
-    )
-
-
-def _parse_fragpipe_flag(
-    value: object,
-    *,
-    field_name: str,
-    row_position: int,
-) -> bool:
-    if _is_missing(value):
-        return False
-    if isinstance(value, bool):
-        return bool(value)
-    if isinstance(value, (int, float)) and not isinstance(value, bool):
-        numeric = float(value)
-        if numeric == 0.0:
-            return False
-        if numeric == 1.0:
-            return True
-    token = str(value).strip().lower()
-    if token in {"", "-", "false", "f", "no", "n", "0"}:
-        return False
-    if token in {"+", "true", "t", "yes", "y", "1"}:
-        return True
-    raise PhosPyInputError(
-        f"{field_name} row_position={row_position} contains unsupported flag "
-        f"value {value!r}; expected '+', blank, boolean, or 0/1 style values"
+    raise_for_forbidden_flags(
+        values,
+        policy=policy,
+        error_policy=FRAGPIPE_FLAG_POLICY_ERROR,
+        importer_label="FragPipe",
+        label=label,
     )
 
 
@@ -1434,7 +1334,7 @@ def _parse_protein_accession(
     field_name: str,
     row_position: int,
 ) -> str:
-    token = _first_list_token(value, field_name=field_name, row_position=row_position)
+    token = first_list_token(value, field_name=field_name, row_position=row_position)
     cleaned = _strip_protein_prefixes(token)
     parts = cleaned.split("|")
     if len(parts) >= 3 and parts[0].strip().lower() in {"sp", "tr"}:
@@ -1464,71 +1364,11 @@ def _strip_protein_prefixes(value: str) -> str:
 
 
 def _has_any_prefixed_token(value: object, *, prefixes: tuple[str, ...]) -> bool:
-    for token in _split_multi_value(value):
+    for token in split_multi_value(value):
         upper = token.upper()
         if any(upper.startswith(prefix) for prefix in prefixes):
             return True
     return False
-
-
-def _multi_value_count(value: object) -> int:
-    return len(_split_multi_value(value))
-
-
-def _split_multi_value(value: object) -> list[str]:
-    if _is_missing(value):
-        return []
-    if isinstance(value, str):
-        stripped = value.strip()
-        if stripped == "":
-            return []
-        return [
-            token.strip()
-            for token in _MULTI_VALUE_SPLIT_PATTERN.split(stripped)
-            if token.strip()
-        ]
-    return [str(value).strip()]
-
-
-def _first_list_token(
-    value: object,
-    *,
-    field_name: str,
-    row_position: int,
-) -> str:
-    tokens = _split_multi_value(value)
-    if not tokens:
-        raise PhosPyInputError(
-            f"{field_name} must contain non-empty values; row_position={row_position}"
-        )
-    return tokens[0]
-
-
-def _required_text(
-    value: object,
-    *,
-    field_name: str,
-    row_position: int,
-) -> str:
-    if _is_missing(value):
-        raise PhosPyInputError(
-            f"{field_name} must not contain missing values; row_position={row_position}"
-        )
-    token = str(value).strip()
-    if token == "":
-        raise PhosPyInputError(
-            f"{field_name} must contain non-empty values; row_position={row_position}"
-        )
-    return token
-
-
-def _optional_text(value: object) -> str | None:
-    if _is_missing(value):
-        return None
-    token = str(value).strip()
-    if token == "":
-        return None
-    return token
 
 
 def _normalise_positive_int(
@@ -1537,7 +1377,7 @@ def _normalise_positive_int(
     field_name: str,
     row_position: int,
 ) -> int:
-    token = _required_text(value, field_name=field_name, row_position=row_position)
+    token = required_text(value, field_name=field_name, row_position=row_position)
     try:
         numeric = float(token)
     except ValueError as exc:
@@ -1567,24 +1407,15 @@ def _build_row_ids(
     site_values: list[str],
     source_row_numbers: list[int],
 ) -> list[str]:
-    if resolved.row_id is not None:
-        return [
-            _required_text(
-                value,
-                field_name=f"FragPipe {resolved.row_id}",
-                row_position=position,
-            )
-            for position, value in enumerate(source.loc[:, resolved.row_id])
-        ]
-    return [
-        f"fragpipe:{protein}:{site}:row{row_number}"
-        for protein, site, row_number in zip(
-            protein_values,
-            site_values,
-            source_row_numbers,
-            strict=True,
-        )
-    ]
+    return build_row_ids(
+        source=source,
+        explicit_column=resolved.row_id,
+        protein_values=protein_values,
+        site_values=site_values,
+        source_row_numbers=source_row_numbers,
+        importer_label="FragPipe",
+        generated_prefix="fragpipe",
+    )
 
 
 def _build_unique_feature_ids(
@@ -1593,16 +1424,13 @@ def _build_unique_feature_ids(
     resolved: _ResolvedFragPipeColumns,
     source_row_numbers: list[int],
 ) -> list[str]:
-    if resolved.unique_feature_id is not None:
-        return [
-            _required_text(
-                value,
-                field_name=f"FragPipe {resolved.unique_feature_id}",
-                row_position=position,
-            )
-            for position, value in enumerate(source.loc[:, resolved.unique_feature_id])
-        ]
-    return [f"fragpipe_feature_{row_number}" for row_number in source_row_numbers]
+    return build_unique_feature_ids(
+        source=source,
+        explicit_column=resolved.unique_feature_id,
+        source_row_numbers=source_row_numbers,
+        importer_label="FragPipe",
+        generated_prefix="fragpipe",
+    )
 
 
 def _resolved_columns_payload(resolved: _ResolvedFragPipeColumns) -> dict[str, object]:
@@ -1624,24 +1452,7 @@ def _resolved_columns_payload(resolved: _ResolvedFragPipeColumns) -> dict[str, o
 
 
 def _require_non_empty_unique_columns(source: pd.DataFrame) -> None:
-    if not isinstance(source, pd.DataFrame):
-        raise PhosPyInputError("FragPipe import source must be a pandas DataFrame")
-    if source.empty:
-        raise PhosPyInputError("FragPipe import source must not be empty")
-    column_labels = [str(column) for column in source.columns.tolist()]
-    if len(set(column_labels)) != len(column_labels):
-        raise PhosPyInputError("FragPipe import source columns must be unique")
-
-
-def _normalise_column_label(value: str) -> str:
-    return " ".join(str(value).strip().lower().split())
-
-
-def _is_missing(value: object) -> bool:
-    try:
-        return bool(pd.Series((value,), dtype="object").isna().iat[0])
-    except (TypeError, ValueError):
-        return False
+    require_non_empty_unique_columns(source, importer_label="FragPipe")
 
 
 __all__ = [
