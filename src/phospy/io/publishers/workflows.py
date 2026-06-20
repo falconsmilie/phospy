@@ -5,12 +5,15 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pandas as pd
+
 from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.processing_state import processing_state_to_payload
 from phospy.io.readers.tables import table_suffix_for_format, write_table
 from phospy.provenance.serialization import to_payload as provenance_to_payload
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.signalomes.models import SignalomeAlignmentInputDiagnostics
 
 
 def publish_dataset(
@@ -122,7 +125,7 @@ def publish_signalome_workflow(
 
 
 def _write_required_output_table(
-    table,
+    table: pd.DataFrame,
     path: Path,
     *,
     written: dict[str, Path],
@@ -133,7 +136,7 @@ def _write_required_output_table(
 
 
 def _write_optional_output_table(
-    table,
+    table: pd.DataFrame | None,
     path: Path,
     *,
     written: dict[str, Path],
@@ -554,7 +557,9 @@ def _alignment_diagnostics_payload(
     }
 
 
-def _alignment_input_diagnostics_payload(diagnostics) -> dict[str, object]:
+def _alignment_input_diagnostics_payload(
+    diagnostics: SignalomeAlignmentInputDiagnostics,
+) -> dict[str, object]:
     return {
         "provided_count": int(diagnostics.provided_count),
         "retained_count": int(diagnostics.retained_count),

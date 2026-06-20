@@ -15,7 +15,7 @@ from phospy.io.readers.tables import read_table, write_table
 
 def write_bundle_table(
     *,
-    table,
+    table: pd.DataFrame,
     bundle_root: Path,
     relative_path: Path,
     written: dict[str, Path],
@@ -31,7 +31,7 @@ def write_bundle_table(
 
 def write_optional_bundle_table(
     *,
-    table,
+    table: pd.DataFrame | None,
     bundle_root: Path,
     relative_path: Path,
     written: dict[str, Path],
@@ -56,7 +56,7 @@ def read_required_table(
     tables: Mapping[str, object],
     table_key: str,
     field_name: str,
-):
+) -> pd.DataFrame:
     """Read required table declared in manifest tables section."""
 
     table_path = resolve_bundle_relative_path(
@@ -73,7 +73,7 @@ def read_optional_table(
     tables: Mapping[str, object],
     table_key: str,
     field_name: str,
-):
+) -> pd.DataFrame | None:
     """Read optional table declared in manifest tables section."""
 
     if table_key not in tables:

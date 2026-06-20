@@ -5,7 +5,9 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, NoReturn
+from typing import NoReturn
+
+import pandas as pd
 
 from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.errors.input import PhosPyInputError
@@ -76,13 +78,15 @@ class _SignalomeDiagnostics:
 
 @dataclass(frozen=True, slots=True)
 class _SignalomeOptionalTables:
-    candidate_correlations: Any | None
-    site_membership: Any | None
-    protein_site_context: Any | None
-    expanded_signalome: Any | None
+    candidate_correlations: pd.DataFrame | None
+    site_membership: pd.DataFrame | None
+    protein_site_context: pd.DataFrame | None
+    expanded_signalome: pd.DataFrame | None
 
 
-def _normalize_site_metadata_for_dataset_contract(site_metadata):
+def _normalize_site_metadata_for_dataset_contract(
+    site_metadata: pd.DataFrame,
+) -> pd.DataFrame:
     """Repair CSV round-trip site_key column drift for valid site_key indexes."""
 
     normalized = site_metadata.copy(deep=True)
@@ -93,7 +97,11 @@ def _normalize_site_metadata_for_dataset_contract(site_metadata):
     return normalized
 
 
-def _normalize_optional_string_columns(table, *, columns: tuple[str, ...]):
+def _normalize_optional_string_columns(
+    table: pd.DataFrame,
+    *,
+    columns: tuple[str, ...],
+) -> pd.DataFrame:
     normalized = table.copy(deep=True)
     for column_name in columns:
         if column_name in normalized.columns:
@@ -112,7 +120,7 @@ def _read_absent_optional_table(
     tables: Mapping[str, object],
     table_key: str,
     field_name: str,
-):
+) -> pd.DataFrame | None:
     if table_key not in tables:
         return None
     return read_optional_table(
@@ -583,7 +591,7 @@ def _read_site_membership_table(
     *,
     bundle_root: Path,
     sections: SignalomeManifestSections,
-) -> Any | None:
+) -> pd.DataFrame | None:
     site_membership = read_optional_table(
         bundle_root=bundle_root,
         tables=sections.signalome_tables,
@@ -623,7 +631,7 @@ def _read_protein_site_context_table(
     *,
     bundle_root: Path,
     sections: SignalomeManifestSections,
-) -> Any | None:
+) -> pd.DataFrame | None:
     protein_site_context = read_optional_table(
         bundle_root=bundle_root,
         tables=sections.signalome_tables,
@@ -655,7 +663,7 @@ def _read_expanded_signalome_table(
     *,
     bundle_root: Path,
     sections: SignalomeManifestSections,
-) -> Any | None:
+) -> pd.DataFrame | None:
     expanded_signalome = read_optional_table(
         bundle_root=bundle_root,
         tables=sections.signalome_tables,
