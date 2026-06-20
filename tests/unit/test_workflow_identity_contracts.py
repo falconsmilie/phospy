@@ -44,6 +44,11 @@ from tests.support.site_keys import (
     site_key_context_columns,
     site_key_index_from_display_ids,
 )
+from tests.support.unsafe_dataset_states import (
+    unsafe_corrupt_dataset_to_display_index,
+    unsafe_drop_dataset_site_metadata_columns,
+    unsafe_reverse_dataset_site_metadata_index,
+)
 
 _WorkflowRunner = Callable[[AnalysisReadyPhosphoDataset], object]
 _DatasetFactory = Callable[[], AnalysisReadyPhosphoDataset]
@@ -229,36 +234,17 @@ def _workflow_cases() -> tuple[tuple[str, _WorkflowRunner, _DatasetFactory], ...
 
 
 def _make_display_indexed(dataset: AnalysisReadyPhosphoDataset) -> None:
-    display_index = pd.Index(
-        dataset._site_metadata.loc[:, "display_id"].astype(str).tolist(),
-        name="site_key",
-    )
-    dataset._phospho.index = display_index.copy()
-    dataset._site_metadata.index = display_index.copy()
+    unsafe_corrupt_dataset_to_display_index(dataset)
 
 
 def _drop_site_metadata_column(
     dataset: AnalysisReadyPhosphoDataset, column_name: str
 ) -> None:
-    object.__setattr__(
-        dataset,
-        "_site_metadata",
-        dataset._site_metadata.drop(columns=[column_name]),
-    )
+    unsafe_drop_dataset_site_metadata_columns(dataset, column_name)
 
 
 def _reverse_site_metadata_index(dataset: AnalysisReadyPhosphoDataset) -> None:
-    object.__setattr__(
-        dataset,
-        "_site_metadata",
-        dataset._site_metadata.set_axis(
-            pd.Index(
-                list(reversed(dataset._site_metadata.index.astype(str).tolist())),
-                name="site_key",
-            ),
-            axis="index",
-        ),
-    )
+    unsafe_reverse_dataset_site_metadata_index(dataset)
 
 
 def _duplicate_display_differential_dataset() -> AnalysisReadyPhosphoDataset:

@@ -59,6 +59,10 @@ from tests.support.site_keys import (
     site_key_context_columns,
     site_key_index_from_display_ids,
 )
+from tests.support.unsafe_dataset_states import (
+    unsafe_set_dataset_site_metadata_columns,
+    unsafe_set_dataset_site_metadata_index,
+)
 
 
 def _site_keys(display_ids: list[str]) -> pd.Index:
@@ -110,6 +114,25 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         site_metadata=site_metadata,
         organism=Organism.RAT,
         **_dataset_state_kwargs(has_total_matrix=False),
+    )
+
+
+def _rebuild_dataset_with_site_metadata(
+    dataset: AnalysisReadyPhosphoDataset,
+    site_metadata: pd.DataFrame,
+) -> AnalysisReadyPhosphoDataset:
+    return AnalysisReadyPhosphoDataset(
+        phospho=dataset.phospho,
+        site_metadata=site_metadata,
+        sample_metadata=dataset.sample_metadata,
+        total=dataset.total,
+        organism=dataset.organism,
+        intensity_scale_state=dataset.intensity_scale_state,
+        processing_state=dataset.processing_state,
+        preprocessing_report=dataset.preprocessing_report,
+        protein_aware_preparation=dataset.protein_aware_preparation,
+        provenance=dataset.provenance,
+        allow_opaque_site_values=dataset.allow_opaque_site_values,
     )
 
 
@@ -974,8 +997,10 @@ def test_kinase_validator_can_require_localisation_probability_presence() -> Non
 
 
 def test_kinase_validator_can_require_localisation_probability_threshold() -> None:
-    dataset = _dataset()
-    dataset._site_metadata.loc[:, "localisation_probability"] = [0.6]
+    source = _dataset()
+    site_metadata = source.site_metadata
+    site_metadata.loc[:, "localisation_probability"] = [0.6]
+    dataset = _rebuild_dataset_with_site_metadata(source, site_metadata)
     request = KinaseWorkflowRequest(
         dataset=dataset,
         references=_references(),
@@ -999,7 +1024,7 @@ def test_kinase_validator_can_require_localisation_probability_threshold() -> No
 
 def test_kinase_validator_rejects_malformed_site_tokens() -> None:
     dataset = _dataset()
-    dataset._site_metadata.loc[:, "site"] = ["FOO"]
+    unsafe_set_dataset_site_metadata_columns(dataset, {"site": ["FOO"]})
     request = KinaseWorkflowRequest(
         dataset=dataset,
         references=_references(),
@@ -1034,7 +1059,10 @@ def test_kinase_validator_requires_centred_sequence_context(
     pattern: str,
 ) -> None:
     dataset = _dataset()
-    dataset._site_metadata.loc[:, "site_sequence"] = [sequence_value]
+    unsafe_set_dataset_site_metadata_columns(
+        dataset,
+        {"site_sequence": [sequence_value]},
+    )
     request = KinaseWorkflowRequest(
         dataset=dataset,
         references=_references(),
@@ -1056,8 +1084,10 @@ def test_kinase_validator_requires_centred_sequence_context(
 
 
 def test_kinase_validator_allows_gapped_flanks_when_centre_is_valid() -> None:
-    dataset = _dataset()
-    dataset._site_metadata.loc[:, "site_sequence"] = ["________Y________"]
+    source = _dataset()
+    site_metadata = source.site_metadata
+    site_metadata.loc[:, "site_sequence"] = ["________Y________"]
+    dataset = _rebuild_dataset_with_site_metadata(source, site_metadata)
     request = KinaseWorkflowRequest(
         dataset=dataset,
         references=_references(),
@@ -1315,10 +1345,11 @@ def test_signalome_validator_requires_signalome_protein_grouping_metadata_column
 def test_signalome_validator_reports_site_metadata_index_alignment_details() -> None:
     kinase_result = _kinase_result()
     mismatched_site_key = _site_key("AKT1;T308;")
-    kinase_result.dataset._site_metadata.index = pd.Index(
-        [mismatched_site_key], name="site_key"
+    unsafe_set_dataset_site_metadata_index(
+        kinase_result.dataset,
+        pd.Index([mismatched_site_key], name="site_key"),
+        update_site_key_column=True,
     )
-    kinase_result.dataset._site_metadata.loc[:, "site_key"] = [mismatched_site_key]
     request = SignalomeWorkflowRequest(
         kinase_result=kinase_result,
         config=build_signalome_config(substrate_support_cutoff=0.5),
@@ -1425,8 +1456,12 @@ def test_signalome_validator_can_require_localisation_probability_presence() -> 
 
 
 def test_signalome_validator_can_require_localisation_probability_threshold() -> None:
-    kinase_result = _kinase_result()
-    kinase_result.dataset._site_metadata.loc[:, "localisation_probability"] = [0.5]
+    source = _dataset()
+    site_metadata = source.site_metadata
+    site_metadata.loc[:, "localisation_probability"] = [0.5]
+    kinase_result = _kinase_result(
+        _rebuild_dataset_with_site_metadata(source, site_metadata)
+    )
     request = SignalomeWorkflowRequest(
         kinase_result=kinase_result,
         config=build_signalome_config(
@@ -1444,7 +1479,10 @@ def test_signalome_validator_can_require_localisation_probability_threshold() ->
 
 def test_signalome_validator_reports_invalid_localisation_probability_values() -> None:
     kinase_result = _kinase_result()
-    kinase_result.dataset._site_metadata.loc[:, "localisation_probability"] = ["high"]
+    unsafe_set_dataset_site_metadata_columns(
+        kinase_result.dataset,
+        {"localisation_probability": ["high"]},
+    )
     request = SignalomeWorkflowRequest(
         kinase_result=kinase_result,
         config=build_signalome_config(
@@ -1485,7 +1523,10 @@ def test_signalome_validator_requires_centred_sequence_context(
     pattern: str,
 ) -> None:
     kinase_result = _kinase_result()
-    kinase_result.dataset._site_metadata.loc[:, "site_sequence"] = [sequence_value]
+    unsafe_set_dataset_site_metadata_columns(
+        kinase_result.dataset,
+        {"site_sequence": [sequence_value]},
+    )
     request = SignalomeWorkflowRequest(
         kinase_result=kinase_result,
         config=build_signalome_config(substrate_support_cutoff=0.5),
@@ -1502,8 +1543,12 @@ def test_signalome_validator_requires_centred_sequence_context(
 
 
 def test_signalome_validator_allows_gapped_flanks_when_centre_is_valid() -> None:
-    kinase_result = _kinase_result()
-    kinase_result.dataset._site_metadata.loc[:, "site_sequence"] = ["________Y________"]
+    source = _dataset()
+    site_metadata = source.site_metadata
+    site_metadata.loc[:, "site_sequence"] = ["________Y________"]
+    kinase_result = _kinase_result(
+        _rebuild_dataset_with_site_metadata(source, site_metadata)
+    )
     request = SignalomeWorkflowRequest(
         kinase_result=kinase_result,
         config=build_signalome_config(substrate_support_cutoff=0.5),
@@ -1748,11 +1793,9 @@ def test_signalome_validator_allows_downstream_score_matrix_missingness() -> Non
 
 def test_signalome_validator_rejects_missing_site_metadata_protein_values() -> None:
     kinase_result = _kinase_result()
-    kinase_result.dataset._site_metadata.loc[:, "protein_id"] = np.nan
-    request = SignalomeWorkflowRequest(
-        kinase_result=kinase_result,
-        config=build_signalome_config(substrate_support_cutoff=0.5),
-    )
+    site_metadata = kinase_result.dataset.site_metadata
+    site_metadata.loc[:, "protein_id"] = np.nan
+    request = _signalome_request_with_site_metadata(site_metadata)
     with pytest.raises(WorkflowValidationError) as exc_info:
         SignalomeWorkflowValidator().run(request)
 

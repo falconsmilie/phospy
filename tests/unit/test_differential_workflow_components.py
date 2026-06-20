@@ -55,6 +55,9 @@ from tests.support.intensity_scale_states import (
     supported_log2_processing_state,
 )
 from tests.support.site_keys import protein_site_key_index, site_key_context_columns
+from tests.support.unsafe_dataset_states import (
+    unsafe_replace_dataset_intensity_scale_state,
+)
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
@@ -619,9 +622,8 @@ def test_differential_validator_rejects_established_linear_scale() -> None:
 
 def test_differential_validator_rejects_declared_but_unestablished_log2_scale() -> None:
     dataset = _dataset()
-    object.__setattr__(
+    unsafe_replace_dataset_intensity_scale_state(
         dataset,
-        "intensity_scale_state",
         IntensityScaleState(
             phospho=MatrixIntensityScaleState.log2(established_by="test.declaration"),
             total=None,

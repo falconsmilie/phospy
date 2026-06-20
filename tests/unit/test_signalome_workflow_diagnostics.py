@@ -141,6 +141,24 @@ def _dataset(
     )
 
 
+def _dataset_with_missing_protein_ids(
+    *,
+    site_ids: list[str],
+    missing_site_ids: set[str],
+) -> AnalysisReadyPhosphoDataset:
+    dataset = _dataset(site_ids=site_ids)
+    site_metadata = dataset.site_metadata
+    for site_id in missing_site_ids:
+        site_metadata.loc[_site_key(site_id), "protein_id"] = np.nan
+    return AnalysisReadyPhosphoDataset(
+        phospho=dataset.phospho,
+        site_metadata=site_metadata,
+        organism=dataset.organism,
+        intensity_scale_state=dataset.intensity_scale_state,
+        processing_state=dataset.processing_state,
+    )
+
+
 def _bundle(site_ids: list[str]) -> ReferenceBundle:
     unique_sites = pd.Index([str(site_id) for site_id in site_ids], name="site_id")
     return ReferenceBundle(
@@ -1485,8 +1503,10 @@ def test_interpreter_allows_removed_site_with_missing_protein_id_in_permissive_m
     None
 ):
     site_ids = ["P1;S1;", "P2;S2;"]
-    dataset = _dataset(site_ids=site_ids)
-    dataset._site_metadata.loc[_site_key("P1;S1;"), "protein_id"] = np.nan
+    dataset = _dataset_with_missing_protein_ids(
+        site_ids=site_ids,
+        missing_site_ids={"P1;S1;"},
+    )
     prediction_matrix = _matrix(
         values=[
             [0.9, 0.1],
@@ -1543,8 +1563,10 @@ def test_interpreter_allows_removed_site_with_missing_protein_id_in_permissive_m
 
 def test_interpreter_fails_for_retained_site_with_missing_protein_id() -> None:
     site_ids = ["P1;S1;"]
-    dataset = _dataset(site_ids=site_ids)
-    dataset._site_metadata.loc[_site_key("P1;S1;"), "protein_id"] = np.nan
+    dataset = _dataset_with_missing_protein_ids(
+        site_ids=site_ids,
+        missing_site_ids={"P1;S1;"},
+    )
     prediction_matrix = _matrix(
         values=[[0.9, 0.1]],
         site_ids=site_ids,
@@ -1583,8 +1605,10 @@ def test_interpreter_strict_mode_fails_on_score_preconditioning_before_protein_m
     None
 ):
     site_ids = ["P1;S1;", "P2;S2;"]
-    dataset = _dataset(site_ids=site_ids)
-    dataset._site_metadata.loc[_site_key("P1;S1;"), "protein_id"] = np.nan
+    dataset = _dataset_with_missing_protein_ids(
+        site_ids=site_ids,
+        missing_site_ids={"P1;S1;"},
+    )
     prediction_matrix = _matrix(
         values=[
             [0.9, 0.1],
@@ -1628,9 +1652,10 @@ def test_interpreter_mixed_removed_and_retained_missing_protein_sites_reports_re
     None
 ):
     site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
-    dataset = _dataset(site_ids=site_ids)
-    dataset._site_metadata.loc[_site_key("P1;S1;"), "protein_id"] = np.nan
-    dataset._site_metadata.loc[_site_key("P3;S3;"), "protein_id"] = np.nan
+    dataset = _dataset_with_missing_protein_ids(
+        site_ids=site_ids,
+        missing_site_ids={"P1;S1;", "P3;S3;"},
+    )
     prediction_matrix = _matrix(
         values=[
             [0.9, 0.1],

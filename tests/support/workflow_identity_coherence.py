@@ -32,6 +32,11 @@ from tests.support.intensity_scale_states import (
 )
 from tests.support.signalome_config import build_signalome_config
 from tests.support.site_keys import protein_site_key_index, site_key_context_columns
+from tests.support.unsafe_dataset_states import (
+    unsafe_corrupt_dataset_to_display_index,
+    unsafe_drop_dataset_site_metadata_columns,
+    unsafe_set_dataset_site_metadata_columns,
+)
 
 DUPLICATE_DISPLAY_ID = "MAPK14;Y182;"
 
@@ -200,37 +205,21 @@ def build_duplicate_display_signalome_request(
 
 
 def corrupt_dataset_to_display_index(dataset: AnalysisReadyPhosphoDataset) -> None:
-    display_index = pd.Index(
-        dataset._site_metadata.loc[:, "display_id"].astype(str).tolist(),
-        name="site_key",
-    )
-    object.__setattr__(
-        dataset,
-        "_phospho",
-        dataset._phospho.set_axis(display_index.copy(), axis="index"),
-    )
-    object.__setattr__(
-        dataset,
-        "_site_metadata",
-        dataset._site_metadata.set_axis(display_index.copy(), axis="index"),
-    )
+    unsafe_corrupt_dataset_to_display_index(dataset)
 
 
 def drop_site_metadata_column(
     dataset: AnalysisReadyPhosphoDataset,
     column_name: str,
 ) -> None:
-    object.__setattr__(
-        dataset,
-        "_site_metadata",
-        dataset._site_metadata.drop(columns=[column_name]),
-    )
+    unsafe_drop_dataset_site_metadata_columns(dataset, column_name)
 
 
 def set_site_sequence_values(
     dataset: AnalysisReadyPhosphoDataset,
     site_sequences: list[str],
 ) -> None:
-    site_metadata = dataset._site_metadata.copy(deep=True)
-    site_metadata.loc[:, "site_sequence"] = site_sequences
-    object.__setattr__(dataset, "_site_metadata", site_metadata)
+    unsafe_set_dataset_site_metadata_columns(
+        dataset,
+        {"site_sequence": site_sequences},
+    )

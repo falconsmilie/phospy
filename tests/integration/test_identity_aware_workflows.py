@@ -37,6 +37,11 @@ from phospy.workflows.kinase.validator import KinaseWorkflowValidator
 from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
 from tests.support.signalome_config import build_signalome_config
+from tests.support.unsafe_dataset_states import (
+    unsafe_drop_dataset_site_metadata_columns,
+    unsafe_set_dataset_site_metadata_columns,
+    unsafe_set_dataset_site_metadata_index,
+)
 
 
 def _minimal_site_key_dataset(
@@ -371,12 +376,7 @@ def test_workflow_validators_require_display_id_column() -> None:
     )
     for validator, request in cases:
         dataset = _site_metadata_dataset(request)
-        site_metadata = dataset._borrow_site_metadata_frame().copy(deep=True)
-        object.__setattr__(
-            dataset,
-            "_site_metadata",
-            site_metadata.drop(columns=["display_id"]),
-        )
+        unsafe_drop_dataset_site_metadata_columns(dataset, "display_id")
         with pytest.raises(
             WorkflowValidationError,
             match="missing required columns: display_id",
@@ -408,11 +408,13 @@ def test_workflow_validators_reject_non_site_key_indexed_site_metadata() -> None
     for validator, request in cases:
         dataset = _site_metadata_dataset(request)
         site_metadata = dataset._borrow_site_metadata_frame().copy(deep=True)
-        site_metadata.index = pd.Index(
-            site_metadata.loc[:, "display_id"].astype(str).tolist(),
-            name=site_metadata.index.name,
+        unsafe_set_dataset_site_metadata_index(
+            dataset,
+            pd.Index(
+                site_metadata.loc[:, "display_id"].astype(str).tolist(),
+                name=site_metadata.index.name,
+            ),
         )
-        object.__setattr__(dataset, "_site_metadata", site_metadata)
         with pytest.raises(
             WorkflowValidationError,
             match=(
@@ -450,8 +452,10 @@ def test_workflow_validators_require_site_key_column_to_match_index() -> None:
         site_metadata = dataset._borrow_site_metadata_frame().copy(deep=True)
         mutated_site_keys = site_metadata.loc[:, "site_key"].tolist()
         mutated_site_keys[0] = mutated_site_keys[-1]
-        site_metadata.loc[:, "site_key"] = mutated_site_keys
-        object.__setattr__(dataset, "_site_metadata", site_metadata)
+        unsafe_set_dataset_site_metadata_columns(
+            dataset,
+            {"site_key": mutated_site_keys},
+        )
         with pytest.raises(
             WorkflowValidationError,
             match="site_key must exactly match .*index values",

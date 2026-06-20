@@ -27,6 +27,9 @@ from tests.support.intensity_scale_states import (
     supported_log2_processing_state,
 )
 from tests.support.site_keys import site_key_context_columns
+from tests.support.unsafe_dataset_states import (
+    unsafe_replace_dataset_intensity_scale_state,
+)
 
 
 def _frames() -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -163,9 +166,8 @@ def test_eligibility_validator_rejects_established_linear_phospho_scale() -> Non
 
 def test_eligibility_validator_rejects_raw_phospho_scale_if_representable() -> None:
     dataset = _dataset_with_log2_scale()
-    object.__setattr__(
+    unsafe_replace_dataset_intensity_scale_state(
         dataset,
-        "intensity_scale_state",
         IntensityScaleState.raw(has_total_matrix=False),
     )
     with pytest.raises(
@@ -180,7 +182,7 @@ def test_eligibility_validator_rejects_unknown_phospho_scale_if_representable() 
     unknown_state = IntensityScaleState.raw(
         has_total_matrix=False
     ).with_quantitative_meaning(QuantitativeMeaning.UNKNOWN)
-    object.__setattr__(dataset, "intensity_scale_state", unknown_state)
+    unsafe_replace_dataset_intensity_scale_state(dataset, unknown_state)
     with pytest.raises(
         WorkflowValidationError,
         match="requires established log2-scale phospho intensities",
@@ -190,9 +192,8 @@ def test_eligibility_validator_rejects_unknown_phospho_scale_if_representable() 
 
 def test_eligibility_validator_rejects_declared_but_unestablished_log2_scale() -> None:
     dataset = _dataset_with_log2_scale()
-    object.__setattr__(
+    unsafe_replace_dataset_intensity_scale_state(
         dataset,
-        "intensity_scale_state",
         IntensityScaleState(
             phospho=MatrixIntensityScaleState.log2(established_by="test.declaration"),
             total=None,
