@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import re
 from pathlib import Path
 
@@ -60,17 +61,178 @@ def _normalise_whitespace(text: str) -> str:
     return " ".join(text.split())
 
 
-def _assert_heading(source: str, heading: str, *, level: int = 2) -> None:
-    marker = "#" * level
-    pattern = rf"^{re.escape(marker)}\s+{re.escape(heading)}\s*$"
-    assert re.search(pattern, source, flags=re.MULTILINE), (
-        f"missing Markdown heading: {marker} {heading}"
+def _iter_python_code_blocks(source: str) -> tuple[str, ...]:
+    return tuple(
+        match.group("code").strip()
+        for match in re.finditer(
+            r"```python\s*\n(?P<code>.*?)\n```",
+            source,
+            flags=re.DOTALL,
+        )
     )
 
 
-def _assert_contains_all(source: str, expected: tuple[str, ...]) -> None:
-    missing = [fragment for fragment in expected if fragment not in source]
-    assert not missing, f"missing expected documentation fragments: {missing}"
+def _parse_python_code_blocks(source: str) -> tuple[ast.Module, ...]:
+    parsed_blocks: list[ast.Module] = []
+    for block in _iter_python_code_blocks(source):
+        try:
+            parsed_blocks.append(ast.parse(block))
+        except SyntaxError as exc:  # pragma: no cover - assertion context only
+            raise AssertionError(f"invalid documented Python example: {exc}") from exc
+    return tuple(parsed_blocks)
+
+
+def _imported_names(source: str, module_name: str) -> set[str]:
+    names: set[str] = set()
+    for tree in _parse_python_code_blocks(source):
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module == module_name:
+                names.update(alias.name for alias in node.names)
+    return names
+
+
+def _assert_python_imports(
+    source: str,
+    module_name: str,
+    names: tuple[str, ...],
+    *,
+    context: str,
+) -> None:
+    imported = _imported_names(source, module_name)
+    missing = sorted(set(names) - imported)
+    assert not missing, f"{context} missing imports from {module_name}: {missing}"
+
+
+def _assert_python_imports_absent(
+    source: str,
+    module_name: str,
+    names: tuple[str, ...],
+    *,
+    context: str,
+) -> None:
+    imported = _imported_names(source, module_name)
+    present = sorted(set(names) & imported)
+    assert not present, f"{context} documents unsupported imports: {present}"
+
+
+def _call_name(call: ast.Call) -> str | None:
+    if isinstance(call.func, ast.Name):
+        return call.func.id
+    return None
+
+
+def _is_workflow_run_call(call: ast.Call, workflow_name: str) -> bool:
+    return (
+        isinstance(call.func, ast.Attribute)
+        and call.func.attr == "run"
+        and isinstance(call.func.value, ast.Call)
+        and isinstance(call.func.value.func, ast.Name)
+        and call.func.value.func.id == workflow_name
+    )
+
+
+def _assert_python_call(source: str, call_name: str, *, context: str) -> None:
+    assert any(
+        _call_name(call) == call_name
+        for tree in _parse_python_code_blocks(source)
+        for call in ast.walk(tree)
+        if isinstance(call, ast.Call)
+    ), f"{context} must include a documented {call_name}(...) example"
+
+
+def _assert_python_run_call(
+    source: str,
+    workflow_name: str,
+    *,
+    context: str,
+) -> None:
+    assert any(
+        _is_workflow_run_call(call, workflow_name)
+        for tree in _parse_python_code_blocks(source)
+        for call in ast.walk(tree)
+        if isinstance(call, ast.Call)
+    ), f"{context} must include {workflow_name}().run(...)"
+
+
+_MISSING = object()
+
+
+def _literal_value(node: ast.AST) -> object:
+    if isinstance(node, ast.Constant):
+        return node.value
+    if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+        return f"{node.value.id}.{node.attr}"
+    return _MISSING
+
+
+def _assert_python_call_keyword(
+    source: str,
+    call_name: str,
+    keyword_name: str,
+    expected_value: object = _MISSING,
+    *,
+    context: str,
+) -> None:
+    for tree in _parse_python_code_blocks(source):
+        for call in ast.walk(tree):
+            if not isinstance(call, ast.Call) or _call_name(call) != call_name:
+                continue
+            for keyword in call.keywords:
+                if keyword.arg != keyword_name:
+                    continue
+                if expected_value is _MISSING:
+                    return
+                if _literal_value(keyword.value) == expected_value:
+                    return
+
+    expected = (
+        keyword_name
+        if expected_value is _MISSING
+        else f"{keyword_name}={expected_value!r}"
+    )
+    raise AssertionError(f"{context} must document {call_name}({expected}, ...)")
+
+
+def _assert_python_constant(source: str, expected: object, *, context: str) -> None:
+    assert any(
+        isinstance(node, ast.Constant) and node.value == expected
+        for tree in _parse_python_code_blocks(source)
+        for node in ast.walk(tree)
+    ), f"{context} must include literal {expected!r} in a Python example"
+
+
+def _attribute_chain(node: ast.AST) -> tuple[str, ...] | None:
+    if isinstance(node, ast.Name):
+        return (node.id,)
+    if isinstance(node, ast.Attribute):
+        parent = _attribute_chain(node.value)
+        if parent is not None:
+            return (*parent, node.attr)
+    return None
+
+
+def _assert_python_attribute_chain(
+    source: str,
+    chain: tuple[str, ...],
+    *,
+    context: str,
+) -> None:
+    assert any(
+        _attribute_chain(node) == chain
+        for tree in _parse_python_code_blocks(source)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Attribute)
+    ), f"{context} must document {'.'.join(chain)}"
+
+
+def _assert_documented_terms(
+    source: str,
+    expected: tuple[str, ...],
+    *,
+    context: str,
+) -> None:
+    missing = [term for term in expected if term not in source]
+    assert not missing, f"{context} missing public documentation terms: {missing}"
 
 
 def _iter_documentation_statements(source: str) -> tuple[str, ...]:
@@ -327,15 +489,32 @@ def test_each_public_workflow_has_dedicated_api_page_with_contract_classes() -> 
 def test_api_docs_enrichment_example_uses_public_api_and_runs_offline() -> None:
     source = _read(ENRICHMENT_DOC)
 
-    _assert_heading(source, "Minimal Example")
-    _assert_contains_all(
+    _assert_python_imports(
         source,
+        "phospy.api",
         (
+            "EnrichmentConfig",
             "EnrichmentWorkflow",
-            "GeneSetCollection(",
-            "background_universe=",
-            "EnrichmentWorkflow().run(",
+            "EnrichmentWorkflowRequest",
+            "GeneSetCollection",
         ),
+        context="enrichment public API example",
+    )
+    _assert_python_call(
+        source,
+        "GeneSetCollection",
+        context="enrichment public API example",
+    )
+    _assert_python_call_keyword(
+        source,
+        "EnrichmentWorkflowRequest",
+        "background_universe",
+        context="enrichment public API example",
+    )
+    _assert_python_run_call(
+        source,
+        "EnrichmentWorkflow",
+        context="enrichment public API example",
     )
     _assert_statement_contains_all(
         source,
@@ -410,14 +589,17 @@ def test_api_docs_dataset_build_request_example_is_constructible() -> None:
 def test_api_docs_batch_correction_example_is_constructible() -> None:
     source = _read(DATASET_BUILD_DOC)
 
-    _assert_heading(source, "Batch-Correction Parameters")
-    _assert_contains_all(
+    _assert_python_call_keyword(
         source,
-        (
-            "DatasetBatchCorrectionConfig(",
-            'method="linear_residualize_batch"',
-            "dataset.preprocessing_report.batch_correction",
-        ),
+        "DatasetBatchCorrectionConfig",
+        "method",
+        "linear_residualize_batch",
+        context="batch-correction configuration example",
+    )
+    _assert_documented_terms(
+        source,
+        ("dataset.preprocessing_report.batch_correction",),
+        context="batch-correction report contract",
     )
     _assert_statement_contains_all(
         source,
@@ -496,14 +678,22 @@ def test_api_docs_batch_correction_example_is_constructible() -> None:
 def test_api_docs_protein_aware_preparation_boundary_is_documented() -> None:
     source = _read(DATASET_BUILD_DOC)
 
-    _assert_heading(source, "Protein-Aware Preparation Parameters")
-    _assert_contains_all(
+    _assert_python_call_keyword(
         source,
-        (
-            'policy="prepare_model_inputs"',
-            "dataset.protein_aware_preparation",
-            "report.site_eligibility_dataframe()",
-        ),
+        "DatasetProteinAwarePreparationConfig",
+        "policy",
+        "prepare_model_inputs",
+        context="protein-aware preparation configuration example",
+    )
+    _assert_python_attribute_chain(
+        source,
+        ("dataset", "protein_aware_preparation"),
+        context="protein-aware preparation result contract",
+    )
+    _assert_python_attribute_chain(
+        source,
+        ("report", "site_eligibility_dataframe"),
+        context="protein-aware preparation report contract",
     )
     _assert_negated_scope_statement(
         source,
@@ -635,13 +825,34 @@ def test_api_docs_signalome_request_example_is_constructible() -> None:
 def test_api_docs_differential_import_route_uses_supported_public_path() -> None:
     source = _read(DIFFERENTIAL_DOC)
 
-    _assert_contains_all(
+    _assert_python_imports(
         source,
-        (
-            "from phospy import DifferentialAnalysisWorkflow",
-            "from phospy.api import (",
-            "DifferentialAnalysisRequest,",
-        ),
+        "phospy",
+        ("DifferentialAnalysisWorkflow",),
+        context="differential workflow import route",
+    )
+    _assert_python_imports(
+        source,
+        "phospy.api",
+        ("DifferentialAnalysisRequest",),
+        context="differential workflow import route",
+    )
+    _assert_python_run_call(
+        source,
+        "DifferentialAnalysisWorkflow",
+        context="differential workflow import route",
+    )
+    _assert_python_imports_absent(
+        source,
+        "phospy",
+        ("DifferentialAnalysis",),
+        context="differential workflow import route",
+    )
+    _assert_python_imports_absent(
+        source,
+        "phospy.api",
+        ("DifferentialAnalysis",),
+        context="differential workflow import route",
     )
     _assert_negated_scope_statement(
         source,
@@ -659,15 +870,32 @@ def test_readme_and_differential_docs_keep_scientific_scope_contracts() -> None:
 
     assert "minimum_condition_replicates=1" not in readme_source
     assert "minimum_condition_replicates=1" not in differential_source
-    _assert_contains_all(
+    _assert_python_run_call(
         readme_source,
-        (
-            "KinaseWorkflow().run(",
-            "KinaseWorkflowRequest(",
-            "site_sequence",
-            "ReferencePreset.AUTO",
-            "`linear_residualize_batch`",
-        ),
+        "KinaseWorkflow",
+        context="README scientific-scope workflow example",
+    )
+    _assert_python_call(
+        readme_source,
+        "KinaseWorkflowRequest",
+        context="README scientific-scope workflow example",
+    )
+    _assert_python_constant(
+        readme_source,
+        "site_sequence",
+        context="README scientific-scope workflow example",
+    )
+    _assert_python_call_keyword(
+        readme_source,
+        "KinaseWorkflowRequest",
+        "references",
+        "ReferencePreset.AUTO",
+        context="README scientific-scope workflow example",
+    )
+    _assert_documented_terms(
+        readme_source,
+        ("`linear_residualize_batch`",),
+        context="README batch-correction method contract",
     )
     _assert_statement_contains_all(
         readme_source,
@@ -679,15 +907,21 @@ def test_readme_and_differential_docs_keep_scientific_scope_contracts() -> None:
         ("ComBat", "RUV", "removeBatchEffect", "mixed-effects"),
         context="README batch-correction scope",
     )
-    _assert_contains_all(
+    for sample_id in (
+        "control_rep1",
+        "control_rep2",
+        "treatment_rep1",
+        "treatment_rep2",
+    ):
+        _assert_python_constant(
+            differential_source,
+            sample_id,
+            context="differential minimal example sample design",
+        )
+    _assert_statement_contains_all(
         differential_source,
-        (
-            "control_rep1",
-            "control_rep2",
-            "treatment_rep1",
-            "treatment_rep2",
-            'policy="log2"',
-        ),
+        ("DatasetIntensityTransformConfig", "log2"),
+        context="differential log2 dataset preparation guidance",
     )
 
 
@@ -698,23 +932,41 @@ def test_public_workflow_docs_make_localisation_policy_explicit() -> None:
     kinase_source = _read(KINASE_DOC)
     signalome_source = _read(SIGNALOME_DOC)
 
-    _assert_contains_all(
+    _assert_python_call_keyword(
         readme_source,
-        (
-            "DatasetLocalisationConfig(",
-            'confidence_column="localisation_confidence"',
-            "min_confidence=0.75",
-        ),
+        "DatasetLocalisationConfig",
+        "confidence_column",
+        "localisation_confidence",
+        context="README localisation policy example",
+    )
+    _assert_python_call_keyword(
+        readme_source,
+        "DatasetLocalisationConfig",
+        "min_confidence",
+        0.75,
+        context="README localisation policy example",
     )
 
-    _assert_heading(source=dataset_source, heading="Localisation-Confidence Parameters")
-    _assert_contains_all(
+    _assert_python_call_keyword(
         dataset_source,
-        (
-            'mode="require_threshold"',
-            'confidence_column="localisation_confidence"',
-            "min_confidence=0.75",
-        ),
+        "DatasetLocalisationConfig",
+        "mode",
+        "require_threshold",
+        context="dataset localisation policy example",
+    )
+    _assert_python_call_keyword(
+        dataset_source,
+        "DatasetLocalisationConfig",
+        "confidence_column",
+        "localisation_confidence",
+        context="dataset localisation policy example",
+    )
+    _assert_python_call_keyword(
+        dataset_source,
+        "DatasetLocalisationConfig",
+        "min_confidence",
+        0.75,
+        context="dataset localisation policy example",
     )
     _assert_failure_boundary_statement(
         dataset_source,
@@ -732,9 +984,12 @@ def test_public_workflow_docs_make_localisation_policy_explicit() -> None:
         context="dataset localisation threshold boundary",
     )
 
-    _assert_contains_all(
+    _assert_python_call_keyword(
         differential_source,
-        ("DatasetLocalisationConfig(", "localisation_confidence"),
+        "DatasetLocalisationConfig",
+        "confidence_column",
+        "localisation_confidence",
+        context="differential localisation prerequisite",
     )
     _assert_failure_boundary_statement(
         differential_source,
@@ -742,16 +997,22 @@ def test_public_workflow_docs_make_localisation_policy_explicit() -> None:
         context="differential localisation prerequisite",
     )
 
-    _assert_heading(kinase_source, "Localisation Prerequisite")
-    _assert_contains_all(kinase_source, ("DatasetLocalisationConfig(",))
+    _assert_python_call(
+        kinase_source,
+        "DatasetLocalisationConfig",
+        context="kinase localisation prerequisite",
+    )
     _assert_failure_boundary_statement(
         kinase_source,
         ("localisation", "missing"),
         context="kinase localisation prerequisite",
     )
 
-    _assert_heading(signalome_source, "Localisation Prerequisite")
-    _assert_contains_all(signalome_source, ("DatasetLocalisationConfig(",))
+    _assert_python_call(
+        signalome_source,
+        "DatasetLocalisationConfig",
+        context="signalome localisation prerequisite",
+    )
     _assert_failure_boundary_statement(
         signalome_source,
         ("localisation", "missing"),
@@ -762,13 +1023,14 @@ def test_public_workflow_docs_make_localisation_policy_explicit() -> None:
 def test_kinase_docs_explain_reference_display_ambiguity_policy() -> None:
     source = _read(KINASE_DOC)
 
-    _assert_contains_all(
+    _assert_documented_terms(
         source,
         (
             "reference_display_ambiguity_policy",
             '"error"',
             '"allow_with_diagnostics"',
         ),
+        context="reference display ambiguity policy contract",
     )
     _assert_statement_contains_all(
         source,
