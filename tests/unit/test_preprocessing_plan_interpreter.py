@@ -7,6 +7,7 @@ from phospy.api.configs import (
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
+    DatasetProteinAwarePreparationConfig,
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
     DatasetTotalProteinCorrectionIdentityConfig,
@@ -111,6 +112,29 @@ def test_preprocessing_plan_interpreter_resolves_total_mapping_table_identity() 
     assert identity.mapping_total_protein_key == "protein_id"
     assert isinstance(identity.mapping_table_fingerprint, str)
     assert len(identity.mapping_table_fingerprint) == 64
+
+
+def test_preprocessing_plan_interpreter_rejects_invalid_protein_aware_config_before_plan_construction() -> (
+    None
+):
+    class PlanConstructionShouldNotRun:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            raise AssertionError("plan construction should not run")
+
+    protein_aware_preparation = DatasetProteinAwarePreparationConfig()
+    object.__setattr__(
+        protein_aware_preparation,
+        "policy",
+        "joint_ptm_protein_model",
+    )
+    config = DatasetPreprocessingConfig(
+        protein_aware_preparation=protein_aware_preparation
+    )
+
+    with pytest.raises(PhosPyInputError, match="protein_aware_preparation.policy"):
+        PreprocessingPlanInterpreter(
+            plan_type=PlanConstructionShouldNotRun,  # type: ignore[arg-type]
+        ).run(config)
 
 
 def test_preprocessing_plan_from_config_remains_compatibility_wrapper() -> None:

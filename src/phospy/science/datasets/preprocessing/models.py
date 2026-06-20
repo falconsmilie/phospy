@@ -14,9 +14,7 @@ from phospy.contracts.configs import (
     DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
     DATASET_BATCH_CORRECTION_METHOD_NONE,
     DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN,
-    DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICIES,
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_REQUIRE_UNAMBIGUOUS,
-    DATASET_PROTEIN_AWARE_PREPARATION_POLICIES,
     DATASET_PROTEIN_AWARE_PREPARATION_POLICY_DISABLED,
     DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICY_ERROR,
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT,
@@ -64,9 +62,6 @@ from phospy.science.datasets.preprocessing.report_schema import (
     PreprocessingRowAuditRow,
     dataframe_from_row_audit_rows,
     reorder_columns,
-)
-from phospy.validation.configs.preprocessing import (
-    validate_protein_aware_preparation_config,
 )
 
 
@@ -407,14 +402,6 @@ class PreprocessingPlan:
                     "dataset preprocessing plan total_protein_correction_policy "
                     "(internal model)"
                 ),
-            ),
-        )
-        validate_protein_aware_preparation_config(
-            policy=self.protein_aware_preparation_policy,
-            protein_mapping_policy=self.protein_aware_preparation_mapping_policy,
-            supported_policies=DATASET_PROTEIN_AWARE_PREPARATION_POLICIES,
-            supported_mapping_policies=(
-                DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICIES
             ),
         )
         object.__setattr__(

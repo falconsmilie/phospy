@@ -6,6 +6,8 @@ import pandas as pd
 
 from phospy.contracts.configs import (
     DATASET_BATCH_CORRECTION_METHOD_NONE,
+    DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICIES,
+    DATASET_PROTEIN_AWARE_PREPARATION_POLICIES,
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT,
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_MAPPING_TABLE,
     DatasetPreprocessingConfig,
@@ -48,6 +50,9 @@ from phospy.science.datasets.preprocessing.policy_models import (
     TotalProteinCorrectionIdentityMatchingPolicy,
     TotalProteinCorrectionPolicy,
 )
+from phospy.validation.configs.preprocessing import (
+    validate_protein_aware_preparation_config,
+)
 
 
 class PreprocessingPlanInterpreter:
@@ -61,6 +66,17 @@ class PreprocessingPlanInterpreter:
         self._plan_type = plan_type
 
     def run(self, config: DatasetPreprocessingConfig) -> PreprocessingPlan:
+        validate_protein_aware_preparation_config(
+            policy=config.protein_aware_preparation.policy,
+            protein_mapping_policy=(
+                config.protein_aware_preparation.protein_mapping_policy
+            ),
+            supported_policies=DATASET_PROTEIN_AWARE_PREPARATION_POLICIES,
+            supported_mapping_policies=(
+                DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICIES
+            ),
+        )
+
         stage_order: list[str] = []
         stage_order_resolution: list[PreprocessingStageOrderResolution] = []
 
