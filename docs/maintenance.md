@@ -122,6 +122,23 @@ Docs subdirectories are intentional:
 - `docs/adr/` for architecture decision records
 - `docs/testing/` for testing-audit and consolidation material
 
+### Scientific Claims Checklist
+
+Before merging docs or examples that describe scientific results, check that the
+wording:
+
+- describes kinase outputs as scores or associations, not causal kinase activity
+- avoids claiming exact PhosR equivalence unless scoped parity evidence supports it
+- treats enrichment as statistical evidence, not pathway activation or biological
+  proof
+- names the background universe, test, correction, threshold, and assumptions
+  before calling a result significant
+- keeps `site_key` as row identity and `display_id` as a display label
+- describes score-derived network edges as inferred, not experimentally proven
+  relationships
+- respects the `AnalysisReadyPhosphoDataset` boundary, private dataset
+  validation, and validator -> interpreter -> executor responsibilities
+
 ## Deprecation and Removal Ledger
 
 This ledger is the maintainer checkpoint for deprecated APIs, retained
