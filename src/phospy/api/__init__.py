@@ -106,6 +106,8 @@ from phospy.api.requests import (
     PtmSetCollection,
     SampleDesignRecord,
     SignalomeWorkflowRequest,
+    all_pairwise_contrasts,
+    contrasts_vs_control,
 )
 from phospy.api.results import (
     BatchCorrectionDiagnostics,
@@ -211,6 +213,8 @@ __all__ = [
     "DatasetIntensityTransformConfig",
     "DatasetLocalisationConfig",
     "SampleDesignRecord",
+    "all_pairwise_contrasts",
+    "contrasts_vs_control",
     "BatchCovariate",
     "CategoricalCovariate",
     "ContinuousCovariate",

@@ -105,6 +105,48 @@ Related request classes:
 - `EmpiricalBayesConfig`
 - `MultipleTestingConfig`
 
+## Contrast Helpers
+
+Manual `Contrast` objects are still the most explicit option. For common
+condition comparisons, PhosPy also provides helpers that return ordinary
+`Contrast` tuples. They do not run the workflow or add statistical behaviour.
+
+Contrast direction is `numerator_condition - denominator_condition`. A contrast
+named `treatment_vs_control` means treatment is the numerator and control is the
+denominator.
+
+All pairwise contrasts use the condition order from the design. For each pair,
+the later condition is compared with the earlier condition:
+
+```python
+from phospy.api import all_pairwise_contrasts
+
+contrasts = all_pairwise_contrasts(design)
+
+assert tuple(contrast.name for contrast in contrasts) == (
+    "B_vs_A",
+    "C_vs_A",
+    "C_vs_B",
+)
+```
+
+Treatment-versus-control contrasts use each non-control condition as the
+numerator and the named control as the denominator:
+
+```python
+from phospy.api import contrasts_vs_control
+
+contrasts = contrasts_vs_control(
+    design,
+    control_condition="control",
+)
+
+assert tuple(contrast.name for contrast in contrasts) == (
+    "treatment_a_vs_control",
+    "treatment_b_vs_control",
+)
+```
+
 ## Running the Workflow
 
 Import the workflow from top-level `phospy` and request/config classes from

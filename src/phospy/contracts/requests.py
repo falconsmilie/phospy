@@ -29,6 +29,10 @@ from phospy.contracts.configs import (
 from phospy.errors.validation import WorkflowValidationError
 from phospy.science.datasets.builders.contracts import DatasetInput
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.design.contrast_helpers import (
+    all_pairwise_contrasts,
+    contrasts_vs_control,
+)
 from phospy.science.design.models import (
     BatchCovariate,
     CategoricalCovariate,
@@ -310,6 +314,8 @@ __all__ = [
     "PhosphositeImporter",
     "PhosphositeImportRequest",
     "SampleDesignRecord",
+    "all_pairwise_contrasts",
+    "contrasts_vs_control",
     "ExperimentalDesign",
     "FixedEffectCovariate",
     "Contrast",

@@ -1,5 +1,9 @@
 """Experimental-design domain exports."""
 
+from phospy.science.design.contrast_helpers import (
+    all_pairwise_contrasts,
+    contrasts_vs_control,
+)
 from phospy.science.design.matrix_builder import (
     DesignMatrixBuilder,
     DesignMatrixBuildResult,
@@ -31,6 +35,8 @@ __all__ = [
     "ContinuousCovariate",
     "DesignMatrixBuilder",
     "DesignMatrixBuildResult",
+    "all_pairwise_contrasts",
+    "contrasts_vs_control",
     "describe_fixed_effect_design",
     "ExperimentalDesign",
     "FIXED_EFFECT_COVARIATE_KIND_BATCH",

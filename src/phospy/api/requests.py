@@ -25,6 +25,8 @@ from phospy.contracts.requests import (
     PtmSetCollection,
     SampleDesignRecord,
     SignalomeWorkflowRequest,
+    all_pairwise_contrasts,
+    contrasts_vs_control,
 )
 
 # SignalomeConfig is an implementation dependency here; configs remain owned by
@@ -76,4 +78,6 @@ __all__ = [
     "PtmSetCollection",
     "SampleDesignRecord",
     "SignalomeWorkflowRequest",
+    "all_pairwise_contrasts",
+    "contrasts_vs_control",
 ]

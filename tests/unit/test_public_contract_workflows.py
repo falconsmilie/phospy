@@ -28,6 +28,8 @@ from phospy.api.requests import (
     ExperimentalDesign,
     KinaseWorkflowRequest,
     SignalomeWorkflowRequest,
+    all_pairwise_contrasts,
+    contrasts_vs_control,
 )
 from phospy.api.results import (
     DifferentialAnalysisResult,
@@ -71,6 +73,8 @@ EXPECTED_REQUEST_EXPORTS = {
     "PtmSetCollection",
     "SampleDesignRecord",
     "SignalomeWorkflowRequest",
+    "all_pairwise_contrasts",
+    "contrasts_vs_control",
 } | INTENTIONAL_REQUEST_COMPATIBILITY_CONSTANTS
 
 
@@ -102,6 +106,8 @@ def test_public_workflow_and_request_exports_match_contract() -> None:
     assert "SignalomeWorkflowResult" not in phospy.__all__
     assert "DifferentialAnalysisRequest" not in phospy.__all__
     assert "DifferentialAnalysisResult" not in phospy.__all__
+    assert callable(all_pairwise_contrasts)
+    assert callable(contrasts_vs_control)
 
 
 def test_request_compatibility_constants_are_public_exports() -> None:
