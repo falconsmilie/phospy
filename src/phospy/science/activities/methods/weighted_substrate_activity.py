@@ -1,4 +1,4 @@
-"""Simplified weighted substrate activity method implementation."""
+"""Simplified weighted substrate activity-like score method implementation."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ _SITE_ID_COLUMN = "site_id"
 
 @dataclass(frozen=True, slots=True)
 class SimplifiedWeightedSubstrateActivityMethod:
-    """Heuristic weighted activity method."""
+    """Heuristic weighted substrate-supported kinase score method."""
 
     threshold: float
     min_substrates: int
@@ -71,7 +71,8 @@ class SimplifiedWeightedSubstrateActivityMethod:
                 next_action=(
                     "lower activity_config.min_substrates, increase "
                     "activity_config.top_n_substrates, or lower "
-                    "activity_config.threshold to retain kinase activity candidates"
+                    "activity_config.threshold to retain candidate kinases for "
+                    "activity score calculation"
                 ),
                 overlap_sites=int(inputs.overlap_summary.overlap_count),
                 pred_mat_sites=int(inputs.overlap_summary.pred_mat_rows),

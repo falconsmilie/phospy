@@ -1081,7 +1081,7 @@ def test_activity_result_exposes_explicit_method_identity_without_changing_score
         "heuristic_weighted_substrate_score"
     )
     assert result.activity_method.activity_method_label == (
-        "simplified weighted substrate activity"
+        "simplified weighted substrate activity-like score"
     )
     assert result.activity_method.is_ksea is False
     assert result.activity_method.is_phosr_kinase_activity_equivalent is False

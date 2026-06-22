@@ -1,4 +1,4 @@
-"""Activity stage result models."""
+"""Activity-like score stage result models."""
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ from phospy.tables.kinase import KinasePredictionMatrix
 
 @dataclass(frozen=True, slots=True)
 class ActivityMethodMetadata:
-    """Stable scientific identity metadata for an activity scoring method."""
+    """Stable scientific identity metadata for an activity-like scoring method."""
 
     activity_method_id: str
     activity_method_family: str
@@ -85,7 +85,7 @@ class ActivityMethodMetadata:
 SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY_METHOD = ActivityMethodMetadata(
     activity_method_id="simplified_weighted_substrate_activity_v1",
     activity_method_family="heuristic_weighted_substrate_score",
-    activity_method_label="simplified weighted substrate activity",
+    activity_method_label="simplified weighted substrate activity-like score",
     is_ksea=False,
     is_phosr_kinase_activity_equivalent=False,
 )
@@ -93,7 +93,7 @@ SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY_METHOD = ActivityMethodMetadata(
 KSEA_ZSCORE_ACTIVITY_METHOD = ActivityMethodMetadata(
     activity_method_id="ksea_zscore_v1",
     activity_method_family="substrate_set_enrichment",
-    activity_method_label="ksea z-score activity",
+    activity_method_label="KSEA-style z-score kinase activity score",
     is_ksea=True,
     is_phosr_kinase_activity_equivalent=False,
 )
@@ -101,7 +101,7 @@ KSEA_ZSCORE_ACTIVITY_METHOD = ActivityMethodMetadata(
 SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_METHOD = ActivityMethodMetadata(
     activity_method_id="ssgsea_substrate_enrichment_activity_v1",
     activity_method_family="substrate_set_enrichment",
-    activity_method_label="ssGSEA substrate enrichment activity",
+    activity_method_label="ssGSEA substrate enrichment activity-like score",
     is_ksea=False,
     is_phosr_kinase_activity_equivalent=False,
 )
@@ -223,19 +223,19 @@ class ActivityMethodDiagnostics:
 
 
 class WeightedSubstrateActivityDiagnostics(ActivityMethodDiagnostics):
-    """Diagnostics for simplified weighted substrate activity outputs."""
+    """Diagnostics for simplified weighted substrate activity-like scores."""
 
     __slots__ = ()
 
 
 class KseaZScoreActivityDiagnostics(ActivityMethodDiagnostics):
-    """Diagnostics for KSEA z-score activity outputs."""
+    """Diagnostics for KSEA-style kinase activity score outputs."""
 
     __slots__ = ()
 
 
 class SsgseaSubstrateEnrichmentActivityDiagnostics(ActivityMethodDiagnostics):
-    """Diagnostics for ssGSEA-style substrate enrichment activity outputs."""
+    """Diagnostics for ssGSEA-style substrate enrichment activity-like scores."""
 
     __slots__ = ()
 
@@ -283,7 +283,7 @@ class PredMatOverlapSummary:
 
 @dataclass(frozen=True, slots=True)
 class KinaseActivityInputs:
-    """Trusted activity-stage inputs resolved by workflow validation."""
+    """Trusted activity-like score inputs resolved by workflow validation."""
 
     pred_mat: pd.DataFrame
     phospho_matrix: pd.DataFrame
@@ -324,14 +324,20 @@ class KinaseActivityInputs:
 
 @dataclass(frozen=True, slots=True, init=False)
 class KinaseActivityResult:
-    """Activity-stage outputs.
+    """Activity-like score stage outputs.
 
     Outputs are deliberately table-first. ``activity_matrix`` and
     ``substrate_count_matrix`` are the stable method-neutral matrices. Legacy
     weighted/KSEA sidecars remain available for existing callers but are no
     longer required by the core result contract.
 
-    - ``activity_matrix``: primary activity score matrix for the selected method
+    ``activity_matrix`` contains exploratory kinase activity scores or
+    activity-like substrate summaries. Scores depend on substrate coverage,
+    reference evidence, threshold rules, and the selected method. Sparse or
+    missing substrate support weakens interpretation, and causal kinase activity
+    claims require external validation.
+
+    - ``activity_matrix``: primary kinase activity score matrix for the selected method
     - ``activity_scores``: deprecated compatibility alias for ``activity_matrix``
     - ``weighted_activity``: deprecated compatibility alias for ``activity_matrix``
     - ``p_value_matrix``: optional activity p-value matrix
@@ -563,7 +569,7 @@ class KinaseActivityResult:
 
     @property
     def activity_matrix(self) -> pd.DataFrame:
-        """Return the primary activity matrix for the selected method."""
+        """Return the primary kinase activity score matrix for the selected method."""
 
         return export_dataframe(self._activity_matrix)
 
@@ -649,11 +655,11 @@ class KinaseActivityResult:
             return {
                 "substrate_count_matrix": (
                     "condition-specific finite substrate count used for each "
-                    "kinase-condition activity score"
+                    "kinase-condition kinase activity score"
                 ),
                 "activity_substrate_counts": (
                     "condition-specific finite substrate count used for each "
-                    "kinase-condition activity score; legacy KSEA accessor"
+                    "kinase-condition kinase activity score; legacy KSEA accessor"
                 ),
                 "thresholded_substrate_counts": (
                     "global post-threshold evidence membership count before "
@@ -682,7 +688,7 @@ class KinaseActivityResult:
         return {
             "substrate_count_matrix": (
                 "condition-specific finite substrate count used for each primary "
-                "kinase-condition activity score when supplied by the method"
+                "kinase-condition activity-like score when supplied by the method"
             ),
             "thresholded_substrate_counts": (
                 "global thresholded substrate membership count per kinase"
@@ -742,7 +748,7 @@ class KinaseActivityResult:
         )
 
     def to_dataframe(self) -> pd.DataFrame:
-        """Return a primary activity-score snapshot isolated from this result."""
+        """Return a primary kinase activity score snapshot isolated from this result."""
 
         return self.activity_matrix
 

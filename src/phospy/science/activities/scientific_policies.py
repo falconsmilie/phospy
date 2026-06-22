@@ -1,4 +1,4 @@
-"""Scientific policy records for activity inference summaries."""
+"""Scientific policy records for exploratory activity-like score summaries."""
 
 from __future__ import annotations
 
@@ -17,11 +17,12 @@ def build_simplified_weighted_substrate_activity_policy(
 ) -> ScientificPolicyRecord:
     return ScientificPolicyRecord(
         id=ScientificPolicyId.SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
-        name="Simplified Weighted Substrate Activity",
+        name="Simplified Weighted Substrate Activity Score",
         version="1",
         description=(
-            "Computes weighted activity and thresholded substrate-mean activity "
-            "from predicted substrate support."
+            "Computes a substrate-supported kinase activity score and "
+            "thresholded substrate-mean activity-like summary from predicted "
+            "substrate support."
         ),
         parameters={
             "threshold": float(threshold),
@@ -36,16 +37,20 @@ def build_simplified_weighted_substrate_activity_policy(
             ),
         },
         assumptions=(
-            "Predicted substrate support approximates kinase-substrate relevance.",
-            "Higher weighted/thresholded values indicate stronger relative activity "
-            "support in-run.",
+            "Predicted substrate support approximates kinase-substrate relevance "
+            "for exploratory scoring.",
+            "Higher weighted/thresholded values indicate stronger relative "
+            "candidate kinase support in-run.",
+            "Sparse or missing substrate support weakens interpretation.",
+            "The score does not prove kinase activation or causal regulation; "
+            "causal kinase activity claims require external validation.",
             "This is not full KSEA-style statistical enrichment.",
         ),
         output_scale=(
-            "Sample-by-kinase relative activity summaries (weighted mean and "
-            "thresholded mean)."
+            "Sample-by-kinase exploratory activity-like summaries (weighted mean "
+            "and thresholded mean)."
         ),
-        quantitative_meaning="relative_activity_support",
+        quantitative_meaning="relative_substrate_supported_kinase_score",
     )
 
 
@@ -62,7 +67,7 @@ def build_ksea_zscore_activity_policy(
         name="ksea_zscore_activity_v1",
         version="1",
         description=(
-            "Computes KSEA-style substrate-set enrichment activity z-scores using "
+            "Computes KSEA-style inferred kinase activity z-scores using "
             "unweighted substrate membership after evidence thresholding."
         ),
         parameters={
@@ -82,13 +87,20 @@ def build_ksea_zscore_activity_policy(
         },
         assumptions=(
             "Substrate evidence contributes as binary membership after thresholding.",
-            "Background phosphosite values define per-condition mean and sample variance.",
-            "Scores with insufficient substrates or invalid background variance are not computable.",
-            "KSEA z-scores are statistical enrichment summaries and are not PhosR-equivalent activity inference.",
+            "Background phosphosite values define per-condition mean and sample "
+            "variance.",
+            "Scores with insufficient substrates or invalid background variance "
+            "are not computable.",
+            "Sparse or missing substrate support weakens interpretation.",
+            "KSEA z-scores are statistical enrichment summaries, not validated "
+            "causal kinase activation.",
+            "Causal kinase activity claims require external validation and a "
+            "study design that supports them.",
+            "KSEA z-scores are not PhosR-equivalent activity inference.",
         ),
         output_scale=(
-            "Condition-by-kinase z-score substrate-set enrichment activity matrix "
-            "with normal-approximation p-values."
+            "Condition-by-kinase inferred kinase activity score matrix "
+            "(z-score substrate-set enrichment) with normal-approximation p-values."
         ),
         quantitative_meaning="substrate_set_enrichment_z_score",
     )
@@ -132,13 +144,19 @@ def build_ssgsea_substrate_enrichment_activity_policy(
         },
         assumptions=(
             "Kinase substrate membership defines the tested phosphosite set.",
-            "Rank concentration of substrate effects summarizes relative kinase activity support.",
-            "Permutation p-values, when requested, use seeded random substrate-set label permutations.",
-            "This is a validated PhosPy implementation and is not a PTM-SEA parity claim.",
+            "Rank concentration of substrate effects summarizes candidate kinase "
+            "support.",
+            "Sparse or missing substrate support weakens interpretation.",
+            "Permutation p-values, when requested, use seeded random substrate-set "
+            "label permutations.",
+            "The enrichment score does not prove kinase activation or causal "
+            "regulation; causal kinase activity claims require external validation.",
+            "This is a validated PhosPy implementation and is not a PTM-SEA "
+            "parity claim.",
         ),
         output_scale=(
-            "Condition-by-kinase rank-walk substrate-set enrichment activity "
-            "score matrix with optional empirical p-values."
+            "Condition-by-kinase rank-walk substrate-supported kinase score matrix "
+            "with optional empirical p-values."
         ),
         quantitative_meaning="rank_based_substrate_set_enrichment_score",
     )

@@ -1,4 +1,4 @@
-"""KSEA-style substrate-set enrichment activity method."""
+"""KSEA-style substrate-set enrichment activity score method."""
 
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ KSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG = "benjamini_hochberg"
 
 @dataclass(frozen=True, slots=True)
 class KseaZScoreActivityMethod:
-    """KSEA v1: unweighted substrate-set enrichment z-score."""
+    """KSEA v1: unweighted substrate-set enrichment kinase activity score."""
 
     evidence_threshold: float
     min_substrates: int

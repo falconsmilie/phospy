@@ -12,6 +12,7 @@ from phospy.provenance.scientific_policy_models import (
 from phospy.science.activities.scientific_policies import (
     build_ksea_zscore_activity_policy,
     build_simplified_weighted_substrate_activity_policy,
+    build_ssgsea_substrate_enrichment_activity_policy,
 )
 from phospy.science.datasets.preprocessing.scientific_policies import (
     DUPLICATE_SITE_RESOLUTION_AGGREGATE_MEAN_POLICY,
@@ -196,6 +197,62 @@ def test_ksea_activity_policy_record_is_serializable() -> None:
     assert restored.id == ScientificPolicyId.KSEA_ZSCORE_ACTIVITY
     assert restored.parameters["evidence_threshold"] == pytest.approx(0.6)
     assert restored.parameters["min_substrates"] == 5
+
+
+def test_activity_policy_records_frame_scores_as_exploratory_support() -> None:
+    weighted = build_simplified_weighted_substrate_activity_policy(
+        threshold=0.6,
+        min_substrates=3,
+        top_n_substrates=20,
+    )
+    ksea = build_ksea_zscore_activity_policy(
+        evidence_threshold=0.6,
+        min_substrates=5,
+        p_value_method="normal_approximation",
+        adjust_p_values=True,
+        q_value_method="benjamini_hochberg",
+    )
+    ssgsea = build_ssgsea_substrate_enrichment_activity_policy(
+        min_substrates=5,
+        ranking_direction="descending",
+        permutation_count=10,
+        random_seed=17,
+        adjust_p_values=True,
+        q_value_method="benjamini_hochberg",
+    )
+
+    assert weighted.name == "Simplified Weighted Substrate Activity Score"
+    assert weighted.parameters["threshold"] == pytest.approx(0.6)
+    assert weighted.parameters["min_substrates"] == 3
+    assert ksea.name == "ksea_zscore_activity_v1"
+    assert ksea.parameters["evidence_threshold"] == pytest.approx(0.6)
+    assert ksea.parameters["min_substrates"] == 5
+    assert ssgsea.name == "ssgsea_substrate_enrichment_activity_v1"
+    assert ssgsea.parameters["min_substrates"] == 5
+
+    for record in (weighted, ksea, ssgsea):
+        generated_text = " ".join(
+            (
+                record.name,
+                record.description,
+                " ".join(record.assumptions),
+                "" if record.output_scale is None else record.output_scale,
+                (
+                    ""
+                    if record.quantitative_meaning is None
+                    else record.quantitative_meaning
+                ),
+            )
+        ).lower()
+
+        assert "substrate" in generated_text
+        assert "external validation" in generated_text
+        assert "support" in generated_text or "enrichment" in generated_text
+        assert "kinase is active" not in generated_text
+        assert "active kinase" not in generated_text
+        assert "regulated by" not in generated_text
+        assert "pathway activation" not in generated_text
+        assert "validated activity" not in generated_text
 
 
 def test_profile_correlation_shifted_unit_policy_record_is_stable() -> None:

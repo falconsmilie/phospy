@@ -1,8 +1,8 @@
 # Kinase Workflow
 
-`KinaseWorkflow` scores kinase-substrate evidence, predicts candidate kinase
-regulation, and can optionally compute kinase activity tables. Use it after
-building an `AnalysisReadyPhosphoDataset`.
+`KinaseWorkflow` scores kinase-substrate evidence, ranks candidate kinase
+support, and can optionally compute exploratory kinase activity score tables.
+Use it after building an `AnalysisReadyPhosphoDataset`.
 
 ## When to Use This Workflow
 
@@ -16,10 +16,13 @@ Good fits:
 - default PhosR-inspired rank-weighted scoring
 - explicit Kinase Library-style motif scoring with a caller-supplied
   `KinaseLibraryResource`
-- optional activity summaries from workflow prediction output
+- optional activity-like score summaries from workflow prediction output
 
 Scores are relative support values within a run, not calibrated probabilities
 or proof of causal regulation.
+Kinase activity score outputs are substrate/reference-dependent exploratory
+summaries. Sparse substrate coverage weakens interpretation, and causal kinase
+activity claims require external validation.
 The default `phosr_rank_weighted` value names PhosPy's PhosR-inspired
 rank-weighted scoring mode. It is not an exact PhosR implementation and is not
 intended to provide numerical parity with PhosR.
@@ -71,7 +74,7 @@ Important fields:
 | `references` | `ReferencePreset` or explicit `ReferenceBundle`. |
 | `scoring_config` | `KinaseScoringConfig` for scoring mode, substrate floors, diagnostics, localisation, and mixed total-protein guardrails. |
 | `prediction_config` | `KinasePredictionConfig` for deterministic or adaptive prediction. |
-| `activity_config` | `KinaseActivityConfig`, `None`, or disabled config for optional activity output. |
+| `activity_config` | `KinaseActivityConfig`, `None`, or disabled config for optional activity score output. |
 | `site_sequence_conflict_policy` | Handles dataset/reference sequence conflicts: `"prefer_reference"`, `"prefer_dataset"`, or `"error"`. |
 | `reference_display_ambiguity_policy` | Handles one-display-to-many-`site_key` reference projection: `"error"` or `"allow_with_diagnostics"`. |
 | `kinase_library_resource` | Required only for Kinase Library-style workflow scoring modes. |
@@ -168,20 +171,21 @@ Important `KinaseActivityConfig` fields:
 | `enabled` | `True` | Set `activity_config=None` or `enabled=False` to skip activity. |
 | `method` | `"simplified_weighted_substrate_activity"` | Supported methods: `"simplified_weighted_substrate_activity"`, `"ksea_zscore"`, `"ssgsea_substrate_enrichment"`. |
 | `threshold` | `0.6` | Prediction support threshold. |
-| `min_substrates` | `3` | Weighted activity substrate floor. |
+| `min_substrates` | `3` | Weighted activity-like score substrate floor. |
 | `top_n_substrates` | `20` | Weighted activity substrate cap. |
 | `ksea_min_substrates` | `5` | KSEA-style substrate floor. |
 | `ssgsea_min_substrates` | `5` | ssGSEA-style substrate floor. |
 | `ssgsea_random_seed` | `0` | Required when permutations are enabled. |
 
-Activity substrate support is counted from prediction/activity inputs, not from
-the scoring profile count. For the simplified weighted and KSEA-style methods,
-finite prediction support at or above the configured threshold is included.
-KSEA-style and ssGSEA-style results keep not-computable kinase-condition pairs
-in `statistics_table` with insufficient-substrate status when the selected
-method can report that detail. Activity diagnostics also expose
-`method_summary`, `substrate_count_matrix`, `thresholded_substrate_counts`, and
-threshold-membership metadata where supported.
+Activity score substrate support is counted from prediction/activity inputs,
+not from the scoring profile count. For the simplified weighted and KSEA-style
+methods, finite prediction support at or above the configured threshold is
+included. KSEA-style and ssGSEA-style results keep not-computable
+kinase-condition pairs in `statistics_table` with insufficient-substrate status
+when the selected method can report that detail. Activity diagnostics also
+expose `method_summary`, `substrate_count_matrix`,
+`thresholded_substrate_counts`, and threshold-membership metadata where
+supported.
 
 ## Running the Workflow
 
@@ -234,9 +238,10 @@ Important nested result fields:
 - `KinaseEligibilityReport.eligible_kinases`
 - `KinaseEligibilityReport.excluded_kinases_below_min_substrates`
 
-`activity_result.activity_matrix` is the method-neutral primary activity matrix.
-Deprecated compatibility aliases such as `activity_scores` and
-`weighted_activity` are not preferred for new documentation or code.
+`activity_result.activity_matrix` is the method-neutral primary activity matrix
+for kinase activity scores. Deprecated compatibility aliases such as
+`activity_scores` and `weighted_activity` are not preferred for new
+documentation or code.
 
 ## Interpreting the Result
 
@@ -260,8 +265,26 @@ large numerical differences from PhosR should not be interpreted as bugs by
 themselves.
 
 KSEA-style and ssGSEA-style activity methods are explicit PhosPy activity
-summaries. KSEA-style activity is not equivalent to PhosR kinase activity
-inference. ssGSEA-style activity is not PTM-SEA support.
+score summaries. KSEA-style activity scores are not equivalent to PhosR kinase
+activity inference. ssGSEA-style activity-like scores are not PTM-SEA support.
+
+### Activity Interpretation
+
+Keep these result concepts separate:
+
+- Substrate association means a kinase-substrate edge is present in
+  `target_table` or a reference/prediction support table.
+- Enrichment means a substrate set is over-represented or concentrated by the
+  selected KSEA-style or ssGSEA-style scoring rule.
+- A kinase activity score or activity-like score is the numeric
+  `activity_matrix` output from the selected method.
+- Causal kinase activity means a biological activation claim. PhosPy activity
+  score outputs do not prove this by themselves.
+
+Interpret activity scores as exploratory unless the study design and external
+validation support stronger claims. Scores depend on substrate coverage,
+reference evidence, threshold choices, finite phosphosite values, and the
+selected method. Missing or sparse substrate support weakens interpretation.
 
 ## Provenance and Reproducibility
 
@@ -278,7 +301,8 @@ diagnostics. Adaptive prediction requires `random_state` when
   numerical compatibility.
 - Kinase Library-style scoring requires a compatible caller-supplied local
   resource and does not silently fall back when resource lanes are incompatible.
-- Activity is optional and method-specific.
+- Activity score output is optional, method-specific, and exploratory unless
+  the study design supports stronger claims.
 - No broad PhosR activity equivalence is claimed.
 
 ## Minimal Example

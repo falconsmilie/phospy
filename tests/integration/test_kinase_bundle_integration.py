@@ -285,7 +285,7 @@ def test_kinase_bundle_manifest_v1_is_explicit(tmp_path: Path) -> None:
     assert manifest["outputs"]["activity"]["method"] == {
         "activity_method_id": "simplified_weighted_substrate_activity_v1",
         "activity_method_family": "heuristic_weighted_substrate_score",
-        "activity_method_label": "simplified weighted substrate activity",
+        "activity_method_label": "simplified weighted substrate activity-like score",
         "is_ksea": False,
         "is_phosr_kinase_activity_equivalent": False,
     }

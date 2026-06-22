@@ -1,4 +1,4 @@
-"""Scientific wrappers for activity-stage computation."""
+"""Scientific wrappers for activity-like score computation."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from phospy.science.activities.scientific_policies import (
 
 
 def compute_activity_from_inputs(inputs: KinaseActivityInputs) -> KinaseActivityResult:
-    """Compute legacy weighted activity outputs from validated inputs."""
+    """Compute legacy weighted activity-like score outputs from validated inputs."""
 
     policy = SimplifiedWeightedSubstrateActivityPolicy(
         threshold=float(inputs.threshold),
@@ -33,7 +33,7 @@ def compute_activity_from_inputs(inputs: KinaseActivityInputs) -> KinaseActivity
 
 @dataclass(frozen=True, slots=True)
 class SimplifiedWeightedSubstrateActivityPolicy:
-    """Executable policy wrapper for the weighted heuristic activity method."""
+    """Executable policy wrapper for the weighted heuristic score method."""
 
     threshold: float
     min_substrates: int
@@ -58,7 +58,7 @@ class SimplifiedWeightedSubstrateActivityPolicy:
 
 @dataclass(frozen=True, slots=True)
 class SsgseaSubstrateEnrichmentActivityPolicy:
-    """Executable policy wrapper for ssGSEA-style substrate enrichment."""
+    """Executable policy wrapper for ssGSEA-style substrate enrichment scores."""
 
     min_substrates: int
     ranking_direction: str

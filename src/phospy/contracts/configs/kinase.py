@@ -239,20 +239,24 @@ class KinaseScoringConfig:
 
 @dataclass(frozen=True, slots=True)
 class KinaseActivityConfig:
-    """Configuration for the supported kinase activity stage.
+    """Configuration for the supported kinase activity score stage.
 
-    Activity runs inside `KinaseWorkflow` and can be disabled by setting either:
+    Activity-like scoring runs inside `KinaseWorkflow` and can be disabled by
+    setting either:
 
     - `activity_config=None` on `KinaseWorkflowRequest`, or
     - `activity_config.enabled=False`.
 
-    Activity support is method-specific and separate from scoring support. The
-    default simplified weighted activity floor is `3` predicted substrates; the
-    KSEA-style and ssGSEA-style floors default to `5`. Weighted and KSEA-style
-    membership uses finite prediction support at or above the configured
-    threshold. When a kinase or kinase-condition pair has too few usable
-    substrates for the selected method, activity values are omitted or reported
-    as not computable through activity diagnostics rather than silently filled.
+    These outputs are exploratory kinase activity scores or activity-like
+    substrate summaries, not direct proof that a kinase is causally active.
+    Support is method-specific and separate from scoring support. The default
+    simplified weighted score floor is `3` predicted substrates; the KSEA-style
+    and ssGSEA-style floors default to `5`. Weighted and KSEA-style membership
+    uses finite prediction support at or above the configured threshold. Missing
+    or sparse substrate support weakens interpretation. When a kinase or
+    kinase-condition pair has too few usable substrates for the selected method,
+    score values are omitted or reported as not computable through diagnostics
+    rather than silently filled.
     """
 
     enabled: bool = True

@@ -1,4 +1,4 @@
-"""Kinase activity domain package."""
+"""Kinase activity score domain package."""
 
 from phospy.science.activities.models import (
     KSEA_ZSCORE_ACTIVITY_METHOD,

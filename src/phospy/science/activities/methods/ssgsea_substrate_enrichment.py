@@ -1,4 +1,4 @@
-"""ssGSEA-style substrate-set enrichment activity method."""
+"""ssGSEA-style substrate-set enrichment activity-like score method."""
 
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ _SUBSTRATE_COLUMN = "substrate_site"
 
 @dataclass(frozen=True, slots=True)
 class SsgseaSubstrateEnrichmentActivityMethod:
-    """PhosPy ssGSEA-style enrichment over ranked phosphosite effects."""
+    """PhosPy ssGSEA-style kinase substrate enrichment score."""
 
     min_substrates: int
     ranking_direction: str = SSGSEA_RANKING_DIRECTION_DESCENDING

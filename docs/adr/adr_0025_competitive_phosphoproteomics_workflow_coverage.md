@@ -42,7 +42,7 @@ Current executable analysis/workflow lanes are:
 - `AnalysisReadyDatasetBuilder`
 - `DifferentialAnalysisWorkflow`
 - `KinaseWorkflow`
-- optional kinase activity tables within the kinase workflow
+- optional kinase activity score tables within the kinase workflow
 - optional `SignalomeWorkflow` after kinase prediction
 - `EnrichmentWorkflow` for offline over-representation analysis (ORA)
 

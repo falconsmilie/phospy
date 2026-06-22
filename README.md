@@ -72,6 +72,10 @@ The default kinase `scoring_mode="phosr_rank_weighted"` is PhosR-inspired
 rank-weighted scoring implemented by PhosPy. It combines available profile and
 motif support under PhosPy's support rules; it is not an exact PhosR
 implementation and is not intended to provide numerical parity with PhosR.
+Optional kinase activity outputs are exploratory kinase activity scores or
+activity-like substrate summaries. They depend on substrate coverage and
+reference evidence; they are not direct proof of kinase activation or causal
+pathway activity.
 
 Scientific scope categories and parity/open-gap status are maintained in
 [`docs/scientific-coverage.md`](docs/scientific-coverage.md). Parity fixture

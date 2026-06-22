@@ -155,10 +155,15 @@ Important user-facing assumptions:
 - Kinase Library-style workflow modes require a compatible caller-supplied
   local `KinaseLibraryResource`. PhosPy does not bundle official Kinase Library
   data and does not claim validated Kinase Library parity.
-- Activity is optional and method-specific. `activity_result.activity_matrix` is
-  the preferred method-neutral activity matrix.
-- KSEA-style activity is not equivalent to PhosR kinase activity inference, and
-  ssGSEA-style activity is not PTM-SEA support.
+- Activity score output is optional and method-specific.
+  `activity_result.activity_matrix` is the preferred method-neutral kinase
+  activity score matrix.
+- Activity scores depend on substrate coverage and reference evidence; sparse
+  support weakens interpretation.
+- KSEA-style activity scores are not equivalent to PhosR kinase activity
+  inference, and ssGSEA-style activity-like scores are not PTM-SEA support.
+- Causal kinase activity claims require external validation and study design
+  support.
 
 ## Signalome Contract
 

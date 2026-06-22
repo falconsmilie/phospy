@@ -264,7 +264,7 @@ claimed.
 | Kinase scoring | `parity-gated` | `KinaseWorkflow` default `scoring_mode="phosr_rank_weighted"` PhosR-inspired profile/motif scoring and rank-weighted fusion implemented by PhosPy | `tests/parity/test_kinase_workflow_parity.py`, `tests/parity/test_prediction_science_parity.py`, `tests/parity/test_l6_prediction_parity.py` | Relative support scoring only; not calibrated causal inference. The mode is not an exact PhosR implementation and is not intended to provide numerical parity with PhosR. Kinase Library scoring is not the default parity lane. |
 | Kinase Library motif scoring | `validated PhosPy implementation` | Pure science-layer `KinaseLibraryMotifScorer` / `score_kinase_library_motifs`, plus opt-in `KinaseWorkflow` modes `kinase_library_motif` and `combined_profile_motif` for supplied Kinase Library-style resources | `tests/unit/test_kinase_library_motif_scoring.py`, `tests/unit/test_kinase_library_workflow_requirements.py`, `tests/science/test_kinase_library_motif_scoring_science.py`, `tests/integration/test_kinase_library_workflow_scoring.py` | Workflow mode still requires resolved `ReferenceBundle` context with `kinase_substrate_map` overlap, eligible kinases at `min_substrates`, and resolved site sequences. It also requires an explicit compatible local `KinaseLibraryResource`. Missing matching residue-class lanes fail validation; they do not fall back to PhosR-inspired motif scoring. Workflow motif scores are normalized to unit interval per kinase matrix for within-run ranking support; raw science-layer motif scores preserve provider scale. Scores are not probabilities. Ser/Thr and Tyr matrix lanes are not interchangeable. No official Kinase Library parity claim is made. |
 | Kinase prediction | `parity-gated` | Deterministic and adaptive kinase prediction in `KinaseWorkflow` | `tests/parity/test_public_predmat_parity.py`, `tests/parity/test_l6_prediction_parity.py`, `tests/parity/test_adaptive_prediction_parity.py`, `tests/parity/test_adaptive_replay_parity.py` | Prediction scores are ranking support, not probabilities. |
-| Kinase activity scoring | `validated PhosPy implementation` | Supported activity methods: `simplified_weighted_substrate_activity_v1`, `ksea_zscore_activity_v1`, and `ssgsea_substrate_enrichment_activity_v1` | Unit activity tests (`tests/unit/test_activity_science.py`), workflow activity tests (`tests/workflows/test_kinase_activity_ssgsea.py`), and parity activity gate (`tests/parity/test_activity_stage_parity.py`) | KSEA-style activity is not a claim of full PhosR kinase activity equivalence. ssGSEA-style activity is a PhosPy rank-walk implementation and is not a PTM-SEA parity claim. |
+| Kinase activity scoring | `validated PhosPy implementation` | Supported exploratory activity score methods: `simplified_weighted_substrate_activity_v1`, `ksea_zscore_activity_v1`, and `ssgsea_substrate_enrichment_activity_v1` | Unit activity tests (`tests/unit/test_activity_science.py`), workflow activity tests (`tests/workflows/test_kinase_activity_ssgsea.py`), and parity activity gate (`tests/parity/test_activity_stage_parity.py`) | Scores depend on substrate coverage and reference evidence; sparse support weakens interpretation. KSEA-style activity scores are not a claim of full PhosR kinase activity equivalence. ssGSEA-style activity-like scores are a PhosPy rank-walk implementation and are not a PTM-SEA parity claim. Causal kinase activity claims require external validation. |
 | Signalome analysis | `parity-gated` | `SignalomeWorkflow` module assignment, network outputs, and protein-site context | `tests/parity/test_signalome_workflow_parity.py`, `tests/parity/test_signalome_clustering_backend_parity.py` | Derived summaries, not causal proof. Requires explicit signalome protein grouping metadata in `site_metadata.protein_id`. |
 | Signalome sampled candidate scoring policy | `experimental` | `SignalomeConfig.sampled_candidate_scoring()` approximates candidate module-count scoring | Parity/contract coverage through signalome parity tests and workflow contract checks | Approximation applies to candidate scoring only; tree generation remains exact-policy governed. |
 | Sequence context | `parity-gated` | `site_sequence` required at analysis-ready boundary and used in kinase scoring/prediction | `tests/parity/test_l6_prediction_parity.py`, `tests/parity/test_prediction_science_parity.py` | Sequence quality remains an upstream dependency. |
@@ -302,18 +302,24 @@ commands/workflows:
 
 ## Interpretation Limits
 
-- Weighted activity output (`simplified_weighted_substrate_activity_v1`) is a
-  heuristic summary over predicted substrates above threshold/top-N support.
-- KSEA-style activity output (`ksea_zscore_activity_v1`) applies unweighted
-  substrate-set enrichment z-scores after evidence thresholding and reports
-  p-values (and q-values when enabled).
-- ssGSEA-style activity output
+- Weighted activity-like score output
+  (`simplified_weighted_substrate_activity_v1`) is a heuristic summary over
+  predicted substrates above threshold/top-N support.
+- KSEA-style kinase activity score output (`ksea_zscore_activity_v1`) applies
+  unweighted substrate-set enrichment z-scores after evidence thresholding and
+  reports p-values (and q-values when enabled).
+- ssGSEA-style activity-like score output
   (`ssgsea_substrate_enrichment_activity_v1`) applies a deterministic rank-walk
   enrichment score over phosphosite effect values using explicit
   kinase-substrate membership and reports seeded empirical permutation p-values
   when requested.
-- KSEA-style activity is not equivalent to full PhosR kinase activity inference.
-- ssGSEA-style activity is not a PTM-SEA parity claim.
+- Activity scores depend on substrate coverage and reference evidence; missing
+  or sparse substrate support weakens interpretation.
+- Causal kinase activity claims require external validation and study design
+  support.
+- KSEA-style activity scores are not equivalent to full PhosR kinase activity
+  inference.
+- ssGSEA-style activity-like scores are not a PTM-SEA parity claim.
 - Rank-weighted fusion scores in `scoring_mode="phosr_rank_weighted"` are
   PhosR-inspired PhosPy scores. They combine profile-correlation and
   motif-frequency evidence using rank-derived weights, and they are not an
@@ -536,30 +542,33 @@ table-hash semantics are unchanged.
 ### `simplified_weighted_substrate_activity_v1`
 
 - What it does:
-  computes prediction-weighted activity and thresholded substrate-mean activity.
+  computes a prediction-weighted kinase activity score and thresholded
+  substrate-mean activity-like summary.
 - Assumptions:
-  predicted substrate support can summarize relative kinase activity in-run.
+  predicted substrate support can summarize relative candidate kinase support
+  in-run for exploratory interpretation.
 - Parameters:
   threshold, `min_substrates`, `top_n_substrates`, and explicit scoring rules.
 - Output meaning:
-  relative sample-by-kinase activity summaries.
+  relative sample-by-kinase activity-like summaries.
 - Output does not mean:
-  full KSEA-style enrichment statistics.
+  full KSEA-style enrichment statistics, validated kinase activation, or causal
+  pathway activity.
 
 ### `ksea_zscore_activity_v1`
 
 - What it does:
-  computes KSEA-style z-score substrate-set enrichment activity.
+  computes a KSEA-style z-score inferred kinase activity score.
 - Assumptions:
   kinase substrate membership is unweighted after evidence thresholding.
 - Parameters:
   evidence threshold, minimum substrates, z-score formula, p-value method, and
   optional q-value adjustment.
 - Output meaning:
-  statistically interpretable substrate-set enrichment activity z-scores with
-  accompanying p-values.
+  substrate-set enrichment z-scores with accompanying p-values.
 - Output does not mean:
-  PhosR-equivalent kinase activity inference.
+  PhosR-equivalent kinase activity inference, validated kinase activation, or
+  causal pathway activity.
 
 ### `ssgsea_substrate_enrichment_activity_v1`
 
@@ -568,16 +577,17 @@ table-hash semantics are unchanged.
   score over site-level phosphosite effect/statistic values.
 - Assumptions:
   explicit kinase-substrate membership defines the tested set, and substrate
-  concentration near one end of the ranked effect list summarizes relative
-  activity support.
+  concentration near one end of the ranked effect list summarizes candidate
+  kinase support.
 - Parameters:
   minimum substrates, ranking direction, optional seeded permutation count,
   optional permutation random seed, and optional q-value adjustment.
 - Output meaning:
-  rank-based substrate-set enrichment activity scores with optional empirical
+  rank-based substrate-supported kinase scores with optional empirical
   permutation p-values.
 - Output does not mean:
-  PTM-SEA parity, calibrated causal activity, or broader pathway enrichment.
+  PTM-SEA parity, calibrated causal activity, broader pathway enrichment, or
+  validated kinase activation.
 
 ### `candidate_substrate_selection_v1`
 
