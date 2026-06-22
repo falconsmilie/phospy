@@ -92,6 +92,7 @@ DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION = "total_protein_correction
 DATASET_PREPROCESSING_STAGE_PROTEIN_AWARE_PREPARATION = "protein_aware_preparation"
 DATASET_PREPROCESSING_STAGE_SITE_MATRIX = "site_matrix"
 DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM = "intensity_transform"
+DATASET_PREPROCESSING_STAGE_GROUP_COVERAGE_FILTER = "group_coverage_filter"
 DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION = "batch_correction"
 DATASET_PREPROCESSING_STAGE_NORMALISATION = "normalisation"
 DATASET_PREPROCESSING_STAGE_COMPARISONS = "comparisons"
@@ -112,6 +113,10 @@ PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_MISSING_DATA = (
 )
 PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_INTENSITY_TRANSFORM = (
     "optional log2 transformation runs after non-minprob missing-data handling."
+)
+PREPROCESSING_STAGE_ORDER_RATIONALE_GROUP_COVERAGE_FILTER = (
+    "group-aware coverage filtering runs before missing-data handling so it uses "
+    "observed input values."
 )
 PREPROCESSING_STAGE_ORDER_RATIONALE_BATCH_CORRECTION = (
     "batch correction runs after any configured intensity transformation and "
@@ -203,6 +208,11 @@ class PreprocessingPlan:
     site_sequence_resolution_flank_size: int = 7
     site_sequence_resolution_accession_column: str = "protein_accession"
     site_sequence_resolution_site_column: str = "site"
+    group_coverage_filter_enabled: bool = False
+    group_coverage_filter_group_column: str | None = None
+    group_coverage_filter_min_finite_observations_per_group: int | None = None
+    group_coverage_filter_min_finite_fraction_per_group: float | None = None
+    group_coverage_filter_min_groups_passing_threshold: int = 1
     total_protein_correction_policy: TotalProteinCorrectionPolicy = (
         TotalProteinCorrectionPolicy.NONE
     )
@@ -469,6 +479,35 @@ class PreprocessingPlan:
                 "from DatasetPreprocessingConfig or include the batch_correction "
                 "stage explicitly."
             )
+        from phospy.validation.configs.preprocessing import (
+            validate_group_coverage_filter_config,
+        )
+
+        validate_group_coverage_filter_config(
+            enabled=self.group_coverage_filter_enabled,
+            group_column=self.group_coverage_filter_group_column,
+            min_finite_observations_per_group=(
+                self.group_coverage_filter_min_finite_observations_per_group
+            ),
+            min_finite_fraction_per_group=(
+                self.group_coverage_filter_min_finite_fraction_per_group
+            ),
+            min_groups_passing_threshold=(
+                self.group_coverage_filter_min_groups_passing_threshold
+            ),
+        )
+        if (
+            self.group_coverage_filter_enabled
+            and DATASET_PREPROCESSING_STAGE_GROUP_COVERAGE_FILTER
+            not in self.stage_order
+        ):
+            raise PhosPyInputError(
+                "dataset preprocessing plan requests group-aware coverage "
+                "filtering but stage_order does not include "
+                "'group_coverage_filter'. Build plans from "
+                "DatasetPreprocessingConfig or include the group_coverage_filter "
+                "stage explicitly."
+            )
         object.__setattr__(
             self,
             "stage_order_resolution",
@@ -625,6 +664,7 @@ class PreprocessingStage(Protocol):
 __all__ = [
     "DATASET_PREPROCESSING_STAGE_COMPARISONS",
     "DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION",
+    "DATASET_PREPROCESSING_STAGE_GROUP_COVERAGE_FILTER",
     "DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM",
     "DATASET_PREPROCESSING_STAGE_LOCALISATION",
     "DATASET_PREPROCESSING_STAGE_MISSING_DATA",
@@ -634,6 +674,7 @@ __all__ = [
     "DATASET_PREPROCESSING_STAGE_SITE_MATRIX",
     "DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION",
     "DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION",
+    "PREPROCESSING_STAGE_ORDER_RATIONALE_GROUP_COVERAGE_FILTER",
     "PREPROCESSING_STAGE_ORDER_RATIONALE_BATCH_CORRECTION",
     "PREPROCESSING_STATE_TABLE_KEYS",
     "ComparisonBuildResult",

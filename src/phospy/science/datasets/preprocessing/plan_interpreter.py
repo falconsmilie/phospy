@@ -19,6 +19,7 @@ from phospy.provenance.hashing import hash_table_tolerance
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
+    DATASET_PREPROCESSING_STAGE_GROUP_COVERAGE_FILTER,
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
     DATASET_PREPROCESSING_STAGE_LOCALISATION,
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
@@ -28,6 +29,7 @@ from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
     PREPROCESSING_STAGE_ORDER_RATIONALE_BATCH_CORRECTION,
     PREPROCESSING_STAGE_ORDER_RATIONALE_CONFIGURED_STAGE,
+    PREPROCESSING_STAGE_ORDER_RATIONALE_GROUP_COVERAGE_FILTER,
     PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_INTENSITY_TRANSFORM,
     PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA,
     PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_INTENSITY_TRANSFORM,
@@ -144,6 +146,11 @@ class PreprocessingPlanInterpreter:
             config.total_protein_correction.policy,
             field_name="preprocessing_config.total_protein_correction.policy",
         )
+        if config.group_coverage_filter.enabled:
+            _append_stage(
+                DATASET_PREPROCESSING_STAGE_GROUP_COVERAGE_FILTER,
+                rationale=PREPROCESSING_STAGE_ORDER_RATIONALE_GROUP_COVERAGE_FILTER,
+            )
         if missing_data_policy is MissingDataPolicy.IMPUTE_MINPROB:
             if intensity_transform_policy is not IntensityTransformPolicy.LOG2:
                 raise PhosPyInputError(
@@ -251,6 +258,21 @@ class PreprocessingPlanInterpreter:
             ),
             site_sequence_resolution_site_column=(
                 config.site_sequence_resolution.site_column
+            ),
+            group_coverage_filter_enabled=bool(config.group_coverage_filter.enabled),
+            group_coverage_filter_group_column=(
+                config.group_coverage_filter.group_column
+            ),
+            group_coverage_filter_min_finite_observations_per_group=(
+                config.group_coverage_filter.min_finite_observations_per_group
+            ),
+            group_coverage_filter_min_finite_fraction_per_group=(
+                None
+                if config.group_coverage_filter.min_finite_fraction_per_group is None
+                else float(config.group_coverage_filter.min_finite_fraction_per_group)
+            ),
+            group_coverage_filter_min_groups_passing_threshold=(
+                config.group_coverage_filter.min_groups_passing_threshold
             ),
             total_protein_correction_policy=total_correction_policy,
             total_protein_correction_identity_policy=_resolve_total_correction_identity_policy(

@@ -128,6 +128,14 @@ class DatasetBuildRequestValidator:
                 "dataset build request preprocessing_config.comparisons."
                 "policy='sample_metadata_pairs' requires sample_metadata input data"
             )
+        if (
+            request.preprocessing_config.group_coverage_filter.enabled
+            and request.sample_metadata is None
+        ):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.group_coverage_filter "
+                "requires sample_metadata input data"
+            )
         return request
 
 

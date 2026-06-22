@@ -46,7 +46,7 @@ class DatasetPreprocessingConfig:
     - `normalisation`: sample-wise normalisation policy.
     - `missing_data`: missing-value handling policy.
     - `group_coverage_filter`: condition/replicate-aware coverage filter
-      declaration. It is config-only until a preprocessing stage consumes it.
+      applied before missing-data handling when enabled.
     - `total_protein_correction`: total/protein correction policy.
     - `protein_aware_preparation`: prepare aligned phosphosite/protein model
       inputs and audit diagnostics. It does not run modelling during dataset

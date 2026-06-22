@@ -8,6 +8,10 @@ from phospy.science.datasets.preprocessing.stages.comparisons import (
     COMPARISONS_STAGE_CONTRACT,
     ComparisonsStage,
 )
+from phospy.science.datasets.preprocessing.stages.group_coverage_filter import (
+    GROUP_COVERAGE_FILTER_STAGE_CONTRACT,
+    GroupCoverageFilterStage,
+)
 from phospy.science.datasets.preprocessing.stages.intensity_transform import (
     INTENSITY_TRANSFORM_STAGE_CONTRACT,
     IntensityTransformStage,
@@ -42,6 +46,8 @@ __all__ = [
     "BatchCorrectionStage",
     "COMPARISONS_STAGE_CONTRACT",
     "ComparisonsStage",
+    "GROUP_COVERAGE_FILTER_STAGE_CONTRACT",
+    "GroupCoverageFilterStage",
     "INTENSITY_TRANSFORM_STAGE_CONTRACT",
     "IntensityTransformStage",
     "LOCALISATION_CONFIDENCE_STAGE_CONTRACT",

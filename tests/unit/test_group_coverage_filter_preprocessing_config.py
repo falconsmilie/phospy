@@ -143,7 +143,7 @@ def test_group_coverage_filter_default_is_disabled_and_unscheduled() -> None:
     assert plan.stage_order == ("localisation_confidence", "missing_data")
 
 
-def test_group_coverage_filter_enabled_config_is_not_executed_yet() -> None:
+def test_group_coverage_filter_enabled_config_schedules_pre_missing_stage() -> None:
     config = DatasetPreprocessingConfig(
         group_coverage_filter=DatasetGroupCoverageFilterConfig(
             enabled=True,
@@ -155,6 +155,7 @@ def test_group_coverage_filter_enabled_config_is_not_executed_yet() -> None:
 
     assert PreprocessingPlan.from_config(config).stage_order == (
         "localisation_confidence",
+        "group_coverage_filter",
         "missing_data",
     )
 

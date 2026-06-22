@@ -52,7 +52,11 @@ class DatasetBuildRequestInterpreter:
 
     def run(self, request: DatasetBuildRequest) -> InterpretedDatasetBuildRequest:
         resolved_sources = self._source_resolver.run(request)
-        preprocessing_plan = self._preprocessing_planner.run(request)
+        preprocessing_plan = self._preprocessing_planner.run(
+            request,
+            phospho=resolved_sources.phospho,
+            sample_metadata=resolved_sources.sample_metadata,
+        )
         sequence_resolution = self._site_sequence_resolver.run(
             site_metadata=resolved_sources.site_metadata,
             organism=request.organism,

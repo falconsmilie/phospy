@@ -13,8 +13,9 @@ from phospy.validation.configs.preprocessing import (
 class DatasetGroupCoverageFilterConfig:
     """Public config for condition/replicate-aware coverage filtering.
 
-    This object only describes the requested filtering rule. It does not filter
-    rows until a preprocessing stage is explicitly wired to consume it.
+    This object describes the requested filtering rule. When enabled in
+    `DatasetPreprocessingConfig`, the dataset preprocessing pipeline applies it
+    before missing-data handling and analysis-ready dataset creation.
 
     When `enabled=True`, provide `group_column`, exactly one threshold, and the
     minimum number of groups that must pass the threshold:

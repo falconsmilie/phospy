@@ -37,6 +37,9 @@ from phospy.science.evidence.models import PeptideEvidenceTable
 from phospy.science.references.models import Organism
 from phospy.science.sites.identifiers import SiteIdentifierNormalisationReport
 from phospy.science.sites.validation import require_no_mixed_site_key_isoform_scope
+from phospy.validation.datasets.group_coverage_filter import (
+    GroupCoverageFilterMetadataValidator,
+)
 from phospy.validation.datasets.protein_scoped_site_identity import (
     enforce_display_id_column,
     enforce_site_key_column,
@@ -419,11 +422,31 @@ class DatasetBuildPreprocessingPlanner:
         self,
         *,
         plan_interpreter: PreprocessingPlanInterpreter | None = None,
+        group_coverage_validator: GroupCoverageFilterMetadataValidator | None = None,
     ) -> None:
         self._plan_interpreter = plan_interpreter or PreprocessingPlanInterpreter()
+        self._group_coverage_validator = (
+            group_coverage_validator or GroupCoverageFilterMetadataValidator()
+        )
 
-    def run(self, request: DatasetBuildRequest) -> PreprocessingPlan:
-        return self._plan_interpreter.run(request.preprocessing_config)
+    def run(
+        self,
+        request: DatasetBuildRequest,
+        *,
+        phospho: pd.DataFrame | None = None,
+        sample_metadata: pd.DataFrame | None = None,
+    ) -> PreprocessingPlan:
+        plan = self._plan_interpreter.run(request.preprocessing_config)
+        if plan.group_coverage_filter_enabled and phospho is not None:
+            self._group_coverage_validator.run(
+                phospho=phospho,
+                sample_metadata=sample_metadata,
+                group_column=plan.group_coverage_filter_group_column,
+                min_groups_passing_threshold=(
+                    plan.group_coverage_filter_min_groups_passing_threshold
+                ),
+            )
+        return plan
 
 
 class DatasetBuildSiteSequenceResolver:

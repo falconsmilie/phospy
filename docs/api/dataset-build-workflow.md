@@ -245,7 +245,7 @@ provide matching `site_key` indexes and all required identity metadata up front.
 | `intensity_transform` | `DatasetIntensityTransformConfig` | `policy="identity"`, `pseudocount=1.0` | Controls numeric intensity transformation before downstream preprocessing. |
 | `normalisation` | `DatasetNormalisationConfig` | `policy="none"` | Controls sample-wise normalisation. |
 | `missing_data` | `DatasetMissingDataConfig` | `policy="forbid"` | Controls missing-value rejection or imputation. |
-| `group_coverage_filter` | `DatasetGroupCoverageFilterConfig` | `enabled=False` | Describes condition/replicate-aware coverage filtering. It does not change builder output until a preprocessing stage consumes it. |
+| `group_coverage_filter` | `DatasetGroupCoverageFilterConfig` | `enabled=False` | Filters phosphosite rows by finite-value coverage within sample groups before missing-data handling. |
 | `total_protein_correction` | `DatasetTotalProteinCorrectionConfig` | `policy="none"` | Controls phosphosite-to-total correction. |
 | `protein_aware_preparation` | `DatasetProteinAwarePreparationConfig` | `policy="disabled"` | Prepares aligned phosphosite/protein model-input contracts and diagnostics only. |
 | `batch_correction` | `DatasetBatchCorrectionConfig` | `method="none"` | Controls optional `linear_residualize_batch` fixed-effect residualisation. |
@@ -416,25 +416,53 @@ missing_data = DatasetMissingDataConfig(
 
 `DatasetGroupCoverageFilterConfig` describes a group-aware coverage filter
 rule. It can express rules such as "keep sites quantified in at least two
-replicates in at least one condition." In the current builder path, this config
-is validated but does not filter rows yet.
+replicates in at least one condition." Use it before analysis when rows with
+too little replicate or condition coverage should be removed before imputation,
+normalisation, and analysis-ready dataset creation.
 
 | Parameter | Type | Default | Allowed Values | How to Use It |
 | --- | --- | --- | --- | --- |
-| `enabled` | `bool` | `False` | `True`, `False` | Enables the declaration. Filtering is not executed until the preprocessing stage is wired. |
+| `enabled` | `bool` | `False` | `True`, `False` | Enables filtering. When `False`, existing dataset-building behavior is unchanged. |
 | `group_column` | `str` or `None` | `None` | Non-empty string when `enabled=True` | Sample-metadata column that defines groups such as conditions. |
 | `min_finite_observations_per_group` | `int` or `None` | `None` | Integer `>= 1`, mutually exclusive with fraction threshold | Minimum finite sample values needed within a group. |
 | `min_finite_fraction_per_group` | `float` or `None` | `None` | `0 < value <= 1`, mutually exclusive with count threshold | Minimum finite-value fraction needed within a group. |
 | `min_groups_passing_threshold` | `int` | `1` | Integer `>= 1` | Number of groups that must pass the selected threshold. |
 
+The filter uses `sample_metadata[group_column]` to resolve groups. It does not
+guess experimental groups from sample names. For each phosphosite row and each
+group, it counts finite numeric values in that group's samples. A count
+threshold such as `2` means at least two finite values in the group. A fraction
+threshold such as `0.67` means at least 67% of samples in that group have finite
+values. The row is kept when at least `min_groups_passing_threshold` groups pass.
+
 ```python
+sample_metadata = pd.DataFrame(
+    {"condition": ["control", "control", "control", "treated", "treated", "treated"]},
+    index=["c1", "c2", "c3", "t1", "t2", "t3"],
+)
+
 coverage_filter = DatasetGroupCoverageFilterConfig(
     enabled=True,
     group_column="condition",
     min_finite_observations_per_group=2,
     min_groups_passing_threshold=1,
 )
+
+preprocessing = DatasetPreprocessingConfig(
+    group_coverage_filter=coverage_filter,
+    missing_data=DatasetMissingDataConfig(
+        policy="impute_row_median",
+        min_observed_values=1,
+    ),
+)
 ```
+
+Filtering runs before analysis-ready dataset creation and before missing-data
+imputation. Inspect `dataset.preprocessing_report.row_counts`,
+`dataset.preprocessing_report.operations`, and
+`dataset.preprocessing_report.row_audit` to see how many rows were retained or
+removed and why. If all phosphosite rows are removed, dataset building fails
+with a clear input error instead of creating an empty analysis-ready dataset.
 
 ## Localisation-Confidence Parameters
 

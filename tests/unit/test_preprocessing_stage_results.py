@@ -25,6 +25,9 @@ from phospy.science.datasets.preprocessing.stage_registry import (
     PreprocessingStageMetadata,
 )
 from phospy.science.datasets.preprocessing.stages.comparisons import ComparisonsStage
+from phospy.science.datasets.preprocessing.stages.group_coverage_filter import (
+    GroupCoverageFilterStage,
+)
 from phospy.science.datasets.preprocessing.stages.intensity_transform import (
     IntensityTransformStage,
 )
@@ -441,6 +444,31 @@ def test_comparisons_stage_returns_stage_result() -> None:
     )
 
     result = ComparisonsStage().run(state)
+
+    _assert_stage_result_contract(result)
+
+
+def test_group_coverage_filter_stage_returns_stage_result() -> None:
+    phospho = _phospho()
+    sample_metadata = pd.DataFrame(
+        {"condition": ["group1", "group2"]},
+        index=phospho.columns.copy(),
+    )
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=_site_metadata(phospho.index),
+        sample_metadata=sample_metadata,
+        total=None,
+        plan=PreprocessingPlan(
+            group_coverage_filter_enabled=True,
+            group_coverage_filter_group_column="condition",
+            group_coverage_filter_min_finite_observations_per_group=1,
+            group_coverage_filter_min_groups_passing_threshold=1,
+            stage_order=("group_coverage_filter",),
+        ),
+    )
+
+    result = GroupCoverageFilterStage().run(state)
 
     _assert_stage_result_contract(result)
 
