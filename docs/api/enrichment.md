@@ -8,7 +8,8 @@ semantics, and the set collection.
 ## When to Use This Workflow
 
 Use this workflow when you already have a set of selected identifiers and want a
-simple ORA result over local, caller-supplied sets.
+simple offline ORA result over local, caller-supplied sets and a caller-supplied
+background universe.
 
 Good fits:
 
@@ -116,6 +117,12 @@ under the explicit background universe. Results depend strongly on the
 background you supply. PhosPy does not infer that universe from a dataset,
 reference bundle, or set collection.
 
+The enrichment ratio is a descriptive overlap summary for the selected
+identifiers, set members, and background used in the run. Adjusted p-values
+describe statistical evidence under the ORA model and selected multiple-testing
+correction; they are not proof that a pathway is active, regulated, causal, or
+mechanistically responsible for the observed phosphoproteomics pattern.
+
 Gene-level and site-level results are not interchangeable. A gene-symbol set is
 not reinterpreted as a PTM set, and a PTM set is not collapsed to gene symbols.
 
@@ -133,6 +140,7 @@ and limitations.
 - No bundled curated enrichment resources for this feature.
 - No online service calls.
 - No GSEA, ssGSEA, PTM-SEA, or pathway activity inference.
+- ORA does not prove pathway activation, regulation, or biological causality.
 - Background choice is caller-owned and scientifically important.
 
 ## Minimal Example

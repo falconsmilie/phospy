@@ -132,6 +132,12 @@ Important user-facing assumptions:
 - The background universe is explicit and required.
 - Gene-level and site-level enrichment require explicit identifier semantics and
   are not interchangeable.
+- Enrichment ratio is a descriptive overlap summary, not a pathway activity
+  score.
+- Adjusted p-values describe statistical evidence under the ORA model and the
+  selected correction method.
+- ORA does not prove pathway activation, regulation, biological causality, or a
+  mechanism.
 - GO, KEGG, Reactome, PTM-SEA, and PTMsigDB resources are not bundled by this
   feature unless the caller supplies them as ordinary local collections.
 - Enrichr, gseapy, clusterProfiler, and similar online calls are not native core

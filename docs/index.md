@@ -20,7 +20,8 @@ PhosPy supports clear public workflow lanes:
 
 1. build an `AnalysisReadyPhosphoDataset`
 2. run `DifferentialAnalysisWorkflow` with explicit design and contrasts
-3. run `EnrichmentWorkflow` with caller-supplied sets and background
+3. run `EnrichmentWorkflow` as offline ORA with caller-supplied selected
+   identifiers, sets, and background universe
 4. run `KinaseWorkflow`
 5. optionally run `SignalomeWorkflow`
 

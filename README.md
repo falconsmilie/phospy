@@ -4,7 +4,9 @@ PhosPy is a Python package for selected phosphoproteomics workflows inspired by
 PhosR. It is aimed at scientists who want a clear Python lane from phosphosite
 intensity tables to differential phosphorylation analysis, offline
 over-representation enrichment, kinase scoring and prediction, and optional
-signalome analysis.
+signalome analysis. Enrichment support is offline ORA over caller-supplied
+selected identifiers, local set collections, and an explicit background
+universe.
 
 "PhosR-inspired" in PhosPy docs means scoped, feature-level comparison lanes. It
 does not imply full PhosR package parity or full PhosR API compatibility.
@@ -76,6 +78,10 @@ Optional kinase activity outputs are exploratory kinase activity scores or
 activity-like substrate summaries. They depend on substrate coverage and
 reference evidence; they are not direct proof of kinase activation or causal
 pathway activity.
+
+Enrichment ORA results are overlap statistics under the caller-supplied
+background universe. They do not prove pathway activation, regulation, or
+biological causality, and PhosPy does not imply GSEA or PTM-SEA support.
 
 Scientific scope categories and parity/open-gap status are maintained in
 [`docs/scientific-coverage.md`](docs/scientific-coverage.md). Parity fixture

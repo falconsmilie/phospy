@@ -46,11 +46,15 @@ claim is made.
 Native enrichment support is offline over-representation analysis (ORA) over
 caller-supplied `GeneSetCollection`, `PtmSetCollection`, or homogeneous
 `EnrichmentSetCollection` inputs. The background universe is explicit and
-required. PhosPy does not bundle GO, KEGG, Reactome, PTM-SEA, or PTMsigDB
-resources for this feature, and the core workflow does not call Enrichr,
-gseapy, clusterProfiler, or other online services. Those online calls are not
-native core workflow behavior. ORA does not imply GSEA, ssGSEA, or PTM-SEA
-support.
+required; the caller supplies both the selected identifiers and background, and
+PhosPy does not infer either from a dataset, reference bundle, or set
+collection. Enrichment ratios are descriptive, and adjusted p-values describe
+statistical evidence under the ORA model rather than pathway activation,
+regulation, mechanism, or biological causality. PhosPy does not bundle GO,
+KEGG, Reactome, PTM-SEA, or PTMsigDB resources for this feature, and the core
+workflow does not call Enrichr, gseapy, clusterProfiler, or other online
+services. Those online calls are not native core workflow behavior. ORA does
+not imply GSEA, ssGSEA, or PTM-SEA support.
 
 The shared Benjamini-Hochberg helper adjusts only finite p-values. Its
 denominator is the number of finite p-values passed to the helper, and
@@ -383,8 +387,12 @@ commands/workflows:
   not adjust differential models, and does not claim MSstatsPTM-style inference
   or equivalence.
 - Enrichment workflow support is offline ORA against supplied gene-set or
-  PTM-set collections. It uses the caller's explicit background universe and
-  identifier semantics.
+  PTM-set collections. It uses the caller's selected identifiers, explicit
+  background universe, and identifier semantics.
+- Enrichment ratios are descriptive overlap summaries, and adjusted p-values
+  describe statistical evidence under the ORA model and selected correction
+  method. They do not prove pathway activation, regulation, mechanism, or
+  biological causality.
 - Enrichment workflow support does not bundle or fetch GO, KEGG, Reactome,
   PTM-SEA, or PTMsigDB resources. Online Enrichr, gseapy, clusterProfiler, and
   similar calls are not native core workflow behavior.
