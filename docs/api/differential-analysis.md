@@ -194,6 +194,50 @@ statistics columns include `logFC`, `t`, `P.Value`, and `adj.P.Val`.
 stat-only computation payloads are internal. They are not a public scientific
 result object and are not valid `DifferentialAnalysisResult` tables.
 
+## Filtering and Ranking Result Tables
+
+Use table helpers when you want a smaller reporting table after the workflow has
+finished. These helpers only filter or sort existing columns. They do not refit
+the model, recompute p-values, or change the `DifferentialAnalysisResult`.
+
+Filter by adjusted p-value and absolute `logFC`:
+
+```python
+from phospy.api import filter_differential_results
+
+table = result.table_for("treatment_vs_control")
+
+reported = filter_differential_results(
+    table,
+    adjusted_p_value_max=0.05,
+    min_abs_effect_size=1.0,
+)
+```
+
+This example reports rows with `adj.P.Val <= 0.05` under the configured
+multiple-testing method and `abs(logFC) >= 1.0`. Choose and state thresholds as
+part of your reporting; they are not model settings.
+
+Rank by raw p-value, or by absolute `logFC` for the largest fitted effects:
+
+```python
+from phospy.api import rank_differential_results
+
+ranked_by_p = rank_differential_results(
+    table,
+    by="P.Value",
+)
+
+ranked_by_effect = rank_differential_results(
+    table,
+    by="logFC",
+    ascending=False,
+    absolute=True,
+)
+```
+
+Missing requested columns raise a clear input error.
+
 ## Interpreting the Result
 
 `logFC` is the fitted condition contrast on the established log2 phosphosite

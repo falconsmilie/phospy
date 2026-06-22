@@ -12,6 +12,10 @@ from phospy.tables.datasets import (
     SiteMetadataTable,
     TotalProteinMatrix,
 )
+from phospy.tables.differential import (
+    filter_differential_results,
+    rank_differential_results,
+)
 from phospy.tables.kinase import KinasePredictionMatrix, KinaseScoreMatrix
 from phospy.tables.references import KinaseSubstrateReference, SiteSequenceReference
 from phospy.tables.signalome import (
@@ -35,6 +39,8 @@ __all__ = [
     "KinaseScoreMatrix",
     "KinaseSubstrateReference",
     "PhosphoIntensityMatrix",
+    "filter_differential_results",
+    "rank_differential_results",
     "SampleMetadataTable",
     "SignalomeAssignmentsTable",
     "SignalomeModulesTable",

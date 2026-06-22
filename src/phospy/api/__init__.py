@@ -187,6 +187,10 @@ from phospy.science.transformations.models import (
     MatrixIntensityScaleState,
     QuantitativeMeaning,
 )
+from phospy.tables.differential import (
+    filter_differential_results,
+    rank_differential_results,
+)
 
 __all__ = [
     "AnalysisReadyDatasetBuilder",
@@ -271,6 +275,8 @@ __all__ = [
     "DifferentialStatisticalTestingProvenance",
     "DifferentialTechnicalReplicateGroup",
     "DifferentialUnsupportedDesignPolicyProvenance",
+    "filter_differential_results",
+    "rank_differential_results",
     "EmpiricalBayesConfig",
     "EnrichmentWorkflow",
     "EnrichmentConfig",
