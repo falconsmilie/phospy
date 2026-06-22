@@ -59,7 +59,7 @@ def require_canonical_label_index(
     field_name: str,
     error_type: ValidationErrorType,
 ) -> pd.Index:
-    """Require canonical non-empty stripped string labels for one index."""
+    """Require stripped non-empty string labels for one index."""
 
     require_string_index(
         index,
@@ -91,5 +91,5 @@ def require_canonical_label_index(
         raw_value != stripped_value
         for raw_value, stripped_value in zip(values, stripped_values, strict=False)
     ):
-        raise error_type(f"{field_name} must contain canonical non-empty string labels")
+        raise error_type(f"{field_name} must contain stripped non-empty string labels")
     return index

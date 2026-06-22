@@ -27,7 +27,7 @@ _LOCALISATION_CONFIDENCE_ALIASES = (
 
 
 class SiteMetadataIndexNormalizer:
-    """Normalize and canonicalize site-metadata row identity/index conventions."""
+    """Normalize site-metadata row identity/index conventions."""
 
     def __init__(
         self,
@@ -99,7 +99,7 @@ class SiteMetadataIndexNormalizer:
 
 
 class SiteMetadataColumnAliasResolver:
-    """Resolve strict site-metadata alias mapping onto canonical column names."""
+    """Resolve strict site-metadata alias mapping onto standard column names."""
 
     def run(self, site_metadata: pd.DataFrame) -> pd.DataFrame:
         _reject_unsupported_historical_aliases(site_metadata)
@@ -148,7 +148,7 @@ class SiteMetadataColumnAliasResolver:
 
 
 class SiteIdentityFieldNormalizer:
-    """Canonicalize explicit gene/site fields when both are present and usable."""
+    """Normalize explicit gene/site fields when both are present and usable."""
 
     def run(
         self,

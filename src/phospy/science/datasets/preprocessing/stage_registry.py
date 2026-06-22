@@ -105,7 +105,7 @@ def get_preprocessing_stage_metadata(stage_key: str) -> PreprocessingStageContra
 
 
 def list_registered_preprocessing_stages() -> tuple[PreprocessingStageContract, ...]:
-    """Return the canonical preprocessing stage contract registry."""
+    """Return the shared preprocessing stage contract registry."""
 
     return PREPROCESSING_STAGE_REGISTRY
 
@@ -164,7 +164,7 @@ def build_registered_preprocessing_stage_instances(
 def resolve_builder_provenance_stage_order(
     plan: PreprocessingPlan,
 ) -> tuple[PreprocessingStageContract, ...]:
-    """Return canonical stage metadata sequence used by builder provenance tables."""
+    """Return stage metadata sequence used by builder provenance tables."""
 
     return tuple(
         metadata

@@ -27,7 +27,7 @@ def require_canonical_site_index(
     error_type: type[ErrorType],
     strict_supported_format: bool = True,
 ) -> pd.Index:
-    """Require one site index to already be strict/canonical."""
+    """Require one site index to already use the expected strict format."""
 
     if not strict_supported_format:
         _require_stripped_site_identifiers(
@@ -45,8 +45,7 @@ def require_canonical_site_index(
     )
     if canonical.tolist() != index.tolist():
         raise error_type(
-            f"{field_name} must contain canonical site identifiers in "
-            "'GENE;SITE;' format"
+            f"{field_name} must use the recommended site identifier format 'GENE;SITE;'"
         )
     if not index.is_unique:
         duplicate_count, duplicate_labels = _resolve_duplicate_labels(index)
@@ -66,7 +65,7 @@ def require_canonical_site_series(
     error_type: type[ErrorType],
     strict_supported_format: bool = True,
 ) -> pd.Series:
-    """Require one site-id series to already be strict/canonical."""
+    """Require one site-id series to already use the expected strict format."""
 
     if not strict_supported_format:
         _require_stripped_site_identifiers(
@@ -82,8 +81,7 @@ def require_canonical_site_series(
     )
     if canonical.tolist() != series.tolist():
         raise error_type(
-            f"{field_name} must contain canonical site identifiers in "
-            "'GENE;SITE;' format"
+            f"{field_name} must use the recommended site identifier format 'GENE;SITE;'"
         )
     return series
 
@@ -106,7 +104,9 @@ def require_site_key_index(
         )
         normalised.append(encode_site_key(key))
     if normalised != [str(value) for value in index.tolist()]:
-        raise error_type(f"{field_name} must contain canonical encoded site_key values")
+        raise error_type(
+            f"{field_name} must contain analysis-ready encoded site_key values"
+        )
     if require_unique and not index.is_unique:
         duplicate_count, duplicate_labels = _resolve_duplicate_labels(index)
         preview = ", ".join(repr(label) for label in duplicate_labels[:5])
@@ -124,7 +124,7 @@ def require_site_key_series(
     field_name: str,
     error_type: type[ErrorType],
 ) -> pd.Series:
-    """Require one series of canonical encoded site_key values."""
+    """Require one series of analysis-ready encoded site_key values."""
 
     normalised: list[str] = []
     for row_id, value in series.items():
@@ -135,7 +135,9 @@ def require_site_key_series(
         )
         normalised.append(encode_site_key(key))
     if normalised != [str(value) for value in series.tolist()]:
-        raise error_type(f"{field_name} must contain canonical encoded site_key values")
+        raise error_type(
+            f"{field_name} must contain analysis-ready encoded site_key values"
+        )
     return series
 
 
@@ -150,7 +152,7 @@ def require_site_identity_coherence(
     error_type: type[ErrorType],
     error_preview_limit: int = 5,
 ) -> None:
-    """Require canonical display-site IDs to agree with metadata gene/site columns."""
+    """Require display-site IDs to agree with metadata gene/site columns."""
 
     unparseable_site_ids: list[str] = []
     mismatched_rows: list[str] = []
@@ -198,7 +200,7 @@ def require_site_identity_coherence(
     joined_details = "; ".join(details)
     raise error_type(
         "dataset site-identity coherence failed: "
-        f"{site_index_field_name} canonical display-site IDs must agree with "
+        f"{site_index_field_name} display-site IDs must agree with "
         f"{site_metadata_field_name}.{gene_symbol_column} and "
         f"{site_metadata_field_name}.{site_column}; {joined_details}"
     )
@@ -298,7 +300,7 @@ def _require_stripped_site_identifiers(
         raise error_type(f"{field_name} must not contain missing site identifiers")
     if not all(isinstance(value, str) for value in values):
         raise error_type(
-            f"{field_name} must contain canonical site identifiers (non-empty stripped strings)"
+            f"{field_name} must contain non-empty stripped site identifiers"
         )
     raw_values = [value for value in values if isinstance(value, str)]
     stripped_values = [value.strip() for value in raw_values]
@@ -321,7 +323,7 @@ def _require_stripped_site_identifiers(
         for raw_value, stripped_value in zip(raw_values, stripped_values, strict=False)
     ):
         raise error_type(
-            f"{field_name} must contain canonical site identifiers (non-empty stripped strings)"
+            f"{field_name} must contain non-empty stripped site identifiers"
         )
 
 

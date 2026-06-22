@@ -25,7 +25,7 @@ def test_require_canonical_site_index_rejects_non_canonical_ids() -> None:
     index = pd.Index([" mapk14 ; y182 ; "], name="site_id")
     with pytest.raises(
         DatasetValidationError,
-        match="must contain canonical site identifiers in 'GENE;SITE;' format",
+        match="must use the recommended site identifier format 'GENE;SITE;'",
     ):
         require_canonical_site_index(
             index,
@@ -52,7 +52,7 @@ def test_require_canonical_site_series_rejects_non_canonical_ids() -> None:
     series = pd.Series(["mapk14;y182;"], dtype="object")
     with pytest.raises(
         DatasetValidationError,
-        match="must contain canonical site identifiers in 'GENE;SITE;' format",
+        match="must use the recommended site identifier format 'GENE;SITE;'",
     ):
         require_canonical_site_series(
             series,

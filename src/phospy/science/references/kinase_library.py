@@ -870,7 +870,7 @@ def _coerce_amino_acid(value: object, *, field_name: str) -> str:
     amino_acid = _require_text(value, field_name=field_name).upper()
     if len(amino_acid) != 1 or amino_acid not in AMINO_ACIDS:
         raise ReferenceValidationError(
-            f"{field_name} must be one canonical one-letter amino-acid code"
+            f"{field_name} must be one supported one-letter amino-acid code"
         )
     return amino_acid
 

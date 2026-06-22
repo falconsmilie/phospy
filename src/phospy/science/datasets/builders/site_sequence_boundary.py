@@ -207,16 +207,18 @@ def _classify_identity_failure(
         if metadata_site_id != index_site_id:
             return (
                 _SITE_SEQUENCE_FAILURE_CATEGORY_AMBIGUOUS_MAPPING,
-                "gene/site metadata and site index map to different canonical sites",
+                "gene/site metadata and site index map to different site identities",
             )
         return (
             _SITE_SEQUENCE_FAILURE_CATEGORY_MISSING_REFERENCE_SUPPORT,
-            "site_sequence is unresolved for canonical site despite coherent metadata",
+            "site_sequence is unresolved for the expected site identity despite "
+            "coherent metadata",
         )
     if metadata_site_id is not None or index_site_id is not None:
         return (
             _SITE_SEQUENCE_FAILURE_CATEGORY_MISSING_REFERENCE_SUPPORT,
-            "site_sequence is unresolved for canonical site despite partial identity metadata",
+            "site_sequence is unresolved for the expected site identity despite "
+            "partial identity metadata",
         )
     detail_chunks = [chunk for chunk in (metadata_error, index_error) if chunk]
     detail = (

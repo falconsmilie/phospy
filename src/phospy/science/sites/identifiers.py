@@ -1,4 +1,4 @@
-"""Phosphosite display-identifier parsing and canonicalisation helpers."""
+"""Phosphosite display-identifier parsing and normalisation helpers."""
 
 from __future__ import annotations
 
@@ -101,7 +101,7 @@ def canonicalize_site_index(
     require_unique: bool = True,
     index_name: str | None = None,
 ) -> pd.Index:
-    """Canonicalise one site-identifier index to stripped string labels."""
+    """Normalise one site-identifier index to stripped string labels."""
 
     canonical = pd.Index(
         [
@@ -124,7 +124,7 @@ def canonicalize_site_index(
         suffix = "" if len(duplicates) <= 5 else " ..."
         raise error_type(
             f"{field_name} contains duplicate site identifiers after "
-            f"canonicalization: {preview}{suffix}"
+            f"normalisation: {preview}{suffix}"
         )
     return canonical
 
@@ -135,7 +135,7 @@ def canonicalize_site_series(
     field_name: str,
     error_type: type[ErrorType],
 ) -> pd.Series:
-    """Canonicalise one site-identifier series to stripped string labels."""
+    """Normalise one site-identifier series to stripped string labels."""
 
     return pd.Series(
         [
@@ -158,7 +158,7 @@ def canonicalize_site_identifier(
     field_name: str,
     error_type: type[ErrorType],
 ) -> str:
-    """Canonicalise one supported phosphosite identifier to ``GENE;SITE;``."""
+    """Normalise one supported phosphosite identifier to ``GENE;SITE;``."""
 
     if _is_missing(value):
         raise error_type(f"{field_name} must not contain missing site identifiers")
@@ -195,7 +195,7 @@ def parse_canonical_site_identifier(
     field_name: str,
     error_type: type[ErrorType],
 ) -> tuple[str, str]:
-    """Return canonical ``(gene_symbol, site)`` components for one site ID."""
+    """Return normalised ``(gene_symbol, site)`` components for one site ID."""
 
     canonical = canonicalize_site_identifier(
         value,
@@ -227,7 +227,7 @@ def canonicalize_site_components(
     field_name: str,
     error_type: type[ErrorType],
 ) -> str:
-    """Canonicalise one ``gene_symbol``/``site`` pair to ``GENE;SITE;``."""
+    """Normalise one ``gene_symbol``/``site`` pair to ``GENE;SITE;``."""
 
     if _is_missing(gene_symbol) or _is_missing(site):
         raise error_type(
@@ -256,7 +256,7 @@ def canonicalize_site_components_series(
     error_type: type[ErrorType],
     output_name: str = "site_id",
 ) -> pd.Series:
-    """Canonicalise paired ``gene_symbol``/``site`` columns to one site-ID series."""
+    """Normalise paired ``gene_symbol``/``site`` columns to one site-ID series."""
 
     if len(gene_symbol.index) != len(site.index):
         raise error_type(

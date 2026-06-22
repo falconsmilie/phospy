@@ -435,7 +435,7 @@ def require_canonical_string_column(
     ]
     if invalid:
         raise error_type(
-            f"{field_name}.{column_name} must contain canonical non-empty string values"
+            f"{field_name}.{column_name} must contain stripped non-empty string values"
         )
     return value
 

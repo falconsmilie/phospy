@@ -326,7 +326,7 @@ class IntensityScaleState:
 
     @classmethod
     def raw(cls, *, has_total_matrix: bool = False) -> IntensityScaleState:
-        """Create a canonical declared linear state (not yet established)."""
+        """Create a declared linear state (not yet established)."""
 
         if has_total_matrix:
             return cls(
@@ -351,7 +351,7 @@ class IntensityScaleState:
         diagnostic_warnings: tuple[str, ...] = (),
         _authority: EstablishmentAuthority | None = None,
     ) -> IntensityScaleState:
-        """Create a canonical linear state through an approved internal authority."""
+        """Create a linear state through an approved internal authority."""
 
         return cls.raw(has_total_matrix=has_total_matrix).with_establishment(
             established_via=established_via,

@@ -193,7 +193,7 @@ class PeptideEvidenceRecord:
 
 @dataclass(frozen=True, slots=True, init=False)
 class SiteEvidenceMapping:
-    """Validated peptide-row to canonical-site mapping table."""
+    """Validated peptide-row to analysis-ready site mapping table."""
 
     _frame: pd.DataFrame
 

@@ -246,7 +246,7 @@ class DatasetBuildSourceResolver:
                 operation="normalizing input indices and metadata column conventions",
                 next_action=(
                     "ensure phospho/site_metadata/sample_metadata/total tables use "
-                    "supported rectangular DataFrame shapes, canonical site labels, "
+                    "supported rectangular DataFrame shapes, supported site labels, "
                     "and non-conflicting metadata column conventions"
                 ),
                 original_error=exc,
@@ -303,7 +303,7 @@ class DatasetBuildSourceResolver:
                 field_name="dataset build request site_metadata",
                 operation="deriving display_id and site_key metadata columns",
                 next_action=(
-                    "ensure site_metadata provides canonical gene/site values, "
+                    "ensure site_metadata provides normalized gene/site values, "
                     "strict residue/position site tokens, organism, and explicit "
                     "protein context via protein_accession, protein_id, or "
                     "protein_identifier plus protein_namespace"
@@ -459,7 +459,7 @@ class DatasetBuildSiteSequenceResolver:
                 field_name="dataset build request site_metadata",
                 operation="deriving and validating site_sequence values",
                 next_action=(
-                    "ensure site_metadata contains canonical non-empty gene/site "
+                    "ensure site_metadata contains non-empty gene/site "
                     "fields and supported site identifiers for sequence derivation"
                 ),
                 original_error=exc,

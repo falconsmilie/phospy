@@ -1007,7 +1007,7 @@ def test_prediction_schema_non_canonical_site_key_index_fails() -> None:
         {"MAP2K6": [0.9]},
         index=pd.Index([f"{_MAPK14_Y182} "], name="site_key"),
     )
-    with pytest.raises(PhosPyValidationError, match="canonical encoded site_key"):
+    with pytest.raises(PhosPyValidationError, match="analysis-ready encoded site_key"):
         KinasePredictionMatrix(frame=pred_mat)
 
 
@@ -1065,7 +1065,10 @@ def test_signalome_schema_missing_required_site_membership_column_fails() -> Non
 def test_signalome_schema_invalid_site_id_fails() -> None:
     bad = _site_membership_frame().copy(deep=True)
     bad.loc[0, "display_id"] = "MAPK14;Y182; "
-    with pytest.raises(WorkflowValidationError, match="canonical site identifiers"):
+    with pytest.raises(
+        WorkflowValidationError,
+        match="recommended site identifier format",
+    ):
         SignalomeSiteContext(frame=bad)
 
 

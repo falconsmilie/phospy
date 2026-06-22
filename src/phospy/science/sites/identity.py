@@ -158,7 +158,7 @@ def validate_identity_optional_columns(
     error_type: type[ErrorType],
     optional_columns: Iterable[str] = PHOSPHOSITE_IDENTITY_OPTIONAL_COLUMNS,
 ) -> None:
-    """Validate optional identity columns as missing-or-canonical-string fields."""
+    """Validate optional identity columns as missing-or-string fields."""
 
     invalid_rows: list[str] = []
     for column_name in optional_columns:
@@ -179,7 +179,7 @@ def validate_identity_optional_columns(
         suffix = "" if len(invalid_rows) <= 5 else " ..."
         raise error_type(
             f"{field_name} optional identity columns must contain missing values or "
-            f"canonical non-empty strings; invalid_rows={preview}{suffix}"
+            f"string values; invalid_rows={preview}{suffix}"
         )
 
 

@@ -261,7 +261,7 @@ def test_builder_rejects_colliding_dirty_site_ids_after_canonicalization() -> No
 def test_reference_bundle_rejects_ambiguous_site_sequence_ids() -> None:
     with pytest.raises(
         ReferenceValidationError,
-        match="conflicting site_sequence values after canonicalization",
+        match="conflicting site_sequence values after normalisation",
     ) as exc_info:
         ReferenceBundle(
             organism=Organism.RAT,

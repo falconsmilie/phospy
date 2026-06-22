@@ -470,7 +470,7 @@ class ReferenceBundleBuilder:
         suffix = "" if len(mismatch_positions) <= 5 else " ..."
         raise ReferenceResolutionError(
             f"{field_name} has conflicting {left_name} and {right_name} values "
-            f"after canonicalization at row positions: {preview}{suffix}"
+            f"after normalisation at row positions: {preview}{suffix}"
         )
 
     def _require_column(

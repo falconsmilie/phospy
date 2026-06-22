@@ -148,12 +148,12 @@ def test_reference_bundle_site_sequence_conflict_preserves_structured_report() -
     )
     with pytest.raises(
         ReferenceIdentifierNormalisationValidationError,
-        match="conflicting site_sequence values after canonicalization",
+        match="conflicting site_sequence values after normalisation",
     ) as direct_exc:
         SiteSequenceReference(frame=frame)
     with pytest.raises(
         ReferenceValidationError,
-        match="conflicting site_sequence values after canonicalization",
+        match="conflicting site_sequence values after normalisation",
     ) as bundle_exc:
         ReferenceBundle(
             organism=Organism.RAT,
@@ -329,7 +329,7 @@ def test_site_sequence_duplicate_after_normalisation_reports_duplicate_status() 
 def test_site_sequence_conflict_after_normalisation_reports_conflict_status() -> None:
     with pytest.raises(
         ReferenceValidationError,
-        match="conflicting site_sequence values after canonicalization",
+        match="conflicting site_sequence values after normalisation",
     ) as exc_info:
         SiteSequenceReference(
             frame=pd.DataFrame(

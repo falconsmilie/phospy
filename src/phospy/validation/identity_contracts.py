@@ -400,7 +400,7 @@ def enforce_display_id_column(
     error_type: type[ErrorType],
     column_name: str = "display_id",
 ) -> pd.Series:
-    """Require one present display_id column with canonical site identifiers."""
+    """Require one present display_id column with recommended site identifiers."""
 
     if column_name not in site_metadata.columns:
         raise error_type(f"{field_name} is missing required columns: {column_name}")

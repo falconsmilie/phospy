@@ -54,7 +54,7 @@ class InterpretedPreprocessingStageContract:
 
 @dataclass(frozen=True, slots=True)
 class PreprocessingStageContract:
-    """Single canonical contract for a preprocessing stage."""
+    """Single shared contract for a preprocessing stage."""
 
     stage_key: str
     display_label: str

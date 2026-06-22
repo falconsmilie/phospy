@@ -270,7 +270,7 @@ class SiteSequenceReference(TableSchema):
                 _raise_with_identifier_normalisation_report(
                     message=(
                         f"{self._field_name}.index contains conflicting site_sequence "
-                        f"values after canonicalization: {preview}{suffix}"
+                        f"values after normalisation: {preview}{suffix}"
                     ),
                     report=report,
                 )
@@ -279,7 +279,7 @@ class SiteSequenceReference(TableSchema):
             _raise_with_identifier_normalisation_report(
                 message=(
                     f"{self._field_name}.index contains duplicate site identifiers "
-                    f"after canonicalization: {duplicate_preview}{suffix}"
+                    f"after normalisation: {duplicate_preview}{suffix}"
                 ),
                 report=report,
             )

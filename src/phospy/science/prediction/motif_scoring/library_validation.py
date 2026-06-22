@@ -248,7 +248,7 @@ def _build_motif_library_from_candidates(
             f"{expected_window_size} residues (2 * flank_size + 1)"
         ),
         unsupported_residue_policy=(
-            "exclude any window containing non-canonical amino acids; "
+            "exclude any window containing unsupported amino acids; "
             f"supported residues: {', '.join(AMINO_ACIDS)}"
         ),
         excluded_reference_ids=tuple(excluded_reference_ids),
