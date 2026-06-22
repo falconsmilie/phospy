@@ -163,7 +163,7 @@ def test_kinase_library_workflow_mode_fails_when_residue_class_resources_are_mis
     assert error.details["scoring_site_residue_classes"] == ("ser_thr",)
 
 
-def test_kinase_library_workflow_mode_does_not_call_phosr_motif_fallback() -> None:
+def test_kinase_library_workflow_mode_does_not_call_phosr_inspired_fallback() -> None:
     interpreted = KinaseWorkflowInterpreter().run(
         _request(
             scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
@@ -171,10 +171,12 @@ def test_kinase_library_workflow_mode_does_not_call_phosr_motif_fallback() -> No
         )
     )
 
-    def _fail_if_phosr_motif_scorer_runs(**_: object) -> object:
-        raise AssertionError("PhosR-style motif scorer must not run")
+    def _fail_if_phosr_inspired_motif_scorer_runs(**_: object) -> object:
+        raise AssertionError("PhosR-inspired motif scorer must not run")
 
-    scoring = KinaseScoringRunner(score_motifs=_fail_if_phosr_motif_scorer_runs).run(
+    scoring = KinaseScoringRunner(
+        score_motifs=_fail_if_phosr_inspired_motif_scorer_runs
+    ).run(
         request=interpreted,
         config=interpreted.execution_config,
     )

@@ -88,8 +88,8 @@ SIGNALOME_DOWNSTREAM_SCORE_RANK_WEIGHTED_PREFERRED_POLICY = (
             "fallback_source": DOWNSTREAM_SCORE_SOURCE_PROFILE,
         },
         description=(
-            "Select rank-weighted fusion scores when available; otherwise use "
-            "profile-only scores."
+            "Select PhosR-inspired rank-weighted fusion scores when available; "
+            "otherwise use profile-only scores."
         ),
     )
 )
@@ -373,8 +373,10 @@ def _fuse_profile_and_motif_scores_by_rank_weight(
     Fuse motif-frequency scores and profile-correlation scores using rank-derived
     weights from motif library size and quantified substrate count.
 
-    This is a deterministic score-fusion policy. It is not an enrichment
-    statistic, classifier probability, or calibrated kinase activity estimate.
+    This deterministic PhosR-inspired score-fusion policy is PhosPy-specific.
+    It is not an exact PhosR implementation, numerical compatibility mode,
+    enrichment statistic, classifier probability, or calibrated kinase activity
+    estimate.
     """
 
     profile_kinases = set(profile_scores.columns)

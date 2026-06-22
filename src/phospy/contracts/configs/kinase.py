@@ -132,8 +132,13 @@ class KinaseScoringConfig:
     provenance (preset vs explicit bundle) do not redefine scoring behavior.
 
     `scoring_mode` selects the authoritative downstream scoring source. The
-    default (`"phosr_rank_weighted"`) preserves the existing PhosR-style profile
-    plus motif-frequency rank-weighted lane.
+    default (`"phosr_rank_weighted"`) preserves the existing PhosR-inspired
+    rank-weighted scoring lane. PhosPy builds profiles from available
+    substrate/reference evidence, uses motif-frequency support when sequence
+    and reference evidence allow, and combines available profile and motif
+    evidence with rank-derived weights under the configured substrate/support
+    rules. This is a PhosPy-specific scoring mode, not an exact PhosR
+    implementation and not a numerical compatibility mode.
 
     `"kinase_library_motif"` and `"combined_profile_motif"` are workflow-level
     opt-ins for caller-supplied Kinase Library-style resources. They still run

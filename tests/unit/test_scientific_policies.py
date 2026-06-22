@@ -228,6 +228,24 @@ def test_motif_profile_rank_fusion_policy_exposes_metadata() -> None:
     assert record.id == ScientificPolicyId.MOTIF_PROFILE_RANK_FUSION
     assert record.parameters["allow_profile_only_fallback"] is True
     assert record.parameters["emit_weights"] is False
+    generated_text = " ".join(
+        (
+            record.description,
+            " ".join(record.assumptions),
+            record.output_scale,
+        )
+    ).lower()
+    assert "phosr-inspired" in generated_text
+    assert "not an exact phosr implementation" in generated_text
+    assert "not intended to provide numerical parity with phosr" in generated_text
+    assert "exact phosr implementation" not in generated_text.replace(
+        "not an exact phosr implementation",
+        "",
+    )
+    assert "numerical parity with phosr" not in generated_text.replace(
+        "not intended to provide numerical parity with phosr",
+        "",
+    )
 
 
 def test_signalome_candidate_score_policy_exposes_runtime_parameters() -> None:

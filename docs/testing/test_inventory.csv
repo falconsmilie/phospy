@@ -109,7 +109,7 @@ tests/unit/test_io_table_readers.py,unit,275,9,true,true,public API contract,kee
 tests/unit/test_kinase_bundle_snapshots.py,unit,95,4,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle snapshots, making artifact and output drift unsafe.",codex-audit,,
 tests/unit/test_kinase_library_motif_scoring.py,unit,232,7,false,false,,,,,,
 tests/unit/test_kinase_library_references.py,unit,161,6,false,false,,,,,,
-tests/unit/test_kinase_library_workflow_requirements.py,unit,388,8,false,false,,,,,,
+tests/unit/test_kinase_library_workflow_requirements.py,unit,390,8,false,false,,,,,,
 tests/unit/test_kinase_science.py,unit,381,11,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for kinase science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_kinase_scoring_transforms.py,unit,25,1,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for kinase scoring transforms, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_kinase_site_sequence_support_collaborators.py,unit,374,7,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in kinase site sequence support collaborators; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-ORCH-002,Route to TST-ORCH-002 for site-sequence collaborator rewrite toward interpreter/workflow boundary behavior assertions.
@@ -172,7 +172,7 @@ tests/unit/test_runtime_contract_guards.py,unit,118,4,false,false,public API con
 tests/unit/test_science_package_ownership.py,unit,113,6,true,true,,,,,,
 tests/unit/test_scientific_coverage_scope_matrix_docs.py,unit,586,23,false,false,,,,,,
 tests/unit/test_scientific_invariants.py,unit,704,19,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for scientific invariants, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
-tests/unit/test_scientific_policies.py,unit,409,21,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for scientific policies, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
+tests/unit/test_scientific_policies.py,unit,427,21,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for scientific policies, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_signalome_bundle_reconstruction_identity.py,unit,33,2,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_signalome_bundle_schema.py,unit,574,26,true,true,provenance/golden contract,keep,"Loss of this file would remove strict-schema reproducibility/provenance checks for signalome bundles, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_signalome_candidate_scoring_module.py,unit,254,6,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for signalome candidate scoring module, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
@@ -198,7 +198,7 @@ tests/unit/test_site_identifier_module_ownership.py,unit,39,3,false,false,,,,,,
 tests/unit/test_site_identity_validation.py,unit,528,21,true,true,,,,,,
 tests/unit/test_site_matrix_components.py,unit,864,16,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for site matrix components, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_site_validation_helpers.py,unit,90,5,false,false,,,,,,
-tests/unit/test_table_schemas.py,unit,1099,65,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for table schemas and increase risk of boundary regressions.,codex-audit,,
+tests/unit/test_table_schemas.py,unit,1102,65,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for table schemas and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_total_protein_correction_identity_mapping.py,unit,561,22,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for total protein correction identity mapping, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_transformation_provenance.py,unit,73,2,false,false,,,,,,
 tests/unit/test_validation_common_ownership.py,unit,27,2,false,false,,,,,,

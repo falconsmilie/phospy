@@ -68,6 +68,11 @@ Bundled runtime references in the current release are rat-only. For human or
 mouse work, create and pass an explicit `ReferenceBundle` in Python instead of
 using `ReferencePreset.AUTO`.
 
+The default kinase `scoring_mode="phosr_rank_weighted"` is PhosR-inspired
+rank-weighted scoring implemented by PhosPy. It combines available profile and
+motif support under PhosPy's support rules; it is not an exact PhosR
+implementation and is not intended to provide numerical parity with PhosR.
+
 Scientific scope categories and parity/open-gap status are maintained in
 [`docs/scientific-coverage.md`](docs/scientific-coverage.md). Parity fixture
 evidence lives in [`docs/parity.md`](docs/parity.md).

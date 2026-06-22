@@ -49,12 +49,14 @@ class KinaseScoringResult:
     """Scoring-stage outputs.
 
     `score_source` identifies the authoritative downstream score matrix used by
-    prediction. The default remains the historical rank-weighted lane when it is
-    present, otherwise profile scores.
+    prediction. The default remains the historical PhosR-inspired rank-weighted
+    lane when it is present, otherwise profile scores. This lane is PhosPy
+    scoring, not an exact PhosR implementation or numerical compatibility mode.
 
     `profile_scores` and `rank_weighted_fusion_scores` define the historical
-    downstream lane. `motif_scores` and `score_fusion_weights` are optional
-    diagnostic tables controlled by `scoring_config.include_diagnostic_scoring_tables`.
+    PhosPy downstream lane. `motif_scores` and `score_fusion_weights` are
+    optional diagnostic tables controlled by
+    `scoring_config.include_diagnostic_scoring_tables`.
     `kinase_library_motif_scores` is populated when Kinase Library motif scoring
     is explicitly selected.
     `score_source_summary` is a compact per-kinase evidence-source diagnostic.

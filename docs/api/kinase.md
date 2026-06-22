@@ -13,13 +13,16 @@ Good fits:
 
 - rat beginner runs with `ReferencePreset.AUTO`
 - custom human or mouse runs with an explicit `ReferenceBundle`
-- default PhosR-style rank-weighted scoring
+- default PhosR-inspired rank-weighted scoring
 - explicit Kinase Library-style motif scoring with a caller-supplied
   `KinaseLibraryResource`
 - optional activity summaries from workflow prediction output
 
 Scores are relative support values within a run, not calibrated probabilities
 or proof of causal regulation.
+The default `phosr_rank_weighted` value names PhosPy's PhosR-inspired
+rank-weighted scoring mode. It is not an exact PhosR implementation and is not
+intended to provide numerical parity with PhosR.
 
 ## Inputs
 
@@ -90,12 +93,19 @@ Important `KinaseScoringConfig` fields:
 
 | Field | Default | Notes |
 | --- | --- | --- |
-| `scoring_mode` | `"phosr_rank_weighted"` | Supported modes: `"phosr_rank_weighted"`, `"kinase_library_motif"`, `"combined_profile_motif"`. |
+| `scoring_mode` | `"phosr_rank_weighted"` | Supported modes: `"phosr_rank_weighted"`, `"kinase_library_motif"`, `"combined_profile_motif"`. The default is PhosR-inspired PhosPy scoring, not a PhosR compatibility mode. |
 | `min_substrates` | `2` | Minimum quantified substrates for kinase support. |
 | `include_diagnostic_scoring_tables` | `False` | Adds non-primary diagnostic scoring tables. |
 | `profile_missing_value_strategy` | `"strict"` | Use `"median_skipna"` only when skipping missing profile values is intended. |
 | `localisation_requirement` | `LocalisationRequirement()` | Workflow-level localisation requirement. |
 | `allow_mixed_total_protein_quantitative_meaning` | `False` | Keep `False` unless mixed corrected/uncorrected rows are intended. |
+
+For `scoring_mode="phosr_rank_weighted"`, PhosPy uses available
+substrate/reference evidence to build kinase profiles, scores profile support,
+uses motif support when sequence/reference evidence allow, and combines
+available profile and motif evidence with rank-derived weights. The configured
+`min_substrates` floor controls which kinases have enough support to enter this
+lane.
 
 Important `KinasePredictionConfig` fields:
 
@@ -191,6 +201,11 @@ Kinase Library-style workflow scores are normalized support scores for
 within-run ranking. They are not official Kinase Library predictor parity and
 not calibrated probabilities.
 
+Default `phosr_rank_weighted` scores are PhosR-inspired rank-weighted support
+scores implemented by PhosPy. They are not exact PhosR scores, and small or
+large numerical differences from PhosR should not be interpreted as bugs by
+themselves.
+
 KSEA-style and ssGSEA-style activity methods are explicit PhosPy activity
 summaries. KSEA-style activity is not equivalent to PhosR kinase activity
 inference. ssGSEA-style activity is not PTM-SEA support.
@@ -206,6 +221,8 @@ diagnostics. Adaptive prediction requires `random_state` when
 
 - Bundled runtime references are rat-first in this release.
 - Scores are relative support values, not calibrated causal inference.
+- `phosr_rank_weighted` is PhosR-inspired PhosPy scoring, not exact PhosR
+  numerical compatibility.
 - Kinase Library-style scoring requires a compatible caller-supplied local
   resource and does not silently fall back when resource lanes are incompatible.
 - Activity is optional and method-specific.

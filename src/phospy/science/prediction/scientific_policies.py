@@ -102,7 +102,8 @@ def build_motif_profile_rank_fusion_policy(
         name="rank_weighted_motif_profile_fusion_v1",
         version="1",
         description=(
-            "Combines motif-frequency and profile-correlation scores using "
+            "PhosR-inspired rank-weighted scoring that combines "
+            "motif-frequency and profile-correlation scores using "
             "rank-derived logarithmic weights."
         ),
         parameters={
@@ -117,6 +118,8 @@ def build_motif_profile_rank_fusion_policy(
             "When motif evidence is missing for a kinase/site, profile evidence can "
             "be propagated.",
             "Outputs are relative support scores and are not calibrated probabilities.",
+            "This is a PhosPy-specific scoring policy, not an exact PhosR "
+            "implementation and not intended to provide numerical parity with PhosR.",
         ),
         output_scale="Relative downstream support score for kinase-site ranking.",
         quantitative_meaning="relative_support_score",
