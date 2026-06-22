@@ -229,6 +229,8 @@ def test_differential_policy_provenance_snapshot_is_stable() -> None:
             "adjusted_p_value_method": (
                 policy.statistical_testing.adjusted_p_value_method
             ),
+            "input_intensity_scale": (policy.statistical_testing.input_intensity_scale),
+            "logfc_interpretation": (policy.statistical_testing.logfc_interpretation),
         },
         "missing_values": {
             "policy": policy.missing_values.policy,
@@ -309,6 +311,11 @@ def test_differential_policy_provenance_snapshot_is_stable() -> None:
             "test_statistic": "moderated_t",
             "p_value_method": "two_sided_t_distribution_survival_function",
             "adjusted_p_value_method": "benjamini_hochberg",
+            "input_intensity_scale": "log2",
+            "logfc_interpretation": (
+                "fitted condition contrast on the established log2 phosphosite "
+                "intensity scale"
+            ),
         },
         "missing_values": {
             "policy": "reject_missing_values_before_differential_execution",

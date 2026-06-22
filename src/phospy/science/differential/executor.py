@@ -20,7 +20,7 @@ from phospy.science.differential.multiple_testing import benjamini_hochberg
 
 
 class DifferentialAnalysisExecutor:
-    """Run OLS fitting and limma-style empirical-Bayes moderation."""
+    """Run OLS fitting and empirical-Bayes moderation."""
 
     def run(
         self, request: DifferentialAnalysisRequest

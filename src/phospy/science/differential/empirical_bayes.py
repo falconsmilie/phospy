@@ -1,4 +1,4 @@
-"""Limma-style empirical-Bayes helpers."""
+"""Empirical-Bayes moderation helpers for differential OLS."""
 
 from __future__ import annotations
 
@@ -79,7 +79,7 @@ def fit_empirical_bayes(
     winsor_tail_p: tuple[float, float],
     mean_intensity: np.ndarray | None = None,
 ) -> EmpiricalBayesFit:
-    """Estimate limma-style prior variance/df with optional robust and trend modes."""
+    """Estimate prior variance/df with optional robust and trend modes."""
 
     residual_dof = float(residual_dof)
     if not np.isfinite(residual_dof) or residual_dof <= 0.0:

@@ -211,6 +211,10 @@ def test_differential_analysis_returns_per_contrast_moderated_tables() -> None:
     assert result.policy_provenance.statistical_testing.adjusted_p_value_method == (
         "benjamini_hochberg"
     )
+    assert result.policy_provenance.statistical_testing.input_intensity_scale == "log2"
+    assert result.policy_provenance.statistical_testing.logfc_interpretation == (
+        "fitted condition contrast on the established log2 phosphosite intensity scale"
+    )
     assert result.policy_provenance.missing_values.policy == (
         "reject_missing_values_before_differential_execution"
     )

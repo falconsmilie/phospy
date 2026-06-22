@@ -304,7 +304,7 @@ class ContrastMatrix:
 
 @dataclass(frozen=True, slots=True)
 class DifferentialAnalysisRequest:
-    """Request payload for limma-style moderated differential analysis."""
+    """Request payload for moderated OLS-style differential analysis."""
 
     matrix: pd.DataFrame
     design: DesignMatrix | pd.DataFrame
@@ -693,6 +693,8 @@ class DifferentialStatisticalTestingProvenance:
     test_statistic: str
     p_value_method: str
     adjusted_p_value_method: str
+    input_intensity_scale: str = "not_recorded"
+    logfc_interpretation: str = "not_recorded"
 
     def __post_init__(self) -> None:
         if not self.test_statistic:
@@ -710,6 +712,33 @@ class DifferentialStatisticalTestingProvenance:
                 "differential_policy_provenance.statistical_testing."
                 "adjusted_p_value_method must be non-empty"
             )
+        if not self.input_intensity_scale:
+            raise PhosPyInputError(
+                "differential_policy_provenance.statistical_testing."
+                "input_intensity_scale must be non-empty"
+            )
+        if not self.logfc_interpretation:
+            raise PhosPyInputError(
+                "differential_policy_provenance.statistical_testing."
+                "logfc_interpretation must be non-empty"
+            )
+        object.__setattr__(self, "test_statistic", str(self.test_statistic))
+        object.__setattr__(self, "p_value_method", str(self.p_value_method))
+        object.__setattr__(
+            self,
+            "adjusted_p_value_method",
+            str(self.adjusted_p_value_method),
+        )
+        object.__setattr__(
+            self,
+            "input_intensity_scale",
+            str(self.input_intensity_scale),
+        )
+        object.__setattr__(
+            self,
+            "logfc_interpretation",
+            str(self.logfc_interpretation),
+        )
 
 
 @dataclass(frozen=True, slots=True)

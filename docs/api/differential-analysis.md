@@ -31,7 +31,7 @@ mixed-effects model.
 - numeric phosphosite-by-sample values in `dataset.phospho`
 - rows keyed by `site_key`
 - complete analysis-ready values at the dataset boundary
-- an established log2 intensity scale when interpreting `logFC`
+- an established log2 intensity scale for differential `logFC` reporting
 - site metadata carrying `site_key`, `display_id`, `organism`,
   `protein_namespace`, `protein_identifier`, `gene_symbol`, and `site`
 
@@ -39,7 +39,8 @@ mixed-effects model.
 `ExperimentalDesign`, not passive sample metadata.
 
 Differential results report `logFC`, so build or declare a log2 dataset before
-running this workflow. For example, use
+running this workflow. Linear or unestablished intensity-scale state is rejected
+before model execution. For example, use
 `DatasetIntensityTransformConfig(policy="log2")` during dataset building when
 your input values are linear intensities.
 
@@ -139,7 +140,7 @@ Important fields and helpers:
 | `posterior_residual_variance_series()` | Moderated residual variance snapshot. |
 | `prior_diagnostics` | Empirical-Bayes prior diagnostics. |
 | `mean_variance_trend_diagnostics` | Trend diagnostics when trend moderation is enabled. |
-| `policy_provenance` | Structured design, contrast, replicate, imputation, and testing provenance. |
+| `policy_provenance` | Structured design, contrast, replicate, imputation, input-scale, and testing provenance. |
 | `workflow_provenance` | Workflow-level execution metadata. |
 | `input_dataset_preprocessing_report` | Preprocessing report carried from the input dataset when available. |
 
@@ -153,9 +154,17 @@ result object and are not valid `DifferentialAnalysisResult` tables.
 
 ## Interpreting the Result
 
-`logFC` is the fitted contrast estimate on the established log2 scale. `t` is a
-moderated t-statistic. `P.Value` is the raw p-value and `adj.P.Val` is the
-multiple-testing adjusted value for the implemented correction policy.
+`logFC` is the fitted condition contrast on the established log2 phosphosite
+intensity scale. `t` is a moderated t-statistic. `P.Value` is the raw p-value,
+and `adj.P.Val` is the multiple-testing adjusted value for the implemented
+correction policy.
+
+PhosPy uses its own moderated OLS-style implementation. The result table follows
+familiar limma/topTable-style column names (`logFC`, `P.Value`, `adj.P.Val`), but
+that wording does not mean exact limma or `topTable` numerical parity.
+`result.policy_provenance.statistical_testing.input_intensity_scale` records the
+validated input scale, and `logfc_interpretation` records how `logFC` should be
+read.
 
 Repeated `display_id` values can appear when different `site_key` rows preserve
 different protein context. Interpret rows by `site_key`; `display_id` is for

@@ -29,6 +29,12 @@ from phospy.workflows.differential.models import ValidatedDifferentialAnalysisRe
 
 _DIFFERENTIAL_TEST_STATISTIC = "moderated_t"
 _DIFFERENTIAL_P_VALUE_METHOD = "two_sided_t_distribution_survival_function"
+_DIFFERENTIAL_LOG2_LOGFC_INTERPRETATION = (
+    "fitted condition contrast on the established log2 phosphosite intensity scale"
+)
+_DIFFERENTIAL_NON_LOG2_LOGFC_INTERPRETATION = (
+    "fitted condition contrast on the declared input scale; not a log2 fold-change"
+)
 _DIFFERENTIAL_MISSING_VALUE_POLICY = (
     "reject_missing_values_before_differential_execution"
 )
@@ -122,6 +128,7 @@ def build_differential_policy_provenance(
     )
     covariate_provenance = _fixed_effect_covariate_provenance(request)
     design_formula = _design_formula(request)
+    input_intensity_scale = _input_intensity_scale_label(request)
 
     contrast_definitions: list[DifferentialContrastDefinition] = []
     for contrast in request.contrasts:
@@ -196,6 +203,8 @@ def build_differential_policy_provenance(
             test_statistic=_DIFFERENTIAL_TEST_STATISTIC,
             p_value_method=_DIFFERENTIAL_P_VALUE_METHOD,
             adjusted_p_value_method=request.config.multiple_testing.method,
+            input_intensity_scale=input_intensity_scale,
+            logfc_interpretation=_logfc_interpretation(input_intensity_scale),
         ),
         missing_values=DifferentialMissingValuePolicyProvenance(
             policy=_DIFFERENTIAL_MISSING_VALUE_POLICY,
@@ -215,6 +224,16 @@ def build_differential_policy_provenance(
             enforcement_stage=_DIFFERENTIAL_UNSUPPORTED_ENFORCEMENT_STAGE,
         ),
     )
+
+
+def _input_intensity_scale_label(request: ValidatedDifferentialAnalysisRequest) -> str:
+    return str(request.dataset.intensity_scale_state.label)
+
+
+def _logfc_interpretation(input_intensity_scale: str) -> str:
+    if input_intensity_scale == "log2":
+        return _DIFFERENTIAL_LOG2_LOGFC_INTERPRETATION
+    return _DIFFERENTIAL_NON_LOG2_LOGFC_INTERPRETATION
 
 
 def _design_formula(request: ValidatedDifferentialAnalysisRequest) -> str:
