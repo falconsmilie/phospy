@@ -480,6 +480,20 @@ def _build_signalome_score_semantics(
             "module-count selection uses within-cluster correlation summaries over "
             "downstream score profiles across candidate module counts"
         ),
+        "assignment_semantics": {
+            "top_kinase": (
+                "top supported kinase candidate by site-level prediction score; "
+                "ties are reported with the configured selection policy"
+            ),
+            "module_top_kinase": (
+                "top supported kinase candidate summarized across sites in the "
+                "candidate module; this is a label, not a causal mechanism claim"
+            ),
+            "module_id": (
+                "score-derived candidate kinase-supported module identifier for "
+                "the current dataset and configuration"
+            ),
+        },
         "candidate_scoring_mode": str(scale_guard_decision.candidate_scoring_mode),
         "candidate_scoring_is_approximate": bool(
             scale_guard_decision.candidate_scoring_is_approximate
@@ -524,9 +538,39 @@ def _build_signalome_score_semantics(
             "passed": bool(scale_guard_decision.scale_guard_passed),
         },
         "network_correlation_meaning": (
-            "network candidate and edge scores are pairwise correlations between "
-            "downstream kinase score profiles, computed on finite paired observations"
+            "network candidate and edge scores are score-profile associations: "
+            "pairwise correlations between downstream kinase score profiles, "
+            "computed on finite paired observations"
         ),
+        "network_edge_semantics": {
+            "nodes": (
+                "kinases retained in the aligned prediction and downstream score "
+                "matrices"
+            ),
+            "edges": (
+                "correlation edge between kinase score profiles that passed the "
+                "configured threshold and network policy"
+            ),
+            "direction": (
+                "not inferred; source_kinase and target_kinase are deterministic "
+                "table labels for an undirected score-profile association"
+            ),
+            "weight": (
+                "correlation column derived from pairwise finite downstream score "
+                "profile correlations; signed and absolute-threshold policies "
+                "determine whether the stored value keeps sign or stores magnitude"
+            ),
+            "threshold_policy": {
+                "network_policy": str(config.network_policy),
+                "network_correlation_threshold": float(
+                    config.network_correlation_threshold
+                ),
+            },
+            "interpretation_limit": (
+                "correlations are not causal evidence and do not prove signalling "
+                "relationships"
+            ),
+        },
         "network_policy": str(config.network_policy),
         "negative_correlation_handling": _negative_correlation_handling(
             network_policy=str(config.network_policy),
@@ -618,10 +662,11 @@ def _build_signalome_score_semantics(
         },
         "clustering_engine": str(scale_guard_decision.clustering_engine),
         "scientific_interpretation_limits": (
-            "signalome module assignments, module scores, and kinase-network "
-            "correlations are derived summary statistics for this dataset and "
+            "signalome module assignments, module scores, and kinase score-profile "
+            "association edges are derived summary statistics for this dataset and "
             "configuration; they are not probabilities, calibrated confidence "
-            "values, or direct evidence of causal biological regulation"
+            "values, experimental validation of signalling relationships, or "
+            "causal evidence"
         ),
     }
 
@@ -690,10 +735,16 @@ def _build_signalome_assignment_policy_record(
         id=ScientificPolicyId.SIGNALOME_ASSIGNMENT_POLICY,
         name=f"signalome_assignment_policy_{assignment_policy}_v1",
         version="1",
-        description="Assignment policy used to map site support to module-level labels.",
+        description=(
+            "Assignment policy used to summarize site support as module-level "
+            "top supported kinase candidate labels."
+        ),
         parameters={"assignment_policy": assignment_policy},
-        assumptions=("Assignment policy affects top-kinase labels and tie handling.",),
-        output_scale="Module assignment labels and top-kinase summaries.",
+        assumptions=(
+            "Assignment policy affects top supported kinase candidate labels and tie handling.",
+            "Labels summarize score support and do not infer causal regulation.",
+        ),
+        output_scale="Module assignment labels and top supported kinase summaries.",
         quantitative_meaning="signalome_assignment_rule",
     )
 
@@ -707,15 +758,19 @@ def _build_signalome_network_policy_record(
         id=ScientificPolicyId.SIGNALOME_NETWORK_POLICY,
         name=f"signalome_network_policy_{network_policy}_v1",
         version="1",
-        description="Policy controlling signalome kinase-network edge eligibility.",
+        description=(
+            "Policy controlling exploratory kinase score-profile association edge "
+            "eligibility."
+        ),
         parameters={
             "network_policy": network_policy,
             "network_correlation_threshold": float(network_correlation_threshold),
         },
         assumptions=(
             "Network policy defines how sign and magnitude thresholds are applied.",
+            "Edges represent score-profile associations, not inferred direction or causality.",
         ),
-        output_scale="Signalome kinase-network edge table.",
+        output_scale="Signalome kinase score-profile association edge table.",
         quantitative_meaning="network_edge_eligibility_rule",
     )
 

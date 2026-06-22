@@ -29,7 +29,7 @@ from phospy.workflows.signalome.contracts import (
 
 
 class SignalomeNetworkBuilder:
-    """Build kinase network outputs and diagnostics for signalome execution."""
+    """Build kinase score-profile association outputs and diagnostics."""
 
     def __init__(
         self,
@@ -74,7 +74,7 @@ class SignalomeNetworkBuilder:
                 seam=SIGNALOME_EXECUTOR_NETWORK_SEAM,
                 next_action=(
                     "ensure interpreted score and prediction matrices share the same "
-                    "kinase set and contain variable score signal"
+                    "kinase set and contain variable score profiles"
                 ),
                 shared_kinases=execution_metadata.prediction_kinases,
                 **support_details(support_summary.support_counts),
@@ -90,7 +90,7 @@ class SignalomeNetworkBuilder:
                 seam=SIGNALOME_EXECUTOR_NETWORK_SEAM,
                 next_action=(
                     "lower network_correlation_threshold or provide more variable "
-                    "score profiles so kinase correlations can be estimated"
+                    "score profiles so kinase score-profile correlations can be estimated"
                 ),
                 shared_kinases=execution_metadata.prediction_kinases,
                 **support_details(support_summary.support_counts),

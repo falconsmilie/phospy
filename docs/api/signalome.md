@@ -1,22 +1,25 @@
 # Signalome Workflow
 
-`SignalomeWorkflow` interprets kinase workflow output into signalome module
-assignments, module summaries, kinase-network tables, and site/protein context
-sidecars. Use it after `KinaseWorkflow` has produced a `KinaseWorkflowResult`.
+`SignalomeWorkflow` interprets kinase workflow output into score-derived
+signalome module assignments, module summaries, kinase score-profile association
+tables, and site/protein context sidecars. Use it after `KinaseWorkflow` has
+produced a `KinaseWorkflowResult`.
 
 ## When to Use This Workflow
 
-Use this workflow when you want derived module and network summaries from
-kinase scoring/prediction output.
+Use this workflow when you want exploratory module and network-style summaries
+from kinase scoring/prediction output.
 
 Good fits:
 
 - site-keyed kinase prediction and downstream score matrices
 - datasets with explicit `protein_id` grouping metadata for interpreted sites
-- module assignment and kinase-network summaries for exploratory analysis
+- module assignment and kinase score-profile association summaries for
+  exploratory analysis
 
 Signalome outputs are derived summaries. They are not probabilities, calibrated
-confidence values, or proof of causal regulation.
+confidence values, causal evidence, or experimental validation of signalling
+relationships.
 
 ## Inputs
 
@@ -161,6 +164,24 @@ protein context.
 Missing kinase correlations remain missing. A value of `0.0` means a finite
 near-zero correlation was estimated.
 
+Key output meanings:
+
+| Output | Meaning |
+| --- | --- |
+| `module_assignments.top_kinase` | Top supported kinase candidate for a site by prediction score. Ties are reported through candidate and selection-policy columns. |
+| `module_assignments.module_id` | Score-derived candidate kinase-supported module ID for the current dataset and config. |
+| `module_assignments.module_top_kinase` | Top supported kinase candidate summarized across the candidate module. It is a label, not a causal mechanism claim. |
+| `signalome_modules` | Module-by-kinase percentages derived from the configured assignment policy. Values summarize support shares within modules. |
+| `kinase_network.nodes` | Kinases retained in the aligned prediction and downstream score matrices. `degree` counts retained correlation edges and `n_substrates` counts predicted substrates above the support cutoff. |
+| `kinase_network.edges` | Correlation edges between kinase score profiles. `source_kinase` and `target_kinase` are deterministic table labels, not inferred direction. |
+| `kinase_network.edges.correlation` | Edge weight derived from pairwise finite downstream score-profile correlations. `signed`, `positive_only`, and `absolute_threshold` policies control thresholding and whether sign is retained or stored as magnitude. |
+| `kinase_network.candidate_correlations` | Candidate pairwise correlations before edge filtering, with status and valid-observation counts. |
+| `expanded_signalome.regulated_module_ids` | Stable legacy field name for score-supported module IDs linked to a focal kinase. It does not mean experimental regulation was shown. |
+
+Network edges are exploratory score-profile associations. Correlations do not
+establish causality, direction, or experimental validation of signalling
+relationships.
+
 `candidate_scoring_policy="sampled"` approximates candidate module-count scoring
 only. It does not make every signalome step approximate, and scale-guard
 diagnostics are recorded in provenance.
@@ -169,14 +190,17 @@ diagnostics are recorded in provenance.
 
 Workflow provenance records upstream kinase provenance, resolved config,
 alignment diagnostics, score-preconditioning diagnostics, scale-guard decisions,
-scientific policy records, and table fingerprints.
+scientific policy records, table fingerprints, and signalome score semantics.
+The semantics include the network threshold, policy, correlation basis, edge
+directionality, and interpretation limits.
 
 ## Limitations
 
 - Requires explicit `protein_id` grouping metadata for interpreted sites.
 - Does not infer protein identity from display labels.
 - Does not run kinase scoring or prediction itself.
-- Module and network outputs are derived summaries, not causal proof.
+- Module and network-style outputs are derived summaries, not causal proof or
+  experimental evidence of signalling relationships.
 - Mixed corrected/uncorrected total-protein quantitative meaning is rejected by
   default unless explicitly allowed.
 

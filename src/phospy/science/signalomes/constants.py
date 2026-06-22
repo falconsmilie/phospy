@@ -39,6 +39,8 @@ VALID_OBSERVATIONS_COLUMN = "valid_observations"
 
 EXPANDED_SIGNALOME_KINASE_COLUMN = "kinase"
 EXPANDED_SIGNALOME_LINKED_KINASES_COLUMN = "linked_kinases"
+# Stable legacy output field: values are score-supported module IDs, not proof
+# that a kinase regulates those modules.
 EXPANDED_SIGNALOME_REGULATED_MODULE_IDS_COLUMN = "regulated_module_ids"
 EXPANDED_SIGNALOME_SITE_ORDER_COLUMN = "site_order"
 EXPANDED_SIGNALOME_SUPPORT_KINASES_COLUMN = "support_kinases"

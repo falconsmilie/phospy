@@ -1,4 +1,4 @@
-"""Signalome assignment domain services."""
+"""Score-derived signalome assignment domain services."""
 
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ def build_module_assignments(
     site_metadata: pd.DataFrame | None = None,
     protein_modules: pd.Series | None = None,
 ) -> pd.DataFrame:
-    """Build site-level module assignments with explicit tie-handling metadata."""
+    """Build site-level module assignments with top kinase candidate metadata."""
 
     if prediction_matrix.shape[1] == 0:
         raise WorkflowStageError("prediction matrix must contain at least one kinase")
@@ -181,7 +181,7 @@ def select_kinase_substrates(
     prediction_matrix: pd.DataFrame,
     cutoff: float,
 ) -> dict[str, tuple[str, ...]]:
-    """Select phosphosites supported per kinase above `cutoff`."""
+    """Select phosphosites with kinase prediction support above `cutoff`."""
 
     site_ids = prediction_matrix.index.astype(str).to_numpy(dtype=object, copy=False)
     kinase_names = prediction_matrix.columns.astype(str).to_numpy(

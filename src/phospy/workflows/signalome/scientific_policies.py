@@ -65,7 +65,7 @@ def build_score_preconditioning_policy(
             "Preconditioning policy determines whether row dropping is allowed or "
             "treated as a boundary error.",
             "Row retention changes site coverage and therefore can change final "
-            "signalome assignments and module summaries.",
+            "score-derived signalome assignments and module summaries.",
         ),
         output_scale="Retained downstream score matrix rows for signalome execution.",
         quantitative_meaning="retained_signalome_score_rows",

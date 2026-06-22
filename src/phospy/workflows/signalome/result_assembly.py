@@ -36,7 +36,7 @@ from phospy.workflows.signalome.contracts import (
 
 
 class SignalomeExpandedSignalomeBuilder:
-    """Build expanded signalome output for signalome workflow execution."""
+    """Build expanded score-derived signalome output."""
 
     _EXPANDED_SIGNALOME_SEAM = SIGNALOME_EXECUTOR_EXPANDED_SIGNALOME_SEAM
 
@@ -71,8 +71,9 @@ class SignalomeExpandedSignalomeBuilder:
             raise_boundary_error(
                 seam=self._EXPANDED_SIGNALOME_SEAM,
                 next_action=(
-                    "ensure module assignments, module signal, and network topology "
-                    "are mutually consistent for expanded signalome output"
+                    "ensure module assignments, module signal, and score-profile "
+                    "association edges are mutually consistent for expanded "
+                    "signalome output"
                 ),
                 assignment_policy=config.assignment_policy,
                 module_count=module_count,
@@ -83,7 +84,7 @@ class SignalomeExpandedSignalomeBuilder:
 
 
 class SignalomeResultAssembler:
-    """Assemble the public signalome workflow result."""
+    """Assemble the public score-derived signalome workflow result."""
 
     @staticmethod
     def run(

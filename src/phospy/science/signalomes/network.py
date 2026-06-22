@@ -1,4 +1,4 @@
-"""Signalome kinase-network domain services."""
+"""Score-derived kinase association services for signalome network outputs."""
 
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ def build_kinase_network(
         SIGNALOME_KINASE_NETWORK_POLICY_SIGNED
     ),
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Build deterministic edge and node tables for kinase network output."""
+    """Build deterministic score-profile correlation edge and node tables."""
 
     edges, nodes, _, _ = build_kinase_network_with_diagnostics(
         downstream_score_matrix=downstream_score_matrix,
@@ -74,7 +74,7 @@ def build_kinase_network_with_diagnostics(
     pd.DataFrame,
     SignalomeNetworkCorrelationDiagnostics,
 ]:
-    """Build network tables plus candidate-correlation traceability diagnostics."""
+    """Build exploratory network tables plus correlation traceability diagnostics."""
 
     kinase_index = pd.Index(
         [str(kinase) for kinase in kinase_order], name=KINASE_COLUMN

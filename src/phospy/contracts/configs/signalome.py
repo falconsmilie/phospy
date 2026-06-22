@@ -82,7 +82,7 @@ SIGNALOME_KINASE_NETWORK_POLICIES = frozenset(
 
 @dataclass(frozen=True, slots=True)
 class SignalomeScientificConfig:
-    """Scientific interpretation choices for the signalome workflow."""
+    """Scientific interpretation choices for score-derived signalome summaries."""
 
     substrate_support_cutoff: float = 0.5
     assignment_policy: SignalomeAssignmentPolicy = (
@@ -221,7 +221,7 @@ class SignalomeValidationConfig:
 
 @dataclass(frozen=True, slots=True)
 class SignalomeOutputConfig:
-    """Output-shape and network-generation settings."""
+    """Output-shape and score-profile association edge settings."""
 
     network_correlation_threshold: float = 0.5
     network_policy: SignalomeKinaseNetworkPolicy = (

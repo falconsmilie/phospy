@@ -184,6 +184,25 @@ def _resolved_request():
     return SignalomeWorkflowInterpreter().run(request)
 
 
+def _strings_from(value: object) -> tuple[str, ...]:
+    strings: list[str] = []
+
+    def _visit(candidate: object) -> None:
+        if isinstance(candidate, str):
+            strings.append(candidate)
+            return
+        if isinstance(candidate, dict):
+            for item in candidate.values():
+                _visit(item)
+            return
+        if isinstance(candidate, (list, tuple, set, frozenset)):
+            for item in candidate:
+                _visit(item)
+
+    _visit(value)
+    return tuple(strings)
+
+
 def test_signalome_clustering_runner_returns_expected_diagnostics() -> None:
     resolved = _resolved_request()
     metadata = SignalomeClusteringRunner.collect_execution_metadata(resolved)
@@ -459,6 +478,7 @@ def test_signalome_provenance_builder_records_scale_and_backend_fields() -> None
     assert "module_selection_diagnostics" in provenance.workflow_parameters
     assert "alignment_diagnostics" in provenance.workflow_parameters
     assert "network_correlation_diagnostics" in provenance.workflow_parameters
+    assert "signalome_score_semantics" in provenance.workflow_parameters
     signalome_config = provenance.workflow_parameters["signalome_config"]
     assert "scientific" in signalome_config
     assert "clustering" in signalome_config
@@ -492,6 +512,33 @@ def test_signalome_provenance_builder_records_scale_and_backend_fields() -> None
     assert "input_kinase_count" in scale_guard
     assert "candidate_module_counts_evaluated" in scale_guard
     assert "candidate_module_count_upper_bound" in scale_guard
+    score_semantics = provenance.workflow_parameters["signalome_score_semantics"]
+    network_semantics = score_semantics["network_edge_semantics"]
+    assert network_semantics["threshold_policy"] == {
+        "network_policy": resolved.execution_config.network_policy,
+        "network_correlation_threshold": (
+            resolved.execution_config.network_correlation_threshold
+        ),
+    }
+    assert (
+        "correlation edge between kinase score profiles" in (network_semantics["edges"])
+    )
+    assert "not inferred" in network_semantics["direction"]
+    assert (
+        "correlations are not causal evidence"
+        in (network_semantics["interpretation_limit"])
+    )
+    assignment_semantics = score_semantics["assignment_semantics"]
+    assert "top supported kinase candidate" in assignment_semantics["top_kinase"]
+    assert "not a causal mechanism claim" in (assignment_semantics["module_top_kinase"])
+    generated_semantics = "\n".join(_strings_from(score_semantics)).lower()
+    for forbidden_claim in (
+        "causal network",
+        "pathway activation",
+        "kinase controls this module",
+        "proven signalling relationship",
+    ):
+        assert forbidden_claim not in generated_semantics
     output_names = {fingerprint.name for fingerprint in provenance.output_tables}
     assert "outputs.signalome.module_assignments" in output_names
     assert "outputs.signalome.signalome_modules" in output_names

@@ -187,7 +187,7 @@ def default_signalome_network_correlation_diagnostics() -> (
 
 @dataclass(frozen=True, slots=True, init=False)
 class SignalomeAssignments:
-    """Signalome module assignment table."""
+    """Score-derived signalome module assignment table."""
 
     _table: pd.DataFrame = field(init=False, repr=False)
 
@@ -222,7 +222,7 @@ class SignalomeAssignments:
 
 @dataclass(frozen=True, slots=True, init=False)
 class SignalomeModules:
-    """Signalome module table."""
+    """Candidate kinase-supported module summary table."""
 
     _table: pd.DataFrame = field(init=False, repr=False)
 
@@ -257,7 +257,7 @@ class SignalomeModules:
 
 @dataclass(frozen=True, slots=True, init=False)
 class KinaseNetwork:
-    """Kinase network tables derived from signalome analysis."""
+    """Kinase score-profile association tables derived from signalome analysis."""
 
     correlation_diagnostics: SignalomeNetworkCorrelationDiagnostics = field(
         default_factory=default_signalome_network_correlation_diagnostics

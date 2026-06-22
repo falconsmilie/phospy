@@ -1,4 +1,4 @@
-"""Signalome module table domain services."""
+"""Score-derived signalome module table domain services."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ def build_signalome_module_table(
         SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
     ),
 ) -> pd.DataFrame:
-    """Build module-by-kinase signalome table as percent shares per module."""
+    """Build candidate kinase-supported module shares as percentages."""
 
     module_index = pd.Index(
         sorted(
