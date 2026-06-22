@@ -28,6 +28,7 @@ API_ONLY_CONTRACT_TYPES = {
     "BatchCorrectionReport",
     "DatasetBuildRequest",
     "DatasetBatchCorrectionConfig",
+    "DatasetGroupCoverageFilterConfig",
     "DatasetPreprocessingReport",
     "DatasetPreprocessingConfig",
     "DatasetSiteMatrixConfig",

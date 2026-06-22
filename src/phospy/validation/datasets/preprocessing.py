@@ -9,6 +9,7 @@ from phospy.contracts.configs import (
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL,
     DatasetBatchCorrectionConfig,
     DatasetComparisonBuildingConfig,
+    DatasetGroupCoverageFilterConfig,
     DatasetIntensityTransformConfig,
     DatasetLocalisationConfig,
     DatasetMissingDataConfig,
@@ -31,6 +32,7 @@ class DatasetPreprocessingConfigValidator:
         self._validate_intensity_transform(config.intensity_transform)
         self._validate_normalisation(config.normalisation)
         self._validate_missing_data(config.missing_data)
+        self._validate_group_coverage_filter(config.group_coverage_filter)
         self._validate_total_protein_correction(config.total_protein_correction)
         self._validate_site_matrix(config.site_matrix)
         self._validate_comparisons(config.comparisons)
@@ -62,6 +64,17 @@ class DatasetPreprocessingConfigValidator:
             config,
             field_name="dataset build request preprocessing_config.missing_data",
             expected_type=DatasetMissingDataConfig,
+        )
+
+    def _validate_group_coverage_filter(
+        self, config: DatasetGroupCoverageFilterConfig
+    ) -> None:
+        validate_preprocessing_section_type(
+            config,
+            field_name=(
+                "dataset build request preprocessing_config.group_coverage_filter"
+            ),
+            expected_type=DatasetGroupCoverageFilterConfig,
         )
 
     def _validate_total_protein_correction(

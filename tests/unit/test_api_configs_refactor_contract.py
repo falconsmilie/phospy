@@ -4,6 +4,7 @@ from __future__ import annotations
 def test_public_config_imports_remain_stable() -> None:
     from phospy.api.configs import (
         DatasetBatchCorrectionConfig,
+        DatasetGroupCoverageFilterConfig,
         DatasetIntensityTransformConfig,
         DatasetPreprocessingConfig,
         DatasetTotalProteinCorrectionConfig,
@@ -14,6 +15,7 @@ def test_public_config_imports_remain_stable() -> None:
     )
 
     assert DatasetBatchCorrectionConfig is not None
+    assert DatasetGroupCoverageFilterConfig is not None
     assert DatasetPreprocessingConfig is not None
     assert DatasetIntensityTransformConfig is not None
     assert DatasetTotalProteinCorrectionConfig is not None
@@ -32,6 +34,7 @@ def test_config_all_exports_public_api() -> None:
     assert "SignalomeConfig" in configs.__all__
     assert "DatasetTotalProteinCorrectionConfig" in configs.__all__
     assert "DatasetBatchCorrectionConfig" in configs.__all__
+    assert "DatasetGroupCoverageFilterConfig" in configs.__all__
     assert "EnrichmentConfig" in configs.__all__
 
 

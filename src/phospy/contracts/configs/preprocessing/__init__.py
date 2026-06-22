@@ -18,6 +18,9 @@ from phospy.contracts.configs.preprocessing.comparisons import (
     DatasetComparisonBuildingPolicy,
     DatasetComparisonPair,
 )
+from phospy.contracts.configs.preprocessing.coverage_filter import (
+    DatasetGroupCoverageFilterConfig,
+)
 from phospy.contracts.configs.preprocessing.intensity_transform import (
     DATASET_INTENSITY_TRANSFORM_POLICIES,
     DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY,
@@ -186,6 +189,7 @@ __all__ = [
     "DatasetComparisonBuildingConfig",
     "DatasetComparisonPair",
     "DatasetComparisonBuildingPolicy",
+    "DatasetGroupCoverageFilterConfig",
     "DatasetIntensityTransformConfig",
     "DatasetIntensityTransformPolicy",
     "DatasetMissingDataConfig",

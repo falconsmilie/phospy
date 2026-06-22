@@ -19,6 +19,7 @@ from phospy.contracts.configs.preprocessing import (
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
     DatasetBatchCorrectionConfig,
     DatasetComparisonBuildingConfig,
+    DatasetGroupCoverageFilterConfig,
     DatasetIntensityTransformConfig,
     DatasetLocalisationConfig,
     DatasetMissingDataConfig,
@@ -44,6 +45,8 @@ class DatasetPreprocessingConfig:
     - `intensity_transform`: quantitative transform policy.
     - `normalisation`: sample-wise normalisation policy.
     - `missing_data`: missing-value handling policy.
+    - `group_coverage_filter`: condition/replicate-aware coverage filter
+      declaration. It is config-only until a preprocessing stage consumes it.
     - `total_protein_correction`: total/protein correction policy.
     - `protein_aware_preparation`: prepare aligned phosphosite/protein model
       inputs and audit diagnostics. It does not run modelling during dataset
@@ -67,6 +70,9 @@ class DatasetPreprocessingConfig:
     )
     missing_data: DatasetMissingDataConfig = field(
         default_factory=DatasetMissingDataConfig
+    )
+    group_coverage_filter: DatasetGroupCoverageFilterConfig = field(
+        default_factory=DatasetGroupCoverageFilterConfig
     )
     total_protein_correction: DatasetTotalProteinCorrectionConfig = field(
         default_factory=DatasetTotalProteinCorrectionConfig
@@ -110,6 +116,13 @@ class DatasetPreprocessingConfig:
             self.missing_data,
             field_name="dataset build request preprocessing_config.missing_data",
             expected_type=DatasetMissingDataConfig,
+        )
+        validate_preprocessing_section_type(
+            self.group_coverage_filter,
+            field_name=(
+                "dataset build request preprocessing_config.group_coverage_filter"
+            ),
+            expected_type=DatasetGroupCoverageFilterConfig,
         )
         validate_preprocessing_section_type(
             self.total_protein_correction,

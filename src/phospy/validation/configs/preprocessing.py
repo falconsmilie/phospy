@@ -124,6 +124,83 @@ def validate_batch_correction_config(
         )
 
 
+def validate_group_coverage_filter_config(
+    *,
+    enabled: object,
+    group_column: object | None,
+    min_finite_observations_per_group: object | None,
+    min_finite_fraction_per_group: object | None,
+    min_groups_passing_threshold: object,
+) -> None:
+    """Validate public group-aware coverage filter config fields."""
+
+    prefix = "dataset build request preprocessing_config.group_coverage_filter."
+    if not isinstance(enabled, bool):
+        raise PhosPyInputError(f"{prefix}enabled must be a bool")
+
+    if enabled:
+        require_non_empty_string(
+            group_column,
+            field_name=f"{prefix}group_column",
+            error_type=PhosPyInputError,
+        )
+    elif group_column is not None:
+        require_non_empty_string(
+            group_column,
+            field_name=f"{prefix}group_column",
+            error_type=PhosPyInputError,
+            when_provided=True,
+        )
+
+    if isinstance(min_groups_passing_threshold, bool) or not isinstance(
+        min_groups_passing_threshold, int
+    ):
+        raise PhosPyInputError(f"{prefix}min_groups_passing_threshold must be an int")
+    if min_groups_passing_threshold < 1:
+        raise PhosPyInputError(
+            f"{prefix}min_groups_passing_threshold must be greater than or equal to 1"
+        )
+
+    has_count_threshold = min_finite_observations_per_group is not None
+    has_fraction_threshold = min_finite_fraction_per_group is not None
+
+    if has_count_threshold and has_fraction_threshold:
+        raise PhosPyInputError(
+            f"{prefix}min_finite_observations_per_group and "
+            "min_finite_fraction_per_group are mutually exclusive"
+        )
+    if enabled and not has_count_threshold and not has_fraction_threshold:
+        raise PhosPyInputError(
+            f"{prefix}must set exactly one finite-observation threshold when enabled"
+        )
+
+    if has_count_threshold:
+        if isinstance(min_finite_observations_per_group, bool) or not isinstance(
+            min_finite_observations_per_group, int
+        ):
+            raise PhosPyInputError(
+                f"{prefix}min_finite_observations_per_group must be an int"
+            )
+        if min_finite_observations_per_group < 1:
+            raise PhosPyInputError(
+                f"{prefix}min_finite_observations_per_group must be greater than "
+                "or equal to 1"
+            )
+
+    if has_fraction_threshold:
+        if isinstance(min_finite_fraction_per_group, bool) or not isinstance(
+            min_finite_fraction_per_group, (int, float)
+        ):
+            raise PhosPyInputError(
+                f"{prefix}min_finite_fraction_per_group must be a float"
+            )
+        fraction = float(min_finite_fraction_per_group)
+        if not math.isfinite(fraction) or not (0.0 < fraction <= 1.0):
+            raise PhosPyInputError(
+                f"{prefix}min_finite_fraction_per_group must satisfy 0 < value <= 1"
+            )
+
+
 def validate_protein_aware_preparation_config(
     *,
     policy: object,

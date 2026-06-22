@@ -1,0 +1,47 @@
+"""Group-aware phosphosite coverage filter configuration."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from phospy.validation.configs.preprocessing import (
+    validate_group_coverage_filter_config,
+)
+
+
+@dataclass(frozen=True, slots=True)
+class DatasetGroupCoverageFilterConfig:
+    """Public config for condition/replicate-aware coverage filtering.
+
+    This object only describes the requested filtering rule. It does not filter
+    rows until a preprocessing stage is explicitly wired to consume it.
+
+    When `enabled=True`, provide `group_column`, exactly one threshold, and the
+    minimum number of groups that must pass the threshold:
+
+    - `min_finite_observations_per_group`: minimum finite sample values in a
+      group.
+    - `min_finite_fraction_per_group`: minimum finite-value fraction in a group.
+    - `min_groups_passing_threshold`: number of groups that must satisfy the
+      selected threshold.
+    """
+
+    enabled: bool = False
+    group_column: str | None = None
+    min_finite_observations_per_group: int | None = None
+    min_finite_fraction_per_group: float | None = None
+    min_groups_passing_threshold: int = 1
+
+    def __post_init__(self) -> None:
+        validate_group_coverage_filter_config(
+            enabled=self.enabled,
+            group_column=self.group_column,
+            min_finite_observations_per_group=(self.min_finite_observations_per_group),
+            min_finite_fraction_per_group=self.min_finite_fraction_per_group,
+            min_groups_passing_threshold=self.min_groups_passing_threshold,
+        )
+
+
+__all__ = [
+    "DatasetGroupCoverageFilterConfig",
+]

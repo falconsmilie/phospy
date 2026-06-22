@@ -48,6 +48,7 @@ from phospy.api import (
     DatasetBatchCorrectionConfig,
     DatasetBuildRequest,
     DatasetComparisonBuildingConfig,
+    DatasetGroupCoverageFilterConfig,
     DatasetIntensityTransformConfig,
     DatasetLocalisationConfig,
     DatasetMissingDataConfig,
@@ -73,7 +74,7 @@ from phospy.api import (
 | `sample_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Descriptive/alignment metadata aligned to phospho columns with unique column names. Required when comparison building uses `sample_metadata_pairs`. It does not automatically define differential-analysis conditions, replicates, batches, or blocks. |
 | `total` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Total-protein matrix used only when total-protein correction is enabled. Columns must align to phospho sample columns. |
 | `organism` | `Organism` or `None` | `None` | No | Species identity for the dataset. Use `Organism.RAT` for the bundled beginner lane. |
-| `preprocessing_config` | `DatasetPreprocessingConfig` | `DatasetPreprocessingConfig()` | No | Grouped preprocessing policy for transforms, normalisation, missing data, optional `linear_residualize_batch` batch correction, total-protein correction, protein-aware preparation, site construction, site-sequence resolution, comparisons, and RUV readiness reporting. |
+| `preprocessing_config` | `DatasetPreprocessingConfig` | `DatasetPreprocessingConfig()` | No | Grouped preprocessing policy for transforms, normalisation, missing data, group-aware coverage filter declaration, optional `linear_residualize_batch` batch correction, total-protein correction, protein-aware preparation, site construction, site-sequence resolution, comparisons, and RUV readiness reporting. |
 | `input_intensity_scale` | `IntensityScaleKind`, `str`, or `None` | `None` | No | Required when your preprocessing path keeps `intensity_transform.policy="identity"` and you still need a trusted intensity scale (`"linear"` or `"log2"`). |
 | `quantitative_meaning` | `QuantitativeMeaning`, `str`, or `None` | `None` | No | Optional explicit scientific meaning for phospho values (for example `phosphosite_abundance` or `phosphosite_log_abundance`). |
 
@@ -244,6 +245,7 @@ provide matching `site_key` indexes and all required identity metadata up front.
 | `intensity_transform` | `DatasetIntensityTransformConfig` | `policy="identity"`, `pseudocount=1.0` | Controls numeric intensity transformation before downstream preprocessing. |
 | `normalisation` | `DatasetNormalisationConfig` | `policy="none"` | Controls sample-wise normalisation. |
 | `missing_data` | `DatasetMissingDataConfig` | `policy="forbid"` | Controls missing-value rejection or imputation. |
+| `group_coverage_filter` | `DatasetGroupCoverageFilterConfig` | `enabled=False` | Describes condition/replicate-aware coverage filtering. It does not change builder output until a preprocessing stage consumes it. |
 | `total_protein_correction` | `DatasetTotalProteinCorrectionConfig` | `policy="none"` | Controls phosphosite-to-total correction. |
 | `protein_aware_preparation` | `DatasetProteinAwarePreparationConfig` | `policy="disabled"` | Prepares aligned phosphosite/protein model-input contracts and diagnostics only. |
 | `batch_correction` | `DatasetBatchCorrectionConfig` | `method="none"` | Controls optional `linear_residualize_batch` fixed-effect residualisation. |
@@ -407,6 +409,30 @@ missing_data = DatasetMissingDataConfig(
     k=5,
     distance="nan_euclidean",
     max_missing_fraction_per_row=0.5,
+)
+```
+
+## Group Coverage Filter Parameters
+
+`DatasetGroupCoverageFilterConfig` describes a group-aware coverage filter
+rule. It can express rules such as "keep sites quantified in at least two
+replicates in at least one condition." In the current builder path, this config
+is validated but does not filter rows yet.
+
+| Parameter | Type | Default | Allowed Values | How to Use It |
+| --- | --- | --- | --- | --- |
+| `enabled` | `bool` | `False` | `True`, `False` | Enables the declaration. Filtering is not executed until the preprocessing stage is wired. |
+| `group_column` | `str` or `None` | `None` | Non-empty string when `enabled=True` | Sample-metadata column that defines groups such as conditions. |
+| `min_finite_observations_per_group` | `int` or `None` | `None` | Integer `>= 1`, mutually exclusive with fraction threshold | Minimum finite sample values needed within a group. |
+| `min_finite_fraction_per_group` | `float` or `None` | `None` | `0 < value <= 1`, mutually exclusive with count threshold | Minimum finite-value fraction needed within a group. |
+| `min_groups_passing_threshold` | `int` | `1` | Integer `>= 1` | Number of groups that must pass the selected threshold. |
+
+```python
+coverage_filter = DatasetGroupCoverageFilterConfig(
+    enabled=True,
+    group_column="condition",
+    min_finite_observations_per_group=2,
+    min_groups_passing_threshold=1,
 )
 ```
 
