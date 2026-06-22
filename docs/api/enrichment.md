@@ -68,6 +68,8 @@ Use `EnrichmentConfig`.
 | --- | --- | --- |
 | `method` | `"over_representation"` | `"over_representation"` |
 | `multiple_testing_correction` | `"benjamini_hochberg"` | `"benjamini_hochberg"`, `"none"` |
+| `min_set_size` | `None` | `None` or an integer `>= 1` |
+| `max_set_size` | `None` | `None` or an integer `>= 1` |
 
 Related collection classes:
 
@@ -75,6 +77,37 @@ Related collection classes:
 - `EnrichmentSetCollection`
 - `GeneSetCollection`
 - `PtmSetCollection`
+
+## Set-Size Filters
+
+Use `min_set_size` and `max_set_size` when you want to test only sets within a
+specific size range. These filters are optional. When both are `None`, PhosPy
+tests the same sets as before.
+
+Set size is measured after each set is intersected with the explicit
+`background_universe`. This matters when a local set contains identifiers that
+are not in your background. For example, a set with 20 raw members but only 8
+members in the background has a filtered set size of 8.
+
+Sets outside the configured range are excluded before ORA p-values are
+calculated. Multiple-testing correction then uses only the tested sets.
+
+```python
+request = EnrichmentWorkflowRequest(
+    identifier_column="gene_symbol",
+    identifier_kind="gene_symbol",
+    set_collection=collection,
+    selected_identifiers=("AKT1", "MAPK1"),
+    background_universe=("AKT1", "MAPK1", "MTOR", "CDK1", "CDK2"),
+    config=EnrichmentConfig(
+        min_set_size=2,
+        max_set_size=500,
+    ),
+)
+
+result = EnrichmentWorkflow().run(request)
+print(result.diagnostics["set_size_filter"]["dropped_set_count"])
+```
 
 ## Running the Workflow
 
@@ -109,6 +142,18 @@ Important fields and helpers:
 The result table includes one row per tested term with overlap counts, overlap
 identifiers, p-values, adjusted p-values, correction method, and enrichment
 ratio.
+
+When set-size filters are configured, `diagnostics["set_size_filter"]` reports:
+
+- `applied_after_background_intersection`
+- `min_set_size` and `max_set_size`
+- `input_set_count`, `tested_set_count`, and `dropped_set_count`
+- `dropped_set_reason_counts`
+- `dropped_sets` with each set ID, reason, raw size, and background-overlap size
+
+The same run also records `tested_set_count`, `dropped_set_count`,
+`dropped_set_ids`, and `dropped_set_reason_counts` in
+`set_collection_summary`.
 
 ## Interpreting the Result
 
@@ -176,6 +221,7 @@ request = EnrichmentWorkflowRequest(
     config=EnrichmentConfig(
         method="over_representation",
         multiple_testing_correction="benjamini_hochberg",
+        min_set_size=2,
     ),
 )
 

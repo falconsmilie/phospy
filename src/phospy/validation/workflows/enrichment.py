@@ -260,6 +260,23 @@ def _validate_config(value: object) -> EnrichmentConfig:
             "enrichment workflow request config.multiple_testing_correction must be "
             "one of: " + supported
         )
+    min_set_size = _validate_optional_set_size_threshold(
+        value.min_set_size,
+        field_name="enrichment workflow request config.min_set_size",
+    )
+    max_set_size = _validate_optional_set_size_threshold(
+        value.max_set_size,
+        field_name="enrichment workflow request config.max_set_size",
+    )
+    if (
+        min_set_size is not None
+        and max_set_size is not None
+        and min_set_size > max_set_size
+    ):
+        raise WorkflowValidationError(
+            "enrichment workflow request config.min_set_size must be less than "
+            "or equal to config.max_set_size"
+        )
     return value
 
 
@@ -319,6 +336,22 @@ def _require_non_empty_string(value: object, *, field_name: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise WorkflowValidationError(f"{field_name} must be a non-empty string")
     return value.strip()
+
+
+def _validate_optional_set_size_threshold(
+    value: object | None,
+    *,
+    field_name: str,
+) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise WorkflowValidationError(f"{field_name} must be an int or None")
+    if value < 1:
+        raise WorkflowValidationError(
+            f"{field_name} must be greater than or equal to 1"
+        )
+    return value
 
 
 __all__ = [

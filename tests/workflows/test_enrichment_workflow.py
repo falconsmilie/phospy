@@ -296,3 +296,211 @@ def test_enrichment_workflow_has_no_internet_dependency(
     result = EnrichmentWorkflow().run(request)
 
     assert result.table.shape[0] == 3
+
+
+def test_enrichment_set_size_filter_excludes_sets_below_minimum() -> None:
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=GeneSetCollection(
+            sets={
+                "SMALL": ("AKT1",),
+                "PASS": ("AKT1", "MAPK1"),
+            },
+            identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+            source_name="unit_test",
+        ),
+        selected_identifiers=("AKT1",),
+        background_universe=("AKT1", "MAPK1", "MTOR"),
+        config=EnrichmentConfig(min_set_size=2),
+    )
+
+    result = EnrichmentWorkflow().run(request)
+
+    assert tuple(record.term_id for record in result.records) == ("PASS",)
+    assert result.set_collection_summary["dropped_set_count"] == 1
+    assert result.set_collection_summary["dropped_set_ids"] == ("SMALL",)
+    diagnostics = result.diagnostics["set_size_filter"]
+    assert isinstance(diagnostics, dict)
+    assert diagnostics["dropped_set_reason_counts"] == {
+        "below_min_set_size": 1,
+        "above_max_set_size": 0,
+    }
+    assert diagnostics["dropped_sets"] == (
+        {
+            "set_id": "SMALL",
+            "term_name": "SMALL",
+            "reason": "below_min_set_size",
+            "raw_set_size": 1,
+            "background_overlap_count": 1,
+            "identifiers_outside_background_count": 0,
+        },
+    )
+
+
+def test_enrichment_set_size_filter_excludes_sets_above_maximum() -> None:
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=GeneSetCollection(
+            sets={
+                "LARGE": ("AKT1", "MAPK1", "MTOR"),
+                "PASS": ("AKT1", "MAPK1"),
+            },
+            identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+            source_name="unit_test",
+        ),
+        selected_identifiers=("AKT1",),
+        background_universe=("AKT1", "MAPK1", "MTOR"),
+        config=EnrichmentConfig(max_set_size=2),
+    )
+
+    result = EnrichmentWorkflow().run(request)
+
+    assert tuple(record.term_id for record in result.records) == ("PASS",)
+    assert result.set_collection_summary["dropped_set_count"] == 1
+    assert result.set_collection_summary["dropped_set_reason_counts"] == {
+        "below_min_set_size": 0,
+        "above_max_set_size": 1,
+    }
+
+
+def test_enrichment_set_size_filter_uses_background_intersection_for_passing_set() -> (
+    None
+):
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=GeneSetCollection(
+            sets={"PASS_AFTER_BACKGROUND": ("AKT1", "MAPK1", "OUTSIDE")},
+            identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+            source_name="unit_test",
+        ),
+        selected_identifiers=("AKT1",),
+        background_universe=("AKT1", "MAPK1", "MTOR"),
+        config=EnrichmentConfig(min_set_size=2),
+    )
+
+    result = EnrichmentWorkflow().run(request)
+
+    assert tuple(record.term_id for record in result.records) == (
+        "PASS_AFTER_BACKGROUND",
+    )
+    assert result.records[0].set_size == 3
+    assert result.records[0].background_overlap_count == 2
+    assert result.set_collection_summary["identifiers_outside_background_count"] == 1
+    assert result.diagnostics["set_size_filter"]["dropped_set_count"] == 0
+
+
+def test_enrichment_set_size_filter_can_fail_only_after_background_intersection() -> (
+    None
+):
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=GeneSetCollection(
+            sets={
+                "FAIL_AFTER_BACKGROUND": ("AKT1", "OUTSIDE_A", "OUTSIDE_B"),
+                "PASS": ("AKT1", "MAPK1"),
+            },
+            identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+            source_name="unit_test",
+        ),
+        selected_identifiers=("AKT1",),
+        background_universe=("AKT1", "MAPK1", "MTOR"),
+        config=EnrichmentConfig(min_set_size=2),
+    )
+
+    result = EnrichmentWorkflow().run(request)
+
+    assert tuple(record.term_id for record in result.records) == ("PASS",)
+    dropped_sets = result.diagnostics["set_size_filter"]["dropped_sets"]
+    assert dropped_sets == (
+        {
+            "set_id": "FAIL_AFTER_BACKGROUND",
+            "term_name": "FAIL_AFTER_BACKGROUND",
+            "reason": "below_min_set_size",
+            "raw_set_size": 3,
+            "background_overlap_count": 1,
+            "identifiers_outside_background_count": 2,
+        },
+    )
+
+
+def test_enrichment_set_size_filter_reports_all_sets_dropped() -> None:
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=GeneSetCollection(
+            sets={
+                "SMALL": ("AKT1",),
+                "OUTSIDE_ONLY": ("OUTSIDE",),
+            },
+            identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+            source_name="unit_test",
+        ),
+        selected_identifiers=("AKT1",),
+        background_universe=("AKT1", "MAPK1", "MTOR"),
+        config=EnrichmentConfig(min_set_size=2),
+    )
+
+    result = EnrichmentWorkflow().run(request)
+
+    assert result.records == ()
+    assert result.table.empty
+    assert result.unmatched_identifiers == ("AKT1",)
+    assert result.set_collection_summary["tested_set_count"] == 0
+    assert result.set_collection_summary["dropped_set_count"] == 2
+    assert result.diagnostics["ora"]["record_count"] == 0
+    assert result.diagnostics["multiple_testing_correction"]["tested_record_count"] == 0
+
+
+def test_enrichment_set_size_filter_adjusts_p_values_over_tested_sets_only() -> None:
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=GeneSetCollection(
+            sets={
+                "TESTED": ("A", "B", "D", "E"),
+                "DROPPED_SMALL": ("A",),
+            },
+            identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+            source_name="unit_test",
+        ),
+        selected_identifiers=("A", "B", "C"),
+        background_universe=("A", "B", "C", "D", "E", "F", "G", "H", "I", "J"),
+        config=EnrichmentConfig(min_set_size=2),
+    )
+
+    result = EnrichmentWorkflow().run(request)
+
+    assert tuple(record.term_id for record in result.records) == ("TESTED",)
+    assert result.records[0].p_value == pytest.approx(1.0 / 3.0)
+    assert result.records[0].adjusted_p_value == pytest.approx(1.0 / 3.0)
+    assert result.diagnostics["multiple_testing_correction"]["tested_record_count"] == 1
+
+
+def test_enrichment_set_size_filter_defaults_leave_results_unchanged() -> None:
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=_gene_collection(),
+        selected_identifiers=("AKT1", "MAPK1"),
+        background_universe=("AKT1", "MAPK1", "MTOR", "CDK1", "CDK2"),
+        config=EnrichmentConfig(),
+    )
+    explicit_default_request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=_gene_collection(),
+        selected_identifiers=("AKT1", "MAPK1"),
+        background_universe=("AKT1", "MAPK1", "MTOR", "CDK1", "CDK2"),
+        config=EnrichmentConfig(min_set_size=None, max_set_size=None),
+    )
+
+    result = EnrichmentWorkflow().run(request)
+    explicit_default_result = EnrichmentWorkflow().run(explicit_default_request)
+
+    pd.testing.assert_frame_equal(result.table, explicit_default_result.table)
+    assert "set_size_filter" not in result.diagnostics
+    assert "set_size_filter" not in explicit_default_result.diagnostics

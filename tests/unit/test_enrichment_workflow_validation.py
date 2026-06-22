@@ -166,6 +166,34 @@ def test_enrichment_validation_rejects_unsupported_correction_method() -> None:
         EnrichmentWorkflowValidator().run(request)
 
 
+@pytest.mark.parametrize(
+    ("kwargs", "pattern"),
+    [
+        ({"min_set_size": 0}, "enrichment.min_set_size"),
+        ({"max_set_size": 0}, "enrichment.max_set_size"),
+        ({"min_set_size": True}, "enrichment.min_set_size"),
+        ({"min_set_size": 4, "max_set_size": 3}, "min_set_size"),
+    ],
+)
+def test_enrichment_config_rejects_invalid_set_size_filters(
+    kwargs: dict[str, object],
+    pattern: str,
+) -> None:
+    with pytest.raises(WorkflowValidationError, match=pattern):
+        EnrichmentConfig(**kwargs)  # type: ignore[arg-type]
+
+
+def test_enrichment_validation_rejects_mutated_invalid_set_size_filters() -> None:
+    request = _valid_gene_request()
+    config = EnrichmentConfig()
+    object.__setattr__(config, "min_set_size", 4)
+    object.__setattr__(config, "max_set_size", 3)
+    object.__setattr__(request, "config", config)
+
+    with pytest.raises(WorkflowValidationError, match="config.min_set_size"):
+        EnrichmentWorkflowValidator().run(request)
+
+
 def test_enrichment_validation_rejects_selected_identifiers_outside_background() -> (
     None
 ):

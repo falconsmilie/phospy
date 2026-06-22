@@ -39,6 +39,8 @@ class EnrichmentConfig:
     multiple_testing_correction: MultipleTestingCorrection = (
         MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG
     )
+    min_set_size: int | None = None
+    max_set_size: int | None = None
 
     def __post_init__(self) -> None:
         if self.method not in SUPPORTED_ENRICHMENT_METHODS:
@@ -66,6 +68,41 @@ class EnrichmentConfig:
             "multiple_testing_correction",
             cast(MultipleTestingCorrection, self.multiple_testing_correction),
         )
+        min_set_size = _normalise_optional_set_size_threshold(
+            self.min_set_size,
+            field_name="enrichment.min_set_size",
+        )
+        max_set_size = _normalise_optional_set_size_threshold(
+            self.max_set_size,
+            field_name="enrichment.max_set_size",
+        )
+        if (
+            min_set_size is not None
+            and max_set_size is not None
+            and min_set_size > max_set_size
+        ):
+            raise WorkflowValidationError(
+                "enrichment.min_set_size must be less than or equal to "
+                "enrichment.max_set_size"
+            )
+        object.__setattr__(self, "min_set_size", min_set_size)
+        object.__setattr__(self, "max_set_size", max_set_size)
+
+
+def _normalise_optional_set_size_threshold(
+    value: object | None,
+    *,
+    field_name: str,
+) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise WorkflowValidationError(f"{field_name} must be an int or None")
+    if value < 1:
+        raise WorkflowValidationError(
+            f"{field_name} must be greater than or equal to 1"
+        )
+    return value
 
 
 __all__ = [

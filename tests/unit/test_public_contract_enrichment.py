@@ -88,6 +88,8 @@ def test_enrichment_config_defaults_are_explicit() -> None:
     assert config.multiple_testing_correction == (
         MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG
     )
+    assert config.min_set_size is None
+    assert config.max_set_size is None
 
     uncorrected = EnrichmentConfig(
         multiple_testing_correction=MULTIPLE_TESTING_CORRECTION_NONE
