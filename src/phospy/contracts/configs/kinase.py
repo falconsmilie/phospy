@@ -124,7 +124,19 @@ class KinaseScoringConfig:
     """Public scoring-stage configuration.
 
     `min_substrates` is constrained to the public scoring support floor used by
-    the supported rewrite contract.
+    the supported rewrite contract. The default and minimum public value is `2`.
+    A scoring substrate counts only once per kinase after reference projection:
+    it must resolve to a dataset `site_key`, remain in the scoring phospho
+    matrix, and have usable workflow site-sequence support. Reference-only,
+    unmapped, missing, or duplicate substrate-map rows do not increase the
+    support count.
+
+    Kinases with fewer than `min_substrates` usable substrates are excluded from
+    scoring profiles and downstream scoring columns. Kinases exactly at the
+    floor are included, but two-substrate profiles are still minimal evidence
+    and should be interpreted cautiously. Single-substrate profiles are not part
+    of the public scoring contract because a one-row profile is especially
+    sensitive to that substrate's values.
 
     Supported scoring semantics are stage-pure: score generation is determined
     only by analysis-ready dataset values, resolved reference content, and this
@@ -233,6 +245,14 @@ class KinaseActivityConfig:
 
     - `activity_config=None` on `KinaseWorkflowRequest`, or
     - `activity_config.enabled=False`.
+
+    Activity support is method-specific and separate from scoring support. The
+    default simplified weighted activity floor is `3` predicted substrates; the
+    KSEA-style and ssGSEA-style floors default to `5`. Weighted and KSEA-style
+    membership uses finite prediction support at or above the configured
+    threshold. When a kinase or kinase-condition pair has too few usable
+    substrates for the selected method, activity values are omitted or reported
+    as not computable through activity diagnostics rather than silently filled.
     """
 
     enabled: bool = True

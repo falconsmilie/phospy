@@ -94,11 +94,53 @@ Important `KinaseScoringConfig` fields:
 | Field | Default | Notes |
 | --- | --- | --- |
 | `scoring_mode` | `"phosr_rank_weighted"` | Supported modes: `"phosr_rank_weighted"`, `"kinase_library_motif"`, `"combined_profile_motif"`. The default is PhosR-inspired PhosPy scoring, not a PhosR compatibility mode. |
-| `min_substrates` | `2` | Minimum quantified substrates for kinase support. |
+| `min_substrates` | `2` | Minimum unique usable substrates for kinase scoring support. The public floor is `2`. |
 | `include_diagnostic_scoring_tables` | `False` | Adds non-primary diagnostic scoring tables. |
 | `profile_missing_value_strategy` | `"strict"` | Use `"median_skipna"` only when skipping missing profile values is intended. |
 | `localisation_requirement` | `LocalisationRequirement()` | Workflow-level localisation requirement. |
 | `allow_mixed_total_protein_quantitative_meaning` | `False` | Keep `False` unless mixed corrected/uncorrected rows are intended. |
+
+### Minimum Substrate Support
+
+Kinase scoring uses `KinaseScoringConfig.min_substrates` to decide whether a
+kinase has enough profile support to enter scoring. The default is `2`, and the
+public config cannot be set below `2`.
+
+A usable scoring substrate is a unique kinase-substrate reference entry that:
+
+- resolves through reference projection to a dataset `site_key`
+- remains in the workflow scoring phospho matrix
+- has usable site-sequence support for kinase scoring
+
+Duplicate map rows for the same kinase/site count once. Reference substrates
+that are unmapped, absent from the analysis-ready dataset, missing sequence
+support, or filtered before scoring do not count toward `min_substrates`.
+Because `AnalysisReadyPhosphoDataset` is the public boundary, quantified
+substrates are expected to come from numeric, missing-value-free phosphosite
+rows.
+
+Kinases below `min_substrates` are excluded from profile scoring and downstream
+score columns. If no kinase reaches the floor, the workflow fails early with
+`seam=kinase.interpreter.eligible_kinases` and reports overlap/support counts.
+Kinases exactly at the floor are included, but they are minimally supported and
+should be interpreted cautiously. PhosPy does not add a separate
+`weakly_supported` result column; use the support threshold, eligibility counts,
+and provenance to audit these cases.
+
+Single-substrate profiles are not part of the public scoring contract. A profile
+based on one quantified substrate can be dominated by that substrate's own
+sample pattern, making profile-correlation support fragile.
+
+Diagnostics to check:
+
+- `kinase_result.eligibility_report.eligible_kinases`
+- `kinase_result.eligibility_report.excluded_kinases_below_min_substrates`
+- `kinase_result.site_attrition_summary.scoring`
+- `kinase_result.provenance.workflow_parameters["scoring_config"]`
+
+This differs from broad PhosR-style expectations: `phosr_rank_weighted` is a
+PhosPy scoring mode with an explicit public support floor, not an exact PhosR
+compatibility or numerical parity mode.
 
 For `scoring_mode="phosr_rank_weighted"`, PhosPy uses available
 substrate/reference evidence to build kinase profiles, scores profile support,
@@ -131,6 +173,15 @@ Important `KinaseActivityConfig` fields:
 | `ksea_min_substrates` | `5` | KSEA-style substrate floor. |
 | `ssgsea_min_substrates` | `5` | ssGSEA-style substrate floor. |
 | `ssgsea_random_seed` | `0` | Required when permutations are enabled. |
+
+Activity substrate support is counted from prediction/activity inputs, not from
+the scoring profile count. For the simplified weighted and KSEA-style methods,
+finite prediction support at or above the configured threshold is included.
+KSEA-style and ssGSEA-style results keep not-computable kinase-condition pairs
+in `statistics_table` with insufficient-substrate status when the selected
+method can report that detail. Activity diagnostics also expose
+`method_summary`, `substrate_count_matrix`, `thresholded_substrate_counts`, and
+threshold-membership metadata where supported.
 
 ## Running the Workflow
 
@@ -180,6 +231,8 @@ Important nested result fields:
 - `KinaseActivityResult.substrate_count_matrix`
 - optional activity `p_value_matrix`, `q_value_matrix`, and
   `statistics_table`
+- `KinaseEligibilityReport.eligible_kinases`
+- `KinaseEligibilityReport.excluded_kinases_below_min_substrates`
 
 `activity_result.activity_matrix` is the method-neutral primary activity matrix.
 Deprecated compatibility aliases such as `activity_scores` and

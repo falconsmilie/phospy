@@ -485,7 +485,14 @@ class KinaseWorkflowSiteAttritionSummary:
 
 @dataclass(frozen=True, slots=True)
 class KinaseEligibilityReport:
-    """Compact, user-facing kinase workflow eligibility counters."""
+    """Compact, user-facing kinase workflow eligibility counters.
+
+    `eligible_kinases` counts kinases whose projected, sequence-supported
+    quantified substrates meet `KinaseScoringConfig.min_substrates`.
+    `excluded_kinases_below_min_substrates` counts overlapping kinases with too
+    few usable substrates. The report is count-based; it does not add per-kinase
+    weak-support flags to scoring result tables.
+    """
 
     total_dataset_sites: int
     sequence_complete_sites: int

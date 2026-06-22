@@ -39,7 +39,15 @@ def build_kinase_profiles(
         KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
     ),
 ) -> KinaseProfileBuild:
-    """Build kinase substrate profiles from quantified substrate rows."""
+    """Build kinase substrate profiles from usable quantified substrate rows.
+
+    A usable profile substrate is a unique substrate-site entry that is present
+    in the already-resolved scoring phospho matrix. Missing or unmapped
+    reference substrates, and duplicate map rows for the same kinase/site pair,
+    do not increase the support count. Kinases below `min_substrates` are
+    omitted from `profile_matrix`; `substrate_counts` still records each
+    kinase's usable count for diagnostics.
+    """
 
     required_floor = (
         1 if allow_single_substrate_profiles else KINASE_SCORING_MIN_SUBSTRATES_FLOOR

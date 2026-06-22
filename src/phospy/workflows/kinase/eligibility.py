@@ -18,7 +18,13 @@ _SUBSTRATE_COLUMN = "substrate_site"
 
 
 class KinaseEligibilityReportComposer:
-    """Build compact kinase workflow eligibility counts for result diagnostics."""
+    """Build compact kinase workflow eligibility counts for result diagnostics.
+
+    The report surfaces support-threshold effects without changing scoring
+    schemas: `eligible_kinases` counts kinases at or above
+    `scoring_min_substrates`, and `excluded_kinases_below_min_substrates` counts
+    overlapping kinases that did not reach that support floor.
+    """
 
     def run(
         self,

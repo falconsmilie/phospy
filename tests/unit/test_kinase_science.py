@@ -19,15 +19,22 @@ from phospy.workflows.kinase.science import (
 def test_build_kinase_profiles_excludes_kinases_below_support_floor() -> None:
     phospho = pd.DataFrame(
         {
-            "sample_a": [1.0, 2.0, 3.0],
-            "sample_b": [2.0, 4.0, 6.0],
+            "sample_a": [1.0, 2.0, 3.0, 4.0],
+            "sample_b": [2.0, 4.0, 6.0, 8.0],
         },
-        index=pd.Index(["SITE1", "SITE2", "SITE3"], name="site_id"),
+        index=pd.Index(["SITE1", "SITE2", "SITE3", "SITE4"], name="site_id"),
     )
     kinase_substrate_map = pd.DataFrame(
         {
-            "kinase": ["K1", "K1", "K2"],
-            "substrate_site": ["SITE1", "SITE2", "SITE3"],
+            "kinase": ["K1", "K1", "K2", "K3", "K3", "K3"],
+            "substrate_site": [
+                "SITE1",
+                "SITE2",
+                "SITE3",
+                "SITE1",
+                "SITE3",
+                "SITE4",
+            ],
         }
     )
 
@@ -37,11 +44,16 @@ def test_build_kinase_profiles_excludes_kinases_below_support_floor() -> None:
         min_substrates=2,
     )
 
-    assert list(result.profile_matrix.index) == ["K1"]
-    assert result.quantified_substrates == {"K1": ["SITE1", "SITE2"]}
-    assert result.substrate_counts.to_dict() == {"K1": 2, "K2": 1}
+    assert list(result.profile_matrix.index) == ["K1", "K3"]
+    assert result.quantified_substrates == {
+        "K1": ["SITE1", "SITE2"],
+        "K3": ["SITE1", "SITE3", "SITE4"],
+    }
+    assert result.substrate_counts.to_dict() == {"K1": 2, "K2": 1, "K3": 3}
     assert result.profile_matrix.at["K1", "sample_a"] == pytest.approx(1.5)
     assert result.profile_matrix.at["K1", "sample_b"] == pytest.approx(3.0)
+    assert result.profile_matrix.at["K3", "sample_a"] == pytest.approx(3.0)
+    assert result.profile_matrix.at["K3", "sample_b"] == pytest.approx(6.0)
 
 
 def test_build_kinase_profiles_rejects_single_substrate_floor() -> None:
