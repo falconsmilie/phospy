@@ -5,7 +5,11 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy.api import PhosphositeImportResult
+from phospy.api import (
+    IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
+    IMPORTER_QUALITY_STATUS_REPORTED,
+    PhosphositeImportResult,
+)
 from phospy.errors import PhosPyInputError
 from phospy.io.readers import (
     FragPipeColumnMapping,
@@ -269,6 +273,42 @@ def test_fragpipe_excludes_decoys_and_contaminants_by_default() -> None:
     assert "CONGENE" not in retained_genes
     assert "DECOY" not in retained_genes
 
+    report = result.quality_report
+    assert report.row_count_status == IMPORTER_QUALITY_STATUS_REPORTED
+    assert report.rows_read == 6
+    assert report.rows_retained == 4
+    assert report.rows_dropped == 2
+    assert [
+        (column.source_column, column.sample_id)
+        for column in report.detected_intensity_columns
+    ] == [
+        ("Intensity Control", "Control"),
+        ("Intensity Stim", "Stim"),
+    ]
+    assert report.missing_intensity.total_missing_values == 0
+    assert report.localisation_confidence.source_column == "PTMProphet Probability"
+    assert report.localisation_confidence.row_count == 4
+    assert report.flagged_rows.contaminant.status == (IMPORTER_QUALITY_STATUS_REPORTED)
+    assert report.flagged_rows.contaminant.count == 1
+    assert report.flagged_rows.contaminant.source_column == "Contaminant"
+    assert report.flagged_rows.contaminant.policy == "remove"
+    assert "prefix" in str(report.flagged_rows.contaminant.reason)
+    assert report.flagged_rows.reverse.status == IMPORTER_QUALITY_STATUS_NOT_APPLICABLE
+    assert report.flagged_rows.decoy.count == 1
+    assert report.flagged_rows.decoy.source_column == "Decoy"
+    assert report.flagged_rows.decoy.policy == "remove"
+    assert (
+        report.format_specific["fragpipe_ptmprophet"]["filtering"]["decoy_prefix_rows"]
+        == 1
+    )
+    assert (
+        report.format_specific["fragpipe_ptmprophet"]["adaptation"][
+            "ambiguous_localisation_rows"
+        ]
+        == 1
+    )
+    assert report.warnings == result.warnings
+
 
 def test_fragpipe_can_flag_decoys_and_contaminants_when_requested() -> None:
     result = _import_fixture(
@@ -297,6 +337,10 @@ def test_fragpipe_can_flag_decoys_and_contaminants_when_requested() -> None:
         True,
     ]
     assert result.diagnostics["fragpipe"]["filtering"]["removed_rows"] == 0
+    assert result.quality_report.rows_retained == 6
+    assert result.quality_report.rows_dropped == 0
+    assert result.quality_report.flagged_rows.contaminant.policy == "flag"
+    assert result.quality_report.flagged_rows.decoy.policy == "flag"
 
 
 def test_fragpipe_missing_required_protein_start_rejects_peptide_positions() -> None:

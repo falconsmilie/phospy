@@ -60,6 +60,47 @@ dataset validation, site-key derivation, duplicate-site handling, localisation
 policy enforcement, and missing-value policy remain owned by
 `AnalysisReadyDatasetBuilder`.
 
+Useful fields include:
+
+- `rows_read`, `rows_retained`, and `rows_dropped`: how many input rows the
+  importer read and retained after importer-owned filtering, such as
+  contaminant, reverse, or decoy removal.
+- `detected_intensity_columns`: source intensity columns mapped to PhosPy
+  sample IDs. These are column mappings only; importers do not infer sample
+  conditions from names.
+- `missing_intensity`: missing intensity values after the importer has parsed
+  the retained rows.
+- `localisation_confidence`: the localisation source column, output column,
+  scale, missing count, and invalid count when a localisation field is mapped.
+- `flagged_rows`: contaminant, reverse, and decoy counts when that format
+  supports them.
+- `duplicate_keys`: duplicate mapped `site_key`, `display_id`, and
+  gene/site candidate counts when those fields are available.
+- `format_specific`: adapter details such as resolved source columns,
+  filtering counts, and format-specific adaptation counts.
+- `warnings`: plain-language messages for facts that may need review before
+  building an analysis-ready dataset.
+
+Format-specific fields are intentionally limited to facts present in the input
+or produced by importer parsing. MaxQuant reports contaminant and reverse
+counts when those columns are present. FragPipe/PTMProphet reports contaminant
+and decoy counts; if explicit flag columns are absent, it can still report
+prefix-derived contaminant or decoy counts from protein accessions.
+
+Common warnings mean:
+
+- Missing or invalid localisation values were retained as missing candidate
+  values. Use a dataset localisation config if analysis-ready input must meet a
+  threshold.
+- Duplicate site candidates were retained. Let the dataset builder's duplicate
+  handling resolve them, or inspect the upstream table first.
+- Multi-site or ambiguous rows were retained as candidates. Use the
+  peptide-evidence builder lane with an explicit multi-site policy when
+  site-level resolution is needed.
+- Missing contaminant, reverse, or decoy columns mean that importer could not
+  use those specific flags. For FragPipe/PTMProphet, protein accession prefixes
+  may still be used where supported.
+
 ## MaxQuant Phosphosite Importer
 
 Use `MaxQuantPhosphositeImporter` for MaxQuant-style

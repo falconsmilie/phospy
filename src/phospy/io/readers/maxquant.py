@@ -5,12 +5,19 @@ from __future__ import annotations
 import math
 import re
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import pandas as pd
 
 from phospy.contracts.requests import PhosphositeImportRequest
-from phospy.contracts.results import PhosphositeImportResult
+from phospy.contracts.results import (
+    IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
+    IMPORTER_QUALITY_STATUS_REPORTED,
+    ImporterFlaggedRowSummary,
+    ImporterQualityCount,
+    ImporterQualityReport,
+    PhosphositeImportResult,
+)
 from phospy.errors.input import PhosPyInputError
 from phospy.io.readers._table_parsing import (
     build_row_ids,
@@ -634,17 +641,106 @@ def _augment_mapped_result(
         "filtering": filter_diagnostics,
         "adaptation": adapter_diagnostics,
     }
+    combined_warnings = tuple(dict.fromkeys((*mapped_result.warnings, *warnings)))
+    quality_report = _augment_quality_report(
+        mapped_result.quality_report,
+        resolved=resolved,
+        filter_diagnostics=filter_diagnostics,
+        adapter_diagnostics=adapter_diagnostics,
+        contaminant_policy=contaminant_policy,
+        reverse_policy=reverse_policy,
+        warnings=combined_warnings,
+    )
     return PhosphositeImportResult(
         phospho_matrix_candidate=mapped_result.phospho_matrix_candidate,
         site_metadata_candidate=site_metadata,
         peptide_evidence=peptide_evidence,
         sample_column_mapping=mapped_result.sample_column_mapping,
         localisation_confidence_column=mapped_result.localisation_confidence_column,
-        warnings=tuple(dict.fromkeys((*mapped_result.warnings, *warnings))),
+        warnings=combined_warnings,
         diagnostics=diagnostics,
         source_name=mapped_result.source_name,
+        quality_report=quality_report,
         _assume_owned=True,
     )
+
+
+def _augment_quality_report(
+    mapped_report: ImporterQualityReport,
+    *,
+    resolved: _ResolvedMaxQuantColumns,
+    filter_diagnostics: dict[str, object],
+    adapter_diagnostics: dict[str, object],
+    contaminant_policy: str,
+    reverse_policy: str,
+    warnings: tuple[str, ...],
+) -> ImporterQualityReport:
+    format_specific = dict(mapped_report.format_specific)
+    format_specific["maxquant"] = {
+        "resolved_columns": _resolved_columns_payload(resolved),
+        "filtering": dict(filter_diagnostics),
+        "adaptation": dict(adapter_diagnostics),
+    }
+    return replace(
+        mapped_report,
+        rows_read=_diagnostic_int(filter_diagnostics, "input_row_count"),
+        rows_retained=_diagnostic_int(filter_diagnostics, "retained_row_count"),
+        rows_dropped=_diagnostic_int(filter_diagnostics, "removed_rows"),
+        localisation_confidence=replace(
+            mapped_report.localisation_confidence,
+            source_column=resolved.localisation_confidence,
+        ),
+        flagged_rows=ImporterFlaggedRowSummary(
+            contaminant=_maxquant_flag_quality_count(
+                count=_diagnostic_int(
+                    filter_diagnostics,
+                    "potential_contaminant_rows",
+                ),
+                source_column=resolved.potential_contaminant,
+                policy=contaminant_policy,
+                missing_reason=("MaxQuant potential contaminant column was not found"),
+            ),
+            reverse=_maxquant_flag_quality_count(
+                count=_diagnostic_int(filter_diagnostics, "reverse_rows"),
+                source_column=resolved.reverse,
+                policy=reverse_policy,
+                missing_reason="MaxQuant reverse column was not found",
+            ),
+            decoy=ImporterQualityCount(
+                status=IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
+                reason="MaxQuant importer does not parse a separate decoy flag",
+            ),
+        ),
+        format_specific=format_specific,
+        warnings=warnings,
+    )
+
+
+def _maxquant_flag_quality_count(
+    *,
+    count: int,
+    source_column: str | None,
+    policy: str,
+    missing_reason: str,
+) -> ImporterQualityCount:
+    if source_column is None:
+        return ImporterQualityCount(
+            status=IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
+            reason=missing_reason,
+        )
+    return ImporterQualityCount(
+        status=IMPORTER_QUALITY_STATUS_REPORTED,
+        count=count,
+        source_column=source_column,
+        policy=policy,
+    )
+
+
+def _diagnostic_int(payload: dict[str, object], field_name: str) -> int:
+    value = payload[field_name]
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise PhosPyInputError(f"MaxQuant diagnostic {field_name} must be an int")
+    return int(value)
 
 
 def _resolve_required_column(

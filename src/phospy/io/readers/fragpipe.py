@@ -5,12 +5,19 @@ from __future__ import annotations
 import math
 import re
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import pandas as pd
 
 from phospy.contracts.requests import PhosphositeImportRequest
-from phospy.contracts.results import PhosphositeImportResult
+from phospy.contracts.results import (
+    IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
+    IMPORTER_QUALITY_STATUS_REPORTED,
+    ImporterFlaggedRowSummary,
+    ImporterQualityCount,
+    ImporterQualityReport,
+    PhosphositeImportResult,
+)
 from phospy.errors.input import PhosPyInputError
 from phospy.io.readers._table_parsing import (
     build_row_ids,
@@ -1203,17 +1210,119 @@ def _augment_mapped_result(
         "filtering": filter_diagnostics,
         "adaptation": adapter_diagnostics,
     }
+    combined_warnings = tuple(dict.fromkeys((*mapped_result.warnings, *warnings)))
+    quality_report = _augment_quality_report(
+        mapped_result.quality_report,
+        resolved=resolved,
+        filter_diagnostics=filter_diagnostics,
+        adapter_diagnostics=adapter_diagnostics,
+        contaminant_policy=contaminant_policy,
+        decoy_policy=decoy_policy,
+        warnings=combined_warnings,
+    )
     return PhosphositeImportResult(
         phospho_matrix_candidate=mapped_result.phospho_matrix_candidate,
         site_metadata_candidate=site_metadata,
         peptide_evidence=peptide_evidence,
         sample_column_mapping=mapped_result.sample_column_mapping,
         localisation_confidence_column=mapped_result.localisation_confidence_column,
-        warnings=tuple(dict.fromkeys((*mapped_result.warnings, *warnings))),
+        warnings=combined_warnings,
         diagnostics=diagnostics,
         source_name=mapped_result.source_name,
+        quality_report=quality_report,
         _assume_owned=True,
     )
+
+
+def _augment_quality_report(
+    mapped_report: ImporterQualityReport,
+    *,
+    resolved: _ResolvedFragPipeColumns,
+    filter_diagnostics: dict[str, object],
+    adapter_diagnostics: dict[str, object],
+    contaminant_policy: str,
+    decoy_policy: str,
+    warnings: tuple[str, ...],
+) -> ImporterQualityReport:
+    format_specific = dict(mapped_report.format_specific)
+    format_specific["fragpipe_ptmprophet"] = {
+        "resolved_columns": _resolved_columns_payload(resolved),
+        "filtering": dict(filter_diagnostics),
+        "adaptation": dict(adapter_diagnostics),
+    }
+    return replace(
+        mapped_report,
+        rows_read=_diagnostic_int(filter_diagnostics, "input_row_count"),
+        rows_retained=_diagnostic_int(filter_diagnostics, "retained_row_count"),
+        rows_dropped=_diagnostic_int(filter_diagnostics, "removed_rows"),
+        localisation_confidence=replace(
+            mapped_report.localisation_confidence,
+            source_column=resolved.ptmprophet_probabilities,
+        ),
+        flagged_rows=ImporterFlaggedRowSummary(
+            contaminant=_fragpipe_flag_quality_count(
+                count=_diagnostic_int(filter_diagnostics, "contaminant_rows"),
+                explicit_column=resolved.contaminant,
+                fallback_column=resolved.protein_accession,
+                policy=contaminant_policy,
+                prefix_count=_diagnostic_int(
+                    filter_diagnostics,
+                    "contaminant_prefix_rows",
+                ),
+                label="contaminant",
+            ),
+            reverse=ImporterQualityCount(
+                status=IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
+                reason="FragPipe importer reports decoy flags instead of reverse flags",
+            ),
+            decoy=_fragpipe_flag_quality_count(
+                count=_diagnostic_int(filter_diagnostics, "decoy_rows"),
+                explicit_column=resolved.decoy,
+                fallback_column=resolved.protein_accession,
+                policy=decoy_policy,
+                prefix_count=_diagnostic_int(filter_diagnostics, "decoy_prefix_rows"),
+                label="decoy",
+            ),
+        ),
+        format_specific=format_specific,
+        warnings=warnings,
+    )
+
+
+def _fragpipe_flag_quality_count(
+    *,
+    count: int,
+    explicit_column: str | None,
+    fallback_column: str,
+    policy: str,
+    prefix_count: int,
+    label: str,
+) -> ImporterQualityCount:
+    if explicit_column is None:
+        return ImporterQualityCount(
+            status=IMPORTER_QUALITY_STATUS_REPORTED,
+            count=count,
+            source_column=fallback_column,
+            policy=policy,
+            reason=f"{label} count derived from protein accession prefixes",
+        )
+    reason = None
+    if prefix_count:
+        reason = f"{label} count includes protein accession prefix matches"
+    return ImporterQualityCount(
+        status=IMPORTER_QUALITY_STATUS_REPORTED,
+        count=count,
+        source_column=explicit_column,
+        policy=policy,
+        reason=reason,
+    )
+
+
+def _diagnostic_int(payload: dict[str, object], field_name: str) -> int:
+    value = payload[field_name]
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise PhosPyInputError(f"FragPipe diagnostic {field_name} must be an int")
+    return int(value)
 
 
 def _parse_probability(value: object, *, field_name: str, row_position: int) -> float:

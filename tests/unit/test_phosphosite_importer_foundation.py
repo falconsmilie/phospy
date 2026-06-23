@@ -138,6 +138,23 @@ def test_importer_populates_quality_report_from_parsing_facts() -> None:
     assert report.warnings == result.warnings
 
 
+def test_importer_quality_report_marks_unmapped_localisation_not_applicable() -> None:
+    source = _source_table().drop(columns=["loc_percent"])
+    request = replace(_request(source), localisation_confidence_column=None)
+
+    result = MappedPhosphositeTableImporter().run(request)
+
+    report = result.quality_report
+    assert result.localisation_confidence_column is None
+    assert "localisation_confidence" not in result.site_metadata_candidate.columns
+    assert report.localisation_confidence.status == (
+        IMPORTER_QUALITY_STATUS_NOT_APPLICABLE
+    )
+    assert report.localisation_confidence.reason == (
+        "localisation confidence column was not mapped"
+    )
+
+
 def test_importer_preserves_duplicate_and_multisite_peptide_evidence() -> None:
     result = MappedPhosphositeTableImporter().run(_request(_source_table()))
 

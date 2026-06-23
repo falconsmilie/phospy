@@ -5,7 +5,11 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy.api import PhosphositeImportResult
+from phospy.api import (
+    IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
+    IMPORTER_QUALITY_STATUS_REPORTED,
+    PhosphositeImportResult,
+)
 from phospy.errors import PhosPyInputError
 from phospy.io.readers import (
     MaxQuantColumnMapping,
@@ -86,6 +90,7 @@ def test_maxquant_realistic_grouped_multisite_rows_remain_candidates() -> None:
     assert any("protein-group rows" in warning for warning in result.warnings)
     assert any("gene-name group rows" in warning for warning in result.warnings)
     assert any("multi-site candidates" in warning for warning in result.warnings)
+    assert result.quality_report.warnings == result.warnings
 
 
 def test_maxquant_importer_supports_custom_column_mapping() -> None:
@@ -234,6 +239,31 @@ def test_maxquant_contaminants_and_reverse_hits_are_removed_by_default() -> None
     assert filtering["reverse_rows"] == 1
     assert filtering["removed_rows"] == 2
 
+    report = result.quality_report
+    assert report.row_count_status == IMPORTER_QUALITY_STATUS_REPORTED
+    assert report.rows_read == 4
+    assert report.rows_retained == 2
+    assert report.rows_dropped == 2
+    assert [
+        (column.source_column, column.sample_id)
+        for column in report.detected_intensity_columns
+    ] == [
+        ("Intensity Control", "Control"),
+        ("Intensity Stim", "Stim"),
+    ]
+    assert report.missing_intensity.total_missing_values == 0
+    assert report.localisation_confidence.source_column == "Localization prob"
+    assert report.localisation_confidence.row_count == 2
+    assert report.flagged_rows.contaminant.status == (IMPORTER_QUALITY_STATUS_REPORTED)
+    assert report.flagged_rows.contaminant.count == 1
+    assert report.flagged_rows.contaminant.source_column == "Potential contaminant"
+    assert report.flagged_rows.contaminant.policy == "remove"
+    assert report.flagged_rows.reverse.count == 1
+    assert report.flagged_rows.reverse.source_column == "Reverse"
+    assert report.flagged_rows.reverse.policy == "remove"
+    assert report.flagged_rows.decoy.status == IMPORTER_QUALITY_STATUS_NOT_APPLICABLE
+    assert report.format_specific["maxquant"]["filtering"]["removed_rows"] == 2
+
 
 def test_maxquant_contaminants_and_reverse_hits_can_be_flagged() -> None:
     result = MaxQuantPhosphositeImporter().run(
@@ -262,6 +292,10 @@ def test_maxquant_contaminants_and_reverse_hits_can_be_flagged() -> None:
     assert evidence is not None
     assert "maxquant_potential_contaminant" in evidence.columns
     assert "maxquant_reverse" in evidence.columns
+    assert result.quality_report.rows_retained == 4
+    assert result.quality_report.rows_dropped == 0
+    assert result.quality_report.flagged_rows.contaminant.policy == "flag"
+    assert result.quality_report.flagged_rows.reverse.policy == "flag"
 
 
 def test_maxquant_multisite_rows_are_retained_as_peptide_evidence() -> None:
