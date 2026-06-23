@@ -72,6 +72,13 @@ Use `EnrichmentConfig`.
 | `min_set_size` | `None` | `None` or an integer `>= 1` |
 | `max_set_size` | `None` | `None` or an integer `>= 1` |
 
+The default multiple-testing correction is `"benjamini_hochberg"`. Available
+methods are `"benjamini_hochberg"`, `"bonferroni"`, `"holm"`,
+`"benjamini_yekutieli"`, and `"none"`. Correction is applied across the sets
+that are actually tested, after selected identifiers and set members are
+intersected with the explicit background and after optional set-size filters
+drop any sets.
+
 Related collection classes:
 
 - `EnrichmentSet`

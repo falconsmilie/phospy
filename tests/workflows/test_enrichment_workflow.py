@@ -8,13 +8,18 @@ import pytest
 from phospy.api import (
     ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
     ENRICHMENT_IDENTIFIER_KIND_SITE_KEY,
+    SUPPORTED_MULTIPLE_TESTING_CORRECTIONS,
     EnrichmentConfig,
     EnrichmentWorkflowRequest,
     EnrichmentWorkflowResult,
     GeneSetCollection,
+    MultipleTestingCorrection,
     PtmSetCollection,
 )
 from phospy.science.enrichment.ora import OraEngine
+from phospy.science.statistics.multiple_testing import (
+    run as run_multiple_testing_correction,
+)
 from phospy.workflows import EnrichmentWorkflow
 from phospy.workflows.enrichment.executor import EnrichmentWorkflowExecutor
 from phospy.workflows.enrichment.interpreter import EnrichmentWorkflowInterpreter
@@ -312,6 +317,38 @@ def test_enrichment_workflow_applies_multiple_testing_correction() -> None:
     }
 
 
+@pytest.mark.parametrize("method", SUPPORTED_MULTIPLE_TESTING_CORRECTIONS)
+def test_enrichment_workflow_supports_configured_correction_methods(
+    method: MultipleTestingCorrection,
+) -> None:
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=_gene_collection(),
+        selected_identifiers=("AKT1", "MAPK1"),
+        background_universe=("AKT1", "MAPK1", "MTOR", "CDK1", "CDK2"),
+        config=EnrichmentConfig(multiple_testing_correction=method),
+    )
+
+    result = EnrichmentWorkflow().run(request)
+
+    raw_p_values = tuple(record.p_value for record in result.records)
+    expected_adjusted = run_multiple_testing_correction(
+        raw_p_values,
+        method=method,
+    )
+    assert tuple(record.adjusted_p_value for record in result.records) == (
+        pytest.approx(expected_adjusted)
+    )
+    assert all(record.correction_method == method for record in result.records)
+    assert result.method_metadata["multiple_testing_correction"] == method
+    assert result.diagnostics["multiple_testing_correction"]["method"] == method
+    assert result.provenance is not None
+    assert result.provenance.workflow_parameters["multiple_testing_correction"] == (
+        method
+    )
+
+
 def test_enrichment_workflow_empty_and_no_hit_sets_are_reported() -> None:
     request = EnrichmentWorkflowRequest(
         identifier_column="gene_symbol",
@@ -575,6 +612,37 @@ def test_enrichment_set_size_filter_adjusts_p_values_over_tested_sets_only() -> 
     assert result.records[0].p_value == pytest.approx(1.0 / 3.0)
     assert result.records[0].adjusted_p_value == pytest.approx(1.0 / 3.0)
     assert result.diagnostics["multiple_testing_correction"]["tested_record_count"] == 1
+
+
+def test_enrichment_correction_denominator_ignores_dropped_sets() -> None:
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=GeneSetCollection(
+            sets={
+                "TESTED_STRONG": ("A", "B", "C"),
+                "TESTED_WEAK": ("A", "D", "E", "F"),
+                "DROPPED_SMALL": ("A",),
+            },
+            identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+            source_name="unit_test",
+        ),
+        selected_identifiers=("A", "B", "C"),
+        background_universe=("A", "B", "C", "D", "E", "F", "G", "H", "I", "J"),
+        config=EnrichmentConfig(
+            min_set_size=2,
+            multiple_testing_correction="bonferroni",
+        ),
+    )
+
+    result = EnrichmentWorkflow().run(request)
+
+    rows = {record.term_id: record for record in result.records}
+    assert set(rows) == {"TESTED_STRONG", "TESTED_WEAK"}
+    assert rows["TESTED_STRONG"].p_value == pytest.approx(1.0 / 120.0)
+    assert rows["TESTED_STRONG"].adjusted_p_value == pytest.approx(1.0 / 60.0)
+    assert result.diagnostics["multiple_testing_correction"]["tested_record_count"] == 2
+    assert result.set_collection_summary["dropped_set_ids"] == ("DROPPED_SMALL",)
 
 
 def test_enrichment_set_size_filter_defaults_leave_results_unchanged() -> None:
