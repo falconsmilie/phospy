@@ -68,6 +68,23 @@ def test_enrichment_workflow_happy_path_with_gene_symbols() -> None:
     assert result.background_summary["source"] == "explicit"
     assert result.background_summary["universe_size"] == 5
     assert result.set_collection_summary["collection_kind"] == "gene_set"
+    foreground_background = result.diagnostics["foreground_background"]
+    assert foreground_background["identifier_kind"] == (
+        ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL
+    )
+    assert foreground_background["foreground_size_before_intersection"] == 2
+    assert foreground_background["background_size"] == 5
+    assert (
+        foreground_background["usable_foreground_size_after_background_intersection"]
+        == 2
+    )
+    assert foreground_background["foreground_identifiers_missing_from_background"] == ()
+    assert foreground_background["tested_set_count"] == 3
+    assert foreground_background["dropped_set_count"] == 0
+    assert foreground_background["set_identifiers_missing_from_background"] == (
+        "OUTSIDE_A",
+        "OUTSIDE_B",
+    )
     assert result.provenance is not None
     assert tuple(result.table["term_id"])[:1] == ("KINASE_RESPONSE",)
 
@@ -126,9 +143,86 @@ def test_enrichment_workflow_happy_path_with_site_keys() -> None:
     assert result.identifier_kind == ENRICHMENT_IDENTIFIER_KIND_SITE_KEY
     assert result.set_collection_summary["collection_kind"] == "ptm_set"
     assert result.background_summary["selected_identifier_source"] == "input_table"
+    assert result.diagnostics["foreground_background"]["identifier_kind"] == (
+        ENRICHMENT_IDENTIFIER_KIND_SITE_KEY
+    )
     assert result.records[0].overlap_identifiers == (
         "rat|P12345|S10",
         "rat|P12345|T20",
+    )
+
+
+def test_enrichment_foreground_identifiers_absent_from_background_are_reported() -> (
+    None
+):
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=_gene_collection(),
+        selected_identifiers=("UNKNOWN_A", "UNKNOWN_B"),
+        background_universe=("AKT1", "MAPK1", "MTOR", "CDK1", "CDK2"),
+        config=EnrichmentConfig(),
+    )
+
+    result = EnrichmentWorkflow().run(request)
+
+    foreground_background = result.diagnostics["foreground_background"]
+    assert foreground_background["foreground_size_before_intersection"] == 2
+    assert foreground_background["background_size"] == 5
+    assert (
+        foreground_background["usable_foreground_size_after_background_intersection"]
+        == 0
+    )
+    assert (
+        foreground_background["foreground_identifiers_missing_from_background_count"]
+        == 2
+    )
+    assert foreground_background["foreground_identifiers_missing_from_background"] == (
+        "UNKNOWN_A",
+        "UNKNOWN_B",
+    )
+    assert result.background_summary["selected_in_background_count"] == 0
+    assert result.background_summary["dropped_selected_identifiers"] == (
+        "UNKNOWN_A",
+        "UNKNOWN_B",
+    )
+    assert result.diagnostics["ora"]["selected_size"] == 0
+    assert all(record.input_overlap_count == 0 for record in result.records)
+    assert all(record.p_value == pytest.approx(1.0) for record in result.records)
+
+
+def test_enrichment_mixed_matched_and_unmatched_foreground_keeps_ora_statistics() -> (
+    None
+):
+    matched_request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=_gene_collection(),
+        selected_identifiers=("AKT1", "MAPK1"),
+        background_universe=("AKT1", "MAPK1", "MTOR", "CDK1", "CDK2"),
+        config=EnrichmentConfig(),
+    )
+    mixed_request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=_gene_collection(),
+        selected_identifiers=("AKT1", "UNKNOWN", "MAPK1"),
+        background_universe=("AKT1", "MAPK1", "MTOR", "CDK1", "CDK2"),
+        config=EnrichmentConfig(),
+    )
+
+    matched_result = EnrichmentWorkflow().run(matched_request)
+    mixed_result = EnrichmentWorkflow().run(mixed_request)
+
+    pd.testing.assert_frame_equal(mixed_result.table, matched_result.table)
+    foreground_background = mixed_result.diagnostics["foreground_background"]
+    assert foreground_background["foreground_size_before_intersection"] == 3
+    assert (
+        foreground_background["usable_foreground_size_after_background_intersection"]
+        == 2
+    )
+    assert foreground_background["foreground_identifiers_missing_from_background"] == (
+        "UNKNOWN",
     )
 
 
@@ -336,6 +430,9 @@ def test_enrichment_set_size_filter_excludes_sets_below_minimum() -> None:
             "identifiers_outside_background_count": 0,
         },
     )
+    foreground_background = result.diagnostics["foreground_background"]
+    assert foreground_background["tested_set_count"] == 1
+    assert foreground_background["dropped_set_count"] == 1
 
 
 def test_enrichment_set_size_filter_excludes_sets_above_maximum() -> None:

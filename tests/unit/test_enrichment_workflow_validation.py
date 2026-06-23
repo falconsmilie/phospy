@@ -194,14 +194,16 @@ def test_enrichment_validation_rejects_mutated_invalid_set_size_filters() -> Non
         EnrichmentWorkflowValidator().run(request)
 
 
-def test_enrichment_validation_rejects_selected_identifiers_outside_background() -> (
+def test_enrichment_validation_preserves_selected_identifiers_outside_background() -> (
     None
 ):
     request = _valid_gene_request()
     object.__setattr__(request, "selected_identifiers", ("AKT1", "UNKNOWN"))
 
-    with pytest.raises(WorkflowValidationError, match="outside_background"):
-        EnrichmentWorkflowValidator().run(request)
+    validated = EnrichmentWorkflowValidator().run(request)
+
+    assert validated.selected_identifiers == ("AKT1", "UNKNOWN")
+    assert validated.background_universe == ("AKT1", "MAPK1", "MTOR")
 
 
 def test_enrichment_validation_does_not_run_ora(

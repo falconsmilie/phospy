@@ -74,10 +74,6 @@ class EnrichmentWorkflowValidator:
                 identifier_column=identifier_column,
             )
         )
-        _validate_selected_identifiers_against_background(
-            selected_identifiers=selected_identifiers,
-            background_universe=background_universe,
-        )
 
         return ValidatedEnrichmentWorkflowRequest(
             request=request,
@@ -215,30 +211,6 @@ def _resolve_selected_identifiers(
             allow_empty=False,
         ),
         "input_table",
-    )
-
-
-def _validate_selected_identifiers_against_background(
-    *,
-    selected_identifiers: tuple[str, ...],
-    background_universe: tuple[str, ...],
-) -> None:
-    background = frozenset(background_universe)
-    outside_background = tuple(
-        identifier
-        for identifier in selected_identifiers
-        if identifier not in background
-    )
-    if not outside_background:
-        return
-    preview = ", ".join(repr(identifier) for identifier in outside_background[:5])
-    suffix = "" if len(outside_background) <= 5 else " ..."
-    raise WorkflowValidationError(
-        "enrichment workflow request selected_identifiers must be members of "
-        "background_universe; "
-        f"outside_background_count={len(outside_background)}, "
-        f"outside_background={preview}{suffix}. "
-        "No selected identifiers are silently dropped during validation."
     )
 
 

@@ -52,6 +52,7 @@ ENRICHMENT_LIMITATIONS: tuple[str, ...] = (
 SetSizeFilterDropReason = Literal["below_min_set_size", "above_max_set_size"]
 SET_SIZE_FILTER_REASON_BELOW_MIN: SetSizeFilterDropReason = "below_min_set_size"
 SET_SIZE_FILTER_REASON_ABOVE_MAX: SetSizeFilterDropReason = "above_max_set_size"
+MAX_UNMATCHED_SET_IDENTIFIER_DIAGNOSTIC_COUNT = 50
 
 
 @dataclass(frozen=True, slots=True)
@@ -302,13 +303,19 @@ def _empty_ora_result(
     request: InterpretedEnrichmentWorkflowRequest,
     config: OraConfig,
 ) -> OraResult:
+    usable_selected_identifiers, missing_selected_identifiers = (
+        _foreground_background_intersection(
+            selected_identifiers=request.selected_identifiers,
+            background_universe=request.background_universe,
+        )
+    )
     return OraResult(
         method=ENRICHMENT_METHOD_OVER_REPRESENTATION,
         config=config,
         background_size=len(request.background_universe),
-        selected_size=len(request.selected_identifiers),
-        selected_identifiers=request.selected_identifiers,
-        dropped_selected_identifiers=(),
+        selected_size=len(usable_selected_identifiers),
+        selected_identifiers=usable_selected_identifiers,
+        dropped_selected_identifiers=tuple(sorted(missing_selected_identifiers)),
         records=(),
     )
 
@@ -332,12 +339,26 @@ def _execution_background_summary(
     ora_result: OraResult,
 ) -> dict[str, object]:
     summary = dict(request.background_summary)
+    _, missing_foreground_identifiers = _foreground_background_intersection(
+        selected_identifiers=request.selected_identifiers,
+        background_universe=request.background_universe,
+    )
     summary.update(
         {
             "universe_size": ora_result.background_size,
             "selected_in_background_count": ora_result.selected_size,
             "dropped_selected_count": len(ora_result.dropped_selected_identifiers),
             "dropped_selected_identifiers": ora_result.dropped_selected_identifiers,
+            "foreground_size_before_intersection": len(request.selected_identifiers),
+            "usable_foreground_size_after_background_intersection": (
+                ora_result.selected_size
+            ),
+            "foreground_identifiers_missing_from_background_count": len(
+                missing_foreground_identifiers
+            ),
+            "foreground_identifiers_missing_from_background": (
+                missing_foreground_identifiers
+            ),
         }
     )
     return summary
@@ -397,6 +418,10 @@ def _execution_diagnostics(
     )
     diagnostics.update(
         {
+            "foreground_background": _foreground_background_diagnostics(
+                request=request,
+                set_size_filter_result=set_size_filter_result,
+            ),
             "ora": {
                 "method": ora_result.method,
                 "record_count": len(ora_result.records),
@@ -419,6 +444,75 @@ def _execution_diagnostics(
             set_size_filter_result=set_size_filter_result,
         )
     return diagnostics
+
+
+def _foreground_background_intersection(
+    *,
+    selected_identifiers: tuple[str, ...],
+    background_universe: tuple[str, ...],
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    background = frozenset(background_universe)
+    usable_foreground = tuple(
+        identifier for identifier in selected_identifiers if identifier in background
+    )
+    missing_foreground = tuple(
+        identifier
+        for identifier in selected_identifiers
+        if identifier not in background
+    )
+    return usable_foreground, missing_foreground
+
+
+def _foreground_background_diagnostics(
+    *,
+    request: InterpretedEnrichmentWorkflowRequest,
+    set_size_filter_result: _SetSizeFilterResult,
+) -> dict[str, object]:
+    usable_foreground, missing_foreground = _foreground_background_intersection(
+        selected_identifiers=request.selected_identifiers,
+        background_universe=request.background_universe,
+    )
+    unmatched_set_identifier_summary = _unmatched_set_identifier_summary(
+        request=request
+    )
+    return {
+        "identifier_kind": request.identifier_semantics.identifier_kind,
+        "foreground_size_before_intersection": len(request.selected_identifiers),
+        "background_size": len(request.background_universe),
+        "usable_foreground_size_after_background_intersection": len(usable_foreground),
+        "foreground_identifiers_missing_from_background_count": len(missing_foreground),
+        "foreground_identifiers_missing_from_background": missing_foreground,
+        "tested_set_count": set_size_filter_result.tested_set_count,
+        "dropped_set_count": len(set_size_filter_result.dropped_sets),
+        **unmatched_set_identifier_summary,
+    }
+
+
+def _unmatched_set_identifier_summary(
+    *,
+    request: InterpretedEnrichmentWorkflowRequest,
+) -> dict[str, object]:
+    background = frozenset(request.background_universe)
+    missing_identifiers: list[str] = []
+    seen: set[str] = set()
+    for enrichment_set in request.set_collection.enrichment_sets:
+        for identifier in enrichment_set.identifiers:
+            if identifier in background or identifier in seen:
+                continue
+            seen.add(identifier)
+            missing_identifiers.append(identifier)
+
+    preview = tuple(missing_identifiers[:MAX_UNMATCHED_SET_IDENTIFIER_DIAGNOSTIC_COUNT])
+    return {
+        "set_identifiers_missing_from_background_count": len(missing_identifiers),
+        "set_identifiers_missing_from_background": preview,
+        "set_identifiers_missing_from_background_truncated": (
+            len(missing_identifiers) > MAX_UNMATCHED_SET_IDENTIFIER_DIAGNOSTIC_COUNT
+        ),
+        "set_identifiers_missing_from_background_preview_limit": (
+            MAX_UNMATCHED_SET_IDENTIFIER_DIAGNOSTIC_COUNT
+        ),
+    }
 
 
 def _set_size_filter_diagnostics(

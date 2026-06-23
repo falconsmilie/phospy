@@ -38,7 +38,8 @@ Also provide:
 
 The selected identifiers, background universe, and set collection must use the
 same identifier namespace. Gene-level and PTM-level collections are deliberately
-separate.
+separate. Selected identifiers that are not present in the background are
+reported in diagnostics and are not used in ORA calculations.
 
 ## Request Object
 
@@ -143,6 +144,23 @@ The result table includes one row per tested term with overlap counts, overlap
 identifiers, p-values, adjusted p-values, correction method, and enrichment
 ratio.
 
+`diagnostics["foreground_background"]` reports how the selected identifiers,
+background, and set collection overlap:
+
+| Field | Meaning |
+| --- | --- |
+| `identifier_kind` | Identifier kind used for the run. |
+| `foreground_size_before_intersection` | Number of selected identifiers before intersecting with the background. |
+| `background_size` | Number of identifiers in the explicit background. |
+| `usable_foreground_size_after_background_intersection` | Number of selected identifiers present in the background and used by ORA. |
+| `foreground_identifiers_missing_from_background_count` | Count of selected identifiers absent from the background. |
+| `foreground_identifiers_missing_from_background` | The selected identifiers absent from the background. |
+| `tested_set_count` | Number of sets tested after optional set-size filters. |
+| `dropped_set_count` | Number of sets dropped by optional set-size filters. |
+| `set_identifiers_missing_from_background_count` | Count of distinct set identifiers absent from the background. |
+| `set_identifiers_missing_from_background` | Bounded preview of set identifiers absent from the background. |
+| `set_identifiers_missing_from_background_truncated` | Whether the set-identifier preview was shortened. |
+
 When set-size filters are configured, `diagnostics["set_size_filter"]` reports:
 
 - `applied_after_background_intersection`
@@ -162,6 +180,11 @@ under the explicit background universe. Results depend strongly on the
 background you supply. PhosPy does not infer that universe from a dataset,
 reference bundle, or set collection.
 
+The background matters because it defines the identifiers that could have been
+selected. If a foreground identifier is absent from the background, PhosPy
+reports it and excludes it from the hypergeometric test instead of inventing a
+mapping or expanding the universe.
+
 The enrichment ratio is a descriptive overlap summary for the selected
 identifiers, set members, and background used in the run. Adjusted p-values
 describe statistical evidence under the ORA model and selected multiple-testing
@@ -170,6 +193,7 @@ mechanistically responsible for the observed phosphoproteomics pattern.
 
 Gene-level and site-level results are not interchangeable. A gene-symbol set is
 not reinterpreted as a PTM set, and a PTM set is not collapsed to gene symbols.
+Do not mix gene-level and site-level interpretation in the same result.
 
 ## Provenance and Reproducibility
 
