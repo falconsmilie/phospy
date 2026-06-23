@@ -92,7 +92,8 @@ that roadmap is not a current feature-support claim.
 Future native SPS/RUV-style batch-correction prerequisites are recorded in
 [`ADR-0029`](docs/adr/adr_0029_native_sps_ruv_style_batch_correction_prerequisites.md);
 that ADR defers implementation until the required contracts exist and is not a
-current feature claim.
+current feature claim. This is a future architecture commitment, not a current
+feature claim.
 
 The `batch_correction` preprocessing group currently exposes one opt-in method:
 `linear_residualize_batch`, a limited fixed-effect residualisation step that

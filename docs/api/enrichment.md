@@ -18,8 +18,10 @@ Good fits:
 - small local collections created in Python or read from local files
 
 This workflow does not fetch GO, KEGG, Reactome, PTM-SEA, PTMsigDB, Enrichr,
-gseapy, clusterProfiler, or other online resources. It does not implement GSEA,
-ssGSEA, or PTM-SEA.
+gseapy, clusterProfiler, or other online resources. It does not implement
+ranked-list enrichment, GSEA, ssGSEA, or PTM-SEA. A possible future ranked-list
+mode is deferred by
+[ADR-0030](../adr/adr_0030_ranked_list_enrichment_prerequisites.md).
 
 ## Inputs
 
@@ -215,7 +217,8 @@ and limitations.
 - Offline ORA only.
 - No bundled curated enrichment resources for this feature.
 - No online service calls.
-- No GSEA, ssGSEA, PTM-SEA, or pathway activity inference.
+- No ranked-list enrichment, GSEA, ssGSEA, PTM-SEA, or pathway activity
+  inference.
 - ORA does not prove pathway activation, regulation, or biological causality.
 - Background choice is caller-owned and scientifically important.
 

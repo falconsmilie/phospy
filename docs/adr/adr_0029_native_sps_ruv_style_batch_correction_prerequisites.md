@@ -7,7 +7,7 @@
 - **Status:** Accepted
 - **Date:** 2026-06-23
 - **Decision Type:** Scientific Architecture and Roadmap
-- **Supersedes:** ADR-0027
+- **Refines:** ADR-0027
 
 ## Context
 
@@ -200,11 +200,11 @@ Likely future ownership areas are:
 
 ```text
 src/phospy/contracts/configs/
-src/phospy/science/batch_correction/
 src/phospy/science/datasets/preprocessing/
-src/phospy/workflows/batch_correction/
-src/phospy/validation/workflows/batch_correction/
 src/phospy/provenance/
+phospy.science.batch_correction (future package candidate)
+phospy.workflows.batch_correction (future package candidate)
+phospy.validation.workflows.batch_correction (future package candidate)
 tests/
 ```
 
@@ -240,16 +240,17 @@ Neutral consequences:
 
 ## Non-Goals
 
-This ADR does not:
+This ADR has these non-goals:
 
-- implement RUV, SPS selection, control-site selection, or RUV-III correction;
-- add public API flags for RUV-style correction;
-- add bundled stable or control phosphosite references;
-- add hidden online fetching;
-- add large dependencies;
-- claim equivalence to PhosR;
-- weaken preprocessing or dataset validation constraints; or
-- move correction ownership into differential, kinase, enrichment, or signalome
+- do not implement RUV, SPS selection, control-site selection, or RUV-III
+  correction;
+- do not add public API flags for RUV-style correction;
+- do not add bundled stable or control phosphosite references;
+- do not add hidden online fetching;
+- do not add large dependencies;
+- do not claim equivalence to PhosR;
+- do not weaken preprocessing or dataset validation constraints; and
+- do not move correction ownership into differential, kinase, enrichment, or signalome
   workflows.
 
 ## Related Records

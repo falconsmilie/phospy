@@ -132,6 +132,9 @@ Important user-facing assumptions:
 - The background universe is explicit and required.
 - Gene-level and site-level enrichment require explicit identifier semantics and
   are not interchangeable.
+- `EnrichmentWorkflow` consumes selected foreground identifiers for ORA, not a
+  complete ranked list. Future ranked-list enrichment is deferred by
+  [ADR-0030](adr/adr_0030_ranked_list_enrichment_prerequisites.md).
 - Enrichment ratio is a descriptive overlap summary, not a pathway activity
   score.
 - Adjusted p-values describe statistical evidence under the ORA model and the

@@ -118,9 +118,11 @@ Not supported today:
 - no PhosR-equivalent SPS/RUV-III batch correction.
 - no treatment of linear residualisation as equivalent to SPS/RUV/RUV-III
   correction.
+- no treatment of linear residualisation as equivalent to PhosR-style RUV/SPS
+  correction.
 - no treatment of `ruv_readiness` or similar diagnostics as correction support.
 
-Deferred future direction:
+Planned future direction:
 
 - [ADR-0029](adr/adr_0029_native_sps_ruv_style_batch_correction_prerequisites.md)
   defers native SPS/RUV-style batch correction until control-site,
