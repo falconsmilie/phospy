@@ -225,6 +225,7 @@ class DifferentialAnalysisInterpreter:
             design=execution_design.design_matrix,
             contrasts=execution_design.contrast_matrix,
             empirical_bayes=request.config.empirical_bayes,
+            multiple_testing_method=request.config.multiple_testing.method,
         )
         provenance_request = ValidatedDifferentialAnalysisRequest(
             dataset=resolved_dataset,

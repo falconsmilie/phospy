@@ -8,6 +8,7 @@ import pandas.testing as pdt
 import pytest
 
 from phospy.api import (
+    SUPPORTED_MULTIPLE_TESTING_METHODS,
     CategoricalCovariate,
     ContinuousCovariate,
     Contrast,
@@ -16,6 +17,8 @@ from phospy.api import (
     DifferentialAnalysisWorkflow,
     EmpiricalBayesConfig,
     ExperimentalDesign,
+    MultipleTestingConfig,
+    MultipleTestingMethod,
     Organism,
     SampleDesignRecord,
 )
@@ -28,6 +31,7 @@ from phospy.science.sites.site_keys import (
     build_protein_scoped_site_key,
     encode_site_key,
 )
+from phospy.science.statistics.multiple_testing import adjust_p_values
 from phospy.workflows.differential.interpreter import DifferentialAnalysisInterpreter
 from phospy.workflows.differential.validator import DifferentialAnalysisValidator
 from tests.support.intensity_scale_states import (
@@ -174,6 +178,7 @@ def _request(
     design: ExperimentalDesign | None = None,
     contrasts: tuple[Contrast, ...] | None = None,
     empirical_bayes: EmpiricalBayesConfig | None = None,
+    multiple_testing: MultipleTestingConfig | None = None,
     minimum_condition_replicates: int = 2,
 ) -> DifferentialAnalysisRequest:
     return DifferentialAnalysisRequest(
@@ -186,6 +191,11 @@ def _request(
                 EmpiricalBayesConfig(method="standard")
                 if empirical_bayes is None
                 else empirical_bayes
+            ),
+            multiple_testing=(
+                MultipleTestingConfig()
+                if multiple_testing is None
+                else multiple_testing
             ),
         ),
     )
@@ -253,6 +263,112 @@ def test_differential_analysis_returns_per_contrast_moderated_tables() -> None:
         assert (table.loc[:, "P.Value"] <= 1.0).all()
         assert (table.loc[:, "adj.P.Val"] >= 0.0).all()
         assert (table.loc[:, "adj.P.Val"] <= 1.0).all()
+
+
+def test_differential_default_multiple_testing_correction_is_unchanged() -> None:
+    default = DifferentialAnalysisWorkflow().run(_request())
+    explicit = DifferentialAnalysisWorkflow().run(
+        _request(
+            multiple_testing=MultipleTestingConfig(method="benjamini_hochberg"),
+        )
+    )
+
+    assert default.policy_provenance is not None
+    assert (
+        default.policy_provenance.statistical_testing.adjusted_p_value_method
+        == "benjamini_hochberg"
+    )
+    for contrast_name in ("B_vs_A", "C_vs_A"):
+        pdt.assert_frame_equal(
+            default.table_for(contrast_name),
+            explicit.table_for(contrast_name),
+            check_exact=False,
+            rtol=1e-12,
+            atol=0.0,
+        )
+
+
+@pytest.mark.parametrize("method", SUPPORTED_MULTIPLE_TESTING_METHODS)
+def test_differential_analysis_supports_configured_multiple_testing_methods(
+    method: MultipleTestingMethod,
+) -> None:
+    result = DifferentialAnalysisWorkflow().run(
+        _request(multiple_testing=MultipleTestingConfig(method=method))
+    )
+
+    assert result.policy_provenance is not None
+    assert (
+        result.policy_provenance.statistical_testing.adjusted_p_value_method == method
+    )
+    assert result.policy_provenance.missing_values.adjusted_p_value_scope == (
+        "adjustment_over_tested_features_only_per_contrast"
+    )
+    for contrast_name in ("B_vs_A", "C_vs_A"):
+        table = result.table_for(contrast_name)
+        expected = adjust_p_values(
+            table.loc[:, "P.Value"].to_numpy(dtype=float),
+            method=method,
+        )
+        np.testing.assert_allclose(
+            table.loc[:, "adj.P.Val"].to_numpy(dtype=float),
+            expected,
+            rtol=1e-12,
+            atol=0.0,
+        )
+
+
+def test_differential_correction_is_applied_per_contrast() -> None:
+    result = DifferentialAnalysisWorkflow().run(
+        _request(multiple_testing=MultipleTestingConfig(method="bonferroni"))
+    )
+
+    b_vs_a = result.table_for("B_vs_A")
+    c_vs_a = result.table_for("C_vs_A")
+    pooled_adjusted = adjust_p_values(
+        np.concatenate(
+            [
+                b_vs_a.loc[:, "P.Value"].to_numpy(dtype=float),
+                c_vs_a.loc[:, "P.Value"].to_numpy(dtype=float),
+            ]
+        ),
+        method="bonferroni",
+    )
+
+    np.testing.assert_allclose(
+        b_vs_a.loc[:, "adj.P.Val"].to_numpy(dtype=float),
+        adjust_p_values(
+            b_vs_a.loc[:, "P.Value"].to_numpy(dtype=float),
+            method="bonferroni",
+        ),
+        rtol=1e-12,
+        atol=0.0,
+    )
+    np.testing.assert_allclose(
+        c_vs_a.loc[:, "adj.P.Val"].to_numpy(dtype=float),
+        adjust_p_values(
+            c_vs_a.loc[:, "P.Value"].to_numpy(dtype=float),
+            method="bonferroni",
+        ),
+        rtol=1e-12,
+        atol=0.0,
+    )
+    assert not np.allclose(
+        b_vs_a.loc[:, "adj.P.Val"].to_numpy(dtype=float),
+        pooled_adjusted[: b_vs_a.shape[0]],
+        rtol=1e-12,
+        atol=0.0,
+    )
+
+
+def test_differential_validator_rejects_invalid_multiple_testing_method() -> None:
+    config = MultipleTestingConfig()
+    object.__setattr__(config, "method", "storey")
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="multiple_testing.method must be one of",
+    ):
+        DifferentialAnalysisValidator().run(_request(multiple_testing=config))
 
 
 def test_differential_interpreter_condition_only_design_inputs_remain_unchanged() -> (

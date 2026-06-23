@@ -561,7 +561,7 @@ def test_executor_rejects_unstable_standard_errors(
         )
 
 
-def test_differential_rejects_or_documents_non_finite_p_values_before_bh(
+def test_differential_rejects_or_documents_non_finite_p_values_before_correction(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class _NonFiniteTDistribution:
@@ -572,16 +572,19 @@ def test_differential_rejects_or_documents_non_finite_p_values_before_bh(
             p_values[0] = np.nan
             return p_values
 
-    def _unexpected_bh_call(_: np.ndarray) -> np.ndarray:
-        raise AssertionError("BH must not run after non-finite P.Value generation")
+    def _unexpected_correction_call(_: np.ndarray, *, method: str) -> np.ndarray:
+        del method
+        raise AssertionError(
+            "p-value correction must not run after non-finite P.Value generation"
+        )
 
     monkeypatch.setattr(
         "phospy.science.differential.executor.stats.t",
         _NonFiniteTDistribution(),
     )
     monkeypatch.setattr(
-        "phospy.science.differential.executor.benjamini_hochberg",
-        _unexpected_bh_call,
+        "phospy.science.differential.executor.adjust_p_values",
+        _unexpected_correction_call,
     )
     matrix = pd.DataFrame(
         {

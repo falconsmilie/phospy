@@ -17,6 +17,10 @@ from phospy.frames.ownership import (
     own_dataframe,
     own_series,
 )
+from phospy.science.statistics.multiple_testing import (
+    MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
+    MultipleTestingCorrection,
+)
 from phospy.validation.common.dataframes import (
     require_dataframe,
     require_finite_numeric_dataframe,
@@ -310,6 +314,9 @@ class DifferentialAnalysisRequest:
     design: DesignMatrix | pd.DataFrame
     contrasts: ContrastMatrix | pd.DataFrame
     empirical_bayes: EmpiricalBayesConfig = field(default_factory=EmpiricalBayesConfig)
+    multiple_testing_method: MultipleTestingCorrection = (
+        MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG
+    )
 
     def __post_init__(self) -> None:
         matrix = own_dataframe(

@@ -22,7 +22,7 @@ from phospy.science.differential.models import (
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_HIGH_IMPUTATION,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_INSUFFICIENT_OBSERVED,
 )
-from phospy.science.differential.multiple_testing import benjamini_hochberg
+from phospy.science.statistics.multiple_testing import adjust_p_values
 from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
@@ -263,8 +263,9 @@ def test_differential_withhold_policy_excludes_withheld_features_from_testing() 
     )
     assert result.residual_variance_series().loc[table.index[withheld]].isna().all()
 
-    expected_adjusted = benjamini_hochberg(
-        table.loc[tested, "P.Value"].to_numpy(dtype=float)
+    expected_adjusted = adjust_p_values(
+        table.loc[tested, "P.Value"].to_numpy(dtype=float),
+        method="benjamini_hochberg",
     )
     np.testing.assert_allclose(
         table.loc[tested, "adj.P.Val"].to_numpy(dtype=float),
@@ -283,7 +284,7 @@ def test_differential_imputation_policy_is_recorded_in_provenance() -> None:
     assert missing_values.imputed_value_max_fraction == pytest.approx(0.20)
     assert missing_values.imputation_metadata_required is True
     assert missing_values.adjusted_p_value_scope == (
-        "benjamini_hochberg_adjustment_over_tested_features_only"
+        "adjustment_over_tested_features_only_per_contrast"
     )
 
 

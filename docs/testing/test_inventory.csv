@@ -71,12 +71,12 @@ tests/unit/test_dataset_site_sequence_resolution.py,unit,508,13,true,true,scient
 tests/unit/test_dataset_site_sequence_resolution_collaborators.py,unit,86,3,true,true,,,,,,
 tests/unit/test_dataset_transformation_state_establishment.py,unit,796,28,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset transformation state establishment and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/unit/test_design_matrix_builder.py,unit,621,20,false,false,,,,,,
-tests/unit/test_differential_analysis.py,unit,848,15,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for differential analysis behaviour, allowing numerically plausible but scientifically invalid results.",codex-audit,,New test file classified after audit-doc regeneration.
+tests/unit/test_differential_analysis.py,unit,965,19,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for differential analysis behaviour, allowing numerically plausible but scientifically invalid results.",codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_differential_contrast_helpers.py,unit,143,7,false,false,,,,,,
 tests/unit/test_differential_dataset_eligibility_validator.py,unit,206,7,false,false,,,,,,
 tests/unit/test_differential_fixed_effect_provenance.py,unit,372,5,false,false,,,,,,
-tests/unit/test_differential_imputation_policy.py,unit,294,7,false,false,,,,,,
-tests/unit/test_differential_numerical_guards.py,unit,602,14,true,true,,,,,,
+tests/unit/test_differential_imputation_policy.py,unit,295,7,false,false,,,,,,
+tests/unit/test_differential_numerical_guards.py,unit,605,14,true,true,,,,,,
 tests/unit/test_differential_paired_block_policy_contract.py,unit,89,7,false,false,,,,,,
 tests/unit/test_differential_request_config_refactor.py,unit,58,6,false,false,,,,,,
 tests/unit/test_differential_result_contract.py,unit,907,31,false,false,,,,,,

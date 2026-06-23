@@ -39,8 +39,8 @@ _DIFFERENTIAL_MISSING_VALUE_POLICY = (
     "reject_missing_values_before_differential_execution"
 )
 _DIFFERENTIAL_MISSING_VALUE_STAGE = "analysis_ready_dataset_boundary"
-_DIFFERENTIAL_BH_SCOPE_ALL_TESTED_FEATURES = (
-    "benjamini_hochberg_adjustment_over_tested_features_only"
+_DIFFERENTIAL_ADJUSTED_P_VALUE_SCOPE = (
+    "adjustment_over_tested_features_only_per_contrast"
 )
 _DIFFERENTIAL_REJECT_IMPUTATION_LIMITATIONS: tuple[str, ...] = (
     "upstream-imputed datasets are rejected before differential execution",
@@ -55,7 +55,7 @@ _DIFFERENTIAL_WITHHOLD_IMPUTATION_LIMITATIONS: tuple[str, ...] = (
         "condition are withheld from model fitting"
     ),
     (
-        "Benjamini-Hochberg adjusted p-values are computed over tested features "
+        "Adjusted p-values are computed over tested features within each contrast "
         "only; withheld features are not part of the denominator"
     ),
     (
@@ -214,7 +214,7 @@ def build_differential_policy_provenance(
             imputation_metadata_required=(
                 request.config.imputed_value_policy != IMPUTED_VALUE_POLICY_REJECT
             ),
-            adjusted_p_value_scope=_DIFFERENTIAL_BH_SCOPE_ALL_TESTED_FEATURES,
+            adjusted_p_value_scope=_DIFFERENTIAL_ADJUSTED_P_VALUE_SCOPE,
             limitations=_imputation_policy_limitations(
                 request.config.imputed_value_policy
             ),

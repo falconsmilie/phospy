@@ -16,7 +16,7 @@ from phospy.science.differential.models import (
     EmpiricalBayesPriorDiagnostics,
     MeanVarianceTrendDiagnostics,
 )
-from phospy.science.differential.multiple_testing import benjamini_hochberg
+from phospy.science.statistics.multiple_testing import adjust_p_values
 
 
 class DifferentialAnalysisExecutor:
@@ -139,7 +139,10 @@ class DifferentialAnalysisExecutor:
                     f"{contrast_name!r}; P.Value must be finite and within [0, 1]; "
                     f"{_preview_invalid_entries(invalid_p_values, p_values, row_index=row_index)}"
                 )
-            adjusted = benjamini_hochberg(p_values)
+            adjusted = adjust_p_values(
+                p_values,
+                method=request.multiple_testing_method,
+            )
             contrast_tables[str(contrast_name)] = pd.DataFrame(
                 {
                     "logFC": log_fc.astype(float),

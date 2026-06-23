@@ -7,7 +7,6 @@ from typing import cast
 import numpy as np
 import pandas as pd
 
-from phospy.contracts.configs import MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.differential.executor import (
     DifferentialAnalysisExecutor as DifferentialComputationExecutor,
@@ -49,18 +48,6 @@ class DifferentialAnalysisExecutor:
                 next_action=(
                     "pass interpreter output into DifferentialAnalysisExecutor.run"
                 ),
-                message_prefix="differential workflow boundary validation failed",
-            )
-        if (
-            request.config.multiple_testing.method
-            != MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG
-        ):
-            raise WorkflowBoundaryError(
-                seam="differential.executor.multiple_testing_method",
-                next_action=(
-                    "use multiple_testing.method='benjamini_hochberg' for this release"
-                ),
-                details={"method": request.config.multiple_testing.method},
                 message_prefix="differential workflow boundary validation failed",
             )
         computation_request = request.computation_request

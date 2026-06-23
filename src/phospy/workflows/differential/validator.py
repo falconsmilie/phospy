@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from typing import cast
 
-from phospy.contracts.configs import DifferentialAnalysisConfig, MultipleTestingConfig
+from phospy.contracts.configs import (
+    SUPPORTED_MULTIPLE_TESTING_METHODS,
+    DifferentialAnalysisConfig,
+    MultipleTestingConfig,
+)
 from phospy.contracts.requests import DifferentialAnalysisRequest
 from phospy.errors.validation import WorkflowValidationError
 from phospy.science.datasets.internal_view import DatasetInternalView
@@ -121,6 +125,14 @@ class DifferentialAnalysisValidator:
         if not isinstance(cast(object, config.multiple_testing), MultipleTestingConfig):
             raise WorkflowValidationError(
                 "differential workflow request multiple_testing must be MultipleTestingConfig"
+            )
+        if config.multiple_testing.method not in SUPPORTED_MULTIPLE_TESTING_METHODS:
+            supported = ", ".join(
+                repr(value) for value in SUPPORTED_MULTIPLE_TESTING_METHODS
+            )
+            raise WorkflowValidationError(
+                "differential workflow request multiple_testing.method must be "
+                f"one of: {supported}"
             )
         technical_replicate_aggregation_plan = self._technical_replicate_planner.run(
             dataset=request.dataset,

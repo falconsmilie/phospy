@@ -92,7 +92,7 @@ Important fields:
 | `allow_design_subset` | `False` | Allows an explicit subset of dataset samples when set to `True`. |
 | `minimum_condition_replicates` | `2` | Minimum replicate count per contrast side. |
 | `empirical_bayes` | `EmpiricalBayesConfig()` | Controls `method`, `trend`, and robust winsor tails. |
-| `multiple_testing` | `MultipleTestingConfig()` | Current public method is Benjamini-Hochberg. |
+| `multiple_testing` | `MultipleTestingConfig()` | Controls how raw p-values become `adj.P.Val`. Default method is `"benjamini_hochberg"`. |
 
 Related request classes:
 
@@ -104,6 +104,26 @@ Related request classes:
 - `ContinuousCovariate`
 - `EmpiricalBayesConfig`
 - `MultipleTestingConfig`
+
+## Multiple-Testing Correction
+
+`MultipleTestingConfig(method=...)` accepts:
+
+- `"benjamini_hochberg"` (default)
+- `"bonferroni"`
+- `"holm"`
+- `"benjamini_yekutieli"`
+- `"none"`
+
+Correction is applied separately for each contrast table. PhosPy does not pool
+p-values across different contrasts. If an imputation withhold policy removes
+features from testing, correction uses only the tested features for that
+contrast.
+
+`adj.P.Val` is the p-value after the selected correction method. Smaller values
+indicate stronger evidence after accounting for the number of tested features in
+that contrast, but the adjusted value is not an effect size. Report the method
+and thresholds used in your analysis.
 
 ## Contrast Helpers
 
@@ -242,8 +262,8 @@ Missing requested columns raise a clear input error.
 
 `logFC` is the fitted condition contrast on the established log2 phosphosite
 intensity scale. `t` is a moderated t-statistic. `P.Value` is the raw p-value,
-and `adj.P.Val` is the multiple-testing adjusted value for the implemented
-correction policy.
+and `adj.P.Val` is the multiple-testing adjusted value for the configured
+method.
 
 PhosPy uses its own moderated OLS-style implementation. The result table follows
 familiar limma/topTable-style column names (`logFC`, `P.Value`, `adj.P.Val`), but
