@@ -99,7 +99,7 @@ Important `KinaseScoringConfig` fields:
 | `scoring_mode` | `"phosr_rank_weighted"` | Supported modes: `"phosr_rank_weighted"`, `"kinase_library_motif"`, `"combined_profile_motif"`. The default is PhosR-inspired PhosPy scoring, not a PhosR compatibility mode. |
 | `min_substrates` | `2` | Minimum unique usable substrates for kinase scoring support. The public floor is `2`. |
 | `include_diagnostic_scoring_tables` | `False` | Adds non-primary diagnostic scoring tables. |
-| `include_substrate_contributions` | `False` | Adds an optional substrate-level contribution table to `KinaseWorkflowResult`. |
+| `include_substrate_contributions` | `False` | Assembles and adds an optional substrate-level contribution table to `KinaseWorkflowResult`. |
 | `profile_missing_value_strategy` | `"strict"` | Use `"median_skipna"` only when skipping missing profile values is intended. |
 | `localisation_requirement` | `LocalisationRequirement()` | Workflow-level localisation requirement. |
 | `allow_mixed_total_protein_quantitative_meaning` | `False` | Keep `False` unless mixed corrected/uncorrected rows are intended. |
@@ -247,8 +247,8 @@ documentation or code.
 
 ### Substrate Contribution Table
 
-Set `KinaseScoringConfig(include_substrate_contributions=True)` to attach
-`kinase_result.substrate_contributions`.
+Set `KinaseScoringConfig(include_substrate_contributions=True)` to assemble and
+attach `kinase_result.substrate_contributions`.
 
 ```python
 request = KinaseWorkflowRequest(
@@ -266,7 +266,8 @@ contributions = kinase_result.substrate_contributions
 ```
 
 The table contains one row per projected kinase-substrate evidence row. It is
-off by default because it can be large.
+assembled only when explicitly requested and is off by default because it can be
+large.
 
 Stable columns:
 

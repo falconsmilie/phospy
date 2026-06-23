@@ -452,10 +452,17 @@ def test_kinase_executor_consumes_resolved_request_without_reference_discovery()
             return expected_eligibility_report
 
     class _ScoringRunner:
-        def run(self, *, request: object, config: object) -> object:
+        def run(
+            self,
+            *,
+            request: object,
+            config: object,
+            collect_substrate_contributions: bool,
+        ) -> object:
             events.append("scoring")
             assert request is resolved
             assert config is resolved.execution_config
+            assert collect_substrate_contributions is False
             return expected_scoring_execution
 
     class _PredictionRunner:
@@ -566,6 +573,36 @@ def test_kinase_executor_consumes_resolved_request_without_reference_discovery()
         "assembly",
     ]
     assert result is expected_result
+
+
+def test_kinase_executor_scoring_stage_threads_contribution_collection_flag() -> None:
+    resolved = _resolved_request(config=_config(include_substrate_contributions=True))
+    expected_scoring_execution = object()
+    observed_collection_flag: bool | None = None
+
+    class _ScoringRunner:
+        def run(
+            self,
+            *,
+            request: object,
+            config: object,
+            collect_substrate_contributions: bool,
+        ) -> object:
+            nonlocal observed_collection_flag
+            assert request is resolved
+            assert config is resolved.execution_config
+            observed_collection_flag = collect_substrate_contributions
+            return expected_scoring_execution
+
+    result = KinaseWorkflowExecutor(
+        scoring_runner=_ScoringRunner(),  # type: ignore[arg-type]
+    )._run_scoring_stage(
+        request=resolved,
+        config=resolved.execution_config,
+    )
+
+    assert result is expected_scoring_execution
+    assert observed_collection_flag is True
 
 
 def test_direct_unnormalised_kinase_ids_are_rejected_by_execution_contract() -> None:

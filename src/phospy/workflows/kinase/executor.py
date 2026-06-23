@@ -95,6 +95,9 @@ class KinaseWorkflowExecutor:
         scoring_execution = self._scoring_runner.run(
             request=request,
             config=config,
+            collect_substrate_contributions=bool(
+                config.include_substrate_contributions
+            ),
         )
         prediction_result = self._prediction_runner.run(
             request=request,
@@ -146,7 +149,13 @@ class KinaseWorkflowExecutor:
         request: ResolvedKinaseWorkflowRequest,
         config: ResolvedKinaseExecutionConfig,
     ) -> KinaseScoringRunResult:
-        return self._scoring_runner.run(request=request, config=config)
+        return self._scoring_runner.run(
+            request=request,
+            config=config,
+            collect_substrate_contributions=bool(
+                config.include_substrate_contributions
+            ),
+        )
 
     def _run_prediction_stage(
         self,

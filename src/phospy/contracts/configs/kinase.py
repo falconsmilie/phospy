@@ -166,9 +166,9 @@ class KinaseScoringConfig:
     authoritative downstream lane for the default mode (`rank_weighted_fusion_scores`
     with profile fallback) is always computed in that mode.
 
-    `include_substrate_contributions` controls publication of optional
-    substrate-level contribution rows on the workflow result. It defaults to
-    `False` so routine runs do not attach a large evidence table.
+    `include_substrate_contributions` controls assembly and publication of
+    optional substrate-level contribution rows on the workflow result. It
+    defaults to `False` so routine runs do not build a large evidence table.
 
     `profile_missing_value_strategy` controls column-wise median behavior when a
     kinase profile is built from multiple quantified substrates:

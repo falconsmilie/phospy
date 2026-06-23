@@ -118,8 +118,8 @@ tests/unit/test_kinase_library_workflow_requirements.py,unit,390,8,false,false,,
 tests/unit/test_kinase_science.py,unit,393,11,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for kinase science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_kinase_scoring_transforms.py,unit,25,1,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for kinase scoring transforms, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_kinase_site_sequence_support_collaborators.py,unit,374,7,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in kinase site sequence support collaborators; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-ORCH-002,Route to TST-ORCH-002 for site-sequence collaborator rewrite toward interpreter/workflow boundary behavior assertions.
-tests/unit/test_kinase_substrate_contributions.py,unit,395,4,false,false,,,,,,
-tests/unit/test_kinase_workflow_components.py,unit,1429,33,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase workflow components and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 20 hit(s); indicators: private_member_access
+tests/unit/test_kinase_substrate_contributions.py,unit,481,6,false,false,,,,,,
+tests/unit/test_kinase_workflow_components.py,unit,1466,34,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase workflow components and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 21 hit(s); indicators: private_member_access
 tests/unit/test_kinase_workflow_diagnostics.py,unit,905,16,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase workflow diagnostics and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 5 hit(s); indicators: private_member_access
 tests/unit/test_localisation_policy_preprocessing.py,unit,185,6,true,true,,,,,,
 tests/unit/test_log2_transformer.py,unit,176,6,true,true,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access
@@ -218,6 +218,6 @@ tests/unit/test_workflow_public_import_contract.py,unit,91,7,true,true,public AP
 tests/validation/test_shared_identity_contracts.py,validation,212,5,false,false,,,,,,
 tests/validation/test_workflow_identity_validator_contracts.py,validation,126,3,true,true,,,,,,
 tests/workflows/test_differential_interpreter_fixed_effects.py,workflows,522,8,false,false,,,,,,
-tests/workflows/test_enrichment_workflow.py,workflows,671,20,true,true,,,,,,
+tests/workflows/test_enrichment_workflow.py,workflows,703,21,true,true,,,,,,
 tests/workflows/test_identity_coherence.py,workflows,144,4,false,false,,,,,,
 tests/workflows/test_kinase_activity_ssgsea.py,workflows,115,1,false,false,,,,,,

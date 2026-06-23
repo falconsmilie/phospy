@@ -6,6 +6,7 @@ import pytest
 from phospy import AnalysisReadyPhosphoDataset
 from phospy.api import (
     KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS,
+    KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
     KinaseWorkflow,
@@ -17,6 +18,7 @@ from phospy.science.prediction.scoring import (
     KINASE_SCORE_SOURCE_FUSED_MOTIF_PROFILE_EVIDENCE,
     KINASE_SCORE_SOURCE_PROFILE_ONLY_MOTIF_MISSING_OR_CONSTANT,
 )
+from phospy.workflows.kinase import scoring_runner as scoring_runner_module
 from phospy.workflows.kinase.contributions import (
     KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS,
     KINASE_SUBSTRATE_CONTRIBUTION_EXCLUDED_BELOW_MIN_SUBSTRATES,
@@ -152,9 +154,43 @@ def test_contribution_table_records_statuses_sources_and_ambiguity() -> None:
     assert rows[3]["ambiguous"] is False
 
 
-def test_scoring_runner_collects_internal_contributions_without_scoring_result_api() -> (
-    None
-):
+def test_scoring_runner_skips_contribution_builder_when_collection_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_if_called(**kwargs: object) -> pd.DataFrame:
+        raise AssertionError("substrate contribution table should not be built")
+
+    monkeypatch.setattr(
+        scoring_runner_module,
+        "build_kinase_substrate_contribution_table",
+        fail_if_called,
+    )
+    resolved = KinaseWorkflowInterpreter().run(
+        KinaseWorkflowRequest(
+            dataset=_dataset(),
+            references=_references(),
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=2,
+                deterministic_max_selected_kinases=2,
+                adaptive_ensemble_runs=2,
+            ),
+            activity_config=None,
+        )
+    )
+
+    scoring_execution = KinaseScoringRunner().run(
+        request=resolved,
+        config=resolved.execution_config,
+        collect_substrate_contributions=False,
+    )
+
+    assert scoring_execution.substrate_contributions is None
+    assert not scoring_execution.scoring_result.profile_scores.empty
+    assert scoring_execution.scoring_result.rank_weighted_fusion_scores is not None
+
+
+def test_scoring_runner_collects_internal_contributions_when_requested() -> None:
     dataset = _dataset()
     references = _references()
     request = KinaseWorkflowRequest(
@@ -163,6 +199,7 @@ def test_scoring_runner_collects_internal_contributions_without_scoring_result_a
         scoring_config=KinaseScoringConfig(
             min_substrates=2,
             include_diagnostic_scoring_tables=True,
+            include_substrate_contributions=True,
         ),
         prediction_config=KinasePredictionConfig(
             top_k=2,
@@ -176,6 +213,7 @@ def test_scoring_runner_collects_internal_contributions_without_scoring_result_a
     scoring_execution = KinaseScoringRunner().run(
         request=resolved,
         config=resolved.execution_config,
+        collect_substrate_contributions=True,
     )
 
     assert scoring_execution.substrate_contributions is not None
@@ -194,7 +232,18 @@ def test_scoring_runner_collects_internal_contributions_without_scoring_result_a
     assert scoring_execution.scoring_result.rank_weighted_fusion_scores is not None
 
 
-def test_kinase_workflow_omits_substrate_contributions_by_default() -> None:
+def test_kinase_workflow_skips_substrate_contributions_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_if_called(**kwargs: object) -> pd.DataFrame:
+        raise AssertionError("substrate contribution table should not be built")
+
+    monkeypatch.setattr(
+        scoring_runner_module,
+        "build_kinase_substrate_contribution_table",
+        fail_if_called,
+    )
+
     result = KinaseWorkflow().run(
         _contribution_request(include_substrate_contributions=False)
     )
@@ -261,6 +310,42 @@ def test_kinase_workflow_exposes_substrate_contributions_when_enabled() -> None:
     )
 
 
+def test_substrate_contribution_flag_does_not_change_activity_outputs() -> None:
+    activity_config = KinaseActivityConfig(
+        enabled=True,
+        threshold=0.0,
+        min_substrates=2,
+        top_n_substrates=3,
+    )
+    default_result = KinaseWorkflow().run(
+        _contribution_request(
+            include_substrate_contributions=False,
+            activity_config=activity_config,
+        )
+    )
+    result = KinaseWorkflow().run(
+        _contribution_request(
+            include_substrate_contributions=True,
+            activity_config=activity_config,
+        )
+    )
+
+    assert default_result.activity_result is not None
+    assert result.activity_result is not None
+    pd.testing.assert_frame_equal(
+        default_result.activity_result.activity_matrix,
+        result.activity_result.activity_matrix,
+    )
+    pd.testing.assert_frame_equal(
+        default_result.activity_result.substrate_count_matrix,
+        result.activity_result.substrate_count_matrix,
+    )
+    pd.testing.assert_frame_equal(
+        default_result.activity_result.target_table,
+        result.activity_result.target_table,
+    )
+
+
 def _dataset() -> AnalysisReadyPhosphoDataset:
     display_ids = ["MAPK14;Y182;", "GSK3B;S9;"]
     site_index = site_key_index_from_display_ids(display_ids)
@@ -316,6 +401,7 @@ def _references() -> ReferenceBundle:
 def _contribution_request(
     *,
     include_substrate_contributions: bool,
+    activity_config: KinaseActivityConfig | None = None,
 ) -> KinaseWorkflowRequest:
     return KinaseWorkflowRequest(
         dataset=_ambiguous_dataset(),
@@ -329,7 +415,7 @@ def _contribution_request(
             deterministic_max_selected_kinases=3,
             adaptive_ensemble_runs=2,
         ),
-        activity_config=None,
+        activity_config=activity_config,
         reference_display_ambiguity_policy=(
             KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS
         ),

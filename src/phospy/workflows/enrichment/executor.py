@@ -430,11 +430,12 @@ def _execution_diagnostics(
                 "no_hit_set_count": len(no_hit_set_ids),
                 "no_hit_set_ids": no_hit_set_ids,
             },
-            "multiple_testing_correction": {
-                "method": request.method_config.multiple_testing_correction,
-                "applied": True,
-                "tested_record_count": len(ora_result.records),
-            },
+            "multiple_testing_correction": (
+                _multiple_testing_correction_diagnostics(
+                    method=request.method_config.multiple_testing_correction,
+                    tested_record_count=len(ora_result.records),
+                )
+            ),
             "unmatched_selected_identifier_count": len(unmatched_identifiers),
         }
     )
@@ -444,6 +445,20 @@ def _execution_diagnostics(
             set_size_filter_result=set_size_filter_result,
         )
     return diagnostics
+
+
+def _multiple_testing_correction_diagnostics(
+    *,
+    method: MultipleTestingCorrection,
+    tested_record_count: int,
+) -> dict[str, object]:
+    return {
+        "method": method,
+        "applied": (
+            method != MULTIPLE_TESTING_CORRECTION_NONE and tested_record_count > 0
+        ),
+        "tested_record_count": tested_record_count,
+    }
 
 
 def _foreground_background_intersection(

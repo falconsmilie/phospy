@@ -317,6 +317,29 @@ def test_enrichment_workflow_applies_multiple_testing_correction() -> None:
     }
 
 
+def test_enrichment_workflow_reports_none_correction_not_applied() -> None:
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=_gene_collection(),
+        selected_identifiers=("AKT1", "MAPK1"),
+        background_universe=("AKT1", "MAPK1", "MTOR", "CDK1", "CDK2"),
+        config=EnrichmentConfig(multiple_testing_correction="none"),
+    )
+
+    result = EnrichmentWorkflow().run(request)
+
+    assert result.diagnostics["multiple_testing_correction"] == {
+        "method": "none",
+        "applied": False,
+        "tested_record_count": 3,
+    }
+    assert tuple(record.adjusted_p_value for record in result.records) == (
+        pytest.approx(tuple(record.p_value for record in result.records))
+    )
+    assert all(record.correction_method == "none" for record in result.records)
+
+
 @pytest.mark.parametrize("method", SUPPORTED_MULTIPLE_TESTING_CORRECTIONS)
 def test_enrichment_workflow_supports_configured_correction_methods(
     method: MultipleTestingCorrection,
@@ -342,7 +365,12 @@ def test_enrichment_workflow_supports_configured_correction_methods(
     )
     assert all(record.correction_method == method for record in result.records)
     assert result.method_metadata["multiple_testing_correction"] == method
-    assert result.diagnostics["multiple_testing_correction"]["method"] == method
+    correction_diagnostics = result.diagnostics["multiple_testing_correction"]
+    expected_applied = method != "none"
+    assert isinstance(correction_diagnostics, dict)
+    assert correction_diagnostics["method"] == method
+    assert correction_diagnostics["applied"] is expected_applied
+    assert correction_diagnostics["tested_record_count"] == len(result.records)
     assert result.provenance is not None
     assert result.provenance.workflow_parameters["multiple_testing_correction"] == (
         method
@@ -586,7 +614,11 @@ def test_enrichment_set_size_filter_reports_all_sets_dropped() -> None:
     assert result.set_collection_summary["tested_set_count"] == 0
     assert result.set_collection_summary["dropped_set_count"] == 2
     assert result.diagnostics["ora"]["record_count"] == 0
-    assert result.diagnostics["multiple_testing_correction"]["tested_record_count"] == 0
+    assert result.diagnostics["multiple_testing_correction"] == {
+        "method": "benjamini_hochberg",
+        "applied": False,
+        "tested_record_count": 0,
+    }
 
 
 def test_enrichment_set_size_filter_adjusts_p_values_over_tested_sets_only() -> None:

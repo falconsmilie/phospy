@@ -98,6 +98,7 @@ class KinaseScoringRunner:
         *,
         request: ResolvedKinaseWorkflowRequest,
         config: ResolvedKinaseExecutionConfig,
+        collect_substrate_contributions: bool = False,
     ) -> KinaseScoringRunResult:
         include_diagnostic_tables = config.include_diagnostic_scoring_tables
         scoring_min_substrates = int(config.scoring_min_substrates)
@@ -127,6 +128,7 @@ class KinaseScoringRunner:
             return self._run_kinase_library_motif_mode(
                 request=request,
                 config=config,
+                collect_substrate_contributions=collect_substrate_contributions,
                 profile_scores=profile_scores,
                 profile_build=profile_build,
                 sequence_series=sequence_series,
@@ -136,6 +138,7 @@ class KinaseScoringRunner:
             return self._run_combined_profile_motif_mode(
                 request=request,
                 config=config,
+                collect_substrate_contributions=collect_substrate_contributions,
                 profile_scores=profile_scores,
                 profile_build=profile_build,
                 sequence_series=sequence_series,
@@ -223,6 +226,7 @@ class KinaseScoringRunner:
         substrate_contributions = self._build_substrate_contributions(
             request=request,
             config=config,
+            collect=collect_substrate_contributions,
             profile_build=profile_build,
             scoring_values=downstream_score_matrix,
             score_component=_score_source_label(downstream_score_source),
@@ -242,6 +246,7 @@ class KinaseScoringRunner:
         *,
         request: ResolvedKinaseWorkflowRequest,
         config: ResolvedKinaseExecutionConfig,
+        collect_substrate_contributions: bool,
         profile_scores: pd.DataFrame,
         profile_build: KinaseProfileBuild,
         sequence_series: pd.Series,
@@ -273,6 +278,7 @@ class KinaseScoringRunner:
         substrate_contributions = self._build_substrate_contributions(
             request=request,
             config=config,
+            collect=collect_substrate_contributions,
             profile_build=profile_build,
             scoring_values=library_result.scores,
             score_component=DownstreamScoreSource.KINASE_LIBRARY_MOTIF_SCORES.value,
@@ -292,6 +298,7 @@ class KinaseScoringRunner:
         *,
         request: ResolvedKinaseWorkflowRequest,
         config: ResolvedKinaseExecutionConfig,
+        collect_substrate_contributions: bool,
         profile_scores: pd.DataFrame,
         profile_build: KinaseProfileBuild,
         sequence_series: pd.Series,
@@ -347,6 +354,7 @@ class KinaseScoringRunner:
         substrate_contributions = self._build_substrate_contributions(
             request=request,
             config=config,
+            collect=collect_substrate_contributions,
             profile_build=profile_build,
             scoring_values=combined_scores,
             score_component=DownstreamScoreSource.COMBINED_PROFILE_MOTIF_SCORES.value,
@@ -394,11 +402,14 @@ class KinaseScoringRunner:
         *,
         request: ResolvedKinaseWorkflowRequest,
         config: ResolvedKinaseExecutionConfig,
+        collect: bool,
         profile_build: KinaseProfileBuild,
         scoring_values: pd.DataFrame,
         score_component: str,
         score_source_matrix: pd.DataFrame | None,
-    ) -> pd.DataFrame:
+    ) -> pd.DataFrame | None:
+        if not collect:
+            return None
         return build_kinase_substrate_contribution_table(
             kinase_substrate_map=request.kinase_substrate_map,
             scoring_values=scoring_values,
