@@ -21,6 +21,7 @@
       },
       "output": {
         "network_correlation_threshold": 0.5,
+        "network_min_paired_finite_observations": 2,
         "network_policy": "signed"
       },
       "performance": {

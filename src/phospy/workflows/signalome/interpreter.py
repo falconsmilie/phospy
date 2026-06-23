@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import pandas as pd
 
+from phospy.contracts.configs import (
+    SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT,
+)
 from phospy.contracts.requests import SignalomeWorkflowRequest
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.datasets.internal_view import DatasetInternalView
@@ -226,6 +229,13 @@ class SignalomeWorkflowInterpreter:
                 request.config.output.network_correlation_threshold
             ),
             network_policy=request.config.output.network_policy,
+            network_min_paired_finite_observations=(
+                SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT
+                if (
+                    request.config.output.network_min_paired_finite_observations is None
+                )
+                else int(request.config.output.network_min_paired_finite_observations)
+            ),
             assignment_policy=request.config.scientific.assignment_policy,
             score_preconditioning_policy=(
                 request.config.validation.score_preconditioning_policy

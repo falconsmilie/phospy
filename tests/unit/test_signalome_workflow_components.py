@@ -519,6 +519,9 @@ def test_signalome_provenance_builder_records_scale_and_backend_fields() -> None
         "network_correlation_threshold": (
             resolved.execution_config.network_correlation_threshold
         ),
+        "network_min_paired_finite_observations": (
+            resolved.execution_config.network_min_paired_finite_observations
+        ),
     }
     assert (
         "correlation edge between kinase score profiles" in (network_semantics["edges"])

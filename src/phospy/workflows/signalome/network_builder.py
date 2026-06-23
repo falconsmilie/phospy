@@ -68,6 +68,7 @@ class SignalomeNetworkBuilder:
                 kinase_substrates=support_summary.kinase_substrates,
                 threshold=config.network_correlation_threshold,
                 network_policy=config.network_policy,
+                min_paired_observations=config.network_min_paired_finite_observations,
             )
         except WorkflowStageError as exc:
             raise_boundary_error(
@@ -83,6 +84,9 @@ class SignalomeNetworkBuilder:
                 score_variance_kinases=score_variance_count,
                 network_correlation_threshold=config.network_correlation_threshold,
                 network_policy=config.network_policy,
+                network_min_paired_finite_observations=(
+                    config.network_min_paired_finite_observations
+                ),
                 stage_error=str(exc),
             )
         if network_edges.empty:
@@ -99,6 +103,9 @@ class SignalomeNetworkBuilder:
                 score_variance_kinases=score_variance_count,
                 network_correlation_threshold=config.network_correlation_threshold,
                 network_policy=config.network_policy,
+                network_min_paired_finite_observations=(
+                    config.network_min_paired_finite_observations
+                ),
                 selected_module_count=module_selection_details(clustering_result)[
                     "selected_module_count"
                 ],

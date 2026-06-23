@@ -283,6 +283,9 @@ def _build_signalome_config_payload(
                 config.network_correlation_threshold
             ),
             "network_policy": str(config.network_policy),
+            "network_min_paired_finite_observations": int(
+                config.network_min_paired_finite_observations
+            ),
         },
         "performance": {
             "max_exact_tree_sites": int(config.max_exact_tree_sites),
@@ -437,6 +440,9 @@ def _build_scientific_policy_records(
         _build_signalome_network_policy_record(
             network_policy=str(config.network_policy),
             network_correlation_threshold=float(config.network_correlation_threshold),
+            network_min_paired_finite_observations=int(
+                config.network_min_paired_finite_observations
+            ),
         ),
         ScorePreconditioningPolicy(
             policy=str(request.score_preconditioning_diagnostics.policy),
@@ -565,6 +571,9 @@ def _build_signalome_score_semantics(
                 "network_correlation_threshold": float(
                     config.network_correlation_threshold
                 ),
+                "network_min_paired_finite_observations": int(
+                    config.network_min_paired_finite_observations
+                ),
             },
             "interpretation_limit": (
                 "correlations are not causal evidence and do not prove signalling "
@@ -654,6 +663,9 @@ def _build_signalome_score_semantics(
             "module_selection_max_clusters": int(config.module_selection_max_clusters),
             "network_correlation_threshold": float(
                 config.network_correlation_threshold
+            ),
+            "network_min_paired_finite_observations": int(
+                config.network_min_paired_finite_observations
             ),
             "max_exact_tree_sites": int(config.max_exact_tree_sites),
             "max_full_candidate_scoring_sites": int(
@@ -753,6 +765,7 @@ def _build_signalome_network_policy_record(
     *,
     network_policy: str,
     network_correlation_threshold: float,
+    network_min_paired_finite_observations: int,
 ) -> ScientificPolicyRecord:
     return ScientificPolicyRecord(
         id=ScientificPolicyId.SIGNALOME_NETWORK_POLICY,
@@ -765,6 +778,9 @@ def _build_signalome_network_policy_record(
         parameters={
             "network_policy": network_policy,
             "network_correlation_threshold": float(network_correlation_threshold),
+            "network_min_paired_finite_observations": int(
+                network_min_paired_finite_observations
+            ),
         },
         assumptions=(
             "Network policy defines how sign and magnitude thresholds are applied.",

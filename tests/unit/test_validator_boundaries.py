@@ -216,6 +216,49 @@ def _kinase_result(
     )
 
 
+def _two_site_kinase_result() -> KinaseWorkflowResult:
+    display_ids = ["MAPK14;Y182;", "AKT1;T308;"]
+    site_index = _site_keys(display_ids)
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=pd.DataFrame(
+            {"sample_a": [1.0, 2.0], "sample_b": [1.5, 2.5]},
+            index=site_index.copy(),
+        ),
+        site_metadata=pd.DataFrame(
+            {
+                "site_key": site_index.tolist(),
+                "display_id": display_ids,
+                **site_key_context_columns(site_index),
+                "gene_symbol": ["MAPK14", "AKT1"],
+                "site": ["Y182", "T308"],
+                "site_sequence": ["AAAAAAAYAAAAAAA", "AAAAAAATAAAAAAA"],
+                "protein_id": ["MAPK14", "AKT1"],
+            },
+            index=site_index.copy(),
+        ),
+        organism=Organism.RAT,
+        **_dataset_state_kwargs(has_total_matrix=False),
+    )
+    prediction_matrix = pd.DataFrame(
+        {"MAP2K6": [0.9, 0.1], "AKT1": [0.2, 0.8]},
+        index=site_index.copy(),
+    )
+    score_matrix = pd.DataFrame(
+        {"MAP2K6": [1.5, 0.5], "AKT1": [0.25, 1.25]},
+        index=site_index.copy(),
+    )
+    return KinaseWorkflowResult(
+        dataset=dataset,
+        references=_references(),
+        scoring_result=KinaseScoringResult(
+            profile_scores=score_matrix,
+            rank_weighted_fusion_scores=score_matrix,
+        ),
+        prediction_result=KinasePredictionResult(pred_mat=prediction_matrix),
+        activity_result=None,
+    )
+
+
 def _mixed_total_kinase_request(
     *, allow_mixed_total_protein_quantitative_meaning: bool = False
 ) -> KinaseWorkflowRequest:
@@ -1291,6 +1334,42 @@ def test_signalome_request_module_count_optional_positive_integer_boundary(
 
     with pytest.raises(WorkflowValidationError, match=pattern):
         SignalomeClusteringConfig(module_count=module_count)  # type: ignore[arg-type]
+
+
+def test_signalome_validator_accepts_network_minimum_paired_observation_setting() -> (
+    None
+):
+    request = SignalomeWorkflowRequest(
+        kinase_result=_two_site_kinase_result(),
+        config=build_signalome_config(
+            network_policy="absolute_threshold",
+            network_min_paired_finite_observations=2,
+            substrate_support_cutoff=0.5,
+        ),
+    )
+
+    validated = SignalomeWorkflowValidator().run(request)
+
+    assert validated is request
+
+
+def test_signalome_validator_rejects_network_minimum_above_score_observations() -> None:
+    request = SignalomeWorkflowRequest(
+        kinase_result=_two_site_kinase_result(),
+        config=build_signalome_config(
+            network_min_paired_finite_observations=3,
+            substrate_support_cutoff=0.5,
+        ),
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match=(
+            "config.output.network_min_paired_finite_observations "
+            "\\(3\\) cannot exceed available downstream score observations \\(2\\)"
+        ),
+    ):
+        SignalomeWorkflowValidator().run(request)
 
 
 def test_signalome_request_max_exact_clustering_sites_policy_fails_at_boundary() -> (

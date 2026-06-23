@@ -61,8 +61,14 @@ _VALIDATION_ALLOWED_FIELDS = frozenset(
 )
 _VALIDATION_REQUIRED_FIELDS = _VALIDATION_ALLOWED_FIELDS
 
-_OUTPUT_ALLOWED_FIELDS = frozenset({"network_correlation_threshold", "network_policy"})
-_OUTPUT_REQUIRED_FIELDS = _OUTPUT_ALLOWED_FIELDS
+_OUTPUT_ALLOWED_FIELDS = frozenset(
+    {
+        "network_correlation_threshold",
+        "network_policy",
+        "network_min_paired_finite_observations",
+    }
+)
+_OUTPUT_REQUIRED_FIELDS = frozenset({"network_correlation_threshold", "network_policy"})
 
 _PERFORMANCE_ALLOWED_FIELDS = frozenset(
     {"max_exact_tree_sites", "max_full_candidate_scoring_sites"}
@@ -215,6 +221,12 @@ def signalome_config_from_payload(
         raise PhosPyInputError(
             f"{scope}.signalome_config.output.network_policy must be one of: {allowed}"
         )
+    network_min_paired_finite_observations = _parse_optional_int(
+        output_payload.get("network_min_paired_finite_observations"),
+        field_name=(
+            f"{scope}.signalome_config.output.network_min_paired_finite_observations"
+        ),
+    )
 
     performance_payload = require_mapping(
         payload.get("performance"),
@@ -289,6 +301,9 @@ def signalome_config_from_payload(
                 ),
             ),
             network_policy=network_policy,  # type: ignore[arg-type]
+            network_min_paired_finite_observations=(
+                network_min_paired_finite_observations
+            ),
         ),
         performance=SignalomePerformanceConfig(
             max_exact_tree_sites=max_exact_tree_sites,

@@ -380,6 +380,30 @@ def test_candidate_correlation_insufficient_observations_remains_nan() -> None:
     assert candidates.at[0, "correlation_status"] == "insufficient_observations"
 
 
+def test_candidate_correlation_respects_minimum_paired_observations() -> None:
+    downstream_scores = pd.DataFrame(
+        {
+            "K1": [1.0, 2.0, 3.0],
+            "K2": [1.0, 2.0, 3.0],
+        },
+        index=pd.Index(["S1", "S2", "S3"], name="site_id"),
+    )
+
+    edges, _, candidates, diagnostics = build_kinase_network_with_diagnostics(
+        downstream_score_matrix=downstream_scores,
+        kinase_order=["K1", "K2"],
+        kinase_substrates={"K1": (), "K2": ()},
+        threshold=0.0,
+        network_policy="signed",
+        min_paired_observations=4,
+    )
+
+    assert edges.empty
+    assert candidates.at[0, "valid_observations"] == 3
+    assert candidates.at[0, "correlation_status"] == "insufficient_observations"
+    assert diagnostics.insufficient_observation_correlations == 1
+
+
 def test_candidate_correlation_classifies_missing_and_non_finite_inputs() -> None:
     missing_scores = pd.DataFrame(
         {

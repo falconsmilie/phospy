@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from phospy.contracts.configs import SignalomeConfig
 from phospy.contracts.configs.localisation import LocalisationRequirement
 from phospy.contracts.requests import SignalomeWorkflowRequest
 from phospy.contracts.results import KinaseWorkflowResult
@@ -180,6 +181,11 @@ class SignalomeWorkflowValidator:
             raise WorkflowValidationError(
                 f"{score_field_name} must contain at least one kinase column"
             )
+        self._require_network_min_paired_observations_compatible(
+            config=config,
+            score_matrix=score_matrix,
+            score_field_name=score_field_name,
+        )
         self._require_site_identity_and_protein_grouping_metadata(
             site_metadata=dataset_view.site_metadata,
             dataset_sites=dataset_view.phospho.index,
@@ -190,6 +196,26 @@ class SignalomeWorkflowValidator:
             allow_opaque_site_values=dataset.opaque_site_values_allowed,
         )
         return request
+
+    @staticmethod
+    def _require_network_min_paired_observations_compatible(
+        *,
+        config: SignalomeConfig,
+        score_matrix: pd.DataFrame,
+        score_field_name: str,
+    ) -> None:
+        threshold = config.output.network_min_paired_finite_observations
+        if threshold is None:
+            return
+        available_observations = int(score_matrix.shape[0])
+        if int(threshold) <= available_observations:
+            return
+        raise WorkflowValidationError(
+            "signalome workflow request config.output."
+            "network_min_paired_finite_observations "
+            f"({int(threshold)}) cannot exceed available downstream score "
+            f"observations ({available_observations}) in {score_field_name}"
+        )
 
     @staticmethod
     def _require_site_identity_and_protein_grouping_metadata(

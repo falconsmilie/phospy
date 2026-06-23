@@ -31,6 +31,7 @@ def build_signalome_config(
     substrate_support_cutoff: float = 0.5,
     network_correlation_threshold: float = 0.5,
     network_policy: SignalomeKinaseNetworkPolicy = SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
+    network_min_paired_finite_observations: int | None = None,
     assignment_policy: SignalomeAssignmentPolicy = SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
     score_preconditioning_policy: SignalomeScorePreconditioningPolicy = (
         SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
@@ -87,6 +88,9 @@ def build_signalome_config(
         output=SignalomeOutputConfig(
             network_correlation_threshold=network_correlation_threshold,
             network_policy=network_policy,
+            network_min_paired_finite_observations=(
+                network_min_paired_finite_observations
+            ),
         ),
         performance=SignalomePerformanceConfig(
             max_exact_tree_sites=max_exact_tree_sites,

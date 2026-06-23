@@ -8,6 +8,7 @@ from typing import Protocol
 import pandas as pd
 
 from phospy.contracts.configs import (
+    SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT,
     SignalomeAssignmentPolicy,
     SignalomeCandidateScoringPolicy,
     SignalomeKinaseNetworkPolicy,
@@ -53,6 +54,9 @@ class ResolvedSignalomeExecutionConfig:
     max_full_candidate_scoring_sites: int
     requested_module_count: int | None
     clustering_engine: str = SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
+    network_min_paired_finite_observations: int = (
+        SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT
+    )
     candidate_scoring_policy_definition: (
         SignalomeCandidateScoringPolicyDefinition | None
     ) = None

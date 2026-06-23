@@ -85,6 +85,16 @@ class SignalomeWorkflowConfigSnapshot:
                         self.signalome_config.output.network_correlation_threshold
                     ),
                     "network_policy": str(self.signalome_config.output.network_policy),
+                    "network_min_paired_finite_observations": (
+                        None
+                        if (
+                            self.signalome_config.output.network_min_paired_finite_observations
+                            is None
+                        )
+                        else int(
+                            self.signalome_config.output.network_min_paired_finite_observations
+                        )
+                    ),
                 },
                 "performance": {
                     "max_exact_tree_sites": int(

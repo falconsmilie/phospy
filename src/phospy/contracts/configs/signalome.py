@@ -78,6 +78,8 @@ SIGNALOME_KINASE_NETWORK_POLICIES = frozenset(
         SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
     }
 )
+SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_FLOOR = 2
+SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT = 2
 
 
 @dataclass(frozen=True, slots=True)
@@ -227,6 +229,7 @@ class SignalomeOutputConfig:
     network_policy: SignalomeKinaseNetworkPolicy = (
         SIGNALOME_KINASE_NETWORK_POLICY_SIGNED
     )
+    network_min_paired_finite_observations: int | None = None
 
     def __post_init__(self) -> None:
         _require_real_between(
@@ -243,6 +246,16 @@ class SignalomeOutputConfig:
             raise WorkflowValidationError(
                 "signalome workflow request config.output.network_policy "
                 f"must be one of: {allowed_policies}"
+            )
+        if self.network_min_paired_finite_observations is not None:
+            _require_int_at_least(
+                self.network_min_paired_finite_observations,
+                field_name=(
+                    "signalome workflow request config.output."
+                    "network_min_paired_finite_observations"
+                ),
+                minimum=SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_FLOOR,
+                error_type=WorkflowValidationError,
             )
 
 
@@ -375,6 +388,8 @@ __all__ = [
     "SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT",
     "SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_FLOOR",
     "SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT",
+    "SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT",
+    "SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_FLOOR",
     "SIGNALOME_SCORE_PRECONDITIONING_POLICIES",
     "SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT",
     "SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP",

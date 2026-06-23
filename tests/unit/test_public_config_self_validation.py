@@ -24,6 +24,7 @@ from phospy.api.configs import (
     SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
     SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT,
     SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT,
+    SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
     DatasetComparisonBuildingConfig,
@@ -632,6 +633,36 @@ def test_kinase_activity_config_self_validates(
             "signalome workflow request config.output.network_policy",
         ),
         (
+            lambda: SignalomeOutputConfig(network_min_paired_finite_observations=1),
+            (
+                "signalome workflow request config.output."
+                "network_min_paired_finite_observations"
+            ),
+        ),
+        (
+            lambda: SignalomeOutputConfig(
+                network_min_paired_finite_observations=True  # type: ignore[arg-type]
+            ),
+            (
+                "signalome workflow request config.output."
+                "network_min_paired_finite_observations must be an int"
+            ),
+        ),
+        (
+            lambda: SignalomeOutputConfig(network_min_paired_finite_observations=0),
+            (
+                "signalome workflow request config.output."
+                "network_min_paired_finite_observations"
+            ),
+        ),
+        (
+            lambda: SignalomeOutputConfig(network_min_paired_finite_observations=-1),
+            (
+                "signalome workflow request config.output."
+                "network_min_paired_finite_observations"
+            ),
+        ),
+        (
             lambda: SignalomeScientificConfig(assignment_policy="invalid"),  # type: ignore[arg-type]
             "signalome workflow request config.scientific.assignment_policy",
         ),
@@ -774,6 +805,16 @@ def test_signalome_config_accepts_supported_clustering_engine_names() -> None:
     )
 
 
+def test_signalome_output_config_accepts_network_minimum_observation_policy() -> None:
+    config = SignalomeOutputConfig(
+        network_policy="absolute_threshold",
+        network_min_paired_finite_observations=3,
+    )
+
+    assert config.network_policy == "absolute_threshold"
+    assert config.network_min_paired_finite_observations == 3
+
+
 def test_signalome_config_presets_return_expected_values() -> None:
     default = SignalomeConfig()
     strict = SignalomeConfig.strict()
@@ -804,6 +845,8 @@ def test_signalome_config_presets_return_expected_values() -> None:
         sampled.performance.max_full_candidate_scoring_sites
         == SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT
     )
+    assert default.output.network_min_paired_finite_observations is None
+    assert SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT == 2
 
 
 def test_signalome_config_removes_large_dataset_preset() -> None:

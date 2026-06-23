@@ -12,6 +12,7 @@ from phospy.contracts.configs import (
     SIGNALOME_KINASE_NETWORK_POLICY_ABSOLUTE_THRESHOLD,
     SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY,
     SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
+    SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT,
     SignalomeKinaseNetworkPolicy,
 )
 from phospy.errors.workflows import WorkflowStageError
@@ -46,6 +47,9 @@ def build_kinase_network(
     network_policy: SignalomeKinaseNetworkPolicy = (
         SIGNALOME_KINASE_NETWORK_POLICY_SIGNED
     ),
+    min_paired_observations: int = (
+        SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT
+    ),
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Build deterministic score-profile correlation edge and node tables."""
 
@@ -55,6 +59,7 @@ def build_kinase_network(
         kinase_substrates=kinase_substrates,
         threshold=threshold,
         network_policy=network_policy,
+        min_paired_observations=min_paired_observations,
     )
     return edges, nodes
 
@@ -67,6 +72,9 @@ def build_kinase_network_with_diagnostics(
     threshold: float,
     network_policy: SignalomeKinaseNetworkPolicy = (
         SIGNALOME_KINASE_NETWORK_POLICY_SIGNED
+    ),
+    min_paired_observations: int = (
+        SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT
     ),
 ) -> tuple[
     pd.DataFrame,
@@ -103,6 +111,7 @@ def build_kinase_network_with_diagnostics(
     candidate_correlations = _build_candidate_correlations(
         aligned_scores=aligned_scores,
         kinase_index=kinase_index,
+        min_paired_observations=min_paired_observations,
     )
     finite_candidates = candidate_correlations.loc[
         candidate_correlations.loc[:, CORRELATION_STATUS_COLUMN].eq(
@@ -182,6 +191,7 @@ def _build_candidate_correlations(
     *,
     aligned_scores: pd.DataFrame,
     kinase_index: pd.Index,
+    min_paired_observations: int,
 ) -> pd.DataFrame:
     if len(kinase_index) < 2:
         return _empty_candidate_correlation_table()
@@ -198,6 +208,7 @@ def _build_candidate_correlations(
                 _classify_pair_correlation(
                     source_values=source_values,
                     target_values=score_values[target_kinase],
+                    min_paired_observations=min_paired_observations,
                 )
             )
             rows.append(
@@ -245,7 +256,9 @@ def _classify_pair_correlation(
     *,
     source_values: np.ndarray,
     target_values: np.ndarray,
-    min_paired_observations: int = 2,
+    min_paired_observations: int = (
+        SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT
+    ),
 ) -> tuple[float, str, int, str | None]:
     source_array = np.asarray(source_values, dtype=float)
     target_array = np.asarray(target_values, dtype=float)

@@ -84,7 +84,7 @@ Config sections:
 | `scientific` | `SignalomeScientificConfig` | `substrate_support_cutoff`, `assignment_policy`. |
 | `clustering` | `SignalomeClusteringConfig` | module count, automatic selection thresholds, candidate scoring policy, clustering engine. |
 | `validation` | `SignalomeValidationConfig` | score preconditioning, localisation, mixed total-protein guardrails. |
-| `output` | `SignalomeOutputConfig` | network threshold and network policy. |
+| `output` | `SignalomeOutputConfig` | network threshold, network policy, and optional minimum paired finite observations. |
 | `performance` | `SignalomePerformanceConfig` | scale guardrails for exact tree construction and full candidate scoring. |
 
 Useful presets:
@@ -106,6 +106,7 @@ Important fields:
 | `clustering.clustering_engine` | `"scipy_hierarchical"` | `"exact_python"` is also available. |
 | `validation.score_preconditioning_policy` | `"error_on_drop"` | `"allow_and_report"` drops all-missing score rows and reports counts. |
 | `output.network_policy` | `"signed"` | Also supports `"positive_only"` and `"absolute_threshold"`. |
+| `output.network_min_paired_finite_observations` | `None` | Use `None` to keep the built-in minimum of two paired finite observations for network correlations. Set an integer to require more observations. |
 | `performance.max_exact_tree_sites` | `2000` | Exact tree scale guardrail. |
 
 ## Running the Workflow
@@ -175,7 +176,7 @@ Key output meanings:
 | `kinase_network.nodes` | Kinases retained in the aligned prediction and downstream score matrices. `degree` counts retained correlation edges and `n_substrates` counts predicted substrates above the support cutoff. |
 | `kinase_network.edges` | Correlation edges between kinase score profiles. `source_kinase` and `target_kinase` are deterministic table labels, not inferred direction. |
 | `kinase_network.edges.correlation` | Edge weight derived from pairwise finite downstream score-profile correlations. `signed`, `positive_only`, and `absolute_threshold` policies control thresholding and whether sign is retained or stored as magnitude. |
-| `kinase_network.candidate_correlations` | Candidate pairwise correlations before edge filtering, with status and valid-observation counts. |
+| `kinase_network.candidate_correlations` | Candidate pairwise correlations before edge filtering, with status and paired finite observation counts. |
 | `expanded_signalome.regulated_module_ids` | Stable legacy field name for score-supported module IDs linked to a focal kinase. It does not mean experimental regulation was shown. |
 
 Network edges are exploratory score-profile associations. Correlations do not

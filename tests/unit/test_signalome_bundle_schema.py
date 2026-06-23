@@ -61,6 +61,7 @@ def _full_signalome_snapshot_payload(
         "output": {
             "network_correlation_threshold": 0.6,
             "network_policy": "signed",
+            "network_min_paired_finite_observations": None,
         },
         "performance": {
             "max_exact_tree_sites": 2000,
@@ -95,7 +96,11 @@ def _full_signalome_snapshot_payload(
             assert isinstance(validation, dict)
             validation[key] = value
             continue
-        if key in {"network_correlation_threshold", "network_policy"}:
+        if key in {
+            "network_correlation_threshold",
+            "network_policy",
+            "network_min_paired_finite_observations",
+        }:
             output = signalome_config["output"]
             assert isinstance(output, dict)
             output[key] = value
@@ -148,6 +153,29 @@ def test_signalome_snapshot_supports_network_policy_payload() -> None:
     assert snapshot.signalome_config.output.network_policy == "absolute_threshold"
 
 
+def test_signalome_snapshot_supports_network_minimum_observation_payload() -> None:
+    snapshot = SignalomeWorkflowConfigSnapshot.from_payload(
+        _full_signalome_snapshot_payload(network_min_paired_finite_observations=3)
+    )
+
+    assert snapshot.signalome_config.output.network_min_paired_finite_observations == 3
+
+
+def test_signalome_snapshot_defaults_missing_network_minimum_observation_payload() -> (
+    None
+):
+    payload = _full_signalome_snapshot_payload()
+    output = payload["signalome_config"]["output"]
+    assert isinstance(output, dict)
+    output.pop("network_min_paired_finite_observations", None)
+
+    snapshot = SignalomeWorkflowConfigSnapshot.from_payload(payload)
+
+    assert (
+        snapshot.signalome_config.output.network_min_paired_finite_observations is None
+    )
+
+
 def test_signalome_snapshot_round_trip_preserves_network_policy() -> None:
     snapshot = SignalomeWorkflowConfigSnapshot(
         signalome_config=SignalomeConfig(
@@ -163,6 +191,7 @@ def test_signalome_snapshot_round_trip_preserves_network_policy() -> None:
             output=SignalomeOutputConfig(
                 network_correlation_threshold=0.7,
                 network_policy="absolute_threshold",
+                network_min_paired_finite_observations=3,
             ),
         )
     )
@@ -195,6 +224,7 @@ def test_signalome_snapshot_payload_round_trip_preserves_all_fields() -> None:
             "output": {
                 "network_correlation_threshold": 0.73,
                 "network_policy": "absolute_threshold",
+                "network_min_paired_finite_observations": 4,
             },
             "performance": {
                 "max_exact_tree_sites": 2500,
