@@ -139,8 +139,15 @@ def save_kinase_workflow_bundle(
             written=written,
             written_key="scoring.kinase_library_kinase_diagnostics",
         ),
+        "substrate_contributions": write_optional_bundle_table(
+            table=result.substrate_contributions,
+            bundle_root=bundle_root,
+            relative_path=Path("scoring") / f"substrate_contributions{suffix}",
+            written=written,
+            written_key="scoring.substrate_contributions",
+        ),
     }
-    scoring_tables = _drop_absent_kinase_library_scoring_tables(scoring_tables)
+    scoring_tables = _drop_absent_optional_scoring_tables(scoring_tables)
 
     prediction_tables = {
         "pred_mat": write_bundle_table(
@@ -261,16 +268,17 @@ def save_kinase_workflow_bundle(
     return written
 
 
-def _drop_absent_kinase_library_scoring_tables(
+def _drop_absent_optional_scoring_tables(
     scoring_tables: dict[str, object],
 ) -> dict[str, object]:
-    """Omit absent optional Kinase Library extension tables from manifests."""
+    """Omit absent optional scoring tables from manifests."""
 
     optional_keys = (
         "kinase_library_motif_scores",
         "combined_profile_motif_scores",
         "kinase_library_site_diagnostics",
         "kinase_library_kinase_diagnostics",
+        "substrate_contributions",
     )
     return {
         key: value

@@ -31,6 +31,7 @@ kinase/
     motif_scores.*                    # optional
     rank_weighted_fusion_scores.*     # optional
     score_fusion_weights.*            # optional
+    substrate_contributions.*         # optional
   prediction/
     pred_mat.*
     substrate_list.*                  # optional

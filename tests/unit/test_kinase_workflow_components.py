@@ -27,6 +27,7 @@ from phospy.science.sites.site_keys import (
     build_protein_scoped_site_key,
     encode_site_key,
 )
+from phospy.tables.kinase import KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS
 from phospy.validation.workflows.activity import KinaseActivityInputValidator
 from phospy.workflows.kinase.activity_runner import KinaseActivityRunner
 from phospy.workflows.kinase.component_models import KinaseScoringRunResult
@@ -268,6 +269,7 @@ def _config(
     *,
     prediction_mode: str = KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     activity: ResolvedKinaseActivityExecutionConfig | None = None,
+    include_substrate_contributions: bool = False,
 ) -> ResolvedKinaseExecutionConfig:
     return ResolvedKinaseExecutionConfig(
         scoring_min_substrates=2,
@@ -281,6 +283,7 @@ def _config(
         prediction_n_iterations=3,
         prediction_random_state=7,
         activity=activity,
+        include_substrate_contributions=include_substrate_contributions,
     )
 
 
@@ -508,6 +511,7 @@ def test_kinase_executor_consumes_resolved_request_without_reference_discovery()
             scoring_result: object,
             prediction_result: object,
             activity_result: object,
+            substrate_contributions: object,
         ) -> object:
             events.append("provenance")
             assert request is resolved
@@ -515,6 +519,7 @@ def test_kinase_executor_consumes_resolved_request_without_reference_discovery()
             assert scoring_result is expected_scoring_result
             assert prediction_result is expected_prediction_result
             assert activity_result is expected_activity_result
+            assert substrate_contributions is None
             return expected_provenance
 
     class _ResultAssembler:
@@ -528,6 +533,7 @@ def test_kinase_executor_consumes_resolved_request_without_reference_discovery()
             site_attrition_summary: object,
             activity_result: object,
             provenance: object,
+            substrate_contributions: object,
         ) -> object:
             events.append("assembly")
             assert request is resolved
@@ -537,6 +543,7 @@ def test_kinase_executor_consumes_resolved_request_without_reference_discovery()
             assert site_attrition_summary is expected_site_attrition_summary
             assert activity_result is expected_activity_result
             assert provenance is expected_provenance
+            assert substrate_contributions is None
             return expected_result
 
     result = KinaseWorkflowExecutor(
@@ -1326,6 +1333,26 @@ def test_result_assembler_preserves_owned_dataframe_transfer() -> None:
             "rank": [1],
         }
     )
+    substrate_contributions = pd.DataFrame.from_records(
+        [
+            {
+                "kinase": "MAP2K6",
+                "substrate_site": str(request.scoring_site_index[0]),
+                "substrate_identifier": "MAPK14;Y182;",
+                "value_used_in_scoring": 0.9,
+                "score_component": "rank_weighted_fusion_scores",
+                "score_source": "profile_only_motif_missing_or_constant",
+                "reference_source_name": "fixture",
+                "reference_source_version": "v1",
+                "reference_bundle_id": "fixture_bundle",
+                "reference_identifier_namespace": "display_id",
+                "status": "included",
+                "exclusion_reason": None,
+                "ambiguous": False,
+            }
+        ],
+        columns=pd.Index(KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS),
+    )
     scoring_result = KinaseScoringResult._from_owned(profile_scores=profile_scores)
     prediction_result = KinasePredictionResult._from_owned(
         pred_mat=pred_mat,
@@ -1374,6 +1401,7 @@ def test_result_assembler_preserves_owned_dataframe_transfer() -> None:
         ),
         activity_result=None,
         provenance=provenance,
+        substrate_contributions=substrate_contributions,
     )
 
     assert assembled.scoring_result is scoring_result
@@ -1384,3 +1412,4 @@ def test_result_assembler_preserves_owned_dataframe_transfer() -> None:
     assert (
         assembled.prediction_result._substrate_list is prediction_result._substrate_list
     )
+    assert assembled._substrate_contributions is substrate_contributions

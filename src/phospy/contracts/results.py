@@ -84,6 +84,7 @@ from phospy.science.signalomes.models import (
     default_signalome_score_preconditioning_diagnostics,
 )
 from phospy.science.sites.validation import require_site_key_series
+from phospy.tables.kinase import KinaseSubstrateContributionTable
 from phospy.tables.signalome import (
     SignalomeProteinSiteContext,
     SignalomeSiteContext,
@@ -504,7 +505,7 @@ class KinaseEligibilityReport:
     excluded_kinases_below_min_substrates: int
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, init=False)
 class KinaseWorkflowResult:
     """Top-level public kinase workflow result.
 
@@ -524,12 +525,72 @@ class KinaseWorkflowResult:
     site_attrition_summary: KinaseWorkflowSiteAttritionSummary | None = None
     activity_result: KinaseActivityResult | None = None
     provenance: RunProvenance | None = None
+    _substrate_contributions: pd.DataFrame | None = field(
+        init=False,
+        repr=False,
+        compare=False,
+    )
+
+    def __init__(
+        self,
+        dataset: AnalysisReadyPhosphoDataset,
+        references: ReferenceBundle,
+        scoring_result: KinaseScoringResult,
+        prediction_result: KinasePredictionResult,
+        eligibility_report: KinaseEligibilityReport | None = None,
+        site_attrition_summary: KinaseWorkflowSiteAttritionSummary | None = None,
+        activity_result: KinaseActivityResult | None = None,
+        provenance: RunProvenance | None = None,
+        substrate_contributions: pd.DataFrame | None = None,
+        *,
+        _assume_owned: bool = False,
+    ) -> None:
+        object.__setattr__(self, "dataset", dataset)
+        object.__setattr__(self, "references", references)
+        object.__setattr__(self, "scoring_result", scoring_result)
+        object.__setattr__(self, "prediction_result", prediction_result)
+        object.__setattr__(self, "eligibility_report", eligibility_report)
+        object.__setattr__(self, "site_attrition_summary", site_attrition_summary)
+        object.__setattr__(self, "activity_result", activity_result)
+        object.__setattr__(self, "provenance", provenance)
+        object.__setattr__(
+            self,
+            "_substrate_contributions",
+            _own_optional_kinase_substrate_contributions(
+                substrate_contributions,
+                assume_owned=_assume_owned,
+            ),
+        )
 
     @property
     def input_dataset_preprocessing_report(self) -> DatasetPreprocessingReport | None:
         """Return preprocessing provenance of the input analysis-ready dataset."""
 
         return self.dataset.preprocessing_report
+
+    @property
+    def substrate_contributions(self) -> pd.DataFrame | None:
+        """Return optional substrate-level contribution rows."""
+
+        return export_optional_dataframe(self._substrate_contributions)
+
+    def substrate_contributions_dataframe(self) -> pd.DataFrame | None:
+        """Return optional substrate-level contribution rows."""
+
+        return export_optional_dataframe(self._substrate_contributions)
+
+
+def _own_optional_kinase_substrate_contributions(
+    table: pd.DataFrame | None,
+    *,
+    assume_owned: bool,
+) -> pd.DataFrame | None:
+    if table is None:
+        return None
+    return KinaseSubstrateContributionTable(
+        frame=table,
+        _assume_owned=assume_owned,
+    ).frame
 
 
 @dataclass(frozen=True, slots=True, init=False)

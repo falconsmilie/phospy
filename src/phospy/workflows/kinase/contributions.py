@@ -9,33 +9,15 @@ from typing import SupportsFloat, cast
 import pandas as pd
 
 from phospy.science.references.models import ReferenceBundle
-
-KINASE_SUBSTRATE_CONTRIBUTION_STATUS_INCLUDED = "included"
-KINASE_SUBSTRATE_CONTRIBUTION_STATUS_EXCLUDED = "excluded"
-KINASE_SUBSTRATE_CONTRIBUTION_EXCLUDED_BELOW_MIN_SUBSTRATES = (
-    "kinase_below_min_substrates"
-)
-KINASE_SUBSTRATE_CONTRIBUTION_EXCLUDED_MISSING_SCORE_VALUE = "missing_score_value"
-KINASE_SUBSTRATE_CONTRIBUTION_EXCLUDED_NO_SCORE_COLUMN = "kinase_score_unavailable"
-KINASE_SUBSTRATE_CONTRIBUTION_EXCLUDED_NOT_IN_PROFILE_SUPPORT = (
-    "substrate_not_in_profile_support"
-)
-KINASE_SUBSTRATE_CONTRIBUTION_EXCLUDED_NOT_QUANTIFIED = "substrate_not_quantified"
-
-KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS: tuple[str, ...] = (
-    "kinase",
-    "substrate_site",
-    "substrate_identifier",
-    "value_used_in_scoring",
-    "score_component",
-    "score_source",
-    "reference_source_name",
-    "reference_source_version",
-    "reference_bundle_id",
-    "reference_identifier_namespace",
-    "status",
-    "exclusion_reason",
-    "ambiguous",
+from phospy.tables.kinase import (
+    KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS,
+    KINASE_SUBSTRATE_CONTRIBUTION_EXCLUDED_BELOW_MIN_SUBSTRATES,
+    KINASE_SUBSTRATE_CONTRIBUTION_EXCLUDED_MISSING_SCORE_VALUE,
+    KINASE_SUBSTRATE_CONTRIBUTION_EXCLUDED_NO_SCORE_COLUMN,
+    KINASE_SUBSTRATE_CONTRIBUTION_EXCLUDED_NOT_IN_PROFILE_SUPPORT,
+    KINASE_SUBSTRATE_CONTRIBUTION_EXCLUDED_NOT_QUANTIFIED,
+    KINASE_SUBSTRATE_CONTRIBUTION_STATUS_EXCLUDED,
+    KINASE_SUBSTRATE_CONTRIBUTION_STATUS_INCLUDED,
 )
 
 

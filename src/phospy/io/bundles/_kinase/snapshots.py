@@ -41,6 +41,7 @@ _SCORING_CONFIG_ALLOWED_FIELDS = frozenset(
         "min_substrates",
         "scoring_mode",
         "include_diagnostic_scoring_tables",
+        "include_substrate_contributions",
         "profile_missing_value_strategy",
         "allow_mixed_total_protein_quantitative_meaning",
     }
@@ -138,6 +139,8 @@ class KinaseWorkflowConfigSnapshot:
                 self.scoring_config.allow_mixed_total_protein_quantitative_meaning
             ),
         }
+        if self.scoring_config.include_substrate_contributions:
+            scoring_payload["include_substrate_contributions"] = True
         if self._include_scoring_mode:
             scoring_payload["scoring_mode"] = self.scoring_config.scoring_mode
         return {
@@ -287,6 +290,12 @@ class KinaseWorkflowConfigSnapshot:
                     scoring_payload.get("include_diagnostic_scoring_tables"),
                     field_name=(
                         f"{scope}.scoring_config.include_diagnostic_scoring_tables"
+                    ),
+                ),
+                include_substrate_contributions=require_bool(
+                    scoring_payload.get("include_substrate_contributions", False),
+                    field_name=(
+                        f"{scope}.scoring_config.include_substrate_contributions"
                     ),
                 ),
                 profile_missing_value_strategy=(

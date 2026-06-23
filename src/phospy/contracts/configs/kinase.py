@@ -166,6 +166,10 @@ class KinaseScoringConfig:
     authoritative downstream lane for the default mode (`rank_weighted_fusion_scores`
     with profile fallback) is always computed in that mode.
 
+    `include_substrate_contributions` controls publication of optional
+    substrate-level contribution rows on the workflow result. It defaults to
+    `False` so routine runs do not attach a large evidence table.
+
     `profile_missing_value_strategy` controls column-wise median behavior when a
     kinase profile is built from multiple quantified substrates:
 
@@ -176,6 +180,7 @@ class KinaseScoringConfig:
     min_substrates: int = KINASE_SCORING_MIN_SUBSTRATES_FLOOR
     scoring_mode: KinaseScoringMode = KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED
     include_diagnostic_scoring_tables: bool = False
+    include_substrate_contributions: bool = False
     profile_missing_value_strategy: KinaseProfileMissingValueStrategy = (
         KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
     )
@@ -190,6 +195,10 @@ class KinaseScoringConfig:
         if not isinstance(self.include_diagnostic_scoring_tables, bool):
             raise WorkflowValidationError(
                 "scoring_config.include_diagnostic_scoring_tables must be a bool"
+            )
+        if not isinstance(self.include_substrate_contributions, bool):
+            raise WorkflowValidationError(
+                "scoring_config.include_substrate_contributions must be a bool"
             )
         if not isinstance(self.allow_mixed_total_protein_quantitative_meaning, bool):
             raise WorkflowValidationError(

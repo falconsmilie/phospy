@@ -193,6 +193,12 @@ def reconstruct_kinase_result(
             field_name="bundle manifest.outputs.prediction.tables.substrate_list",
         ),
     )
+    substrate_contributions = _read_absent_optional_table(
+        bundle_root=bundle_root,
+        tables=sections.scoring_tables,
+        table_key="substrate_contributions",
+        field_name="bundle manifest.outputs.scoring.tables.substrate_contributions",
+    )
 
     weighted_activity = read_optional_table(
         bundle_root=bundle_root,
@@ -311,6 +317,8 @@ def reconstruct_kinase_result(
         prediction_result=prediction_result,
         activity_result=activity_result,
         provenance=provenance,
+        substrate_contributions=substrate_contributions,
+        _assume_owned=True,
     )
 
 

@@ -185,6 +185,7 @@ def test_kinase_result_stays_nested_and_honest_for_supported_lane() -> None:
     assert result.scoring_result.score_source_summary is not None
     assert result.scoring_result.score_source_matrix is None
     assert result.activity_result is None
+    assert result.substrate_contributions is None
     assert result.prediction_result.substrate_list is not None
     assert {
         "kinase",

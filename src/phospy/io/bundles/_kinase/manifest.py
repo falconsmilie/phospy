@@ -80,6 +80,7 @@ _SCORING_TABLE_KEYS = frozenset(
         "score_fusion_weights",
         "kinase_library_site_diagnostics",
         "kinase_library_kinase_diagnostics",
+        "substrate_contributions",
     }
 )
 _SCORING_TABLE_REQUIRED_KEYS = frozenset(

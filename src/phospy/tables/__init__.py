@@ -16,7 +16,12 @@ from phospy.tables.differential import (
     filter_differential_results,
     rank_differential_results,
 )
-from phospy.tables.kinase import KinasePredictionMatrix, KinaseScoreMatrix
+from phospy.tables.kinase import (
+    KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS,
+    KinasePredictionMatrix,
+    KinaseScoreMatrix,
+    KinaseSubstrateContributionTable,
+)
 from phospy.tables.references import KinaseSubstrateReference, SiteSequenceReference
 from phospy.tables.signalome import (
     KinaseNetworkCandidateCorrelationsTable,
@@ -37,6 +42,8 @@ __all__ = [
     "KinaseNetworkEdgesTable",
     "KinaseNetworkNodesTable",
     "KinaseScoreMatrix",
+    "KinaseSubstrateContributionTable",
+    "KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS",
     "KinaseSubstrateReference",
     "PhosphoIntensityMatrix",
     "filter_differential_results",

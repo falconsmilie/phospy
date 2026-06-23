@@ -79,12 +79,14 @@ class KinaseProvenanceBuilder:
         scoring_result: KinaseScoringResult,
         prediction_result: KinasePredictionResult,
         activity_result: KinaseActivityResult | None,
+        substrate_contributions: pd.DataFrame | None = None,
     ) -> RunProvenance:
         input_tables = _build_input_table_fingerprints(request)
         output_tables = _build_output_table_fingerprints(
             scoring_result=scoring_result,
             prediction_result=prediction_result,
             activity_result=activity_result,
+            substrate_contributions=substrate_contributions,
         )
         workflow_parameters = _build_workflow_parameters(
             request=request,
@@ -182,6 +184,7 @@ def _build_output_table_fingerprints(
     scoring_result: KinaseScoringResult,
     prediction_result: KinasePredictionResult,
     activity_result: KinaseActivityResult | None,
+    substrate_contributions: pd.DataFrame | None = None,
 ) -> tuple[TableFingerprint, ...]:
     return _collect_fingerprints(
         (
@@ -213,6 +216,7 @@ def _build_output_table_fingerprints(
             ),
             ("outputs.prediction.pred_mat", prediction_result.pred_mat),
             ("outputs.prediction.substrate_list", prediction_result.substrate_list),
+            ("outputs.substrate_contributions", substrate_contributions),
             (
                 "outputs.activity.weighted_activity",
                 None if activity_result is None else activity_result.activity_matrix,
@@ -398,6 +402,8 @@ def _build_scoring_config_payload(
         ),
         "profile_missing_value_strategy": str(config.profile_missing_value_strategy),
     }
+    if config.include_substrate_contributions:
+        payload["include_substrate_contributions"] = True
     if config.scoring_mode == KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED:
         return payload
     payload.update(

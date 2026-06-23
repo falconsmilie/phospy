@@ -67,6 +67,7 @@ from phospy.science.signalomes.models import (
 )
 from phospy.tables.base import TableSchema
 from phospy.tables.datasets import PhosphoIntensityMatrix
+from phospy.tables.kinase import KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS
 from phospy.workflows.signalome.interpreter import SignalomeWorkflowInterpreter
 from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
 from tests.support.intensity_scale_states import (
@@ -1188,6 +1189,45 @@ def test_kinase_result_table_properties_are_defensive_snapshots() -> None:
     _assert_dataframe_getter_defensive_snapshot(lambda: prediction_result.pred_mat)
     _assert_optional_dataframe_getter_defensive_snapshot(
         lambda: prediction_result.substrate_list
+    )
+
+    contribution_table = pd.DataFrame.from_records(
+        [
+            {
+                "kinase": "MAP2K6",
+                "substrate_site": "MAPK14;Y182;",
+                "substrate_identifier": "MAPK14;Y182;",
+                "value_used_in_scoring": 0.8,
+                "score_component": "rank_weighted_fusion_scores",
+                "score_source": "profile_only_motif_missing_or_constant",
+                "reference_source_name": "fixture",
+                "reference_source_version": "v1",
+                "reference_bundle_id": "fixture_bundle",
+                "reference_identifier_namespace": "display_id",
+                "status": "included",
+                "exclusion_reason": None,
+                "ambiguous": False,
+            }
+        ],
+        columns=pd.Index(KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS),
+    )
+    workflow_result = KinaseWorkflowResult(
+        dataset=AnalysisReadyPhosphoDataset(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(),
+            organism=Organism.RAT,
+            intensity_scale_state=supported_linear_intensity_scale_state(
+                has_total_matrix=False
+            ),
+            processing_state=supported_linear_processing_state(has_total_matrix=False),
+        ),
+        references=_references(),
+        scoring_result=scoring_result,
+        prediction_result=prediction_result,
+        substrate_contributions=contribution_table,
+    )
+    _assert_optional_dataframe_getter_defensive_snapshot(
+        lambda: workflow_result.substrate_contributions
     )
 
     activity_result = KinaseActivityResult._from_owned(

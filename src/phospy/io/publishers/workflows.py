@@ -227,6 +227,12 @@ def _write_kinase_scoring_outputs(
         written=written,
         written_key="kinase.scoring.score_fusion_weights",
     )
+    _write_optional_output_table(
+        result.substrate_contributions,
+        scoring_dir / f"substrate_contributions{suffix}",
+        written=written,
+        written_key="kinase.scoring.substrate_contributions",
+    )
 
 
 def _write_kinase_prediction_outputs(

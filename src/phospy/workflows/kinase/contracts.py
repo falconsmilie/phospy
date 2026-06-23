@@ -516,6 +516,7 @@ class ResolvedKinaseExecutionConfig:
     )
     activity: ResolvedKinaseActivityExecutionConfig | None = None
     scoring_mode: KinaseScoringMode = KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED
+    include_substrate_contributions: bool = False
 
 
 class KinaseWorkflowValidatorContract(Protocol):

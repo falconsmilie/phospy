@@ -229,6 +229,7 @@ def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
 
     assert interpreted.execution_config.scoring_min_substrates == 2
     assert interpreted.execution_config.include_diagnostic_scoring_tables is False
+    assert interpreted.execution_config.include_substrate_contributions is False
     assert interpreted.execution_config.profile_missing_value_strategy == "strict"
     assert interpreted.execution_config.prediction_mode == "deterministic_ranking"
     assert interpreted.execution_config.prediction_top_k == 30

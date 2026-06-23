@@ -5,8 +5,10 @@ import pytest
 
 from phospy import AnalysisReadyPhosphoDataset
 from phospy.api import (
+    KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS,
     KinasePredictionConfig,
     KinaseScoringConfig,
+    KinaseWorkflow,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
@@ -32,6 +34,7 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
 )
 from tests.support.site_keys import (
+    protein_site_key_index,
     site_key_context_columns,
     site_key_index_from_display_ids,
 )
@@ -149,7 +152,7 @@ def test_contribution_table_records_statuses_sources_and_ambiguity() -> None:
     assert rows[3]["ambiguous"] is False
 
 
-def test_scoring_runner_collects_internal_contributions_without_public_result_api() -> (
+def test_scoring_runner_collects_internal_contributions_without_scoring_result_api() -> (
     None
 ):
     dataset = _dataset()
@@ -191,6 +194,73 @@ def test_scoring_runner_collects_internal_contributions_without_public_result_ap
     assert scoring_execution.scoring_result.rank_weighted_fusion_scores is not None
 
 
+def test_kinase_workflow_omits_substrate_contributions_by_default() -> None:
+    result = KinaseWorkflow().run(
+        _contribution_request(include_substrate_contributions=False)
+    )
+
+    assert result.substrate_contributions is None
+
+
+def test_kinase_workflow_exposes_substrate_contributions_when_enabled() -> None:
+    default_result = KinaseWorkflow().run(
+        _contribution_request(include_substrate_contributions=False)
+    )
+    result = KinaseWorkflow().run(
+        _contribution_request(include_substrate_contributions=True)
+    )
+
+    table = result.substrate_contributions
+    assert table is not None
+    assert tuple(table.columns) == KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS
+    assert table.loc[:, "status"].tolist() == [
+        KINASE_SUBSTRATE_CONTRIBUTION_STATUS_INCLUDED,
+        KINASE_SUBSTRATE_CONTRIBUTION_STATUS_INCLUDED,
+        KINASE_SUBSTRATE_CONTRIBUTION_STATUS_EXCLUDED,
+    ]
+    included = table.loc[
+        table.loc[:, "status"] == KINASE_SUBSTRATE_CONTRIBUTION_STATUS_INCLUDED,
+        :,
+    ]
+    assert included.loc[:, "kinase"].tolist() == ["MAP2K6", "MAP2K6"]
+    assert included.loc[:, "substrate_identifier"].tolist() == [
+        "MAPK14;Y182;",
+        "MAPK14;Y182;",
+    ]
+    assert included.loc[:, "ambiguous"].tolist() == [True, True]
+
+    excluded = table.loc[
+        table.loc[:, "status"] == KINASE_SUBSTRATE_CONTRIBUTION_STATUS_EXCLUDED,
+        :,
+    ]
+    assert excluded.loc[:, "kinase"].tolist() == ["LOW_SUPPORT_KINASE"]
+    assert excluded.loc[:, "substrate_identifier"].tolist() == ["GSK3B;S9;"]
+    assert excluded.loc[:, "exclusion_reason"].tolist() == [
+        KINASE_SUBSTRATE_CONTRIBUTION_EXCLUDED_BELOW_MIN_SUBSTRATES
+    ]
+    assert excluded.loc[:, "ambiguous"].tolist() == [False]
+
+    assert default_result.substrate_contributions is None
+    pd.testing.assert_frame_equal(
+        default_result.scoring_result.profile_scores,
+        result.scoring_result.profile_scores,
+    )
+    pd.testing.assert_frame_equal(
+        default_result.scoring_result.authoritative_scores,
+        result.scoring_result.authoritative_scores,
+    )
+    pd.testing.assert_frame_equal(
+        default_result.prediction_result.pred_mat,
+        result.prediction_result.pred_mat,
+    )
+    assert default_result.prediction_result.substrate_list is not None
+    assert result.prediction_result.substrate_list is not None
+    pd.testing.assert_frame_equal(
+        default_result.prediction_result.substrate_list,
+        result.prediction_result.substrate_list,
+    )
+
+
 def _dataset() -> AnalysisReadyPhosphoDataset:
     display_ids = ["MAPK14;Y182;", "GSK3B;S9;"]
     site_index = site_key_index_from_display_ids(display_ids)
@@ -228,6 +298,88 @@ def _references() -> ReferenceBundle:
         kinase_substrate_map=pd.DataFrame(
             {
                 "kinase": ["MAP2K6", "MAP2K6"],
+                "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
+            }
+        ),
+        site_sequences=pd.DataFrame(
+            {
+                "site_sequence": [
+                    "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
+                    "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
+                ]
+            },
+            index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
+        ),
+    )
+
+
+def _contribution_request(
+    *,
+    include_substrate_contributions: bool,
+) -> KinaseWorkflowRequest:
+    return KinaseWorkflowRequest(
+        dataset=_ambiguous_dataset(),
+        references=_ambiguous_references(),
+        scoring_config=KinaseScoringConfig(
+            min_substrates=2,
+            include_substrate_contributions=include_substrate_contributions,
+        ),
+        prediction_config=KinasePredictionConfig(
+            top_k=3,
+            deterministic_max_selected_kinases=3,
+            adaptive_ensemble_runs=2,
+        ),
+        activity_config=None,
+        reference_display_ambiguity_policy=(
+            KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS
+        ),
+    )
+
+
+def _ambiguous_dataset() -> AnalysisReadyPhosphoDataset:
+    display_ids = ["MAPK14;Y182;", "MAPK14;Y182;", "GSK3B;S9;"]
+    site_index = protein_site_key_index(
+        protein_identifiers=["MAPK14_A", "MAPK14_B", "GSK3B"],
+        sites=["Y182", "Y182", "S9"],
+    )
+    return AnalysisReadyPhosphoDataset(
+        phospho=pd.DataFrame(
+            {
+                "sample_a": [1.0, 1.2, 2.0],
+                "sample_b": [2.0, 2.2, 3.0],
+            },
+            index=site_index.copy(),
+        ),
+        site_metadata=pd.DataFrame(
+            {
+                "site_key": site_index.astype(str).tolist(),
+                "display_id": display_ids,
+                **site_key_context_columns(site_index),
+                "gene_symbol": ["MAPK14", "MAPK14", "GSK3B"],
+                "protein_id": ["MAPK14_A", "MAPK14_B", "GSK3B"],
+                "site": ["Y182", "Y182", "S9"],
+                "site_sequence": [
+                    "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
+                    "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
+                    "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
+                ],
+            },
+            index=site_index.copy(),
+        ),
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False,
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+
+
+def _ambiguous_references() -> ReferenceBundle:
+    return ReferenceBundle(
+        organism=Organism.RAT,
+        kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["MAP2K6", "LOW_SUPPORT_KINASE"],
                 "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
             }
         ),

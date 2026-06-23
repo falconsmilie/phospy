@@ -367,6 +367,10 @@ def test_dataset_preprocessing_config_presets_return_expected_values() -> None:
             "scoring_config.include_diagnostic_scoring_tables must be a bool",
         ),
         (
+            {"include_substrate_contributions": "yes"},
+            "scoring_config.include_substrate_contributions must be a bool",
+        ),
+        (
             {"profile_missing_value_strategy": "invalid"},
             "scoring_config.profile_missing_value_strategy must be one of",
         ),
@@ -391,10 +395,12 @@ def test_kinase_scoring_config_presets_return_expected_values() -> None:
         default.profile_missing_value_strategy
         == KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
     )
+    assert default.include_substrate_contributions is False
     assert (
         strict_missing.profile_missing_value_strategy
         == KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
     )
+    assert strict_missing.include_substrate_contributions is False
 
 
 @pytest.mark.parametrize(

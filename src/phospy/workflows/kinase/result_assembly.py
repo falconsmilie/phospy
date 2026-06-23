@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pandas as pd
+
 from phospy.contracts.results import (
     KinaseEligibilityReport,
     KinaseWorkflowResult,
@@ -26,6 +28,7 @@ class KinaseResultAssembler:
         site_attrition_summary: KinaseWorkflowSiteAttritionSummary,
         activity_result: KinaseActivityResult | None,
         provenance: RunProvenance,
+        substrate_contributions: pd.DataFrame | None = None,
     ) -> KinaseWorkflowResult:
         return KinaseWorkflowResult(
             dataset=request.dataset,
@@ -36,6 +39,8 @@ class KinaseResultAssembler:
             site_attrition_summary=site_attrition_summary,
             activity_result=activity_result,
             provenance=provenance,
+            substrate_contributions=substrate_contributions,
+            _assume_owned=True,
         )
 
 

@@ -99,6 +99,7 @@ Important `KinaseScoringConfig` fields:
 | `scoring_mode` | `"phosr_rank_weighted"` | Supported modes: `"phosr_rank_weighted"`, `"kinase_library_motif"`, `"combined_profile_motif"`. The default is PhosR-inspired PhosPy scoring, not a PhosR compatibility mode. |
 | `min_substrates` | `2` | Minimum unique usable substrates for kinase scoring support. The public floor is `2`. |
 | `include_diagnostic_scoring_tables` | `False` | Adds non-primary diagnostic scoring tables. |
+| `include_substrate_contributions` | `False` | Adds an optional substrate-level contribution table to `KinaseWorkflowResult`. |
 | `profile_missing_value_strategy` | `"strict"` | Use `"median_skipna"` only when skipping missing profile values is intended. |
 | `localisation_requirement` | `LocalisationRequirement()` | Workflow-level localisation requirement. |
 | `allow_mixed_total_protein_quantitative_meaning` | `False` | Keep `False` unless mixed corrected/uncorrected rows are intended. |
@@ -220,6 +221,7 @@ Important fields:
 | `activity_result` | Optional `KinaseActivityResult`. |
 | `eligibility_report` | Optional compact eligibility counters. |
 | `site_attrition_summary` | Optional preprocessing/scoring attrition counters. |
+| `substrate_contributions` | Optional substrate-level contribution table when enabled. |
 | `provenance` | Workflow provenance. |
 | `input_dataset_preprocessing_report` | Input dataset preprocessing report when available. |
 
@@ -242,6 +244,49 @@ Important nested result fields:
 for kinase activity scores. Deprecated compatibility aliases such as
 `activity_scores` and `weighted_activity` are not preferred for new
 documentation or code.
+
+### Substrate Contribution Table
+
+Set `KinaseScoringConfig(include_substrate_contributions=True)` to attach
+`kinase_result.substrate_contributions`.
+
+```python
+request = KinaseWorkflowRequest(
+    dataset=dataset,
+    references=references,
+    scoring_config=KinaseScoringConfig(
+        min_substrates=2,
+        include_substrate_contributions=True,
+    ),
+    activity_config=None,
+)
+
+kinase_result = KinaseWorkflow().run(request)
+contributions = kinase_result.substrate_contributions
+```
+
+The table contains one row per projected kinase-substrate evidence row. It is
+off by default because it can be large.
+
+Stable columns:
+
+| Column | Meaning |
+| --- | --- |
+| `kinase` | Kinase identifier used in scoring. |
+| `substrate_site` | Dataset `site_key` used by the workflow. |
+| `substrate_identifier` | Display identifier when available. |
+| `value_used_in_scoring` | Score value used for the selected score component, or missing when excluded or unavailable. |
+| `score_component` | Score lane summarized by the row, such as `rank_weighted_fusion_scores`. |
+| `score_source` | More specific evidence source when available. |
+| `reference_source_name`, `reference_source_version`, `reference_bundle_id`, `reference_identifier_namespace` | Reference metadata when supplied. |
+| `status` | `included` or `excluded`. |
+| `exclusion_reason` | Reason an excluded row was not used in the score. |
+| `ambiguous` | `True` when display-level reference mapping was one-to-many. |
+
+Use `status`, `exclusion_reason`, and `ambiguous` to audit substrate support.
+`value_used_in_scoring` is an evidence-summary value for the selected score
+component. It is not a calibrated effect size and does not prove direct
+regulation.
 
 ## Interpreting the Result
 

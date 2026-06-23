@@ -118,6 +118,11 @@ class KinaseWorkflowExecutor:
             scoring_result=scoring_execution.scoring_result,
             prediction_result=prediction_result,
             activity_result=activity_result,
+            substrate_contributions=(
+                scoring_execution.substrate_contributions
+                if config.include_substrate_contributions
+                else None
+            ),
         )
         return self._result_assembler.run(
             request=request,
@@ -127,6 +132,11 @@ class KinaseWorkflowExecutor:
             site_attrition_summary=site_attrition_summary,
             activity_result=activity_result,
             provenance=provenance,
+            substrate_contributions=(
+                scoring_execution.substrate_contributions
+                if config.include_substrate_contributions
+                else None
+            ),
         )
 
     # Compatibility hooks for existing tests that validate stage contracts directly.

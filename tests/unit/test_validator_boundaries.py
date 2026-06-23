@@ -87,6 +87,7 @@ def _dataset_state_kwargs(*, has_total_matrix: bool) -> dict[str, object]:
 def test_kinase_scoring_default_sets_two_substrate_support_floor() -> None:
     assert KinaseScoringConfig().min_substrates == 2
     assert KinaseScoringConfig().include_diagnostic_scoring_tables is False
+    assert KinaseScoringConfig().include_substrate_contributions is False
     assert KinaseScoringConfig().profile_missing_value_strategy == "strict"
 
 
@@ -757,6 +758,17 @@ def test_kinase_request_rejects_non_bool_diagnostic_scoring_policy() -> None:
         KinaseScoringConfig(
             min_substrates=2,
             include_diagnostic_scoring_tables="yes",  # type: ignore[arg-type]
+        )
+
+
+def test_kinase_request_rejects_non_bool_substrate_contribution_policy() -> None:
+    with pytest.raises(
+        WorkflowValidationError,
+        match="scoring_config.include_substrate_contributions must be a bool",
+    ):
+        KinaseScoringConfig(
+            min_substrates=2,
+            include_substrate_contributions="yes",  # type: ignore[arg-type]
         )
 
 
