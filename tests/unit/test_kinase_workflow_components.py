@@ -671,6 +671,20 @@ def test_workflow_execution_with_valid_reference_bundle_still_succeeds() -> None
     assert scoring.downstream_score_source == "rank_weighted_fusion_scores"
 
 
+def test_interpreter_preserves_reference_bundle_validation_report() -> None:
+    interpreted = KinaseWorkflowInterpreter().run(
+        KinaseWorkflowRequest(dataset=_dataset(), references=_references())
+    )
+
+    report = interpreted.references.validation_report
+
+    assert report.kinase_substrate_record_count == 2
+    assert {item.table_name for item in report.required_tables} == {
+        "kinase_substrate_map",
+        "site_sequences",
+    }
+
+
 def test_interpreter_overlap_uses_normalised_reference_tables_after_bundle_construction() -> (
     None
 ):

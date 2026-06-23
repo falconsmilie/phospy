@@ -136,8 +136,9 @@ def test_reference_bundle_contract_validation_has_single_owner() -> None:
     bundle_source = inspect.getsource(ReferenceBundle.__post_init__)
     validator_source = inspect.getsource(ReferenceBundleValidator.run)
     resolver_source = inspect.getsource(ReferenceResolver.run)
-    assert "KinaseSubstrateReference(" in bundle_source
-    assert "SiteSequenceReference(" in bundle_source
+    assert "ReferenceBundleValidator().run(" in bundle_source
+    assert "KinaseSubstrateReference(" not in bundle_source
+    assert "SiteSequenceReference(" not in bundle_source
     assert "KinaseSubstrateReference(" in validator_source
     assert "SiteSequenceReference(" in validator_source
     assert "ReferenceBundleValidator" not in resolver_source

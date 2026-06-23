@@ -199,6 +199,10 @@ from phospy.science.references.kinase_library import (
 from phospy.science.references.models import (
     ReferenceBundle,
     ReferenceBundleBuildRequest,
+    ReferenceBundleMissingValueCount,
+    ReferenceBundleSourceFileValidationReport,
+    ReferenceBundleTableValidationReport,
+    ReferenceBundleValidationReport,
 )
 from phospy.science.transformations.models import (
     IntensityScaleKind,
@@ -364,6 +368,10 @@ __all__ = [
     "QuantitativeMeaning",
     "ReferenceBundle",
     "ReferenceBundleBuildRequest",
+    "ReferenceBundleMissingValueCount",
+    "ReferenceBundleSourceFileValidationReport",
+    "ReferenceBundleTableValidationReport",
+    "ReferenceBundleValidationReport",
     "ReferencePreset",
     "SignalomeConfig",
     "SignalomeScientificConfig",

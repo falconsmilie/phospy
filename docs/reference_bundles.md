@@ -74,6 +74,61 @@ references = ReferenceBundleBuilder().run(
 The result is a normal validated `ReferenceBundle` and can be passed directly
 to `KinaseWorkflowRequest(references=references)`.
 
+## Validation Report
+
+Every constructed `ReferenceBundle` has a structured validation report:
+
+```python
+report = references.validation_report
+
+print(report.bundle_name)
+print(report.kinase_substrate_record_count)
+print(report.compatibility_warnings)
+```
+
+You can also run the validator directly when you already have local tables:
+
+```python
+from phospy.validation.references.bundle import ReferenceBundleValidator
+
+result = ReferenceBundleValidator().run(
+    organism=Organism.MOUSE,
+    kinase_substrate_map=kinase_substrate_map,
+    site_sequences=site_sequences,
+)
+report = result.report
+```
+
+The report is informational. It does not repair reference data and does not make
+invalid bundles usable. Missing required tables, missing required columns,
+duplicate kinase-substrate records, malformed identifiers, and missing sequence
+rows still fail validation.
+
+Report fields include:
+
+- bundle name and version, when manifest or provenance metadata provides them
+- organism and identifier namespace metadata, when available
+- required table status and required columns
+- required source-file metadata from the manifest, when available
+- kinase-substrate record count
+- duplicate-record count for accepted tables
+- missing-value counts for important fields
+- available provenance fields such as source name, source version, license, and
+  redistribution status
+- compatibility warnings for limited metadata
+
+Kinase workflows keep the validated `ReferenceBundle` on the result, so you can
+inspect the same report before or after a run:
+
+```python
+result = KinaseWorkflow().run(request)
+report = result.references.validation_report
+```
+
+Use the report to check whether the reference source, organism, namespace, and
+provenance are suitable for your dataset before interpreting kinase scores. It
+does not change the scientific meaning of the workflow outputs.
+
 ## Expected Files
 
 The kinase-substrate file must contain:
