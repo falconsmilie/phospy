@@ -21,6 +21,7 @@ class KinaseScoringRunResult:
     downstream_score_source: DownstreamScoreSource
     quantified_substrates: dict[str, list[str]]
     downstream_score_selection_policy: DownstreamScoreSelectionPolicy | None = None
+    substrate_contributions: pd.DataFrame | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(

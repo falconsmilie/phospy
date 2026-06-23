@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 
 import pandas as pd
 
@@ -24,7 +24,6 @@ from phospy.science.prediction.scoring import (
     SIGNALOME_DOWNSTREAM_SCORE_RANK_WEIGHTED_PREFERRED_POLICY,
     DownstreamScoreSelectionPolicy,
     build_kinase_score_source_diagnostics,
-    build_kinase_score_source_summary,
     fuse_profile_and_motif_scores_by_rank_weight,
     resolve_downstream_score_matrix,
 )
@@ -33,6 +32,10 @@ from phospy.workflows.kinase.component_models import KinaseScoringRunResult
 from phospy.workflows.kinase.contracts import (
     ResolvedKinaseExecutionConfig,
     ResolvedKinaseWorkflowRequest,
+)
+from phospy.workflows.kinase.contributions import (
+    build_kinase_substrate_contribution_table,
+    reference_source_from_bundle,
 )
 from phospy.workflows.kinase.kinase_library_scoring import (
     KINASE_LIBRARY_WORKFLOW_SCORE_SCALE,
@@ -171,16 +174,16 @@ class KinaseScoringRunner:
                 "kinase.executor.rank_weighted_fusion_scoring; "
                 f"{exc}"
             ) from exc
+        score_source_matrix, score_source_summary = (
+            build_kinase_score_source_diagnostics(
+                motif_scores=motif_result.motif_scores,
+                profile_scores=profile_scores,
+                rank_weighted_fusion_scores=rank_weighted_fusion_scores,
+            )
+        )
         diagnostic_motif_scores: pd.DataFrame | None = None
         diagnostic_score_source_matrix: pd.DataFrame | None = None
         if include_diagnostic_tables:
-            score_source_matrix, score_source_summary = (
-                build_kinase_score_source_diagnostics(
-                    motif_scores=motif_result.motif_scores,
-                    profile_scores=profile_scores,
-                    rank_weighted_fusion_scores=rank_weighted_fusion_scores,
-                )
-            )
             diagnostic_motif_scores = motif_result.motif_scores
             if diagnostic_motif_scores.empty:
                 diagnostic_motif_scores = pd.DataFrame(
@@ -189,12 +192,6 @@ class KinaseScoringRunner:
                     dtype=float,
                 )
             diagnostic_score_source_matrix = score_source_matrix
-        else:
-            score_source_summary = build_kinase_score_source_summary(
-                motif_scores=motif_result.motif_scores,
-                profile_scores=profile_scores,
-                rank_weighted_fusion_scores=rank_weighted_fusion_scores,
-            )
         scoring_result = KinaseScoringResult._from_owned(
             profile_scores=profile_scores,
             motif_scores=diagnostic_motif_scores,
@@ -223,12 +220,21 @@ class KinaseScoringRunner:
             downstream_score_selection_policy = (
                 SIGNALOME_DOWNSTREAM_SCORE_RANK_WEIGHTED_PREFERRED_POLICY
             )
+        substrate_contributions = self._build_substrate_contributions(
+            request=request,
+            config=config,
+            profile_build=profile_build,
+            scoring_values=downstream_score_matrix,
+            score_component=_score_source_label(downstream_score_source),
+            score_source_matrix=score_source_matrix,
+        )
         return KinaseScoringRunResult(
             scoring_result=scoring_result,
             downstream_score_matrix=downstream_score_matrix,
             downstream_score_source=downstream_score_source,
             quantified_substrates=profile_build.quantified_substrates,
             downstream_score_selection_policy=downstream_score_selection_policy,
+            substrate_contributions=substrate_contributions,
         )
 
     def _run_kinase_library_motif_mode(
@@ -264,12 +270,21 @@ class KinaseScoringRunner:
             score_scale=KINASE_LIBRARY_WORKFLOW_SCORE_SCALE,
             score_scale_metadata=library_result.score_scale_metadata,
         )
+        substrate_contributions = self._build_substrate_contributions(
+            request=request,
+            config=config,
+            profile_build=profile_build,
+            scoring_values=library_result.scores,
+            score_component=DownstreamScoreSource.KINASE_LIBRARY_MOTIF_SCORES.value,
+            score_source_matrix=None,
+        )
         return KinaseScoringRunResult(
             scoring_result=scoring_result,
             downstream_score_matrix=library_result.scores,
             downstream_score_source=DownstreamScoreSource.KINASE_LIBRARY_MOTIF_SCORES,
             quantified_substrates=profile_build.quantified_substrates,
             downstream_score_selection_policy=None,
+            substrate_contributions=substrate_contributions,
         )
 
     def _run_combined_profile_motif_mode(
@@ -329,12 +344,21 @@ class KinaseScoringRunner:
                 "fusion_policy": "rank_weighted_motif_profile_fusion_v1",
             },
         )
+        substrate_contributions = self._build_substrate_contributions(
+            request=request,
+            config=config,
+            profile_build=profile_build,
+            scoring_values=combined_scores,
+            score_component=DownstreamScoreSource.COMBINED_PROFILE_MOTIF_SCORES.value,
+            score_source_matrix=None,
+        )
         return KinaseScoringRunResult(
             scoring_result=scoring_result,
             downstream_score_matrix=combined_scores,
             downstream_score_source=DownstreamScoreSource.COMBINED_PROFILE_MOTIF_SCORES,
             quantified_substrates=profile_build.quantified_substrates,
             downstream_score_selection_policy=None,
+            substrate_contributions=substrate_contributions,
         )
 
     def _resolve_motif_scores(
@@ -364,6 +388,43 @@ class KinaseScoringRunner:
             sequence_semantics=SEQUENCE_SEMANTICS_CENTRED_SEQUENCE,
             library_validation=motif_library_validation,
         )
+
+    @staticmethod
+    def _build_substrate_contributions(
+        *,
+        request: ResolvedKinaseWorkflowRequest,
+        config: ResolvedKinaseExecutionConfig,
+        profile_build: KinaseProfileBuild,
+        scoring_values: pd.DataFrame,
+        score_component: str,
+        score_source_matrix: pd.DataFrame | None,
+    ) -> pd.DataFrame:
+        return build_kinase_substrate_contribution_table(
+            kinase_substrate_map=request.kinase_substrate_map,
+            scoring_values=scoring_values,
+            score_component=score_component,
+            quantified_substrates=profile_build.quantified_substrates,
+            substrate_counts=profile_build.substrate_counts,
+            min_substrates=config.scoring_min_substrates,
+            score_source_matrix=score_source_matrix,
+            reference_source=reference_source_from_bundle(request.references),
+            display_reference_matching=_display_reference_matching_payload(request),
+        )
+
+
+def _score_source_label(value: DownstreamScoreSource | str) -> str:
+    if isinstance(value, DownstreamScoreSource):
+        return value.value
+    return str(value)
+
+
+def _display_reference_matching_payload(
+    request: ResolvedKinaseWorkflowRequest,
+) -> Mapping[str, object] | None:
+    payload = request.site_sequence_merge_diagnostics.get("display_reference_matching")
+    if isinstance(payload, Mapping):
+        return payload
+    return None
 
 
 __all__ = ["KinaseScoringRunner"]
