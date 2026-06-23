@@ -405,12 +405,12 @@ def test_fixed_effect_differential_limitations_are_documented() -> None:
     assert "complete within-block contrast coverage" in text
 
 
-def test_bh_finite_denominator_and_differential_validation_are_documented() -> None:
+def test_multiple_testing_finite_denominator_and_differential_validation_are_documented() -> (
+    None
+):
     normalized = " ".join(_scientific_coverage_text().lower().split())
 
-    assert "shared benjamini-hochberg helper adjusts only finite p-values" in (
-        normalized
-    )
+    assert "shared multiple-testing helper adjusts only finite p-values" in (normalized)
     assert "denominator is the number of finite p-values passed to the helper" in (
         normalized
     )

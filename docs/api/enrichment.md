@@ -68,7 +68,7 @@ Use `EnrichmentConfig`.
 | Field | Default | Supported values |
 | --- | --- | --- |
 | `method` | `"over_representation"` | `"over_representation"` |
-| `multiple_testing_correction` | `"benjamini_hochberg"` | `"benjamini_hochberg"`, `"none"` |
+| `multiple_testing_correction` | `"benjamini_hochberg"` | `"benjamini_hochberg"`, `"bonferroni"`, `"holm"`, `"benjamini_yekutieli"`, `"none"` |
 | `min_set_size` | `None` | `None` or an integer `>= 1` |
 | `max_set_size` | `None` | `None` or an integer `>= 1` |
 

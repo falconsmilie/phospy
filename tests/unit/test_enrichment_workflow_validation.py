@@ -156,7 +156,7 @@ def test_enrichment_validation_rejects_unsupported_method() -> None:
 def test_enrichment_validation_rejects_unsupported_correction_method() -> None:
     request = _valid_gene_request()
     config = EnrichmentConfig()
-    object.__setattr__(config, "multiple_testing_correction", "bonferroni")
+    object.__setattr__(config, "multiple_testing_correction", "storey")
     object.__setattr__(request, "config", config)
 
     with pytest.raises(

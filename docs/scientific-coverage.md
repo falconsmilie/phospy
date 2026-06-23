@@ -56,11 +56,11 @@ workflow does not call Enrichr, gseapy, clusterProfiler, or other online
 services. Those online calls are not native core workflow behavior. ORA does
 not imply GSEA, ssGSEA, or PTM-SEA support.
 
-The shared Benjamini-Hochberg helper adjusts only finite p-values. Its
-denominator is the number of finite p-values passed to the helper, and
-non-finite input positions remain missing in the adjusted output. This is the
-generic multiple-testing helper contract; workflow-specific eligibility can be
-stricter.
+The shared multiple-testing helper adjusts only finite p-values for supported
+correction methods. Its denominator is the number of finite p-values passed to
+the helper, and non-finite input positions remain missing in the adjusted
+output. This is the generic multiple-testing helper contract; workflow-specific
+eligibility can be stricter.
 
 Differential analysis requires analysis-ready numeric inputs plus valid
 `ExperimentalDesign` and `Contrast` metadata. It does not infer design from
@@ -357,7 +357,7 @@ commands/workflows:
   `logFC`, `t`, `P.Value`, and `adj.P.Val`, and are excluded from the
   Benjamini-Hochberg denominator. This policy does not implement observed-only
   fitting or feature-specific residual degrees of freedom.
-- Shared Benjamini-Hochberg adjustment ranks finite p-values only; the
+- Shared multiple-testing adjustment ranks or counts finite p-values only; the
   denominator is the finite p-value count passed to the helper. Non-finite
   positions remain missing in adjusted output. Differential workflow output is
   stricter for tested rows: generated `P.Value` values must be finite and in
