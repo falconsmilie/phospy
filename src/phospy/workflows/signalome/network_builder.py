@@ -125,6 +125,24 @@ class SignalomeNetworkBuilder:
                 non_finite_value_correlations=(
                     correlation_diagnostics.non_finite_value_correlations
                 ),
+                edges_skipped_below_threshold=(
+                    correlation_diagnostics.edges_skipped_below_threshold
+                ),
+                edges_skipped_insufficient_paired_observations=(
+                    correlation_diagnostics.edges_skipped_insufficient_paired_observations
+                ),
+                edges_skipped_constant_profile=(
+                    correlation_diagnostics.edges_skipped_constant_profile
+                ),
+                edges_skipped_missing_score=(
+                    correlation_diagnostics.edges_skipped_missing_score
+                ),
+                edges_skipped_non_finite_score=(
+                    correlation_diagnostics.edges_skipped_non_finite_score
+                ),
+                edges_skipped_undefined_correlation=(
+                    correlation_diagnostics.edges_skipped_undefined_correlation
+                ),
             )
         return SignalomeNetworkBuildResult(
             edges=network_edges,

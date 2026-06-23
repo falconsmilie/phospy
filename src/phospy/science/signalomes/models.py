@@ -116,6 +116,12 @@ class SignalomeNetworkCorrelationDiagnostics:
     non_finite_value_correlations: int
     edges_created: int
     edges_skipped_non_finite_correlation: int
+    edges_skipped_below_threshold: int = 0
+    edges_skipped_insufficient_paired_observations: int = 0
+    edges_skipped_constant_profile: int = 0
+    edges_skipped_missing_score: int = 0
+    edges_skipped_non_finite_score: int = 0
+    edges_skipped_undefined_correlation: int = 0
 
 
 def default_signalome_module_selection_diagnostics() -> (
@@ -182,6 +188,12 @@ def default_signalome_network_correlation_diagnostics() -> (
         non_finite_value_correlations=0,
         edges_created=0,
         edges_skipped_non_finite_correlation=0,
+        edges_skipped_below_threshold=0,
+        edges_skipped_insufficient_paired_observations=0,
+        edges_skipped_constant_profile=0,
+        edges_skipped_missing_score=0,
+        edges_skipped_non_finite_score=0,
+        edges_skipped_undefined_correlation=0,
     )
 
 

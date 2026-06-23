@@ -342,6 +342,12 @@ def _build_network_correlation_diagnostics(
             non_finite_value_correlations=0,
             edges_created=int(edges.shape[0]),
             edges_skipped_non_finite_correlation=0,
+            edges_skipped_below_threshold=0,
+            edges_skipped_insufficient_paired_observations=0,
+            edges_skipped_constant_profile=0,
+            edges_skipped_missing_score=0,
+            edges_skipped_non_finite_score=0,
+            edges_skipped_undefined_correlation=0,
         )
     status_counts = (
         candidate_correlations.loc[:, CORRELATION_STATUS_COLUMN]
@@ -352,24 +358,43 @@ def _build_network_correlation_diagnostics(
     total_candidates = int(candidate_correlations.shape[0])
     finite_correlations = int(status_counts.get(SIGNALOME_CORRELATION_STATUS_FINITE, 0))
     undefined_correlations = int(total_candidates - finite_correlations)
+    edges_created = int(edges.shape[0])
+    constant_profile_correlations = int(
+        status_counts.get(SIGNALOME_CORRELATION_STATUS_CONSTANT_PROFILE, 0)
+    )
+    insufficient_observation_correlations = int(
+        status_counts.get(SIGNALOME_CORRELATION_STATUS_INSUFFICIENT_OBSERVATIONS, 0)
+    )
+    missing_value_correlations = int(
+        status_counts.get(SIGNALOME_CORRELATION_STATUS_MISSING_VALUES, 0)
+    )
+    non_finite_value_correlations = int(
+        status_counts.get(SIGNALOME_CORRELATION_STATUS_NON_FINITE_VALUES, 0)
+    )
+    undefined_status_correlations = int(
+        status_counts.get(SIGNALOME_CORRELATION_STATUS_UNDEFINED, 0)
+    )
     return SignalomeNetworkCorrelationDiagnostics(
         total_candidate_correlations=total_candidates,
         finite_correlations=finite_correlations,
         undefined_correlations=undefined_correlations,
-        constant_profile_correlations=int(
-            status_counts.get(SIGNALOME_CORRELATION_STATUS_CONSTANT_PROFILE, 0)
-        ),
-        insufficient_observation_correlations=int(
-            status_counts.get(SIGNALOME_CORRELATION_STATUS_INSUFFICIENT_OBSERVATIONS, 0)
-        ),
-        missing_value_correlations=int(
-            status_counts.get(SIGNALOME_CORRELATION_STATUS_MISSING_VALUES, 0)
-        ),
-        non_finite_value_correlations=int(
-            status_counts.get(SIGNALOME_CORRELATION_STATUS_NON_FINITE_VALUES, 0)
-        ),
-        edges_created=int(edges.shape[0]),
+        constant_profile_correlations=constant_profile_correlations,
+        insufficient_observation_correlations=insufficient_observation_correlations,
+        missing_value_correlations=missing_value_correlations,
+        non_finite_value_correlations=non_finite_value_correlations,
+        edges_created=edges_created,
         edges_skipped_non_finite_correlation=undefined_correlations,
+        edges_skipped_below_threshold=max(
+            0,
+            finite_correlations - edges_created,
+        ),
+        edges_skipped_insufficient_paired_observations=(
+            insufficient_observation_correlations
+        ),
+        edges_skipped_constant_profile=constant_profile_correlations,
+        edges_skipped_missing_score=missing_value_correlations,
+        edges_skipped_non_finite_score=non_finite_value_correlations,
+        edges_skipped_undefined_correlation=undefined_status_correlations,
     )
 
 

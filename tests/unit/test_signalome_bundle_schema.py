@@ -473,6 +473,12 @@ def test_network_correlation_diagnostics_payload_round_trip() -> None:
         non_finite_value_correlations=1,
         edges_created=2,
         edges_skipped_non_finite_correlation=7,
+        edges_skipped_below_threshold=1,
+        edges_skipped_insufficient_paired_observations=1,
+        edges_skipped_constant_profile=2,
+        edges_skipped_missing_score=3,
+        edges_skipped_non_finite_score=1,
+        edges_skipped_undefined_correlation=0,
     )
 
     payload = signalome_network_correlation_diagnostics_to_payload(diagnostics)
@@ -482,6 +488,32 @@ def test_network_correlation_diagnostics_payload_round_trip() -> None:
     )
 
     assert restored == diagnostics
+
+
+def test_network_correlation_diagnostics_defaults_new_skip_fields() -> None:
+    payload = {
+        "total_candidate_correlations": 10,
+        "finite_correlations": 3,
+        "undefined_correlations": 7,
+        "constant_profile_correlations": 2,
+        "insufficient_observation_correlations": 1,
+        "missing_value_correlations": 3,
+        "non_finite_value_correlations": 1,
+        "edges_created": 2,
+        "edges_skipped_non_finite_correlation": 7,
+    }
+
+    restored = signalome_network_correlation_diagnostics_from_payload(
+        payload,
+        scope="test",
+    )
+
+    assert restored.edges_skipped_below_threshold == 0
+    assert restored.edges_skipped_insufficient_paired_observations == 0
+    assert restored.edges_skipped_constant_profile == 0
+    assert restored.edges_skipped_missing_score == 0
+    assert restored.edges_skipped_non_finite_score == 0
+    assert restored.edges_skipped_undefined_correlation == 0
 
 
 def test_network_correlation_diagnostics_requires_payload_mapping() -> None:

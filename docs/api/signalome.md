@@ -106,7 +106,7 @@ Important fields:
 | `clustering.clustering_engine` | `"scipy_hierarchical"` | `"exact_python"` is also available. |
 | `validation.score_preconditioning_policy` | `"error_on_drop"` | `"allow_and_report"` drops all-missing score rows and reports counts. |
 | `output.network_policy` | `"signed"` | Also supports `"positive_only"` and `"absolute_threshold"`. |
-| `output.network_min_paired_finite_observations` | `None` | Use `None` to keep the built-in minimum of two paired finite observations for network correlations. Set an integer to require more observations. |
+| `output.network_min_paired_finite_observations` | `None` | Use `None` to keep the built-in minimum of two paired finite observations for network correlations. Set an integer to require more paired finite scores before a candidate edge can be retained. |
 | `performance.max_exact_tree_sites` | `2000` | Exact tree scale guardrail. |
 
 ## Running the Workflow
@@ -143,7 +143,7 @@ Important fields and helpers:
 | `kinase_result` | Upstream kinase result. |
 | `module_assignments` | `SignalomeAssignments`; use `.table` or `.to_pandas()`. |
 | `signalome_modules` | `SignalomeModules`; use `.table` or `.to_pandas()`. |
-| `kinase_network` | `KinaseNetwork`; use `.edges`, `.nodes`, and optional `.candidate_correlations`. |
+| `kinase_network` | `KinaseNetwork`; use `.edges`, `.nodes`, `.correlation_diagnostics`, and optional `.candidate_correlations`. |
 | `module_selection_diagnostics` | Module-count selection diagnostics. |
 | `score_preconditioning_diagnostics` | Score-row preconditioning diagnostics. |
 | `alignment_diagnostics` | Dataset/score/prediction alignment diagnostics. |
@@ -165,6 +165,16 @@ protein context.
 Missing kinase correlations remain missing. A value of `0.0` means a finite
 near-zero correlation was estimated.
 
+`output.network_min_paired_finite_observations` controls candidate edge
+eligibility. For each kinase pair, PhosPy counts rows where both downstream
+score profiles are finite. Pairs below the configured minimum are skipped before
+edge thresholding. Constant score profiles, missing scores, non-finite scores,
+and finite correlations below the configured network policy are also skipped and
+reported in `kinase_network.correlation_diagnostics` and workflow provenance.
+The optional `kinase_network.candidate_correlations` table lists candidate
+pairs with `correlation_status`, `valid_observations`, and
+`correlation_reason`.
+
 Key output meanings:
 
 | Output | Meaning |
@@ -177,11 +187,12 @@ Key output meanings:
 | `kinase_network.edges` | Correlation edges between kinase score profiles. `source_kinase` and `target_kinase` are deterministic table labels, not inferred direction. |
 | `kinase_network.edges.correlation` | Edge weight derived from pairwise finite downstream score-profile correlations. `signed`, `positive_only`, and `absolute_threshold` policies control thresholding and whether sign is retained or stored as magnitude. |
 | `kinase_network.candidate_correlations` | Candidate pairwise correlations before edge filtering, with status and paired finite observation counts. |
+| `kinase_network.correlation_diagnostics` | Retained edge count plus skipped-edge counts for below-threshold, insufficient paired observations, constant profiles, missing scores, non-finite scores, and undefined correlations. |
 | `expanded_signalome.regulated_module_ids` | Stable legacy field name for score-supported module IDs linked to a focal kinase. It does not mean experimental regulation was shown. |
 
 Network edges are exploratory score-profile associations. Correlations do not
 establish causality, direction, or experimental validation of signalling
-relationships.
+relationships. They are not physical or causal interactions.
 
 `candidate_scoring_policy="sampled"` approximates candidate module-count scoring
 only. It does not make every signalome step approximate, and scale-guard
@@ -193,7 +204,7 @@ Workflow provenance records upstream kinase provenance, resolved config,
 alignment diagnostics, score-preconditioning diagnostics, scale-guard decisions,
 scientific policy records, table fingerprints, and signalome score semantics.
 The semantics include the network threshold, policy, correlation basis, edge
-directionality, and interpretation limits.
+directionality, skipped-edge diagnostics, and interpretation limits.
 
 ## Limitations
 

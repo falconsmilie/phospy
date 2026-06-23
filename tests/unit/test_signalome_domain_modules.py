@@ -54,6 +54,7 @@ def test_domain_network_reports_non_finite_scores_without_edge_creation() -> Non
     assert candidates.at[0, "correlation_status"] == "non_finite_values"
     assert pd.isna(candidates.at[0, "correlation"])
     assert diagnostics.non_finite_value_correlations == 1
+    assert diagnostics.edges_skipped_non_finite_score == 1
 
 
 def test_domain_expanded_requires_network_edge_columns() -> None:

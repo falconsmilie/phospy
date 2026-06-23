@@ -289,6 +289,20 @@ def signalome_network_correlation_diagnostics_to_payload(
         "edges_skipped_non_finite_correlation": int(
             diagnostics.edges_skipped_non_finite_correlation
         ),
+        "edges_skipped_below_threshold": int(diagnostics.edges_skipped_below_threshold),
+        "edges_skipped_insufficient_paired_observations": int(
+            diagnostics.edges_skipped_insufficient_paired_observations
+        ),
+        "edges_skipped_constant_profile": int(
+            diagnostics.edges_skipped_constant_profile
+        ),
+        "edges_skipped_missing_score": int(diagnostics.edges_skipped_missing_score),
+        "edges_skipped_non_finite_score": int(
+            diagnostics.edges_skipped_non_finite_score
+        ),
+        "edges_skipped_undefined_correlation": int(
+            diagnostics.edges_skipped_undefined_correlation
+        ),
     }
 
 
@@ -313,6 +327,25 @@ def signalome_network_correlation_diagnostics_from_payload(
             "non_finite_value_correlations",
             "edges_created",
             "edges_skipped_non_finite_correlation",
+            "edges_skipped_below_threshold",
+            "edges_skipped_insufficient_paired_observations",
+            "edges_skipped_constant_profile",
+            "edges_skipped_missing_score",
+            "edges_skipped_non_finite_score",
+            "edges_skipped_undefined_correlation",
+        }
+    )
+    required_fields = frozenset(
+        {
+            "total_candidate_correlations",
+            "finite_correlations",
+            "undefined_correlations",
+            "constant_profile_correlations",
+            "insufficient_observation_correlations",
+            "missing_value_correlations",
+            "non_finite_value_correlations",
+            "edges_created",
+            "edges_skipped_non_finite_correlation",
         }
     )
     _reject_unsupported_fields(
@@ -323,7 +356,7 @@ def signalome_network_correlation_diagnostics_from_payload(
     _require_fields(
         diagnostics_payload,
         field_name=diagnostics_field_name,
-        required_fields=allowed_fields,
+        required_fields=required_fields,
     )
     return SignalomeNetworkCorrelationDiagnostics(
         total_candidate_correlations=_require_int(
@@ -378,7 +411,65 @@ def signalome_network_correlation_diagnostics_from_payload(
                 "edges_skipped_non_finite_correlation"
             ),
         ),
+        edges_skipped_below_threshold=_optional_diagnostics_int(
+            diagnostics_payload,
+            key="edges_skipped_below_threshold",
+            field_name=(
+                f"{scope}.network_correlation_diagnostics.edges_skipped_below_threshold"
+            ),
+        ),
+        edges_skipped_insufficient_paired_observations=_optional_diagnostics_int(
+            diagnostics_payload,
+            key="edges_skipped_insufficient_paired_observations",
+            field_name=(
+                f"{scope}.network_correlation_diagnostics."
+                "edges_skipped_insufficient_paired_observations"
+            ),
+        ),
+        edges_skipped_constant_profile=_optional_diagnostics_int(
+            diagnostics_payload,
+            key="edges_skipped_constant_profile",
+            field_name=(
+                f"{scope}.network_correlation_diagnostics."
+                "edges_skipped_constant_profile"
+            ),
+        ),
+        edges_skipped_missing_score=_optional_diagnostics_int(
+            diagnostics_payload,
+            key="edges_skipped_missing_score",
+            field_name=(
+                f"{scope}.network_correlation_diagnostics.edges_skipped_missing_score"
+            ),
+        ),
+        edges_skipped_non_finite_score=_optional_diagnostics_int(
+            diagnostics_payload,
+            key="edges_skipped_non_finite_score",
+            field_name=(
+                f"{scope}.network_correlation_diagnostics."
+                "edges_skipped_non_finite_score"
+            ),
+        ),
+        edges_skipped_undefined_correlation=_optional_diagnostics_int(
+            diagnostics_payload,
+            key="edges_skipped_undefined_correlation",
+            field_name=(
+                f"{scope}.network_correlation_diagnostics."
+                "edges_skipped_undefined_correlation"
+            ),
+        ),
     )
+
+
+def _optional_diagnostics_int(
+    payload: object,
+    *,
+    key: str,
+    field_name: str,
+) -> int:
+    mapping = require_mapping(payload, field_name=field_name.rsplit(".", 1)[0])
+    if key not in mapping:
+        return 0
+    return _require_int(mapping.get(key), field_name=field_name)
 
 
 def signalome_alignment_diagnostics_to_payload(

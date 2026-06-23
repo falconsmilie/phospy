@@ -343,7 +343,7 @@ def test_candidate_correlation_constant_profile_remains_nan_and_creates_no_edge(
         index=pd.Index(["S1", "S2", "S3", "S4"], name="site_id"),
     )
 
-    edges, _, candidates, _ = build_kinase_network_with_diagnostics(
+    edges, _, candidates, diagnostics = build_kinase_network_with_diagnostics(
         downstream_score_matrix=downstream_scores,
         kinase_order=["K1", "K2"],
         kinase_substrates={"K1": (), "K2": ()},
@@ -355,6 +355,7 @@ def test_candidate_correlation_constant_profile_remains_nan_and_creates_no_edge(
     assert candidates.shape[0] == 1
     assert pd.isna(candidates.at[0, "correlation"])
     assert candidates.at[0, "correlation_status"] == "constant_profile"
+    assert diagnostics.edges_skipped_constant_profile == 1
 
 
 def test_candidate_correlation_insufficient_observations_remains_nan() -> None:
@@ -402,6 +403,7 @@ def test_candidate_correlation_respects_minimum_paired_observations() -> None:
     assert candidates.at[0, "valid_observations"] == 3
     assert candidates.at[0, "correlation_status"] == "insufficient_observations"
     assert diagnostics.insufficient_observation_correlations == 1
+    assert diagnostics.edges_skipped_insufficient_paired_observations == 1
 
 
 def test_candidate_correlation_classifies_missing_and_non_finite_inputs() -> None:
@@ -420,25 +422,31 @@ def test_candidate_correlation_classifies_missing_and_non_finite_inputs() -> Non
         index=pd.Index(["S1", "S2", "S3"], name="site_id"),
     )
 
-    _, _, missing_candidates, _ = build_kinase_network_with_diagnostics(
-        downstream_score_matrix=missing_scores,
-        kinase_order=["K1", "K2"],
-        kinase_substrates={"K1": (), "K2": ()},
-        threshold=0.0,
-        network_policy="signed",
+    _, _, missing_candidates, missing_diagnostics = (
+        build_kinase_network_with_diagnostics(
+            downstream_score_matrix=missing_scores,
+            kinase_order=["K1", "K2"],
+            kinase_substrates={"K1": (), "K2": ()},
+            threshold=0.0,
+            network_policy="signed",
+        )
     )
-    _, _, non_finite_candidates, _ = build_kinase_network_with_diagnostics(
-        downstream_score_matrix=non_finite_scores,
-        kinase_order=["K1", "K2"],
-        kinase_substrates={"K1": (), "K2": ()},
-        threshold=0.0,
-        network_policy="signed",
+    _, _, non_finite_candidates, non_finite_diagnostics = (
+        build_kinase_network_with_diagnostics(
+            downstream_score_matrix=non_finite_scores,
+            kinase_order=["K1", "K2"],
+            kinase_substrates={"K1": (), "K2": ()},
+            threshold=0.0,
+            network_policy="signed",
+        )
     )
 
     assert missing_candidates.at[0, "correlation_status"] == "missing_values"
     assert pd.isna(missing_candidates.at[0, "correlation"])
+    assert missing_diagnostics.edges_skipped_missing_score == 1
     assert non_finite_candidates.at[0, "correlation_status"] == "non_finite_values"
     assert pd.isna(non_finite_candidates.at[0, "correlation"])
+    assert non_finite_diagnostics.edges_skipped_non_finite_score == 1
 
 
 def test_network_edge_creation_uses_only_finite_candidate_correlations() -> None:
@@ -501,7 +509,49 @@ def test_network_correlation_diagnostics_count_statuses_and_skips() -> None:
     assert diagnostics.missing_value_correlations == 4
     assert diagnostics.non_finite_value_correlations == 0
     assert diagnostics.edges_skipped_non_finite_correlation == 7
+    assert diagnostics.edges_skipped_below_threshold == 2
+    assert diagnostics.edges_skipped_constant_profile == 3
+    assert diagnostics.edges_skipped_missing_score == 4
+    assert diagnostics.edges_skipped_non_finite_score == 0
+    assert diagnostics.edges_skipped_undefined_correlation == 0
     assert diagnostics.edges_created == int(edges.shape[0]) == 1
+
+
+@pytest.mark.parametrize(
+    ("network_policy", "expected_edges", "expected_threshold_skips"),
+    [
+        ("positive_only", 1, 2),
+        ("absolute_threshold", 3, 0),
+        ("signed", 3, 0),
+    ],
+)
+def test_network_edge_diagnostics_follow_network_policy(
+    network_policy: str,
+    expected_edges: int,
+    expected_threshold_skips: int,
+) -> None:
+    downstream_scores = pd.DataFrame(
+        {
+            "K1": [1.0, 2.0, 3.0, 4.0],
+            "K2": [4.0, 3.0, 2.0, 1.0],
+            "K3": [1.0, 2.0, 2.0, 3.0],
+        },
+        index=pd.Index(["S1", "S2", "S3", "S4"], name="site_id"),
+    )
+
+    edges, _, candidates, diagnostics = build_kinase_network_with_diagnostics(
+        downstream_score_matrix=downstream_scores,
+        kinase_order=["K1", "K2", "K3"],
+        kinase_substrates={"K1": (), "K2": (), "K3": ()},
+        threshold=0.9,
+        network_policy=network_policy,
+    )
+
+    assert int(edges.shape[0]) == expected_edges
+    assert diagnostics.edges_created == expected_edges
+    assert diagnostics.finite_correlations == int(candidates.shape[0]) == 3
+    assert diagnostics.edges_skipped_below_threshold == expected_threshold_skips
+    assert diagnostics.edges_skipped_non_finite_correlation == 0
 
 
 def test_network_regression_undefined_correlations_are_not_zero_imputed() -> None:

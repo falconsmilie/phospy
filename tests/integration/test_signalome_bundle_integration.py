@@ -145,6 +145,18 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     assert int(network_correlation_payload["undefined_correlations"]) >= 0
     assert int(network_correlation_payload["edges_created"]) >= 0
     assert int(network_correlation_payload["edges_skipped_non_finite_correlation"]) >= 0
+    assert int(network_correlation_payload["edges_skipped_below_threshold"]) >= 0
+    assert (
+        int(
+            network_correlation_payload[
+                "edges_skipped_insufficient_paired_observations"
+            ]
+        )
+        >= 0
+    )
+    assert int(network_correlation_payload["edges_skipped_constant_profile"]) >= 0
+    assert int(network_correlation_payload["edges_skipped_missing_score"]) >= 0
+    assert int(network_correlation_payload["edges_skipped_non_finite_score"]) >= 0
     assert "provenance" in manifest
     provenance = manifest["provenance"]
     provenance_keys = _collect_keys(provenance)

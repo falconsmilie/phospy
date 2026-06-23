@@ -575,6 +575,27 @@ def _build_signalome_score_semantics(
                     config.network_min_paired_finite_observations
                 ),
             },
+            "edge_diagnostics": {
+                "retained_edges": int(network_correlation_diagnostics.edges_created),
+                "skipped_below_threshold": int(
+                    network_correlation_diagnostics.edges_skipped_below_threshold
+                ),
+                "skipped_insufficient_paired_observations": int(
+                    network_correlation_diagnostics.edges_skipped_insufficient_paired_observations
+                ),
+                "skipped_constant_profile": int(
+                    network_correlation_diagnostics.edges_skipped_constant_profile
+                ),
+                "skipped_missing_score": int(
+                    network_correlation_diagnostics.edges_skipped_missing_score
+                ),
+                "skipped_non_finite_score": int(
+                    network_correlation_diagnostics.edges_skipped_non_finite_score
+                ),
+                "skipped_undefined_correlation": int(
+                    network_correlation_diagnostics.edges_skipped_undefined_correlation
+                ),
+            },
             "interpretation_limit": (
                 "correlations are not causal evidence and do not prove signalling "
                 "relationships"
