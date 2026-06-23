@@ -33,9 +33,9 @@ from phospy.science.enrichment.models import (
 class EnrichmentConfig:
     """Public configuration for native enrichment.
 
-    The initial contract records method and multiple-testing intent only. It
-    does not compute enrichment statistics, load resources, or derive a
-    background universe.
+    Records the enrichment method, multiple-testing correction, and optional
+    minimum and maximum set-size filters. It does not compute enrichment
+    statistics, load resources, or derive a background universe.
     """
 
     method: EnrichmentMethod = ENRICHMENT_METHOD_OVER_REPRESENTATION
