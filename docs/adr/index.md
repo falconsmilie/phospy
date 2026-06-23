@@ -43,5 +43,6 @@ Use these ADRs when you need rationale and tradeoffs.
 | ADR-0024 | Protein-Scoped Phosphosite Row Identity | Accepted | 2026-05-27 | [adr_0024_protein_scoped_phosphosite_row_identity.md](adr_0024_protein_scoped_phosphosite_row_identity.md) |
 | ADR-0025 | Competitive Phosphoproteomics Workflow Coverage Roadmap | Accepted | 2026-06-11 | [adr_0025_competitive_phosphoproteomics_workflow_coverage.md](adr_0025_competitive_phosphoproteomics_workflow_coverage.md) |
 | ADR-0026 | Differential Imputation Policy | Accepted | 2026-06-14 | [adr_0026_differential_imputation_policy.md](adr_0026_differential_imputation_policy.md) |
-| ADR-0027 | Target Future Native PhosR-Style SPS/RUV-III Correction | Accepted | 2026-06-14 | [adr_0027_target_future_native_phosr_style_sps_ruv_iii_correction.md](adr_0027_target_future_native_phosr_style_sps_ruv_iii_correction.md) |
+| ADR-0027 | Target Future Native PhosR-Style SPS/RUV-III Correction | Superseded | 2026-06-14 | [adr_0027_target_future_native_phosr_style_sps_ruv_iii_correction.md](adr_0027_target_future_native_phosr_style_sps_ruv_iii_correction.md) |
 | ADR-0028 | Semi-Public Science Import Policy | Accepted | 2026-06-15 | [adr_0028_semi_public_science_import_policy.md](adr_0028_semi_public_science_import_policy.md) |
+| ADR-0029 | Native SPS/RUV-Style Batch Correction Prerequisites | Accepted | 2026-06-23 | [adr_0029_native_sps_ruv_style_batch_correction_prerequisites.md](adr_0029_native_sps_ruv_style_batch_correction_prerequisites.md) |

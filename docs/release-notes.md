@@ -48,7 +48,7 @@ ssGSEA-style kinase activity, and offline enrichment ORA.
   validation, and public workflow docs.
 - Imputation observation metadata, deterministic KNN imputation regression
   coverage, and imputation-aware differential safety/support contracts.
-- ADR-0023 through ADR-0028 plus expanded importer, reference-bundle,
+- ADR-0023 through ADR-0029 plus expanded importer, reference-bundle,
   enrichment, workflow, scientific-scope, and testing documentation.
 
 ## Changed

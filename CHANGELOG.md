@@ -28,7 +28,7 @@ All notable changes to this project are documented here.
   correction, request/result contracts, validation, and public workflow docs.
 - imputation observation metadata, deterministic KNN imputation regression coverage, and imputation-aware differential
   safety/support contracts.
-- ADR-0023 through ADR-0028 plus expanded importer, reference-bundle, enrichment, workflow, scientific-scope, and testing
+- ADR-0023 through ADR-0029 plus expanded importer, reference-bundle, enrichment, workflow, scientific-scope, and testing
   documentation.
 - regression coverage for `site_key` identity across dataset construction, kinase, differential, signalome, bundle
   reconstruction, public output-table boundaries, importers, enrichment, fixed-effect differential designs, batch

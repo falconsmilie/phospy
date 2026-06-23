@@ -89,9 +89,10 @@ evidence lives in [`docs/parity.md`](docs/parity.md).
 Future coverage direction is tracked in
 [`ADR-0025`](docs/adr/adr_0025_competitive_phosphoproteomics_workflow_coverage.md);
 that roadmap is not a current feature-support claim.
-Future native PhosR-style SPS/RUV-III correction direction is recorded in
-[`ADR-0027`](docs/adr/adr_0027_target_future_native_phosr_style_sps_ruv_iii_correction.md);
-that ADR is a future architecture commitment, not a current feature claim.
+Future native SPS/RUV-style batch-correction prerequisites are recorded in
+[`ADR-0029`](docs/adr/adr_0029_native_sps_ruv_style_batch_correction_prerequisites.md);
+that ADR defers implementation until the required contracts exist and is not a
+current feature claim.
 
 The `batch_correction` preprocessing group currently exposes one opt-in method:
 `linear_residualize_batch`, a limited fixed-effect residualisation step that

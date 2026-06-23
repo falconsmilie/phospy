@@ -127,5 +127,5 @@ workflow surfaces, and any method not protected by fixture-backed comparison.
 PhosPy is not currently parity-equivalent with PhosR for SPS/RUV-III
 correction. There are no SPS control-selection fixtures, no native RUV-III
 correction kernel fixtures, and no PhosR `RUVphospho` corrected-output parity
-fixtures. ADR-0027 records this as planned future preprocessing/normalisation
-work, not current parity.
+fixtures. ADR-0029 defers native SPS/RUV-style correction until the required
+contracts, validation, provenance, and tests exist.

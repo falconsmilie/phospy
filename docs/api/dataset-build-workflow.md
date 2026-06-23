@@ -74,7 +74,7 @@ from phospy.api import (
 | `sample_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Descriptive/alignment metadata aligned to phospho columns with unique column names. Required when comparison building uses `sample_metadata_pairs`. It does not automatically define differential-analysis conditions, replicates, batches, or blocks. |
 | `total` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Total-protein matrix used only when total-protein correction is enabled. Columns must align to phospho sample columns. |
 | `organism` | `Organism` or `None` | `None` | No | Species identity for the dataset. Use `Organism.RAT` for the bundled beginner lane. |
-| `preprocessing_config` | `DatasetPreprocessingConfig` | `DatasetPreprocessingConfig()` | No | Grouped preprocessing policy for transforms, normalisation, missing data, group-aware coverage filter declaration, optional `linear_residualize_batch` batch correction, total-protein correction, protein-aware preparation, site construction, site-sequence resolution, comparisons, and RUV readiness reporting. |
+| `preprocessing_config` | `DatasetPreprocessingConfig` | `DatasetPreprocessingConfig()` | No | Grouped preprocessing policy for transforms, normalisation, missing data, group-aware coverage filter declaration, optional `linear_residualize_batch` batch residualisation, total-protein correction, protein-aware preparation, site construction, site-sequence resolution, comparisons, and RUV readiness reporting. |
 | `input_intensity_scale` | `IntensityScaleKind`, `str`, or `None` | `None` | No | Required when your preprocessing path keeps `intensity_transform.policy="identity"` and you still need a trusted intensity scale (`"linear"` or `"log2"`). |
 | `quantitative_meaning` | `QuantitativeMeaning`, `str`, or `None` | `None` | No | Optional explicit scientific meaning for phospho values (for example `phosphosite_abundance` or `phosphosite_log_abundance`). |
 
@@ -302,14 +302,15 @@ dataset = AnalysisReadyDatasetBuilder().run(
 ## Batch-Correction Parameters
 
 `DatasetBatchCorrectionConfig` defaults to `method="none"`. The only supported
-executable correction method is `method="linear_residualize_batch"`, a
+executable batch-related preprocessing method is
+`method="linear_residualize_batch"`, a
 fixed-effect residualisation of batch terms that preserves condition effects by
 including condition terms in the design. It is not ComBat, not RUV, not limma
 `removeBatchEffect` parity, and not mixed-effects modelling.
 
 | Parameter | Type | Default | Allowed Values | How to Use It |
 | --- | --- | --- | --- | --- |
-| `method` | `str` | `"none"` | `"none"`, `"linear_residualize_batch"` | Selects whether batch correction runs. |
+| `method` | `str` | `"none"` | `"none"`, `"linear_residualize_batch"` | Selects whether batch residualisation runs. |
 | `batch_column` | `str` | `"batch"` | Non-empty string | Column in `sample_metadata` identifying batch labels. |
 | `condition_column` | `str` | `"condition"` | Non-empty string | Column in `sample_metadata` identifying condition labels to preserve during residualisation. |
 | `preserve_condition_effects` | `True` | `True` | `True` only | Condition preservation is required for `linear_residualize_batch`. |
