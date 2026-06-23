@@ -1,9 +1,16 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pandas as pd
 import pytest
 
-from phospy.api import PhosphositeImportRequest, PhosphositeImportResult
+from phospy.api import (
+    IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
+    IMPORTER_QUALITY_STATUS_REPORTED,
+    PhosphositeImportRequest,
+    PhosphositeImportResult,
+)
 from phospy.errors import PhosPyInputError
 from phospy.io.readers import MappedPhosphositeTableImporter
 from phospy.science.evidence import DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE
@@ -81,6 +88,54 @@ def test_importer_extracts_sample_intensities_and_normalises_localisation() -> N
     assert localisation["scale"] == "percent"
     assert localisation["invalid_count"] == 1
     assert any("invalid values" in warning for warning in result.warnings)
+
+
+def test_importer_populates_quality_report_from_parsing_facts() -> None:
+    source = _source_table().copy(deep=True)
+    source.loc[1, "sample B raw"] = ""
+    source["site_key"] = [
+        "protein:P28482:S10",
+        "protein:P28482:S10",
+        "protein:P28482:S10,T12",
+    ]
+    source["display_id"] = ["MAPK1;S10;", "MAPK1;S10;", "MAPK1;S10,T12;"]
+    request = replace(
+        _request(source),
+        site_key_column="site_key",
+        display_id_column="display_id",
+    )
+
+    result = MappedPhosphositeTableImporter().run(request)
+
+    report = result.quality_report
+    assert report.source_name == "synthetic_search_output"
+    assert report.row_count_status == IMPORTER_QUALITY_STATUS_REPORTED
+    assert report.rows_read == 3
+    assert report.rows_retained == 3
+    assert report.rows_dropped == 0
+    assert [
+        (column.source_column, column.sample_id)
+        for column in report.detected_intensity_columns
+    ] == [
+        ("sample A raw", "sample_a"),
+        ("sample B raw", "sample_b"),
+    ]
+    assert report.missing_intensity.total_missing_values == 1
+    assert report.missing_intensity.rows_with_any_missing_intensity == 1
+    assert report.missing_intensity.missing_values_by_source_column == {
+        "sample A raw": 0,
+        "sample B raw": 1,
+    }
+    assert report.localisation_confidence.status == IMPORTER_QUALITY_STATUS_REPORTED
+    assert report.localisation_confidence.source_column == "loc_percent"
+    assert report.localisation_confidence.missing_count == 0
+    assert report.flagged_rows.contaminant.status == (
+        IMPORTER_QUALITY_STATUS_NOT_APPLICABLE
+    )
+    assert report.duplicate_keys.site_key.count == 1
+    assert report.duplicate_keys.display_key.count == 1
+    assert report.duplicate_keys.duplicate_site_candidate_rows == 1
+    assert report.warnings == result.warnings
 
 
 def test_importer_preserves_duplicate_and_multisite_peptide_evidence() -> None:

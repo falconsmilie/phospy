@@ -46,6 +46,20 @@ Importers own:
 Importers never infer sample groups, contrasts, batches, or differential
 designs from column names.
 
+## Importer Quality Reports
+
+Importer results expose `import_result.quality_report`. This report records
+input quality facts before dataset construction, such as rows read and
+retained, detected intensity columns, missing intensity counts, localisation
+confidence parsing, duplicate keys, format-specific flag counts when available,
+and warnings.
+
+Not every importer reports every field. Missing or unsupported fields use an
+explicit `not_reported` or `not_applicable` status. The report is informational:
+dataset validation, site-key derivation, duplicate-site handling, localisation
+policy enforcement, and missing-value policy remain owned by
+`AnalysisReadyDatasetBuilder`.
+
 ## MaxQuant Phosphosite Importer
 
 Use `MaxQuantPhosphositeImporter` for MaxQuant-style

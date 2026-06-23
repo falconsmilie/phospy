@@ -9,7 +9,18 @@ from pathlib import Path
 import pandas as pd
 
 from phospy.contracts.requests import PhosphositeImportRequest
-from phospy.contracts.results import PhosphositeImportResult
+from phospy.contracts.results import (
+    IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
+    IMPORTER_QUALITY_STATUS_REPORTED,
+    ImporterDetectedIntensityColumn,
+    ImporterDuplicateKeySummary,
+    ImporterFlaggedRowSummary,
+    ImporterLocalisationConfidenceSummary,
+    ImporterMissingIntensitySummary,
+    ImporterQualityCount,
+    ImporterQualityReport,
+    PhosphositeImportResult,
+)
 from phospy.errors.input import PhosPyInputError, UnsupportedInputFormatError
 from phospy.io.readers.tables import (
     supported_table_input_formats,
@@ -106,6 +117,15 @@ class MappedPhosphositeTableImporter:
             localisation_warnings=localisation_warnings,
             source_name=validated.source_name,
         )
+        quality_report = _build_import_quality_report(
+            source=source,
+            phospho=phospho,
+            site_metadata=site_metadata,
+            sample_mapping=sample_mapping,
+            localisation_diagnostics=localisation_diagnostics,
+            warnings=warnings,
+            source_name=validated.source_name,
+        )
         return PhosphositeImportResult(
             phospho_matrix_candidate=phospho,
             site_metadata_candidate=site_metadata,
@@ -115,6 +135,7 @@ class MappedPhosphositeTableImporter:
             warnings=warnings,
             diagnostics=diagnostics,
             source_name=validated.source_name,
+            quality_report=quality_report,
             _assume_owned=True,
         )
 
@@ -463,6 +484,168 @@ def _build_import_diagnostics(
             "is required"
         )
     return diagnostics, tuple(dict.fromkeys(warnings))
+
+
+def _build_import_quality_report(
+    *,
+    source: pd.DataFrame,
+    phospho: pd.DataFrame,
+    site_metadata: pd.DataFrame,
+    sample_mapping: dict[str, str],
+    localisation_diagnostics: dict[str, object] | None,
+    warnings: tuple[str, ...],
+    source_name: str,
+) -> ImporterQualityReport:
+    rows_read = int(source.shape[0])
+    rows_retained = int(site_metadata.shape[0])
+    return ImporterQualityReport(
+        source_name=source_name,
+        row_count_status=IMPORTER_QUALITY_STATUS_REPORTED,
+        rows_read=rows_read,
+        rows_retained=rows_retained,
+        rows_dropped=max(rows_read - rows_retained, 0),
+        intensity_column_status=IMPORTER_QUALITY_STATUS_REPORTED,
+        detected_intensity_columns=tuple(
+            ImporterDetectedIntensityColumn(
+                source_column=source_column,
+                sample_id=sample_id,
+            )
+            for source_column, sample_id in sample_mapping.items()
+        ),
+        missing_intensity=_build_missing_intensity_summary(
+            phospho=phospho,
+            sample_mapping=sample_mapping,
+        ),
+        localisation_confidence=_build_localisation_quality_summary(
+            localisation_diagnostics,
+        ),
+        flagged_rows=ImporterFlaggedRowSummary(
+            contaminant=ImporterQualityCount(
+                status=IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
+                reason="generic mapped importer does not parse contaminant flags",
+            ),
+            reverse=ImporterQualityCount(
+                status=IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
+                reason="generic mapped importer does not parse reverse flags",
+            ),
+            decoy=ImporterQualityCount(
+                status=IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
+                reason="generic mapped importer does not parse decoy flags",
+            ),
+        ),
+        duplicate_keys=_build_duplicate_key_quality_summary(site_metadata),
+        warnings=warnings,
+    )
+
+
+def _build_missing_intensity_summary(
+    *,
+    phospho: pd.DataFrame,
+    sample_mapping: dict[str, str],
+) -> ImporterMissingIntensitySummary:
+    missing_by_sample_id: dict[str, int] = {}
+    missing_by_source_column: dict[str, int] = {}
+    for source_column, sample_id in sample_mapping.items():
+        missing_count = int(phospho.loc[:, sample_id].isna().sum())
+        missing_by_sample_id[sample_id] = missing_count
+        missing_by_source_column[source_column] = missing_count
+    return ImporterMissingIntensitySummary(
+        status=IMPORTER_QUALITY_STATUS_REPORTED,
+        total_missing_values=sum(missing_by_sample_id.values()),
+        rows_with_any_missing_intensity=int(phospho.isna().any(axis=1).sum()),
+        missing_values_by_sample_id=missing_by_sample_id,
+        missing_values_by_source_column=missing_by_source_column,
+    )
+
+
+def _build_localisation_quality_summary(
+    localisation_diagnostics: dict[str, object] | None,
+) -> ImporterLocalisationConfidenceSummary:
+    if localisation_diagnostics is None:
+        return ImporterLocalisationConfidenceSummary(
+            status=IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
+            reason="localisation confidence column was not mapped",
+        )
+    invalid_examples = localisation_diagnostics.get("invalid_examples", ())
+    if not isinstance(invalid_examples, (list, tuple)):
+        invalid_examples = ()
+    return ImporterLocalisationConfidenceSummary(
+        status=IMPORTER_QUALITY_STATUS_REPORTED,
+        source_column=str(localisation_diagnostics.get("source_column", "")),
+        output_column=str(localisation_diagnostics.get("output_column", "")),
+        scale=str(localisation_diagnostics.get("scale", "")),
+        row_count=_quality_diagnostic_int(localisation_diagnostics, "row_count"),
+        missing_count=_quality_diagnostic_int(
+            localisation_diagnostics,
+            "missing_count",
+        ),
+        invalid_count=_quality_diagnostic_int(
+            localisation_diagnostics,
+            "invalid_count",
+        ),
+        invalid_examples=tuple(str(value) for value in invalid_examples),
+    )
+
+
+def _quality_diagnostic_int(payload: dict[str, object], field_name: str) -> int:
+    value = payload.get(field_name, 0)
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        raise PhosPyInputError(
+            f"importer localisation diagnostics {field_name} must be int-compatible"
+        )
+    return int(value)
+
+
+def _build_duplicate_key_quality_summary(
+    site_metadata: pd.DataFrame,
+) -> ImporterDuplicateKeySummary:
+    return ImporterDuplicateKeySummary(
+        site_key=_quality_duplicate_count(
+            site_metadata,
+            column_name="site_key",
+            missing_reason="site_key column was not mapped",
+        ),
+        display_key=_quality_duplicate_count(
+            site_metadata,
+            column_name="display_id",
+            missing_reason="display_id column was not mapped",
+        ),
+        duplicate_site_candidate_rows=int(
+            pd.Series(_diagnostic_site_labels(site_metadata), dtype="object")
+            .duplicated()
+            .sum()
+        ),
+    )
+
+
+def _quality_duplicate_count(
+    site_metadata: pd.DataFrame,
+    *,
+    column_name: str,
+    missing_reason: str,
+) -> ImporterQualityCount:
+    if column_name not in site_metadata.columns:
+        return ImporterQualityCount(
+            status=IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
+            reason=missing_reason,
+        )
+    return ImporterQualityCount(
+        status=IMPORTER_QUALITY_STATUS_REPORTED,
+        count=_diagnostic_duplicate_non_missing_rows(site_metadata.loc[:, column_name]),
+        source_column=column_name,
+    )
+
+
+def _diagnostic_duplicate_non_missing_rows(values: pd.Series) -> int:
+    tokens: list[str] = []
+    for value in values.tolist():
+        if _is_missing(value):
+            continue
+        token = str(value).strip()
+        if token == "":
+            continue
+        tokens.append(token)
+    return int(pd.Series(tokens, dtype="object").duplicated().sum())
 
 
 def _parse_intensity_column(series: pd.Series, *, source_column: str) -> list[float]:
