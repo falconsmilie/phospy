@@ -42,6 +42,8 @@ from phospy.api.configs import (
     SUPPORTED_MULTIPLE_TESTING_CORRECTIONS,
     SUPPORTED_MULTIPLE_TESTING_METHODS,
     SUPPORTED_PAIRED_DESIGN_POLICIES,
+    CorrectionMaskPolicy,
+    CorrectionMissingnessPolicy,
     DatasetBatchCorrectionConfig,
     DatasetComparisonBuildingConfig,
     DatasetGroupCoverageFilterConfig,
@@ -68,6 +70,8 @@ from phospy.api.configs import (
     MultipleTestingConfig,
     MultipleTestingCorrection,
     MultipleTestingMethod,
+    ObservationMask,
+    OriginallyMissingCellTracking,
     PairedDesignPolicy,
     SignalomeClusteringConfig,
     SignalomeConfig,
@@ -75,6 +79,9 @@ from phospy.api.configs import (
     SignalomePerformanceConfig,
     SignalomeScientificConfig,
     SignalomeValidationConfig,
+    SpsRuvBatchCorrectionConfig,
+    TemporaryImputationMethod,
+    TemporaryImputationPolicy,
 )
 from phospy.api.datasets import (
     AnalysisReadyPhosphoDataset,
@@ -187,6 +194,12 @@ from phospy.errors import (
     WorkflowStageError,
     WorkflowValidationError,
 )
+from phospy.science.datasets.preprocessing.control_sites import (
+    ControlSiteAnnotation,
+    ControlSiteSet,
+    ControlSiteSourceMetadata,
+    ControlSiteStatus,
+)
 from phospy.science.differential.policy_models import TechnicalReplicatePolicy
 from phospy.science.references.kinase_library import (
     KinaseLibraryMatrix,
@@ -235,6 +248,17 @@ __all__ = [
     "TotalProteinCorrectionDiagnosticsV1",
     "TotalProteinCorrectionState",
     "DatasetBatchCorrectionConfig",
+    "SpsRuvBatchCorrectionConfig",
+    "ControlSiteAnnotation",
+    "ControlSiteSet",
+    "ControlSiteSourceMetadata",
+    "ControlSiteStatus",
+    "CorrectionMaskPolicy",
+    "CorrectionMissingnessPolicy",
+    "ObservationMask",
+    "OriginallyMissingCellTracking",
+    "TemporaryImputationMethod",
+    "TemporaryImputationPolicy",
     "DatasetComparisonBuildingConfig",
     "DatasetGroupCoverageFilterConfig",
     "DatasetIntensityTransformConfig",

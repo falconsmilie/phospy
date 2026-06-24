@@ -9,6 +9,8 @@ import pandas as pd
 from phospy import AnalysisReadyDatasetBuilder
 from phospy.api import (
     Contrast,
+    ControlSiteSet,
+    CorrectionMissingnessPolicy,
     DatasetBatchCorrectionConfig,
     DatasetBuildRequest,
     DatasetIntensityTransformConfig,
@@ -39,6 +41,7 @@ from phospy.api import (
     SignalomeScientificConfig,
     SignalomeValidationConfig,
     SignalomeWorkflowRequest,
+    SpsRuvBatchCorrectionConfig,
 )
 from phospy.api.results import KinasePredictionResult, KinaseScoringResult
 
@@ -673,6 +676,49 @@ def test_api_docs_batch_correction_example_is_constructible() -> None:
     assert report.confounding_check_status == "passed"
     assert report.batch_levels == ("run_1", "run_2")
     assert report.condition_levels == ("control", "treated")
+
+
+def test_api_docs_sps_ruv_batch_correction_example_is_explicit() -> None:
+    source = _read(DATASET_BUILD_DOC)
+
+    _assert_python_call_keyword(
+        source,
+        "SpsRuvBatchCorrectionConfig",
+        "n_unwanted_factors",
+        1,
+        context="SPS/RUV batch-correction configuration example",
+    )
+    _assert_python_call_keyword(
+        source,
+        "SpsRuvBatchCorrectionConfig",
+        "provenance_enabled",
+        True,
+        context="SPS/RUV batch-correction provenance setting",
+    )
+    _assert_documented_terms(
+        source,
+        (
+            "ControlSiteSet.from_site_keys",
+            "CorrectionMissingnessPolicy",
+            "caller-supplied",
+            "provenance",
+        ),
+        context="SPS/RUV explicit controls and policy",
+    )
+
+    config = SpsRuvBatchCorrectionConfig(
+        control_site_set=ControlSiteSet.from_site_keys(("site_a", "site_c")),
+        batch_column="batch",
+        condition_columns=("condition",),
+        replicate_column="replicate",
+        missingness_policy=CorrectionMissingnessPolicy(),
+        n_unwanted_factors=1,
+        diagnostics_enabled=True,
+        provenance_enabled=True,
+    )
+
+    preprocessing = DatasetPreprocessingConfig(batch_correction=config)
+    assert preprocessing.batch_correction is config
 
 
 def test_api_docs_protein_aware_preparation_boundary_is_documented() -> None:

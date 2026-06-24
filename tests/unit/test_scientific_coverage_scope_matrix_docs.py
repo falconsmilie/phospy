@@ -133,7 +133,8 @@ def test_scope_matrix_columns_and_required_rows_are_present() -> None:
         "normalisation",
         "imputation",
         "batch correction: `linear_residualize_batch`",
-        "ruv/sps/ruv-iii, combat, and `removebatcheffect` parity",
+        "batch correction: `spsruvbatchcorrectionconfig`",
+        "phosr-equivalent sps/ruv-iii, combat, and `removebatcheffect` parity",
         "enrichment",
         "visualisation",
         "supported bundled organisms and references",
@@ -230,18 +231,19 @@ def test_docs_do_not_claim_ruv_support() -> None:
     ).lower()
     normalized = " ".join(text.split())
 
+    assert "| batch correction: `spsruvbatchcorrectionconfig` |" in normalized
     assert (
-        "| ruv/sps/ruv-iii, combat, and `removebatcheffect` parity | `open gap` |"
+        "| phosr-equivalent sps/ruv-iii, combat, and `removebatcheffect` parity | `open gap` |"
         in normalized
     )
-    assert "no executable ruv/sps/ruv-iii, combat, or limma" in normalized
-    assert "does not currently provide phosr-equivalent sps/ruv-iii" in normalized
+    assert "no phosr-equivalent sps/ruv-iii, combat, or limma" in normalized
+    assert "native sps/ruv-style preprocessing correction" in normalized
     assert "do not interpret `ruv_readiness` as ruv support" in normalized
     assert "limited fixed-effect residualisation" in normalized
     assert "not combat" in normalized
     assert "not ruv" in normalized
     assert "not limma `removebatcheffect` parity" in normalized
-    assert "not current support" in normalized
+    assert "not current phosr parity" in normalized
 
     for forbidden in (
         "supports ruv",
@@ -268,22 +270,23 @@ def test_docs_distinguish_linear_residualisation_from_ruv_sps() -> None:
 
     assert "linear_residualize_batch" in normalized
     assert "fixed-effect residualisation" in normalized
-    assert "not native ruv/sps/ruv-iii correction" in normalized
+    assert "not native sps/ruv-style correction" in normalized
     assert "not phosr-equivalent batch correction" in normalized
     assert "not equivalent to phosr-style ruv/sps correction" in normalized
     assert "no treatment of linear residualisation as equivalent" in normalized
 
 
-def test_scientific_coverage_lists_ruv_sps_as_not_currently_supported() -> None:
+def test_scientific_coverage_lists_sps_ruv_as_explicit_non_parity_support() -> None:
     normalized = " ".join(_scientific_coverage_text().lower().split())
 
     assert "### ruv/sps/ruv-iii batch-correction posture" in normalized
     assert "supported today:" in normalized
     assert "not supported today:" in normalized
-    assert "planned future direction:" in normalized
-    assert "native ruv/sps/ruv-iii correction" in normalized
+    assert "`spsruvbatchcorrectionconfig`" in normalized
+    assert "caller-supplied controls" in normalized
+    assert "unwanted-factor count" in normalized
     assert "phosr-equivalent sps/ruv-iii batch correction" in normalized
-    assert "this is not current support" in normalized
+    assert "not a claim of phosr-equivalent sps/ruv-iii correction" in normalized
 
 
 def test_parity_docs_state_ruv_sps_is_future_work() -> None:
@@ -291,11 +294,9 @@ def test_parity_docs_state_ruv_sps_is_future_work() -> None:
 
     assert "not currently parity-equivalent with phosr for sps/ruv-iii" in (normalized)
     assert "no sps control-selection fixtures" in normalized
-    assert "no native ruv-iii correction kernel fixtures" in normalized
+    assert "no native ruv-iii correction-kernel parity fixtures" in normalized
     assert "no phosr `ruvphospho` corrected-output parity fixtures" in normalized
-    assert "planned future preprocessing/normalisation work, not current parity" in (
-        normalized
-    )
+    assert "validated phospy implementation, not current phosr parity" in normalized
 
 
 def test_adr_0027_records_future_preprocessing_direction_and_constraints() -> None:
@@ -304,16 +305,14 @@ def test_adr_0027_records_future_preprocessing_direction_and_constraints() -> No
     assert "adr-0027" in normalized
     assert "status:** accepted" in normalized
     assert (
-        "phospy will add native phosr-style sps/ruv-iii correction as a future"
+        "phospy targets native sps/ruv-style correction as a preprocessing/normalisation"
         in normalized
     )
-    assert "future architecture commitment, not a current feature-support claim" in (
-        normalized
-    )
+    assert "not phosr-equivalent sps/ruv-iii parity" in normalized
     assert "preprocessing/normalisation" in normalized
     assert "must not be owned by differential analysis" in normalized
     assert "kinase analysis, enrichment, or signalome execution" in normalized
-    assert "no native ruv/sps/ruv-iii correction support" in normalized
+    assert "`spsruvbatchcorrectionconfig`" in normalized
     assert "`ruv_readiness` and similarly named diagnostics are report-only" in (
         normalized
     )
@@ -438,7 +437,7 @@ def test_differential_provenance_docs_name_fixed_block_limitations() -> None:
     assert "simple unpaired workflows" in normalized
 
 
-def test_batch_correction_scope_names_only_linear_residualize_batch_supported() -> None:
+def test_batch_correction_scope_names_supported_preprocessing_methods() -> None:
     text = (
         _scientific_coverage_text()
         + "\n"
@@ -449,8 +448,9 @@ def test_batch_correction_scope_names_only_linear_residualize_batch_supported() 
     normalized = " ".join(text.split())
 
     assert "| batch correction: `linear_residualize_batch` |" in normalized
+    assert "| batch correction: `spsruvbatchcorrectionconfig` |" in normalized
     assert (
-        "| ruv/sps/ruv-iii, combat, and `removebatcheffect` parity | `open gap` |"
+        "| phosr-equivalent sps/ruv-iii, combat, and `removebatcheffect` parity | `open gap` |"
         in normalized
     )
     assert "`linear_residualize_batch` fixed-effect residualisation" in normalized
@@ -461,6 +461,8 @@ def test_batch_correction_scope_names_only_linear_residualize_batch_supported() 
     assert "not limma `removebatcheffect` parity" in normalized
     assert "not mixed-effects modelling" in normalized
     assert "does not solve all batch-effect problems" in normalized
+    assert "caller-supplied controls" in normalized
+    assert "correction remains in dataset preprocessing" in normalized
     assert "do not interpret `ruv_readiness` as ruv support" in normalized
 
 

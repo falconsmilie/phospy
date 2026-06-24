@@ -19,6 +19,8 @@ from phospy.contracts.configs import (
     DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICY_ERROR,
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT,
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ERROR,
+    SPS_RUV_BATCH_CORRECTION_METHODS,
+    CorrectionMissingnessPolicy,
     DatasetComparisonPair,
     DatasetPreprocessingConfig,
     DatasetProteinAwarePreparationMappingPolicy,
@@ -27,6 +29,7 @@ from phospy.contracts.configs import (
     DatasetTotalProteinCorrectionIdentityMode,
     DatasetTotalProteinCorrectionUnmatchedPolicy,
 )
+from phospy.contracts.configs.preprocessing import InternalBatchCorrectionRequest
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.models import (
     PREPROCESSING_STAGE_DETERMINISM_PURE,
@@ -255,6 +258,11 @@ class PreprocessingPlan:
     batch_correction_method: str = DATASET_BATCH_CORRECTION_METHOD_NONE
     batch_correction_batch_column: str = "batch"
     batch_correction_condition_column: str = "condition"
+    batch_correction_condition_columns: tuple[str, ...] = ("condition",)
+    batch_correction_replicate_column: str | None = None
+    batch_correction_control_site_set: object | None = None
+    batch_correction_missingness_policy: CorrectionMissingnessPolicy | None = None
+    batch_correction_internal_request: InternalBatchCorrectionRequest | None = None
     batch_correction_preserve_condition_effects: bool = True
     stage_order: tuple[str, ...] = DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT
     stage_order_resolution: tuple[PreprocessingStageOrderResolution, ...] = ()
@@ -434,13 +442,19 @@ class PreprocessingPlan:
         batch_correction_method = str(self.batch_correction_method).strip()
         if not batch_correction_method:
             batch_correction_method = DATASET_BATCH_CORRECTION_METHOD_NONE
-        if batch_correction_method not in {
-            DATASET_BATCH_CORRECTION_METHOD_NONE,
-            DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
-        }:
+        if (
+            batch_correction_method
+            not in {
+                DATASET_BATCH_CORRECTION_METHOD_NONE,
+                DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
+            }
+            and batch_correction_method not in SPS_RUV_BATCH_CORRECTION_METHODS
+        ):
             raise PhosPyInputError(
                 "dataset preprocessing plan batch_correction_method "
-                "(internal model) must be one of: none, linear_residualize_batch"
+                "(internal model) must be one of: none, "
+                "linear_residualize_batch, control_site_ruv_style, "
+                "ruv_iii_style, sps_ruv_style"
             )
         object.__setattr__(
             self,
@@ -461,6 +475,52 @@ class PreprocessingPlan:
             )
         object.__setattr__(self, "batch_correction_batch_column", batch_column)
         object.__setattr__(self, "batch_correction_condition_column", condition_column)
+        condition_columns = tuple(
+            str(column).strip() for column in self.batch_correction_condition_columns
+        )
+        if not condition_columns or any(column == "" for column in condition_columns):
+            raise PhosPyInputError(
+                "dataset preprocessing plan batch_correction_condition_columns "
+                "(internal model) must be a non-empty tuple of non-empty strings"
+            )
+        if len(set(condition_columns)) != len(condition_columns):
+            raise PhosPyInputError(
+                "dataset preprocessing plan batch_correction_condition_columns "
+                "(internal model) must not contain duplicates"
+            )
+        object.__setattr__(
+            self,
+            "batch_correction_condition_columns",
+            condition_columns,
+        )
+        if self.batch_correction_replicate_column is not None:
+            replicate_column = str(self.batch_correction_replicate_column).strip()
+            if replicate_column == "":
+                raise PhosPyInputError(
+                    "dataset preprocessing plan batch_correction_replicate_column "
+                    "(internal model) must be a non-empty string when provided"
+                )
+            object.__setattr__(
+                self,
+                "batch_correction_replicate_column",
+                replicate_column,
+            )
+        if batch_correction_method in SPS_RUV_BATCH_CORRECTION_METHODS:
+            if self.batch_correction_internal_request is None:
+                raise PhosPyInputError(
+                    "dataset preprocessing plan SPS/RUV-style batch correction "
+                    "requires batch_correction_internal_request"
+                )
+            if self.batch_correction_control_site_set is None:
+                raise PhosPyInputError(
+                    "dataset preprocessing plan SPS/RUV-style batch correction "
+                    "requires batch_correction_control_site_set"
+                )
+            if self.batch_correction_missingness_policy is None:
+                raise PhosPyInputError(
+                    "dataset preprocessing plan SPS/RUV-style batch correction "
+                    "requires batch_correction_missingness_policy"
+                )
         if (
             batch_correction_method != DATASET_BATCH_CORRECTION_METHOD_NONE
             and self.batch_correction_preserve_condition_effects is not True

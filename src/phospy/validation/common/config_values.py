@@ -46,7 +46,7 @@ def require_supported_literal(
 def require_instance(
     value: object,
     *,
-    expected_type: type[_ValueT],
+    expected_type: type[_ValueT] | tuple[type[_ValueT], ...],
     field_name: str,
     error_type: ValidationErrorType,
 ) -> _ValueT:
@@ -54,7 +54,15 @@ def require_instance(
 
     if isinstance(value, expected_type):
         return value
-    raise error_type(f"{field_name} must be a {expected_type.__name__}")
+    raise error_type(f"{field_name} must be a {_expected_type_label(expected_type)}")
+
+
+def _expected_type_label(
+    expected_type: type[object] | tuple[type[object], ...],
+) -> str:
+    if isinstance(expected_type, tuple):
+        return " or ".join(item.__name__ for item in expected_type)
+    return expected_type.__name__
 
 
 def require_non_empty_string(

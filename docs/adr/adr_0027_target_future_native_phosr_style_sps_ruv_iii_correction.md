@@ -8,30 +8,33 @@
 - **Date:** 2026-06-14
 - **Decision Type:** Architecture and Scientific Roadmap
 - **Refined By:** ADR-0029
+- **Implemented By:** `SpsRuvBatchCorrectionConfig` native SPS/RUV-style
+  preprocessing correction. The implementation is not a PhosR-equivalent
+  SPS/RUV-III parity claim.
 
 ## Decision
 
-PhosPy will add native PhosR-style SPS/RUV-III correction as a future
-preprocessing/normalisation capability only after the required representation,
-provenance, validation, and test contracts exist.
+PhosPy targets native SPS/RUV-style correction as a preprocessing/normalisation
+capability only after the required representation, provenance, validation, and
+test contracts exist.
 
-This is a future architecture commitment, not a current feature-support claim.
-There is no native RUV/SPS/RUV-III correction support in the current public
-workflow surface.
+The supported public implementation is `SpsRuvBatchCorrectionConfig`, which is
+a validated PhosPy preprocessing lane with explicit controls, protected design
+metadata, missingness policy, unwanted-factor count, diagnostics, and
+provenance. It is not PhosR-equivalent SPS/RUV-III parity.
 
-ADR-0029 refines this record with prerequisite details and keeps current
-documentation conservative:
+ADR-0029 refines this record with prerequisite details:
 [ADR-0029: Native SPS/RUV-Style Batch Correction Prerequisites](adr_0029_native_sps_ruv_style_batch_correction_prerequisites.md).
 
 ## Scope
 
-The future capability, if implemented, must live before downstream analysis
-workflows consume the quantitative matrix. It belongs to
-preprocessing/normalisation, and must not be owned by differential analysis,
-kinase analysis, enrichment, or signalome execution.
+The capability must live before downstream analysis workflows consume the
+quantitative matrix. It belongs to preprocessing/normalisation, and must not be
+owned by differential analysis, kinase analysis, enrichment, or signalome
+execution.
 
 `linear_residualize_batch` remains a limited fixed-effect residualisation
-method. It is not native RUV/SPS/RUV-III correction, not PhosR-equivalent batch
+method. It is not native SPS/RUV-style correction, not PhosR-equivalent batch
 correction, and not equivalent to PhosR-style RUV/SPS correction.
 
 `ruv_readiness` and similarly named diagnostics are report-only readiness

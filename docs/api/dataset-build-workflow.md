@@ -45,6 +45,8 @@ dataset = AnalysisReadyDatasetBuilder().run(
 ```python
 from phospy import AnalysisReadyDatasetBuilder
 from phospy.api import (
+    ControlSiteSet,
+    CorrectionMissingnessPolicy,
     DatasetBatchCorrectionConfig,
     DatasetBuildRequest,
     DatasetComparisonBuildingConfig,
@@ -62,6 +64,7 @@ from phospy.api import (
     DatasetTotalProteinCorrectionIdentityConfig,
     IntensityScaleKind,
     Organism,
+    SpsRuvBatchCorrectionConfig,
 )
 ```
 
@@ -74,7 +77,7 @@ from phospy.api import (
 | `sample_metadata` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Descriptive/alignment metadata aligned to phospho columns with unique column names. Required when comparison building uses `sample_metadata_pairs`. It does not automatically define differential-analysis conditions, replicates, batches, or blocks. |
 | `total` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Total-protein matrix used only when total-protein correction is enabled. Columns must align to phospho sample columns. |
 | `organism` | `Organism` or `None` | `None` | No | Species identity for the dataset. Use `Organism.RAT` for the bundled beginner lane. |
-| `preprocessing_config` | `DatasetPreprocessingConfig` | `DatasetPreprocessingConfig()` | No | Grouped preprocessing policy for transforms, normalisation, missing data, group-aware coverage filter declaration, optional `linear_residualize_batch` batch residualisation, total-protein correction, protein-aware preparation, site construction, site-sequence resolution, comparisons, and RUV readiness reporting. |
+| `preprocessing_config` | `DatasetPreprocessingConfig` | `DatasetPreprocessingConfig()` | No | Grouped preprocessing policy for transforms, normalisation, missing data, group-aware coverage filter declaration, optional batch correction, total-protein correction, protein-aware preparation, site construction, site-sequence resolution, comparisons, and RUV readiness reporting. |
 | `input_intensity_scale` | `IntensityScaleKind`, `str`, or `None` | `None` | No | Required when your preprocessing path keeps `intensity_transform.policy="identity"` and you still need a trusted intensity scale (`"linear"` or `"log2"`). |
 | `quantitative_meaning` | `QuantitativeMeaning`, `str`, or `None` | `None` | No | Optional explicit scientific meaning for phospho values (for example `phosphosite_abundance` or `phosphosite_log_abundance`). |
 
@@ -248,12 +251,12 @@ provide matching `site_key` indexes and all required identity metadata up front.
 | `group_coverage_filter` | `DatasetGroupCoverageFilterConfig` | `enabled=False` | Filters phosphosite rows by finite-value coverage within sample groups before missing-data handling. |
 | `total_protein_correction` | `DatasetTotalProteinCorrectionConfig` | `policy="none"` | Controls phosphosite-to-total correction. |
 | `protein_aware_preparation` | `DatasetProteinAwarePreparationConfig` | `policy="disabled"` | Prepares aligned phosphosite/protein model-input contracts and diagnostics only. |
-| `batch_correction` | `DatasetBatchCorrectionConfig` | `method="none"` | Controls optional `linear_residualize_batch` fixed-effect residualisation. |
+| `batch_correction` | `DatasetBatchCorrectionConfig` or `SpsRuvBatchCorrectionConfig` | `method="none"` | Controls optional batch correction. Use `DatasetBatchCorrectionConfig` for fixed-effect residualisation. Use `SpsRuvBatchCorrectionConfig` for native SPS/RUV-style correction with explicit controls, design metadata, missingness policy, factor count, diagnostics, and provenance. |
 | `site_matrix` | `DatasetSiteMatrixConfig` | `policy="as_input"` | Controls construction and duplicate-site handling. |
 | `site_sequence_resolution` | `DatasetSiteSequenceResolutionConfig` | `mode="validate_existing_and_fill_missing"` | Controls optional local FASTA-backed site-sequence resolution. |
 | `comparisons` | `DatasetComparisonBuildingConfig` | `policy="none"` | Controls optional pairwise comparison construction from sample metadata. |
 | `localisation` | `DatasetLocalisationConfig` | `mode="require_threshold"`, `min_confidence=0.75`, `confidence_column="localisation_confidence"` | Controls site-level localisation-confidence eligibility at dataset-build time. |
-| `ruv_readiness` | `DatasetRuvReadinessConfig` | `enabled=False` | Adds readiness reporting for possible future RUV/SPS/RUV-III preprocessing; it does not select SPS controls or apply correction. |
+| `ruv_readiness` | `DatasetRuvReadinessConfig` | `enabled=False` | Adds readiness reporting; it does not select SPS controls or apply correction. Native SPS/RUV-style correction uses explicit `SpsRuvBatchCorrectionConfig`. |
 
 Use presets for common lanes:
 
@@ -301,12 +304,11 @@ dataset = AnalysisReadyDatasetBuilder().run(
 
 ## Batch-Correction Parameters
 
-`DatasetBatchCorrectionConfig` defaults to `method="none"`. The only supported
-executable batch-related preprocessing method is
-`method="linear_residualize_batch"`, a
-fixed-effect residualisation of batch terms that preserves condition effects by
-including condition terms in the design. It is not ComBat, not RUV, not limma
-`removeBatchEffect` parity, and not mixed-effects modelling.
+`DatasetBatchCorrectionConfig` defaults to `method="none"`. Its executable
+method is `method="linear_residualize_batch"`, a fixed-effect residualisation
+of batch terms that preserves condition effects by including condition terms in
+the design. It is not ComBat, not RUV, not limma `removeBatchEffect` parity,
+and not mixed-effects modelling.
 
 | Parameter | Type | Default | Allowed Values | How to Use It |
 | --- | --- | --- | --- | --- |
@@ -330,6 +332,53 @@ before correction because condition effects cannot be preserved in those
 designs. Inspect `dataset.preprocessing_report.batch_correction` after build
 for status, observed levels, confounding-check status, matrix shapes, warnings,
 and limitations.
+
+Native SPS/RUV-style correction uses a separate structured config. Do not use a
+boolean shortcut. The caller supplies the control-site set and missingness
+policy explicitly; PhosPy validates the request before execution and records
+typed provenance.
+
+```python
+control_sites = ControlSiteSet.from_site_keys(
+    (
+        "phospy:v1|organism=rat|protein_namespace=protein_id|"
+        "protein_identifier=MAPK14|residue=Y|position=182",
+        "phospy:v1|organism=rat|protein_namespace=protein_id|"
+        "protein_identifier=SRC|residue=Y|position=416",
+    )
+)
+
+sps_ruv_correction = SpsRuvBatchCorrectionConfig(
+    control_site_set=control_sites,
+    batch_column="batch",
+    condition_columns=("condition",),
+    replicate_column="replicate",
+    missingness_policy=CorrectionMissingnessPolicy(),
+    n_unwanted_factors=1,
+    diagnostics_enabled=True,
+    provenance_enabled=True,
+)
+
+config = DatasetPreprocessingConfig(batch_correction=sps_ruv_correction)
+```
+
+`SpsRuvBatchCorrectionConfig` requires:
+
+- caller-supplied `ControlSiteSet`; controls are not fetched online or bundled
+  without metadata.
+- `batch_column` and one or more protected `condition_columns`.
+- `replicate_column` when `method="ruv_iii_style"`; it may be provided for
+  other SPS/RUV-style methods when replicate metadata is available.
+- explicit `CorrectionMissingnessPolicy`; temporary imputation must preserve
+  the observation mask and is recorded as correction mechanics, not observed
+  evidence.
+- `n_unwanted_factors >= 1`.
+- `diagnostics_enabled` and `provenance_enabled=True`; native correction cannot
+  run without provenance.
+
+Successful requests return the corrected analysis-ready dataset and attach
+`BatchCorrectionProvenance` to the `batch_correction` preprocessing stage in
+`dataset.provenance.preprocessing_stages`.
 
 ## Intensity Transform Parameters
 
@@ -701,8 +750,9 @@ comparisons = DatasetComparisonBuildingConfig(
 ## RUV-Readiness Parameters
 
 `DatasetRuvReadinessConfig` is report-only. It helps audit whether metadata
-needed for possible future RUV/SPS/RUV-III preprocessing is present; it does not
-select SPS controls or correct the matrix.
+needed for RUV/SPS/RUV-III-style preprocessing is present; it does not select
+SPS controls or correct the matrix. Executable native SPS/RUV-style correction
+uses `SpsRuvBatchCorrectionConfig` under `batch_correction`.
 It does not make sample metadata scientific design input for differential
 analysis.
 

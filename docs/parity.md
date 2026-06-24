@@ -52,9 +52,13 @@ validated PhosPy implementations:
   parity, Spectronaut/DIA-NN support, or upstream statistical result import.
 - `linear_residualize_batch` is limited fixed-effect residualisation under the
   dataset preprocessing `batch_correction` config group. It is not native
-  RUV/SPS/RUV-III correction, not PhosR-equivalent batch correction, not ComBat,
+  SPS/RUV-style correction, not PhosR-equivalent batch correction, not ComBat,
   not limma `removeBatchEffect` parity, not `duplicateCorrelation`, and not
   mixed-effects modelling.
+- `SpsRuvBatchCorrectionConfig` exposes native SPS/RUV-style preprocessing
+  correction with explicit controls, protected design metadata, missingness
+  policy, factor count, diagnostics, and provenance. It is not
+  PhosR-equivalent SPS/RUV-III parity.
 - Differential fixed-effect batch covariates are ordinary model terms. They are
   not a data-cleaning batch-correction step.
 - `ruv_readiness` is diagnostic/report-only metadata readiness reporting. It is
@@ -126,7 +130,6 @@ workflow surfaces, and any method not protected by fixture-backed comparison.
 
 PhosPy is not currently parity-equivalent with PhosR for SPS/RUV-III
 correction. There are no SPS control-selection fixtures, no native RUV-III
-correction kernel fixtures, and no PhosR `RUVphospho` corrected-output parity
-fixtures. ADR-0029 defers native SPS/RUV-style correction until the required
-contracts, validation, provenance, and tests exist. This is planned future
-preprocessing/normalisation work, not current parity.
+correction-kernel parity fixtures, and no PhosR `RUVphospho` corrected-output
+parity fixtures. Native SPS/RUV-style preprocessing correction is a validated
+PhosPy implementation, not current PhosR parity.

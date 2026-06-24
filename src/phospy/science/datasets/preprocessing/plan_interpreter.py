@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import pandas as pd
 
 from phospy.contracts.configs import (
@@ -10,10 +12,14 @@ from phospy.contracts.configs import (
     DATASET_PROTEIN_AWARE_PREPARATION_POLICIES,
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT,
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_MAPPING_TABLE,
+    CorrectionMissingnessPolicy,
+    DatasetBatchCorrectionConfig,
     DatasetPreprocessingConfig,
     DatasetSiteSequenceConflictPolicy,
     DatasetTotalProteinCorrectionIdentityConfig,
+    SpsRuvBatchCorrectionConfig,
 )
+from phospy.contracts.configs.preprocessing import InternalBatchCorrectionRequest
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.hashing import hash_table_tolerance
 from phospy.science.datasets.preprocessing.models import (
@@ -142,6 +148,12 @@ class PreprocessingPlanInterpreter:
             field_name="preprocessing_config.missing_data.policy",
         )
         batch_correction_method = str(config.batch_correction.method).strip()
+        batch_correction_condition_column = _resolve_batch_condition_column(config)
+        batch_correction_condition_columns = _resolve_batch_condition_columns(config)
+        batch_correction_internal_request = _resolve_batch_internal_request(config)
+        batch_correction_control_site_set = _resolve_batch_control_site_set(config)
+        batch_correction_missingness_policy = _resolve_batch_missingness_policy(config)
+        batch_correction_replicate_column = _resolve_batch_replicate_column(config)
         total_correction_policy = TotalProteinCorrectionPolicy.parse(
             config.total_protein_correction.policy,
             field_name="preprocessing_config.total_protein_correction.policy",
@@ -303,9 +315,14 @@ class PreprocessingPlanInterpreter:
             ruv_readiness_batch_column=config.ruv_readiness.batch_column,
             batch_correction_method=batch_correction_method,
             batch_correction_batch_column=config.batch_correction.batch_column,
-            batch_correction_condition_column=config.batch_correction.condition_column,
+            batch_correction_condition_column=batch_correction_condition_column,
+            batch_correction_condition_columns=batch_correction_condition_columns,
+            batch_correction_replicate_column=batch_correction_replicate_column,
+            batch_correction_control_site_set=batch_correction_control_site_set,
+            batch_correction_missingness_policy=batch_correction_missingness_policy,
+            batch_correction_internal_request=batch_correction_internal_request,
             batch_correction_preserve_condition_effects=(
-                config.batch_correction.preserve_condition_effects
+                _resolve_batch_preserve_condition_effects(config)
             ),
             stage_order=tuple(stage_order),
             stage_order_resolution=tuple(stage_order_resolution),
@@ -426,6 +443,76 @@ def _resolve_site_sequence_resolution_conflict_policy(
     if mode is SiteSequenceResolutionMode.REPLACE_EXISTING:
         return SiteSequenceConflictPolicy.REPLACE_EXISTING
     return SiteSequenceConflictPolicy.PRESERVE_EXISTING
+
+
+def _sps_ruv_config(
+    config: DatasetPreprocessingConfig,
+) -> SpsRuvBatchCorrectionConfig | None:
+    batch_correction = config.batch_correction
+    if isinstance(batch_correction, SpsRuvBatchCorrectionConfig):
+        return batch_correction
+    return None
+
+
+def _resolve_batch_condition_column(config: DatasetPreprocessingConfig) -> str:
+    sps_config = _sps_ruv_config(config)
+    if sps_config is not None:
+        return sps_config.condition_columns[0]
+    batch_correction = cast(DatasetBatchCorrectionConfig, config.batch_correction)
+    return batch_correction.condition_column
+
+
+def _resolve_batch_condition_columns(
+    config: DatasetPreprocessingConfig,
+) -> tuple[str, ...]:
+    sps_config = _sps_ruv_config(config)
+    if sps_config is not None:
+        return sps_config.condition_columns
+    batch_correction = cast(DatasetBatchCorrectionConfig, config.batch_correction)
+    return (batch_correction.condition_column,)
+
+
+def _resolve_batch_replicate_column(config: DatasetPreprocessingConfig) -> str | None:
+    sps_config = _sps_ruv_config(config)
+    if sps_config is not None:
+        return sps_config.replicate_column
+    return None
+
+
+def _resolve_batch_internal_request(
+    config: DatasetPreprocessingConfig,
+) -> InternalBatchCorrectionRequest | None:
+    sps_config = _sps_ruv_config(config)
+    if sps_config is not None:
+        return sps_config.to_internal_request()
+    return None
+
+
+def _resolve_batch_control_site_set(
+    config: DatasetPreprocessingConfig,
+) -> object | None:
+    sps_config = _sps_ruv_config(config)
+    if sps_config is not None:
+        return sps_config.control_site_set
+    return None
+
+
+def _resolve_batch_missingness_policy(
+    config: DatasetPreprocessingConfig,
+) -> CorrectionMissingnessPolicy | None:
+    sps_config = _sps_ruv_config(config)
+    if sps_config is not None:
+        return sps_config.missingness_policy
+    return None
+
+
+def _resolve_batch_preserve_condition_effects(
+    config: DatasetPreprocessingConfig,
+) -> bool:
+    if _sps_ruv_config(config) is not None:
+        return True
+    batch_correction = cast(DatasetBatchCorrectionConfig, config.batch_correction)
+    return cast(bool, batch_correction.preserve_condition_effects)
 
 
 __all__ = ["PreprocessingPlanInterpreter"]

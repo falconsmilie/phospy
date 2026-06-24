@@ -7,6 +7,7 @@ from dataclasses import replace
 from phospy.contracts.configs import (
     DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
     DATASET_BATCH_CORRECTION_METHOD_NONE,
+    SPS_RUV_BATCH_CORRECTION_METHODS,
     DatasetBatchCorrectionConfig,
 )
 from phospy.errors.input import PhosPyInputError
@@ -81,6 +82,8 @@ class BatchCorrectionStage:
                     },
                 },
             )
+        if method in SPS_RUV_BATCH_CORRECTION_METHODS:
+            return _run_sps_ruv_style_correction(state)
         if method != DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH:
             raise PhosPyInputError(
                 "dataset preprocessing plan contains unsupported "
@@ -194,14 +197,113 @@ def _resolve_operation(plan: PreprocessingPlan) -> str:
 
 
 def _resolve_parameters(plan: PreprocessingPlan) -> dict[str, object]:
-    return {
+    parameters: dict[str, object] = {
         "method": _resolve_method(plan),
         "batch_column": plan.batch_correction_batch_column,
         "condition_column": plan.batch_correction_condition_column,
+        "condition_columns": list(plan.batch_correction_condition_columns),
         "preserve_condition_effects": bool(
             plan.batch_correction_preserve_condition_effects
         ),
     }
+    if _resolve_method(plan) in SPS_RUV_BATCH_CORRECTION_METHODS:
+        request = plan.batch_correction_internal_request
+        parameters.update(
+            {
+                "replicate_column": plan.batch_correction_replicate_column,
+                "n_unwanted_factors": (
+                    None if request is None else request.n_unwanted_factors
+                ),
+                "diagnostics_enabled": (
+                    None if request is None else request.diagnostics_enabled
+                ),
+                "stage_order_policy": (
+                    None if request is None else request.stage_order.value
+                ),
+                "control_site_source": (
+                    None if request is None else request.control_site_source.value
+                ),
+                "missing_value_policy": (
+                    None if request is None else request.missing_value_policy.value
+                ),
+                "imputation_policy": (
+                    None if request is None else request.imputation_policy.value
+                ),
+            }
+        )
+    return parameters
+
+
+def _run_sps_ruv_style_correction(
+    state: PreprocessingState,
+) -> PreprocessingStageResult:
+    from phospy.science.datasets.preprocessing.control_sites import ControlSiteSet
+    from phospy.science.datasets.preprocessing.correction_output import (
+        CorrectedPreprocessingOutput,
+    )
+    from phospy.workflows.batch_correction.contracts import (
+        BatchCorrectionWorkflowRequest,
+    )
+    from phospy.workflows.batch_correction.workflow import BatchCorrectionWorkflow
+
+    request = state.plan.batch_correction_internal_request
+    control_site_set = state.plan.batch_correction_control_site_set
+    missingness_policy = state.plan.batch_correction_missingness_policy
+    if request is None or control_site_set is None or missingness_policy is None:
+        raise PhosPyInputError(
+            "dataset preprocessing plan contains incomplete SPS/RUV-style "
+            "batch-correction configuration"
+        )
+    if not isinstance(control_site_set, ControlSiteSet):
+        raise PhosPyInputError(
+            "dataset preprocessing plan SPS/RUV-style batch correction requires "
+            "a ControlSiteSet"
+        )
+    try:
+        result = BatchCorrectionWorkflow().run(
+            BatchCorrectionWorkflowRequest(
+                phospho=state.phospho,
+                config=request,
+                sample_metadata=state.sample_metadata,
+                control_site_set=control_site_set,
+                missingness_policy=missingness_policy,
+                site_metadata=state.site_metadata,
+            )
+        )
+    except PhosPyInputError as exc:
+        raise PhosPyInputError(
+            _validation_failure_message(
+                state=state,
+                method=_resolve_method(state.plan),
+                reason=str(exc),
+            )
+        ) from exc
+
+    corrected_output = result.corrected_preprocessing_output
+    if not isinstance(corrected_output, CorrectedPreprocessingOutput):
+        raise PhosPyInputError(
+            "SPS/RUV-style batch correction did not produce complete "
+            "analysis-ready preprocessing output; check missingness policy and "
+            "observation-mask diagnostics"
+        )
+    diagnostics = dict(result.diagnostics)
+    return PreprocessingStageResult(
+        state=replace(
+            state,
+            phospho=corrected_output.corrected_matrix,
+            imputation_observation_mask=corrected_output.output_observation_mask,
+            batch_correction_report=corrected_output.batch_correction_report,
+        ),
+        diagnostics={
+            "dropped_row_ids": (),
+            "dropped_row_count": 0,
+            "imputed_cell_count": 0,
+            "imputed_row_ids": (),
+            "notes": "stage executed",
+            "diagnostics": diagnostics,
+        },
+        batch_correction_provenance=result.provenance,
+    )
 
 
 def _validation_failure_message(

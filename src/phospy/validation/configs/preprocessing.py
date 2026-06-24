@@ -27,7 +27,7 @@ def validate_preprocessing_section_type(
     value: object,
     *,
     field_name: str,
-    expected_type: type[object],
+    expected_type: type[object] | tuple[type[object], ...],
 ) -> None:
     """Validate one nested preprocessing section object type."""
 

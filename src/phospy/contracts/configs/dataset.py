@@ -24,11 +24,13 @@ from phospy.contracts.configs.preprocessing import (
     DatasetLocalisationConfig,
     DatasetMissingDataConfig,
     DatasetNormalisationConfig,
+    DatasetPreprocessingBatchCorrectionConfig,
     DatasetProteinAwarePreparationConfig,
     DatasetRuvReadinessConfig,
     DatasetSiteMatrixConfig,
     DatasetSiteSequenceResolutionConfig,
     DatasetTotalProteinCorrectionConfig,
+    SpsRuvBatchCorrectionConfig,
 )
 from phospy.validation.configs.preprocessing import (
     validate_preprocessing_section_type,
@@ -89,7 +91,7 @@ class DatasetPreprocessingConfig:
     localisation: DatasetLocalisationConfig = field(
         default_factory=DatasetLocalisationConfig
     )
-    batch_correction: DatasetBatchCorrectionConfig = field(
+    batch_correction: DatasetPreprocessingBatchCorrectionConfig = field(
         default_factory=DatasetBatchCorrectionConfig
     )
     ruv_readiness: DatasetRuvReadinessConfig = field(
@@ -156,7 +158,7 @@ class DatasetPreprocessingConfig:
         validate_preprocessing_section_type(
             self.batch_correction,
             field_name="dataset build request preprocessing_config.batch_correction",
-            expected_type=DatasetBatchCorrectionConfig,
+            expected_type=(DatasetBatchCorrectionConfig, SpsRuvBatchCorrectionConfig),
         )
         validate_preprocessing_section_type(
             self.ruv_readiness,

@@ -3,11 +3,18 @@
 from __future__ import annotations
 
 from phospy.contracts.configs.preprocessing.batch_correction import (
+    DATASET_BATCH_CORRECTION_METHOD_CONTROL_SITE_RUV_STYLE,
     DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
     DATASET_BATCH_CORRECTION_METHOD_NONE,
+    DATASET_BATCH_CORRECTION_METHOD_RUV_III_STYLE,
+    DATASET_BATCH_CORRECTION_METHOD_SPS_RUV_STYLE,
     DATASET_BATCH_CORRECTION_METHODS,
+    SPS_RUV_BATCH_CORRECTION_METHODS,
     DatasetBatchCorrectionConfig,
     DatasetBatchCorrectionMethod,
+    DatasetPreprocessingBatchCorrectionConfig,
+    SpsRuvBatchCorrectionConfig,
+    SpsRuvBatchCorrectionMethod,
 )
 from phospy.contracts.configs.preprocessing.comparisons import (
     DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN,
@@ -162,7 +169,11 @@ from phospy.contracts.configs.preprocessing.total_protein import (
 __all__ = [
     "DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH",
     "DATASET_BATCH_CORRECTION_METHOD_NONE",
+    "DATASET_BATCH_CORRECTION_METHOD_CONTROL_SITE_RUV_STYLE",
+    "DATASET_BATCH_CORRECTION_METHOD_RUV_III_STYLE",
+    "DATASET_BATCH_CORRECTION_METHOD_SPS_RUV_STYLE",
     "DATASET_BATCH_CORRECTION_METHODS",
+    "SPS_RUV_BATCH_CORRECTION_METHODS",
     "CONTROL_SITE_SELECTION_METHOD_CALLER_SUPPLIED",
     "CONTROL_SITE_SOURCE_CALLER_SUPPLIED",
     "CONTROL_SITE_STATUS_CONTROL",
@@ -245,6 +256,9 @@ __all__ = [
     "DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICIES",
     "DatasetBatchCorrectionConfig",
     "DatasetBatchCorrectionMethod",
+    "DatasetPreprocessingBatchCorrectionConfig",
+    "SpsRuvBatchCorrectionConfig",
+    "SpsRuvBatchCorrectionMethod",
     "InternalBatchCorrectionControlSiteMode",
     "InternalBatchCorrectionControlSiteSource",
     "InternalBatchCorrectionImputationPolicy",

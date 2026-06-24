@@ -158,11 +158,13 @@ Important identity rules:
   policy is chosen.
 
 For preprocessing options, including localisation, missing data, total-protein
-correction, protein-aware preparation, batch residualisation, and RUV-readiness
-reporting, see [Dataset Build API](dataset-build-workflow.md).
+correction, protein-aware preparation, batch residualisation, native
+SPS/RUV-style correction, and RUV-readiness reporting, see
+[Dataset Build API](dataset-build-workflow.md).
 
-`ruv_readiness` is report-only. It does not select SPS controls, run RUV/SPS/RUV-III
-correction, or imply PhosR-equivalent batch correction.
+`ruv_readiness` is report-only. It does not select SPS controls, run
+correction, or imply PhosR-equivalent batch correction. Native SPS/RUV-style
+correction is available only through explicit `SpsRuvBatchCorrectionConfig`.
 
 ## Result Snapshots
 

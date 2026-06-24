@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import cast
+
 import pandas as pd
 import pandas.testing as pdt
 import pytest
@@ -8,6 +11,8 @@ from phospy import DifferentialAnalysisWorkflow
 from phospy.api import (
     AnalysisReadyDatasetBuilder,
     Contrast,
+    ControlSiteSet,
+    CorrectionMissingnessPolicy,
     DatasetBatchCorrectionConfig,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
@@ -15,6 +20,7 @@ from phospy.api import (
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
+    SpsRuvBatchCorrectionConfig,
 )
 from phospy.errors import PhosPyInputError
 from phospy.science.datasets.builders.interpreter import DatasetBuildRequestInterpreter
@@ -75,6 +81,92 @@ def test_resolved_native_correction_output_builds_analysis_ready_dataset() -> No
     observed_mask = dataset.imputation_observed_mask_dataframe()
     assert observed_mask is not None
     assert observed_mask.to_numpy(dtype=bool).all()
+
+
+def test_public_sps_ruv_preprocessing_config_builds_corrected_dataset_with_provenance() -> (
+    None
+):
+    phospho = _sps_phospho()
+
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=_sps_site_metadata(phospho),
+            sample_metadata=_sps_sample_metadata(phospho),
+            organism=Organism.RAT,
+            input_intensity_scale="log2",
+            preprocessing_config=DatasetPreprocessingConfig(
+                batch_correction=SpsRuvBatchCorrectionConfig(
+                    control_site_set=ControlSiteSet.from_site_keys(
+                        (
+                            _sps_site_key("MAPK14", "Y", "182"),
+                            _sps_site_key("SRC", "Y", "416"),
+                        )
+                    ),
+                    batch_column="batch",
+                    condition_columns=("condition",),
+                    replicate_column="replicate",
+                    missingness_policy=CorrectionMissingnessPolicy(),
+                    n_unwanted_factors=1,
+                    diagnostics_enabled=True,
+                    provenance_enabled=True,
+                )
+            ),
+        )
+    )
+
+    assert dataset.preprocessing_report is not None
+    report = dataset.preprocessing_report.batch_correction
+    assert report is not None
+    assert report.status == "applied"
+    assert report.method == "sps_ruv_style"
+    assert report.batch_column == "batch"
+    assert report.condition_column == "condition"
+    assert dataset.provenance is not None
+    correction_stage = next(
+        stage
+        for stage in dataset.provenance.preprocessing_stages
+        if stage.stage == "batch_correction"
+    )
+    provenance = correction_stage.batch_correction_provenance
+    assert provenance is not None
+    assert provenance.requested_method == "sps_ruv_style"
+    assert provenance.selected_site_key_rows
+    executor_diagnostics = provenance.diagnostics["executor"]
+    assert isinstance(executor_diagnostics, Mapping)
+    assert executor_diagnostics["status"] == "applied"
+    assert provenance.output_matrix_fingerprint is not None
+    assert not dataset.phospho.equals(phospho)
+
+
+def test_public_sps_ruv_preprocessing_invalid_controls_fail_before_execution() -> None:
+    phospho = _sps_phospho()
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="batch correction validation failed before correction execution",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_sps_site_metadata(phospho),
+                sample_metadata=_sps_sample_metadata(phospho),
+                organism=Organism.RAT,
+                input_intensity_scale="log2",
+                preprocessing_config=DatasetPreprocessingConfig(
+                    batch_correction=SpsRuvBatchCorrectionConfig(
+                        control_site_set=ControlSiteSet.from_site_keys(
+                            (_sps_site_key("MAPK14", "Y", "182"),)
+                        ),
+                        batch_column="batch",
+                        condition_columns=("condition",),
+                        replicate_column="replicate",
+                        missingness_policy=CorrectionMissingnessPolicy(),
+                        n_unwanted_factors=1,
+                    )
+                ),
+            )
+        )
 
 
 def test_invalid_resolved_correction_output_is_rejected_at_dataset_build() -> None:
@@ -178,8 +270,8 @@ def test_downstream_workflow_consumes_corrected_analysis_ready_dataset_only() ->
 
     table = result.table_for("treated_vs_control")
     site_one, site_two = dataset.phospho.index.tolist()
-    assert float(table.loc[site_one, "logFC"]) == pytest.approx(4.0)
-    assert float(table.loc[site_two, "logFC"]) == pytest.approx(-1.0)
+    assert float(cast(float, table.loc[site_one, "logFC"])) == pytest.approx(4.0)
+    assert float(cast(float, table.loc[site_two, "logFC"])) == pytest.approx(-1.0)
 
 
 def _correction_output(
@@ -297,4 +389,52 @@ def _differential_design() -> ExperimentalDesign:
                 biological_replicate_id="treated_2",
             ),
         )
+    )
+
+
+def _sps_phospho() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "sample_1": [10.0, 5.0, 20.0],
+            "sample_2": [10.0, 9.0, 20.0],
+            "sample_3": [14.0, 8.0, 28.0],
+            "sample_4": [14.0, 12.0, 28.0],
+        },
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;", "SRC;Y416;"], name="site_id"),
+    )
+
+
+def _sps_site_key(protein_identifier: str, residue: str, position: str) -> str:
+    return (
+        "phospy:v1|organism=rat|protein_namespace=protein_id|"
+        f"protein_identifier={protein_identifier}|residue={residue}|"
+        f"position={position}"
+    )
+
+
+def _sps_site_metadata(phospho: pd.DataFrame) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1", "SRC"],
+            "protein_id": ["MAPK14", "AKT1", "SRC"],
+            "site": ["Y182", "T308", "Y416"],
+            "site_sequence": [
+                ("A" * 15) + "Y" + ("A" * 15),
+                ("A" * 15) + "T" + ("A" * 15),
+                ("A" * 15) + "Y" + ("A" * 15),
+            ],
+            "localisation_confidence": [0.95, 0.92, 0.98],
+        },
+        index=phospho.index.copy(),
+    )
+
+
+def _sps_sample_metadata(phospho: pd.DataFrame) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "batch": ("run_1", "run_1", "run_2", "run_2"),
+            "condition": ("control", "treated", "control", "treated"),
+            "replicate": ("r1", "r1", "r2", "r2"),
+        },
+        index=phospho.columns.copy(),
     )

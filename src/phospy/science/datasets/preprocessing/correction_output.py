@@ -177,21 +177,37 @@ class CorrectedPreprocessingOutput:
         """Adapt a resolved SPS/RUV-style executor result for preprocessing."""
 
         diagnostics = result.diagnostics.to_payload()
+        seed_data = _sps_ruv_provenance_seed_data(result.provenance_payload)
+        design_summary = _mapping_or_empty(diagnostics.get("design_summary"))
+        condition_columns = _object_sequence(seed_data.get("condition_columns"))
         batch_report = BatchCorrectionReport(
             status=BATCH_CORRECTION_STATUS_APPLIED,
             policy=BatchCorrectionPolicy(
                 method=str(result.diagnostics.method),
-                batch_column=None,
-                condition_column=None,
+                batch_column=_optional_string(seed_data.get("batch_column")),
+                condition_column=(
+                    None if not condition_columns else str(condition_columns[0])
+                ),
                 design_preservation_policy=(
                     BATCH_CORRECTION_DESIGN_PRESERVATION_PRESERVE_CONDITION_EFFECTS
                 ),
                 preserve_condition_effects=True,
             ),
             diagnostics=BatchCorrectionDiagnostics(
-                number_of_batches=None,
-                batch_levels=(),
+                number_of_batches=_optional_int(
+                    design_summary.get("number_of_batches")
+                ),
+                batch_levels=tuple(
+                    str(level)
+                    for level in _object_sequence(design_summary.get("batch_levels"))
+                ),
                 condition_levels=tuple(
+                    str(level)
+                    for level in _object_sequence(
+                        design_summary.get("condition_levels")
+                    )
+                )
+                or tuple(
                     str(term)
                     for term in _object_sequence(
                         diagnostics.get("protected_design_terms")
@@ -493,6 +509,39 @@ def _object_sequence(value: object) -> tuple[object, ...]:
     if isinstance(value, Sequence) and not isinstance(value, str | bytes | bytearray):
         return tuple(value)
     return ()
+
+
+def _mapping_or_empty(value: object) -> Mapping[str, object]:
+    if isinstance(value, Mapping):
+        return value
+    return {}
+
+
+def _sps_ruv_provenance_seed_data(
+    provenance_payload: Mapping[str, object],
+) -> Mapping[str, object]:
+    seed = provenance_payload.get("provenance_seed_data")
+    if isinstance(seed, Mapping):
+        return seed
+    plan = provenance_payload.get("resolved_plan")
+    if isinstance(plan, Mapping):
+        plan_seed = plan.get("provenance_seed_data")
+        if isinstance(plan_seed, Mapping):
+            return plan_seed
+    return {}
+
+
+def _optional_string(value: object) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return None if text == "" else text
+
+
+def _optional_int(value: object) -> int | None:
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return int(value)
 
 
 def _matrix_shape(value: tuple[int, int]) -> tuple[int, int]:

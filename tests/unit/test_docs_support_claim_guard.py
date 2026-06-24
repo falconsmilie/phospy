@@ -205,6 +205,8 @@ SUPPORT_CLAIM_RULES: tuple[SupportClaimRule, ...] = (
         + (
             _rx(r"\bruv_readiness\b"),
             _rx(r"\bruv-compatible\b"),
+            _rx(r"\bnative sps/ruv-style\b"),
+            _rx(r"\bspsruvbatchcorrectionconfig\b"),
             _rx(r"\bmetadata readiness reporting\b"),
             _rx(r"\blinear_residualize_batch\b"),
             _rx(r"\bbatch-effect methods remain outside\b"),
@@ -419,6 +421,7 @@ def test_claim_guard_allows_current_limitation_language() -> None:
                 "PhosPy does not claim global PhosR parity.",
                 "This is not ComBat, not RUV, not limma removeBatchEffect parity.",
                 "No executable RUV, ComBat, or limma removeBatchEffect parity lane is supported.",
+                "Native SPS/RUV-style correction is available through SpsRuvBatchCorrectionConfig.",
                 "Protein-aware preparation is preparation-only and does not claim MSstatsPTM equivalence.",
                 "ORA is not GSEA, ssGSEA, or PTM-SEA support.",
                 "No official Kinase Library compatibility or parity claim is made.",

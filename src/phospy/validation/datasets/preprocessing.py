@@ -14,10 +14,12 @@ from phospy.contracts.configs import (
     DatasetLocalisationConfig,
     DatasetMissingDataConfig,
     DatasetNormalisationConfig,
+    DatasetPreprocessingBatchCorrectionConfig,
     DatasetPreprocessingConfig,
     DatasetProteinAwarePreparationConfig,
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
+    SpsRuvBatchCorrectionConfig,
 )
 from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.preprocessing.models import (
@@ -124,11 +126,13 @@ class DatasetPreprocessingConfigValidator:
             expected_type=DatasetLocalisationConfig,
         )
 
-    def _validate_batch_correction(self, config: DatasetBatchCorrectionConfig) -> None:
+    def _validate_batch_correction(
+        self, config: DatasetPreprocessingBatchCorrectionConfig
+    ) -> None:
         validate_preprocessing_section_type(
             config,
             field_name="dataset build request preprocessing_config.batch_correction",
-            expected_type=DatasetBatchCorrectionConfig,
+            expected_type=(DatasetBatchCorrectionConfig, SpsRuvBatchCorrectionConfig),
         )
 
     def _validate_protein_aware_preparation(

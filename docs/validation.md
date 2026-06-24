@@ -109,8 +109,9 @@ Common cross-field checks:
   RUV/SPS/RUV-III preprocessing, including complete-matrix status, missingness
   mask provenance, control-feature availability, replicate groups, and optional
   batch metadata. It does not select SPS controls or apply correction.
-- RUV readiness is informational only in this release: dataset construction is
-  not rejected when readiness is false.
+- RUV readiness is informational: dataset construction is not rejected when
+  readiness is false. Native SPS/RUV-style correction is separate and requires
+  explicit `SpsRuvBatchCorrectionConfig`.
 
 ## Reference Validation
 

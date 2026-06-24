@@ -1,8 +1,15 @@
 from __future__ import annotations
 
+import inspect
+
 import pytest
 
-from phospy.api import DatasetBatchCorrectionConfig
+from phospy.api import (
+    ControlSiteSet,
+    CorrectionMissingnessPolicy,
+    DatasetBatchCorrectionConfig,
+    SpsRuvBatchCorrectionConfig,
+)
 from phospy.api.configs import (
     DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
     DATASET_BATCH_CORRECTION_METHOD_NONE,
@@ -78,6 +85,57 @@ def test_batch_correction_config_appears_inside_dataset_preprocessing_config() -
 
     assert isinstance(config.batch_correction, DatasetBatchCorrectionConfig)
     assert config.batch_correction.method == "linear_residualize_batch"
+
+
+def test_sps_ruv_batch_correction_config_requires_explicit_public_contract() -> None:
+    config = SpsRuvBatchCorrectionConfig(
+        control_site_set=ControlSiteSet.from_site_keys(("site_a", "site_c")),
+        batch_column="ms_run",
+        condition_columns=("condition",),
+        replicate_column="replicate",
+        missingness_policy=CorrectionMissingnessPolicy(),
+        n_unwanted_factors=1,
+        diagnostics_enabled=True,
+        provenance_enabled=True,
+    )
+
+    preprocessing = DatasetPreprocessingConfig(batch_correction=config)
+    plan = PreprocessingPlan.from_config(preprocessing)
+
+    assert preprocessing.batch_correction is config
+    assert plan.batch_correction_method == "sps_ruv_style"
+    assert plan.batch_correction_internal_request is not None
+    assert plan.batch_correction_internal_request.n_unwanted_factors == 1
+    assert plan.batch_correction_control_site_set is config.control_site_set
+    assert plan.batch_correction_missingness_policy is config.missingness_policy
+
+
+def test_sps_ruv_batch_correction_config_has_no_boolean_shortcut() -> None:
+    assert "use_ruv" not in inspect.signature(SpsRuvBatchCorrectionConfig).parameters
+    assert "use_ruv" not in inspect.signature(DatasetPreprocessingConfig).parameters
+
+
+def test_sps_ruv_batch_correction_config_rejects_missing_provenance() -> None:
+    with pytest.raises(PhosPyInputError, match="provenance_enabled must be True"):
+        SpsRuvBatchCorrectionConfig(
+            control_site_set=ControlSiteSet.from_site_keys(("site_a", "site_c")),
+            batch_column="batch",
+            condition_columns=("condition",),
+            missingness_policy=CorrectionMissingnessPolicy(),
+            n_unwanted_factors=1,
+            provenance_enabled=False,  # type: ignore[arg-type]
+        )
+
+
+def test_sps_ruv_batch_correction_config_rejects_missing_controls() -> None:
+    with pytest.raises(PhosPyInputError, match="control_site_set must contain"):
+        SpsRuvBatchCorrectionConfig(
+            control_site_set=ControlSiteSet(),
+            batch_column="batch",
+            condition_columns=("condition",),
+            missingness_policy=CorrectionMissingnessPolicy(),
+            n_unwanted_factors=1,
+        )
 
 
 def test_existing_preprocessing_config_construction_remains_backward_compatible() -> (

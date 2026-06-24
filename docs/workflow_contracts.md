@@ -71,7 +71,8 @@ Important user-facing assumptions:
 `DatasetPreprocessingConfig` owns transforms, normalisation, missing-data
 handling, site construction, site-sequence resolution, total-protein correction,
 protein-aware preparation, optional `linear_residualize_batch`, comparison
-building, localisation policy, and `ruv_readiness` reporting.
+building, localisation policy, native SPS/RUV-style correction through
+`SpsRuvBatchCorrectionConfig`, and `ruv_readiness` reporting.
 
 `linear_residualize_batch` fixed-effect residualisation preserves condition
 effects by design and requires explicit batch and condition metadata.
@@ -80,8 +81,9 @@ limma `removeBatchEffect` parity, and not mixed-effects modelling. It does not
 solve all batch-effect problems.
 
 Do not interpret `ruv_readiness` as RUV support. It is metadata readiness
-reporting only; it does not select SPS controls, run RUV/SPS/RUV-III
-correction, or produce PhosR-equivalent corrected output.
+reporting only; it does not select SPS controls, run correction, or produce
+PhosR-equivalent corrected output. Native SPS/RUV-style correction requires the
+separate explicit `SpsRuvBatchCorrectionConfig` preprocessing config.
 
 `DatasetProteinAwarePreparationConfig(policy="prepare_model_inputs")` is
 preparation-only. It does not modify phosphosite values, does not subtract total
