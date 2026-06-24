@@ -18,6 +18,7 @@ PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V2 = 2
 PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3 = 3
 ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V1 = 1
 ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V2 = 2
+BATCH_CORRECTION_PROVENANCE_SCHEMA_VERSION_V1 = 1
 PREPROCESSING_STAGE_DETERMINISM_PURE = "pure"
 PREPROCESSING_STAGE_DETERMINISM_SEEDED_STOCHASTIC = "seeded_stochastic"
 PREPROCESSING_STAGE_DETERMINISM_EXTERNAL_DEPENDENCY = "external_dependency"
@@ -29,6 +30,10 @@ JsonValue = (
 
 
 def _empty_platform_provenance() -> dict[str, str]:
+    return {}
+
+
+def _empty_json_mapping() -> dict[str, JsonValue]:
     return {}
 
 
@@ -95,6 +100,45 @@ class PreprocessingStageProvenance:
 
 
 @dataclass(frozen=True, slots=True)
+class BatchCorrectionRejectedEntity:
+    """Rejected row, site, or sample recorded for correction provenance."""
+
+    entity_type: str
+    identifier: str
+    reason: str
+    details: Mapping[str, JsonValue] | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class BatchCorrectionProvenance:
+    """Planned or executed batch-correction provenance record.
+
+    This model is an audit structure only. It records requested intent, resolved
+    inputs, fingerprints, diagnostics, and rejection reasons without selecting
+    controls, validating scientific eligibility, or modifying matrices.
+    """
+
+    requested_method: str
+    resolved_parameters: Mapping[str, JsonValue]
+    preprocessing_stage_order: tuple[str, ...]
+    control_site_source: Mapping[str, JsonValue]
+    selected_site_key_rows: tuple[str, ...]
+    batch_metadata: Mapping[str, JsonValue]
+    replicate_metadata: Mapping[str, JsonValue] | None
+    design_metadata: Mapping[str, JsonValue]
+    missing_value_policy: Mapping[str, JsonValue]
+    observation_masks: tuple[TableFingerprint, ...]
+    input_matrix_fingerprint: TableFingerprint
+    output_matrix_fingerprint: TableFingerprint | None
+    diagnostics: Mapping[str, JsonValue] = field(default_factory=_empty_json_mapping)
+    warnings: tuple[str, ...] = ()
+    rejected_entities: tuple[BatchCorrectionRejectedEntity, ...] = ()
+    phospy_version: str = "unknown"
+    dependency_versions: Mapping[str, str | None] = field(default_factory=dict)
+    schema_version: int = BATCH_CORRECTION_PROVENANCE_SCHEMA_VERSION_V1
+
+
+@dataclass(frozen=True, slots=True)
 class ReferenceProvenance:
     """Resolved reference identity and table fingerprints."""
 
@@ -149,6 +193,9 @@ class RunProvenance:
 
 
 __all__ = [
+    "BATCH_CORRECTION_PROVENANCE_SCHEMA_VERSION_V1",
+    "BatchCorrectionProvenance",
+    "BatchCorrectionRejectedEntity",
     "EnvironmentProvenance",
     "JsonValue",
     "KinaseLibraryResourceProvenance",

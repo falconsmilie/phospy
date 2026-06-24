@@ -7,11 +7,14 @@ from typing import TYPE_CHECKING, cast
 
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.models import (
+    BATCH_CORRECTION_PROVENANCE_SCHEMA_VERSION_V1,
     ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V2,
     PREPROCESSING_STAGE_DETERMINISM_EXTERNAL_DEPENDENCY,
     PREPROCESSING_STAGE_DETERMINISM_PURE,
     PREPROCESSING_STAGE_DETERMINISM_SEEDED_STOCHASTIC,
     PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
+    BatchCorrectionProvenance,
+    BatchCorrectionRejectedEntity,
     EnvironmentProvenance,
     JsonValue,
     PreprocessingStageProvenance,
@@ -157,6 +160,247 @@ def from_payload(payload: Mapping[str, object]) -> RunProvenance:
             )
             for position, item in enumerate(scientific_policies_payload)
         ),
+    )
+
+
+def batch_correction_provenance_to_payload(
+    provenance: BatchCorrectionProvenance,
+) -> dict[str, object]:
+    """Serialize batch-correction provenance to a JSON-safe payload."""
+
+    return {
+        "schema_version": int(provenance.schema_version),
+        "requested_method": provenance.requested_method,
+        "resolved_parameters": _to_json_safe(provenance.resolved_parameters),
+        "preprocessing_stage_order": list(provenance.preprocessing_stage_order),
+        "control_site_source": _to_json_safe(provenance.control_site_source),
+        "selected_site_key_rows": list(provenance.selected_site_key_rows),
+        "batch_metadata": _to_json_safe(provenance.batch_metadata),
+        "replicate_metadata": (
+            None
+            if provenance.replicate_metadata is None
+            else _to_json_safe(provenance.replicate_metadata)
+        ),
+        "design_metadata": _to_json_safe(provenance.design_metadata),
+        "missing_value_policy": _to_json_safe(provenance.missing_value_policy),
+        "observation_masks": [
+            _table_fingerprint_to_payload(item) for item in provenance.observation_masks
+        ],
+        "input_matrix_fingerprint": _table_fingerprint_to_payload(
+            provenance.input_matrix_fingerprint
+        ),
+        "output_matrix_fingerprint": (
+            None
+            if provenance.output_matrix_fingerprint is None
+            else _table_fingerprint_to_payload(provenance.output_matrix_fingerprint)
+        ),
+        "diagnostics": _to_json_safe(provenance.diagnostics),
+        "warnings": list(provenance.warnings),
+        "rejected_entities": [
+            _batch_correction_rejected_entity_to_payload(item)
+            for item in provenance.rejected_entities
+        ],
+        "phospy_version": provenance.phospy_version,
+        "dependency_versions": _to_json_safe(provenance.dependency_versions),
+    }
+
+
+def batch_correction_provenance_from_payload(
+    payload: Mapping[str, object],
+) -> BatchCorrectionProvenance:
+    """Deserialize batch-correction provenance from a decoded payload."""
+
+    schema_version = _require_int(
+        payload.get("schema_version"),
+        field_name="batch_correction_provenance.schema_version",
+    )
+    if schema_version != BATCH_CORRECTION_PROVENANCE_SCHEMA_VERSION_V1:
+        raise PhosPyInputError(
+            f"Unsupported batch-correction provenance schema version: {schema_version}"
+        )
+    resolved_parameters = _require_mapping(
+        payload.get("resolved_parameters"),
+        field_name="batch_correction_provenance.resolved_parameters",
+    )
+    control_site_source = _require_mapping(
+        payload.get("control_site_source"),
+        field_name="batch_correction_provenance.control_site_source",
+    )
+    batch_metadata = _require_mapping(
+        payload.get("batch_metadata"),
+        field_name="batch_correction_provenance.batch_metadata",
+    )
+    replicate_metadata = _optional_mapping(
+        payload.get("replicate_metadata"),
+        field_name="batch_correction_provenance.replicate_metadata",
+    )
+    design_metadata = _require_mapping(
+        payload.get("design_metadata"),
+        field_name="batch_correction_provenance.design_metadata",
+    )
+    missing_value_policy = _require_mapping(
+        payload.get("missing_value_policy"),
+        field_name="batch_correction_provenance.missing_value_policy",
+    )
+    diagnostics = _require_mapping(
+        payload.get("diagnostics"),
+        field_name="batch_correction_provenance.diagnostics",
+    )
+    dependency_versions = _require_mapping(
+        payload.get("dependency_versions"),
+        field_name="batch_correction_provenance.dependency_versions",
+    )
+    output_matrix_payload = payload.get("output_matrix_fingerprint")
+    return BatchCorrectionProvenance(
+        schema_version=schema_version,
+        requested_method=_require_str(
+            payload.get("requested_method"),
+            field_name="batch_correction_provenance.requested_method",
+        ),
+        resolved_parameters={
+            str(key): _to_json_value(value)
+            for key, value in resolved_parameters.items()
+        },
+        preprocessing_stage_order=tuple(
+            _require_str(
+                item,
+                field_name="batch_correction_provenance.preprocessing_stage_order[]",
+            )
+            for item in _require_sequence(
+                payload.get("preprocessing_stage_order"),
+                field_name="batch_correction_provenance.preprocessing_stage_order",
+            )
+        ),
+        control_site_source={
+            str(key): _to_json_value(value)
+            for key, value in control_site_source.items()
+        },
+        selected_site_key_rows=tuple(
+            _require_str(
+                item,
+                field_name="batch_correction_provenance.selected_site_key_rows[]",
+            )
+            for item in _require_sequence(
+                payload.get("selected_site_key_rows"),
+                field_name="batch_correction_provenance.selected_site_key_rows",
+            )
+        ),
+        batch_metadata={
+            str(key): _to_json_value(value) for key, value in batch_metadata.items()
+        },
+        replicate_metadata=None
+        if replicate_metadata is None
+        else {
+            str(key): _to_json_value(value) for key, value in replicate_metadata.items()
+        },
+        design_metadata={
+            str(key): _to_json_value(value) for key, value in design_metadata.items()
+        },
+        missing_value_policy={
+            str(key): _to_json_value(value)
+            for key, value in missing_value_policy.items()
+        },
+        observation_masks=_table_fingerprints_from_payload(
+            payload.get("observation_masks"),
+            field_name="batch_correction_provenance.observation_masks",
+        ),
+        input_matrix_fingerprint=_table_fingerprint_from_payload(
+            _require_mapping(
+                payload.get("input_matrix_fingerprint"),
+                field_name="batch_correction_provenance.input_matrix_fingerprint",
+            )
+        ),
+        output_matrix_fingerprint=None
+        if output_matrix_payload is None
+        else _table_fingerprint_from_payload(
+            _require_mapping(
+                output_matrix_payload,
+                field_name="batch_correction_provenance.output_matrix_fingerprint",
+            )
+        ),
+        diagnostics={
+            str(key): _to_json_value(value) for key, value in diagnostics.items()
+        },
+        warnings=tuple(
+            _require_str(
+                item,
+                field_name="batch_correction_provenance.warnings[]",
+            )
+            for item in _require_sequence(
+                payload.get("warnings"),
+                field_name="batch_correction_provenance.warnings",
+            )
+        ),
+        rejected_entities=tuple(
+            _batch_correction_rejected_entity_from_payload(
+                _require_mapping(
+                    item,
+                    field_name=(
+                        f"batch_correction_provenance.rejected_entities[{position}]"
+                    ),
+                )
+            )
+            for position, item in enumerate(
+                _require_sequence(
+                    payload.get("rejected_entities"),
+                    field_name="batch_correction_provenance.rejected_entities",
+                )
+            )
+        ),
+        phospy_version=_require_str(
+            payload.get("phospy_version"),
+            field_name="batch_correction_provenance.phospy_version",
+        ),
+        dependency_versions={
+            str(key): (
+                None
+                if value is None
+                else _require_str(
+                    value,
+                    field_name=(
+                        f"batch_correction_provenance.dependency_versions['{str(key)}']"
+                    ),
+                )
+            )
+            for key, value in dependency_versions.items()
+        },
+    )
+
+
+def _batch_correction_rejected_entity_to_payload(
+    entity: BatchCorrectionRejectedEntity,
+) -> dict[str, object]:
+    return {
+        "entity_type": entity.entity_type,
+        "identifier": entity.identifier,
+        "reason": entity.reason,
+        "details": None if entity.details is None else _to_json_safe(entity.details),
+    }
+
+
+def _batch_correction_rejected_entity_from_payload(
+    payload: Mapping[str, object],
+) -> BatchCorrectionRejectedEntity:
+    details = _optional_mapping(
+        payload.get("details"),
+        field_name="batch_correction_rejected_entity.details",
+    )
+    return BatchCorrectionRejectedEntity(
+        entity_type=_require_str(
+            payload.get("entity_type"),
+            field_name="batch_correction_rejected_entity.entity_type",
+        ),
+        identifier=_require_str(
+            payload.get("identifier"),
+            field_name="batch_correction_rejected_entity.identifier",
+        ),
+        reason=_require_str(
+            payload.get("reason"),
+            field_name="batch_correction_rejected_entity.reason",
+        ),
+        details=None
+        if details is None
+        else {str(key): _to_json_value(value) for key, value in details.items()},
     )
 
 
@@ -943,4 +1187,9 @@ def _require_shape(value: object, *, field_name: str) -> tuple[int, int]:
     )
 
 
-__all__ = ["from_payload", "to_payload"]
+__all__ = [
+    "batch_correction_provenance_from_payload",
+    "batch_correction_provenance_to_payload",
+    "from_payload",
+    "to_payload",
+]

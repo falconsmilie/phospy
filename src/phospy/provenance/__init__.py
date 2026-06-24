@@ -8,12 +8,16 @@ from phospy.provenance.hashing import (
     DEFAULT_EXACT_TABLE_HASH_ALGORITHM,
     DEFAULT_TABLE_HASH_ALGORITHM,
     DEFAULT_TOLERANCE_TABLE_HASH_ALGORITHM,
+    fingerprint_matrix,
+    fingerprint_optional_matrix,
     fingerprint_optional_table,
     fingerprint_table,
     hash_table_exact,
     hash_table_tolerance,
 )
 from phospy.provenance.models import (
+    BatchCorrectionProvenance,
+    BatchCorrectionRejectedEntity,
     EnvironmentProvenance,
     KinaseLibraryResourceProvenance,
     PreprocessingStageProvenance,
@@ -27,13 +31,20 @@ from phospy.provenance.scientific_policy_models import (
     ScientificPolicyParameter,
     ScientificPolicyRecord,
 )
-from phospy.provenance.serialization import from_payload, to_payload
+from phospy.provenance.serialization import (
+    batch_correction_provenance_from_payload,
+    batch_correction_provenance_to_payload,
+    from_payload,
+    to_payload,
+)
 
 __all__ = [
     "DEFAULT_ENVIRONMENT_DEPENDENCIES",
     "DEFAULT_EXACT_TABLE_HASH_ALGORITHM",
     "DEFAULT_TABLE_HASH_ALGORITHM",
     "DEFAULT_TOLERANCE_TABLE_HASH_ALGORITHM",
+    "BatchCorrectionProvenance",
+    "BatchCorrectionRejectedEntity",
     "EnvironmentProvenance",
     "KinaseLibraryResourceProvenance",
     "PreprocessingStageProvenance",
@@ -43,7 +54,11 @@ __all__ = [
     "ScientificPolicyParameter",
     "ScientificPolicyRecord",
     "TableFingerprint",
+    "batch_correction_provenance_from_payload",
+    "batch_correction_provenance_to_payload",
     "collect_environment_provenance",
+    "fingerprint_matrix",
+    "fingerprint_optional_matrix",
     "fingerprint_optional_table",
     "fingerprint_local_reference_source_file",
     "fingerprint_table",

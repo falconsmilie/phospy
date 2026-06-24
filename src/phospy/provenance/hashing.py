@@ -120,6 +120,17 @@ def fingerprint_table(
     )
 
 
+def fingerprint_matrix(
+    matrix: pd.DataFrame,
+    *,
+    name: str,
+    algorithm: str = DEFAULT_TABLE_HASH_ALGORITHM,
+) -> TableFingerprint:
+    """Build an order-sensitive deterministic matrix fingerprint."""
+
+    return fingerprint_table(matrix, name=name, algorithm=algorithm)
+
+
 def fingerprint_optional_table(
     table: pd.DataFrame | None,
     *,
@@ -131,6 +142,19 @@ def fingerprint_optional_table(
     if table is None:
         return None
     return fingerprint_table(table, name=name, algorithm=algorithm)
+
+
+def fingerprint_optional_matrix(
+    matrix: pd.DataFrame | None,
+    *,
+    name: str,
+    algorithm: str = DEFAULT_TABLE_HASH_ALGORITHM,
+) -> TableFingerprint | None:
+    """Build an optional matrix fingerprint when a matrix exists."""
+
+    if matrix is None:
+        return None
+    return fingerprint_matrix(matrix, name=name, algorithm=algorithm)
 
 
 def _fingerprint_optional_table_with_normalized_axes(
@@ -357,6 +381,8 @@ __all__ = [
     "DEFAULT_EXACT_TABLE_HASH_ALGORITHM",
     "DEFAULT_TABLE_HASH_ALGORITHM",
     "DEFAULT_TOLERANCE_TABLE_HASH_ALGORITHM",
+    "fingerprint_matrix",
+    "fingerprint_optional_matrix",
     "fingerprint_optional_table",
     "fingerprint_table",
     "hash_table_exact",
