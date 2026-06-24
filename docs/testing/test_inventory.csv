@@ -46,7 +46,7 @@ tests/unit/test_activity_science.py,unit,1093,34,false,false,scientific invarian
 tests/unit/test_adr_docs_governance.py,unit,146,4,false,false,,,,,,
 tests/unit/test_analysis_ready_model_boundary_validator.py,unit,728,35,true,true,,,,,,[auto-orchestration] 11 hit(s); indicators: private_member_access
 tests/unit/test_api_configs_refactor_contract.py,unit,50,3,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for api configs refactor contract and increase risk of boundary regressions.,codex-audit,,
-tests/unit/test_api_documentation_examples.py,unit,1090,14,false,false,,,,,,
+tests/unit/test_api_documentation_examples.py,unit,1116,14,false,false,,,,,,
 tests/unit/test_batch_correction_metadata_resolution.py,unit,217,8,false,false,,,,,,
 tests/unit/test_batch_correction_plan_interpreter.py,unit,235,5,false,false,,,,,,
 tests/unit/test_batch_correction_preprocessing_config.py,unit,220,14,false,false,,,,,,
@@ -186,7 +186,7 @@ tests/unit/test_request_validation_boundaries.py,unit,283,6,true,true,,,,,,
 tests/unit/test_result_snapshot_helpers.py,unit,533,9,false,false,,,,,,
 tests/unit/test_runtime_contract_guards.py,unit,118,4,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for runtime contract guards and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_science_package_ownership.py,unit,113,6,true,true,,,,,,
-tests/unit/test_scientific_coverage_scope_matrix_docs.py,unit,588,23,false,false,,,,,,
+tests/unit/test_scientific_coverage_scope_matrix_docs.py,unit,593,23,false,false,,,,,,
 tests/unit/test_scientific_invariants.py,unit,704,19,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for scientific invariants, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_scientific_policies.py,unit,484,22,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for scientific policies, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_signalome_bundle_reconstruction_identity.py,unit,33,2,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access

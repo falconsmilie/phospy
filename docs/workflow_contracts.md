@@ -85,6 +85,21 @@ reporting only; it does not select SPS controls, run correction, or produce
 PhosR-equivalent corrected output. Native SPS/RUV-style correction requires the
 separate explicit `SpsRuvBatchCorrectionConfig` preprocessing config.
 
+Native SPS/RUV-style correction also stays in dataset preprocessing. It
+estimates unwanted factors from eligible caller-supplied control `site_key`
+rows after protecting condition terms, applies the correction to the
+phosphosite matrix before downstream workflows consume it, and records
+diagnostics plus `BatchCorrectionProvenance`. Required inputs are aligned
+`sample_metadata` with batch and protected condition columns, replicate
+metadata when the selected method requires it, an explicit `ControlSiteSet`,
+`CorrectionMissingnessPolicy`, `n_unwanted_factors`, diagnostics, and
+provenance. Temporary imputation is correction mechanics only: observation
+masks preserve which cells were originally observed, and imputed temporary
+values must not be treated as observed evidence. Differential batch covariates
+remain ordinary downstream model terms; they do not replace preprocessing
+correction and are not removed from the differential design when the user
+chooses to model them.
+
 `DatasetProteinAwarePreparationConfig(policy="prepare_model_inputs")` is
 preparation-only. It does not modify phosphosite values, does not subtract total
 protein, does not run joint PTM/protein differential modelling, does not adjust

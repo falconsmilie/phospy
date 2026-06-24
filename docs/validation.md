@@ -105,13 +105,23 @@ Common cross-field checks:
   row-collapse choices; when they run, inspect
   `dataset.preprocessing_report.duplicate_site_resolution` and
   `dataset.preprocessing_report.metadata_conflicts`.
-- `ruv_readiness.enabled=True` records readiness signals for possible future
-  RUV/SPS/RUV-III preprocessing, including complete-matrix status, missingness
-  mask provenance, control-feature availability, replicate groups, and optional
-  batch metadata. It does not select SPS controls or apply correction.
+- `ruv_readiness.enabled=True` records readiness signals for possible
+  RUV/SPS/RUV-III-style preprocessing, including complete-matrix status,
+  missingness mask provenance, control-feature availability, replicate groups,
+  and optional batch metadata. It does not select SPS controls or apply
+  correction.
 - RUV readiness is informational: dataset construction is not rejected when
   readiness is false. Native SPS/RUV-style correction is separate and requires
   explicit `SpsRuvBatchCorrectionConfig`.
+- Native SPS/RUV-style correction runs only through `batch_correction` with an
+  explicit `SpsRuvBatchCorrectionConfig`. Validation rejects missing or
+  misaligned `sample_metadata`, missing `batch_column`, missing protected
+  `condition_columns`, confounded or rank-inadequate batch/condition designs,
+  too few eligible caller-supplied control sites, incompatible control-site
+  metadata, missing values without a supported `CorrectionMissingnessPolicy`,
+  unsupported temporary-imputation policies, missing observation masks when
+  temporary imputation is allowed, and attempts to run correction without
+  provenance.
 
 ## Reference Validation
 

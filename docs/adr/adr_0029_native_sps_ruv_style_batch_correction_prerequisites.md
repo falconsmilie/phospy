@@ -8,25 +8,32 @@
 - **Date:** 2026-06-23
 - **Decision Type:** Scientific Architecture and Roadmap
 - **Refines:** ADR-0027
+- **Implemented By:** `SpsRuvBatchCorrectionConfig` native SPS/RUV-style
+  preprocessing correction and batch-correction workflow contracts. This is not
+  a PhosR-equivalent SPS/RUV-III parity claim.
 
 ## Context
 
-PhosPy currently has two batch-related preprocessing surfaces:
+PhosPy has three batch-related preprocessing/reporting surfaces:
 
 - `linear_residualize_batch`, an opt-in fixed-effect residualisation method
   under dataset preprocessing.
-- `ruv_readiness`, report-only metadata that helps audit whether future
+- `ruv_readiness`, report-only metadata that helps audit whether
   SPS/RUV-style preprocessing inputs might be present.
+- `SpsRuvBatchCorrectionConfig`, an explicit native SPS/RUV-style
+  preprocessing correction lane with caller-supplied controls, protected
+  design metadata, missingness policy, diagnostics, and provenance.
 
-Neither surface selects stable or control phosphosites, estimates unwanted
-variation factors, or applies RUV-style correction. Differential batch
-covariates are also ordinary model terms, not preprocessing correction.
+`linear_residualize_batch` does not select stable or control phosphosites,
+estimate unwanted variation factors, or apply SPS/RUV-style correction.
+`ruv_readiness` remains report-only and does not modify the matrix.
+Differential batch covariates are ordinary model terms, not preprocessing
+correction.
 
-Native SPS/RUV-style correction would change the quantitative phosphosite
-matrix consumed by downstream workflows. It therefore belongs on the
+Native SPS/RUV-style correction changes the quantitative phosphosite matrix
+consumed by downstream workflows. It therefore belongs on the
 preprocessing side of the strict `AnalysisReadyPhosphoDataset` boundary, with
-explicit validation, interpretation, execution, provenance, and tests before it
-can become a supported feature.
+explicit validation, interpretation, execution, provenance, and tests.
 
 ## Problem Statement
 
@@ -36,17 +43,19 @@ method depends on control-site representation, batch and replicate structure,
 missing-value handling, imputation policy, stage order, and downstream
 eligibility.
 
-PhosPy must define these contracts before implementing native SPS/RUV-style
-correction. Until those prerequisites exist, PhosPy should keep stating that
-RUV/SPS/RUV-III correction is not supported.
+PhosPy must keep these contracts explicit now that native SPS/RUV-style
+correction is executable. Documentation may claim support only for the
+implemented native PhosPy method and must continue to state that
+PhosR-equivalent SPS/RUV-III correction is not supported.
 
 ## Decision
 
-PhosPy defers native SPS/RUV-style batch correction.
+PhosPy implements native SPS/RUV-style batch correction only through explicit
+preprocessing contracts. No boolean shortcut, bundled control set, hidden
+online lookup, or undocumented numerical correction path is part of the public
+support claim.
 
-No public configuration flag, workflow, bundled control set, or numerical
-correction kernel should be added until the prerequisites in this ADR are in
-place. Future implementation, if added, must:
+The implemented lane must:
 
 1. remain a preprocessing or normalisation concern before downstream workflows
    consume the matrix;
@@ -57,7 +66,9 @@ place. Future implementation, if added, must:
 5. keep validation logic in validation-focused modules; and
 6. record enough provenance to reproduce the correction decision.
 
-This ADR defines prerequisites only. It does not implement RUV correction.
+This ADR records the prerequisite contract and its implemented status for the
+native PhosPy lane. It does not claim PhosR equivalence or broad RUV-III
+parity.
 
 ## Risks of Casual Batch-Correction Flags
 
@@ -78,23 +89,28 @@ audited. In particular, they can:
 
 ## Relationship to Current Residualisation and Readiness Reporting
 
-`linear_residualize_batch` remains the only executable batch-related
-preprocessing method. It is fixed-effect residualisation that preserves
+`linear_residualize_batch` remains fixed-effect residualisation that preserves
 condition effects by including condition terms in the residualisation design.
-It is not SPS selection, unwanted-factor estimation, RUV/SPS/RUV-III
+It is not SPS selection, unwanted-factor estimation, native SPS/RUV-style
 correction, ComBat, limma `removeBatchEffect` parity, or mixed-effects
 modelling.
 
-`ruv_readiness` may continue to report metadata readiness signals. It must stay
+`ruv_readiness` continues to report metadata readiness signals. It stays
 report-only. It does not select controls, apply correction, modify the matrix,
 or make a dataset partially corrected.
+
+`SpsRuvBatchCorrectionConfig` is the implemented native correction surface. It
+requires caller-supplied control-site annotations, batch and protected
+condition metadata, replicate metadata when required by the selected method,
+explicit missingness policy, unwanted-factor count, diagnostics, and
+provenance.
 
 Differential workflow batch covariates remain model terms inside differential
 analysis. They must not be documented as preprocessing correction.
 
 ## Required SPS and Control-Site Representation
 
-Future native support requires an explicit representation for stable or control
+Native support requires an explicit representation for stable or control
 phosphosites before any correction can run.
 
 That representation must define:
@@ -112,17 +128,17 @@ That representation must define:
    richer typed object; and
 7. how control eligibility is recorded for downstream audit.
 
-No future implementation should fetch control sites from online resources
-behind the user's back.
+The implemented lane uses caller-supplied control annotations. It does not
+fetch control sites from online resources behind the user's back.
 
 ## Missing-Value and Imputation Requirements
 
 The analysis-ready dataset boundary requires a complete matrix, but a complete
-matrix can contain values that were imputed upstream. Future SPS/RUV-style
+matrix can contain values that were imputed upstream. Native SPS/RUV-style
 correction must not treat imputed values as fully observed measurements unless
 that policy is explicit and validated.
 
-If a correction method needs a complete matrix internally, PhosPy must define:
+If correction needs a complete matrix internally, PhosPy must define:
 
 - whether temporary imputation is allowed;
 - which imputation method, parameters, and random seed are used;
@@ -138,7 +154,7 @@ evidence.
 
 ## Provenance Requirements
 
-Future correction must record provenance for:
+Correction must record provenance for:
 
 - requested method and resolved parameters;
 - preprocessing stage order;
@@ -155,7 +171,7 @@ other workflows and preprocessing stages. Result tables alone are not enough.
 
 ## Validation Requirements
 
-Future validation must happen before execution and must live in validation
+Validation must happen before execution and must live in validation
 modules or focused validation collaborators.
 
 Validation must reject at least:
@@ -176,9 +192,9 @@ Validation must reject at least:
 Validators should produce clear user-facing errors rather than silently dropping
 controls, samples, or sites.
 
-## Future Test Strategy
+## Test Strategy
 
-Any future implementation should add focused tests before claiming support:
+Implementation support requires focused tests before claiming support:
 
 - configuration and request validation tests for accepted and rejected cases;
 - interpreter tests for resolved design, controls, missingness, and stage order;
@@ -194,21 +210,19 @@ Any future implementation should add focused tests before claiming support:
 - external comparison fixtures only when their scope is narrow and documented
   as limited method evidence, not package-level equivalence.
 
-## Future Ownership
+## Ownership
 
-Likely future ownership areas are:
+Current ownership areas are:
 
 ```text
 src/phospy/contracts/configs/
 src/phospy/science/datasets/preprocessing/
 src/phospy/provenance/
-phospy.science.batch_correction (future package candidate)
-phospy.workflows.batch_correction (future package candidate)
-phospy.validation.workflows.batch_correction (future package candidate)
+src/phospy/science/batch_correction/
+src/phospy/workflows/batch_correction/
+src/phospy/validation/workflows/batch_correction/
 tests/
 ```
-
-These paths are future-facing. This ADR does not require them to exist today.
 
 Numerical method semantics should live in science-layer batch-correction code.
 Workflow orchestration, if needed, should keep the validator -> interpreter ->
@@ -222,16 +236,16 @@ correction logic.
 Positive consequences:
 
 - Current docs can be precise about what is and is not supported.
-- Future work has clear prerequisites instead of a single unsafe feature flag.
+- Native support has clear prerequisites instead of a single unsafe feature
+  flag.
 - The analysis-ready boundary and validation architecture remain intact.
 
 Negative consequences:
 
-- Users who need SPS/RUV-style correction must use external, explicit tooling
-  before building a PhosPy analysis-ready dataset for now.
-- Future implementation will require more than a numerical routine because it
-  must include representation, validation, imputation policy, provenance, and
-  tests.
+- Users must supply controls and metadata explicitly; PhosPy will not infer or
+  fetch them to make a request run.
+- Some desired variants remain outside the support claim until they have their
+  own representation, validation, provenance, and tests.
 
 Neutral consequences:
 
@@ -242,13 +256,13 @@ Neutral consequences:
 
 This ADR has these non-goals:
 
-- do not implement RUV, SPS selection, control-site selection, or RUV-III
-  correction;
-- do not add public API flags for RUV-style correction;
+- do not claim PhosR equivalence;
+- do not claim broad RUV-III parity beyond the implemented native PhosPy
+  method semantics;
+- do not add boolean public API flags for RUV-style correction;
 - do not add bundled stable or control phosphosite references;
 - do not add hidden online fetching;
 - do not add large dependencies;
-- do not claim equivalence to PhosR;
 - do not weaken preprocessing or dataset validation constraints; and
 - do not move correction ownership into differential, kinase, enrichment, or signalome
   workflows.

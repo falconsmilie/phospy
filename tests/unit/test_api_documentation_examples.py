@@ -30,7 +30,9 @@ from phospy.api import (
     KinaseScoringConfig,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
+    ObservationMask,
     Organism,
+    OriginallyMissingCellTracking,
     ReferenceBundle,
     ReferencePreset,
     SampleDesignRecord,
@@ -42,6 +44,8 @@ from phospy.api import (
     SignalomeValidationConfig,
     SignalomeWorkflowRequest,
     SpsRuvBatchCorrectionConfig,
+    TemporaryImputationMethod,
+    TemporaryImputationPolicy,
 )
 from phospy.api.results import KinasePredictionResult, KinaseScoringResult
 
@@ -700,7 +704,11 @@ def test_api_docs_sps_ruv_batch_correction_example_is_explicit() -> None:
         (
             "ControlSiteSet.from_site_keys",
             "CorrectionMissingnessPolicy",
+            "ObservationMask",
             "caller-supplied",
+            "Minimal valid native-correction example",
+            "Rejected unsafe example",
+            "TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY",
             "provenance",
         ),
         context="SPS/RUV explicit controls and policy",
@@ -719,6 +727,24 @@ def test_api_docs_sps_ruv_batch_correction_example_is_explicit() -> None:
 
     preprocessing = DatasetPreprocessingConfig(batch_correction=config)
     assert preprocessing.batch_correction is config
+
+    mask = ObservationMask(
+        feature_ids=("site_a", "site_b", "site_c"),
+        sample_ids=("sample_1", "sample_2", "sample_3", "sample_4"),
+        originally_missing_cells=(("site_b", "sample_2"),),
+    )
+    missingness_policy = CorrectionMissingnessPolicy(
+        temporary_imputation=TemporaryImputationPolicy(
+            allowed=True,
+            method=TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY,
+            method_parameters={"min_observed_values": 2},
+        ),
+        originally_missing_cells_tracked_by=(
+            OriginallyMissingCellTracking.OBSERVATION_MASK
+        ),
+        observation_mask=mask,
+    )
+    assert missingness_policy.observation_mask is mask
 
 
 def test_api_docs_protein_aware_preparation_boundary_is_documented() -> None:

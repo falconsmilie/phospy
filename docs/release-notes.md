@@ -152,10 +152,11 @@ Enrichment support is offline ORA over caller-supplied collections and explicit
 backgrounds. It does not bundle GO, KEGG, Reactome, PTM-SEA, PTMsigDB, Enrichr,
 gseapy, clusterProfiler, GSEA, or online-service behaviour.
 
-Fixed-effect batch/covariate/block differential designs and linear batch
-residualisation are executable PhosPy features. They are not correlated
-repeated-measure modelling, mixed-effect modelling, limma
-`duplicateCorrelation`, ComBat, RUV, SPS/RUV-III, or limma
+Fixed-effect batch/covariate/block differential designs, linear batch
+residualisation, and native SPS/RUV-style preprocessing correction through
+`SpsRuvBatchCorrectionConfig` are executable PhosPy features. They are not
+correlated repeated-measure modelling, mixed-effect modelling, limma
+`duplicateCorrelation`, ComBat, PhosR-equivalent RUV/SPS/RUV-III, or limma
 `removeBatchEffect` parity claims.
 
 Next: [Quickstart](quickstart.md) or [API Guide](api/guide.md).

@@ -92,6 +92,17 @@ ComBat, not RUV, not limma `removeBatchEffect` parity, not
 `duplicateCorrelation`, not mixed-effects modelling, and not a solution to all
 batch-effect problems.
 
+Dataset preprocessing also supports native SPS/RUV-style correction through
+`SpsRuvBatchCorrectionConfig`. This implemented lane requires caller-supplied
+control `site_key` annotations, aligned batch and protected condition metadata,
+replicate metadata when required by the selected method, explicit
+`CorrectionMissingnessPolicy`, `n_unwanted_factors`, diagnostics, and
+provenance. It estimates unwanted factors from eligible control-site residuals
+after protecting condition terms and applies correction before downstream
+workflows consume the analysis-ready matrix. It is not PhosR-equivalent
+SPS/RUV-III parity, not ComBat, not limma `removeBatchEffect`, and not hidden
+online control fetching or control selection.
+
 Dataset preprocessing also supports total-protein subtraction through
 `subtract_log_total` and protein-aware model-input preparation through
 `DatasetProteinAwarePreparationConfig(policy="prepare_model_inputs")`.

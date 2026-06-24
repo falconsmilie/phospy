@@ -63,8 +63,12 @@ from phospy.api import (
     DatasetTotalProteinCorrectionConfig,
     DatasetTotalProteinCorrectionIdentityConfig,
     IntensityScaleKind,
+    ObservationMask,
     Organism,
+    OriginallyMissingCellTracking,
     SpsRuvBatchCorrectionConfig,
+    TemporaryImputationMethod,
+    TemporaryImputationPolicy,
 )
 ```
 
@@ -336,7 +340,11 @@ and limitations.
 Native SPS/RUV-style correction uses a separate structured config. Do not use a
 boolean shortcut. The caller supplies the control-site set and missingness
 policy explicitly; PhosPy validates the request before execution and records
-typed provenance.
+typed provenance. The default public method is `method="sps_ruv_style"`: it
+estimates unwanted factors from eligible control-site residuals after
+protecting the configured condition terms, then subtracts the estimated
+unwanted-factor contribution from the phosphosite matrix. This is a native
+PhosPy implementation, not PhosR-equivalent SPS/RUV-III parity.
 
 ```python
 control_sites = ControlSiteSet.from_site_keys(
@@ -364,11 +372,14 @@ config = DatasetPreprocessingConfig(batch_correction=sps_ruv_correction)
 
 `SpsRuvBatchCorrectionConfig` requires:
 
-- caller-supplied `ControlSiteSet`; controls are not fetched online or bundled
-  without metadata.
-- `batch_column` and one or more protected `condition_columns`.
-- `replicate_column` when `method="ruv_iii_style"`; it may be provided for
-  other SPS/RUV-style methods when replicate metadata is available.
+- caller-supplied `ControlSiteSet`; controls are explicit `site_key`
+  annotations and are not fetched online or silently selected from bundled
+  resources.
+- aligned `sample_metadata` containing `batch_column` and one or more
+  protected `condition_columns`.
+- `replicate_column` when the selected method requires replicate metadata; it
+  may be provided for the default `sps_ruv_style` method when replicate
+  metadata is available. This is not a PhosR-equivalent RUV-III support claim.
 - explicit `CorrectionMissingnessPolicy`; temporary imputation must preserve
   the observation mask and is recorded as correction mechanics, not observed
   evidence.
@@ -376,9 +387,173 @@ config = DatasetPreprocessingConfig(batch_correction=sps_ruv_correction)
 - `diagnostics_enabled` and `provenance_enabled=True`; native correction cannot
   run without provenance.
 
-Successful requests return the corrected analysis-ready dataset and attach
+Successful requests return a corrected analysis-ready dataset and attach
 `BatchCorrectionProvenance` to the `batch_correction` preprocessing stage in
-`dataset.provenance.preprocessing_stages`.
+`dataset.provenance.preprocessing_stages`. Diagnostics include the resolved
+design summary, eligible and rejected controls, requested and estimated
+unwanted-factor counts, singular values, batch-associated variance summaries,
+missingness/imputation summaries, output observation-mask fingerprints,
+warnings, and input/output matrix fingerprints.
+
+Minimal valid native-correction example:
+
+```python
+import pandas as pd
+
+from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import (
+    ControlSiteSet,
+    CorrectionMissingnessPolicy,
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
+    Organism,
+    SpsRuvBatchCorrectionConfig,
+)
+
+phospho = pd.DataFrame(
+    {
+        "sample_1": [10.0, 5.0, 20.0],
+        "sample_2": [10.0, 9.0, 20.0],
+        "sample_3": [14.0, 8.0, 28.0],
+        "sample_4": [14.0, 12.0, 28.0],
+    },
+    index=pd.Index(["MAPK14;Y182;", "AKT1;T308;", "SRC;Y416;"], name="site_id"),
+)
+
+site_metadata = pd.DataFrame(
+    {
+        "gene_symbol": ["MAPK14", "AKT1", "SRC"],
+        "site": ["Y182", "T308", "Y416"],
+        "site_sequence": [
+            ("A" * 15) + "Y" + ("A" * 15),
+            ("A" * 15) + "T" + ("A" * 15),
+            ("A" * 15) + "Y" + ("A" * 15),
+        ],
+        "display_id": ["MAPK14;Y182;", "AKT1;T308;", "SRC;Y416;"],
+        "organism": ["rat", "rat", "rat"],
+        "protein_namespace": ["protein_id", "protein_id", "protein_id"],
+        "protein_identifier": ["MAPK14", "AKT1", "SRC"],
+        "protein_id": ["MAPK14", "AKT1", "SRC"],
+        "localisation_confidence": [0.95, 0.92, 0.98],
+    },
+    index=phospho.index.copy(),
+)
+
+sample_metadata = pd.DataFrame(
+    {
+        "batch": ["run_1", "run_1", "run_2", "run_2"],
+        "condition": ["control", "treated", "control", "treated"],
+        "replicate": ["r1", "r1", "r2", "r2"],
+    },
+    index=phospho.columns.copy(),
+)
+
+control_site_keys = (
+    "phospy:v1|organism=rat|protein_namespace=protein_id|"
+    "protein_identifier=MAPK14|residue=Y|position=182",
+    "phospy:v1|organism=rat|protein_namespace=protein_id|"
+    "protein_identifier=SRC|residue=Y|position=416",
+)
+
+preprocessing = DatasetPreprocessingConfig(
+    batch_correction=SpsRuvBatchCorrectionConfig(
+        control_site_set=ControlSiteSet.from_site_keys(control_site_keys),
+        batch_column="batch",
+        condition_columns=("condition",),
+        replicate_column="replicate",
+        missingness_policy=CorrectionMissingnessPolicy(),
+        n_unwanted_factors=1,
+        diagnostics_enabled=True,
+        provenance_enabled=True,
+    )
+)
+
+dataset = AnalysisReadyDatasetBuilder().run(
+    DatasetBuildRequest(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=sample_metadata,
+        organism=Organism.RAT,
+        input_intensity_scale="log2",
+        preprocessing_config=preprocessing,
+    )
+)
+
+report = dataset.preprocessing_report.batch_correction
+assert report.status == "applied"
+assert report.method == "sps_ruv_style"
+```
+
+Rejected unsafe example: this request supplies only one eligible control site
+while requesting one unwanted factor. Validation fails before execution because
+the method needs at least `n_unwanted_factors + 1` eligible controls and never
+selects fallback controls.
+
+```python
+unsafe_preprocessing = DatasetPreprocessingConfig(
+    batch_correction=SpsRuvBatchCorrectionConfig(
+        control_site_set=ControlSiteSet.from_site_keys((control_site_keys[0],)),
+        batch_column="batch",
+        condition_columns=("condition",),
+        replicate_column="replicate",
+        missingness_policy=CorrectionMissingnessPolicy(),
+        n_unwanted_factors=1,
+    )
+)
+
+AnalysisReadyDatasetBuilder().run(
+    DatasetBuildRequest(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=sample_metadata,
+        organism=Organism.RAT,
+        input_intensity_scale="log2",
+        preprocessing_config=unsafe_preprocessing,
+    )
+)
+```
+
+Observation masks and temporary imputation:
+
+- With the default `CorrectionMissingnessPolicy()`, native correction expects
+  the correction-stage matrix to be complete and uses no temporary imputation.
+- If correction is configured at a stage where originally missing cells are
+  still present, the request must provide `ObservationMask` metadata through
+  `CorrectionMissingnessPolicy(originally_missing_cells_tracked_by="observation_mask", ...)`.
+  The mask identifies originally observed cells separately from temporary
+  imputed cells.
+- Temporary imputation is numerical correction mechanics only. The native
+  executor currently accepts missing matrices only with
+  `TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY` and a valid observation
+  mask; those temporary values are not retained as observed evidence.
+- The corrected output carries an output observation mask and per-cell status.
+  Originally missing cells are restored or flagged according to the policy, and
+  final dataset construction still enforces the strict analysis-ready boundary.
+  If correction leaves an incomplete analysis-ready matrix, validation rejects
+  the build.
+
+```python
+akt_site_key = (
+    "phospy:v1|organism=rat|protein_namespace=protein_id|"
+    "protein_identifier=AKT1|residue=T|position=308"
+)
+
+mask = ObservationMask(
+    feature_ids=(control_site_keys[0], akt_site_key, control_site_keys[1]),
+    sample_ids=tuple(phospho.columns.astype(str)),
+    originally_missing_cells=((akt_site_key, "sample_2"),),
+)
+
+missingness_policy = CorrectionMissingnessPolicy(
+    temporary_imputation=TemporaryImputationPolicy(
+        allowed=True,
+        method=TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY,
+        method_parameters={"min_observed_values": 2},
+    ),
+    originally_missing_cells_tracked_by=OriginallyMissingCellTracking.OBSERVATION_MASK,
+    observation_mask=mask,
+)
+```
 
 ## Intensity Transform Parameters
 

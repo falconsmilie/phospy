@@ -331,10 +331,13 @@ def test_adr_0027_records_future_preprocessing_direction_and_constraints() -> No
 def test_readme_does_not_imply_phosr_batch_correction_parity() -> None:
     normalized = " ".join(_readme_text().lower().split())
 
-    assert "not native ruv/sps/ruv-iii correction" in normalized
+    assert "native sps/ruv-style correction through `spsruvbatchcorrectionconfig`" in (
+        normalized
+    )
+    assert "not phosr-equivalent sps/ruv-iii parity" in normalized
     assert "not phosr-equivalent batch correction" in normalized
     assert "readiness signals and do not apply correction" in normalized
-    assert "future architecture commitment, not a current feature claim" in normalized
+    assert "those prerequisites are implemented" in normalized
 
 
 def test_docs_scientific_coverage_mentions_enrichment_scope() -> None:
@@ -563,6 +566,8 @@ def test_adr_0025_current_state_names_implemented_support_without_parity_claims(
     assert "fragpipe/philosopher/ptmprophet phosphosite import" in normalized
     assert '`paired_design_policy="fixed_block"`' in normalized
     assert "`linear_residualize_batch`" in normalized
+    assert "`spsruvbatchcorrectionconfig`" in normalized
+    assert "native sps/ruv-style correction through" in normalized
     assert '`datasetproteinawarepreparationconfig(policy="prepare_model_inputs")`' in (
         normalized
     )

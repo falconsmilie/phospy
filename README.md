@@ -89,19 +89,23 @@ evidence lives in [`docs/parity.md`](docs/parity.md).
 Future coverage direction is tracked in
 [`ADR-0025`](docs/adr/adr_0025_competitive_phosphoproteomics_workflow_coverage.md);
 that roadmap is not a current feature-support claim.
-Future native SPS/RUV-style batch-correction prerequisites are recorded in
+Native SPS/RUV-style batch-correction prerequisites are recorded in
 [`ADR-0029`](docs/adr/adr_0029_native_sps_ruv_style_batch_correction_prerequisites.md);
-that ADR defers implementation until the required contracts exist and is not a
-current feature claim. This is a future architecture commitment, not a current
-feature claim.
+those prerequisites are implemented for the supported
+`SpsRuvBatchCorrectionConfig` preprocessing lane. This is a native PhosPy
+implementation, not PhosR-equivalent SPS/RUV-III parity.
 
-The `batch_correction` preprocessing group currently exposes one opt-in method:
-`linear_residualize_batch`, a limited fixed-effect residualisation step that
-preserves condition effects by design and rejects confounded batch/condition metadata.
-This is not ComBat, RUV, limma `removeBatchEffect` parity, not native
-RUV/SPS/RUV-III correction, not PhosR-equivalent batch correction, and not
-mixed-effects modelling. Any `ruv_readiness` diagnostics are report-only
-readiness signals and do not apply correction.
+The `batch_correction` preprocessing group exposes two explicit lanes:
+`linear_residualize_batch`, a limited fixed-effect residualisation step, and
+native SPS/RUV-style correction through `SpsRuvBatchCorrectionConfig`.
+`linear_residualize_batch` preserves condition effects by design and rejects
+confounded batch/condition metadata; it is not ComBat, not RUV, not limma
+`removeBatchEffect` parity, not native SPS/RUV-style correction, not
+PhosR-equivalent batch correction, and not mixed-effects modelling. Native
+SPS/RUV-style correction requires caller-supplied controls, batch and protected
+condition metadata, a missingness policy, diagnostics, and provenance. Any
+`ruv_readiness` diagnostics are report-only readiness signals and do not apply
+correction.
 
 ## Kinase Workflow Example
 
