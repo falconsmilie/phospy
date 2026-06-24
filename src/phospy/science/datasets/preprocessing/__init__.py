@@ -12,6 +12,14 @@ from phospy.science.datasets.preprocessing.batch_correction_metadata import (
     BatchCorrectionMetadataResolver,
     ResolvedBatchCorrectionMetadata,
 )
+from phospy.science.datasets.preprocessing.control_sites import (
+    ControlSiteAnnotation,
+    ControlSiteEligibility,
+    ControlSiteMapping,
+    ControlSiteSet,
+    ControlSiteSourceMetadata,
+    ControlSiteStatus,
+)
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
@@ -77,6 +85,12 @@ __all__ = [
     "BatchCorrectionReport",
     "BatchCorrectionResult",
     "ComparisonBuildingPolicy",
+    "ControlSiteAnnotation",
+    "ControlSiteEligibility",
+    "ControlSiteMapping",
+    "ControlSiteSet",
+    "ControlSiteSourceMetadata",
+    "ControlSiteStatus",
     "IntensityTransformPolicy",
     "LocalisationEligibilityMode",
     "LinearResidualizeBatchCorrectionEngine",
