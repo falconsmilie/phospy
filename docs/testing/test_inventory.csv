@@ -47,6 +47,7 @@ tests/unit/test_analysis_ready_model_boundary_validator.py,unit,728,35,true,true
 tests/unit/test_api_configs_refactor_contract.py,unit,50,3,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for api configs refactor contract and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_api_documentation_examples.py,unit,1044,13,false,false,,,,,,
 tests/unit/test_batch_correction_metadata_resolution.py,unit,217,8,false,false,,,,,,
+tests/unit/test_batch_correction_plan_interpreter.py,unit,235,5,false,false,,,,,,
 tests/unit/test_batch_correction_preprocessing_config.py,unit,162,10,false,false,,,,,,
 tests/unit/test_batch_correction_provenance.py,unit,216,6,false,false,,,,,,
 tests/unit/test_batch_correction_reports.py,unit,226,7,false,false,,,,,,
