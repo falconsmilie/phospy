@@ -20,6 +20,10 @@ from phospy.science.datasets.preprocessing.control_sites import (
     ControlSiteSourceMetadata,
     ControlSiteStatus,
 )
+from phospy.science.datasets.preprocessing.correction_output import (
+    CorrectedPreprocessingOutput,
+    CorrectedPreprocessingOutputIntegrator,
+)
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
@@ -91,6 +95,8 @@ __all__ = [
     "ControlSiteSet",
     "ControlSiteSourceMetadata",
     "ControlSiteStatus",
+    "CorrectedPreprocessingOutput",
+    "CorrectedPreprocessingOutputIntegrator",
     "IntensityTransformPolicy",
     "LocalisationEligibilityMode",
     "LinearResidualizeBatchCorrectionEngine",

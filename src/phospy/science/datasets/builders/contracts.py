@@ -15,6 +15,9 @@ from phospy.science.datasets.preprocessing.batch_correction import (
 from phospy.science.datasets.preprocessing.batch_correction_metadata import (
     ResolvedBatchCorrectionMetadata,
 )
+from phospy.science.datasets.preprocessing.correction_output import (
+    CorrectedPreprocessingOutput,
+)
 from phospy.science.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingStageExecution,
@@ -57,6 +60,7 @@ class InterpretedDatasetBuildRequest:
     multi_site_policy: str | None = None
     allow_opaque_site_values: bool = False
     peptide_evidence_resolution: dict[str, object] | None = None
+    corrected_preprocessing_output: CorrectedPreprocessingOutput | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,6 +116,7 @@ class DatasetPreprocessorContract(Protocol):
         sample_metadata: pd.DataFrame | None,
         total: pd.DataFrame | None,
         plan: PreprocessingPlan,
+        corrected_preprocessing_output: CorrectedPreprocessingOutput | None = None,
     ) -> PreprocessedDatasetBuildTables: ...
 
 

@@ -170,6 +170,7 @@ class DatasetBuildRequest:
     )
     input_intensity_scale: IntensityScaleKind | str | None = None
     quantitative_meaning: QuantitativeMeaning | str | None = None
+    corrected_preprocessing_output: object | None = None
 
 
 @dataclass(frozen=True, slots=True)

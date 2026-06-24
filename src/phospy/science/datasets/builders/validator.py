@@ -10,6 +10,9 @@ from phospy.contracts.configs import (
 )
 from phospy.contracts.requests import DatasetBuildRequest
 from phospy.errors.input import PhosPyInputError
+from phospy.science.datasets.preprocessing.correction_output import (
+    validate_corrected_preprocessing_output,
+)
 from phospy.science.evidence.dataset_resolution import (
     DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
     SUPPORTED_DATASET_MULTI_SITE_POLICIES,
@@ -102,6 +105,7 @@ class DatasetBuildRequestValidator:
             raise PhosPyInputError("dataset build request organism must be an Organism")
         _validate_input_intensity_scale(request.input_intensity_scale)
         _validate_quantitative_meaning(request.quantitative_meaning)
+        validate_corrected_preprocessing_output(request.corrected_preprocessing_output)
         if not isinstance(request.allow_opaque_site_values, bool):
             raise PhosPyInputError(
                 "dataset build request allow_opaque_site_values must be a bool"

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from phospy.contracts.requests import DatasetBuildRequest
 from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.builders.contracts import (
@@ -15,6 +17,9 @@ from phospy.science.datasets.builders.interpreter_collaborators import (
 from phospy.science.datasets.builders.normalizer import DatasetConventionNormalizer
 from phospy.science.datasets.builders.reader import DatasetInputReader
 from phospy.science.datasets.builders.sequence_derivation import SiteSequenceDeriver
+from phospy.science.datasets.preprocessing.correction_output import (
+    CorrectedPreprocessingOutput,
+)
 from phospy.science.evidence.dataset_resolution import PeptideEvidenceDatasetResolver
 from phospy.science.transformations.models import (
     IntensityScaleKind,
@@ -86,6 +91,10 @@ class DatasetBuildRequestInterpreter:
             multi_site_policy=resolved_sources.multi_site_policy,
             allow_opaque_site_values=bool(request.allow_opaque_site_values),
             peptide_evidence_resolution=resolved_sources.peptide_evidence_resolution,
+            corrected_preprocessing_output=cast(
+                CorrectedPreprocessingOutput | None,
+                request.corrected_preprocessing_output,
+            ),
         )
 
 

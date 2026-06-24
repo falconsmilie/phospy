@@ -4,10 +4,16 @@ from __future__ import annotations
 
 import pandas as pd
 
+from phospy.contracts.configs import DATASET_BATCH_CORRECTION_METHOD_NONE
 from phospy.contracts.configs.preprocessing.total_protein import (
     DatasetProteinAwarePreparationConfig,
 )
+from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.builders.contracts import PreprocessedDatasetBuildTables
+from phospy.science.datasets.preprocessing.correction_output import (
+    CorrectedPreprocessingOutput,
+    CorrectedPreprocessingOutputIntegrator,
+)
 from phospy.science.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingStageExecution,
@@ -42,10 +48,14 @@ class DatasetPreprocessor:
         *,
         pipeline: PreprocessingPipeline | None = None,
         provenance_adapter: PreprocessingProvenanceAdapter | None = None,
+        correction_integrator: CorrectedPreprocessingOutputIntegrator | None = None,
     ) -> None:
         self._pipeline = pipeline or PreprocessingPipeline()
         self._provenance_adapter = (
             provenance_adapter or PreprocessingProvenanceAdapter()
+        )
+        self._correction_integrator = (
+            correction_integrator or CorrectedPreprocessingOutputIntegrator()
         )
 
     def run(
@@ -56,7 +66,17 @@ class DatasetPreprocessor:
         sample_metadata: pd.DataFrame | None = None,
         total: pd.DataFrame | None = None,
         plan: PreprocessingPlan,
+        corrected_preprocessing_output: CorrectedPreprocessingOutput | None = None,
     ) -> PreprocessedDatasetBuildTables:
+        if (
+            corrected_preprocessing_output is not None
+            and plan.batch_correction_method != DATASET_BATCH_CORRECTION_METHOD_NONE
+        ):
+            raise PhosPyInputError(
+                "dataset preprocessing received corrected_preprocessing_output "
+                "while preprocessing_config.batch_correction also requests "
+                "execution; correction must be applied exactly once"
+            )
         input_row_count = int(len(phospho.index))
         preprocessed_state, trace = self._pipeline.run_with_trace(
             PreprocessingState(
@@ -67,6 +87,12 @@ class DatasetPreprocessor:
                 plan=plan,
             )
         )
+        if corrected_preprocessing_output is not None:
+            preprocessed_state, correction_trace = self._correction_integrator.run(
+                state=preprocessed_state,
+                correction_output=corrected_preprocessing_output,
+            )
+            trace = (*trace, correction_trace)
         row_counts, operations = self._provenance_adapter.build_tables(
             plan=plan,
             input_row_count=input_row_count,

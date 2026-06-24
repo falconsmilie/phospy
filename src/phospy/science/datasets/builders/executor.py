@@ -76,13 +76,18 @@ class DatasetBuildExecutor:
     def run(
         self, request: InterpretedDatasetBuildRequest
     ) -> AnalysisReadyPhosphoDataset:
-        preprocessed = self._preprocessor.run(
-            phospho=request.phospho,
-            site_metadata=request.site_metadata,
-            sample_metadata=request.sample_metadata,
-            total=request.total,
-            plan=request.preprocessing_plan,
-        )
+        preprocessor_kwargs = {
+            "phospho": request.phospho,
+            "site_metadata": request.site_metadata,
+            "sample_metadata": request.sample_metadata,
+            "total": request.total,
+            "plan": request.preprocessing_plan,
+        }
+        if request.corrected_preprocessing_output is not None:
+            preprocessor_kwargs["corrected_preprocessing_output"] = (
+                request.corrected_preprocessing_output
+            )
+        preprocessed = self._preprocessor.run(**preprocessor_kwargs)
         validated_site_metadata = self._site_sequence_validator.run(
             site_metadata=preprocessed.site_metadata,
             preprocessing_trace=preprocessed.preprocessing_trace,

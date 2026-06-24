@@ -114,6 +114,10 @@ def test_sps_ruv_style_executor_returns_diagnostics_warnings_and_provenance() ->
     assert result.provenance_payload["executor_id"] == SPS_RUV_STYLE_EXECUTOR_ID
     assert result.provenance_payload["method"] == "sps_ruv_style"
     assert "corrected_matrix_fingerprint" in result.provenance_payload
+    assert result.corrected_preprocessing_output is not None
+    assert result.corrected_preprocessing_output.batch_correction_report.status == (
+        "applied"
+    )
 
 
 def _run_executor(

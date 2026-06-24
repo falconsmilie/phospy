@@ -48,9 +48,11 @@ class PreprocessingProvenanceAdapter:
 
         row_cursor = input_row_count
         step_order = 1
+        emitted_stages: set[str] = set()
         canonical_stage_metadata = resolve_builder_provenance_stage_order(plan)
         for stage_metadata in canonical_stage_metadata:
             stage = stage_metadata.provenance_stage_key
+            emitted_stages.add(stage)
             stage_label = stage_metadata.display_label
             record = trace_by_stage.get(stage)
             operation = stage_metadata.operation_name(plan)
@@ -94,6 +96,38 @@ class PreprocessingProvenanceAdapter:
                     input_rows=stage_input_rows,
                     output_rows=stage_output_rows,
                     notes=notes,
+                )
+            )
+            step_order += 1
+
+        for record in trace:
+            if record.stage in emitted_stages:
+                continue
+            row_count_rows.append(
+                PreprocessingRowCountRow(
+                    stage=record.stage,
+                    input_rows=int(record.input_rows),
+                    output_rows=int(record.output_rows),
+                    dropped_rows=int(max(record.dropped_row_count, 0)),
+                )
+            )
+            operation_rows.append(
+                PreprocessingOperationRow(
+                    step_order=step_order,
+                    stage=record.stage,
+                    operation=record.operation,
+                    parameters=_with_execution_summary(
+                        stage=record.stage,
+                        base_parameters=dict(record.parameters),
+                        record=record,
+                    ),
+                    input_rows=int(record.input_rows),
+                    output_rows=int(record.output_rows),
+                    notes=(
+                        "stage executed"
+                        if record.notes is None
+                        else str(record.notes).strip()
+                    ),
                 )
             )
             step_order += 1

@@ -13,6 +13,9 @@ from phospy.contracts.configs.preprocessing import TemporaryImputationMethod
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance import fingerprint_matrix
 from phospy.provenance.models import TableFingerprint
+from phospy.science.datasets.preprocessing.correction_output import (
+    CorrectedPreprocessingOutput,
+)
 
 SPS_RUV_STYLE_EXECUTOR_ID = "deterministic_sps_ruv_style_executor_v1"
 SPS_RUV_STYLE_METHODS = frozenset(
@@ -119,6 +122,7 @@ class SpsRuvStyleExecutorResult:
     output_observation_mask: pd.DataFrame
     corrected_cell_status: pd.DataFrame
     provenance_payload: Mapping[str, object]
+    corrected_preprocessing_output: CorrectedPreprocessingOutput | None = None
 
     @property
     def corrected(self) -> pd.DataFrame:
@@ -207,7 +211,7 @@ class DeterministicSpsRuvStyleExecutor:
             warnings=warnings,
             estimated_factors=estimated_factors,
         )
-        return SpsRuvStyleExecutorResult(
+        executor_result = SpsRuvStyleExecutorResult(
             corrected_matrix=corrected_matrix,
             estimated_unwanted_factors=estimated_factors,
             diagnostics=diagnostics,
@@ -219,6 +223,28 @@ class DeterministicSpsRuvStyleExecutor:
             output_observation_mask=output_observation_mask,
             corrected_cell_status=corrected_cell_status,
             provenance_payload=provenance_payload,
+        )
+        corrected_preprocessing_output = (
+            None
+            if bool(corrected_matrix.isna().to_numpy().any())
+            else CorrectedPreprocessingOutput.from_sps_ruv_style_result(
+                executor_result,
+                stage_order=plan.stage_order,
+            )
+        )
+        return SpsRuvStyleExecutorResult(
+            corrected_matrix=executor_result.corrected_matrix,
+            estimated_unwanted_factors=executor_result.estimated_unwanted_factors,
+            diagnostics=executor_result.diagnostics,
+            warnings=executor_result.warnings,
+            withheld_rows=executor_result.withheld_rows,
+            rejected_rows=executor_result.rejected_rows,
+            withheld_cells=executor_result.withheld_cells,
+            rejected_cells=executor_result.rejected_cells,
+            output_observation_mask=executor_result.output_observation_mask,
+            corrected_cell_status=executor_result.corrected_cell_status,
+            provenance_payload=executor_result.provenance_payload,
+            corrected_preprocessing_output=corrected_preprocessing_output,
         )
 
 

@@ -7,6 +7,9 @@ from typing import cast
 
 from phospy.provenance.models import JsonValue
 from phospy.science.batch_correction import SpsRuvStyleExecutor
+from phospy.science.datasets.preprocessing.correction_output import (
+    CorrectedPreprocessingOutput,
+)
 from phospy.validation.workflows.batch_correction.control_site_workflow import (
     BatchCorrectionWorkflowControlSiteValidator,
 )
@@ -119,13 +122,18 @@ class BatchCorrectionWorkflow:
                 "executor": executor_result.diagnostics.to_payload(),
             },
         )
+        corrected_preprocessing_output = getattr(
+            executor_result,
+            "corrected_preprocessing_output",
+            None,
+        )
+        if isinstance(corrected_preprocessing_output, CorrectedPreprocessingOutput):
+            corrected_preprocessing_output = (
+                corrected_preprocessing_output.with_provenance(provenance)
+            )
         return BatchCorrectionWorkflowResult(
             corrected_matrix=executor_result.corrected_matrix,
-            corrected_preprocessing_output=getattr(
-                executor_result,
-                "corrected_preprocessing_output",
-                None,
-            ),
+            corrected_preprocessing_output=corrected_preprocessing_output,
             diagnostics=diagnostics,
             warnings=tuple(str(warning) for warning in executor_result.warnings),
             provenance=provenance,
