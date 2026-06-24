@@ -96,6 +96,7 @@ tests/unit/test_docs_support_claim_guard.py,unit,432,3,false,false,,,,,,
 tests/unit/test_docs_terminology_contracts.py,unit,41,2,false,false,,,,,,
 tests/unit/test_docs_utf8_readability_smoke.py,unit,10,1,false,false,documentation contract,keep,Loss of this file would allow unreadable Markdown docs or encoding regressions to slip into user-facing documentation.,codex-audit,,Markdown encoding smoke coverage; intentionally no terminology-lint assertions.
 tests/unit/test_domain_boundaries.py,unit,1143,52,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for domain boundaries and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
+tests/unit/test_downstream_batch_correction_boundaries.py,unit,478,7,true,true,,,,,,
 tests/unit/test_duplicate_site_resolution_reports.py,unit,682,16,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for duplicate site resolution reports, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_enrichment_collections.py,unit,96,5,false,false,,,,,,
 tests/unit/test_enrichment_multiple_testing_correction.py,unit,158,9,false,false,,,,,,
