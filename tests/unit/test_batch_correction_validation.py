@@ -317,6 +317,30 @@ def test_batch_validation_fails_during_preprocessing_stage_execution() -> None:
         )
 
 
+def test_batch_validation_failure_reports_context_without_execution_claim() -> None:
+    with pytest.raises(PhosPyInputError) as exc_info:
+        DatasetPreprocessor().run(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(),
+            sample_metadata=_confounded_sample_metadata(),
+            total=None,
+            plan=PreprocessingPlan(
+                localisation_mode="ignore",
+                batch_correction_method="linear_residualize_batch",
+                stage_order=("batch_correction",),
+            ),
+        )
+
+    message = str(exc_info.value)
+    assert "validation failed before correction execution" in message
+    assert "method='linear_residualize_batch'" in message
+    assert "input_shape=[2, 4]" in message
+    assert "batch_column='batch'" in message
+    assert "condition_column='condition'" in message
+    assert "perfectly confounded" in message
+    assert "status='applied'" not in message
+
+
 def test_batch_correction_plan_rejects_requested_method_without_stage() -> None:
     with pytest.raises(PhosPyInputError, match="stage_order.*batch_correction"):
         PreprocessingPlan(batch_correction_method="linear_residualize_batch")

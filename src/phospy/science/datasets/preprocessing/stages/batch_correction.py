@@ -22,6 +22,9 @@ from phospy.science.datasets.preprocessing.batch_correction import (
 from phospy.science.datasets.preprocessing.batch_correction_metadata import (
     BatchCorrectionMetadataResolver,
 )
+from phospy.science.datasets.preprocessing.batch_correction_provenance import (
+    build_native_batch_correction_provenance,
+)
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
     PreprocessingPlan,
@@ -84,37 +87,53 @@ class BatchCorrectionStage:
                 f"batch_correction_method={method!r}"
             )
 
-        self._metadata_validator.run(
-            phospho=state.phospho,
-            sample_metadata=state.sample_metadata,
-            batch_column=state.plan.batch_correction_batch_column,
-            condition_columns=(state.plan.batch_correction_condition_column,),
-            context="dataset build request preprocessing_config.batch_correction",
-        )
-        metadata = self._metadata_resolver.run(
-            phospho=state.phospho,
-            sample_metadata=state.sample_metadata,
-            batch_column=state.plan.batch_correction_batch_column,
-            condition_column=state.plan.batch_correction_condition_column,
-        )
-        self._adequacy_validator.run(
-            batch_by_sample=metadata.batch_by_sample,
-            condition_by_sample=metadata.condition_by_sample,
-            sample_order=metadata.sample_order,
-            preserve_condition_effects=(
-                state.plan.batch_correction_preserve_condition_effects
-            ),
-        )
-        result = self._engine.run(
-            phospho=state.phospho,
-            batch_labels=metadata.batch_labels,
-            condition_labels=metadata.condition_labels,
-            config=DatasetBatchCorrectionConfig(
-                method=method,
+        try:
+            self._metadata_validator.run(
+                phospho=state.phospho,
+                sample_metadata=state.sample_metadata,
+                batch_column=state.plan.batch_correction_batch_column,
+                condition_columns=(state.plan.batch_correction_condition_column,),
+                context="dataset build request preprocessing_config.batch_correction",
+            )
+            metadata = self._metadata_resolver.run(
+                phospho=state.phospho,
+                sample_metadata=state.sample_metadata,
                 batch_column=state.plan.batch_correction_batch_column,
                 condition_column=state.plan.batch_correction_condition_column,
-                preserve_condition_effects=True,
-            ),
+            )
+            self._adequacy_validator.run(
+                batch_by_sample=metadata.batch_by_sample,
+                condition_by_sample=metadata.condition_by_sample,
+                sample_order=metadata.sample_order,
+                preserve_condition_effects=(
+                    state.plan.batch_correction_preserve_condition_effects
+                ),
+            )
+            result = self._engine.run(
+                phospho=state.phospho,
+                batch_labels=metadata.batch_labels,
+                condition_labels=metadata.condition_labels,
+                config=DatasetBatchCorrectionConfig(
+                    method=method,
+                    batch_column=state.plan.batch_correction_batch_column,
+                    condition_column=state.plan.batch_correction_condition_column,
+                    preserve_condition_effects=True,
+                ),
+            )
+        except PhosPyInputError as exc:
+            raise PhosPyInputError(
+                _validation_failure_message(state=state, method=method, reason=str(exc))
+            ) from exc
+        provenance = build_native_batch_correction_provenance(
+            input_matrix=state.phospho,
+            output_matrix=result.corrected_matrix,
+            plan=state.plan,
+            report=result.report,
+            metadata=metadata,
+            diagnostics=result.diagnostics,
+            warnings=result.report.warnings,
+            observation_mask=state.imputation_observation_mask,
+            source="native_preprocessing_stage",
         )
         return PreprocessingStageResult(
             state=replace(
@@ -131,6 +150,7 @@ class BatchCorrectionStage:
                 "notes": "stage executed",
                 "diagnostics": dict(result.diagnostics),
             },
+            batch_correction_provenance=provenance,
         )
 
 
@@ -182,6 +202,23 @@ def _resolve_parameters(plan: PreprocessingPlan) -> dict[str, object]:
             plan.batch_correction_preserve_condition_effects
         ),
     }
+
+
+def _validation_failure_message(
+    *,
+    state: PreprocessingState,
+    method: str,
+    reason: str,
+) -> str:
+    return (
+        "batch correction validation failed before correction execution; "
+        f"method={method!r}; "
+        f"input_shape={[int(state.phospho.shape[0]), int(state.phospho.shape[1])]}; "
+        f"batch_column={state.plan.batch_correction_batch_column!r}; "
+        f"condition_column={state.plan.batch_correction_condition_column!r}; "
+        f"stage_order={list(state.plan.stage_order)!r}; "
+        f"reason: {reason}"
+    )
 
 
 BATCH_CORRECTION_STAGE_CONTRACT = PreprocessingStageContract(

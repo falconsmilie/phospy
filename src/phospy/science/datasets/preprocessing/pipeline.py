@@ -191,6 +191,9 @@ class PreprocessingPipeline:
                     imputed_row_ids=tuple(diagnostics["imputed_row_ids"]),
                     notes=diagnostics["notes"],
                     diagnostics=dict(diagnostics["diagnostics"]),
+                    batch_correction_provenance=(
+                        stage_result.batch_correction_provenance
+                    ),
                 )
             )
         if report_rows:

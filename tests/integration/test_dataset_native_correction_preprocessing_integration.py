@@ -53,9 +53,25 @@ def test_resolved_native_correction_output_builds_analysis_ready_dataset() -> No
         dataset.preprocessing_report.operations.loc[:, "stage"].astype(str)
     )
     assert dataset.provenance is not None
-    assert "batch_correction" in {
-        stage.stage for stage in dataset.provenance.preprocessing_stages
-    }
+    correction_stage = next(
+        stage
+        for stage in dataset.provenance.preprocessing_stages
+        if stage.stage == "batch_correction"
+    )
+    provenance = correction_stage.batch_correction_provenance
+    assert provenance is not None
+    assert provenance.requested_method == "sps_ruv_style"
+    assert provenance.resolved_parameters["source"] == "resolved_correction_output"
+    assert provenance.control_site_source["source_type"] == "not_provided"
+    assert provenance.selected_site_key_rows == ()
+    assert provenance.observation_masks
+    assert provenance.input_matrix_fingerprint.name == "batch_correction.native.input"
+    assert provenance.output_matrix_fingerprint is not None
+    assert (
+        provenance.output_matrix_fingerprint.name == "batch_correction.native.corrected"
+    )
+    assert provenance.diagnostics["status"] == "applied"
+    assert provenance.warnings == ()
     observed_mask = dataset.imputation_observed_mask_dataframe()
     assert observed_mask is not None
     assert observed_mask.to_numpy(dtype=bool).all()

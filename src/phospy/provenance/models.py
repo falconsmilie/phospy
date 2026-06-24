@@ -97,6 +97,7 @@ class PreprocessingStageProvenance:
     imputed_row_ids: tuple[str, ...] = ()
     notes: str | None = None
     diagnostics: dict[str, JsonValue] | None = None
+    batch_correction_provenance: BatchCorrectionProvenance | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,6 +137,7 @@ class BatchCorrectionProvenance:
     phospy_version: str = "unknown"
     dependency_versions: Mapping[str, str | None] = field(default_factory=dict)
     schema_version: int = BATCH_CORRECTION_PROVENANCE_SCHEMA_VERSION_V1
+    imputation_policy: Mapping[str, JsonValue] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)

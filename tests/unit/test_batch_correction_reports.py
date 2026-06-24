@@ -12,6 +12,7 @@ from phospy.api import (
     DatasetPreprocessingConfig,
     Organism,
 )
+from phospy.provenance.serialization import from_payload, to_payload
 from phospy.science.datasets.models import DatasetPreprocessingReport
 
 
@@ -186,6 +187,76 @@ def test_dataset_builder_records_applied_declared_batch_correction_execution() -
     assert "batch_correction" in set(
         built.preprocessing_report.operations.loc[:, "stage"].astype(str).tolist()
     )
+
+
+def test_dataset_builder_attaches_full_native_batch_correction_provenance() -> None:
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(),
+            sample_metadata=_sample_metadata(),
+            organism=Organism.RAT,
+            input_intensity_scale="linear",
+            preprocessing_config=DatasetPreprocessingConfig(
+                batch_correction=DatasetBatchCorrectionConfig(
+                    method="linear_residualize_batch"
+                )
+            ),
+        )
+    )
+
+    assert built.provenance is not None
+    stage = next(
+        item
+        for item in built.provenance.preprocessing_stages
+        if item.stage == "batch_correction"
+    )
+    provenance = stage.batch_correction_provenance
+    assert provenance is not None
+    assert provenance.requested_method == "linear_residualize_batch"
+    assert provenance.resolved_parameters["source"] == "native_preprocessing_stage"
+    assert "batch_correction" in provenance.preprocessing_stage_order
+    assert provenance.control_site_source["source_type"] == "not_applicable"
+    assert provenance.selected_site_key_rows == ()
+    assert provenance.batch_metadata["column"] == "batch"
+    assert provenance.batch_metadata["sample_order"] == [
+        "sample_1",
+        "sample_2",
+        "sample_3",
+        "sample_4",
+    ]
+    assert provenance.design_metadata["condition_columns"] == ["condition"]
+    assert provenance.replicate_metadata is None
+    assert provenance.missing_value_policy["policy"] == (
+        "reject_missing_at_batch_correction"
+    )
+    assert provenance.imputation_policy["policy"] == "forbid"
+    assert provenance.observation_masks
+    assert provenance.input_matrix_fingerprint.name == "batch_correction.native.input"
+    assert provenance.output_matrix_fingerprint is not None
+    assert (
+        provenance.output_matrix_fingerprint.name == "batch_correction.native.corrected"
+    )
+    assert provenance.diagnostics["stage_diagnostics"]["status"] == "applied"
+    assert provenance.warnings == ()
+    assert provenance.rejected_entities == ()
+    assert provenance.phospy_version
+    assert "numpy" in provenance.dependency_versions
+
+    payload = to_payload(built.provenance)
+    stage_payload = next(
+        item
+        for item in payload["preprocessing_stages"]
+        if isinstance(item, dict) and item["stage"] == "batch_correction"
+    )
+    assert "batch_correction_provenance" in stage_payload
+    restored = from_payload(payload)
+    restored_stage = next(
+        item
+        for item in restored.preprocessing_stages
+        if item.stage == "batch_correction"
+    )
+    assert restored_stage.batch_correction_provenance == provenance
 
 
 def _phospho() -> pd.DataFrame:

@@ -31,6 +31,7 @@ from phospy.errors.input import PhosPyInputError
 from phospy.provenance.models import (
     PREPROCESSING_STAGE_DETERMINISM_PURE,
     PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
+    BatchCorrectionProvenance,
     TableFingerprint,
 )
 from phospy.science.datasets.preprocessing.batch_correction import (
@@ -615,6 +616,7 @@ class PreprocessingStageResult:
     state: PreprocessingState
     diagnostics: Mapping[str, object] = field(default_factory=dict)
     report_rows: Sequence[PreprocessingReportRow] = ()
+    batch_correction_provenance: BatchCorrectionProvenance | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -643,6 +645,7 @@ class PreprocessingStageExecution:
     imputed_row_ids: tuple[str, ...] = ()
     notes: str | None = None
     diagnostics: Mapping[str, object] = field(default_factory=dict)
+    batch_correction_provenance: BatchCorrectionProvenance | None = None
 
     @property
     def input_rows(self) -> int:

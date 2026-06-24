@@ -168,7 +168,7 @@ def batch_correction_provenance_to_payload(
 ) -> dict[str, object]:
     """Serialize batch-correction provenance to a JSON-safe payload."""
 
-    return {
+    payload = {
         "schema_version": int(provenance.schema_version),
         "requested_method": provenance.requested_method,
         "resolved_parameters": _to_json_safe(provenance.resolved_parameters),
@@ -203,6 +203,9 @@ def batch_correction_provenance_to_payload(
         "phospy_version": provenance.phospy_version,
         "dependency_versions": _to_json_safe(provenance.dependency_versions),
     }
+    if provenance.imputation_policy:
+        payload["imputation_policy"] = _to_json_safe(provenance.imputation_policy)
+    return payload
 
 
 def batch_correction_provenance_from_payload(
@@ -249,6 +252,10 @@ def batch_correction_provenance_from_payload(
     dependency_versions = _require_mapping(
         payload.get("dependency_versions"),
         field_name="batch_correction_provenance.dependency_versions",
+    )
+    imputation_policy = _optional_mapping(
+        payload.get("imputation_policy"),
+        field_name="batch_correction_provenance.imputation_policy",
     )
     output_matrix_payload = payload.get("output_matrix_fingerprint")
     return BatchCorrectionProvenance(
@@ -363,6 +370,11 @@ def batch_correction_provenance_from_payload(
                 )
             )
             for key, value in dependency_versions.items()
+        },
+        imputation_policy={}
+        if imputation_policy is None
+        else {
+            str(key): _to_json_value(value) for key, value in imputation_policy.items()
         },
     )
 
@@ -636,7 +648,7 @@ def _stage_to_payload(stage: PreprocessingStageProvenance) -> dict[str, object]:
         stage.phospho_output_hash,
         field_name="preprocessing_stage.phospho_output_hash",
     )
-    return {
+    payload = {
         "stage": stage.stage,
         "operation": stage.operation,
         "parameters": _to_json_safe(stage.parameters),
@@ -665,6 +677,11 @@ def _stage_to_payload(stage: PreprocessingStageProvenance) -> dict[str, object]:
             None if stage.diagnostics is None else _to_json_safe(stage.diagnostics)
         ),
     }
+    if stage.batch_correction_provenance is not None:
+        payload["batch_correction_provenance"] = batch_correction_provenance_to_payload(
+            stage.batch_correction_provenance
+        )
+    return payload
 
 
 def _stage_from_payload(payload: Mapping[str, object]) -> PreprocessingStageProvenance:
@@ -744,6 +761,17 @@ def _stage_from_payload(payload: Mapping[str, object]) -> PreprocessingStageProv
         payload.get("phospho_output_hash"),
         field_name="preprocessing_stage.phospho_output_hash",
     )
+    batch_correction_provenance_raw = payload.get("batch_correction_provenance")
+    batch_correction_provenance = (
+        None
+        if batch_correction_provenance_raw is None
+        else batch_correction_provenance_from_payload(
+            _require_mapping(
+                batch_correction_provenance_raw,
+                field_name="preprocessing_stage.batch_correction_provenance",
+            )
+        )
+    )
     return PreprocessingStageProvenance(
         stage=_require_str(
             payload.get("stage"), field_name="preprocessing_stage.stage"
@@ -785,6 +813,7 @@ def _stage_from_payload(payload: Mapping[str, object]) -> PreprocessingStageProv
             field_name="preprocessing_stage.notes",
         ),
         diagnostics=diagnostics,
+        batch_correction_provenance=batch_correction_provenance,
     )
 
 

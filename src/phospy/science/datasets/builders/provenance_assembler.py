@@ -190,6 +190,7 @@ def _stage_trace_to_provenance(
                 item.diagnostics,
                 quantitative_meaning=quantitative_meaning,
             ),
+            batch_correction_provenance=item.batch_correction_provenance,
         )
         for item in trace
     )

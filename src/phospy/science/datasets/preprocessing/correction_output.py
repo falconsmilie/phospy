@@ -25,6 +25,7 @@ from phospy.provenance.models import (
     JsonValue,
     TableFingerprint,
 )
+from phospy.provenance.serialization import batch_correction_provenance_from_payload
 from phospy.science.datasets.preprocessing.batch_correction import (
     BATCH_CORRECTION_CONFOUNDING_PASSED,
     BATCH_CORRECTION_DESIGN_PRESERVATION_PRESERVE_CONDITION_EFFECTS,
@@ -32,6 +33,9 @@ from phospy.science.datasets.preprocessing.batch_correction import (
     BatchCorrectionDiagnostics,
     BatchCorrectionPolicy,
     BatchCorrectionReport,
+)
+from phospy.science.datasets.preprocessing.batch_correction_provenance import (
+    build_native_batch_correction_provenance,
 )
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
@@ -355,7 +359,52 @@ def _build_stage_execution(
         imputed_row_ids=(),
         notes="resolved correction output integrated before dataset boundary",
         diagnostics=diagnostics,
+        batch_correction_provenance=_resolve_batch_correction_provenance(
+            previous=previous,
+            current=current,
+            correction_output=correction_output,
+        ),
     )
+
+
+def _resolve_batch_correction_provenance(
+    *,
+    previous: PreprocessingState,
+    current: PreprocessingState,
+    correction_output: CorrectedPreprocessingOutput,
+) -> BatchCorrectionProvenance:
+    provided = correction_output.provenance
+    if isinstance(provided, BatchCorrectionProvenance):
+        return provided
+    if isinstance(provided, Mapping) and _looks_like_batch_provenance_payload(provided):
+        return batch_correction_provenance_from_payload(provided)
+    diagnostics: dict[str, object] = dict(correction_output.diagnostics)
+    if isinstance(provided, Mapping):
+        diagnostics["provided_untyped_provenance"] = dict(provided)
+    return build_native_batch_correction_provenance(
+        input_matrix=previous.phospho,
+        output_matrix=current.phospho,
+        plan=previous.plan,
+        report=correction_output.batch_correction_report,
+        metadata=None,
+        diagnostics=diagnostics,
+        warnings=correction_output.batch_correction_report.warnings,
+        observation_mask=current.imputation_observation_mask,
+        corrected_cell_status=correction_output.corrected_cell_status,
+        control_site_source={
+            "source_type": "not_provided",
+            "reason": (
+                "resolved correction output did not provide typed control-site "
+                "provenance"
+            ),
+        },
+        selected_site_key_rows=(),
+        source="resolved_correction_output",
+    )
+
+
+def _looks_like_batch_provenance_payload(value: Mapping[str, object]) -> bool:
+    return "schema_version" in value and "requested_method" in value
 
 
 def _collect_fingerprints(
