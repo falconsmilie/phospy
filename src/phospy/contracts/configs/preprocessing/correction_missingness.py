@@ -12,6 +12,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import TypeAlias
 
+import pandas as pd
+
 from phospy.errors.input import PhosPyInputError
 from phospy.policies import PolicyEnum
 from phospy.validation.common.config_values import require_non_empty_string
@@ -70,6 +72,26 @@ TEMPORARY_IMPUTATION_METHODS = frozenset(TemporaryImputationMethod)
 ORIGINALLY_MISSING_CELL_TRACKING_POLICIES = frozenset(OriginallyMissingCellTracking)
 CORRECTED_MISSING_CELL_ACTIONS = frozenset(CorrectedMissingCellAction)
 ROW_SAMPLE_ELIGIBILITY_IMPACTS = frozenset(RowSampleEligibilityImpact)
+
+_REQUIRED_METHOD_PARAMETERS: Mapping[TemporaryImputationMethod, tuple[str, ...]] = {
+    TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY: ("min_observed_values",),
+    TemporaryImputationMethod.MINPROB_TEMPORARY: ("q", "width"),
+    TemporaryImputationMethod.KNN_TEMPORARY: (
+        "k",
+        "distance",
+        "max_missing_fraction_per_row",
+    ),
+}
+_RANDOM_TEMPORARY_IMPUTATION_METHODS = frozenset(
+    {TemporaryImputationMethod.MINPROB_TEMPORARY}
+)
+_UNSAFE_MISSINGNESS_ELIGIBILITY_IMPACTS = frozenset(
+    {
+        RowSampleEligibilityImpact.EXCLUDE_SAMPLES_WITH_ORIGINALLY_MISSING_VALUES,
+        RowSampleEligibilityImpact.REQUIRE_COMPLETE_CASES,
+        RowSampleEligibilityImpact.UNSUPPORTED,
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -200,6 +222,13 @@ class TemporaryImputationPolicy:
             raise PhosPyInputError(
                 "temporary imputation policy.allowed must be True when a "
                 "temporary imputation method is requested"
+            )
+        if method is not TemporaryImputationMethod.UNSUPPORTED:
+            _validate_method_parameters(method=method, parameters=parameters)
+        if method in _RANDOM_TEMPORARY_IMPUTATION_METHODS and random_seed is None:
+            raise PhosPyInputError(
+                "temporary imputation policy.random_seed is required when "
+                f"method='{method.value}' uses randomness"
             )
         object.__setattr__(self, "method", method)
         object.__setattr__(self, "method_parameters", parameters)
@@ -368,6 +397,96 @@ class CorrectionMissingnessPolicy:
         }
 
 
+class CorrectionMissingnessCompatibilityValidator:
+    """Validate missing-value policy compatibility before correction execution."""
+
+    def run(
+        self,
+        *,
+        phospho: pd.DataFrame,
+        policy: CorrectionMissingnessPolicy | None = None,
+        allow_complete_observed_data: bool = True,
+        context: str = "correction missingness validation",
+    ) -> None:
+        if not isinstance(phospho, pd.DataFrame):
+            raise PhosPyInputError(f"{context} requires a phospho DataFrame")
+        feature_ids = _normalise_axis_labels(
+            phospho.index,
+            field_name=f"{context} phospho.index",
+        )
+        sample_ids = _normalise_axis_labels(
+            phospho.columns,
+            field_name=f"{context} phospho.columns",
+        )
+        missing_cells = _matrix_missing_cells(
+            phospho,
+            feature_ids=feature_ids,
+            sample_ids=sample_ids,
+        )
+        has_missing = bool(missing_cells)
+
+        if policy is None:
+            if has_missing:
+                raise PhosPyInputError(
+                    f"{context} found missing values but no explicit supported "
+                    "correction missingness policy was provided"
+                )
+            if not allow_complete_observed_data:
+                raise PhosPyInputError(
+                    f"{context} requires an explicit correction missingness policy"
+                )
+            return
+
+        if not isinstance(policy, CorrectionMissingnessPolicy):
+            raise PhosPyInputError(
+                f"{context} policy must be a CorrectionMissingnessPolicy"
+            )
+        _require_supported_execution_policy(policy=policy, context=context)
+        if policy.temporary_imputation.allowed and policy.observation_mask is None:
+            raise PhosPyInputError(
+                f"{context} temporary imputation requires an observation mask"
+            )
+
+        if not has_missing:
+            if not allow_complete_observed_data:
+                raise PhosPyInputError(
+                    f"{context} complete observed data are not allowed by this "
+                    "validation boundary"
+                )
+            _validate_complete_matrix_mask(policy=policy, context=context)
+            return
+
+        if policy.observation_mask is None:
+            raise PhosPyInputError(
+                f"{context} found missing values but policy does not provide an "
+                "observation mask for originally missing cells"
+            )
+        if (
+            policy.originally_missing_cells_tracked_by
+            is not OriginallyMissingCellTracking.OBSERVATION_MASK
+        ):
+            raise PhosPyInputError(
+                f"{context} requires originally_missing_cells_tracked_by="
+                "'observation_mask' when missing values are present"
+            )
+        _validate_observation_mask_matches_matrix(
+            mask=policy.observation_mask,
+            feature_ids=feature_ids,
+            sample_ids=sample_ids,
+            missing_cells=missing_cells,
+            context=context,
+        )
+        if (
+            policy.row_sample_eligibility_impact
+            in _UNSAFE_MISSINGNESS_ELIGIBILITY_IMPACTS
+        ):
+            raise PhosPyInputError(
+                f"{context} row/sample eligibility impact "
+                f"{policy.row_sample_eligibility_impact.value!r} makes correction "
+                "unsafe for matrices with originally missing values"
+            )
+
+
 def _require_non_empty_string_tuple(
     value: object,
     *,
@@ -507,6 +626,237 @@ def _require_json_scalar(value: object) -> JsonScalar:
     )
 
 
+def _validate_method_parameters(
+    *,
+    method: TemporaryImputationMethod,
+    parameters: tuple[tuple[str, JsonScalar], ...],
+) -> None:
+    required = _REQUIRED_METHOD_PARAMETERS.get(method, ())
+    if not required:
+        if parameters:
+            raise PhosPyInputError(
+                "temporary imputation policy.method_parameters must be empty "
+                f"when method='{method.value}'"
+            )
+        return
+
+    values = dict(parameters)
+    missing = tuple(name for name in required if name not in values)
+    if missing:
+        raise PhosPyInputError(
+            "temporary imputation policy.method_parameters missing required "
+            f"parameter(s) for method='{method.value}': {', '.join(missing)}"
+        )
+    unexpected = tuple(name for name in values if name not in required)
+    if unexpected:
+        raise PhosPyInputError(
+            "temporary imputation policy.method_parameters contains unsupported "
+            f"parameter(s) for method='{method.value}': {', '.join(unexpected)}"
+        )
+
+    if method is TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY:
+        _require_int_parameter_at_least(
+            values["min_observed_values"],
+            name="min_observed_values",
+            minimum=1,
+            method=method,
+        )
+    elif method is TemporaryImputationMethod.MINPROB_TEMPORARY:
+        _require_float_parameter_between(
+            values["q"],
+            name="q",
+            lower=0.0,
+            upper=0.5,
+            include_upper=False,
+            method=method,
+        )
+        _require_float_parameter_between(
+            values["width"],
+            name="width",
+            lower=0.0,
+            upper=1.0,
+            include_upper=True,
+            method=method,
+        )
+    elif method is TemporaryImputationMethod.KNN_TEMPORARY:
+        _require_int_parameter_at_least(
+            values["k"],
+            name="k",
+            minimum=1,
+            method=method,
+        )
+        if values["distance"] != "nan_euclidean":
+            raise PhosPyInputError(
+                "temporary imputation policy.method_parameters['distance'] must "
+                f"be 'nan_euclidean' when method='{method.value}'"
+            )
+        _require_float_parameter_between(
+            values["max_missing_fraction_per_row"],
+            name="max_missing_fraction_per_row",
+            lower=0.0,
+            upper=1.0,
+            include_upper=True,
+            method=method,
+        )
+
+
+def _require_int_parameter_at_least(
+    value: JsonScalar,
+    *,
+    name: str,
+    minimum: int,
+    method: TemporaryImputationMethod,
+) -> None:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise PhosPyInputError(
+            f"temporary imputation policy.method_parameters['{name}'] must be "
+            f"an int when method='{method.value}'"
+        )
+    if value < minimum:
+        raise PhosPyInputError(
+            f"temporary imputation policy.method_parameters['{name}'] must be "
+            f"greater than or equal to {minimum} when method='{method.value}'"
+        )
+
+
+def _require_float_parameter_between(
+    value: JsonScalar,
+    *,
+    name: str,
+    lower: float,
+    upper: float,
+    include_upper: bool,
+    method: TemporaryImputationMethod,
+) -> None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise PhosPyInputError(
+            f"temporary imputation policy.method_parameters['{name}'] must be "
+            f"a float when method='{method.value}'"
+        )
+    numeric = float(value)
+    upper_ok = numeric <= upper if include_upper else numeric < upper
+    if not math.isfinite(numeric) or not (lower < numeric and upper_ok):
+        operator = "<=" if include_upper else "<"
+        raise PhosPyInputError(
+            f"temporary imputation policy.method_parameters['{name}'] must "
+            f"satisfy {lower:g} < value {operator} {upper:g} when "
+            f"method='{method.value}'"
+        )
+
+
+def _require_supported_execution_policy(
+    *,
+    policy: CorrectionMissingnessPolicy,
+    context: str,
+) -> None:
+    if not policy.supported:
+        raise PhosPyInputError(
+            f"{context} policy is unsupported: {policy.unsupported_reason}"
+        )
+    if not policy.temporary_imputation.supported:
+        raise PhosPyInputError(
+            f"{context} temporary imputation policy is unsupported: "
+            f"{policy.temporary_imputation.unsupported_reason}"
+        )
+    if not policy.correction_mask_policy.supported:
+        raise PhosPyInputError(
+            f"{context} correction mask policy is unsupported: "
+            f"{policy.correction_mask_policy.unsupported_reason}"
+        )
+    if (
+        policy.temporary_imputation.method is TemporaryImputationMethod.UNSUPPORTED
+        or policy.originally_missing_cells_tracked_by
+        is OriginallyMissingCellTracking.UNSUPPORTED
+        or policy.correction_mask_policy.corrected_missing_cell_action
+        is CorrectedMissingCellAction.UNSUPPORTED
+        or policy.row_sample_eligibility_impact
+        is RowSampleEligibilityImpact.UNSUPPORTED
+    ):
+        raise PhosPyInputError(
+            f"{context} contains unsupported missingness or imputation policies"
+        )
+    if not policy.correction_mask_policy.preserve_observation_mask:
+        raise PhosPyInputError(
+            f"{context} correction mask policy must preserve observation masks"
+        )
+
+
+def _validate_complete_matrix_mask(
+    *,
+    policy: CorrectionMissingnessPolicy,
+    context: str,
+) -> None:
+    if (
+        policy.observation_mask is not None
+        and policy.observation_mask.originally_missing_cells
+    ):
+        raise PhosPyInputError(
+            f"{context} observation mask declares originally missing cells for a "
+            "complete observed matrix"
+        )
+
+
+def _validate_observation_mask_matches_matrix(
+    *,
+    mask: ObservationMask,
+    feature_ids: tuple[str, ...],
+    sample_ids: tuple[str, ...],
+    missing_cells: tuple[tuple[str, str], ...],
+    context: str,
+) -> None:
+    if mask.feature_ids != feature_ids:
+        raise PhosPyInputError(
+            f"{context} observation mask feature_ids must match phospho.index"
+        )
+    if mask.sample_ids != sample_ids:
+        raise PhosPyInputError(
+            f"{context} observation mask sample_ids must match phospho.columns"
+        )
+    if frozenset(mask.originally_missing_cells) != frozenset(missing_cells):
+        raise PhosPyInputError(
+            f"{context} observation mask originally_missing_cells must match the "
+            "matrix missing-value coordinates"
+        )
+
+
+def _matrix_missing_cells(
+    phospho: pd.DataFrame,
+    *,
+    feature_ids: tuple[str, ...],
+    sample_ids: tuple[str, ...],
+) -> tuple[tuple[str, str], ...]:
+    missing = phospho.isna().to_numpy()
+    cells: list[tuple[str, str]] = []
+    row_count, column_count = missing.shape
+    for row_index in range(row_count):
+        for column_index in range(column_count):
+            if missing[row_index, column_index]:
+                cells.append((feature_ids[row_index], sample_ids[column_index]))
+    return tuple(cells)
+
+
+def _normalise_axis_labels(index: pd.Index, *, field_name: str) -> tuple[str, ...]:
+    labels: list[str] = []
+    for position, value in enumerate(index.tolist()):
+        if bool(pd.Series((value,), dtype="object").isna().iat[0]):
+            raise PhosPyInputError(
+                f"{field_name} must not contain missing labels; position {position}"
+            )
+        label = str(value).strip()
+        if not label:
+            raise PhosPyInputError(
+                f"{field_name} must not contain blank labels; position {position}"
+            )
+        labels.append(label)
+    if len(set(labels)) != len(labels):
+        duplicates = tuple(label for label in labels if labels.count(label) > 1)
+        raise PhosPyInputError(
+            f"{field_name} must not contain duplicate labels: "
+            f"{', '.join(dict.fromkeys(duplicates))}"
+        )
+    return tuple(labels)
+
+
 def _validate_supported_state(
     *,
     supported: object,
@@ -536,6 +886,7 @@ __all__ = [
     "TEMPORARY_IMPUTATION_METHODS",
     "CorrectedMissingCellAction",
     "CorrectionMaskPolicy",
+    "CorrectionMissingnessCompatibilityValidator",
     "CorrectionMissingnessPolicy",
     "ObservationMask",
     "OriginallyMissingCellTracking",

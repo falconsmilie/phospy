@@ -58,7 +58,7 @@ tests/unit/test_builder_and_kinase_orchestration.py,unit,598,8,false,false,inter
 tests/unit/test_config_validation_primitives.py,unit,144,7,true,true,duplicate validation matrix,consolidate,Loss of this file would reduce repeated primitive validation coverage for config validation primitives; protections must remain through a consolidated matrix before removal.,codex-audit,TST-FOLLOWUP-VAL-PRIMITIVE-INT,Validator pattern report maps this file to primitive int/range/enum families; track consolidation from optional-int matrix first.
 tests/unit/test_control_site_eligibility_validator.py,unit,229,9,false,false,,,,,,
 tests/unit/test_control_site_representation.py,unit,151,7,false,false,,,,,,
-tests/unit/test_correction_missingness_policy_contract.py,unit,179,7,false,false,,,,,,
+tests/unit/test_correction_missingness_policy_contract.py,unit,391,18,false,false,,,,,,
 tests/unit/test_dataframe_validation_primitives.py,unit,306,10,true,true,duplicate validation matrix,consolidate,Loss of this file would reduce repeated primitive validation coverage for dataframe validation primitives; protections must remain through a consolidated matrix before removal.,codex-audit,TST-FOLLOWUP-VAL-PRIMITIVE-DATAFRAME,
 tests/unit/test_dataset_boundary_test_hygiene.py,unit,96,1,false,false,,,,,,
 tests/unit/test_dataset_builder_internal_collaborators.py,unit,562,19,true,true,,,,,,
