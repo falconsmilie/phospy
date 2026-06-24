@@ -22,7 +22,6 @@ _ALLOWED_STATUSES = {"Accepted", "Superseded", "Amended", "Deprecated", "Draft"}
 _FUTURE_SOURCE_REFS_BY_ADR: dict[str, frozenset[str]] = {
     "adr_0027_target_future_native_phosr_style_sps_ruv_iii_correction.md": frozenset(
         {
-            "src/phospy/science/batch_correction/",
             "src/phospy/science/normalisation/",
             "src/phospy/workflows/batch_correction/",
             "src/phospy/validation/workflows/batch_correction/",

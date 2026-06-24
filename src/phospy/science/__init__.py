@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from . import (
     activities,
+    batch_correction,
     datasets,
     design,
     differential,
@@ -20,6 +21,7 @@ from . import (
 
 __all__ = [
     "activities",
+    "batch_correction",
     "datasets",
     "design",
     "differential",
