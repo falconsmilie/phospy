@@ -110,6 +110,7 @@ tests/unit/test_importer_analysis_ready_boundary.py,unit,180,5,false,false,,,,,,
 tests/unit/test_importer_quality_report.py,unit,173,4,false,false,,,,,,
 tests/unit/test_imputation_observation_metadata.py,unit,350,15,false,false,,,,,,
 tests/unit/test_intensity_scale_establishment.py,unit,255,9,false,false,,,,,,
+tests/unit/test_internal_batch_correction_request_contract.py,unit,212,7,false,false,,,,,,
 tests/unit/test_io_table_readers.py,unit,275,9,true,true,public API contract,keep,Loss of this file would weaken table-reader input contract coverage and increase risk of invalid external data being accepted or parsed inconsistently.,codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_kinase_bundle_snapshots.py,unit,96,4,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle snapshots, making artifact and output drift unsafe.",codex-audit,,
 tests/unit/test_kinase_library_motif_scoring.py,unit,232,7,false,false,,,,,,
