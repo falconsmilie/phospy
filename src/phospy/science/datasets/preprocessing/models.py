@@ -469,16 +469,16 @@ class PreprocessingPlan:
                 "batch_correction_preserve_condition_effects (internal model) "
                 "must be True for linear_residualize_batch"
             )
-        if (
-            batch_correction_method != DATASET_BATCH_CORRECTION_METHOD_NONE
-            and DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION not in self.stage_order
-        ):
-            raise PhosPyInputError(
-                "dataset preprocessing plan requests batch correction but "
-                "stage_order does not include 'batch_correction'. Build plans "
-                "from DatasetPreprocessingConfig or include the batch_correction "
-                "stage explicitly."
-            )
+        from phospy.validation.datasets.preprocessing import (
+            PreprocessingStageOrderValidator,
+        )
+
+        PreprocessingStageOrderValidator().run(
+            stage_order=self.stage_order,
+            batch_correction_requested=(
+                batch_correction_method != DATASET_BATCH_CORRECTION_METHOD_NONE
+            ),
+        )
         from phospy.validation.configs.preprocessing import (
             validate_group_coverage_filter_config,
         )

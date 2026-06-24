@@ -205,6 +205,56 @@ def test_internal_batch_correction_request_rejects_imputation_inconsistency() ->
         )
 
 
+def test_internal_batch_correction_request_requires_replicates_for_ruv_iii() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="replicate_column is required when method='ruv_iii_style'",
+    ):
+        InternalBatchCorrectionRequest(
+            method=InternalBatchCorrectionMethod.RUV_III_STYLE,
+            batch_column="batch",
+            condition_columns=("condition",),
+            replicate_column=None,
+            control_site_source=(
+                InternalBatchCorrectionControlSiteSource.CALLER_SUPPLIED
+            ),
+            control_site_mode=InternalBatchCorrectionControlSiteMode.SITE_KEY_LIST,
+            missing_value_policy=(
+                InternalBatchCorrectionMissingValuePolicy.REJECT_MISSING
+            ),
+            imputation_policy=InternalBatchCorrectionImputationPolicy.NONE,
+            n_unwanted_factors=None,
+            stage_order=(
+                InternalBatchCorrectionStageOrder.AFTER_MISSING_DATA_BEFORE_DOWNSTREAM
+            ),
+            diagnostics_enabled=True,
+        )
+
+
+def test_internal_batch_correction_request_rejects_unsupported_stage_order() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="internal batch-correction request.stage_order must be one of:",
+    ):
+        InternalBatchCorrectionRequest(
+            method=InternalBatchCorrectionMethod.SPS_RUV_STYLE,
+            batch_column="batch",
+            condition_columns=("condition",),
+            replicate_column=None,
+            control_site_source=(
+                InternalBatchCorrectionControlSiteSource.CALLER_SUPPLIED
+            ),
+            control_site_mode=InternalBatchCorrectionControlSiteMode.SITE_KEY_LIST,
+            missing_value_policy=(
+                InternalBatchCorrectionMissingValuePolicy.REJECT_MISSING
+            ),
+            imputation_policy=InternalBatchCorrectionImputationPolicy.NONE,
+            n_unwanted_factors=None,
+            stage_order="after_differential_workflow",  # type: ignore[arg-type]
+            diagnostics_enabled=True,
+        )
+
+
 def test_public_batch_correction_methods_remain_unchanged() -> None:
     assert DATASET_BATCH_CORRECTION_METHODS == {
         "none",

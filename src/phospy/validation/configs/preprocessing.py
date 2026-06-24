@@ -206,6 +206,13 @@ def validate_internal_batch_correction_request(
             error_type=PhosPyInputError,
             when_provided=True,
         )
+    if (
+        str(resolved_method.value) == "ruv_iii_style"
+        and resolved_replicate_column is None
+    ):
+        raise PhosPyInputError(
+            f"{prefix}replicate_column is required when method='ruv_iii_style'"
+        )
     resolved_n_unwanted_factors = require_optional_int_at_least(
         n_unwanted_factors,
         field_name=f"{prefix}n_unwanted_factors",

@@ -8,6 +8,10 @@ from phospy.science.datasets.builders.preprocessing import DatasetPreprocessor
 from phospy.science.datasets.preprocessing.models import PreprocessingPlan
 from phospy.validation.datasets.batch_correction import (
     BatchCorrectionAdequacyValidator,
+    BatchDesignMetadataValidator,
+    DesignRankValidator,
+    ReplicateStructureValidator,
+    SampleMetadataAlignmentValidator,
 )
 
 
@@ -28,6 +32,100 @@ def test_batch_validation_accepts_valid_removable_batch_effect_design() -> None:
         sample_order=("sample_1", "sample_2", "sample_3", "sample_4"),
         preserve_condition_effects=True,
     )
+
+
+def test_design_metadata_validator_accepts_valid_batch_condition_replicates() -> None:
+    resolved = BatchDesignMetadataValidator().run(
+        phospho=_phospho(),
+        sample_metadata=_batch_design_sample_metadata(),
+        batch_column="batch",
+        condition_columns=("condition",),
+        replicate_column="replicate",
+        require_replicate_column=True,
+    )
+
+    assert resolved.sample_order == ("sample_1", "sample_2", "sample_3", "sample_4")
+    assert resolved.batch_labels == ("run_1", "run_1", "run_2", "run_2")
+    assert resolved.condition_labels == (
+        "control",
+        "treated",
+        "control",
+        "treated",
+    )
+    assert resolved.replicate_labels == ("r1", "r1", "r2", "r2")
+
+
+def test_sample_metadata_alignment_validator_rejects_misaligned_metadata() -> None:
+    sample_metadata = _batch_design_sample_metadata()
+    sample_metadata.index = pd.Index(
+        ["sample_1", "sample_2", "sample_3", "sample_extra"]
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="misaligned with matrix columns.*sample_4.*sample_extra",
+    ):
+        SampleMetadataAlignmentValidator().run(
+            phospho=_phospho(),
+            sample_metadata=sample_metadata,
+            required_columns=("batch", "condition"),
+        )
+
+
+def test_sample_metadata_alignment_validator_rejects_duplicated_metadata() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="sample_metadata.index contains duplicate sample labels.*sample_2",
+    ):
+        SampleMetadataAlignmentValidator().run(
+            phospho=_phospho(),
+            sample_metadata=_batch_design_sample_metadata(
+                index=("sample_1", "sample_2", "sample_2", "sample_4")
+            ),
+            required_columns=("batch", "condition"),
+        )
+
+
+def test_design_metadata_validator_rejects_missing_condition_columns() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="missing required column 'condition'",
+    ):
+        BatchDesignMetadataValidator().run(
+            phospho=_phospho(),
+            sample_metadata=_batch_design_sample_metadata().drop(columns=["condition"]),
+            batch_column="batch",
+            condition_columns=("condition",),
+        )
+
+
+def test_replicate_structure_validator_rejects_missing_required_column() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="requires replicate_column metadata",
+    ):
+        ReplicateStructureValidator().run(
+            sample_metadata=_batch_design_sample_metadata().drop(columns=["replicate"]),
+            sample_order=("sample_1", "sample_2", "sample_3", "sample_4"),
+            replicate_column=None,
+            required=True,
+        )
+
+
+def test_design_rank_validator_rejects_rank_deficient_matrix() -> None:
+    design = pd.DataFrame(
+        {
+            "condition_A": [1.0, 1.0, 0.0, 0.0],
+            "duplicated_condition_A": [1.0, 1.0, 0.0, 0.0],
+        },
+        index=pd.Index(["sample_1", "sample_2", "sample_3", "sample_4"]),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="rank-deficient.*condition_A.*duplicated_condition_A",
+    ):
+        DesignRankValidator().run(design, context="test design")
 
 
 def test_batch_validation_rejects_perfectly_confounding_batch_and_condition() -> None:
@@ -256,4 +354,24 @@ def _confounded_sample_metadata() -> pd.DataFrame:
             "condition": ["control", "control", "treated", "treated"],
         },
         index=_phospho().columns.copy(),
+    )
+
+
+def _batch_design_sample_metadata(
+    *,
+    index: tuple[str, ...] = ("sample_1", "sample_2", "sample_3", "sample_4"),
+) -> pd.DataFrame:
+    source = {
+        "sample_1": ("run_1", "control", "r1"),
+        "sample_2": ("run_1", "treated", "r1"),
+        "sample_3": ("run_2", "control", "r2"),
+        "sample_4": ("run_2", "treated", "r2"),
+    }
+    return pd.DataFrame(
+        {
+            "batch": [source[sample][0] for sample in index],
+            "condition": [source[sample][1] for sample in index],
+            "replicate": [source[sample][2] for sample in index],
+        },
+        index=pd.Index(index, name="sample"),
     )

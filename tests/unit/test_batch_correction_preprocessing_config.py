@@ -14,6 +14,7 @@ from phospy.api.configs import (
 from phospy.errors import PhosPyInputError
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
+    DATASET_PREPROCESSING_STAGE_COMPARISONS,
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
@@ -120,3 +121,42 @@ def test_declared_batch_correction_is_scheduled_after_intensity_transform() -> N
         plan.stage_order.index(DATASET_PREPROCESSING_STAGE_MISSING_DATA)
     )
     assert DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION not in plan.stage_order
+
+
+def test_batch_correction_plan_rejects_correction_after_downstream_stage() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="unsupported stage_order.*downstream stages have consumed the matrix",
+    ):
+        PreprocessingPlan(
+            batch_correction_method=DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
+            stage_order=(
+                DATASET_PREPROCESSING_STAGE_COMPARISONS,
+                DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
+            ),
+        )
+
+
+def test_batch_correction_plan_rejects_boundary_weakening_stage_order() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="weaken the analysis-ready dataset boundary",
+    ):
+        PreprocessingPlan(
+            batch_correction_method=DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
+            stage_order=(
+                DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
+                DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
+            ),
+        )
+
+
+def test_batch_correction_plan_rejects_duplicate_stage_order_entries() -> None:
+    with pytest.raises(PhosPyInputError, match="duplicate stages.*batch_correction"):
+        PreprocessingPlan(
+            batch_correction_method=DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
+            stage_order=(
+                DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
+                DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
+            ),
+        )

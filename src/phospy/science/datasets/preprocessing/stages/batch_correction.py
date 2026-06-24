@@ -34,6 +34,7 @@ from phospy.science.datasets.preprocessing.stage_contract import (
 )
 from phospy.validation.datasets.batch_correction import (
     BatchCorrectionAdequacyValidator,
+    BatchDesignMetadataValidator,
 )
 
 
@@ -46,10 +47,12 @@ class BatchCorrectionStage:
         self,
         *,
         metadata_resolver: BatchCorrectionMetadataResolver | None = None,
+        metadata_validator: BatchDesignMetadataValidator | None = None,
         adequacy_validator: BatchCorrectionAdequacyValidator | None = None,
         engine: BatchCorrectionEngine | None = None,
     ) -> None:
         self._metadata_resolver = metadata_resolver or BatchCorrectionMetadataResolver()
+        self._metadata_validator = metadata_validator or BatchDesignMetadataValidator()
         self._adequacy_validator = (
             adequacy_validator or BatchCorrectionAdequacyValidator()
         )
@@ -81,6 +84,13 @@ class BatchCorrectionStage:
                 f"batch_correction_method={method!r}"
             )
 
+        self._metadata_validator.run(
+            phospho=state.phospho,
+            sample_metadata=state.sample_metadata,
+            batch_column=state.plan.batch_correction_batch_column,
+            condition_columns=(state.plan.batch_correction_condition_column,),
+            context="dataset build request preprocessing_config.batch_correction",
+        )
         metadata = self._metadata_resolver.run(
             phospho=state.phospho,
             sample_metadata=state.sample_metadata,

@@ -1,4 +1,4 @@
-"""Dataset-build preprocessing config validation."""
+"""Dataset-build preprocessing config and plan validation."""
 
 from __future__ import annotations
 
@@ -20,8 +20,23 @@ from phospy.contracts.configs import (
     DatasetTotalProteinCorrectionConfig,
 )
 from phospy.errors.input import PhosPyInputError
+from phospy.science.datasets.preprocessing.models import (
+    DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
+    DATASET_PREPROCESSING_STAGE_COMPARISONS,
+    DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
+    DATASET_PREPROCESSING_STAGE_NORMALISATION,
+    DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
+    DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
+)
 from phospy.validation.configs.preprocessing import (
     validate_preprocessing_section_type,
+)
+
+_BATCH_CORRECTION_DOWNSTREAM_BOUNDARY_STAGES = (
+    DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
+    DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
+    DATASET_PREPROCESSING_STAGE_NORMALISATION,
+    DATASET_PREPROCESSING_STAGE_COMPARISONS,
 )
 
 
@@ -162,4 +177,67 @@ class DatasetPreprocessingConfigValidator:
                 "preprocessing_config.intensity_transform.policy='log2'. "
                 "Set intensity_transform.policy='log2' or choose a different "
                 "missing_data policy."
+            )
+
+
+class PreprocessingStageOrderValidator:
+    """Validate scientific preprocessing stage-order constraints."""
+
+    def run(
+        self,
+        *,
+        stage_order: tuple[str, ...],
+        batch_correction_requested: bool,
+    ) -> None:
+        stages = tuple(str(stage).strip() for stage in stage_order)
+        blank_positions = [
+            position for position, stage in enumerate(stages) if stage == ""
+        ]
+        if blank_positions:
+            raise PhosPyInputError(
+                "dataset preprocessing plan stage_order contains blank stage "
+                f"entries at positions {blank_positions}"
+            )
+        duplicates = [
+            stage for stage in dict.fromkeys(stages) if stages.count(stage) > 1
+        ]
+        if duplicates:
+            raise PhosPyInputError(
+                "dataset preprocessing plan stage_order contains duplicate stages: "
+                + ", ".join(repr(stage) for stage in duplicates)
+            )
+        if not batch_correction_requested:
+            return
+        if DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION not in stages:
+            raise PhosPyInputError(
+                "dataset preprocessing plan requests batch correction but "
+                "stage_order does not include 'batch_correction'. Build plans "
+                "from DatasetPreprocessingConfig or include the batch_correction "
+                "stage explicitly."
+            )
+
+        batch_position = stages.index(DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION)
+        if (
+            DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM in stages
+            and batch_position
+            < stages.index(DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM)
+        ):
+            raise PhosPyInputError(
+                "dataset preprocessing plan has unsupported stage_order: "
+                "batch_correction must run after intensity_transform when both "
+                "stages are configured"
+            )
+
+        downstream_before_batch = [
+            stage
+            for stage in _BATCH_CORRECTION_DOWNSTREAM_BOUNDARY_STAGES
+            if stage in stages and stages.index(stage) < batch_position
+        ]
+        if downstream_before_batch:
+            raise PhosPyInputError(
+                "dataset preprocessing plan has unsupported stage_order: "
+                "batch_correction cannot run after downstream stages have consumed "
+                "the matrix because that would weaken the analysis-ready dataset "
+                "boundary; downstream stages before batch_correction: "
+                + ", ".join(downstream_before_batch)
             )
