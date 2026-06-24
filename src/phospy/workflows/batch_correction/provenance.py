@@ -14,6 +14,10 @@ from phospy.provenance.models import (
     JsonValue,
     TableFingerprint,
 )
+from phospy.science.datasets.preprocessing.control_sites import (
+    ControlSiteEligibility,
+    ControlSiteMapping,
+)
 from phospy.validation.datasets.batch_correction import ResolvedBatchDesignMetadata
 from phospy.workflows.batch_correction.contracts import (
     BatchCorrectionExecutorResultContract,
@@ -35,6 +39,7 @@ class BatchCorrectionProvenanceRecorder:
         *,
         request: BatchCorrectionWorkflowRequest,
         dataset_metadata: ResolvedBatchDesignMetadata,
+        control_site_mapping: ControlSiteMapping,
         missingness_policy: object,
         plan: ResolvedBatchCorrectionPlan,
         executor_result: BatchCorrectionExecutorResultContract,
@@ -106,7 +111,10 @@ class BatchCorrectionProvenanceRecorder:
                 }
             ),
             warnings=tuple(str(warning) for warning in executor_result.warnings),
-            rejected_entities=_rejected_entities(executor_result),
+            rejected_entities=(
+                *_control_site_rejected_entities(control_site_mapping),
+                *_rejected_entities(executor_result),
+            ),
         )
 
 
@@ -179,6 +187,65 @@ def _rejected_entities(
             )
         )
     return tuple(entities)
+
+
+def _control_site_rejected_entities(
+    control_site_mapping: ControlSiteMapping,
+) -> tuple[BatchCorrectionRejectedEntity, ...]:
+    entities: list[BatchCorrectionRejectedEntity] = []
+    for scope, rows in (
+        ("row_eligibility", control_site_mapping.row_eligibility),
+        ("unmapped_annotations", control_site_mapping.unmapped_annotations),
+    ):
+        for row in rows:
+            if row.is_control or not _is_reportable_control_rejection(row):
+                continue
+            identifier = row.site_key or "<missing site_key>"
+            entities.append(
+                BatchCorrectionRejectedEntity(
+                    entity_type="site",
+                    identifier=str(identifier),
+                    reason=_control_rejection_reason(row),
+                    details={
+                        "scope": scope,
+                        "control_status": row.control_status.value,
+                        "valid": row.valid,
+                        "reasons": list(row.reasons),
+                        "row_position": row.row_position,
+                        "annotation_indices": list(row.annotation_indices),
+                        "exclusion_reason": row.exclusion_reason,
+                    },
+                )
+            )
+    return tuple(entities)
+
+
+def _is_reportable_control_rejection(row: ControlSiteEligibility) -> bool:
+    annotation_count = row.annotation_count
+    return bool(
+        getattr(row, "reasons", ())
+        or row.control_status.value in {"excluded", "invalid", "unknown"}
+        or annotation_count > 0
+    )
+
+
+def _control_rejection_reason(row: ControlSiteEligibility) -> str:
+    reasons = tuple(str(reason) for reason in row.reasons)
+    if reasons:
+        return reasons[0]
+    status = row.control_status.value
+    if status == "excluded":
+        exclusion_reason = row.exclusion_reason
+        if exclusion_reason:
+            return str(exclusion_reason)
+        return "excluded_control_site"
+    if status == "non_control":
+        return "not_marked_as_control"
+    if status == "unknown":
+        return "unknown_control_status"
+    if status == "invalid":
+        return "invalid_control_site_annotation"
+    return "not_eligible_control_site"
 
 
 def _frame_payload(frame: pd.DataFrame) -> dict[str, object]:
