@@ -53,6 +53,7 @@ tests/unit/test_batch_correction_provenance.py,unit,216,6,false,false,,,,,,
 tests/unit/test_batch_correction_reports.py,unit,226,7,false,false,,,,,,
 tests/unit/test_batch_correction_residualize.py,unit,150,7,false,false,,,,,,
 tests/unit/test_batch_correction_validation.py,unit,377,17,false,false,,,,,,
+tests/unit/test_batch_correction_workflow_orchestrator.py,unit,406,3,false,false,,,,,,[auto-orchestration] 22 hit(s); indicators: private_member_access
 tests/unit/test_benchmark_scripts_smoke.py,unit,151,7,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for benchmark scripts smoke and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_boundary_constructor_no_repair.py,unit,35,3,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in boundary constructor no repair; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-AUDIT-004,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_builder_and_kinase_orchestration.py,unit,598,8,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in builder and kinase orchestration; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-ORCH-002,Route to TST-ORCH-002 for boundary-focused orchestration rewrite coverage that removes incidental collaborator-coupled assertions while preserving workflow contracts.
