@@ -24,6 +24,7 @@ _MISSING_PROVENANCE_MESSAGE = (
     "requires typed BatchCorrectionProvenance"
 )
 _NOT_PROVIDED_VALUES = frozenset({"not_provided", "not provided"})
+_MISSING = object()
 
 
 @dataclass(frozen=True, slots=True)
@@ -562,6 +563,11 @@ def _validate_complete_sps_ruv_provenance(
             f"unsupported method {requested_method!r}"
         )
     _require_selected_control_site_rows(provenance.selected_site_key_rows)
+    n_unwanted_factors = _extract_sps_ruv_n_unwanted_factors(provenance)
+    _require_selected_control_count_for_unwanted_factors(
+        selected_site_key_rows=provenance.selected_site_key_rows,
+        n_unwanted_factors=n_unwanted_factors,
+    )
     _require_control_site_source_metadata(provenance.control_site_source)
     _require_non_empty_mapping(
         provenance.batch_metadata,
@@ -612,6 +618,56 @@ def _validate_complete_sps_ruv_provenance(
         provenance.missing_value_policy,
         field_name="BatchCorrectionProvenance.missing_value_policy",
     )
+
+
+def _extract_sps_ruv_n_unwanted_factors(
+    provenance: BatchCorrectionProvenance,
+) -> int:
+    resolved_parameters = provenance.resolved_parameters
+    value = resolved_parameters.get("n_unwanted_factors", _MISSING)
+    if value is _MISSING:
+        config = resolved_parameters.get("config")
+        if isinstance(config, Mapping):
+            value = cast(Mapping[str, object], config).get(
+                "n_unwanted_factors",
+                _MISSING,
+            )
+    if value is _MISSING:
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance selected "
+            "controls cannot be validated against unwanted-factor count because "
+            "resolved_parameters.n_unwanted_factors is missing"
+        )
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance selected "
+            "controls require a positive integer unwanted-factor count; "
+            f"observed n_unwanted_factors={value!r}"
+        )
+    if value < 1:
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance selected "
+            "controls require unwanted-factor count n_unwanted_factors >= 1; "
+            f"observed n_unwanted_factors={value}"
+        )
+    return value
+
+
+def _require_selected_control_count_for_unwanted_factors(
+    *,
+    selected_site_key_rows: Sequence[str],
+    n_unwanted_factors: int,
+) -> None:
+    selected_count = len(tuple(selected_site_key_rows))
+    required_count = n_unwanted_factors + 1
+    if selected_count < required_count:
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance selected "
+            "controls are too few for unwanted-factor count; "
+            f"selected_controls={selected_count}, "
+            f"n_unwanted_factors={n_unwanted_factors}, "
+            f"required_selected_controls={required_count}"
+        )
 
 
 def _normalise_method(method: object) -> str:

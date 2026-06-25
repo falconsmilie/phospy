@@ -147,6 +147,106 @@ def test_sps_ruv_corrected_output_with_not_provided_controls_is_rejected() -> No
         )
 
 
+def test_sps_ruv_corrected_output_with_one_control_for_one_factor_is_rejected() -> None:
+    phospho = _phospho()
+    corrected = _resolved_correction_matrix(phospho + 1.0)
+    provenance = replace(
+        _complete_sps_ruv_provenance(corrected),
+        selected_site_key_rows=(str(corrected.index[0]),),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="selected controls.*unwanted-factor count",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_site_metadata(phospho),
+                sample_metadata=_sample_metadata(phospho),
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+                corrected_preprocessing_output=_correction_output(
+                    corrected,
+                    provenance=provenance,
+                ),
+            )
+        )
+
+
+def test_sps_ruv_corrected_output_accepts_two_controls_for_one_factor() -> None:
+    phospho = _phospho()
+    corrected = _resolved_correction_matrix(phospho + 1.0)
+    provenance = replace(
+        _complete_sps_ruv_provenance(corrected),
+        selected_site_key_rows=tuple(str(row) for row in corrected.index[:2]),
+    )
+
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=_site_metadata(phospho),
+            sample_metadata=_sample_metadata(phospho),
+            organism=Organism.RAT,
+            input_intensity_scale="linear",
+            corrected_preprocessing_output=_correction_output(
+                corrected,
+                provenance=provenance,
+            ),
+        )
+    )
+
+    assert _attached_batch_correction_provenance(dataset).selected_site_key_rows == (
+        str(corrected.index[0]),
+        str(corrected.index[1]),
+    )
+
+
+@pytest.mark.parametrize(
+    "resolved_parameters",
+    (
+        {
+            "method": "sps_ruv_style",
+            "source": "external_corrected_preprocessing_output",
+        },
+        {"method": "sps_ruv_style", "n_unwanted_factors": None},
+        {"method": "sps_ruv_style", "n_unwanted_factors": True},
+        {"method": "sps_ruv_style", "n_unwanted_factors": "1"},
+        {"method": "sps_ruv_style", "n_unwanted_factors": 1.0},
+        {"method": "sps_ruv_style", "n_unwanted_factors": 0},
+        {"method": "sps_ruv_style", "n_unwanted_factors": -1},
+        {"config": {"method": "sps_ruv_style", "n_unwanted_factors": 0}},
+    ),
+)
+def test_sps_ruv_corrected_output_rejects_missing_or_invalid_unwanted_factors(
+    resolved_parameters: Mapping[str, object],
+) -> None:
+    phospho = _phospho()
+    corrected = _resolved_correction_matrix(phospho + 1.0)
+    provenance = replace(
+        _complete_sps_ruv_provenance(corrected),
+        resolved_parameters=resolved_parameters,
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="selected controls.*unwanted-factor count|n_unwanted_factors",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_site_metadata(phospho),
+                sample_metadata=_sample_metadata(phospho),
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+                corrected_preprocessing_output=_correction_output(
+                    corrected,
+                    provenance=provenance,
+                ),
+            )
+        )
+
+
 def test_sps_ruv_corrected_output_missing_fingerprints_is_rejected() -> None:
     phospho = _phospho()
     corrected = _resolved_correction_matrix(phospho + 1.0)
@@ -592,7 +692,7 @@ def _complete_sps_ruv_provenance(corrected: pd.DataFrame) -> BatchCorrectionProv
             "identifier_namespace": "site_key",
             "source_version_unavailable_reason": "caller-local controls",
         },
-        selected_site_key_rows=(str(corrected.index[0]),),
+        selected_site_key_rows=tuple(str(row) for row in corrected.index[:2]),
         batch_metadata={
             "column": "batch",
             "levels": ["run_1", "run_2"],
