@@ -415,7 +415,10 @@ def test_control_site_validator_rejects_incomplete_packaged_metadata() -> None:
 
     with pytest.raises(
         PhosPyInputError,
-        match="packaged-control metadata is incomplete.*source_version.*license.*redistribution",
+        match=(
+            "packaged/reference/external control-source metadata is incomplete"
+            ".*source_version.*license.*redistribution.*selection_method"
+        ),
     ):
         ControlSiteEligibilityValidator().run(
             control_set=control_set,
@@ -426,3 +429,150 @@ def test_control_site_validator_rejects_incomplete_packaged_metadata() -> None:
             min_eligible_controls=2,
             control_site_source_type="packaged_reference",
         )
+
+
+def test_control_site_validator_rejects_row_level_packaged_source_missing_license() -> (
+    None
+):
+    control_set = ControlSiteSet(
+        annotations=(
+            ControlSiteAnnotation(
+                "AKT1_S473",
+                control_status=True,
+                source_type="packaged_reference",
+                organism="rat",
+                identifier_namespace="site_key",
+                source_name="packaged-controls",
+                source_version="2026.1",
+                redistribution="redistributable with package",
+                selection_method="curated stable-control list",
+            ),
+        ),
+        unannotated_site_status=False,
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "packaged/reference/external control-source metadata is incomplete"
+            ".*missing 'license'"
+        ),
+    ):
+        ControlSiteEligibilityValidator().run(
+            control_set=control_set,
+            site_keys=("AKT1_S473",),
+            site_metadata=_metadata(("AKT1_S473",)),
+            dataset_organism=Organism.RAT,
+            method="sps_ruv_style",
+            min_eligible_controls=1,
+            control_site_source_type="caller_supplied",
+        )
+
+
+def test_control_site_validator_rejects_row_level_packaged_source_missing_version() -> (
+    None
+):
+    control_set = ControlSiteSet(
+        annotations=(
+            ControlSiteAnnotation(
+                "AKT1_S473",
+                control_status=True,
+                source_type="packaged_reference",
+                organism="rat",
+                identifier_namespace="site_key",
+                source_name="packaged-controls",
+                license="CC-BY-4.0",
+                redistribution="redistributable with package",
+                selection_method="curated stable-control list",
+            ),
+        ),
+        unannotated_site_status=False,
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "packaged/reference/external control-source metadata is incomplete"
+            ".*missing 'source_version'"
+        ),
+    ):
+        ControlSiteEligibilityValidator().run(
+            control_set=control_set,
+            site_keys=("AKT1_S473",),
+            site_metadata=_metadata(("AKT1_S473",)),
+            dataset_organism=Organism.RAT,
+            method="sps_ruv_style",
+            min_eligible_controls=1,
+            control_site_source_type="caller_supplied",
+        )
+
+
+def test_control_site_validator_top_level_caller_supplied_does_not_mask_row_packaged_metadata() -> (
+    None
+):
+    control_set = ControlSiteSet(
+        annotations=(
+            ControlSiteAnnotation(
+                "AKT1_S473",
+                control_status=True,
+                source_type="packaged_reference",
+                organism="rat",
+                identifier_namespace="site_key",
+                source_name="packaged-controls",
+                license="CC-BY-4.0",
+                redistribution="redistributable with package",
+                selection_method="curated stable-control list",
+            ),
+        ),
+        unannotated_site_status=False,
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "packaged/reference/external control-source metadata is incomplete"
+            ".*missing 'source_version'"
+        ),
+    ):
+        ControlSiteEligibilityValidator().run(
+            control_set=control_set,
+            site_keys=("AKT1_S473",),
+            site_metadata=_metadata(("AKT1_S473",)),
+            dataset_organism=Organism.RAT,
+            method="sps_ruv_style",
+            min_eligible_controls=1,
+            control_site_source_type="caller_supplied",
+        )
+
+
+def test_control_site_validator_accepts_fully_described_external_controls() -> None:
+    control_set = ControlSiteSet(
+        annotations=(
+            ControlSiteAnnotation(
+                "AKT1_S473",
+                control_status=True,
+                source_type="external",
+                organism="rat",
+                identifier_namespace="site_key",
+                source_name="published-control-panel",
+                source_version="2026-06",
+                license="CC-BY-4.0",
+                redistribution="redistributable under CC-BY-4.0",
+                selection_method="published stable-control panel",
+            ),
+        ),
+        unannotated_site_status=False,
+    )
+
+    mapping = ControlSiteEligibilityValidator().run(
+        control_set=control_set,
+        site_keys=("AKT1_S473",),
+        site_metadata=_metadata(("AKT1_S473",)),
+        dataset_organism=Organism.RAT,
+        method="sps_ruv_style",
+        min_eligible_controls=1,
+        control_site_source_type="caller_supplied",
+    )
+
+    assert mapping.row_eligibility[0].is_control
+    assert mapping.row_eligibility[0].source_type == "external"

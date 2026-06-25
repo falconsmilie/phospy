@@ -22,7 +22,7 @@ from phospy.science.datasets.preprocessing.control_sites import (
 
 _DEFAULT_IDENTIFIER_NAMESPACE = "site_key"
 _CALLER_SUPPLIED_SOURCE_TYPES = frozenset({"caller_supplied", "local", "local_file"})
-_PACKAGED_SOURCE_TYPES = frozenset({"packaged_reference", "packaged_control"})
+_STRICT_SOURCE_TYPE_MARKERS = frozenset({"packaged", "reference", "external"})
 _CALLER_AUDIT_FIELDS = (
     "organism",
     "identifier_namespace",
@@ -30,13 +30,14 @@ _CALLER_AUDIT_FIELDS = (
     "license",
     "redistribution",
 )
-_PACKAGED_REQUIRED_FIELDS = (
+_STRICT_SOURCE_REQUIRED_FIELDS = (
     "organism",
     "identifier_namespace",
     "source_name",
     "source_version",
     "license",
     "redistribution",
+    "selection_method",
 )
 _CONTROL_IDENTITY_FIELDS = (
     "source_type",
@@ -450,16 +451,17 @@ def _validate_control_audit_metadata(
         row,
         control_site_source_type=control_site_source_type,
     )
-    if source_type in _PACKAGED_SOURCE_TYPES:
+    if _is_strict_control_source_type(source_type):
         missing = tuple(
             field_name
-            for field_name in _PACKAGED_REQUIRED_FIELDS
-            if not _has_metadata_field(row, field_name)
+            for field_name in _STRICT_SOURCE_REQUIRED_FIELDS
+            if not _has_strict_metadata_field(row, field_name)
         )
         if missing:
             raise PhosPyInputError(
-                "control-site validation failed: packaged-control metadata is "
-                f"incomplete for site_key {row.site_key!r}; missing "
+                "control-site validation failed: packaged/reference/external "
+                "control-source metadata is incomplete for site_key "
+                f"{row.site_key!r}; missing "
                 f"{_format_labels(missing)}"
             )
         return
@@ -501,19 +503,43 @@ def _resolve_control_source_type(
     *,
     control_site_source_type: str | None,
 ) -> str:
+    row_source_type = _normalize_metadata_label(getattr(row, "source_type", None))
+    caller_source_type = _normalize_metadata_label(control_site_source_type)
+    source_name = _normalize_metadata_label(getattr(row, "source_name", None))
+    for value in (row_source_type, caller_source_type, source_name):
+        if value is not None and _is_strict_control_source_type(value):
+            return value
     for value in (
-        control_site_source_type,
-        getattr(row, "source_type", None),
-        getattr(row, "source_name", None),
+        row_source_type,
+        caller_source_type,
+        source_name,
     ):
-        normalized = _normalize_metadata_label(value)
-        if normalized is not None:
-            return normalized
+        if value is not None:
+            return value
     return "caller_supplied"
 
 
 def _has_metadata_field(row: ControlSiteEligibility, field_name: str) -> bool:
     return _normalize_metadata_label(getattr(row, field_name, None)) is not None
+
+
+def _has_strict_metadata_field(
+    row: ControlSiteEligibility,
+    field_name: str,
+) -> bool:
+    value = _normalize_metadata_label(getattr(row, field_name, None))
+    if value is None:
+        return False
+    if field_name in {"source_name", "selection_method"}:
+        return value not in _CALLER_SUPPLIED_SOURCE_TYPES
+    return True
+
+
+def _is_strict_control_source_type(source_type: str | None) -> bool:
+    if source_type is None:
+        return False
+    tokens = frozenset(source_type.replace("-", "_").split("_"))
+    return bool(tokens & _STRICT_SOURCE_TYPE_MARKERS)
 
 
 def _has_missing_metadata_reason(
