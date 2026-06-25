@@ -71,12 +71,10 @@ class BatchCorrectionProvenanceRecorder:
                 }
             ),
             preprocessing_stage_order=tuple(plan.stage_order),
-            control_site_source=_json_mapping(
-                {
-                    "source": request.config.control_site_source.value,
-                    "mode": request.config.control_site_mode.value,
-                    "selected_control_count": len(plan.eligible_control_site_rows),
-                }
+            control_site_source=_control_site_source_payload(
+                request=request,
+                plan=plan,
+                control_site_mapping=control_site_mapping,
             ),
             selected_site_key_rows=tuple(
                 row.site_key for row in plan.eligible_control_site_rows
@@ -142,6 +140,96 @@ def _config_payload(request: BatchCorrectionWorkflowRequest) -> dict[str, object
         "stage_order": config.stage_order.value,
         "diagnostics_enabled": config.diagnostics_enabled,
     }
+
+
+def _control_site_source_payload(
+    *,
+    request: BatchCorrectionWorkflowRequest,
+    plan: ResolvedBatchCorrectionPlan,
+    control_site_mapping: ControlSiteMapping,
+) -> Mapping[str, JsonValue]:
+    selected = tuple(plan.eligible_control_site_rows)
+    selected_metadata_rows = tuple(
+        row for row in control_site_mapping.row_eligibility if row.is_control
+    )
+    source_type = request.config.control_site_source.value
+    payload: dict[str, object] = {
+        "source": source_type,
+        "source_type": source_type,
+        "mode": request.config.control_site_mode.value,
+        "selected_control_count": len(selected),
+        "organism": _common_non_empty_metadata_value(
+            selected_metadata_rows,
+            "organism",
+        ),
+        "identifier_namespace": _common_non_empty_metadata_value(
+            selected_metadata_rows,
+            "identifier_namespace",
+        ),
+        "source_name": _common_non_empty_metadata_value(
+            selected_metadata_rows,
+            "source_name",
+        ),
+        "source_version": _common_non_empty_metadata_value(
+            selected_metadata_rows,
+            "source_version",
+        ),
+    }
+    missing_reason = _control_metadata_missing_reasons(
+        payload,
+        source_type=source_type,
+        control_site_mapping=control_site_mapping,
+    )
+    if missing_reason:
+        payload["metadata_missing_reason"] = missing_reason
+    if source_type == "caller_supplied" and payload.get("source_version") is None:
+        payload["source_version_unavailable_reason"] = (
+            "caller_supplied controls did not declare a formal source version"
+        )
+    return _json_mapping(payload)
+
+
+def _common_non_empty_metadata_value(
+    rows: Sequence[ControlSiteEligibility],
+    field_name: str,
+) -> str | None:
+    values = tuple(
+        str(value).strip()
+        for row in rows
+        if (value := getattr(row, field_name, None)) is not None and str(value).strip()
+    )
+    if not values:
+        return None
+    unique = tuple(dict.fromkeys(values))
+    if len(unique) == 1:
+        return unique[0]
+    return None
+
+
+def _control_metadata_missing_reasons(
+    payload: Mapping[str, object],
+    *,
+    source_type: str,
+    control_site_mapping: ControlSiteMapping,
+) -> dict[str, str]:
+    selected_count_value = payload.get("selected_control_count", 0)
+    selected_count = (
+        selected_count_value if isinstance(selected_count_value, int) else 0
+    )
+    reason = (
+        "selected caller-supplied controls did not declare this audit metadata field"
+    )
+    if selected_count == 0 and control_site_mapping.row_eligibility:
+        reason = "no eligible selected controls were available to supply metadata"
+    missing: dict[str, str] = {}
+    for field_name in ("organism", "identifier_namespace"):
+        if payload.get(field_name) is None:
+            missing[field_name] = reason
+    if source_type == "caller_supplied" and payload.get("source_version") is None:
+        missing["source_version"] = (
+            "caller_supplied controls did not declare a formal source version"
+        )
+    return missing
 
 
 def _replicate_metadata(

@@ -11,7 +11,19 @@ from typing import cast
 import numpy as np
 import pandas as pd
 
+from phospy.contracts.configs.preprocessing.internal_batch_correction import (
+    SUPPORTED_INTERNAL_BATCH_CORRECTION_EXECUTED_STAGE_ORDER,
+)
 from phospy.errors.input import PhosPyInputError
+from phospy.provenance.models import BatchCorrectionProvenance
+
+_APPLIED_NATIVE_SPS_RUV_METHODS = frozenset({"sps_ruv_style", "control_site_ruv_style"})
+_UNSUPPORTED_SPS_RUV_METHODS = frozenset({"ruv_iii_style"})
+_MISSING_PROVENANCE_MESSAGE = (
+    "corrected_preprocessing_output with applied native SPS/RUV-style correction "
+    "requires typed BatchCorrectionProvenance"
+)
+_NOT_PROVIDED_VALUES = frozenset({"not_provided", "not provided"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -489,6 +501,270 @@ class BatchCorrectionAdequacyValidator:
             )
 
 
+def validate_applied_native_sps_ruv_correction_provenance(
+    *,
+    method: object,
+    status: object,
+    provenance: object,
+) -> None:
+    """Require complete typed provenance for applied SPS/RUV-style outputs."""
+
+    if str(status).strip() != "applied":
+        return
+    normalized_method = _normalise_method(method)
+    if normalized_method in _UNSUPPORTED_SPS_RUV_METHODS:
+        raise PhosPyInputError(
+            "corrected_preprocessing_output declares unsupported SPS/RUV-style "
+            f"batch correction method {normalized_method!r}; regenerate with a "
+            "supported native method and complete BatchCorrectionProvenance"
+        )
+    if not _is_sps_ruv_style_label(normalized_method):
+        return
+    if normalized_method not in _APPLIED_NATIVE_SPS_RUV_METHODS:
+        raise PhosPyInputError(
+            "corrected_preprocessing_output declares ambiguous or unsupported "
+            f"SPS/RUV-style batch correction method {normalized_method!r}; "
+            "applied corrected outputs require a supported native method and "
+            "typed BatchCorrectionProvenance"
+        )
+    if provenance is None:
+        raise PhosPyInputError(_MISSING_PROVENANCE_MESSAGE)
+    if not isinstance(provenance, BatchCorrectionProvenance):
+        raise PhosPyInputError(
+            _MISSING_PROVENANCE_MESSAGE
+            + "; untyped provenance payloads are not accepted for applied "
+            "SPS/RUV-style corrected outputs"
+        )
+    _validate_complete_sps_ruv_provenance(
+        provenance,
+        expected_method=normalized_method,
+    )
+
+
+def _validate_complete_sps_ruv_provenance(
+    provenance: BatchCorrectionProvenance,
+    *,
+    expected_method: str,
+) -> None:
+    requested_method = _normalise_method(provenance.requested_method)
+    if requested_method != expected_method:
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance method must "
+            f"match the applied correction method; expected {expected_method!r}, "
+            f"observed {requested_method!r}"
+        )
+    if requested_method in _UNSUPPORTED_SPS_RUV_METHODS:
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance declares "
+            f"unsupported method {requested_method!r}"
+        )
+    _require_selected_control_site_rows(provenance.selected_site_key_rows)
+    _require_control_site_source_metadata(provenance.control_site_source)
+    _require_non_empty_mapping(
+        provenance.batch_metadata,
+        field_name="BatchCorrectionProvenance.batch_metadata",
+    )
+    _require_non_empty_mapping(
+        provenance.design_metadata,
+        field_name="BatchCorrectionProvenance.design_metadata",
+    )
+    _require_non_empty_mapping(
+        provenance.missing_value_policy,
+        field_name="BatchCorrectionProvenance.missing_value_policy",
+    )
+    if not provenance.observation_masks:
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance must include "
+            "observation mask fingerprints for SPS/RUV-style missingness provenance"
+        )
+    input_matrix_fingerprint = getattr(provenance, "input_matrix_fingerprint", None)
+    if input_matrix_fingerprint is None:
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance is missing "
+            "input/output matrix fingerprints: input_matrix_fingerprint is required"
+        )
+    if provenance.output_matrix_fingerprint is None:
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance is missing "
+            "input/output matrix fingerprints: output_matrix_fingerprint is required"
+        )
+    _require_supported_stage_order(provenance.preprocessing_stage_order)
+    _require_non_empty_mapping(
+        provenance.diagnostics,
+        field_name="BatchCorrectionProvenance.diagnostics",
+    )
+    _reject_not_provided_required_mapping(
+        provenance.resolved_parameters,
+        field_name="BatchCorrectionProvenance.resolved_parameters",
+    )
+    _reject_not_provided_required_mapping(
+        provenance.batch_metadata,
+        field_name="BatchCorrectionProvenance.batch_metadata",
+    )
+    _reject_not_provided_required_mapping(
+        provenance.design_metadata,
+        field_name="BatchCorrectionProvenance.design_metadata",
+    )
+    _reject_not_provided_required_mapping(
+        provenance.missing_value_policy,
+        field_name="BatchCorrectionProvenance.missing_value_policy",
+    )
+
+
+def _normalise_method(method: object) -> str:
+    normalized = str(method).strip().lower()
+    if not normalized:
+        raise PhosPyInputError(
+            "corrected_preprocessing_output applied batch correction method is "
+            "missing or empty"
+        )
+    return normalized
+
+
+def _is_sps_ruv_style_label(method: str) -> bool:
+    return "ruv" in method or method.startswith("sps_") or "_sps_" in method
+
+
+def _require_selected_control_site_rows(rows: Sequence[str]) -> None:
+    if not rows:
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance selected "
+            "controls/control provenance must include selected_site_key_rows"
+        )
+    missing_rows = [
+        position
+        for position, row in enumerate(tuple(rows))
+        if _is_missing_required_text(row) or _is_not_provided(row)
+    ]
+    if missing_rows:
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance selected "
+            "controls/control provenance contains missing or not_provided "
+            f"site_key rows at positions {_format_positions(missing_rows)}"
+        )
+
+
+def _require_control_site_source_metadata(source: Mapping[str, object]) -> None:
+    _require_non_empty_mapping(
+        source,
+        field_name="BatchCorrectionProvenance.control_site_source",
+    )
+    _reject_not_provided_required_mapping(
+        source,
+        field_name="BatchCorrectionProvenance.control_site_source",
+    )
+    source_type = _source_type(source)
+    if source_type is None or _is_not_provided(source_type):
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance selected "
+            "controls/control provenance must include control source metadata"
+        )
+    for field_name in ("organism", "identifier_namespace"):
+        if _has_non_missing_text(source.get(field_name)):
+            continue
+        if _has_metadata_missing_reason(source, field_name):
+            continue
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance control "
+            f"source is missing {field_name!r} without explicit rationale"
+        )
+    has_source_name = _has_non_missing_text(source.get("source_name"))
+    has_source_version = _has_non_missing_text(source.get("source_version"))
+    has_unavailable_reason = _has_non_missing_text(
+        source.get("source_version_unavailable_reason")
+    )
+    has_missing_reason = _has_metadata_missing_reason(source, "source_version")
+    if has_source_name and not (
+        has_source_version or has_unavailable_reason or has_missing_reason
+    ):
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance control "
+            "source declares source_name without source_version or explicit "
+            "source_version_unavailable_reason"
+        )
+    if source_type == "caller_supplied" and not (
+        has_source_version or has_unavailable_reason or has_missing_reason
+    ):
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance "
+            "caller_supplied control source must record source_version or "
+            "source_version_unavailable_reason"
+        )
+
+
+def _source_type(source: Mapping[str, object]) -> str | None:
+    for key in ("source_type", "source"):
+        value = source.get(key)
+        if _has_non_missing_text(value):
+            return str(value).strip().lower()
+    return None
+
+
+def _has_metadata_missing_reason(
+    source: Mapping[str, object],
+    field_name: str,
+) -> bool:
+    reasons = source.get("metadata_missing_reason")
+    if isinstance(reasons, Mapping) and _has_non_missing_text(
+        cast(Mapping[str, object], reasons).get(field_name)
+    ):
+        return True
+    return _has_non_missing_text(source.get(f"{field_name}_missing_reason"))
+
+
+def _require_supported_stage_order(stage_order: Sequence[str]) -> None:
+    normalized = tuple(str(stage).strip() for stage in tuple(stage_order))
+    if not normalized:
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance stage order "
+            "is missing"
+        )
+    if normalized != SUPPORTED_INTERNAL_BATCH_CORRECTION_EXECUTED_STAGE_ORDER:
+        supported = " -> ".join(
+            SUPPORTED_INTERNAL_BATCH_CORRECTION_EXECUTED_STAGE_ORDER
+        )
+        observed = " -> ".join(normalized)
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance stage order "
+            f"is unsupported; observed {observed!r}; supported stage order is "
+            f"{supported}"
+        )
+
+
+def _require_non_empty_mapping(
+    value: Mapping[str, object],
+    *,
+    field_name: str,
+) -> None:
+    if not isinstance(value, Mapping) or not value:
+        raise PhosPyInputError(f"{field_name} must be a non-empty object")
+
+
+def _reject_not_provided_required_mapping(
+    value: Mapping[str, object],
+    *,
+    field_name: str,
+) -> None:
+    for key, item in value.items():
+        if _is_not_provided(item):
+            raise PhosPyInputError(
+                f"{field_name}.{key} must not be recorded as not_provided for "
+                "applied SPS/RUV-style corrected output"
+            )
+
+
+def _has_non_missing_text(value: object) -> bool:
+    return not _is_missing_required_text(value) and not _is_not_provided(value)
+
+
+def _is_missing_required_text(value: object) -> bool:
+    return value is None or str(value).strip() == ""
+
+
+def _is_not_provided(value: object) -> bool:
+    return str(value).strip().lower() in _NOT_PROVIDED_VALUES
+
+
 def _normalize_sample_order(sample_order: Sequence[str]) -> tuple[str, ...]:
     samples = tuple(str(sample).strip() for sample in sample_order)
     blank_positions = [
@@ -756,4 +1032,5 @@ __all__ = [
     "ReplicateStructureValidator",
     "ResolvedBatchDesignMetadata",
     "SampleMetadataAlignmentValidator",
+    "validate_applied_native_sps_ruv_correction_provenance",
 ]

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import cast
+from dataclasses import replace
+from typing import Any, cast
 
 import pandas as pd
 import pandas.testing as pdt
@@ -24,6 +25,7 @@ from phospy.api import (
 )
 from phospy.contracts.configs.preprocessing import InternalBatchCorrectionStageOrder
 from phospy.errors import PhosPyInputError
+from phospy.provenance import BatchCorrectionProvenance, fingerprint_matrix
 from phospy.science.datasets.builders.interpreter import DatasetBuildRequestInterpreter
 from phospy.science.datasets.preprocessing import (
     BatchCorrectionDiagnostics,
@@ -33,6 +35,8 @@ from phospy.science.datasets.preprocessing import (
 )
 
 pytestmark = pytest.mark.integration
+
+_DEFAULT_PROVENANCE: Any = object()
 
 
 def test_resolved_native_correction_output_builds_analysis_ready_dataset() -> None:
@@ -68,20 +72,199 @@ def test_resolved_native_correction_output_builds_analysis_ready_dataset() -> No
     provenance = correction_stage.batch_correction_provenance
     assert provenance is not None
     assert provenance.requested_method == "sps_ruv_style"
-    assert provenance.resolved_parameters["source"] == "resolved_correction_output"
-    assert provenance.control_site_source["source_type"] == "not_provided"
-    assert provenance.selected_site_key_rows == ()
+    assert provenance.control_site_source["source_type"] == "caller_supplied"
+    assert provenance.selected_site_key_rows
     assert provenance.observation_masks
     assert provenance.input_matrix_fingerprint.name == "batch_correction.native.input"
     assert provenance.output_matrix_fingerprint is not None
     assert (
         provenance.output_matrix_fingerprint.name == "batch_correction.native.corrected"
     )
-    assert provenance.diagnostics["status"] == "applied"
+    executor_diagnostics = cast(
+        Mapping[str, object], provenance.diagnostics["executor"]
+    )
+    assert executor_diagnostics["status"] == "applied"
     assert provenance.warnings == ()
     observed_mask = dataset.imputation_observed_mask_dataframe()
     assert observed_mask is not None
     assert observed_mask.to_numpy(dtype=bool).all()
+    assert dataset.phospho.notna().to_numpy(dtype=bool).all()
+
+
+def test_sps_ruv_corrected_output_without_provenance_is_rejected() -> None:
+    phospho = _phospho()
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="typed BatchCorrectionProvenance",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_site_metadata(phospho),
+                sample_metadata=_sample_metadata(phospho),
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+                corrected_preprocessing_output=_correction_output(
+                    _resolved_correction_matrix(phospho + 1.0),
+                    provenance=None,
+                ),
+            )
+        )
+
+
+def test_sps_ruv_corrected_output_with_not_provided_controls_is_rejected() -> None:
+    phospho = _phospho()
+    corrected = _resolved_correction_matrix(phospho + 1.0)
+    provenance = replace(
+        _complete_sps_ruv_provenance(corrected),
+        selected_site_key_rows=(),
+        control_site_source={
+            "source_type": "not_provided",
+            "reason": "synthesized fallback",
+        },
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="selected controls|control provenance",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_site_metadata(phospho),
+                sample_metadata=_sample_metadata(phospho),
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+                corrected_preprocessing_output=_correction_output(
+                    corrected,
+                    provenance=provenance,
+                ),
+            )
+        )
+
+
+def test_sps_ruv_corrected_output_missing_fingerprints_is_rejected() -> None:
+    phospho = _phospho()
+    corrected = _resolved_correction_matrix(phospho + 1.0)
+    provenance = replace(
+        _complete_sps_ruv_provenance(corrected),
+        output_matrix_fingerprint=None,
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="input/output matrix fingerprints",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_site_metadata(phospho),
+                sample_metadata=_sample_metadata(phospho),
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+                corrected_preprocessing_output=_correction_output(
+                    corrected,
+                    provenance=provenance,
+                ),
+            )
+        )
+
+
+def test_sps_ruv_corrected_output_missing_observation_mask_is_rejected() -> None:
+    phospho = _phospho()
+    corrected = _resolved_correction_matrix(phospho + 1.0)
+    provenance = replace(
+        _complete_sps_ruv_provenance(corrected),
+        observation_masks=(),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="observation mask|missingness provenance",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_site_metadata(phospho),
+                sample_metadata=_sample_metadata(phospho),
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+                corrected_preprocessing_output=_correction_output(
+                    corrected,
+                    provenance=provenance,
+                ),
+            )
+        )
+
+
+def test_sps_ruv_corrected_output_missing_control_metadata_requires_rationale() -> None:
+    phospho = _phospho()
+    corrected = _resolved_correction_matrix(phospho + 1.0)
+    provenance = replace(
+        _complete_sps_ruv_provenance(corrected),
+        control_site_source={
+            "source_type": "caller_supplied",
+            "source_version_unavailable_reason": "local controls",
+        },
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="control source.*organism|control source.*identifier_namespace",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_site_metadata(phospho),
+                sample_metadata=_sample_metadata(phospho),
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+                corrected_preprocessing_output=_correction_output(
+                    corrected,
+                    provenance=provenance,
+                ),
+            )
+        )
+
+
+def test_sps_ruv_corrected_output_accepts_control_metadata_missing_rationale() -> None:
+    phospho = _phospho()
+    corrected = _resolved_correction_matrix(phospho + 1.0)
+    provenance = replace(
+        _complete_sps_ruv_provenance(corrected),
+        control_site_source={
+            "source_type": "caller_supplied",
+            "metadata_missing_reason": {
+                "organism": "caller-local controls did not declare organism",
+                "identifier_namespace": (
+                    "caller-local controls did not declare namespace"
+                ),
+                "source_version": "caller-local controls have no source version",
+            },
+            "source_version_unavailable_reason": (
+                "caller-local controls have no source version"
+            ),
+        },
+    )
+
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=_site_metadata(phospho),
+            sample_metadata=_sample_metadata(phospho),
+            organism=Organism.RAT,
+            input_intensity_scale="linear",
+            corrected_preprocessing_output=_correction_output(
+                corrected,
+                provenance=provenance,
+            ),
+        )
+    )
+
+    assert _attached_batch_correction_provenance(dataset).control_site_source[
+        "metadata_missing_reason"
+    ]
 
 
 def test_public_sps_ruv_preprocessing_config_builds_corrected_dataset_with_provenance() -> (
@@ -145,7 +328,10 @@ def test_public_sps_ruv_preprocessing_config_builds_corrected_dataset_with_prove
         "batch_correction",
         "downstream_workflows",
     )
-    interpreter_plan = provenance.resolved_parameters["interpreter_plan"]
+    interpreter_plan = cast(
+        Mapping[str, object],
+        provenance.resolved_parameters["interpreter_plan"],
+    )
     assert interpreter_plan["executed_stage_order"] == list(
         provenance.preprocessing_stage_order
     )
@@ -335,7 +521,13 @@ def _correction_output(
     corrected: pd.DataFrame,
     *,
     consumed_by_downstream: bool = False,
+    provenance: BatchCorrectionProvenance | None | Any = _DEFAULT_PROVENANCE,
 ) -> CorrectedPreprocessingOutput:
+    resolved_provenance = (
+        _complete_sps_ruv_provenance(corrected)
+        if provenance is _DEFAULT_PROVENANCE
+        else provenance
+    )
     return CorrectedPreprocessingOutput(
         corrected_matrix=corrected,
         output_observation_mask=pd.DataFrame(
@@ -365,8 +557,81 @@ def _correction_output(
             ),
         ),
         diagnostics={"executor": {"status": "applied", "method": "sps_ruv_style"}},
+        provenance=cast(BatchCorrectionProvenance | None, resolved_provenance),
         consumed_by_downstream=consumed_by_downstream,
     )
+
+
+def _complete_sps_ruv_provenance(corrected: pd.DataFrame) -> BatchCorrectionProvenance:
+    mask = pd.DataFrame(
+        True,
+        index=corrected.index.copy(),
+        columns=corrected.columns.copy(),
+    )
+    return BatchCorrectionProvenance(
+        requested_method="sps_ruv_style",
+        resolved_parameters={
+            "method": "sps_ruv_style",
+            "n_unwanted_factors": 1,
+            "source": "external_corrected_preprocessing_output",
+        },
+        preprocessing_stage_order=(
+            "missing_data",
+            "batch_correction",
+            "downstream_workflows",
+        ),
+        control_site_source={
+            "source_type": "caller_supplied",
+            "organism": "rat",
+            "identifier_namespace": "site_key",
+            "source_version_unavailable_reason": "caller-local controls",
+        },
+        selected_site_key_rows=(str(corrected.index[0]),),
+        batch_metadata={
+            "column": "batch",
+            "levels": ["run_1", "run_2"],
+            "sample_order": list(corrected.columns.astype(str)),
+        },
+        replicate_metadata=None,
+        design_metadata={
+            "condition_columns": ["condition"],
+            "preserve_condition_effects": True,
+        },
+        missing_value_policy={
+            "policy": "reject_missing",
+            "imputation_policy": "none",
+        },
+        observation_masks=(
+            fingerprint_matrix(
+                mask.astype("int8"),
+                name="batch_correction.native.observation_mask",
+            ),
+        ),
+        input_matrix_fingerprint=fingerprint_matrix(
+            corrected,
+            name="batch_correction.native.input",
+        ),
+        output_matrix_fingerprint=fingerprint_matrix(
+            corrected,
+            name="batch_correction.native.corrected",
+        ),
+        diagnostics={"executor": {"status": "applied", "method": "sps_ruv_style"}},
+        warnings=(),
+        phospy_version="test",
+        dependency_versions={},
+    )
+
+
+def _attached_batch_correction_provenance(dataset: object) -> BatchCorrectionProvenance:
+    provenance = getattr(dataset, "provenance", None)
+    assert provenance is not None
+    for stage in provenance.preprocessing_stages:
+        if stage.stage != "batch_correction":
+            continue
+        batch_provenance = stage.batch_correction_provenance
+        assert batch_provenance is not None
+        return batch_provenance
+    raise AssertionError("batch_correction provenance was not attached")
 
 
 def _resolved_correction_matrix(matrix: pd.DataFrame) -> pd.DataFrame:

@@ -43,6 +43,9 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingState,
     PreprocessingStateTableKey,
 )
+from phospy.validation.datasets.batch_correction import (
+    validate_applied_native_sps_ruv_correction_provenance,
+)
 
 _DOWNSTREAM_WORKFLOWS_STAGE = "downstream_workflows"
 _SUPPORTED_STATUS_VALUES = frozenset({"corrected_observed", "restored_missing"})
@@ -262,6 +265,7 @@ class CorrectedPreprocessingOutputIntegrator:
                 "dataset preprocessing corrected_preprocessing_output must be "
                 "CorrectedPreprocessingOutput"
             )
+        _validate_applied_provenance(correction_output)
         if correction_output.consumed_by_downstream:
             raise PhosPyInputError(
                 "corrected preprocessing output has already been consumed by a "
@@ -304,6 +308,17 @@ def validate_corrected_preprocessing_output(value: object) -> None:
             "dataset build request corrected_preprocessing_output must be "
             "CorrectedPreprocessingOutput"
         )
+    _validate_applied_provenance(value)
+
+
+def _validate_applied_provenance(
+    correction_output: CorrectedPreprocessingOutput,
+) -> None:
+    validate_applied_native_sps_ruv_correction_provenance(
+        method=correction_output.batch_correction_report.method,
+        status=correction_output.batch_correction_report.status,
+        provenance=correction_output.provenance,
+    )
 
 
 def _build_stage_execution(
