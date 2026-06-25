@@ -182,6 +182,23 @@ class CorrectedPreprocessingOutput:
         diagnostics = result.diagnostics.to_payload()
         seed_data = _sps_ruv_provenance_seed_data(result.provenance_payload)
         design_summary = _mapping_or_empty(diagnostics.get("design_summary"))
+        algorithm_description = str(
+            diagnostics.get("algorithm_description")
+            or "native SPS/RUV-style correction preserves matrix shape and "
+            "condition-design terms"
+        )
+        term_roles = _mapping_or_empty(diagnostics.get("term_roles"))
+        batch_term_role = term_roles.get("batch_terms")
+        limitations = (
+            algorithm_description,
+            *(
+                (str(batch_term_role),)
+                if batch_term_role is not None and str(batch_term_role).strip()
+                else ()
+            ),
+            "native SPS/RUV-style correction preserves matrix shape and "
+            "condition-design terms",
+        )
         condition_columns = _object_sequence(seed_data.get("condition_columns"))
         batch_report = BatchCorrectionReport(
             status=BATCH_CORRECTION_STATUS_APPLIED,
@@ -223,10 +240,7 @@ class CorrectedPreprocessingOutput:
                 ),
                 matrix_shape_after=_matrix_shape(result.diagnostics.matrix_shape_after),
                 warnings=tuple(str(warning) for warning in result.warnings),
-                limitations=(
-                    "native SPS/RUV-style correction preserves matrix shape and "
-                    "condition-design terms",
-                ),
+                limitations=limitations,
             ),
         )
         return cls(

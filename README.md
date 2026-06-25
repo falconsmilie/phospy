@@ -104,10 +104,15 @@ confounded batch/condition metadata; it is not ComBat, not RUV, not limma
 PhosR-equivalent batch correction, and not mixed-effects modelling. Native
 SPS/RUV-style correction is executable only through explicit structured
 preprocessing config and requires caller-supplied controls, batch and protected
-condition metadata, a missingness policy, diagnostics, and provenance. RUV-III
-style correction is not executable unless a future feature implements
-replicate-aware semantics. Any `ruv_readiness` diagnostics are report-only
-readiness signals and do not apply correction.
+condition metadata, a missingness policy, diagnostics, and provenance. The
+native PhosPy SPS/RUV-style preprocessing correction estimates unwanted factors
+from eligible control-site residuals after protected-design handling. Batch
+terms are resolved for validation and diagnostics, including
+batch-associated-variance summaries; they are not directly residualized as
+fixed effects by the native correction. RUV-III style correction is not
+executable unless a future feature implements replicate-aware semantics. Any
+`ruv_readiness` diagnostics are report-only readiness signals and do not apply
+correction.
 
 ## Kinase Workflow Example
 

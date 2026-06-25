@@ -114,18 +114,22 @@ Common cross-field checks:
   readiness is false. Native SPS/RUV-style correction is separate and requires
   explicit `SpsRuvBatchCorrectionConfig`.
 - Native SPS/RUV-style correction runs only through `batch_correction` with an
-  explicit `SpsRuvBatchCorrectionConfig`. Validation rejects missing or
-  misaligned `sample_metadata`, missing `batch_column`, missing protected
-  `condition_columns`, confounded or rank-inadequate batch/condition designs,
-  too few eligible caller-supplied control sites, incompatible control-site
-  metadata, caller controls missing audit metadata without explicit
-  `metadata_missing_reason`, incomplete packaged-control metadata, duplicate or
-  ambiguous accepted-control metadata, missing values without a supported
-  `CorrectionMissingnessPolicy`, unsupported temporary-imputation policies,
-  missing observation masks when temporary imputation is allowed, and attempts
-  to run correction without provenance. Validation does not infer organism or
-  identifier namespace from `site_key` strings and does not fetch metadata
-  online.
+  explicit `SpsRuvBatchCorrectionConfig`. The native PhosPy SPS/RUV-style
+  preprocessing correction estimates unwanted factors from eligible
+  control-site residuals after protected-design handling. Batch terms are
+  resolved for validation and diagnostics, including batch-associated-variance
+  summaries; they are not directly residualized as fixed effects by the native
+  correction. Validation rejects missing or misaligned `sample_metadata`,
+  missing `batch_column`, missing protected `condition_columns`, confounded or
+  rank-inadequate batch/condition designs, too few eligible caller-supplied
+  control sites, incompatible control-site metadata, caller controls missing
+  audit metadata without explicit `metadata_missing_reason`, incomplete
+  packaged-control metadata, duplicate or ambiguous accepted-control metadata,
+  missing values without a supported `CorrectionMissingnessPolicy`, unsupported
+  temporary-imputation policies, missing observation masks when temporary
+  imputation is allowed, and attempts to run correction without provenance.
+  Validation does not infer organism or identifier namespace from `site_key`
+  strings and does not fetch metadata online.
 
 ## Reference Validation
 

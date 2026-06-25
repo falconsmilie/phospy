@@ -57,7 +57,10 @@ validated PhosPy implementations:
   mixed-effects modelling.
 - `SpsRuvBatchCorrectionConfig` exposes native SPS/RUV-style preprocessing
   correction with explicit controls, protected design metadata, missingness
-  policy, factor count, diagnostics, and provenance. It is not
+  policy, factor count, diagnostics, and provenance. It estimates unwanted
+  factors from eligible control-site residuals after protected-design handling.
+  Batch terms are resolved for validation and diagnostics, not directly
+  residualized as fixed effects by the native correction. It is not
   PhosR-equivalent SPS/RUV-III parity.
 - Differential fixed-effect batch covariates are ordinary model terms. They are
   not a data-cleaning batch-correction step.

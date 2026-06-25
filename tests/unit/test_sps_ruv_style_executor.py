@@ -24,6 +24,8 @@ from phospy.contracts.configs.preprocessing import (
 )
 from phospy.errors import PhosPyInputError
 from phospy.science.batch_correction import (
+    SPS_RUV_STYLE_ALGORITHM_DESCRIPTION,
+    SPS_RUV_STYLE_BATCH_TERM_ROLE,
     SPS_RUV_STYLE_EXECUTOR_ID,
     DeterministicSpsRuvStyleExecutor,
     SpsRuvStyleExecutorResult,
@@ -149,11 +151,21 @@ def test_sps_ruv_style_executor_returns_diagnostics_warnings_and_provenance() ->
     assert result.diagnostics.executor_id == SPS_RUV_STYLE_EXECUTOR_ID
     assert result.diagnostics.estimated_unwanted_factors == 1
     assert result.diagnostics.singular_values[0] > 0.0
+    assert (
+        diagnostics_payload["algorithm_description"]
+        == SPS_RUV_STYLE_ALGORITHM_DESCRIPTION
+    )
+    assert diagnostics_payload["term_roles"]["batch_terms"] == (
+        SPS_RUV_STYLE_BATCH_TERM_ROLE
+    )
     assert diagnostics_payload["eligible_control_site_count"] == 2
     assert diagnostics_payload["rejected_control_site_count"] == 0
     assert diagnostics_payload["design_summary"]["number_of_batches"] == 2
     assert diagnostics_payload["design_summary"]["number_of_conditions"] == 2
     assert diagnostics_payload["batch_associated_variance"]["status"] == "computed"
+    assert diagnostics_payload["batch_associated_variance"]["batch_term_role"] == (
+        SPS_RUV_STYLE_BATCH_TERM_ROLE
+    )
     assert diagnostics_payload["missingness_imputation_summary"] == {
         "originally_missing_cell_count": 0,
         "withheld_cell_count": 0,
@@ -170,9 +182,18 @@ def test_sps_ruv_style_executor_returns_diagnostics_warnings_and_provenance() ->
     assert result.rejected_cells == ()
     assert result.provenance_payload["executor_id"] == SPS_RUV_STYLE_EXECUTOR_ID
     assert result.provenance_payload["method"] == "sps_ruv_style"
+    assert result.provenance_payload["algorithm_description"] == (
+        SPS_RUV_STYLE_ALGORITHM_DESCRIPTION
+    )
+    assert result.provenance_payload["term_roles"]["batch_terms"] == (
+        SPS_RUV_STYLE_BATCH_TERM_ROLE
+    )
     assert "corrected_matrix_fingerprint" in result.provenance_payload
     assert result.provenance_payload["diagnostics"] == diagnostics_payload
     assert result.corrected_preprocessing_output is not None
+    report = result.corrected_preprocessing_output.batch_correction_report
+    assert SPS_RUV_STYLE_ALGORITHM_DESCRIPTION in report.limitations
+    assert SPS_RUV_STYLE_BATCH_TERM_ROLE in report.limitations
     assert result.corrected_preprocessing_output.batch_correction_report.status == (
         "applied"
     )
@@ -273,6 +294,12 @@ def test_batch_correction_workflow_diagnostics_and_provenance_record_rejected_co
     result = BatchCorrectionWorkflow().run(request)
 
     executor_diagnostics = result.diagnostics["executor"]
+    assert executor_diagnostics["algorithm_description"] == (
+        SPS_RUV_STYLE_ALGORITHM_DESCRIPTION
+    )
+    assert executor_diagnostics["term_roles"]["batch_terms"] == (
+        SPS_RUV_STYLE_BATCH_TERM_ROLE
+    )
     assert executor_diagnostics["eligible_control_site_count"] == 2
     assert executor_diagnostics["rejected_control_site_count"] == 1
     assert executor_diagnostics["rejected_control_sites"] == [
@@ -288,6 +315,13 @@ def test_batch_correction_workflow_diagnostics_and_provenance_record_rejected_co
         }
     ]
     assert result.provenance.diagnostics["executor"] == executor_diagnostics
+    provenance_executor = result.provenance.resolved_parameters["executor"]
+    assert provenance_executor["algorithm_description"] == (
+        SPS_RUV_STYLE_ALGORITHM_DESCRIPTION
+    )
+    assert provenance_executor["term_roles"]["batch_terms"] == (
+        SPS_RUV_STYLE_BATCH_TERM_ROLE
+    )
     assert result.provenance.preprocessing_stage_order == (
         "missing_data",
         "batch_correction",

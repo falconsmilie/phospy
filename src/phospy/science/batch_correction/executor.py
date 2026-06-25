@@ -19,6 +19,20 @@ from phospy.science.datasets.preprocessing.correction_output import (
 
 SPS_RUV_STYLE_EXECUTOR_ID = "deterministic_sps_ruv_style_executor_v1"
 SPS_RUV_STYLE_METHODS = frozenset({"sps_ruv_style", "control_site_ruv_style"})
+SPS_RUV_STYLE_ALGORITHM_DESCRIPTION = (
+    "native PhosPy SPS/RUV-style preprocessing correction estimates unwanted "
+    "factors from eligible control-site residuals after protected-design "
+    "handling"
+)
+SPS_RUV_STYLE_BATCH_TERM_ROLE = (
+    "batch terms are resolved for validation and diagnostics, including "
+    "batch-associated variance summaries; they are not directly residualized "
+    "as fixed effects by native SPS/RUV-style correction"
+)
+SPS_RUV_STYLE_PROTECTED_TERM_ROLE = (
+    "protected condition terms are included in the protected design before "
+    "eligible control residuals are used to estimate unwanted factors"
+)
 _UNSUPPORTED_RUV_III_STYLE_METHOD_MESSAGE = (
     "ruv_iii_style is not currently supported because replicate-aware RUV-III "
     "numerical semantics are not implemented; use the supported native "
@@ -72,6 +86,8 @@ class SpsRuvStyleExecutorDiagnostics:
 
     method: str
     executor_id: str
+    algorithm_description: str
+    term_roles: Mapping[str, str]
     status: str
     matrix_shape_before: tuple[int, int]
     matrix_shape_after: tuple[int, int]
@@ -100,6 +116,8 @@ class SpsRuvStyleExecutorDiagnostics:
         return {
             "method": self.method,
             "executor_id": self.executor_id,
+            "algorithm_description": self.algorithm_description,
+            "term_roles": dict(self.term_roles),
             "status": self.status,
             "matrix_shape_before": list(self.matrix_shape_before),
             "matrix_shape_after": list(self.matrix_shape_after),
@@ -638,6 +656,12 @@ def _diagnostics(
     return SpsRuvStyleExecutorDiagnostics(
         method=plan.method,
         executor_id=SPS_RUV_STYLE_EXECUTOR_ID,
+        algorithm_description=SPS_RUV_STYLE_ALGORITHM_DESCRIPTION,
+        term_roles={
+            "protected_condition_terms": SPS_RUV_STYLE_PROTECTED_TERM_ROLE,
+            "batch_terms": SPS_RUV_STYLE_BATCH_TERM_ROLE,
+            "unwanted_factors": SPS_RUV_STYLE_ALGORITHM_DESCRIPTION,
+        },
         status="applied",
         matrix_shape_before=(int(phospho.shape[0]), int(phospho.shape[1])),
         matrix_shape_after=(int(corrected.shape[0]), int(corrected.shape[1])),
@@ -690,10 +714,13 @@ def _provenance_payload(
         "schema_version": 1,
         "executor_id": SPS_RUV_STYLE_EXECUTOR_ID,
         "method": plan.method,
-        "algorithm": (
-            "control residual SVD factors with protected-design coefficient "
-            "preservation"
-        ),
+        "algorithm": "control residual SVD factors after protected-design handling",
+        "algorithm_description": SPS_RUV_STYLE_ALGORITHM_DESCRIPTION,
+        "term_roles": {
+            "protected_condition_terms": SPS_RUV_STYLE_PROTECTED_TERM_ROLE,
+            "batch_terms": SPS_RUV_STYLE_BATCH_TERM_ROLE,
+            "unwanted_factors": SPS_RUV_STYLE_ALGORITHM_DESCRIPTION,
+        },
         "input_matrix_fingerprint": _fingerprint_payload(
             fingerprint_matrix(phospho, name="batch_correction.sps_ruv.input")
         ),
@@ -906,6 +933,7 @@ def _batch_associated_variance_summary(
             "complete numerical correction matrix; originally missing cells use "
             "temporary imputed values for diagnostics only"
         ),
+        "batch_term_role": SPS_RUV_STYLE_BATCH_TERM_ROLE,
         "batch_terms": list(batch_terms),
         "before": before_summary,
         "after": after_summary,

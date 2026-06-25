@@ -86,11 +86,14 @@ PhosR-equivalent corrected output. Native SPS/RUV-style correction is
 executable only through the separate explicit `SpsRuvBatchCorrectionConfig`
 preprocessing config.
 
-Native SPS/RUV-style correction also stays in dataset preprocessing. It
-estimates unwanted factors from eligible caller-supplied control `site_key`
-rows after protecting condition terms, applies the correction to the
-phosphosite matrix before downstream workflows consume it, and records
-diagnostics plus `BatchCorrectionProvenance`. Required inputs are aligned
+Native SPS/RUV-style correction also stays in dataset preprocessing. The native
+PhosPy SPS/RUV-style preprocessing correction estimates unwanted factors from
+eligible caller-supplied control `site_key` residuals after protected-design
+handling, applies the correction to the phosphosite matrix before downstream
+workflows consume it, and records diagnostics plus `BatchCorrectionProvenance`.
+Batch terms are resolved for validation and diagnostics, including
+batch-associated-variance summaries; they are not directly residualized as
+fixed effects by the native correction. Required inputs are aligned
 `sample_metadata` with batch and protected condition columns, replicate
 metadata when the selected method requires it, an explicit `ControlSiteSet`,
 `CorrectionMissingnessPolicy`, `n_unwanted_factors`, diagnostics, and

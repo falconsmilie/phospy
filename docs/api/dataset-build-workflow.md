@@ -346,7 +346,10 @@ default public method is `method="sps_ruv_style"`: it
 estimates unwanted factors from eligible control-site residuals after
 protecting the configured condition terms, then subtracts the estimated
 unwanted-factor contribution from the phosphosite matrix. This is a native
-PhosPy implementation, not PhosR-equivalent SPS/RUV-III parity.
+PhosPy implementation, not PhosR-equivalent SPS/RUV-III parity. Batch terms are
+resolved for validation and diagnostics, including batch-associated-variance
+summaries; they are not directly residualized as fixed effects by the native
+PhosPy SPS/RUV-style preprocessing correction.
 The `ruv_iii_style` method label is not executable unless a future feature
 implements replicate-aware RUV-III semantics.
 

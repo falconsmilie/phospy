@@ -115,7 +115,10 @@ Supported today:
   missing-metadata rationale, explicit missingness policy, unwanted-factor
   count, diagnostics, and provenance. Executable temporary imputation is
   limited to `none` and `row_median_temporary`; upstream-imputed cells remain
-  tracked and are not treated as observed evidence.
+  tracked and are not treated as observed evidence. It estimates unwanted
+  factors from eligible control-site residuals after protected-design handling.
+  Batch terms are resolved for validation and diagnostics, not directly
+  residualized as fixed effects by the native correction.
 - `ruv_readiness`, when enabled, as diagnostic/report-only metadata readiness
   reporting.
 

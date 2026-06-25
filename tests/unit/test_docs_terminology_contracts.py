@@ -39,3 +39,39 @@ def test_selected_public_modules_avoid_canonical_term() -> None:
             "selected public-facing module text must avoid the term "
             f"'canonical': {module_path.as_posix()}"
         )
+
+
+def test_batch_correction_docs_keep_readiness_residualisation_and_native_correction_distinct() -> (
+    None
+):
+    docs_text = "\n\n".join(
+        _read_text(path)
+        for path in (
+            _README,
+            _DOCS_ROOT / "workflow_contracts.md",
+            _DOCS_ROOT / "validation.md",
+            _DOCS_ROOT / "api" / "dataset-build-workflow.md",
+            _DOCS_ROOT / "scientific-coverage.md",
+            _DOCS_ROOT / "parity.md",
+        )
+    )
+    normalised = " ".join(docs_text.split()).casefold()
+
+    assert (
+        "`linear_residualize_batch`, a limited fixed-effect residualisation"
+        in normalised
+    )
+    assert "`ruv_readiness` diagnostics are report-only" in normalised
+    assert (
+        "native phospy sps/ruv-style preprocessing correction estimates "
+        "unwanted factors from eligible control-site residuals after "
+        "protected-design handling"
+    ) in normalised
+    assert "batch terms are resolved for validation and diagnostics" in normalised
+    assert (
+        "not directly residualized as fixed effects by the native correction"
+        in normalised
+        or "not directly residualized as fixed effects by native sps/ruv-style "
+        "correction"
+        in normalised
+    )
