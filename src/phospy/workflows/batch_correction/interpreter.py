@@ -9,12 +9,15 @@ from typing import cast
 import pandas as pd
 
 from phospy.contracts.configs.preprocessing import (
+    SUPPORTED_INTERNAL_BATCH_CORRECTION_EXECUTED_STAGE_ORDER,
+    SUPPORTED_INTERNAL_BATCH_CORRECTION_STAGE_ORDER,
     CorrectionMissingnessPolicy,
     InternalBatchCorrectionRequest,
     InternalBatchCorrectionStageOrder,
     ObservationMask,
     TemporaryImputationPolicy,
 )
+from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.preprocessing.control_sites import (
     ControlSiteEligibility,
     ControlSiteMapping,
@@ -126,7 +129,9 @@ class ResolvedBatchCorrectionPlan:
                 self.temporary_imputation_policy
             ),
             "n_unwanted_factors": self.n_unwanted_factors,
+            "executed_stage_order": list(self.stage_order),
             "stage_order": list(self.stage_order),
+            "requested_stage_order": self.stage_order_policy,
             "stage_order_policy": self.stage_order_policy,
             "diagnostic_requirements": self.diagnostic_requirements.to_payload(),
             "provenance_seed_data": dict(self.provenance_seed_data),
@@ -331,6 +336,22 @@ def _diagnostic_requirements(
 
 
 def _stage_order(stage_order: InternalBatchCorrectionStageOrder) -> tuple[str, ...]:
+    if stage_order is SUPPORTED_INTERNAL_BATCH_CORRECTION_STAGE_ORDER:
+        return SUPPORTED_INTERNAL_BATCH_CORRECTION_EXECUTED_STAGE_ORDER
+    raise PhosPyInputError(
+        "batch-correction workflow stage_order="
+        f"{stage_order.value!r} is unsupported by the current dataset preprocessing "
+        "pipeline; requested stage order implies "
+        f"{' -> '.join(_implied_stage_order(stage_order))}; supported stage "
+        "order is "
+        f"{' -> '.join(SUPPORTED_INTERNAL_BATCH_CORRECTION_EXECUTED_STAGE_ORDER)}; "
+        "provenance must match the actual executed pipeline"
+    )
+
+
+def _implied_stage_order(
+    stage_order: InternalBatchCorrectionStageOrder,
+) -> tuple[str, ...]:
     if stage_order is (
         InternalBatchCorrectionStageOrder.AFTER_INTENSITY_TRANSFORM_BEFORE_MISSING_DATA
     ):
@@ -338,8 +359,12 @@ def _stage_order(stage_order: InternalBatchCorrectionStageOrder) -> tuple[str, .
     if stage_order is (
         InternalBatchCorrectionStageOrder.AFTER_TOTAL_PROTEIN_CORRECTION_BEFORE_DOWNSTREAM
     ):
-        return ("total_protein_correction", "batch_correction", "downstream_workflows")
-    return ("missing_data", "batch_correction", "downstream_workflows")
+        return (
+            "total_protein_correction",
+            "batch_correction",
+            "downstream_workflows",
+        )
+    return SUPPORTED_INTERNAL_BATCH_CORRECTION_EXECUTED_STAGE_ORDER
 
 
 def _provenance_seed_data(
@@ -360,6 +385,8 @@ def _provenance_seed_data(
         "missing_value_policy": config.missing_value_policy.value,
         "imputation_policy": config.imputation_policy.value,
         "n_unwanted_factors": config.n_unwanted_factors,
+        "executed_stage_order": list(plan.stage_order),
+        "requested_stage_order": config.stage_order.value,
         "stage_order_policy": config.stage_order.value,
         "sample_order": list(dataset_metadata.sample_order),
         "batch_by_sample": dict(dataset_metadata.batch_by_sample),

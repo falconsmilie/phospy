@@ -138,6 +138,7 @@ def _config_payload(request: BatchCorrectionWorkflowRequest) -> dict[str, object
         "missing_value_policy": config.missing_value_policy.value,
         "imputation_policy": config.imputation_policy.value,
         "n_unwanted_factors": config.n_unwanted_factors,
+        "requested_stage_order": config.stage_order.value,
         "stage_order": config.stage_order.value,
         "diagnostics_enabled": config.diagnostics_enabled,
     }

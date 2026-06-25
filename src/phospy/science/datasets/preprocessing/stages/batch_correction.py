@@ -8,6 +8,8 @@ from phospy.contracts.configs import (
     DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
     DATASET_BATCH_CORRECTION_METHOD_NONE,
     SPS_RUV_BATCH_CORRECTION_METHODS,
+    SUPPORTED_INTERNAL_BATCH_CORRECTION_EXECUTED_STAGE_ORDER,
+    SUPPORTED_INTERNAL_BATCH_CORRECTION_STAGE_ORDER,
     DatasetBatchCorrectionConfig,
 )
 from phospy.errors.input import PhosPyInputError
@@ -208,6 +210,13 @@ def _resolve_parameters(plan: PreprocessingPlan) -> dict[str, object]:
     }
     if _resolve_method(plan) in SPS_RUV_BATCH_CORRECTION_METHODS:
         request = plan.batch_correction_internal_request
+        executed_stage_order = (
+            None
+            if request is None
+            or request.stage_order
+            is not SUPPORTED_INTERNAL_BATCH_CORRECTION_STAGE_ORDER
+            else list(SUPPORTED_INTERNAL_BATCH_CORRECTION_EXECUTED_STAGE_ORDER)
+        )
         parameters.update(
             {
                 "replicate_column": plan.batch_correction_replicate_column,
@@ -217,6 +226,10 @@ def _resolve_parameters(plan: PreprocessingPlan) -> dict[str, object]:
                 "diagnostics_enabled": (
                     None if request is None else request.diagnostics_enabled
                 ),
+                "requested_stage_order": (
+                    None if request is None else request.stage_order.value
+                ),
+                "executed_stage_order": executed_stage_order,
                 "stage_order_policy": (
                     None if request is None else request.stage_order.value
                 ),

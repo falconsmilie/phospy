@@ -84,6 +84,14 @@ INTERNAL_BATCH_CORRECTION_IMPUTATION_POLICIES = frozenset(
     InternalBatchCorrectionImputationPolicy
 )
 INTERNAL_BATCH_CORRECTION_STAGE_ORDERS = frozenset(InternalBatchCorrectionStageOrder)
+SUPPORTED_INTERNAL_BATCH_CORRECTION_STAGE_ORDER = (
+    InternalBatchCorrectionStageOrder.AFTER_MISSING_DATA_BEFORE_DOWNSTREAM
+)
+SUPPORTED_INTERNAL_BATCH_CORRECTION_EXECUTED_STAGE_ORDER = (
+    "missing_data",
+    "batch_correction",
+    "downstream_workflows",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -150,6 +158,8 @@ __all__ = [
     "INTERNAL_BATCH_CORRECTION_METHODS",
     "INTERNAL_BATCH_CORRECTION_MISSING_VALUE_POLICIES",
     "INTERNAL_BATCH_CORRECTION_STAGE_ORDERS",
+    "SUPPORTED_INTERNAL_BATCH_CORRECTION_EXECUTED_STAGE_ORDER",
+    "SUPPORTED_INTERNAL_BATCH_CORRECTION_STAGE_ORDER",
     "InternalBatchCorrectionControlSiteMode",
     "InternalBatchCorrectionControlSiteSource",
     "InternalBatchCorrectionImputationPolicy",

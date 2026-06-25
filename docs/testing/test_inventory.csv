@@ -5,7 +5,7 @@ tests/integration/test_dataset_builder_boundary_honesty_integration.py,integrati
 tests/integration/test_dataset_builder_integration.py,integration,1985,36,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset builder integration and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/integration/test_dataset_builder_intensity_scale_provenance.py,integration,318,9,true,false,,,,,,
 tests/integration/test_dataset_importer_handoff.py,integration,60,1,true,false,,,,,,
-tests/integration/test_dataset_native_correction_preprocessing_integration.py,integration,440,7,true,false,,,,,,
+tests/integration/test_dataset_native_correction_preprocessing_integration.py,integration,497,8,true,false,,,,,,
 tests/integration/test_dataset_protein_aware_alignment_diagnostics.py,integration,177,2,true,false,,,,,,
 tests/integration/test_differential_with_technical_replicates.py,integration,198,3,false,false,,,,,,
 tests/integration/test_differential_workflow_integration.py,integration,417,8,false,false,,,,,,
@@ -48,13 +48,13 @@ tests/unit/test_analysis_ready_model_boundary_validator.py,unit,728,35,true,true
 tests/unit/test_api_configs_refactor_contract.py,unit,50,3,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for api configs refactor contract and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_api_documentation_examples.py,unit,1116,14,false,false,,,,,,
 tests/unit/test_batch_correction_metadata_resolution.py,unit,217,8,false,false,,,,,,
-tests/unit/test_batch_correction_plan_interpreter.py,unit,235,5,false,false,,,,,,
+tests/unit/test_batch_correction_plan_interpreter.py,unit,258,6,false,false,,,,,,
 tests/unit/test_batch_correction_preprocessing_config.py,unit,236,15,false,false,,,,,,
 tests/unit/test_batch_correction_provenance.py,unit,216,6,false,false,,,,,,
 tests/unit/test_batch_correction_reports.py,unit,297,8,false,false,,,,,,
 tests/unit/test_batch_correction_residualize.py,unit,150,7,false,false,,,,,,
 tests/unit/test_batch_correction_validation.py,unit,401,18,false,false,,,,,,
-tests/unit/test_batch_correction_workflow_orchestrator.py,unit,517,5,false,false,,,,,,[auto-orchestration] 22 hit(s); indicators: private_member_access
+tests/unit/test_batch_correction_workflow_orchestrator.py,unit,559,6,false,false,,,,,,[auto-orchestration] 22 hit(s); indicators: private_member_access
 tests/unit/test_benchmark_scripts_smoke.py,unit,151,7,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for benchmark scripts smoke and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_boundary_constructor_no_repair.py,unit,35,3,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in boundary constructor no repair; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-AUDIT-004,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_builder_and_kinase_orchestration.py,unit,598,8,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in builder and kinase orchestration; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-ORCH-002,Route to TST-ORCH-002 for boundary-focused orchestration rewrite coverage that removes incidental collaborator-coupled assertions while preserving workflow contracts.
@@ -214,7 +214,7 @@ tests/unit/test_site_identifier_module_ownership.py,unit,39,3,false,false,,,,,,
 tests/unit/test_site_identity_validation.py,unit,528,21,true,true,,,,,,
 tests/unit/test_site_matrix_components.py,unit,864,16,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for site matrix components, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_site_validation_helpers.py,unit,90,5,false,false,,,,,,
-tests/unit/test_sps_ruv_style_executor.py,unit,371,8,false,false,,,,,,
+tests/unit/test_sps_ruv_style_executor.py,unit,384,8,false,false,,,,,,
 tests/unit/test_sps_ruv_upstream_imputation_masks.py,unit,299,4,false,false,,,,,,
 tests/unit/test_table_schemas.py,unit,1102,65,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for table schemas and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_total_protein_correction_identity_mapping.py,unit,561,22,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for total protein correction identity mapping, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,

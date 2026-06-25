@@ -226,6 +226,19 @@ def test_batch_correction_workflow_diagnostics_and_provenance_record_rejected_co
         }
     ]
     assert result.provenance.diagnostics["executor"] == executor_diagnostics
+    assert result.provenance.preprocessing_stage_order == (
+        "missing_data",
+        "batch_correction",
+        "downstream_workflows",
+    )
+    interpreter_plan = result.provenance.resolved_parameters["interpreter_plan"]
+    assert interpreter_plan["executed_stage_order"] == list(
+        result.provenance.preprocessing_stage_order
+    )
+    assert (
+        interpreter_plan["requested_stage_order"]
+        == "after_missing_data_before_downstream"
+    )
     assert result.provenance.rejected_entities[0].entity_type == "site"
     assert result.provenance.rejected_entities[0].identifier == "site_b"
     assert result.provenance.rejected_entities[0].reason == (

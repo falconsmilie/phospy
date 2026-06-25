@@ -22,6 +22,7 @@ from phospy.api import (
     SampleDesignRecord,
     SpsRuvBatchCorrectionConfig,
 )
+from phospy.contracts.configs.preprocessing import InternalBatchCorrectionStageOrder
 from phospy.errors import PhosPyInputError
 from phospy.science.datasets.builders.interpreter import DatasetBuildRequestInterpreter
 from phospy.science.datasets.preprocessing import (
@@ -132,6 +133,22 @@ def test_public_sps_ruv_preprocessing_config_builds_corrected_dataset_with_prove
     assert provenance is not None
     assert provenance.requested_method == "sps_ruv_style"
     assert provenance.selected_site_key_rows
+    stage_order = tuple(
+        stage.stage for stage in dataset.provenance.preprocessing_stages
+    )
+    assert stage_order.index("missing_data") < stage_order.index("batch_correction")
+    assert correction_stage.parameters["executed_stage_order"] == list(
+        provenance.preprocessing_stage_order
+    )
+    assert provenance.preprocessing_stage_order == (
+        "missing_data",
+        "batch_correction",
+        "downstream_workflows",
+    )
+    interpreter_plan = provenance.resolved_parameters["interpreter_plan"]
+    assert interpreter_plan["executed_stage_order"] == list(
+        provenance.preprocessing_stage_order
+    )
     executor_diagnostics = provenance.diagnostics["executor"]
     assert isinstance(executor_diagnostics, Mapping)
     assert executor_diagnostics["status"] == "applied"
@@ -163,6 +180,46 @@ def test_public_sps_ruv_preprocessing_invalid_controls_fail_before_execution() -
                         replicate_column="replicate",
                         missingness_policy=CorrectionMissingnessPolicy(),
                         n_unwanted_factors=1,
+                    )
+                ),
+            )
+        )
+
+
+def test_public_sps_ruv_preprocessing_rejects_unsupported_stage_order() -> None:
+    phospho = _sps_phospho()
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "after_intensity_transform_before_missing_data.*unsupported.*"
+            "supported stage order is missing_data -> batch_correction -> "
+            "downstream_workflows.*provenance must match"
+        ),
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_sps_site_metadata(phospho),
+                sample_metadata=_sps_sample_metadata(phospho),
+                organism=Organism.RAT,
+                input_intensity_scale="log2",
+                preprocessing_config=DatasetPreprocessingConfig(
+                    batch_correction=SpsRuvBatchCorrectionConfig(
+                        control_site_set=ControlSiteSet.from_site_keys(
+                            (
+                                _sps_site_key("MAPK14", "Y", "182"),
+                                _sps_site_key("SRC", "Y", "416"),
+                            )
+                        ),
+                        batch_column="batch",
+                        condition_columns=("condition",),
+                        replicate_column="replicate",
+                        missingness_policy=CorrectionMissingnessPolicy(),
+                        n_unwanted_factors=1,
+                        stage_order=(
+                            InternalBatchCorrectionStageOrder.AFTER_INTENSITY_TRANSFORM_BEFORE_MISSING_DATA
+                        ),
                     )
                 ),
             )

@@ -346,6 +346,13 @@ protecting the configured condition terms, then subtracts the estimated
 unwanted-factor contribution from the phosphosite matrix. This is a native
 PhosPy implementation, not PhosR-equivalent SPS/RUV-III parity.
 
+Native SPS/RUV-style correction currently supports only one execution
+placement in the dataset preprocessing pipeline: after missing-data handling
+and before downstream preprocessing consumers such as total-protein correction,
+site-matrix construction, normalisation, comparisons, and analysis workflows.
+Requests for other `stage_order` policies are rejected so recorded provenance
+matches the pipeline that actually ran.
+
 ```python
 control_sites = ControlSiteSet.from_site_keys(
     (

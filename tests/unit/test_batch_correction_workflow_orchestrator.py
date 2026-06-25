@@ -90,6 +90,42 @@ def test_batch_correction_workflow_invalid_request_fails_before_executor() -> No
     assert "executor" not in order
 
 
+def test_batch_correction_workflow_rejects_unexecutable_stage_order_before_executor() -> (
+    None
+):
+    order: list[str] = []
+    workflow = BatchCorrectionWorkflow(
+        request_validator=_RequestValidator(order),
+        design_validator=_DesignValidator(order),
+        control_site_validator=_ControlSiteValidator(order),
+        missingness_validator=_MissingnessValidator(order),
+        interpreter=_Interpreter(order),
+        executor=_Executor(order, corrected=_matrix()),
+        provenance_recorder=_ProvenanceRecorder(order, corrected=_matrix()),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "unsupported by the current dataset preprocessing pipeline.*"
+            "supported stage order is missing_data -> batch_correction -> "
+            "downstream_workflows.*provenance must match"
+        ),
+    ):
+        workflow.run(
+            _request(
+                config=_config(
+                    stage_order=(
+                        InternalBatchCorrectionStageOrder.AFTER_INTENSITY_TRANSFORM_BEFORE_MISSING_DATA
+                    )
+                )
+            )
+        )
+
+    assert order == ["request_validator", "design_validator"]
+    assert "executor" not in order
+
+
 def test_batch_correction_workflow_rejects_ruv_iii_before_interpreter_and_executor() -> (
     None
 ):
@@ -329,11 +365,12 @@ class _ExecutorResult:
 
 def _request(
     *,
+    config: InternalBatchCorrectionRequest | None = None,
     upstream_observation_mask: pd.DataFrame | None = None,
 ) -> BatchCorrectionWorkflowRequest:
     return BatchCorrectionWorkflowRequest(
         phospho=_matrix(),
-        config=_config(),
+        config=_config() if config is None else config,
         sample_metadata=pd.DataFrame(
             {
                 "batch": ("run_1", "run_1", "run_2", "run_2"),
@@ -347,7 +384,12 @@ def _request(
     )
 
 
-def _config() -> InternalBatchCorrectionRequest:
+def _config(
+    *,
+    stage_order: InternalBatchCorrectionStageOrder = (
+        InternalBatchCorrectionStageOrder.AFTER_MISSING_DATA_BEFORE_DOWNSTREAM
+    ),
+) -> InternalBatchCorrectionRequest:
     return InternalBatchCorrectionRequest(
         method=InternalBatchCorrectionMethod.SPS_RUV_STYLE,
         batch_column="batch",
@@ -358,7 +400,7 @@ def _config() -> InternalBatchCorrectionRequest:
         missing_value_policy=InternalBatchCorrectionMissingValuePolicy.REJECT_MISSING,
         imputation_policy=InternalBatchCorrectionImputationPolicy.NONE,
         n_unwanted_factors=1,
-        stage_order=InternalBatchCorrectionStageOrder.AFTER_MISSING_DATA_BEFORE_DOWNSTREAM,
+        stage_order=stage_order,
         diagnostics_enabled=True,
     )
 

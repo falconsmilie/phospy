@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import copy
 
+import pytest
+
 from phospy.contracts.configs.preprocessing import (
     CorrectionMaskPolicy,
     CorrectionMissingnessPolicy,
@@ -17,6 +19,7 @@ from phospy.contracts.configs.preprocessing import (
     TemporaryImputationMethod,
     TemporaryImputationPolicy,
 )
+from phospy.errors import PhosPyInputError
 from phospy.science.datasets.preprocessing.control_sites import ControlSiteSet
 from phospy.validation.datasets.batch_correction import ResolvedBatchDesignMetadata
 from phospy.validation.workflows.batch_correction import ControlSiteEligibilityValidator
@@ -98,9 +101,6 @@ def test_batch_correction_interpreter_resolves_empty_observation_mask_when_compl
 def test_batch_correction_interpreter_resolves_stage_order_and_diagnostics() -> None:
     plan = BatchCorrectionPlanInterpreter().run(
         config=_config(
-            stage_order=(
-                InternalBatchCorrectionStageOrder.AFTER_INTENSITY_TRANSFORM_BEFORE_MISSING_DATA
-            ),
             diagnostics_enabled=True,
         ),
         dataset_metadata=_metadata(),
@@ -109,13 +109,36 @@ def test_batch_correction_interpreter_resolves_stage_order_and_diagnostics() -> 
     )
 
     assert plan.stage_order == (
-        "intensity_transform",
-        "batch_correction",
         "missing_data",
+        "batch_correction",
+        "downstream_workflows",
     )
-    assert plan.stage_order_policy == ("after_intensity_transform_before_missing_data")
+    assert plan.stage_order_policy == ("after_missing_data_before_downstream")
+    assert plan.to_payload()["executed_stage_order"] == list(plan.stage_order)
+    assert plan.to_payload()["requested_stage_order"] == plan.stage_order_policy
     assert plan.diagnostic_requirements.diagnostics_enabled is True
     assert "diagnostic_tables" in plan.diagnostic_requirements.required_payloads
+
+
+def test_batch_correction_interpreter_rejects_unexecutable_stage_order() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "stage_order='after_intensity_transform_before_missing_data' is "
+            "unsupported.*supported stage order is missing_data -> "
+            "batch_correction -> downstream_workflows.*provenance must match"
+        ),
+    ):
+        BatchCorrectionPlanInterpreter().run(
+            config=_config(
+                stage_order=(
+                    InternalBatchCorrectionStageOrder.AFTER_INTENSITY_TRANSFORM_BEFORE_MISSING_DATA
+                ),
+            ),
+            dataset_metadata=_metadata(),
+            control_site_mapping=_control_mapping(),
+            missingness_policy=_missingness_policy(),
+        )
 
 
 def test_batch_correction_interpreter_provenance_seed_data_is_deterministic() -> None:
