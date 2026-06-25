@@ -13,6 +13,8 @@ from phospy.api import (
 from phospy.api.configs import (
     DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
     DATASET_BATCH_CORRECTION_METHOD_NONE,
+    DATASET_BATCH_CORRECTION_METHOD_SPS_RUV_STYLE,
+    SPS_RUV_BATCH_CORRECTION_METHODS,
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
@@ -130,6 +132,43 @@ def test_sps_ruv_batch_correction_config_requires_explicit_public_contract() -> 
     assert plan.batch_correction_internal_request.n_unwanted_factors == 1
     assert plan.batch_correction_control_site_set is config.control_site_set
     assert plan.batch_correction_missingness_policy is config.missingness_policy
+
+
+def test_sps_ruv_batch_correction_config_accepts_only_sps_ruv_style_public_method() -> (
+    None
+):
+    config = SpsRuvBatchCorrectionConfig(
+        control_site_set=ControlSiteSet.from_site_keys(("site_a", "site_c")),
+        batch_column="ms_run",
+        condition_columns=("condition",),
+        missingness_policy=CorrectionMissingnessPolicy(),
+        n_unwanted_factors=1,
+        method=DATASET_BATCH_CORRECTION_METHOD_SPS_RUV_STYLE,
+    )
+
+    assert config.method == "sps_ruv_style"
+    assert SPS_RUV_BATCH_CORRECTION_METHODS == {"sps_ruv_style"}
+
+
+def test_sps_ruv_batch_correction_config_rejects_control_site_ruv_style_publicly() -> (
+    None
+):
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "preprocessing_config.batch_correction.method must be one of: sps_ruv_style"
+        ),
+    ) as exc_info:
+        SpsRuvBatchCorrectionConfig(
+            control_site_set=ControlSiteSet.from_site_keys(("site_a", "site_c")),
+            batch_column="ms_run",
+            condition_columns=("condition",),
+            missingness_policy=CorrectionMissingnessPolicy(),
+            n_unwanted_factors=1,
+            method="control_site_ruv_style",  # type: ignore[arg-type]
+        )
+
+    assert "control_site_ruv_style" not in str(exc_info.value)
 
 
 def test_sps_ruv_batch_correction_config_rejects_ruv_iii_style() -> None:

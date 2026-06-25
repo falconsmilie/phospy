@@ -466,8 +466,7 @@ class PreprocessingPlan:
             raise PhosPyInputError(
                 "dataset preprocessing plan batch_correction_method "
                 "(internal model) must be one of: none, "
-                "linear_residualize_batch, control_site_ruv_style, "
-                "sps_ruv_style"
+                "linear_residualize_batch, sps_ruv_style"
             )
         object.__setattr__(
             self,

@@ -128,8 +128,8 @@ def test_batch_correction_provenance_can_record_rejected_without_output_matrix()
     None
 ):
     provenance = BatchCorrectionProvenance(
-        requested_method="control_site_ruv_style",
-        resolved_parameters={"method": "control_site_ruv_style"},
+        requested_method="sps_ruv_style",
+        resolved_parameters={"method": "sps_ruv_style"},
         preprocessing_stage_order=("batch_correction",),
         control_site_source={"source_type": "dataset_metadata"},
         selected_site_key_rows=(),

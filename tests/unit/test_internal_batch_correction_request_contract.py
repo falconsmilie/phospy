@@ -41,7 +41,7 @@ def test_internal_batch_correction_request_accepts_typed_enum_values() -> None:
 
 def test_internal_batch_correction_request_coerces_supported_strings() -> None:
     request = InternalBatchCorrectionRequest(
-        method="control_site_ruv_style",  # type: ignore[arg-type]
+        method="sps_ruv_style",  # type: ignore[arg-type]
         batch_column="batch",
         condition_columns=["condition"],  # type: ignore[arg-type]
         replicate_column=None,
@@ -56,7 +56,7 @@ def test_internal_batch_correction_request_coerces_supported_strings() -> None:
         diagnostics_enabled=False,
     )
 
-    assert request.method is InternalBatchCorrectionMethod.CONTROL_SITE_RUV_STYLE
+    assert request.method is InternalBatchCorrectionMethod.SPS_RUV_STYLE
     assert request.condition_columns == ("condition",)
     assert (
         request.missing_value_policy
@@ -66,6 +66,34 @@ def test_internal_batch_correction_request_coerces_supported_strings() -> None:
         request.imputation_policy
         is InternalBatchCorrectionImputationPolicy.ROW_MEDIAN_TEMPORARY
     )
+
+
+def test_internal_control_site_ruv_style_alias_normalizes_with_deprecation() -> None:
+    with pytest.warns(
+        DeprecationWarning,
+        match="control_site_ruv_style is a deprecated internal compatibility alias",
+    ):
+        request = InternalBatchCorrectionRequest(
+            method="control_site_ruv_style",  # type: ignore[arg-type]
+            batch_column="batch",
+            condition_columns=("condition",),
+            replicate_column=None,
+            control_site_source=(
+                InternalBatchCorrectionControlSiteSource.CALLER_SUPPLIED
+            ),
+            control_site_mode=InternalBatchCorrectionControlSiteMode.SITE_KEY_LIST,
+            missing_value_policy=(
+                InternalBatchCorrectionMissingValuePolicy.REJECT_MISSING
+            ),
+            imputation_policy=InternalBatchCorrectionImputationPolicy.NONE,
+            n_unwanted_factors=None,
+            stage_order=(
+                InternalBatchCorrectionStageOrder.AFTER_MISSING_DATA_BEFORE_DOWNSTREAM
+            ),
+            diagnostics_enabled=True,
+        )
+
+    assert request.method is InternalBatchCorrectionMethod.SPS_RUV_STYLE
 
 
 def test_internal_batch_correction_request_rejects_invalid_method() -> None:

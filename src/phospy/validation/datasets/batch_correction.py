@@ -17,7 +17,7 @@ from phospy.contracts.configs.preprocessing.internal_batch_correction import (
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.models import BatchCorrectionProvenance
 
-_APPLIED_NATIVE_SPS_RUV_METHODS = frozenset({"sps_ruv_style", "control_site_ruv_style"})
+_APPLIED_NATIVE_SPS_RUV_METHODS = frozenset({"sps_ruv_style"})
 _UNSUPPORTED_SPS_RUV_METHODS = frozenset({"ruv_iii_style"})
 _MISSING_PROVENANCE_MESSAGE = (
     "corrected_preprocessing_output with applied native SPS/RUV-style correction "

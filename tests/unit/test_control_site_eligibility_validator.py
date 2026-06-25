@@ -57,7 +57,7 @@ def test_control_site_validator_accepts_valid_caller_supplied_controls() -> None
         site_keys=site_keys,
         site_metadata=_metadata(site_keys),
         dataset_organism=Organism.RAT,
-        method="control_site_ruv_style",
+        method="sps_ruv_style",
         min_eligible_controls=2,
     )
 
@@ -82,7 +82,7 @@ def test_control_site_validator_accepts_caller_metadata_with_explicit_rationale(
         site_keys=site_keys,
         site_metadata=_metadata(site_keys),
         dataset_organism=Organism.RAT,
-        method="control_site_ruv_style",
+        method="sps_ruv_style",
         min_eligible_controls=2,
     )
 
@@ -106,7 +106,7 @@ def test_control_site_validator_rejects_missing_control_mappings() -> None:
         ControlSiteEligibilityValidator().run(
             control_set=control_set,
             site_keys=site_keys,
-            method="control_site_ruv_style",
+            method="sps_ruv_style",
             min_eligible_controls=1,
         )
 
@@ -126,7 +126,7 @@ def test_control_site_validator_rejects_duplicate_control_mappings() -> None:
         ControlSiteEligibilityValidator().run(
             control_set=control_set,
             site_keys=("AKT1_S473",),
-            method="control_site_ruv_style",
+            method="sps_ruv_style",
             min_eligible_controls=1,
         )
 
@@ -144,7 +144,7 @@ def test_control_site_validator_rejects_control_site_keys_absent_from_dataset() 
         ControlSiteEligibilityValidator().run(
             control_set=control_set,
             site_keys=("AKT1_S473",),
-            method="control_site_ruv_style",
+            method="sps_ruv_style",
             min_eligible_controls=1,
         )
 
@@ -174,7 +174,7 @@ def test_control_site_validator_rejects_incompatible_organism_metadata() -> None
             site_keys=site_keys,
             site_metadata=_metadata(site_keys, organism="rat"),
             dataset_organism=Organism.RAT,
-            method="control_site_ruv_style",
+            method="sps_ruv_style",
             min_eligible_controls=1,
         )
 
@@ -199,7 +199,7 @@ def test_control_site_validator_rejects_incompatible_identifier_namespace() -> N
             control_set=control_set,
             site_keys=("AKT1_S473",),
             dataset_organism=Organism.RAT,
-            method="control_site_ruv_style",
+            method="sps_ruv_style",
             min_eligible_controls=1,
         )
 
@@ -227,7 +227,7 @@ def test_control_site_validator_rejects_ambiguous_control_labels() -> None:
         ControlSiteEligibilityValidator().run(
             control_set=control_set,
             site_keys=("AKT1_S473", "GSK3B_S9"),
-            method="control_site_ruv_style",
+            method="sps_ruv_style",
             min_eligible_controls=1,
         )
 
@@ -258,7 +258,7 @@ def test_control_site_validator_rejects_ambiguous_control_metadata() -> None:
             site_keys=("AKT1_S473", "GSK3B_S9"),
             site_metadata=_metadata(("AKT1_S473", "GSK3B_S9")),
             dataset_organism=Organism.RAT,
-            method="control_site_ruv_style",
+            method="sps_ruv_style",
             min_eligible_controls=2,
         )
 
@@ -272,14 +272,14 @@ def test_control_site_validator_rejects_too_few_eligible_controls_for_method() -
     with pytest.raises(
         PhosPyInputError,
         match=(
-            "too few eligible controls for method 'control_site_ruv_style' and "
+            "too few eligible controls for method 'sps_ruv_style' and "
             "n_unwanted_factors=1; required at least 2, observed 1"
         ),
     ):
         ControlSiteEligibilityValidator().run(
             control_set=control_set,
             site_keys=("AKT1_S473", "MAPK1_T202"),
-            method="control_site_ruv_style",
+            method="sps_ruv_style",
             min_eligible_controls=1,
             n_unwanted_factors=1,
         )
@@ -300,7 +300,7 @@ def test_control_site_validator_rejects_one_zero_weight_control() -> None:
             site_keys=("AKT1_S473",),
             site_metadata=_metadata(("AKT1_S473",)),
             dataset_organism=Organism.RAT,
-            method="control_site_ruv_style",
+            method="sps_ruv_style",
             min_eligible_controls=1,
             supports_weights=True,
         )
@@ -322,7 +322,7 @@ def test_control_site_validator_rejects_mixed_positive_and_zero_weights() -> Non
             site_keys=site_keys,
             site_metadata=_metadata(site_keys),
             dataset_organism=Organism.RAT,
-            method="control_site_ruv_style",
+            method="sps_ruv_style",
             min_eligible_controls=2,
             supports_weights=True,
         )
@@ -340,7 +340,7 @@ def test_control_site_validator_accepts_all_positive_weights() -> None:
         site_keys=site_keys,
         site_metadata=_metadata(site_keys),
         dataset_organism=Organism.RAT,
-        method="control_site_ruv_style",
+        method="sps_ruv_style",
         min_eligible_controls=2,
         supports_weights=True,
     )
@@ -377,7 +377,7 @@ def test_control_site_validator_rejects_unsupported_weighted_grouped_controls() 
         ControlSiteEligibilityValidator().run(
             control_set=control_set,
             site_keys=("AKT1_S473", "GSK3B_S9"),
-            method="control_site_ruv_style",
+            method="sps_ruv_style",
             min_eligible_controls=2,
             supports_weights=True,
             supports_groups=True,
@@ -397,7 +397,7 @@ def test_control_site_validator_rejects_missing_metadata_without_rationale() -> 
             site_keys=("AKT1_S473", "GSK3B_S9"),
             site_metadata=_metadata(("AKT1_S473", "GSK3B_S9")),
             dataset_organism=Organism.RAT,
-            method="control_site_ruv_style",
+            method="sps_ruv_style",
             min_eligible_controls=2,
         )
 
@@ -422,7 +422,7 @@ def test_control_site_validator_rejects_incomplete_packaged_metadata() -> None:
             site_keys=("AKT1_S473", "GSK3B_S9"),
             site_metadata=_metadata(("AKT1_S473", "GSK3B_S9")),
             dataset_organism=Organism.RAT,
-            method="control_site_ruv_style",
+            method="sps_ruv_style",
             min_eligible_controls=2,
             control_site_source_type="packaged_reference",
         )

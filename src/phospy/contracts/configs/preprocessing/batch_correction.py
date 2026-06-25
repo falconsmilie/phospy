@@ -36,18 +36,14 @@ DATASET_BATCH_CORRECTION_METHODS = frozenset(
     }
 )
 DATASET_BATCH_CORRECTION_METHOD_SPS_RUV_STYLE = "sps_ruv_style"
-DATASET_BATCH_CORRECTION_METHOD_CONTROL_SITE_RUV_STYLE = "control_site_ruv_style"
 DATASET_BATCH_CORRECTION_METHOD_RUV_III_STYLE = "ruv_iii_style"
 SpsRuvBatchCorrectionMethod = Literal[
     "sps_ruv_style",
-    "control_site_ruv_style",
     "ruv_iii_style",
 ]
 SPS_RUV_BATCH_CORRECTION_METHODS = frozenset(
     {
         DATASET_BATCH_CORRECTION_METHOD_SPS_RUV_STYLE,
-        DATASET_BATCH_CORRECTION_METHOD_CONTROL_SITE_RUV_STYLE,
-        DATASET_BATCH_CORRECTION_METHOD_RUV_III_STYLE,
     }
 )
 
@@ -90,9 +86,10 @@ class SpsRuvBatchCorrectionConfig:
     configuration never selects controls, fetches online resources, or permits
     correction without provenance. `replicate_column`, when provided for the
     native lane, is recorded for provenance and diagnostics only; it does not
-    enable replicate-aware RUV-III correction semantics. The `ruv_iii_style`
-    label is retained for compatibility and roadmap clarity, but it is not
-    executable until replicate-aware RUV-III semantics are implemented.
+    enable replicate-aware RUV-III correction semantics. The only supported
+    public native method label is `sps_ruv_style`; `ruv_iii_style` remains an
+    explicitly rejected roadmap label until replicate-aware RUV-III semantics
+    are implemented.
     """
 
     control_site_set: object
@@ -113,18 +110,18 @@ class SpsRuvBatchCorrectionConfig:
             self.method,
             field_name="dataset build request preprocessing_config.batch_correction.method",
         )
-        if method.value not in SPS_RUV_BATCH_CORRECTION_METHODS:
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.batch_correction."
-                "method must be one of: "
-                + ", ".join(sorted(SPS_RUV_BATCH_CORRECTION_METHODS))
-            )
         reject_unsupported_ruv_iii_style_method(
             method,
             field_name=(
                 "dataset build request preprocessing_config.batch_correction.method"
             ),
         )
+        if method.value not in SPS_RUV_BATCH_CORRECTION_METHODS:
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.batch_correction."
+                "method must be one of: "
+                + ", ".join(sorted(SPS_RUV_BATCH_CORRECTION_METHODS))
+            )
         _require_control_site_set(self.control_site_set)
         batch_column = require_non_empty_string(
             self.batch_column,
@@ -305,7 +302,6 @@ def _resolve_control_site_mode(
 
 
 __all__ = [
-    "DATASET_BATCH_CORRECTION_METHOD_CONTROL_SITE_RUV_STYLE",
     "DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH",
     "DATASET_BATCH_CORRECTION_METHOD_NONE",
     "DATASET_BATCH_CORRECTION_METHOD_RUV_III_STYLE",

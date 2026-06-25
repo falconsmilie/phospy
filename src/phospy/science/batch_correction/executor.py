@@ -18,7 +18,9 @@ from phospy.science.datasets.preprocessing.correction_output import (
 )
 
 SPS_RUV_STYLE_EXECUTOR_ID = "deterministic_sps_ruv_style_executor_v1"
-SPS_RUV_STYLE_METHODS = frozenset({"sps_ruv_style", "control_site_ruv_style"})
+SPS_RUV_STYLE_METHOD = "sps_ruv_style"
+SPS_RUV_STYLE_METHODS = frozenset({SPS_RUV_STYLE_METHOD})
+_SPS_RUV_STYLE_INTERNAL_COMPATIBILITY_ALIASES = frozenset({"control_site_ruv_style"})
 SPS_RUV_STYLE_ALGORITHM_DESCRIPTION = (
     "native PhosPy SPS/RUV-style preprocessing correction estimates unwanted "
     "factors from eligible control-site residuals after protected-design "
@@ -297,7 +299,10 @@ def _require_supported_plan(plan: _ResolvedPlanLike) -> None:
     method = str(plan.method).strip()
     if method == "ruv_iii_style":
         raise PhosPyInputError(_UNSUPPORTED_RUV_III_STYLE_METHOD_MESSAGE)
-    if method not in SPS_RUV_STYLE_METHODS:
+    if (
+        method not in SPS_RUV_STYLE_METHODS
+        and method not in _SPS_RUV_STYLE_INTERNAL_COMPATIBILITY_ALIASES
+    ):
         raise PhosPyInputError(
             "SPS/RUV-style executor requires a resolved SPS/RUV-style plan; "
             f"got method={method!r}"
@@ -654,7 +659,7 @@ def _diagnostics(
     rejected_control_sites = _rejected_control_sites(plan)
     full_design = plan.resolved_design_matrix
     return SpsRuvStyleExecutorDiagnostics(
-        method=plan.method,
+        method=_canonical_sps_ruv_style_method(plan.method),
         executor_id=SPS_RUV_STYLE_EXECUTOR_ID,
         algorithm_description=SPS_RUV_STYLE_ALGORITHM_DESCRIPTION,
         term_roles={
@@ -710,10 +715,15 @@ def _provenance_payload(
     warnings: tuple[str, ...],
     estimated_factors: pd.DataFrame,
 ) -> dict[str, object]:
+    canonical_method = _canonical_sps_ruv_style_method(plan.method)
+    resolved_plan = dict(plan.to_payload())
+    resolved_plan["method"] = canonical_method
+    provenance_seed_data = dict(plan.provenance_seed_data)
+    provenance_seed_data["method"] = canonical_method
     return {
         "schema_version": 1,
         "executor_id": SPS_RUV_STYLE_EXECUTOR_ID,
-        "method": plan.method,
+        "method": canonical_method,
         "algorithm": "control residual SVD factors after protected-design handling",
         "algorithm_description": SPS_RUV_STYLE_ALGORITHM_DESCRIPTION,
         "term_roles": {
@@ -739,11 +749,18 @@ def _provenance_payload(
                 name="batch_correction.sps_ruv.output_observation_mask",
             )
         ),
-        "resolved_plan": plan.to_payload(),
-        "provenance_seed_data": dict(plan.provenance_seed_data),
+        "resolved_plan": resolved_plan,
+        "provenance_seed_data": provenance_seed_data,
         "diagnostics": diagnostics.to_payload(),
         "warnings": list(warnings),
     }
+
+
+def _canonical_sps_ruv_style_method(method: object) -> str:
+    value = str(method).strip()
+    if value in _SPS_RUV_STYLE_INTERNAL_COMPATIBILITY_ALIASES:
+        return SPS_RUV_STYLE_METHOD
+    return value
 
 
 def _rejected_control_sites(

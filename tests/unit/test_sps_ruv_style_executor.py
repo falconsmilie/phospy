@@ -199,6 +199,21 @@ def test_sps_ruv_style_executor_returns_diagnostics_warnings_and_provenance() ->
     )
 
 
+def test_sps_ruv_style_executor_canonicalizes_internal_method_alias_outputs() -> None:
+    phospho = _phospho()
+    plan = replace(_resolved_plan(phospho), method="control_site_ruv_style")
+
+    result = DeterministicSpsRuvStyleExecutor().run(phospho=phospho, plan=plan)
+
+    assert result.diagnostics.method == "sps_ruv_style"
+    assert result.diagnostics.to_payload()["method"] == "sps_ruv_style"
+    assert result.provenance_payload["method"] == "sps_ruv_style"
+    assert result.provenance_payload["resolved_plan"]["method"] == "sps_ruv_style"
+    assert (
+        result.provenance_payload["provenance_seed_data"]["method"] == "sps_ruv_style"
+    )
+
+
 def test_sps_ruv_style_executor_defensively_rejects_non_estimable_factor_count() -> (
     None
 ):

@@ -124,6 +124,27 @@ def test_differential_analysis_is_not_supported_from_phospy_api_namespace() -> N
         exec("from phospy.api import DifferentialAnalysis")
 
 
+def test_control_site_ruv_style_method_constant_is_not_public_api() -> None:
+    symbol_name = "DATASET_BATCH_CORRECTION_METHOD_CONTROL_SITE_RUV_STYLE"
+
+    for module_name in (
+        "phospy.api.configs",
+        "phospy.api.configs.preprocessing",
+        "phospy.api.configs.preprocessing.batch_correction",
+    ):
+        module_namespace: dict[str, object] = {}
+        wildcard_namespace: dict[str, object] = {}
+
+        exec(f"import {module_name} as module", module_namespace)
+        module = module_namespace["module"]
+        exec(f"from {module_name} import *", wildcard_namespace)
+
+        assert symbol_name not in module.__all__
+        assert symbol_name not in wildcard_namespace
+        assert not hasattr(module, symbol_name)
+        _assert_from_import_fails(module_name, symbol_name)
+
+
 def test_deprecated_differential_analysis_shell_warns_and_delegates() -> None:
     from phospy.science.differential.public import DifferentialAnalysis
 
