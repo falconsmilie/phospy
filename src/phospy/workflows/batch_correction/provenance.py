@@ -28,6 +28,15 @@ from phospy.workflows.batch_correction.contracts import (
 )
 from phospy.workflows.batch_correction.interpreter import ResolvedBatchCorrectionPlan
 
+_UPSTREAM_OBSERVATION_MASK_NAME = "batch_correction.workflow.upstream_observation_mask"
+_EXECUTOR_OUTPUT_OBSERVATION_MASK_NAME = (
+    "batch_correction.workflow.executor_output_observation_mask"
+)
+_FINAL_COMBINED_OBSERVATION_MASK_NAME = (
+    "batch_correction.workflow.final_combined_observation_mask"
+)
+_OUTPUT_OBSERVATION_MASK_NAME = "batch_correction.workflow.output_observation_mask"
+
 
 @runtime_checkable
 class _PayloadProvider(Protocol):
@@ -48,32 +57,47 @@ class BatchCorrectionProvenanceRecorder:
         executor_result: BatchCorrectionExecutorResultContract,
         **_: object,
     ) -> BatchCorrectionProvenance:
-        output_mask = executor_result.output_observation_mask.astype("int8")
-        observation_masks = (
-            fingerprint_matrix(
-                output_mask,
-                name="batch_correction.workflow.output_observation_mask",
-            ),
-        )
+        executor_output_mask = _executor_output_observation_mask(executor_result)
+        final_output_mask = executor_result.output_observation_mask
         if request.upstream_observation_mask is not None:
             observation_masks = (
                 fingerprint_matrix(
                     request.upstream_observation_mask.astype("int8"),
-                    name="batch_correction.workflow.upstream_observation_mask",
+                    name=_UPSTREAM_OBSERVATION_MASK_NAME,
                 ),
-                *observation_masks,
+                fingerprint_matrix(
+                    executor_output_mask.astype("int8"),
+                    name=_EXECUTOR_OUTPUT_OBSERVATION_MASK_NAME,
+                ),
+                fingerprint_matrix(
+                    final_output_mask.astype("int8"),
+                    name=_FINAL_COMBINED_OBSERVATION_MASK_NAME,
+                ),
+            )
+        else:
+            observation_masks = (
+                fingerprint_matrix(
+                    final_output_mask.astype("int8"),
+                    name=_OUTPUT_OBSERVATION_MASK_NAME,
+                ),
             )
         environment = collect_batch_correction_environment_provenance()
+        resolved_parameters: dict[str, object] = {
+            "config": _config_payload(request),
+            "interpreter_plan": plan.to_payload(),
+            "interpreter_seed_data": dict(plan.provenance_seed_data),
+            "executor": dict(executor_result.provenance_payload),
+        }
+        observation_mask_lineage = _observation_mask_lineage(
+            upstream_mask=request.upstream_observation_mask,
+            executor_output_mask=executor_output_mask,
+            final_output_mask=final_output_mask,
+        )
+        if observation_mask_lineage is not None:
+            resolved_parameters["observation_mask_lineage"] = observation_mask_lineage
         return BatchCorrectionProvenance(
             requested_method=request.config.method.value,
-            resolved_parameters=_json_mapping(
-                {
-                    "config": _config_payload(request),
-                    "interpreter_plan": plan.to_payload(),
-                    "interpreter_seed_data": dict(plan.provenance_seed_data),
-                    "executor": dict(executor_result.provenance_payload),
-                }
-            ),
+            resolved_parameters=_json_mapping(resolved_parameters),
             preprocessing_stage_order=tuple(plan.stage_order),
             control_site_source=_control_site_source_payload(
                 request=request,
@@ -147,6 +171,44 @@ def _config_payload(request: BatchCorrectionWorkflowRequest) -> dict[str, object
         "requested_stage_order": config.stage_order.value,
         "stage_order": config.stage_order.value,
         "diagnostics_enabled": config.diagnostics_enabled,
+    }
+
+
+def _executor_output_observation_mask(
+    executor_result: BatchCorrectionExecutorResultContract,
+) -> pd.DataFrame:
+    output_mask = getattr(executor_result, "executor_output_observation_mask", None)
+    if isinstance(output_mask, pd.DataFrame):
+        return output_mask
+    return executor_result.output_observation_mask
+
+
+def _observation_mask_lineage(
+    *,
+    upstream_mask: pd.DataFrame | None,
+    executor_output_mask: pd.DataFrame,
+    final_output_mask: pd.DataFrame,
+) -> Mapping[str, object] | None:
+    if upstream_mask is None:
+        return None
+    return {
+        "upstream_observation_mask_fingerprint": fingerprint_matrix(
+            upstream_mask.astype("int8"),
+            name=_UPSTREAM_OBSERVATION_MASK_NAME,
+        ),
+        "executor_output_observation_mask_fingerprint": fingerprint_matrix(
+            executor_output_mask.astype("int8"),
+            name=_EXECUTOR_OUTPUT_OBSERVATION_MASK_NAME,
+        ),
+        "final_combined_observation_mask_fingerprint": fingerprint_matrix(
+            final_output_mask.astype("int8"),
+            name=_FINAL_COMBINED_OBSERVATION_MASK_NAME,
+        ),
+        "combination_rule": (
+            "final_combined_observation_mask = "
+            "upstream_observation_mask & executor_output_observation_mask"
+        ),
+        "final_observation_mask_source": "combined_upstream_and_executor_masks",
     }
 
 

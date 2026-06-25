@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
+from phospy.provenance import fingerprint_matrix
 from phospy.provenance.models import JsonValue
 from phospy.science.batch_correction import SpsRuvStyleExecutor
 from phospy.science.datasets.preprocessing.correction_output import (
@@ -162,6 +163,7 @@ class BatchCorrectionWorkflow:
 @dataclass(frozen=True, slots=True)
 class _ExecutorResultWithCombinedMask:
     inner: BatchCorrectionExecutorResultContract
+    upstream_observation_mask: pd.DataFrame
     output_observation_mask: pd.DataFrame
     corrected_cell_status: pd.DataFrame
     corrected_preprocessing_output: CorrectedPreprocessingOutput | None
@@ -179,8 +181,32 @@ class _ExecutorResultWithCombinedMask:
         return tuple(str(warning) for warning in self.inner.warnings)
 
     @property
+    def executor_output_observation_mask(self) -> pd.DataFrame:
+        return self.inner.output_observation_mask
+
+    @property
     def provenance_payload(self) -> Mapping[str, object]:
-        return self.inner.provenance_payload
+        payload = dict(self.inner.provenance_payload)
+        payload["observation_mask_lineage"] = {
+            "upstream_observation_mask_fingerprint": _fingerprint_payload(
+                self.upstream_observation_mask,
+                name="batch_correction.workflow.upstream_observation_mask",
+            ),
+            "executor_output_observation_mask_fingerprint": _fingerprint_payload(
+                self.inner.output_observation_mask,
+                name="batch_correction.workflow.executor_output_observation_mask",
+            ),
+            "final_combined_observation_mask_fingerprint": _fingerprint_payload(
+                self.output_observation_mask,
+                name="batch_correction.workflow.final_combined_observation_mask",
+            ),
+            "combination_rule": (
+                "final_combined_observation_mask = "
+                "upstream_observation_mask & executor_output_observation_mask"
+            ),
+            "final_observation_mask_source": "combined_upstream_and_executor_masks",
+        }
+        return payload
 
     @property
     def rejected_rows(self) -> tuple[str, ...]:
@@ -234,6 +260,7 @@ def _with_conservative_upstream_observation_mask(
         corrected_output = None
     return _ExecutorResultWithCombinedMask(
         inner=executor_result,
+        upstream_observation_mask=upstream_mask,
         output_observation_mask=combined_mask,
         corrected_cell_status=corrected_status,
         corrected_preprocessing_output=corrected_output,
@@ -308,6 +335,24 @@ def _corrected_cell_status(
             columns=observed_mask.columns.copy(),
         )
     return status.mask(~observed_mask.astype(bool), "restored_missing")
+
+
+def _fingerprint_payload(mask: pd.DataFrame, *, name: str) -> dict[str, object]:
+    fingerprint = fingerprint_matrix(mask.astype("int8"), name=name)
+    return {
+        "name": fingerprint.name,
+        "rows": int(fingerprint.rows),
+        "columns": int(fingerprint.columns),
+        "index_name": fingerprint.index_name,
+        "column_names": list(fingerprint.column_names),
+        "dtypes": list(fingerprint.dtypes),
+        "exact_hash_algorithm": fingerprint.exact_hash_algorithm,
+        "exact_hash_value": fingerprint.exact_hash_value,
+        "tolerance_hash_algorithm": fingerprint.tolerance_hash_algorithm,
+        "tolerance_hash_value": fingerprint.tolerance_hash_value,
+        "index_structure": fingerprint.index_structure,
+        "column_index_structure": fingerprint.column_index_structure,
+    }
 
 
 __all__ = ["BatchCorrectionWorkflow"]

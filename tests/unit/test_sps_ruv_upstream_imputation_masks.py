@@ -31,6 +31,7 @@ from phospy.contracts.configs.preprocessing import (
     TemporaryImputationPolicy,
 )
 from phospy.errors import PhosPyInputError
+from phospy.provenance import fingerprint_matrix
 from phospy.provenance.models import BatchCorrectionProvenance
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.datasets.preprocessing.control_sites import (
@@ -97,9 +98,57 @@ def test_dataset_sps_ruv_preserves_upstream_imputation_observation_mask() -> Non
         provenance.missing_value_policy["observation_mask"],
     )
     assert provenance_mask["originally_missing_cell_count"] == 1
-    assert "batch_correction.workflow.upstream_observation_mask" in {
-        fingerprint.name for fingerprint in provenance.observation_masks
+    observation_mask_fingerprints = {
+        fingerprint.name: fingerprint for fingerprint in provenance.observation_masks
     }
+    assert {
+        "batch_correction.workflow.upstream_observation_mask",
+        "batch_correction.workflow.executor_output_observation_mask",
+        "batch_correction.workflow.final_combined_observation_mask",
+    }.issubset(observation_mask_fingerprints)
+    final_mask_fingerprint = observation_mask_fingerprints[
+        "batch_correction.workflow.final_combined_observation_mask"
+    ]
+    expected_final_mask_fingerprint = fingerprint_matrix(
+        observed_mask.astype("int8"),
+        name="batch_correction.workflow.final_combined_observation_mask",
+    )
+    assert (
+        final_mask_fingerprint.exact_hash_value
+        == expected_final_mask_fingerprint.exact_hash_value
+    )
+    resolved_lineage = cast(
+        Mapping[str, object],
+        provenance.resolved_parameters["observation_mask_lineage"],
+    )
+    assert resolved_lineage["combination_rule"] == (
+        "final_combined_observation_mask = "
+        "upstream_observation_mask & executor_output_observation_mask"
+    )
+    assert (
+        resolved_lineage["final_observation_mask_source"]
+        == "combined_upstream_and_executor_masks"
+    )
+    lineage_final_fingerprint = cast(
+        Mapping[str, object],
+        resolved_lineage["final_combined_observation_mask_fingerprint"],
+    )
+    assert lineage_final_fingerprint["exact_hash_value"] == (
+        expected_final_mask_fingerprint.exact_hash_value
+    )
+    executor_payload = cast(
+        Mapping[str, object],
+        provenance.resolved_parameters["executor"],
+    )
+    executor_lineage = cast(
+        Mapping[str, object],
+        executor_payload["observation_mask_lineage"],
+    )
+    assert {
+        "upstream_observation_mask_fingerprint",
+        "executor_output_observation_mask_fingerprint",
+        "final_combined_observation_mask_fingerprint",
+    }.issubset(executor_lineage)
     observation_summary = built.imputation_observation_summary_dataframe(
         feature_ids=[_AKT1_SITE_KEY],
         sample_ids=["sample_2"],
