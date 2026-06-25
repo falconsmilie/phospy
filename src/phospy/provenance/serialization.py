@@ -201,6 +201,7 @@ def batch_correction_provenance_to_payload(
             for item in provenance.rejected_entities
         ],
         "phospy_version": provenance.phospy_version,
+        "python_version": provenance.python_version,
         "dependency_versions": _to_json_safe(provenance.dependency_versions),
     }
     if provenance.imputation_policy:
@@ -358,6 +359,11 @@ def batch_correction_provenance_from_payload(
             payload.get("phospy_version"),
             field_name="batch_correction_provenance.phospy_version",
         ),
+        python_version=_optional_str(
+            payload.get("python_version"),
+            field_name="batch_correction_provenance.python_version",
+        )
+        or "unknown",
         dependency_versions={
             str(key): (
                 None

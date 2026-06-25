@@ -78,6 +78,11 @@ def test_dataset_sps_ruv_preserves_upstream_imputation_observation_mask() -> Non
         Mapping[str, object],
         provenance.diagnostics["executor"],
     )
+    assert provenance.phospy_version
+    assert provenance.phospy_version != "unknown"
+    assert provenance.python_version
+    assert provenance.python_version != "unknown"
+    assert {"numpy", "pandas"}.issubset(set(provenance.dependency_versions))
     missingness_summary = cast(
         Mapping[str, object],
         executor_diagnostics["missingness_imputation_summary"],

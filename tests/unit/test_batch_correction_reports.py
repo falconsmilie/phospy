@@ -241,6 +241,7 @@ def test_dataset_builder_attaches_full_native_batch_correction_provenance() -> N
     assert provenance.warnings == ()
     assert provenance.rejected_entities == ()
     assert provenance.phospy_version
+    assert provenance.python_version
     assert "numpy" in provenance.dependency_versions
 
     payload = to_payload(built.provenance)

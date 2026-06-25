@@ -8,6 +8,9 @@ from typing import Protocol, cast, runtime_checkable
 import pandas as pd
 
 from phospy.provenance import fingerprint_matrix
+from phospy.provenance.environment import (
+    collect_batch_correction_environment_provenance,
+)
 from phospy.provenance.models import (
     BatchCorrectionProvenance,
     BatchCorrectionRejectedEntity,
@@ -60,6 +63,7 @@ class BatchCorrectionProvenanceRecorder:
                 ),
                 *observation_masks,
             )
+        environment = collect_batch_correction_environment_provenance()
         return BatchCorrectionProvenance(
             requested_method=request.config.method.value,
             resolved_parameters=_json_mapping(
@@ -121,6 +125,9 @@ class BatchCorrectionProvenanceRecorder:
                 *_control_site_rejected_entities(control_site_mapping),
                 *_rejected_entities(executor_result),
             ),
+            phospy_version=environment.package_version,
+            python_version=environment.python_version,
+            dependency_versions=environment.dependency_versions,
         )
 
 

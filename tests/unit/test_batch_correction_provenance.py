@@ -90,6 +90,7 @@ def test_batch_correction_provenance_serialization_records_required_fields() -> 
             ),
         ),
         phospy_version="1.2.3",
+        python_version="3.12.0",
         dependency_versions={"numpy": "2.0.0", "limma": None},
     )
 
@@ -113,12 +114,14 @@ def test_batch_correction_provenance_serialization_records_required_fields() -> 
         "warnings",
         "rejected_entities",
         "phospy_version",
+        "python_version",
         "dependency_versions",
     }
     assert expected_keys.issubset(payload.keys())
     assert restored == provenance
     assert payload["selected_site_key_rows"] == ["AKT1_S473", "GSK3B_S9"]
     assert payload["warnings"] == ["future correction not executed"]
+    assert restored.python_version == "3.12.0"
 
 
 def test_batch_correction_provenance_can_record_rejected_without_output_matrix() -> (

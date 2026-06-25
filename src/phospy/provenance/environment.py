@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib
 import locale
 import os
 import platform
@@ -11,6 +12,8 @@ from datetime import datetime
 from functools import lru_cache
 from importlib import metadata
 from pathlib import Path
+from types import ModuleType
+from typing import cast
 
 from phospy.provenance.models import (
     ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V2,
@@ -19,6 +22,7 @@ from phospy.provenance.models import (
 )
 
 CORE_ENVIRONMENT_DEPENDENCIES = ("numpy", "pandas", "scipy", "scikit-learn")
+BATCH_CORRECTION_ENVIRONMENT_DEPENDENCIES = CORE_ENVIRONMENT_DEPENDENCIES
 OPTIONAL_ENVIRONMENT_DEPENDENCIES = ("pyarrow", "openpyxl")
 DEFAULT_ENVIRONMENT_DEPENDENCIES = (
     *CORE_ENVIRONMENT_DEPENDENCIES,
@@ -62,6 +66,18 @@ def collect_environment_provenance(
     )
 
 
+def collect_batch_correction_environment_provenance(
+    *,
+    use_cache: bool = True,
+) -> EnvironmentProvenance:
+    """Collect versions relevant to numerical batch-correction provenance."""
+
+    return collect_environment_provenance(
+        dependency_names=BATCH_CORRECTION_ENVIRONMENT_DEPENDENCIES,
+        use_cache=use_cache,
+    )
+
+
 def clear_environment_provenance_cache() -> None:
     """Clear process-local cached environment provenance snapshot."""
 
@@ -87,7 +103,7 @@ def _collect_environment_provenance_uncached(
     return EnvironmentProvenance(
         schema_version=ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V2,
         package_name=package_name,
-        package_version=_distribution_version(package_name) or "unknown",
+        package_version=_package_version(package_name),
         python_version=platform.python_version(),
         dependency_versions={
             dependency: _distribution_version(dependency)
@@ -107,6 +123,43 @@ def _distribution_version(distribution_name: str) -> str | None:
         return metadata.version(distribution_name)
     except metadata.PackageNotFoundError:
         return None
+
+
+def _package_version(package_name: str) -> str:
+    return (
+        _distribution_version(package_name)
+        or _project_metadata_version(package_name)
+        or "unavailable"
+    )
+
+
+def _project_metadata_version(package_name: str) -> str | None:
+    toml_parser = _toml_parser()
+    if toml_parser is None:
+        return None
+    try:
+        pyproject = _project_root_from_module() / "pyproject.toml"
+        payload = cast(
+            Mapping[str, object],
+            toml_parser.loads(pyproject.read_text(encoding="utf-8")),
+        )
+    except Exception:
+        return None
+    project = payload.get("project")
+    if not isinstance(project, Mapping):
+        return None
+    if _normalize_optional_value(project.get("name")) != package_name:
+        return None
+    return _normalize_optional_value(project.get("version"))
+
+
+def _toml_parser() -> ModuleType | None:
+    for module_name in ("tomllib", "tomli"):
+        try:
+            return importlib.import_module(module_name)
+        except ModuleNotFoundError:
+            continue
+    return None
 
 
 def _platform_provenance() -> dict[str, str]:
@@ -346,10 +399,12 @@ def _project_root_from_module() -> Path:
 
 
 __all__ = [
+    "BATCH_CORRECTION_ENVIRONMENT_DEPENDENCIES",
     "CORE_ENVIRONMENT_DEPENDENCIES",
     "DEFAULT_ENVIRONMENT_DEPENDENCIES",
     "OPTIONAL_ENVIRONMENT_DEPENDENCIES",
     "THREAD_ENVIRONMENT_VARIABLES",
     "clear_environment_provenance_cache",
+    "collect_batch_correction_environment_provenance",
     "collect_environment_provenance",
 ]

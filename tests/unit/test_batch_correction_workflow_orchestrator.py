@@ -34,6 +34,9 @@ from phospy.workflows.batch_correction import (
     ReplicateStructure,
     ResolvedBatchCorrectionPlan,
 )
+from phospy.workflows.batch_correction.provenance import (
+    BatchCorrectionProvenanceRecorder,
+)
 
 
 def test_batch_correction_workflow_orders_validators_before_interpreter_and_executor() -> (
@@ -206,6 +209,33 @@ def test_batch_correction_workflow_default_provenance_recorder_assembles_sources
     assert provenance.resolved_parameters["executor"]["executor_id"] == "fake_executor"
     assert provenance.diagnostics["executor"]["executor_id"] == "fake_executor"
     assert provenance.warnings == ("executor warning",)
+    assert provenance.phospy_version
+    assert provenance.phospy_version != "unknown"
+    assert provenance.python_version
+    assert provenance.python_version != "unknown"
+    assert {"numpy", "pandas"}.issubset(set(provenance.dependency_versions))
+
+
+def test_batch_correction_provenance_recorder_populates_environment_fields() -> None:
+    corrected = _matrix() + 3.0
+
+    provenance = BatchCorrectionProvenanceRecorder().run(
+        request=_request(),
+        dataset_metadata=_metadata(),
+        control_site_mapping=_control_mapping(),
+        missingness_policy=_missingness_policy(),
+        plan=_plan(),
+        executor_result=_ExecutorResult(corrected_matrix=corrected),
+    )
+
+    assert provenance.phospy_version
+    assert provenance.phospy_version != "unknown"
+    assert provenance.python_version
+    assert provenance.python_version != "unknown"
+    assert provenance.dependency_versions
+    assert {"numpy", "pandas", "scipy", "scikit-learn"}.issubset(
+        set(provenance.dependency_versions)
+    )
 
 
 def test_batch_correction_workflow_combines_upstream_mask_with_executor_mask() -> None:

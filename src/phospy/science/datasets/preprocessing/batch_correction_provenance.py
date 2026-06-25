@@ -112,6 +112,7 @@ def build_native_batch_correction_provenance(
         warnings=tuple(str(warning) for warning in warnings),
         rejected_entities=tuple(rejected_entities),
         phospy_version=environment.package_version,
+        python_version=environment.python_version,
         dependency_versions=environment.dependency_versions,
         imputation_policy=_json_mapping(imputation_policy),
     )

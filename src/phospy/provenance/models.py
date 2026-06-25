@@ -135,6 +135,7 @@ class BatchCorrectionProvenance:
     warnings: tuple[str, ...] = ()
     rejected_entities: tuple[BatchCorrectionRejectedEntity, ...] = ()
     phospy_version: str = "unknown"
+    python_version: str = "unknown"
     dependency_versions: Mapping[str, str | None] = field(default_factory=dict)
     schema_version: int = BATCH_CORRECTION_PROVENANCE_SCHEMA_VERSION_V1
     imputation_policy: Mapping[str, JsonValue] = field(default_factory=dict)

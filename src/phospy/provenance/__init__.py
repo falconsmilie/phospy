@@ -1,7 +1,9 @@
 """Machine-readable run provenance services."""
 
 from phospy.provenance.environment import (
+    BATCH_CORRECTION_ENVIRONMENT_DEPENDENCIES,
     DEFAULT_ENVIRONMENT_DEPENDENCIES,
+    collect_batch_correction_environment_provenance,
     collect_environment_provenance,
 )
 from phospy.provenance.hashing import (
@@ -43,6 +45,7 @@ __all__ = [
     "DEFAULT_EXACT_TABLE_HASH_ALGORITHM",
     "DEFAULT_TABLE_HASH_ALGORITHM",
     "DEFAULT_TOLERANCE_TABLE_HASH_ALGORITHM",
+    "BATCH_CORRECTION_ENVIRONMENT_DEPENDENCIES",
     "BatchCorrectionProvenance",
     "BatchCorrectionRejectedEntity",
     "EnvironmentProvenance",
@@ -56,6 +59,7 @@ __all__ = [
     "TableFingerprint",
     "batch_correction_provenance_from_payload",
     "batch_correction_provenance_to_payload",
+    "collect_batch_correction_environment_provenance",
     "collect_environment_provenance",
     "fingerprint_matrix",
     "fingerprint_optional_matrix",

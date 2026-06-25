@@ -15,7 +15,10 @@ from phospy.api import (
 )
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance import environment as provenance_environment
-from phospy.provenance.environment import collect_environment_provenance
+from phospy.provenance.environment import (
+    collect_batch_correction_environment_provenance,
+    collect_environment_provenance,
+)
 from phospy.provenance.scientific_policy_models import ScientificPolicyId
 from phospy.provenance.serialization import from_payload, to_payload
 from phospy.science.datasets.preprocessing.models import (
@@ -71,6 +74,55 @@ def test_collect_environment_provenance_reports_expected_keys() -> None:
     assert {"algorithm", "value", "sources"}.issubset(
         set(environment.constraints_fingerprint)
     )
+
+
+def test_collect_environment_provenance_falls_back_to_project_metadata_version(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provenance_environment.clear_environment_provenance_cache()
+
+    def _version_lookup(distribution_name: str) -> str | None:
+        if distribution_name == "phospy":
+            return None
+        return "test-version"
+
+    monkeypatch.setattr(
+        provenance_environment, "_distribution_version", _version_lookup
+    )
+
+    environment = collect_environment_provenance(
+        dependency_names=(),
+        use_cache=False,
+    )
+
+    assert environment.package_version == "1.6.0"
+    assert environment.package_version != "unknown"
+
+
+def test_collect_batch_correction_environment_tolerates_unavailable_dependency(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provenance_environment.clear_environment_provenance_cache()
+    real_lookup = provenance_environment._distribution_version
+
+    def _version_lookup(distribution_name: str) -> str | None:
+        if distribution_name == "scikit-learn":
+            return None
+        return real_lookup(distribution_name)
+
+    monkeypatch.setattr(
+        provenance_environment, "_distribution_version", _version_lookup
+    )
+
+    environment = collect_batch_correction_environment_provenance(use_cache=False)
+
+    assert set(environment.dependency_versions) == {
+        "numpy",
+        "pandas",
+        "scipy",
+        "scikit-learn",
+    }
+    assert environment.dependency_versions["scikit-learn"] is None
 
 
 def test_collect_environment_provenance_tolerates_missing_optional_engines(
