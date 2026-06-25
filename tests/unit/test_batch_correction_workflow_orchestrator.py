@@ -24,6 +24,7 @@ from phospy.provenance.models import BatchCorrectionProvenance
 from phospy.science.datasets.preprocessing.control_sites import (
     ControlSiteMapping,
     ControlSiteSet,
+    ControlSiteSourceMetadata,
 )
 from phospy.validation.datasets.batch_correction import ResolvedBatchDesignMetadata
 from phospy.workflows.batch_correction import (
@@ -208,6 +209,12 @@ def test_batch_correction_workflow_default_provenance_recorder_assembles_sources
     )
     assert provenance.resolved_parameters["executor"]["executor_id"] == "fake_executor"
     assert provenance.diagnostics["executor"]["executor_id"] == "fake_executor"
+    assert provenance.control_site_source["organism"] == "rat"
+    assert provenance.control_site_source["identifier_namespace"] == "site_key"
+    assert provenance.control_site_source["source_name"] == "manual-curated-controls"
+    assert provenance.control_site_source["source_version"] == "manual-v1"
+    assert provenance.control_site_source["license"] == "caller local use"
+    assert provenance.control_site_source["redistribution"] == "not redistributed"
     assert provenance.warnings == ("executor warning",)
     assert provenance.phospy_version
     assert provenance.phospy_version != "unknown"
@@ -236,6 +243,27 @@ def test_batch_correction_provenance_recorder_populates_environment_fields() -> 
     assert {"numpy", "pandas", "scipy", "scikit-learn"}.issubset(
         set(provenance.dependency_versions)
     )
+
+
+def test_batch_correction_provenance_records_missing_metadata_rationale() -> None:
+    corrected = _matrix() + 3.0
+    mapping = _reasoned_control_site_set().map_to_site_keys(("site_a", "site_b"))
+
+    provenance = BatchCorrectionProvenanceRecorder().run(
+        request=_request(control_site_set=_reasoned_control_site_set()),
+        dataset_metadata=_metadata(),
+        control_site_mapping=mapping,
+        missingness_policy=_missingness_policy(),
+        plan=_plan(),
+        executor_result=_ExecutorResult(corrected_matrix=corrected),
+    )
+
+    assert provenance.control_site_source["organism"] == "rat"
+    assert provenance.control_site_source["metadata_missing_reason"] == {
+        "source_version": "caller-supplied local controls have no formal version",
+        "license": "caller-supplied local controls are not licensed data",
+        "redistribution": "caller-supplied local controls are not redistributed",
+    }
 
 
 def test_batch_correction_workflow_combines_upstream_mask_with_executor_mask() -> None:
@@ -396,6 +424,7 @@ class _ExecutorResult:
 def _request(
     *,
     config: InternalBatchCorrectionRequest | None = None,
+    control_site_set: ControlSiteSet | None = None,
     upstream_observation_mask: pd.DataFrame | None = None,
 ) -> BatchCorrectionWorkflowRequest:
     return BatchCorrectionWorkflowRequest(
@@ -408,7 +437,7 @@ def _request(
             },
             index=("sample_1", "sample_2", "sample_3", "sample_4"),
         ),
-        control_site_set=ControlSiteSet.from_site_keys(("site_a", "site_b")),
+        control_site_set=control_site_set or _complete_control_site_set(),
         missingness_policy=_missingness_policy(),
         upstream_observation_mask=upstream_observation_mask,
     )
@@ -511,8 +540,35 @@ def _metadata() -> ResolvedBatchDesignMetadata:
 
 
 def _control_mapping() -> ControlSiteMapping:
-    return ControlSiteSet.from_site_keys(("site_a", "site_b")).map_to_site_keys(
-        ("site_a", "site_b")
+    return _complete_control_site_set().map_to_site_keys(("site_a", "site_b"))
+
+
+def _complete_control_site_set() -> ControlSiteSet:
+    return ControlSiteSet.from_site_keys(
+        ("site_a", "site_b"),
+        source_metadata=ControlSiteSourceMetadata(
+            organism="rat",
+            identifier_namespace="site_key",
+            source_name="manual-curated-controls",
+            source_version="manual-v1",
+            license="caller local use",
+            redistribution="not redistributed",
+        ),
+    )
+
+
+def _reasoned_control_site_set() -> ControlSiteSet:
+    return ControlSiteSet.from_site_keys(
+        ("site_a", "site_b"),
+        source_metadata=ControlSiteSourceMetadata(
+            organism="rat",
+            identifier_namespace="site_key",
+            metadata_missing_reason={
+                "source_version": "caller-supplied local controls have no formal version",
+                "license": "caller-supplied local controls are not licensed data",
+                "redistribution": "caller-supplied local controls are not redistributed",
+            },
+        ),
     )
 
 

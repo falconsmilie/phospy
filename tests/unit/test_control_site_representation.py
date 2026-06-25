@@ -22,6 +22,8 @@ def test_binary_control_annotations_map_to_site_key_rows() -> None:
             organism="human",
             identifier_namespace="site_key",
             source_version="manual-v1",
+            license="caller local use",
+            redistribution="not redistributed",
         ),
     )
 
@@ -35,6 +37,26 @@ def test_binary_control_annotations_map_to_site_key_rows() -> None:
     assert mapping.row_eligibility[0].organism == "human"
     assert mapping.row_eligibility[0].identifier_namespace == "site_key"
     assert mapping.row_eligibility[0].source_version == "manual-v1"
+    assert mapping.row_eligibility[0].license == "caller local use"
+
+
+def test_control_metadata_missing_rationale_maps_to_eligibility() -> None:
+    control_set = ControlSiteSet.from_site_keys(
+        ("AKT1_S473",),
+        source_metadata=ControlSiteSourceMetadata(
+            organism="human",
+            identifier_namespace="site_key",
+            metadata_missing_reason={
+                "source_version": "caller-supplied local controls have no version",
+            },
+        ),
+    )
+
+    mapping = control_set.map_to_site_keys(("AKT1_S473",))
+
+    assert mapping.row_eligibility[0].metadata_missing_reason == {
+        "source_version": "caller-supplied local controls have no version",
+    }
 
 
 def test_weighted_control_annotations_preserve_weight_without_correction() -> None:

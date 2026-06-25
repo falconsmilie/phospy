@@ -23,7 +23,10 @@ from phospy.contracts.configs.preprocessing import (
     TemporaryImputationPolicy,
 )
 from phospy.errors import PhosPyInputError
-from phospy.science.datasets.preprocessing.control_sites import ControlSiteSet
+from phospy.science.datasets.preprocessing.control_sites import (
+    ControlSiteSet,
+    ControlSiteSourceMetadata,
+)
 from phospy.workflows.batch_correction import (
     BatchCorrectionWorkflow,
     BatchCorrectionWorkflowRequest,
@@ -145,7 +148,10 @@ def test_workflow_rejects_factor_count_too_high_for_sample_design_rank_before_ex
     executor = _SpyExecutor()
     request = _request(
         config=_config(n_unwanted_factors=2),
-        control_site_set=ControlSiteSet.from_site_keys(("site_a", "site_c", "site_d")),
+        control_site_set=ControlSiteSet.from_site_keys(
+            ("site_a", "site_c", "site_d"),
+            source_metadata=_control_source_metadata(),
+        ),
     )
 
     with pytest.raises(
@@ -231,7 +237,10 @@ def _request(
         config=_config() if config is None else config,
         sample_metadata=_sample_metadata(),
         control_site_set=(
-            ControlSiteSet.from_site_keys(("site_a", "site_c"))
+            ControlSiteSet.from_site_keys(
+                ("site_a", "site_c"),
+                source_metadata=_control_source_metadata(),
+            )
             if control_site_set is None
             else control_site_set
         ),
@@ -240,6 +249,17 @@ def _request(
             if missingness_policy is None
             else missingness_policy
         ),
+    )
+
+
+def _control_source_metadata() -> ControlSiteSourceMetadata:
+    return ControlSiteSourceMetadata(
+        organism="rat",
+        identifier_namespace="site_key",
+        source_name="manual-curated-controls",
+        source_version="manual-v1",
+        license="caller local use",
+        redistribution="not redistributed",
     )
 
 

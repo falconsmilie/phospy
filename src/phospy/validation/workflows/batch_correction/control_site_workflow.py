@@ -33,6 +33,7 @@ class BatchCorrectionWorkflowControlSiteValidator:
             site_metadata=request.site_metadata,
             dataset_organism=request.dataset_organism,
             n_unwanted_factors=config.n_unwanted_factors,
+            control_site_source_type=config.control_site_source.value,
             supports_weights=True,
             supports_groups=False,
             supports_weighted_groups=False,

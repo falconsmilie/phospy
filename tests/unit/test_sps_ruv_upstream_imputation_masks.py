@@ -33,6 +33,9 @@ from phospy.contracts.configs.preprocessing import (
 from phospy.errors import PhosPyInputError
 from phospy.provenance.models import BatchCorrectionProvenance
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.datasets.preprocessing.control_sites import (
+    ControlSiteSourceMetadata,
+)
 from phospy.workflows.batch_correction import (
     BatchCorrectionWorkflow,
     BatchCorrectionWorkflowRequest,
@@ -178,7 +181,8 @@ def _preprocessing_config() -> DatasetPreprocessingConfig:
         ),
         batch_correction=SpsRuvBatchCorrectionConfig(
             control_site_set=ControlSiteSet.from_site_keys(
-                (_MAPK14_SITE_KEY, _GSK3B_SITE_KEY)
+                (_MAPK14_SITE_KEY, _GSK3B_SITE_KEY),
+                source_metadata=_control_source_metadata(),
             ),
             batch_column="batch",
             condition_columns=("condition",),
@@ -214,9 +218,23 @@ def _workflow_request(
         phospho=_phospho(),
         config=_internal_config(),
         sample_metadata=_sample_metadata(),
-        control_site_set=ControlSiteSet.from_site_keys(("MAPK14;Y182;", "GSK3B;S9;")),
+        control_site_set=ControlSiteSet.from_site_keys(
+            ("MAPK14;Y182;", "GSK3B;S9;"),
+            source_metadata=_control_source_metadata(),
+        ),
         missingness_policy=missingness_policy,
         upstream_observation_mask=upstream_observation_mask,
+    )
+
+
+def _control_source_metadata() -> ControlSiteSourceMetadata:
+    return ControlSiteSourceMetadata(
+        organism="rat",
+        identifier_namespace="site_key",
+        source_name="manual-curated-controls",
+        source_version="manual-v1",
+        license="caller local use",
+        redistribution="not redistributed",
     )
 
 

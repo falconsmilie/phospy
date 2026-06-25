@@ -165,6 +165,10 @@ def _control_site_source_payload(
         "source_type": source_type,
         "mode": request.config.control_site_mode.value,
         "selected_control_count": len(selected),
+        "control_site_set_source_type": _common_non_empty_metadata_value(
+            selected_metadata_rows,
+            "source_type",
+        ),
         "organism": _common_non_empty_metadata_value(
             selected_metadata_rows,
             "organism",
@@ -181,18 +185,24 @@ def _control_site_source_payload(
             selected_metadata_rows,
             "source_version",
         ),
+        "license": _common_non_empty_metadata_value(
+            selected_metadata_rows,
+            "license",
+        ),
+        "redistribution": _common_non_empty_metadata_value(
+            selected_metadata_rows,
+            "redistribution",
+        ),
     }
-    missing_reason = _control_metadata_missing_reasons(
-        payload,
-        source_type=source_type,
-        control_site_mapping=control_site_mapping,
-    )
+    missing_reason = _common_metadata_missing_reasons(selected_metadata_rows)
     if missing_reason:
         payload["metadata_missing_reason"] = missing_reason
-    if source_type == "caller_supplied" and payload.get("source_version") is None:
-        payload["source_version_unavailable_reason"] = (
-            "caller_supplied controls did not declare a formal source version"
-        )
+    if (
+        source_type == "caller_supplied"
+        and payload.get("source_version") is None
+        and "source_version" in missing_reason
+    ):
+        payload["source_version_unavailable_reason"] = missing_reason["source_version"]
     return _json_mapping(payload)
 
 
@@ -213,30 +223,24 @@ def _common_non_empty_metadata_value(
     return None
 
 
-def _control_metadata_missing_reasons(
-    payload: Mapping[str, object],
-    *,
-    source_type: str,
-    control_site_mapping: ControlSiteMapping,
+def _common_metadata_missing_reasons(
+    rows: Sequence[ControlSiteEligibility],
 ) -> dict[str, str]:
-    selected_count_value = payload.get("selected_control_count", 0)
-    selected_count = (
-        selected_count_value if isinstance(selected_count_value, int) else 0
-    )
-    reason = (
-        "selected caller-supplied controls did not declare this audit metadata field"
-    )
-    if selected_count == 0 and control_site_mapping.row_eligibility:
-        reason = "no eligible selected controls were available to supply metadata"
-    missing: dict[str, str] = {}
-    for field_name in ("organism", "identifier_namespace"):
-        if payload.get(field_name) is None:
-            missing[field_name] = reason
-    if source_type == "caller_supplied" and payload.get("source_version") is None:
-        missing["source_version"] = (
-            "caller_supplied controls did not declare a formal source version"
-        )
-    return missing
+    reasons_by_field: dict[str, set[str]] = {}
+    for row in rows:
+        row_reasons = getattr(row, "metadata_missing_reason", {})
+        if not isinstance(row_reasons, Mapping):
+            continue
+        for field_name, reason in row_reasons.items():
+            reason_text = str(reason).strip()
+            if not reason_text:
+                continue
+            reasons_by_field.setdefault(str(field_name), set()).add(reason_text)
+    return {
+        field_name: next(iter(reasons))
+        for field_name, reasons in reasons_by_field.items()
+        if len(reasons) == 1
+    }
 
 
 def _replicate_metadata(

@@ -10,6 +10,7 @@ from phospy import AnalysisReadyDatasetBuilder
 from phospy.api import (
     Contrast,
     ControlSiteSet,
+    ControlSiteSourceMetadata,
     CorrectionMissingnessPolicy,
     DatasetBatchCorrectionConfig,
     DatasetBuildRequest,
@@ -715,7 +716,17 @@ def test_api_docs_sps_ruv_batch_correction_example_is_explicit() -> None:
     )
 
     config = SpsRuvBatchCorrectionConfig(
-        control_site_set=ControlSiteSet.from_site_keys(("site_a", "site_c")),
+        control_site_set=ControlSiteSet.from_site_keys(
+            ("site_a", "site_c"),
+            source_metadata=ControlSiteSourceMetadata(
+                organism="rat",
+                identifier_namespace="site_key",
+                source_name="manual-curated-controls",
+                source_version="manual-v1",
+                license="caller local use",
+                redistribution="not redistributed",
+            ),
+        ),
         batch_column="batch",
         condition_columns=("condition",),
         replicate_column="replicate",

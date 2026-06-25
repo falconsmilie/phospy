@@ -100,6 +100,17 @@ remain ordinary downstream model terms; they do not replace preprocessing
 correction and are not removed from the differential design when the user
 chooses to model them.
 
+`ControlSiteSet` metadata is validated before native SPS/RUV-style correction.
+Caller-supplied controls must provide organism, identifier namespace, and source
+identity, plus source version, license, and redistribution audit fields or an
+explicit `metadata_missing_reason` entry for each unavailable caller-local
+field. Formal or external source names require source version. Packaged control
+references, if introduced later, must provide complete organism, namespace,
+source name, source version, license, and redistribution metadata. Validation
+rejects incomplete packaged metadata, incompatible organism or namespace
+metadata, ambiguous accepted-control metadata, and caller controls missing
+audit metadata without rationale.
+
 `DatasetProteinAwarePreparationConfig(policy="prepare_model_inputs")` is
 preparation-only. It does not modify phosphosite values, does not subtract total
 protein, does not run joint PTM/protein differential modelling, does not adjust

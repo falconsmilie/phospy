@@ -20,7 +20,10 @@ from phospy.contracts.configs.preprocessing import (
     TemporaryImputationPolicy,
 )
 from phospy.errors import PhosPyInputError
-from phospy.science.datasets.preprocessing.control_sites import ControlSiteSet
+from phospy.science.datasets.preprocessing.control_sites import (
+    ControlSiteSet,
+    ControlSiteSourceMetadata,
+)
 from phospy.validation.datasets.batch_correction import ResolvedBatchDesignMetadata
 from phospy.validation.workflows.batch_correction import ControlSiteEligibilityValidator
 from phospy.workflows.batch_correction import BatchCorrectionPlanInterpreter
@@ -233,7 +236,17 @@ def _metadata() -> ResolvedBatchDesignMetadata:
 
 def _control_mapping():
     return ControlSiteEligibilityValidator().run(
-        control_set=ControlSiteSet.from_site_keys(("site_a", "site_c")),
+        control_set=ControlSiteSet.from_site_keys(
+            ("site_a", "site_c"),
+            source_metadata=ControlSiteSourceMetadata(
+                organism="rat",
+                identifier_namespace="site_key",
+                source_name="manual-curated-controls",
+                source_version="manual-v1",
+                license="caller local use",
+                redistribution="not redistributed",
+            ),
+        ),
         site_keys=("site_a", "site_b", "site_c"),
         method="sps_ruv_style",
         min_eligible_controls=2,

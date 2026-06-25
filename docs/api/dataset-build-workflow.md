@@ -46,6 +46,7 @@ dataset = AnalysisReadyDatasetBuilder().run(
 from phospy import AnalysisReadyDatasetBuilder
 from phospy.api import (
     ControlSiteSet,
+    ControlSiteSourceMetadata,
     CorrectionMissingnessPolicy,
     DatasetBatchCorrectionConfig,
     DatasetBuildRequest,
@@ -353,14 +354,35 @@ site-matrix construction, normalisation, comparisons, and analysis workflows.
 Requests for other `stage_order` policies are rejected so recorded provenance
 matches the pipeline that actually ran.
 
+Control metadata policy is explicit. Caller-supplied controls must provide
+`organism`, `identifier_namespace`, and source identity. If caller-local audit
+fields such as `source_version`, `license`, or `redistribution` are unavailable,
+the `ControlSiteSourceMetadata.metadata_missing_reason` mapping must record why
+each field is unavailable. Formal or external source names require
+`source_version`. Packaged control references, if added in a future release,
+must include complete `organism`, `identifier_namespace`, `source_name`,
+`source_version`, `license`, and `redistribution` metadata; incomplete packaged
+metadata is rejected. PhosPy does not infer metadata from `site_key` strings and
+does not fetch metadata online.
+
 ```python
+control_source = ControlSiteSourceMetadata(
+    organism="rat",
+    identifier_namespace="site_key",
+    source_name="manual-curated-controls",
+    source_version="manual-v1",
+    license="caller local use",
+    redistribution="not redistributed",
+)
+
 control_sites = ControlSiteSet.from_site_keys(
     (
         "phospy:v1|organism=rat|protein_namespace=protein_id|"
         "protein_identifier=MAPK14|residue=Y|position=182",
         "phospy:v1|organism=rat|protein_namespace=protein_id|"
         "protein_identifier=SRC|residue=Y|position=416",
-    )
+    ),
+    source_metadata=control_source,
 )
 
 sps_ruv_correction = SpsRuvBatchCorrectionConfig(
@@ -381,7 +403,9 @@ config = DatasetPreprocessingConfig(batch_correction=sps_ruv_correction)
 
 - caller-supplied `ControlSiteSet`; controls are explicit `site_key`
   annotations and are not fetched online or silently selected from bundled
-  resources.
+  resources. Caller-supplied control metadata must either include the audit
+  fields described above or carry explicit field-level
+  `metadata_missing_reason` rationale.
 - aligned `sample_metadata` containing `batch_column` and one or more
   protected `condition_columns`.
 - optional `replicate_column` for recording available replicate metadata with
@@ -411,6 +435,7 @@ import pandas as pd
 from phospy import AnalysisReadyDatasetBuilder
 from phospy.api import (
     ControlSiteSet,
+    ControlSiteSourceMetadata,
     CorrectionMissingnessPolicy,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
@@ -463,9 +488,21 @@ control_site_keys = (
     "protein_identifier=SRC|residue=Y|position=416",
 )
 
+control_source = ControlSiteSourceMetadata(
+    organism="rat",
+    identifier_namespace="site_key",
+    source_name="manual-curated-controls",
+    source_version="manual-v1",
+    license="caller local use",
+    redistribution="not redistributed",
+)
+
 preprocessing = DatasetPreprocessingConfig(
     batch_correction=SpsRuvBatchCorrectionConfig(
-        control_site_set=ControlSiteSet.from_site_keys(control_site_keys),
+        control_site_set=ControlSiteSet.from_site_keys(
+            control_site_keys,
+            source_metadata=control_source,
+        ),
         batch_column="batch",
         condition_columns=("condition",),
         replicate_column="replicate",
@@ -500,7 +537,10 @@ selects fallback controls.
 ```python
 unsafe_preprocessing = DatasetPreprocessingConfig(
     batch_correction=SpsRuvBatchCorrectionConfig(
-        control_site_set=ControlSiteSet.from_site_keys((control_site_keys[0],)),
+        control_site_set=ControlSiteSet.from_site_keys(
+            (control_site_keys[0],),
+            source_metadata=control_source,
+        ),
         batch_column="batch",
         condition_columns=("condition",),
         replicate_column="replicate",

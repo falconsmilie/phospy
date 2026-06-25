@@ -45,6 +45,7 @@ class ControlSiteStatus(PolicyEnum):
 class ControlSiteSourceMetadata:
     """Source metadata attached to caller-supplied control-site annotations."""
 
+    source_type: str | None = CONTROL_SITE_SOURCE_CALLER_SUPPLIED
     organism: str | None = None
     identifier_namespace: str | None = None
     source_name: str | None = CONTROL_SITE_SOURCE_CALLER_SUPPLIED
@@ -52,9 +53,11 @@ class ControlSiteSourceMetadata:
     license: str | None = None
     redistribution: str | None = None
     selection_method: str | None = CONTROL_SITE_SELECTION_METHOD_CALLER_SUPPLIED
+    metadata_missing_reason: Mapping[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         for field_name in (
+            "source_type",
             "organism",
             "identifier_namespace",
             "source_name",
@@ -68,11 +71,17 @@ class ControlSiteSourceMetadata:
                 field_name,
                 _optional_non_empty_string(getattr(self, field_name)),
             )
+        object.__setattr__(
+            self,
+            "metadata_missing_reason",
+            _normalize_missing_reason_mapping(self.metadata_missing_reason),
+        )
 
     def to_payload(self) -> dict[str, object]:
         """Return JSON-compatible metadata."""
 
         return {
+            "source_type": self.source_type,
             "organism": self.organism,
             "identifier_namespace": self.identifier_namespace,
             "source_name": self.source_name,
@@ -80,6 +89,7 @@ class ControlSiteSourceMetadata:
             "license": self.license,
             "redistribution": self.redistribution,
             "selection_method": self.selection_method,
+            "metadata_missing_reason": dict(self.metadata_missing_reason),
         }
 
 
@@ -96,6 +106,7 @@ class ControlSiteAnnotation:
     label: object | None = None
     weight: object | None = None
     group: object | None = None
+    source_type: object | None = None
     organism: object | None = None
     identifier_namespace: object | None = None
     source_name: object | None = None
@@ -103,6 +114,7 @@ class ControlSiteAnnotation:
     license: object | None = None
     redistribution: object | None = None
     selection_method: object | None = None
+    metadata_missing_reason: Mapping[str, str] = field(default_factory=dict)
     exclusion_reason: object | None = None
     structural_reasons: Sequence[str] = ()
 
@@ -121,6 +133,11 @@ class ControlSiteAnnotation:
         object.__setattr__(self, "label", _optional_non_empty_string(self.label))
         object.__setattr__(self, "weight", weight)
         object.__setattr__(self, "group", _optional_non_empty_string(self.group))
+        object.__setattr__(
+            self,
+            "source_type",
+            _optional_non_empty_string(self.source_type),
+        )
         object.__setattr__(
             self,
             "organism",
@@ -154,6 +171,11 @@ class ControlSiteAnnotation:
         )
         object.__setattr__(
             self,
+            "metadata_missing_reason",
+            _normalize_missing_reason_mapping(self.metadata_missing_reason),
+        )
+        object.__setattr__(
+            self,
             "exclusion_reason",
             _optional_non_empty_string(self.exclusion_reason),
         )
@@ -175,6 +197,7 @@ class ControlSiteAnnotation:
             "label": self.label,
             "weight": self.weight,
             "group": self.group,
+            "source_type": self.source_type,
             "organism": self.organism,
             "identifier_namespace": self.identifier_namespace,
             "source_name": self.source_name,
@@ -182,6 +205,7 @@ class ControlSiteAnnotation:
             "license": self.license,
             "redistribution": self.redistribution,
             "selection_method": self.selection_method,
+            "metadata_missing_reason": dict(self.metadata_missing_reason),
             "exclusion_reason": self.exclusion_reason,
             "structural_reasons": list(self.structural_reasons),
             "structurally_valid": self.structurally_valid,
@@ -199,6 +223,7 @@ class ControlSiteEligibility:
     label: str | None = None
     weight: float | None = None
     group: str | None = None
+    source_type: str | None = None
     organism: str | None = None
     identifier_namespace: str | None = None
     source_name: str | None = None
@@ -206,6 +231,7 @@ class ControlSiteEligibility:
     license: str | None = None
     redistribution: str | None = None
     selection_method: str | None = None
+    metadata_missing_reason: Mapping[str, str] = field(default_factory=dict)
     exclusion_reason: str | None = None
     row_position: int | None = None
     annotation_indices: tuple[int, ...] = ()
@@ -233,6 +259,7 @@ class ControlSiteEligibility:
             "label": self.label,
             "weight": self.weight,
             "group": self.group,
+            "source_type": self.source_type,
             "organism": self.organism,
             "identifier_namespace": self.identifier_namespace,
             "source_name": self.source_name,
@@ -240,6 +267,7 @@ class ControlSiteEligibility:
             "license": self.license,
             "redistribution": self.redistribution,
             "selection_method": self.selection_method,
+            "metadata_missing_reason": dict(self.metadata_missing_reason),
             "exclusion_reason": self.exclusion_reason,
             "row_position": self.row_position,
             "annotation_indices": list(self.annotation_indices),
@@ -457,6 +485,7 @@ class ControlSiteSet:
                 valid=valid,
                 reasons=reasons,
                 row_position=row_position,
+                source_type=metadata.source_type,
                 organism=metadata.organism,
                 identifier_namespace=metadata.identifier_namespace,
                 source_name=metadata.source_name,
@@ -464,6 +493,7 @@ class ControlSiteSet:
                 license=metadata.license,
                 redistribution=metadata.redistribution,
                 selection_method=metadata.selection_method,
+                metadata_missing_reason=metadata.metadata_missing_reason,
             )
         if len(annotations) > 1:
             reasons = _dedupe_reasons(
@@ -484,6 +514,7 @@ class ControlSiteSet:
                 reasons=reasons,
                 row_position=row_position,
                 annotation_indices=tuple(index for index, _ in annotations),
+                source_type=metadata.source_type,
                 organism=metadata.organism,
                 identifier_namespace=metadata.identifier_namespace,
                 source_name=metadata.source_name,
@@ -491,6 +522,7 @@ class ControlSiteSet:
                 license=metadata.license,
                 redistribution=metadata.redistribution,
                 selection_method=metadata.selection_method,
+                metadata_missing_reason=metadata.metadata_missing_reason,
             )
         annotation_index, annotation = annotations[0]
         return self._eligibility_from_annotation(
@@ -519,6 +551,7 @@ class ControlSiteSet:
             exclusion_reason=_annotation_exclusion_reason(annotation),
             row_position=row_position,
             annotation_indices=(annotation_index,),
+            source_type=metadata.source_type,
             organism=metadata.organism,
             identifier_namespace=metadata.identifier_namespace,
             source_name=metadata.source_name,
@@ -526,6 +559,7 @@ class ControlSiteSet:
             license=metadata.license,
             redistribution=metadata.redistribution,
             selection_method=metadata.selection_method,
+            metadata_missing_reason=metadata.metadata_missing_reason,
         )
 
     def _unmapped_annotation_eligibility(
@@ -550,6 +584,7 @@ class ControlSiteSet:
             exclusion_reason=_annotation_exclusion_reason(annotation),
             row_position=None,
             annotation_indices=(annotation_index,),
+            source_type=metadata.source_type,
             organism=metadata.organism,
             identifier_namespace=metadata.identifier_namespace,
             source_name=metadata.source_name,
@@ -557,6 +592,7 @@ class ControlSiteSet:
             license=metadata.license,
             redistribution=metadata.redistribution,
             selection_method=metadata.selection_method,
+            metadata_missing_reason=metadata.metadata_missing_reason,
         )
 
     def _metadata_payload(
@@ -565,6 +601,11 @@ class ControlSiteSet:
     ) -> ControlSiteSourceMetadata:
         metadata = self.source_metadata
         return ControlSiteSourceMetadata(
+            source_type=_first_non_none(
+                annotation,
+                "source_type",
+                metadata.source_type,
+            ),
             organism=_first_non_none(annotation, "organism", metadata.organism),
             identifier_namespace=_first_non_none(
                 annotation,
@@ -591,6 +632,10 @@ class ControlSiteSet:
                 annotation,
                 "selection_method",
                 metadata.selection_method,
+            ),
+            metadata_missing_reason=_merged_missing_reason_mapping(
+                metadata.metadata_missing_reason,
+                () if annotation is None else annotation.metadata_missing_reason,
             ),
         )
 
@@ -669,6 +714,31 @@ def _normalize_reason_tuple(reasons: Sequence[str]) -> tuple[str, ...]:
     return _dedupe_reasons(
         str(reason).strip() for reason in tuple(reasons) if str(reason).strip()
     )
+
+
+def _normalize_missing_reason_mapping(
+    reasons: Mapping[str, str] | Sequence[tuple[str, str]] | None,
+) -> dict[str, str]:
+    if reasons is None:
+        return {}
+    items = reasons.items() if isinstance(reasons, Mapping) else tuple(reasons)
+    normalized: dict[str, str] = {}
+    for key, reason in items:
+        field_name = _optional_non_empty_string(key)
+        reason_text = _optional_non_empty_string(reason)
+        if field_name is None or reason_text is None:
+            continue
+        normalized[field_name] = reason_text
+    return normalized
+
+
+def _merged_missing_reason_mapping(
+    base: Mapping[str, str],
+    override: Mapping[str, str] | Sequence[tuple[str, str]],
+) -> dict[str, str]:
+    merged = dict(base)
+    merged.update(_normalize_missing_reason_mapping(override))
+    return merged
 
 
 def _dedupe_reasons(reasons: Iterable[str]) -> tuple[str, ...]:

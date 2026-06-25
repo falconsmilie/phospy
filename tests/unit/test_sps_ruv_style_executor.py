@@ -30,6 +30,7 @@ from phospy.science.batch_correction import (
 from phospy.science.datasets.preprocessing.control_sites import (
     ControlSiteAnnotation,
     ControlSiteSet,
+    ControlSiteSourceMetadata,
 )
 from phospy.validation.datasets.batch_correction import ResolvedBatchDesignMetadata
 from phospy.validation.workflows.batch_correction import ControlSiteEligibilityValidator
@@ -160,7 +161,8 @@ def test_sps_ruv_style_executor_defensively_rejects_non_estimable_factor_count()
         _run_executor(
             phospho,
             control_site_set=ControlSiteSet.from_site_keys(
-                ("site_a", "site_c", "site_d")
+                ("site_a", "site_c", "site_d"),
+                source_metadata=_control_source_metadata(),
             ),
             n_unwanted_factors=2,
         )
@@ -197,7 +199,8 @@ def test_batch_correction_workflow_diagnostics_and_provenance_record_rejected_co
                 exclusion_reason="unstable_reference_profile",
             ),
             ControlSiteAnnotation("site_c", control_status="control"),
-        )
+        ),
+        source_metadata=_control_source_metadata(),
     )
     request = BatchCorrectionWorkflowRequest(
         phospho=_phospho(),
@@ -319,11 +322,25 @@ def _control_mapping(
     return ControlSiteEligibilityValidator().run(
         control_set=control_site_set
         if control_site_set is not None
-        else ControlSiteSet.from_site_keys(("site_a", "site_c")),
+        else ControlSiteSet.from_site_keys(
+            ("site_a", "site_c"),
+            source_metadata=_control_source_metadata(),
+        ),
         site_keys=site_keys,
         method="sps_ruv_style",
         min_eligible_controls=2,
         n_unwanted_factors=n_unwanted_factors,
+    )
+
+
+def _control_source_metadata() -> ControlSiteSourceMetadata:
+    return ControlSiteSourceMetadata(
+        organism="rat",
+        identifier_namespace="site_key",
+        source_name="manual-curated-controls",
+        source_version="manual-v1",
+        license="caller local use",
+        redistribution="not redistributed",
     )
 
 

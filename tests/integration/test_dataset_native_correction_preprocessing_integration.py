@@ -33,6 +33,9 @@ from phospy.science.datasets.preprocessing import (
     BatchCorrectionReport,
     CorrectedPreprocessingOutput,
 )
+from phospy.science.datasets.preprocessing.control_sites import (
+    ControlSiteSourceMetadata,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -285,7 +288,8 @@ def test_public_sps_ruv_preprocessing_config_builds_corrected_dataset_with_prove
                         (
                             _sps_site_key("MAPK14", "Y", "182"),
                             _sps_site_key("SRC", "Y", "416"),
-                        )
+                        ),
+                        source_metadata=_control_source_metadata(),
                     ),
                     batch_column="batch",
                     condition_columns=("condition",),
@@ -359,7 +363,8 @@ def test_public_sps_ruv_preprocessing_invalid_controls_fail_before_execution() -
                 preprocessing_config=DatasetPreprocessingConfig(
                     batch_correction=SpsRuvBatchCorrectionConfig(
                         control_site_set=ControlSiteSet.from_site_keys(
-                            (_sps_site_key("MAPK14", "Y", "182"),)
+                            (_sps_site_key("MAPK14", "Y", "182"),),
+                            source_metadata=_control_source_metadata(),
                         ),
                         batch_column="batch",
                         condition_columns=("condition",),
@@ -396,7 +401,8 @@ def test_public_sps_ruv_preprocessing_rejects_unsupported_stage_order() -> None:
                             (
                                 _sps_site_key("MAPK14", "Y", "182"),
                                 _sps_site_key("SRC", "Y", "416"),
-                            )
+                            ),
+                            source_metadata=_control_source_metadata(),
                         ),
                         batch_column="batch",
                         condition_columns=("condition",),
@@ -731,6 +737,17 @@ def _sps_site_key(protein_identifier: str, residue: str, position: str) -> str:
         "phospy:v1|organism=rat|protein_namespace=protein_id|"
         f"protein_identifier={protein_identifier}|residue={residue}|"
         f"position={position}"
+    )
+
+
+def _control_source_metadata() -> ControlSiteSourceMetadata:
+    return ControlSiteSourceMetadata(
+        organism="rat",
+        identifier_namespace="site_key",
+        source_name="manual-curated-controls",
+        source_version="manual-v1",
+        license="caller local use",
+        redistribution="not redistributed",
     )
 
 

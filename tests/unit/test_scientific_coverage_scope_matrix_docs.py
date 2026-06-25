@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 README_DOC = ROOT / "README.md"
 SCIENTIFIC_COVERAGE_DOC = ROOT / "docs" / "scientific-coverage.md"
 API_GUIDE_DOC = ROOT / "docs" / "api" / "guide.md"
+DATASET_BUILD_WORKFLOW_DOC = ROOT / "docs" / "api" / "dataset-build-workflow.md"
 WORKFLOW_CONTRACTS_DOC = ROOT / "docs" / "workflow_contracts.md"
 IMPORTERS_DOC = ROOT / "docs" / "importers.md"
 PARITY_DOC = ROOT / "docs" / "parity.md"
@@ -45,6 +46,10 @@ def _scientific_coverage_text() -> str:
 
 def _api_guide_text() -> str:
     return _read(API_GUIDE_DOC)
+
+
+def _dataset_build_workflow_text() -> str:
+    return _read(DATASET_BUILD_WORKFLOW_DOC)
 
 
 def _workflow_contracts_text() -> str:
@@ -467,6 +472,40 @@ def test_batch_correction_scope_names_supported_preprocessing_methods() -> None:
     assert "caller-supplied controls" in normalized
     assert "correction remains in dataset preprocessing" in normalized
     assert "do not interpret `ruv_readiness` as ruv support" in normalized
+
+
+def test_control_metadata_runtime_policy_is_documented_consistently() -> None:
+    text = (
+        _scientific_coverage_text()
+        + "\n"
+        + _workflow_contracts_text()
+        + "\n"
+        + _dataset_build_workflow_text()
+    )
+    normalized = " ".join(text.lower().split())
+    dataset_doc = _dataset_build_workflow_text()
+
+    for required in (
+        "caller-supplied controls require organism, identifier namespace, source identity",
+        "metadata_missing_reason",
+        "formal or external source names require source version",
+        "packaged controls, if added, require complete organism, namespace, source, version, license, and redistribution metadata",
+        "does not infer metadata from `site_key` strings",
+        "does not fetch metadata online",
+    ):
+        assert required in normalized
+
+    for example_field in (
+        "ControlSiteSourceMetadata",
+        'organism="rat"',
+        'identifier_namespace="site_key"',
+        'source_name="manual-curated-controls"',
+        'source_version="manual-v1"',
+        'license="caller local use"',
+        'redistribution="not redistributed"',
+        "source_metadata=control_source",
+    ):
+        assert example_field in dataset_doc
 
 
 def test_protein_aware_preparation_scope_is_separate_from_modelling() -> None:

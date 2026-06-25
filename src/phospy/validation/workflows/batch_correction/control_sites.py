@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 
@@ -20,6 +20,32 @@ from phospy.science.datasets.preprocessing.control_sites import (
 )
 
 _DEFAULT_IDENTIFIER_NAMESPACE = "site_key"
+_CALLER_SUPPLIED_SOURCE_TYPES = frozenset({"caller_supplied", "local", "local_file"})
+_PACKAGED_SOURCE_TYPES = frozenset({"packaged_reference", "packaged_control"})
+_CALLER_AUDIT_FIELDS = (
+    "organism",
+    "identifier_namespace",
+    "source_version",
+    "license",
+    "redistribution",
+)
+_PACKAGED_REQUIRED_FIELDS = (
+    "organism",
+    "identifier_namespace",
+    "source_name",
+    "source_version",
+    "license",
+    "redistribution",
+)
+_CONTROL_IDENTITY_FIELDS = (
+    "source_type",
+    "organism",
+    "identifier_namespace",
+    "source_name",
+    "source_version",
+    "license",
+    "redistribution",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,11 +131,18 @@ class ControlSiteMetadataCompatibilityValidator:
         site_metadata: pd.DataFrame | None,
         dataset_organism: str | None,
         expected_identifier_namespace: str | None,
+        control_site_source_type: str | None = None,
     ) -> None:
         site_metadata_by_key = _site_metadata_by_key(site_metadata)
+        controls = tuple(row for row in mapping.row_eligibility if row.is_control)
+        _reject_ambiguous_control_metadata(controls)
         for row in mapping.row_eligibility:
             if not row.is_control:
                 continue
+            _validate_control_audit_metadata(
+                row,
+                control_site_source_type=control_site_source_type,
+            )
             expected_organism = _expected_organism_for_row(
                 row,
                 site_metadata_by_key=site_metadata_by_key,
@@ -265,6 +298,7 @@ class ControlSiteEligibilityValidator:
         dataset_organism: object | None = None,
         n_unwanted_factors: int | None = None,
         expected_identifier_namespace: str | None = _DEFAULT_IDENTIFIER_NAMESPACE,
+        control_site_source_type: str | None = "caller_supplied",
         supports_weights: bool = False,
         supports_groups: bool = False,
         supports_weighted_groups: bool = False,
@@ -288,6 +322,9 @@ class ControlSiteEligibilityValidator:
             site_metadata=context.site_metadata,
             dataset_organism=context.dataset_organism,
             expected_identifier_namespace=expected_identifier_namespace,
+            control_site_source_type=_normalize_metadata_label(
+                control_site_source_type
+            ),
         )
         self._method_validator.run(
             mapping=mapping,
@@ -366,6 +403,120 @@ def _ambiguous_control_labels(mapping: ControlSiteMapping) -> tuple[str, ...]:
         if ControlSiteStatus.CONTROL in statuses and len(statuses) > 1:
             ambiguous.append(label)
     return tuple(ambiguous)
+
+
+def _reject_ambiguous_control_metadata(
+    controls: Sequence[ControlSiteEligibility],
+) -> None:
+    for field_name in _CONTROL_IDENTITY_FIELDS:
+        values = tuple(
+            value
+            for row in controls
+            if (value := _normalize_metadata_label(getattr(row, field_name, None)))
+            is not None
+        )
+        unique = tuple(dict.fromkeys(values))
+        if len(unique) > 1:
+            raise PhosPyInputError(
+                "control-site validation failed: ambiguous control metadata for "
+                f"{field_name!r}; accepted controls declare {_format_labels(unique)}"
+            )
+
+
+def _validate_control_audit_metadata(
+    row: ControlSiteEligibility,
+    *,
+    control_site_source_type: str | None,
+) -> None:
+    source_type = _resolve_control_source_type(
+        row,
+        control_site_source_type=control_site_source_type,
+    )
+    if source_type in _PACKAGED_SOURCE_TYPES:
+        missing = tuple(
+            field_name
+            for field_name in _PACKAGED_REQUIRED_FIELDS
+            if not _has_metadata_field(row, field_name)
+        )
+        if missing:
+            raise PhosPyInputError(
+                "control-site validation failed: packaged-control metadata is "
+                f"incomplete for site_key {row.site_key!r}; missing "
+                f"{_format_labels(missing)}"
+            )
+        return
+
+    if _has_external_or_formal_source_name(row) and not _has_metadata_field(
+        row,
+        "source_version",
+    ):
+        raise PhosPyInputError(
+            "control-site validation failed: missing control metadata for "
+            f"site_key {row.site_key!r}; external/formal source_name "
+            "requires source_version"
+        )
+
+    missing_without_reason = tuple(
+        field_name
+        for field_name in _CALLER_AUDIT_FIELDS
+        if not _has_metadata_field(row, field_name)
+        and not _has_missing_metadata_reason(row, field_name)
+    )
+    has_source_identity = _has_metadata_field(
+        row, "source_type"
+    ) or _has_metadata_field(
+        row,
+        "source_name",
+    )
+    if not has_source_identity:
+        missing_without_reason = ("source_type/source_name", *missing_without_reason)
+    if missing_without_reason:
+        raise PhosPyInputError(
+            "control-site validation failed: missing control metadata for site_key "
+            f"{row.site_key!r}; provide {_format_labels(missing_without_reason)} "
+            "or metadata_missing_reason"
+        )
+
+
+def _resolve_control_source_type(
+    row: ControlSiteEligibility,
+    *,
+    control_site_source_type: str | None,
+) -> str:
+    for value in (
+        control_site_source_type,
+        getattr(row, "source_type", None),
+        getattr(row, "source_name", None),
+    ):
+        normalized = _normalize_metadata_label(value)
+        if normalized is not None:
+            return normalized
+    return "caller_supplied"
+
+
+def _has_metadata_field(row: ControlSiteEligibility, field_name: str) -> bool:
+    return _normalize_metadata_label(getattr(row, field_name, None)) is not None
+
+
+def _has_missing_metadata_reason(
+    row: ControlSiteEligibility,
+    field_name: str,
+) -> bool:
+    reasons = getattr(row, "metadata_missing_reason", {})
+    if not isinstance(reasons, Mapping):
+        return False
+    reason = reasons.get(field_name)
+    return _normalize_metadata_label(reason) is not None
+
+
+def _has_external_or_formal_source_name(row: ControlSiteEligibility) -> bool:
+    source_type = _normalize_metadata_label(getattr(row, "source_type", None))
+    source_name = _normalize_metadata_label(getattr(row, "source_name", None))
+    if source_type is not None and source_type not in _CALLER_SUPPLIED_SOURCE_TYPES:
+        return True
+    if source_name is None:
+        return False
+    return source_name not in _CALLER_SUPPLIED_SOURCE_TYPES
 
 
 def _site_metadata_by_key(
