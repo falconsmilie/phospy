@@ -82,8 +82,9 @@ solve all batch-effect problems.
 
 Do not interpret `ruv_readiness` as RUV support. It is metadata readiness
 reporting only; it does not select SPS controls, run correction, or produce
-PhosR-equivalent corrected output. Native SPS/RUV-style correction requires the
-separate explicit `SpsRuvBatchCorrectionConfig` preprocessing config.
+PhosR-equivalent corrected output. Native SPS/RUV-style correction is
+executable only through the separate explicit `SpsRuvBatchCorrectionConfig`
+preprocessing config.
 
 Native SPS/RUV-style correction also stays in dataset preprocessing. It
 estimates unwanted factors from eligible caller-supplied control `site_key`
@@ -95,21 +96,26 @@ metadata when the selected method requires it, an explicit `ControlSiteSet`,
 `CorrectionMissingnessPolicy`, `n_unwanted_factors`, diagnostics, and
 provenance. Temporary imputation is correction mechanics only: observation
 masks preserve which cells were originally observed, and imputed temporary
-values must not be treated as observed evidence. Differential batch covariates
+values must not be treated as observed evidence. Executable native-correction
+temporary imputation methods are `none` and `row_median_temporary`;
+`minprob_temporary` and `knn_temporary` are rejected until supported semantics
+are implemented. Upstream-imputed cells remain tracked through observation
+masks and are not treated as observed evidence. Differential batch covariates
 remain ordinary downstream model terms; they do not replace preprocessing
 correction and are not removed from the differential design when the user
-chooses to model them.
+chooses to model them. The `ruv_iii_style` method label is not executable
+unless a future feature implements replicate-aware RUV-III semantics.
 
 `ControlSiteSet` metadata is validated before native SPS/RUV-style correction.
-Caller-supplied controls must provide organism, identifier namespace, and source
-identity, plus source version, license, and redistribution audit fields or an
+Caller-supplied controls must provide auditable control-source metadata or an
 explicit `metadata_missing_reason` entry for each unavailable caller-local
-field. Formal or external source names require source version. Packaged control
-references, if introduced later, must provide complete organism, namespace,
-source name, source version, license, and redistribution metadata. Validation
-rejects incomplete packaged metadata, incompatible organism or namespace
-metadata, ambiguous accepted-control metadata, and caller controls missing
-audit metadata without rationale.
+field. Audited fields include organism, identifier namespace, source identity,
+source version, license, and redistribution. Formal or external source names
+require source version. Packaged control references, if introduced later, must
+provide complete organism, namespace, source name, source version, license, and
+redistribution metadata. Validation rejects incomplete packaged metadata,
+incompatible organism or namespace metadata when present, ambiguous accepted
+control metadata, and caller controls missing audit metadata without rationale.
 
 `DatasetProteinAwarePreparationConfig(policy="prepare_model_inputs")` is
 preparation-only. It does not modify phosphosite values, does not subtract total

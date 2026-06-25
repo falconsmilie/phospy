@@ -372,18 +372,19 @@ class BatchCorrectionAdequacyValidator:
         condition_by_sample: Mapping[str, object],
         sample_order: Sequence[str],
         preserve_condition_effects: bool,
+        context: str = "linear_residualize_batch",
     ) -> None:
-        samples = _normalize_sample_order(sample_order)
+        samples = _normalize_sample_order(sample_order, context=context)
         if preserve_condition_effects is not True:
             raise PhosPyInputError(
-                "linear_residualize_batch requires "
+                f"{context} requires "
                 "preprocessing_config.batch_correction.preserve_condition_effects=True; "
                 "refusing batch correction because condition effects would not be "
                 "explicitly preserved"
             )
         if len(samples) < 2:
             raise PhosPyInputError(
-                "linear_residualize_batch requires at least two samples to "
+                f"{context} requires at least two samples to "
                 "estimate batch effects while preserving condition effects"
             )
 
@@ -391,24 +392,26 @@ class BatchCorrectionAdequacyValidator:
             batch_by_sample,
             sample_order=samples,
             label_kind="batch",
+            context=context,
         )
         condition_labels = _resolve_labels(
             condition_by_sample,
             sample_order=samples,
             label_kind="condition",
+            context=context,
         )
         batch_levels = _levels_in_order(batch_labels)
         condition_levels = _levels_in_order(condition_labels)
         if len(batch_levels) < 2:
             raise PhosPyInputError(
-                "linear_residualize_batch requires at least two batch levels; "
+                f"{context} requires at least two batch levels; "
                 f"observed {len(batch_levels)}"
             )
 
         singleton_batches = _singleton_levels(batch_labels)
         if singleton_batches:
             raise PhosPyInputError(
-                "linear_residualize_batch requires at least two samples in each "
+                f"{context} requires at least two samples in each "
                 "batch level to estimate batch effects; singleton batch levels: "
                 f"{_format_labels(singleton_batches)}"
             )
@@ -421,13 +424,13 @@ class BatchCorrectionAdequacyValidator:
         preservation_rank = _matrix_rank(preservation_design)
         if preservation_rank < preservation_columns:
             raise PhosPyInputError(
-                "linear_residualize_batch condition preservation design is "
+                f"{context} condition preservation design is "
                 "rank-deficient; condition effects cannot be explicitly preserved "
                 f"(rank={preservation_rank}, columns={preservation_columns})"
             )
         if len(samples) <= preservation_rank:
             raise PhosPyInputError(
-                "linear_residualize_batch condition preservation design is "
+                f"{context} condition preservation design is "
                 "saturated; batch effects cannot be estimated while preserving "
                 "condition effects "
                 f"(samples={len(samples)}, condition_design_rank={preservation_rank})"
@@ -438,7 +441,7 @@ class BatchCorrectionAdequacyValidator:
         full_columns = int(full_design.shape[1])
         if len(samples) <= full_columns:
             raise PhosPyInputError(
-                "linear_residualize_batch requires more samples than estimable "
+                f"{context} requires more samples than estimable "
                 "condition-plus-batch design parameters; "
                 f"samples={len(samples)}, design_columns={full_columns}. Add "
                 "replicate samples or reduce batch/condition levels."
@@ -449,7 +452,7 @@ class BatchCorrectionAdequacyValidator:
             condition_labels=condition_labels,
         ):
             raise PhosPyInputError(
-                "linear_residualize_batch cannot run because batch and condition "
+                f"{context} cannot run because batch and condition "
                 "are perfectly confounded: each batch level contains only one "
                 "condition level, so removing batch would remove biological "
                 "condition signal"
@@ -459,7 +462,7 @@ class BatchCorrectionAdequacyValidator:
             condition_labels=condition_labels,
         ):
             raise PhosPyInputError(
-                "linear_residualize_batch cannot run because batch and condition "
+                f"{context} cannot run because batch and condition "
                 "are perfectly confounded: each condition level contains only one "
                 "batch level, so batch cannot be estimated while preserving "
                 "condition effects"
@@ -479,11 +482,11 @@ class BatchCorrectionAdequacyValidator:
         try:
             full_rank = self._design_rank_validator.run(
                 full_frame,
-                context="linear_residualize_batch batch/condition",
+                context=f"{context} batch/condition",
             )
         except PhosPyInputError as exc:
             raise PhosPyInputError(
-                "linear_residualize_batch batch/condition design is "
+                f"{context} batch/condition design is "
                 "rank-deficient; batch effects are not estimable while preserving "
                 "condition effects "
                 f"(rank={_matrix_rank(full_design)}, columns={full_columns})"
@@ -492,7 +495,7 @@ class BatchCorrectionAdequacyValidator:
         batch_rank_after_condition = full_rank - preservation_rank
         if full_rank < full_columns or batch_rank_after_condition < batch_degrees:
             raise PhosPyInputError(
-                "linear_residualize_batch batch/condition design is "
+                f"{context} batch/condition design is "
                 "rank-deficient; batch effects are not estimable while preserving "
                 "condition effects "
                 f"(rank={full_rank}, columns={full_columns}, "
@@ -765,14 +768,18 @@ def _is_not_provided(value: object) -> bool:
     return str(value).strip().lower() in _NOT_PROVIDED_VALUES
 
 
-def _normalize_sample_order(sample_order: Sequence[str]) -> tuple[str, ...]:
+def _normalize_sample_order(
+    sample_order: Sequence[str],
+    *,
+    context: str = "linear_residualize_batch",
+) -> tuple[str, ...]:
     samples = tuple(str(sample).strip() for sample in sample_order)
     blank_positions = [
         position for position, sample in enumerate(samples) if sample == ""
     ]
     if blank_positions:
         raise PhosPyInputError(
-            "linear_residualize_batch sample_order contains blank sample labels at "
+            f"{context} sample_order contains blank sample labels at "
             f"positions {_format_positions(blank_positions)}"
         )
     if len(set(samples)) != len(samples):
@@ -780,7 +787,7 @@ def _normalize_sample_order(sample_order: Sequence[str]) -> tuple[str, ...]:
             dict.fromkeys(sample for sample in samples if samples.count(sample) > 1)
         )
         raise PhosPyInputError(
-            "linear_residualize_batch sample_order contains duplicate sample "
+            f"{context} sample_order contains duplicate sample "
             f"labels: {_format_labels(duplicates)}"
         )
     return samples
@@ -908,6 +915,7 @@ def _resolve_labels(
     *,
     sample_order: tuple[str, ...],
     label_kind: str,
+    context: str = "linear_residualize_batch",
 ) -> tuple[str, ...]:
     labels: list[str] = []
     missing_samples: list[str] = []
@@ -928,13 +936,13 @@ def _resolve_labels(
 
     if missing_samples:
         raise PhosPyInputError(
-            f"linear_residualize_batch requires {label_kind} labels for every "
+            f"{context} requires {label_kind} labels for every "
             f"sample; missing {label_kind} labels for samples: "
             f"{_format_labels(missing_samples)}"
         )
     if blank_samples:
         raise PhosPyInputError(
-            f"linear_residualize_batch requires {label_kind} labels for every "
+            f"{context} requires {label_kind} labels for every "
             f"sample; blank {label_kind} labels for samples: "
             f"{_format_labels(blank_samples)}"
         )

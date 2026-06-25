@@ -165,6 +165,24 @@ def test_workflow_rejects_factor_count_too_high_for_sample_design_rank_before_ex
     assert executor.call_count == 0
 
 
+def test_workflow_design_validation_error_names_sps_ruv_not_linear_residualization() -> (
+    None
+):
+    executor = _SpyExecutor()
+    request = _request(sample_metadata=_confounded_sample_metadata())
+
+    with pytest.raises(PhosPyInputError) as exc_info:
+        BatchCorrectionWorkflow(
+            executor=cast(BatchCorrectionExecutorContract, executor)
+        ).run(request)
+
+    message = str(exc_info.value)
+    assert "SPS/RUV-style batch correction design validation" in message
+    assert "perfectly confounded" in message
+    assert "linear_residualize_batch" not in message
+    assert executor.call_count == 0
+
+
 def test_workflow_valid_factor_count_executes_exact_requested_count_without_downshift_warning() -> (
     None
 ):
@@ -231,11 +249,14 @@ def _request(
     config: InternalBatchCorrectionRequest | None = None,
     missingness_policy: CorrectionMissingnessPolicy | None = None,
     control_site_set: ControlSiteSet | None = None,
+    sample_metadata: pd.DataFrame | None = None,
 ) -> BatchCorrectionWorkflowRequest:
     return BatchCorrectionWorkflowRequest(
         phospho=_phospho() if phospho is None else phospho,
         config=_config() if config is None else config,
-        sample_metadata=_sample_metadata(),
+        sample_metadata=_sample_metadata()
+        if sample_metadata is None
+        else sample_metadata,
         control_site_set=(
             ControlSiteSet.from_site_keys(
                 ("site_a", "site_c"),
@@ -351,6 +372,17 @@ def _sample_metadata() -> pd.DataFrame:
         {
             "batch": ("run_1", "run_1", "run_2", "run_2"),
             "condition": ("control", "treated", "control", "treated"),
+            "replicate": ("r1", "r1", "r2", "r2"),
+        },
+        index=("sample_1", "sample_2", "sample_3", "sample_4"),
+    )
+
+
+def _confounded_sample_metadata() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "batch": ("run_1", "run_1", "run_2", "run_2"),
+            "condition": ("control", "control", "treated", "treated"),
             "replicate": ("r1", "r1", "r2", "r2"),
         },
         index=("sample_1", "sample_2", "sample_3", "sample_4"),

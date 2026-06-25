@@ -338,14 +338,17 @@ designs. Inspect `dataset.preprocessing_report.batch_correction` after build
 for status, observed levels, confounding-check status, matrix shapes, warnings,
 and limitations.
 
-Native SPS/RUV-style correction uses a separate structured config. Do not use a
-boolean shortcut. The caller supplies the control-site set and missingness
-policy explicitly; PhosPy validates the request before execution and records
-typed provenance. The default public method is `method="sps_ruv_style"`: it
+Native SPS/RUV-style correction is executable only through a separate
+structured preprocessing config. Do not use a boolean shortcut. The caller
+supplies the control-site set and missingness policy explicitly; PhosPy
+validates the request before execution and records typed provenance. The
+default public method is `method="sps_ruv_style"`: it
 estimates unwanted factors from eligible control-site residuals after
 protecting the configured condition terms, then subtracts the estimated
 unwanted-factor contribution from the phosphosite matrix. This is a native
 PhosPy implementation, not PhosR-equivalent SPS/RUV-III parity.
+The `ruv_iii_style` method label is not executable unless a future feature
+implements replicate-aware RUV-III semantics.
 
 Native SPS/RUV-style correction currently supports only one execution
 placement in the dataset preprocessing pipeline: after missing-data handling
@@ -355,15 +358,16 @@ Requests for other `stage_order` policies are rejected so recorded provenance
 matches the pipeline that actually ran.
 
 Control metadata policy is explicit. Caller-supplied controls must provide
-`organism`, `identifier_namespace`, and source identity. If caller-local audit
-fields such as `source_version`, `license`, or `redistribution` are unavailable,
-the `ControlSiteSourceMetadata.metadata_missing_reason` mapping must record why
-each field is unavailable. Formal or external source names require
-`source_version`. Packaged control references, if added in a future release,
-must include complete `organism`, `identifier_namespace`, `source_name`,
-`source_version`, `license`, and `redistribution` metadata; incomplete packaged
-metadata is rejected. PhosPy does not infer metadata from `site_key` strings and
-does not fetch metadata online.
+auditable control-source metadata or field-level `metadata_missing_reason`
+rationale for unavailable caller-local fields. The audited fields include
+`organism`, `identifier_namespace`, source identity, `source_version`,
+`license`, and `redistribution`; when `organism` or `identifier_namespace` are
+provided, they are checked for compatibility with dataset metadata. Formal or
+external source names require `source_version`. Packaged control references, if
+added in a future release, must include complete `organism`,
+`identifier_namespace`, `source_name`, `source_version`, `license`, and
+`redistribution` metadata; incomplete packaged metadata is rejected. PhosPy does
+not infer metadata from `site_key` strings and does not fetch metadata online.
 
 ```python
 control_source = ControlSiteSourceMetadata(
@@ -414,10 +418,16 @@ config = DatasetPreprocessingConfig(batch_correction=sps_ruv_correction)
   implemented.
 - explicit `CorrectionMissingnessPolicy`; temporary imputation must preserve
   the observation mask and is recorded as correction mechanics, not observed
-  evidence.
+  evidence. Executable temporary imputation methods are `none` and
+  `row_median_temporary`; `minprob_temporary` and `knn_temporary` are rejected
+  in native correction because their temporary correction semantics are not
+  implemented.
 - `n_unwanted_factors >= 1`.
 - `diagnostics_enabled` and `provenance_enabled=True`; native correction cannot
   run without provenance.
+
+Upstream-imputed input cells remain tracked through observation masks and are
+not treated as observed evidence during correction.
 
 Successful requests return a corrected analysis-ready dataset and attach
 `BatchCorrectionProvenance` to the `batch_correction` preprocessing stage in

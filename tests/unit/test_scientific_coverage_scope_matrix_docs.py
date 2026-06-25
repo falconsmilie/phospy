@@ -472,6 +472,16 @@ def test_batch_correction_scope_names_supported_preprocessing_methods() -> None:
     assert "caller-supplied controls" in normalized
     assert "correction remains in dataset preprocessing" in normalized
     assert "do not interpret `ruv_readiness` as ruv support" in normalized
+    assert "executable only through the separate explicit" in normalized
+    assert (
+        "executable temporary imputation methods are `none` and `row_median_temporary`"
+        in (normalized)
+    )
+    assert "`minprob_temporary` and `knn_temporary` are rejected" in normalized
+    assert "upstream-imputed cells remain tracked" in normalized
+    assert "not treated as observed evidence" in normalized
+    assert "not executable ruv-iii support" in normalized
+    assert "replicate-aware ruv-iii semantics" in normalized
 
 
 def test_control_metadata_runtime_policy_is_documented_consistently() -> None:
@@ -486,7 +496,9 @@ def test_control_metadata_runtime_policy_is_documented_consistently() -> None:
     dataset_doc = _dataset_build_workflow_text()
 
     for required in (
-        "caller-supplied controls require organism, identifier namespace, source identity",
+        "caller-supplied controls must provide auditable control-source metadata or field-level `metadata_missing_reason`",
+        "audited fields include `organism`, `identifier_namespace`, source identity, `source_version`, `license`, and `redistribution`",
+        "incompatible organism or namespace metadata when present",
         "metadata_missing_reason",
         "formal or external source names require source version",
         "packaged controls, if added, require complete organism, namespace, source, version, license, and redistribution metadata",

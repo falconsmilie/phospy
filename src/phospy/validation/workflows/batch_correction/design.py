@@ -60,6 +60,7 @@ class BatchCorrectionWorkflowDesignValidator:
             condition_by_sample=metadata.condition_by_sample,
             sample_order=metadata.sample_order,
             preserve_condition_effects=True,
+            context="SPS/RUV-style batch correction design validation",
         )
         return metadata
 

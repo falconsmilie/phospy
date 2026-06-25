@@ -102,10 +102,12 @@ native SPS/RUV-style correction through `SpsRuvBatchCorrectionConfig`.
 confounded batch/condition metadata; it is not ComBat, not RUV, not limma
 `removeBatchEffect` parity, not native SPS/RUV-style correction, not
 PhosR-equivalent batch correction, and not mixed-effects modelling. Native
-SPS/RUV-style correction requires caller-supplied controls, batch and protected
-condition metadata, a missingness policy, diagnostics, and provenance. Any
-`ruv_readiness` diagnostics are report-only readiness signals and do not apply
-correction.
+SPS/RUV-style correction is executable only through explicit structured
+preprocessing config and requires caller-supplied controls, batch and protected
+condition metadata, a missingness policy, diagnostics, and provenance. RUV-III
+style correction is not executable unless a future feature implements
+replicate-aware semantics. Any `ruv_readiness` diagnostics are report-only
+readiness signals and do not apply correction.
 
 ## Kinase Workflow Example
 

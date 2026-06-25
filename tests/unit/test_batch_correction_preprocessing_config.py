@@ -87,6 +87,19 @@ def test_batch_correction_config_appears_inside_dataset_preprocessing_config() -
     assert config.batch_correction.method == "linear_residualize_batch"
 
 
+def test_dataset_preprocessing_config_docstring_describes_executable_correction() -> (
+    None
+):
+    docstring = inspect.getdoc(DatasetPreprocessingConfig) or ""
+    normalized = " ".join(docstring.lower().split())
+
+    assert "config-only" not in normalized
+    assert "no correction is executed" not in normalized
+    assert "optional executable preprocessing correction" in normalized
+    assert "spsruvbatchcorrectionconfig" in normalized
+    assert "readiness reporting" in normalized
+
+
 def test_sps_ruv_batch_correction_config_requires_explicit_public_contract() -> None:
     config = SpsRuvBatchCorrectionConfig(
         control_site_set=ControlSiteSet.from_site_keys(("site_a", "site_c")),

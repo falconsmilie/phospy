@@ -379,12 +379,22 @@ def test_public_docs_do_not_make_unsupported_scientific_parity_claims() -> None:
     assert not failures, "\n\n".join(failures)
 
 
-def test_public_docs_do_not_describe_ruv_iii_style_as_executable() -> None:
-    offenders = [
-        path.relative_to(ROOT).as_posix()
-        for path in _public_docs_paths()
-        if "ruv_iii_style" in path.read_text(encoding="utf-8")
-    ]
+def test_public_docs_describe_ruv_iii_style_only_as_non_executable() -> None:
+    allowed = re.compile(
+        r"\b(?:not|no)\s+executable\b|\bnot\s+currently\s+supported\b",
+        re.IGNORECASE,
+    )
+    offenders: list[str] = []
+    for path in _public_docs_paths():
+        for line_number, line in enumerate(
+            path.read_text(encoding="utf-8").splitlines(),
+            start=1,
+        ):
+            if "ruv_iii_style" not in line:
+                continue
+            if allowed.search(line):
+                continue
+            offenders.append(f"{path.relative_to(ROOT).as_posix()}:{line_number}")
 
     assert not offenders
 

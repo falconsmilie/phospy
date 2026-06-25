@@ -58,8 +58,10 @@ class DatasetPreprocessingConfig:
       resolution policy.
     - `comparisons`: comparison-building policy.
     - `localisation`: phosphosite-localisation eligibility policy.
-    - `batch_correction`: batch-correction intent declaration. Currently
-      config-only; no correction is executed by the dataset builder.
+    - `batch_correction`: optional executable preprocessing correction.
+      `DatasetBatchCorrectionConfig` covers fixed-effect residualisation, while
+      `SpsRuvBatchCorrectionConfig` covers native SPS/RUV-style correction with
+      explicit controls, design, missingness, diagnostics, and provenance.
     - `ruv_readiness`: readiness reporting contract for future RUV-compatible
       preprocessing (report-only; no correction).
     """
