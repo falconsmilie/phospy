@@ -95,11 +95,13 @@ Batch terms are resolved for validation and diagnostics, including
 batch-associated-variance summaries; they are not directly residualized as
 fixed effects by the native correction. Required inputs are aligned
 `sample_metadata` with batch and protected condition columns, replicate
-metadata when the selected method requires it, an explicit `ControlSiteSet`,
-`CorrectionMissingnessPolicy`, `n_unwanted_factors`, diagnostics, and
-provenance. Temporary imputation is correction mechanics only: observation
-masks preserve which cells were originally observed, and imputed temporary
-values must not be treated as observed evidence. Executable native-correction
+metadata only when the caller wants it recorded for provenance and diagnostics,
+an explicit `ControlSiteSet`, `CorrectionMissingnessPolicy`,
+`n_unwanted_factors`, diagnostics, and provenance. Providing
+`replicate_column` in the native lane does not enable replicate-aware RUV-III
+correction semantics. Temporary imputation is correction mechanics only:
+observation masks preserve which cells were originally observed, and imputed
+temporary values must not be treated as observed evidence. Executable native-correction
 temporary imputation methods are `none` and `row_median_temporary`;
 `minprob_temporary` and `knn_temporary` are rejected until supported semantics
 are implemented. Upstream-imputed cells remain tracked through observation

@@ -133,6 +133,38 @@ def test_dataset_sps_ruv_without_upstream_missing_values_keeps_all_true_mask() -
     assert not any("originally missing" in warning for warning in provenance.warnings)
 
 
+def test_dataset_sps_ruv_records_replicate_metadata_for_provenance_only() -> None:
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(_phospho().index),
+            sample_metadata=_sample_metadata(),
+            organism=Organism.RAT,
+            input_intensity_scale="linear",
+            preprocessing_config=_preprocessing_config(),
+        )
+    )
+
+    provenance = _batch_correction_provenance(built)
+    replicate_metadata = cast(Mapping[str, object], provenance.replicate_metadata)
+
+    assert replicate_metadata == {
+        "replicate_by_sample": {
+            "sample_1": "r1",
+            "sample_2": "r1",
+            "sample_3": "r2",
+            "sample_4": "r2",
+        },
+        "replicate_labels": ["r1", "r1", "r2", "r2"],
+    }
+    assert provenance.requested_method == "sps_ruv_style"
+    config_payload = cast(
+        Mapping[str, object], provenance.resolved_parameters["config"]
+    )
+    assert config_payload["method"] == "sps_ruv_style"
+    assert config_payload["replicate_column"] == "replicate"
+
+
 def test_workflow_rejects_misaligned_upstream_mask_before_executor() -> None:
     executor = _SpyExecutor()
     request = _workflow_request(

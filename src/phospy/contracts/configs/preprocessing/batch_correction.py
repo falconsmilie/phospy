@@ -88,9 +88,11 @@ class SpsRuvBatchCorrectionConfig:
 
     The caller must supply controls and correction policy metadata. This
     configuration never selects controls, fetches online resources, or permits
-    correction without provenance. The `ruv_iii_style` label is retained for
-    compatibility and roadmap clarity, but it is not executable until
-    replicate-aware RUV-III semantics are implemented.
+    correction without provenance. `replicate_column`, when provided for the
+    native lane, is recorded for provenance and diagnostics only; it does not
+    enable replicate-aware RUV-III correction semantics. The `ruv_iii_style`
+    label is retained for compatibility and roadmap clarity, but it is not
+    executable until replicate-aware RUV-III semantics are implemented.
     """
 
     control_site_set: object

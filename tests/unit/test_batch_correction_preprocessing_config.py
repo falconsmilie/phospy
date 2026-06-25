@@ -100,6 +100,15 @@ def test_dataset_preprocessing_config_docstring_describes_executable_correction(
     assert "readiness reporting" in normalized
 
 
+def test_sps_ruv_config_docstring_marks_replicates_as_provenance_only() -> None:
+    docstring = inspect.getdoc(SpsRuvBatchCorrectionConfig) or ""
+    normalized = " ".join(docstring.lower().split())
+
+    assert "replicate_column" in normalized
+    assert "provenance and diagnostics only" in normalized
+    assert "does not enable replicate-aware ruv-iii" in normalized
+
+
 def test_sps_ruv_batch_correction_config_requires_explicit_public_contract() -> None:
     config = SpsRuvBatchCorrectionConfig(
         control_site_set=ControlSiteSet.from_site_keys(("site_a", "site_c")),
