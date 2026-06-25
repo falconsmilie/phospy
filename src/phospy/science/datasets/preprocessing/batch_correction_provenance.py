@@ -143,6 +143,9 @@ def _plan_payload(plan: PreprocessingPlan) -> dict[str, object]:
         "batch_correction_method": plan.batch_correction_method,
         "batch_correction_batch_column": plan.batch_correction_batch_column,
         "batch_correction_condition_column": plan.batch_correction_condition_column,
+        "batch_correction_condition_columns": list(
+            plan.batch_correction_condition_columns
+        ),
         "batch_correction_preserve_condition_effects": (
             plan.batch_correction_preserve_condition_effects
         ),
@@ -189,7 +192,8 @@ def _design_metadata_payload(
     report: BatchCorrectionReport,
 ) -> dict[str, object]:
     payload: dict[str, object] = {
-        "condition_columns": [plan.batch_correction_condition_column],
+        "condition_column": plan.batch_correction_condition_column,
+        "condition_columns": list(plan.batch_correction_condition_columns),
         "condition_levels": list(report.condition_levels),
         "preserve_condition_effects": bool(
             plan.batch_correction_preserve_condition_effects

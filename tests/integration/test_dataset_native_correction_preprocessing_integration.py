@@ -446,6 +446,83 @@ def test_public_sps_ruv_preprocessing_config_builds_corrected_dataset_with_prove
     assert not dataset.phospho.equals(phospho)
 
 
+def test_public_sps_ruv_preprocessing_preserves_multiple_condition_columns_in_reports() -> (
+    None
+):
+    phospho = _sps_multi_condition_phospho()
+    condition_columns = ("condition", "timepoint")
+
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=_sps_site_metadata(phospho),
+            sample_metadata=_sps_multi_condition_sample_metadata(phospho),
+            organism=Organism.RAT,
+            input_intensity_scale="log2",
+            preprocessing_config=DatasetPreprocessingConfig(
+                batch_correction=SpsRuvBatchCorrectionConfig(
+                    control_site_set=ControlSiteSet.from_site_keys(
+                        (
+                            _sps_site_key("MAPK14", "Y", "182"),
+                            _sps_site_key("SRC", "Y", "416"),
+                        ),
+                        source_metadata=_control_source_metadata(),
+                    ),
+                    batch_column="batch",
+                    condition_columns=condition_columns,
+                    replicate_column="replicate",
+                    missingness_policy=CorrectionMissingnessPolicy(),
+                    n_unwanted_factors=1,
+                    diagnostics_enabled=True,
+                    provenance_enabled=True,
+                )
+            ),
+        )
+    )
+
+    assert dataset.preprocessing_report is not None
+    report = dataset.preprocessing_report.batch_correction
+    assert report is not None
+    assert report.condition_column == "condition"
+    assert report.condition_columns == condition_columns
+    report_payload = report.to_payload()
+    assert report_payload["condition_columns"] == list(condition_columns)
+    policy_payload = report_payload["policy"]
+    assert isinstance(policy_payload, Mapping)
+    assert policy_payload["condition_columns"] == list(condition_columns)
+
+    assert dataset.provenance is not None
+    correction_stage = next(
+        stage
+        for stage in dataset.provenance.preprocessing_stages
+        if stage.stage == "batch_correction"
+    )
+    assert correction_stage.parameters["condition_columns"] == list(condition_columns)
+    stage_diagnostics = cast(Mapping[str, object], correction_stage.diagnostics)
+    stage_executor_diagnostics = cast(
+        Mapping[str, object], stage_diagnostics["executor"]
+    )
+    stage_design_summary = cast(
+        Mapping[str, object], stage_executor_diagnostics["design_summary"]
+    )
+    assert stage_design_summary["condition_columns"] == list(condition_columns)
+
+    provenance = correction_stage.batch_correction_provenance
+    assert provenance is not None
+    assert provenance.design_metadata["condition_columns"] == list(condition_columns)
+    provenance_config = cast(
+        Mapping[str, object], provenance.resolved_parameters["config"]
+    )
+    assert provenance_config["condition_columns"] == list(condition_columns)
+    provenance_executor_diagnostics = cast(
+        Mapping[str, object], provenance.diagnostics["executor"]
+    )
+    provenance_design_summary = cast(
+        Mapping[str, object], provenance_executor_diagnostics["design_summary"]
+    )
+    assert provenance_design_summary["condition_columns"] == list(condition_columns)
+
+
 def test_public_sps_ruv_preprocessing_invalid_controls_fail_before_execution() -> None:
     phospho = _sps_phospho()
 
@@ -832,6 +909,22 @@ def _sps_phospho() -> pd.DataFrame:
     )
 
 
+def _sps_multi_condition_phospho() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "sample_1": [10.0, 5.0, 20.0],
+            "sample_2": [12.0, 8.0, 21.0],
+            "sample_3": [11.0, 6.0, 24.0],
+            "sample_4": [13.0, 9.0, 25.0],
+            "sample_5": [14.0, 9.0, 28.0],
+            "sample_6": [16.0, 12.0, 29.0],
+            "sample_7": [15.0, 10.0, 32.0],
+            "sample_8": [17.0, 13.0, 33.0],
+        },
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;", "SRC;Y416;"], name="site_id"),
+    )
+
+
 def _sps_site_key(protein_identifier: str, residue: str, position: str) -> str:
     return (
         "phospy:v1|organism=rat|protein_namespace=protein_id|"
@@ -874,6 +967,45 @@ def _sps_sample_metadata(phospho: pd.DataFrame) -> pd.DataFrame:
             "batch": ("run_1", "run_1", "run_2", "run_2"),
             "condition": ("control", "treated", "control", "treated"),
             "replicate": ("r1", "r1", "r2", "r2"),
+        },
+        index=phospho.columns.copy(),
+    )
+
+
+def _sps_multi_condition_sample_metadata(phospho: pd.DataFrame) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "batch": (
+                "run_1",
+                "run_1",
+                "run_1",
+                "run_1",
+                "run_2",
+                "run_2",
+                "run_2",
+                "run_2",
+            ),
+            "condition": (
+                "control",
+                "treated",
+                "control",
+                "treated",
+                "control",
+                "treated",
+                "control",
+                "treated",
+            ),
+            "timepoint": (
+                "early",
+                "early",
+                "late",
+                "late",
+                "early",
+                "early",
+                "late",
+                "late",
+            ),
+            "replicate": ("r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8"),
         },
         index=phospho.columns.copy(),
     )

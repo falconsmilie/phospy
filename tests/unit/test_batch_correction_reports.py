@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import cast
+
 import pandas as pd
 
 from phospy.api import (
@@ -116,6 +119,28 @@ def test_batch_correction_report_payload_is_structured() -> None:
     assert payload["matrix_shape_before"] == [2, 4]
     assert isinstance(payload["policy"], dict)
     assert isinstance(payload["diagnostics"], dict)
+
+
+def test_batch_correction_report_preserves_plural_condition_columns() -> None:
+    report = BatchCorrectionReport(
+        status="applied",
+        policy=BatchCorrectionPolicy(
+            method="sps_ruv_style",
+            batch_column="batch",
+            condition_column="condition",
+            condition_columns=("condition", "timepoint"),
+        ),
+    )
+
+    payload = report.to_payload()
+
+    assert report.condition_column == "condition"
+    assert report.condition_columns == ("condition", "timepoint")
+    assert payload["condition_column"] == "condition"
+    assert payload["condition_columns"] == ["condition", "timepoint"]
+    policy_payload = payload["policy"]
+    assert isinstance(policy_payload, dict)
+    assert policy_payload["condition_columns"] == ["condition", "timepoint"]
 
 
 def test_batch_correction_report_integrates_with_preprocessing_report() -> None:
@@ -237,7 +262,10 @@ def test_dataset_builder_attaches_full_native_batch_correction_provenance() -> N
     assert (
         provenance.output_matrix_fingerprint.name == "batch_correction.native.corrected"
     )
-    assert provenance.diagnostics["stage_diagnostics"]["status"] == "applied"
+    stage_diagnostics = cast(
+        Mapping[str, object], provenance.diagnostics["stage_diagnostics"]
+    )
+    assert stage_diagnostics["status"] == "applied"
     assert provenance.warnings == ()
     assert provenance.rejected_entities == ()
     assert provenance.phospy_version
@@ -245,9 +273,10 @@ def test_dataset_builder_attaches_full_native_batch_correction_provenance() -> N
     assert "numpy" in provenance.dependency_versions
 
     payload = to_payload(built.provenance)
+    preprocessing_stages = cast(list[object], payload["preprocessing_stages"])
     stage_payload = next(
         item
-        for item in payload["preprocessing_stages"]
+        for item in preprocessing_stages
         if isinstance(item, dict) and item["stage"] == "batch_correction"
     )
     assert "batch_correction_provenance" in stage_payload

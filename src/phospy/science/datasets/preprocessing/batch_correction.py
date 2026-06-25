@@ -48,6 +48,26 @@ class BatchCorrectionPolicy:
         BATCH_CORRECTION_DESIGN_PRESERVATION_PRESERVE_CONDITION_EFFECTS
     )
     preserve_condition_effects: bool = True
+    condition_columns: Sequence[str] | None = ()
+
+    def __post_init__(self) -> None:
+        condition_column = _optional_text(self.condition_column)
+        condition_columns = _normalize_condition_columns(self.condition_columns)
+        if not condition_columns and condition_column is not None:
+            condition_columns = (condition_column,)
+        if condition_column is None and condition_columns:
+            condition_column = condition_columns[0]
+        if (
+            condition_column is not None
+            and condition_columns
+            and condition_column != condition_columns[0]
+        ):
+            raise PhosPyInputError(
+                "BatchCorrectionPolicy.condition_column must match the first "
+                "condition_columns entry when both are provided"
+            )
+        object.__setattr__(self, "condition_column", condition_column)
+        object.__setattr__(self, "condition_columns", condition_columns)
 
     def to_payload(self) -> dict[str, object]:
         """Return a JSON-compatible policy payload."""
@@ -56,6 +76,7 @@ class BatchCorrectionPolicy:
             "method": self.method,
             "batch_column": self.batch_column,
             "condition_column": self.condition_column,
+            "condition_columns": list(self.condition_columns or ()),
             "design_preservation_policy": self.design_preservation_policy,
             "preserve_condition_effects": self.preserve_condition_effects,
         }
@@ -119,6 +140,10 @@ class BatchCorrectionReport:
         return self.policy.condition_column
 
     @property
+    def condition_columns(self) -> tuple[str, ...]:
+        return tuple(self.policy.condition_columns or ())
+
+    @property
     def number_of_batches(self) -> int | None:
         return self.diagnostics.number_of_batches
 
@@ -162,6 +187,7 @@ class BatchCorrectionReport:
             "status": self.status,
             "batch_column": self.batch_column,
             "condition_column": self.condition_column,
+            "condition_columns": list(self.condition_columns),
             "number_of_batches": self.number_of_batches,
             "batch_levels": list(self.batch_levels),
             "condition_levels": list(self.condition_levels),
@@ -258,6 +284,7 @@ class LinearResidualizeBatchCorrectionEngine:
                 method=config.method,
                 batch_column=config.batch_column,
                 condition_column=config.condition_column,
+                condition_columns=(config.condition_column,),
                 preserve_condition_effects=config.preserve_condition_effects,
             ),
             diagnostics=typed_diagnostics,
@@ -283,6 +310,34 @@ def _shape_to_payload(shape: MatrixShape | None) -> list[int] | None:
     if shape is None:
         return None
     return [int(shape[0]), int(shape[1])]
+
+
+def _optional_text(value: object) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return None if text == "" else text
+
+
+def _normalize_condition_columns(value: object) -> tuple[str, ...]:
+    if value is None:
+        return ()
+    if isinstance(value, str | bytes | bytearray) or not isinstance(value, Sequence):
+        raise PhosPyInputError(
+            "BatchCorrectionPolicy.condition_columns must be a sequence of "
+            "condition column names"
+        )
+    columns = tuple(str(column).strip() for column in value)
+    if any(column == "" for column in columns):
+        raise PhosPyInputError(
+            "BatchCorrectionPolicy.condition_columns must contain non-empty "
+            "column names"
+        )
+    if len(set(columns)) != len(columns):
+        raise PhosPyInputError(
+            "BatchCorrectionPolicy.condition_columns must not contain duplicates"
+        )
+    return columns
 
 
 def _require_linear_residualisation_config(

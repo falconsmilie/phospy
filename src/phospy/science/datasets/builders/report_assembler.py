@@ -354,6 +354,9 @@ def _build_batch_correction_report(
         method = DATASET_BATCH_CORRECTION_METHOD_NONE
     batch_column = str(plan.batch_correction_batch_column).strip()
     condition_column = str(plan.batch_correction_condition_column).strip()
+    condition_columns = tuple(
+        str(column).strip() for column in plan.batch_correction_condition_columns
+    )
     if batch_correction_metadata is not None:
         batch_levels = levels_in_sample_order(
             batch_correction_metadata.batch_by_sample,
@@ -395,6 +398,7 @@ def _build_batch_correction_report(
             method=method,
             batch_column=batch_column,
             condition_column=condition_column,
+            condition_columns=condition_columns,
             design_preservation_policy=(
                 BATCH_CORRECTION_DESIGN_PRESERVATION_PRESERVE_CONDITION_EFFECTS
             ),

@@ -174,6 +174,7 @@ def _build_disabled_report(state: PreprocessingState) -> BatchCorrectionReport:
             method=DATASET_BATCH_CORRECTION_METHOD_NONE,
             batch_column=state.plan.batch_correction_batch_column,
             condition_column=state.plan.batch_correction_condition_column,
+            condition_columns=state.plan.batch_correction_condition_columns,
             design_preservation_policy=(
                 BATCH_CORRECTION_DESIGN_PRESERVATION_PRESERVE_CONDITION_EFFECTS
             ),

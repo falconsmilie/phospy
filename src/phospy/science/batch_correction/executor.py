@@ -829,6 +829,12 @@ def _design_summary(
     condition_by_sample = _string_mapping(
         plan.provenance_seed_data.get("condition_by_sample")
     )
+    condition_columns = tuple(
+        str(column)
+        for column in _object_sequence(
+            plan.provenance_seed_data.get("condition_columns")
+        )
+    )
     batch_levels = _levels_in_order(batch_by_sample.values())
     condition_levels = _levels_in_order(condition_by_sample.values())
     values = design.to_numpy(dtype="float64", copy=True)
@@ -838,6 +844,7 @@ def _design_summary(
         "design_matrix_shape": [int(design.shape[0]), int(design.shape[1])],
         "design_matrix_rank": _matrix_rank(values),
         "batch_terms": list(plan.batch_terms),
+        "condition_columns": list(condition_columns),
         "condition_terms_to_preserve": list(plan.condition_terms_to_preserve),
         "batch_levels": list(batch_levels),
         "condition_levels": list(condition_levels),

@@ -93,6 +93,7 @@ class BatchCorrectionProvenanceRecorder:
             replicate_metadata=_replicate_metadata(dataset_metadata),
             design_metadata=_json_mapping(
                 {
+                    "condition_columns": list(request.config.condition_columns),
                     "resolved_design_matrix": _frame_payload(
                         plan.resolved_design_matrix
                     ),

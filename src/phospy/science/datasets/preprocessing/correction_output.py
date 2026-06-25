@@ -200,14 +200,20 @@ class CorrectedPreprocessingOutput:
             "condition-design terms",
         )
         condition_columns = _object_sequence(seed_data.get("condition_columns"))
+        normalized_condition_columns = tuple(
+            str(column) for column in condition_columns
+        )
         batch_report = BatchCorrectionReport(
             status=BATCH_CORRECTION_STATUS_APPLIED,
             policy=BatchCorrectionPolicy(
                 method=str(result.diagnostics.method),
                 batch_column=_optional_string(seed_data.get("batch_column")),
                 condition_column=(
-                    None if not condition_columns else str(condition_columns[0])
+                    None
+                    if not normalized_condition_columns
+                    else normalized_condition_columns[0]
                 ),
+                condition_columns=normalized_condition_columns,
                 design_preservation_policy=(
                     BATCH_CORRECTION_DESIGN_PRESERVATION_PRESERVE_CONDITION_EFFECTS
                 ),
@@ -357,6 +363,12 @@ def _build_stage_execution(
             **dict(correction_output.diagnostics),
             "status": correction_output.batch_correction_report.status,
             "method": correction_output.batch_correction_report.method,
+            "condition_column": (
+                correction_output.batch_correction_report.condition_column
+            ),
+            "condition_columns": list(
+                correction_output.batch_correction_report.condition_columns
+            ),
             "stage_order": list(correction_output.stage_order),
             "has_output_observation_mask": (
                 correction_output.output_observation_mask is not None
