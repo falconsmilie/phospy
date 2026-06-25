@@ -285,6 +285,72 @@ def test_control_site_validator_rejects_too_few_eligible_controls_for_method() -
         )
 
 
+def test_control_site_validator_rejects_one_zero_weight_control() -> None:
+    control_set = ControlSiteSet.from_weighted_controls(
+        {"AKT1_S473": 0.0},
+        source_metadata=_complete_source_metadata(),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="control weights must be positive finite values.*'AKT1_S473'",
+    ):
+        ControlSiteEligibilityValidator().run(
+            control_set=control_set,
+            site_keys=("AKT1_S473",),
+            site_metadata=_metadata(("AKT1_S473",)),
+            dataset_organism=Organism.RAT,
+            method="control_site_ruv_style",
+            min_eligible_controls=1,
+            supports_weights=True,
+        )
+
+
+def test_control_site_validator_rejects_mixed_positive_and_zero_weights() -> None:
+    site_keys = ("AKT1_S473", "GSK3B_S9")
+    control_set = ControlSiteSet.from_weighted_controls(
+        {"AKT1_S473": 1.0, "GSK3B_S9": 0.0},
+        source_metadata=_complete_source_metadata(),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="control weights must be positive finite values.*'GSK3B_S9'",
+    ):
+        ControlSiteEligibilityValidator().run(
+            control_set=control_set,
+            site_keys=site_keys,
+            site_metadata=_metadata(site_keys),
+            dataset_organism=Organism.RAT,
+            method="control_site_ruv_style",
+            min_eligible_controls=2,
+            supports_weights=True,
+        )
+
+
+def test_control_site_validator_accepts_all_positive_weights() -> None:
+    site_keys = ("AKT1_S473", "GSK3B_S9")
+    control_set = ControlSiteSet.from_weighted_controls(
+        {"AKT1_S473": 1.0, "GSK3B_S9": 0.5},
+        source_metadata=_complete_source_metadata(),
+    )
+
+    mapping = ControlSiteEligibilityValidator().run(
+        control_set=control_set,
+        site_keys=site_keys,
+        site_metadata=_metadata(site_keys),
+        dataset_organism=Organism.RAT,
+        method="control_site_ruv_style",
+        min_eligible_controls=2,
+        supports_weights=True,
+    )
+
+    assert mapping.control_weight_by_site_key == {
+        "AKT1_S473": 1.0,
+        "GSK3B_S9": 0.5,
+    }
+
+
 def test_control_site_validator_rejects_unsupported_weighted_grouped_controls() -> None:
     control_set = ControlSiteSet(
         annotations=(

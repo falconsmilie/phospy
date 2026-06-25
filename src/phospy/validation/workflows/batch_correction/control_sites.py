@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
@@ -231,6 +232,18 @@ class ControlSiteMethodEligibilityValidator:
 
         weighted = tuple(row for row in controls if row.weight is not None)
         grouped = tuple(row for row in controls if row.group is not None)
+        invalid_weights = tuple(
+            row for row in weighted if _has_invalid_control_weight(row)
+        )
+        if invalid_weights:
+            site_keys = tuple(
+                row.site_key or "<missing site_key>" for row in invalid_weights
+            )
+            raise PhosPyInputError(
+                "control-site validation failed: control weights must be positive "
+                f"finite values for eligible controls; invalid site_key values "
+                f"{_format_labels(site_keys)}"
+            )
         if weighted and not supports_weights:
             raise PhosPyInputError(
                 "control-site validation failed: unsupported control weighting for "
@@ -403,6 +416,11 @@ def _ambiguous_control_labels(mapping: ControlSiteMapping) -> tuple[str, ...]:
         if ControlSiteStatus.CONTROL in statuses and len(statuses) > 1:
             ambiguous.append(label)
     return tuple(ambiguous)
+
+
+def _has_invalid_control_weight(row: ControlSiteEligibility) -> bool:
+    weight = row.weight
+    return weight is not None and (not math.isfinite(weight) or weight <= 0.0)
 
 
 def _reject_ambiguous_control_metadata(

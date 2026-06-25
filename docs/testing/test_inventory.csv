@@ -49,7 +49,7 @@ tests/unit/test_api_configs_refactor_contract.py,unit,50,3,false,false,public AP
 tests/unit/test_api_documentation_examples.py,unit,1127,14,false,false,,,,,,
 tests/unit/test_batch_correction_metadata_resolution.py,unit,217,8,false,false,,,,,,
 tests/unit/test_batch_correction_plan_interpreter.py,unit,271,6,false,false,,,,,,
-tests/unit/test_batch_correction_pre_execution_validation.py,unit,389,7,false,false,,,,,,
+tests/unit/test_batch_correction_pre_execution_validation.py,unit,409,8,false,false,,,,,,
 tests/unit/test_batch_correction_preprocessing_config.py,unit,249,16,false,false,,,,,,
 tests/unit/test_batch_correction_provenance.py,unit,219,6,false,false,,,,,,
 tests/unit/test_batch_correction_reports.py,unit,298,8,false,false,,,,,,
@@ -60,7 +60,7 @@ tests/unit/test_benchmark_scripts_smoke.py,unit,151,7,true,true,public API contr
 tests/unit/test_boundary_constructor_no_repair.py,unit,35,3,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in boundary constructor no repair; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-AUDIT-004,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_builder_and_kinase_orchestration.py,unit,598,8,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in builder and kinase orchestration; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-ORCH-002,Route to TST-ORCH-002 for boundary-focused orchestration rewrite coverage that removes incidental collaborator-coupled assertions while preserving workflow contracts.
 tests/unit/test_config_validation_primitives.py,unit,144,7,true,true,duplicate validation matrix,consolidate,Loss of this file would reduce repeated primitive validation coverage for config validation primitives; protections must remain through a consolidated matrix before removal.,codex-audit,TST-FOLLOWUP-VAL-PRIMITIVE-INT,Validator pattern report maps this file to primitive int/range/enum families; track consolidation from optional-int matrix first.
-tests/unit/test_control_site_eligibility_validator.py,unit,362,13,false,false,,,,,,
+tests/unit/test_control_site_eligibility_validator.py,unit,428,16,false,false,,,,,,
 tests/unit/test_control_site_representation.py,unit,173,8,false,false,,,,,,
 tests/unit/test_correction_missingness_policy_contract.py,unit,391,18,false,false,,,,,,
 tests/unit/test_dataframe_validation_primitives.py,unit,306,10,true,true,duplicate validation matrix,consolidate,Loss of this file would reduce repeated primitive validation coverage for dataframe validation primitives; protections must remain through a consolidated matrix before removal.,codex-audit,TST-FOLLOWUP-VAL-PRIMITIVE-DATAFRAME,

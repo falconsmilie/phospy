@@ -165,6 +165,26 @@ def test_workflow_rejects_factor_count_too_high_for_sample_design_rank_before_ex
     assert executor.call_count == 0
 
 
+def test_workflow_rejects_zero_weight_control_before_executor() -> None:
+    executor = _SpyExecutor()
+    request = _request(
+        control_site_set=ControlSiteSet.from_weighted_controls(
+            {"site_a": 1.0, "site_c": 0.0},
+            source_metadata=_control_source_metadata(),
+        ),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="control weights must be positive finite values.*'site_c'",
+    ):
+        BatchCorrectionWorkflow(
+            executor=cast(BatchCorrectionExecutorContract, executor)
+        ).run(request)
+
+    assert executor.call_count == 0
+
+
 def test_workflow_design_validation_error_names_sps_ruv_not_linear_residualization() -> (
     None
 ):
