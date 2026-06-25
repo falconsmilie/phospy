@@ -151,6 +151,7 @@ class SpsRuvStyleExecutorResult:
 class _PreparedMatrix:
     working: pd.DataFrame
     originally_missing: pd.DataFrame
+    actual_missing: pd.DataFrame
     missing_cells: tuple[tuple[str, str], ...]
     warnings: tuple[str, ...]
 
@@ -194,7 +195,7 @@ class DeterministicSpsRuvStyleExecutor:
             columns=phospho.columns.copy(),
         )
         corrected_complete = corrected_matrix.copy(deep=True)
-        corrected_matrix = corrected_matrix.mask(prepared.originally_missing, np.nan)
+        corrected_matrix = corrected_matrix.mask(prepared.actual_missing, np.nan)
         estimated_factors = pd.DataFrame(
             fit.estimated_factors,
             index=phospho.columns.copy(),
@@ -369,16 +370,22 @@ def _prepare_matrix(
         originally_missing.loc[feature_id, sample_id] = True
 
     actual_missing = values.isna()
-    if not actual_missing.equals(originally_missing):
+    untracked_missing = actual_missing & ~originally_missing
+    if bool(untracked_missing.to_numpy().any()):
         raise PhosPyInputError(
-            "SPS/RUV-style executor requires matrix missing cells to match the "
-            "resolved observation mask"
+            "SPS/RUV-style executor found matrix missing cells that are not "
+            "tracked by the resolved observation mask"
         )
+    missing_cells = tuple(
+        (str(feature_id), str(sample_id))
+        for feature_id, sample_id in mask.originally_missing_cells
+    )
     if not bool(actual_missing.to_numpy().any()):
         return _PreparedMatrix(
             working=values,
             originally_missing=originally_missing,
-            missing_cells=(),
+            actual_missing=actual_missing,
+            missing_cells=missing_cells,
             warnings=(),
         )
 
@@ -401,13 +408,10 @@ def _prepare_matrix(
         missing_mask=actual_missing,
         min_observed_values=min_observed_values,
     )
-    missing_cells = tuple(
-        (str(feature_id), str(sample_id))
-        for feature_id, sample_id in mask.originally_missing_cells
-    )
     return _PreparedMatrix(
         working=working,
         originally_missing=originally_missing,
+        actual_missing=actual_missing,
         missing_cells=missing_cells,
         warnings=(
             "originally missing cells were temporarily imputed for numerical "
@@ -613,6 +617,7 @@ def _diagnostics(
         missingness_imputation_summary=_missingness_imputation_summary(
             plan=plan,
             originally_missing=originally_missing,
+            actual_missing=phospho.isna(),
             withheld_cells=withheld_cells,
         ),
         originally_missing_cell_count=int(originally_missing.to_numpy().sum()),
@@ -777,15 +782,20 @@ def _missingness_imputation_summary(
     *,
     plan: _ResolvedPlanLike,
     originally_missing: pd.DataFrame,
+    actual_missing: pd.DataFrame,
     withheld_cells: tuple[tuple[str, str], ...],
 ) -> dict[str, object]:
     missing_count = int(originally_missing.to_numpy().sum())
+    actual_missing_count = int(actual_missing.to_numpy().sum())
+    upstream_imputed_count = int(
+        (originally_missing & ~actual_missing).to_numpy().sum()
+    )
     policy = plan.temporary_imputation_policy.to_payload()
-    return {
+    summary: dict[str, object] = {
         "originally_missing_cell_count": missing_count,
         "withheld_cell_count": len(withheld_cells),
-        "restored_missing_cell_count": len(withheld_cells),
-        "temporary_imputation_applied": missing_count > 0,
+        "restored_missing_cell_count": actual_missing_count,
+        "temporary_imputation_applied": actual_missing_count > 0,
         "temporary_imputation_allowed": bool(policy.get("allowed")),
         "temporary_imputation_method": policy.get("method"),
         "temporary_imputation_parameters": dict(
@@ -794,10 +804,17 @@ def _missingness_imputation_summary(
         "output_policy": (
             "temporarily imputed values are not retained; originally missing cells "
             "are restored to missing in the corrected output"
-            if missing_count > 0
+            if actual_missing_count > 0
             else "no temporary imputation was needed"
         ),
     }
+    if upstream_imputed_count > 0:
+        summary["upstream_imputed_input_cell_count"] = upstream_imputed_count
+        summary["output_policy"] = (
+            "upstream-imputed values remain numeric for analysis-ready output, "
+            "but their observation mask cells remain false"
+        )
+    return summary
 
 
 def _batch_associated_variance_summary(

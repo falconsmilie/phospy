@@ -52,6 +52,14 @@ class BatchCorrectionProvenanceRecorder:
                 name="batch_correction.workflow.output_observation_mask",
             ),
         )
+        if request.upstream_observation_mask is not None:
+            observation_masks = (
+                fingerprint_matrix(
+                    request.upstream_observation_mask.astype("int8"),
+                    name="batch_correction.workflow.upstream_observation_mask",
+                ),
+                *observation_masks,
+            )
         return BatchCorrectionProvenance(
             requested_method=request.config.method.value,
             resolved_parameters=_json_mapping(

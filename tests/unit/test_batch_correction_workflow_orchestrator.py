@@ -141,6 +141,27 @@ def test_batch_correction_workflow_default_provenance_recorder_assembles_sources
     assert provenance.warnings == ("executor warning",)
 
 
+def test_batch_correction_workflow_combines_upstream_mask_with_executor_mask() -> None:
+    order: list[str] = []
+    request = _request(upstream_observation_mask=_upstream_observation_mask())
+    recorder = _CapturingProvenanceRecorder(order, corrected=_matrix())
+    workflow = BatchCorrectionWorkflow(
+        request_validator=_RequestValidator(order),
+        design_validator=_DesignValidator(order),
+        stage_order_validator=_StageOrderValidator(order),
+        control_site_validator=_ControlSiteValidator(order),
+        missingness_validator=_MissingnessValidator(order),
+        interpreter=_Interpreter(order),
+        executor=_Executor(order, corrected=_matrix()),
+        provenance_recorder=recorder,
+    )
+
+    workflow.run(request)
+
+    assert recorder.output_observation_mask is not None
+    assert bool(recorder.output_observation_mask.loc["site_b", "sample_2"]) is False
+
+
 class _RequestValidator:
     def __init__(self, order: list[str]) -> None:
         self._order = order
@@ -232,6 +253,15 @@ class _ProvenanceRecorder:
         return _provenance(corrected=self._corrected)
 
 
+class _CapturingProvenanceRecorder(_ProvenanceRecorder):
+    output_observation_mask: pd.DataFrame | None = None
+
+    def run(self, **kwargs: Any) -> BatchCorrectionProvenance:
+        executor_result = kwargs["executor_result"]
+        self.output_observation_mask = executor_result.output_observation_mask
+        return super().run(**kwargs)
+
+
 @dataclass(frozen=True, slots=True)
 class _Diagnostics:
     def to_payload(self) -> dict[str, object]:
@@ -266,7 +296,10 @@ class _ExecutorResult:
             )
 
 
-def _request() -> BatchCorrectionWorkflowRequest:
+def _request(
+    *,
+    upstream_observation_mask: pd.DataFrame | None = None,
+) -> BatchCorrectionWorkflowRequest:
     return BatchCorrectionWorkflowRequest(
         phospho=_matrix(),
         config=_config(),
@@ -279,6 +312,7 @@ def _request() -> BatchCorrectionWorkflowRequest:
         ),
         control_site_set=ControlSiteSet.from_site_keys(("site_a", "site_b")),
         missingness_policy=_missingness_policy(),
+        upstream_observation_mask=upstream_observation_mask,
     )
 
 
@@ -307,6 +341,16 @@ def _matrix() -> pd.DataFrame:
         index=pd.Index(("site_a", "site_b"), name="site_key"),
         columns=("sample_1", "sample_2", "sample_3", "sample_4"),
     )
+
+
+def _upstream_observation_mask() -> pd.DataFrame:
+    mask = pd.DataFrame(
+        True,
+        index=_matrix().index.copy(),
+        columns=_matrix().columns.copy(),
+    )
+    mask.loc["site_b", "sample_2"] = False
+    return mask
 
 
 def _metadata() -> ResolvedBatchDesignMetadata:

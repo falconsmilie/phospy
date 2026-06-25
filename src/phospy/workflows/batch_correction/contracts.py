@@ -30,6 +30,7 @@ class BatchCorrectionWorkflowRequest:
     sample_metadata: pd.DataFrame | None
     control_site_set: ControlSiteSet | None
     missingness_policy: CorrectionMissingnessPolicy | None = None
+    upstream_observation_mask: pd.DataFrame | None = None
     site_metadata: pd.DataFrame | None = None
     dataset_organism: object | None = None
 

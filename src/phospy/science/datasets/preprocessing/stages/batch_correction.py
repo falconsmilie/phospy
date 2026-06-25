@@ -267,6 +267,7 @@ def _run_sps_ruv_style_correction(
                 sample_metadata=state.sample_metadata,
                 control_site_set=control_site_set,
                 missingness_policy=missingness_policy,
+                upstream_observation_mask=state.imputation_observation_mask,
                 site_metadata=state.site_metadata,
             )
         )

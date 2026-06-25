@@ -3,8 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass, replace
 from typing import cast
 
+import numpy as np
+import pandas as pd
+
+from phospy.errors.input import PhosPyInputError
 from phospy.provenance.models import JsonValue
 from phospy.science.batch_correction import SpsRuvStyleExecutor
 from phospy.science.datasets.preprocessing.correction_output import (
@@ -29,11 +34,14 @@ from phospy.workflows.batch_correction.contracts import (
     BatchCorrectionControlSiteValidatorContract,
     BatchCorrectionDesignValidatorContract,
     BatchCorrectionExecutorContract,
+    BatchCorrectionExecutorDiagnosticsContract,
+    BatchCorrectionExecutorResultContract,
     BatchCorrectionInterpreterContract,
     BatchCorrectionMissingnessValidatorContract,
     BatchCorrectionProvenanceRecorderContract,
     BatchCorrectionRequestValidatorContract,
     BatchCorrectionStageOrderValidatorContract,
+    BatchCorrectionWorkflowRequest,
     BatchCorrectionWorkflowResult,
 )
 from phospy.workflows.batch_correction.interpreter import BatchCorrectionPlanInterpreter
@@ -107,6 +115,10 @@ class BatchCorrectionWorkflow:
             phospho=validated_request.phospho,
             plan=plan,
         )
+        executor_result = _with_conservative_upstream_observation_mask(
+            request=validated_request,
+            executor_result=executor_result,
+        )
         provenance = self._provenance_recorder.run(
             request=validated_request,
             dataset_metadata=dataset_metadata,
@@ -138,6 +150,157 @@ class BatchCorrectionWorkflow:
             warnings=tuple(str(warning) for warning in executor_result.warnings),
             provenance=provenance,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class _ExecutorResultWithCombinedMask:
+    inner: BatchCorrectionExecutorResultContract
+    output_observation_mask: pd.DataFrame
+    corrected_cell_status: pd.DataFrame
+    corrected_preprocessing_output: CorrectedPreprocessingOutput | None
+
+    @property
+    def corrected_matrix(self) -> pd.DataFrame:
+        return self.inner.corrected_matrix
+
+    @property
+    def diagnostics(self) -> BatchCorrectionExecutorDiagnosticsContract:
+        return self.inner.diagnostics
+
+    @property
+    def warnings(self) -> tuple[str, ...]:
+        return tuple(str(warning) for warning in self.inner.warnings)
+
+    @property
+    def provenance_payload(self) -> Mapping[str, object]:
+        return self.inner.provenance_payload
+
+    @property
+    def rejected_rows(self) -> tuple[str, ...]:
+        return tuple(str(row) for row in self.inner.rejected_rows)
+
+    @property
+    def rejected_cells(self) -> tuple[tuple[str, str], ...]:
+        return tuple(
+            (str(row), str(column)) for row, column in self.inner.rejected_cells
+        )
+
+    @property
+    def withheld_rows(self) -> tuple[str, ...]:
+        return tuple(str(row) for row in self.inner.withheld_rows)
+
+    @property
+    def withheld_cells(self) -> tuple[tuple[str, str], ...]:
+        return tuple(
+            (str(row), str(column)) for row, column in self.inner.withheld_cells
+        )
+
+
+def _with_conservative_upstream_observation_mask(
+    *,
+    request: object,
+    executor_result: BatchCorrectionExecutorResultContract,
+) -> BatchCorrectionExecutorResultContract:
+    if not isinstance(request, BatchCorrectionWorkflowRequest):
+        return executor_result
+    upstream_mask = request.upstream_observation_mask
+    if upstream_mask is None:
+        return executor_result
+
+    combined_mask = _combine_observation_masks(
+        upstream_mask=upstream_mask,
+        correction_mask=executor_result.output_observation_mask,
+        corrected_matrix=executor_result.corrected_matrix,
+    )
+    corrected_status = _corrected_cell_status(
+        observed_mask=combined_mask,
+        existing=getattr(executor_result, "corrected_cell_status", None),
+    )
+    corrected_output = getattr(executor_result, "corrected_preprocessing_output", None)
+    if isinstance(corrected_output, CorrectedPreprocessingOutput):
+        corrected_output = replace(
+            corrected_output,
+            output_observation_mask=combined_mask,
+            corrected_cell_status=corrected_status,
+        )
+    else:
+        corrected_output = None
+    return _ExecutorResultWithCombinedMask(
+        inner=executor_result,
+        output_observation_mask=combined_mask,
+        corrected_cell_status=corrected_status,
+        corrected_preprocessing_output=corrected_output,
+    )
+
+
+def _combine_observation_masks(
+    *,
+    upstream_mask: pd.DataFrame,
+    correction_mask: pd.DataFrame,
+    corrected_matrix: pd.DataFrame,
+) -> pd.DataFrame:
+    _require_aligned_boolean_mask(
+        mask=upstream_mask,
+        expected=corrected_matrix,
+        field_name="upstream observation mask",
+    )
+    _require_aligned_boolean_mask(
+        mask=correction_mask,
+        expected=corrected_matrix,
+        field_name="correction output observation mask",
+    )
+    return upstream_mask.astype(bool).copy(deep=True) & correction_mask.astype(
+        bool
+    ).copy(deep=True)
+
+
+def _require_aligned_boolean_mask(
+    *,
+    mask: pd.DataFrame,
+    expected: pd.DataFrame,
+    field_name: str,
+) -> None:
+    if not mask.index.equals(expected.index):
+        raise PhosPyInputError(
+            f"batch-correction workflow {field_name} alignment failed: "
+            "mask index must match corrected matrix index"
+        )
+    if not mask.columns.equals(expected.columns):
+        raise PhosPyInputError(
+            f"batch-correction workflow {field_name} alignment failed: "
+            "mask columns must match corrected matrix columns"
+        )
+    values = mask.to_numpy(dtype="object", copy=True)
+    for row_position, row_id in enumerate(mask.index.tolist()):
+        for column_position, column_id in enumerate(mask.columns.tolist()):
+            value = values[row_position, column_position]
+            if isinstance(value, (bool, np.bool_)):
+                continue
+            raise PhosPyInputError(
+                f"batch-correction workflow {field_name} must contain only "
+                f"boolean values; invalid value at "
+                f"({str(row_id)!r}, {str(column_id)!r})"
+            )
+
+
+def _corrected_cell_status(
+    *,
+    observed_mask: pd.DataFrame,
+    existing: object,
+) -> pd.DataFrame:
+    if (
+        isinstance(existing, pd.DataFrame)
+        and existing.index.equals(observed_mask.index)
+        and existing.columns.equals(observed_mask.columns)
+    ):
+        status = existing.copy(deep=True)
+    else:
+        status = pd.DataFrame(
+            "corrected_observed",
+            index=observed_mask.index.copy(),
+            columns=observed_mask.columns.copy(),
+        )
+    return status.mask(~observed_mask.astype(bool), "restored_missing")
 
 
 __all__ = ["BatchCorrectionWorkflow"]

@@ -43,6 +43,14 @@ class BatchCorrectionWorkflowRequestValidator:
                 "batch-correction workflow request.site_metadata must be a pandas "
                 "DataFrame when provided"
             )
+        if request.upstream_observation_mask is not None and not isinstance(
+            request.upstream_observation_mask,
+            pd.DataFrame,
+        ):
+            raise PhosPyInputError(
+                "batch-correction workflow request.upstream_observation_mask must "
+                "be a pandas DataFrame when provided"
+            )
         return request
 
 

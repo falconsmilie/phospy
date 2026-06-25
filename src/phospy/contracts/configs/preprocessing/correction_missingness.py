@@ -406,6 +406,7 @@ class CorrectionMissingnessCompatibilityValidator:
         phospho: pd.DataFrame,
         policy: CorrectionMissingnessPolicy | None = None,
         allow_complete_observed_data: bool = True,
+        allow_complete_matrix_with_observation_mask: bool = False,
         context: str = "correction missingness validation",
     ) -> None:
         if not isinstance(phospho, pd.DataFrame):
@@ -453,7 +454,15 @@ class CorrectionMissingnessCompatibilityValidator:
                     f"{context} complete observed data are not allowed by this "
                     "validation boundary"
                 )
-            _validate_complete_matrix_mask(policy=policy, context=context)
+            _validate_complete_matrix_mask(
+                policy=policy,
+                feature_ids=feature_ids,
+                sample_ids=sample_ids,
+                allow_complete_matrix_with_observation_mask=(
+                    allow_complete_matrix_with_observation_mask
+                ),
+                context=context,
+            )
             return
 
         if policy.observation_mask is None:
@@ -784,15 +793,38 @@ def _require_supported_execution_policy(
 def _validate_complete_matrix_mask(
     *,
     policy: CorrectionMissingnessPolicy,
+    feature_ids: tuple[str, ...],
+    sample_ids: tuple[str, ...],
+    allow_complete_matrix_with_observation_mask: bool,
     context: str,
 ) -> None:
+    if policy.observation_mask is None:
+        return
+    if policy.observation_mask.feature_ids != feature_ids:
+        raise PhosPyInputError(
+            f"{context} observation mask feature_ids must match phospho.index"
+        )
+    if policy.observation_mask.sample_ids != sample_ids:
+        raise PhosPyInputError(
+            f"{context} observation mask sample_ids must match phospho.columns"
+        )
     if (
-        policy.observation_mask is not None
-        and policy.observation_mask.originally_missing_cells
+        policy.observation_mask.originally_missing_cells
+        and not allow_complete_matrix_with_observation_mask
     ):
         raise PhosPyInputError(
             f"{context} observation mask declares originally missing cells for a "
             "complete observed matrix"
+        )
+    if (
+        policy.observation_mask.originally_missing_cells
+        and policy.row_sample_eligibility_impact
+        in _UNSAFE_MISSINGNESS_ELIGIBILITY_IMPACTS
+    ):
+        raise PhosPyInputError(
+            f"{context} row/sample eligibility impact "
+            f"{policy.row_sample_eligibility_impact.value!r} makes correction "
+            "unsafe for matrices with upstream-imputed originally missing values"
         )
 
 
