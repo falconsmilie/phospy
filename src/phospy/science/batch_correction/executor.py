@@ -395,6 +395,7 @@ def _prepare_matrix(
             "SPS/RUV-style executor found matrix missing cells that are not "
             "tracked by the resolved observation mask"
         )
+    _require_finite_observed_values(values, missing_mask=actual_missing)
     missing_cells = tuple(
         (str(feature_id), str(sample_id))
         for feature_id, sample_id in mask.originally_missing_cells
@@ -436,6 +437,34 @@ def _prepare_matrix(
             "originally missing cells were temporarily imputed for numerical "
             "correction and restored to missing in the corrected output",
         ),
+    )
+
+
+def _require_finite_observed_values(
+    matrix: pd.DataFrame,
+    *,
+    missing_mask: pd.DataFrame,
+) -> None:
+    values = matrix.to_numpy(dtype="float64", copy=True)
+    finite = pd.DataFrame(
+        np.isfinite(values),
+        index=matrix.index.copy(),
+        columns=matrix.columns.copy(),
+    )
+    non_finite_observed = ~finite & ~missing_mask
+    if not bool(non_finite_observed.to_numpy().any()):
+        return
+
+    row_position, column_position = np.argwhere(
+        non_finite_observed.to_numpy(dtype=bool)
+    )[0]
+    feature_id = str(matrix.index[int(row_position)])
+    sample_id = str(matrix.columns[int(column_position)])
+    raise PhosPyInputError(
+        "SPS/RUV-style executor found non-finite observed matrix value before "
+        "numerical correction at "
+        f"feature_id={feature_id!r}, sample_id={sample_id!r}; "
+        "inf and -inf must be rejected rather than treated as missing"
     )
 
 

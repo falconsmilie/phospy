@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+import numpy as np
 import pandas as pd
 import pandas.testing as pdt
 import pytest
@@ -109,6 +110,34 @@ def test_sps_ruv_style_executor_restores_originally_missing_cells_and_status() -
     assert result.diagnostics.originally_missing_cell_count == 1
     assert result.diagnostics.withheld_cell_count == 1
     assert result.warnings
+
+
+def test_sps_ruv_style_executor_rejects_positive_infinity_in_observed_cell() -> None:
+    phospho = _phospho()
+    phospho.loc["site_b", "sample_2"] = np.inf
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "non-finite observed matrix value.*feature_id='site_b'.*"
+            "sample_id='sample_2'"
+        ),
+    ):
+        _run_executor(phospho)
+
+
+def test_sps_ruv_style_executor_rejects_negative_infinity_in_observed_cell() -> None:
+    phospho = _phospho()
+    phospho.loc["site_b", "sample_2"] = -np.inf
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "non-finite observed matrix value.*feature_id='site_b'.*"
+            "sample_id='sample_2'"
+        ),
+    ):
+        _run_executor(phospho)
 
 
 def test_sps_ruv_style_executor_returns_diagnostics_warnings_and_provenance() -> None:
