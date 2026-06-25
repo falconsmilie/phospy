@@ -22,6 +22,7 @@ from phospy.errors.input import PhosPyInputError
 from phospy.validation.common.config_values import require_non_empty_string
 from phospy.validation.common.numbers import require_int_at_least
 from phospy.validation.configs.preprocessing import (
+    reject_unsupported_ruv_iii_style_method,
     validate_batch_correction_config,
 )
 
@@ -87,7 +88,9 @@ class SpsRuvBatchCorrectionConfig:
 
     The caller must supply controls and correction policy metadata. This
     configuration never selects controls, fetches online resources, or permits
-    correction without provenance.
+    correction without provenance. The `ruv_iii_style` label is retained for
+    compatibility and roadmap clarity, but it is not executable until
+    replicate-aware RUV-III semantics are implemented.
     """
 
     control_site_set: object
@@ -114,6 +117,12 @@ class SpsRuvBatchCorrectionConfig:
                 "method must be one of: "
                 + ", ".join(sorted(SPS_RUV_BATCH_CORRECTION_METHODS))
             )
+        reject_unsupported_ruv_iii_style_method(
+            method,
+            field_name=(
+                "dataset build request preprocessing_config.batch_correction.method"
+            ),
+        )
         _require_control_site_set(self.control_site_set)
         batch_column = require_non_empty_string(
             self.batch_column,
@@ -137,14 +146,6 @@ class SpsRuvBatchCorrectionConfig:
                 when_provided=True,
             )
         )
-        if (
-            method is InternalBatchCorrectionMethod.RUV_III_STYLE
-            and replicate_column is None
-        ):
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.batch_correction."
-                "replicate_column is required when method='ruv_iii_style'"
-            )
         if not isinstance(self.missingness_policy, CorrectionMissingnessPolicy):
             raise PhosPyInputError(
                 "dataset build request preprocessing_config.batch_correction."

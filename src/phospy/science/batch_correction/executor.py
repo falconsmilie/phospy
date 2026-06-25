@@ -18,8 +18,12 @@ from phospy.science.datasets.preprocessing.correction_output import (
 )
 
 SPS_RUV_STYLE_EXECUTOR_ID = "deterministic_sps_ruv_style_executor_v1"
-SPS_RUV_STYLE_METHODS = frozenset(
-    {"sps_ruv_style", "control_site_ruv_style", "ruv_iii_style"}
+SPS_RUV_STYLE_METHODS = frozenset({"sps_ruv_style", "control_site_ruv_style"})
+_UNSUPPORTED_RUV_III_STYLE_METHOD_MESSAGE = (
+    "ruv_iii_style is not currently supported because replicate-aware RUV-III "
+    "numerical semantics are not implemented; use the supported native "
+    "SPS/RUV-style method only if applicable and explicitly configured; do not "
+    "imply equivalence to RUV-III"
 )
 
 JsonScalar: TypeAlias = str | int | float | bool | None
@@ -273,6 +277,8 @@ SpsRuvStyleExecutor = DeterministicSpsRuvStyleExecutor
 
 def _require_supported_plan(plan: _ResolvedPlanLike) -> None:
     method = str(plan.method).strip()
+    if method == "ruv_iii_style":
+        raise PhosPyInputError(_UNSUPPORTED_RUV_III_STYLE_METHOD_MESSAGE)
     if method not in SPS_RUV_STYLE_METHODS:
         raise PhosPyInputError(
             "SPS/RUV-style executor requires a resolved SPS/RUV-style plan; "

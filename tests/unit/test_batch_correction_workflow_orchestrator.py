@@ -90,6 +90,37 @@ def test_batch_correction_workflow_invalid_request_fails_before_executor() -> No
     assert "executor" not in order
 
 
+def test_batch_correction_workflow_rejects_ruv_iii_before_interpreter_and_executor() -> (
+    None
+):
+    order: list[str] = []
+    workflow = BatchCorrectionWorkflow(
+        design_validator=_DesignValidator(order),
+        stage_order_validator=_StageOrderValidator(order),
+        control_site_validator=_ControlSiteValidator(order),
+        missingness_validator=_MissingnessValidator(order),
+        interpreter=_Interpreter(order),
+        executor=_Executor(order, corrected=_matrix()),
+        provenance_recorder=_ProvenanceRecorder(order, corrected=_matrix()),
+    )
+    request = _request()
+    forged_request = BatchCorrectionWorkflowRequest(
+        phospho=request.phospho,
+        config=_forged_ruv_iii_config(),
+        sample_metadata=request.sample_metadata,
+        control_site_set=request.control_site_set,
+        missingness_policy=request.missingness_policy,
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="replicate-aware RUV-III numerical semantics are not implemented",
+    ):
+        workflow.run(forged_request)
+
+    assert order == []
+
+
 def test_batch_correction_workflow_default_provenance_recorder_assembles_sources() -> (
     None
 ):
@@ -330,6 +361,42 @@ def _config() -> InternalBatchCorrectionRequest:
         stage_order=InternalBatchCorrectionStageOrder.AFTER_MISSING_DATA_BEFORE_DOWNSTREAM,
         diagnostics_enabled=True,
     )
+
+
+def _forged_ruv_iii_config() -> InternalBatchCorrectionRequest:
+    config = object.__new__(InternalBatchCorrectionRequest)
+    object.__setattr__(config, "method", InternalBatchCorrectionMethod.RUV_III_STYLE)
+    object.__setattr__(config, "batch_column", "batch")
+    object.__setattr__(config, "condition_columns", ("condition",))
+    object.__setattr__(config, "replicate_column", "replicate")
+    object.__setattr__(
+        config,
+        "control_site_source",
+        InternalBatchCorrectionControlSiteSource.CALLER_SUPPLIED,
+    )
+    object.__setattr__(
+        config,
+        "control_site_mode",
+        InternalBatchCorrectionControlSiteMode.SITE_KEY_LIST,
+    )
+    object.__setattr__(
+        config,
+        "missing_value_policy",
+        InternalBatchCorrectionMissingValuePolicy.REJECT_MISSING,
+    )
+    object.__setattr__(
+        config,
+        "imputation_policy",
+        InternalBatchCorrectionImputationPolicy.NONE,
+    )
+    object.__setattr__(config, "n_unwanted_factors", 1)
+    object.__setattr__(
+        config,
+        "stage_order",
+        InternalBatchCorrectionStageOrder.AFTER_MISSING_DATA_BEFORE_DOWNSTREAM,
+    )
+    object.__setattr__(config, "diagnostics_enabled", True)
+    return config
 
 
 def _matrix() -> pd.DataFrame:

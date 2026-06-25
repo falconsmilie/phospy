@@ -379,6 +379,16 @@ def test_public_docs_do_not_make_unsupported_scientific_parity_claims() -> None:
     assert not failures, "\n\n".join(failures)
 
 
+def test_public_docs_do_not_describe_ruv_iii_style_as_executable() -> None:
+    offenders = [
+        path.relative_to(ROOT).as_posix()
+        for path in _public_docs_paths()
+        if "ruv_iii_style" in path.read_text(encoding="utf-8")
+    ]
+
+    assert not offenders
+
+
 def test_claim_guard_rejects_unsupported_positive_claims() -> None:
     bad_blocks = tuple(
         ClaimBlock(Path("synthetic.md"), index, text)

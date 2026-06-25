@@ -101,9 +101,10 @@ or make a dataset partially corrected.
 
 `SpsRuvBatchCorrectionConfig` is the implemented native correction surface. It
 requires caller-supplied control-site annotations, batch and protected
-condition metadata, replicate metadata when required by the selected method,
-explicit missingness policy, unwanted-factor count, diagnostics, and
-provenance.
+condition metadata, optional replicate metadata for provenance, explicit
+missingness policy, unwanted-factor count, diagnostics, and provenance.
+RUV-III correction remains unsupported until replicate-aware RUV-III numerical
+semantics are implemented.
 
 Differential workflow batch covariates remain model terms inside differential
 analysis. They must not be documented as preprocessing correction.

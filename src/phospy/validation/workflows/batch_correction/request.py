@@ -6,6 +6,9 @@ import pandas as pd
 
 from phospy.contracts.configs.preprocessing import InternalBatchCorrectionRequest
 from phospy.errors.input import PhosPyInputError
+from phospy.validation.configs.preprocessing import (
+    reject_unsupported_ruv_iii_style_method,
+)
 from phospy.workflows.batch_correction.contracts import BatchCorrectionWorkflowRequest
 
 
@@ -23,6 +26,10 @@ class BatchCorrectionWorkflowRequestValidator:
                 "batch-correction workflow request.config must be "
                 "InternalBatchCorrectionRequest"
             )
+        reject_unsupported_ruv_iii_style_method(
+            request.config.method,
+            field_name="batch-correction workflow request.config.method",
+        )
         if not isinstance(request.phospho, pd.DataFrame):
             raise PhosPyInputError(
                 "batch-correction workflow request.phospho must be a pandas DataFrame"

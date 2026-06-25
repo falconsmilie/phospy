@@ -16,7 +16,7 @@ from phospy.validation.configs.preprocessing import (
 
 
 class InternalBatchCorrectionMethod(PolicyEnum):
-    """Supported future correction intent labels."""
+    """Known correction intent labels; not every label is executable."""
 
     SPS_RUV_STYLE = "sps_ruv_style"
     CONTROL_SITE_RUV_STYLE = "control_site_ruv_style"

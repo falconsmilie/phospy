@@ -377,9 +377,10 @@ config = DatasetPreprocessingConfig(batch_correction=sps_ruv_correction)
   resources.
 - aligned `sample_metadata` containing `batch_column` and one or more
   protected `condition_columns`.
-- `replicate_column` when the selected method requires replicate metadata; it
-  may be provided for the default `sps_ruv_style` method when replicate
-  metadata is available. This is not a PhosR-equivalent RUV-III support claim.
+- optional `replicate_column` for recording available replicate metadata with
+  the native `sps_ruv_style` method. RUV-III correction is not currently
+  executable because replicate-aware RUV-III numerical semantics are not
+  implemented.
 - explicit `CorrectionMissingnessPolicy`; temporary imputation must preserve
   the observation mask and is recorded as correction mechanics, not observed
   evidence.
@@ -925,9 +926,10 @@ comparisons = DatasetComparisonBuildingConfig(
 ## RUV-Readiness Parameters
 
 `DatasetRuvReadinessConfig` is report-only. It helps audit whether metadata
-needed for RUV/SPS/RUV-III-style preprocessing is present; it does not select
+that could be relevant to future RUV-family work is present; it does not select
 SPS controls or correct the matrix. Executable native SPS/RUV-style correction
-uses `SpsRuvBatchCorrectionConfig` under `batch_correction`.
+uses `SpsRuvBatchCorrectionConfig` under `batch_correction`. RUV-III correction
+is not currently supported.
 It does not make sample metadata scientific design input for differential
 analysis.
 

@@ -21,6 +21,12 @@ from phospy.validation.common.paths import require_local_filesystem_path
 _INCOMPATIBLE_SITE_MATRIX_MISSING_DATA_POLICIES = frozenset(
     {"retain_missing", "require_min_observed_values"}
 )
+UNSUPPORTED_RUV_III_STYLE_METHOD_MESSAGE = (
+    "ruv_iii_style is not currently supported because replicate-aware RUV-III "
+    "numerical semantics are not implemented; use the supported native "
+    "SPS/RUV-style method only if applicable and explicitly configured; do not "
+    "imply equivalence to RUV-III"
+)
 
 
 def validate_preprocessing_section_type(
@@ -164,6 +170,10 @@ def validate_internal_batch_correction_request(
         method,
         field_name=f"{prefix}method",
     )
+    reject_unsupported_ruv_iii_style_method(
+        resolved_method,
+        field_name=f"{prefix}method",
+    )
     resolved_control_site_source = _coerce_internal_enum(
         control_site_source_type,
         control_site_source,
@@ -205,13 +215,6 @@ def validate_internal_batch_correction_request(
             field_name=f"{prefix}replicate_column",
             error_type=PhosPyInputError,
             when_provided=True,
-        )
-    if (
-        str(resolved_method.value) == "ruv_iii_style"
-        and resolved_replicate_column is None
-    ):
-        raise PhosPyInputError(
-            f"{prefix}replicate_column is required when method='ruv_iii_style'"
         )
     resolved_n_unwanted_factors = require_optional_int_at_least(
         n_unwanted_factors,
@@ -1063,6 +1066,17 @@ def _coerce_internal_enum(
         field_name=field_name,
         error_type=PhosPyInputError,
     )
+
+
+def reject_unsupported_ruv_iii_style_method(
+    method: object,
+    *,
+    field_name: str,
+) -> None:
+    value = getattr(method, "value", method)
+    if str(value).strip() != "ruv_iii_style":
+        return
+    raise PhosPyInputError(f"{field_name}: {UNSUPPORTED_RUV_III_STYLE_METHOD_MESSAGE}")
 
 
 def _require_non_empty_string_sequence(

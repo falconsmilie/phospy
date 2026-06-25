@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pandas as pd
 import pandas.testing as pdt
 import pytest
@@ -19,6 +21,7 @@ from phospy.contracts.configs.preprocessing import (
     TemporaryImputationMethod,
     TemporaryImputationPolicy,
 )
+from phospy.errors import PhosPyInputError
 from phospy.science.batch_correction import (
     SPS_RUV_STYLE_EXECUTOR_ID,
     DeterministicSpsRuvStyleExecutor,
@@ -162,6 +165,25 @@ def test_sps_ruv_style_executor_warns_when_factor_count_is_capped() -> None:
         "with the estimated factor count",
     )
     assert result.diagnostics.to_payload()["warnings"] == list(result.warnings)
+
+
+def test_sps_ruv_style_executor_defensively_rejects_ruv_iii_style_plan() -> None:
+    plan = BatchCorrectionPlanInterpreter().run(
+        config=_config(),
+        dataset_metadata=_metadata(),
+        control_site_mapping=_control_mapping(),
+        missingness_policy=_missingness_policy(missing_cells=()),
+    )
+    ruv_iii_plan = replace(plan, method="ruv_iii_style")
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="replicate-aware RUV-III numerical semantics are not implemented",
+    ):
+        DeterministicSpsRuvStyleExecutor().run(
+            phospho=_phospho(),
+            plan=ruv_iii_plan,
+        )
 
 
 def test_batch_correction_workflow_diagnostics_and_provenance_record_rejected_controls() -> (

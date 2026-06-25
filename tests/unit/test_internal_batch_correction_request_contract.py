@@ -205,16 +205,16 @@ def test_internal_batch_correction_request_rejects_imputation_inconsistency() ->
         )
 
 
-def test_internal_batch_correction_request_requires_replicates_for_ruv_iii() -> None:
+def test_internal_batch_correction_request_rejects_ruv_iii_style() -> None:
     with pytest.raises(
         PhosPyInputError,
-        match="replicate_column is required when method='ruv_iii_style'",
+        match="replicate-aware RUV-III numerical semantics are not implemented",
     ):
         InternalBatchCorrectionRequest(
             method=InternalBatchCorrectionMethod.RUV_III_STYLE,
             batch_column="batch",
             condition_columns=("condition",),
-            replicate_column=None,
+            replicate_column="replicate",
             control_site_source=(
                 InternalBatchCorrectionControlSiteSource.CALLER_SUPPLIED
             ),

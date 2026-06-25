@@ -13,6 +13,7 @@ import pandas as pd
 from phospy.contracts.configs import (
     DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
     DATASET_BATCH_CORRECTION_METHOD_NONE,
+    DATASET_BATCH_CORRECTION_METHOD_RUV_III_STYLE,
     DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN,
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_REQUIRE_UNAMBIGUOUS,
     DATASET_PROTEIN_AWARE_PREPARATION_POLICY_DISABLED,
@@ -442,6 +443,18 @@ class PreprocessingPlan:
         batch_correction_method = str(self.batch_correction_method).strip()
         if not batch_correction_method:
             batch_correction_method = DATASET_BATCH_CORRECTION_METHOD_NONE
+        if batch_correction_method == DATASET_BATCH_CORRECTION_METHOD_RUV_III_STYLE:
+            from phospy.validation.configs.preprocessing import (
+                reject_unsupported_ruv_iii_style_method,
+            )
+
+            reject_unsupported_ruv_iii_style_method(
+                batch_correction_method,
+                field_name=(
+                    "dataset preprocessing plan batch_correction_method "
+                    "(internal model)"
+                ),
+            )
         if (
             batch_correction_method
             not in {
@@ -454,7 +467,7 @@ class PreprocessingPlan:
                 "dataset preprocessing plan batch_correction_method "
                 "(internal model) must be one of: none, "
                 "linear_residualize_batch, control_site_ruv_style, "
-                "ruv_iii_style, sps_ruv_style"
+                "sps_ruv_style"
             )
         object.__setattr__(
             self,

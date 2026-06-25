@@ -110,6 +110,22 @@ def test_sps_ruv_batch_correction_config_requires_explicit_public_contract() -> 
     assert plan.batch_correction_missingness_policy is config.missingness_policy
 
 
+def test_sps_ruv_batch_correction_config_rejects_ruv_iii_style() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="replicate-aware RUV-III numerical semantics are not implemented",
+    ):
+        SpsRuvBatchCorrectionConfig(
+            control_site_set=ControlSiteSet.from_site_keys(("site_a", "site_c")),
+            batch_column="ms_run",
+            condition_columns=("condition",),
+            replicate_column="replicate",
+            missingness_policy=CorrectionMissingnessPolicy(),
+            n_unwanted_factors=1,
+            method="ruv_iii_style",
+        )
+
+
 def test_sps_ruv_batch_correction_config_has_no_boolean_shortcut() -> None:
     assert "use_ruv" not in inspect.signature(SpsRuvBatchCorrectionConfig).parameters
     assert "use_ruv" not in inspect.signature(DatasetPreprocessingConfig).parameters
