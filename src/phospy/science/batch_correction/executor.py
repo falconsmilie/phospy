@@ -292,6 +292,19 @@ def _require_supported_plan(plan: _ResolvedPlanLike) -> None:
         raise PhosPyInputError(
             "SPS/RUV-style executor requires at least one eligible control row"
         )
+    requested_factors = (
+        1 if plan.n_unwanted_factors is None else int(plan.n_unwanted_factors)
+    )
+    required_controls = max(2, requested_factors + 1)
+    eligible_control_count = len(plan.eligible_control_site_rows)
+    if eligible_control_count < required_controls:
+        raise PhosPyInputError(
+            "SPS/RUV-style executor requires at least "
+            f"{required_controls} eligible controls for "
+            f"n_unwanted_factors={requested_factors}; available eligible "
+            f"control count={eligible_control_count}. This should have been "
+            "rejected during workflow validation."
+        )
 
 
 def _require_matrix(phospho: pd.DataFrame) -> None:

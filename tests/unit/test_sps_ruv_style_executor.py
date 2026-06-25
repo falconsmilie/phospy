@@ -38,6 +38,7 @@ from phospy.workflows.batch_correction import (
     BatchCorrectionPlanInterpreter,
     BatchCorrectionWorkflow,
     BatchCorrectionWorkflowRequest,
+    ResolvedBatchCorrectionPlan,
 )
 
 
@@ -168,6 +169,36 @@ def test_sps_ruv_style_executor_defensively_rejects_non_estimable_factor_count()
         )
 
 
+def test_sps_ruv_style_executor_defensively_rejects_one_control_one_factor() -> None:
+    plan = _resolved_plan(_phospho())
+    underpowered_plan = replace(
+        plan,
+        eligible_control_site_rows=plan.eligible_control_site_rows[:1],
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="n_unwanted_factors=1.*available eligible control count=1",
+    ):
+        DeterministicSpsRuvStyleExecutor().run(
+            phospho=_phospho(),
+            plan=underpowered_plan,
+        )
+
+
+def test_sps_ruv_style_executor_defensively_rejects_two_controls_two_factors() -> None:
+    underpowered_plan = replace(_resolved_plan(_phospho()), n_unwanted_factors=2)
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="n_unwanted_factors=2.*available eligible control count=2",
+    ):
+        DeterministicSpsRuvStyleExecutor().run(
+            phospho=_phospho(),
+            plan=underpowered_plan,
+        )
+
+
 def test_sps_ruv_style_executor_defensively_rejects_ruv_iii_style_plan() -> None:
     plan = BatchCorrectionPlanInterpreter().run(
         config=_config(),
@@ -255,7 +286,23 @@ def _run_executor(
     control_site_set: ControlSiteSet | None = None,
     n_unwanted_factors: int = 1,
 ) -> SpsRuvStyleExecutorResult:
-    plan = BatchCorrectionPlanInterpreter().run(
+    plan = _resolved_plan(
+        phospho,
+        missing_cells=missing_cells,
+        control_site_set=control_site_set,
+        n_unwanted_factors=n_unwanted_factors,
+    )
+    return DeterministicSpsRuvStyleExecutor().run(phospho=phospho, plan=plan)
+
+
+def _resolved_plan(
+    phospho: pd.DataFrame,
+    *,
+    missing_cells: tuple[tuple[str, str], ...] = (),
+    control_site_set: ControlSiteSet | None = None,
+    n_unwanted_factors: int = 1,
+) -> ResolvedBatchCorrectionPlan:
+    return BatchCorrectionPlanInterpreter().run(
         config=_config(n_unwanted_factors=n_unwanted_factors),
         dataset_metadata=_metadata(),
         control_site_mapping=_control_mapping(
@@ -268,7 +315,6 @@ def _run_executor(
             feature_ids=tuple(str(value) for value in phospho.index.tolist()),
         ),
     )
-    return DeterministicSpsRuvStyleExecutor().run(phospho=phospho, plan=plan)
 
 
 def _config(*, n_unwanted_factors: int = 1) -> InternalBatchCorrectionRequest:
