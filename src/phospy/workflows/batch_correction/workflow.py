@@ -20,6 +20,7 @@ from phospy.validation.workflows.batch_correction.control_site_workflow import (
 )
 from phospy.validation.workflows.batch_correction.design import (
     BatchCorrectionWorkflowDesignValidator,
+    BatchCorrectionWorkflowFactorFeasibilityValidator,
 )
 from phospy.validation.workflows.batch_correction.missingness import (
     BatchCorrectionWorkflowMissingnessValidator,
@@ -105,6 +106,12 @@ class BatchCorrectionWorkflow:
             request=validated_request
         )
         missingness_policy = self._missingness_validator.run(request=validated_request)
+        BatchCorrectionWorkflowFactorFeasibilityValidator().run(
+            request=validated_request,
+            dataset_metadata=dataset_metadata,
+            control_site_mapping=control_site_mapping,
+            missingness_policy=missingness_policy,
+        )
         plan = self._interpreter.run(
             config=validated_request.config,
             dataset_metadata=dataset_metadata,

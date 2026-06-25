@@ -535,27 +535,26 @@ def _fit_sps_ruv_style(
         raise PhosPyInputError(
             "SPS/RUV-style executor requires n_unwanted_factors >= 1"
         )
-    max_factors = min(
-        requested,
+    max_estimable_factors = min(
         numerical_rank,
         int(response.shape[0]) - protected_rank,
         len(control_positions),
     )
-    warnings: tuple[str, ...] = ()
-    if max_factors < requested:
-        warnings = (
-            "requested n_unwanted_factors="
-            f"{requested} but only {max_factors} unwanted factor(s) could be "
-            "estimated from the protected control residual rank; correction "
-            "proceeded with the estimated factor count",
-        )
-    if max_factors < 1:
+    if max_estimable_factors < 1:
         raise PhosPyInputError(
             "SPS/RUV-style executor could not estimate unwanted factors from "
             "eligible control residuals"
         )
+    if max_estimable_factors < requested:
+        raise PhosPyInputError(
+            "SPS/RUV-style executor received a non-estimable "
+            f"n_unwanted_factors={requested}; only {max_estimable_factors} "
+            "factor(s) are supported by the eligible control residual rank and "
+            "sample/design degrees of freedom. This should have been rejected "
+            "during workflow validation."
+        )
 
-    factors = u_matrix[:, :max_factors] * singular_values[:max_factors][None, :]
+    factors = u_matrix[:, :requested] * singular_values[:requested][None, :]
     full_design = np.concatenate((protected, factors), axis=1)
     full_rank = _matrix_rank(full_design)
     if full_rank < int(full_design.shape[1]):
@@ -570,11 +569,11 @@ def _fit_sps_ruv_style(
     return _FactorFit(
         corrected_values=corrected_values.T,
         estimated_factors=factors,
-        singular_values=tuple(float(value) for value in singular_values[:max_factors]),
+        singular_values=tuple(float(value) for value in singular_values[:requested]),
         protected_rank=protected_rank,
-        factor_count=max_factors,
+        factor_count=requested,
         adjustment=adjustment.T,
-        warnings=warnings,
+        warnings=(),
     )
 
 

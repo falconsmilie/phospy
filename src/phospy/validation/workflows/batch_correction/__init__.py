@@ -11,6 +11,7 @@ from phospy.validation.workflows.batch_correction.control_sites import (
 )
 from phospy.validation.workflows.batch_correction.design import (
     BatchCorrectionWorkflowDesignValidator,
+    BatchCorrectionWorkflowFactorFeasibilityValidator,
 )
 from phospy.validation.workflows.batch_correction.missingness import (
     BatchCorrectionWorkflowMissingnessValidator,
@@ -25,6 +26,7 @@ from phospy.validation.workflows.batch_correction.stage_order import (
 __all__ = [
     "BatchCorrectionWorkflowControlSiteValidator",
     "BatchCorrectionWorkflowDesignValidator",
+    "BatchCorrectionWorkflowFactorFeasibilityValidator",
     "BatchCorrectionWorkflowMissingnessValidator",
     "BatchCorrectionWorkflowRequestValidator",
     "BatchCorrectionWorkflowStageOrderValidator",

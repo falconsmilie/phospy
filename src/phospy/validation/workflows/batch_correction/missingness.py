@@ -8,11 +8,15 @@ import numpy as np
 import pandas as pd
 
 from phospy.contracts.configs.preprocessing import (
+    CorrectedMissingCellAction,
     CorrectionMissingnessCompatibilityValidator,
     CorrectionMissingnessPolicy,
+    InternalBatchCorrectionImputationPolicy,
+    InternalBatchCorrectionMissingValuePolicy,
     ObservationMask,
     OriginallyMissingCellTracking,
     RowSampleEligibilityImpact,
+    TemporaryImputationMethod,
 )
 from phospy.errors.input import PhosPyInputError
 from phospy.workflows.batch_correction.contracts import BatchCorrectionWorkflowRequest
@@ -24,6 +28,27 @@ _UNSAFE_UPSTREAM_ELIGIBILITY_IMPACTS = frozenset(
         RowSampleEligibilityImpact.UNSUPPORTED,
     }
 )
+_EXECUTABLE_TEMPORARY_IMPUTATION_METHODS = frozenset(
+    {
+        TemporaryImputationMethod.NONE,
+        TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY,
+    }
+)
+_RANDOM_TEMPORARY_IMPUTATION_METHODS = frozenset(
+    {TemporaryImputationMethod.MINPROB_TEMPORARY}
+)
+_INTERNAL_IMPUTATION_TO_TEMPORARY_METHOD = {
+    InternalBatchCorrectionImputationPolicy.NONE: TemporaryImputationMethod.NONE,
+    InternalBatchCorrectionImputationPolicy.ROW_MEDIAN_TEMPORARY: (
+        TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY
+    ),
+    InternalBatchCorrectionImputationPolicy.MINPROB_TEMPORARY: (
+        TemporaryImputationMethod.MINPROB_TEMPORARY
+    ),
+    InternalBatchCorrectionImputationPolicy.KNN_TEMPORARY: (
+        TemporaryImputationMethod.KNN_TEMPORARY
+    ),
+}
 
 
 class BatchCorrectionWorkflowMissingnessValidator:
@@ -57,8 +82,120 @@ class BatchCorrectionWorkflowMissingnessValidator:
             context="batch-correction workflow missingness validation",
         )
         if policy is None:
-            return CorrectionMissingnessPolicy()
+            resolved_policy = CorrectionMissingnessPolicy()
+        else:
+            resolved_policy = policy
+        _validate_temporary_imputation_execution_support(
+            request=request,
+            policy=resolved_policy,
+        )
+        if policy is None:
+            return resolved_policy
         return policy
+
+
+def _validate_temporary_imputation_execution_support(
+    *,
+    request: BatchCorrectionWorkflowRequest,
+    policy: CorrectionMissingnessPolicy,
+) -> None:
+    config = request.config
+    requested_method = _temporary_method_from_internal_config(config.imputation_policy)
+    policy_method = TemporaryImputationMethod.parse(
+        policy.temporary_imputation.method,
+        field_name="temporary imputation policy.method",
+    )
+    if requested_method is not policy_method:
+        raise PhosPyInputError(
+            "batch-correction workflow missingness validation found inconsistent "
+            "temporary imputation policy labels: request.config.imputation_policy="
+            f"{requested_method.value!r}, missingness_policy.temporary_imputation."
+            f"method={policy_method.value!r}. Use one explicit supported policy."
+        )
+
+    if (
+        config.missing_value_policy
+        is InternalBatchCorrectionMissingValuePolicy.ALLOW_TEMPORARY_IMPUTATION
+        and requested_method is TemporaryImputationMethod.NONE
+    ):
+        raise PhosPyInputError(
+            "batch-correction workflow missingness validation requires an explicit "
+            "supported temporary imputation method when temporary imputation is "
+            "allowed"
+        )
+
+    if (
+        policy.temporary_imputation.allowed
+        and policy_method in _RANDOM_TEMPORARY_IMPUTATION_METHODS
+        and policy.temporary_imputation.random_seed is None
+    ):
+        raise PhosPyInputError(
+            "batch-correction workflow missingness validation requires a "
+            "deterministic seed for random temporary imputation method "
+            f"{policy_method.value!r}"
+        )
+    _reject_unexecutable_temporary_imputation_method(requested_method)
+    _reject_unexecutable_temporary_imputation_method(policy_method)
+    if (
+        policy.temporary_imputation.allowed
+        and policy.originally_missing_cells_tracked_by
+        is not OriginallyMissingCellTracking.OBSERVATION_MASK
+    ):
+        raise PhosPyInputError(
+            "batch-correction workflow missingness validation requires temporary "
+            "imputation policies to preserve observation provenance with an "
+            "observation mask"
+        )
+    if not policy.correction_mask_policy.preserve_observation_mask:
+        raise PhosPyInputError(
+            "batch-correction workflow missingness validation requires correction "
+            "policies to preserve observation provenance"
+        )
+    if (
+        policy.correction_mask_policy.corrected_missing_cell_action
+        is CorrectedMissingCellAction.UNSUPPORTED
+    ):
+        raise PhosPyInputError(
+            "batch-correction workflow missingness validation found an "
+            "unsupported correction mask action that cannot preserve observation "
+            "provenance"
+        )
+    if policy.temporary_imputation.imputed_values_are_observed_evidence:
+        raise PhosPyInputError(
+            "batch-correction workflow missingness validation rejects temporary "
+            "imputation policies that would convert originally missing cells into "
+            "observed evidence"
+        )
+
+
+def _temporary_method_from_internal_config(
+    imputation_policy: InternalBatchCorrectionImputationPolicy,
+) -> TemporaryImputationMethod:
+    try:
+        return _INTERNAL_IMPUTATION_TO_TEMPORARY_METHOD[imputation_policy]
+    except KeyError as exc:
+        raise PhosPyInputError(
+            "batch-correction workflow missingness validation found unsupported "
+            f"temporary imputation policy {imputation_policy.value!r}"
+        ) from exc
+
+
+def _reject_unexecutable_temporary_imputation_method(
+    method: TemporaryImputationMethod,
+) -> None:
+    if method in _EXECUTABLE_TEMPORARY_IMPUTATION_METHODS:
+        return
+    if method is TemporaryImputationMethod.KNN_TEMPORARY:
+        detail = "KNN temporary imputation is not implemented"
+    elif method is TemporaryImputationMethod.MINPROB_TEMPORARY:
+        detail = "MinProb temporary imputation is not implemented"
+    else:
+        detail = f"temporary imputation method {method.value!r} is not implemented"
+    raise PhosPyInputError(
+        "batch-correction workflow missingness validation found unsupported "
+        f"temporary imputation: {detail}. Supported executable methods are "
+        "none and row_median_temporary."
+    )
 
 
 def _resolve_upstream_observation_mask_policy(

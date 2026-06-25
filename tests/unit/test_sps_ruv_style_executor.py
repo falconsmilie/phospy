@@ -147,24 +147,23 @@ def test_sps_ruv_style_executor_returns_diagnostics_warnings_and_provenance() ->
     )
 
 
-def test_sps_ruv_style_executor_warns_when_factor_count_is_capped() -> None:
+def test_sps_ruv_style_executor_defensively_rejects_non_estimable_factor_count() -> (
+    None
+):
     phospho = _phospho()
     phospho.loc["site_d", :] = [30.0, 30.0, 42.0, 42.0]
 
-    result = _run_executor(
-        phospho,
-        control_site_set=ControlSiteSet.from_site_keys(("site_a", "site_c", "site_d")),
-        n_unwanted_factors=2,
-    )
-
-    assert result.diagnostics.requested_unwanted_factors == 2
-    assert result.diagnostics.estimated_unwanted_factors == 1
-    assert result.warnings == (
-        "requested n_unwanted_factors=2 but only 1 unwanted factor(s) could be "
-        "estimated from the protected control residual rank; correction proceeded "
-        "with the estimated factor count",
-    )
-    assert result.diagnostics.to_payload()["warnings"] == list(result.warnings)
+    with pytest.raises(
+        PhosPyInputError,
+        match="non-estimable n_unwanted_factors=2",
+    ):
+        _run_executor(
+            phospho,
+            control_site_set=ControlSiteSet.from_site_keys(
+                ("site_a", "site_c", "site_d")
+            ),
+            n_unwanted_factors=2,
+        )
 
 
 def test_sps_ruv_style_executor_defensively_rejects_ruv_iii_style_plan() -> None:
