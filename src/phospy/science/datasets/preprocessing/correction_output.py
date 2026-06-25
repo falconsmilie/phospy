@@ -17,7 +17,11 @@ from phospy.frames.ownership import (
     own_dataframe,
     own_optional_dataframe,
 )
-from phospy.provenance.hashing import fingerprint_optional_table, hash_table_tolerance
+from phospy.provenance.hashing import (
+    fingerprint_matrix,
+    fingerprint_optional_table,
+    hash_table_tolerance,
+)
 from phospy.provenance.models import (
     PREPROCESSING_STAGE_DETERMINISM_PURE,
     PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
@@ -296,6 +300,10 @@ class CorrectedPreprocessingOutputIntegrator:
             state.phospho,
             field_name="corrected preprocessing output.corrected_matrix",
         )
+        _validate_applied_provenance_fingerprints(
+            state=state,
+            correction_output=correction_output,
+        )
         _require_stage_order_precedes_downstream(correction_output.stage_order)
         corrected = correction_output.corrected_matrix.copy(deep=True)
         mask = (
@@ -338,6 +346,99 @@ def _validate_applied_provenance(
         method=correction_output.batch_correction_report.method,
         status=correction_output.batch_correction_report.status,
         provenance=correction_output.provenance,
+    )
+
+
+def _validate_applied_provenance_fingerprints(
+    *,
+    state: PreprocessingState,
+    correction_output: CorrectedPreprocessingOutput,
+) -> None:
+    provenance = correction_output.provenance
+    if not isinstance(provenance, BatchCorrectionProvenance):
+        return
+    if str(correction_output.batch_correction_report.status).strip() != "applied":
+        return
+    _require_matching_table_fingerprint(
+        actual=state.phospho,
+        recorded=provenance.input_matrix_fingerprint,
+        field_name="BatchCorrectionProvenance.input_matrix_fingerprint",
+        actual_description="current pre-correction dataset.phospho matrix",
+    )
+    if provenance.output_matrix_fingerprint is not None:
+        _require_matching_table_fingerprint(
+            actual=correction_output.corrected_matrix,
+            recorded=provenance.output_matrix_fingerprint,
+            field_name="BatchCorrectionProvenance.output_matrix_fingerprint",
+            actual_description="corrected preprocessing output.corrected_matrix",
+        )
+    for recorded_mask in provenance.observation_masks:
+        _require_matching_observation_mask_fingerprint(
+            correction_output=correction_output,
+            recorded=recorded_mask,
+        )
+
+
+def _require_matching_observation_mask_fingerprint(
+    *,
+    correction_output: CorrectedPreprocessingOutput,
+    recorded: TableFingerprint,
+) -> None:
+    normalized_name = recorded.name.strip().lower()
+    if "corrected_cell_status" in normalized_name:
+        actual = correction_output.corrected_cell_status
+        if actual is None:
+            raise PhosPyInputError(
+                "corrected_preprocessing_output BatchCorrectionProvenance includes "
+                f"observation mask fingerprint {recorded.name!r}, but "
+                "corrected preprocessing output.corrected_cell_status is missing "
+                "and cannot be verified"
+            )
+        _require_matching_table_fingerprint(
+            actual=actual,
+            recorded=recorded,
+            field_name="BatchCorrectionProvenance.observation_masks",
+            actual_description="corrected preprocessing output.corrected_cell_status",
+        )
+        return
+    if "observation_mask" not in normalized_name:
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance includes "
+            f"unsupported observation mask fingerprint {recorded.name!r}; "
+            "expected an observation_mask or corrected_cell_status fingerprint"
+        )
+    actual_mask = correction_output.output_observation_mask
+    if actual_mask is None:
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance includes "
+            f"observation mask fingerprint {recorded.name!r}, but corrected "
+            "preprocessing output.output_observation_mask is missing and cannot "
+            "be verified"
+        )
+    _require_matching_table_fingerprint(
+        actual=actual_mask.astype("int8"),
+        recorded=recorded,
+        field_name="BatchCorrectionProvenance.observation_masks",
+        actual_description="corrected preprocessing output.output_observation_mask",
+    )
+
+
+def _require_matching_table_fingerprint(
+    *,
+    actual: pd.DataFrame,
+    recorded: TableFingerprint,
+    field_name: str,
+    actual_description: str,
+) -> None:
+    observed = fingerprint_matrix(actual, name=recorded.name)
+    if observed == recorded:
+        return
+    raise PhosPyInputError(
+        "corrected_preprocessing_output fingerprint mismatch: "
+        f"{field_name} does not match the actual {actual_description}; "
+        f"fingerprint_name={recorded.name!r}; "
+        f"recorded_exact_hash={recorded.exact_hash_value!r}; "
+        f"actual_exact_hash={observed.exact_hash_value!r}"
     )
 
 

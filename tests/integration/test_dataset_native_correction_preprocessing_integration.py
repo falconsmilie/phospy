@@ -45,6 +45,7 @@ _DEFAULT_PROVENANCE: Any = object()
 def test_resolved_native_correction_output_builds_analysis_ready_dataset() -> None:
     phospho = _phospho()
     corrected = _resolved_correction_matrix(phospho + 1.0)
+    resolved_input = _resolved_correction_matrix(phospho)
 
     dataset = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
@@ -79,9 +80,17 @@ def test_resolved_native_correction_output_builds_analysis_ready_dataset() -> No
     assert provenance.selected_site_key_rows
     assert provenance.observation_masks
     assert provenance.input_matrix_fingerprint.name == "batch_correction.native.input"
+    assert provenance.input_matrix_fingerprint == fingerprint_matrix(
+        resolved_input,
+        name="batch_correction.native.input",
+    )
     assert provenance.output_matrix_fingerprint is not None
     assert (
         provenance.output_matrix_fingerprint.name == "batch_correction.native.corrected"
+    )
+    assert provenance.output_matrix_fingerprint == fingerprint_matrix(
+        corrected,
+        name="batch_correction.native.corrected",
     )
     executor_diagnostics = cast(
         Mapping[str, object], provenance.diagnostics["executor"]
@@ -295,6 +304,117 @@ def test_sps_ruv_corrected_output_missing_observation_mask_is_rejected() -> None
                 input_intensity_scale="linear",
                 corrected_preprocessing_output=_correction_output(
                     corrected,
+                    provenance=provenance,
+                ),
+            )
+        )
+
+
+def test_sps_ruv_corrected_output_input_fingerprint_mismatch_is_rejected() -> None:
+    phospho = _phospho()
+    corrected = _resolved_correction_matrix(phospho + 1.0)
+    provenance = replace(
+        _complete_sps_ruv_provenance(
+            corrected,
+            input_matrix=_resolved_correction_matrix(phospho),
+        ),
+        input_matrix_fingerprint=fingerprint_matrix(
+            corrected,
+            name="batch_correction.native.input",
+        ),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="input_matrix_fingerprint.*pre-correction dataset.phospho",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_site_metadata(phospho),
+                sample_metadata=_sample_metadata(phospho),
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+                corrected_preprocessing_output=_correction_output(
+                    corrected,
+                    input_matrix=_resolved_correction_matrix(phospho),
+                    provenance=provenance,
+                ),
+            )
+        )
+
+
+def test_sps_ruv_corrected_output_output_fingerprint_mismatch_is_rejected() -> None:
+    phospho = _phospho()
+    corrected = _resolved_correction_matrix(phospho + 1.0)
+    provenance = replace(
+        _complete_sps_ruv_provenance(
+            corrected,
+            input_matrix=_resolved_correction_matrix(phospho),
+        ),
+        output_matrix_fingerprint=fingerprint_matrix(
+            corrected + 10.0,
+            name="batch_correction.native.corrected",
+        ),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="output_matrix_fingerprint.*corrected_matrix",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_site_metadata(phospho),
+                sample_metadata=_sample_metadata(phospho),
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+                corrected_preprocessing_output=_correction_output(
+                    corrected,
+                    input_matrix=_resolved_correction_matrix(phospho),
+                    provenance=provenance,
+                ),
+            )
+        )
+
+
+def test_sps_ruv_corrected_output_observation_mask_fingerprint_mismatch_is_rejected() -> (
+    None
+):
+    phospho = _phospho()
+    corrected = _resolved_correction_matrix(phospho + 1.0)
+    mismatched_mask = pd.DataFrame(
+        False,
+        index=corrected.index.copy(),
+        columns=corrected.columns.copy(),
+    )
+    provenance = replace(
+        _complete_sps_ruv_provenance(
+            corrected,
+            input_matrix=_resolved_correction_matrix(phospho),
+        ),
+        observation_masks=(
+            fingerprint_matrix(
+                mismatched_mask.astype("int8"),
+                name="batch_correction.native.observation_mask",
+            ),
+        ),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="observation_masks.*output_observation_mask",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_site_metadata(phospho),
+                sample_metadata=_sample_metadata(phospho),
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+                corrected_preprocessing_output=_correction_output(
+                    corrected,
+                    input_matrix=_resolved_correction_matrix(phospho),
                     provenance=provenance,
                 ),
             )
@@ -704,10 +824,11 @@ def _correction_output(
     corrected: pd.DataFrame,
     *,
     consumed_by_downstream: bool = False,
+    input_matrix: pd.DataFrame | None = None,
     provenance: BatchCorrectionProvenance | None | Any = _DEFAULT_PROVENANCE,
 ) -> CorrectedPreprocessingOutput:
     resolved_provenance = (
-        _complete_sps_ruv_provenance(corrected)
+        _complete_sps_ruv_provenance(corrected, input_matrix=input_matrix)
         if provenance is _DEFAULT_PROVENANCE
         else provenance
     )
@@ -745,7 +866,16 @@ def _correction_output(
     )
 
 
-def _complete_sps_ruv_provenance(corrected: pd.DataFrame) -> BatchCorrectionProvenance:
+def _complete_sps_ruv_provenance(
+    corrected: pd.DataFrame,
+    *,
+    input_matrix: pd.DataFrame | None = None,
+) -> BatchCorrectionProvenance:
+    resolved_input = (
+        _resolved_correction_matrix(_phospho())
+        if input_matrix is None
+        else input_matrix.copy(deep=True)
+    )
     mask = pd.DataFrame(
         True,
         index=corrected.index.copy(),
@@ -791,7 +921,7 @@ def _complete_sps_ruv_provenance(corrected: pd.DataFrame) -> BatchCorrectionProv
             ),
         ),
         input_matrix_fingerprint=fingerprint_matrix(
-            corrected,
+            resolved_input,
             name="batch_correction.native.input",
         ),
         output_matrix_fingerprint=fingerprint_matrix(
