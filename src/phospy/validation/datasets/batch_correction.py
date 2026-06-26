@@ -15,6 +15,7 @@ from phospy.contracts.configs.preprocessing.internal_batch_correction import (
     SUPPORTED_INTERNAL_BATCH_CORRECTION_EXECUTED_STAGE_ORDER,
 )
 from phospy.errors.input import PhosPyInputError
+from phospy.provenance.environment import BATCH_CORRECTION_ENVIRONMENT_DEPENDENCIES
 from phospy.provenance.models import BatchCorrectionProvenance
 
 _APPLIED_NATIVE_SPS_RUV_METHODS = frozenset({"sps_ruv_style"})
@@ -24,6 +25,7 @@ _MISSING_PROVENANCE_MESSAGE = (
     "requires typed BatchCorrectionProvenance"
 )
 _NOT_PROVIDED_VALUES = frozenset({"not_provided", "not provided"})
+_MISSING_ENVIRONMENT_VALUES = _NOT_PROVIDED_VALUES | frozenset({"unknown"})
 _MISSING = object()
 
 
@@ -566,6 +568,7 @@ def _validate_complete_sps_ruv_provenance(
             "corrected_preprocessing_output BatchCorrectionProvenance declares "
             f"unsupported method {requested_method!r}"
         )
+    _require_environment_provenance(provenance)
     _require_selected_control_site_rows(provenance.selected_site_key_rows)
     n_unwanted_factors = _extract_sps_ruv_n_unwanted_factors(provenance)
     _require_selected_control_count_for_unwanted_factors(
@@ -622,6 +625,38 @@ def _validate_complete_sps_ruv_provenance(
         provenance.missing_value_policy,
         field_name="BatchCorrectionProvenance.missing_value_policy",
     )
+
+
+def _require_environment_provenance(provenance: BatchCorrectionProvenance) -> None:
+    if _is_missing_environment_text(provenance.phospy_version):
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance must include "
+            "non-empty phospy_version for applied SPS/RUV-style corrected output"
+        )
+    if _is_missing_environment_text(provenance.python_version):
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance must include "
+            "non-empty python_version for applied SPS/RUV-style corrected output"
+        )
+    dependency_versions = provenance.dependency_versions
+    if not isinstance(dependency_versions, Mapping) or not dependency_versions:
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance must include "
+            "non-empty dependency_versions for applied SPS/RUV-style corrected output"
+        )
+
+    missing_dependencies = tuple(
+        dependency
+        for dependency in BATCH_CORRECTION_ENVIRONMENT_DEPENDENCIES
+        if _is_missing_environment_text(dependency_versions.get(dependency))
+    )
+    if missing_dependencies:
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance "
+            "dependency_versions must include versions for native "
+            "batch-correction dependencies: "
+            f"{_format_labels(missing_dependencies)}"
+        )
 
 
 def _extract_sps_ruv_n_unwanted_factors(
@@ -818,6 +853,13 @@ def _reject_not_provided_required_mapping(
 
 def _has_non_missing_text(value: object) -> bool:
     return not _is_missing_required_text(value) and not _is_not_provided(value)
+
+
+def _is_missing_environment_text(value: object) -> bool:
+    return (
+        _is_missing_required_text(value)
+        or str(value).strip().lower() in _MISSING_ENVIRONMENT_VALUES
+    )
 
 
 def _is_missing_required_text(value: object) -> bool:

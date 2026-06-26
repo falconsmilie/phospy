@@ -5,7 +5,7 @@ tests/integration/test_dataset_builder_boundary_honesty_integration.py,integrati
 tests/integration/test_dataset_builder_integration.py,integration,1985,36,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset builder integration and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/integration/test_dataset_builder_intensity_scale_provenance.py,integration,318,9,true,false,,,,,,
 tests/integration/test_dataset_importer_handoff.py,integration,60,1,true,false,,,,,,
-tests/integration/test_dataset_native_correction_preprocessing_integration.py,integration,1185,21,true,true,,,,,,
+tests/integration/test_dataset_native_correction_preprocessing_integration.py,integration,1310,25,true,true,,,,,,
 tests/integration/test_dataset_protein_aware_alignment_diagnostics.py,integration,177,2,true,false,,,,,,
 tests/integration/test_differential_with_technical_replicates.py,integration,198,3,false,false,,,,,,
 tests/integration/test_differential_workflow_integration.py,integration,417,8,false,false,,,,,,

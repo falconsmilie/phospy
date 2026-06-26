@@ -40,6 +40,12 @@ from phospy.science.datasets.preprocessing.control_sites import (
 pytestmark = pytest.mark.integration
 
 _DEFAULT_PROVENANCE: Any = object()
+_COMPLETE_EXTERNAL_DEPENDENCY_VERSIONS = {
+    "numpy": "test-numpy",
+    "pandas": "test-pandas",
+    "scipy": "test-scipy",
+    "scikit-learn": "test-scikit-learn",
+}
 
 
 def test_resolved_native_correction_output_builds_analysis_ready_dataset() -> None:
@@ -123,6 +129,117 @@ def test_sps_ruv_corrected_output_without_provenance_is_rejected() -> None:
                 ),
             )
         )
+
+
+def test_sps_ruv_corrected_output_with_empty_dependency_versions_is_rejected() -> None:
+    phospho = _phospho()
+    corrected = _resolved_correction_matrix(phospho + 1.0)
+    provenance = replace(
+        _complete_sps_ruv_provenance(corrected),
+        dependency_versions={},
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="dependency_versions",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_site_metadata(phospho),
+                sample_metadata=_sample_metadata(phospho),
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+                corrected_preprocessing_output=_correction_output(
+                    corrected,
+                    provenance=provenance,
+                ),
+            )
+        )
+
+
+@pytest.mark.parametrize("phospy_version", ("", "unknown"))
+def test_sps_ruv_corrected_output_with_missing_phospy_version_is_rejected(
+    phospy_version: str,
+) -> None:
+    phospho = _phospho()
+    corrected = _resolved_correction_matrix(phospho + 1.0)
+    provenance = replace(
+        _complete_sps_ruv_provenance(corrected),
+        phospy_version=phospy_version,
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="phospy_version",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_site_metadata(phospho),
+                sample_metadata=_sample_metadata(phospho),
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+                corrected_preprocessing_output=_correction_output(
+                    corrected,
+                    provenance=provenance,
+                ),
+            )
+        )
+
+
+def test_sps_ruv_corrected_output_with_missing_python_version_is_rejected() -> None:
+    phospho = _phospho()
+    corrected = _resolved_correction_matrix(phospho + 1.0)
+    provenance = replace(
+        _complete_sps_ruv_provenance(corrected),
+        python_version="",
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="python_version",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_site_metadata(phospho),
+                sample_metadata=_sample_metadata(phospho),
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+                corrected_preprocessing_output=_correction_output(
+                    corrected,
+                    provenance=provenance,
+                ),
+            )
+        )
+
+
+def test_sps_ruv_corrected_output_accepts_complete_external_environment_provenance() -> (
+    None
+):
+    phospho = _phospho()
+    corrected = _resolved_correction_matrix(phospho + 1.0)
+    provenance = _complete_sps_ruv_provenance(corrected)
+
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=_site_metadata(phospho),
+            sample_metadata=_sample_metadata(phospho),
+            organism=Organism.RAT,
+            input_intensity_scale="linear",
+            corrected_preprocessing_output=_correction_output(
+                corrected,
+                provenance=provenance,
+            ),
+        )
+    )
+
+    attached = _attached_batch_correction_provenance(dataset)
+    assert attached.phospy_version == "test"
+    assert attached.python_version == "3.test"
+    assert attached.dependency_versions == _COMPLETE_EXTERNAL_DEPENDENCY_VERSIONS
 
 
 def test_sps_ruv_corrected_output_with_not_provided_controls_is_rejected() -> None:
@@ -539,6 +656,13 @@ def test_public_sps_ruv_preprocessing_config_builds_corrected_dataset_with_prove
     provenance = correction_stage.batch_correction_provenance
     assert provenance is not None
     assert provenance.requested_method == "sps_ruv_style"
+    assert provenance.phospy_version
+    assert provenance.phospy_version != "unknown"
+    assert provenance.python_version
+    assert provenance.python_version != "unknown"
+    assert {"numpy", "pandas", "scipy", "scikit-learn"}.issubset(
+        set(provenance.dependency_versions)
+    )
     assert provenance.selected_site_key_rows
     stage_order = tuple(
         stage.stage for stage in dataset.provenance.preprocessing_stages
@@ -975,7 +1099,8 @@ def _complete_sps_ruv_provenance(
         diagnostics={"executor": {"status": "applied", "method": "sps_ruv_style"}},
         warnings=(),
         phospy_version="test",
-        dependency_versions={},
+        python_version="3.test",
+        dependency_versions=_COMPLETE_EXTERNAL_DEPENDENCY_VERSIONS,
     )
 
 
