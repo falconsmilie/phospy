@@ -187,6 +187,7 @@ from phospy.contracts.configs.preprocessing import (
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICIES,
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ERROR,
+    NATIVE_EXECUTABLE_TEMPORARY_IMPUTATION_METHODS,
     SPS_RUV_BATCH_CORRECTION_METHODS,
     SUPPORTED_INTERNAL_BATCH_CORRECTION_EXECUTED_STAGE_ORDER,
     SUPPORTED_INTERNAL_BATCH_CORRECTION_STAGE_ORDER,
@@ -232,6 +233,7 @@ from phospy.contracts.configs.preprocessing import (
     SpsRuvBatchCorrectionMethod,
     TemporaryImputationMethod,
     TemporaryImputationPolicy,
+    validate_native_executable_temporary_imputation_method,
 )
 from phospy.contracts.configs.signalome import (
     SIGNALOME_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT,
@@ -294,6 +296,7 @@ __all__ = [
     "DATASET_BATCH_CORRECTION_METHOD_NONE",
     "DATASET_BATCH_CORRECTION_METHOD_SPS_RUV_STYLE",
     "DATASET_BATCH_CORRECTION_METHODS",
+    "NATIVE_EXECUTABLE_TEMPORARY_IMPUTATION_METHODS",
     "SPS_RUV_BATCH_CORRECTION_METHODS",
     "CONTROL_SITE_SELECTION_METHOD_CALLER_SUPPLIED",
     "CONTROL_SITE_SOURCE_CALLER_SUPPLIED",
@@ -386,6 +389,7 @@ __all__ = [
     "TemporaryImputationPolicy",
     "SpsRuvBatchCorrectionConfig",
     "SpsRuvBatchCorrectionMethod",
+    "validate_native_executable_temporary_imputation_method",
     "KINASE_ADAPTIVE_POLICIES",
     "KINASE_ADAPTIVE_POLICY_R_PARITY",
     "KINASE_ADAPTIVE_POLICY_STABLE",

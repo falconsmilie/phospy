@@ -134,6 +134,7 @@ from phospy.contracts.configs import (
     MULTIPLE_TESTING_METHOD_BONFERRONI,
     MULTIPLE_TESTING_METHOD_HOLM,
     MULTIPLE_TESTING_METHOD_NONE,
+    NATIVE_EXECUTABLE_TEMPORARY_IMPUTATION_METHODS,
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     PAIRED_DESIGN_POLICY_REJECT,
     PTM_LEVEL_ENRICHMENT_IDENTIFIER_KINDS,
@@ -248,6 +249,7 @@ from phospy.contracts.configs import (
     SpsRuvBatchCorrectionMethod,
     TemporaryImputationMethod,
     TemporaryImputationPolicy,
+    validate_native_executable_temporary_imputation_method,
 )
 
 __all__ = [
@@ -255,6 +257,7 @@ __all__ = [
     "DATASET_BATCH_CORRECTION_METHOD_NONE",
     "DATASET_BATCH_CORRECTION_METHOD_SPS_RUV_STYLE",
     "DATASET_BATCH_CORRECTION_METHODS",
+    "NATIVE_EXECUTABLE_TEMPORARY_IMPUTATION_METHODS",
     "SPS_RUV_BATCH_CORRECTION_METHODS",
     "DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN",
     "DATASET_COMPARISON_BUILDING_POLICIES",
@@ -344,6 +347,7 @@ __all__ = [
     "SpsRuvBatchCorrectionMethod",
     "TemporaryImputationMethod",
     "TemporaryImputationPolicy",
+    "validate_native_executable_temporary_imputation_method",
     "DatasetSiteMatrixConfig",
     "DatasetSiteMatrixDuplicateSitePolicy",
     "DatasetSiteMatrixMissingDataPolicy",

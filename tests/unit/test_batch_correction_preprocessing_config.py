@@ -9,7 +9,11 @@ from phospy.api import (
     ControlSiteSet,
     CorrectionMissingnessPolicy,
     DatasetBatchCorrectionConfig,
+    ObservationMask,
+    OriginallyMissingCellTracking,
     SpsRuvBatchCorrectionConfig,
+    TemporaryImputationMethod,
+    TemporaryImputationPolicy,
 )
 from phospy.api.configs import (
     DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
@@ -134,6 +138,85 @@ def test_sps_ruv_batch_correction_config_requires_explicit_public_contract() -> 
     assert plan.batch_correction_internal_request.n_unwanted_factors == 1
     assert plan.batch_correction_control_site_set is config.control_site_set
     assert plan.batch_correction_missingness_policy is config.missingness_policy
+
+
+def test_sps_ruv_batch_correction_config_rejects_knn_temporary_imputation() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="unsupported temporary imputation.*KNN temporary imputation is not implemented",
+    ):
+        SpsRuvBatchCorrectionConfig(
+            control_site_set=ControlSiteSet.from_site_keys(("site_a", "site_c")),
+            batch_column="ms_run",
+            condition_columns=("condition",),
+            missingness_policy=_temporary_imputation_missingness_policy(
+                method=TemporaryImputationMethod.KNN_TEMPORARY,
+                method_parameters={
+                    "k": 3,
+                    "distance": "nan_euclidean",
+                    "max_missing_fraction_per_row": 0.5,
+                },
+            ),
+            n_unwanted_factors=1,
+        )
+
+
+def test_sps_ruv_batch_correction_config_rejects_minprob_temporary_imputation() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="unsupported temporary imputation.*MinProb temporary imputation is not implemented",
+    ):
+        SpsRuvBatchCorrectionConfig(
+            control_site_set=ControlSiteSet.from_site_keys(("site_a", "site_c")),
+            batch_column="ms_run",
+            condition_columns=("condition",),
+            missingness_policy=_temporary_imputation_missingness_policy(
+                method=TemporaryImputationMethod.MINPROB_TEMPORARY,
+                method_parameters={"q": 0.01, "width": 0.3},
+                random_seed=101,
+            ),
+            n_unwanted_factors=1,
+        )
+
+
+def test_sps_ruv_batch_correction_config_rejects_unsupported_temporary_imputation_label() -> (
+    None
+):
+    with pytest.raises(
+        PhosPyInputError,
+        match="unsupported temporary imputation.*'unsupported' is not implemented",
+    ):
+        SpsRuvBatchCorrectionConfig(
+            control_site_set=ControlSiteSet.from_site_keys(("site_a", "site_c")),
+            batch_column="ms_run",
+            condition_columns=("condition",),
+            missingness_policy=_temporary_imputation_missingness_policy(
+                method=TemporaryImputationMethod.UNSUPPORTED,
+                supported=False,
+                unsupported_reason="future temporary imputation method",
+            ),
+            n_unwanted_factors=1,
+        )
+
+
+def test_sps_ruv_batch_correction_config_accepts_row_median_temporary_imputation() -> (
+    None
+):
+    config = SpsRuvBatchCorrectionConfig(
+        control_site_set=ControlSiteSet.from_site_keys(("site_a", "site_c")),
+        batch_column="ms_run",
+        condition_columns=("condition",),
+        missingness_policy=_temporary_imputation_missingness_policy(
+            method=TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY,
+            method_parameters={"min_observed_values": 2},
+        ),
+        n_unwanted_factors=1,
+    )
+
+    request = config.to_internal_request()
+
+    assert request.missing_value_policy.value == "allow_temporary_imputation"
+    assert request.imputation_policy.value == "row_median_temporary"
 
 
 def test_sps_ruv_batch_correction_config_accepts_only_sps_ruv_style_public_method() -> (
@@ -298,3 +381,32 @@ def test_batch_correction_plan_rejects_duplicate_stage_order_entries() -> None:
                 DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
             ),
         )
+
+
+def _temporary_imputation_missingness_policy(
+    *,
+    method: TemporaryImputationMethod,
+    method_parameters: dict[str, object] | None = None,
+    random_seed: int | None = None,
+    supported: bool = True,
+    unsupported_reason: str | None = None,
+) -> CorrectionMissingnessPolicy:
+    return CorrectionMissingnessPolicy(
+        temporary_imputation=TemporaryImputationPolicy(
+            allowed=True,
+            method=method,
+            method_parameters=(  # type: ignore[arg-type]
+                {} if method_parameters is None else method_parameters
+            ),
+            random_seed=random_seed,
+            supported=supported,
+            unsupported_reason=unsupported_reason,
+        ),
+        originally_missing_cells_tracked_by=(
+            OriginallyMissingCellTracking.OBSERVATION_MASK
+        ),
+        observation_mask=ObservationMask(
+            feature_ids=("site_a", "site_c"),
+            sample_ids=("sample_1", "sample_2"),
+        ),
+    )

@@ -42,6 +42,12 @@ SPS_RUV_BATCH_CORRECTION_METHODS = frozenset(
         DATASET_BATCH_CORRECTION_METHOD_SPS_RUV_STYLE,
     }
 )
+NATIVE_EXECUTABLE_TEMPORARY_IMPUTATION_METHODS = frozenset(
+    {
+        TemporaryImputationMethod.NONE,
+        TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY,
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -146,6 +152,7 @@ class SpsRuvBatchCorrectionConfig:
                 "dataset build request preprocessing_config.batch_correction."
                 "missingness_policy must be a CorrectionMissingnessPolicy"
             )
+        validate_native_executable_temporary_imputation_method(self.missingness_policy)
         n_unwanted_factors = require_int_at_least(
             self.n_unwanted_factors,
             field_name=(
@@ -205,6 +212,39 @@ class SpsRuvBatchCorrectionConfig:
 DatasetPreprocessingBatchCorrectionConfig = (
     DatasetBatchCorrectionConfig | SpsRuvBatchCorrectionConfig
 )
+
+
+def validate_native_executable_temporary_imputation_method(
+    policy: CorrectionMissingnessPolicy,
+) -> None:
+    """Validate public native SPS/RUV temporary-imputation executability."""
+
+    if not isinstance(policy, CorrectionMissingnessPolicy):
+        raise PhosPyInputError(
+            "dataset build request preprocessing_config.batch_correction."
+            "missingness_policy must be a CorrectionMissingnessPolicy"
+        )
+    method = TemporaryImputationMethod.parse(
+        policy.temporary_imputation.method,
+        field_name=(
+            "dataset build request preprocessing_config.batch_correction."
+            "missingness_policy.temporary_imputation.method"
+        ),
+    )
+    if method in NATIVE_EXECUTABLE_TEMPORARY_IMPUTATION_METHODS:
+        return
+    if method is TemporaryImputationMethod.KNN_TEMPORARY:
+        detail = "KNN temporary imputation is not implemented"
+    elif method is TemporaryImputationMethod.MINPROB_TEMPORARY:
+        detail = "MinProb temporary imputation is not implemented"
+    else:
+        detail = f"temporary imputation method {method.value!r} is not implemented"
+    raise PhosPyInputError(
+        "dataset build request preprocessing_config.batch_correction."
+        "missingness_policy has unsupported temporary imputation: "
+        f"{detail}. Supported executable methods are none and "
+        "row_median_temporary."
+    )
 
 
 def _require_control_site_set(value: object) -> None:
@@ -275,14 +315,11 @@ def _internal_imputation_method(
 ) -> InternalBatchCorrectionImputationPolicy:
     if method is TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY:
         return InternalBatchCorrectionImputationPolicy.ROW_MEDIAN_TEMPORARY
-    if method is TemporaryImputationMethod.MINPROB_TEMPORARY:
-        return InternalBatchCorrectionImputationPolicy.MINPROB_TEMPORARY
-    if method is TemporaryImputationMethod.KNN_TEMPORARY:
-        return InternalBatchCorrectionImputationPolicy.KNN_TEMPORARY
     raise PhosPyInputError(
         "dataset build request preprocessing_config.batch_correction."
         "missingness_policy temporary imputation method is unsupported for "
-        "native SPS/RUV-style correction"
+        "native SPS/RUV-style correction; supported executable methods are "
+        "none and row_median_temporary"
     )
 
 
@@ -302,10 +339,12 @@ __all__ = [
     "DATASET_BATCH_CORRECTION_METHOD_NONE",
     "DATASET_BATCH_CORRECTION_METHOD_SPS_RUV_STYLE",
     "DATASET_BATCH_CORRECTION_METHODS",
+    "NATIVE_EXECUTABLE_TEMPORARY_IMPUTATION_METHODS",
     "SPS_RUV_BATCH_CORRECTION_METHODS",
     "DatasetBatchCorrectionConfig",
     "DatasetBatchCorrectionMethod",
     "DatasetPreprocessingBatchCorrectionConfig",
     "SpsRuvBatchCorrectionConfig",
     "SpsRuvBatchCorrectionMethod",
+    "validate_native_executable_temporary_imputation_method",
 ]
