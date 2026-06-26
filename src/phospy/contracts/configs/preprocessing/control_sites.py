@@ -1,4 +1,4 @@
-"""Control-site representation constants for future correction requests."""
+"""Control-site constants for native SPS/RUV-style preprocessing correction."""
 
 from __future__ import annotations
 

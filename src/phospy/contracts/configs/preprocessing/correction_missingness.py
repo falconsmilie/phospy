@@ -1,8 +1,8 @@
-"""Missingness and temporary-imputation contracts for future correction.
+"""Missingness contracts for native SPS/RUV-style preprocessing correction.
 
 These contracts describe intent and provenance shape only. They do not impute
-values, run SPS/RUV-style correction, or convert temporary imputed values into
-observed biological evidence.
+values, run native SPS/RUV-style preprocessing correction, or convert temporary
+imputed values into observed biological evidence.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ JsonScalar: TypeAlias = str | int | float | bool | None
 
 
 class TemporaryImputationMethod(PolicyEnum):
-    """Temporary imputation labels for future correction mechanics."""
+    """Temporary imputation labels for native SPS/RUV-style preprocessing correction."""
 
     NONE = "none"
     ROW_MEDIAN_TEMPORARY = "row_median_temporary"
@@ -252,7 +252,7 @@ class TemporaryImputationPolicy:
 
 @dataclass(frozen=True, slots=True)
 class CorrectionMaskPolicy:
-    """How future correction must handle originally missing cells."""
+    """How native SPS/RUV-style preprocessing correction handles missing cells."""
 
     corrected_missing_cell_action: CorrectedMissingCellAction = (
         CorrectedMissingCellAction.RESTORE_MISSING
@@ -300,7 +300,7 @@ class CorrectionMaskPolicy:
 
 @dataclass(frozen=True, slots=True)
 class CorrectionMissingnessPolicy:
-    """Missingness contract for future SPS/RUV-style correction requests."""
+    """Missingness contract for native SPS/RUV-style preprocessing correction."""
 
     temporary_imputation: TemporaryImputationPolicy = field(
         default_factory=TemporaryImputationPolicy

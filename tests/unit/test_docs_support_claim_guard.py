@@ -304,6 +304,17 @@ DISTINCTION_RULES: tuple[SupportClaimRule, ...] = (
         ),
     ),
     SupportClaimRule(
+        name="stale future-only native correction lane",
+        unsupported_claim=_rx(
+            r"\bfuture\s+correction\b|\bwithout\s+numerical\s+correction\b"
+        ),
+        allowed_contexts=(),
+        update_when_supported=(
+            "Active correction APIs must describe native SPS/RUV-style "
+            "preprocessing correction and resolved numerical execution plans."
+        ),
+    ),
+    SupportClaimRule(
         name="generic RUV support shortcut",
         unsupported_claim=_rx(r"\bruv\s+support\b"),
         allowed_contexts=ROADMAP_OR_UNSUPPORTED
@@ -417,6 +428,12 @@ def _public_docs_paths() -> tuple[Path, ...]:
 
 def _api_doc_paths() -> tuple[Path, ...]:
     return (
+        SRC_ROOT
+        / "contracts"
+        / "configs"
+        / "preprocessing"
+        / "correction_missingness.py",
+        SRC_ROOT / "contracts" / "configs" / "preprocessing" / "control_sites.py",
         SRC_ROOT / "contracts" / "configs" / "preprocessing" / "batch_correction.py",
         SRC_ROOT
         / "contracts"
@@ -424,6 +441,7 @@ def _api_doc_paths() -> tuple[Path, ...]:
         / "preprocessing"
         / "internal_batch_correction.py",
         SRC_ROOT / "validation" / "configs" / "preprocessing.py",
+        SRC_ROOT / "workflows" / "batch_correction" / "interpreter.py",
     )
 
 
@@ -654,9 +672,12 @@ def test_claim_guard_rejects_batch_correction_shortcuts_and_blurred_boundaries()
             (
                 "Enable PhosR-equivalent SPS/RUV-III batch correction.",
                 "Set use_ruv=True to run batch correction.",
+                "Missingness and temporary-imputation contracts for future correction.",
+                "Execution plan for SPS/RUV-style correction without numerical correction.",
                 "PhosPy provides automatic control-site selection for RUV.",
                 "ruv_readiness applies correction to the matrix.",
                 "linear_residualize_batch is SPS/RUV-style correction.",
+                "linear_residualize_batch is native SPS/RUV-style correction.",
                 "Differential batch covariates are preprocessing correction.",
                 "Differential batch fixed effects correct the input matrix.",
             ),
@@ -676,6 +697,7 @@ def test_claim_guard_allows_current_limitation_language() -> None:
                 "This is not ComBat, not RUV, not limma removeBatchEffect parity.",
                 "No executable RUV, ComBat, or limma removeBatchEffect parity lane is supported.",
                 "Native PhosPy SPS/RUV-style preprocessing correction is available through SpsRuvBatchCorrectionConfig.",
+                "The interpreter returns a resolved numerical execution plan for native SPS/RUV-style preprocessing correction.",
                 "Protein-aware preparation is preparation-only and does not claim MSstatsPTM equivalence.",
                 "ORA is not GSEA, ssGSEA, or PTM-SEA support.",
                 "No official Kinase Library compatibility or parity claim is made.",

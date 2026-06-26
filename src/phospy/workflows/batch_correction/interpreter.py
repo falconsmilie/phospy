@@ -1,4 +1,4 @@
-"""Resolve validated SPS/RUV-style batch-correction intent into an execution plan."""
+"""Resolve native SPS/RUV-style preprocessing correction intent into a plan."""
 
 from __future__ import annotations
 
@@ -100,7 +100,7 @@ class ReplicateStructure:
 
 @dataclass(frozen=True, slots=True)
 class BatchCorrectionDiagnosticRequirements:
-    """Diagnostic payloads a future executor must preserve or emit."""
+    """Diagnostic payloads a correction executor must preserve or emit."""
 
     diagnostics_enabled: bool
     required_payloads: tuple[str, ...]
@@ -116,7 +116,7 @@ class BatchCorrectionDiagnosticRequirements:
 
 @dataclass(frozen=True, slots=True)
 class ResolvedBatchCorrectionPlan:
-    """Execution plan for SPS/RUV-style correction without numerical correction."""
+    """Resolved numerical execution plan for native SPS/RUV-style preprocessing correction."""
 
     method: str
     resolved_design_matrix: pd.DataFrame
