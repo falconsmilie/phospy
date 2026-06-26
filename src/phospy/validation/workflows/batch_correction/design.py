@@ -114,19 +114,6 @@ class BatchCorrectionWorkflowFactorFeasibilityValidator:
                 f"residual_degrees_of_freedom={sample_residual_df})"
             )
 
-        batch = _batch_design(dataset_metadata)
-        full_design = np.concatenate((protected, batch), axis=1)
-        full_rank = _matrix_rank(full_design)
-        full_residual_df = len(sample_order) - full_rank
-        if full_residual_df < requested:
-            raise PhosPyInputError(
-                "batch-correction factor feasibility validation failed: protected "
-                "design terms and batch terms leave insufficient residual degrees "
-                f"of freedom for n_unwanted_factors={requested} "
-                f"(samples={len(sample_order)}, design_rank={full_rank}, "
-                f"residual_degrees_of_freedom={full_residual_df})"
-            )
-
         working = _prepared_rank_matrix(
             phospho=request.phospho,
             missingness_policy=missingness_policy,
@@ -153,10 +140,6 @@ class BatchCorrectionWorkflowFactorFeasibilityValidator:
 
 def _condition_design(metadata: ResolvedBatchDesignMetadata) -> np.ndarray:
     return _treatment_coded_design(metadata.condition_labels, include_intercept=True)
-
-
-def _batch_design(metadata: ResolvedBatchDesignMetadata) -> np.ndarray:
-    return _treatment_coded_design(metadata.batch_labels, include_intercept=False)
 
 
 def _treatment_coded_design(

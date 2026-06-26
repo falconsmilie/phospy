@@ -350,6 +350,12 @@ PhosPy implementation, not PhosR-equivalent SPS/RUV-III parity. Batch terms are
 resolved for validation and diagnostics, including batch-associated-variance
 summaries; they are not directly residualized as fixed effects by the native
 PhosPy SPS/RUV-style preprocessing correction.
+Unwanted-factor feasibility is checked against eligible-control count,
+sample/design capacity after protected condition terms, and eligible control
+residual rank after protected condition terms. It is not checked against a
+protected-plus-batch fixed-effect residual degrees-of-freedom model, because
+batch terms are not part of the native numerical factor-estimation or
+correction model.
 The `ruv_iii_style` method label is not executable unless a future feature
 implements replicate-aware RUV-III semantics.
 
@@ -435,7 +441,9 @@ config = DatasetPreprocessingConfig(batch_correction=sps_ruv_correction)
   `row_median_temporary`; `minprob_temporary` and `knn_temporary` are rejected
   in native correction because their temporary correction semantics are not
   implemented.
-- `n_unwanted_factors >= 1`.
+- `n_unwanted_factors >= 1`; the requested count must be supported by the
+  eligible-control count, protected-design residual sample capacity, and
+  eligible control residual rank after protected condition terms.
 - `diagnostics_enabled` and `provenance_enabled=True`; native correction cannot
   run without provenance.
 

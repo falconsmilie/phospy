@@ -26,9 +26,10 @@ SPS_RUV_STYLE_ALGORITHM_DESCRIPTION = (
     "handling"
 )
 SPS_RUV_STYLE_BATCH_TERM_ROLE = (
-    "batch terms are resolved for validation and diagnostics, including "
-    "batch-associated variance summaries; they are not directly residualized "
-    "as fixed effects by native SPS/RUV-style correction"
+    "batch terms are resolved for metadata validation and diagnostics, "
+    "including batch-associated variance summaries; they are not used to "
+    "estimate unwanted factors or residualized as fixed effects by native "
+    "SPS/RUV-style correction"
 )
 SPS_RUV_STYLE_PROTECTED_TERM_ROLE = (
     "protected condition terms are included in the protected design before "

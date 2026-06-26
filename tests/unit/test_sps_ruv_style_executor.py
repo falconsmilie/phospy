@@ -97,6 +97,48 @@ def test_sps_ruv_style_executor_estimates_factors_from_control_rows_only() -> No
     assert first.diagnostics.control_site_count == 2
 
 
+def test_sps_ruv_style_executor_batch_labels_affect_diagnostics_not_correction() -> (
+    None
+):
+    phospho = _phospho()
+    two_batch_metadata = _metadata()
+    relabeled_batch_metadata = _metadata(
+        batch_by_sample={
+            "sample_1": "run_1",
+            "sample_2": "run_2",
+            "sample_3": "run_2",
+            "sample_4": "run_1",
+        }
+    )
+
+    first = _run_executor(phospho, dataset_metadata=two_batch_metadata)
+    second = _run_executor(phospho, dataset_metadata=relabeled_batch_metadata)
+
+    pdt.assert_frame_equal(
+        first.corrected_matrix,
+        second.corrected_matrix,
+        check_exact=False,
+        atol=1e-10,
+        rtol=0.0,
+    )
+    pdt.assert_frame_equal(
+        first.estimated_unwanted_factors,
+        second.estimated_unwanted_factors,
+        check_exact=False,
+        atol=1e-10,
+        rtol=0.0,
+    )
+    assert first.diagnostics.design_summary["number_of_batches"] == 2
+    assert second.diagnostics.design_summary["number_of_batches"] == 2
+    assert first.diagnostics.design_summary["design_matrix_shape"] == [4, 3]
+    assert second.diagnostics.design_summary["design_matrix_shape"] == [4, 3]
+    first_before = first.diagnostics.batch_associated_variance["before"]
+    second_before = second.diagnostics.batch_associated_variance["before"]
+    assert isinstance(first_before, dict)
+    assert isinstance(second_before, dict)
+    assert first_before["mean_r_squared"] != second_before["mean_r_squared"]
+
+
 def test_sps_ruv_style_executor_preserves_protected_condition_effects() -> None:
     phospho = _phospho()
 
@@ -458,12 +500,14 @@ def _run_executor(
     missing_cells: tuple[tuple[str, str], ...] = (),
     control_site_set: ControlSiteSet | None = None,
     n_unwanted_factors: int = 1,
+    dataset_metadata: ResolvedBatchDesignMetadata | None = None,
 ) -> SpsRuvStyleExecutorResult:
     plan = _resolved_plan(
         phospho,
         missing_cells=missing_cells,
         control_site_set=control_site_set,
         n_unwanted_factors=n_unwanted_factors,
+        dataset_metadata=dataset_metadata,
     )
     return DeterministicSpsRuvStyleExecutor().run(phospho=phospho, plan=plan)
 
@@ -474,10 +518,11 @@ def _resolved_plan(
     missing_cells: tuple[tuple[str, str], ...] = (),
     control_site_set: ControlSiteSet | None = None,
     n_unwanted_factors: int = 1,
+    dataset_metadata: ResolvedBatchDesignMetadata | None = None,
 ) -> ResolvedBatchCorrectionPlan:
     return BatchCorrectionPlanInterpreter().run(
         config=_config(n_unwanted_factors=n_unwanted_factors),
-        dataset_metadata=_metadata(),
+        dataset_metadata=_metadata() if dataset_metadata is None else dataset_metadata,
         control_site_mapping=_control_mapping(
             site_keys=tuple(str(value) for value in phospho.index.tolist()),
             control_site_set=control_site_set,
@@ -508,9 +553,14 @@ def _config(*, n_unwanted_factors: int = 1) -> InternalBatchCorrectionRequest:
     )
 
 
-def _metadata() -> ResolvedBatchDesignMetadata:
+def _metadata(
+    *,
+    batch_by_sample: dict[str, str] | None = None,
+) -> ResolvedBatchDesignMetadata:
     return ResolvedBatchDesignMetadata(
-        batch_by_sample={
+        batch_by_sample=batch_by_sample
+        if batch_by_sample is not None
+        else {
             "sample_1": "run_1",
             "sample_2": "run_1",
             "sample_3": "run_2",

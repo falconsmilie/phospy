@@ -142,27 +142,31 @@ def test_workflow_rejects_factor_count_too_high_for_eligible_controls_before_exe
     assert executor.call_count == 0
 
 
-def test_workflow_rejects_factor_count_too_high_for_sample_design_rank_before_executor() -> (
+def test_workflow_allows_factor_count_when_only_protected_plus_batch_residual_df_is_limited() -> (
     None
 ):
-    executor = _SpyExecutor()
     request = _request(
+        phospho=_phospho_with_two_independent_control_residuals(),
         config=_config(n_unwanted_factors=2),
+        missingness_policy=_missingness_policy(
+            missing_cells=(),
+            feature_ids=("site_a", "site_b", "site_c"),
+        ),
         control_site_set=ControlSiteSet.from_site_keys(
-            ("site_a", "site_c", "site_d"),
+            ("site_a", "site_b", "site_c"),
             source_metadata=_control_source_metadata(),
         ),
     )
 
-    with pytest.raises(
-        PhosPyInputError,
-        match="factor feasibility.*residual degrees of freedom",
-    ):
-        BatchCorrectionWorkflow(
-            executor=cast(BatchCorrectionExecutorContract, executor)
-        ).run(request)
+    result = BatchCorrectionWorkflow().run(request)
 
-    assert executor.call_count == 0
+    executor_diagnostics = cast(Mapping[str, object], result.diagnostics["executor"])
+    design_summary = cast(Mapping[str, object], executor_diagnostics["design_summary"])
+    assert executor_diagnostics["requested_unwanted_factors"] == 2
+    assert executor_diagnostics["estimated_unwanted_factors"] == 2
+    assert executor_diagnostics["protected_design_rank"] == 2
+    assert design_summary["sample_count"] == 4
+    assert design_summary["design_matrix_rank"] == 3
 
 
 def test_workflow_rejects_zero_weight_control_before_executor() -> None:
@@ -335,6 +339,7 @@ def _missingness_policy(
     random_seed: int | None = None,
     missing_cells: tuple[tuple[str, str], ...],
     temporary_imputation: TemporaryImputationPolicy | None = None,
+    feature_ids: tuple[str, ...] | None = None,
 ) -> CorrectionMissingnessPolicy:
     if temporary_imputation is None:
         temporary_imputation = TemporaryImputationPolicy(
@@ -350,7 +355,11 @@ def _missingness_policy(
         originally_missing_cells_tracked_by=OriginallyMissingCellTracking.OBSERVATION_MASK,
         correction_mask_policy=CorrectionMaskPolicy(),
         observation_mask=ObservationMask(
-            feature_ids=tuple(str(value) for value in _phospho().index.tolist()),
+            feature_ids=(
+                tuple(str(value) for value in _phospho().index.tolist())
+                if feature_ids is None
+                else feature_ids
+            ),
             sample_ids=tuple(str(value) for value in _phospho().columns.tolist()),
             originally_missing_cells=missing_cells,
         ),
@@ -385,6 +394,18 @@ def _phospho_with_missing() -> pd.DataFrame:
     phospho = _phospho()
     phospho.loc["site_b", "sample_2"] = pd.NA
     return phospho
+
+
+def _phospho_with_two_independent_control_residuals() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "sample_1": [11.0, 10.0, 11.0],
+            "sample_2": [10.0, 11.0, 11.0],
+            "sample_3": [9.0, 10.0, 9.0],
+            "sample_4": [10.0, 9.0, 9.0],
+        },
+        index=pd.Index(("site_a", "site_b", "site_c"), name="site_key"),
+    )
 
 
 def _sample_metadata() -> pd.DataFrame:
