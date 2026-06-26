@@ -415,6 +415,13 @@ config = DatasetPreprocessingConfig(batch_correction=sps_ruv_correction)
   `metadata_missing_reason` rationale.
 - aligned `sample_metadata` containing `batch_column` and one or more
   protected `condition_columns`.
+- when `condition_columns` contains multiple columns, PhosPy protects their
+  observed combinations as joint condition strata. For example,
+  `condition_columns=("condition", "timepoint")` is represented as labels such
+  as `condition=treated|timepoint=early` and treatment-coded from those joint
+  strata. This is not additive protected-condition modelling; if an additive
+  protected design is added in the future it must be a separate, explicit
+  configuration.
 - optional `replicate_column` for recording available replicate metadata with
   the native `sps_ruv_style` method. The `replicate_column` metadata is
   validated and recorded for provenance and diagnostics only; it is not used

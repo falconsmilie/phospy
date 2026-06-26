@@ -97,7 +97,10 @@ fixed effects by the native correction. Required inputs are aligned
 `sample_metadata` with batch and protected condition columns, replicate
 metadata only when the caller wants it recorded for provenance and diagnostics,
 an explicit `ControlSiteSet`, `CorrectionMissingnessPolicy`,
-`n_unwanted_factors`, diagnostics, and provenance. Providing
+`n_unwanted_factors`, diagnostics, and provenance. Multiple protected condition
+columns mean the native correction protects joint condition strata such as
+`condition=treated|timepoint=early`; it does not fit additive
+protected-condition terms. Providing
 `replicate_column` in the native lane does not enable replicate-aware RUV-III
 correction semantics; replicate labels are not used for numerical
 unwanted-factor estimation and do not enable RUV-III semantics. Temporary

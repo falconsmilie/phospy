@@ -148,7 +148,11 @@ class BatchStructureValidator:
 
 
 class ConditionStructureValidator:
-    """Validate one or more condition columns in aligned sample metadata."""
+    """Validate condition columns and resolve protected joint condition strata.
+
+    Multiple condition columns are intentionally combined as observed joint
+    strata, not as additive protected-condition terms.
+    """
 
     def run(
         self,

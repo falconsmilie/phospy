@@ -571,6 +571,18 @@ def test_public_sps_ruv_preprocessing_preserves_multiple_condition_columns_in_re
 ):
     phospho = _sps_multi_condition_phospho()
     condition_columns = ("condition", "timepoint")
+    expected_joint_levels = [
+        "condition=control|timepoint=early",
+        "condition=treated|timepoint=early",
+        "condition=control|timepoint=late",
+        "condition=treated|timepoint=late",
+    ]
+    expected_condition_terms = [
+        "intercept",
+        "condition[condition=treated|timepoint=early]",
+        "condition[condition=control|timepoint=late]",
+        "condition[condition=treated|timepoint=late]",
+    ]
 
     dataset = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
@@ -626,14 +638,45 @@ def test_public_sps_ruv_preprocessing_preserves_multiple_condition_columns_in_re
         Mapping[str, object], stage_executor_diagnostics["design_summary"]
     )
     assert stage_design_summary["condition_columns"] == list(condition_columns)
+    assert stage_design_summary["condition_levels"] == expected_joint_levels
+    assert (
+        stage_design_summary["condition_terms_to_preserve"] == expected_condition_terms
+    )
+    assert stage_design_summary["samples_per_condition"] == {
+        level: 2 for level in expected_joint_levels
+    }
 
     provenance = correction_stage.batch_correction_provenance
     assert provenance is not None
     assert provenance.design_metadata["condition_columns"] == list(condition_columns)
+    provenance_condition_by_sample = cast(
+        Mapping[str, object],
+        provenance.batch_metadata["condition_by_sample"],
+    )
+    assert (
+        provenance_condition_by_sample["sample_2"]
+        == "condition=treated|timepoint=early"
+    )
+    assert (
+        provenance.design_metadata["condition_terms_to_preserve"]
+        == expected_condition_terms
+    )
     provenance_config = cast(
         Mapping[str, object], provenance.resolved_parameters["config"]
     )
     assert provenance_config["condition_columns"] == list(condition_columns)
+    interpreter_plan = cast(
+        Mapping[str, object],
+        provenance.resolved_parameters["interpreter_plan"],
+    )
+    assert interpreter_plan["condition_terms_to_preserve"] == expected_condition_terms
+    design_payload = cast(
+        Mapping[str, object], interpreter_plan["resolved_design_matrix"]
+    )
+    assert design_payload["columns"] == [
+        *expected_condition_terms,
+        "batch[run_2]",
+    ]
     provenance_executor_diagnostics = cast(
         Mapping[str, object], provenance.diagnostics["executor"]
     )
@@ -641,6 +684,7 @@ def test_public_sps_ruv_preprocessing_preserves_multiple_condition_columns_in_re
         Mapping[str, object], provenance_executor_diagnostics["design_summary"]
     )
     assert provenance_design_summary["condition_columns"] == list(condition_columns)
+    assert provenance_design_summary["condition_levels"] == expected_joint_levels
 
 
 def test_public_sps_ruv_preprocessing_invalid_controls_fail_before_execution() -> None:

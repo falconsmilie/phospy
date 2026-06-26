@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+from collections.abc import Mapping
 
 import pytest
 
@@ -49,6 +50,42 @@ def test_batch_correction_interpreter_resolves_controls_and_design() -> None:
     assert plan.resolved_design_matrix.loc["sample_2", "condition[treated]"] == 1.0
     assert plan.resolved_design_matrix.loc["sample_2", "batch[run_2]"] == 0.0
     assert plan.resolved_design_matrix.loc["sample_3", "batch[run_2]"] == 1.0
+
+
+def test_batch_correction_interpreter_preserves_multiple_condition_columns_as_joint_strata() -> (
+    None
+):
+    plan = BatchCorrectionPlanInterpreter().run(
+        config=_config(condition_columns=("condition", "timepoint")),
+        dataset_metadata=_multi_condition_metadata(),
+        control_site_mapping=_control_mapping(),
+        missingness_policy=_missingness_policy(),
+    )
+
+    assert plan.condition_terms_to_preserve == (
+        "intercept",
+        "condition[condition=treated|timepoint=early]",
+        "condition[condition=control|timepoint=late]",
+        "condition[condition=treated|timepoint=late]",
+    )
+    condition_by_sample = plan.provenance_seed_data["condition_by_sample"]
+    assert isinstance(condition_by_sample, Mapping)
+    assert condition_by_sample["sample_2"] == "condition=treated|timepoint=early"
+    assert plan.provenance_seed_data["condition_columns"] == ["condition", "timepoint"]
+    assert (
+        plan.resolved_design_matrix.loc[
+            "sample_4",
+            "condition[condition=treated|timepoint=late]",
+        ]
+        == 1.0
+    )
+    assert (
+        plan.resolved_design_matrix.loc[
+            "sample_1",
+            "condition[condition=treated|timepoint=early]",
+        ]
+        == 0.0
+    )
 
 
 def test_batch_correction_interpreter_carries_replicates_and_missingness_policy() -> (
@@ -202,6 +239,7 @@ def test_batch_correction_interpreter_provenance_seed_data_is_deterministic() ->
 
 def _config(
     *,
+    condition_columns: tuple[str, ...] = ("condition",),
     missing_value_policy: InternalBatchCorrectionMissingValuePolicy = (
         InternalBatchCorrectionMissingValuePolicy.ALLOW_TEMPORARY_IMPUTATION
     ),
@@ -216,7 +254,7 @@ def _config(
     return InternalBatchCorrectionRequest(
         method=InternalBatchCorrectionMethod.SPS_RUV_STYLE,
         batch_column="batch",
-        condition_columns=("condition",),
+        condition_columns=condition_columns,
         replicate_column="replicate",
         control_site_source=InternalBatchCorrectionControlSiteSource.CALLER_SUPPLIED,
         control_site_mode=InternalBatchCorrectionControlSiteMode.SITE_KEY_LIST,
@@ -225,6 +263,30 @@ def _config(
         n_unwanted_factors=1,
         stage_order=stage_order,
         diagnostics_enabled=diagnostics_enabled,
+    )
+
+
+def _multi_condition_metadata() -> ResolvedBatchDesignMetadata:
+    return ResolvedBatchDesignMetadata(
+        batch_by_sample={
+            "sample_1": "run_1",
+            "sample_2": "run_1",
+            "sample_3": "run_2",
+            "sample_4": "run_2",
+        },
+        condition_by_sample={
+            "sample_1": "condition=control|timepoint=early",
+            "sample_2": "condition=treated|timepoint=early",
+            "sample_3": "condition=control|timepoint=late",
+            "sample_4": "condition=treated|timepoint=late",
+        },
+        replicate_by_sample={
+            "sample_1": "r1",
+            "sample_2": "r1",
+            "sample_3": "r2",
+            "sample_4": "r2",
+        },
+        sample_order=("sample_1", "sample_2", "sample_3", "sample_4"),
     )
 
 

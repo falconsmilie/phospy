@@ -487,6 +487,17 @@ def test_batch_correction_scope_names_supported_preprocessing_methods() -> None:
     assert "not used for numerical unwanted-factor estimation" in normalized
 
 
+def test_sps_ruv_docs_describe_multiple_condition_columns_as_joint_strata() -> None:
+    text = _dataset_build_workflow_text() + "\n" + _workflow_contracts_text()
+    normalized = " ".join(text.lower().split())
+
+    assert "multiple protected condition columns" in normalized
+    assert "joint condition strata" in normalized
+    assert "condition=treated|timepoint=early" in normalized
+    assert "not additive protected-condition modelling" in normalized
+    assert "does not fit additive protected-condition terms" in normalized
+
+
 def test_control_metadata_runtime_policy_is_documented_consistently() -> None:
     text = (
         _scientific_coverage_text()

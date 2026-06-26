@@ -55,6 +55,49 @@ def test_design_metadata_validator_accepts_valid_batch_condition_replicates() ->
     assert resolved.replicate_labels == ("r1", "r1", "r2", "r2")
 
 
+def test_multiple_condition_columns_resolve_to_joint_condition_strata() -> None:
+    resolved = BatchDesignMetadataValidator().run(
+        phospho=_phospho(),
+        sample_metadata=_multi_condition_sample_metadata(),
+        batch_column="batch",
+        condition_columns=("condition", "timepoint"),
+    )
+
+    assert resolved.condition_by_sample == {
+        "sample_1": "condition=control|timepoint=early",
+        "sample_2": "condition=treated|timepoint=early",
+        "sample_3": "condition=control|timepoint=late",
+        "sample_4": "condition=treated|timepoint=late",
+    }
+    assert resolved.condition_labels == (
+        "condition=control|timepoint=early",
+        "condition=treated|timepoint=early",
+        "condition=control|timepoint=late",
+        "condition=treated|timepoint=late",
+    )
+
+
+def test_batch_validation_rejects_saturated_composite_protected_design() -> None:
+    resolved = BatchDesignMetadataValidator().run(
+        phospho=_phospho(),
+        sample_metadata=_multi_condition_sample_metadata(),
+        batch_column="batch",
+        condition_columns=("condition", "timepoint"),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="condition preservation design is saturated.*condition_design_rank=4",
+    ):
+        BatchCorrectionAdequacyValidator().run(
+            batch_by_sample=resolved.batch_by_sample,
+            condition_by_sample=resolved.condition_by_sample,
+            sample_order=resolved.sample_order,
+            preserve_condition_effects=True,
+            context="SPS/RUV-style batch correction design validation",
+        )
+
+
 def test_sample_metadata_alignment_validator_rejects_misaligned_metadata() -> None:
     sample_metadata = _batch_design_sample_metadata()
     sample_metadata.index = pd.Index(
@@ -398,4 +441,15 @@ def _batch_design_sample_metadata(
             "replicate": [source[sample][2] for sample in index],
         },
         index=pd.Index(index, name="sample"),
+    )
+
+
+def _multi_condition_sample_metadata() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "batch": ("run_1", "run_1", "run_2", "run_2"),
+            "condition": ("control", "treated", "control", "treated"),
+            "timepoint": ("early", "early", "late", "late"),
+        },
+        index=_phospho().columns.copy(),
     )
