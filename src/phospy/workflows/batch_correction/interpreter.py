@@ -23,6 +23,7 @@ from phospy.science.datasets.preprocessing.control_sites import (
     ControlSiteMapping,
 )
 from phospy.validation.datasets.batch_correction import (
+    ReplicateStructureDiagnostics,
     ResolvedBatchDesignMetadata,
 )
 
@@ -64,6 +65,7 @@ class ReplicateStructure:
     replicate_by_sample: Mapping[str, str] | None
     replicate_labels: tuple[str, ...] | None
     replicate_groups: Mapping[str, tuple[str, ...]]
+    structure_diagnostics: ReplicateStructureDiagnostics | None = None
 
     def to_payload(self) -> dict[str, object]:
         """Return a JSON-compatible payload."""
@@ -88,6 +90,11 @@ class ReplicateStructure:
                 replicate: list(samples)
                 for replicate, samples in self.replicate_groups.items()
             },
+            "structure_diagnostics": (
+                None
+                if self.structure_diagnostics is None
+                else self.structure_diagnostics.to_payload()
+            ),
         }
 
 
@@ -189,6 +196,7 @@ class BatchCorrectionPlanInterpreter:
         replicate_structure = _replicate_structure(
             replicate_column=config.replicate_column,
             replicate_by_sample=dataset_metadata.replicate_by_sample,
+            structure_diagnostics=(dataset_metadata.replicate_structure_diagnostics),
             sample_order=sample_order,
         )
         diagnostic_requirements = _diagnostic_requirements(
@@ -306,6 +314,7 @@ def _replicate_structure(
     *,
     replicate_column: str | None,
     replicate_by_sample: Mapping[str, str] | None,
+    structure_diagnostics: ReplicateStructureDiagnostics | None,
     sample_order: tuple[str, ...],
 ) -> ReplicateStructure:
     if replicate_by_sample is None:
@@ -314,6 +323,7 @@ def _replicate_structure(
             replicate_by_sample=None,
             replicate_labels=None,
             replicate_groups={},
+            structure_diagnostics=None,
         )
     labels = tuple(replicate_by_sample[sample] for sample in sample_order)
     grouped: dict[str, list[str]] = {}
@@ -326,6 +336,7 @@ def _replicate_structure(
         },
         replicate_labels=labels,
         replicate_groups={label: tuple(samples) for label, samples in grouped.items()},
+        structure_diagnostics=structure_diagnostics,
     )
 
 
@@ -412,6 +423,11 @@ def _provenance_seed_data(
             None
             if dataset_metadata.replicate_by_sample is None
             else dict(dataset_metadata.replicate_by_sample)
+        ),
+        "replicate_structure_diagnostics": (
+            None
+            if dataset_metadata.replicate_structure_diagnostics is None
+            else dataset_metadata.replicate_structure_diagnostics.to_payload()
         ),
         "resolved_design_matrix": _frame_payload(plan.resolved_design_matrix),
         "batch_terms": list(plan.batch_terms),

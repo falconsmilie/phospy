@@ -37,6 +37,7 @@ class ResolvedBatchDesignMetadata:
     condition_by_sample: Mapping[str, str]
     sample_order: tuple[str, ...]
     replicate_by_sample: Mapping[str, str] | None = None
+    replicate_structure_diagnostics: ReplicateStructureDiagnostics | None = None
 
     @property
     def batch_labels(self) -> tuple[str, ...]:
@@ -51,6 +52,41 @@ class ResolvedBatchDesignMetadata:
         if self.replicate_by_sample is None:
             return None
         return tuple(self.replicate_by_sample[sample] for sample in self.sample_order)
+
+
+@dataclass(frozen=True, slots=True)
+class ReplicateStructureDiagnostics:
+    """Report-only structural diagnostics for provenance-only replicate metadata."""
+
+    replicate_column: str
+    sample_count: int
+    replicate_count: int
+    singleton_count: int
+    singleton_replicates: tuple[str, ...]
+    all_same: bool
+    all_unique: bool
+    perfectly_confounded_with_batch: bool
+    perfectly_confounded_with_condition: bool
+    diagnostic_flags: tuple[str, ...]
+
+    def to_payload(self) -> dict[str, object]:
+        return {
+            "replicate_column": self.replicate_column,
+            "sample_count": self.sample_count,
+            "replicate_count": self.replicate_count,
+            "singleton_count": self.singleton_count,
+            "singleton_replicates": list(self.singleton_replicates),
+            "all_same": self.all_same,
+            "all_unique": self.all_unique,
+            "perfectly_confounded_with_batch": (self.perfectly_confounded_with_batch),
+            "perfectly_confounded_with_condition": (
+                self.perfectly_confounded_with_condition
+            ),
+            "diagnostic_flags": list(self.diagnostic_flags),
+            "policy": "provenance_only_structural_issues_are_reported_not_rejected",
+            "used_for_numerical_factor_estimation": False,
+            "ruv_iii_semantics_enabled": False,
+        }
 
 
 class SampleMetadataAlignmentValidator:
@@ -239,6 +275,64 @@ class ReplicateStructureValidator:
         )
 
 
+class ReplicateStructureDiagnosticHelper:
+    """Compute report-only diagnostics for supplied replicate labels."""
+
+    def run(
+        self,
+        *,
+        replicate_column: str | None,
+        replicate_by_sample: Mapping[str, str] | None,
+        batch_by_sample: Mapping[str, str],
+        condition_by_sample: Mapping[str, str],
+        sample_order: Sequence[str],
+    ) -> ReplicateStructureDiagnostics | None:
+        if replicate_column is None or replicate_by_sample is None:
+            return None
+        column = str(replicate_column).strip()
+        samples = tuple(str(sample) for sample in sample_order)
+        replicate_labels = tuple(replicate_by_sample[sample] for sample in samples)
+        batch_labels = tuple(batch_by_sample[sample] for sample in samples)
+        condition_labels = tuple(condition_by_sample[sample] for sample in samples)
+        replicate_levels = _levels_in_order(replicate_labels)
+        replicate_counts = {
+            label: replicate_labels.count(label) for label in replicate_levels
+        }
+        singleton_replicates = tuple(
+            label for label in replicate_levels if replicate_counts[label] == 1
+        )
+        replicate_count = len(replicate_levels)
+        sample_count = len(samples)
+        all_same = replicate_count == 1 and sample_count > 0
+        all_unique = replicate_count == sample_count and sample_count > 0
+        batch_confounded = _same_label_partition(replicate_labels, batch_labels)
+        condition_confounded = _same_label_partition(
+            replicate_labels,
+            condition_labels,
+        )
+        diagnostic_flags: list[str] = []
+        if all_same:
+            diagnostic_flags.append("all_same_replicate_labels")
+        if all_unique:
+            diagnostic_flags.append("all_unique_replicate_labels")
+        if batch_confounded:
+            diagnostic_flags.append("batch_confounded_replicate_labels")
+        if condition_confounded:
+            diagnostic_flags.append("condition_confounded_replicate_labels")
+        return ReplicateStructureDiagnostics(
+            replicate_column=column,
+            sample_count=sample_count,
+            replicate_count=replicate_count,
+            singleton_count=len(singleton_replicates),
+            singleton_replicates=singleton_replicates,
+            all_same=all_same,
+            all_unique=all_unique,
+            perfectly_confounded_with_batch=batch_confounded,
+            perfectly_confounded_with_condition=condition_confounded,
+            diagnostic_flags=tuple(diagnostic_flags),
+        )
+
+
 class BatchDesignMetadataValidator:
     """Coordinate sample, batch, condition, and replicate metadata validation."""
 
@@ -249,6 +343,9 @@ class BatchDesignMetadataValidator:
         batch_structure_validator: BatchStructureValidator | None = None,
         condition_structure_validator: ConditionStructureValidator | None = None,
         replicate_structure_validator: ReplicateStructureValidator | None = None,
+        replicate_structure_diagnostic_helper: (
+            ReplicateStructureDiagnosticHelper | None
+        ) = None,
     ) -> None:
         self._sample_alignment_validator = (
             sample_alignment_validator or SampleMetadataAlignmentValidator()
@@ -261,6 +358,10 @@ class BatchDesignMetadataValidator:
         )
         self._replicate_structure_validator = (
             replicate_structure_validator or ReplicateStructureValidator()
+        )
+        self._replicate_structure_diagnostic_helper = (
+            replicate_structure_diagnostic_helper
+            or ReplicateStructureDiagnosticHelper()
         )
 
     def run(
@@ -314,10 +415,20 @@ class BatchDesignMetadataValidator:
             required=require_replicate_column,
             context=context,
         )
+        replicate_structure_diagnostics = (
+            self._replicate_structure_diagnostic_helper.run(
+                replicate_column=replicate_column,
+                replicate_by_sample=replicate_by_sample,
+                batch_by_sample=batch_by_sample,
+                condition_by_sample=condition_by_sample,
+                sample_order=sample_order,
+            )
+        )
         return ResolvedBatchDesignMetadata(
             batch_by_sample=batch_by_sample,
             condition_by_sample=condition_by_sample,
             replicate_by_sample=replicate_by_sample,
+            replicate_structure_diagnostics=replicate_structure_diagnostics,
             sample_order=sample_order,
         )
 
@@ -1117,6 +1228,23 @@ def _batch_is_determined_by_condition(
     return all(len(batches) == 1 for batches in batches_by_condition.values())
 
 
+def _same_label_partition(
+    left_labels: Sequence[str],
+    right_labels: Sequence[str],
+) -> bool:
+    left = tuple(left_labels)
+    right = tuple(right_labels)
+    if len(left) != len(right) or not left:
+        return False
+    for first_index in range(len(left)):
+        for second_index in range(len(left)):
+            same_left = left[first_index] == left[second_index]
+            same_right = right[first_index] == right[second_index]
+            if same_left != same_right:
+                return False
+    return True
+
+
 def _is_missing_value(value: object) -> bool:
     return bool(pd.Series((value,), dtype="object").isna().iat[0])
 
@@ -1139,6 +1267,8 @@ __all__ = [
     "BatchStructureValidator",
     "ConditionStructureValidator",
     "DesignRankValidator",
+    "ReplicateStructureDiagnosticHelper",
+    "ReplicateStructureDiagnostics",
     "ReplicateStructureValidator",
     "ResolvedBatchDesignMetadata",
     "SampleMetadataAlignmentValidator",

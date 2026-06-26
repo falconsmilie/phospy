@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import cast
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -216,7 +216,21 @@ def test_dataset_sps_ruv_records_replicate_metadata_for_provenance_only() -> Non
             "sample_4": "r2",
         },
         "replicate_labels": ["r1", "r1", "r2", "r2"],
+        "structure_diagnostics": _expected_replicate_structure_diagnostics(
+            replicate_count=2,
+            singleton_count=0,
+            singleton_replicates=(),
+            all_same=False,
+            all_unique=False,
+            perfectly_confounded_with_batch=True,
+            perfectly_confounded_with_condition=False,
+            diagnostic_flags=("batch_confounded_replicate_labels",),
+        ),
     }
+    assert (
+        provenance.diagnostics["replicate_structure"]
+        == (replicate_metadata["structure_diagnostics"])
+    )
     assert provenance.requested_method == "sps_ruv_style"
     config_payload = cast(
         Mapping[str, object], provenance.resolved_parameters["config"]
@@ -229,6 +243,106 @@ def test_dataset_sps_ruv_records_replicate_metadata_for_provenance_only() -> Non
         is False
     )
     assert config_payload["replicate_metadata_enables_ruv_iii_semantics"] is False
+
+
+@pytest.mark.parametrize(
+    (
+        "replicates",
+        "expected_replicate_count",
+        "expected_singleton_count",
+        "expected_singleton_replicates",
+        "expected_all_same",
+        "expected_all_unique",
+        "expected_batch_confounded",
+        "expected_condition_confounded",
+        "expected_flags",
+    ),
+    (
+        (
+            ("same", "same", "same", "same"),
+            1,
+            0,
+            (),
+            True,
+            False,
+            False,
+            False,
+            ("all_same_replicate_labels",),
+        ),
+        (
+            ("r1", "r2", "r3", "r4"),
+            4,
+            4,
+            ("r1", "r2", "r3", "r4"),
+            False,
+            True,
+            False,
+            False,
+            ("all_unique_replicate_labels",),
+        ),
+        (
+            ("r1", "r1", "r2", "r2"),
+            2,
+            0,
+            (),
+            False,
+            False,
+            True,
+            False,
+            ("batch_confounded_replicate_labels",),
+        ),
+        (
+            ("r1", "r2", "r1", "r2"),
+            2,
+            0,
+            (),
+            False,
+            False,
+            False,
+            True,
+            ("condition_confounded_replicate_labels",),
+        ),
+    ),
+)
+def test_dataset_sps_ruv_records_replicate_structure_diagnostics(
+    replicates: tuple[str, str, str, str],
+    expected_replicate_count: int,
+    expected_singleton_count: int,
+    expected_singleton_replicates: tuple[str, ...],
+    expected_all_same: bool,
+    expected_all_unique: bool,
+    expected_batch_confounded: bool,
+    expected_condition_confounded: bool,
+    expected_flags: tuple[str, ...],
+) -> None:
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(_phospho().index),
+            sample_metadata=_sample_metadata(replicates=replicates),
+            organism=Organism.RAT,
+            input_intensity_scale="linear",
+            preprocessing_config=_preprocessing_config(),
+        )
+    )
+
+    provenance = _batch_correction_provenance(built)
+    replicate_metadata = cast(Mapping[str, object], provenance.replicate_metadata)
+
+    expected = _expected_replicate_structure_diagnostics(
+        replicate_count=expected_replicate_count,
+        singleton_count=expected_singleton_count,
+        singleton_replicates=expected_singleton_replicates,
+        all_same=expected_all_same,
+        all_unique=expected_all_unique,
+        perfectly_confounded_with_batch=expected_batch_confounded,
+        perfectly_confounded_with_condition=expected_condition_confounded,
+        diagnostic_flags=expected_flags,
+    )
+    assert replicate_metadata["structure_diagnostics"] == expected
+    assert provenance.diagnostics["replicate_structure"] == expected
+    assert replicate_metadata["used_for_numerical_factor_estimation"] is False
+    assert replicate_metadata["ruv_iii_semantics_enabled"] is False
 
 
 def test_dataset_sps_ruv_changing_replicate_labels_does_not_change_output() -> None:
@@ -276,7 +390,7 @@ def test_dataset_sps_ruv_rejects_invalid_replicate_metadata_when_column_supplied
     message: str,
 ) -> None:
     sample_metadata = _sample_metadata()
-    sample_metadata.loc["sample_2", "replicate"] = invalid_value
+    sample_metadata.loc["sample_2", "replicate"] = cast(Any, invalid_value)
 
     with pytest.raises(PhosPyInputError, match=message):
         AnalysisReadyDatasetBuilder().run(
@@ -481,3 +595,31 @@ def _batch_correction_provenance(
         assert provenance is not None
         return provenance
     raise AssertionError("batch_correction provenance was not recorded")
+
+
+def _expected_replicate_structure_diagnostics(
+    *,
+    replicate_count: int,
+    singleton_count: int,
+    singleton_replicates: tuple[str, ...],
+    all_same: bool,
+    all_unique: bool,
+    perfectly_confounded_with_batch: bool,
+    perfectly_confounded_with_condition: bool,
+    diagnostic_flags: tuple[str, ...],
+) -> dict[str, object]:
+    return {
+        "replicate_column": "replicate",
+        "sample_count": 4,
+        "replicate_count": replicate_count,
+        "singleton_count": singleton_count,
+        "singleton_replicates": list(singleton_replicates),
+        "all_same": all_same,
+        "all_unique": all_unique,
+        "perfectly_confounded_with_batch": perfectly_confounded_with_batch,
+        "perfectly_confounded_with_condition": (perfectly_confounded_with_condition),
+        "diagnostic_flags": list(diagnostic_flags),
+        "policy": "provenance_only_structural_issues_are_reported_not_rejected",
+        "used_for_numerical_factor_estimation": False,
+        "ruv_iii_semantics_enabled": False,
+    }

@@ -146,6 +146,11 @@ class BatchCorrectionProvenanceRecorder:
                     "interpreter_diagnostic_requirements": (
                         plan.diagnostic_requirements.to_payload()
                     ),
+                    "replicate_structure": (
+                        None
+                        if plan.replicate_structure.structure_diagnostics is None
+                        else plan.replicate_structure.structure_diagnostics.to_payload()
+                    ),
                     "executor": executor_result.diagnostics.to_payload(),
                 }
             ),
@@ -327,6 +332,11 @@ def _replicate_metadata(
             "ruv_iii_semantics_enabled": False,
             "replicate_by_sample": dict(dataset_metadata.replicate_by_sample),
             "replicate_labels": list(dataset_metadata.replicate_labels or ()),
+            "structure_diagnostics": (
+                None
+                if dataset_metadata.replicate_structure_diagnostics is None
+                else dataset_metadata.replicate_structure_diagnostics.to_payload()
+            ),
         }
     )
 
