@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+from typing import get_args
 
 import pytest
 
@@ -19,6 +20,7 @@ from phospy.api.configs import (
     DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
     DatasetTotalProteinCorrectionConfig,
+    SpsRuvBatchCorrectionMethod,
 )
 from phospy.errors import PhosPyInputError
 from phospy.science.datasets.preprocessing.models import (
@@ -148,6 +150,7 @@ def test_sps_ruv_batch_correction_config_accepts_only_sps_ruv_style_public_metho
 
     assert config.method == "sps_ruv_style"
     assert SPS_RUV_BATCH_CORRECTION_METHODS == {"sps_ruv_style"}
+    assert get_args(SpsRuvBatchCorrectionMethod) == ("sps_ruv_style",)
 
 
 def test_sps_ruv_batch_correction_config_rejects_control_site_ruv_style_publicly() -> (

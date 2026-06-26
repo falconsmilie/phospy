@@ -13,7 +13,6 @@ import pandas as pd
 from phospy.contracts.configs import (
     DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
     DATASET_BATCH_CORRECTION_METHOD_NONE,
-    DATASET_BATCH_CORRECTION_METHOD_RUV_III_STYLE,
     DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN,
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_REQUIRE_UNAMBIGUOUS,
     DATASET_PROTEIN_AWARE_PREPARATION_POLICY_DISABLED,
@@ -68,6 +67,8 @@ from phospy.science.datasets.preprocessing.report_schema import (
     dataframe_from_row_audit_rows,
     reorder_columns,
 )
+
+_UNSUPPORTED_BATCH_CORRECTION_METHOD_RUV_III_STYLE = "ruv_iii_style"
 
 
 class PreprocessingStateTableKey(str, Enum):
@@ -443,7 +444,10 @@ class PreprocessingPlan:
         batch_correction_method = str(self.batch_correction_method).strip()
         if not batch_correction_method:
             batch_correction_method = DATASET_BATCH_CORRECTION_METHOD_NONE
-        if batch_correction_method == DATASET_BATCH_CORRECTION_METHOD_RUV_III_STYLE:
+        if (
+            batch_correction_method
+            == _UNSUPPORTED_BATCH_CORRECTION_METHOD_RUV_III_STYLE
+        ):
             from phospy.validation.configs.preprocessing import (
                 reject_unsupported_ruv_iii_style_method,
             )
