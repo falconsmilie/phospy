@@ -99,7 +99,9 @@ metadata only when the caller wants it recorded for provenance and diagnostics,
 an explicit `ControlSiteSet`, `CorrectionMissingnessPolicy`,
 `n_unwanted_factors`, diagnostics, and provenance. Providing
 `replicate_column` in the native lane does not enable replicate-aware RUV-III
-correction semantics. Temporary imputation is correction mechanics only:
+correction semantics; replicate labels are not used for numerical
+unwanted-factor estimation and do not enable RUV-III semantics. Temporary
+imputation is correction mechanics only:
 observation masks preserve which cells were originally observed, and imputed
 temporary values must not be treated as observed evidence. Executable native-correction
 temporary imputation methods are `none` and `row_median_temporary`;

@@ -26,6 +26,13 @@ from phospy.validation.datasets.batch_correction import (
     ResolvedBatchDesignMetadata,
 )
 
+REPLICATE_METADATA_ROLE = "provenance_only"
+REPLICATE_METADATA_ROLE_DESCRIPTION = (
+    "replicate metadata is validated and recorded for provenance and diagnostics "
+    "only; it is not used for numerical unwanted-factor estimation and does not "
+    "enable RUV-III or replicate-aware RUV-III semantics"
+)
+
 
 @dataclass(frozen=True, slots=True)
 class EligibleControlSiteRow:
@@ -63,6 +70,12 @@ class ReplicateStructure:
 
         return {
             "replicate_column": self.replicate_column,
+            "replicate_metadata_role": REPLICATE_METADATA_ROLE,
+            "replicate_metadata_role_description": (
+                REPLICATE_METADATA_ROLE_DESCRIPTION
+            ),
+            "used_for_numerical_factor_estimation": False,
+            "ruv_iii_semantics_enabled": False,
             "replicate_by_sample": (
                 None
                 if self.replicate_by_sample is None
@@ -380,6 +393,10 @@ def _provenance_seed_data(
         "batch_column": config.batch_column,
         "condition_columns": list(config.condition_columns),
         "replicate_column": config.replicate_column,
+        "replicate_metadata_role": REPLICATE_METADATA_ROLE,
+        "replicate_metadata_role_description": REPLICATE_METADATA_ROLE_DESCRIPTION,
+        "replicate_metadata_used_for_numerical_factor_estimation": False,
+        "replicate_metadata_enables_ruv_iii_semantics": False,
         "control_site_source": config.control_site_source.value,
         "control_site_mode": config.control_site_mode.value,
         "missing_value_policy": config.missing_value_policy.value,
@@ -448,6 +465,8 @@ __all__ = [
     "BatchCorrectionDiagnosticRequirements",
     "BatchCorrectionPlanInterpreter",
     "EligibleControlSiteRow",
+    "REPLICATE_METADATA_ROLE",
+    "REPLICATE_METADATA_ROLE_DESCRIPTION",
     "ReplicateStructure",
     "ResolvedBatchCorrectionPlan",
 ]

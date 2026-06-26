@@ -341,6 +341,8 @@ def test_readme_does_not_imply_phosr_batch_correction_parity() -> None:
     )
     assert "not phosr-equivalent sps/ruv-iii parity" in normalized
     assert "not phosr-equivalent batch correction" in normalized
+    assert "replicate metadata" in normalized
+    assert "not used for numerical unwanted-factor estimation" in normalized
     assert "readiness signals and do not apply correction" in normalized
     assert "those prerequisites are implemented" in normalized
 
@@ -482,6 +484,7 @@ def test_batch_correction_scope_names_supported_preprocessing_methods() -> None:
     assert "not treated as observed evidence" in normalized
     assert "not executable ruv-iii support" in normalized
     assert "replicate-aware ruv-iii semantics" in normalized
+    assert "not used for numerical unwanted-factor estimation" in normalized
 
 
 def test_control_metadata_runtime_policy_is_documented_consistently() -> None:

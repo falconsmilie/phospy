@@ -26,7 +26,11 @@ from phospy.workflows.batch_correction.contracts import (
     BatchCorrectionExecutorResultContract,
     BatchCorrectionWorkflowRequest,
 )
-from phospy.workflows.batch_correction.interpreter import ResolvedBatchCorrectionPlan
+from phospy.workflows.batch_correction.interpreter import (
+    REPLICATE_METADATA_ROLE,
+    REPLICATE_METADATA_ROLE_DESCRIPTION,
+    ResolvedBatchCorrectionPlan,
+)
 
 _UPSTREAM_OBSERVATION_MASK_NAME = "batch_correction.workflow.upstream_observation_mask"
 _EXECUTOR_OUTPUT_OBSERVATION_MASK_NAME = (
@@ -163,6 +167,10 @@ def _config_payload(request: BatchCorrectionWorkflowRequest) -> dict[str, object
         "batch_column": config.batch_column,
         "condition_columns": list(config.condition_columns),
         "replicate_column": config.replicate_column,
+        "replicate_metadata_role": REPLICATE_METADATA_ROLE,
+        "replicate_metadata_role_description": REPLICATE_METADATA_ROLE_DESCRIPTION,
+        "replicate_metadata_used_for_numerical_factor_estimation": False,
+        "replicate_metadata_enables_ruv_iii_semantics": False,
         "control_site_source": config.control_site_source.value,
         "control_site_mode": config.control_site_mode.value,
         "missing_value_policy": config.missing_value_policy.value,
@@ -313,6 +321,10 @@ def _replicate_metadata(
         return None
     return _json_mapping(
         {
+            "role": REPLICATE_METADATA_ROLE,
+            "role_description": REPLICATE_METADATA_ROLE_DESCRIPTION,
+            "used_for_numerical_factor_estimation": False,
+            "ruv_iii_semantics_enabled": False,
             "replicate_by_sample": dict(dataset_metadata.replicate_by_sample),
             "replicate_labels": list(dataset_metadata.replicate_labels or ()),
         }

@@ -416,7 +416,10 @@ config = DatasetPreprocessingConfig(batch_correction=sps_ruv_correction)
 - aligned `sample_metadata` containing `batch_column` and one or more
   protected `condition_columns`.
 - optional `replicate_column` for recording available replicate metadata with
-  the native `sps_ruv_style` method. RUV-III correction is not currently
+  the native `sps_ruv_style` method. The `replicate_column` metadata is
+  validated and recorded for provenance and diagnostics only; it is not used
+  for numerical unwanted-factor estimation and does not enable RUV-III or
+  replicate-aware RUV-III semantics. RUV-III correction is not currently
   executable because replicate-aware RUV-III numerical semantics are not
   implemented.
 - explicit `CorrectionMissingnessPolicy`; temporary imputation must preserve

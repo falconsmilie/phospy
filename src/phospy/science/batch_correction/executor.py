@@ -35,6 +35,11 @@ SPS_RUV_STYLE_PROTECTED_TERM_ROLE = (
     "protected condition terms are included in the protected design before "
     "eligible control residuals are used to estimate unwanted factors"
 )
+SPS_RUV_STYLE_REPLICATE_METADATA_ROLE = (
+    "replicate metadata is validated upstream and recorded for provenance and "
+    "diagnostics only; it is not used for numerical unwanted-factor estimation "
+    "and does not enable RUV-III or replicate-aware RUV-III semantics"
+)
 _UNSUPPORTED_RUV_III_STYLE_METHOD_MESSAGE = (
     "ruv_iii_style is not currently supported because replicate-aware RUV-III "
     "numerical semantics are not implemented; use the supported native "
@@ -666,6 +671,7 @@ def _diagnostics(
             "protected_condition_terms": SPS_RUV_STYLE_PROTECTED_TERM_ROLE,
             "batch_terms": SPS_RUV_STYLE_BATCH_TERM_ROLE,
             "unwanted_factors": SPS_RUV_STYLE_ALGORITHM_DESCRIPTION,
+            "replicate_metadata": SPS_RUV_STYLE_REPLICATE_METADATA_ROLE,
         },
         status="applied",
         matrix_shape_before=(int(phospho.shape[0]), int(phospho.shape[1])),
@@ -730,6 +736,7 @@ def _provenance_payload(
             "protected_condition_terms": SPS_RUV_STYLE_PROTECTED_TERM_ROLE,
             "batch_terms": SPS_RUV_STYLE_BATCH_TERM_ROLE,
             "unwanted_factors": SPS_RUV_STYLE_ALGORITHM_DESCRIPTION,
+            "replicate_metadata": SPS_RUV_STYLE_REPLICATE_METADATA_ROLE,
         },
         "input_matrix_fingerprint": _fingerprint_payload(
             fingerprint_matrix(phospho, name="batch_correction.sps_ruv.input")

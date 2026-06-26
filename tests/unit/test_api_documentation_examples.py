@@ -714,6 +714,15 @@ def test_api_docs_sps_ruv_batch_correction_example_is_explicit() -> None:
         ),
         context="SPS/RUV explicit controls and policy",
     )
+    _assert_statement_contains_all(
+        source,
+        (
+            "replicate_column",
+            "not used",
+            "numerical unwanted-factor estimation",
+        ),
+        context="SPS/RUV replicate metadata role",
+    )
 
     config = SpsRuvBatchCorrectionConfig(
         control_site_set=ControlSiteSet.from_site_keys(

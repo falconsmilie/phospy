@@ -28,6 +28,7 @@ from phospy.science.datasets.preprocessing.control_sites import (
 )
 from phospy.validation.datasets.batch_correction import ResolvedBatchDesignMetadata
 from phospy.workflows.batch_correction import (
+    REPLICATE_METADATA_ROLE,
     BatchCorrectionDiagnosticRequirements,
     BatchCorrectionWorkflow,
     BatchCorrectionWorkflowRequest,
@@ -147,7 +148,9 @@ def test_batch_correction_workflow_rejects_ruv_iii_before_interpreter_and_execut
     forged_request = BatchCorrectionWorkflowRequest(
         phospho=request.phospho,
         config=_forged_ruv_iii_config(),
-        sample_metadata=request.sample_metadata,
+        sample_metadata=request.sample_metadata.assign(
+            replicate=("r1", "r1", "r2", "r2")
+        ),
         control_site_set=request.control_site_set,
         missingness_policy=request.missingness_policy,
     )
@@ -159,6 +162,9 @@ def test_batch_correction_workflow_rejects_ruv_iii_before_interpreter_and_execut
         workflow.run(forged_request)
 
     assert order == []
+    assert forged_request.config.replicate_column == "replicate"
+    assert forged_request.sample_metadata is not None
+    assert "replicate" in forged_request.sample_metadata.columns
 
 
 def test_batch_correction_workflow_default_provenance_recorder_assembles_sources() -> (
@@ -242,6 +248,57 @@ def test_batch_correction_provenance_recorder_populates_environment_fields() -> 
     assert provenance.dependency_versions
     assert {"numpy", "pandas", "scipy", "scikit-learn"}.issubset(
         set(provenance.dependency_versions)
+    )
+
+
+def test_batch_correction_provenance_recorder_marks_replicates_provenance_only() -> (
+    None
+):
+    corrected = _matrix() + 3.0
+
+    provenance = BatchCorrectionProvenanceRecorder().run(
+        request=_request(config=_config(replicate_column="replicate")),
+        dataset_metadata=_metadata(
+            replicate_by_sample={
+                "sample_1": "r1",
+                "sample_2": "r1",
+                "sample_3": "r2",
+                "sample_4": "r2",
+            }
+        ),
+        control_site_mapping=_control_mapping(),
+        missingness_policy=_missingness_policy(),
+        plan=_plan(
+            replicate_structure=ReplicateStructure(
+                replicate_column="replicate",
+                replicate_by_sample={
+                    "sample_1": "r1",
+                    "sample_2": "r1",
+                    "sample_3": "r2",
+                    "sample_4": "r2",
+                },
+                replicate_labels=("r1", "r1", "r2", "r2"),
+                replicate_groups={
+                    "r1": ("sample_1", "sample_2"),
+                    "r2": ("sample_3", "sample_4"),
+                },
+            )
+        ),
+        executor_result=_ExecutorResult(corrected_matrix=corrected),
+    )
+
+    assert provenance.replicate_metadata is not None
+    assert provenance.replicate_metadata["role"] == REPLICATE_METADATA_ROLE
+    assert (
+        provenance.replicate_metadata["used_for_numerical_factor_estimation"] is False
+    )
+    assert provenance.replicate_metadata["ruv_iii_semantics_enabled"] is False
+    config_payload = provenance.resolved_parameters["config"]
+    assert isinstance(config_payload, dict)
+    assert config_payload["replicate_metadata_role"] == REPLICATE_METADATA_ROLE
+    assert (
+        config_payload["replicate_metadata_used_for_numerical_factor_estimation"]
+        is False
     )
 
 
@@ -448,12 +505,13 @@ def _config(
     stage_order: InternalBatchCorrectionStageOrder = (
         InternalBatchCorrectionStageOrder.AFTER_MISSING_DATA_BEFORE_DOWNSTREAM
     ),
+    replicate_column: str | None = None,
 ) -> InternalBatchCorrectionRequest:
     return InternalBatchCorrectionRequest(
         method=InternalBatchCorrectionMethod.SPS_RUV_STYLE,
         batch_column="batch",
         condition_columns=("condition",),
-        replicate_column=None,
+        replicate_column=replicate_column,
         control_site_source=InternalBatchCorrectionControlSiteSource.CALLER_SUPPLIED,
         control_site_mode=InternalBatchCorrectionControlSiteMode.SITE_KEY_LIST,
         missing_value_policy=InternalBatchCorrectionMissingValuePolicy.REJECT_MISSING,
@@ -521,7 +579,10 @@ def _upstream_observation_mask() -> pd.DataFrame:
     return mask
 
 
-def _metadata() -> ResolvedBatchDesignMetadata:
+def _metadata(
+    *,
+    replicate_by_sample: dict[str, str] | None = None,
+) -> ResolvedBatchDesignMetadata:
     return ResolvedBatchDesignMetadata(
         batch_by_sample={
             "sample_1": "run_1",
@@ -536,6 +597,7 @@ def _metadata() -> ResolvedBatchDesignMetadata:
             "sample_4": "treated",
         },
         sample_order=("sample_1", "sample_2", "sample_3", "sample_4"),
+        replicate_by_sample=replicate_by_sample,
     )
 
 
@@ -585,7 +647,10 @@ def _missingness_policy() -> CorrectionMissingnessPolicy:
     )
 
 
-def _plan() -> ResolvedBatchCorrectionPlan:
+def _plan(
+    *,
+    replicate_structure: ReplicateStructure | None = None,
+) -> ResolvedBatchCorrectionPlan:
     design = pd.DataFrame(
         [
             (1.0, 0.0, 0.0),
@@ -610,7 +675,9 @@ def _plan() -> ResolvedBatchCorrectionPlan:
             replicate_by_sample=None,
             replicate_labels=None,
             replicate_groups={},
-        ),
+        )
+        if replicate_structure is None
+        else replicate_structure,
         eligible_control_site_rows=(
             EligibleControlSiteRow(site_key="site_a", row_position=0),
             EligibleControlSiteRow(site_key="site_b", row_position=1),

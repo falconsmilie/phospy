@@ -27,6 +27,7 @@ from phospy.science.datasets.preprocessing.control_sites import (
 from phospy.validation.datasets.batch_correction import ResolvedBatchDesignMetadata
 from phospy.validation.workflows.batch_correction import ControlSiteEligibilityValidator
 from phospy.workflows.batch_correction import BatchCorrectionPlanInterpreter
+from phospy.workflows.batch_correction.interpreter import REPLICATE_METADATA_ROLE
 
 
 def test_batch_correction_interpreter_resolves_controls_and_design() -> None:
@@ -68,6 +69,10 @@ def test_batch_correction_interpreter_carries_replicates_and_missingness_policy(
         "r1": ("sample_1", "sample_2"),
         "r2": ("sample_3", "sample_4"),
     }
+    replicate_payload = plan.replicate_structure.to_payload()
+    assert replicate_payload["replicate_metadata_role"] == REPLICATE_METADATA_ROLE
+    assert replicate_payload["used_for_numerical_factor_estimation"] is False
+    assert replicate_payload["ruv_iii_semantics_enabled"] is False
     assert plan.observation_mask is policy.observation_mask
     assert plan.observation_mask.is_originally_missing("site_b", "sample_2")
     assert (
@@ -160,6 +165,19 @@ def test_batch_correction_interpreter_provenance_seed_data_is_deterministic() ->
     assert first.provenance_seed_data["condition_columns"] == [
         "condition",
     ]
+    assert (
+        first.provenance_seed_data["replicate_metadata_role"] == REPLICATE_METADATA_ROLE
+    )
+    assert (
+        first.provenance_seed_data[
+            "replicate_metadata_used_for_numerical_factor_estimation"
+        ]
+        is False
+    )
+    assert (
+        first.provenance_seed_data["replicate_metadata_enables_ruv_iii_semantics"]
+        is False
+    )
     assert first.provenance_seed_data["eligible_control_site_rows"] == [
         {
             "site_key": "site_a",

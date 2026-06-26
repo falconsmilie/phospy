@@ -129,8 +129,9 @@ Common cross-field checks:
   temporary-imputation policies, missing observation masks when temporary
   imputation is allowed, and attempts to run correction without provenance.
   Optional `replicate_column` metadata is validated and recorded for native-lane
-  provenance and diagnostics only; it does not make replicate-aware RUV-III
-  correction executable.
+  provenance and diagnostics only; it is not used for numerical unwanted-factor
+  estimation and does not make RUV-III or replicate-aware RUV-III correction
+  executable.
   Validation does not infer organism or identifier namespace from `site_key`
   strings and does not fetch metadata online.
 

@@ -109,8 +109,11 @@ native PhosPy SPS/RUV-style preprocessing correction estimates unwanted factors
 from eligible control-site residuals after protected-design handling. Batch
 terms are resolved for validation and diagnostics, including
 batch-associated-variance summaries; they are not directly residualized as
-fixed effects by the native correction. RUV-III style correction is not
-executable unless a future feature implements replicate-aware semantics. Any
+fixed effects by the native correction. Replicate metadata, when supplied, is
+validated and recorded for provenance and diagnostics only; it is not used for
+numerical unwanted-factor estimation and does not enable RUV-III or
+replicate-aware RUV-III semantics. RUV-III style correction is not executable
+unless a future feature implements replicate-aware semantics. Any
 `ruv_readiness` diagnostics are report-only readiness signals and do not apply
 correction.
 

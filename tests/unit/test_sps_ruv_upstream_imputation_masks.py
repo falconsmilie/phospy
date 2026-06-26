@@ -5,6 +5,7 @@ from typing import cast
 
 import numpy as np
 import pandas as pd
+import pandas.testing as pdt
 import pytest
 
 from phospy.api import (
@@ -38,6 +39,7 @@ from phospy.science.datasets.preprocessing.control_sites import (
     ControlSiteSourceMetadata,
 )
 from phospy.workflows.batch_correction import (
+    REPLICATE_METADATA_ROLE,
     BatchCorrectionWorkflow,
     BatchCorrectionWorkflowRequest,
 )
@@ -198,6 +200,15 @@ def test_dataset_sps_ruv_records_replicate_metadata_for_provenance_only() -> Non
     replicate_metadata = cast(Mapping[str, object], provenance.replicate_metadata)
 
     assert replicate_metadata == {
+        "role": REPLICATE_METADATA_ROLE,
+        "role_description": (
+            "replicate metadata is validated and recorded for provenance and "
+            "diagnostics only; it is not used for numerical unwanted-factor "
+            "estimation and does not enable RUV-III or replicate-aware RUV-III "
+            "semantics"
+        ),
+        "used_for_numerical_factor_estimation": False,
+        "ruv_iii_semantics_enabled": False,
         "replicate_by_sample": {
             "sample_1": "r1",
             "sample_2": "r1",
@@ -212,6 +223,72 @@ def test_dataset_sps_ruv_records_replicate_metadata_for_provenance_only() -> Non
     )
     assert config_payload["method"] == "sps_ruv_style"
     assert config_payload["replicate_column"] == "replicate"
+    assert config_payload["replicate_metadata_role"] == REPLICATE_METADATA_ROLE
+    assert (
+        config_payload["replicate_metadata_used_for_numerical_factor_estimation"]
+        is False
+    )
+    assert config_payload["replicate_metadata_enables_ruv_iii_semantics"] is False
+
+
+def test_dataset_sps_ruv_changing_replicate_labels_does_not_change_output() -> None:
+    first = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(_phospho().index),
+            sample_metadata=_sample_metadata(),
+            organism=Organism.RAT,
+            input_intensity_scale="linear",
+            preprocessing_config=_preprocessing_config(),
+        )
+    )
+    relabelled = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(_phospho().index),
+            sample_metadata=_sample_metadata(
+                replicates=("new_4", "new_3", "new_2", "new_1")
+            ),
+            organism=Organism.RAT,
+            input_intensity_scale="linear",
+            preprocessing_config=_preprocessing_config(),
+        )
+    )
+
+    pdt.assert_frame_equal(
+        first.phospho,
+        relabelled.phospho,
+        check_exact=False,
+        atol=1e-10,
+        rtol=0.0,
+    )
+
+
+@pytest.mark.parametrize(
+    ("invalid_value", "message"),
+    (
+        (pd.NA, "missing replicate labels.*sample_2"),
+        ("   ", "blank replicate labels.*sample_2"),
+    ),
+)
+def test_dataset_sps_ruv_rejects_invalid_replicate_metadata_when_column_supplied(
+    invalid_value: object,
+    message: str,
+) -> None:
+    sample_metadata = _sample_metadata()
+    sample_metadata.loc["sample_2", "replicate"] = invalid_value
+
+    with pytest.raises(PhosPyInputError, match=message):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=_phospho(),
+                site_metadata=_site_metadata(_phospho().index),
+                sample_metadata=sample_metadata,
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+                preprocessing_config=_preprocessing_config(),
+            )
+        )
 
 
 def test_workflow_rejects_misaligned_upstream_mask_before_executor() -> None:
@@ -379,12 +456,15 @@ def _site_metadata(index: pd.Index) -> pd.DataFrame:
     )
 
 
-def _sample_metadata() -> pd.DataFrame:
+def _sample_metadata(
+    *,
+    replicates: tuple[str, str, str, str] = ("r1", "r1", "r2", "r2"),
+) -> pd.DataFrame:
     return pd.DataFrame(
         {
             "batch": ("run_1", "run_1", "run_2", "run_2"),
             "condition": ("control", "treated", "control", "treated"),
-            "replicate": ("r1", "r1", "r2", "r2"),
+            "replicate": replicates,
         },
         index=("sample_1", "sample_2", "sample_3", "sample_4"),
     )

@@ -27,6 +27,7 @@ from phospy.science.batch_correction import (
     SPS_RUV_STYLE_ALGORITHM_DESCRIPTION,
     SPS_RUV_STYLE_BATCH_TERM_ROLE,
     SPS_RUV_STYLE_EXECUTOR_ID,
+    SPS_RUV_STYLE_REPLICATE_METADATA_ROLE,
     DeterministicSpsRuvStyleExecutor,
     SpsRuvStyleExecutorResult,
 )
@@ -158,6 +159,9 @@ def test_sps_ruv_style_executor_returns_diagnostics_warnings_and_provenance() ->
     assert diagnostics_payload["term_roles"]["batch_terms"] == (
         SPS_RUV_STYLE_BATCH_TERM_ROLE
     )
+    assert diagnostics_payload["term_roles"]["replicate_metadata"] == (
+        SPS_RUV_STYLE_REPLICATE_METADATA_ROLE
+    )
     assert diagnostics_payload["eligible_control_site_count"] == 2
     assert diagnostics_payload["rejected_control_site_count"] == 0
     assert diagnostics_payload["design_summary"]["number_of_batches"] == 2
@@ -187,6 +191,9 @@ def test_sps_ruv_style_executor_returns_diagnostics_warnings_and_provenance() ->
     )
     assert result.provenance_payload["term_roles"]["batch_terms"] == (
         SPS_RUV_STYLE_BATCH_TERM_ROLE
+    )
+    assert result.provenance_payload["term_roles"]["replicate_metadata"] == (
+        SPS_RUV_STYLE_REPLICATE_METADATA_ROLE
     )
     assert "corrected_matrix_fingerprint" in result.provenance_payload
     assert result.provenance_payload["diagnostics"] == diagnostics_payload

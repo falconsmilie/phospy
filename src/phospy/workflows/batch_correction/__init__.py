@@ -7,6 +7,8 @@ from phospy.workflows.batch_correction.contracts import (
     BatchCorrectionWorkflowResult,
 )
 from phospy.workflows.batch_correction.interpreter import (
+    REPLICATE_METADATA_ROLE,
+    REPLICATE_METADATA_ROLE_DESCRIPTION,
     BatchCorrectionDiagnosticRequirements,
     BatchCorrectionPlanInterpreter,
     EligibleControlSiteRow,
@@ -37,6 +39,8 @@ __all__ = [
     "BatchCorrectionWorkflowRequest",
     "BatchCorrectionWorkflowResult",
     "EligibleControlSiteRow",
+    "REPLICATE_METADATA_ROLE",
+    "REPLICATE_METADATA_ROLE_DESCRIPTION",
     "ReplicateStructure",
     "ResolvedBatchCorrectionPlan",
 ]
