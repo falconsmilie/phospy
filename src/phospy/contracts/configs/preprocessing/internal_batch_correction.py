@@ -1,8 +1,9 @@
-"""Internal future SPS/RUV-style batch-correction request contracts.
+"""Internal SPS/RUV-style batch-correction request contracts.
 
-These contracts describe preprocessing intent only. They do not select
-controls, estimate unwanted factors, modify matrices, fetch resources, or claim
-equivalence to another implementation.
+These declarative contracts describe preprocessing workflow intent. They do
+not themselves select controls, estimate unwanted factors, modify matrices,
+fetch resources, or claim equivalence to another implementation; executable
+workflow and science-layer components own those behaviors.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ class InternalBatchCorrectionMethod(PolicyEnum):
 
 
 class InternalBatchCorrectionControlSiteSource(PolicyEnum):
-    """Where a future correction request expects control-site labels to come from."""
+    """Where a correction request expects control-site labels to come from."""
 
     CALLER_SUPPLIED = "caller_supplied"
     DATASET_METADATA = "dataset_metadata"
@@ -43,7 +44,7 @@ class InternalBatchCorrectionControlSiteMode(PolicyEnum):
 
 
 class InternalBatchCorrectionMissingValuePolicy(PolicyEnum):
-    """Requested missing-value handling boundary for a future correction."""
+    """Requested missing-value handling boundary for correction."""
 
     REJECT_MISSING = "reject_missing"
     ALLOW_TEMPORARY_IMPUTATION = "allow_temporary_imputation"
@@ -97,12 +98,13 @@ SUPPORTED_INTERNAL_BATCH_CORRECTION_EXECUTED_STAGE_ORDER = (
 
 @dataclass(frozen=True, slots=True)
 class InternalBatchCorrectionRequest:
-    """Internal request contract for future native SPS/RUV-style correction.
+    """Internal request contract for native SPS/RUV-style correction.
 
     Construction validates local scalar values and stores typed enum members.
-    It intentionally does not validate scientific eligibility, select or
-    resolve controls, estimate unwanted factors, impute values, or modify any
-    phosphosite matrix.
+    It intentionally does not validate scientific eligibility or directly
+    execute control resolution, unwanted-factor estimation, temporary
+    imputation, or phosphosite matrix changes; those responsibilities belong
+    to validation, interpretation, workflow, and science-layer components.
     """
 
     method: InternalBatchCorrectionMethod

@@ -69,10 +69,15 @@ Important user-facing assumptions:
   complete non-empty values for interpreted sites.
 
 `DatasetPreprocessingConfig` owns transforms, normalisation, missing-data
-handling, site construction, site-sequence resolution, total-protein correction,
-protein-aware preparation, optional `linear_residualize_batch`, comparison
-building, localisation policy, native SPS/RUV-style correction through
-`SpsRuvBatchCorrectionConfig`, and `ruv_readiness` reporting.
+handling, site construction, site-sequence resolution, total-protein
+correction, protein-aware preparation, comparison building, and localisation
+policy.
+
+Batch-correction preprocessing surfaces are explicit: optional
+`linear_residualize_batch` fixed-effect residualisation and native SPS/RUV-style
+correction through `SpsRuvBatchCorrectionConfig`.
+
+`ruv_readiness` diagnostics are report-only metadata readiness reporting.
 
 `linear_residualize_batch` fixed-effect residualisation preserves condition
 effects by design and requires explicit batch and condition metadata.

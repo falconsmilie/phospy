@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -10,6 +11,7 @@ from re import Pattern
 ROOT = Path(__file__).resolve().parents[2]
 DOCS_ROOT = ROOT / "docs"
 README = ROOT / "README.md"
+SRC_ROOT = ROOT / "src" / "phospy"
 
 
 @dataclass(frozen=True)
@@ -41,7 +43,13 @@ NEGATED_OR_LIMITED = (
     _rx(r"\bopen\s+gap\b"),
     _rx(r"\blimitation(?:s)?\b"),
     _rx(r"\broadmap\b"),
+)
+
+ROADMAP_OR_UNSUPPORTED = NEGATED_OR_LIMITED + (
     _rx(r"\bfuture\b"),
+    _rx(r"\bunsafe\b"),
+    _rx(r"\bnon-supported\b"),
+    _rx(r"\bnot\s+equivalent\b"),
 )
 
 
@@ -196,6 +204,22 @@ SUPPORT_CLAIM_RULES: tuple[SupportClaimRule, ...] = (
         ),
     ),
     SupportClaimRule(
+        name="RUV-III support or implementation",
+        unsupported_claim=_rx(
+            rf"\b(?:ruv-iii|ruv_iii_style)\b.{{0,90}}\b{CLAIM_WORD}\b|"
+            rf"\b{CLAIM_WORD}\b.{{0,90}}\b(?:ruv-iii|ruv_iii_style)\b"
+        ),
+        allowed_contexts=ROADMAP_OR_UNSUPPORTED
+        + (
+            _rx(r"\breplicate-aware ruv-iii\b"),
+            _rx(r"\bmethod label\b"),
+        ),
+        update_when_supported=(
+            "If RUV-III support is added, allow only text naming the exact "
+            "replicate-aware method semantics, validation scope, and evidence."
+        ),
+    ),
+    SupportClaimRule(
         name="RUV support",
         unsupported_claim=_rx(
             rf"\bruv\b.{{0,90}}\b{CLAIM_WORD}\b|"
@@ -203,17 +227,15 @@ SUPPORT_CLAIM_RULES: tuple[SupportClaimRule, ...] = (
         ),
         allowed_contexts=NEGATED_OR_LIMITED
         + (
-            _rx(r"\bruv_readiness\b"),
             _rx(r"\bruv-compatible\b"),
             _rx(r"\bnative sps/ruv-style\b"),
             _rx(r"\bspsruvbatchcorrectionconfig\b"),
             _rx(r"\bmetadata readiness reporting\b"),
-            _rx(r"\blinear_residualize_batch\b"),
             _rx(r"\bbatch-effect methods remain outside\b"),
         ),
         update_when_supported=(
-            "If RUV correction is implemented, replace readiness-only allowances "
-            "with the exact implemented RUV method and validation evidence."
+            "Generic RUV support language must be replaced with the exact "
+            "implemented native method, validation boundary, and evidence."
         ),
     ),
     SupportClaimRule(
@@ -271,6 +293,119 @@ SUPPORT_CLAIM_RULES: tuple[SupportClaimRule, ...] = (
 )
 
 
+DISTINCTION_RULES: tuple[SupportClaimRule, ...] = (
+    SupportClaimRule(
+        name="PhosR-equivalent SPS/RUV-III claim",
+        unsupported_claim=_rx(r"\bphosr-equivalent\s+sps/ruv-iii\b"),
+        allowed_contexts=ROADMAP_OR_UNSUPPORTED,
+        update_when_supported=(
+            "Do not use PhosR-equivalent SPS/RUV-III wording as a positive "
+            "claim unless parity evidence and scope are explicit."
+        ),
+    ),
+    SupportClaimRule(
+        name="generic RUV support shortcut",
+        unsupported_claim=_rx(r"\bruv\s+support\b"),
+        allowed_contexts=ROADMAP_OR_UNSUPPORTED
+        + (
+            _rx(r"\bnative\s+phospy\s+sps/ruv-style\b"),
+            _rx(r"\bnative\s+sps/ruv-style\b"),
+            _rx(r"\bspsruvbatchcorrectionconfig\b"),
+        ),
+        update_when_supported=(
+            "Say native PhosPy SPS/RUV-style preprocessing correction, not "
+            "generic RUV support."
+        ),
+    ),
+    SupportClaimRule(
+        name="boolean RUV shortcut",
+        unsupported_claim=_rx(r"\buse_ruv\b"),
+        allowed_contexts=ROADMAP_OR_UNSUPPORTED,
+        update_when_supported=(
+            "Do not introduce a boolean use_ruv public method or example; use "
+            "the structured native SPS/RUV-style config instead."
+        ),
+    ),
+    SupportClaimRule(
+        name="automatic control-site selection",
+        unsupported_claim=_rx(
+            r"\b(?:automatic(?:ally)?|hidden|implicit(?:ly)?)\b.{0,80}"
+            r"\b(?:control[-\s]?site|controls?)\b.{0,80}"
+            r"\b(?:select(?:s|ed|ion)?|lookup|fetch(?:es|ed|ing)?)\b|"
+            r"\b(?:control[-\s]?site|controls?)\b.{0,80}"
+            r"\b(?:select(?:s|ed|ion)?|lookup|fetch(?:es|ed|ing)?)\b.{0,80}"
+            r"\b(?:automatic(?:ally)?|hidden|implicit(?:ly)?)\b"
+        ),
+        allowed_contexts=ROADMAP_OR_UNSUPPORTED
+        + (
+            _rx(r"\bcaller-supplied\b"),
+            _rx(r"\bexplicit\b"),
+        ),
+        update_when_supported=(
+            "Control-site selection must be described as caller-supplied or "
+            "as a separately implemented explicit method with provenance."
+        ),
+    ),
+    SupportClaimRule(
+        name="ruv_readiness as correction",
+        unsupported_claim=_rx(
+            r"\bruv_readiness\b.{0,120}\b(?:correct(?:s|ed|ion)?|apply|"
+            r"applies|applied|modify|modifies|modified|matrix|selects?)\b|"
+            r"\b(?:correct(?:s|ed|ion)?|apply|applies|applied|modify|"
+            r"modifies|modified|matrix|selects?)\b.{0,120}\bruv_readiness\b"
+        ),
+        allowed_contexts=ROADMAP_OR_UNSUPPORTED
+        + (
+            _rx(r"\breport-only\b"),
+            _rx(r"\bdiagnostic(?:s)?\b"),
+            _rx(r"\bmetadata readiness\b"),
+        ),
+        update_when_supported=(
+            "`ruv_readiness` must remain diagnostic/report-only language, not "
+            "correction language."
+        ),
+    ),
+    SupportClaimRule(
+        name="linear residualisation as SPS/RUV-style correction",
+        unsupported_claim=_rx(
+            r"\blinear_residualize_batch\b.{0,140}\b(?:sps/ruv|ruv-iii|"
+            r"native\s+sps/ruv-style|unwanted-factor|control[-\s]?site)\b|"
+            r"\b(?:sps/ruv|ruv-iii|native\s+sps/ruv-style|unwanted-factor|"
+            r"control[-\s]?site)\b.{0,140}\blinear_residualize_batch\b"
+        ),
+        allowed_contexts=ROADMAP_OR_UNSUPPORTED
+        + (
+            _rx(r"\bfixed-effect residualisation\b"),
+            _rx(r"\bdistinct\b"),
+        ),
+        update_when_supported=(
+            "`linear_residualize_batch` must be described as fixed-effect "
+            "residualisation, not SPS/RUV-style correction."
+        ),
+    ),
+    SupportClaimRule(
+        name="differential batch covariates as preprocessing correction",
+        unsupported_claim=_rx(
+            r"\b(?:differential\b.{0,80}\bbatch\s+covariates?|"
+            r"batch\s+covariates?\b.{0,80}\bdifferential|"
+            r"differential\b.{0,80}\bbatch\s+(?:fixed\s+)?effects?|"
+            r"batch\s+(?:fixed\s+)?effects?\b.{0,80}\bdifferential)"
+            r".{0,120}\b(?:preprocessing\s+correction|correct(?:s|ed)?\s+"
+            r"(?:the\s+)?(?:input\s+)?(?:data|matrix)|batch-correction method)\b"
+        ),
+        allowed_contexts=ROADMAP_OR_UNSUPPORTED
+        + (
+            _rx(r"\bmodel terms?\b"),
+            _rx(r"\bmodel covariates?\b"),
+        ),
+        update_when_supported=(
+            "Differential batch covariates must be model terms, not documented "
+            "as preprocessing correction."
+        ),
+    ),
+)
+
+
 def _public_docs_paths() -> tuple[Path, ...]:
     docs = [
         path
@@ -280,12 +415,28 @@ def _public_docs_paths() -> tuple[Path, ...]:
     return (README, *sorted(docs))
 
 
+def _api_doc_paths() -> tuple[Path, ...]:
+    return (
+        SRC_ROOT / "contracts" / "configs" / "preprocessing" / "batch_correction.py",
+        SRC_ROOT
+        / "contracts"
+        / "configs"
+        / "preprocessing"
+        / "internal_batch_correction.py",
+        SRC_ROOT / "validation" / "configs" / "preprocessing.py",
+    )
+
+
 def _is_under(path: Path, parent: Path) -> bool:
     try:
         path.relative_to(parent)
     except ValueError:
         return False
     return True
+
+
+def _is_adr_path(path: Path) -> bool:
+    return _is_under(path, DOCS_ROOT / "adr")
 
 
 def _iter_claim_blocks(path: Path) -> tuple[ClaimBlock, ...]:
@@ -338,6 +489,34 @@ def _iter_claim_blocks(path: Path) -> tuple[ClaimBlock, ...]:
     return tuple(blocks)
 
 
+def _iter_api_doc_blocks(path: Path) -> tuple[ClaimBlock, ...]:
+    source = path.read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=str(path))
+    blocks: list[ClaimBlock] = []
+
+    def append_docstring(node: ast.AST) -> None:
+        docstring = ast.get_docstring(node)
+        if not docstring:
+            return
+        lineno = getattr(node, "lineno", 1)
+        blocks.append(
+            ClaimBlock(
+                path=path,
+                start_line=lineno,
+                text=_normalise_claim_text(docstring),
+            )
+        )
+
+    append_docstring(tree)
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            if node.name.startswith("_"):
+                continue
+            append_docstring(node)
+
+    return tuple(blocks)
+
+
 def _normalise_claim_text(text: str) -> str:
     text = text.replace("`", "")
     text = text.replace("*", "")
@@ -345,7 +524,11 @@ def _normalise_claim_text(text: str) -> str:
 
 
 def _is_allowed(block: ClaimBlock, rule: SupportClaimRule) -> bool:
-    return any(pattern.search(block.text) for pattern in rule.allowed_contexts)
+    if any(pattern.search(block.text) for pattern in rule.allowed_contexts):
+        return True
+    if not _is_adr_path(block.path):
+        return False
+    return any(pattern.search(block.text) for pattern in ROADMAP_OR_UNSUPPORTED)
 
 
 def _find_unsupported_claims(
@@ -353,7 +536,7 @@ def _find_unsupported_claims(
 ) -> tuple[str, ...]:
     failures: list[str] = []
     for block in blocks:
-        for rule in SUPPORT_CLAIM_RULES:
+        for rule in SUPPORT_CLAIM_RULES + DISTINCTION_RULES:
             if not rule.unsupported_claim.search(block.text):
                 continue
             if _is_allowed(block, rule):
@@ -369,9 +552,26 @@ def _find_unsupported_claims(
     return tuple(failures)
 
 
+def _assert_each_block_rejected(blocks: tuple[ClaimBlock, ...]) -> None:
+    failures = _find_unsupported_claims(blocks)
+    missing: list[str] = []
+    for block in blocks:
+        try:
+            rel_path = block.path.relative_to(ROOT).as_posix()
+        except ValueError:
+            rel_path = block.path.as_posix()
+        prefix = f"{rel_path}:{block.start_line}:"
+        if not any(failure.startswith(prefix) for failure in failures):
+            missing.append(f"{prefix} {block.text}")
+
+    assert not missing, "\n".join(missing)
+
+
 def test_public_docs_do_not_make_unsupported_scientific_parity_claims() -> None:
     blocks = tuple(
         block for path in _public_docs_paths() for block in _iter_claim_blocks(path)
+    ) + tuple(
+        block for path in _api_doc_paths() for block in _iter_api_doc_blocks(path)
     )
 
     failures = _find_unsupported_claims(blocks)
@@ -424,6 +624,7 @@ def test_claim_guard_rejects_unsupported_positive_claims() -> None:
                 "PhosPy bundles official Kinase Library data.",
                 "Dataset preprocessing supports ComBat batch correction.",
                 "Dataset preprocessing implements RUV correction.",
+                "Dataset preprocessing implements RUV-III correction.",
                 "Differential analysis runs duplicateCorrelation.",
                 "Differential analysis supports mixed-effects modelling.",
                 "Batch correction supports removeBatchEffect parity.",
@@ -432,7 +633,7 @@ def test_claim_guard_rejects_unsupported_positive_claims() -> None:
         )
     )
 
-    failures = _find_unsupported_claims(
+    _assert_each_block_rejected(
         tuple(
             ClaimBlock(
                 path=block.path,
@@ -443,7 +644,27 @@ def test_claim_guard_rejects_unsupported_positive_claims() -> None:
         )
     )
 
-    assert len(failures) == len(bad_blocks)
+
+def test_claim_guard_rejects_batch_correction_shortcuts_and_blurred_boundaries() -> (
+    None
+):
+    bad_blocks = tuple(
+        ClaimBlock(Path("synthetic.md"), index, _normalise_claim_text(text))
+        for index, text in enumerate(
+            (
+                "Enable PhosR-equivalent SPS/RUV-III batch correction.",
+                "Set use_ruv=True to run batch correction.",
+                "PhosPy provides automatic control-site selection for RUV.",
+                "ruv_readiness applies correction to the matrix.",
+                "linear_residualize_batch is SPS/RUV-style correction.",
+                "Differential batch covariates are preprocessing correction.",
+                "Differential batch fixed effects correct the input matrix.",
+            ),
+            start=1,
+        )
+    )
+
+    _assert_each_block_rejected(bad_blocks)
 
 
 def test_claim_guard_allows_current_limitation_language() -> None:
@@ -454,15 +675,47 @@ def test_claim_guard_allows_current_limitation_language() -> None:
                 "PhosPy does not claim global PhosR parity.",
                 "This is not ComBat, not RUV, not limma removeBatchEffect parity.",
                 "No executable RUV, ComBat, or limma removeBatchEffect parity lane is supported.",
-                "Native SPS/RUV-style correction is available through SpsRuvBatchCorrectionConfig.",
+                "Native PhosPy SPS/RUV-style preprocessing correction is available through SpsRuvBatchCorrectionConfig.",
                 "Protein-aware preparation is preparation-only and does not claim MSstatsPTM equivalence.",
                 "ORA is not GSEA, ssGSEA, or PTM-SEA support.",
                 "No official Kinase Library compatibility or parity claim is made.",
                 "Fixed-block terms are not limma duplicateCorrelation or mixed-effects modelling.",
                 "limma-style moderated variance is supported for the scoped differential lane.",
+                "Do not interpret ruv_readiness as RUV support.",
+                "ruv_readiness remains diagnostic/report-only metadata readiness reporting.",
+                "linear_residualize_batch is limited fixed-effect residualisation, not SPS/RUV-style correction.",
+                "Differential batch covariates are model terms, not preprocessing correction.",
             ),
             start=1,
         )
     )
 
     assert not _find_unsupported_claims(allowed_blocks)
+
+
+def test_adr_context_allows_unsupported_method_discussion_only_when_qualified() -> None:
+    allowed_adr_blocks = tuple(
+        ClaimBlock(Path("docs/adr/synthetic.md"), index, _normalise_claim_text(text))
+        for index, text in enumerate(
+            (
+                "A future use_ruv shortcut is unsafe and unsupported.",
+                "This ADR discusses RUV-III support as a non-supported roadmap item.",
+                "PhosR-equivalent SPS/RUV-III correction is not supported.",
+            ),
+            start=1,
+        )
+    )
+    bad_adr_blocks = tuple(
+        ClaimBlock(Path("docs/adr/synthetic.md"), index, _normalise_claim_text(text))
+        for index, text in enumerate(
+            (
+                "Add use_ruv to simplify examples.",
+                "This ADR records RUV support.",
+                "PhosR-equivalent SPS/RUV-III correction is available.",
+            ),
+            start=1,
+        )
+    )
+
+    assert not _find_unsupported_claims(allowed_adr_blocks)
+    _assert_each_block_rejected(bad_adr_blocks)

@@ -157,7 +157,7 @@ def validate_internal_batch_correction_request(
     missing_value_policy_use_existing_imputation_provenance: str,
     imputation_policy_none: str,
 ) -> dict[str, object]:
-    """Validate internal future SPS/RUV-style correction request fields.
+    """Validate internal SPS/RUV-style correction request fields.
 
     This guard covers scalar construction invariants only. It does not inspect
     data matrices, select controls, estimate factors, or decide whether a
