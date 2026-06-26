@@ -199,6 +199,10 @@ def test_sps_ruv_style_executor_returns_diagnostics_warnings_and_provenance() ->
     assert result.rejected_cells == ()
     assert result.provenance_payload["executor_id"] == SPS_RUV_STYLE_EXECUTOR_ID
     assert result.provenance_payload["method"] == "sps_ruv_style"
+    assert result.provenance_payload["resolved_plan"]["method"] == "sps_ruv_style"
+    assert (
+        result.provenance_payload["provenance_seed_data"]["method"] == "sps_ruv_style"
+    )
     assert result.provenance_payload["algorithm_description"] == (
         SPS_RUV_STYLE_ALGORITHM_DESCRIPTION
     )
@@ -219,19 +223,18 @@ def test_sps_ruv_style_executor_returns_diagnostics_warnings_and_provenance() ->
     )
 
 
-def test_sps_ruv_style_executor_canonicalizes_internal_method_alias_outputs() -> None:
+def test_sps_ruv_style_executor_rejects_internal_method_alias_plan() -> None:
     phospho = _phospho()
     plan = replace(_resolved_plan(phospho), method="control_site_ruv_style")
 
-    result = DeterministicSpsRuvStyleExecutor().run(phospho=phospho, plan=plan)
-
-    assert result.diagnostics.method == "sps_ruv_style"
-    assert result.diagnostics.to_payload()["method"] == "sps_ruv_style"
-    assert result.provenance_payload["method"] == "sps_ruv_style"
-    assert result.provenance_payload["resolved_plan"]["method"] == "sps_ruv_style"
-    assert (
-        result.provenance_payload["provenance_seed_data"]["method"] == "sps_ruv_style"
-    )
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "SPS/RUV-style executor requires a resolved SPS/RUV-style plan; "
+            "got method='control_site_ruv_style'"
+        ),
+    ):
+        DeterministicSpsRuvStyleExecutor().run(phospho=phospho, plan=plan)
 
 
 def test_sps_ruv_style_executor_defensively_rejects_non_estimable_factor_count() -> (
