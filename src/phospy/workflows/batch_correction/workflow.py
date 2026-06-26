@@ -127,6 +127,18 @@ class BatchCorrectionWorkflow:
             request=validated_request,
             executor_result=executor_result,
         )
+        corrected_preprocessing_output = getattr(
+            executor_result,
+            "corrected_preprocessing_output",
+            None,
+        )
+        if not isinstance(corrected_preprocessing_output, CorrectedPreprocessingOutput):
+            raise PhosPyInputError(
+                "batch-correction workflow did not produce complete "
+                "analysis-ready output; corrected_preprocessing_output is "
+                "unavailable because the corrected matrix is diagnostic-only "
+                "or contains restored missing cells"
+            )
         provenance = self._provenance_recorder.run(
             request=validated_request,
             dataset_metadata=dataset_metadata,
@@ -142,17 +154,11 @@ class BatchCorrectionWorkflow:
                 "executor": executor_result.diagnostics.to_payload(),
             },
         )
-        corrected_preprocessing_output = getattr(
-            executor_result,
-            "corrected_preprocessing_output",
-            None,
+        corrected_preprocessing_output = corrected_preprocessing_output.with_provenance(
+            provenance
         )
-        if isinstance(corrected_preprocessing_output, CorrectedPreprocessingOutput):
-            corrected_preprocessing_output = (
-                corrected_preprocessing_output.with_provenance(provenance)
-            )
         return BatchCorrectionWorkflowResult(
-            corrected_matrix=executor_result.corrected_matrix,
+            corrected_matrix=corrected_preprocessing_output.corrected_matrix,
             corrected_preprocessing_output=corrected_preprocessing_output,
             diagnostics=diagnostics,
             warnings=tuple(str(warning) for warning in executor_result.warnings),

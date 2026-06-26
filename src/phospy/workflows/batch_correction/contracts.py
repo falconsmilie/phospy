@@ -17,6 +17,9 @@ from phospy.science.datasets.preprocessing.control_sites import (
     ControlSiteMapping,
     ControlSiteSet,
 )
+from phospy.science.datasets.preprocessing.correction_output import (
+    CorrectedPreprocessingOutput,
+)
 from phospy.validation.datasets.batch_correction import ResolvedBatchDesignMetadata
 from phospy.workflows.batch_correction.interpreter import ResolvedBatchCorrectionPlan
 
@@ -37,17 +40,23 @@ class BatchCorrectionWorkflowRequest:
 
 @dataclass(frozen=True, slots=True)
 class BatchCorrectionWorkflowResult:
-    """Structured output from the batch-correction workflow."""
+    """Applied output from the batch-correction workflow.
+
+    Downstream analysis should consume `corrected_preprocessing_output` through
+    dataset preprocessing, or the resulting `AnalysisReadyPhosphoDataset`.
+    `corrected_matrix` is a convenience snapshot of that complete applied
+    output, not a diagnostic or partially corrected matrix channel.
+    """
 
     corrected_matrix: pd.DataFrame
     diagnostics: Mapping[str, JsonValue]
     warnings: tuple[str, ...]
     provenance: BatchCorrectionProvenance
-    corrected_preprocessing_output: object | None = None
+    corrected_preprocessing_output: CorrectedPreprocessingOutput
 
     @property
     def corrected(self) -> pd.DataFrame:
-        """Return the corrected phosphosite matrix."""
+        """Return the complete applied corrected phosphosite matrix."""
 
         return self.corrected_matrix
 
@@ -106,7 +115,11 @@ class BatchCorrectionExecutorDiagnosticsContract(Protocol):
 
 
 class BatchCorrectionExecutorResultContract(Protocol):
-    """Executor result fields consumed by the workflow shell."""
+    """Executor result fields consumed by the workflow shell.
+
+    `corrected_matrix` remains executor diagnostic output. Workflow-level
+    applied output requires `corrected_preprocessing_output`.
+    """
 
     @property
     def corrected_matrix(self) -> pd.DataFrame: ...
@@ -122,6 +135,11 @@ class BatchCorrectionExecutorResultContract(Protocol):
 
     @property
     def provenance_payload(self) -> Mapping[str, object]: ...
+
+    @property
+    def corrected_preprocessing_output(
+        self,
+    ) -> CorrectedPreprocessingOutput | None: ...
 
     @property
     def rejected_rows(self) -> Sequence[str]: ...

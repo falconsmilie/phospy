@@ -21,10 +21,18 @@ from phospy.contracts.configs.preprocessing import (
 from phospy.errors import PhosPyInputError
 from phospy.provenance import fingerprint_matrix
 from phospy.provenance.models import BatchCorrectionProvenance
+from phospy.science.datasets.preprocessing.batch_correction import (
+    BatchCorrectionDiagnostics,
+    BatchCorrectionPolicy,
+    BatchCorrectionReport,
+)
 from phospy.science.datasets.preprocessing.control_sites import (
     ControlSiteMapping,
     ControlSiteSet,
     ControlSiteSourceMetadata,
+)
+from phospy.science.datasets.preprocessing.correction_output import (
+    CorrectedPreprocessingOutput,
 )
 from phospy.validation.datasets.batch_correction import ResolvedBatchDesignMetadata
 from phospy.workflows.batch_correction import (
@@ -467,6 +475,43 @@ class _ExecutorResult:
             True,
             index=self.corrected_matrix.index.copy(),
             columns=self.corrected_matrix.columns.copy(),
+        )
+
+    @property
+    def corrected_cell_status(self) -> pd.DataFrame:
+        return pd.DataFrame(
+            "corrected_observed",
+            index=self.corrected_matrix.index.copy(),
+            columns=self.corrected_matrix.columns.copy(),
+        )
+
+    @property
+    def corrected_preprocessing_output(self) -> CorrectedPreprocessingOutput:
+        return CorrectedPreprocessingOutput(
+            corrected_matrix=self.corrected_matrix,
+            output_observation_mask=self.output_observation_mask,
+            corrected_cell_status=self.corrected_cell_status,
+            batch_correction_report=BatchCorrectionReport(
+                status="applied",
+                policy=BatchCorrectionPolicy(
+                    method="linear_residualize_batch",
+                    batch_column="batch",
+                    condition_column="condition",
+                    condition_columns=("condition",),
+                    preserve_condition_effects=True,
+                ),
+                diagnostics=BatchCorrectionDiagnostics(
+                    matrix_shape_before=(
+                        int(self.corrected_matrix.shape[0]),
+                        int(self.corrected_matrix.shape[1]),
+                    ),
+                    matrix_shape_after=(
+                        int(self.corrected_matrix.shape[0]),
+                        int(self.corrected_matrix.shape[1]),
+                    ),
+                ),
+            ),
+            diagnostics={"executor": self.diagnostics.to_payload()},
         )
 
     def __post_init__(self) -> None:

@@ -154,7 +154,12 @@ class SpsRuvStyleExecutorDiagnostics:
 
 @dataclass(frozen=True, slots=True)
 class SpsRuvStyleExecutorResult:
-    """Output from deterministic SPS/RUV-style numerical correction."""
+    """Output from deterministic SPS/RUV-style numerical correction.
+
+    `corrected_matrix` is the numerical executor matrix and may contain
+    restored missing cells for diagnostics. Dataset-consumable applied output is
+    available only when `corrected_preprocessing_output` is populated.
+    """
 
     corrected_matrix: pd.DataFrame
     estimated_unwanted_factors: pd.DataFrame
@@ -171,7 +176,7 @@ class SpsRuvStyleExecutorResult:
 
     @property
     def corrected(self) -> pd.DataFrame:
-        """Return the corrected phosphosite matrix."""
+        """Return the executor corrected matrix, which may be diagnostic-only."""
 
         return self.corrected_matrix
 

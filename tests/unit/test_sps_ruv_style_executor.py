@@ -22,7 +22,9 @@ from phospy.contracts.configs.preprocessing import (
     TemporaryImputationMethod,
     TemporaryImputationPolicy,
 )
+from phospy.contracts.requests import DatasetBuildRequest
 from phospy.errors import PhosPyInputError
+from phospy.errors.validation import DatasetValidationError
 from phospy.science.batch_correction import (
     SPS_RUV_STYLE_ALGORITHM_DESCRIPTION,
     SPS_RUV_STYLE_BATCH_TERM_ROLE,
@@ -31,11 +33,21 @@ from phospy.science.batch_correction import (
     DeterministicSpsRuvStyleExecutor,
     SpsRuvStyleExecutorResult,
 )
+from phospy.science.datasets.builders.public import AnalysisReadyDatasetBuilder
+from phospy.science.datasets.preprocessing.batch_correction import (
+    BatchCorrectionDiagnostics,
+    BatchCorrectionPolicy,
+    BatchCorrectionReport,
+)
 from phospy.science.datasets.preprocessing.control_sites import (
     ControlSiteAnnotation,
     ControlSiteSet,
     ControlSiteSourceMetadata,
 )
+from phospy.science.datasets.preprocessing.correction_output import (
+    CorrectedPreprocessingOutput,
+)
+from phospy.science.references.models import Organism
 from phospy.validation.datasets.batch_correction import ResolvedBatchDesignMetadata
 from phospy.validation.workflows.batch_correction import ControlSiteEligibilityValidator
 from phospy.workflows.batch_correction import (
@@ -113,6 +125,7 @@ def test_sps_ruv_style_executor_restores_originally_missing_cells_and_status() -
     assert result.diagnostics.originally_missing_cell_count == 1
     assert result.diagnostics.withheld_cell_count == 1
     assert result.warnings
+    assert result.corrected_preprocessing_output is None
 
 
 def test_sps_ruv_style_executor_rejects_positive_infinity_in_observed_cell() -> None:
@@ -364,6 +377,78 @@ def test_batch_correction_workflow_diagnostics_and_provenance_record_rejected_co
     )
 
 
+def test_batch_correction_workflow_rejects_restored_missing_cells_as_applied_output() -> (
+    None
+):
+    phospho = _phospho()
+    phospho.loc["site_b", "sample_2"] = pd.NA
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="did not produce complete analysis-ready output",
+    ):
+        BatchCorrectionWorkflow().run(
+            BatchCorrectionWorkflowRequest(
+                phospho=phospho,
+                config=_config(),
+                sample_metadata=_sample_metadata(),
+                control_site_set=ControlSiteSet.from_site_keys(
+                    ("site_a", "site_c"),
+                    source_metadata=_control_source_metadata(),
+                ),
+                missingness_policy=_missingness_policy(
+                    missing_cells=(("site_b", "sample_2"),)
+                ),
+            )
+        )
+
+
+def test_batch_correction_workflow_complete_matrix_returns_applied_output() -> None:
+    result = BatchCorrectionWorkflow().run(
+        BatchCorrectionWorkflowRequest(
+            phospho=_phospho(),
+            config=_config(),
+            sample_metadata=_sample_metadata(),
+            control_site_set=ControlSiteSet.from_site_keys(
+                ("site_a", "site_c"),
+                source_metadata=_control_source_metadata(),
+            ),
+            missingness_policy=_missingness_policy(missing_cells=()),
+        )
+    )
+
+    assert isinstance(
+        result.corrected_preprocessing_output, CorrectedPreprocessingOutput
+    )
+    assert not bool(result.corrected_matrix.isna().to_numpy().any())
+    pdt.assert_frame_equal(
+        result.corrected_matrix,
+        result.corrected_preprocessing_output.corrected_matrix,
+    )
+
+
+def test_dataset_builder_still_rejects_incomplete_corrected_output() -> None:
+    phospho = _builder_phospho()
+    corrected = phospho.copy(deep=True)
+    corrected.loc[_builder_site_index()[1], "sample_2"] = pd.NA
+
+    with pytest.raises(
+        DatasetValidationError,
+        match="dataset.phospho must not contain missing values",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_builder_site_metadata(),
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+                corrected_preprocessing_output=_forged_incomplete_corrected_output(
+                    corrected
+                ),
+            )
+        )
+
+
 def _run_executor(
     phospho: pd.DataFrame,
     *,
@@ -514,6 +599,32 @@ def _site_index() -> pd.Index:
     return pd.Index(["site_a", "site_b", "site_c"], name="site_key")
 
 
+def _builder_site_index() -> pd.Index:
+    return pd.Index(
+        [
+            (
+                "phospy:v1|organism=rat|protein_namespace=protein_id|"
+                "protein_identifier=MAPK14|residue=Y|position=182"
+            ),
+            (
+                "phospy:v1|organism=rat|protein_namespace=protein_id|"
+                "protein_identifier=AKT1|residue=T|position=308"
+            ),
+            (
+                "phospy:v1|organism=rat|protein_namespace=protein_id|"
+                "protein_identifier=GSK3B|residue=S|position=9"
+            ),
+        ],
+        name="site_key",
+    )
+
+
+def _builder_phospho() -> pd.DataFrame:
+    phospho = _phospho()
+    phospho.index = _builder_site_index()
+    return phospho
+
+
 def _sample_metadata() -> pd.DataFrame:
     return pd.DataFrame(
         {
@@ -523,6 +634,63 @@ def _sample_metadata() -> pd.DataFrame:
         },
         index=("sample_1", "sample_2", "sample_3", "sample_4"),
     )
+
+
+def _builder_site_metadata() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "gene_symbol": ("MAPK14", "AKT1", "GSK3B"),
+            "protein_id": ("MAPK14", "AKT1", "GSK3B"),
+            "site": ("Y182", "T308", "S9"),
+            "site_sequence": (
+                ("A" * 15) + "Y" + ("A" * 15),
+                ("A" * 15) + "T" + ("A" * 15),
+                ("A" * 15) + "S" + ("A" * 15),
+            ),
+            "localisation_confidence": (0.95, 0.92, 0.9),
+        },
+        index=_builder_site_index(),
+    )
+
+
+def _forged_incomplete_corrected_output(
+    corrected: pd.DataFrame,
+) -> CorrectedPreprocessingOutput:
+    output = object.__new__(CorrectedPreprocessingOutput)
+    object.__setattr__(output, "corrected_matrix", corrected)
+    object.__setattr__(
+        output,
+        "batch_correction_report",
+        BatchCorrectionReport(
+            status="applied",
+            policy=BatchCorrectionPolicy(
+                method="linear_residualize_batch",
+                batch_column="batch",
+                condition_column="condition",
+                condition_columns=("condition",),
+                preserve_condition_effects=True,
+            ),
+            diagnostics=BatchCorrectionDiagnostics(
+                matrix_shape_before=(int(corrected.shape[0]), int(corrected.shape[1])),
+                matrix_shape_after=(int(corrected.shape[0]), int(corrected.shape[1])),
+            ),
+        ),
+    )
+    object.__setattr__(
+        output,
+        "diagnostics",
+        {"test": "forged incomplete corrected output"},
+    )
+    object.__setattr__(output, "output_observation_mask", None)
+    object.__setattr__(output, "corrected_cell_status", None)
+    object.__setattr__(output, "provenance", None)
+    object.__setattr__(
+        output,
+        "stage_order",
+        ("missing_data", "batch_correction", "downstream_workflows"),
+    )
+    object.__setattr__(output, "consumed_by_downstream", False)
+    return output
 
 
 def _condition_effect(matrix: pd.DataFrame) -> pd.Series:
