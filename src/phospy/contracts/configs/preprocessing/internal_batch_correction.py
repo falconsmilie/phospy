@@ -8,7 +8,6 @@ workflow and science-layer components own those behaviors.
 
 from __future__ import annotations
 
-import warnings
 from dataclasses import dataclass
 
 from phospy.policies import PolicyEnum
@@ -21,7 +20,6 @@ class InternalBatchCorrectionMethod(PolicyEnum):
     """Known correction intent labels; not every label is executable."""
 
     SPS_RUV_STYLE = "sps_ruv_style"
-    CONTROL_SITE_RUV_STYLE = "control_site_ruv_style"
     RUV_III_STYLE = "ruv_iii_style"
 
 
@@ -150,15 +148,6 @@ class InternalBatchCorrectionRequest:
             ),
             imputation_policy_none=no_imputation,
         )
-        if validated["method"] is InternalBatchCorrectionMethod.CONTROL_SITE_RUV_STYLE:
-            warnings.warn(
-                "control_site_ruv_style is a deprecated internal compatibility "
-                "alias; use sps_ruv_style for native PhosPy SPS/RUV-style "
-                "correction.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            validated["method"] = InternalBatchCorrectionMethod.SPS_RUV_STYLE
         for field_name, value in validated.items():
             object.__setattr__(self, field_name, value)
 

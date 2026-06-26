@@ -617,14 +617,15 @@ def test_public_docs_describe_ruv_iii_style_only_as_non_executable() -> None:
     assert not offenders
 
 
-def test_public_docs_do_not_promote_control_site_ruv_style_method_label() -> None:
+def test_public_docs_do_not_promote_removed_native_method_alias() -> None:
+    removed_method_alias = "control" + "_site_ruv_style"
     offenders: list[str] = []
     for path in _public_docs_paths():
         for line_number, line in enumerate(
             path.read_text(encoding="utf-8").splitlines(),
             start=1,
         ):
-            if "control_site_ruv_style" in line:
+            if removed_method_alias in line:
                 offenders.append(f"{path.relative_to(ROOT).as_posix()}:{line_number}")
 
     assert not offenders

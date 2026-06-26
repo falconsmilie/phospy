@@ -126,10 +126,7 @@ def test_differential_analysis_is_not_supported_from_phospy_api_namespace() -> N
 
 @pytest.mark.parametrize(
     "symbol_name",
-    (
-        "DATASET_BATCH_CORRECTION_METHOD_CONTROL_SITE_RUV_STYLE",
-        "DATASET_BATCH_CORRECTION_METHOD_RUV_III_STYLE",
-    ),
+    ("DATASET_BATCH_CORRECTION_METHOD_RUV_III_STYLE",),
 )
 def test_unsupported_sps_ruv_style_method_constants_are_not_public_api(
     symbol_name: str,

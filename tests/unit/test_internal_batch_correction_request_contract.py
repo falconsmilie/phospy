@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from phospy.api.configs import DATASET_BATCH_CORRECTION_METHODS
@@ -68,12 +70,15 @@ def test_internal_batch_correction_request_coerces_supported_strings() -> None:
     )
 
 
-def test_internal_control_site_ruv_style_alias_normalizes_with_deprecation() -> None:
-    with pytest.warns(
-        DeprecationWarning,
-        match="control_site_ruv_style is a deprecated internal compatibility alias",
+def test_internal_batch_correction_request_rejects_control_site_ruv_style() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "internal batch-correction request.method must be one of: "
+            "sps_ruv_style, ruv_iii_style; got 'control_site_ruv_style'"
+        ),
     ):
-        request = InternalBatchCorrectionRequest(
+        InternalBatchCorrectionRequest(
             method="control_site_ruv_style",  # type: ignore[arg-type]
             batch_column="batch",
             condition_columns=("condition",),
@@ -93,15 +98,13 @@ def test_internal_control_site_ruv_style_alias_normalizes_with_deprecation() -> 
             diagnostics_enabled=True,
         )
 
-    assert request.method is InternalBatchCorrectionMethod.SPS_RUV_STYLE
-
 
 def test_internal_batch_correction_request_rejects_invalid_method() -> None:
     with pytest.raises(
         PhosPyInputError,
         match=(
             "internal batch-correction request.method must be one of: "
-            "sps_ruv_style, control_site_ruv_style, ruv_iii_style; got 'combat'"
+            "sps_ruv_style, ruv_iii_style; got 'combat'"
         ),
     ):
         InternalBatchCorrectionRequest(
@@ -288,3 +291,31 @@ def test_public_batch_correction_methods_remain_unchanged() -> None:
         "none",
         "linear_residualize_batch",
     }
+
+
+def test_repository_has_no_removed_native_method_alias_enum_label() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    removed_enum_label = "CONTROL" + "_SITE_RUV_STYLE"
+    ignored_directories = {
+        ".git",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        ".venv",
+        "__pycache__",
+    }
+    matches: list[str] = []
+
+    for path in repo_root.rglob("*"):
+        if path.is_dir() or any(part in ignored_directories for part in path.parts):
+            continue
+        if path.suffix not in {".py", ".pyi", ".md", ".rst", ".txt"}:
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        if removed_enum_label in text:
+            matches.append(str(path.relative_to(repo_root)))
+
+    assert matches == []

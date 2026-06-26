@@ -19,7 +19,10 @@ from phospy.contracts.configs.preprocessing.internal_batch_correction import (
     InternalBatchCorrectionStageOrder,
 )
 from phospy.errors.input import PhosPyInputError
-from phospy.validation.common.config_values import require_non_empty_string
+from phospy.validation.common.config_values import (
+    require_non_empty_string,
+    require_supported_literal,
+)
 from phospy.validation.common.numbers import require_int_at_least
 from phospy.validation.configs.preprocessing import (
     reject_unsupported_ruv_iii_style_method,
@@ -108,22 +111,19 @@ class SpsRuvBatchCorrectionConfig:
     provenance_enabled: Literal[True] = True
 
     def __post_init__(self) -> None:
-        method = InternalBatchCorrectionMethod.parse(
-            self.method,
-            field_name="dataset build request preprocessing_config.batch_correction.method",
+        method_field_name = (
+            "dataset build request preprocessing_config.batch_correction.method"
         )
         reject_unsupported_ruv_iii_style_method(
-            method,
-            field_name=(
-                "dataset build request preprocessing_config.batch_correction.method"
-            ),
+            self.method,
+            field_name=method_field_name,
         )
-        if method.value not in SPS_RUV_BATCH_CORRECTION_METHODS:
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.batch_correction."
-                "method must be one of: "
-                + ", ".join(sorted(SPS_RUV_BATCH_CORRECTION_METHODS))
-            )
+        method = require_supported_literal(
+            self.method,
+            field_name=method_field_name,
+            supported_values=SPS_RUV_BATCH_CORRECTION_METHODS,
+            error_type=PhosPyInputError,
+        )
         _require_control_site_set(self.control_site_set)
         batch_column = require_non_empty_string(
             self.batch_column,
@@ -181,7 +181,7 @@ class SpsRuvBatchCorrectionConfig:
                 "without provenance"
             )
 
-        object.__setattr__(self, "method", method.value)
+        object.__setattr__(self, "method", method)
         object.__setattr__(self, "batch_column", batch_column)
         object.__setattr__(self, "condition_columns", condition_columns)
         object.__setattr__(self, "replicate_column", replicate_column)
