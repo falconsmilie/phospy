@@ -278,6 +278,8 @@ class DeterministicSpsRuvStyleExecutor:
             corrected_cell_status=corrected_cell_status,
             provenance_payload=provenance_payload,
         )
+        # Direct executor calls may still inspect diagnostic matrices with restored
+        # missing cells; applied preprocessing output is only emitted when complete.
         corrected_preprocessing_output = (
             None
             if bool(corrected_matrix.isna().to_numpy().any())

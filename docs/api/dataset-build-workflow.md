@@ -440,7 +440,8 @@ config = DatasetPreprocessingConfig(batch_correction=sps_ruv_correction)
   evidence. Executable temporary imputation methods are `none` and
   `row_median_temporary`; `minprob_temporary` and `knn_temporary` are rejected
   in native correction because their temporary correction semantics are not
-  implemented.
+  implemented. `row_median_temporary` is a temporary numerical mechanism only;
+  it does not make actual missing values analysis-ready.
 - `n_unwanted_factors >= 1`; the requested count must be supported by the
   eligible-control count, protected-design residual sample capacity, and
   eligible control residual rank after protected condition terms.
@@ -448,7 +449,12 @@ config = DatasetPreprocessingConfig(batch_correction=sps_ruv_correction)
   run without provenance.
 
 Upstream-imputed input cells remain tracked through observation masks and are
-not treated as observed evidence during correction.
+not treated as observed evidence during correction. The correction-stage matrix
+must be complete: native SPS/RUV-style correction rejects actual missing values
+before executor invocation because temporary imputation followed by restored
+missing values cannot produce analysis-ready corrected output. Run missing-data
+preprocessing first, or provide a complete upstream-imputed matrix with an
+observation mask.
 
 Successful requests return a corrected analysis-ready dataset and attach
 `BatchCorrectionProvenance` to the `batch_correction` preprocessing stage in
@@ -596,20 +602,19 @@ Observation masks and temporary imputation:
 
 - With the default `CorrectionMissingnessPolicy()`, native correction expects
   the correction-stage matrix to be complete and uses no temporary imputation.
-- If correction is configured at a stage where originally missing cells are
-  still present, the request must provide `ObservationMask` metadata through
+- Complete upstream-imputed matrices are supported when the request provides
+  `ObservationMask` metadata through
   `CorrectionMissingnessPolicy(originally_missing_cells_tracked_by="observation_mask", ...)`.
-  The mask identifies originally observed cells separately from temporary
-  imputed cells.
+  The mask identifies originally observed cells separately from upstream-imputed
+  cells.
 - Temporary imputation is numerical correction mechanics only. The native
-  executor currently accepts missing matrices only with
-  `TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY` and a valid observation
-  mask; those temporary values are not retained as observed evidence.
+  SPS/RUV-style workflow rejects actual missing values before executor
+  invocation; `TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY` is retained for
+  conservative low-level executor diagnostics and is not a way to make actual
+  missing values analysis-ready.
 - The corrected output carries an output observation mask and per-cell status.
-  Originally missing cells are restored or flagged according to the policy, and
-  final dataset construction still enforces the strict analysis-ready boundary.
-  If correction leaves an incomplete analysis-ready matrix, validation rejects
-  the build.
+  Upstream-imputed cells remain flagged according to the policy, and final
+  dataset construction still enforces the strict analysis-ready boundary.
 
 ```python
 akt_site_key = (

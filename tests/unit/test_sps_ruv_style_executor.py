@@ -422,7 +422,7 @@ def test_batch_correction_workflow_diagnostics_and_provenance_record_rejected_co
     )
 
 
-def test_batch_correction_workflow_rejects_restored_missing_cells_as_applied_output() -> (
+def test_batch_correction_workflow_rejects_actual_missing_cells_before_execution() -> (
     None
 ):
     phospho = _phospho()
@@ -430,7 +430,13 @@ def test_batch_correction_workflow_rejects_restored_missing_cells_as_applied_out
 
     with pytest.raises(
         PhosPyInputError,
-        match="did not produce complete analysis-ready output",
+        match=(
+            "native SPS/RUV-style correction.*actual missing values.*"
+            "temporary imputation.*restored missing values.*cannot produce "
+            "analysis-ready corrected output.*run missing-data preprocessing "
+            "first or provide a complete upstream-imputed matrix with an "
+            "observation mask"
+        ),
     ):
         BatchCorrectionWorkflow().run(
             BatchCorrectionWorkflowRequest(

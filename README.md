@@ -115,7 +115,11 @@ numerical unwanted-factor estimation and does not enable RUV-III or
 replicate-aware RUV-III semantics. RUV-III style correction is not executable
 unless a future feature implements replicate-aware semantics. Any
 `ruv_readiness` diagnostics are report-only readiness signals and do not apply
-correction.
+correction. Native SPS/RUV-style correction rejects correction-stage matrices
+with actual missing values before executor invocation: temporary imputation
+followed by restored missing values cannot produce analysis-ready corrected
+output. Run missing-data preprocessing first, or provide a complete
+upstream-imputed matrix with an observation mask.
 
 ## Kinase Workflow Example
 

@@ -27,6 +27,7 @@ from phospy.contracts.configs.preprocessing import (
     InternalBatchCorrectionMissingValuePolicy,
     InternalBatchCorrectionRequest,
     InternalBatchCorrectionStageOrder,
+    ObservationMask,
     OriginallyMissingCellTracking,
     TemporaryImputationMethod,
     TemporaryImputationPolicy,
@@ -437,6 +438,67 @@ def test_workflow_rejects_unsupported_upstream_imputed_policy_before_executor() 
     assert executor.call_count == 0
 
 
+def test_sps_ruv_workflow_rejects_actual_missing_values_before_executor_invocation() -> (
+    None
+):
+    executor = _SpyExecutor()
+    phospho = _phospho()
+    phospho.loc["AKT1;T308;", "sample_2"] = np.nan
+    assert bool(phospho.isna().to_numpy(dtype=bool).any())
+    request = _workflow_request(
+        phospho=phospho,
+        upstream_observation_mask=_upstream_mask(),
+        missingness_policy=_missingness_policy(),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "native SPS/RUV-style correction.*actual missing values.*"
+            "temporary imputation.*restored missing values.*cannot produce "
+            "analysis-ready corrected output.*run missing-data preprocessing "
+            "first or provide a complete upstream-imputed matrix with an "
+            "observation mask"
+        ),
+    ):
+        BatchCorrectionWorkflow(
+            executor=cast(BatchCorrectionExecutorContract, executor)
+        ).run(request)
+
+    assert executor.call_count == 0
+
+
+def test_sps_ruv_workflow_accepts_complete_matrix_without_missing_values() -> None:
+    result = BatchCorrectionWorkflow().run(
+        _workflow_request(
+            upstream_observation_mask=None,
+            missingness_policy=_missingness_policy_with_observation_mask(
+                originally_missing_cells=()
+            ),
+        )
+    )
+
+    assert not bool(result.corrected_matrix.isna().to_numpy(dtype=bool).any())
+    corrected_output_matrix = result.corrected_preprocessing_output.corrected_matrix
+    assert not bool(corrected_output_matrix.isna().to_numpy(dtype=bool).any())
+
+
+def test_sps_ruv_workflow_accepts_upstream_imputed_complete_matrix_with_observation_mask() -> (
+    None
+):
+    result = BatchCorrectionWorkflow().run(
+        _workflow_request(
+            upstream_observation_mask=_upstream_mask(),
+            missingness_policy=_missingness_policy(),
+        )
+    )
+
+    assert not bool(result.corrected_matrix.isna().to_numpy(dtype=bool).any())
+    observed_mask = result.corrected_preprocessing_output.output_observation_mask
+    assert observed_mask is not None
+    assert bool(observed_mask.loc["AKT1;T308;", "sample_2"]) is False
+
+
 class _SpyExecutor:
     call_count = 0
 
@@ -481,13 +543,38 @@ def _missingness_policy() -> CorrectionMissingnessPolicy:
     )
 
 
+def _missingness_policy_with_observation_mask(
+    *,
+    originally_missing_cells: tuple[tuple[str, str], ...],
+) -> CorrectionMissingnessPolicy:
+    phospho = _phospho()
+    return CorrectionMissingnessPolicy(
+        temporary_imputation=TemporaryImputationPolicy(
+            allowed=True,
+            method=TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY,
+            method_parameters={"min_observed_values": 2},  # type: ignore[arg-type]
+        ),
+        originally_missing_cells_tracked_by=(
+            OriginallyMissingCellTracking.OBSERVATION_MASK
+        ),
+        correction_mask_policy=CorrectionMaskPolicy(),
+        observation_mask=ObservationMask(
+            feature_ids=tuple(str(value) for value in phospho.index.tolist()),
+            sample_ids=tuple(str(value) for value in phospho.columns.tolist()),
+            originally_missing_cells=originally_missing_cells,
+        ),
+    )
+
+
 def _workflow_request(
     *,
-    upstream_observation_mask: pd.DataFrame,
+    upstream_observation_mask: pd.DataFrame | None,
     missingness_policy: CorrectionMissingnessPolicy,
+    phospho: pd.DataFrame | None = None,
 ) -> BatchCorrectionWorkflowRequest:
+    resolved_phospho = _phospho() if phospho is None else phospho
     return BatchCorrectionWorkflowRequest(
-        phospho=_phospho(),
+        phospho=resolved_phospho,
         config=_internal_config(),
         sample_metadata=_sample_metadata(),
         control_site_set=ControlSiteSet.from_site_keys(

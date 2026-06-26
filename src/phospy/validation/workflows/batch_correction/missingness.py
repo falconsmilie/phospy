@@ -12,6 +12,7 @@ from phospy.contracts.configs.preprocessing import (
     CorrectionMissingnessCompatibilityValidator,
     CorrectionMissingnessPolicy,
     InternalBatchCorrectionImputationPolicy,
+    InternalBatchCorrectionMethod,
     InternalBatchCorrectionMissingValuePolicy,
     ObservationMask,
     OriginallyMissingCellTracking,
@@ -49,6 +50,13 @@ _INTERNAL_IMPUTATION_TO_TEMPORARY_METHOD = {
         TemporaryImputationMethod.KNN_TEMPORARY
     ),
 }
+_ACTUAL_MISSING_VALUES_MESSAGE = (
+    "native SPS/RUV-style correction cannot run with actual missing values "
+    "(NaN) in the quantitative matrix: temporary imputation followed by "
+    "restored missing values cannot produce analysis-ready corrected output; "
+    "run missing-data preprocessing first or provide a complete "
+    "upstream-imputed matrix with an observation mask."
+)
 
 
 class BatchCorrectionWorkflowMissingnessValidator:
@@ -89,9 +97,22 @@ class BatchCorrectionWorkflowMissingnessValidator:
             request=request,
             policy=resolved_policy,
         )
+        _reject_actual_missing_values_before_execution(request=request)
         if policy is None:
             return resolved_policy
         return policy
+
+
+def _reject_actual_missing_values_before_execution(
+    *,
+    request: BatchCorrectionWorkflowRequest,
+) -> None:
+    if request.config.method is not InternalBatchCorrectionMethod.SPS_RUV_STYLE:
+        return
+    actual_missing = request.phospho.isna()
+    if not bool(actual_missing.to_numpy(dtype=bool).any()):
+        return
+    raise PhosPyInputError(_ACTUAL_MISSING_VALUES_MESSAGE)
 
 
 def _validate_temporary_imputation_execution_support(
