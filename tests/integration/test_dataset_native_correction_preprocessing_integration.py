@@ -41,6 +41,9 @@ from phospy.science.datasets.preprocessing import (
 from phospy.science.datasets.preprocessing.control_sites import (
     ControlSiteSourceMetadata,
 )
+from phospy.validation.datasets.batch_correction import (
+    validate_applied_native_sps_ruv_correction_provenance,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -399,6 +402,35 @@ def test_sps_ruv_corrected_output_accepts_two_controls_for_one_factor() -> None:
         str(corrected.index[0]),
         str(corrected.index[1]),
     )
+
+
+def test_corrected_output_integrator_rejects_selected_controls_absent_from_matrix_index() -> (
+    None
+):
+    phospho = _phospho()
+    corrected = _resolved_correction_matrix(phospho + 1.0)
+    provenance = replace(
+        _complete_sps_ruv_provenance(corrected),
+        selected_site_key_rows=(str(corrected.index[0]), "absent_site_key_row"),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="selected_site_key_rows.*corrected matrix index",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_site_metadata(phospho),
+                sample_metadata=_sample_metadata(phospho),
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+                corrected_preprocessing_output=_correction_output(
+                    corrected,
+                    provenance=provenance,
+                ),
+            )
+        )
 
 
 @pytest.mark.parametrize(
@@ -761,6 +793,57 @@ def test_public_sps_ruv_preprocessing_config_builds_corrected_dataset_with_prove
     assert executor_diagnostics["status"] == "applied"
     assert provenance.output_matrix_fingerprint is not None
     assert not dataset.phospho.equals(phospho)
+
+
+def test_workflow_generated_selected_control_provenance_still_passes_validation() -> (
+    None
+):
+    phospho = _sps_phospho()
+
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=_sps_site_metadata(phospho),
+            sample_metadata=_sps_sample_metadata(phospho),
+            organism=Organism.RAT,
+            input_intensity_scale="log2",
+            preprocessing_config=DatasetPreprocessingConfig(
+                batch_correction=SpsRuvBatchCorrectionConfig(
+                    control_site_set=ControlSiteSet.from_site_keys(
+                        (
+                            _sps_site_key("MAPK14", "Y", "182"),
+                            _sps_site_key("SRC", "Y", "416"),
+                        ),
+                        source_metadata=_control_source_metadata(),
+                    ),
+                    batch_column="batch",
+                    condition_columns=("condition",),
+                    replicate_column="replicate",
+                    missingness_policy=CorrectionMissingnessPolicy(),
+                    n_unwanted_factors=1,
+                    diagnostics_enabled=True,
+                    provenance_enabled=True,
+                )
+            ),
+        )
+    )
+
+    assert dataset.preprocessing_report is not None
+    report = dataset.preprocessing_report.batch_correction
+    assert report is not None
+    provenance = _attached_batch_correction_provenance(dataset)
+
+    validate_applied_native_sps_ruv_correction_provenance(
+        method=report.method,
+        status=report.status,
+        provenance=provenance,
+    )
+    assert len(set(provenance.selected_site_key_rows)) == len(
+        provenance.selected_site_key_rows
+    )
+    assert set(provenance.selected_site_key_rows).issubset(
+        set(dataset.phospho.index.astype(str))
+    )
 
 
 def test_internal_sps_ruv_config_still_runs_at_batch_correction_stage() -> None:

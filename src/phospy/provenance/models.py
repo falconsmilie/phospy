@@ -22,6 +22,9 @@ BATCH_CORRECTION_PROVENANCE_SCHEMA_VERSION_V1 = 1
 PREPROCESSING_STAGE_DETERMINISM_PURE = "pure"
 PREPROCESSING_STAGE_DETERMINISM_SEEDED_STOCHASTIC = "seeded_stochastic"
 PREPROCESSING_STAGE_DETERMINISM_EXTERNAL_DEPENDENCY = "external_dependency"
+BATCH_CORRECTION_SELECTED_SITE_KEY_ROW_SENTINELS = frozenset(
+    {"not_provided", "unknown", "none", "null"}
+)
 
 JsonPrimitive = str | int | float | bool | None
 JsonValue = (
@@ -197,6 +200,7 @@ class RunProvenance:
 
 __all__ = [
     "BATCH_CORRECTION_PROVENANCE_SCHEMA_VERSION_V1",
+    "BATCH_CORRECTION_SELECTED_SITE_KEY_ROW_SENTINELS",
     "BatchCorrectionProvenance",
     "BatchCorrectionRejectedEntity",
     "EnvironmentProvenance",

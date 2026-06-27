@@ -16,7 +16,10 @@ from phospy.contracts.configs.preprocessing.internal_batch_correction import (
 )
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.environment import BATCH_CORRECTION_ENVIRONMENT_DEPENDENCIES
-from phospy.provenance.models import BatchCorrectionProvenance
+from phospy.provenance.models import (
+    BATCH_CORRECTION_SELECTED_SITE_KEY_ROW_SENTINELS,
+    BatchCorrectionProvenance,
+)
 
 _APPLIED_NATIVE_SPS_RUV_METHODS = frozenset({"sps_ruv_style"})
 _UNSUPPORTED_SPS_RUV_METHODS = frozenset({"ruv_iii_style"})
@@ -26,6 +29,9 @@ _MISSING_PROVENANCE_MESSAGE = (
 )
 _NOT_PROVIDED_VALUES = frozenset({"not_provided", "not provided"})
 _MISSING_ENVIRONMENT_VALUES = _NOT_PROVIDED_VALUES | frozenset({"unknown"})
+_SELECTED_SITE_KEY_ROW_SENTINELS = (
+    BATCH_CORRECTION_SELECTED_SITE_KEY_ROW_SENTINELS | _NOT_PROVIDED_VALUES
+)
 _MISSING = object()
 
 
@@ -680,12 +686,15 @@ def _validate_complete_sps_ruv_provenance(
             f"unsupported method {requested_method!r}"
         )
     _require_environment_provenance(provenance)
-    _require_selected_control_site_rows(provenance.selected_site_key_rows)
+    selected_site_key_rows = normalize_applied_selected_site_key_rows(
+        provenance.selected_site_key_rows
+    )
     n_unwanted_factors = _extract_sps_ruv_n_unwanted_factors(provenance)
     _require_selected_control_count_for_unwanted_factors(
-        selected_site_key_rows=provenance.selected_site_key_rows,
+        selected_site_key_rows=selected_site_key_rows,
         n_unwanted_factors=n_unwanted_factors,
     )
+    _require_unique_selected_control_site_rows(selected_site_key_rows)
     _require_control_site_source_metadata(provenance.control_site_source)
     _require_non_empty_mapping(
         provenance.batch_metadata,
@@ -808,15 +817,23 @@ def _require_selected_control_count_for_unwanted_factors(
     selected_site_key_rows: Sequence[str],
     n_unwanted_factors: int,
 ) -> None:
-    selected_count = len(tuple(selected_site_key_rows))
+    duplicates = _duplicates_in_order(selected_site_key_rows)
+    selected_count = len(_unique_in_order(selected_site_key_rows))
     required_count = n_unwanted_factors + 1
     if selected_count < required_count:
+        duplicate_detail = (
+            ""
+            if not duplicates
+            else "; selected_site_key_rows duplicate identifiers: "
+            f"{_format_labels(duplicates)}"
+        )
         raise PhosPyInputError(
             "corrected_preprocessing_output BatchCorrectionProvenance selected "
             "controls are too few for unwanted-factor count; "
-            f"selected_controls={selected_count}, "
+            f"unique_selected_controls={selected_count}, "
             f"n_unwanted_factors={n_unwanted_factors}, "
             f"required_selected_controls={required_count}"
+            f"{duplicate_detail}"
         )
 
 
@@ -834,22 +851,65 @@ def _is_sps_ruv_style_label(method: str) -> bool:
     return "ruv" in method or method.startswith("sps_") or "_sps_" in method
 
 
-def _require_selected_control_site_rows(rows: Sequence[str]) -> None:
+def normalize_applied_selected_site_key_rows(rows: Sequence[object]) -> tuple[str, ...]:
+    """Normalize and validate applied selected control row identifiers."""
+
     if not rows:
         raise PhosPyInputError(
             "corrected_preprocessing_output BatchCorrectionProvenance selected "
             "controls/control provenance must include selected_site_key_rows"
         )
-    missing_rows = [
-        position
-        for position, row in enumerate(tuple(rows))
-        if _is_missing_required_text(row) or _is_not_provided(row)
-    ]
+
+    normalized_rows: list[str] = []
+    missing_rows: list[int] = []
+    blank_rows: list[int] = []
+    sentinel_rows: list[int] = []
+    for position, row in enumerate(tuple(rows)):
+        if _is_missing_value(row):
+            missing_rows.append(position)
+            continue
+        normalized = str(row).strip()
+        if normalized == "":
+            blank_rows.append(position)
+            continue
+        if _is_selected_site_key_row_sentinel(normalized):
+            sentinel_rows.append(position)
+            continue
+        normalized_rows.append(normalized)
+
     if missing_rows:
         raise PhosPyInputError(
             "corrected_preprocessing_output BatchCorrectionProvenance selected "
-            "controls/control provenance contains missing or not_provided "
+            "controls/control provenance selected_site_key_rows contains missing "
             f"site_key rows at positions {_format_positions(missing_rows)}"
+        )
+    if blank_rows:
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance selected "
+            "controls/control provenance selected_site_key_rows contains blank "
+            f"site_key rows at positions {_format_positions(blank_rows)}"
+        )
+    if sentinel_rows:
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance selected "
+            "controls/control provenance selected_site_key_rows contains sentinel "
+            f"site_key rows at positions {_format_positions(sentinel_rows)}"
+        )
+
+    return tuple(normalized_rows)
+
+
+def _is_selected_site_key_row_sentinel(value: object) -> bool:
+    return str(value).strip().lower() in _SELECTED_SITE_KEY_ROW_SENTINELS
+
+
+def _require_unique_selected_control_site_rows(rows: Sequence[str]) -> None:
+    duplicates = _duplicates_in_order(rows)
+    if duplicates:
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance "
+            "selected_site_key_rows contains duplicate selected control row "
+            f"identifiers: {_format_labels(duplicates)}"
         )
 
 
@@ -1173,6 +1233,17 @@ def _levels_in_order(labels: Sequence[str]) -> tuple[str, ...]:
     return tuple(levels)
 
 
+def _unique_in_order(labels: Sequence[str]) -> tuple[str, ...]:
+    return _levels_in_order(labels)
+
+
+def _duplicates_in_order(labels: Sequence[str]) -> tuple[str, ...]:
+    counts: dict[str, int] = {}
+    for label in labels:
+        counts[label] = counts.get(label, 0) + 1
+    return tuple(label for label in _levels_in_order(labels) if counts[label] > 1)
+
+
 def _singleton_levels(labels: Sequence[str]) -> tuple[str, ...]:
     counts: dict[str, int] = {}
     for label in labels:
@@ -1272,5 +1343,6 @@ __all__ = [
     "ReplicateStructureValidator",
     "ResolvedBatchDesignMetadata",
     "SampleMetadataAlignmentValidator",
+    "normalize_applied_selected_site_key_rows",
     "validate_applied_native_sps_ruv_correction_provenance",
 ]

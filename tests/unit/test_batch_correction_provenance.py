@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
+from phospy.errors import PhosPyInputError
 from phospy.provenance import (
     BatchCorrectionProvenance,
     BatchCorrectionRejectedEntity,
@@ -9,6 +11,16 @@ from phospy.provenance import (
     batch_correction_provenance_to_payload,
     fingerprint_matrix,
 )
+from phospy.validation.datasets.batch_correction import (
+    validate_applied_native_sps_ruv_correction_provenance,
+)
+
+_COMPLETE_EXTERNAL_DEPENDENCY_VERSIONS = {
+    "numpy": "test-numpy",
+    "pandas": "test-pandas",
+    "scipy": "test-scipy",
+    "scikit-learn": "test-scikit-learn",
+}
 
 
 def _matrix() -> pd.DataFrame:
@@ -216,4 +228,130 @@ def test_matrix_fingerprint_changes_when_column_order_changes() -> None:
             reordered,
             name="batch_correction.input",
         ).tolerance_hash_value
+    )
+
+
+def test_applied_provenance_rejects_duplicate_selected_site_key_rows() -> None:
+    provenance = _complete_applied_sps_ruv_provenance(
+        selected_site_key_rows=("AKT1_S473", "GSK3B_S9", "AKT1_S473"),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="selected_site_key_rows.*duplicate",
+    ):
+        validate_applied_native_sps_ruv_correction_provenance(
+            method="sps_ruv_style",
+            status="applied",
+            provenance=provenance,
+        )
+
+
+def test_applied_provenance_rejects_blank_selected_site_key_rows() -> None:
+    provenance = _complete_applied_sps_ruv_provenance(
+        selected_site_key_rows=("AKT1_S473", " "),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="selected_site_key_rows.*blank",
+    ):
+        validate_applied_native_sps_ruv_correction_provenance(
+            method="sps_ruv_style",
+            status="applied",
+            provenance=provenance,
+        )
+
+
+def test_applied_provenance_rejects_sentinel_selected_site_key_rows() -> None:
+    provenance = _complete_applied_sps_ruv_provenance(
+        selected_site_key_rows=("AKT1_S473", "NoT_PrOvIdEd"),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="selected_site_key_rows.*sentinel",
+    ):
+        validate_applied_native_sps_ruv_correction_provenance(
+            method="sps_ruv_style",
+            status="applied",
+            provenance=provenance,
+        )
+
+
+def test_applied_provenance_counts_unique_selected_controls_for_factor_count() -> None:
+    provenance = _complete_applied_sps_ruv_provenance(
+        selected_site_key_rows=("site_a", "site_a"),
+        n_unwanted_factors=1,
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="unique_selected_controls=1.*required_selected_controls=2.*duplicate",
+    ):
+        validate_applied_native_sps_ruv_correction_provenance(
+            method="sps_ruv_style",
+            status="applied",
+            provenance=provenance,
+        )
+
+
+def _complete_applied_sps_ruv_provenance(
+    *,
+    selected_site_key_rows: tuple[str, ...] = ("AKT1_S473", "GSK3B_S9"),
+    n_unwanted_factors: int = 1,
+) -> BatchCorrectionProvenance:
+    matrix = _matrix()
+    return BatchCorrectionProvenance(
+        requested_method="sps_ruv_style",
+        resolved_parameters={
+            "method": "sps_ruv_style",
+            "n_unwanted_factors": n_unwanted_factors,
+            "source": "external_corrected_preprocessing_output",
+        },
+        preprocessing_stage_order=(
+            "missing_data",
+            "batch_correction",
+            "downstream_workflows",
+        ),
+        control_site_source={
+            "source_type": "caller_supplied",
+            "organism": "rat",
+            "identifier_namespace": "site_key",
+            "source_version_unavailable_reason": "caller-local controls",
+        },
+        selected_site_key_rows=selected_site_key_rows,
+        batch_metadata={
+            "column": "batch",
+            "levels": ["run_1", "run_2"],
+            "sample_order": list(matrix.columns.astype(str)),
+        },
+        replicate_metadata=None,
+        design_metadata={
+            "condition_columns": ["condition"],
+            "preserve_condition_effects": True,
+        },
+        missing_value_policy={
+            "policy": "reject_missing",
+            "imputation_policy": "none",
+        },
+        observation_masks=(
+            fingerprint_matrix(
+                _mask().astype("int8"),
+                name="batch_correction.native.observation_mask",
+            ),
+        ),
+        input_matrix_fingerprint=fingerprint_matrix(
+            matrix,
+            name="batch_correction.native.input",
+        ),
+        output_matrix_fingerprint=fingerprint_matrix(
+            matrix,
+            name="batch_correction.native.corrected",
+        ),
+        diagnostics={"executor": {"status": "applied", "method": "sps_ruv_style"}},
+        warnings=(),
+        phospy_version="test",
+        python_version="3.test",
+        dependency_versions=_COMPLETE_EXTERNAL_DEPENDENCY_VERSIONS,
     )

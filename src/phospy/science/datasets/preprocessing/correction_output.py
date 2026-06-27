@@ -48,6 +48,7 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingStateTableKey,
 )
 from phospy.validation.datasets.batch_correction import (
+    normalize_applied_selected_site_key_rows,
     validate_applied_native_sps_ruv_correction_provenance,
 )
 
@@ -300,6 +301,7 @@ class CorrectedPreprocessingOutputIntegrator:
             state.phospho,
             field_name="corrected preprocessing output.corrected_matrix",
         )
+        _validate_selected_controls_in_corrected_matrix(correction_output)
         _validate_applied_provenance_fingerprints(
             state=state,
             correction_output=correction_output,
@@ -347,6 +349,32 @@ def _validate_applied_provenance(
         status=correction_output.batch_correction_report.status,
         provenance=correction_output.provenance,
     )
+
+
+def _validate_selected_controls_in_corrected_matrix(
+    correction_output: CorrectedPreprocessingOutput,
+) -> None:
+    provenance = correction_output.provenance
+    if not isinstance(provenance, BatchCorrectionProvenance):
+        return
+    if str(correction_output.batch_correction_report.status).strip() != "applied":
+        return
+    if not provenance.selected_site_key_rows:
+        return
+
+    selected_rows = normalize_applied_selected_site_key_rows(
+        provenance.selected_site_key_rows
+    )
+    corrected_index = {
+        str(row).strip() for row in correction_output.corrected_matrix.index.tolist()
+    }
+    absent_rows = tuple(row for row in selected_rows if row not in corrected_index)
+    if absent_rows:
+        raise PhosPyInputError(
+            "corrected_preprocessing_output BatchCorrectionProvenance "
+            "selected_site_key_rows must all be present in the corrected matrix "
+            f"index; absent rows: {_format_labels(absent_rows)}"
+        )
 
 
 def _validate_applied_provenance_fingerprints(
@@ -728,6 +756,12 @@ def _require_status_values(status: pd.DataFrame) -> None:
                 "corrected preprocessing output.corrected_cell_status contains "
                 f"unsupported status {value!r} at ({row_id!r}, {column_id!r})"
             )
+
+
+def _format_labels(labels: Sequence[str]) -> str:
+    preview = ", ".join(repr(value) for value in tuple(labels)[:5])
+    suffix = "" if len(labels) <= 5 else " ..."
+    return f"{preview}{suffix}"
 
 
 def _require_stage_order_precedes_downstream(stage_order: Sequence[str]) -> None:
