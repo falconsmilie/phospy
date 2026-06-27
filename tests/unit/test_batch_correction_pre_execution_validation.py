@@ -413,7 +413,7 @@ def _sample_metadata() -> pd.DataFrame:
         {
             "batch": ("run_1", "run_1", "run_2", "run_2"),
             "condition": ("control", "treated", "control", "treated"),
-            "replicate": ("r1", "r1", "r2", "r2"),
+            "replicate": ("r1", "r2", "r2", "r1"),
         },
         index=("sample_1", "sample_2", "sample_3", "sample_4"),
     )
@@ -424,7 +424,7 @@ def _confounded_sample_metadata() -> pd.DataFrame:
         {
             "batch": ("run_1", "run_1", "run_2", "run_2"),
             "condition": ("control", "control", "treated", "treated"),
-            "replicate": ("r1", "r1", "r2", "r2"),
+            "replicate": ("r1", "r2", "r2", "r1"),
         },
         index=("sample_1", "sample_2", "sample_3", "sample_4"),
     )

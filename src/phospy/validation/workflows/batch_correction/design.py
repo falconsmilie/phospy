@@ -55,6 +55,11 @@ class BatchCorrectionWorkflowDesignValidator:
             ),
             context="batch-correction workflow",
         )
+        if (
+            config.method is InternalBatchCorrectionMethod.SPS_RUV_STYLE
+            and config.replicate_column is not None
+        ):
+            _reject_invalid_supplied_replicate_structure(metadata)
         self._adequacy_validator.run(
             batch_by_sample=metadata.batch_by_sample,
             condition_by_sample=metadata.condition_by_sample,
@@ -140,6 +145,40 @@ class BatchCorrectionWorkflowFactorFeasibilityValidator:
 
 def _condition_design(metadata: ResolvedBatchDesignMetadata) -> np.ndarray:
     return _treatment_coded_design(metadata.condition_labels, include_intercept=True)
+
+
+def _reject_invalid_supplied_replicate_structure(
+    metadata: ResolvedBatchDesignMetadata,
+) -> None:
+    diagnostics = metadata.replicate_structure_diagnostics
+    if diagnostics is None:
+        return
+    column = diagnostics.replicate_column
+    if diagnostics.all_same:
+        raise PhosPyInputError(
+            "batch-correction workflow replicate_column "
+            f"{column!r} is invalid for native sps_ruv_style correction: "
+            "all supplied replicate labels are the same"
+        )
+    if diagnostics.all_unique:
+        raise PhosPyInputError(
+            "batch-correction workflow replicate_column "
+            f"{column!r} is invalid for native sps_ruv_style correction: "
+            "all supplied replicate labels are unique"
+        )
+    if diagnostics.perfectly_confounded_with_batch:
+        raise PhosPyInputError(
+            "batch-correction workflow replicate_column "
+            f"{column!r} is invalid for native sps_ruv_style correction: "
+            "replicate labels are perfectly confounded with batch metadata"
+        )
+    if diagnostics.perfectly_confounded_with_condition:
+        raise PhosPyInputError(
+            "batch-correction workflow replicate_column "
+            f"{column!r} is invalid for native sps_ruv_style correction: "
+            "replicate labels are perfectly confounded with protected condition "
+            "metadata"
+        )
 
 
 def _treatment_coded_design(

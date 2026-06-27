@@ -580,9 +580,9 @@ def _metadata(
         },
         replicate_by_sample={
             "sample_1": "r1",
-            "sample_2": "r1",
+            "sample_2": "r2",
             "sample_3": "r2",
-            "sample_4": "r2",
+            "sample_4": "r1",
         },
         sample_order=("sample_1", "sample_2", "sample_3", "sample_4"),
     )
@@ -689,7 +689,7 @@ def _sample_metadata() -> pd.DataFrame:
         {
             "batch": ("run_1", "run_1", "run_2", "run_2"),
             "condition": ("control", "treated", "control", "treated"),
-            "replicate": ("r1", "r1", "r2", "r2"),
+            "replicate": ("r1", "r2", "r2", "r1"),
         },
         index=("sample_1", "sample_2", "sample_3", "sample_4"),
     )

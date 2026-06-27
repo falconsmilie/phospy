@@ -110,10 +110,12 @@ from eligible control-site residuals after protected-design handling. Batch
 terms are resolved for validation and diagnostics, including
 batch-associated-variance summaries; they are not directly residualized as
 fixed effects by the native correction. Replicate metadata, when supplied, is
-validated and recorded for provenance and diagnostics only; it is not used for
-numerical unwanted-factor estimation and does not enable RUV-III or
-replicate-aware RUV-III semantics. RUV-III style correction is not executable
-unless a future feature implements replicate-aware semantics. Any
+validated and recorded for provenance and diagnostics only. Supplied replicate
+labels must not be all the same, all unique, perfectly confounded with batch,
+or perfectly confounded with protected condition metadata. Replicate metadata
+is not used for numerical unwanted-factor estimation and does not enable
+RUV-III or replicate-aware RUV-III semantics. RUV-III style correction is not
+executable unless a future feature implements replicate-aware semantics. Any
 `ruv_readiness` diagnostics are report-only readiness signals and do not apply
 correction. Native SPS/RUV-style correction rejects correction-stage matrices
 with actual missing values before executor invocation: temporary imputation

@@ -430,8 +430,11 @@ config = DatasetPreprocessingConfig(batch_correction=sps_ruv_correction)
   configuration.
 - optional `replicate_column` for recording available replicate metadata with
   the native `sps_ruv_style` method. The `replicate_column` metadata is
-  validated and recorded for provenance and diagnostics only; it is not used
-  for numerical unwanted-factor estimation and does not enable RUV-III or
+  validated and recorded for provenance and diagnostics only. Supplied
+  replicate labels are rejected when they are all the same, all unique,
+  perfectly confounded with batch, or perfectly confounded with protected
+  condition metadata. The `replicate_column` metadata is not used for
+  numerical unwanted-factor estimation and does not enable RUV-III or
   replicate-aware RUV-III semantics. RUV-III correction is not currently
   executable because replicate-aware RUV-III numerical semantics are not
   implemented.
@@ -513,7 +516,7 @@ sample_metadata = pd.DataFrame(
     {
         "batch": ["run_1", "run_1", "run_2", "run_2"],
         "condition": ["control", "treated", "control", "treated"],
-        "replicate": ["r1", "r1", "r2", "r2"],
+        "replicate": ["r1", "r2", "r2", "r1"],
     },
     index=phospho.columns.copy(),
 )

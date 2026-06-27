@@ -56,7 +56,7 @@ class ResolvedBatchDesignMetadata:
 
 @dataclass(frozen=True, slots=True)
 class ReplicateStructureDiagnostics:
-    """Report-only structural diagnostics for provenance-only replicate metadata."""
+    """Structural diagnostics for provenance-only replicate metadata."""
 
     replicate_column: str
     sample_count: int
@@ -83,7 +83,7 @@ class ReplicateStructureDiagnostics:
                 self.perfectly_confounded_with_condition
             ),
             "diagnostic_flags": list(self.diagnostic_flags),
-            "policy": "provenance_only_structural_issues_are_reported_not_rejected",
+            "policy": "provenance_only_structural_issues_are_rejected",
             "used_for_numerical_factor_estimation": False,
             "ruv_iii_semantics_enabled": False,
         }
@@ -276,7 +276,7 @@ class ReplicateStructureValidator:
 
 
 class ReplicateStructureDiagnosticHelper:
-    """Compute report-only diagnostics for supplied replicate labels."""
+    """Compute diagnostics for supplied replicate labels."""
 
     def run(
         self,

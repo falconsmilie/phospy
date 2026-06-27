@@ -5,7 +5,6 @@ from typing import Any, cast
 
 import numpy as np
 import pandas as pd
-import pandas.testing as pdt
 import pytest
 
 from phospy.api import (
@@ -212,20 +211,20 @@ def test_dataset_sps_ruv_records_replicate_metadata_for_provenance_only() -> Non
         "ruv_iii_semantics_enabled": False,
         "replicate_by_sample": {
             "sample_1": "r1",
-            "sample_2": "r1",
+            "sample_2": "r2",
             "sample_3": "r2",
-            "sample_4": "r2",
+            "sample_4": "r1",
         },
-        "replicate_labels": ["r1", "r1", "r2", "r2"],
+        "replicate_labels": ["r1", "r2", "r2", "r1"],
         "structure_diagnostics": _expected_replicate_structure_diagnostics(
             replicate_count=2,
             singleton_count=0,
             singleton_replicates=(),
             all_same=False,
             all_unique=False,
-            perfectly_confounded_with_batch=True,
+            perfectly_confounded_with_batch=False,
             perfectly_confounded_with_condition=False,
-            diagnostic_flags=("batch_confounded_replicate_labels",),
+            diagnostic_flags=(),
         ),
     }
     assert (
@@ -246,81 +245,87 @@ def test_dataset_sps_ruv_records_replicate_metadata_for_provenance_only() -> Non
     assert config_payload["replicate_metadata_enables_ruv_iii_semantics"] is False
 
 
-@pytest.mark.parametrize(
-    (
-        "replicates",
-        "expected_replicate_count",
-        "expected_singleton_count",
-        "expected_singleton_replicates",
-        "expected_all_same",
-        "expected_all_unique",
-        "expected_batch_confounded",
-        "expected_condition_confounded",
-        "expected_flags",
-    ),
-    (
-        (
-            ("same", "same", "same", "same"),
-            1,
-            0,
-            (),
-            True,
-            False,
-            False,
-            False,
-            ("all_same_replicate_labels",),
+def test_sps_ruv_rejects_all_same_replicate_labels() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "replicate_column 'replicate'.*all supplied replicate labels are the same"
         ),
-        (
-            ("r1", "r2", "r3", "r4"),
-            4,
-            4,
-            ("r1", "r2", "r3", "r4"),
-            False,
-            True,
-            False,
-            False,
-            ("all_unique_replicate_labels",),
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=_phospho(),
+                site_metadata=_site_metadata(_phospho().index),
+                sample_metadata=_sample_metadata(
+                    replicates=("same", "same", "same", "same")
+                ),
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+                preprocessing_config=_preprocessing_config(),
+            )
+        )
+
+
+def test_sps_ruv_rejects_all_unique_replicate_labels() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="replicate_column 'replicate'.*all supplied replicate labels are unique",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=_phospho(),
+                site_metadata=_site_metadata(_phospho().index),
+                sample_metadata=_sample_metadata(replicates=("r1", "r2", "r3", "r4")),
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+                preprocessing_config=_preprocessing_config(),
+            )
+        )
+
+
+def test_sps_ruv_rejects_batch_confounded_replicate_labels() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="replicate_column 'replicate'.*perfectly confounded with batch metadata",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=_phospho(),
+                site_metadata=_site_metadata(_phospho().index),
+                sample_metadata=_sample_metadata(replicates=("r1", "r1", "r2", "r2")),
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+                preprocessing_config=_preprocessing_config(),
+            )
+        )
+
+
+def test_sps_ruv_rejects_condition_confounded_replicate_labels() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "replicate_column 'replicate'.*perfectly confounded with protected "
+            "condition metadata"
         ),
-        (
-            ("r1", "r1", "r2", "r2"),
-            2,
-            0,
-            (),
-            False,
-            False,
-            True,
-            False,
-            ("batch_confounded_replicate_labels",),
-        ),
-        (
-            ("r1", "r2", "r1", "r2"),
-            2,
-            0,
-            (),
-            False,
-            False,
-            False,
-            True,
-            ("condition_confounded_replicate_labels",),
-        ),
-    ),
-)
-def test_dataset_sps_ruv_records_replicate_structure_diagnostics(
-    replicates: tuple[str, str, str, str],
-    expected_replicate_count: int,
-    expected_singleton_count: int,
-    expected_singleton_replicates: tuple[str, ...],
-    expected_all_same: bool,
-    expected_all_unique: bool,
-    expected_batch_confounded: bool,
-    expected_condition_confounded: bool,
-    expected_flags: tuple[str, ...],
-) -> None:
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=_phospho(),
+                site_metadata=_site_metadata(_phospho().index),
+                sample_metadata=_sample_metadata(replicates=("r1", "r2", "r1", "r2")),
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+                preprocessing_config=_preprocessing_config(),
+            )
+        )
+
+
+def test_sps_ruv_accepts_valid_replicate_labels_and_records_provenance() -> None:
     built = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
             phospho=_phospho(),
             site_metadata=_site_metadata(_phospho().index),
-            sample_metadata=_sample_metadata(replicates=replicates),
+            sample_metadata=_sample_metadata(replicates=("r1", "r2", "r2", "r1")),
             organism=Organism.RAT,
             input_intensity_scale="linear",
             preprocessing_config=_preprocessing_config(),
@@ -331,14 +336,14 @@ def test_dataset_sps_ruv_records_replicate_structure_diagnostics(
     replicate_metadata = cast(Mapping[str, object], provenance.replicate_metadata)
 
     expected = _expected_replicate_structure_diagnostics(
-        replicate_count=expected_replicate_count,
-        singleton_count=expected_singleton_count,
-        singleton_replicates=expected_singleton_replicates,
-        all_same=expected_all_same,
-        all_unique=expected_all_unique,
-        perfectly_confounded_with_batch=expected_batch_confounded,
-        perfectly_confounded_with_condition=expected_condition_confounded,
-        diagnostic_flags=expected_flags,
+        replicate_count=2,
+        singleton_count=0,
+        singleton_replicates=(),
+        all_same=False,
+        all_unique=False,
+        perfectly_confounded_with_batch=False,
+        perfectly_confounded_with_condition=False,
+        diagnostic_flags=(),
     )
     assert replicate_metadata["structure_diagnostics"] == expected
     assert provenance.diagnostics["replicate_structure"] == expected
@@ -346,12 +351,12 @@ def test_dataset_sps_ruv_records_replicate_structure_diagnostics(
     assert replicate_metadata["ruv_iii_semantics_enabled"] is False
 
 
-def test_dataset_sps_ruv_changing_replicate_labels_does_not_change_output() -> None:
+def test_sps_ruv_valid_replicate_relabeling_does_not_change_corrected_matrix() -> None:
     first = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
             phospho=_phospho(),
             site_metadata=_site_metadata(_phospho().index),
-            sample_metadata=_sample_metadata(),
+            sample_metadata=_sample_metadata(replicates=("r1", "r2", "r2", "r1")),
             organism=Organism.RAT,
             input_intensity_scale="linear",
             preprocessing_config=_preprocessing_config(),
@@ -362,7 +367,7 @@ def test_dataset_sps_ruv_changing_replicate_labels_does_not_change_output() -> N
             phospho=_phospho(),
             site_metadata=_site_metadata(_phospho().index),
             sample_metadata=_sample_metadata(
-                replicates=("new_4", "new_3", "new_2", "new_1")
+                replicates=("new_1", "new_2", "new_2", "new_1")
             ),
             organism=Organism.RAT,
             input_intensity_scale="linear",
@@ -370,10 +375,9 @@ def test_dataset_sps_ruv_changing_replicate_labels_does_not_change_output() -> N
         )
     )
 
-    pdt.assert_frame_equal(
-        first.phospho,
-        relabelled.phospho,
-        check_exact=False,
+    np.testing.assert_allclose(
+        first.phospho.to_numpy(dtype="float64"),
+        relabelled.phospho.to_numpy(dtype="float64"),
         atol=1e-10,
         rtol=0.0,
     )
@@ -659,7 +663,7 @@ def _site_metadata(index: pd.Index) -> pd.DataFrame:
 
 def _sample_metadata(
     *,
-    replicates: tuple[str, str, str, str] = ("r1", "r1", "r2", "r2"),
+    replicates: tuple[str, str, str, str] = ("r1", "r2", "r2", "r1"),
 ) -> pd.DataFrame:
     return pd.DataFrame(
         {
@@ -706,7 +710,7 @@ def _expected_replicate_structure_diagnostics(
         "perfectly_confounded_with_batch": perfectly_confounded_with_batch,
         "perfectly_confounded_with_condition": (perfectly_confounded_with_condition),
         "diagnostic_flags": list(diagnostic_flags),
-        "policy": "provenance_only_structural_issues_are_reported_not_rejected",
+        "policy": "provenance_only_structural_issues_are_rejected",
         "used_for_numerical_factor_estimation": False,
         "ruv_iii_semantics_enabled": False,
     }
