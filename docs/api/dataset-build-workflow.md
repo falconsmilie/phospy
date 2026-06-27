@@ -83,6 +83,7 @@ from phospy.api import (
 | `total` | `pandas.DataFrame`, `str`, or `pathlib.Path`, or `None` | `None` | No | Total-protein matrix used only when total-protein correction is enabled. Columns must align to phospho sample columns. |
 | `organism` | `Organism` or `None` | `None` | No | Species identity for the dataset. Use `Organism.RAT` for the bundled beginner lane. |
 | `preprocessing_config` | `DatasetPreprocessingConfig` | `DatasetPreprocessingConfig()` | No | Grouped preprocessing policy for transforms, normalisation, missing data, group-aware coverage filter declaration, optional batch correction, total-protein correction, protein-aware preparation, site construction, site-sequence resolution, comparisons, and RUV readiness reporting. |
+| `corrected_preprocessing_output` | `CorrectedPreprocessingOutput` or `None` | `None` | No | Externally resolved batch-corrected preprocessing output. Use only when it is the only matrix-changing preprocessing input after upstream boundary handling; downstream matrix-consuming preprocessing stages must not also be configured. |
 | `input_intensity_scale` | `IntensityScaleKind`, `str`, or `None` | `None` | No | Required when your preprocessing path keeps `intensity_transform.policy="identity"` and you still need a trusted intensity scale (`"linear"` or `"log2"`). |
 | `quantitative_meaning` | `QuantitativeMeaning`, `str`, or `None` | `None` | No | Optional explicit scientific meaning for phospho values (for example `phosphosite_abundance` or `phosphosite_log_abundance`). |
 
@@ -365,6 +366,16 @@ and before downstream preprocessing consumers such as total-protein correction,
 site-matrix construction, normalisation, comparisons, and analysis workflows.
 Requests for other `stage_order` policies are rejected so recorded provenance
 matches the pipeline that actually ran.
+
+Externally supplied `CorrectedPreprocessingOutput` is accepted only at a safe
+preprocessing boundary. Do not combine it with configured downstream
+matrix-consuming preprocessing stages such as total-protein correction,
+site-matrix construction, normalisation, or comparison building. If you already
+have external corrected output, provide it as the only matrix-changing
+preprocessing input at dataset build time. If correction must run as part of a
+larger preprocessing plan, use native `SpsRuvBatchCorrectionConfig` in
+`DatasetPreprocessingConfig.batch_correction` so correction executes at the
+recorded batch-correction stage before downstream consumers.
 
 Control metadata policy is explicit. Caller-supplied controls must provide
 auditable control-source metadata or field-level `metadata_missing_reason`

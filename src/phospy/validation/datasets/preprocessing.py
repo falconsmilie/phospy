@@ -40,6 +40,42 @@ _BATCH_CORRECTION_DOWNSTREAM_BOUNDARY_STAGES = (
     DATASET_PREPROCESSING_STAGE_NORMALISATION,
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
 )
+_EXTERNAL_CORRECTION_DOWNSTREAM_MATRIX_CONSUMING_STAGES = frozenset(
+    {
+        DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
+        DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
+        DATASET_PREPROCESSING_STAGE_NORMALISATION,
+        DATASET_PREPROCESSING_STAGE_COMPARISONS,
+        "normalization",
+        "differential_analysis_preparation",
+        "kinase_activity_preparation",
+        "enrichment_preparation",
+        "signalome_preparation",
+    }
+)
+
+
+def reject_external_corrected_output_after_downstream_preprocessing(
+    stage_order: tuple[str, ...],
+) -> None:
+    """Reject external correction when the resolved plan has downstream consumers."""
+
+    configured = tuple(
+        stage
+        for stage in (str(item).strip() for item in stage_order)
+        if stage in _EXTERNAL_CORRECTION_DOWNSTREAM_MATRIX_CONSUMING_STAGES
+    )
+    if not configured:
+        return
+    raise PhosPyInputError(
+        "external corrected output cannot be integrated after downstream "
+        "preprocessing stages. Configured downstream matrix-consuming "
+        "preprocessing stages: "
+        + ", ".join(configured)
+        + ". Provide the corrected output as the only matrix-changing "
+        "preprocessing input, or use native SpsRuvBatchCorrectionConfig inside "
+        "the preprocessing pipeline."
+    )
 
 
 class DatasetPreprocessingConfigValidator:

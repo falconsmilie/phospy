@@ -121,6 +121,14 @@ correction and are not removed from the differential design when the user
 chooses to model them. The `ruv_iii_style` method label is not executable
 unless a future feature implements replicate-aware RUV-III semantics.
 
+Externally supplied `CorrectedPreprocessingOutput` must enter only at a safe
+dataset preprocessing boundary. It cannot be combined with configured
+downstream matrix-consuming preprocessing stages such as total-protein
+correction, site-matrix construction, normalisation, or comparison building.
+Provide external corrected output as the only matrix-changing preprocessing
+input, or use native `SpsRuvBatchCorrectionConfig` inside the preprocessing
+pipeline when downstream preprocessing stages also need to run.
+
 `ControlSiteSet` metadata is validated before native SPS/RUV-style correction.
 Caller-supplied controls must provide auditable control-source metadata or an
 explicit `metadata_missing_reason` entry for each unavailable caller-local

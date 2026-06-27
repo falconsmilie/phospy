@@ -34,6 +34,7 @@ from phospy.api.results import (
     KinaseScoringResult,
     KinaseWorkflowResult,
 )
+from phospy.errors import PhosPyInputError
 from phospy.science.datasets.models import DatasetPreprocessingReport
 from phospy.science.datasets.preprocessing.batch_correction import (
     BatchCorrectionDiagnostics,
@@ -42,6 +43,9 @@ from phospy.science.datasets.preprocessing.batch_correction import (
     LinearResidualizeBatchCorrectionEngine,
 )
 from phospy.science.datasets.processing_state import RuvReadinessState
+from phospy.validation.datasets.preprocessing import (
+    reject_external_corrected_output_after_downstream_preprocessing,
+)
 from phospy.workflows.batch_correction import BatchCorrectionWorkflow
 from phospy.workflows.differential.interpreter import DifferentialAnalysisInterpreter
 from phospy.workflows.differential.validator import DifferentialAnalysisValidator
@@ -292,6 +296,31 @@ def test_downstream_requests_accept_corrected_analysis_ready_boundaries() -> Non
     assert kinase_request.dataset is kinase_dataset
     assert signalome_request.kinase_result.dataset is signalome_dataset
     assert enrichment_request.input_table is not None
+
+
+@pytest.mark.parametrize(
+    "stage",
+    [
+        "differential_analysis_preparation",
+        "kinase_activity_preparation",
+        "enrichment_preparation",
+        "signalome_preparation",
+    ],
+)
+def test_external_corrected_output_boundary_rejects_downstream_preparation_aliases(
+    stage: str,
+) -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "external corrected output cannot be integrated after downstream "
+            "preprocessing stages.*only matrix-changing preprocessing input.*"
+            "SpsRuvBatchCorrectionConfig"
+        ),
+    ):
+        reject_external_corrected_output_after_downstream_preprocessing(
+            ("missing_data", "batch_correction", stage)
+        )
 
 
 @pytest.mark.parametrize(

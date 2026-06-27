@@ -38,6 +38,9 @@ from phospy.science.transformations.models import (
     IntensityScaleState,
     QuantitativeMeaning,
 )
+from phospy.validation.datasets.preprocessing import (
+    reject_external_corrected_output_after_downstream_preprocessing,
+)
 
 
 class DatasetPreprocessor:
@@ -76,6 +79,10 @@ class DatasetPreprocessor:
                 "dataset preprocessing received corrected_preprocessing_output "
                 "while preprocessing_config.batch_correction also requests "
                 "execution; correction must be applied exactly once"
+            )
+        if corrected_preprocessing_output is not None:
+            reject_external_corrected_output_after_downstream_preprocessing(
+                plan.stage_order
             )
         input_row_count = int(len(phospho.index))
         preprocessed_state, trace = self._pipeline.run_with_trace(

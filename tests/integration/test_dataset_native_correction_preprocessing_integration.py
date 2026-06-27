@@ -16,7 +16,12 @@ from phospy.api import (
     CorrectionMissingnessPolicy,
     DatasetBatchCorrectionConfig,
     DatasetBuildRequest,
+    DatasetComparisonBuildingConfig,
+    DatasetIntensityTransformConfig,
+    DatasetNormalisationConfig,
     DatasetPreprocessingConfig,
+    DatasetSiteMatrixConfig,
+    DatasetTotalProteinCorrectionConfig,
     DifferentialAnalysisRequest,
     ExperimentalDesign,
     Organism,
@@ -107,6 +112,74 @@ def test_resolved_native_correction_output_builds_analysis_ready_dataset() -> No
     assert observed_mask is not None
     assert observed_mask.to_numpy(dtype=bool).all()
     assert dataset.phospho.notna().to_numpy(dtype=bool).all()
+
+
+def test_external_corrected_output_allowed_without_downstream_matrix_consuming_stages() -> (
+    None
+):
+    phospho = _phospho()
+    corrected = _resolved_correction_matrix(phospho + 1.0)
+
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=_site_metadata(phospho),
+            sample_metadata=_sample_metadata(phospho),
+            organism=Organism.RAT,
+            input_intensity_scale="linear",
+            corrected_preprocessing_output=_correction_output(corrected),
+        )
+    )
+
+    pdt.assert_frame_equal(dataset.phospho, corrected)
+
+
+def test_external_corrected_output_rejected_with_normalization_stage() -> None:
+    _assert_external_corrected_output_rejected_with_preprocessing_config(
+        DatasetPreprocessingConfig(
+            normalisation=DatasetNormalisationConfig(policy="median_center")
+        ),
+        "normalisation",
+    )
+
+
+def test_external_corrected_output_rejected_with_total_protein_correction_stage() -> (
+    None
+):
+    _assert_external_corrected_output_rejected_with_preprocessing_config(
+        DatasetPreprocessingConfig(
+            intensity_transform=DatasetIntensityTransformConfig(policy="log2"),
+            total_protein_correction=DatasetTotalProteinCorrectionConfig(
+                policy="subtract_log_total"
+            ),
+        ),
+        "total_protein_correction",
+        input_intensity_scale="linear",
+        total=_total(_phospho()),
+    )
+
+
+def test_external_corrected_output_rejected_with_site_matrix_construction_stage() -> (
+    None
+):
+    _assert_external_corrected_output_rejected_with_preprocessing_config(
+        DatasetPreprocessingConfig(
+            site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
+        ),
+        "site_matrix",
+    )
+
+
+def test_external_corrected_output_rejected_with_comparisons_stage() -> None:
+    _assert_external_corrected_output_rejected_with_preprocessing_config(
+        DatasetPreprocessingConfig(
+            comparisons=DatasetComparisonBuildingConfig(
+                policy="sample_metadata_pairs",
+                sample_group_column="condition",
+            )
+        ),
+        "comparisons",
+    )
 
 
 def test_sps_ruv_corrected_output_without_provenance_is_rejected() -> None:
@@ -690,6 +763,56 @@ def test_public_sps_ruv_preprocessing_config_builds_corrected_dataset_with_prove
     assert not dataset.phospho.equals(phospho)
 
 
+def test_internal_sps_ruv_config_still_runs_at_batch_correction_stage() -> None:
+    phospho = _sps_phospho()
+
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=_sps_site_metadata(phospho),
+            sample_metadata=_sps_sample_metadata(phospho),
+            organism=Organism.RAT,
+            input_intensity_scale="log2",
+            preprocessing_config=DatasetPreprocessingConfig(
+                batch_correction=SpsRuvBatchCorrectionConfig(
+                    control_site_set=ControlSiteSet.from_site_keys(
+                        (
+                            _sps_site_key("MAPK14", "Y", "182"),
+                            _sps_site_key("SRC", "Y", "416"),
+                        ),
+                        source_metadata=_control_source_metadata(),
+                    ),
+                    batch_column="batch",
+                    condition_columns=("condition",),
+                    replicate_column="replicate",
+                    missingness_policy=CorrectionMissingnessPolicy(),
+                    n_unwanted_factors=1,
+                    diagnostics_enabled=True,
+                    provenance_enabled=True,
+                ),
+                normalisation=DatasetNormalisationConfig(policy="median_center"),
+            ),
+        )
+    )
+
+    assert dataset.provenance is not None
+    stage_order = tuple(
+        stage.stage for stage in dataset.provenance.preprocessing_stages
+    )
+    assert stage_order.index("batch_correction") < stage_order.index("normalisation")
+    correction_stage = next(
+        stage
+        for stage in dataset.provenance.preprocessing_stages
+        if stage.stage == "batch_correction"
+    )
+    assert correction_stage.batch_correction_provenance is not None
+    assert correction_stage.batch_correction_provenance.preprocessing_stage_order == (
+        "missing_data",
+        "batch_correction",
+        "downstream_workflows",
+    )
+
+
 def test_public_sps_ruv_preprocessing_preserves_multiple_condition_columns_in_reports() -> (
     None
 ):
@@ -988,6 +1111,38 @@ def test_downstream_workflow_consumes_corrected_analysis_ready_dataset_only() ->
     assert float(cast(float, table.loc[site_two, "logFC"])) == pytest.approx(-1.0)
 
 
+def _assert_external_corrected_output_rejected_with_preprocessing_config(
+    preprocessing_config: DatasetPreprocessingConfig,
+    expected_stage: str,
+    *,
+    input_intensity_scale: str = "linear",
+    total: pd.DataFrame | None = None,
+) -> None:
+    phospho = _phospho()
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "external corrected output cannot be integrated after downstream "
+            f"preprocessing stages.*{expected_stage}.*"
+            "only matrix-changing preprocessing input.*"
+            "SpsRuvBatchCorrectionConfig"
+        ),
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_site_metadata(phospho),
+                sample_metadata=_sample_metadata(phospho),
+                total=total,
+                organism=Organism.RAT,
+                input_intensity_scale=input_intensity_scale,
+                preprocessing_config=preprocessing_config,
+                corrected_preprocessing_output=_correction_output(phospho + 1.0),
+            )
+        )
+
+
 def _correction_output(
     corrected: pd.DataFrame,
     *,
@@ -1169,6 +1324,18 @@ def _sample_metadata(phospho: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+def _total(phospho: pd.DataFrame) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "sample_1": [3.0, 2.0],
+            "sample_2": [3.1, 2.1],
+            "sample_3": [3.2, 2.2],
+            "sample_4": [3.3, 2.3],
+        },
+        index=pd.Index(["MAPK14", "AKT1"], name=phospho.index.name),
+    )
+
+
 def _differential_design() -> ExperimentalDesign:
     return ExperimentalDesign(
         samples=(
@@ -1265,7 +1432,7 @@ def _sps_sample_metadata(phospho: pd.DataFrame) -> pd.DataFrame:
         {
             "batch": ("run_1", "run_1", "run_2", "run_2"),
             "condition": ("control", "treated", "control", "treated"),
-            "replicate": ("r1", "r1", "r2", "r2"),
+            "replicate": ("r1", "r2", "r2", "r1"),
         },
         index=phospho.columns.copy(),
     )
@@ -1304,7 +1471,7 @@ def _sps_multi_condition_sample_metadata(phospho: pd.DataFrame) -> pd.DataFrame:
                 "late",
                 "late",
             ),
-            "replicate": ("r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8"),
+            "replicate": ("r1", "r2", "r3", "r4", "r2", "r1", "r4", "r3"),
         },
         index=phospho.columns.copy(),
     )
