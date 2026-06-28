@@ -38,6 +38,7 @@ from phospy.workflows.batch_correction.contracts import (
     BatchCorrectionExecutorContract,
     BatchCorrectionExecutorDiagnosticsContract,
     BatchCorrectionExecutorResultContract,
+    BatchCorrectionFactorFeasibilityValidatorContract,
     BatchCorrectionInterpreterContract,
     BatchCorrectionMissingnessValidatorContract,
     BatchCorrectionProvenanceRecorderContract,
@@ -69,6 +70,9 @@ class BatchCorrectionWorkflow:
         missingness_validator: (
             BatchCorrectionMissingnessValidatorContract | None
         ) = None,
+        factor_feasibility_validator: (
+            BatchCorrectionFactorFeasibilityValidatorContract | None
+        ) = None,
         interpreter: BatchCorrectionInterpreterContract | None = None,
         executor: BatchCorrectionExecutorContract | None = None,
         provenance_recorder: BatchCorrectionProvenanceRecorderContract | None = None,
@@ -87,6 +91,10 @@ class BatchCorrectionWorkflow:
         )
         self._missingness_validator = (
             missingness_validator or BatchCorrectionWorkflowMissingnessValidator()
+        )
+        self._factor_feasibility_validator = (
+            factor_feasibility_validator
+            or BatchCorrectionWorkflowFactorFeasibilityValidator()
         )
         self._interpreter = interpreter or BatchCorrectionPlanInterpreter()
         self._executor = executor or cast(
@@ -107,7 +115,7 @@ class BatchCorrectionWorkflow:
             request=validated_request
         )
         missingness_policy = self._missingness_validator.run(request=validated_request)
-        BatchCorrectionWorkflowFactorFeasibilityValidator().run(
+        self._factor_feasibility_validator.run(
             request=validated_request,
             dataset_metadata=dataset_metadata,
             control_site_mapping=control_site_mapping,

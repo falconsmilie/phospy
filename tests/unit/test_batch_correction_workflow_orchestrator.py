@@ -63,6 +63,7 @@ def test_batch_correction_workflow_orders_validators_before_interpreter_and_exec
         stage_order_validator=_StageOrderValidator(order),
         control_site_validator=_ControlSiteValidator(order),
         missingness_validator=_MissingnessValidator(order),
+        factor_feasibility_validator=_FactorFeasibilityValidator(order),
         interpreter=_Interpreter(order),
         executor=_Executor(order, corrected=corrected),
         provenance_recorder=_ProvenanceRecorder(order, corrected=corrected),
@@ -76,12 +77,44 @@ def test_batch_correction_workflow_orders_validators_before_interpreter_and_exec
         "stage_order_validator",
         "control_site_validator",
         "missingness_validator",
+        "factor_feasibility_validator",
         "interpreter",
         "executor",
         "provenance_recorder",
     ]
     assert result.corrected_matrix.equals(corrected)
     assert result.diagnostics["executor"]["executor_id"] == "fake_executor"
+
+
+def test_batch_correction_workflow_factor_feasibility_failure_stops_before_interpreter_and_executor() -> (
+    None
+):
+    order: list[str] = []
+    workflow = BatchCorrectionWorkflow(
+        request_validator=_RequestValidator(order),
+        design_validator=_DesignValidator(order),
+        stage_order_validator=_StageOrderValidator(order),
+        control_site_validator=_ControlSiteValidator(order),
+        missingness_validator=_MissingnessValidator(order),
+        factor_feasibility_validator=_RejectingFactorFeasibilityValidator(order),
+        interpreter=_Interpreter(order),
+        executor=_Executor(order, corrected=_matrix()),
+        provenance_recorder=_ProvenanceRecorder(order, corrected=_matrix()),
+    )
+
+    with pytest.raises(PhosPyInputError, match="factor feasibility failed"):
+        workflow.run(_request())
+
+    assert order == [
+        "request_validator",
+        "design_validator",
+        "stage_order_validator",
+        "control_site_validator",
+        "missingness_validator",
+        "factor_feasibility_validator",
+    ]
+    assert "interpreter" not in order
+    assert "executor" not in order
 
 
 def test_batch_correction_workflow_invalid_request_fails_before_executor() -> None:
@@ -467,6 +500,39 @@ class _MissingnessValidator:
     ) -> CorrectionMissingnessPolicy:
         self._order.append("missingness_validator")
         return _missingness_policy()
+
+
+class _FactorFeasibilityValidator:
+    def __init__(self, order: list[str]) -> None:
+        self._order = order
+
+    def run(
+        self,
+        *,
+        request: BatchCorrectionWorkflowRequest,
+        dataset_metadata: ResolvedBatchDesignMetadata,
+        control_site_mapping: ControlSiteMapping,
+        missingness_policy: CorrectionMissingnessPolicy,
+    ) -> None:
+        self._order.append("factor_feasibility_validator")
+
+
+class _RejectingFactorFeasibilityValidator(_FactorFeasibilityValidator):
+    def run(
+        self,
+        *,
+        request: BatchCorrectionWorkflowRequest,
+        dataset_metadata: ResolvedBatchDesignMetadata,
+        control_site_mapping: ControlSiteMapping,
+        missingness_policy: CorrectionMissingnessPolicy,
+    ) -> None:
+        super().run(
+            request=request,
+            dataset_metadata=dataset_metadata,
+            control_site_mapping=control_site_mapping,
+            missingness_policy=missingness_policy,
+        )
+        raise PhosPyInputError("factor feasibility failed")
 
 
 class _Interpreter:

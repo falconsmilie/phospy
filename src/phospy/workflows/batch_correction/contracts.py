@@ -95,6 +95,19 @@ class BatchCorrectionMissingnessValidatorContract(Protocol):
     ) -> CorrectionMissingnessPolicy: ...
 
 
+class BatchCorrectionFactorFeasibilityValidatorContract(Protocol):
+    """Validate requested unwanted-factor feasibility before interpretation."""
+
+    def run(
+        self,
+        *,
+        request: BatchCorrectionWorkflowRequest,
+        dataset_metadata: ResolvedBatchDesignMetadata,
+        control_site_mapping: ControlSiteMapping,
+        missingness_policy: CorrectionMissingnessPolicy,
+    ) -> None: ...
+
+
 class BatchCorrectionInterpreterContract(Protocol):
     """Resolve validated inputs into an execution plan."""
 
@@ -186,6 +199,7 @@ __all__ = [
     "BatchCorrectionExecutorContract",
     "BatchCorrectionExecutorDiagnosticsContract",
     "BatchCorrectionExecutorResultContract",
+    "BatchCorrectionFactorFeasibilityValidatorContract",
     "BatchCorrectionInterpreterContract",
     "BatchCorrectionMissingnessValidatorContract",
     "BatchCorrectionProvenanceRecorderContract",
