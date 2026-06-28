@@ -25,6 +25,7 @@ from phospy.contracts.configs.preprocessing import (
 from phospy.contracts.requests import DatasetBuildRequest
 from phospy.errors import PhosPyInputError
 from phospy.errors.validation import DatasetValidationError
+from phospy.provenance import BatchCorrectionProvenance, fingerprint_matrix
 from phospy.science.batch_correction import (
     SPS_RUV_STYLE_ALGORITHM_DESCRIPTION,
     SPS_RUV_STYLE_BATCH_TERM_ROLE,
@@ -494,7 +495,8 @@ def test_dataset_builder_still_rejects_incomplete_corrected_output() -> None:
                 organism=Organism.RAT,
                 input_intensity_scale="linear",
                 corrected_preprocessing_output=_forged_incomplete_corrected_output(
-                    corrected
+                    corrected,
+                    input_matrix=phospho,
                 ),
             )
         )
@@ -714,7 +716,14 @@ def _builder_site_metadata() -> pd.DataFrame:
 
 def _forged_incomplete_corrected_output(
     corrected: pd.DataFrame,
+    *,
+    input_matrix: pd.DataFrame,
 ) -> CorrectedPreprocessingOutput:
+    observation_mask = pd.DataFrame(
+        True,
+        index=corrected.index.copy(),
+        columns=corrected.columns.copy(),
+    )
     output = object.__new__(CorrectedPreprocessingOutput)
     object.__setattr__(output, "corrected_matrix", corrected)
     object.__setattr__(
@@ -723,7 +732,7 @@ def _forged_incomplete_corrected_output(
         BatchCorrectionReport(
             status="applied",
             policy=BatchCorrectionPolicy(
-                method="linear_residualize_batch",
+                method="sps_ruv_style",
                 batch_column="batch",
                 condition_column="condition",
                 condition_columns=("condition",),
@@ -740,9 +749,70 @@ def _forged_incomplete_corrected_output(
         "diagnostics",
         {"test": "forged incomplete corrected output"},
     )
-    object.__setattr__(output, "output_observation_mask", None)
+    object.__setattr__(output, "output_observation_mask", observation_mask)
     object.__setattr__(output, "corrected_cell_status", None)
-    object.__setattr__(output, "provenance", None)
+    object.__setattr__(
+        output,
+        "provenance",
+        BatchCorrectionProvenance(
+            requested_method="sps_ruv_style",
+            resolved_parameters={
+                "method": "sps_ruv_style",
+                "n_unwanted_factors": 1,
+                "source": "forged_unit_test",
+            },
+            preprocessing_stage_order=(
+                "missing_data",
+                "batch_correction",
+                "downstream_workflows",
+            ),
+            control_site_source={
+                "source_type": "caller_supplied",
+                "organism": "rat",
+                "identifier_namespace": "site_key",
+                "source_version_unavailable_reason": "unit test fixture",
+            },
+            selected_site_key_rows=tuple(str(row) for row in corrected.index[:2]),
+            batch_metadata={
+                "column": "batch",
+                "levels": ["run_1", "run_2"],
+                "sample_order": list(corrected.columns.astype(str)),
+            },
+            replicate_metadata=None,
+            design_metadata={
+                "condition_columns": ["condition"],
+                "preserve_condition_effects": True,
+            },
+            missing_value_policy={
+                "policy": "reject_missing",
+                "imputation_policy": "none",
+            },
+            observation_masks=(
+                fingerprint_matrix(
+                    observation_mask.astype("int8"),
+                    name="batch_correction.native.observation_mask",
+                ),
+            ),
+            input_matrix_fingerprint=fingerprint_matrix(
+                input_matrix,
+                name="batch_correction.native.input",
+            ),
+            output_matrix_fingerprint=fingerprint_matrix(
+                corrected,
+                name="batch_correction.native.corrected",
+            ),
+            diagnostics={"executor": {"status": "applied", "method": "sps_ruv_style"}},
+            warnings=(),
+            phospy_version="test",
+            python_version="3.test",
+            dependency_versions={
+                "numpy": "test-numpy",
+                "pandas": "test-pandas",
+                "scipy": "test-scipy",
+                "scikit-learn": "test-scikit-learn",
+            },
+        ),
+    )
     object.__setattr__(
         output,
         "stage_order",

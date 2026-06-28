@@ -207,6 +207,73 @@ def test_sps_ruv_corrected_output_without_provenance_is_rejected() -> None:
         )
 
 
+@pytest.mark.parametrize("status", ("disabled", "rejected"))
+def test_external_corrected_output_requires_applied_status(status: str) -> None:
+    phospho = _phospho()
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="applied correction status.*method-specific provenance",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_site_metadata(phospho),
+                sample_metadata=_sample_metadata(phospho),
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+                corrected_preprocessing_output=_correction_output(
+                    _resolved_correction_matrix(phospho + 1.0),
+                    status=status,
+                ),
+            )
+        )
+
+
+def test_external_corrected_output_rejects_none_method() -> None:
+    phospho = _phospho()
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="method='none'.*external corrected matrix",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_site_metadata(phospho),
+                sample_metadata=_sample_metadata(phospho),
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+                corrected_preprocessing_output=_correction_output(
+                    _resolved_correction_matrix(phospho + 1.0),
+                    method="none",
+                ),
+            )
+        )
+
+
+def test_external_corrected_output_rejects_unsupported_method_label() -> None:
+    phospho = _phospho()
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="supported applied correction method.*method-specific provenance",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_site_metadata(phospho),
+                sample_metadata=_sample_metadata(phospho),
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+                corrected_preprocessing_output=_correction_output(
+                    _resolved_correction_matrix(phospho + 1.0),
+                    method="linear_residualize_batch",
+                ),
+            )
+        )
+
+
 def test_sps_ruv_corrected_output_with_empty_dependency_versions_is_rejected() -> None:
     phospho = _phospho()
     corrected = _resolved_correction_matrix(phospho + 1.0)
@@ -316,6 +383,33 @@ def test_sps_ruv_corrected_output_accepts_complete_external_environment_provenan
     assert attached.phospy_version == "test"
     assert attached.python_version == "3.test"
     assert attached.dependency_versions == _COMPLETE_EXTERNAL_DEPENDENCY_VERSIONS
+
+
+def test_external_corrected_output_accepts_applied_sps_ruv_style_with_provenance() -> (
+    None
+):
+    phospho = _phospho()
+    corrected = _resolved_correction_matrix(phospho + 1.0)
+
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=_site_metadata(phospho),
+            sample_metadata=_sample_metadata(phospho),
+            organism=Organism.RAT,
+            input_intensity_scale="linear",
+            corrected_preprocessing_output=_correction_output(
+                corrected,
+                method="sps_ruv_style",
+                provenance=_complete_sps_ruv_provenance(corrected),
+            ),
+        )
+    )
+
+    pdt.assert_frame_equal(dataset.phospho, corrected)
+    assert _attached_batch_correction_provenance(dataset).requested_method == (
+        "sps_ruv_style"
+    )
 
 
 def test_sps_ruv_corrected_output_with_not_provided_controls_is_rejected() -> None:
@@ -1231,7 +1325,9 @@ def _correction_output(
     *,
     consumed_by_downstream: bool = False,
     input_matrix: pd.DataFrame | None = None,
+    method: str = "sps_ruv_style",
     provenance: BatchCorrectionProvenance | None | Any = _DEFAULT_PROVENANCE,
+    status: str = "applied",
 ) -> CorrectedPreprocessingOutput:
     resolved_provenance = (
         _complete_sps_ruv_provenance(corrected, input_matrix=input_matrix)
@@ -1251,9 +1347,9 @@ def _correction_output(
             columns=corrected.columns.copy(),
         ),
         batch_correction_report=BatchCorrectionReport(
-            status="applied",
+            status=status,
             policy=BatchCorrectionPolicy(
-                method="sps_ruv_style",
+                method=method,
                 batch_column="batch",
                 condition_column="condition",
             ),
@@ -1266,7 +1362,7 @@ def _correction_output(
                 matrix_shape_after=(2, 4),
             ),
         ),
-        diagnostics={"executor": {"status": "applied", "method": "sps_ruv_style"}},
+        diagnostics={"executor": {"status": status, "method": method}},
         provenance=cast(BatchCorrectionProvenance | None, resolved_provenance),
         consumed_by_downstream=consumed_by_downstream,
     )

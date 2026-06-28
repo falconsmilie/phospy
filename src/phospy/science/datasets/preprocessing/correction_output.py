@@ -54,6 +54,11 @@ from phospy.validation.datasets.batch_correction import (
 
 _DOWNSTREAM_WORKFLOWS_STAGE = "downstream_workflows"
 _SUPPORTED_STATUS_VALUES = frozenset({"corrected_observed", "restored_missing"})
+_SUPPORTED_EXTERNAL_CORRECTED_OUTPUT_METHODS = frozenset({"sps_ruv_style"})
+_EXTERNAL_CORRECTED_OUTPUT_PROVENANCE_REQUIREMENT = (
+    "external corrected outputs require applied correction status and a supported "
+    "applied correction method with method-specific provenance"
+)
 
 
 @runtime_checkable
@@ -290,7 +295,7 @@ class CorrectedPreprocessingOutputIntegrator:
                 "dataset preprocessing corrected_preprocessing_output must be "
                 "CorrectedPreprocessingOutput"
             )
-        _validate_applied_provenance(correction_output)
+        _validate_corrected_output_report_and_provenance(correction_output)
         if correction_output.consumed_by_downstream:
             raise PhosPyInputError(
                 "corrected preprocessing output has already been consumed by a "
@@ -338,17 +343,53 @@ def validate_corrected_preprocessing_output(value: object) -> None:
             "dataset build request corrected_preprocessing_output must be "
             "CorrectedPreprocessingOutput"
         )
-    _validate_applied_provenance(value)
+    _validate_corrected_output_report_and_provenance(value)
 
 
-def _validate_applied_provenance(
+def _validate_corrected_output_report_and_provenance(
     correction_output: CorrectedPreprocessingOutput,
 ) -> None:
+    status = str(correction_output.batch_correction_report.status).strip()
+    if status != BATCH_CORRECTION_STATUS_APPLIED:
+        raise PhosPyInputError(
+            "corrected_preprocessing_output "
+            f"{_EXTERNAL_CORRECTED_OUTPUT_PROVENANCE_REQUIREMENT}; "
+            f"observed status={status!r}"
+        )
+
+    method = _normalize_external_correction_method(
+        correction_output.batch_correction_report.method
+    )
+    if method == "none":
+        raise PhosPyInputError(
+            "corrected_preprocessing_output "
+            f"{_EXTERNAL_CORRECTED_OUTPUT_PROVENANCE_REQUIREMENT}; "
+            "method='none' is reserved for uncorrected outputs and cannot "
+            "describe an external corrected matrix"
+        )
+    if method not in _SUPPORTED_EXTERNAL_CORRECTED_OUTPUT_METHODS:
+        raise PhosPyInputError(
+            "corrected_preprocessing_output "
+            f"{_EXTERNAL_CORRECTED_OUTPUT_PROVENANCE_REQUIREMENT}; "
+            f"observed method={method!r} has no registered strict "
+            "method-specific provenance validator"
+        )
     validate_applied_native_sps_ruv_correction_provenance(
-        method=correction_output.batch_correction_report.method,
-        status=correction_output.batch_correction_report.status,
+        method=method,
+        status=status,
         provenance=correction_output.provenance,
     )
+
+
+def _normalize_external_correction_method(method: object) -> str:
+    normalized = str(method).strip().lower()
+    if normalized == "":
+        raise PhosPyInputError(
+            "corrected_preprocessing_output "
+            f"{_EXTERNAL_CORRECTED_OUTPUT_PROVENANCE_REQUIREMENT}; "
+            "observed method is missing or empty"
+        )
+    return normalized
 
 
 def _validate_selected_controls_in_corrected_matrix(
