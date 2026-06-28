@@ -6,6 +6,7 @@ import pytest
 
 from phospy.api.configs import KinasePredictionConfig
 from phospy.errors import WorkflowStageError, WorkflowValidationError
+from phospy.science.prediction import sampling_core
 from phospy.science.prediction.execution import run_adaptive_ensemble_prediction
 from phospy.science.prediction.policies import (
     PredictionSamplingRandomSource,
@@ -112,6 +113,90 @@ def test_run_adaptive_sampling_ensemble_separates_positive_and_negative_sites() 
     assert scores.shape == (6,)
     assert ((scores >= 0.0) & (scores <= 1.0)).all()
     assert float(scores[:3].mean()) > float(scores[3:].mean())
+
+
+def test_run_adaptive_sampling_ensemble_skips_decision_vector_for_mean_probability(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _ProbabilityModel:
+        classes_ = np.asarray([1, 2], dtype=int)
+
+        @staticmethod
+        def predict_proba(values: np.ndarray) -> np.ndarray:
+            return np.column_stack(
+                [
+                    np.linspace(0.2, 0.8, values.shape[0]),
+                    np.linspace(0.8, 0.2, values.shape[0]),
+                ]
+            )
+
+    monkeypatch.setattr(
+        sampling_core,
+        "_run_sampling_iterations",
+        lambda **_kwargs: _ProbabilityModel(),
+    )
+
+    def fail_if_called(**_kwargs) -> np.ndarray:
+        raise AssertionError("decision vector should not be computed")
+
+    monkeypatch.setattr(
+        sampling_core,
+        "aligned_binary_decision_vector",
+        fail_if_called,
+    )
+
+    scores = run_adaptive_sampling_ensemble(
+        train_values=np.ones((2, 2), dtype=float),
+        train_labels=np.asarray([1, 2], dtype=int),
+        test_values=np.ones((3, 2), dtype=float),
+        kernel="rbf",
+        n_iterations=1,
+        resampling_rng=np.random.default_rng(13),
+        sampling_policy=resolve_prediction_sampling_policy("stable"),
+    )
+
+    assert scores.tolist() == pytest.approx([0.2, 0.5, 0.8])
+
+
+def test_run_adaptive_sampling_ensemble_uses_decision_vector_for_r_parity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _ProbabilityModel:
+        classes_ = np.asarray([1, 2], dtype=int)
+
+        @staticmethod
+        def predict_proba(values: np.ndarray) -> np.ndarray:
+            return np.column_stack(
+                [
+                    np.linspace(0.2, 0.8, values.shape[0]),
+                    np.linspace(0.8, 0.2, values.shape[0]),
+                ]
+            )
+
+    monkeypatch.setattr(
+        sampling_core,
+        "_run_sampling_iterations",
+        lambda **_kwargs: _ProbabilityModel(),
+    )
+    monkeypatch.setattr(
+        sampling_core,
+        "aligned_binary_decision_vector",
+        lambda **_kwargs: np.asarray([-1.0, 0.0, 1.0], dtype=float),
+    )
+
+    scores = run_adaptive_sampling_ensemble(
+        train_values=np.ones((2, 2), dtype=float),
+        train_labels=np.asarray([1, 2], dtype=int),
+        test_values=np.ones((3, 2), dtype=float),
+        kernel="rbf",
+        n_iterations=1,
+        resampling_rng=np.random.default_rng(13),
+        sampling_policy=resolve_prediction_sampling_policy("r_parity"),
+    )
+
+    assert scores.tolist() == pytest.approx(
+        [1.0 / (1.0 + np.exp(1.0)), 0.5, 1.0 / (1.0 + np.exp(-1.0))]
+    )
 
 
 def test_run_adaptive_ensemble_prediction_averages_per_ensemble_scores(

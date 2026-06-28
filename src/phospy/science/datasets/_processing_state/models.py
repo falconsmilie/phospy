@@ -165,7 +165,7 @@ class ComparisonState:
 
 @dataclass(frozen=True, slots=True)
 class RuvReadinessState:
-    """RUV-compatible preprocessing readiness reporting state."""
+    """Report-only RUV-readiness metadata state."""
 
     enabled: bool
     ready: bool

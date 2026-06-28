@@ -69,6 +69,7 @@ NEGATIVE_SCOPE_QUALIFIERS: tuple[Pattern[str], ...] = (
 
 REPORT_ONLY_RUV_READINESS = (
     "report-only",
+    "report-only ruv-readiness metadata",
     "metadata-only",
     "does not modify the matrix",
     "not executable correction",
@@ -92,6 +93,7 @@ NATIVE_SPS_RUV_CONFIG = (
 
 RAW_PUBLIC_BANS: tuple[PhraseRule, ...] = (
     PhraseRule("use_ruv", _rx(r"\buse_ruv\b")),
+    PhraseRule("RUV-compatible", _rx(r"\bruv[-\s]+compatible\b")),
     PhraseRule(
         "control_site_ruv_style",
         _rx(r"\bcontrol_site_ruv_style\b"),
@@ -373,6 +375,7 @@ def test_adr_0027_0029_guard_rejects_synthetic_violations() -> None:
             (
                 "PhosPy provides PhosR-equivalent SPS/RUV-III parity.",
                 "ruv_readiness applies executable correction to the matrix.",
+                "ruv_readiness produces RUV-compatible preprocessing.",
                 "linear_residualize_batch is SPS/RUV-style correction.",
                 "SpsRuvBatchCorrectionConfig runs correction.",
             ),
@@ -404,7 +407,7 @@ def test_adr_0027_0029_guard_allows_compliant_wording() -> None:
         for index, text in enumerate(
             (
                 "PhosR-equivalent SPS/RUV-III parity is not supported.",
-                "ruv_readiness is report-only readiness metadata and does not modify the matrix.",
+                "ruv_readiness is report-only RUV-readiness metadata and does not modify the matrix.",
                 "linear_residualize_batch is fixed-effect residualisation, not SPS/RUV-style correction.",
                 "SpsRuvBatchCorrectionConfig provides native PhosPy SPS/RUV-style correction, not RUV-III.",
             ),

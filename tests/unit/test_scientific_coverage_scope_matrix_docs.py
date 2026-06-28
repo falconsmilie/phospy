@@ -249,6 +249,7 @@ def test_docs_do_not_claim_ruv_support() -> None:
     assert "not ruv" in normalized
     assert "not limma `removebatcheffect` parity" in normalized
     assert "not current phosr parity" in normalized
+    assert "report-only ruv-readiness metadata" in normalized
 
     for forbidden in (
         "supports ruv",
@@ -292,6 +293,15 @@ def test_scientific_coverage_lists_sps_ruv_as_explicit_non_parity_support() -> N
     assert "unwanted-factor count" in normalized
     assert "phosr-equivalent sps/ruv-iii batch correction" in normalized
     assert "not a claim of phosr-equivalent sps/ruv-iii correction" in normalized
+    assert "requires a complete correction-stage matrix" in normalized
+    assert "rejects actual missing values (nans) before executor invocation" in (
+        normalized
+    )
+    assert (
+        "not permission for actual nans to pass through the public native workflow"
+        in (normalized)
+    )
+    assert "observation-mask provenance" in normalized
 
 
 def test_parity_docs_state_ruv_sps_is_future_work() -> None:
@@ -474,17 +484,46 @@ def test_batch_correction_scope_names_supported_preprocessing_methods() -> None:
     assert "caller-supplied controls" in normalized
     assert "correction remains in dataset preprocessing" in normalized
     assert "do not interpret `ruv_readiness` as ruv support" in normalized
+    assert "report-only ruv-readiness metadata" in normalized
     assert "executable only through the separate explicit" in normalized
     assert (
-        "executable temporary imputation methods are `none` and `row_median_temporary`"
+        "executable temporary imputation labels are `none` and `row_median_temporary`"
         in (normalized)
     )
     assert "`minprob_temporary` and `knn_temporary` are rejected" in normalized
     assert "upstream-imputed cells remain tracked" in normalized
+    assert "observation-mask provenance" in normalized
     assert "not treated as observed evidence" in normalized
+    assert "requires a complete correction-stage matrix" in normalized
+    assert "rejects actual missing values (nans) before executor invocation" in (
+        normalized
+    )
+    assert (
+        "not permission for actual nans to pass through the public native workflow"
+        in (normalized)
+    )
     assert "not executable ruv-iii support" in normalized
     assert "replicate-aware ruv-iii semantics" in normalized
     assert "not used for numerical unwanted-factor estimation" in normalized
+
+
+def test_dataset_build_docs_state_native_sps_ruv_rejects_actual_nans() -> None:
+    normalized = " ".join(_dataset_build_workflow_text().lower().split())
+
+    assert (
+        "public native sps/ruv-style workflow requires a complete correction-stage matrix"
+        in (normalized)
+    )
+    assert "does not let actual nans pass through the public native workflow" in (
+        normalized
+    )
+    assert "rejects actual missing values (nans) before executor invocation" in (
+        normalized
+    )
+    assert "with observation-mask provenance" in normalized
+    assert "not a way to pass actual nans through the public native workflow" in (
+        normalized
+    )
 
 
 def test_sps_ruv_docs_describe_multiple_condition_columns_as_joint_strata() -> None:

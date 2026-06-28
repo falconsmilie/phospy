@@ -62,8 +62,8 @@ class DatasetPreprocessingConfig:
       `DatasetBatchCorrectionConfig` covers fixed-effect residualisation, while
       `SpsRuvBatchCorrectionConfig` covers native SPS/RUV-style correction with
       explicit controls, design, missingness, diagnostics, and provenance.
-    - `ruv_readiness`: readiness reporting contract for future RUV-compatible
-      preprocessing (report-only; no correction).
+    - `ruv_readiness`: report-only RUV-readiness metadata/readiness reporting
+      contract (no correction).
     """
 
     intensity_transform: DatasetIntensityTransformConfig = field(

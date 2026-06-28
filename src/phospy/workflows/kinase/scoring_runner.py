@@ -24,6 +24,7 @@ from phospy.science.prediction.scoring import (
     SIGNALOME_DOWNSTREAM_SCORE_RANK_WEIGHTED_PREFERRED_POLICY,
     DownstreamScoreSelectionPolicy,
     build_kinase_score_source_diagnostics,
+    build_kinase_score_source_summary,
     fuse_profile_and_motif_scores_by_rank_weight,
     resolve_downstream_score_matrix,
 )
@@ -177,13 +178,24 @@ class KinaseScoringRunner:
                 "kinase.executor.rank_weighted_fusion_scoring; "
                 f"{exc}"
             ) from exc
-        score_source_matrix, score_source_summary = (
-            build_kinase_score_source_diagnostics(
+        needs_score_source_matrix = (
+            include_diagnostic_tables or collect_substrate_contributions
+        )
+        if needs_score_source_matrix:
+            score_source_matrix, score_source_summary = (
+                build_kinase_score_source_diagnostics(
+                    motif_scores=motif_result.motif_scores,
+                    profile_scores=profile_scores,
+                    rank_weighted_fusion_scores=rank_weighted_fusion_scores,
+                )
+            )
+        else:
+            score_source_matrix = None
+            score_source_summary = build_kinase_score_source_summary(
                 motif_scores=motif_result.motif_scores,
                 profile_scores=profile_scores,
                 rank_weighted_fusion_scores=rank_weighted_fusion_scores,
             )
-        )
         diagnostic_motif_scores: pd.DataFrame | None = None
         diagnostic_score_source_matrix: pd.DataFrame | None = None
         if include_diagnostic_tables:

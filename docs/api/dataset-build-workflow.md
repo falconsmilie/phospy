@@ -452,11 +452,13 @@ Native PhosPy SPS/RUV-style `SpsRuvBatchCorrectionConfig` requires:
   implemented.
 - explicit `CorrectionMissingnessPolicy`; temporary imputation must preserve
   the observation mask and is recorded as correction mechanics, not observed
-  evidence. Executable temporary imputation methods are `none` and
+  evidence. The public native SPS/RUV-style workflow requires a complete
+  correction-stage matrix. Executable temporary imputation labels are `none` and
   `row_median_temporary`; `minprob_temporary` and `knn_temporary` are rejected
   in native correction because their temporary correction semantics are not
-  implemented. `row_median_temporary` is a temporary numerical mechanism only;
-  it does not make actual missing values analysis-ready.
+  implemented. `row_median_temporary` is a recognized policy/mechanics label for
+  low-level correction diagnostics only; it does not let actual NaNs pass
+  through the public native workflow or make missing matrices analysis-ready.
 - `n_unwanted_factors >= 1`; the requested count must be supported by the
   eligible-control count, protected-design residual sample capacity, and
   eligible control residual rank after protected condition terms.
@@ -466,10 +468,10 @@ Native PhosPy SPS/RUV-style `SpsRuvBatchCorrectionConfig` requires:
 Upstream-imputed input cells remain tracked through observation masks and are
 not treated as observed evidence during correction. The correction-stage matrix
 must be complete: native SPS/RUV-style correction rejects actual missing values
-before executor invocation because temporary imputation followed by restored
-missing values cannot produce analysis-ready corrected output. Run missing-data
-preprocessing first, or provide a complete upstream-imputed matrix with an
-observation mask.
+(NaNs) before executor invocation because temporary imputation followed by
+restored missing values cannot produce analysis-ready corrected output. Run
+missing-data preprocessing first, or provide a complete upstream-imputed matrix
+with observation-mask provenance.
 
 Successful requests return a corrected analysis-ready dataset and attach
 `BatchCorrectionProvenance` to the `batch_correction` preprocessing stage in
@@ -623,10 +625,12 @@ Observation masks and temporary imputation:
   The mask identifies originally observed cells separately from upstream-imputed
   cells.
 - Temporary imputation is numerical correction mechanics only. The native
-  SPS/RUV-style workflow rejects actual missing values before executor
-  invocation; `TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY` is retained for
-  conservative low-level executor diagnostics and is not a way to make actual
-  missing values analysis-ready.
+  SPS/RUV-style workflow requires a complete correction-stage matrix and rejects
+  actual missing values (NaNs) before executor invocation;
+  `TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY` is retained as a recognized
+  policy/mechanics label for conservative low-level executor diagnostics and is
+  not a way to pass actual NaNs through the public native workflow or make
+  missing matrices analysis-ready.
 - The corrected output carries an output observation mask and per-cell status.
   Upstream-imputed cells remain flagged according to the policy, and final
   dataset construction still enforces the strict analysis-ready boundary.
@@ -1023,11 +1027,11 @@ comparisons = DatasetComparisonBuildingConfig(
 
 ## RUV-Readiness Parameters
 
-`DatasetRuvReadinessConfig` is report-only. It helps audit whether metadata
-that could be relevant to future RUV-family work is present; it does not select
-SPS controls or correct the matrix. Executable native SPS/RUV-style correction
-uses `SpsRuvBatchCorrectionConfig` under `batch_correction`. RUV-III correction
-is not currently supported.
+`DatasetRuvReadinessConfig` records report-only RUV-readiness metadata. It helps
+audit whether metadata that could be relevant to future RUV-family work is
+present; it does not select SPS controls or correct the matrix. Executable native
+SPS/RUV-style correction uses `SpsRuvBatchCorrectionConfig` under
+`batch_correction`. RUV-III correction is not currently supported.
 It does not make sample metadata scientific design input for differential
 analysis.
 

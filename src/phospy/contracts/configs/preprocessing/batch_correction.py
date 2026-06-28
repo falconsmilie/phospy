@@ -217,7 +217,7 @@ DatasetPreprocessingBatchCorrectionConfig = (
 def validate_native_executable_temporary_imputation_method(
     policy: CorrectionMissingnessPolicy,
 ) -> None:
-    """Validate public native SPS/RUV temporary-imputation executability."""
+    """Validate public native SPS/RUV temporary-imputation policy labels."""
 
     if not isinstance(policy, CorrectionMissingnessPolicy):
         raise PhosPyInputError(
@@ -242,8 +242,9 @@ def validate_native_executable_temporary_imputation_method(
     raise PhosPyInputError(
         "dataset build request preprocessing_config.batch_correction."
         "missingness_policy has unsupported temporary imputation: "
-        f"{detail}. Supported executable methods are none and "
-        "row_median_temporary."
+        f"{detail}. Recognized executable policy labels are none and "
+        "row_median_temporary; actual missing values are still rejected before "
+        "public native workflow execution."
     )
 
 
@@ -318,8 +319,9 @@ def _internal_imputation_method(
     raise PhosPyInputError(
         "dataset build request preprocessing_config.batch_correction."
         "missingness_policy temporary imputation method is unsupported for "
-        "native SPS/RUV-style correction; supported executable methods are "
-        "none and row_median_temporary"
+        "native SPS/RUV-style correction; recognized executable labels are "
+        "none and row_median_temporary, but this mapping does not permit "
+        "actual missing values through the public native workflow"
     )
 
 

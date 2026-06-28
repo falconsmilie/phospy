@@ -167,11 +167,6 @@ def run_adaptive_sampling_ensemble(
         prob_mat=pred,
         classes=model_classes,
     )
-    final_decision_vector = aligned_binary_decision_vector(
-        model=model,
-        values=test_x,
-        positive_probabilities=positive_probabilities,
-    )
     if sampling_policy.final_score_mode == "mean_probability":
         if positive_probabilities is None:
             msg = (
@@ -180,6 +175,11 @@ def run_adaptive_sampling_ensemble(
             )
             raise ValueError(msg)
         return np.asarray(positive_probabilities, dtype=float)
+    final_decision_vector = aligned_binary_decision_vector(
+        model=model,
+        values=test_x,
+        positive_probabilities=positive_probabilities,
+    )
     return np.asarray(1.0 / (1.0 + np.exp(-final_decision_vector)), dtype=float)
 
 
