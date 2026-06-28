@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pandas as pd
 import pytest
 
@@ -296,6 +298,29 @@ def test_applied_provenance_counts_unique_selected_controls_for_factor_count() -
         )
 
 
+def test_applied_provenance_accepts_per_site_missing_metadata_reasons() -> None:
+    provenance = _complete_applied_sps_ruv_provenance()
+    control_site_source = dict(provenance.control_site_source)
+    control_site_source.pop("source_version")
+    control_site_source["metadata_missing_reason_by_site_key"] = {
+        "AKT1_S473": {
+            "source_version": "AKT1_S473 came from an unversioned local notebook"
+        },
+        "GSK3B_S9": {
+            "source_version": "GSK3B_S9 came from a separately curated spreadsheet"
+        },
+    }
+
+    validate_applied_native_sps_ruv_correction_provenance(
+        method="sps_ruv_style",
+        status="applied",
+        provenance=replace(
+            provenance,
+            control_site_source=control_site_source,
+        ),
+    )
+
+
 def _complete_applied_sps_ruv_provenance(
     *,
     selected_site_key_rows: tuple[str, ...] = ("AKT1_S473", "GSK3B_S9"),
@@ -318,7 +343,10 @@ def _complete_applied_sps_ruv_provenance(
             "source_type": "caller_supplied",
             "organism": "rat",
             "identifier_namespace": "site_key",
-            "source_version_unavailable_reason": "caller-local controls",
+            "source_name": "manual-curated-controls",
+            "source_version": "manual-v1",
+            "license": "caller local use",
+            "redistribution": "not redistributed",
         },
         selected_site_key_rows=selected_site_key_rows,
         batch_metadata={

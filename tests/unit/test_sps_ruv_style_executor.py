@@ -770,7 +770,10 @@ def _forged_incomplete_corrected_output(
                 "source_type": "caller_supplied",
                 "organism": "rat",
                 "identifier_namespace": "site_key",
-                "source_version_unavailable_reason": "unit test fixture",
+                "source_name": "manual-curated-controls",
+                "source_version": "manual-v1",
+                "license": "caller local use",
+                "redistribution": "not redistributed",
             },
             selected_site_key_rows=tuple(str(row) for row in corrected.index[:2]),
             batch_metadata={

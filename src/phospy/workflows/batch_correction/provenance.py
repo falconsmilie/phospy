@@ -40,6 +40,7 @@ _FINAL_COMBINED_OBSERVATION_MASK_NAME = (
     "batch_correction.workflow.final_combined_observation_mask"
 )
 _OUTPUT_OBSERVATION_MASK_NAME = "batch_correction.workflow.output_observation_mask"
+_STRICT_CONTROL_SOURCE_TYPE_MARKERS = frozenset({"packaged", "reference", "external"})
 
 
 @runtime_checkable
@@ -232,8 +233,10 @@ def _control_site_source_payload(
     control_site_mapping: ControlSiteMapping,
 ) -> Mapping[str, JsonValue]:
     selected = tuple(plan.eligible_control_site_rows)
-    selected_metadata_rows = tuple(
-        row for row in control_site_mapping.row_eligibility if row.is_control
+    selected_site_keys = tuple(row.site_key for row in selected)
+    selected_metadata_rows = _selected_control_metadata_rows(
+        control_site_mapping,
+        selected_site_keys=selected_site_keys,
     )
     source_type = request.config.control_site_source.value
     payload: dict[str, object] = {
@@ -270,9 +273,20 @@ def _control_site_source_payload(
             "redistribution",
         ),
     }
+    if _has_strict_control_source_type(payload):
+        payload["selection_method"] = _common_non_empty_metadata_value(
+            selected_metadata_rows,
+            "selection_method",
+        )
     missing_reason = _common_metadata_missing_reasons(selected_metadata_rows)
     if missing_reason:
         payload["metadata_missing_reason"] = missing_reason
+    missing_reason_by_site_key = _metadata_missing_reasons_by_site_key(
+        selected_metadata_rows,
+        aggregate_reasons=missing_reason,
+    )
+    if missing_reason_by_site_key:
+        payload["metadata_missing_reason_by_site_key"] = missing_reason_by_site_key
     if (
         source_type == "caller_supplied"
         and payload.get("source_version") is None
@@ -280,6 +294,26 @@ def _control_site_source_payload(
     ):
         payload["source_version_unavailable_reason"] = missing_reason["source_version"]
     return _json_mapping(payload)
+
+
+def _selected_control_metadata_rows(
+    control_site_mapping: ControlSiteMapping,
+    *,
+    selected_site_keys: Sequence[str],
+) -> tuple[ControlSiteEligibility, ...]:
+    rows_by_site_key = {
+        str(row.site_key): row
+        for row in control_site_mapping.row_eligibility
+        if row.site_key is not None and row.is_control
+    }
+    rows = tuple(
+        row
+        for site_key in selected_site_keys
+        if (row := rows_by_site_key.get(str(site_key))) is not None
+    )
+    if len(rows) == len(tuple(selected_site_keys)):
+        return rows
+    return tuple(row for row in control_site_mapping.row_eligibility if row.is_control)
 
 
 def _common_non_empty_metadata_value(
@@ -317,6 +351,52 @@ def _common_metadata_missing_reasons(
         for field_name, reasons in reasons_by_field.items()
         if len(reasons) == 1
     }
+
+
+def _metadata_missing_reasons_by_site_key(
+    rows: Sequence[ControlSiteEligibility],
+    *,
+    aggregate_reasons: Mapping[str, str],
+) -> dict[str, dict[str, str]]:
+    reasons_by_site_key: dict[str, dict[str, str]] = {}
+    for row in rows:
+        site_key = getattr(row, "site_key", None)
+        if site_key is None:
+            continue
+        row_reasons = getattr(row, "metadata_missing_reason", {})
+        if not isinstance(row_reasons, Mapping):
+            continue
+        reasons: dict[str, str] = {}
+        for field_name, reason in row_reasons.items():
+            field_text = str(field_name).strip()
+            reason_text = str(reason).strip()
+            if not field_text or not reason_text:
+                continue
+            if aggregate_reasons.get(field_text) == reason_text:
+                continue
+            reasons[field_text] = reason_text
+        if reasons:
+            reasons_by_site_key[str(site_key)] = reasons
+    return reasons_by_site_key
+
+
+def _has_strict_control_source_type(source: Mapping[str, object]) -> bool:
+    for key in (
+        "source_type",
+        "source",
+        "control_site_set_source_type",
+        "source_name",
+    ):
+        value = source.get(key)
+        if value is None:
+            continue
+        text = str(value).strip().lower()
+        if not text:
+            continue
+        tokens = frozenset(text.replace("-", "_").split("_"))
+        if tokens & _STRICT_CONTROL_SOURCE_TYPE_MARKERS:
+            return True
+    return False
 
 
 def _replicate_metadata(

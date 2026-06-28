@@ -32,6 +32,23 @@ _MISSING_ENVIRONMENT_VALUES = _NOT_PROVIDED_VALUES | frozenset({"unknown"})
 _SELECTED_SITE_KEY_ROW_SENTINELS = (
     BATCH_CORRECTION_SELECTED_SITE_KEY_ROW_SENTINELS | _NOT_PROVIDED_VALUES
 )
+_STRICT_CONTROL_SOURCE_TYPE_MARKERS = frozenset({"packaged", "reference", "external"})
+_CALLER_CONTROL_SOURCE_AUDIT_FIELDS = (
+    "organism",
+    "identifier_namespace",
+    "source_version",
+    "license",
+    "redistribution",
+)
+_STRICT_CONTROL_SOURCE_REQUIRED_FIELDS = (
+    "organism",
+    "identifier_namespace",
+    "source_name",
+    "source_version",
+    "license",
+    "redistribution",
+    "selection_method",
+)
 _MISSING = object()
 
 
@@ -695,7 +712,10 @@ def _validate_complete_sps_ruv_provenance(
         n_unwanted_factors=n_unwanted_factors,
     )
     _require_unique_selected_control_site_rows(selected_site_key_rows)
-    _require_control_site_source_metadata(provenance.control_site_source)
+    _require_control_site_source_metadata(
+        provenance.control_site_source,
+        selected_site_key_rows=selected_site_key_rows,
+    )
     _require_non_empty_mapping(
         provenance.batch_metadata,
         field_name="BatchCorrectionProvenance.batch_metadata",
@@ -913,7 +933,11 @@ def _require_unique_selected_control_site_rows(rows: Sequence[str]) -> None:
         )
 
 
-def _require_control_site_source_metadata(source: Mapping[str, object]) -> None:
+def _require_control_site_source_metadata(
+    source: Mapping[str, object],
+    *,
+    selected_site_key_rows: Sequence[str],
+) -> None:
     _require_non_empty_mapping(
         source,
         field_name="BatchCorrectionProvenance.control_site_source",
@@ -928,21 +952,48 @@ def _require_control_site_source_metadata(source: Mapping[str, object]) -> None:
             "corrected_preprocessing_output BatchCorrectionProvenance selected "
             "controls/control provenance must include control source metadata"
         )
-    for field_name in ("organism", "identifier_namespace"):
-        if _has_non_missing_text(source.get(field_name)):
-            continue
-        if _has_metadata_missing_reason(source, field_name):
-            continue
+
+    if _has_strict_control_source_type(source):
+        missing = tuple(
+            field_name
+            for field_name in _STRICT_CONTROL_SOURCE_REQUIRED_FIELDS
+            if not _has_non_missing_text(source.get(field_name))
+        )
+        if missing:
+            raise PhosPyInputError(
+                "corrected_preprocessing_output BatchCorrectionProvenance "
+                "packaged/reference/external control-source metadata is "
+                f"incomplete; missing {_format_labels(missing)}"
+            )
+        return
+
+    missing_without_reason = tuple(
+        field_name
+        for field_name in _CALLER_CONTROL_SOURCE_AUDIT_FIELDS
+        if not _has_non_missing_text(source.get(field_name))
+        and not _has_metadata_missing_reason(
+            source,
+            field_name,
+            selected_site_key_rows=selected_site_key_rows,
+        )
+    )
+    if missing_without_reason:
         raise PhosPyInputError(
             "corrected_preprocessing_output BatchCorrectionProvenance control "
-            f"source is missing {field_name!r} without explicit rationale"
+            "source is missing "
+            f"{_format_labels(missing_without_reason)} without explicit rationale"
         )
+
     has_source_name = _has_non_missing_text(source.get("source_name"))
     has_source_version = _has_non_missing_text(source.get("source_version"))
     has_unavailable_reason = _has_non_missing_text(
         source.get("source_version_unavailable_reason")
     )
-    has_missing_reason = _has_metadata_missing_reason(source, "source_version")
+    has_missing_reason = _has_metadata_missing_reason(
+        source,
+        "source_version",
+        selected_site_key_rows=selected_site_key_rows,
+    )
     if has_source_name and not (
         has_source_version or has_unavailable_reason or has_missing_reason
     ):
@@ -969,16 +1020,74 @@ def _source_type(source: Mapping[str, object]) -> str | None:
     return None
 
 
+def _has_strict_control_source_type(source: Mapping[str, object]) -> bool:
+    for key in (
+        "source_type",
+        "source",
+        "control_site_set_source_type",
+        "source_name",
+    ):
+        value = source.get(key)
+        if _has_non_missing_text(value) and _is_strict_control_source_type(
+            str(value).strip().lower()
+        ):
+            return True
+    return False
+
+
+def _is_strict_control_source_type(source_type: str | None) -> bool:
+    if source_type is None:
+        return False
+    tokens = frozenset(source_type.replace("-", "_").split("_"))
+    return bool(tokens & _STRICT_CONTROL_SOURCE_TYPE_MARKERS)
+
+
 def _has_metadata_missing_reason(
     source: Mapping[str, object],
     field_name: str,
+    *,
+    selected_site_key_rows: Sequence[str],
 ) -> bool:
     reasons = source.get("metadata_missing_reason")
     if isinstance(reasons, Mapping) and _has_non_missing_text(
         cast(Mapping[str, object], reasons).get(field_name)
     ):
         return True
-    return _has_non_missing_text(source.get(f"{field_name}_missing_reason"))
+    if _has_non_missing_text(source.get(f"{field_name}_missing_reason")):
+        return True
+    if field_name == "source_version" and _has_non_missing_text(
+        source.get("source_version_unavailable_reason")
+    ):
+        return True
+    return _has_metadata_missing_reason_by_site_key(
+        source,
+        field_name,
+        selected_site_key_rows=selected_site_key_rows,
+    )
+
+
+def _has_metadata_missing_reason_by_site_key(
+    source: Mapping[str, object],
+    field_name: str,
+    *,
+    selected_site_key_rows: Sequence[str],
+) -> bool:
+    reasons_by_site_key = source.get("metadata_missing_reason_by_site_key")
+    if not isinstance(reasons_by_site_key, Mapping):
+        return False
+    selected = tuple(str(site_key) for site_key in selected_site_key_rows)
+    if not selected:
+        return False
+    by_site_key = cast(Mapping[str, object], reasons_by_site_key)
+    for site_key in selected:
+        site_reasons = by_site_key.get(site_key)
+        if not isinstance(site_reasons, Mapping):
+            return False
+        if not _has_non_missing_text(
+            cast(Mapping[str, object], site_reasons).get(field_name)
+        ):
+            return False
+    return True
 
 
 def _require_supported_stage_order(stage_order: Sequence[str]) -> None:

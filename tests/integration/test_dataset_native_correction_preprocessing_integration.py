@@ -750,7 +750,10 @@ def test_sps_ruv_corrected_output_missing_control_metadata_requires_rationale() 
 
     with pytest.raises(
         PhosPyInputError,
-        match="control source.*organism|control source.*identifier_namespace",
+        match=(
+            "control source.*organism|control source.*identifier_namespace|"
+            "control source.*license|control source.*redistribution"
+        ),
     ):
         AnalysisReadyDatasetBuilder().run(
             DatasetBuildRequest(
@@ -767,6 +770,80 @@ def test_sps_ruv_corrected_output_missing_control_metadata_requires_rationale() 
         )
 
 
+@pytest.mark.parametrize("field_name", ("license", "redistribution"))
+def test_sps_ruv_corrected_output_missing_control_usage_metadata_is_rejected(
+    field_name: str,
+) -> None:
+    phospho = _phospho()
+    corrected = _resolved_correction_matrix(phospho + 1.0)
+    control_site_source = dict(
+        _complete_sps_ruv_provenance(corrected).control_site_source
+    )
+    control_site_source.pop(field_name)
+    provenance = replace(
+        _complete_sps_ruv_provenance(corrected),
+        control_site_source=control_site_source,
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=f"control source.*{field_name}.*explicit rationale",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_site_metadata(phospho),
+                sample_metadata=_sample_metadata(phospho),
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+                corrected_preprocessing_output=_correction_output(
+                    corrected,
+                    provenance=provenance,
+                ),
+            )
+        )
+
+
+def test_sps_ruv_corrected_output_accepts_missing_control_usage_metadata_rationale() -> (
+    None
+):
+    phospho = _phospho()
+    corrected = _resolved_correction_matrix(phospho + 1.0)
+    control_site_source = dict(
+        _complete_sps_ruv_provenance(corrected).control_site_source
+    )
+    control_site_source.pop("license")
+    control_site_source.pop("redistribution")
+    control_site_source["license_missing_reason"] = (
+        "caller-local controls are not licensed data"
+    )
+    control_site_source["redistribution_missing_reason"] = (
+        "caller-local controls are not redistributed"
+    )
+    provenance = replace(
+        _complete_sps_ruv_provenance(corrected),
+        control_site_source=control_site_source,
+    )
+
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=_site_metadata(phospho),
+            sample_metadata=_sample_metadata(phospho),
+            organism=Organism.RAT,
+            input_intensity_scale="linear",
+            corrected_preprocessing_output=_correction_output(
+                corrected,
+                provenance=provenance,
+            ),
+        )
+    )
+
+    attached = _attached_batch_correction_provenance(dataset)
+    assert attached.control_site_source["license_missing_reason"]
+    assert attached.control_site_source["redistribution_missing_reason"]
+
+
 def test_sps_ruv_corrected_output_accepts_control_metadata_missing_rationale() -> None:
     phospho = _phospho()
     corrected = _resolved_correction_matrix(phospho + 1.0)
@@ -780,6 +857,8 @@ def test_sps_ruv_corrected_output_accepts_control_metadata_missing_rationale() -
                     "caller-local controls did not declare namespace"
                 ),
                 "source_version": "caller-local controls have no source version",
+                "license": "caller-local controls are not licensed data",
+                "redistribution": "caller-local controls are not redistributed",
             },
             "source_version_unavailable_reason": (
                 "caller-local controls have no source version"
@@ -1399,7 +1478,10 @@ def _complete_sps_ruv_provenance(
             "source_type": "caller_supplied",
             "organism": "rat",
             "identifier_namespace": "site_key",
-            "source_version_unavailable_reason": "caller-local controls",
+            "source_name": "manual-curated-controls",
+            "source_version": "manual-v1",
+            "license": "caller local use",
+            "redistribution": "not redistributed",
         },
         selected_site_key_rows=tuple(str(row) for row in corrected.index[:2]),
         batch_metadata={

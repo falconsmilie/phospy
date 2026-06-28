@@ -27,6 +27,7 @@ from phospy.science.datasets.preprocessing.batch_correction import (
     BatchCorrectionReport,
 )
 from phospy.science.datasets.preprocessing.control_sites import (
+    ControlSiteAnnotation,
     ControlSiteMapping,
     ControlSiteSet,
     ControlSiteSourceMetadata,
@@ -237,6 +238,35 @@ def test_batch_correction_workflow_default_provenance_recorder_assembles_sources
     assert {"numpy", "pandas"}.issubset(set(provenance.dependency_versions))
 
 
+def test_batch_correction_provenance_recorder_complete_control_source_payload_is_stable() -> (
+    None
+):
+    corrected = _matrix() + 2.0
+
+    provenance = BatchCorrectionProvenanceRecorder().run(
+        request=_request(),
+        dataset_metadata=_metadata(),
+        control_site_mapping=_control_mapping(),
+        missingness_policy=_missingness_policy(),
+        plan=_plan(),
+        executor_result=_ExecutorResult(corrected_matrix=corrected),
+    )
+
+    assert provenance.control_site_source == {
+        "source": "caller_supplied",
+        "source_type": "caller_supplied",
+        "mode": "site_key_list",
+        "selected_control_count": 2,
+        "control_site_set_source_type": "caller_supplied",
+        "organism": "rat",
+        "identifier_namespace": "site_key",
+        "source_name": "manual-curated-controls",
+        "source_version": "manual-v1",
+        "license": "caller local use",
+        "redistribution": "not redistributed",
+    }
+
+
 def test_batch_correction_provenance_recorder_populates_environment_fields() -> None:
     corrected = _matrix() + 3.0
 
@@ -328,6 +358,31 @@ def test_batch_correction_provenance_records_missing_metadata_rationale() -> Non
         "source_version": "caller-supplied local controls have no formal version",
         "license": "caller-supplied local controls are not licensed data",
         "redistribution": "caller-supplied local controls are not redistributed",
+    }
+
+
+def test_batch_correction_provenance_records_heterogeneous_missing_metadata_rationale() -> (
+    None
+):
+    corrected = _matrix() + 3.0
+    control_site_set = _heterogeneous_reasoned_control_site_set()
+    mapping = control_site_set.map_to_site_keys(("site_a", "site_b"))
+
+    provenance = BatchCorrectionProvenanceRecorder().run(
+        request=_request(control_site_set=control_site_set),
+        dataset_metadata=_metadata(),
+        control_site_mapping=mapping,
+        missingness_policy=_missingness_policy(),
+        plan=_plan(),
+        executor_result=_ExecutorResult(corrected_matrix=corrected),
+    )
+
+    assert provenance.control_site_source.get("metadata_missing_reason", {}) == {}
+    assert provenance.control_site_source["metadata_missing_reason_by_site_key"] == {
+        "site_a": {"source_version": "site_a came from an unversioned local notebook"},
+        "site_b": {
+            "source_version": "site_b came from a separately curated spreadsheet"
+        },
     }
 
 
@@ -675,6 +730,33 @@ def _reasoned_control_site_set() -> ControlSiteSet:
                 "license": "caller-supplied local controls are not licensed data",
                 "redistribution": "caller-supplied local controls are not redistributed",
             },
+        ),
+    )
+
+
+def _heterogeneous_reasoned_control_site_set() -> ControlSiteSet:
+    return ControlSiteSet(
+        annotations=(
+            ControlSiteAnnotation(
+                "site_a",
+                metadata_missing_reason={
+                    "source_version": "site_a came from an unversioned local notebook",
+                },
+            ),
+            ControlSiteAnnotation(
+                "site_b",
+                metadata_missing_reason={
+                    "source_version": (
+                        "site_b came from a separately curated spreadsheet"
+                    ),
+                },
+            ),
+        ),
+        source_metadata=ControlSiteSourceMetadata(
+            organism="rat",
+            identifier_namespace="site_key",
+            license="caller local use",
+            redistribution="not redistributed",
         ),
     )
 
