@@ -105,11 +105,11 @@ Common cross-field checks:
   row-collapse choices; when they run, inspect
   `dataset.preprocessing_report.duplicate_site_resolution` and
   `dataset.preprocessing_report.metadata_conflicts`.
-- `ruv_readiness.enabled=True` records readiness signals for possible future
-  RUV-family work, including complete-matrix status, missingness mask
-  provenance, control-feature availability, replicate groups, and optional
-  batch metadata. It does not select SPS controls or apply correction, and it
-  does not make RUV-III correction executable.
+- `ruv_readiness.enabled=True` records report-only readiness signals for
+  possible future RUV-family work, including complete-matrix status,
+  missingness mask provenance, control-feature availability, replicate groups,
+  and optional batch metadata. It does not select SPS controls or apply
+  correction, and it does not make RUV-III correction executable.
 - RUV readiness is informational: dataset construction is not rejected when
   readiness is false. Native SPS/RUV-style correction is separate and requires
   explicit `SpsRuvBatchCorrectionConfig`.

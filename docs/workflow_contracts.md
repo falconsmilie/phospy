@@ -85,8 +85,8 @@ Confounded batch/condition designs are rejected. It is not ComBat, not RUV, not
 limma `removeBatchEffect` parity, and not mixed-effects modelling. It does not
 solve all batch-effect problems.
 
-Do not interpret `ruv_readiness` as RUV support. It is metadata readiness
-reporting only; it does not select SPS controls, run correction, or produce
+Do not interpret `ruv_readiness` as RUV support. It is report-only metadata
+readiness reporting; it does not select SPS controls, run correction, or produce
 PhosR-equivalent corrected output. Native SPS/RUV-style correction is
 executable only through the separate explicit `SpsRuvBatchCorrectionConfig`
 preprocessing config.
@@ -126,8 +126,8 @@ dataset preprocessing boundary. It cannot be combined with configured
 downstream matrix-consuming preprocessing stages such as total-protein
 correction, site-matrix construction, normalisation, or comparison building.
 Provide external corrected output as the only matrix-changing preprocessing
-input, or use native `SpsRuvBatchCorrectionConfig` inside the preprocessing
-pipeline when downstream preprocessing stages also need to run.
+input, or use native SPS/RUV-style `SpsRuvBatchCorrectionConfig` inside the
+preprocessing pipeline when downstream preprocessing stages also need to run.
 
 `ControlSiteSet` metadata is validated before native SPS/RUV-style correction.
 Caller-supplied controls must provide auditable control-source metadata or an

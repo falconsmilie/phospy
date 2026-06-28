@@ -24,8 +24,9 @@ PhosPy has three batch-related preprocessing/reporting surfaces:
   preprocessing correction lane with caller-supplied controls, protected
   design metadata, missingness policy, diagnostics, and provenance.
 
-`linear_residualize_batch` does not select stable or control phosphosites,
-estimate unwanted variation factors, or apply SPS/RUV-style correction.
+`linear_residualize_batch` remains fixed-effect residualisation. It does not
+select stable or control phosphosites, estimate unwanted variation factors, or
+apply SPS/RUV-style correction.
 `ruv_readiness` remains report-only and does not modify the matrix.
 Differential batch covariates are ordinary model terms, not preprocessing
 correction.
@@ -38,8 +39,8 @@ explicit validation, interpretation, execution, provenance, and tests.
 ## Problem Statement
 
 Users may reasonably want batch-effect correction based on stable or control
-phosphosites. A small flag such as `use_ruv=True` would be unsafe because the
-method depends on control-site representation, batch and replicate structure,
+phosphosites. A small boolean RUV shortcut would be unsafe because the method
+depends on control-site representation, batch and replicate structure,
 missing-value handling, imputation policy, stage order, and downstream
 eligibility.
 
@@ -99,10 +100,11 @@ modelling.
 report-only. It does not select controls, apply correction, modify the matrix,
 or make a dataset partially corrected.
 
-`SpsRuvBatchCorrectionConfig` is the implemented native correction surface. It
-requires caller-supplied control-site annotations, batch and protected
-condition metadata, optional replicate metadata for provenance, explicit
-missingness policy, unwanted-factor count, diagnostics, and provenance.
+`SpsRuvBatchCorrectionConfig` is the implemented native PhosPy SPS/RUV-style
+correction surface. It requires caller-supplied control-site annotations, batch
+and protected condition metadata, optional replicate metadata for provenance,
+explicit missingness policy, unwanted-factor count, diagnostics, and
+provenance.
 RUV-III correction remains unsupported until replicate-aware RUV-III numerical
 semantics are implemented.
 
@@ -206,8 +208,9 @@ Implementation support requires focused tests before claiming support:
   `AnalysisReadyPhosphoDataset`;
 - downstream workflow tests showing corrected datasets are consumed only through
   existing strict boundaries;
-- documentation checks that `ruv_readiness` and `linear_residualize_batch`
-  remain distinct from RUV-style correction; and
+- documentation checks that `ruv_readiness` stays report-only and
+  `linear_residualize_batch` stays fixed-effect residualisation, distinct from
+  RUV-style correction; and
 - external comparison fixtures only when their scope is narrow and documented
   as limited method evidence, not package-level equivalence.
 

@@ -262,7 +262,7 @@ provide matching `site_key` indexes and all required identity metadata up front.
 | `site_sequence_resolution` | `DatasetSiteSequenceResolutionConfig` | `mode="validate_existing_and_fill_missing"` | Controls optional local FASTA-backed site-sequence resolution. |
 | `comparisons` | `DatasetComparisonBuildingConfig` | `policy="none"` | Controls optional pairwise comparison construction from sample metadata. |
 | `localisation` | `DatasetLocalisationConfig` | `mode="require_threshold"`, `min_confidence=0.75`, `confidence_column="localisation_confidence"` | Controls site-level localisation-confidence eligibility at dataset-build time. |
-| `ruv_readiness` | `DatasetRuvReadinessConfig` | `enabled=False` | Adds readiness reporting; it does not select SPS controls or apply correction. Native SPS/RUV-style correction uses explicit `SpsRuvBatchCorrectionConfig`. |
+| `ruv_readiness` | `DatasetRuvReadinessConfig` | `enabled=False` | Adds report-only readiness reporting; it does not select SPS controls or apply correction. Native SPS/RUV-style correction uses explicit `SpsRuvBatchCorrectionConfig`. |
 
 Use presets for common lanes:
 
@@ -321,7 +321,7 @@ and not mixed-effects modelling.
 | `method` | `str` | `"none"` | `"none"`, `"linear_residualize_batch"` | Selects whether batch residualisation runs. |
 | `batch_column` | `str` | `"batch"` | Non-empty string | Column in `sample_metadata` identifying batch labels. |
 | `condition_column` | `str` | `"condition"` | Non-empty string | Column in `sample_metadata` identifying condition labels to preserve during residualisation. |
-| `preserve_condition_effects` | `True` | `True` | `True` only | Condition preservation is required for `linear_residualize_batch`. |
+| `preserve_condition_effects` | `True` | `True` | `True` only | Condition preservation is required for `linear_residualize_batch` fixed-effect residualisation. |
 
 ```python
 batch_correction = DatasetBatchCorrectionConfig(
@@ -373,7 +373,8 @@ matrix-consuming preprocessing stages such as total-protein correction,
 site-matrix construction, normalisation, or comparison building. If you already
 have external corrected output, provide it as the only matrix-changing
 preprocessing input at dataset build time. If correction must run as part of a
-larger preprocessing plan, use native `SpsRuvBatchCorrectionConfig` in
+larger preprocessing plan, use native SPS/RUV-style
+`SpsRuvBatchCorrectionConfig` in
 `DatasetPreprocessingConfig.batch_correction` so correction executes at the
 recorded batch-correction stage before downstream consumers.
 
@@ -423,7 +424,7 @@ sps_ruv_correction = SpsRuvBatchCorrectionConfig(
 config = DatasetPreprocessingConfig(batch_correction=sps_ruv_correction)
 ```
 
-`SpsRuvBatchCorrectionConfig` requires:
+Native PhosPy SPS/RUV-style `SpsRuvBatchCorrectionConfig` requires:
 
 - caller-supplied `ControlSiteSet`; controls are explicit `site_key`
   annotations and are not fetched online or silently selected from bundled
