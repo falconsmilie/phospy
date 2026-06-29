@@ -135,8 +135,29 @@ class ControlSiteMetadataCompatibilityValidator:
         expected_identifier_namespace: str | None,
         control_site_source_type: str | None = None,
     ) -> None:
-        site_metadata_by_key = _site_metadata_by_key(site_metadata)
         controls = tuple(row for row in mapping.row_eligibility if row.is_control)
+        site_metadata_index = (
+            ()
+            if site_metadata is None
+            else _normalize_site_metadata_index(site_metadata)
+        )
+        _validate_site_metadata_alignment(
+            site_metadata=site_metadata,
+            site_metadata_index=site_metadata_index,
+            accepted_control_site_keys=tuple(
+                row.site_key for row in controls if row.site_key is not None
+            ),
+            require_control_rows=_accepted_controls_require_metadata_compatibility(
+                controls,
+                site_metadata=site_metadata,
+                dataset_organism=dataset_organism,
+                expected_identifier_namespace=expected_identifier_namespace,
+            ),
+        )
+        site_metadata_by_key = _site_metadata_by_key(
+            site_metadata,
+            site_metadata_index=site_metadata_index,
+        )
         _reject_ambiguous_control_metadata(controls)
         for row in mapping.row_eligibility:
             if not row.is_control:
@@ -424,6 +445,75 @@ def _has_invalid_control_weight(row: ControlSiteEligibility) -> bool:
     return weight is not None and (not math.isfinite(weight) or weight <= 0.0)
 
 
+def _normalize_site_metadata_index(site_metadata: pd.DataFrame) -> tuple[str, ...]:
+    resolved = tuple(
+        "" if _is_missing_scalar(index_value) else str(index_value).strip()
+        for index_value in site_metadata.index.tolist()
+    )
+    blank_positions = tuple(
+        position for position, site_key in enumerate(resolved) if site_key == ""
+    )
+    if blank_positions:
+        raise PhosPyInputError(
+            "control-site validation site_metadata.index values must not be blank; "
+            f"blank positions {_format_positions(blank_positions)}"
+        )
+    duplicates = _duplicates(resolved)
+    if duplicates:
+        raise PhosPyInputError(
+            "control-site validation site_metadata.index values must be unique; "
+            f"duplicates {_format_labels(duplicates)}"
+        )
+    return resolved
+
+
+def _validate_site_metadata_alignment(
+    *,
+    site_metadata: pd.DataFrame | None,
+    site_metadata_index: Sequence[str],
+    accepted_control_site_keys: Sequence[str],
+    require_control_rows: bool,
+) -> None:
+    if site_metadata is None or not require_control_rows:
+        return
+    available_site_keys = frozenset(site_metadata_index)
+    missing = tuple(
+        site_key
+        for site_key in accepted_control_site_keys
+        if site_key not in available_site_keys
+    )
+    if missing:
+        raise PhosPyInputError(
+            "control-site validation failed: missing site_metadata rows for "
+            "accepted control site_key values "
+            f"{_format_labels(missing)}"
+        )
+
+
+def _accepted_controls_require_metadata_compatibility(
+    controls: Sequence[ControlSiteEligibility],
+    *,
+    site_metadata: pd.DataFrame | None,
+    dataset_organism: str | None,
+    expected_identifier_namespace: str | None,
+) -> bool:
+    site_metadata_has_organism = (
+        site_metadata is not None and "organism" in site_metadata.columns
+    )
+    has_dataset_organism = _normalize_metadata_label(dataset_organism) is not None
+    has_expected_identifier_namespace = (
+        _normalize_metadata_label(expected_identifier_namespace) is not None
+    )
+    for row in controls:
+        if row.organism is not None and (
+            site_metadata_has_organism or has_dataset_organism
+        ):
+            return True
+        if row.identifier_namespace is not None and has_expected_identifier_namespace:
+            return True
+    return False
+
+
 def _reject_ambiguous_control_metadata(
     controls: Sequence[ControlSiteEligibility],
 ) -> None:
@@ -565,14 +655,18 @@ def _has_external_or_formal_source_name(row: ControlSiteEligibility) -> bool:
 
 def _site_metadata_by_key(
     site_metadata: pd.DataFrame | None,
+    *,
+    site_metadata_index: Sequence[str] | None = None,
 ) -> dict[str, dict[str, str]]:
     if site_metadata is None:
         return {}
+    resolved_index = (
+        _normalize_site_metadata_index(site_metadata)
+        if site_metadata_index is None
+        else tuple(site_metadata_index)
+    )
     metadata_by_key: dict[str, dict[str, str]] = {}
-    for position, index_value in enumerate(site_metadata.index.tolist()):
-        site_key = str(index_value).strip()
-        if site_key == "":
-            continue
+    for position, site_key in enumerate(resolved_index):
         row: dict[str, str] = {}
         for column in ("organism", "identifier_namespace"):
             if column not in site_metadata.columns:
@@ -602,10 +696,14 @@ def _normalize_metadata_label(value: object | None) -> str | None:
         return None
     if isinstance(value, Enum):
         value = value.value
-    if bool(pd.Series((value,), dtype="object").isna().iat[0]):
+    if _is_missing_scalar(value):
         return None
     text = str(value).strip()
     return text.lower() if text else None
+
+
+def _is_missing_scalar(value: object | None) -> bool:
+    return bool(pd.Series((value,), dtype="object").isna().iat[0])
 
 
 def _duplicates(values: Sequence[str]) -> tuple[str, ...]:

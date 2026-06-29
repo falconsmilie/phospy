@@ -179,6 +179,107 @@ def test_control_site_validator_rejects_incompatible_organism_metadata() -> None
         )
 
 
+def test_control_site_validator_rejects_duplicate_site_metadata_index_values() -> None:
+    site_metadata = pd.DataFrame(
+        {"organism": ["rat", "human"]},
+        index=pd.Index(["AKT1_S473", "AKT1_S473"], name="site_key"),
+    )
+    control_set = ControlSiteSet.from_site_keys(
+        ("AKT1_S473",),
+        source_metadata=_complete_source_metadata(),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="site_metadata\\.index values must be unique.*'AKT1_S473'",
+    ):
+        ControlSiteEligibilityValidator().run(
+            control_set=control_set,
+            site_keys=("AKT1_S473",),
+            site_metadata=site_metadata,
+            dataset_organism=Organism.RAT,
+            method="sps_ruv_style",
+            min_eligible_controls=1,
+        )
+
+
+def test_control_site_validator_rejects_blank_site_metadata_index_values() -> None:
+    site_metadata = pd.DataFrame(
+        {"organism": ["rat", "rat"]},
+        index=pd.Index(["AKT1_S473", "  "], name="site_key"),
+    )
+    control_set = ControlSiteSet.from_site_keys(
+        ("AKT1_S473",),
+        source_metadata=_complete_source_metadata(),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="site_metadata\\.index values must not be blank.*blank positions \\[1\\]",
+    ):
+        ControlSiteEligibilityValidator().run(
+            control_set=control_set,
+            site_keys=("AKT1_S473",),
+            site_metadata=site_metadata,
+            dataset_organism=Organism.RAT,
+            method="sps_ruv_style",
+            min_eligible_controls=1,
+        )
+
+
+def test_control_site_validator_rejects_missing_site_metadata_for_accepted_control() -> (
+    None
+):
+    site_keys = ("AKT1_S473", "GSK3B_S9")
+    control_set = ControlSiteSet.from_site_keys(
+        site_keys,
+        source_metadata=_complete_source_metadata(),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "missing site_metadata rows for accepted control site_key values 'GSK3B_S9'"
+        ),
+    ):
+        ControlSiteEligibilityValidator().run(
+            control_set=control_set,
+            site_keys=site_keys,
+            site_metadata=_metadata(("AKT1_S473",)),
+            dataset_organism=Organism.RAT,
+            method="sps_ruv_style",
+            min_eligible_controls=2,
+        )
+
+
+def test_control_site_validator_allows_extra_site_metadata_rows_after_index_checks() -> (
+    None
+):
+    site_keys = ("AKT1_S473", "GSK3B_S9")
+    site_metadata = pd.DataFrame(
+        {"organism": ["rat", "rat", "human"]},
+        index=pd.Index(["AKT1_S473", "GSK3B_S9", "EXTRA_SITE"], name="site_key"),
+    )
+    control_set = ControlSiteSet.from_site_keys(
+        site_keys,
+        source_metadata=_complete_source_metadata(),
+    )
+
+    mapping = ControlSiteEligibilityValidator().run(
+        control_set=control_set,
+        site_keys=site_keys,
+        site_metadata=site_metadata,
+        dataset_organism=Organism.RAT,
+        method="sps_ruv_style",
+        min_eligible_controls=2,
+    )
+
+    assert [row.site_key for row in mapping.row_eligibility if row.is_control] == [
+        "AKT1_S473",
+        "GSK3B_S9",
+    ]
+
+
 def test_control_site_validator_rejects_incompatible_identifier_namespace() -> None:
     control_set = ControlSiteSet.from_site_keys(
         ("AKT1_S473",),

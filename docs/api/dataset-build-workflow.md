@@ -389,6 +389,11 @@ added in a future release, must include complete `organism`,
 `identifier_namespace`, `source_name`, `source_version`, `license`, and
 `redistribution` metadata; incomplete packaged metadata is rejected. PhosPy does
 not infer metadata from `site_key` strings and does not fetch metadata online.
+When `site_metadata` is supplied for control compatibility, accepted control
+`site_key` values must have matching metadata rows. Extra metadata rows are
+allowed for broader dataset context, but they are ignored for control
+compatibility only after `site_metadata.index` has passed nonblank and unique
+index validation.
 
 ```python
 control_source = ControlSiteSourceMetadata(
