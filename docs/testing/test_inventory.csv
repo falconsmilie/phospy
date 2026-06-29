@@ -28,6 +28,8 @@ tests/integration/test_reference_bundle_builder_integration.py,integration,123,2
 tests/integration/test_signalome_bundle_integration.py,integration,782,8,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for signalome bundle integration, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/integration/test_signalome_publishing_integration.py,integration,198,2,true,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for signalome publishing integration and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/integration/test_signalome_workflow_integration.py,integration,741,9,true,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for signalome workflow integration and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
+tests/integration/workflows/kinase/test_kinase_sequence_conflict_integration.py,kinase,228,4,true,true,,,,,,
+tests/integration/workflows/kinase/test_kinase_sequence_validation.py,kinase,167,1,true,false,,,,,,
 tests/parity/test_activity_stage_parity.py,parity,195,4,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for activity stage parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/parity/test_adaptive_prediction_parity.py,parity,282,10,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for adaptive prediction parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/parity/test_adaptive_replay_parity.py,parity,251,1,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for adaptive replay parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
@@ -237,6 +239,10 @@ tests/unit/test_validator_boundaries.py,unit,1925,67,true,true,duplicate validat
 tests/unit/test_workflow_boundary_error.py,unit,334,9,false,false,regression for past bug,keep,Loss of this file would remove regression protection for previously fragile behavior in workflow boundary error and increase risk of silent reintroduction.,codex-audit,,
 tests/unit/test_workflow_identity_contracts.py,unit,519,14,true,true,,,,,,[auto-orchestration] 6 hit(s); indicators: private_member_access
 tests/unit/test_workflow_public_import_contract.py,unit,91,7,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for workflow public import contract and increase risk of boundary regressions.,codex-audit,,
+tests/unit/validation/test_site_sequence_contracts.py,validation,120,5,true,true,,,,,,
+tests/unit/workflows/kinase/test_kinase_sequence_contract.py,kinase,251,5,true,true,,,,,,
+tests/unit/workflows/kinase/test_site_sequence_conflict_policy.py,kinase,266,6,true,true,,,,,,
+tests/unit/workflows/signalome/test_signalome_sequence_contract.py,signalome,149,3,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/validation/test_shared_identity_contracts.py,validation,212,5,false,false,,,,,,
 tests/validation/test_workflow_identity_validator_contracts.py,validation,126,3,true,true,,,,,,
 tests/workflows/test_differential_interpreter_fixed_effects.py,workflows,522,8,false,false,,,,,,
