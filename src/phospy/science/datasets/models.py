@@ -844,6 +844,26 @@ class AnalysisReadyPhosphoDataset:
             error_type=DatasetValidationError,
             assume_owned=_assume_owned,
         )
+        _require_instance(
+            processing_state,
+            expected_type=DatasetProcessingState,
+            error_message=(
+                "dataset.processing_state must be a DatasetProcessingState instance"
+            ),
+        )
+        raw_missing_value_count = sum(
+            1
+            for value in phospho.to_numpy(dtype="object").ravel()
+            if _is_missing_value(value)
+        )
+        if raw_missing_value_count > 0 and _missing_data_state_claims_no_missing_values(
+            processing_state
+        ):
+            raise DatasetValidationError(
+                "dataset.phospho must not contain missing values; "
+                "dataset.processing_state.missing_data claims no missing values "
+                "but dataset.phospho contains missing values"
+            )
         phospho_table = PhosphoIntensityMatrix(
             frame=phospho,
             _assume_owned=True,
@@ -872,6 +892,11 @@ class AnalysisReadyPhosphoDataset:
                 _assume_owned=True,
             )
         )
+        if processing_state.total_protein_correction.applied and total_table is None:
+            raise DatasetValidationError(
+                "dataset.processing_state.total_protein_correction.applied "
+                "requires dataset.total"
+            )
         if comparisons is not None:
             comparisons_frame = require_dataframe(
                 comparisons,
@@ -927,13 +952,6 @@ class AnalysisReadyPhosphoDataset:
             organism,
             expected_type=Organism,
             error_message="dataset.organism must be an Organism enum value or None",
-        )
-        _require_instance(
-            processing_state,
-            expected_type=DatasetProcessingState,
-            error_message=(
-                "dataset.processing_state must be a DatasetProcessingState instance"
-            ),
         )
         _require_instance(
             processing_state.ruv_readiness,
@@ -1332,6 +1350,22 @@ def _format_label_preview(labels: Sequence[object]) -> str:
     if len(labels) > 5:
         preview.append("...")
     return ", ".join(preview)
+
+
+def _missing_data_state_claims_no_missing_values(
+    processing_state: DatasetProcessingState,
+) -> bool:
+    missing_data = processing_state.missing_data
+    if bool(missing_data.complete_matrix):
+        return True
+    if missing_data.has_missing_values is False:
+        return True
+    if missing_data.missing_value_count == 0:
+        return True
+    diagnostics = missing_data.diagnostics
+    if diagnostics is None:
+        return False
+    return diagnostics.get("output_missing_cell_count") == 0
 
 
 def _is_missing_value(value: object) -> bool:

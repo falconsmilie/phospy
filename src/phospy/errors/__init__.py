@@ -2,7 +2,11 @@
 
 from phospy.errors.base import PhosPyError
 from phospy.errors.build import DatasetBuildError, PhosPyBuildError
-from phospy.errors.input import PhosPyInputError, UnsupportedInputFormatError
+from phospy.errors.input import (
+    DatasetProcessingStateError,
+    PhosPyInputError,
+    UnsupportedInputFormatError,
+)
 from phospy.errors.references import (
     PhosPyReferenceError,
     ReferenceCompatibilityError,
@@ -33,6 +37,7 @@ from phospy.errors.workflows import (
 
 __all__ = [
     "DatasetBuildError",
+    "DatasetProcessingStateError",
     "DatasetValidationError",
     "InvalidTransformationStateError",
     "PhosPyBuildError",

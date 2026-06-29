@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import replace
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -26,6 +24,9 @@ from phospy.science.statistics.multiple_testing import adjust_p_values
 from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
+)
+from tests.support.processing_state import (
+    imputed_processing_state as valid_imputed_processing_state,
 )
 from tests.support.site_keys import protein_site_key_index, site_key_context_columns
 
@@ -82,10 +83,7 @@ def _observed_mask(index: pd.Index) -> pd.DataFrame:
 
 def _imputed_processing_state():
     processing_state = supported_log2_processing_state(has_total_matrix=False)
-    return replace(
-        processing_state,
-        missing_data=replace(processing_state.missing_data, imputed=True),
-    )
+    return valid_imputed_processing_state(processing_state)
 
 
 def _imputed_dataset(*, with_metadata: bool = True) -> AnalysisReadyPhosphoDataset:

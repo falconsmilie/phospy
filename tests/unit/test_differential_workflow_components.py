@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import inspect
-from dataclasses import fields, replace
+from dataclasses import fields
 from typing import Any
 
 import pandas as pd
@@ -53,6 +53,9 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
+)
+from tests.support.processing_state import (
+    imputed_processing_state as valid_imputed_processing_state,
 )
 from tests.support.site_keys import protein_site_key_index, site_key_context_columns
 from tests.support.unsafe_dataset_states import (
@@ -686,10 +689,7 @@ def test_differential_workflow_rejects_imputed_dataset_before_executor() -> None
         site_metadata=request.dataset.site_metadata,
         organism=request.dataset.organism,
         intensity_scale_state=request.dataset.intensity_scale_state,
-        processing_state=replace(
-            processing_state,
-            missing_data=replace(processing_state.missing_data, imputed=True),
-        ),
+        processing_state=valid_imputed_processing_state(processing_state),
     )
 
     with pytest.raises(

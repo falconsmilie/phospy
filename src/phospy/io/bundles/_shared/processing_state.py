@@ -105,13 +105,15 @@ def processing_state_to_payload(state: DatasetProcessingState) -> dict[str, obje
             "min_observed_values": state.missing_data.min_observed_values,
             "complete_matrix": state.missing_data.complete_matrix,
             "imputed": state.missing_data.imputed,
+            "has_missing_values": state.missing_data.has_missing_values,
+            "missing_value_count": state.missing_data.missing_value_count,
             "diagnostics": (
                 None
                 if missing_data_diagnostics is None
                 else missing_data_diagnostics.to_payload()
             ),
         },
-        "normalisation": {"policy": state.normalisation.policy},
+        "normalisation": {"policy": str(state.normalisation.policy)},
         "total_protein_correction": {
             "policy": state.total_protein_correction.policy.value,
             "applied": state.total_protein_correction.applied,
@@ -297,6 +299,24 @@ def _require_processing_state_payloads(
 def _parse_site_sequence_resolution_state(
     payload: Mapping[str, object],
 ) -> SiteSequenceResolutionState:
+    row_diagnostics = _parse_optional_site_sequence_row_diagnostics(
+        payload.get("row_diagnostics"),
+        field_name=(
+            "dataset.metadata.processing_state.site_sequence_resolution.row_diagnostics"
+        ),
+    )
+    raw_existing_conflict_count = payload.get("existing_sequence_conflict_count")
+    existing_sequence_conflict_count = (
+        _count_site_sequence_conflict_rows(row_diagnostics)
+        if raw_existing_conflict_count is None
+        else require_int(
+            raw_existing_conflict_count,
+            field_name=(
+                "dataset.metadata.processing_state.site_sequence_resolution."
+                "existing_sequence_conflict_count"
+            ),
+        )
+    )
     return SiteSequenceResolutionState(
         configured=require_bool(
             payload.get("configured", False),
@@ -384,13 +404,7 @@ def _parse_site_sequence_resolution_state(
                 "preserved_existing_count"
             ),
         ),
-        existing_sequence_conflict_count=require_int(
-            payload.get("existing_sequence_conflict_count", 0),
-            field_name=(
-                "dataset.metadata.processing_state.site_sequence_resolution."
-                "existing_sequence_conflict_count"
-            ),
-        ),
+        existing_sequence_conflict_count=existing_sequence_conflict_count,
         conflict_policy=_require_optional_str(
             payload.get("conflict_policy"),
             field_name=(
@@ -398,13 +412,7 @@ def _parse_site_sequence_resolution_state(
                 "conflict_policy"
             ),
         ),
-        row_diagnostics=_parse_optional_site_sequence_row_diagnostics(
-            payload.get("row_diagnostics"),
-            field_name=(
-                "dataset.metadata.processing_state.site_sequence_resolution."
-                "row_diagnostics"
-            ),
-        ),
+        row_diagnostics=row_diagnostics,
     )
 
 
@@ -414,6 +422,14 @@ def _parse_missing_data_state(
     minimum_observed_values: int | None,
     diagnostics: MissingDataDiagnostics | None,
 ) -> MissingDataState:
+    has_missing_values = _require_optional_bool(
+        payload.get("has_missing_values"),
+        field_name="dataset.metadata.processing_state.missing_data.has_missing_values",
+    )
+    missing_value_count = _require_optional_non_negative_int(
+        payload.get("missing_value_count"),
+        field_name="dataset.metadata.processing_state.missing_data.missing_value_count",
+    )
     return MissingDataState(
         policy=MissingDataPolicy.parse(
             require_str(
@@ -432,6 +448,8 @@ def _parse_missing_data_state(
             field_name="dataset.metadata.processing_state.missing_data.imputed",
         ),
         diagnostics=diagnostics,
+        has_missing_values=has_missing_values,
+        missing_value_count=missing_value_count,
     )
 
 
@@ -889,6 +907,17 @@ def _parse_optional_site_sequence_row_diagnostics(
             )
         )
     return tuple(parsed)
+
+
+def _count_site_sequence_conflict_rows(
+    row_diagnostics: tuple[SiteSequenceResolutionRowDiagnostic, ...],
+) -> int:
+    return sum(
+        1
+        for item in row_diagnostics
+        if "conflict" in item.status.lower()
+        or (item.reason is not None and "conflict" in item.reason.lower())
+    )
 
 
 def _parse_required_string_tuple(

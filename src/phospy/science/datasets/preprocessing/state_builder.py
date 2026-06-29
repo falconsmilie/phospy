@@ -264,6 +264,8 @@ class DatasetProcessingStateBuilder:
                 complete_matrix=(output_missing_cell_count == 0),
                 imputed=(imputed_cell_count > 0),
                 diagnostics=typed_missing_data_diagnostics,
+                has_missing_values=(output_missing_cell_count > 0),
+                missing_value_count=output_missing_cell_count,
             ),
             normalisation=NormalisationState(policy=plan.normalisation_policy.value),
             total_protein_correction=TotalProteinCorrectionState(

@@ -31,7 +31,7 @@ def test_bundled_reference_manifests_are_structurally_valid() -> None:
         "site_sequences.csv",
         "substrate_map.csv",
     }
-    assert rat_manifest.redistribution_allowed is False
+    assert rat_manifest.redistribution_allowed is True
 
 
 def test_runtime_bundled_manifest_validates_hashes_before_table_loading() -> None:

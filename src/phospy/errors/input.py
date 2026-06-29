@@ -11,5 +11,9 @@ class PhosPyInputError(PhosPyError):
         self.diagnostics = diagnostics
 
 
+class DatasetProcessingStateError(PhosPyInputError):
+    """Dataset processing-state invariants are internally inconsistent."""
+
+
 class UnsupportedInputFormatError(PhosPyInputError):
     """Input shape or format is not supported by the current ingestion contract."""

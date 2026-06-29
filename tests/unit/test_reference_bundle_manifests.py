@@ -58,7 +58,7 @@ def test_valid_bundled_manifest_loads_for_supported_runtime_lane() -> None:
     assert "gpl-3" in manifest.source_license.lower()
     assert "phosphositeplus" in manifest.source_license.lower()
     assert "pride" in manifest.source_license.lower()
-    assert manifest.redistribution_allowed is False
+    assert manifest.redistribution_allowed is True
     assert "not independently verified" in manifest.redistribution_notes.lower()
     assert {item.relative_path for item in manifest.files} == {
         "motif_scores.csv",

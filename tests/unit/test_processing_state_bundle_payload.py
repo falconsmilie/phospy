@@ -55,6 +55,9 @@ def _processing_state_with_diagnostics(
     missing_data_diagnostics=None,
     ruv_readiness: RuvReadinessState | None = None,
 ):
+    missing_policy, missing_imputed = _missing_data_policy_and_imputed_flag(
+        missing_data_diagnostics
+    )
     return DatasetProcessingState(
         intensity_scale=_intensity_scale_state(quantity=quantitative_meaning),
         site_sequence_resolution=SiteSequenceResolutionState(
@@ -76,10 +79,10 @@ def _processing_state_with_diagnostics(
             row_diagnostics=(),
         ),
         missing_data=MissingDataState(
-            policy="forbid",
+            policy=missing_policy,
             min_observed_values=None,
             complete_matrix=True,
-            imputed=False,
+            imputed=missing_imputed,
             diagnostics=missing_data_diagnostics,
         ),
         normalisation=NormalisationState(policy="none"),
@@ -133,6 +136,9 @@ def _processing_payload_with_diagnostics(
     quantitative_meaning: str = "phospho_total_log_ratio",
     missing_data_diagnostics=None,
 ):
+    missing_policy, missing_imputed = _missing_data_policy_and_imputed_flag(
+        missing_data_diagnostics
+    )
     return {
         "intensity_scale": {
             "phospho": {
@@ -148,10 +154,10 @@ def _processing_payload_with_diagnostics(
             "quantity": quantitative_meaning,
         },
         "missing_data": {
-            "policy": "forbid",
+            "policy": missing_policy,
             "min_observed_values": None,
             "complete_matrix": True,
-            "imputed": False,
+            "imputed": missing_imputed,
             "diagnostics": missing_data_diagnostics,
         },
         "normalisation": {"policy": "none"},
@@ -178,6 +184,20 @@ def _processing_payload_with_diagnostics(
             "pairs": None,
         },
     }
+
+
+def _missing_data_policy_and_imputed_flag(missing_data_diagnostics) -> tuple[str, bool]:
+    if missing_data_diagnostics is None:
+        return "forbid", False
+    payload = (
+        missing_data_diagnostics.to_payload()
+        if isinstance(missing_data_diagnostics, MissingDataDiagnostics)
+        else missing_data_diagnostics
+    )
+    if not isinstance(payload, dict) or payload.get("imputed_cell_count", 0) <= 0:
+        return "forbid", False
+    policy = payload.get("missing_data_policy")
+    return (policy if isinstance(policy, str) else "impute_row_median"), True
 
 
 def test_processing_state_payload_round_trip_preserves_total_correction_fields() -> (
@@ -700,6 +720,8 @@ def test_processing_state_payload_missing_data_diagnostics_defaults_row_medians_
         "neighbour_count": None,
         "distance_metric": None,
     }
+    payload["missing_data"]["policy"] = "impute_row_median"
+    payload["missing_data"]["imputed"] = True
 
     restored = processing_state_from_payload(payload)
 
@@ -948,7 +970,7 @@ def test_processing_state_payload_with_legacy_site_sequence_resolution_fields_de
     assert resolution.filled_missing_count == 0
     assert resolution.replaced_existing_count == 0
     assert resolution.preserved_existing_count == 0
-    assert resolution.existing_sequence_conflict_count == 0
+    assert resolution.existing_sequence_conflict_count == 1
     assert resolution.conflict_policy == "preserve_existing"
     assert len(resolution.row_diagnostics) == 1
     assert resolution.row_diagnostics[0].action == "preserve_existing"

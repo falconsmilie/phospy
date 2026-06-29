@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import replace
-
 import pandas as pd
 import pytest
 
@@ -25,6 +23,9 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
+)
+from tests.support.processing_state import (
+    imputed_processing_state as valid_imputed_processing_state,
 )
 from tests.support.site_keys import site_key_context_columns
 from tests.support.unsafe_dataset_states import (
@@ -119,10 +120,7 @@ def _dataset_with_imputed_missing_data_state() -> AnalysisReadyPhosphoDataset:
         site_metadata=dataset.site_metadata,
         organism=dataset.organism,
         intensity_scale_state=dataset.intensity_scale_state,
-        processing_state=replace(
-            processing_state,
-            missing_data=replace(processing_state.missing_data, imputed=True),
-        ),
+        processing_state=valid_imputed_processing_state(processing_state),
     )
 
 

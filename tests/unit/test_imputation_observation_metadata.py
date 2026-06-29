@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import replace
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -18,6 +16,9 @@ from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
+)
+from tests.support.processing_state import (
+    imputed_processing_state as valid_imputed_processing_state,
 )
 from tests.support.site_keys import protein_site_key_index, site_key_context_columns
 
@@ -188,10 +189,7 @@ def test_dataset_imputation_summary_validates_feature_labels() -> None:
 def test_dataset_imputation_summary_fails_when_imputed_state_lacks_mask() -> None:
     index = _site_index()
     processing_state = supported_linear_processing_state(has_total_matrix=False)
-    imputed_processing_state = replace(
-        processing_state,
-        missing_data=replace(processing_state.missing_data, imputed=True),
-    )
+    imputed_processing_state = valid_imputed_processing_state(processing_state)
     dataset = AnalysisReadyPhosphoDataset(
         phospho=_complete_phospho(index),
         site_metadata=_site_metadata(index),
