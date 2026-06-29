@@ -416,6 +416,14 @@ DISTINCTION_RULES: tuple[SupportClaimRule, ...] = (
     ),
 )
 
+AMBIGUOUS_EXECUTABLE_TEMPORARY_IMPUTATION = _rx(
+    r"\bexecutable\s+temporary[-\s]+imputation\b"
+)
+PUBLIC_NATIVE_MISSINGNESS_REJECTION_RULES: tuple[Pattern[str], ...] = (
+    _rx(r"\bpublic\s+native\b.{0,180}\bcomplete\s+correction-stage\s+matrix\b"),
+    _rx(r"\brejects\s+actual\s+missing\s+values\s+\(nans?\)"),
+)
+
 
 def _public_docs_paths() -> tuple[Path, ...]:
     docs = [
@@ -570,6 +578,36 @@ def _find_unsupported_claims(
     return tuple(failures)
 
 
+def _has_public_native_missingness_rejection_rule(text: str) -> bool:
+    return all(
+        pattern.search(text) for pattern in PUBLIC_NATIVE_MISSINGNESS_REJECTION_RULES
+    )
+
+
+def _find_ambiguous_executable_temporary_imputation_claims(
+    blocks: tuple[ClaimBlock, ...],
+) -> tuple[str, ...]:
+    failures: list[str] = []
+    for block in blocks:
+        if not AMBIGUOUS_EXECUTABLE_TEMPORARY_IMPUTATION.search(block.text):
+            continue
+        if _has_public_native_missingness_rejection_rule(block.text):
+            continue
+        try:
+            rel_path = block.path.relative_to(ROOT).as_posix()
+        except ValueError:
+            rel_path = block.path.as_posix()
+        failures.append(
+            f"{rel_path}:{block.start_line}: executable temporary imputation: "
+            f"{block.text}\n"
+            "Update rule: say recognized temporary-imputation policy/mechanics "
+            "labels, or pair the wording with the public native workflow rule "
+            "that a complete correction-stage matrix is required and actual "
+            "missing values are rejected before executor invocation."
+        )
+    return tuple(failures)
+
+
 def _assert_each_block_rejected(blocks: tuple[ClaimBlock, ...]) -> None:
     failures = _find_unsupported_claims(blocks)
     missing: list[str] = []
@@ -593,6 +631,18 @@ def test_public_docs_do_not_make_unsupported_scientific_parity_claims() -> None:
     )
 
     failures = _find_unsupported_claims(blocks)
+
+    assert not failures, "\n\n".join(failures)
+
+
+def test_public_docs_do_not_make_ambiguous_temporary_imputation_claims() -> None:
+    blocks = tuple(
+        block for path in _public_docs_paths() for block in _iter_claim_blocks(path)
+    ) + tuple(
+        block for path in _api_doc_paths() for block in _iter_api_doc_blocks(path)
+    )
+
+    failures = _find_ambiguous_executable_temporary_imputation_claims(blocks)
 
     assert not failures, "\n\n".join(failures)
 
@@ -687,6 +737,40 @@ def test_claim_guard_rejects_batch_correction_shortcuts_and_blurred_boundaries()
     )
 
     _assert_each_block_rejected(bad_blocks)
+
+
+def test_claim_guard_rejects_ambiguous_executable_temporary_imputation() -> None:
+    bad_blocks = tuple(
+        ClaimBlock(Path("synthetic.md"), index, _normalise_claim_text(text))
+        for index, text in enumerate(
+            (
+                "Executable temporary imputation labels are none and row_median_temporary.",
+                "row_median_temporary enables executable temporary imputation for correction.",
+            ),
+            start=1,
+        )
+    )
+
+    failures = _find_ambiguous_executable_temporary_imputation_claims(bad_blocks)
+
+    assert len(failures) == len(bad_blocks)
+
+
+def test_claim_guard_allows_paired_temporary_imputation_rejection_rule() -> None:
+    allowed_blocks = (
+        ClaimBlock(
+            Path("synthetic.md"),
+            1,
+            _normalise_claim_text(
+                "Executable temporary imputation labels are none and "
+                "row_median_temporary, but the public native workflow requires "
+                "a complete correction-stage matrix and rejects actual missing "
+                "values (NaNs) before executor invocation."
+            ),
+        ),
+    )
+
+    assert not _find_ambiguous_executable_temporary_imputation_claims(allowed_blocks)
 
 
 def test_claim_guard_allows_current_limitation_language() -> None:

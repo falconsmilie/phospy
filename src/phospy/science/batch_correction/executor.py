@@ -451,8 +451,11 @@ def _prepare_matrix(
         or method is not TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY
     ):
         raise PhosPyInputError(
-            "SPS/RUV-style executor currently requires row_median_temporary "
-            "temporary imputation for matrices with originally missing cells"
+            "low-level SPS/RUV-style executor mechanics currently require "
+            "row_median_temporary temporary imputation for direct executor "
+            "inputs with originally missing cells; the public native workflow "
+            "still rejects actual correction-stage NaNs before executor "
+            "invocation"
         )
     min_observed_values = _min_observed_values(policy)
     working = _row_median_temporary_impute(

@@ -25,6 +25,7 @@ from phospy.api.configs import (
     DatasetPreprocessingConfig,
     DatasetTotalProteinCorrectionConfig,
     SpsRuvBatchCorrectionMethod,
+    validate_native_executable_temporary_imputation_method,
 )
 from phospy.errors import PhosPyInputError
 from phospy.science.datasets.preprocessing.models import (
@@ -117,6 +118,22 @@ def test_sps_ruv_config_docstring_marks_replicates_as_provenance_only() -> None:
     assert "does not enable replicate-aware ruv-iii" in normalized
 
 
+def test_native_temporary_imputation_validator_docstring_rejects_public_nans() -> None:
+    docstring = (
+        inspect.getdoc(validate_native_executable_temporary_imputation_method) or ""
+    )
+    normalized = " ".join(docstring.lower().split())
+
+    assert "recognized public native sps/ruv temporary-imputation labels" in (
+        normalized
+    )
+    assert "policy/mechanics labels" in normalized
+    assert (
+        "actual correction-stage nans are rejected by the public native workflow"
+        in (normalized)
+    )
+
+
 def test_sps_ruv_batch_correction_config_requires_explicit_public_contract() -> None:
     config = SpsRuvBatchCorrectionConfig(
         control_site_set=ControlSiteSet.from_site_keys(("site_a", "site_c")),
@@ -159,6 +176,30 @@ def test_sps_ruv_batch_correction_config_rejects_knn_temporary_imputation() -> N
             ),
             n_unwanted_factors=1,
         )
+
+
+def test_native_temporary_imputation_error_states_public_nan_rejection() -> None:
+    with pytest.raises(PhosPyInputError) as exc_info:
+        validate_native_executable_temporary_imputation_method(
+            _temporary_imputation_missingness_policy(
+                method=TemporaryImputationMethod.KNN_TEMPORARY,
+                method_parameters={
+                    "k": 3,
+                    "distance": "nan_euclidean",
+                    "max_missing_fraction_per_row": 0.5,
+                },
+            )
+        )
+
+    message = str(exc_info.value)
+
+    assert "Recognized temporary-imputation policy/mechanics labels" in message
+    assert "none and row_median_temporary" in message
+    assert (
+        "actual correction-stage NaNs are rejected by the public native workflow"
+        in message
+    )
+    assert "before executor invocation" in message
 
 
 def test_sps_ruv_batch_correction_config_rejects_minprob_temporary_imputation() -> None:

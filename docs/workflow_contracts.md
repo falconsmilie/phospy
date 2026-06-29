@@ -111,11 +111,15 @@ correction semantics; replicate labels are not used for numerical
 unwanted-factor estimation and do not enable RUV-III semantics. Temporary
 imputation is correction mechanics only:
 observation masks preserve which cells were originally observed, and imputed
-temporary values must not be treated as observed evidence. Executable native-correction
-temporary imputation methods are `none` and `row_median_temporary`;
-`minprob_temporary` and `knn_temporary` are rejected until supported semantics
-are implemented. Upstream-imputed cells remain tracked through observation
-masks and are not treated as observed evidence. Differential batch covariates
+temporary values must not be treated as observed evidence. Recognized
+native-correction temporary-imputation policy/mechanics labels are `none` and
+`row_median_temporary`; `row_median_temporary` is not public-workflow
+permission to correct incomplete matrices. The public native workflow requires
+a complete correction-stage matrix and rejects actual missing values (NaNs)
+before executor invocation. `minprob_temporary` and `knn_temporary` are
+rejected until supported semantics are implemented. Upstream-imputed cells
+remain tracked through observation masks and are not treated as observed evidence.
+Differential batch covariates
 remain ordinary downstream model terms; they do not replace preprocessing
 correction and are not removed from the differential design when the user
 chooses to model them. The `ruv_iii_style` method label is not executable

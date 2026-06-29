@@ -453,12 +453,14 @@ Native PhosPy SPS/RUV-style `SpsRuvBatchCorrectionConfig` requires:
 - explicit `CorrectionMissingnessPolicy`; temporary imputation must preserve
   the observation mask and is recorded as correction mechanics, not observed
   evidence. The public native SPS/RUV-style workflow requires a complete
-  correction-stage matrix. Executable temporary imputation labels are `none` and
-  `row_median_temporary`; `minprob_temporary` and `knn_temporary` are rejected
-  in native correction because their temporary correction semantics are not
-  implemented. `row_median_temporary` is a recognized policy/mechanics label for
-  low-level correction diagnostics only; it does not let actual NaNs pass
-  through the public native workflow or make missing matrices analysis-ready.
+  correction-stage matrix. Recognized temporary-imputation policy/mechanics
+  labels are `none` and `row_median_temporary`; `row_median_temporary` is not
+  public-workflow permission to correct incomplete matrices.
+  `minprob_temporary` and `knn_temporary` are rejected in native correction
+  because their temporary correction semantics are not implemented.
+  `row_median_temporary` is a recognized policy/mechanics label for low-level
+  correction diagnostics only; it does not let actual NaNs pass through the
+  public native workflow or make missing matrices analysis-ready.
 - `n_unwanted_factors >= 1`; the requested count must be supported by the
   eligible-control count, protected-design residual sample capacity, and
   eligible control residual rank after protected condition terms.

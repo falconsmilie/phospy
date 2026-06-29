@@ -472,6 +472,57 @@ def test_sps_ruv_workflow_rejects_actual_missing_values_before_executor_invocati
     assert executor.call_count == 0
 
 
+def test_public_row_median_temporary_config_rejects_actual_correction_stage_nans() -> (
+    None
+):
+    executor = _SpyExecutor()
+    phospho = _phospho()
+    phospho.loc["AKT1;T308;", "sample_2"] = np.nan
+    missingness_policy = _missingness_policy()
+    public_config = SpsRuvBatchCorrectionConfig(
+        control_site_set=ControlSiteSet.from_site_keys(
+            ("MAPK14;Y182;", "GSK3B;S9;"),
+            source_metadata=_control_source_metadata(),
+        ),
+        batch_column="batch",
+        condition_columns=("condition",),
+        replicate_column="replicate",
+        missingness_policy=missingness_policy,
+        n_unwanted_factors=1,
+        diagnostics_enabled=True,
+        provenance_enabled=True,
+    )
+    internal_request = public_config.to_internal_request()
+
+    assert (
+        internal_request.imputation_policy
+        is InternalBatchCorrectionImputationPolicy.ROW_MEDIAN_TEMPORARY
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "public native SPS/RUV-style correction.*actual missing values.*"
+            "correction-stage.*temporary imputation.*restored missing values.*"
+            "cannot produce analysis-ready corrected output"
+        ),
+    ):
+        BatchCorrectionWorkflow(
+            executor=cast(BatchCorrectionExecutorContract, executor)
+        ).run(
+            BatchCorrectionWorkflowRequest(
+                phospho=phospho,
+                config=internal_request,
+                sample_metadata=_sample_metadata(),
+                control_site_set=public_config.control_site_set,
+                missingness_policy=missingness_policy,
+                upstream_observation_mask=_upstream_mask(),
+            )
+        )
+
+    assert executor.call_count == 0
+
+
 def test_sps_ruv_workflow_accepts_complete_matrix_without_missing_values() -> None:
     result = BatchCorrectionWorkflow().run(
         _workflow_request(

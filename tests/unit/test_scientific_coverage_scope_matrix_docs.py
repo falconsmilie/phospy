@@ -487,8 +487,11 @@ def test_batch_correction_scope_names_supported_preprocessing_methods() -> None:
     assert "report-only ruv-readiness metadata" in normalized
     assert "executable only through the separate explicit" in normalized
     assert (
-        "executable temporary imputation labels are `none` and `row_median_temporary`"
-        in (normalized)
+        "recognized temporary-imputation policy/mechanics labels are `none` "
+        "and `row_median_temporary`" in (normalized)
+    )
+    assert "not public-workflow permission to correct incomplete matrices" in (
+        normalized
     )
     assert "`minprob_temporary` and `knn_temporary` are rejected" in normalized
     assert "upstream-imputed cells remain tracked" in normalized

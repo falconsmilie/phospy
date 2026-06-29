@@ -90,6 +90,13 @@ NATIVE_SPS_RUV_CONFIG = (
     "not phosr-equivalent",
     "not ruv-iii",
 )
+AMBIGUOUS_EXECUTABLE_TEMPORARY_IMPUTATION = _rx(
+    r"\bexecutable\s+temporary[-\s]+imputation\b"
+)
+PUBLIC_NATIVE_MISSINGNESS_REJECTION_RULES: tuple[Pattern[str], ...] = (
+    _rx(r"\bpublic\s+native\b.{0,180}\bcomplete\s+correction-stage\s+matrix\b"),
+    _rx(r"\brejects\s+actual\s+missing\s+values\s+\(nans?\)"),
+)
 
 RAW_PUBLIC_BANS: tuple[PhraseRule, ...] = (
     PhraseRule("use_ruv", _rx(r"\buse_ruv\b")),
@@ -290,6 +297,32 @@ def _find_unqualified_mentions(
     return tuple(failures)
 
 
+def _has_public_native_missingness_rejection_rule(text: str) -> bool:
+    return all(
+        pattern.search(text) for pattern in PUBLIC_NATIVE_MISSINGNESS_REJECTION_RULES
+    )
+
+
+def _find_ambiguous_executable_temporary_imputation_mentions(
+    blocks: tuple[TextBlock, ...],
+) -> tuple[str, ...]:
+    failures: list[str] = []
+    for block in blocks:
+        if not AMBIGUOUS_EXECUTABLE_TEMPORARY_IMPUTATION.search(block.text):
+            continue
+        if _has_public_native_missingness_rejection_rule(block.text):
+            continue
+        failures.append(
+            _offender(
+                block.path,
+                block.line,
+                "executable temporary imputation",
+                block.text,
+            )
+        )
+    return tuple(failures)
+
+
 def _test_function_for_line(path: Path, line_number: int) -> str:
     source_lines = path.read_text(encoding="utf-8").splitlines()
     for index in range(line_number - 1, -1, -1):
@@ -344,6 +377,14 @@ def test_public_mentions_keep_sps_ruv_config_native_or_non_parity_scoped() -> No
     assert not failures, "\n".join(failures)
 
 
+def test_public_mentions_do_not_use_ambiguous_temporary_imputation_wording() -> None:
+    failures = _find_ambiguous_executable_temporary_imputation_mentions(
+        _public_prose_blocks()
+    )
+
+    assert not failures, "\n".join(failures)
+
+
 def test_removed_internal_method_alias_is_absent_outside_rejection_tests() -> None:
     alias = "control_site" + "_ruv_style"
     alias_pattern = re.compile(rf"\b{re.escape(alias)}\b")
@@ -378,6 +419,7 @@ def test_adr_0027_0029_guard_rejects_synthetic_violations() -> None:
                 "ruv_readiness produces RUV-compatible preprocessing.",
                 "linear_residualize_batch is SPS/RUV-style correction.",
                 "SpsRuvBatchCorrectionConfig runs correction.",
+                "Executable temporary imputation labels include row_median_temporary.",
             ),
             start=1,
         )
@@ -399,6 +441,7 @@ def test_adr_0027_0029_guard_rejects_synthetic_violations() -> None:
         "SpsRuvBatchCorrectionConfig",
         NATIVE_SPS_RUV_CONFIG,
     )
+    assert _find_ambiguous_executable_temporary_imputation_mentions(blocks)
 
 
 def test_adr_0027_0029_guard_allows_compliant_wording() -> None:
@@ -410,6 +453,7 @@ def test_adr_0027_0029_guard_allows_compliant_wording() -> None:
                 "ruv_readiness is report-only RUV-readiness metadata and does not modify the matrix.",
                 "linear_residualize_batch is fixed-effect residualisation, not SPS/RUV-style correction.",
                 "SpsRuvBatchCorrectionConfig provides native PhosPy SPS/RUV-style correction, not RUV-III.",
+                "Executable temporary imputation labels include row_median_temporary, but the public native workflow requires a complete correction-stage matrix and rejects actual missing values (NaNs) before executor invocation.",
             ),
             start=1,
         )
@@ -431,3 +475,4 @@ def test_adr_0027_0029_guard_allows_compliant_wording() -> None:
         "SpsRuvBatchCorrectionConfig",
         NATIVE_SPS_RUV_CONFIG,
     )
+    assert not _find_ambiguous_executable_temporary_imputation_mentions(blocks)

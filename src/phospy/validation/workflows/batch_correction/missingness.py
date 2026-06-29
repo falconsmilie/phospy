@@ -29,7 +29,7 @@ _UNSAFE_UPSTREAM_ELIGIBILITY_IMPACTS = frozenset(
         RowSampleEligibilityImpact.UNSUPPORTED,
     }
 )
-_EXECUTABLE_TEMPORARY_IMPUTATION_METHODS = frozenset(
+_RECOGNIZED_TEMPORARY_IMPUTATION_POLICY_LABELS = frozenset(
     {
         TemporaryImputationMethod.NONE,
         TemporaryImputationMethod.ROW_MEDIAN_TEMPORARY,
@@ -51,11 +51,11 @@ _INTERNAL_IMPUTATION_TO_TEMPORARY_METHOD = {
     ),
 }
 _ACTUAL_MISSING_VALUES_MESSAGE = (
-    "native SPS/RUV-style correction cannot run with actual missing values "
-    "(NaN) in the quantitative matrix: temporary imputation followed by "
-    "restored missing values cannot produce analysis-ready corrected output; "
-    "run missing-data preprocessing first or provide a complete "
-    "upstream-imputed matrix with an observation mask."
+    "public native SPS/RUV-style correction cannot run with actual missing "
+    "values (NaN) in the correction-stage quantitative matrix: temporary "
+    "imputation followed by restored missing values cannot produce "
+    "analysis-ready corrected output; run missing-data preprocessing first or "
+    "provide a complete upstream-imputed matrix with an observation mask."
 )
 
 
@@ -204,7 +204,7 @@ def _temporary_method_from_internal_config(
 def _reject_unexecutable_temporary_imputation_method(
     method: TemporaryImputationMethod,
 ) -> None:
-    if method in _EXECUTABLE_TEMPORARY_IMPUTATION_METHODS:
+    if method in _RECOGNIZED_TEMPORARY_IMPUTATION_POLICY_LABELS:
         return
     if method is TemporaryImputationMethod.KNN_TEMPORARY:
         detail = "KNN temporary imputation is not implemented"
@@ -214,8 +214,10 @@ def _reject_unexecutable_temporary_imputation_method(
         detail = f"temporary imputation method {method.value!r} is not implemented"
     raise PhosPyInputError(
         "batch-correction workflow missingness validation found unsupported "
-        f"temporary imputation: {detail}. Supported executable methods are "
-        "none and row_median_temporary."
+        f"temporary imputation: {detail}. Recognized temporary-imputation "
+        "policy/mechanics labels are none and row_median_temporary; actual "
+        "correction-stage NaNs are rejected by the public native workflow "
+        "before executor invocation."
     )
 
 
