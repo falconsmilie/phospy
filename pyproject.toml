@@ -94,6 +94,7 @@ testpaths = [
   "tests/workflows",
   "tests/validation",
   "tests/science",
+  "tests/architecture",
 ]
 addopts = "-m \"not parity\""
 markers = [

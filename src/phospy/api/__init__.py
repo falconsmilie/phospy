@@ -8,6 +8,10 @@ types.
 ``AnalysisReadyPhosphoDataset``. The dataset model remains exported for
 advanced/trusted callers and internal compatibility, but ordinary user
 construction should go through the builder.
+
+Dataset validators are intentionally not exported from this namespace. Users
+validate dataset inputs by constructing datasets through builders or by running
+workflow entrypoints, which compose the internal validation domain.
 """
 
 from phospy.api.builders import AnalysisReadyDatasetBuilder, ReferenceBundleBuilder

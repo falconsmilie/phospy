@@ -28,6 +28,10 @@ Higher-level layers may compose owners, but must not duplicate ownership logic.
 
 - Dataset validation remains private and construction-bound: there is no public
   dataset `validate()` API.
+- Users validate dataset inputs by constructing datasets through supported
+  builders, or by running workflows that validate requests at their boundary.
+  Direct imports or calls into `phospy.validation.datasets` are internal support
+  paths for package code and tests, not supported user entrypoints.
 - Validation-domain adapters may call dataset construction, but they must not
   reimplement `AnalysisReadyPhosphoDataset` invariants.
 - Workflow validators should compose shared/domain validators instead of duplicating row-level scientific identity checks.

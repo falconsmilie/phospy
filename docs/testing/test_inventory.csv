@@ -1,4 +1,5 @@
 path,test_area,line_count,test_function_count,uses_pytest_mark,uses_parametrization,primary_category,recommended_action,protected_risk_or_contract,reviewer,followup_ticket,notes
+tests/architecture/test_validation_boundaries.py,architecture,140,5,false,false,,,,,,[auto-orchestration] 5 hit(s); indicators: private_member_access
 tests/golden/test_differential_fixture_provenance_golden.py,golden,339,3,true,false,,,,,,
 tests/integration/references/test_bundled_reference_manifests.py,references,118,3,true,false,,,,,,
 tests/integration/science/datasets/test_analysis_ready_dataset_construction_boundary.py,datasets,107,3,true,false,,,,,,
@@ -46,6 +47,7 @@ tests/release/test_reference_manifest_gate.py,release,81,2,true,false,,,,,,
 tests/science/test_kinase_library_motif_scoring_science.py,science,51,1,false,false,,,,,,
 tests/science/test_signalome_identity_coherence.py,science,66,1,false,false,,,,,,
 tests/unit/api/test_public_api_dataset_construction.py,api,57,3,false,false,,,,,,
+tests/unit/api/test_validation_not_public_api.py,api,104,5,false,false,,,,,,
 tests/unit/references/test_reference_manifest.py,references,149,7,false,false,,,,,,
 tests/unit/science/datasets/test_analysis_ready_dataset_builder.py,datasets,202,5,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/science/datasets/test_processing_state.py,datasets,395,20,false,false,,,,,,

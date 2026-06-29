@@ -41,6 +41,13 @@ Validation ownership is explicit and enforced by module boundaries:
    do not perform data-transformation side effects.
 6. Public presets/config objects are still required to pass the same validator
    boundaries as manually constructed configs.
+7. Dataset validation modules under `phospy.validation.datasets` are internal
+   support for builders, importers, preprocessing, and workflow boundaries.
+   They are not promoted through `phospy.api` and are not a supported user
+   validation route.
+8. Public request DTOs remain command payloads. They may enforce narrow local
+   type/shape invariants, but scientific validation belongs at builder and
+   workflow boundaries.
 
 The ownership map in `docs/validation-ownership.md` is part of ADR governance,
 not optional commentary.
@@ -59,6 +66,9 @@ not optional commentary.
 - **Neutral**
   - Validation remains an internal architecture concern; this ADR clarifies
     governance rather than changing public API surfaces.
+  - Users validate data by constructing datasets with supported builders or by
+    running workflows. Internal validators remain directly importable only for
+    package implementation and focused tests.
 
 ## Alternatives Considered
 
@@ -87,6 +97,9 @@ not optional commentary.
 - Workflow-boundary owners include
   `src/phospy/workflows/kinase/validator.py` and
   `src/phospy/workflows/signalome/validator.py`.
+- Public API boundary checks live in
+  `tests/unit/api/test_validation_not_public_api.py` and
+  `tests/architecture/test_validation_boundaries.py`.
 
 ## References
 
