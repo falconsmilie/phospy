@@ -83,7 +83,10 @@ pytest tests/parity -m parity -s
 ```
 
 Release decisions should run the full release gate (`make test-release-gate`).
-Parity failures in that gate are release-blocking.
+Parity failures in that gate are release-blocking. The same gate also scans
+packaged reference manifests and blocks release when a bundled reference is
+missing file hashes, fails hash verification, lacks license/organism/namespace
+metadata, or declares unresolved redistribution status.
 
 Some diagnostic parity tests are informational. Release decisions should use the
 threshold-bearing gates and the documented fixture expectations, not visual

@@ -4,21 +4,24 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable
+from pathlib import Path
 
 import pandas as pd
 
 from phospy.errors.references import ReferenceResolutionError
 from phospy.io.bundles.reference_sources import ReferenceSourceTableReader
 from phospy.provenance.hashing import fingerprint_table
-from phospy.provenance.models import JsonValue, ReferenceProvenance
+from phospy.provenance.models import ReferenceProvenance
 from phospy.provenance.references import fingerprint_local_reference_source_file
 from phospy.science.references.identifiers import (
     merge_reference_identifier_normalisation_reports,
 )
 from phospy.science.references.models import (
     Organism,
+    ReferenceBuildPath,
     ReferenceBundle,
     ReferenceBundleBuildRequest,
+    ReferenceFileManifest,
     ReferenceManifest,
     SequenceWindowDefinition,
 )
@@ -143,6 +146,8 @@ class ReferenceBundleBuilder:
         manifest = self._build_manifest(
             validated,
             sequence_window=sequence_window,
+            kinase_source=kinase_source,
+            sequence_source=sequence_source,
         )
         identifier_normalisation = merge_reference_identifier_normalisation_reports(
             report
@@ -157,7 +162,7 @@ class ReferenceBundleBuilder:
             organism=validated.organism.value,
             bundle_id=manifest.bundle_id,
             source_name=manifest.source_name,
-            source_version=manifest.source_version,
+            source_version=manifest.reference_version,
             retrieved_at=manifest.retrieved_at.isoformat(),
             identifier_namespace=manifest.identifier_namespace,
             sequence_window=manifest.sequence_window.to_payload(),
@@ -273,39 +278,80 @@ class ReferenceBundleBuilder:
         request: ValidatedReferenceBundleBuildRequest,
         *,
         sequence_window: SequenceWindowDefinition,
+        kinase_source: pd.DataFrame,
+        sequence_source: pd.DataFrame,
     ) -> ReferenceManifest:
-        source_files: dict[str, JsonValue] = {
-            "kinase_substrate": fingerprint_local_reference_source_file(
-                request.kinase_substrate_path,
-                role="kinase_substrate",
-            ),
-            "site_sequences": fingerprint_local_reference_source_file(
-                request.site_sequence_path,
-                role="site_sequences",
-            ),
-        }
+        kinase_source_file = fingerprint_local_reference_source_file(
+            request.kinase_substrate_path,
+            role="kinase_substrate",
+        )
+        sequence_source_file = fingerprint_local_reference_source_file(
+            request.site_sequence_path,
+            role="site_sequences",
+        )
+        bundle_id = (
+            request.bundle_id
+            if request.bundle_id is not None
+            else self._default_bundle_id(request)
+        )
         return ReferenceManifest(
-            bundle_id=(
-                request.bundle_id
-                if request.bundle_id is not None
-                else self._default_bundle_id(request)
-            ),
+            reference_id=bundle_id,
+            display_name=request.source_name,
             organism=(
                 request.organism_common_name
                 if request.organism_common_name is not None
                 else request.organism.value
             ),
+            taxonomy_id=_taxonomy_id(request.organism),
             organism_common_name=request.organism.value,
-            identifier_namespace=request.identifier_namespace,
+            protein_namespace=request.identifier_namespace,
+            reference_version=request.source_version,
             source_name=request.source_name,
             source_version=request.source_version,
-            retrieved_at=request.retrieved_at,
-            license=request.license,
-            redistribution_status=request.redistribution_status,
-            sequence_window=sequence_window,
+            source_license=request.license,
+            redistribution_allowed=_redistribution_allowed_from_status(
+                request.redistribution_status
+            ),
+            redistribution_notes=request.redistribution_status,
+            derived_from=(
+                str(request.kinase_substrate_path),
+                str(request.site_sequence_path),
+            ),
+            generated_by="ReferenceBundleBuilder",
+            generated_at_utc=f"{request.retrieved_at.isoformat()}T00:00:00Z",
+            manifest_schema_version="1.0",
+            files=(
+                ReferenceFileManifest(
+                    relative_path=str(request.kinase_substrate_path),
+                    role="kinase_substrate",
+                    format=_reference_file_format(request.kinase_substrate_path),
+                    sha256=str(kinase_source_file["sha256"]),
+                    row_count=int(kinase_source.shape[0]),
+                    column_names=tuple(str(item) for item in kinase_source.columns),
+                ),
+                ReferenceFileManifest(
+                    relative_path=str(request.site_sequence_path),
+                    role="site_sequences",
+                    format=_reference_file_format(request.site_sequence_path),
+                    sha256=str(sequence_source_file["sha256"]),
+                    row_count=int(sequence_source.shape[0]),
+                    column_names=tuple(str(item) for item in sequence_source.columns),
+                ),
+            ),
+            sequence_context_policy=(
+                "centered phosphosite sequence window"
+                if sequence_window.central_residue_required
+                else "sequence window"
+            ),
+            sequence_window_length=(
+                int(sequence_window.upstream_residues)
+                + 1
+                + int(sequence_window.downstream_residues)
+            ),
+            sequence_center_index=int(sequence_window.upstream_residues),
+            allowed_sequence_alphabet="ACDEFGHIKLMNPQRSTVWY",
             supports=request.supports,
             limitations=request.limitations,
-            source_files=source_files,
         )
 
     @staticmethod
@@ -528,6 +574,28 @@ class ReferenceBundleBuilder:
 def _normalise_column_token(column: object) -> str:
     raw = str(column).strip().lower()
     return _COLUMN_TOKEN_PATTERN.sub("_", raw).strip("_")
+
+
+def _taxonomy_id(organism: Organism) -> int:
+    return {
+        Organism.HUMAN: 9606,
+        Organism.MOUSE: 10090,
+        Organism.RAT: 10116,
+    }[organism]
+
+
+def _redistribution_allowed_from_status(status: str) -> bool:
+    normalized = status.strip().lower()
+    disallowed_tokens = ("not", "unknown", "unclear", "restricted", "prohibited")
+    allowed_tokens = ("redistributable", "redistribution allowed", "approved", "cc0")
+    return any(token in normalized for token in allowed_tokens) and not any(
+        token in normalized for token in disallowed_tokens
+    )
+
+
+def _reference_file_format(path: ReferenceBuildPath) -> str:
+    suffix = Path(path).suffix.lower().lstrip(".")
+    return suffix or "table"
 
 
 __all__ = ["ReferenceBundleBuilder"]

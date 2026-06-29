@@ -14,9 +14,26 @@ Current packaged lanes:
 
 | Organism | Bundle ID | Status |
 | --- | --- | --- |
-| rat | `l6_native` | Bundled in this release with explicit provenance and redistribution caveats |
+| rat | `l6_native` | Bundled locally with a hash-verifiable manifest; release publication is blocked while redistribution remains unresolved |
 | human | N/A | Not bundled; no approved redistributable lane is committed |
 | mouse | N/A | Not bundled; no approved redistributable lane is committed |
+
+Each packaged bundle must have one manifest for the logical reference bundle,
+not one manifest per CSV. The manifest includes:
+
+- reference identity: `reference_id`, display name, organism, taxonomy ID,
+  protein/identifier namespace, and reference version
+- source metadata: source name/version/URL/publication, source license and
+  license URL, derived-from lineage, generator, and generation timestamp
+- redistribution metadata: `redistribution_allowed` plus notes
+- file metadata for every packaged file: relative path, role, format, SHA-256,
+  row count, and column names when practical
+- sequence-window metadata for sequence-aware references
+
+Runtime bundled-reference loading validates the manifest and file hashes before
+the tables are exposed to workflows. The release gate enforces the stricter
+publication rule: any bundled manifest with `redistribution_allowed=false`
+fails release validation.
 
 ### Rat `l6_native` Provenance
 
@@ -37,11 +54,14 @@ PRIDE, or other third-party reference data.
 
 Human or mouse lanes may be added only when the committed manifest documents:
 
-- source name, version, URL, and retrieval method
-- license name and license URL
-- explicit redistribution status saying redistribution is approved or allowed
-- redistribution basis explaining why the license permits packaging
-- limitations and supported uses
+- source name, version if known, URL, and publication where applicable
+- license name/text and license URL
+- file-level SHA-256 hashes for every packaged reference file
+- `redistribution_allowed=true`
+- redistribution notes explaining why the license or permission permits
+  packaging
+- sequence-context policy when sequence windows are included
+- limitations and supported uses in the manifest payload
 
 Do not commit restricted scientific reference datasets. In particular, do not
 copy PhosphoSitePlus or Kinase Library data into packaged runtime data unless
@@ -161,7 +181,8 @@ Builder-created bundles include local-source provenance:
 - license and redistribution status in the manifest
 - identifier namespace
 - sequence-window metadata
-- source-file paths, SHA-256 digests, and byte counts
+- source-file paths, SHA-256 digests, row counts, and column names when
+  available
 - table fingerprints
 - identifier-normalisation diagnostics
 

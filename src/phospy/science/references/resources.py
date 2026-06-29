@@ -17,6 +17,7 @@ from phospy.science.references.models import (
     ReferenceManifest,
     SequenceWindowDefinition,
 )
+from phospy.science.references.validation import load_reference_manifest
 from phospy.science.sites.identifiers import (
     canonicalize_site_index,
     canonicalize_site_series,
@@ -99,7 +100,7 @@ def available_bundled_reference_lanes() -> tuple[BundledReferenceLane, ...]:
                 organism=organism,
                 bundle_id=manifest.bundle_id,
                 source_name=manifest.source_name,
-                source_version=manifest.source_version,
+                source_version=manifest.reference_version,
                 retrieved_at=manifest.retrieved_at,
                 redistribution_status=manifest.redistribution_status,
                 supports=manifest.supports,
@@ -139,21 +140,23 @@ def load_bundled_reference_manifest(organism: Organism) -> ReferenceManifest:
 @cache
 def _load_bundled_reference_manifest_cached(organism: Organism) -> ReferenceManifest:
     reference_name = bundled_reference_name_for_organism(organism)
-    payload = _read_json_resource(
+    bundle_resource = _bundled_reference_bundle_resource(
         organism=organism,
         reference_name=reference_name,
-        filename=_MANIFEST_FILENAME,
     )
-    if not isinstance(payload, dict):
+    if not bundle_resource.is_dir():
         raise ReferenceResolutionError(
-            "bundled reference manifest must decode to an object for "
-            f"{organism.value}/{reference_name}: {_MANIFEST_FILENAME}"
+            "bundled reference bundle directory is missing for "
+            f"{organism.value}/{reference_name}"
         )
-    return _parse_reference_manifest_payload(
-        payload=payload,
-        organism=organism,
-        reference_name=reference_name,
-    )
+    with resources.as_file(bundle_resource) as bundle_root:
+        return load_reference_manifest(
+            bundle_root.joinpath(_MANIFEST_FILENAME),
+            bundle_root=bundle_root,
+            bundled=False,
+            require_redistribution_allowed=False,
+            require_all_files_listed=True,
+        )
 
 
 def load_bundled_kinase_substrate_map(organism: Organism) -> pd.DataFrame:
@@ -322,130 +325,24 @@ def _parse_reference_manifest_payload(
     organism: Organism,
     reference_name: str,
 ) -> ReferenceManifest:
-    context = f"{organism.value}/{reference_name}/{_MANIFEST_FILENAME}"
-    _require_manifest_fields(payload, context=context)
-    bundle_id = _require_manifest_string(payload, key="bundle_id", context=context)
-    manifest_organism = _require_manifest_string(
+    from phospy.science.references.validation import parse_reference_manifest_payload
+
+    manifest = parse_reference_manifest_payload(
         payload,
-        key="organism",
-        context=context,
+        context=f"{organism.value}/{reference_name}/{_MANIFEST_FILENAME}",
     )
-    organism_common_name = _optional_manifest_string(
-        payload,
-        key="organism_common_name",
-        context=context,
-    )
-    identifier_namespace = _require_manifest_string(
-        payload,
-        key="identifier_namespace",
-        context=context,
-    )
-    source_name = _require_manifest_string(
-        payload,
-        key="source_name",
-        context=context,
-    )
-    source_version = _require_manifest_string(
-        payload,
-        key="source_version",
-        context=context,
-    )
-    retrieved_at = _require_manifest_date(
-        payload,
-        key="retrieved_at",
-        context=context,
-    )
-    license_name = _require_manifest_string(
-        payload,
-        key="license",
-        context=context,
-    )
-    redistribution_status = _require_manifest_string(
-        payload,
-        key="redistribution_status",
-        context=context,
-    )
-    source_url = _optional_manifest_string(
-        payload,
-        key="source_url",
-        context=context,
-    )
-    license_url = _optional_manifest_string(
-        payload,
-        key="license_url",
-        context=context,
-    )
-    retrieval_method = _optional_manifest_string(
-        payload,
-        key="retrieval_method",
-        context=context,
-    )
-    redistribution_basis = _optional_manifest_string(
-        payload,
-        key="redistribution_basis",
-        context=context,
-    )
-    source_files = _optional_manifest_json_object(
-        payload,
-        key="source_files",
-        context=context,
-    )
-    provenance_notes = _optional_manifest_string_list(
-        payload,
-        key="provenance_notes",
-        context=context,
-    )
-    sequence_window = _parse_sequence_window(
-        value=payload.get("sequence_window"),
-        context=context,
-    )
-    supports = _require_manifest_string_list(
-        payload,
-        key="supports",
-        context=context,
-    )
-    limitations = _require_manifest_string_list(
-        payload,
-        key="limitations",
-        context=context,
-    )
-    if organism in _REDISTRIBUTION_APPROVAL_REQUIRED_ORGANISMS:
-        _require_approved_redistribution_metadata(
-            payload=payload,
-            redistribution_status=redistribution_status,
-            context=context,
-        )
     expected_organism = organism.value
-    declared_organism_tokens = {manifest_organism.strip().lower()}
-    if organism_common_name is not None:
-        declared_organism_tokens.add(organism_common_name.strip().lower())
+    declared_organism_tokens = {manifest.organism.strip().lower()}
+    if manifest.organism_common_name is not None:
+        declared_organism_tokens.add(manifest.organism_common_name.strip().lower())
     if expected_organism not in declared_organism_tokens:
         raise ReferenceResolutionError(
             "bundled reference manifest organism does not match runtime lane for "
-            f"{context}: expected token {expected_organism!r}, got "
-            f"organism={manifest_organism!r}, "
-            f"organism_common_name={organism_common_name!r}"
+            f"{organism.value}/{reference_name}/{_MANIFEST_FILENAME}: "
+            f"expected token {expected_organism!r}, got organism={manifest.organism!r}, "
+            f"organism_common_name={manifest.organism_common_name!r}"
         )
-    return ReferenceManifest(
-        bundle_id=bundle_id,
-        organism=manifest_organism,
-        organism_common_name=organism_common_name,
-        identifier_namespace=identifier_namespace,
-        source_name=source_name,
-        source_version=source_version,
-        retrieved_at=retrieved_at,
-        license=license_name,
-        redistribution_status=redistribution_status,
-        sequence_window=sequence_window,
-        supports=supports,
-        limitations=limitations,
-        source_url=source_url,
-        license_url=license_url,
-        retrieval_method=retrieval_method,
-        redistribution_basis=redistribution_basis,
-        source_files=source_files,
-        provenance_notes=provenance_notes,
-    )
+    return manifest
 
 
 def _require_approved_redistribution_metadata(
@@ -775,4 +672,18 @@ def _bundled_reference_resource(
         .joinpath(organism.value)
         .joinpath(reference_name)
         .joinpath(filename)
+    )
+
+
+def _bundled_reference_bundle_resource(
+    *,
+    organism: Organism,
+    reference_name: str,
+):
+    package_root = resources.files("phospy")
+    return (
+        package_root.joinpath("data")
+        .joinpath("reference_bundles")
+        .joinpath(organism.value)
+        .joinpath(reference_name)
     )

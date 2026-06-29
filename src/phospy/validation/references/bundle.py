@@ -315,7 +315,7 @@ def _resolve_source_files(
     provenance: ReferenceProvenance | None,
     manifest: ReferenceManifest | None,
 ) -> Mapping[str, JsonValue] | None:
-    if manifest is not None and manifest.source_files is not None:
+    if manifest is not None:
         return manifest.source_files
     if provenance is None or provenance.manifest is None:
         return None
@@ -371,10 +371,8 @@ def _build_provenance_fields(
             fields["source_url"] = manifest.source_url
         if manifest.license_url is not None:
             fields["license_url"] = manifest.license_url
-        if manifest.retrieval_method is not None:
-            fields["retrieval_method"] = manifest.retrieval_method
-        if manifest.redistribution_basis is not None:
-            fields["redistribution_basis"] = manifest.redistribution_basis
+        fields["retrieval_method"] = manifest.retrieval_method
+        fields["redistribution_basis"] = manifest.redistribution_basis
     fields["source_files_available"] = (
         _resolve_source_files(
             provenance=provenance,
@@ -437,7 +435,7 @@ def _resolve_bundle_version(
     manifest: ReferenceManifest | None,
 ) -> str | None:
     if manifest is not None:
-        return manifest.source_version
+        return manifest.reference_version
     if provenance is not None:
         return provenance.source_version
     return None

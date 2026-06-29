@@ -235,10 +235,13 @@ Bundled runtime references in the current release are rat-only. Human and mouse
 analysis can be run by passing an explicit `ReferenceBundle` in Python. No
 packaged human or mouse reference lane is committed in this release because no
 approved redistributable source bundle with complete license and provenance
-metadata is included. The packaged rat `l6_native` lane records a PhosR-derived
-lineage and explicit redistribution caveats in its manifest; redistribution
-approval for that exact derived CSV snapshot is not independently verified in
-this repository.
+metadata is included. The packaged rat `l6_native` lane now has a
+hash-verifiable reference manifest covering the logical bundle and all packaged
+CSV files. That manifest records a PhosR-derived lineage and explicit
+redistribution caveats; redistribution approval for that exact derived CSV
+snapshot is not independently verified in this repository. The release gate
+therefore blocks publication while `redistribution_allowed=false` remains in a
+bundled reference manifest.
 
 ## Roadmap Visibility and Guardrails
 
@@ -253,7 +256,7 @@ exist, and this page is updated to the correct scope category.
 
 | Roadmap area | Current status | Direction, not current support |
 | --- | --- | --- |
-| References | Bundled runtime references are rat-only. The packaged rat lane has explicit provenance and redistribution caveats. Human and mouse workflows require an explicit caller-supplied `ReferenceBundle`. | Broader reference handling should use explicit provenance, compatibility checks, and external bundle validation. New bundled data requires redistribution permission, provenance, docs, and tests before `_BUNDLED_DEFAULTS` is updated. |
+| References | Bundled runtime references are rat-only. The packaged rat lane has a hash-verifiable manifest, explicit provenance, and unresolved redistribution caveats that block release publication. Human and mouse workflows require an explicit caller-supplied `ReferenceBundle`. | Broader reference handling should use explicit provenance, compatibility checks, external bundle validation, and file-level hashes. New bundled data requires redistribution permission, provenance, docs, and tests before `_BUNDLED_DEFAULTS` is updated. |
 | Kinase inference | Kinase scoring/prediction and three explicit activity methods are executable. Scores are relative support or substrate-set summaries, not calibrated causal inference. | Additional kinase inference or activity methods should be added one method at a time with stable scientific policy records and method-specific validation. |
 | Importers | PhosPy supports analysis-ready tables, generic table I/O contracts, generic column-mapped phosphosite import, MaxQuant phosphosite import, and FragPipe/Philosopher/PTMProphet phosphosite import. These are input-preparation adapters that feed dataset-builder validation. They are not broad support for all vendor, search-engine, upstream statistical outputs, Spectronaut, or DIA-NN. | Additional semantic importers should produce typed tables or requests that still pass builder and workflow validation; they must not bypass site identity or provenance contracts. Spectronaut and DIA-NN remain future/demand-driven candidates, not current support. |
 | Richer differential designs | Current parity-protected differential lane is two-condition unpaired simple contrasts. Fixed-effect batch, categorical covariate, continuous covariate, and explicit complete fixed-block terms are executable as ordinary fixed covariates with completeness, rank, and estimability validation. Correlated repeated-measure, `duplicateCorrelation`-style, and mixed-effect modelling are not executable in this release. | Additional richer designs require explicit design/result contracts, provenance, validation, and parity or method-specific evidence before any support claim. |

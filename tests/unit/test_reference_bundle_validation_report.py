@@ -10,8 +10,8 @@ from phospy.api import (
 )
 from phospy.errors.validation import ReferenceValidationError
 from phospy.science.references.models import (
+    ReferenceFileManifest,
     ReferenceManifest,
-    SequenceWindowDefinition,
 )
 from phospy.validation.references.bundle import ReferenceBundleValidator
 
@@ -192,34 +192,64 @@ def _manifest(
     source_files: dict[str, object] | None = None,
 ) -> ReferenceManifest:
     return ReferenceManifest(
-        bundle_id="unit_reference",
+        reference_id="unit_reference",
+        display_name="Unit reference",
         organism="Rattus norvegicus",
+        taxonomy_id=10116,
         organism_common_name="rat",
-        identifier_namespace="display_id (GENE_SYMBOL;RESIDUE;)",
+        protein_namespace="display_id (GENE_SYMBOL;RESIDUE;)",
+        reference_version="v1",
         source_name="unit reference source",
         source_version="v1",
-        retrieved_at=pd.Timestamp("2026-06-23").date(),
-        license="unit test license",
-        redistribution_status="redistributable synthetic fixture",
-        sequence_window=SequenceWindowDefinition(
-            upstream_residues=15,
-            downstream_residues=15,
-            central_residue_required=True,
-        ),
+        source_license="unit test license",
+        redistribution_allowed=True,
+        redistribution_notes="redistributable synthetic fixture",
+        derived_from=("unit test",),
+        generated_by="unit test",
+        generated_at_utc="2026-06-23T00:00:00Z",
+        manifest_schema_version="1.0",
+        files=_file_manifests(source_files=source_files),
+        sequence_context_policy="centered phosphosite sequence window",
+        sequence_window_length=31,
+        sequence_center_index=15,
+        allowed_sequence_alphabet="ACDEFGHIKLMNPQRSTVWY",
         supports=("kinase_workflow",),
         limitations=("unit test fixture",),
-        source_files=(
-            {
-                "kinase_substrate": {
-                    "path": "kinase.csv",
-                    "role": "kinase-substrate source",
-                },
-                "site_sequences": {
-                    "path": "sequences.csv",
-                    "role": "site-sequence source",
-                },
-            }
-            if source_files is None
-            else source_files
+    )
+
+
+def _file_manifests(
+    *,
+    source_files: dict[str, object] | None,
+) -> tuple[ReferenceFileManifest, ...]:
+    if source_files is not None:
+        files: list[ReferenceFileManifest] = []
+        for role, payload in source_files.items():
+            path = "unknown"
+            if isinstance(payload, dict):
+                raw_path = payload.get("path")
+                if isinstance(raw_path, str):
+                    path = raw_path
+            files.append(
+                ReferenceFileManifest(
+                    relative_path=path,
+                    role=role,
+                    format="csv",
+                    sha256="a" * 64,
+                )
+            )
+        return tuple(files)
+    return (
+        ReferenceFileManifest(
+            relative_path="kinase.csv",
+            role="kinase_substrate",
+            format="csv",
+            sha256="a" * 64,
+        ),
+        ReferenceFileManifest(
+            relative_path="sequences.csv",
+            role="site_sequences",
+            format="csv",
+            sha256="b" * 64,
         ),
     )

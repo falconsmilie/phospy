@@ -15,6 +15,13 @@ from phospy.errors.validation import ReferenceValidationError
 from phospy.frames.ownership import export_dataframe, own_dataframe
 from phospy.provenance.hashing import fingerprint_table
 from phospy.provenance.models import JsonValue, ReferenceProvenance
+from phospy.science.references.manifest import (
+    ReferenceFileManifest as ReferenceFileManifest,
+)
+from phospy.science.references.manifest import (
+    ReferenceManifest,
+    SequenceWindowDefinition,
+)
 
 
 class Organism(str, Enum):
@@ -40,22 +47,6 @@ class ReferencePreset(str, Enum):
     HUMAN = "human"
     MOUSE = "mouse"
     RAT = "rat"
-
-
-@dataclass(frozen=True, slots=True)
-class SequenceWindowDefinition:
-    """Reference sequence-window definition for centralized site sequences."""
-
-    upstream_residues: int
-    downstream_residues: int
-    central_residue_required: bool
-
-    def to_payload(self) -> dict[str, JsonValue]:
-        return {
-            "upstream_residues": int(self.upstream_residues),
-            "downstream_residues": int(self.downstream_residues),
-            "central_residue_required": bool(self.central_residue_required),
-        }
 
 
 ReferenceBuildPath = str | Path | PathLike[str]
@@ -93,59 +84,6 @@ class ReferenceBundleBuildRequest:
     limitations: tuple[str, ...] = (
         "caller-supplied local source files; redistribution governed by request metadata",
     )
-
-
-@dataclass(frozen=True, slots=True)
-class ReferenceManifest:
-    """Machine-readable metadata describing one runtime reference bundle."""
-
-    bundle_id: str
-    organism: str
-    organism_common_name: str | None
-    identifier_namespace: str
-    source_name: str
-    source_version: str
-    retrieved_at: date
-    license: str
-    redistribution_status: str
-    sequence_window: SequenceWindowDefinition
-    supports: tuple[str, ...]
-    limitations: tuple[str, ...]
-    source_url: str | None = None
-    license_url: str | None = None
-    retrieval_method: str | None = None
-    redistribution_basis: str | None = None
-    source_files: dict[str, JsonValue] | None = None
-    provenance_notes: tuple[str, ...] | None = None
-
-    def to_payload(self) -> dict[str, JsonValue]:
-        payload: dict[str, JsonValue] = {
-            "bundle_id": self.bundle_id,
-            "organism": self.organism,
-            "organism_common_name": self.organism_common_name,
-            "identifier_namespace": self.identifier_namespace,
-            "source_name": self.source_name,
-            "source_version": self.source_version,
-            "retrieved_at": self.retrieved_at.isoformat(),
-            "license": self.license,
-            "redistribution_status": self.redistribution_status,
-            "sequence_window": self.sequence_window.to_payload(),
-            "supports": self.supports,
-            "limitations": self.limitations,
-        }
-        if self.source_url is not None:
-            payload["source_url"] = self.source_url
-        if self.license_url is not None:
-            payload["license_url"] = self.license_url
-        if self.retrieval_method is not None:
-            payload["retrieval_method"] = self.retrieval_method
-        if self.redistribution_basis is not None:
-            payload["redistribution_basis"] = self.redistribution_basis
-        if self.source_files is not None:
-            payload["source_files"] = self.source_files
-        if self.provenance_notes is not None:
-            payload["provenance_notes"] = self.provenance_notes
-        return payload
 
 
 @dataclass(frozen=True, slots=True)
