@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
-from typing import TypeVar, cast
+from typing import Any, TypeVar, cast
 
 import pandas as pd
 
@@ -31,6 +32,7 @@ from phospy.validation.common.dataframes import (
     require_exact_index_match,
     require_non_empty_string_column,
 )
+from phospy.validation.datasets.site_metadata import SequenceContextContract
 
 ErrorType = TypeVar("ErrorType", bound=Exception)
 _SITE_POSITION_CANDIDATE_COLUMNS = ("position", "site_position")
@@ -66,6 +68,19 @@ RESULT_IDENTITY_COLUMNS = (
     "site",
 )
 
+WORKFLOW_CENTERED_SEQUENCE_CONTEXT_CONTRACT = SequenceContextContract(
+    requires_site_sequence=True,
+    requires_centered_site=True,
+    required_window_length=None,
+    center_index=None,
+    allowed_residues=frozenset("ACDEFGHIKLMNPQRSTVWYX_-"),
+    allow_terminal_padding=True,
+    allow_lowercase=True,
+    allow_modified_residue_symbols=False,
+    required_center_residues=frozenset({"S", "T", "Y"}),
+    contract_id="workflow_centered_phosphosite_sequence_context",
+)
+
 
 class SequenceContextRequirement(str, Enum):
     """Sequence-context strictness for one identity boundary."""
@@ -91,6 +106,7 @@ class PhosphositeIdentityContract:
     require_site_key_metadata_coherence: bool = False
     sequence_context: SequenceContextRequirement = SequenceContextRequirement.NONE
     require_non_empty_sequence_context: bool = False
+    sequence_context_contract: SequenceContextContract | None = None
     allow_duplicate_display_id: bool = True
 
 
@@ -125,6 +141,7 @@ WORKFLOW_SEQUENCE_CONTEXT_IDENTITY_CONTRACT = PhosphositeIdentityContract(
     required_columns=BASE_IDENTITY_COLUMNS,
     check_site_key_column_index_before_uniqueness=True,
     sequence_context=SequenceContextRequirement.CENTRED,
+    sequence_context_contract=WORKFLOW_CENTERED_SEQUENCE_CONTEXT_CONTRACT,
 )
 WORKFLOW_PROTEIN_SEQUENCE_CONTEXT_IDENTITY_CONTRACT = PhosphositeIdentityContract(
     contract_id="workflow_protein_sequence_context_identity",
@@ -133,6 +150,7 @@ WORKFLOW_PROTEIN_SEQUENCE_CONTEXT_IDENTITY_CONTRACT = PhosphositeIdentityContrac
     require_protein_context=True,
     require_site_key_metadata_coherence=True,
     sequence_context=SequenceContextRequirement.CENTRED,
+    sequence_context_contract=WORKFLOW_CENTERED_SEQUENCE_CONTEXT_CONTRACT,
 )
 RESULT_TABLE_IDENTITY_CONTRACT = PhosphositeIdentityContract(
     contract_id="result_table_identity",
@@ -154,6 +172,10 @@ def enforce_phosphosite_identity_contract(
     allow_opaque_site_values: bool = False,
     allow_gapped_sequence_context: bool = False,
     compare_raw_site_key_column_before_decode: bool = False,
+    sequence_context_contract: SequenceContextContract | None = None,
+    scoring_mode: str | None = None,
+    sequence_source_by_site: Mapping[Any, object] | None = None,
+    allow_unknown_site_residue: bool | None = None,
 ) -> None:
     """Enforce a reusable identity contract without workflow-specific policy."""
 
@@ -284,17 +306,40 @@ def enforce_phosphosite_identity_contract(
                 error_type=dataframe_error_type,
             )
     if contract.sequence_context is SequenceContextRequirement.CENTRED:
+        resolved_sequence_contract = (
+            sequence_context_contract or contract.sequence_context_contract
+        )
+        if resolved_sequence_contract is None:
+            from phospy.validation.datasets.site_metadata import (
+                enforce_centred_site_sequence_context,
+            )
+
+            enforce_centred_site_sequence_context(
+                site_metadata=site_metadata,
+                field_name=field_name,
+                workflow_name=workflow_name or contract.contract_id,
+                error_type=error_type,
+                allow_gapped_sequence_context=allow_gapped_sequence_context,
+                allow_unknown_site_residue=allow_opaque_site_values,
+            )
+            return
         from phospy.validation.datasets.site_metadata import (
-            enforce_centred_site_sequence_context,
+            enforce_site_sequence_context_contract,
         )
 
-        enforce_centred_site_sequence_context(
+        enforce_site_sequence_context_contract(
             site_metadata=site_metadata,
             field_name=field_name,
             workflow_name=workflow_name or contract.contract_id,
             error_type=error_type,
-            allow_gapped_sequence_context=allow_gapped_sequence_context,
-            allow_unknown_site_residue=allow_opaque_site_values,
+            scoring_mode=scoring_mode,
+            contract=resolved_sequence_contract,
+            sequence_source_by_site=sequence_source_by_site,
+            allow_unknown_site_residue=(
+                allow_opaque_site_values
+                if allow_unknown_site_residue is None
+                else allow_unknown_site_residue
+            ),
         )
 
 
@@ -1000,7 +1045,9 @@ __all__ = [
     "RESULT_TABLE_IDENTITY_CONTRACT",
     "SITE_KEY_COLUMN",
     "SITE_SEQUENCE_COLUMN",
+    "SequenceContextContract",
     "SequenceContextRequirement",
+    "WORKFLOW_CENTERED_SEQUENCE_CONTEXT_CONTRACT",
     "WORKFLOW_INPUT_IDENTITY_CONTRACT",
     "WORKFLOW_PROTEIN_CONTEXT_IDENTITY_CONTRACT",
     "WORKFLOW_PROTEIN_SEQUENCE_CONTEXT_IDENTITY_CONTRACT",

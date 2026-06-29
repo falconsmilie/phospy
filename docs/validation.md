@@ -73,6 +73,14 @@ A built `AnalysisReadyPhosphoDataset` must have:
 - an `Organism` enum value or `None`
 - explicit intensity-scale and processing-state metadata
 
+The dataset boundary treats `site_sequence` as required sequence evidence and
+validates it as a plausible amino-acid context. That base check is deliberately
+not the same as a workflow-specific motif window contract. Sequence-aware
+workflows may impose stricter requirements on the selected sequence context,
+including exact window length, center index, center residue, alphabet,
+terminal-padding policy, lowercase policy, modified-residue-symbol policy, and
+known sequence source.
+
 ## Preprocessing Rules
 
 Defaults are intentionally strict: no transform, no normalisation, no imputation,
@@ -185,6 +193,16 @@ be disabled with `activity_config=None`, which is useful for tiny examples.
 Mixed corrected/uncorrected quantitative meaning is rejected by default; set
 `scoring_config.allow_mixed_total_protein_quantitative_meaning=True` to opt in.
 
+Kinase Library-style motif scoring validates the selected site sequence against
+the local `KinaseLibraryResource.sequence_window` before interpretation can
+reach scoring. The sequence must be present, non-empty, exactly the configured
+window length, centered at the configured index, and centered on `S`, `T`, or
+`Y`. Unsupported characters, lowercase residues, modified-residue symbols, and
+terminal padding are rejected unless the selected workflow contract explicitly
+allows them. Opaque display labels are not sequence evidence, unknown sequence
+source is invalid, and incompatible dataset/reference sequences require an
+explicit conflict policy such as `prefer_dataset` or `prefer_reference`.
+
 ### Signalome Workflow
 
 `SignalomeWorkflowRequest.kinase_result` must be a `KinaseWorkflowResult`.
@@ -194,6 +212,9 @@ prefixes in display labels are not treated as protein grouping metadata or
 protein identity.
 Signalome aligns dataset, prediction, and score tables by `site_key` and does
 not reinterpret display IDs as row identity.
+Signalome validates that sequence-aware upstream site identity still provides a
+centered phosphosite sequence context, but it does not apply the fixed Kinase
+Library motif-window length contract.
 Mixed corrected/uncorrected quantitative meaning is rejected by default; set
 `config.validation.allow_mixed_total_protein_quantitative_meaning=True` to opt in.
 
@@ -217,6 +238,7 @@ shows exact tree-generation details and candidate-scoring details separately.
 | missing protein-scoped identity metadata | Add non-empty `organism`, `protein_namespace`, `protein_identifier`, and `site`, or use a builder-compatible protein-context source that derives them before final construction. |
 | display-indexed direct construction | Use the builder with enough protein context, or, for advanced/trusted direct construction, provide encoded `site_key` indexes and matching `site_metadata.site_key` directly. |
 | signalome protein grouping metadata error | Add non-empty `protein_id` grouping metadata for every interpreted site; do not use `gene_symbol` or `display_id` as a fallback. |
+| workflow-specific sequence context error | Check selected `site_sequence`, sequence source, required window length, center index, center residue, alphabet, padding policy, and dataset/reference conflict policy for the workflow/scoring mode. |
 | reference resolution error | Use rat with `AUTO`, or pass an explicit `ReferenceBundle`. |
 | total-protein correction error | Provide `total`, set `intensity_transform.policy="log2"`, and configure identity mapping. |
 | mixed quantitative meaning rejected | Use `unmatched_policy="error"` or complete total-protein mapping; if mixed inputs are intentional, set the workflow mixed-state opt-in flag. |

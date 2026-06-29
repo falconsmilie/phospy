@@ -65,6 +65,9 @@ Important user-facing assumptions:
 - row-median imputation is not left-censored imputation.
 - Localisation should be configured before site-level scientific workflows when
   localisation confidence matters.
+- `site_sequence` is required at the analysis-ready dataset boundary as
+  plausible sequence evidence, but sequence-aware workflows may require stricter
+  centered window contracts before execution.
 - `protein_id` is optional at the base dataset boundary, but signalome requires
   complete non-empty values for interpreted sites.
 
@@ -220,6 +223,13 @@ Important user-facing assumptions:
 - `reference_display_ambiguity_policy="error"` rejects one-display-to-many
   `site_key` projection by default.
 - Site sequences are required for scoring rows.
+- Kinase Library-style motif scoring requires a fixed centered window matching
+  the supplied `KinaseLibraryResource.sequence_window`. The selected sequence
+  must have the expected length, center index, `S/T/Y` center residue, supported
+  alphabet, accepted padding/lowercase/modified-symbol policy, and known source.
+  Display IDs are not accepted as sequence context, and dataset/reference
+  sequence conflicts must be resolved by the request conflict policy before
+  scoring.
 - Scores are relative support values within a run, not calibrated
   probabilities or proof of causal regulation.
 - Kinase Library-style workflow modes require a compatible caller-supplied
@@ -245,6 +255,9 @@ Important user-facing assumptions:
   score matrices.
 - Signalome aligns by `site_key`; it does not reinterpret display labels as row
   identity.
+- Signalome enforces centered phosphosite sequence context for sequence-aware
+  upstream identity, but it does not apply the fixed Kinase Library motif-window
+  contract.
 - Complete non-empty `dataset.site_metadata.protein_id` values are required for
   interpreted sites as signalome-specific protein grouping metadata.
 - Module and network outputs are derived summaries, not causal proof.

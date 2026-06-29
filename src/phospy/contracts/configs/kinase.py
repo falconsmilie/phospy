@@ -10,6 +10,7 @@ from typing import Literal
 from phospy.contracts.configs.common import _require_int_at_least, _require_real_between
 from phospy.contracts.configs.localisation import LocalisationRequirement
 from phospy.errors.validation import WorkflowValidationError
+from phospy.policies import PolicyEnum
 
 KINASE_SCORING_MIN_SUBSTRATES_FLOOR = 2
 KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED = "phosr_rank_weighted"
@@ -88,14 +89,21 @@ KINASE_ACTIVITY_SSGSEA_DEFAULT_PERMUTATIONS = 0
 KINASE_ACTIVITY_SSGSEA_DEFAULT_RANDOM_SEED = 0
 KINASE_ACTIVITY_SSGSEA_DEFAULT_ADJUST_P_VALUES = True
 KINASE_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT = False
-KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR = "error"
-KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE = "prefer_reference"
-KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET = "prefer_dataset"
-KinaseSiteSequenceConflictPolicy = Literal[
-    "error",
-    "prefer_reference",
-    "prefer_dataset",
-]
+
+
+class KinaseSiteSequenceConflictPolicy(PolicyEnum):
+    ERROR = "error"
+    PREFER_REFERENCE = "prefer_reference"
+    PREFER_DATASET = "prefer_dataset"
+
+
+KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR = KinaseSiteSequenceConflictPolicy.ERROR
+KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE = (
+    KinaseSiteSequenceConflictPolicy.PREFER_REFERENCE
+)
+KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET = (
+    KinaseSiteSequenceConflictPolicy.PREFER_DATASET
+)
 KINASE_SITE_SEQUENCE_CONFLICT_POLICIES = frozenset(
     {
         KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,

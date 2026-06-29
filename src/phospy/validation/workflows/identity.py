@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import Any, TypeVar
 
 import pandas as pd
 
@@ -13,6 +14,7 @@ from phospy.validation.identity_contracts import (
     WORKFLOW_PROTEIN_SEQUENCE_CONTEXT_IDENTITY_CONTRACT,
     WORKFLOW_SEQUENCE_CONTEXT_IDENTITY_CONTRACT,
     PhosphositeIdentityContract,
+    SequenceContextContract,
     enforce_phosphosite_identity_contract,
 )
 
@@ -57,6 +59,10 @@ def enforce_workflow_site_identity_contract(
     contract: WorkflowIdentityContract,
     error_type: type[ErrorType],
     allow_opaque_site_values: bool,
+    sequence_context_contract: SequenceContextContract | None = None,
+    scoring_mode: str | None = None,
+    sequence_source_by_site: Mapping[Any, object] | None = None,
+    allow_unknown_site_residue: bool | None = None,
 ) -> None:
     """Enforce one workflow's declared phosphosite identity contract."""
 
@@ -79,6 +85,10 @@ def enforce_workflow_site_identity_contract(
             workflow_name=contract.workflow_name,
             allow_opaque_site_values=allow_opaque_site_values,
             allow_gapped_sequence_context=contract.allow_gapped_sequence_context,
+            sequence_context_contract=sequence_context_contract,
+            scoring_mode=scoring_mode,
+            sequence_source_by_site=sequence_source_by_site,
+            allow_unknown_site_residue=allow_unknown_site_residue,
         )
     except error_type as exc:
         raise error_type(

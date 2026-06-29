@@ -4,9 +4,14 @@ from __future__ import annotations
 
 from typing import cast
 
+import pandas as pd
+
 from phospy.contracts.configs import (
     KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICIES,
     KINASE_SCORING_MODES_REQUIRING_KINASE_LIBRARY,
+    KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,
+    KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET,
+    KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE,
 )
 from phospy.contracts.requests import KinaseWorkflowRequest
 from phospy.errors.validation import WorkflowValidationError
@@ -17,6 +22,7 @@ from phospy.science.references.models import ReferenceBundle, ReferencePreset
 from phospy.validation.common.dataframes import require_dataframe
 from phospy.validation.datasets.site_metadata import (
     enforce_localisation_requirement,
+    enforce_site_sequence_context_contract,
 )
 from phospy.validation.workflows.configs import (
     KinaseWorkflowConfigValidator,
@@ -25,6 +31,13 @@ from phospy.validation.workflows.configs import (
 from phospy.validation.workflows.identity import (
     KINASE_IDENTITY_CONTRACT,
     enforce_workflow_site_identity_contract,
+)
+from phospy.workflows.kinase.sequence_contracts import (
+    dataset_sequence_source_label,
+    kinase_sequence_context_contract,
+)
+from phospy.workflows.kinase.site_sequence_policy import (
+    resolve_site_sequence_conflict_policy,
 )
 
 
@@ -62,6 +75,11 @@ class KinaseWorkflowValidator:
                 "kinase workflow request reference_display_ambiguity_policy "
                 f"must be one of: {supported}"
             )
+        site_sequence_conflict_policy = resolve_site_sequence_conflict_policy(
+            request.site_sequence_conflict_policy,
+            field_name="kinase workflow request site_sequence_conflict_policy",
+            error_type=WorkflowValidationError,
+        )
         scoring_config, _, _ = self._config_validator.run(
             scoring_config=request.scoring_config,
             prediction_config=request.prediction_config,
@@ -98,7 +116,31 @@ class KinaseWorkflowValidator:
             contract=KINASE_IDENTITY_CONTRACT,
             error_type=WorkflowValidationError,
             allow_opaque_site_values=dataset.opaque_site_values_allowed,
+            scoring_mode=scoring_config.scoring_mode,
         )
+        sequence_contract = kinase_sequence_context_contract(
+            scoring_mode=scoring_config.scoring_mode,
+            kinase_library_resource=request.kinase_library_resource,
+        )
+        if sequence_contract is not None and isinstance(references, ReferenceBundle):
+            selected_site_sequences, sequence_source_by_site = (
+                _selected_explicit_reference_sequence_context(
+                    dataset=dataset,
+                    site_metadata=site_metadata,
+                    references=references,
+                    conflict_policy=site_sequence_conflict_policy,
+                )
+            )
+            enforce_site_sequence_context_contract(
+                site_metadata=selected_site_sequences,
+                field_name="kinase workflow request selected_site_sequences",
+                workflow_name="kinase workflow request",
+                scoring_mode=scoring_config.scoring_mode,
+                contract=sequence_contract,
+                error_type=WorkflowValidationError,
+                sequence_source_by_site=sequence_source_by_site,
+                allow_unknown_site_residue=False,
+            )
         enforce_localisation_requirement(
             site_metadata=site_metadata,
             field_name="kinase workflow request dataset.site_metadata",
@@ -107,3 +149,79 @@ class KinaseWorkflowValidator:
             error_type=WorkflowValidationError,
         )
         return request
+
+
+def _selected_explicit_reference_sequence_context(
+    *,
+    dataset: AnalysisReadyPhosphoDataset,
+    site_metadata: pd.DataFrame,
+    references: ReferenceBundle,
+    conflict_policy: object,
+) -> tuple[pd.DataFrame, dict[str, str]]:
+    resolved_policy = resolve_site_sequence_conflict_policy(
+        conflict_policy,
+        field_name="kinase workflow request site_sequence_conflict_policy",
+        error_type=WorkflowValidationError,
+    )
+    selected = site_metadata.copy(deep=True)
+    source_by_site: dict[str, str] = {}
+    reference_sequences = {
+        str(display_id).strip(): sequence
+        for display_id, sequence in (
+            (
+                display_id,
+                _normalise_sequence_value(value),
+            )
+            for display_id, value in references.site_sequences.loc[
+                :, "site_sequence"
+            ].items()
+        )
+        if str(display_id).strip() != "" and sequence is not None
+    }
+    dataset_source_label = dataset_sequence_source_label(dataset)
+    for site_id in selected.index.tolist():
+        site_key = str(site_id)
+        display_id = str(selected.at[site_id, "display_id"]).strip()
+        dataset_sequence_text = _normalise_sequence_value(
+            selected.at[site_id, "site_sequence"]
+        )
+        reference_sequence_text = reference_sequences.get(display_id)
+        if reference_sequence_text is None:
+            if dataset_sequence_text is not None:
+                selected.at[site_id, "site_sequence"] = dataset_sequence_text
+                source_by_site[site_key] = dataset_source_label or "unknown"
+            continue
+        if dataset_sequence_text is None:
+            selected.at[site_id, "site_sequence"] = reference_sequence_text
+            source_by_site[site_key] = "reference"
+            continue
+        if reference_sequence_text == dataset_sequence_text:
+            selected.at[site_id, "site_sequence"] = reference_sequence_text
+            source_by_site[site_key] = "reference"
+            continue
+        if resolved_policy == KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR:
+            raise WorkflowValidationError(
+                "kinase workflow request selected sequence context failed; "
+                "dataset sequence and reference sequence are incompatible and no "
+                "conflict policy resolves them; "
+                f"site_key={site_key!r}; display_id={display_id!r}; "
+                f"dataset_sequence={dataset_sequence_text!r}; "
+                f"reference_sequence={reference_sequence_text!r}; "
+                f"conflict_policy={str(resolved_policy)!r}"
+            )
+        if resolved_policy == KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET:
+            selected.at[site_id, "site_sequence"] = dataset_sequence_text
+            source_by_site[site_key] = dataset_source_label or "unknown"
+            continue
+        if resolved_policy == KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE:
+            selected.at[site_id, "site_sequence"] = reference_sequence_text
+            source_by_site[site_key] = "reference"
+            continue
+    return selected, source_by_site
+
+
+def _normalise_sequence_value(value: object) -> str | None:
+    if bool(pd.Series((value,), dtype="object").isna().iat[0]):
+        return None
+    text = str(value).strip()
+    return text or None

@@ -29,6 +29,9 @@ from phospy.workflows.kinase.contracts import (
     ResolvedKinaseWorkflowRequest,
 )
 from phospy.workflows.kinase.reference_projection import KinaseReferenceProjector
+from phospy.workflows.kinase.site_sequence_policy import (
+    resolve_site_sequence_conflict_policy,
+)
 from phospy.workflows.kinase.site_sequence_support import (
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,
     KinaseSiteSequenceSupportBuilder,
@@ -74,7 +77,11 @@ class KinaseWorkflowInterpreter:
             dataset=dataset_phospho,
             site_metadata=dataset_site_metadata,
         )
-        site_sequence_conflict_policy = request.site_sequence_conflict_policy
+        site_sequence_conflict_policy = resolve_site_sequence_conflict_policy(
+            request.site_sequence_conflict_policy,
+            field_name="site_sequence_conflict_policy",
+            error_type=WorkflowBoundaryError,
+        )
         references = self._reference_resolver.run(
             request.references,
             dataset_organism=request.dataset.organism,

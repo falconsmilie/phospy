@@ -10,6 +10,7 @@ import pandas as pd
 
 from phospy.contracts.configs import (
     KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
+    KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET,
     KinaseActivityMethod,
     KinaseActivityPValueMethod,
     KinaseActivitySsgseaRankingDirection,
@@ -45,6 +46,16 @@ from phospy.validation.common.dataframes import (
 from phospy.validation.datasets.protein_scoped_site_identity import (
     enforce_display_id_column,
     enforce_site_key_column_matches_index,
+)
+from phospy.validation.datasets.site_metadata import (
+    enforce_site_sequence_context_contract,
+)
+from phospy.workflows.kinase.sequence_contracts import (
+    dataset_sequence_source_label,
+    kinase_sequence_context_contract,
+)
+from phospy.workflows.kinase.site_sequence_policy import (
+    resolve_site_sequence_conflict_policy,
 )
 
 if TYPE_CHECKING:
@@ -131,6 +142,15 @@ class ResolvedKinaseWorkflowRequest:
                 "next_action=ensure scoring site selection preserves "
                 "site_key/display_id identity mapping"
             )
+        self._validate_sequence_context_contract(
+            site_sequences=site_sequences,
+            site_identity_map=site_identity_map,
+            scoring_mode=self.execution_config.scoring_mode,
+            kinase_library_resource=self.kinase_library_resource,
+            references=self.references,
+            dataset=self.dataset,
+            merge_diagnostics=self.site_sequence_merge_diagnostics,
+        )
         if not set(kinase_substrate_map.loc[:, "substrate_site"].astype(str)).issubset(
             set(self.scoring_site_index.astype(str))
         ):
@@ -410,8 +430,14 @@ class ResolvedKinaseWorkflowRequest:
         prefer_dataset_conflicts: dict[str, Mapping[str, object]] = {}
         if isinstance(merge_diagnostics, Mapping):
             policy_value = merge_diagnostics.get("conflict_policy")
-            if isinstance(policy_value, str):
-                conflict_policy = policy_value
+            try:
+                conflict_policy = resolve_site_sequence_conflict_policy(
+                    policy_value,
+                    field_name="site_sequence_merge_diagnostics.conflict_policy",
+                    error_type=WorkflowBoundaryError,
+                )
+            except WorkflowBoundaryError:
+                conflict_policy = None
             conflict_rows = merge_diagnostics.get("conflict_diagnostics")
             if isinstance(conflict_rows, list):
                 for row in conflict_rows:
@@ -435,7 +461,7 @@ class ResolvedKinaseWorkflowRequest:
             )
             if merged_sequence == reference_sequence:
                 continue
-            if conflict_policy != "prefer_dataset":
+            if conflict_policy != KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET:
                 return False
             conflict_row = prefer_dataset_conflicts.get(str(site_key))
             if conflict_row is None:
@@ -450,6 +476,54 @@ class ResolvedKinaseWorkflowRequest:
             if str(conflict_reference) != reference_sequence:
                 return False
         return True
+
+    @staticmethod
+    def _validate_sequence_context_contract(
+        *,
+        site_sequences: pd.DataFrame,
+        site_identity_map: pd.DataFrame,
+        scoring_mode: str,
+        kinase_library_resource: KinaseLibraryResource | None,
+        references: ReferenceBundle,
+        dataset: AnalysisReadyPhosphoDataset,
+        merge_diagnostics: Mapping[str, object] | None,
+    ) -> None:
+        contract = kinase_sequence_context_contract(
+            scoring_mode=scoring_mode,
+            kinase_library_resource=kinase_library_resource,
+        )
+        if contract is None:
+            return
+        context_frame = pd.DataFrame(
+            {
+                "site_sequence": site_sequences.loc[:, "site_sequence"].tolist(),
+                "display_id": site_sequences.loc[:, "display_id"].astype(str).tolist(),
+                "site": [
+                    _site_token_from_display_id(display_id)
+                    for display_id in site_sequences.loc[:, "display_id"]
+                    .astype(str)
+                    .tolist()
+                ],
+            },
+            index=site_sequences.index.copy(),
+        )
+        source_by_site = _resolved_sequence_source_by_site(
+            site_sequences=site_sequences,
+            site_identity_map=site_identity_map,
+            references=references,
+            dataset=dataset,
+            merge_diagnostics=merge_diagnostics,
+        )
+        enforce_site_sequence_context_contract(
+            site_metadata=context_frame,
+            field_name="kinase workflow interpreted site_sequences",
+            workflow_name="kinase workflow interpreted request",
+            scoring_mode=scoring_mode,
+            contract=contract,
+            error_type=WorkflowBoundaryError,
+            sequence_source_by_site=source_by_site,
+            allow_unknown_site_residue=False,
+        )
 
 
 def _require_site_index_identity(
@@ -476,6 +550,76 @@ def _require_site_series_identity(
         field_name=field_name,
         error_type=error_type,
     )
+
+
+def _site_token_from_display_id(display_id: object) -> str:
+    parts = str(display_id).split(";")
+    if len(parts) >= 2:
+        site_token = parts[1].strip()
+        if site_token:
+            return site_token
+    return str(display_id).strip()
+
+
+def _resolved_sequence_source_by_site(
+    *,
+    site_sequences: pd.DataFrame,
+    site_identity_map: pd.DataFrame,
+    references: ReferenceBundle,
+    dataset: AnalysisReadyPhosphoDataset,
+    merge_diagnostics: Mapping[str, object] | None,
+) -> dict[str, str]:
+    dataset_source = dataset_sequence_source_label(dataset)
+    conflict_source_by_site = _selected_conflict_source_by_site(merge_diagnostics)
+    reference_display_ids = set(references.site_sequences.index.astype(str).tolist())
+    source_by_site: dict[str, str] = {}
+    for site_id, row in site_sequences.loc[:, ["display_id"]].iterrows():
+        site_key = str(site_id)
+        selected_conflict_source = conflict_source_by_site.get(site_key)
+        if selected_conflict_source == "dataset":
+            source_by_site[site_key] = dataset_source or "unknown"
+            continue
+        if selected_conflict_source == "reference":
+            source_by_site[site_key] = "reference"
+            continue
+        display_id = str(row["display_id"])
+        if display_id in reference_display_ids:
+            source_by_site[site_key] = "reference"
+            continue
+        if site_key in site_identity_map.index:
+            identity_display_id = str(site_identity_map.at[site_key, "display_id"])
+            if identity_display_id in reference_display_ids:
+                source_by_site[site_key] = "reference"
+                continue
+        source_by_site[site_key] = dataset_source or "unknown"
+    return source_by_site
+
+
+def _selected_conflict_source_by_site(
+    merge_diagnostics: Mapping[str, object] | None,
+) -> dict[str, str]:
+    if not isinstance(merge_diagnostics, Mapping):
+        return {}
+    rows = merge_diagnostics.get("conflict_diagnostics")
+    if not isinstance(rows, list):
+        return {}
+    selected_by_site: dict[str, str] = {}
+    for row in rows:
+        if not isinstance(row, Mapping):
+            continue
+        site_key = row.get("site_key")
+        if not isinstance(site_key, str):
+            site_key = row.get("site_id")
+        if not isinstance(site_key, str) or site_key.strip() == "":
+            continue
+        selected_source = row.get("selected_sequence_source")
+        if not isinstance(selected_source, str):
+            continue
+        selected_source_text = selected_source.strip().lower()
+        if selected_source_text not in {"dataset", "reference"}:
+            continue
+        selected_by_site[site_key] = selected_source_text
+    return selected_by_site
 
 
 @dataclass(frozen=True, slots=True)

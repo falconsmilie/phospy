@@ -16,9 +16,17 @@ from phospy.contracts.configs.kinase import (
     KinaseSiteSequenceConflictPolicy,
 )
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.workflows.kinase.site_sequence_policy import (
+    resolve_site_sequence_conflict_policy,
+)
 
 _SITE_SEQUENCE_COLUMN = "site_sequence"
 _INTERPRETER_VERSION = "phospy.workflows.kinase.site_sequence_support_builder.v1"
+_CONFLICT_NEXT_ACTION = (
+    "fix dataset site_sequence values for conflicting sites or use "
+    "site_sequence_conflict_policy='prefer_reference' or 'prefer_dataset' on "
+    "KinaseWorkflowRequest"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,19 +36,48 @@ class KinaseSiteSequenceConflictDiagnostic:
     dataset_sequence: str
     reference_sequence: str
     selected_policy: KinaseSiteSequenceConflictPolicy
-    selected_sequence: str
-    selected_sequence_source: Literal["reference", "dataset"]
+    selected_sequence: str | None
+    selected_sequence_source: Literal["reference", "dataset", "unresolved"]
+    diagnostic: str
     interpreter_version: str = _INTERPRETER_VERSION
 
-    def to_payload(self) -> dict[str, str]:
+    def to_payload(self) -> dict[str, object]:
         return {
             "site_key": self.site_key,
             "display_id": self.display_id,
             "dataset_sequence": self.dataset_sequence,
             "reference_sequence": self.reference_sequence,
+            "policy": self.selected_policy,
             "selected_policy": self.selected_policy,
             "selected_sequence": self.selected_sequence,
             "selected_sequence_source": self.selected_sequence_source,
+            "diagnostic": self.diagnostic,
+            "interpreter_version": self.interpreter_version,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class KinaseSiteSequenceSelectionDiagnostic:
+    site_key: str
+    display_id: str
+    selected_sequence: str
+    selected_sequence_source: Literal["reference", "dataset"]
+    policy: KinaseSiteSequenceConflictPolicy
+    dataset_sequence: str | None
+    reference_sequence: str | None
+    diagnostic: str
+    interpreter_version: str = _INTERPRETER_VERSION
+
+    def to_payload(self) -> dict[str, object]:
+        return {
+            "site_key": self.site_key,
+            "display_id": self.display_id,
+            "selected_sequence": self.selected_sequence,
+            "selected_sequence_source": self.selected_sequence_source,
+            "policy": self.policy,
+            "dataset_sequence": self.dataset_sequence,
+            "reference_sequence": self.reference_sequence,
+            "diagnostic": self.diagnostic,
             "interpreter_version": self.interpreter_version,
         }
 
@@ -54,6 +91,7 @@ class KinaseSiteSequenceSupportResult:
     conflict_policy: KinaseSiteSequenceConflictPolicy
     conflicts: tuple[KinaseSiteSequenceConflictDiagnostic, ...]
     display_reference_multi_matches: tuple[dict[str, object], ...]
+    sequence_source_records: tuple[KinaseSiteSequenceSelectionDiagnostic, ...] = ()
     interpreter_version: str = _INTERPRETER_VERSION
 
     @property
@@ -83,8 +121,15 @@ class KinaseSiteSequenceSupportResult:
             ],
             "conflict_policy": self.conflict_policy,
             "conflict_diagnostics": [item.to_payload() for item in self.conflicts],
+            "selected_sequence_sources": [
+                item.to_payload() for item in self.sequence_source_records
+            ],
             "interpreter_version": self.interpreter_version,
         }
+
+
+class KinaseSiteSequenceConflictError(WorkflowBoundaryError):
+    """Dataset and reference sequence support disagree under the error policy."""
 
 
 class KinaseSiteSequenceSupportBuilder:
@@ -98,14 +143,11 @@ class KinaseSiteSequenceSupportBuilder:
         reference_site_sequences: pd.DataFrame,
         conflict_policy: KinaseSiteSequenceConflictPolicy,
     ) -> KinaseSiteSequenceSupportResult:
-        if conflict_policy not in KINASE_SITE_SEQUENCE_CONFLICT_POLICIES:
-            supported = ", ".join(sorted(KINASE_SITE_SEQUENCE_CONFLICT_POLICIES))
-            raise WorkflowBoundaryError(
-                "kinase workflow boundary validation failed at seam="
-                "kinase.interpreter.site_sequence_conflict_policy; "
-                f"site_sequence_conflict_policy must be one of: {supported}; "
-                "next_action=use a supported site-sequence conflict policy"
-            )
+        resolved_policy = resolve_site_sequence_conflict_policy(
+            conflict_policy,
+            field_name="site_sequence_conflict_policy",
+            error_type=WorkflowBoundaryError,
+        )
         merged = pd.DataFrame(columns=[_SITE_SEQUENCE_COLUMN, "display_id"]).astype(
             "object"
         )
@@ -114,6 +156,7 @@ class KinaseSiteSequenceSupportBuilder:
         dataset_sequences_missing = 0
         dataset_sequences_added = 0
         conflicts: list[KinaseSiteSequenceConflictDiagnostic] = []
+        sequence_source_records: list[KinaseSiteSequenceSelectionDiagnostic] = []
         display_reference_multi_matches: list[dict[str, object]] = []
         if _SITE_SEQUENCE_COLUMN not in site_metadata.columns:
             return KinaseSiteSequenceSupportResult(
@@ -121,8 +164,9 @@ class KinaseSiteSequenceSupportBuilder:
                 dataset_sequences_added=0,
                 dataset_sequences_missing=int(dataset.shape[0]),
                 dataset_sequences_available=0,
-                conflict_policy=conflict_policy,
+                conflict_policy=resolved_policy,
                 conflicts=(),
+                sequence_source_records=(),
                 display_reference_multi_matches=(),
             )
         display_series = (
@@ -135,7 +179,11 @@ class KinaseSiteSequenceSupportBuilder:
                 dataset.index.astype(str), index=dataset.index, dtype="string"
             )
         )
-        reference_sequences = reference_site_sequences.loc[:, _SITE_SEQUENCE_COLUMN]
+        reference_sequence_by_display_id = _reference_sequence_by_display_id(
+            reference_site_sequences
+        )
+        reference_sequence_by_site_key: dict[str, str] = {}
+        display_id_by_site_key: dict[str, str] = {}
         display_to_site_keys: dict[str, list[str]] = {}
         for site_id in dataset.index.tolist():
             site_key = str(site_id)
@@ -145,14 +193,15 @@ class KinaseSiteSequenceSupportBuilder:
                 if not bool(pd.notna(display_value)) or str(display_value) == ""
                 else str(display_value)
             )
+            display_id_by_site_key[site_key] = display_id
             display_to_site_keys.setdefault(display_id, []).append(site_key)
-            if display_id in reference_sequences.index:
-                merged.loc[site_key, _SITE_SEQUENCE_COLUMN] = str(
-                    reference_sequences.at[display_id]
-                )
+            reference_sequence = reference_sequence_by_display_id.get(display_id)
+            if reference_sequence is not None:
+                reference_sequence_by_site_key[site_key] = reference_sequence
+                merged.loc[site_key, _SITE_SEQUENCE_COLUMN] = reference_sequence
                 merged.loc[site_key, "display_id"] = display_id
         for display_id, site_keys in display_to_site_keys.items():
-            if display_id not in reference_sequences.index or len(site_keys) < 2:
+            if display_id not in reference_sequence_by_display_id or len(site_keys) < 2:
                 continue
             display_reference_multi_matches.append(
                 {
@@ -168,51 +217,133 @@ class KinaseSiteSequenceSupportBuilder:
         )
         for site_id in dataset.index.tolist():
             site_key = str(site_id)
-            display_value = display_series.loc[site_id]
-            display_id = (
-                site_key
-                if not bool(pd.notna(display_value)) or str(display_value) == ""
-                else str(display_value)
-            )
+            display_id = display_id_by_site_key[site_key]
             sequence_value = dataset_sequence_series.loc[site_id]
-            has_sequence = bool(pd.notna(sequence_value)) and str(sequence_value) != ""
+            dataset_sequence = _normalise_sequence_value(sequence_value)
+            reference_sequence = reference_sequence_by_site_key.get(site_key)
+            has_sequence = dataset_sequence is not None
             if not has_sequence:
                 dataset_sequences_missing += 1
+                if reference_sequence is not None:
+                    sequence_source_records.append(
+                        KinaseSiteSequenceSelectionDiagnostic(
+                            site_key=site_key,
+                            display_id=display_id,
+                            selected_sequence=reference_sequence,
+                            selected_sequence_source="reference",
+                            policy=resolved_policy,
+                            dataset_sequence=None,
+                            reference_sequence=reference_sequence,
+                            diagnostic=(
+                                "reference sequence selected because dataset "
+                                "sequence is missing"
+                            ),
+                        )
+                    )
                 continue
             dataset_sequences_available += 1
-            dataset_sequence = str(sequence_value)
-            if site_key not in merged.index:
+            if reference_sequence is None:
                 merged.loc[site_key, _SITE_SEQUENCE_COLUMN] = dataset_sequence
                 merged.loc[site_key, "display_id"] = display_id
                 dataset_sequences_added += 1
+                sequence_source_records.append(
+                    KinaseSiteSequenceSelectionDiagnostic(
+                        site_key=site_key,
+                        display_id=display_id,
+                        selected_sequence=dataset_sequence,
+                        selected_sequence_source="dataset",
+                        policy=resolved_policy,
+                        dataset_sequence=dataset_sequence,
+                        reference_sequence=None,
+                        diagnostic=(
+                            "dataset sequence selected because reference "
+                            "sequence is missing"
+                        ),
+                    )
+                )
                 continue
-            reference_sequence = str(merged.at[site_key, _SITE_SEQUENCE_COLUMN])
             if reference_sequence == dataset_sequence:
+                sequence_source_records.append(
+                    KinaseSiteSequenceSelectionDiagnostic(
+                        site_key=site_key,
+                        display_id=display_id,
+                        selected_sequence=reference_sequence,
+                        selected_sequence_source="reference",
+                        policy=resolved_policy,
+                        dataset_sequence=dataset_sequence,
+                        reference_sequence=reference_sequence,
+                        diagnostic=(
+                            "reference sequence selected; dataset sequence "
+                            "matches reference sequence"
+                        ),
+                    )
+                )
                 continue
-            selected_sequence = reference_sequence
-            selected_source: Literal["reference", "dataset"] = "reference"
-            if conflict_policy == KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR:
-                selected_sequence = reference_sequence
-                selected_source = "reference"
-            elif conflict_policy == KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET:
+            selected_sequence: str | None = None
+            selected_source: Literal["reference", "dataset", "unresolved"] = (
+                "unresolved"
+            )
+            diagnostic = (
+                "dataset/reference sequence conflict is unresolved under "
+                "site_sequence_conflict_policy='error'"
+            )
+            if resolved_policy == KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET:
                 selected_sequence = dataset_sequence
                 selected_source = "dataset"
                 merged.loc[site_key, _SITE_SEQUENCE_COLUMN] = dataset_sequence
+                diagnostic = (
+                    "dataset sequence selected for dataset/reference sequence "
+                    "conflict under site_sequence_conflict_policy='prefer_dataset'"
+                )
+                sequence_source_records.append(
+                    KinaseSiteSequenceSelectionDiagnostic(
+                        site_key=site_key,
+                        display_id=display_id,
+                        selected_sequence=dataset_sequence,
+                        selected_sequence_source="dataset",
+                        policy=resolved_policy,
+                        dataset_sequence=dataset_sequence,
+                        reference_sequence=reference_sequence,
+                        diagnostic=diagnostic,
+                    )
+                )
             elif (
-                conflict_policy == KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE
+                resolved_policy == KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE
             ):
                 selected_sequence = reference_sequence
                 selected_source = "reference"
+                diagnostic = (
+                    "reference sequence selected for dataset/reference sequence "
+                    "conflict under site_sequence_conflict_policy='prefer_reference'"
+                )
+                sequence_source_records.append(
+                    KinaseSiteSequenceSelectionDiagnostic(
+                        site_key=site_key,
+                        display_id=display_id,
+                        selected_sequence=reference_sequence,
+                        selected_sequence_source="reference",
+                        policy=resolved_policy,
+                        dataset_sequence=dataset_sequence,
+                        reference_sequence=reference_sequence,
+                        diagnostic=diagnostic,
+                    )
+                )
             conflicts.append(
                 KinaseSiteSequenceConflictDiagnostic(
                     site_key=site_key,
                     display_id=display_id,
                     dataset_sequence=dataset_sequence,
                     reference_sequence=reference_sequence,
-                    selected_policy=conflict_policy,
+                    selected_policy=resolved_policy,
                     selected_sequence=selected_sequence,
                     selected_sequence_source=selected_source,
+                    diagnostic=diagnostic,
                 )
+            )
+        if resolved_policy == KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR and conflicts:
+            _raise_site_sequence_conflict_error(
+                conflict_policy=resolved_policy,
+                conflicts=tuple(conflicts),
             )
         merged.index.name = dataset.index.name
         return KinaseSiteSequenceSupportResult(
@@ -220,10 +351,57 @@ class KinaseSiteSequenceSupportBuilder:
             dataset_sequences_added=dataset_sequences_added,
             dataset_sequences_missing=dataset_sequences_missing,
             dataset_sequences_available=dataset_sequences_available,
-            conflict_policy=conflict_policy,
+            conflict_policy=resolved_policy,
             conflicts=tuple(conflicts),
+            sequence_source_records=tuple(sequence_source_records),
             display_reference_multi_matches=tuple(display_reference_multi_matches),
         )
+
+
+def _reference_sequence_by_display_id(
+    reference_site_sequences: pd.DataFrame,
+) -> dict[str, str]:
+    if _SITE_SEQUENCE_COLUMN not in reference_site_sequences.columns:
+        return {}
+    reference_sequences: dict[str, str] = {}
+    for display_id, value in reference_site_sequences.loc[
+        :, _SITE_SEQUENCE_COLUMN
+    ].items():
+        display_key = str(display_id).strip()
+        sequence = _normalise_sequence_value(value)
+        if display_key == "" or sequence is None:
+            continue
+        reference_sequences[display_key] = sequence
+    return reference_sequences
+
+
+def _normalise_sequence_value(value: object) -> str | None:
+    if bool(pd.Series((value,), dtype="object").isna().iat[0]):
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _raise_site_sequence_conflict_error(
+    *,
+    conflict_policy: KinaseSiteSequenceConflictPolicy,
+    conflicts: tuple[KinaseSiteSequenceConflictDiagnostic, ...],
+) -> None:
+    first = conflicts[0]
+    raise KinaseSiteSequenceConflictError(
+        seam="kinase.interpreter.site_sequence_conflict",
+        next_action=_CONFLICT_NEXT_ACTION,
+        details={
+            "conflict_policy": conflict_policy,
+            "dataset_reference_conflict_count": int(len(conflicts)),
+            "site_key": first.site_key,
+            "display_id": first.display_id,
+            "dataset_sequence": first.dataset_sequence,
+            "reference_sequence": first.reference_sequence,
+            "conflict_diagnostics": [item.to_payload() for item in conflicts],
+        },
+        message_prefix="kinase workflow boundary validation failed",
+    )
 
 
 __all__ = [
@@ -231,7 +409,10 @@ __all__ = [
     "KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR",
     "KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET",
     "KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE",
+    "KinaseSiteSequenceConflictError",
+    "KinaseSiteSequenceConflictDiagnostic",
     "KinaseSiteSequenceConflictPolicy",
+    "KinaseSiteSequenceSelectionDiagnostic",
     "KinaseSiteSequenceSupportBuilder",
     "KinaseSiteSequenceSupportResult",
 ]

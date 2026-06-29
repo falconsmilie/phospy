@@ -28,6 +28,9 @@ from phospy.validation.datasets.site_metadata import (
     enforce_localisation_requirement,
     enforce_required_non_empty_string_column,
 )
+from phospy.validation.identity_contracts import (
+    WORKFLOW_CENTERED_SEQUENCE_CONTEXT_CONTRACT,
+)
 from phospy.validation.workflows.configs import (
     SignalomeConfigValidator,
     reject_mixed_total_protein_quantitative_meaning,
@@ -246,6 +249,8 @@ class SignalomeWorkflowValidator:
                 contract=SIGNALOME_IDENTITY_CONTRACT,
                 error_type=WorkflowValidationError,
                 allow_opaque_site_values=allow_opaque_site_values,
+                sequence_context_contract=WORKFLOW_CENTERED_SEQUENCE_CONTEXT_CONTRACT,
+                scoring_mode="signalome",
             )
         except WorkflowValidationError as exc:
             raise WorkflowValidationError(
