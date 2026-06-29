@@ -1,5 +1,11 @@
 # PhosPy
 
+[![PyPI version](https://img.shields.io/pypi/v/phospy.svg)](https://pypi.org/project/phospy/)
+[![Python versions](https://img.shields.io/pypi/pyversions/phospy.svg)](https://pypi.org/project/phospy/)
+[![Tests](https://github.com/falconsmilie/phospy/actions/workflows/ci.yml/badge.svg)](https://github.com/falconsmilie/phospy/actions/workflows/ci.yml)
+[![License](https://img.shields.io/pypi/l/phospy.svg)](https://github.com/falconsmilie/phospy/blob/main/LICENSE)
+[![Downloads](https://api.pepy.tech/badge/phospy)](https://pepy.tech/project/phospy)
+
 PhosPy is a Python package for selected phosphoproteomics workflows inspired by
 PhosR. It is aimed at scientists who want a clear Python lane from phosphosite
 intensity tables to differential phosphorylation analysis, offline
