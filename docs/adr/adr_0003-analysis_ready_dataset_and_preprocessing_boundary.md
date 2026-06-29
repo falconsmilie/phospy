@@ -56,6 +56,14 @@ human-readable `GENE;SITE;` label and may repeat. Direct analysis-ready
 construction requires `site_key` indexes and required protein context metadata;
 display-indexed input is builder compatibility only.
 
+Update note (2026-06-29, supported construction boundary): The supported
+ordinary user path for constructing `AnalysisReadyPhosphoDataset` is
+`AnalysisReadyDatasetBuilder.run(DatasetBuildRequest(...))`. Direct
+construction remains available for trusted advanced/internal use, but it is not
+the primary public construction story. The constructor validates structural
+invariants and processing-state coherence; it cannot prove biological
+correctness of user-asserted provenance.
+
 ## Context and Problem Statement
 
 PhosPy is intended to expose one public dataset model and three primary
@@ -198,7 +206,9 @@ sequence context must not pass through this boundary.
 
 ## Preprocessing Responsibility
 
-Preprocessing is responsible for converting user-provided raw or semi-structured data into `AnalysisReadyPhosphoDataset`.
+Preprocessing is responsible for converting user-provided raw or
+semi-structured data into `AnalysisReadyPhosphoDataset` through the supported
+builder path.
 
 This includes responsibilities such as:
 

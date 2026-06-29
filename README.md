@@ -258,9 +258,14 @@ Use top-level `phospy` for the dataset, differential, kinase, and signalome
 convenience entrypoints:
 
 ```python
-from phospy import AnalysisReadyDatasetBuilder, AnalysisReadyPhosphoDataset
+from phospy import AnalysisReadyDatasetBuilder
 from phospy import DifferentialAnalysisWorkflow, KinaseWorkflow, SignalomeWorkflow
 ```
+
+`AnalysisReadyPhosphoDataset` remains exported for advanced/trusted callers who
+already have fully prepared `site_key`-indexed tables and processing-state
+provenance. Ordinary user construction should go through
+`AnalysisReadyDatasetBuilder().run(DatasetBuildRequest(...))`.
 
 Use `phospy.api` for requests, configs, results, enums, references, and public
 exceptions. `EnrichmentWorkflow` is a supported public workflow from

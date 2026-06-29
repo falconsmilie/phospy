@@ -27,6 +27,13 @@ Update note (2026-05-11): `site_sequence` may be omitted at ingestion, but it
 is mandatory at the `AnalysisReadyPhosphoDataset` boundary. The builder owns
 the derive-or-fail transition before final dataset construction.
 
+Update note (2026-06-29): The builder is the documented supported construction
+path for ordinary users. Builder-created datasets record construction
+provenance that identifies the construction method, table identities, and
+processing-state establishment. Direct dataset construction remains
+advanced/trusted use for callers who already own fully prepared analysis-ready
+tables.
+
 ## Context and Problem Statement
 
 Earlier ADRs established a clear direction:
@@ -185,12 +192,17 @@ Diagnostics or separate build-report outputs are not a current concern and are o
 
 ## Relationship to Direct Dataset Construction
 
-Direct construction of `AnalysisReadyPhosphoDataset` remains acceptable for callers who already possess fully analysis-ready data. Under ADR-0024, fully analysis-ready means `site_key` indexes plus the required auditable protein context metadata, not display-indexed `GENE;SITE;` rows.
+Direct construction of `AnalysisReadyPhosphoDataset` remains acceptable for
+trusted advanced/internal callers who already possess fully analysis-ready data.
+Under ADR-0024, fully analysis-ready means `site_key` indexes plus the required
+auditable protein context metadata, not display-indexed `GENE;SITE;` rows.
 
 However:
 
 - the builder should be the recommended public path for real-world ingestion
 - direct construction should not become the expected path for messy industry inputs
+- direct construction validates structure but cannot prove biological
+  correctness of user-asserted provenance
 
 This preserves the usefulness of the strict model without forcing all callers through a low-level manual preparation burden.
 

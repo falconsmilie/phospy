@@ -1,6 +1,7 @@
 # Dataset Builders
 
-PhosPy's dataset-builder entrypoint is `AnalysisReadyDatasetBuilder`.
+PhosPy's supported analysis-ready dataset construction entrypoint is
+`AnalysisReadyDatasetBuilder`.
 Detailed API usage lives in
 [Dataset Build Workflow](dataset-build-workflow.md).
 
@@ -15,11 +16,14 @@ Identity boundary summary:
 - `AnalysisReadyPhosphoDataset.site_metadata["display_id"]` is required.
 - `AnalysisReadyPhosphoDataset.site_metadata["site_key"]` must exactly match
   `site_metadata.index`.
-- Direct analysis-ready construction requires auditable protein context metadata:
+- Direct analysis-ready construction is advanced/trusted use only and requires
+  auditable protein context metadata:
   `organism`, `protein_namespace`, `protein_identifier`, `gene_symbol`, `site`,
   and `site_sequence`.
 - Direct analysis-ready construction requires encoded `site_key` indexes and
   does not silently fall back to display-site identity.
+- Direct construction validates structural invariants, but it cannot prove the
+  biological correctness of user-asserted provenance.
 - Builder input may accept legacy display-indexed shape only when enough
   protein context exists to derive `site_key`.
 - Workflows operate on `site_key`; site-level outputs that materialize row

@@ -15,7 +15,12 @@ from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
 
 class AnalysisReadyDatasetBuilder:
-    """Build ``AnalysisReadyPhosphoDataset`` from a structured request."""
+    """Supported public path for building ``AnalysisReadyPhosphoDataset``.
+
+    The builder validates and interprets user inputs, establishes processing
+    state, records construction provenance, and then constructs the strict
+    analysis-ready dataset boundary.
+    """
 
     def __init__(
         self,
@@ -29,7 +34,7 @@ class AnalysisReadyDatasetBuilder:
         self._executor = executor or DatasetBuildExecutor()
 
     def run(self, request: DatasetBuildRequest) -> AnalysisReadyPhosphoDataset:
-        """Validate, interpret, and execute the dataset build request."""
+        """Validate, interpret, execute, and provenance-stamp a build request."""
         validated = self._validator.run(request)
         interpreted = self._interpreter.run(validated)
         return self._executor.run(interpreted)

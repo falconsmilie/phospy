@@ -9,8 +9,9 @@ errors are fixable once you know which boundary rejected the input.
 Rows are phosphosites and columns are samples. Builder input may use display
 labels such as `MAPK14;Y182;` as the index when `site_metadata` provides enough
 protein context to derive `site_key`. Direct `AnalysisReadyPhosphoDataset`
-construction must already use encoded `site_key` row indexes; display-indexed
-direct construction is invalid. Missing values are rejected by default.
+construction is advanced/trusted use and must already use encoded `site_key`
+row indexes; display-indexed direct construction is invalid. Missing values are
+rejected by default.
 
 `site_metadata` must be a non-empty table aligned to `phospho.index`. It must
 include non-empty `gene_symbol`, `site`, and `site_sequence` columns at the
@@ -44,7 +45,8 @@ gene-symbol prefix, and it does not treat the display prefix as protein context
 or signalome grouping metadata. Builder ingestion may accept legacy
 display-indexed input only when enough protein context exists to derive
 `site_key`. Direct analysis-ready construction must provide `site_key`; it does
-not silently fall back to `GENE;SITE;` display labels.
+not silently fall back to `GENE;SITE;` display labels and cannot prove the
+biological correctness of user-asserted provenance.
 
 ## Analysis-Ready Dataset Boundary
 
@@ -213,7 +215,7 @@ shows exact tree-generation details and candidate-scoring details separately.
 | unsupported file format | Use `.csv`, `.tsv`, `.txt`, or `.parquet`; install parquet support for `.parquet`. |
 | missing `gene_symbol` or `site` | Add those columns or, for builder input only, use index labels formatted as `GENE;SITE;` with sufficient protein context. |
 | missing protein-scoped identity metadata | Add non-empty `organism`, `protein_namespace`, `protein_identifier`, and `site`, or use a builder-compatible protein-context source that derives them before final construction. |
-| display-indexed direct construction | Construct through the builder with enough protein context, or provide encoded `site_key` indexes and matching `site_metadata.site_key` directly. |
+| display-indexed direct construction | Use the builder with enough protein context, or, for advanced/trusted direct construction, provide encoded `site_key` indexes and matching `site_metadata.site_key` directly. |
 | signalome protein grouping metadata error | Add non-empty `protein_id` grouping metadata for every interpreted site; do not use `gene_symbol` or `display_id` as a fallback. |
 | reference resolution error | Use rat with `AUTO`, or pass an explicit `ReferenceBundle`. |
 | total-protein correction error | Provide `total`, set `intensity_transform.policy="log2"`, and configure identity mapping. |

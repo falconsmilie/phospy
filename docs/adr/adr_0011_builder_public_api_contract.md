@@ -40,6 +40,13 @@ every workflow lane. Sequence-aware workflow validators own strict centred
 context checks (odd length, central residue match to site token, strict
 character policy unless an explicit relaxation is configured).
 
+Update note (2026-06-29, construction boundary): The builder is the supported
+ordinary user construction path for `AnalysisReadyPhosphoDataset`. Direct
+dataset construction remains exported only for trusted advanced/internal use
+and compatibility. Builder-created datasets must record construction
+provenance, including construction method, input table identities, and
+processing-state establishment.
+
 ## Context and Problem Statement
 
 Earlier ADRs established two important truths:
@@ -96,11 +103,17 @@ Users should not need to understand the internal builder family. They should onl
 
 ## Public Builder Story
 
-The public story should be that PhosPy offers one recommended route for creating `AnalysisReadyPhosphoDataset` from real-world phosphoproteomics data.
+The public story should be that PhosPy offers one supported route for ordinary
+users creating `AnalysisReadyPhosphoDataset` from real-world phosphoproteomics
+data.
 
-That route should be more prominent than direct manual dataset construction for typical messy industry inputs.
+That route should be more prominent than direct manual dataset construction for
+typical messy industry inputs.
 
-Direct construction of `AnalysisReadyPhosphoDataset` remains valid for callers who already have fully prepared `site_key`-indexed data with required protein context metadata, but it is not the recommended story for ordinary ingestion.
+Direct construction of `AnalysisReadyPhosphoDataset` remains valid for trusted
+advanced/internal callers who already have fully prepared `site_key`-indexed
+data with required protein context metadata, but it is not the recommended
+story for ordinary ingestion.
 
 ## Public Builder Shape
 

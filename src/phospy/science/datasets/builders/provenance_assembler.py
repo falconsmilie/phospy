@@ -75,27 +75,25 @@ class DatasetRunProvenanceAssembler:
         allow_opaque_site_values: bool,
         protein_aware_preparation_report: ProteinAwarePreparationReport | None = None,
     ) -> RunProvenance:
-        input_tables = _collect_fingerprints(
-            (
-                ("dataset.phospho", request.phospho),
-                ("dataset.site_metadata", request.site_metadata),
-                ("dataset.sample_metadata", request.sample_metadata),
-                ("dataset.total", request.total),
-            )
+        input_entries = (
+            ("dataset.phospho", request.phospho),
+            ("dataset.site_metadata", request.site_metadata),
+            ("dataset.sample_metadata", request.sample_metadata),
+            ("dataset.total", request.total),
         )
-        output_tables = _collect_fingerprints(
+        output_entries = (
+            ("dataset.phospho", resolved_phospho),
+            ("dataset.site_metadata", validated_site_metadata),
+            ("dataset.sample_metadata", preprocessed.sample_metadata),
+            ("dataset.total", resolved_total),
+            ("dataset.comparisons", preprocessed.comparisons),
             (
-                ("dataset.phospho", resolved_phospho),
-                ("dataset.site_metadata", validated_site_metadata),
-                ("dataset.sample_metadata", preprocessed.sample_metadata),
-                ("dataset.total", resolved_total),
-                ("dataset.comparisons", preprocessed.comparisons),
-                (
-                    "dataset.imputation_observation_mask",
-                    preprocessed.imputation_observation_mask,
-                ),
-            )
+                "dataset.imputation_observation_mask",
+                preprocessed.imputation_observation_mask,
+            ),
         )
+        input_tables = _collect_fingerprints(input_entries)
+        output_tables = _collect_fingerprints(output_entries)
         workflow_parameters: dict[str, object] = {
             "preprocessing_plan": _preprocessing_plan_to_payload(
                 request.preprocessing_plan
@@ -117,6 +115,26 @@ class DatasetRunProvenanceAssembler:
                 if allow_opaque_site_values
                 else {"mode": "strict_sty_residue_position"}
             ),
+            "construction": {
+                "method": "AnalysisReadyDatasetBuilder.run",
+                "dataset_type": "AnalysisReadyPhosphoDataset",
+                "model_constructor": "AnalysisReadyPhosphoDataset._from_owned",
+                "input_table_identities": _table_identity_payload(input_entries),
+                "output_table_identities": _table_identity_payload(output_entries),
+                "processing_state_establishment": {
+                    "source": (
+                        "phospy.science.datasets.builders.transformation_state."
+                        "DatasetTransformationStateResolver.run"
+                    ),
+                    "intensity_scale_establishment": dict(
+                        intensity_scale_establishment
+                    ),
+                    "preprocessing_trace_stages": [
+                        item.stage for item in (preprocessing_trace or ())
+                    ],
+                    "analysis_ready_boundary": ("AnalysisReadyPhosphoDataset.__init__"),
+                },
+            },
         }
         if protein_aware_preparation_report is not None:
             workflow_parameters["protein_aware_preparation"] = (
@@ -151,6 +169,28 @@ def _collect_fingerprints(
             continue
         fingerprints.append(fingerprint)
     return tuple(fingerprints)
+
+
+def _table_identity_payload(
+    entries: tuple[tuple[str, pd.DataFrame | None], ...],
+) -> dict[str, dict[str, object] | None]:
+    payload: dict[str, dict[str, object] | None] = {}
+    for name, table in entries:
+        fingerprint = fingerprint_optional_table(table, name=name)
+        if fingerprint is None:
+            payload[name] = None
+            continue
+        payload[name] = {
+            "rows": int(fingerprint.rows),
+            "columns": int(fingerprint.columns),
+            "index_name": fingerprint.index_name,
+            "column_names": list(fingerprint.column_names),
+            "exact_hash_algorithm": fingerprint.exact_hash_algorithm,
+            "exact_hash_value": fingerprint.exact_hash_value,
+            "tolerance_hash_algorithm": fingerprint.tolerance_hash_algorithm,
+            "tolerance_hash_value": fingerprint.tolerance_hash_value,
+        }
+    return payload
 
 
 def _stage_trace_to_provenance(

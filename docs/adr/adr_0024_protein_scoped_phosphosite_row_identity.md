@@ -44,8 +44,8 @@ PhosPy adopts a two-key model for analysis-ready phosphosite rows:
 `AnalysisReadyPhosphoDataset.site_metadata["display_id"]` must be present.
 
 Auditable protein context metadata is required to construct and validate
-`site_key`. At the direct analysis-ready boundary, `site_metadata` must include
-non-empty:
+`site_key`. At the advanced/trusted direct analysis-ready boundary,
+`site_metadata` must include non-empty:
 
 - `site_key`
 - `display_id`
@@ -57,7 +57,7 @@ non-empty:
 - `site_sequence`
 
 Direct analysis-ready datasets must not silently fall back to display-site row
-identity.
+identity. Ordinary user construction should use `AnalysisReadyDatasetBuilder`.
 
 Builder input may remain user-friendly and accept legacy display-indexed input
 only when enough protein context is available to deterministically derive
@@ -76,9 +76,9 @@ downstream workflow contracts that consume those datasets.
 
 Display-indexed input is a builder compatibility input only. It is not valid
 direct analysis-ready identity. Direct `AnalysisReadyPhosphoDataset`
-construction requires `phospho.index`, `site_metadata.index`, and
-`site_metadata["site_key"]` to all use the same unique encoded `site_key`
-values.
+construction is advanced/trusted use and requires `phospho.index`,
+`site_metadata.index`, and `site_metadata["site_key"]` to all use the same
+unique encoded `site_key` values.
 
 Kinase reference resources may continue to use display IDs at the reference
 boundary. The kinase workflow must match those display IDs through an explicit

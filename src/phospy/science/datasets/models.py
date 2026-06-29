@@ -749,6 +749,17 @@ class ImputationObservationMetadata:
 class AnalysisReadyPhosphoDataset:
     """Public analysis-ready dataset contract.
 
+    Direct construction is for trusted advanced/internal use. Ordinary users
+    should construct datasets through ``AnalysisReadyDatasetBuilder.run(...)``,
+    which owns user-input interpretation, preprocessing, processing-state
+    establishment, and construction provenance.
+
+    Construction validates structural invariants, including table shape,
+    alignment, analysis-ready ``site_key`` identity, processing-state
+    coherence, and established transformation state. It cannot prove the
+    biological correctness of user-asserted provenance or scientific claims
+    supplied by a direct caller.
+
     `phospho` stores the quantitative matrix after builder preprocessing policy
     has been applied. When total/protein correction is enabled in the builder
     lane, corrected values are represented directly in this matrix. When

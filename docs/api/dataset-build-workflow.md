@@ -14,13 +14,15 @@ analysis-ready row identity. `display_id` is the human-readable `GENE;SITE;`
 label and may repeat when distinct `site_key` values preserve the protein
 context.
 
-Direct `AnalysisReadyPhosphoDataset` construction is stricter than builder
-ingestion: direct construction requires encoded `site_key` indexes and
-auditable identity metadata (`site_key`, `display_id`, `organism`,
+Direct `AnalysisReadyPhosphoDataset` construction is an advanced/trusted path,
+not the ordinary user construction story. It requires encoded `site_key`
+indexes and auditable identity metadata (`site_key`, `display_id`, `organism`,
 `protein_namespace`, `protein_identifier`, `gene_symbol`, `site`, and
-`site_sequence`). It does not silently fall back to display-site identity. The
-builder may accept legacy display-indexed input only when `site_metadata`
-contains enough protein context to derive `site_key` without ambiguity.
+`site_sequence`). It does not silently fall back to display-site identity, and
+constructor validation cannot prove the biological correctness of user-asserted
+provenance. The builder may accept legacy display-indexed input only when
+`site_metadata` contains enough protein context to derive `site_key` without
+ambiguity.
 
 `DatasetBuildRequest` is a lightweight command payload. Constructing it stores
 the requested inputs and policies, but does not prove the dataset-build request
@@ -242,8 +244,9 @@ from the gene-symbol prefix.
 
 Protein context is used to derive `site_key` when it is available and safe.
 `display_id` remains metadata and may repeat after `site_key` becomes the row
-identity. If direct construction is used instead of the builder, the caller must
-provide matching `site_key` indexes and all required identity metadata up front.
+identity. If the advanced/trusted direct-construction path is used instead of
+the builder, the caller must provide matching `site_key` indexes and all
+required identity metadata up front.
 
 ## Preprocessing Configuration
 

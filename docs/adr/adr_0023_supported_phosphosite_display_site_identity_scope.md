@@ -31,8 +31,8 @@ The supported analysis-ready identity model is now:
 - `AnalysisReadyPhosphoDataset.phospho.index` is `site_key`.
 - `AnalysisReadyPhosphoDataset.site_metadata.index` is `site_key`.
 - `display_id` may repeat when `site_key` values differ.
-- Direct `AnalysisReadyPhosphoDataset` construction requires `site_key`; it must
-  not silently fall back to display labels.
+- Direct `AnalysisReadyPhosphoDataset` construction is advanced/trusted use,
+  requires `site_key`, and must not silently fall back to display labels.
 - Direct construction also requires auditable protein context metadata:
   `organism`, `protein_namespace`, `protein_identifier`, `gene_symbol`, `site`,
   and `site_sequence`.

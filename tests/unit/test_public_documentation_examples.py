@@ -14,13 +14,12 @@ ENRICHMENT_WORKFLOW_DOC = WORKFLOW_DOCS_DIR / "enrichment.md"
 KINASE_WORKFLOW_DOC = WORKFLOW_DOCS_DIR / "kinase.md"
 SIGNALOME_WORKFLOW_DOC = WORKFLOW_DOCS_DIR / "signalome.md"
 
-README_IMPORT_SNIPPET = """from phospy import AnalysisReadyDatasetBuilder, AnalysisReadyPhosphoDataset
+README_IMPORT_SNIPPET = """from phospy import AnalysisReadyDatasetBuilder
 from phospy import DifferentialAnalysisWorkflow, KinaseWorkflow, SignalomeWorkflow
 """
 
 API_GUIDE_IMPORT_SNIPPET = """from phospy import (
     AnalysisReadyDatasetBuilder,
-    AnalysisReadyPhosphoDataset,
     DifferentialAnalysisWorkflow,
     KinaseWorkflow,
     SignalomeWorkflow,
@@ -271,7 +270,6 @@ def test_documented_public_imports_are_importable() -> None:
     exec(API_GUIDE_API_IMPORT_SNIPPET, namespace)
 
     assert "AnalysisReadyDatasetBuilder" in namespace
-    assert "AnalysisReadyPhosphoDataset" in namespace
     assert "DifferentialAnalysisWorkflow" in namespace
     assert "KinaseWorkflow" in namespace
     assert "SignalomeWorkflow" in namespace
@@ -286,7 +284,6 @@ def test_readme_differential_import_example_matches_supported_route() -> None:
         "phospy",
         (
             "AnalysisReadyDatasetBuilder",
-            "AnalysisReadyPhosphoDataset",
             "DifferentialAnalysisWorkflow",
             "KinaseWorkflow",
             "SignalomeWorkflow",
@@ -401,7 +398,6 @@ def test_api_guide_differential_import_examples_match_supported_route() -> None:
         "phospy",
         (
             "AnalysisReadyDatasetBuilder",
-            "AnalysisReadyPhosphoDataset",
             "DifferentialAnalysisWorkflow",
             "KinaseWorkflow",
             "SignalomeWorkflow",

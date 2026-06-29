@@ -3,6 +3,11 @@
 `phospy.api` owns the supported package contract: requests, configs, results,
 dataset/reference entrypoints, selected workflow types, and public exception
 types.
+
+``AnalysisReadyDatasetBuilder`` is the supported public construction path for
+``AnalysisReadyPhosphoDataset``. The dataset model remains exported for
+advanced/trusted callers and internal compatibility, but ordinary user
+construction should go through the builder.
 """
 
 from phospy.api.builders import AnalysisReadyDatasetBuilder, ReferenceBundleBuilder

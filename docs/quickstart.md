@@ -47,8 +47,9 @@ Required `site_metadata` columns for this lane:
 
 Builder input may omit `site_key` only when those protein-context fields are
 available for deterministic derivation. Direct `AnalysisReadyPhosphoDataset`
-construction must already use `site_key` indexes. A display label should look
-like `TSC2;S939;`; it is not unique row identity and may repeat when distinct
+construction is advanced/trusted use and must already use `site_key` indexes.
+A display label should look like `TSC2;S939;`; it is not unique row identity and
+may repeat when distinct
 `site_key` rows preserve distinct protein context. Rows that resolve to the
 same `site_key` are duplicate scientific evidence for the same analysis-ready
 site and fail by default unless you intentionally choose and audit a non-error

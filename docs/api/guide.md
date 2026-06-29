@@ -48,12 +48,16 @@ Use top-level `phospy` for the main convenience entrypoints:
 ```python
 from phospy import (
     AnalysisReadyDatasetBuilder,
-    AnalysisReadyPhosphoDataset,
     DifferentialAnalysisWorkflow,
     KinaseWorkflow,
     SignalomeWorkflow,
 )
 ```
+
+`AnalysisReadyPhosphoDataset` remains exported for advanced/trusted callers who
+already own fully prepared `site_key`-indexed tables and processing-state
+provenance. Ordinary dataset construction should use
+`AnalysisReadyDatasetBuilder().run(DatasetBuildRequest(...))`.
 
 Use `phospy.api` for request, config, result, enum, reference, workflow, and
 exception contracts:
