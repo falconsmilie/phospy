@@ -348,6 +348,14 @@ def _require_matrix(phospho: pd.DataFrame) -> None:
         )
     if phospho.shape[1] < 2:
         raise PhosPyInputError("SPS/RUV-style executor requires at least two samples")
+    _require_unambiguous_axis_labels(
+        phospho.index,
+        axis_name="feature/site labels",
+    )
+    _require_unambiguous_axis_labels(
+        phospho.columns,
+        axis_name="sample/column labels",
+    )
     non_numeric = [
         str(column)
         for column in phospho.columns.tolist()
@@ -361,6 +369,57 @@ def _require_matrix(phospho: pd.DataFrame) -> None:
             "SPS/RUV-style executor requires numeric phospho columns. "
             "Non-numeric columns: " + ", ".join(non_numeric)
         )
+
+
+def _require_unambiguous_axis_labels(labels: pd.Index, *, axis_name: str) -> None:
+    effective_labels: list[str] = []
+    missing_positions: list[int] = []
+    blank_positions: list[int] = []
+    for position, value in enumerate(labels.tolist()):
+        if _is_missing_axis_label(value):
+            missing_positions.append(position)
+            continue
+        effective_label = str(value)
+        if effective_label.strip() == "":
+            blank_positions.append(position)
+        effective_labels.append(effective_label)
+
+    if missing_positions:
+        raise PhosPyInputError(
+            f"SPS/RUV-style executor requires {axis_name} to be nonblank and "
+            "non-missing before numerical correction; missing label positions: "
+            + _preview_positions(missing_positions)
+        )
+    if blank_positions:
+        raise PhosPyInputError(
+            f"SPS/RUV-style executor requires {axis_name} to be nonblank before "
+            "numerical correction; blank label positions: "
+            + _preview_positions(blank_positions)
+        )
+
+    label_counts: dict[str, int] = {}
+    for label in effective_labels:
+        label_counts[label] = label_counts.get(label, 0) + 1
+    duplicates = [
+        label for label in dict.fromkeys(effective_labels) if label_counts[label] > 1
+    ]
+    if duplicates:
+        preview = ", ".join(repr(label) for label in duplicates[:5])
+        suffix = "" if len(duplicates) <= 5 else " ..."
+        raise PhosPyInputError(
+            f"SPS/RUV-style executor requires {axis_name} to be unique before "
+            f"numerical correction; duplicate labels: {preview}{suffix}"
+        )
+
+
+def _is_missing_axis_label(value: object) -> bool:
+    return bool(pd.Series((value,), dtype="object").isna().iat[0])
+
+
+def _preview_positions(positions: list[int]) -> str:
+    preview = ", ".join(str(position) for position in positions[:5])
+    suffix = "" if len(positions) <= 5 else " ..."
+    return f"{preview}{suffix}"
 
 
 def _aligned_protected_design(

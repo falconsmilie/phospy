@@ -199,6 +199,52 @@ def test_sps_ruv_style_executor_rejects_negative_infinity_in_observed_cell() -> 
         _run_executor(phospho)
 
 
+def test_sps_ruv_style_executor_rejects_duplicate_row_index_before_correction() -> None:
+    phospho = _phospho()
+    phospho.index = pd.Index(["site_a", "site_b", "site_a"], name="site_key")
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=r"feature/site labels.*unique.*'site_a'",
+    ):
+        _run_direct_executor_with_reference_plan(phospho)
+
+
+def test_sps_ruv_style_executor_rejects_duplicate_column_label_before_correction() -> (
+    None
+):
+    phospho = _phospho()
+    phospho.columns = pd.Index(["sample_1", "sample_2", "sample_2", "sample_4"])
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=r"sample/column labels.*unique.*'sample_2'",
+    ):
+        _run_direct_executor_with_reference_plan(phospho)
+
+
+def test_sps_ruv_style_executor_rejects_blank_row_index_before_correction() -> None:
+    phospho = _phospho()
+    phospho.index = pd.Index(["site_a", "   ", "site_c"], name="site_key")
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=r"feature/site labels.*nonblank.*blank label positions: 1",
+    ):
+        _run_direct_executor_with_reference_plan(phospho)
+
+
+def test_sps_ruv_style_executor_rejects_blank_column_label_before_correction() -> None:
+    phospho = _phospho()
+    phospho.columns = pd.Index(["sample_1", "", "sample_3", "sample_4"])
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=r"sample/column labels.*nonblank.*blank label positions: 1",
+    ):
+        _run_direct_executor_with_reference_plan(phospho)
+
+
 def test_sps_ruv_style_executor_returns_diagnostics_warnings_and_provenance() -> None:
     result = _run_executor(_phospho())
     diagnostics_payload = result.diagnostics.to_payload()
@@ -517,6 +563,13 @@ def _run_executor(
         n_unwanted_factors=n_unwanted_factors,
         dataset_metadata=dataset_metadata,
     )
+    return DeterministicSpsRuvStyleExecutor().run(phospho=phospho, plan=plan)
+
+
+def _run_direct_executor_with_reference_plan(
+    phospho: pd.DataFrame,
+) -> SpsRuvStyleExecutorResult:
+    plan = _resolved_plan(_phospho())
     return DeterministicSpsRuvStyleExecutor().run(phospho=phospho, plan=plan)
 
 
