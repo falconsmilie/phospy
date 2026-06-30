@@ -6,8 +6,6 @@ import pandas.testing as pdt
 
 from phospy import AnalysisReadyPhosphoDataset
 from phospy.api import (
-    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
-    PAIRED_DESIGN_POLICY_REJECT,
     CategoricalCovariate,
     ContinuousCovariate,
     Contrast,
@@ -17,6 +15,10 @@ from phospy.api import (
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
+)
+from phospy.api.configs import (
+    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+    PAIRED_DESIGN_POLICY_REJECT,
 )
 from phospy.workflows.differential.models import (
     InterpretedDifferentialAnalysisRequest,

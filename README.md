@@ -267,14 +267,25 @@ already have fully prepared `site_key`-indexed tables and processing-state
 provenance. Ordinary user construction should go through
 `AnalysisReadyDatasetBuilder().run(DatasetBuildRequest(...))`.
 
-Use `phospy.api` for requests, configs, results, enums, references, and public
-exceptions. `EnrichmentWorkflow` is a supported public workflow from
-`phospy.api` and `phospy.workflows`:
+Use `phospy.api` for the stable request, workflow, primary result, reference,
+enum, and common exception names documented in the API guide. The aggregate
+facade is intentionally smaller than the implementation modules; validators,
+workflow executors, processing-state internals, nested diagnostic records, and
+compatibility constants are not stable public API.
+
+`EnrichmentWorkflow` is a supported public workflow from `phospy.api` and
+`phospy.workflows`:
 
 ```python
 from phospy.api import EnrichmentConfig, EnrichmentWorkflow
 from phospy.api import EnrichmentWorkflowRequest, GeneSetCollection
 ```
+
+Specialized configuration and inspection helpers that are not part of the
+stable facade are documented as advanced supported API. Import lower-level
+constants and nested result models from explicit submodules such as
+`phospy.api.configs` or `phospy.api.results` only when you need that advanced
+surface.
 
 ## Documentation
 

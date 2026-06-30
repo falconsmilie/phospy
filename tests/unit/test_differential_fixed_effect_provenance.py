@@ -4,7 +4,6 @@ import pandas as pd
 
 from phospy import AnalysisReadyPhosphoDataset
 from phospy.api import (
-    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     BatchCovariate,
     CategoricalCovariate,
     ContinuousCovariate,
@@ -16,6 +15,7 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
+from phospy.api.configs import PAIRED_DESIGN_POLICY_FIXED_BLOCK
 from phospy.api.results import DifferentialFixedEffectCovariateProvenance
 from phospy.science.differential.models import DifferentialPolicyProvenance
 from tests.support.intensity_scale_states import (

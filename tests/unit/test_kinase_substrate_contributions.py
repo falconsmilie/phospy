@@ -5,7 +5,6 @@ import pytest
 
 from phospy import AnalysisReadyPhosphoDataset
 from phospy.api import (
-    KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -13,6 +12,9 @@ from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+)
+from phospy.api.configs import (
+    KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS,
 )
 from phospy.science.prediction.scoring import (
     KINASE_SCORE_SOURCE_FUSED_MOTIF_PROFILE_EVIDENCE,

@@ -61,28 +61,29 @@ TOP_LEVEL_ERROR_FACADE = {
     "PhosPyError",
     "PhosPyInputError",
     "UnsupportedInputFormatError",
-    "PhosPyBuildError",
     "PhosPyValidationError",
     "PhosPyReferenceError",
-    "UnsupportedOrganismError",
-    "PhosPyTransformationError",
+    "ReferenceCompatibilityError",
+    "ReferenceResolutionError",
     "PhosPyWorkflowError",
+    "WorkflowValidationError",
     "WorkflowBoundaryError",
+    "SignalomeScaleError",
 }
 
 NON_FACADE_ERROR_TYPES = {
     "DatasetBuildError",
     "DatasetValidationError",
+    "PhosPyBuildError",
+    "PhosPyTransformationError",
+    "ReferenceIdentifierNormalisationValidationError",
     "ReferenceValidationError",
     "TransformationValidationError",
-    "WorkflowValidationError",
-    "ReferenceCompatibilityError",
-    "ReferenceResolutionError",
     "InvalidTransformationStateError",
     "TransformationStateEstablishmentError",
     "TransformerExecutionError",
+    "UnsupportedOrganismError",
     "WorkflowStageError",
-    "SignalomeScaleError",
 }
 
 
@@ -307,7 +308,8 @@ def test_top_level_exception_exports_match_curated_facade() -> None:
         assert exported not in phospy.__all__
     for exported in NON_FACADE_ERROR_TYPES:
         assert exported in public_errors.__all__
-        assert exported in public_api.__all__
+        assert exported not in public_api.__all__
+        assert not hasattr(public_api, exported)
         assert exported not in phospy.__all__
 
 

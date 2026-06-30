@@ -106,23 +106,11 @@ print(report.kinase_substrate_record_count)
 print(report.compatibility_warnings)
 ```
 
-You can also run the validator directly when you already have local tables:
-
-```python
-from phospy.validation.references.bundle import ReferenceBundleValidator
-
-result = ReferenceBundleValidator().run(
-    organism=Organism.MOUSE,
-    kinase_substrate_map=kinase_substrate_map,
-    site_sequences=site_sequences,
-)
-report = result.report
-```
-
 The report is informational. It does not repair reference data and does not make
 invalid bundles usable. Missing required tables, missing required columns,
 duplicate kinase-substrate records, malformed identifiers, and missing sequence
-rows still fail validation.
+rows still fail validation. Reference validators and manifest-validation
+internals are implementation routes, not `phospy.api` public exports.
 
 Report fields include:
 

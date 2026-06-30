@@ -5,7 +5,6 @@ import pytest
 
 from phospy import AnalysisReadyPhosphoDataset
 from phospy.api import (
-    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     BatchCovariate,
     CategoricalCovariate,
     ContinuousCovariate,
@@ -15,6 +14,7 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
+from phospy.api.configs import PAIRED_DESIGN_POLICY_FIXED_BLOCK
 from phospy.errors import WorkflowValidationError
 from phospy.validation.workflows.differential import (
     ExperimentalDesignContractValidator,

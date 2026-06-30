@@ -6,15 +6,17 @@ import pandas as pd
 import pytest
 
 from phospy.api import (
-    ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
-    ENRICHMENT_IDENTIFIER_KIND_SITE_KEY,
-    SUPPORTED_MULTIPLE_TESTING_CORRECTIONS,
     EnrichmentConfig,
     EnrichmentWorkflowRequest,
     EnrichmentWorkflowResult,
     GeneSetCollection,
     MultipleTestingCorrection,
     PtmSetCollection,
+)
+from phospy.api.configs import (
+    ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+    ENRICHMENT_IDENTIFIER_KIND_SITE_KEY,
+    SUPPORTED_MULTIPLE_TESTING_CORRECTIONS,
 )
 from phospy.science.enrichment.ora import OraEngine
 from phospy.science.statistics.multiple_testing import (

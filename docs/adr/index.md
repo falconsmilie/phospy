@@ -47,3 +47,4 @@ Use these ADRs when you need rationale and tradeoffs.
 | ADR-0028 | Semi-Public Science Import Policy | Accepted | 2026-06-15 | [adr_0028_semi_public_science_import_policy.md](adr_0028_semi_public_science_import_policy.md) |
 | ADR-0029 | Native SPS/RUV-Style Batch Correction Prerequisites | Accepted | 2026-06-23 | [adr_0029_native_sps_ruv_style_batch_correction_prerequisites.md](adr_0029_native_sps_ruv_style_batch_correction_prerequisites.md) |
 | ADR-0030 | Ranked-List Enrichment Prerequisites | Accepted | 2026-06-23 | [adr_0030_ranked_list_enrichment_prerequisites.md](adr_0030_ranked_list_enrichment_prerequisites.md) |
+| ADR-0031 | Public API Stability Tiers | Accepted | 2026-06-30 | [adr_0031_public_api_stability_tiers.md](adr_0031_public_api_stability_tiers.md) |

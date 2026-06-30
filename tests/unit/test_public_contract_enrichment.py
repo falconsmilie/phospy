@@ -14,11 +14,6 @@ import phospy.api.results as result_models
 import phospy.api.workflows as workflow_models
 import phospy.workflows as native_workflows
 from phospy.api import (
-    ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
-    ENRICHMENT_IDENTIFIER_KIND_SITE_KEY,
-    ENRICHMENT_METHOD_OVER_REPRESENTATION,
-    MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
-    MULTIPLE_TESTING_CORRECTION_NONE,
     EnrichmentConfig,
     EnrichmentIdentifierKind,
     EnrichmentResultRecord,
@@ -29,6 +24,13 @@ from phospy.api import (
     MultipleTestingCorrection,
     PtmSetCollection,
     WorkflowValidationError,
+)
+from phospy.api.configs import (
+    ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+    ENRICHMENT_IDENTIFIER_KIND_SITE_KEY,
+    ENRICHMENT_METHOD_OVER_REPRESENTATION,
+    MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
+    MULTIPLE_TESTING_CORRECTION_NONE,
 )
 
 

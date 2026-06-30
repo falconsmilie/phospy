@@ -6,10 +6,12 @@ import pandas as pd
 import pytest
 
 from phospy.api import (
-    IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
-    IMPORTER_QUALITY_STATUS_REPORTED,
     PhosphositeImportRequest,
     PhosphositeImportResult,
+)
+from phospy.api.results import (
+    IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
+    IMPORTER_QUALITY_STATUS_REPORTED,
 )
 from phospy.errors import PhosPyInputError
 from phospy.io.readers import MappedPhosphositeTableImporter

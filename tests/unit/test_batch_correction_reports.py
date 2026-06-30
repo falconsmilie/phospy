@@ -7,13 +7,15 @@ import pandas as pd
 
 from phospy.api import (
     AnalysisReadyDatasetBuilder,
-    BatchCorrectionDiagnostics,
-    BatchCorrectionPolicy,
-    BatchCorrectionReport,
     DatasetBatchCorrectionConfig,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     Organism,
+)
+from phospy.api.results import (
+    BatchCorrectionDiagnostics,
+    BatchCorrectionPolicy,
+    BatchCorrectionReport,
 )
 from phospy.provenance.serialization import from_payload, to_payload
 from phospy.science.datasets.models import DatasetPreprocessingReport

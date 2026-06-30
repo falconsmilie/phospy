@@ -6,7 +6,6 @@ import pandas as pd
 import pytest
 
 from phospy.api import (
-    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     BatchCovariate,
     Contrast,
     DifferentialAnalysisConfig,
@@ -16,6 +15,7 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
+from phospy.api.configs import PAIRED_DESIGN_POLICY_FIXED_BLOCK
 from phospy.errors import (
     PhosPyInputError,
     WorkflowBoundaryError,

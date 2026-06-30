@@ -8,7 +8,6 @@ import pandas.testing as pdt
 import pytest
 
 from phospy.api import (
-    SUPPORTED_MULTIPLE_TESTING_METHODS,
     CategoricalCovariate,
     ContinuousCovariate,
     Contrast,
@@ -22,6 +21,7 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
+from phospy.api.configs import SUPPORTED_MULTIPLE_TESTING_METHODS
 from phospy.errors import (
     PhosPyInputError,
     WorkflowBoundaryError,

@@ -5,10 +5,10 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy.api import (
+from phospy.api import PhosphositeImportResult
+from phospy.api.results import (
     IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
     IMPORTER_QUALITY_STATUS_REPORTED,
-    PhosphositeImportResult,
 )
 from phospy.errors import PhosPyInputError
 from phospy.io.readers import (

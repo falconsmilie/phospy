@@ -59,8 +59,9 @@ already own fully prepared `site_key`-indexed tables and processing-state
 provenance. Ordinary dataset construction should use
 `AnalysisReadyDatasetBuilder().run(DatasetBuildRequest(...))`.
 
-Use `phospy.api` for request, config, result, enum, reference, workflow, and
-exception contracts:
+Use `phospy.api` for stable request, workflow, primary result, reference, enum,
+and common exception contracts. The aggregate facade is intentionally smaller
+than the implementation modules:
 
 ```python
 from phospy.api import (
@@ -92,13 +93,36 @@ from phospy.api import (
 )
 ```
 
+### API Stability Tiers
+
+Stable public API is the default user-facing surface. It includes the dataset
+builder, `AnalysisReadyPhosphoDataset`, core workflow request objects, workflow
+classes with `run(...)`, primary workflow result objects, reference-bundle
+entrypoints, example-level enums, and common exception types.
+
+Advanced supported API is public but should be imported deliberately. It
+includes selected specialized configuration objects, control-site policy
+helpers, local Kinase Library-style resource loaders, and explicit result-table
+inspection helpers such as `filter_differential_results` and
+`rank_differential_results`.
+
+Internal / experimental API is not exported through `phospy.api`. This includes
+validators, private result assemblers, internal scoring helpers, private
+provenance serialization functions, low-level workflow interpreters and
+executors, reference manifest validation internals, processing-state internals,
+nested diagnostic records, and compatibility constants.
+
+See [ADR-0031](../adr/adr_0031_public_api_stability_tiers.md) for the current
+inventory and promotion policy.
+
 ### Public and Semi-Public Routes
 
 The supported public API remains:
 
 - `phospy` for the small top-level workflow convenience surface.
 - `phospy.api` for public request, config, result, enum, reference, workflow,
-  and exception names listed in `phospy.api.__all__`.
+  and exception names listed in `phospy.api.__all__`. This list contains stable
+  and explicitly advanced supported names only.
 
 Selected `phospy.science.*` routes are semi-public compatibility routes for
 advanced extension, parity, and backend-contract use. They are not promoted to

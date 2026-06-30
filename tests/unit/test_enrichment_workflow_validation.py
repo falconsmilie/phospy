@@ -4,14 +4,16 @@ import pandas as pd
 import pytest
 
 from phospy.api import (
-    ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
-    ENRICHMENT_IDENTIFIER_KIND_SITE_KEY,
     EnrichmentConfig,
     EnrichmentSetCollection,
     EnrichmentWorkflowRequest,
     GeneSetCollection,
     PtmSetCollection,
     WorkflowValidationError,
+)
+from phospy.api.configs import (
+    ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+    ENRICHMENT_IDENTIFIER_KIND_SITE_KEY,
 )
 from phospy.validation.workflows.enrichment import EnrichmentWorkflowValidator
 

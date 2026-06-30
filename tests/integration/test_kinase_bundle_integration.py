@@ -11,7 +11,6 @@ from phospy import (
     KinaseWorkflow,
 )
 from phospy.api import (
-    DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
     DatasetBuildRequest,
     DatasetIntensityTransformConfig,
     DatasetPreprocessingConfig,
@@ -23,6 +22,9 @@ from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+)
+from phospy.api.configs import (
+    DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
 )
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles.kinase import (

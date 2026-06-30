@@ -6,10 +6,10 @@ import pytest
 from phospy.api import (
     Organism,
     ReferenceBundle,
-    ReferenceBundleValidationReport,
 )
 from phospy.errors.validation import ReferenceValidationError
 from phospy.science.references.models import (
+    ReferenceBundleValidationReport,
     ReferenceFileManifest,
     ReferenceManifest,
 )

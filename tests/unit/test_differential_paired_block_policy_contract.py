@@ -6,12 +6,14 @@ from typing import get_type_hints
 import pytest
 
 from phospy.api import (
-    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
-    PAIRED_DESIGN_POLICY_REJECT,
-    SUPPORTED_PAIRED_DESIGN_POLICIES,
     DifferentialAnalysisConfig,
     ExperimentalDesign,
     SampleDesignRecord,
+)
+from phospy.api.configs import (
+    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+    PAIRED_DESIGN_POLICY_REJECT,
+    SUPPORTED_PAIRED_DESIGN_POLICIES,
 )
 from phospy.errors import WorkflowValidationError
 

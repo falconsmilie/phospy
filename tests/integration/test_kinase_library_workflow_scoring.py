@@ -4,13 +4,15 @@ import pandas as pd
 import pytest
 
 from phospy.api import (
-    KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
-    KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
     KinasePredictionConfig,
     KinaseScoringConfig,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+)
+from phospy.api.configs import (
+    KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
+    KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
 )
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
 from phospy.provenance.hashing import fingerprint_table

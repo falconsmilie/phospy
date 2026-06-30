@@ -4,11 +4,13 @@ import pandas as pd
 import pytest
 
 from phospy.api import (
-    ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
-    MULTIPLE_TESTING_CORRECTION_NONE,
     EnrichmentConfig,
     EnrichmentWorkflowRequest,
     GeneSetCollection,
+)
+from phospy.api.configs import (
+    ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+    MULTIPLE_TESTING_CORRECTION_NONE,
 )
 from phospy.errors import WorkflowBoundaryError
 from phospy.science.enrichment.ora import OraResult, OraResultRecord

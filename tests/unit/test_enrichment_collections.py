@@ -3,12 +3,14 @@ from __future__ import annotations
 import pytest
 
 from phospy.api import (
-    ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
-    ENRICHMENT_IDENTIFIER_KIND_SITE_KEY,
     EnrichmentSet,
     EnrichmentSetCollection,
     GeneSetCollection,
     WorkflowValidationError,
+)
+from phospy.api.configs import (
+    ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+    ENRICHMENT_IDENTIFIER_KIND_SITE_KEY,
 )
 
 

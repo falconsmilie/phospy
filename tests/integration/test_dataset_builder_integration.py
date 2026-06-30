@@ -12,7 +12,6 @@ from phospy import (
     AnalysisReadyDatasetBuilder,
 )
 from phospy.api import (
-    DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
     DatasetBuildRequest,
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
@@ -26,6 +25,9 @@ from phospy.api import (
     DatasetTotalProteinCorrectionIdentityConfig,
     Organism,
     ReferencePreset,
+)
+from phospy.api.configs import (
+    DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
 )
 from phospy.errors import PhosPyInputError
 from phospy.io.publishers.workflows import publish_dataset
