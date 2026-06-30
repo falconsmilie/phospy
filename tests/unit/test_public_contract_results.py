@@ -168,6 +168,31 @@ def test_public_result_exports_match_contract() -> None:
     assert set(result_models.__all__) == EXPECTED_RESULT_EXPORTS
 
 
+def test_contract_result_domain_modules_preserve_legacy_import_identity() -> None:
+    import phospy.contracts.results as contracts_results
+    from phospy.contracts.results.base import (
+        ImporterQualityReport,
+        PhosphositeImportResult,
+    )
+    from phospy.contracts.results.differential import DifferentialAnalysisResult
+    from phospy.contracts.results.enrichment import EnrichmentWorkflowResult
+    from phospy.contracts.results.kinase import (
+        KinaseEligibilityReport,
+        KinaseWorkflowResult,
+    )
+    from phospy.contracts.results.preprocessing import BatchCorrectionReport
+    from phospy.contracts.results.signalome import SignalomeWorkflowResult
+
+    assert contracts_results.ImporterQualityReport is ImporterQualityReport
+    assert contracts_results.PhosphositeImportResult is PhosphositeImportResult
+    assert contracts_results.DifferentialAnalysisResult is DifferentialAnalysisResult
+    assert contracts_results.EnrichmentWorkflowResult is EnrichmentWorkflowResult
+    assert contracts_results.KinaseEligibilityReport is KinaseEligibilityReport
+    assert contracts_results.KinaseWorkflowResult is KinaseWorkflowResult
+    assert contracts_results.BatchCorrectionReport is BatchCorrectionReport
+    assert contracts_results.SignalomeWorkflowResult is SignalomeWorkflowResult
+
+
 def test_result_compatibility_aliases_are_public_exports() -> None:
     assert INTENTIONAL_RESULT_COMPATIBILITY_ALIASES <= set(result_models.__all__)
 

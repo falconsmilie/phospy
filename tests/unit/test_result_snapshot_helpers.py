@@ -102,7 +102,10 @@ ENRICHMENT_RESULT_COLUMNS = [
 RESULT_MODEL_SOURCE_FILES = (
     Path("src/phospy/science/activities/models.py"),
     Path("src/phospy/science/enrichment/models.py"),
-    Path("src/phospy/contracts/results.py"),
+    Path("src/phospy/contracts/results/base.py"),
+    Path("src/phospy/contracts/results/enrichment.py"),
+    Path("src/phospy/contracts/results/kinase.py"),
+    Path("src/phospy/contracts/results/signalome.py"),
 )
 FORBIDDEN_RESULT_MODEL_PATTERNS = (
     ".plot(",
