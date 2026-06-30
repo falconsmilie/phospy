@@ -120,7 +120,7 @@ allowed.
 - Technical replicate policy enum:
   `src/phospy/science/differential/policy_models.py`.
 - Differential structured policy provenance model:
-  `src/phospy/science/differential/models.py`.
+  `src/phospy/science/differential/models/provenance.py`.
 - Planner, aggregator, and compatibility-resolver behavior:
   `src/phospy/workflows/differential/replicates.py`.
 - Differential request validation pipeline:

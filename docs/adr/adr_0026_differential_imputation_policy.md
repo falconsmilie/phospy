@@ -80,10 +80,11 @@ policy.
   `src/phospy/workflows/differential/interpreter.py`
 - Tested-row statistical execution and public result reattachment:
   `src/phospy/workflows/differential/executor.py`
-- Result/provenance models:
-  `src/phospy/science/differential/models.py`
+- Result/provenance/table models:
+  `src/phospy/science/differential/models/results.py`,
+  `src/phospy/science/differential/models/provenance.py`, and
+  `src/phospy/science/differential/models/tables.py`
 - Provenance construction:
   `src/phospy/workflows/differential/provenance.py`
 - Tests:
   `tests/unit/test_differential_imputation_policy.py`
-

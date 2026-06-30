@@ -69,6 +69,55 @@ IDENTITY_COLUMNS = [
 STATISTIC_COLUMNS = ["logFC", "t", "P.Value", "adj.P.Val"]
 
 
+def test_differential_model_domain_modules_preserve_legacy_import_identity() -> None:
+    import phospy.science.differential.models as differential_models
+    from phospy.science.differential.models.design import (
+        ContrastMatrix,
+        DesignMatrix,
+        DifferentialAnalysisRequest,
+    )
+    from phospy.science.differential.models.diagnostics import (
+        EmpiricalBayesPriorDiagnostics,
+        MeanVarianceTrendDiagnostics,
+    )
+    from phospy.science.differential.models.empirical_bayes_config import (
+        EmpiricalBayesConfig,
+    )
+    from phospy.science.differential.models.fit import DifferentialComputationResult
+    from phospy.science.differential.models.provenance import (
+        DifferentialPolicyProvenance,
+    )
+    from phospy.science.differential.models.results import DifferentialAnalysisResult
+    from phospy.science.differential.models.tables import (
+        DIFFERENTIAL_RESULT_STATUS_TESTED,
+    )
+
+    assert differential_models.ContrastMatrix is ContrastMatrix
+    assert differential_models.DesignMatrix is DesignMatrix
+    assert (
+        differential_models.DifferentialAnalysisRequest is DifferentialAnalysisRequest
+    )
+    assert differential_models.EmpiricalBayesConfig is EmpiricalBayesConfig
+    assert (
+        differential_models.EmpiricalBayesPriorDiagnostics
+        is EmpiricalBayesPriorDiagnostics
+    )
+    assert (
+        differential_models.MeanVarianceTrendDiagnostics is MeanVarianceTrendDiagnostics
+    )
+    assert differential_models.DifferentialComputationResult is (
+        DifferentialComputationResult
+    )
+    assert differential_models.DifferentialAnalysisResult is DifferentialAnalysisResult
+    assert differential_models.DifferentialPolicyProvenance is (
+        DifferentialPolicyProvenance
+    )
+    assert (
+        differential_models.DIFFERENTIAL_RESULT_STATUS_TESTED
+        == DIFFERENTIAL_RESULT_STATUS_TESTED
+    )
+
+
 def _canonical_site_id(raw_site_id: str, *, ordinal: int) -> str:
     tokens = [token.strip() for token in raw_site_id.split(";") if token.strip()]
     if len(tokens) >= 2:
