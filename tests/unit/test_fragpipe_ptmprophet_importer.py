@@ -22,6 +22,34 @@ ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "tests" / "fixtures" / "fragpipe"
 
 
+def test_fragpipe_reader_split_modules_preserve_legacy_import_identity() -> None:
+    import importlib
+
+    import phospy.io.readers.fragpipe as fragpipe_reader
+    from phospy.io.readers.fragpipe.importer import FragPipePTMProphetImporter
+    from phospy.io.readers.fragpipe.models import (
+        FragPipeColumnMapping,
+        FragPipePTMProphetImportRequest,
+    )
+
+    for module_name in (
+        "columns",
+        "conversion",
+        "filtering",
+        "normalization",
+        "raw",
+        "reporting",
+    ):
+        importlib.import_module(f"phospy.io.readers.fragpipe.{module_name}")
+
+    assert fragpipe_reader.FragPipeColumnMapping is FragPipeColumnMapping
+    assert fragpipe_reader.FragPipePTMProphetImporter is FragPipePTMProphetImporter
+    assert (
+        fragpipe_reader.FragPipePTMProphetImportRequest
+        is FragPipePTMProphetImportRequest
+    )
+
+
 def _import_fixture(
     filename: str = "ptmprophet_sites.tsv",
     **kwargs: object,
