@@ -212,6 +212,9 @@ class InterpretedDifferentialAnalysisRequest:
     dataset_preprocessing_report: DatasetPreprocessingReport | None = None
     execution_design: DifferentialExecutionDesignInputs | None = None
     imputation_policy_inputs: DifferentialImputationPolicyInputs | None = None
+    normalisation_state: str = "not_recorded"
+    ruv_readiness_enabled: bool = False
+    ruv_readiness_ready: bool = False
 
 
 class DifferentialAnalysisValidatorContract(Protocol):

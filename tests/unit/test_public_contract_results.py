@@ -52,6 +52,7 @@ EXPECTED_RESULT_EXPORTS = {
     "DifferentialEmpiricalBayesProvenance",
     "DifferentialFixedEffectCovariateProvenance",
     "DifferentialMissingValuePolicyProvenance",
+    "DifferentialModelDiagnostics",
     "DifferentialPolicyProvenance",
     "DifferentialReplicatePolicyProvenance",
     "DifferentialStatisticalTestingProvenance",

@@ -77,6 +77,7 @@ def test_differential_model_domain_modules_preserve_legacy_import_identity() -> 
         DifferentialAnalysisRequest,
     )
     from phospy.science.differential.models.diagnostics import (
+        DifferentialModelDiagnostics,
         EmpiricalBayesPriorDiagnostics,
         MeanVarianceTrendDiagnostics,
     )
@@ -104,6 +105,9 @@ def test_differential_model_domain_modules_preserve_legacy_import_identity() -> 
     )
     assert (
         differential_models.MeanVarianceTrendDiagnostics is MeanVarianceTrendDiagnostics
+    )
+    assert (
+        differential_models.DifferentialModelDiagnostics is DifferentialModelDiagnostics
     )
     assert differential_models.DifferentialComputationResult is (
         DifferentialComputationResult
@@ -190,7 +194,9 @@ def _load_matrix() -> pd.DataFrame:
         for idx, site_id in enumerate(raw_site_ids, start=1)
     ]
     matrix.index = pd.Index(canonical_ids, name="display_id")
-    return matrix
+    values = matrix.to_numpy(dtype=float)
+    non_constant_mask = ~(values == values[:, [0]]).all(axis=1)
+    return matrix.loc[non_constant_mask, :].copy(deep=True)
 
 
 def _request_for_reverse_contrasts(

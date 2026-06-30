@@ -8,6 +8,7 @@ from phospy.science.differential.models.design import (
     DifferentialAnalysisRequest,
 )
 from phospy.science.differential.models.diagnostics import (
+    DifferentialModelDiagnostics,
     EmpiricalBayesPriorDiagnostics,
     MeanVarianceTrendDiagnostics,
 )
@@ -49,6 +50,7 @@ __all__ = [
     "DifferentialContrastDefinition",
     "DifferentialDesignMatrixSummary",
     "DifferentialEmpiricalBayesProvenance",
+    "DifferentialModelDiagnostics",
     "DifferentialFixedEffectCovariateProvenance",
     "DifferentialMissingValuePolicyProvenance",
     "DifferentialPolicyProvenance",

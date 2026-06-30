@@ -413,16 +413,34 @@ def test_empirical_bayes_runs_with_adjusted_design() -> None:
     assert np.isfinite(result.table_for("B_vs_A").loc[:, "P.Value"]).all()
 
 
-def test_executor_supports_zero_and_near_zero_variance_rows() -> None:
+def test_request_rejects_all_constant_site_intensities() -> None:
     matrix = pd.DataFrame(
         {
-            "A_1": [5.0, 1.0, 3.0],
-            "A_2": [5.0, 1.0 + 1e-12, 3.1],
-            "B_1": [5.0, 1.0 + 2e-12, 4.0],
-            "B_2": [5.0, 1.0 + 3e-12, 3.9],
+            "A_1": [5.0, 1.0],
+            "A_2": [5.0, 1.0 + 1e-12],
+            "B_1": [5.0, 1.0 + 2e-12],
+            "B_2": [5.0, 1.0 + 3e-12],
         },
         index=pd.Index(
-            ["MAPK14;Y182;", "GSK3B;S9;", "AKT1;T308;"],
+            ["MAPK14;Y182;", "GSK3B;S9;"],
+            name="site_id",
+        ),
+    )
+
+    with pytest.raises(PhosPyInputError, match="all-constant site intensities"):
+        _base_request(matrix=matrix, empirical_bayes=EmpiricalBayesConfig())
+
+
+def test_executor_supports_near_zero_variance_rows() -> None:
+    matrix = pd.DataFrame(
+        {
+            "A_1": [1.0, 3.0],
+            "A_2": [1.0 + 1e-12, 3.1],
+            "B_1": [1.0 + 2e-12, 4.0],
+            "B_2": [1.0 + 3e-12, 3.9],
+        },
+        index=pd.Index(
+            ["GSK3B;S9;", "AKT1;T308;"],
             name="site_id",
         ),
     )
@@ -431,8 +449,6 @@ def test_executor_supports_zero_and_near_zero_variance_rows() -> None:
     )
     table = result.table_for("B_vs_A")
 
-    assert table.at["MAPK14;Y182;", "logFC"] == pytest.approx(0.0)
-    assert table.at["MAPK14;Y182;", "P.Value"] == pytest.approx(1.0)
     assert np.isfinite(table.loc[:, "t"]).all()
     assert np.isfinite(table.loc[:, "P.Value"]).all()
     assert (table.loc[:, "P.Value"] >= 0.0).all()

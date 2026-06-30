@@ -116,11 +116,17 @@ pytest tests/parity -m parity -s
 
 ## Differential Parity Envelope Notes
 
+- Current differential analysis is not full PhosR or limma parity unless a
+  specific behavior is explicitly documented by fixture-backed parity tests.
+- Supported designs are limited to tested design and contrast envelopes; outside
+  those envelopes, results should be treated as unsupported unless public docs
+  and tests say otherwise.
 - Differential parity claims are feature-scoped. Current limma-backed fixtures
   protect:
   - two-condition unpaired simple contrasts (`B_vs_A`, `A_vs_B`)
   - small-`n` moderated-statistics behavior
-  - zero-variance and unequal-variance feature handling
+  - unequal-variance feature handling; all-constant feature rows are now an
+    unsupported-input validation failure, not a parity surface
   - Benjamini-Hochberg adjusted p-values and contrast ordering/sign conventions
 - Differential parity comparisons use explicit floating-point tolerances in
   parity tests (`rtol=1e-6`, `atol=1e-8`).

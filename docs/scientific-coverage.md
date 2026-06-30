@@ -179,6 +179,11 @@ identity and is not encoded in `site_key`. See
 
 ### Differential Parity Envelope (Current Release)
 
+Current differential analysis is not full PhosR or limma parity. Supported
+designs are limited to tested design and contrast envelopes; broader limma or
+PhosR behavior must not be inferred unless explicit parity tests and public docs
+name that behavior.
+
 `DifferentialAnalysisWorkflow` parity claims are currently scoped to:
 
 - two-condition unpaired designs with biological-replicate rows
@@ -199,6 +204,8 @@ Validated PhosPy fixed-effect support additionally includes execution for:
 These fixed-effect covariate models are support for ordinary fixed terms in the
 linear design. They are not batch-correction methods, correlated-replicate
 modelling, or mixed-effects modelling.
+Fixed-effect covariates are not full batch correction, and fixed-effect batch
+terms are not substitutes for full batch correction or mixed-effect modelling.
 
 Fixed-block paired designs are supported only when the caller explicitly sets
 `paired_design_policy="fixed_block"` and supplies `SampleDesignRecord.block_id`

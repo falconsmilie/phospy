@@ -256,6 +256,13 @@ class DifferentialAnalysisInterpreter:
             dataset_preprocessing_report=resolved_dataset.preprocessing_report,
             execution_design=execution_design,
             imputation_policy_inputs=imputation_policy_inputs,
+            normalisation_state=_normalisation_state_label(resolved_dataset),
+            ruv_readiness_enabled=bool(
+                resolved_dataset.processing_state.ruv_readiness.enabled
+            ),
+            ruv_readiness_ready=bool(
+                resolved_dataset.processing_state.ruv_readiness.ready
+            ),
         )
 
 
@@ -914,6 +921,16 @@ def _prefer_site_key_index_for_differential_results(
     remapped = matrix.copy(deep=True)
     remapped.index = pd.Index(site_keys.tolist(), name="site_key")
     return remapped
+
+
+def _normalisation_state_label(dataset: object) -> str:
+    processing_state = getattr(dataset, "processing_state", None)
+    normalisation = getattr(processing_state, "normalisation", None)
+    policy = getattr(normalisation, "policy", None)
+    if policy is None:
+        return "not_recorded"
+    value = getattr(policy, "value", policy)
+    return str(value)
 
 
 __all__ = ["DifferentialAnalysisInterpreter"]

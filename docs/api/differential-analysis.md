@@ -11,6 +11,12 @@ Use this workflow when you have a strict analysis-ready phosphosite matrix and
 want moderated differential phosphorylation statistics for named condition
 contrasts.
 
+Current differential analysis is not full PhosR or limma parity. Supported
+designs are limited to tested design and contrast envelopes documented in
+[Scientific Coverage](../scientific-coverage.md) and protected by parity tests.
+Column names such as `logFC`, `P.Value`, and `adj.P.Val` are familiar reporting
+names, not a broad limma compatibility claim.
+
 Good fits:
 
 - two-condition unpaired contrasts
@@ -202,6 +208,7 @@ Important fields and helpers:
 | `posterior_residual_variance_series()` | Moderated residual variance snapshot. |
 | `prior_diagnostics` | Empirical-Bayes prior diagnostics. |
 | `mean_variance_trend_diagnostics` | Trend diagnostics when trend moderation is enabled. |
+| `diagnostics` | Explicit model scope, design, contrast, sample/site count, method, imputation, scale, normalisation, unsupported-assumption, and warning diagnostics. |
 | `policy_provenance` | Structured design, contrast, replicate, imputation, input-scale, and testing provenance. |
 | `workflow_provenance` | Workflow-level execution metadata. |
 | `input_dataset_preprocessing_report` | Preprocessing report carried from the input dataset when available. |
@@ -278,9 +285,11 @@ readability.
 
 ## Provenance and Reproducibility
 
-Result provenance records the resolved design, contrast vectors, fixed-effect
-covariates, replicate policy, empirical-Bayes settings, multiple-testing method,
-imputation policy, and unsupported-design rejection policy. Table exports return
+Result diagnostics and provenance record the resolved design, contrast vectors,
+fixed-effect covariates, replicate policy, empirical-Bayes settings,
+multiple-testing method, imputation policy, normalisation state, unsupported
+assumptions, and unsupported-design rejection policy. Warnings are exposed on
+`result.diagnostics.warnings`; they are not only logged. Table exports return
 defensive in-memory snapshots; mutating them does not mutate the result object.
 
 ## Limitations
@@ -290,6 +299,8 @@ defensive in-memory snapshots; mutating them does not mutate the result object.
   sequence resolution, or batch correction.
 - Fixed-effect batch terms are model covariates, not ComBat, RUV,
   `removeBatchEffect`, `duplicateCorrelation`, or mixed-effects modelling.
+- Fixed-effect covariates are not full batch correction; they are ordinary
+  design terms in the fitted model.
 - `paired_design_policy="fixed_block"` is fixed-effect block modelling only. It
   is not random subject modelling.
 - Upstream-imputed datasets are rejected by default. The supported withhold

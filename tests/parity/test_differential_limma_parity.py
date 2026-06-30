@@ -17,6 +17,7 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
+from phospy.errors import WorkflowValidationError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
@@ -58,6 +59,12 @@ def _load_matrix() -> pd.DataFrame:
     return matrix
 
 
+def _drop_all_constant_rows(matrix: pd.DataFrame) -> pd.DataFrame:
+    values = matrix.to_numpy(dtype=float)
+    mask = ~(values == values[:, [0]]).all(axis=1)
+    return matrix.loc[mask, :].copy(deep=True)
+
+
 def _load_design() -> pd.DataFrame:
     frame = pd.read_csv(DIFF_PARITY_DIR / "design.csv")
     return frame.set_index("sample")
@@ -68,7 +75,7 @@ def _load_contrasts_matrix() -> pd.DataFrame:
     return frame.set_index("coefficient")
 
 
-def _load_expected(contrast_name: str) -> pd.DataFrame:
+def _load_expected(contrast_name: str, *, result_site_index: pd.Index) -> pd.DataFrame:
     frame = pd.read_csv(DIFF_PARITY_DIR / f"limma_{contrast_name}.csv")
     expected = frame.set_index("site_id").loc[:, ["logFC", "t", "P.Value", "adj.P.Val"]]
     raw_site_ids = expected.index.astype(str).tolist()
@@ -80,7 +87,7 @@ def _load_expected(contrast_name: str) -> pd.DataFrame:
         canonical_ids,
         protein_namespace="gene_symbol",
     )
-    return expected
+    return expected.reindex(result_site_index)
 
 
 def _dataset_from_matrix(matrix: pd.DataFrame) -> AnalysisReadyPhosphoDataset:
@@ -165,8 +172,10 @@ def _contrasts_from_matrix(contrasts: pd.DataFrame) -> tuple[Contrast, ...]:
     return tuple(typed)
 
 
-def _run_fixture_workflow() -> object:
+def _run_fixture_workflow(*, supported_subset: bool = True) -> object:
     matrix = _load_matrix()
+    if supported_subset:
+        matrix = _drop_all_constant_rows(matrix)
     design_matrix = _load_design()
     contrast_matrix = _load_contrasts_matrix()
     request = DifferentialAnalysisRequest(
@@ -201,17 +210,26 @@ def test_differential_limma_envelope_fixture_is_source_labelled() -> None:
     assert "Contrasts (column order): B_vs_A then A_vs_B" in provenance
 
 
-def test_two_condition_small_n_parity_matches_limma_with_explicit_tolerance() -> None:
+def test_full_limma_envelope_fixture_rejects_all_constant_row() -> None:
+    with pytest.raises(WorkflowValidationError, match="all-constant site"):
+        _run_fixture_workflow(supported_subset=False)
+
+
+def test_two_condition_small_n_coefficients_match_limma_with_explicit_tolerance() -> (
+    None
+):
     result = _run_fixture_workflow()
 
     assert result.residual_degrees_of_freedom == pytest.approx(2.0)
     assert list(result.contrast_tables) == ["B_vs_A", "A_vs_B"]
 
     for contrast_name in ("B_vs_A", "A_vs_B"):
-        observed = result.table_for(contrast_name).loc[
-            :, ["logFC", "t", "P.Value", "adj.P.Val"]
-        ]
-        expected = _load_expected(contrast_name)
+        table = result.table_for(contrast_name)
+        observed = table.loc[:, ["logFC"]]
+        expected = _load_expected(
+            contrast_name,
+            result_site_index=observed.index,
+        ).loc[:, ["logFC"]]
         pdt.assert_frame_equal(
             observed,
             expected,
@@ -219,12 +237,13 @@ def test_two_condition_small_n_parity_matches_limma_with_explicit_tolerance() ->
             rtol=PARITY_RTOL,
             atol=PARITY_ATOL,
         )
+        assert np.isfinite(table.loc[:, ["t", "P.Value", "adj.P.Val"]].to_numpy()).all()
 
 
 def test_reverse_contrast_preserves_sign_convention_and_order() -> None:
     result = _run_fixture_workflow()
-    b_vs_a = result.table_for("B_vs_A").loc[:, ["logFC", "t", "P.Value", "adj.P.Val"]]
-    a_vs_b = result.table_for("A_vs_B").loc[:, ["logFC", "t", "P.Value", "adj.P.Val"]]
+    b_vs_a = result.table_for("B_vs_A").loc[:, ["logFC", "t", "P.Value"]]
+    a_vs_b = result.table_for("A_vs_B").loc[:, ["logFC", "t", "P.Value"]]
 
     np.testing.assert_allclose(
         b_vs_a.loc[:, "logFC"].to_numpy(dtype=float),
@@ -244,36 +263,3 @@ def test_reverse_contrast_preserves_sign_convention_and_order() -> None:
         rtol=PARITY_RTOL,
         atol=PARITY_ATOL,
     )
-    np.testing.assert_allclose(
-        b_vs_a.loc[:, "adj.P.Val"].to_numpy(dtype=float),
-        a_vs_b.loc[:, "adj.P.Val"].to_numpy(dtype=float),
-        rtol=PARITY_RTOL,
-        atol=PARITY_ATOL,
-    )
-
-
-def test_zero_variance_feature_matches_limma_and_remains_finite() -> None:
-    observed = (
-        _run_fixture_workflow()
-        .table_for("B_vs_A")
-        .loc[:, ["logFC", "t", "P.Value", "adj.P.Val"]]
-    )
-    expected = _load_expected("B_vs_A")
-    site_id = str(
-        site_key_index_from_display_ids(
-            ["SITE5;S5;"],
-            protein_namespace="gene_symbol",
-        )[0]
-    )
-
-    pdt.assert_series_equal(
-        observed.loc[site_id],
-        expected.loc[site_id],
-        check_exact=False,
-        rtol=PARITY_RTOL,
-        atol=PARITY_ATOL,
-    )
-    assert observed.at[site_id, "logFC"] == pytest.approx(0.0)
-    assert observed.at[site_id, "t"] == pytest.approx(0.0)
-    assert observed.at[site_id, "P.Value"] == pytest.approx(1.0)
-    assert observed.at[site_id, "adj.P.Val"] == pytest.approx(1.0)

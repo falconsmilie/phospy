@@ -6,6 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import cast
 
+import numpy as np
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
@@ -93,6 +94,10 @@ class DifferentialAnalysisRequest:
             matrix,
             field_name="differential.matrix",
         )
+        _validate_no_all_constant_site_rows(
+            matrix,
+            field_name="differential.matrix",
+        )
         design = self.design
         if isinstance(design, pd.DataFrame):
             design = DesignMatrix(design)
@@ -148,6 +153,25 @@ def _validate_numeric_matrix(frame: pd.DataFrame, *, field_name: str) -> None:
         field_name=field_name,
         error_type=PhosPyInputError,
         allow_missing=False,
+    )
+
+
+def _validate_no_all_constant_site_rows(
+    frame: pd.DataFrame,
+    *,
+    field_name: str,
+) -> None:
+    values = frame.to_numpy(dtype=float)
+    constant_mask = np.all(values == values[:, [0]], axis=1)
+    if not np.any(constant_mask):
+        return
+    invalid_labels = frame.index[constant_mask].astype(str).tolist()
+    preview = ", ".join(invalid_labels[:5])
+    suffix = "" if len(invalid_labels) <= 5 else ", ..."
+    raise PhosPyInputError(
+        f"{field_name} contains all-constant site intensities, which are "
+        "unsupported for differential analysis; all_constant_sites="
+        f"{preview}{suffix}"
     )
 
 

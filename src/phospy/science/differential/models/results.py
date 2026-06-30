@@ -3,9 +3,10 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pandas as pd
 
@@ -17,6 +18,7 @@ from phospy.frames.ownership import (
     own_series,
 )
 from phospy.science.differential.models.diagnostics import (
+    DifferentialModelDiagnostics,
     EmpiricalBayesPriorDiagnostics,
     MeanVarianceTrendDiagnostics,
 )
@@ -48,6 +50,7 @@ class DifferentialAnalysisResult:
     empirical_bayes_trend: bool
     prior_diagnostics: EmpiricalBayesPriorDiagnostics
     mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None
+    diagnostics: DifferentialModelDiagnostics
     policy_provenance: DifferentialPolicyProvenance | None
     workflow_provenance: Mapping[str, object] | None
     input_dataset_preprocessing_report: DatasetPreprocessingReport | None
@@ -69,6 +72,7 @@ class DifferentialAnalysisResult:
         prior_diagnostics: EmpiricalBayesPriorDiagnostics,
         mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None,
         contrast_tables: Mapping[str, pd.DataFrame],
+        diagnostics: DifferentialModelDiagnostics | None = None,
         policy_provenance: DifferentialPolicyProvenance | None = None,
         workflow_provenance: Mapping[str, object] | None = None,
         input_dataset_preprocessing_report: DatasetPreprocessingReport | None = None,
@@ -148,6 +152,19 @@ class DifferentialAnalysisResult:
             raise PhosPyInputError(
                 "differential_result.contrast_tables must include at least one contrast"
             )
+        if diagnostics is None:
+            diagnostics = _build_default_model_diagnostics(
+                residual_variance=residual_variance,
+                residual_degrees_of_freedom=residual_degrees_of_freedom,
+                empirical_bayes_method=empirical_bayes_method,
+                empirical_bayes_robust=empirical_bayes_robust,
+                empirical_bayes_trend=empirical_bayes_trend,
+                policy_provenance=policy_provenance,
+            )
+        if not isinstance(cast(object, diagnostics), DifferentialModelDiagnostics):
+            raise PhosPyInputError(
+                "differential_result.diagnostics must be DifferentialModelDiagnostics"
+            )
         if workflow_provenance is not None and not isinstance(
             cast(object, workflow_provenance), Mapping
         ):
@@ -219,6 +236,7 @@ class DifferentialAnalysisResult:
             "mean_variance_trend_diagnostics",
             mean_variance_trend_diagnostics,
         )
+        object.__setattr__(self, "diagnostics", diagnostics)
         object.__setattr__(self, "policy_provenance", policy_provenance)
         object.__setattr__(
             self,
@@ -263,6 +281,27 @@ class DifferentialAnalysisResult:
     def prior_degrees_of_freedom_series(self) -> pd.Series:
         return export_series(self.prior_degrees_of_freedom_series_value)
 
+    def to_payload(self) -> dict[str, object]:
+        """Return a JSON-compatible differential result payload."""
+
+        return {
+            "diagnostics": self.diagnostics.to_payload(),
+            "empirical_bayes": {
+                "method": self.empirical_bayes_method,
+                "robust": self.empirical_bayes_robust,
+                "trend": self.empirical_bayes_trend,
+                "prior_variance": _json_scalar(self.prior_variance),
+                "prior_degrees_of_freedom": _json_scalar(self.prior_degrees_of_freedom),
+                "residual_degrees_of_freedom": _json_scalar(
+                    self.residual_degrees_of_freedom
+                ),
+            },
+            "contrast_tables": {
+                contrast_name: _dataframe_records_payload(table)
+                for contrast_name, table in self._contrast_tables.items()
+            },
+        }
+
     @classmethod
     def _from_owned(
         cls,
@@ -280,6 +319,7 @@ class DifferentialAnalysisResult:
         prior_diagnostics: EmpiricalBayesPriorDiagnostics,
         mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None,
         contrast_tables: Mapping[str, pd.DataFrame],
+        diagnostics: DifferentialModelDiagnostics | None = None,
         policy_provenance: DifferentialPolicyProvenance | None = None,
         workflow_provenance: Mapping[str, object] | None = None,
         input_dataset_preprocessing_report: DatasetPreprocessingReport | None = None,
@@ -297,6 +337,7 @@ class DifferentialAnalysisResult:
             empirical_bayes_trend=empirical_bayes_trend,
             prior_diagnostics=prior_diagnostics,
             mean_variance_trend_diagnostics=mean_variance_trend_diagnostics,
+            diagnostics=diagnostics,
             policy_provenance=policy_provenance,
             contrast_tables=contrast_tables,
             workflow_provenance=workflow_provenance,
@@ -316,6 +357,124 @@ def _is_dataset_preprocessing_report(value: object) -> bool:
         return False
 
     return isinstance(value, _DatasetPreprocessingReport)
+
+
+def _build_default_model_diagnostics(
+    *,
+    residual_variance: pd.Series,
+    residual_degrees_of_freedom: float,
+    empirical_bayes_method: str,
+    empirical_bayes_robust: bool,
+    empirical_bayes_trend: bool,
+    policy_provenance: DifferentialPolicyProvenance | None,
+) -> DifferentialModelDiagnostics:
+    if policy_provenance is not None:
+        design = policy_provenance.design
+        covariate_terms = tuple(
+            column for covariate in design.covariates for column in covariate.columns
+        )
+        batch_or_covariate_terms = (*covariate_terms, *design.block_column_names)
+        unsupported_assumptions = (
+            *policy_provenance.unsupported_design.intentionally_rejected_features,
+            *design.limitations,
+        )
+        return DifferentialModelDiagnostics(
+            model_type="moderated_ols_fixed_effect",
+            design_columns=design.coefficient_labels,
+            contrast_definitions=policy_provenance.contrasts,
+            rank=design.rank,
+            n_samples=design.sample_count,
+            n_sites=int(residual_variance.size),
+            residual_degrees_of_freedom=float(residual_degrees_of_freedom),
+            variance_method="ordinary_least_squares_residual_variance",
+            moderation_method=_moderation_method(
+                empirical_bayes_method,
+                robust=empirical_bayes_robust,
+                trend=empirical_bayes_trend,
+            ),
+            multiple_testing_method=(
+                policy_provenance.statistical_testing.adjusted_p_value_method
+            ),
+            imputation_policy=policy_provenance.missing_values.imputed_value_policy,
+            missing_value_policy=policy_provenance.missing_values.policy,
+            intensity_scale=(
+                policy_provenance.statistical_testing.input_intensity_scale
+            ),
+            normalisation_state="not_recorded",
+            batch_or_covariate_terms=batch_or_covariate_terms,
+            unsupported_assumptions=_unique_text(unsupported_assumptions),
+            warnings=(),
+        )
+
+    warning = (
+        "DifferentialAnalysisResult was constructed without workflow policy "
+        "provenance; design scope diagnostics are not recorded."
+    )
+    return DifferentialModelDiagnostics(
+        model_type="not_recorded",
+        design_columns=(),
+        contrast_definitions=(),
+        rank=0,
+        n_samples=0,
+        n_sites=int(residual_variance.size),
+        residual_degrees_of_freedom=float(residual_degrees_of_freedom),
+        variance_method="not_recorded",
+        moderation_method=_moderation_method(
+            empirical_bayes_method,
+            robust=empirical_bayes_robust,
+            trend=empirical_bayes_trend,
+        ),
+        multiple_testing_method="not_recorded",
+        imputation_policy="not_recorded",
+        missing_value_policy="not_recorded",
+        intensity_scale="not_recorded",
+        normalisation_state="not_recorded",
+        batch_or_covariate_terms=(),
+        unsupported_assumptions=(warning,),
+        warnings=(warning,),
+    )
+
+
+def _moderation_method(method: str, *, robust: bool, trend: bool) -> str:
+    parts = ["empirical_bayes", str(method)]
+    if robust and str(method) != "robust":
+        parts.append("robust")
+    if trend:
+        parts.append("trend")
+    return "_".join(parts)
+
+
+def _unique_text(values: tuple[str, ...]) -> tuple[str, ...]:
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        ordered.append(value)
+    return tuple(ordered)
+
+
+def _dataframe_records_payload(frame: pd.DataFrame) -> list[dict[str, object]]:
+    records: list[dict[str, object]] = []
+    for record in frame.to_dict(orient="records"):
+        records.append({str(key): _json_scalar(value) for key, value in record.items()})
+    return records
+
+
+def _json_scalar(value: object) -> object:
+    if value is None:
+        return None
+    item: object = cast(Any, value).item() if hasattr(value, "item") else value
+    try:
+        is_missing = bool(pd.isna(cast(Any, item)))
+    except (TypeError, ValueError):
+        is_missing = False
+    if is_missing:
+        return None
+    if isinstance(item, float) and not math.isfinite(item):
+        return None
+    return item
 
 
 __all__ = ["DifferentialAnalysisResult"]

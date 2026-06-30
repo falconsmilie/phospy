@@ -822,7 +822,8 @@ def test_differential_analysis_fails_on_contrast_design_term_mismatch() -> None:
 
 
 def test_differential_analysis_fails_when_residual_dof_is_non_positive() -> None:
-    matrix = _matrix().loc[:, ["A_1", "B_1", "C_1"]]
+    matrix = _matrix().loc[:, ["A_1", "B_1", "C_1"]].copy(deep=True)
+    matrix.iloc[1, 1] += 0.05
     design = _design_from_conditions(
         (
             ("A_1", "A"),
@@ -843,7 +844,7 @@ def test_differential_analysis_fails_when_residual_dof_is_non_positive() -> None
         )
 
 
-def test_differential_analysis_handles_zero_variance_features() -> None:
+def test_differential_analysis_rejects_all_constant_site_intensities() -> None:
     matrix = pd.DataFrame(
         {
             "A_1": [5.0, 1.0],
@@ -869,21 +870,14 @@ def test_differential_analysis_handles_zero_variance_features() -> None:
         ),
     )
 
-    result = DifferentialAnalysisWorkflow().run(
-        _request(
-            dataset=_dataset(matrix),
-            design=design,
-            contrasts=contrasts,
+    with pytest.raises(WorkflowValidationError, match="all-constant site"):
+        DifferentialAnalysisWorkflow().run(
+            _request(
+                dataset=_dataset(matrix),
+                design=design,
+                contrasts=contrasts,
+            )
         )
-    )
-    table = result.table_for("B_vs_A")
-
-    site_key = _site_key_for_display_id("MAPK14;Y182;")
-    assert table.at[site_key, "logFC"] == pytest.approx(0.0)
-    assert table.at[site_key, "t"] == pytest.approx(0.0)
-    assert table.at[site_key, "P.Value"] == pytest.approx(1.0)
-    assert np.isfinite(table.loc[:, "t"]).all()
-    assert np.isfinite(table.loc[:, "P.Value"]).all()
 
 
 def test_differential_analysis_rejects_empty_condition_labels() -> None:

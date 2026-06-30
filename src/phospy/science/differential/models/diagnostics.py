@@ -3,12 +3,17 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
+from typing import cast
 
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
 from phospy.frames.ownership import export_series, own_series
+from phospy.science.differential.models.provenance import (
+    DifferentialContrastDefinition,
+)
 
 
 @dataclass(frozen=True, slots=True, init=False)
@@ -162,7 +167,247 @@ class MeanVarianceTrendDiagnostics:
         return export_series(self.fitted_log_prior_variance)
 
 
+@dataclass(frozen=True, slots=True)
+class DifferentialModelDiagnostics:
+    """User-visible scope and model diagnostics for differential results."""
+
+    model_type: str
+    design_columns: tuple[str, ...]
+    contrast_definitions: tuple[DifferentialContrastDefinition, ...]
+    rank: int
+    n_samples: int
+    n_sites: int
+    residual_degrees_of_freedom: float
+    variance_method: str
+    moderation_method: str
+    multiple_testing_method: str
+    imputation_policy: str
+    missing_value_policy: str
+    intensity_scale: str
+    normalisation_state: str
+    batch_or_covariate_terms: tuple[str, ...]
+    unsupported_assumptions: tuple[str, ...]
+    warnings: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        rank = _require_non_negative_int(
+            self.rank,
+            field_name="differential_result.diagnostics.rank",
+        )
+        n_samples = _require_non_negative_int(
+            self.n_samples,
+            field_name="differential_result.diagnostics.n_samples",
+        )
+        n_sites = _require_non_negative_int(
+            self.n_sites,
+            field_name="differential_result.diagnostics.n_sites",
+        )
+        residual_dof = _require_finite_float(
+            self.residual_degrees_of_freedom,
+            field_name=("differential_result.diagnostics.residual_degrees_of_freedom"),
+        )
+        if residual_dof < 0.0:
+            raise PhosPyInputError(
+                "differential_result.diagnostics.residual_degrees_of_freedom "
+                "must be >= 0.0"
+            )
+        contrast_definitions = tuple(self.contrast_definitions)
+        for definition in contrast_definitions:
+            if not isinstance(
+                cast(object, definition),
+                DifferentialContrastDefinition,
+            ):
+                raise PhosPyInputError(
+                    "differential_result.diagnostics.contrast_definitions must "
+                    "contain DifferentialContrastDefinition values"
+                )
+        object.__setattr__(
+            self,
+            "model_type",
+            _require_non_empty_text(
+                self.model_type,
+                field_name="differential_result.diagnostics.model_type",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "design_columns",
+            _text_tuple(
+                self.design_columns,
+                field_name="differential_result.diagnostics.design_columns",
+            ),
+        )
+        object.__setattr__(self, "contrast_definitions", contrast_definitions)
+        object.__setattr__(self, "rank", rank)
+        object.__setattr__(self, "n_samples", n_samples)
+        object.__setattr__(self, "n_sites", n_sites)
+        object.__setattr__(self, "residual_degrees_of_freedom", residual_dof)
+        object.__setattr__(
+            self,
+            "variance_method",
+            _require_non_empty_text(
+                self.variance_method,
+                field_name="differential_result.diagnostics.variance_method",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "moderation_method",
+            _require_non_empty_text(
+                self.moderation_method,
+                field_name="differential_result.diagnostics.moderation_method",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "multiple_testing_method",
+            _require_non_empty_text(
+                self.multiple_testing_method,
+                field_name="differential_result.diagnostics.multiple_testing_method",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "imputation_policy",
+            _require_non_empty_text(
+                self.imputation_policy,
+                field_name="differential_result.diagnostics.imputation_policy",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "missing_value_policy",
+            _require_non_empty_text(
+                self.missing_value_policy,
+                field_name="differential_result.diagnostics.missing_value_policy",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "intensity_scale",
+            _require_non_empty_text(
+                self.intensity_scale,
+                field_name="differential_result.diagnostics.intensity_scale",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "normalisation_state",
+            _require_non_empty_text(
+                self.normalisation_state,
+                field_name="differential_result.diagnostics.normalisation_state",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "batch_or_covariate_terms",
+            _text_tuple(
+                self.batch_or_covariate_terms,
+                field_name=("differential_result.diagnostics.batch_or_covariate_terms"),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "unsupported_assumptions",
+            _text_tuple(
+                self.unsupported_assumptions,
+                field_name=("differential_result.diagnostics.unsupported_assumptions"),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "warnings",
+            _text_tuple(
+                self.warnings,
+                field_name="differential_result.diagnostics.warnings",
+            ),
+        )
+
+    def to_payload(self) -> dict[str, object]:
+        """Return a JSON-compatible diagnostics payload."""
+
+        return {
+            "model_type": self.model_type,
+            "design_columns": list(self.design_columns),
+            "contrast_definitions": [
+                _contrast_definition_payload(definition)
+                for definition in self.contrast_definitions
+            ],
+            "rank": self.rank,
+            "n_samples": self.n_samples,
+            "n_sites": self.n_sites,
+            "residual_degrees_of_freedom": self.residual_degrees_of_freedom,
+            "variance_method": self.variance_method,
+            "moderation_method": self.moderation_method,
+            "multiple_testing_method": self.multiple_testing_method,
+            "imputation_policy": self.imputation_policy,
+            "missing_value_policy": self.missing_value_policy,
+            "intensity_scale": self.intensity_scale,
+            "normalisation_state": self.normalisation_state,
+            "batch_or_covariate_terms": list(self.batch_or_covariate_terms),
+            "unsupported_assumptions": list(self.unsupported_assumptions),
+            "warnings": list(self.warnings),
+        }
+
+
+def _contrast_definition_payload(
+    definition: DifferentialContrastDefinition,
+) -> dict[str, object]:
+    return {
+        "name": definition.name,
+        "numerator_condition": definition.numerator_condition,
+        "denominator_condition": definition.denominator_condition,
+        "coefficients": [
+            {"coefficient": coefficient, "weight": weight}
+            for coefficient, weight in definition.coefficients
+        ],
+        "description": definition.description,
+    }
+
+
+def _require_non_empty_text(value: object, *, field_name: str) -> str:
+    if not isinstance(value, str) or value.strip() == "":
+        raise PhosPyInputError(f"{field_name} must be a non-empty string")
+    return value.strip()
+
+
+def _text_tuple(value: object, *, field_name: str) -> tuple[str, ...]:
+    if isinstance(value, str):
+        raise PhosPyInputError(f"{field_name} must be a sequence of strings")
+    try:
+        values = tuple(value)  # type: ignore[arg-type]
+    except TypeError as exc:
+        raise PhosPyInputError(f"{field_name} must be a sequence of strings") from exc
+    normalized: list[str] = []
+    for item in values:
+        normalized.append(
+            _require_non_empty_text(
+                item,
+                field_name=f"{field_name}[]",
+            )
+        )
+    return tuple(normalized)
+
+
+def _require_non_negative_int(value: object, *, field_name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise PhosPyInputError(f"{field_name} must be a non-negative integer")
+    if value < 0:
+        raise PhosPyInputError(f"{field_name} must be >= 0")
+    return int(value)
+
+
+def _require_finite_float(value: object, *, field_name: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise PhosPyInputError(f"{field_name} must be a finite numeric value")
+    numeric = float(value)
+    if not math.isfinite(numeric):
+        raise PhosPyInputError(f"{field_name} must be finite")
+    return numeric
+
+
 __all__ = [
+    "DifferentialModelDiagnostics",
     "EmpiricalBayesPriorDiagnostics",
     "MeanVarianceTrendDiagnostics",
 ]

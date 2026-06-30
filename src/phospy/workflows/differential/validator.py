@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from typing import cast
 
+import numpy as np
+import pandas as pd
+
 from phospy.contracts.configs import (
     SUPPORTED_MULTIPLE_TESTING_METHODS,
     DifferentialAnalysisConfig,
@@ -147,6 +150,11 @@ class DifferentialAnalysisValidator:
             minimum_condition_replicates=config.minimum_condition_replicates,
             paired_design_policy=config.paired_design_policy,
         )
+        analysis_matrix = cast(
+            pd.DataFrame,
+            dataset_view.phospho[list(validated_design_contract.analysis_sample_ids)],
+        )
+        _validate_analysis_matrix_scope(analysis_matrix)
 
         design_matrix = DesignMatrix(validated_design_contract.design_frame)
         contrast_matrix = ContrastMatrix(validated_design_contract.contrast_frame)
@@ -167,3 +175,27 @@ class DifferentialAnalysisValidator:
 
 
 __all__ = ["DifferentialAnalysisValidator"]
+
+
+def _validate_analysis_matrix_scope(matrix: pd.DataFrame) -> None:
+    values = matrix.to_numpy(dtype=float)
+    if not np.isfinite(values).all():
+        raise WorkflowValidationError(
+            "differential analysis matrix must contain only finite values before "
+            "execution"
+        )
+    constant_mask = np.all(values == values[:, [0]], axis=1)
+    if not np.any(constant_mask):
+        return
+    all_constant_sites = [
+        str(site_key)
+        for site_key, is_constant in zip(matrix.index, constant_mask, strict=True)
+        if bool(is_constant)
+    ]
+    preview = ", ".join(all_constant_sites[:5])
+    suffix = "" if len(all_constant_sites) <= 5 else ", ..."
+    raise WorkflowValidationError(
+        "differential analysis matrix contains all-constant site intensities, "
+        "which are unsupported for the current differential model; "
+        f"all_constant_sites={preview}{suffix}"
+    )
