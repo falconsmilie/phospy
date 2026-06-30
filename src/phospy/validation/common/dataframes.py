@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-import numbers
+import math
 from collections.abc import Iterable
+from typing import cast
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
 from phospy.errors.base import PhosPyError
@@ -94,21 +96,11 @@ def require_finite_numeric_dataframe(
 ) -> pd.DataFrame:
     """Require one numeric DataFrame to satisfy finite-value constraints."""
 
-    cell_values = value.to_numpy(dtype="object")
-    missing_array = np.zeros(cell_values.shape, dtype=bool)
-    infinite_array = np.zeros(cell_values.shape, dtype=bool)
-    row_count = int(cell_values.shape[0])
-    column_count = int(cell_values.shape[1])
-    for row_idx in range(row_count):
-        for col_idx in range(column_count):
-            cell_value = cell_values[row_idx, col_idx]
-            if _is_missing_label(cell_value):
-                missing_array[row_idx, col_idx] = True
-                continue
-            if isinstance(cell_value, numbers.Real) and not np.isfinite(
-                float(cell_value)
-            ):
-                infinite_array[row_idx, col_idx] = True
+    cell_values = value.to_numpy(dtype="object", copy=False)
+    missing_array: npt.NDArray[np.bool_] = np.asarray(
+        pd.isna(cell_values),
+        dtype=bool,
+    )
 
     missing_mask = pd.DataFrame(
         missing_array,
@@ -122,6 +114,16 @@ def require_finite_numeric_dataframe(
             f"{_invalid_location_preview(missing_mask)}; missing_entries={missing_count}"
         )
 
+    numeric_values: npt.NDArray[np.float64] = np.asarray(
+        value.to_numpy(dtype=float, copy=False, na_value=np.nan),
+        dtype=np.float64,
+    )
+    # Use vectorized finiteness checks on the already numeric frame. Missing
+    # cells are handled above so NaN does not get double-reported as infinite.
+    infinite_array: npt.NDArray[np.bool_] = np.asarray(
+        (~np.isfinite(numeric_values)) & (~missing_array),
+        dtype=bool,
+    )
     infinite_mask = pd.DataFrame(
         infinite_array,
         index=value.index,
@@ -441,7 +443,17 @@ def require_canonical_string_column(
 
 
 def _is_missing_label(value: object) -> bool:
-    return bool(pd.Series((value,), dtype="object").isna().iat[0])
+    if value is None or value is pd.NA or value is pd.NaT:
+        return True
+    if isinstance(value, float):
+        return math.isnan(value)
+    if isinstance(value, np.floating):
+        scalar_value = cast(object, value)
+        return str(scalar_value).lower() == "nan"
+    if isinstance(value, (np.datetime64, np.timedelta64)):
+        temporal_value = cast(object, value)
+        return str(temporal_value) == "NaT"
+    return False
 
 
 def _labels_only_in_each_side(

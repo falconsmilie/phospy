@@ -44,9 +44,12 @@ tests/parity/test_preprocessing_science_parity.py,parity,562,6,true,false,parity
 tests/parity/test_public_predmat_parity.py,parity,128,2,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for public predmat parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/parity/test_signalome_clustering_backend_parity.py,parity,94,2,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for signalome clustering backend parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/parity/test_signalome_workflow_parity.py,parity,369,7,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for signalome workflow parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
+tests/performance/test_dataset_validation_performance.py,performance,336,7,true,false,,,,,,
+tests/performance/test_importer_performance.py,performance,106,2,true,false,,,,,,
 tests/performance/test_performance_contracts.py,performance,1265,16,true,false,performance/memory contract,keep,"Loss of this file would remove runtime and memory envelope checks for performance contracts, allowing performance regressions to ship undetected.",codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/performance/test_signalome_clustering_benchmark.py,performance,82,1,true,false,performance/memory contract,keep,"Loss of this file would remove runtime and memory envelope checks for signalome clustering benchmark, allowing performance regressions to ship undetected.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/performance/test_workflow_scale_contracts.py,performance,261,2,true,true,,,,,,
+tests/performance/test_workflow_validation_performance.py,performance,108,2,true,false,,,,,,
 tests/release/test_reference_manifest_gate.py,release,81,2,true,false,,,,,,
 tests/science/test_kinase_library_motif_scoring_science.py,science,51,1,false,false,,,,,,
 tests/science/test_signalome_identity_coherence.py,science,66,1,false,false,,,,,,

@@ -28,6 +28,12 @@ ADAPTIVE_PREDICTION_CONTRACT_N_SITES = 2_000
 ADAPTIVE_PREDICTION_CONTRACT_N_KINASES = 100
 ADAPTIVE_PREDICTION_CONTRACT_CANDIDATE_KINASES = 12
 ADAPTIVE_PREDICTION_CONTRACT_TOP_K = 48
+DATASET_VALIDATION_SMALL_N_SITES = 100
+DATASET_VALIDATION_SMALL_N_SAMPLES = 6
+DATASET_VALIDATION_MEDIUM_N_SITES = 10_000
+DATASET_VALIDATION_MEDIUM_N_SAMPLES = 24
+DATASET_VALIDATION_LARGE_N_SITES = 50_000
+DATASET_VALIDATION_LARGE_N_SAMPLES = 48
 
 # CI benchmark/performance ceilings (loose enough for stability, strict enough
 # to catch major accidental regressions).
@@ -82,6 +88,15 @@ BUNDLE_PUBLISH_PEAK_MIB_MAX = 700.0
 
 PROVENANCE_HASHING_RUNTIME_SECONDS_MAX = 18.0
 PROVENANCE_HASHING_PEAK_MIB_MAX = 768.0
+
+DATASET_VALIDATION_MEDIUM_CONSTRUCTION_RUNTIME_SECONDS_MAX = 420.0
+DATASET_VALIDATION_LARGE_SITE_METADATA_RUNTIME_SECONDS_MAX = 240.0
+DATASET_VALIDATION_LARGE_ALIGNMENT_RUNTIME_SECONDS_MAX = 90.0
+DATASET_VALIDATION_LARGE_OBSERVATION_MASK_RUNTIME_SECONDS_MAX = 30.0
+IMPORTER_MEDIUM_NORMALISATION_RUNTIME_SECONDS_MAX = 180.0
+WORKFLOW_VALIDATION_LARGE_SEQUENCE_RUNTIME_SECONDS_MAX = 90.0
+
+_PHOSPHO_RESIDUES = ("S", "T", "Y")
 
 
 def deterministic_site_ids(
@@ -190,6 +205,119 @@ def deterministic_site_sequence_series(
     return pd.Series(sequences, index=site_ids.copy(), dtype=str, name="site_sequence")
 
 
+def deterministic_analysis_ready_site_keys(
+    count: int,
+    *,
+    start: int = 1,
+    gene_prefix: str = "PERFGENE",
+    organism: str = "rat",
+    protein_namespace: str = "protein_id",
+) -> pd.Index:
+    """Return deterministic encoded site_key labels for validation scale gates."""
+
+    labels: list[str] = []
+    for offset, position in enumerate(range(start, start + int(count))):
+        residue = _PHOSPHO_RESIDUES[offset % len(_PHOSPHO_RESIDUES)]
+        protein_identifier = f"{gene_prefix}{position:05d}"
+        labels.append(
+            "phospy:v1|"
+            f"organism={organism}|"
+            f"protein_namespace={protein_namespace}|"
+            f"protein_identifier={protein_identifier}|"
+            f"residue={residue}|"
+            f"position={position}"
+        )
+    return pd.Index(labels, name="site_key")
+
+
+def deterministic_analysis_ready_site_metadata(
+    site_keys: pd.Index,
+    *,
+    start: int = 1,
+    gene_prefix: str = "PERFGENE",
+    organism: str = "rat",
+    protein_namespace: str = "protein_id",
+    sequence_width: int = 31,
+    localisation_confidence: float = 0.95,
+) -> pd.DataFrame:
+    """Build strict analysis-ready site metadata aligned to encoded site keys."""
+
+    if sequence_width < 3 or sequence_width % 2 == 0:
+        raise ValueError("sequence_width must be an odd integer >= 3")
+    count = int(site_keys.size)
+    positions = list(range(start, start + count))
+    residues = [
+        _PHOSPHO_RESIDUES[index % len(_PHOSPHO_RESIDUES)] for index in range(count)
+    ]
+    protein_identifiers = [f"{gene_prefix}{position:05d}" for position in positions]
+    sites = [
+        f"{residue}{position}"
+        for residue, position in zip(residues, positions, strict=True)
+    ]
+    center = sequence_width // 2
+    sequences: list[str] = []
+    for row_index, residue in enumerate(residues):
+        letters = [
+            _AMINO_ACIDS[(row_index * 11 + column_index * 7) % len(_AMINO_ACIDS)]
+            for column_index in range(sequence_width)
+        ]
+        letters[center] = residue
+        sequences.append("".join(letters))
+    return pd.DataFrame(
+        {
+            "site_key": site_keys.astype(str).tolist(),
+            "display_id": [
+                f"{protein_identifier};{site};"
+                for protein_identifier, site in zip(
+                    protein_identifiers,
+                    sites,
+                    strict=True,
+                )
+            ],
+            "organism": [organism] * count,
+            "protein_namespace": [protein_namespace] * count,
+            "protein_identifier": protein_identifiers,
+            "gene_symbol": protein_identifiers,
+            "site": sites,
+            "protein_id": protein_identifiers,
+            "site_sequence": sequences,
+            "localisation_confidence": [float(localisation_confidence)] * count,
+        },
+        index=site_keys.copy(),
+    )
+
+
+def deterministic_analysis_ready_dataset_tables(
+    *,
+    n_sites: int,
+    n_samples: int,
+    seed: int = DEFAULT_PERFORMANCE_SEED,
+    start: int = 1,
+    gene_prefix: str = "PERFGENE",
+    sequence_width: int = 31,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Return aligned phospho/site-metadata frames for constructor gates."""
+
+    site_keys = deterministic_analysis_ready_site_keys(
+        n_sites,
+        start=start,
+        gene_prefix=gene_prefix,
+    )
+    phospho = deterministic_matrix(
+        n_sites=n_sites,
+        n_samples=n_samples,
+        seed=seed,
+        site_ids=site_keys,
+    )
+    site_metadata = deterministic_analysis_ready_site_metadata(
+        site_keys,
+        start=start,
+        gene_prefix=gene_prefix,
+        sequence_width=sequence_width,
+    )
+    return phospho, site_metadata
+
+
 def deterministic_site_metadata(
     site_ids: pd.Index,
     *,
@@ -229,6 +357,63 @@ def deterministic_site_sequence_frame(
         },
         index=site_ids.copy(),
     )
+
+
+def deterministic_maxquant_source_table(
+    *,
+    n_sites: int,
+    n_samples: int,
+    seed: int = DEFAULT_PERFORMANCE_SEED,
+    start: int = 1,
+    gene_prefix: str = "MQGENE",
+) -> pd.DataFrame:
+    """Build a deterministic MaxQuant-like phosphosite table for importer gates."""
+
+    positions = list(range(start, start + int(n_sites)))
+    residues = [
+        _PHOSPHO_RESIDUES[index % len(_PHOSPHO_RESIDUES)]
+        for index in range(int(n_sites))
+    ]
+    proteins = [f"{gene_prefix}{position:05d}" for position in positions]
+    sites = [
+        f"{residue}{position}"
+        for residue, position in zip(residues, positions, strict=True)
+    ]
+    sequence_windows: list[str] = []
+    for row_index, residue in enumerate(residues):
+        letters = [
+            _AMINO_ACIDS[(row_index * 5 + column_index * 3) % len(_AMINO_ACIDS)]
+            for column_index in range(15)
+        ]
+        letters[7] = residue
+        sequence_windows.append("".join(letters))
+    source = pd.DataFrame(
+        {
+            "Leading proteins": proteins,
+            "Gene names": proteins,
+            "Modified site": sites,
+            "Localization prob": [0.95] * int(n_sites),
+            "Sequence": [f"PEPTIDE{index:05d}" for index in range(int(n_sites))],
+            "Modified sequence": [
+                f"PEPTIDE(ph){index:05d}" for index in range(int(n_sites))
+            ],
+            "Sequence window": sequence_windows,
+            "Potential contaminant": [""] * int(n_sites),
+            "Reverse": [""] * int(n_sites),
+        }
+    )
+    values = deterministic_matrix(
+        n_sites=n_sites,
+        n_samples=n_samples,
+        seed=seed,
+        site_ids=pd.Index([f"row_{index}" for index in range(int(n_sites))]),
+        sample_columns=pd.Index(
+            [f"sample_{index + 1:02d}" for index in range(int(n_samples))]
+        ),
+    )
+    for sample_id in values.columns.astype(str).tolist():
+        source[f"Intensity {sample_id}"] = values.loc[:, sample_id].astype(str).tolist()
+    return source
 
 
 def deterministic_kinase_substrate_map(
@@ -383,6 +568,16 @@ __all__ = [
     "DATASET_BUILD_MEDIUM_RUNTIME_SECONDS_MAX",
     "DATASET_BUILD_SMOKE_PEAK_MIB_MAX",
     "DATASET_BUILD_SMOKE_RUNTIME_SECONDS_MAX",
+    "DATASET_VALIDATION_LARGE_ALIGNMENT_RUNTIME_SECONDS_MAX",
+    "DATASET_VALIDATION_LARGE_N_SAMPLES",
+    "DATASET_VALIDATION_LARGE_N_SITES",
+    "DATASET_VALIDATION_LARGE_OBSERVATION_MASK_RUNTIME_SECONDS_MAX",
+    "DATASET_VALIDATION_LARGE_SITE_METADATA_RUNTIME_SECONDS_MAX",
+    "DATASET_VALIDATION_MEDIUM_CONSTRUCTION_RUNTIME_SECONDS_MAX",
+    "DATASET_VALIDATION_MEDIUM_N_SAMPLES",
+    "DATASET_VALIDATION_MEDIUM_N_SITES",
+    "DATASET_VALIDATION_SMALL_N_SAMPLES",
+    "DATASET_VALIDATION_SMALL_N_SITES",
     "DEFAULT_PERFORMANCE_SEED",
     "DIFFERENTIAL_WORKFLOW_MEDIUM_PEAK_MIB_MAX",
     "DIFFERENTIAL_WORKFLOW_MEDIUM_RUNTIME_SECONDS_MAX",
@@ -390,6 +585,7 @@ __all__ = [
     "DIFFERENTIAL_WORKFLOW_SMOKE_RUNTIME_SECONDS_MAX",
     "DIAGNOSTIC_RUNTIME_ABSOLUTE_SECONDS",
     "DIAGNOSTIC_RUNTIME_RATIO_MULTIPLIER",
+    "IMPORTER_MEDIUM_NORMALISATION_RUNTIME_SECONDS_MAX",
     "KINASE_FILTERED_REFERENCE_PEAK_MIB_MAX",
     "KINASE_FILTERED_REFERENCE_RUNTIME_SECONDS_MAX",
     "MOTIF_PEAK_MIB_MAX",
@@ -419,7 +615,12 @@ __all__ = [
     "SIGNALOME_WORKFLOW_PRECONDITIONED_PEAK_MIB_MAX",
     "SIGNALOME_WORKFLOW_PRECONDITIONED_RUNTIME_SECONDS_MAX",
     "SIGNALOME_WORKFLOW_RUNTIME_SECONDS_MAX",
+    "WORKFLOW_VALIDATION_LARGE_SEQUENCE_RUNTIME_SECONDS_MAX",
+    "deterministic_analysis_ready_dataset_tables",
+    "deterministic_analysis_ready_site_keys",
+    "deterministic_analysis_ready_site_metadata",
     "deterministic_kinase_substrate_map",
+    "deterministic_maxquant_source_table",
     "deterministic_matrix",
     "deterministic_sample_columns",
     "deterministic_site_ids",

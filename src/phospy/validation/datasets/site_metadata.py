@@ -7,6 +7,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
+import numpy as np
 import pandas as pd
 
 from phospy.science.sites.identifiers import ParsedSiteToken, try_parse_site_token
@@ -743,22 +744,49 @@ def assess_localisation_probability_column(
         return None
     values = site_metadata[column_name]
     values_index = pd.Index(values.index)
+    missing_mask = values.isna()
+    blank_string_mask = values.map(
+        lambda value: isinstance(value, str) and value.strip() == ""
+    )
+    bool_mask = values.map(lambda value: isinstance(value, (bool, np.bool_)))
+    parse_exempt_mask = missing_mask | blank_string_mask | bool_mask
+    numeric_values = pd.to_numeric(values.mask(parse_exempt_mask), errors="coerce")
+    finite_mask = pd.Series(
+        np.isfinite(numeric_values.to_numpy(dtype=float, copy=False, na_value=np.nan)),
+        index=values_index,
+    )
+    valid_numeric_mask = (
+        ~parse_exempt_mask
+        & numeric_values.notna()
+        & finite_mask
+        & numeric_values.ge(0.0)
+        & numeric_values.le(1.0)
+    )
+    missing_mask = pd.Series(
+        (missing_mask | blank_string_mask).to_numpy(dtype=bool, copy=False),
+        index=values_index,
+        dtype="boolean",
+    )
+    invalid_mask = pd.Series(
+        ((~missing_mask.astype(bool)) & (~valid_numeric_mask)).to_numpy(
+            dtype=bool,
+            copy=False,
+        ),
+        index=values_index,
+        dtype="boolean",
+    )
     normalized = pd.Series(pd.NA, index=values_index, dtype="Float64")
-    missing_mask = pd.Series(False, index=values_index, dtype="boolean")
-    invalid_mask = pd.Series(False, index=values_index, dtype="boolean")
+    if bool(valid_numeric_mask.any()):
+        normalized.loc[valid_numeric_mask] = numeric_values.loc[
+            valid_numeric_mask
+        ].astype(float)
     invalid_examples: list[str] = []
-
-    for site_id, raw_value in values.items():
+    invalid_positions = np.flatnonzero(invalid_mask.to_numpy(dtype=bool, copy=False))
+    for position in invalid_positions[:_EXAMPLE_LIMIT]:
+        site_id = values.index[int(position)]
+        raw_value = values.at[site_id]
         parsed = _parse_localisation_probability(raw_value)
-        if parsed is None:
-            missing_mask.at[site_id] = True
-            continue
-        if isinstance(parsed, float):
-            normalized.at[site_id] = parsed
-            continue
-        invalid_mask.at[site_id] = True
-        if len(invalid_examples) < _EXAMPLE_LIMIT:
-            invalid_examples.append(f"{site_id!r}:{raw_value!r}:{parsed}")
+        invalid_examples.append(f"{site_id!r}:{raw_value!r}:{parsed}")
 
     if bool((missing_mask & invalid_mask).any()):
         raise error_type(
@@ -1322,7 +1350,17 @@ def _summarise_examples(values: list[str], *, limit: int = _EXAMPLE_LIMIT) -> st
 
 
 def _is_missing(value: object) -> bool:
-    return bool(pd.Series((value,), dtype="object").isna().iat[0])
+    if value is None or value is pd.NA or value is pd.NaT:
+        return True
+    if isinstance(value, float):
+        return math.isnan(value)
+    if isinstance(value, np.floating):
+        scalar_value = cast(object, value)
+        return str(scalar_value).lower() == "nan"
+    if isinstance(value, (np.datetime64, np.timedelta64)):
+        temporal_value = cast(object, value)
+        return str(temporal_value) == "NaT"
+    return False
 
 
 __all__ = [

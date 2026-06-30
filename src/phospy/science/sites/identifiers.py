@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import math
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import TypeVar, cast
 
+import numpy as np
 import pandas as pd
 
 ErrorType = TypeVar("ErrorType", bound=Exception)
@@ -297,7 +299,14 @@ def _malformed_site_identifier_error(
 
 
 def _is_missing(value: object) -> bool:
-    try:
-        return bool(pd.Series([value], dtype="object").isna().iloc[0])
-    except (TypeError, ValueError):
-        return False
+    if value is None or value is pd.NA or value is pd.NaT:
+        return True
+    if isinstance(value, float):
+        return math.isnan(value)
+    if isinstance(value, np.floating):
+        scalar_value = cast(object, value)
+        return str(scalar_value).lower() == "nan"
+    if isinstance(value, (np.datetime64, np.timedelta64)):
+        temporal_value = cast(object, value)
+        return str(temporal_value) == "NaT"
+    return False

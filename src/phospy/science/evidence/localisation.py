@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
+import numpy as np
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
@@ -58,21 +59,41 @@ def normalise_localisation_confidence_series(
     """
 
     _validate_scale(scale)
-    normalized = pd.Series(pd.NA, index=pd.Index(values.index), dtype="Float64")
-    missing_count = 0
+    values_index = pd.Index(values.index)
+    missing_mask = values.isna()
+    blank_string_mask = values.map(
+        lambda value: isinstance(value, str) and value.strip() == ""
+    )
+    bool_mask = values.map(lambda value: isinstance(value, (bool, np.bool_)))
+    parse_exempt_mask = missing_mask | blank_string_mask | bool_mask
+    numeric_values = pd.to_numeric(values.mask(parse_exempt_mask), errors="coerce")
+    finite_mask = pd.Series(
+        np.isfinite(numeric_values.to_numpy(dtype=float, copy=False, na_value=np.nan)),
+        index=values_index,
+    )
+    upper_bound = 100.0 if scale == LOCALISATION_CONFIDENCE_SCALE_PERCENT else 1.0
+    valid_numeric_mask = (
+        ~parse_exempt_mask
+        & numeric_values.notna()
+        & finite_mask
+        & numeric_values.ge(0.0)
+        & numeric_values.le(upper_bound)
+    )
+    missing_mask = missing_mask | blank_string_mask
+    invalid_mask = (~missing_mask) & (~valid_numeric_mask)
+    normalized = pd.Series(pd.NA, index=values_index, dtype="Float64")
+    if bool(valid_numeric_mask.any()):
+        normalised_values = numeric_values.loc[valid_numeric_mask].astype(float)
+        if scale == LOCALISATION_CONFIDENCE_SCALE_PERCENT:
+            normalised_values = normalised_values / 100.0
+        normalized.loc[valid_numeric_mask] = normalised_values
     invalid_examples: list[str] = []
-    invalid_count = 0
-    for row_id, raw_value in values.items():
+    for row_id in values.index[invalid_mask].tolist()[:_EXAMPLE_LIMIT]:
+        raw_value = values.at[row_id]
         parsed = _parse_confidence_value(raw_value, scale=scale)
-        if parsed is None:
-            missing_count += 1
-            continue
-        if isinstance(parsed, float):
-            normalized.at[row_id] = parsed
-            continue
-        invalid_count += 1
-        if len(invalid_examples) < _EXAMPLE_LIMIT:
-            invalid_examples.append(f"{row_id!r}:{raw_value!r}:{parsed}")
+        invalid_examples.append(f"{row_id!r}:{raw_value!r}:{parsed}")
+    missing_count = int(missing_mask.sum())
+    invalid_count = int(invalid_mask.sum())
 
     report = LocalisationConfidenceNormalisationReport(
         source_column=source_column,
@@ -135,10 +156,17 @@ def _validate_scale(scale: str) -> None:
 
 
 def _is_missing(value: object) -> bool:
-    try:
-        return bool(pd.Series((value,), dtype="object").isna().iat[0])
-    except (TypeError, ValueError):
-        return False
+    if value is None or value is pd.NA or value is pd.NaT:
+        return True
+    if isinstance(value, float):
+        return math.isnan(value)
+    if isinstance(value, np.floating):
+        scalar_value: object = value
+        return str(scalar_value).lower() == "nan"
+    if isinstance(value, (np.datetime64, np.timedelta64)):
+        temporal_value: object = value
+        return str(temporal_value) == "NaT"
+    return False
 
 
 __all__ = [

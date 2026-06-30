@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import math
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import TypeVar
+from typing import TypeVar, cast
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
 from phospy.errors.validation import DatasetValidationError
@@ -1243,23 +1245,34 @@ class AnalysisReadyPhosphoDataset:
 
 
 def _require_boolean_observation_mask(mask: pd.DataFrame) -> None:
-    values = mask.to_numpy(dtype="object")
-    for row_index in range(values.shape[0]):
-        for column_index in range(values.shape[1]):
-            value = values[row_index, column_index]
-            if _is_missing_value(value):
-                raise DatasetValidationError(
-                    "dataset.imputation_observation_mask must not contain "
-                    "missing values"
-                )
-            if isinstance(value, (bool, np.bool_)):
-                continue
-            raise DatasetValidationError(
-                "dataset.imputation_observation_mask must contain only boolean "
-                "values; "
-                f"invalid_cell=({mask.index[row_index]!r}, "
-                f"{mask.columns[column_index]!r})"
-            )
+    values = mask.to_numpy(dtype="object", copy=False)
+    missing_values: npt.NDArray[np.bool_] = np.asarray(
+        pd.isna(values),
+        dtype=bool,
+    )
+    if bool(missing_values.any()):
+        raise DatasetValidationError(
+            "dataset.imputation_observation_mask must not contain missing values"
+        )
+    if all(pd.api.types.is_bool_dtype(dtype) for dtype in mask.dtypes):
+        return
+
+    boolean_result = np.frompyfunc(
+        lambda value: isinstance(value, (bool, np.bool_)),
+        1,
+        1,
+    )(values)
+    boolean_cells: npt.NDArray[np.bool_] = np.asarray(boolean_result, dtype=bool)
+    invalid_locations = np.argwhere(~boolean_cells)
+    if invalid_locations.size == 0:
+        return
+    row_index, column_index = invalid_locations[0]
+    raise DatasetValidationError(
+        "dataset.imputation_observation_mask must contain only boolean "
+        "values; "
+        f"invalid_cell=({mask.index[int(row_index)]!r}, "
+        f"{mask.columns[int(column_index)]!r})"
+    )
 
 
 def _build_imputation_feature_summary(observed_mask: pd.DataFrame) -> pd.DataFrame:
@@ -1380,7 +1393,17 @@ def _missing_data_state_claims_no_missing_values(
 
 
 def _is_missing_value(value: object) -> bool:
-    return bool(pd.Series((value,), dtype="object").isna().iat[0])
+    if value is None or value is pd.NA or value is pd.NaT:
+        return True
+    if isinstance(value, float):
+        return math.isnan(value)
+    if isinstance(value, np.floating):
+        scalar_value = cast(object, value)
+        return str(scalar_value).lower() == "nan"
+    if isinstance(value, (np.datetime64, np.timedelta64)):
+        temporal_value = cast(object, value)
+        return str(temporal_value) == "NaT"
+    return False
 
 
 def _require_instance(

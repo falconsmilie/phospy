@@ -6,6 +6,7 @@ import math
 from os import PathLike
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from phospy.contracts.requests import PhosphositeImportRequest
@@ -649,27 +650,34 @@ def _diagnostic_duplicate_non_missing_rows(values: pd.Series) -> int:
 
 
 def _parse_intensity_column(series: pd.Series, *, source_column: str) -> list[float]:
-    parsed: list[float] = []
-    for position, value in enumerate(series.tolist()):
-        if _is_missing_numeric(value):
-            parsed.append(float("nan"))
-            continue
-        try:
-            numeric_value = float(value)
-        except (TypeError, ValueError) as exc:
-            raise PhosPyInputError(
-                "failed to parse phosphosite import intensity value: "
-                f"source_column='{source_column}', row_position={position}, "
-                f"offending_value={value!r}"
-            ) from exc
-        if not math.isfinite(numeric_value):
-            raise PhosPyInputError(
-                "failed to parse phosphosite import intensity value: "
-                f"source_column='{source_column}', row_position={position}, "
-                f"offending_value={value!r}, reason='not_finite'"
-            )
-        parsed.append(numeric_value)
-    return parsed
+    values = pd.Series(series, dtype="object")
+    missing_mask = values.isna() | values.map(
+        lambda value: (
+            isinstance(value, str) and value.strip().lower() in _MISSING_NUMERIC_TOKENS
+        )
+    )
+    numeric = pd.to_numeric(values.mask(missing_mask), errors="coerce")
+    parse_failures = (~missing_mask) & numeric.isna()
+    if bool(parse_failures.any()):
+        position = int(np.flatnonzero(parse_failures.to_numpy(dtype=bool))[0])
+        value = values.iloc[position]
+        raise PhosPyInputError(
+            "failed to parse phosphosite import intensity value: "
+            f"source_column='{source_column}', row_position={position}, "
+            f"offending_value={value!r}"
+        )
+    numeric_values = numeric.to_numpy(dtype=float, copy=False, na_value=np.nan)
+    finite_values = np.isfinite(numeric_values)
+    not_finite = (~missing_mask.to_numpy(dtype=bool, copy=False)) & (~finite_values)
+    if bool(not_finite.any()):
+        position = int(np.flatnonzero(not_finite)[0])
+        value = values.iloc[position]
+        raise PhosPyInputError(
+            "failed to parse phosphosite import intensity value: "
+            f"source_column='{source_column}', row_position={position}, "
+            f"offending_value={value!r}, reason='not_finite'"
+        )
+    return numeric_values.tolist()
 
 
 def _required_text_column(series: pd.Series, *, field_name: str) -> list[str]:
@@ -724,7 +732,7 @@ def _optional_float_column(
         scale=scale,
     )
     return [
-        None if bool(pd.isna(value)) else float(value)
+        None if _is_missing(value) else float(value)
         for value in normalised.astype("object").tolist()
     ]
 
@@ -821,19 +829,18 @@ def _optional_text(
     return token
 
 
-def _is_missing_numeric(value: object) -> bool:
-    if _is_missing(value):
-        return True
-    if isinstance(value, str) and value.strip().lower() in _MISSING_NUMERIC_TOKENS:
-        return True
-    return False
-
-
 def _is_missing(value: object) -> bool:
-    try:
-        return bool(pd.Series((value,), dtype="object").isna().iat[0])
-    except (TypeError, ValueError):
-        return False
+    if value is None or value is pd.NA or value is pd.NaT:
+        return True
+    if isinstance(value, float):
+        return math.isnan(value)
+    if isinstance(value, np.floating):
+        scalar_value: object = value
+        return str(scalar_value).lower() == "nan"
+    if isinstance(value, (np.datetime64, np.timedelta64)):
+        temporal_value: object = value
+        return str(temporal_value) == "NaT"
+    return False
 
 
 __all__ = [

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import math
 from typing import cast
 
+import numpy as np
 import pandas as pd
 
 from phospy.contracts.configs import (
@@ -163,7 +165,6 @@ def _selected_explicit_reference_sequence_context(
         field_name="kinase workflow request site_sequence_conflict_policy",
         error_type=WorkflowValidationError,
     )
-    selected = site_metadata.copy(deep=True)
     source_by_site: dict[str, str] = {}
     reference_sequences = {
         str(display_id).strip(): sequence
@@ -179,25 +180,34 @@ def _selected_explicit_reference_sequence_context(
         if str(display_id).strip() != "" and sequence is not None
     }
     dataset_source_label = dataset_sequence_source_label(dataset)
-    for site_id in selected.index.tolist():
+    selected_sequence_values: list[object] = []
+    site_ids = site_metadata.index.tolist()
+    display_ids = site_metadata.loc[:, "display_id"].tolist()
+    dataset_sequences = site_metadata.loc[:, "site_sequence"].tolist()
+    for site_id, raw_display_id, raw_dataset_sequence in zip(
+        site_ids,
+        display_ids,
+        dataset_sequences,
+        strict=True,
+    ):
         site_key = str(site_id)
-        display_id = str(selected.at[site_id, "display_id"]).strip()
-        dataset_sequence_text = _normalise_sequence_value(
-            selected.at[site_id, "site_sequence"]
-        )
+        display_id = str(raw_display_id).strip()
+        dataset_sequence_text = _normalise_sequence_value(raw_dataset_sequence)
         reference_sequence_text = reference_sequences.get(display_id)
         if reference_sequence_text is None:
             if dataset_sequence_text is not None:
-                selected.at[site_id, "site_sequence"] = dataset_sequence_text
                 source_by_site[site_key] = dataset_source_label or "unknown"
+                selected_sequence_values.append(dataset_sequence_text)
+            else:
+                selected_sequence_values.append(raw_dataset_sequence)
             continue
         if dataset_sequence_text is None:
-            selected.at[site_id, "site_sequence"] = reference_sequence_text
             source_by_site[site_key] = "reference"
+            selected_sequence_values.append(reference_sequence_text)
             continue
         if reference_sequence_text == dataset_sequence_text:
-            selected.at[site_id, "site_sequence"] = reference_sequence_text
             source_by_site[site_key] = "reference"
+            selected_sequence_values.append(reference_sequence_text)
             continue
         if resolved_policy == KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR:
             raise WorkflowValidationError(
@@ -210,18 +220,37 @@ def _selected_explicit_reference_sequence_context(
                 f"conflict_policy={str(resolved_policy)!r}"
             )
         if resolved_policy == KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET:
-            selected.at[site_id, "site_sequence"] = dataset_sequence_text
             source_by_site[site_key] = dataset_source_label or "unknown"
+            selected_sequence_values.append(dataset_sequence_text)
             continue
         if resolved_policy == KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE:
-            selected.at[site_id, "site_sequence"] = reference_sequence_text
             source_by_site[site_key] = "reference"
+            selected_sequence_values.append(reference_sequence_text)
             continue
+        selected_sequence_values.append(raw_dataset_sequence)
+    # The validator only needs a read-only metadata view plus the selected
+    # sequence column; avoid deep-copying every metadata column for large datasets.
+    selected = site_metadata.copy(deep=False)
+    selected.loc[:, "site_sequence"] = selected_sequence_values
     return selected, source_by_site
 
 
 def _normalise_sequence_value(value: object) -> str | None:
-    if bool(pd.Series((value,), dtype="object").isna().iat[0]):
+    if _is_missing(value):
         return None
     text = str(value).strip()
     return text or None
+
+
+def _is_missing(value: object) -> bool:
+    if value is None or value is pd.NA or value is pd.NaT:
+        return True
+    if isinstance(value, float):
+        return math.isnan(value)
+    if isinstance(value, np.floating):
+        scalar_value: object = value
+        return str(scalar_value).lower() == "nan"
+    if isinstance(value, (np.datetime64, np.timedelta64)):
+        temporal_value: object = value
+        return str(temporal_value) == "NaT"
+    return False

@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, TypeVar, cast
 
+import numpy as np
 import pandas as pd
 
 from phospy.science.sites.identifiers import (
@@ -955,7 +957,17 @@ def _parse_row_site_token(
 
 
 def _is_missing(value: object) -> bool:
-    return bool(pd.Series((value,), dtype="object").isna().iat[0])
+    if value is None or value is pd.NA or value is pd.NaT:
+        return True
+    if isinstance(value, float):
+        return math.isnan(value)
+    if isinstance(value, np.floating):
+        scalar_value: object = value
+        return str(scalar_value).lower() == "nan"
+    if isinstance(value, (np.datetime64, np.timedelta64)):
+        temporal_value: object = value
+        return str(temporal_value) == "NaT"
+    return False
 
 
 def _looks_like_display_site_index(index: pd.Index) -> bool:

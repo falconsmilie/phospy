@@ -7,6 +7,7 @@ from dataclasses import dataclass, replace
 from typing import cast
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
@@ -297,9 +298,17 @@ def _combine_observation_masks(
         expected=corrected_matrix,
         field_name="correction output observation mask",
     )
-    return upstream_mask.astype(bool).copy(deep=True) & correction_mask.astype(
-        bool
-    ).copy(deep=True)
+    # Validation above guarantees boolean-aligned masks; combine the raw arrays
+    # once to avoid repeated full-frame defensive copies on large imputation masks.
+    combined = np.logical_and(
+        upstream_mask.to_numpy(dtype=bool, copy=False),
+        correction_mask.to_numpy(dtype=bool, copy=False),
+    )
+    return pd.DataFrame(
+        combined,
+        index=corrected_matrix.index.copy(),
+        columns=corrected_matrix.columns.copy(),
+    )
 
 
 def _require_aligned_boolean_mask(
@@ -318,17 +327,36 @@ def _require_aligned_boolean_mask(
             f"batch-correction workflow {field_name} alignment failed: "
             "mask columns must match corrected matrix columns"
         )
-    values = mask.to_numpy(dtype="object", copy=True)
-    for row_position, row_id in enumerate(mask.index.tolist()):
-        for column_position, column_id in enumerate(mask.columns.tolist()):
-            value = values[row_position, column_position]
-            if isinstance(value, (bool, np.bool_)):
-                continue
-            raise PhosPyInputError(
-                f"batch-correction workflow {field_name} must contain only "
-                f"boolean values; invalid value at "
-                f"({str(row_id)!r}, {str(column_id)!r})"
-            )
+    values = mask.to_numpy(dtype="object", copy=False)
+    missing_values: npt.NDArray[np.bool_] = np.asarray(
+        pd.isna(values),
+        dtype=bool,
+    )
+    if bool(missing_values.any()):
+        raise PhosPyInputError(
+            f"batch-correction workflow {field_name} must contain only "
+            "boolean values; missing values are not allowed"
+        )
+    if all(pd.api.types.is_bool_dtype(dtype) for dtype in mask.dtypes):
+        return
+
+    boolean_result = np.frompyfunc(
+        lambda value: isinstance(value, (bool, np.bool_)),
+        1,
+        1,
+    )(values)
+    boolean_cells: npt.NDArray[np.bool_] = np.asarray(boolean_result, dtype=bool)
+    invalid_locations = np.argwhere(~boolean_cells)
+    if invalid_locations.size == 0:
+        return
+    row_position, column_position = invalid_locations[0]
+    row_id = mask.index[int(row_position)]
+    column_id = mask.columns[int(column_position)]
+    raise PhosPyInputError(
+        f"batch-correction workflow {field_name} must contain only "
+        f"boolean values; invalid value at "
+        f"({str(row_id)!r}, {str(column_id)!r})"
+    )
 
 
 def _corrected_cell_status(
