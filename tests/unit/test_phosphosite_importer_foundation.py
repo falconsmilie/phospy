@@ -9,7 +9,7 @@ from phospy.api import (
     PhosphositeImportRequest,
     PhosphositeImportResult,
 )
-from phospy.api.results import (
+from phospy.contracts.results import (
     IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
     IMPORTER_QUALITY_STATUS_REPORTED,
 )

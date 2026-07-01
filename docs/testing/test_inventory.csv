@@ -53,7 +53,7 @@ tests/performance/test_workflow_validation_performance.py,performance,108,2,true
 tests/release/test_reference_manifest_gate.py,release,81,2,true,false,,,,,,
 tests/science/test_kinase_library_motif_scoring_science.py,science,51,1,false,false,,,,,,
 tests/science/test_signalome_identity_coherence.py,science,66,1,false,false,,,,,,
-tests/unit/api/test_api_stability_tiers.py,api,59,3,false,false,,,,,,[auto-orchestration] 5 hit(s); indicators: private_member_access
+tests/unit/api/test_api_stability_tiers.py,api,93,5,false,false,,,,,,[auto-orchestration] 7 hit(s); indicators: private_member_access
 tests/unit/api/test_public_api_dataset_construction.py,api,57,3,false,false,,,,,,
 tests/unit/api/test_public_api_surface.py,api,92,4,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/api/test_validation_not_public_api.py,api,104,5,false,false,,,,,,
@@ -191,7 +191,7 @@ tests/unit/test_public_contract_dataset.py,unit,408,16,true,true,public API cont
 tests/unit/test_public_contract_enrichment.py,unit,241,11,false,false,,,,,,
 tests/unit/test_public_contract_errors.py,unit,742,24,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract errors and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_contract_import_routes.py,unit,275,18,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract import routes and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/unit/test_public_contract_results.py,unit,403,9,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract results and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
+tests/unit/test_public_contract_results.py,unit,375,9,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract results and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_contract_workflows.py,unit,194,7,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract workflows and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_documentation_examples.py,unit,484,7,false,false,,,,,,
 tests/unit/test_public_examples_contract.py,unit,41,3,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public examples contract and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.

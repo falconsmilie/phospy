@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pandas.testing as pdt
 
-from phospy.api.results import (
+from phospy.contracts.results import (
     ProteinAwareMappingDiagnostics,
     ProteinAwarePreparationReport,
     ProteinAwarePreparationResult,

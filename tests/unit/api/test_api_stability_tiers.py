@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import ModuleType
+
+import pytest
 
 import phospy.api as public_api
 
@@ -57,3 +60,34 @@ def test_internal_inventory_documents_removed_previous_exports() -> None:
         "DifferentialPolicyProvenance",
     } <= internal
     assert internal.isdisjoint(public_api.__all__)
+
+
+def test_api_dataset_submodule_does_not_export_internal_experimental_names() -> None:
+    import phospy.api.datasets as dataset_api
+
+    assert set(dataset_api.__all__).isdisjoint(public_api._INTERNAL_EXPERIMENTAL_API)
+    assert not hasattr(dataset_api, "DatasetProcessingState")
+    with pytest.raises(ImportError):
+        exec("from phospy.api.datasets import DatasetProcessingState", {})
+
+
+def test_api_submodules_respect_stability_tier_inventory() -> None:
+    import phospy.api.configs as configs_api
+    import phospy.api.datasets as dataset_api
+    import phospy.api.requests as requests_api
+    import phospy.api.results as results_api
+
+    internal = set(public_api._INTERNAL_EXPERIMENTAL_API)
+    submodules: tuple[ModuleType, ...] = (
+        dataset_api,
+        results_api,
+        configs_api,
+        requests_api,
+    )
+
+    for submodule in submodules:
+        leaked_names = set(submodule.__all__) & internal
+        assert not leaked_names, (
+            f"{submodule.__name__} exports internal/experimental names: "
+            f"{sorted(leaked_names)}"
+        )

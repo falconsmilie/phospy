@@ -41,12 +41,25 @@ deprecation and documentation policy, but they are intentionally public. Names
 classified as internal / experimental are not aggregate exports; when they are
 needed for PhosPy development, import them from their owning modules.
 
+Public submodule wildcard surfaces under `phospy.api` follow the same
+stability-tier inventory. A name classified as internal / experimental must not
+appear in a public submodule `__all__`, and `phospy.api.datasets` is a
+stable-only route that exports only `AnalysisReadyPhosphoDataset`. Dataset
+preprocessing diagnostics remain inspectable from returned objects such as
+`dataset.preprocessing_report` and workflow result properties when present; the
+diagnostic model classes are not supported import targets under `phospy.api`.
+
 ## Compatibility
 
 This is an intentional public-surface reduction. The project has not promised
 that every previous aggregate `phospy.api` re-export remains stable. Removed
 aggregate names stay available only through their explicit owning modules when
 those modules are themselves supported.
+
+Submodule `__all__` lists are also curated public surfaces. Compatibility
+attributes may remain on lower-level wrappers during migration, but wildcard
+exports and documented examples must not promote names classified here as
+internal / experimental.
 
 No validators, workflow executors, workflow interpreters, private result
 assemblers, or reference manifest validation internals may be promoted into
@@ -285,5 +298,7 @@ Future API changes must satisfy these criteria:
 4. Validators, executors, interpreters, private assemblers, internal scoring
    helpers, private provenance serialization, and reference manifest validation
    internals are not exported through `phospy.api`.
-5. Any promotion from internal / experimental to supported public API requires
+5. Public submodule `__all__` lists do not include names classified as
+   internal / experimental.
+6. Any promotion from internal / experimental to supported public API requires
    code, docs, and tests in the same change.

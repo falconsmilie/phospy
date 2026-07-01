@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from phospy.api.results import (
+from phospy.contracts.results import (
     IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
     IMPORTER_QUALITY_STATUS_NOT_REPORTED,
     IMPORTER_QUALITY_STATUS_REPORTED,

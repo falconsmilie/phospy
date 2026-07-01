@@ -12,7 +12,7 @@ from phospy.api import (
     DatasetPreprocessingConfig,
     Organism,
 )
-from phospy.api.results import (
+from phospy.contracts.results import (
     BatchCorrectionDiagnostics,
     BatchCorrectionPolicy,
     BatchCorrectionReport,

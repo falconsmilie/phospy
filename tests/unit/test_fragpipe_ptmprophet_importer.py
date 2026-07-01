@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 from phospy.api import PhosphositeImportResult
-from phospy.api.results import (
+from phospy.contracts.results import (
     IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
     IMPORTER_QUALITY_STATUS_REPORTED,
 )

@@ -59,6 +59,15 @@ already own fully prepared `site_key`-indexed tables and processing-state
 provenance. Ordinary dataset construction should use
 `AnalysisReadyDatasetBuilder().run(DatasetBuildRequest(...))`.
 
+The `phospy.api.datasets` submodule is stable-only and exports
+`AnalysisReadyPhosphoDataset`. It does not export processing-state internals,
+missing-data or normalisation state records, batch-correction report classes, or
+other nested diagnostic model classes. Inspect diagnostics through returned
+objects such as `dataset.preprocessing_report`,
+`dataset.preprocessing_report.batch_correction`, and workflow result properties
+when those reports are present; importing the underlying diagnostic classes is
+reserved for PhosPy internals through their owning implementation modules.
+
 Use `phospy.api` for stable request, workflow, primary result, reference, enum,
 and common exception contracts. The aggregate facade is intentionally smaller
 than the implementation modules:
@@ -110,7 +119,9 @@ Internal / experimental API is not exported through `phospy.api`. This includes
 validators, private result assemblers, internal scoring helpers, private
 provenance serialization functions, low-level workflow interpreters and
 executors, reference manifest validation internals, processing-state internals,
-nested diagnostic records, and compatibility constants.
+nested diagnostic records, and compatibility constants. Submodule wildcard
+surfaces under `phospy.api` follow the same inventory: names classified as
+internal / experimental are not exported from `__all__`.
 
 See [ADR-0031](../adr/adr_0031_public_api_stability_tiers.md) for the current
 inventory and promotion policy.
@@ -132,6 +143,7 @@ advanced extension, parity, and backend-contract use. They are not promoted to
 | --- | --- | --- |
 | Public | `phospy` | Top-level convenience entrypoints listed above. |
 | Public | `phospy.api` | Public names listed in `phospy.api.__all__`. |
+| Public | `phospy.api.datasets` | `AnalysisReadyPhosphoDataset` only. |
 | Semi-public | `phospy.science.datasets.preprocessing.stage_registry` | `PreprocessingStageMetadata` and exported registry helpers. |
 | Semi-public | `phospy.science.signalomes.clustering.protocol` | `ClusterTreeEngine`, `SignalomeClusteringEngine`. |
 | Semi-public | `phospy.science.signalomes.clustering.exact_python` | Exact-Python clustering compatibility facade names exported in `__all__`. |
