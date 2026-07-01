@@ -231,6 +231,9 @@ def test_differential_policy_provenance_snapshot_is_stable() -> None:
             ),
             "input_intensity_scale": (policy.statistical_testing.input_intensity_scale),
             "logfc_interpretation": (policy.statistical_testing.logfc_interpretation),
+            "allow_suspicious_declared_input_scale": (
+                policy.statistical_testing.allow_suspicious_declared_input_scale
+            ),
         },
         "missing_values": {
             "policy": policy.missing_values.policy,
@@ -316,6 +319,7 @@ def test_differential_policy_provenance_snapshot_is_stable() -> None:
                 "fitted condition contrast on the established log2 phosphosite "
                 "intensity scale"
             ),
+            "allow_suspicious_declared_input_scale": False,
         },
         "missing_values": {
             "policy": "reject_missing_values_before_differential_execution",

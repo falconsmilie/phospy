@@ -359,6 +359,7 @@ class DifferentialStatisticalTestingProvenance:
     adjusted_p_value_method: str
     input_intensity_scale: str = "not_recorded"
     logfc_interpretation: str = "not_recorded"
+    allow_suspicious_declared_input_scale: bool = False
 
     def __post_init__(self) -> None:
         if not self.test_statistic:
@@ -386,6 +387,13 @@ class DifferentialStatisticalTestingProvenance:
                 "differential_policy_provenance.statistical_testing."
                 "logfc_interpretation must be non-empty"
             )
+        if not isinstance(
+            cast(object, self.allow_suspicious_declared_input_scale), bool
+        ):
+            raise PhosPyInputError(
+                "differential_policy_provenance.statistical_testing."
+                "allow_suspicious_declared_input_scale must be a bool"
+            )
         object.__setattr__(self, "test_statistic", str(self.test_statistic))
         object.__setattr__(self, "p_value_method", str(self.p_value_method))
         object.__setattr__(
@@ -402,6 +410,11 @@ class DifferentialStatisticalTestingProvenance:
             self,
             "logfc_interpretation",
             str(self.logfc_interpretation),
+        )
+        object.__setattr__(
+            self,
+            "allow_suspicious_declared_input_scale",
+            self.allow_suspicious_declared_input_scale,
         )
 
 

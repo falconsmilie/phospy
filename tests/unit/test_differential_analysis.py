@@ -27,16 +27,32 @@ from phospy.errors import (
     WorkflowBoundaryError,
     WorkflowValidationError,
 )
+from phospy.science.datasets.builders.preprocessing import (
+    build_dataset_processing_state,
+)
+from phospy.science.datasets.builders.transformation_resolver import (
+    DatasetIntensityScaleResolver,
+)
+from phospy.science.datasets.preprocessing.models import PreprocessingPlan
 from phospy.science.sites.site_keys import (
     build_protein_scoped_site_key,
     encode_site_key,
 )
 from phospy.science.statistics.multiple_testing import adjust_p_values
+from phospy.science.transformations.models import (
+    IntensityScaleEstablishmentMode,
+    IntensityScaleEstablishmentSource,
+    IntensityScaleState,
+    MatrixIntensityScaleState,
+)
+from phospy.science.transformations.transformers import (
+    IdentityTransformer,
+    Log2Transformer,
+)
 from phospy.workflows.differential.interpreter import DifferentialAnalysisInterpreter
 from phospy.workflows.differential.validator import DifferentialAnalysisValidator
 from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
-    supported_log2_processing_state,
 )
 from tests.support.site_keys import site_key_context_columns
 
@@ -84,7 +100,11 @@ def _site_key_for_display_id(
     return encode_site_key(key)
 
 
-def _dataset(matrix: pd.DataFrame | None = None):
+def _dataset(
+    matrix: pd.DataFrame | None = None,
+    *,
+    intensity_scale_state: IntensityScaleState | None = None,
+):
     phospho = _matrix() if matrix is None else matrix
     display_ids = phospho.index.astype(str).tolist()
     gene_site = [site_id.split(";") for site_id in display_ids]
@@ -110,20 +130,67 @@ def _dataset(matrix: pd.DataFrame | None = None):
         },
         index=phospho.index.copy(),
     )
-    return supported_dataset(phospho=phospho, site_metadata=site_metadata)
+    return supported_dataset(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        intensity_scale_state=intensity_scale_state,
+    )
 
 
-def supported_dataset(*, phospho: pd.DataFrame, site_metadata: pd.DataFrame):
+def supported_dataset(
+    *,
+    phospho: pd.DataFrame,
+    site_metadata: pd.DataFrame,
+    intensity_scale_state: IntensityScaleState | None = None,
+):
     from phospy import AnalysisReadyPhosphoDataset
 
+    if intensity_scale_state is None:
+        intensity_scale_state = supported_log2_intensity_scale_state(
+            has_total_matrix=False
+        )
     return AnalysisReadyPhosphoDataset(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
-        intensity_scale_state=supported_log2_intensity_scale_state(
-            has_total_matrix=False
+        intensity_scale_state=intensity_scale_state,
+        processing_state=build_dataset_processing_state(
+            plan=PreprocessingPlan.default(),
+            intensity_scale_state=intensity_scale_state,
         ),
-        processing_state=supported_log2_processing_state(has_total_matrix=False),
+    )
+
+
+def _declared_log2_intensity_scale_state(
+    phospho: pd.DataFrame,
+) -> IntensityScaleState:
+    declared_state = IntensityScaleState(
+        phospho=MatrixIntensityScaleState.log2(established_by="test.declaration"),
+        total=None,
+    )
+    return (
+        DatasetIntensityScaleResolver(transformer=IdentityTransformer())
+        .run(
+            phospho=phospho,
+            total=None,
+            declared_input_scale_state=declared_state,
+            declared_input_establishment_mode=IntensityScaleEstablishmentMode.DECLARED,
+            input_declaration_source="tests.unit.test_differential_analysis",
+        )
+        .intensity_scale_state
+    )
+
+
+def _phospy_transformed_log2_dataset(phospho: pd.DataFrame):
+    resolved = DatasetIntensityScaleResolver(
+        transformer=Log2Transformer(pseudocount=1.0)
+    ).run(
+        phospho=phospho,
+        total=None,
+    )
+    return _dataset(
+        resolved.phospho,
+        intensity_scale_state=resolved.intensity_scale_state,
     )
 
 
@@ -180,6 +247,7 @@ def _request(
     empirical_bayes: EmpiricalBayesConfig | None = None,
     multiple_testing: MultipleTestingConfig | None = None,
     minimum_condition_replicates: int = 2,
+    allow_suspicious_declared_input_scale: bool = False,
 ) -> DifferentialAnalysisRequest:
     return DifferentialAnalysisRequest(
         dataset=_dataset() if dataset is None else dataset,
@@ -187,6 +255,9 @@ def _request(
         contrasts=_contrasts() if contrasts is None else contrasts,
         config=DifferentialAnalysisConfig(
             minimum_condition_replicates=minimum_condition_replicates,
+            allow_suspicious_declared_input_scale=(
+                allow_suspicious_declared_input_scale
+            ),
             empirical_bayes=(
                 EmpiricalBayesConfig(method="standard")
                 if empirical_bayes is None
@@ -263,6 +334,82 @@ def test_differential_analysis_returns_per_contrast_moderated_tables() -> None:
         assert (table.loc[:, "P.Value"] <= 1.0).all()
         assert (table.loc[:, "adj.P.Val"] >= 0.0).all()
         assert (table.loc[:, "adj.P.Val"] <= 1.0).all()
+
+
+def test_differential_rejects_suspicious_declared_log2_by_default() -> None:
+    suspicious_matrix = _matrix() * 10000.0
+    state = _declared_log2_intensity_scale_state(suspicious_matrix)
+    provenance = state.establishment_provenance
+    assert provenance is not None
+    assert provenance.mode is IntensityScaleEstablishmentMode.DECLARED
+    assert provenance.diagnostic_warnings
+
+    with pytest.raises(WorkflowValidationError) as exc_info:
+        DifferentialAnalysisWorkflow().run(
+            _request(
+                dataset=_dataset(
+                    suspicious_matrix,
+                    intensity_scale_state=state,
+                )
+            )
+        )
+
+    message = str(exc_info.value)
+    assert (
+        "differential analysis rejects suspicious declared log2 intensity scale "
+        "by default"
+    ) in message
+    assert provenance.diagnostic_warnings[0] in message
+    assert "rebuild dataset with correct input scale" in message
+    assert "apply supported log2 transformation" in message
+    assert "explicitly set differential override" in message
+
+
+def test_differential_accepts_declared_log2_without_warnings() -> None:
+    state = _declared_log2_intensity_scale_state(_matrix())
+    provenance = state.establishment_provenance
+    assert provenance is not None
+    assert provenance.mode is IntensityScaleEstablishmentMode.DECLARED
+    assert provenance.diagnostic_warnings == ()
+
+    result = DifferentialAnalysisWorkflow().run(
+        _request(dataset=_dataset(_matrix(), intensity_scale_state=state))
+    )
+
+    assert result.policy_provenance is not None
+    testing_policy = result.policy_provenance.statistical_testing
+    assert testing_policy.allow_suspicious_declared_input_scale is False
+
+
+def test_differential_accepts_phospy_transformed_log2_state() -> None:
+    dataset = _phospy_transformed_log2_dataset(_matrix() + 10.0)
+    provenance = dataset.intensity_scale_state.establishment_provenance
+    assert provenance is not None
+    assert provenance.source is IntensityScaleEstablishmentSource.TRANSFORMED_BY_PHOSPY
+
+    result = DifferentialAnalysisWorkflow().run(_request(dataset=dataset))
+
+    assert result.policy_provenance is not None
+    assert result.policy_provenance.statistical_testing.input_intensity_scale == "log2"
+
+
+def test_differential_accepts_suspicious_declared_log2_with_explicit_override() -> None:
+    suspicious_matrix = _matrix() * 10000.0
+    state = _declared_log2_intensity_scale_state(suspicious_matrix)
+
+    result = DifferentialAnalysisWorkflow().run(
+        _request(
+            dataset=_dataset(
+                suspicious_matrix,
+                intensity_scale_state=state,
+            ),
+            allow_suspicious_declared_input_scale=True,
+        )
+    )
+
+    assert result.policy_provenance is not None
+    testing_policy = result.policy_provenance.statistical_testing
+    assert testing_policy.allow_suspicious_declared_input_scale is True
 
 
 def test_differential_default_multiple_testing_correction_is_unchanged() -> None:

@@ -8,10 +8,17 @@ from phospy import AnalysisReadyPhosphoDataset, DifferentialAnalysisWorkflow
 from phospy.api import (
     BatchCovariate,
     Contrast,
+    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
+)
+from phospy.science.datasets.builders.preprocessing import (
+    build_dataset_processing_state,
+)
+from phospy.science.datasets.builders.transformation_resolver import (
+    DatasetIntensityScaleResolver,
 )
 from phospy.science.datasets.models import DatasetPreprocessingReport
 from phospy.science.datasets.preprocessing.batch_correction import (
@@ -19,6 +26,13 @@ from phospy.science.datasets.preprocessing.batch_correction import (
     BatchCorrectionPolicy,
     BatchCorrectionReport,
 )
+from phospy.science.datasets.preprocessing.models import PreprocessingPlan
+from phospy.science.transformations.models import (
+    IntensityScaleEstablishmentMode,
+    IntensityScaleState,
+    MatrixIntensityScaleState,
+)
+from phospy.science.transformations.transformers import IdentityTransformer
 from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
@@ -131,6 +145,28 @@ def _contrast() -> tuple[Contrast, ...]:
     )
 
 
+def _declared_log2_intensity_scale_state(
+    phospho: pd.DataFrame,
+) -> IntensityScaleState:
+    declared_state = IntensityScaleState(
+        phospho=MatrixIntensityScaleState.log2(established_by="test.declaration"),
+        total=None,
+    )
+    return (
+        DatasetIntensityScaleResolver(transformer=IdentityTransformer())
+        .run(
+            phospho=phospho,
+            total=None,
+            declared_input_scale_state=declared_state,
+            declared_input_establishment_mode=IntensityScaleEstablishmentMode.DECLARED,
+            input_declaration_source=(
+                "tests.integration.workflows.differential.result_provenance"
+            ),
+        )
+        .intensity_scale_state
+    )
+
+
 def test_differential_result_diagnostics_are_present_and_serialized() -> None:
     result = DifferentialAnalysisWorkflow().run(
         DifferentialAnalysisRequest(
@@ -186,3 +222,34 @@ def test_differential_result_diagnostics_warn_on_batch_assumption_boundaries() -
     assert "upstream batch correction" in warning_text
     assert "not full batch correction" in unsupported_text
     assert "not revalidated or rerun" in unsupported_text
+
+
+def test_differential_policy_provenance_records_declared_scale_override() -> None:
+    base = _dataset()
+    suspicious_phospho = base.phospho * 10000.0
+    state = _declared_log2_intensity_scale_state(suspicious_phospho)
+    suspicious_dataset = AnalysisReadyPhosphoDataset(
+        phospho=suspicious_phospho,
+        site_metadata=base.site_metadata,
+        organism=base.organism,
+        intensity_scale_state=state,
+        processing_state=build_dataset_processing_state(
+            plan=PreprocessingPlan.default(),
+            intensity_scale_state=state,
+        ),
+    )
+
+    result = DifferentialAnalysisWorkflow().run(
+        DifferentialAnalysisRequest(
+            dataset=suspicious_dataset,
+            design=_design(),
+            contrasts=_contrast(),
+            config=DifferentialAnalysisConfig(
+                allow_suspicious_declared_input_scale=True
+            ),
+        )
+    )
+
+    assert result.policy_provenance is not None
+    testing_policy = result.policy_provenance.statistical_testing
+    assert testing_policy.allow_suspicious_declared_input_scale is True

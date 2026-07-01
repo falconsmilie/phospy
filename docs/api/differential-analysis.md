@@ -49,6 +49,11 @@ running this workflow. Linear or unestablished intensity-scale state is rejected
 before model execution. For example, use
 `DatasetIntensityTransformConfig(policy="log2")` during dataset building when
 your input values are linear intensities.
+Declared log2 state that carries suspicious declaration diagnostics is also
+rejected by default. Use
+`DifferentialAnalysisConfig(allow_suspicious_declared_input_scale=True)` only
+when the declaration is scientifically trusted; this override is recorded in
+differential policy provenance.
 
 For site-level differential analysis, configure localisation at dataset build
 time so low-confidence phosphosite assignments fail fast before statistics are
@@ -96,6 +101,7 @@ Important fields:
 | `imputed_value_policy` | `"reject"` | The default rejects upstream-imputed datasets. `"withhold_imputed_features"` requires dataset-owned imputation observation metadata. |
 | `imputed_value_max_fraction` | `0.0` | Threshold used by the withhold policy. |
 | `allow_design_subset` | `False` | Allows an explicit subset of dataset samples when set to `True`. |
+| `allow_suspicious_declared_input_scale` | `False` | Explicit override for declared log2 input-scale provenance that recorded suspicious diagnostics. |
 | `minimum_condition_replicates` | `2` | Minimum replicate count per contrast side. |
 | `empirical_bayes` | `EmpiricalBayesConfig()` | Controls `method`, `trend`, and robust winsor tails. |
 | `multiple_testing` | `MultipleTestingConfig()` | Controls how raw p-values become `adj.P.Val`. Default method is `"benjamini_hochberg"`. |

@@ -176,6 +176,10 @@ Important user-facing assumptions:
 - Upstream-imputed datasets are rejected by default. The explicit
   `withhold_imputed_features` policy uses dataset-owned imputation observation
   metadata and excludes withheld rows from the Benjamini-Hochberg denominator.
+- Suspicious declared-only log2 intensity scale is rejected by default when
+  declaration provenance records diagnostics. The explicit
+  `allow_suspicious_declared_input_scale` differential override is recorded in
+  policy provenance when used.
 
 Each contrast result table is indexed by the input `site_key` and includes the
 minimum public identity columns documented in the

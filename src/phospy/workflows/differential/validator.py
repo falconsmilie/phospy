@@ -95,9 +95,19 @@ class DifferentialAnalysisValidator:
             raise WorkflowValidationError(
                 "differential workflow request config must be DifferentialAnalysisConfig"
             )
+        if not isinstance(
+            cast(object, config.allow_suspicious_declared_input_scale), bool
+        ):
+            raise WorkflowValidationError(
+                "differential workflow request "
+                "allow_suspicious_declared_input_scale must be a bool"
+            )
         self._dataset_eligibility_validator.run(
             dataset=request.dataset,
             imputed_value_policy=config.imputed_value_policy,
+            allow_suspicious_declared_input_scale=(
+                config.allow_suspicious_declared_input_scale
+            ),
         )
         technical_replicate_policy = config.technical_replicate_policy
         if not isinstance(

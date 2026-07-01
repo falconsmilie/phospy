@@ -86,6 +86,8 @@ class DifferentialAnalysisConfig:
     and validates a fixed-effect block design matrix before execution.
     ``imputed_value_policy`` defaults to ``"reject"``. Non-default policies are
     explicit opt-ins and require dataset-owned imputation observation metadata.
+    ``allow_suspicious_declared_input_scale`` is an explicit scientific override
+    for declared log2 input-scale provenance that recorded diagnostic warnings.
     """
 
     technical_replicate_policy: TechnicalReplicatePolicy = (
@@ -95,6 +97,7 @@ class DifferentialAnalysisConfig:
     imputed_value_policy: DifferentialImputedValuePolicy = IMPUTED_VALUE_POLICY_REJECT
     imputed_value_max_fraction: float = 0.0
     allow_design_subset: bool = False
+    allow_suspicious_declared_input_scale: bool = False
     minimum_condition_replicates: int = 2
     empirical_bayes: EmpiricalBayesConfig = field(default_factory=EmpiricalBayesConfig)
     multiple_testing: MultipleTestingConfig = field(

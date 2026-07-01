@@ -740,6 +740,23 @@ def test_differential_validator_rejects_non_bool_allow_design_subset() -> None:
         )
 
 
+def test_differential_validator_rejects_non_bool_declared_scale_override() -> None:
+    with pytest.raises(
+        WorkflowValidationError,
+        match="allow_suspicious_declared_input_scale must be a bool",
+    ):
+        DifferentialAnalysisValidator().run(
+            DifferentialAnalysisRequest(
+                dataset=_dataset(),
+                design=_request().design,
+                contrasts=_request().contrasts,
+                config=DifferentialAnalysisConfig(
+                    allow_suspicious_declared_input_scale=1,  # type: ignore[arg-type]
+                ),
+            )
+        )
+
+
 @pytest.mark.parametrize("value", [0, -1, 1.5, True])
 def test_differential_validator_rejects_invalid_minimum_condition_replicates(
     value: object,

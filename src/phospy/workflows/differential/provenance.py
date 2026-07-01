@@ -205,6 +205,9 @@ def build_differential_policy_provenance(
             adjusted_p_value_method=request.config.multiple_testing.method,
             input_intensity_scale=input_intensity_scale,
             logfc_interpretation=_logfc_interpretation(input_intensity_scale),
+            allow_suspicious_declared_input_scale=(
+                request.config.allow_suspicious_declared_input_scale
+            ),
         ),
         missing_values=DifferentialMissingValuePolicyProvenance(
             policy=_DIFFERENTIAL_MISSING_VALUE_POLICY,

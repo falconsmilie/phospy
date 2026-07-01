@@ -34,7 +34,10 @@ from phospy.science.design.models import (
     ExperimentalDesign,
     SampleDesignRecord,
 )
-from phospy.science.transformations.models import IntensityScaleKind
+from phospy.science.transformations.models import (
+    IntensityScaleEstablishmentMode,
+    IntensityScaleKind,
+)
 
 _DIFFERENTIAL_LOGFC_SCALE_ERROR_MESSAGE = (
     "Differential analysis reports logFC and therefore requires established "
@@ -46,6 +49,9 @@ _DIFFERENTIAL_IMPUTED_DATA_ERROR_MESSAGE = (
     "Differential analysis does not currently treat imputed cells as observed "
     "measurements. Use a non-imputed dataset, filter features before imputation, "
     "or wait for/enable an explicit imputation-aware differential policy."
+)
+_DIFFERENTIAL_SUSPICIOUS_DECLARED_SCALE_ERROR_PREFIX = (
+    "differential analysis rejects suspicious declared log2 intensity scale by default"
 )
 
 
@@ -666,10 +672,16 @@ class DifferentialDatasetEligibilityValidator:
         imputed_value_policy: DifferentialImputedValuePolicy = (
             IMPUTED_VALUE_POLICY_REJECT
         ),
+        allow_suspicious_declared_input_scale: bool = False,
     ) -> None:
         if not isinstance(cast(object, dataset), AnalysisReadyPhosphoDataset):
             raise WorkflowValidationError(
                 "differential workflow request dataset must be AnalysisReadyPhosphoDataset"
+            )
+        if not isinstance(cast(object, allow_suspicious_declared_input_scale), bool):
+            raise WorkflowValidationError(
+                "differential workflow request allow_suspicious_declared_input_scale "
+                "must be a bool"
             )
         if (
             imputed_value_policy != IMPUTED_VALUE_POLICY_REJECT
@@ -693,6 +705,18 @@ class DifferentialDatasetEligibilityValidator:
             or phospho_scale.kind is not IntensityScaleKind.LOG2
         ):
             raise WorkflowValidationError(_DIFFERENTIAL_LOGFC_SCALE_ERROR_MESSAGE)
+        provenance = dataset.intensity_scale_state.establishment_provenance
+        if (
+            provenance is not None
+            and provenance.mode is IntensityScaleEstablishmentMode.DECLARED
+            and provenance.diagnostic_warnings
+            and not allow_suspicious_declared_input_scale
+        ):
+            raise WorkflowValidationError(
+                _suspicious_declared_scale_error_message(
+                    first_warning=provenance.diagnostic_warnings[0]
+                )
+            )
 
 
 __all__ = [
@@ -700,6 +724,16 @@ __all__ = [
     "ExperimentalDesignContractValidator",
     "ValidatedExperimentalDesignContract",
 ]
+
+
+def _suspicious_declared_scale_error_message(*, first_warning: str) -> str:
+    return (
+        f"{_DIFFERENTIAL_SUSPICIOUS_DECLARED_SCALE_ERROR_PREFIX}; "
+        f"first diagnostic warning: {first_warning}. "
+        "recommended fix: rebuild dataset with correct input scale; "
+        "apply supported log2 transformation; or explicitly set differential override "
+        "if the declaration is scientifically trusted."
+    )
 
 
 def _normalize_categorical_level_for_validation(value: object) -> str | None:
