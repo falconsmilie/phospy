@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import inspect
+
 import pandas as pd
 import pandas.testing as pdt
 import pytest
@@ -23,6 +25,7 @@ from phospy.io.bundles._shared.intensity_scale_state import (
 from phospy.io.bundles._shared.processing_state import (
     processing_state_from_payload,
 )
+from phospy.science.datasets.builders import transformation_state
 from phospy.science.datasets.builders.contracts import PreprocessedDatasetBuildTables
 from phospy.science.datasets.builders.executor import DatasetBuildExecutor
 from phospy.science.datasets.builders.preprocessing import (
@@ -101,6 +104,12 @@ def _processing_state_for(intensity_scale_state: IntensityScaleState):
         plan=PreprocessingPlan.default(),
         intensity_scale_state=intensity_scale_state,
     )
+
+
+def test_transformation_state_resolver_does_not_inspect_resolver_signature() -> None:
+    source = inspect.getsource(transformation_state)
+    assert "__code__" not in source
+    assert "co_varnames" not in source
 
 
 def test_resolver_fails_when_state_is_unknown_and_no_transformer_is_configured() -> (

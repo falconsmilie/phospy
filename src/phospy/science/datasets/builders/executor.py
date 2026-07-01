@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from phospy.science.datasets.builders.contracts import (
+    DatasetIntensityScaleResolverContract,
     DatasetPreprocessorContract,
     InterpretedDatasetBuildRequest,
 )
@@ -37,7 +38,7 @@ class DatasetBuildExecutor:
         self,
         *,
         transformer: Transformer | None = None,
-        intensity_scale_resolver: DatasetIntensityScaleResolver | None = None,
+        intensity_scale_resolver: DatasetIntensityScaleResolverContract | None = None,
         preprocessor: DatasetPreprocessorContract | None = None,
         site_sequence_validator: AnalysisReadySiteSequenceValidator | None = None,
         transformation_state_resolver: DatasetTransformationStateResolver | None = None,

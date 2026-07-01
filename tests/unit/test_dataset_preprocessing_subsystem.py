@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import replace
 from pathlib import Path
 
@@ -54,7 +55,10 @@ from phospy.science.sites.site_keys import (
     encode_site_key,
 )
 from phospy.science.transformations.models import (
+    DeclaredIntensityScaleDiagnosticPolicy,
+    IntensityScaleEstablishmentMode,
     IntensityScaleKind,
+    IntensityScaleState,
     QuantitativeMeaning,
 )
 from tests.support.intensity_scale_states import (
@@ -2141,12 +2145,37 @@ def test_executor_delegates_preprocessing_to_internal_subsystem() -> None:
             *,
             phospho: pd.DataFrame,
             total: pd.DataFrame | None,
-            expected_scale_kind: object | None = None,
+            expected_scale_kind: IntensityScaleKind | None = None,
+            declared_input_scale_state: IntensityScaleState | None = None,
+            declared_input_establishment_mode: IntensityScaleEstablishmentMode
+            | None = None,
+            input_declaration_source: str | None = None,
+            scale_establishment_parameters: Mapping[str, object] | None = None,
+            establishment_transformer_name: str | None = None,
+            establishment_trace_id: str | None = None,
+            declared_scale_diagnostic_policy: DeclaredIntensityScaleDiagnosticPolicy
+            | str = DeclaredIntensityScaleDiagnosticPolicy.WARN,
         ) -> ResolvedIntensityScale:
             calls.append("resolver")
             assert phospho is preprocessed_tables.phospho
             assert total is preprocessed_tables.total
-            assert expected_scale_kind is not None
+            assert expected_scale_kind is IntensityScaleKind.LINEAR
+            assert declared_input_scale_state is not None
+            assert (
+                declared_input_establishment_mode
+                is IntensityScaleEstablishmentMode.DECLARED
+            )
+            assert (
+                input_declaration_source
+                == "dataset_build_request.input_intensity_scale"
+            )
+            assert scale_establishment_parameters == {"declared_scale_kind": "linear"}
+            assert establishment_transformer_name is None
+            assert establishment_trace_id is None
+            assert (
+                declared_scale_diagnostic_policy
+                is DeclaredIntensityScaleDiagnosticPolicy.WARN
+            )
             return ResolvedIntensityScale(
                 phospho=phospho,
                 total=total,

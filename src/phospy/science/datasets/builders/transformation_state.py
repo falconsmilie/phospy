@@ -4,21 +4,18 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import TypedDict
 
 import pandas as pd
 
 from phospy.errors.build import DatasetBuildError
 from phospy.errors.transformations import TransformationStateEstablishmentError
 from phospy.science.datasets.builders.contracts import (
+    DatasetIntensityScaleResolverContract,
     InterpretedDatasetBuildRequest,
     PreprocessedDatasetBuildTables,
 )
 from phospy.science.datasets.builders.preprocessing import (
     build_dataset_processing_state,
-)
-from phospy.science.datasets.builders.transformation_resolver import (
-    DatasetIntensityScaleResolver,
 )
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
@@ -58,22 +55,13 @@ class _DeclaredInputIntensityScaleResolution:
     establishment_transformer_name: str | None
 
 
-class _DeclaredScaleResolverKwargs(TypedDict, total=False):
-    declared_input_establishment_mode: IntensityScaleEstablishmentMode
-    declared_scale_diagnostic_policy: DeclaredIntensityScaleDiagnosticPolicy
-    input_declaration_source: str | None
-    scale_establishment_parameters: Mapping[str, object]
-    establishment_transformer_name: str | None
-    establishment_trace_id: str | None
-
-
 class DatasetTransformationStateResolver:
     """Resolve final dataset transformation state from preprocessing outputs."""
 
     def __init__(
         self,
         *,
-        intensity_scale_resolver: DatasetIntensityScaleResolver,
+        intensity_scale_resolver: DatasetIntensityScaleResolverContract,
     ) -> None:
         self._intensity_scale_resolver = intensity_scale_resolver
 
@@ -100,30 +88,38 @@ class DatasetTransformationStateResolver:
             request.preprocessing_plan,
             declared_input_scale_kind=request.declared_input_intensity_scale_kind,
         )
-        declared_scale_kwargs = _resolve_declared_scale_resolver_kwargs(
-            resolver=self._intensity_scale_resolver,
-            resolution=declared_input_scale_resolution,
-            preprocessing_trace=preprocessed.preprocessing_trace,
-            declared_scale_diagnostic_policy=(
-                _resolve_declared_scale_diagnostic_policy(request)
+        resolved = self._intensity_scale_resolver.run(
+            phospho=preprocessed.phospho,
+            total=preprocessed.total,
+            expected_scale_kind=expected_scale_kind,
+            declared_input_scale_state=declared_input_scale_state,
+            declared_input_establishment_mode=(
+                None
+                if declared_input_scale_resolution is None
+                else declared_input_scale_resolution.establishment_mode
+            ),
+            input_declaration_source=(
+                None
+                if declared_input_scale_resolution is None
+                else declared_input_scale_resolution.input_declaration_source
+            ),
+            scale_establishment_parameters=(
+                None
+                if declared_input_scale_resolution is None
+                else dict(declared_input_scale_resolution.establishment_parameters)
+            ),
+            establishment_transformer_name=(
+                None
+                if declared_input_scale_resolution is None
+                else declared_input_scale_resolution.establishment_transformer_name
+            ),
+            establishment_trace_id=_resolve_scale_establishment_trace_id(
+                preprocessed.preprocessing_trace
+            ),
+            declared_scale_diagnostic_policy=_resolve_declared_scale_diagnostic_policy(
+                request
             ),
         )
-        if _resolver_supports_declared_input_scale_state(
-            self._intensity_scale_resolver
-        ):
-            resolved = self._intensity_scale_resolver.run(
-                phospho=preprocessed.phospho,
-                total=preprocessed.total,
-                expected_scale_kind=expected_scale_kind,
-                declared_input_scale_state=declared_input_scale_state,
-                **declared_scale_kwargs,
-            )
-        else:
-            resolved = self._intensity_scale_resolver.run(
-                phospho=preprocessed.phospho,
-                total=preprocessed.total,
-                expected_scale_kind=expected_scale_kind,
-            )
         if not resolved.intensity_scale_state.is_established:
             raise TransformationStateEstablishmentError(
                 "intensity-scale resolver returned a non-established intensity scale "
@@ -426,53 +422,6 @@ def _build_declared_intensity_scale_state(
             total=MatrixIntensityScaleState.linear(established_by=established_by),
         )
     return IntensityScaleState(phospho=phospho_state, total=None)
-
-
-def _resolver_supports_declared_input_scale_state(resolver: object) -> bool:
-    run_method = getattr(resolver, "run", None)
-    if run_method is None:
-        return False
-    code_object = getattr(run_method, "__code__", None)
-    if code_object is None:
-        return False
-    return "declared_input_scale_state" in code_object.co_varnames
-
-
-def _resolve_declared_scale_resolver_kwargs(
-    *,
-    resolver: object,
-    resolution: _DeclaredInputIntensityScaleResolution | None,
-    preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
-    declared_scale_diagnostic_policy: DeclaredIntensityScaleDiagnosticPolicy,
-) -> _DeclaredScaleResolverKwargs:
-    run_method = getattr(resolver, "run", None)
-    if run_method is None:
-        return _DeclaredScaleResolverKwargs()
-    code_object = getattr(run_method, "__code__", None)
-    if code_object is None:
-        return _DeclaredScaleResolverKwargs()
-    supported_parameters = set(code_object.co_varnames)
-    kwargs = _DeclaredScaleResolverKwargs()
-    if "declared_scale_diagnostic_policy" in supported_parameters:
-        kwargs["declared_scale_diagnostic_policy"] = declared_scale_diagnostic_policy
-    if resolution is not None:
-        if "declared_input_establishment_mode" in supported_parameters:
-            kwargs["declared_input_establishment_mode"] = resolution.establishment_mode
-        if "input_declaration_source" in supported_parameters:
-            kwargs["input_declaration_source"] = resolution.input_declaration_source
-        if "scale_establishment_parameters" in supported_parameters:
-            kwargs["scale_establishment_parameters"] = dict(
-                resolution.establishment_parameters
-            )
-        if "establishment_transformer_name" in supported_parameters:
-            kwargs["establishment_transformer_name"] = (
-                resolution.establishment_transformer_name
-            )
-    if "establishment_trace_id" in supported_parameters:
-        kwargs["establishment_trace_id"] = _resolve_scale_establishment_trace_id(
-            preprocessing_trace
-        )
-    return kwargs
 
 
 def _resolve_scale_establishment_trace_id(

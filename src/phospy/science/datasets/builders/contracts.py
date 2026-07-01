@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from os import PathLike
 from pathlib import Path
@@ -11,6 +12,9 @@ import pandas as pd
 
 from phospy.science.datasets.builders.sequence_derivation import (
     SiteSequenceDerivationReport,
+)
+from phospy.science.datasets.builders.transformation_resolver import (
+    ResolvedIntensityScale,
 )
 from phospy.science.datasets.preprocessing.batch_correction import (
     BatchCorrectionReport,
@@ -32,7 +36,10 @@ from phospy.science.evidence.dataset_resolution import (
 from phospy.science.references.models import Organism
 from phospy.science.sites.identifiers import SiteIdentifierNormalisationReport
 from phospy.science.transformations.models import (
+    DeclaredIntensityScaleDiagnosticPolicy,
+    IntensityScaleEstablishmentMode,
     IntensityScaleKind,
+    IntensityScaleState,
     QuantitativeMeaning,
 )
 
@@ -125,9 +132,32 @@ class DatasetPreprocessorContract(Protocol):
     ) -> PreprocessedDatasetBuildTables: ...
 
 
+class DatasetIntensityScaleResolverContract(Protocol):
+    """Internal contract for dataset intensity-scale establishment."""
+
+    def run(
+        self,
+        *,
+        phospho: pd.DataFrame,
+        total: pd.DataFrame | None,
+        expected_scale_kind: IntensityScaleKind | None = None,
+        declared_input_scale_state: IntensityScaleState | None = None,
+        declared_input_establishment_mode: IntensityScaleEstablishmentMode | None = (
+            None
+        ),
+        input_declaration_source: str | None = None,
+        scale_establishment_parameters: Mapping[str, object] | None = None,
+        establishment_transformer_name: str | None = None,
+        establishment_trace_id: str | None = None,
+        declared_scale_diagnostic_policy: DeclaredIntensityScaleDiagnosticPolicy
+        | str = DeclaredIntensityScaleDiagnosticPolicy.WARN,
+    ) -> ResolvedIntensityScale: ...
+
+
 __all__ = [
     "DatasetBuildExecutorContract",
     "DatasetBuildInterpreterContract",
+    "DatasetIntensityScaleResolverContract",
     "DatasetPreprocessorContract",
     "DatasetBuildValidatorContract",
     "DatasetInput",
