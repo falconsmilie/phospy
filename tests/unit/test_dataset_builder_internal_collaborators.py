@@ -1,14 +1,23 @@
 from __future__ import annotations
 
+from typing import get_type_hints
+
 import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyDatasetBuilder
 from phospy.api import DatasetBuildRequest
+from phospy.api.requests import (
+    DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+    DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+)
 from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.builders.contracts import (
     InterpretedDatasetBuildRequest,
     PreprocessedDatasetBuildTables,
+)
+from phospy.science.datasets.builders.interpreter import (
+    DatasetBuildRequestInterpreter,
 )
 from phospy.science.datasets.builders.interpreter_collaborators import (
     DatasetBuildSourceResolver,
@@ -17,6 +26,9 @@ from phospy.science.datasets.builders.normalizer import NormalizedDatasetInputs
 from phospy.science.datasets.builders.provenance_assembler import (
     DatasetRunProvenanceAssembler,
 )
+from phospy.science.datasets.builders.sequence_derivation import (
+    SiteSequenceDerivationReport,
+)
 from phospy.science.datasets.builders.site_identity_derivation import (
     DatasetSiteIdentityDeriver,
 )
@@ -24,6 +36,9 @@ from phospy.science.datasets.builders.site_sequence_boundary import (
     AnalysisReadySiteSequenceValidator,
 )
 from phospy.science.datasets.preprocessing.models import PreprocessingPlan
+from phospy.science.evidence.dataset_resolution import (
+    PeptideEvidenceResolutionSummary,
+)
 from phospy.science.references.models import Organism
 from phospy.science.sites.site_keys import decode_site_key
 
@@ -44,6 +59,60 @@ def _site_metadata(include_sequence: bool = True) -> pd.DataFrame:
     if include_sequence:
         data["site_sequence"] = ["AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA"]
     return pd.DataFrame(data, index=_phospho().index.copy())
+
+
+def _peptide_evidence() -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "peptide_row_id": "pep_1",
+                "site_id": "AKT1;S473;",
+                "unique_feature_id": "feat_1",
+                "gene_symbol": "AKT1",
+                "protein_accession": "P31749",
+                "site_string": "S473",
+                "sample_a": 7.0,
+                "peptide_sequence": "AAASAAA",
+                "modified_peptide_sequence": "AAA[+80]SAAA",
+                "multi_site": False,
+                "provenance_source": "test",
+                "site_sequence": "AAASAAA",
+            }
+        ]
+    )
+
+
+def test_interpreted_request_uses_typed_audit_report_contracts() -> None:
+    hints = get_type_hints(InterpretedDatasetBuildRequest)
+
+    assert hints["site_sequence_derivation"] == SiteSequenceDerivationReport | None
+    assert (
+        hints["peptide_evidence_resolution"] == PeptideEvidenceResolutionSummary | None
+    )
+
+
+def test_interpreter_keeps_audit_reports_typed_until_execution_boundary() -> None:
+    interpreted = DatasetBuildRequestInterpreter().run(
+        DatasetBuildRequest(
+            site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+            peptide_evidence=_peptide_evidence(),
+            peptide_evidence_sample_intensity_columns=("sample_a",),
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+            organism=Organism.HUMAN,
+            input_intensity_scale="linear",
+        )
+    )
+
+    assert isinstance(
+        interpreted.peptide_evidence_resolution,
+        PeptideEvidenceResolutionSummary,
+    )
+    assert isinstance(
+        interpreted.site_sequence_derivation,
+        SiteSequenceDerivationReport,
+    )
+    assert interpreted.peptide_evidence_resolution.unique_site_ids_produced == 1
+    assert interpreted.site_sequence_derivation.provided_sequence_count == 1
 
 
 def test_source_resolver_reads_and_normalizes_site_level_inputs() -> None:
@@ -83,8 +152,8 @@ def test_source_resolver_reads_and_normalizes_site_level_inputs() -> None:
             )
 
     resolved = DatasetBuildSourceResolver(
-        reader=ReaderSpy(),
-        normalizer=NormalizerSpy(),
+        reader=ReaderSpy(),  # type: ignore[arg-type]
+        normalizer=NormalizerSpy(),  # type: ignore[arg-type]
     ).run(
         DatasetBuildRequest(
             phospho=phospho,

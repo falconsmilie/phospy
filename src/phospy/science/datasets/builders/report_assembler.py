@@ -7,6 +7,10 @@ from collections.abc import Mapping
 import pandas as pd
 
 from phospy.contracts.configs import DATASET_BATCH_CORRECTION_METHOD_NONE
+from phospy.errors.build import DatasetBuildError
+from phospy.science.datasets.builders.sequence_derivation import (
+    SiteSequenceDerivationReport,
+)
 from phospy.science.datasets.models import (
     DatasetPreprocessingReport,
     SiteSequenceResolutionReport,
@@ -47,6 +51,9 @@ from phospy.science.datasets.preprocessing.report_schema import (
     row_audit_rows_from_dataframe,
     row_count_rows_from_dataframe,
 )
+from phospy.science.evidence.dataset_resolution import (
+    PeptideEvidenceResolutionSummary,
+)
 
 _FINAL_DATASET_STAGE = "final_dataset_construction"
 _PEPTIDE_EVIDENCE_RESOLUTION_STAGE = "peptide_evidence_resolution"
@@ -68,13 +75,13 @@ class DatasetPreprocessingReportAssembler:
         comparison_group_stats: pd.DataFrame | None,
         comparison_pair_stats: pd.DataFrame | None,
         preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
-        site_sequence_derivation: dict[str, object] | None,
+        site_sequence_derivation: SiteSequenceDerivationReport | None,
         input_site_count: int,
         final_dataset_rows: int,
         intensity_scale_label: str,
         intensity_scale_establishment: Mapping[str, object],
         quantitative_meaning: str,
-        peptide_evidence_resolution: dict[str, object] | None,
+        peptide_evidence_resolution: PeptideEvidenceResolutionSummary | None,
         preprocessing_plan: PreprocessingPlan | None = None,
         sample_metadata: pd.DataFrame | None = None,
         batch_correction_metadata: ResolvedBatchCorrectionMetadata | None = None,
@@ -101,17 +108,23 @@ class DatasetPreprocessingReportAssembler:
         comparison_pair_stats_rows = comparison_pair_stats_rows_from_dataframe(
             comparison_pair_stats
         )
-        if peptide_evidence_resolution is not None:
+        site_sequence_derivation_payload = _audit_payload(site_sequence_derivation)
+        peptide_evidence_resolution_payload = _audit_payload(
+            peptide_evidence_resolution
+        )
+        if peptide_evidence_resolution_payload is not None:
             peptide_observations = _coerce_non_negative_int(
-                peptide_evidence_resolution.get("peptide_observations_received"),
+                peptide_evidence_resolution_payload.get(
+                    "peptide_observations_received"
+                ),
                 default=0,
             )
             unique_site_ids = _coerce_non_negative_int(
-                peptide_evidence_resolution.get("unique_site_ids_produced"),
+                peptide_evidence_resolution_payload.get("unique_site_ids_produced"),
                 default=0,
             )
             excluded_observations = _coerce_non_negative_int(
-                peptide_evidence_resolution.get("excluded_observations"),
+                peptide_evidence_resolution_payload.get("excluded_observations"),
                 default=max(peptide_observations - unique_site_ids, 0),
             )
             row_count_rows.append(
@@ -131,7 +144,7 @@ class DatasetPreprocessingReportAssembler:
                     step_order=step_order,
                     stage=_PEPTIDE_EVIDENCE_RESOLUTION_STAGE,
                     operation="resolve_peptide_evidence_to_site_level",
-                    parameters=dict(peptide_evidence_resolution),
+                    parameters=dict(peptide_evidence_resolution_payload),
                     input_rows=peptide_observations,
                     output_rows=unique_site_ids,
                     notes=(
@@ -224,7 +237,7 @@ class DatasetPreprocessingReportAssembler:
         )
         site_sequence_resolution = _build_site_sequence_resolution_report(
             preprocessing_trace=preprocessing_trace,
-            site_sequence_derivation=site_sequence_derivation,
+            site_sequence_derivation_payload=site_sequence_derivation_payload,
             total_sites=int(input_site_count),
             final_sequence_complete_sites=int(final_dataset_rows),
         )
@@ -284,7 +297,7 @@ def _protein_aware_preparation_parameters(
 def _build_site_sequence_resolution_report(
     *,
     preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
-    site_sequence_derivation: dict[str, object] | None,
+    site_sequence_derivation_payload: dict[str, object] | None,
     total_sites: int,
     final_sequence_complete_sites: int,
 ) -> SiteSequenceResolutionReport:
@@ -315,8 +328,8 @@ def _build_site_sequence_resolution_report(
 
     derivation = (
         {}
-        if not isinstance(site_sequence_derivation, Mapping)
-        else site_sequence_derivation
+        if site_sequence_derivation_payload is None
+        else site_sequence_derivation_payload
     )
     provided_by_input = _coerce_non_negative_int(
         derivation.get("provided_sequence_count"),
@@ -645,3 +658,17 @@ def _resolve_stage(
         if stage.stage == stage_key:
             return stage
     return None
+
+
+def _audit_payload(value: object | None) -> dict[str, object] | None:
+    if value is None:
+        return None
+    to_payload = getattr(value, "to_payload", None)
+    if callable(to_payload):
+        payload = to_payload()
+        if isinstance(payload, dict):
+            return payload
+    raise DatasetBuildError(
+        "dataset builder audit reports must expose to_payload() returning a dict; "
+        f"got {type(value).__name__}"
+    )

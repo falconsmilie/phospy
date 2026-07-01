@@ -6,6 +6,7 @@ from collections.abc import Mapping
 
 import pandas as pd
 
+from phospy.errors.build import DatasetBuildError
 from phospy.provenance.environment import collect_environment_provenance
 from phospy.provenance.hashing import fingerprint_optional_table
 from phospy.provenance.models import (
@@ -112,10 +113,14 @@ class DatasetRunProvenanceAssembler:
                 if request.site_identifier_normalisation is None
                 else request.site_identifier_normalisation.to_payload()
             ),
-            "site_sequence_derivation": request.site_sequence_derivation,
+            "site_sequence_derivation": _audit_payload(
+                request.site_sequence_derivation
+            ),
             "site_resolution_mode": request.site_resolution_mode,
             "multi_site_policy": request.multi_site_policy,
-            "peptide_evidence_resolution": request.peptide_evidence_resolution,
+            "peptide_evidence_resolution": _audit_payload(
+                request.peptide_evidence_resolution
+            ),
             "site_token_validation": (
                 {"mode": "opaque_opt_in"}
                 if allow_opaque_site_values
@@ -448,3 +453,17 @@ def _declared_scale_diagnostic_policy_label(
     if request.declared_input_intensity_scale_kind.value == "log2":
         return "error"
     return "warn"
+
+
+def _audit_payload(value: object | None) -> dict[str, object] | None:
+    if value is None:
+        return None
+    to_payload = getattr(value, "to_payload", None)
+    if callable(to_payload):
+        payload = to_payload()
+        if isinstance(payload, dict):
+            return payload
+    raise DatasetBuildError(
+        "dataset builder audit reports must expose to_payload() returning a dict; "
+        f"got {type(value).__name__}"
+    )

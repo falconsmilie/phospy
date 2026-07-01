@@ -8,6 +8,7 @@ from typing import NoReturn
 import pandas as pd
 
 from phospy.contracts.requests import DatasetBuildRequest
+from phospy.errors.build import DatasetBuildError
 from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.builders.contracts import DatasetInput
 from phospy.science.datasets.builders.normalizer import (
@@ -15,7 +16,10 @@ from phospy.science.datasets.builders.normalizer import (
     NormalizedDatasetInputs,
 )
 from phospy.science.datasets.builders.reader import DatasetInputReader
-from phospy.science.datasets.builders.sequence_derivation import SiteSequenceDeriver
+from phospy.science.datasets.builders.sequence_derivation import (
+    SiteSequenceDerivationReport,
+    SiteSequenceDeriver,
+)
 from phospy.science.datasets.builders.site_identity_derivation import (
     DatasetSiteIdentityDeriver,
 )
@@ -31,6 +35,7 @@ from phospy.science.evidence.dataset_resolution import (
     DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
     DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
     PeptideEvidenceDatasetResolver,
+    PeptideEvidenceResolutionSummary,
     build_multi_site_handling_config_for_dataset_policy,
 )
 from phospy.science.evidence.models import PeptideEvidenceTable
@@ -56,16 +61,16 @@ class ResolvedDatasetBuildSources:
     total: pd.DataFrame | None
     site_resolution_mode: str
     multi_site_policy: str | None
-    peptide_evidence_resolution: dict[str, object] | None
+    peptide_evidence_resolution: PeptideEvidenceResolutionSummary | None
     site_identifier_normalisation: SiteIdentifierNormalisationReport | None
 
 
 @dataclass(frozen=True, slots=True)
 class ResolvedSiteSequenceInputs:
-    """Site metadata after sequence derivation and resolution payload collection."""
+    """Site metadata after sequence derivation and report collection."""
 
     site_metadata: pd.DataFrame
-    site_sequence_derivation: dict[str, object] | None
+    site_sequence_derivation: SiteSequenceDerivationReport | None
 
 
 class DatasetBuildSourceResolver:
@@ -96,7 +101,9 @@ class DatasetBuildSourceResolver:
         total = self._read_optional(request.total, field_name="total")
         site_resolution_mode = str(request.site_resolution_mode).strip()
         multi_site_policy: str | None = None
-        peptide_evidence_resolution_payload: dict[str, object] | None = None
+        peptide_evidence_resolution_summary: PeptideEvidenceResolutionSummary | None = (
+            None
+        )
         if site_resolution_mode == DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED:
             phospho = self._reader.run(
                 _require_dataset_input(
@@ -117,7 +124,7 @@ class DatasetBuildSourceResolver:
                 phospho,
                 site_metadata,
                 multi_site_policy,
-                peptide_evidence_resolution_payload,
+                peptide_evidence_resolution_summary,
             ) = self._resolve_peptide_evidence_inputs(request)
         else:  # pragma: no cover - validator owns this branch; keep defensive.
             raise PhosPyInputError(
@@ -158,7 +165,7 @@ class DatasetBuildSourceResolver:
             total=normalized.total,
             site_resolution_mode=site_resolution_mode,
             multi_site_policy=multi_site_policy,
-            peptide_evidence_resolution=peptide_evidence_resolution_payload,
+            peptide_evidence_resolution=peptide_evidence_resolution_summary,
             site_identifier_normalisation=normalized.site_identifier_normalisation,
         )
 
@@ -175,7 +182,7 @@ class DatasetBuildSourceResolver:
     def _resolve_peptide_evidence_inputs(
         self,
         request: DatasetBuildRequest,
-    ) -> tuple[pd.DataFrame, pd.DataFrame, str, dict[str, object]]:
+    ) -> tuple[pd.DataFrame, pd.DataFrame, str, PeptideEvidenceResolutionSummary]:
         peptide_evidence = self._reader.run(
             _require_dataset_input(
                 request.peptide_evidence,
@@ -224,7 +231,7 @@ class DatasetBuildSourceResolver:
             resolved.phospho,
             resolved.site_metadata,
             multi_site_policy,
-            resolved.summary.to_payload(),
+            resolved.summary,
         )
 
     def _normalize(
@@ -491,24 +498,25 @@ class DatasetBuildSiteSequenceResolver:
             )
         return ResolvedSiteSequenceInputs(
             site_metadata=enriched_site_metadata,
-            site_sequence_derivation=_resolve_site_sequence_derivation_payload(
+            site_sequence_derivation=_resolve_site_sequence_derivation_report(
                 self._site_sequence_deriver
             ),
         )
 
 
-def _resolve_site_sequence_derivation_payload(
+def _resolve_site_sequence_derivation_report(
     site_sequence_deriver: object,
-) -> dict[str, object] | None:
+) -> SiteSequenceDerivationReport | None:
     report = getattr(site_sequence_deriver, "last_report", None)
     if report is None:
         return None
-    to_payload = getattr(report, "to_payload", None)
-    if callable(to_payload):
-        payload = to_payload()
-        if isinstance(payload, dict):
-            return payload
-    return None
+    if isinstance(report, SiteSequenceDerivationReport):
+        return report
+    raise DatasetBuildError(
+        "dataset builder site-sequence derivation report must be a "
+        "SiteSequenceDerivationReport when present; "
+        f"got {type(report).__name__}"
+    )
 
 
 def _require_dataset_input(

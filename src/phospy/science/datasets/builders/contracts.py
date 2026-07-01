@@ -9,6 +9,9 @@ from typing import TYPE_CHECKING, Protocol
 
 import pandas as pd
 
+from phospy.science.datasets.builders.sequence_derivation import (
+    SiteSequenceDerivationReport,
+)
 from phospy.science.datasets.preprocessing.batch_correction import (
     BatchCorrectionReport,
 )
@@ -24,6 +27,7 @@ from phospy.science.datasets.preprocessing.models import (
 )
 from phospy.science.evidence.dataset_resolution import (
     DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
+    PeptideEvidenceResolutionSummary,
 )
 from phospy.science.references.models import Organism
 from phospy.science.sites.identifiers import SiteIdentifierNormalisationReport
@@ -54,13 +58,13 @@ class InterpretedDatasetBuildRequest:
     declared_input_intensity_scale_kind: IntensityScaleKind | None = None
     declared_input_intensity_scale_source: str | None = None
     site_identifier_normalisation: SiteIdentifierNormalisationReport | None = None
-    site_sequence_derivation: dict[str, object] | None = None
+    site_sequence_derivation: SiteSequenceDerivationReport | None = None
     quantitative_meaning: QuantitativeMeaning | None = None
     site_resolution_mode: str = DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED
     multi_site_policy: str | None = None
     allow_opaque_site_values: bool = False
     allow_suspicious_declared_input_intensity_scale: bool = False
-    peptide_evidence_resolution: dict[str, object] | None = None
+    peptide_evidence_resolution: PeptideEvidenceResolutionSummary | None = None
     corrected_preprocessing_output: CorrectedPreprocessingOutput | None = None
 
 
