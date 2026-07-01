@@ -19,6 +19,7 @@ from phospy.science.evidence import (
     DATASET_PEPTIDE_DUPLICATE_POLICY_RETAIN_ALL_ROWS,
     DATASET_PEPTIDE_MAPPING_WEIGHT_NORMALISATION_UNIT_PER_PEPTIDE,
     DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_EXPLICIT,
+    DATASET_PEPTIDE_SITE_SEQUENCE_POLICY_VALIDATE_WITHOUT_REPAIR,
     DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_MAPPING_WEIGHTED_MEAN,
     PeptideEvidenceDatasetResolver,
     PeptideEvidenceTable,
@@ -206,6 +207,41 @@ def test_peptide_evidence_preserves_matching_sequence_with_only_text_normalisati
     )
 
     assert resolved.site_metadata.loc["AKT1;S473;", "site_sequence"] == "AAASAAA"
+    payload = resolved.summary.to_payload()
+    assert payload["site_sequence_column_present"] is True
+    assert int(payload["provided_site_sequence_count"]) == 1
+    assert int(payload["accepted_site_sequence_count"]) == 1
+    assert int(payload["rejected_site_sequence_count"]) == 0
+    assert (
+        payload["site_sequence_policy"]
+        == DATASET_PEPTIDE_SITE_SEQUENCE_POLICY_VALIDATE_WITHOUT_REPAIR
+    )
+
+
+def test_peptide_evidence_resolution_records_absent_sequence_context() -> None:
+    evidence = _peptide_evidence_frame(include_single_site=True)
+    single_site = evidence.loc[
+        evidence.loc[:, "peptide_row_id"] == "pep_single", :
+    ].copy(deep=True)
+    single_site = single_site.drop(columns=["site_sequence"])
+
+    resolved = PeptideEvidenceDatasetResolver().run(
+        evidence=PeptideEvidenceTable(
+            frame=single_site.reset_index(drop=True),
+            sample_intensity_columns=("sample_a", "sample_b"),
+        ),
+        multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+    )
+
+    payload = resolved.summary.to_payload()
+    assert payload["site_sequence_column_present"] is False
+    assert int(payload["provided_site_sequence_count"]) == 0
+    assert int(payload["accepted_site_sequence_count"]) == 0
+    assert int(payload["rejected_site_sequence_count"]) == 0
+    assert (
+        payload["site_sequence_policy"]
+        == DATASET_PEPTIDE_SITE_SEQUENCE_POLICY_VALIDATE_WITHOUT_REPAIR
+    )
 
 
 def test_reject_policy_fails_on_ambiguous_peptide_evidence() -> None:
@@ -495,6 +531,14 @@ def test_peptide_evidence_resolution_provenance_records_aggregation_semantics() 
         payload["mapping_weight_normalisation"]
         == DATASET_PEPTIDE_MAPPING_WEIGHT_NORMALISATION_UNIT_PER_PEPTIDE
     )
+    assert payload["site_sequence_column_present"] is True
+    assert int(payload["provided_site_sequence_count"]) == 2
+    assert int(payload["accepted_site_sequence_count"]) == 3
+    assert int(payload["rejected_site_sequence_count"]) == 0
+    assert (
+        payload["site_sequence_policy"]
+        == DATASET_PEPTIDE_SITE_SEQUENCE_POLICY_VALIDATE_WITHOUT_REPAIR
+    )
     assert built.preprocessing_report is not None
     resolution_row = built.preprocessing_report.operations.loc[
         built.preprocessing_report.operations.loc[:, "stage"]
@@ -506,3 +550,9 @@ def test_peptide_evidence_resolution_provenance_records_aggregation_semantics() 
         parameters["aggregation_policy"]
         == DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_MAPPING_WEIGHTED_MEAN
     )
+    assert (
+        parameters["site_sequence_policy"]
+        == DATASET_PEPTIDE_SITE_SEQUENCE_POLICY_VALIDATE_WITHOUT_REPAIR
+    )
+    assert int(parameters["provided_site_sequence_count"]) == 2
+    assert int(parameters["accepted_site_sequence_count"]) == 3

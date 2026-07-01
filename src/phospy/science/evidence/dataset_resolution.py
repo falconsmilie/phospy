@@ -62,6 +62,7 @@ DATASET_PEPTIDE_DUPLICATE_POLICY_RETAIN_ALL_ROWS = (
 DATASET_PEPTIDE_MIXED_AMBIGUITY_POLICY_SHARED_WEIGHTED_MEAN = (
     "mixed_ambiguous_and_unambiguous_rows_share_same_weighted_mean_aggregation"
 )
+DATASET_PEPTIDE_SITE_SEQUENCE_POLICY_VALIDATE_WITHOUT_REPAIR = "validate_without_repair"
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,6 +83,11 @@ class PeptideEvidenceResolutionSummary:
     duplicate_peptide_policy: str
     duplicate_peptide_rows: int
     mixed_ambiguity_policy: str
+    site_sequence_column_present: bool
+    provided_site_sequence_count: int
+    accepted_site_sequence_count: int
+    rejected_site_sequence_count: int
+    site_sequence_policy: str
 
     def to_payload(self) -> dict[str, object]:
         return {
@@ -99,6 +105,11 @@ class PeptideEvidenceResolutionSummary:
             "duplicate_peptide_policy": self.duplicate_peptide_policy,
             "duplicate_peptide_rows": int(self.duplicate_peptide_rows),
             "mixed_ambiguity_policy": self.mixed_ambiguity_policy,
+            "site_sequence_column_present": bool(self.site_sequence_column_present),
+            "provided_site_sequence_count": int(self.provided_site_sequence_count),
+            "accepted_site_sequence_count": int(self.accepted_site_sequence_count),
+            "rejected_site_sequence_count": int(self.rejected_site_sequence_count),
+            "site_sequence_policy": self.site_sequence_policy,
         }
 
 
@@ -130,6 +141,12 @@ class PeptideEvidenceDatasetResolver:
         )
         evidence_frame = evidence.to_dataframe()
         mapping = evidence.site_mapping.to_dataframe()
+        site_sequence_column_present = "site_sequence" in evidence_frame.columns
+        provided_site_sequence_count = (
+            _count_non_empty_strings(evidence_frame.loc[:, "site_sequence"])
+            if site_sequence_column_present
+            else 0
+        )
         peptide_observations_received = int(evidence_frame.shape[0])
         ambiguous_observations = int(
             evidence_frame.loc[:, "multi_site"].astype(bool).sum()
@@ -174,6 +191,9 @@ class PeptideEvidenceDatasetResolver:
         site_metadata = _build_site_metadata(
             mapped_rows=mapped_rows, site_ids=phospho.index
         )
+        accepted_site_sequence_count = _count_non_empty_strings(
+            site_metadata.loc[:, "site_sequence"]
+        )
         summary = PeptideEvidenceResolutionSummary(
             input_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
             multi_site_policy=multi_site_policy,
@@ -196,6 +216,13 @@ class PeptideEvidenceDatasetResolver:
             duplicate_peptide_rows=duplicate_peptide_rows,
             mixed_ambiguity_policy=(
                 DATASET_PEPTIDE_MIXED_AMBIGUITY_POLICY_SHARED_WEIGHTED_MEAN
+            ),
+            site_sequence_column_present=site_sequence_column_present,
+            provided_site_sequence_count=provided_site_sequence_count,
+            accepted_site_sequence_count=accepted_site_sequence_count,
+            rejected_site_sequence_count=0,
+            site_sequence_policy=(
+                DATASET_PEPTIDE_SITE_SEQUENCE_POLICY_VALIDATE_WITHOUT_REPAIR
             ),
         )
         return PeptideEvidenceResolutionResult(
@@ -382,6 +409,21 @@ def _first_non_empty_string(values: pd.Series) -> str | None:
     return None
 
 
+def _count_non_empty_strings(values: pd.Series) -> int:
+    count = 0
+    for value in values.tolist():
+        try:
+            if bool(pd.isna(value)):
+                continue
+        except (TypeError, ValueError):
+            pass
+        if value is None:
+            continue
+        if str(value).strip():
+            count += 1
+    return count
+
+
 def _validate_dataset_multi_site_policy(policy: object, *, field_name: str) -> None:
     if (
         not isinstance(policy, str)
@@ -401,6 +443,7 @@ __all__ = [
     "DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_DERIVED_EQUAL",
     "DATASET_PEPTIDE_MAPPING_WEIGHT_SOURCE_EXPLICIT",
     "DATASET_PEPTIDE_MIXED_AMBIGUITY_POLICY_SHARED_WEIGHTED_MEAN",
+    "DATASET_PEPTIDE_SITE_SEQUENCE_POLICY_VALIDATE_WITHOUT_REPAIR",
     "DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_MAPPING_WEIGHTED_MEAN",
     "DATASET_MULTI_SITE_POLICY_REJECT",
     "DATASET_MULTI_SITE_POLICY_SPLIT",
