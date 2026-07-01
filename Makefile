@@ -38,7 +38,7 @@ help:
 	@echo   make test-unit                     Run the non-parity pytest suite
 	@echo   make test-parity                   Run the parity pytest suite
 	@echo   make test-performance              Run the performance contract suite
-	@echo   make test-release-gate             Run release validation (unit/integration, provenance goldens, reference manifests, parity, performance)
+	@echo   make test-release-gate             Run release validation (default non-parity suite, provenance goldens, reference manifests, parity, performance)
 	@echo   make test                          Run unit and parity tests
 	@echo   make tests-all                     Alias for all-tests
 	@echo   make test-seams                    Run seam-focused rewrite parity tests
@@ -96,8 +96,8 @@ test-performance: check-tools
 	$(PYTEST) tests/performance -m "performance or release_gate"
 
 test-release-gate: check-tools
-	$(PYTEST) tests/unit tests/integration -m "not parity and not performance and not release_gate"
-	$(PYTEST) tests/unit/test_provenance_regressions.py tests/integration/test_kinase_workflow_integration.py::test_kinase_public_predmat_provenance_matches_golden_contract tests/integration/test_signalome_workflow_integration.py::test_signalome_l6_provenance_matches_golden_contract -m "release_gate and (reproducibility or golden)"
+	$(PYTEST) -m "not parity and not performance and not release_gate"
+	$(PYTEST) tests/golden tests/unit/test_provenance_regressions.py tests/integration/test_kinase_workflow_integration.py::test_kinase_public_predmat_provenance_matches_golden_contract tests/integration/test_signalome_workflow_integration.py::test_signalome_l6_provenance_matches_golden_contract -m "release_gate and (reproducibility or golden)"
 	$(PYTEST) tests/release -m "release_gate"
 	$(PYTEST) tests/parity -m "parity and not parity_diagnostic" -s
 	$(PYTEST) tests/performance -m "performance or release_gate" -q

@@ -56,6 +56,20 @@ make test-release-gate
 The publish pipeline (`.github/workflows/publish.yml`) runs this same release
 gate before building and uploading tagged distributions.
 
+Release-blocking coverage in `make test-release-gate` is:
+
+| Gate | Command selector |
+| --- | --- |
+| Default non-parity suite | `pytest -m "not parity and not performance and not release_gate"` |
+| Provenance/golden contracts | `pytest tests/golden ... -m "release_gate and (reproducibility or golden)"` |
+| Reference manifest gates | `pytest tests/release -m "release_gate"` |
+| Threshold-bearing parity | `pytest tests/parity -m "parity and not parity_diagnostic" -s` |
+| Performance release contracts | `pytest tests/performance -m "performance or release_gate" -q` |
+
+`parity_diagnostic` checks are intentionally non-blocking diagnostics unless a
+maintainer deliberately promotes them into the release selector and updates this
+policy.
+
 ## Type Checking
 
 Pyright is the configured type checker. The checked scope is listed in

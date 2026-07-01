@@ -33,9 +33,16 @@ Current active parity coverage includes:
 
 - differential phosphorylation (`tests/parity/test_differential_analysis_parity.py`)
 - differential parity envelope contracts (`tests/parity/test_differential_limma_parity.py`)
-- kinase scoring and prediction surfaces (L6/public fixture lanes)
-- selected preprocessing and activity-stage behaviours with explicit fixtures
-- signalome workflow and clustering backend fixture lanes
+- kinase scoring and prediction surfaces:
+  `tests/parity/test_kinase_workflow_parity.py`,
+  `tests/parity/test_prediction_science_parity.py`,
+  `tests/parity/test_l6_prediction_parity.py`, and
+  `tests/parity/test_public_predmat_parity.py`
+- selected preprocessing behaviours with explicit fixtures
+- activity-stage behaviours in `tests/parity/test_activity_stage_parity.py`
+- signalome workflow and clustering backend fixture lanes:
+  `tests/parity/test_signalome_workflow_parity.py` and
+  `tests/parity/test_signalome_clustering_backend_parity.py`
 
 ## Non-Parity Support and Scope Differences
 
@@ -90,7 +97,8 @@ metadata, or declares unresolved redistribution status.
 
 Some diagnostic parity tests are informational. Release decisions should use the
 threshold-bearing gates and the documented fixture expectations, not visual
-inspection alone.
+inspection alone. Tests marked `parity_diagnostic` remain non-blocking unless
+they are intentionally promoted into the release selector.
 
 Release-gated parity command in the Makefile is:
 
@@ -101,7 +109,13 @@ pytest tests/parity -m "parity and not parity_diagnostic" -s
 The broader CI parity smoke command is:
 
 ```bash
-pytest tests/parity -m parity -s
+pytest tests/parity -m "parity and not parity_diagnostic" -s
+```
+
+Informational parity diagnostics run separately in CI with:
+
+```bash
+pytest tests/parity -m "parity_diagnostic" -s
 ```
 
 ## Fixture Locations

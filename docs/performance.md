@@ -63,6 +63,7 @@ Guardrail enforcement is owned by
 - They are not manual-only checks.
 - They should run in dedicated CI/release validation jobs or explicit
   release-validation commands (`make test-release-gate`).
+- The release-gate selector is
+  `pytest tests/performance -m "performance or release_gate" -q`.
 - Failing performance contracts block release until fixed, formally waived, or
   intentionally updated with matching test and documentation changes.
-

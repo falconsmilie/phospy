@@ -11,6 +11,17 @@ The testing audit system exists to:
 - identify what must not regress during consolidation,
 - and separate machine-generated evidence from human review decisions.
 
+## Release-Gate Policy
+
+Default `pytest` excludes parity tests for developer speed through the
+`pyproject.toml` addopts setting. Public releases must run
+`make test-release-gate`; that target is the release-blocking command and
+includes the default non-parity suite, provenance/golden checks, reference
+manifest gates, threshold-bearing parity tests, and performance contracts.
+
+`parity_diagnostic` tests are informational unless they are intentionally
+promoted into the release selector.
+
 ## Read This First
 
 1. [Test Audit Rubric](./test_audit_rubric.md): scoring and decision criteria used across the audit.
