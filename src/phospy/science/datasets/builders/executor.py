@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import pandas as pd
+
+from phospy.provenance.models import RunProvenance
 from phospy.science.datasets.builders.contracts import (
     DatasetIntensityScaleResolverContract,
     DatasetPreprocessorContract,
     InterpretedDatasetBuildRequest,
+    PreprocessedDatasetBuildTables,
 )
 from phospy.science.datasets.builders.preprocessing import (
     DatasetPreprocessor,
@@ -25,8 +29,15 @@ from phospy.science.datasets.builders.transformation_resolver import (
 )
 from phospy.science.datasets.builders.transformation_state import (
     DatasetTransformationStateResolver,
+    ResolvedDatasetTransformationState,
 )
-from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.datasets.models import (
+    AnalysisReadyPhosphoDataset,
+    DatasetPreprocessingReport,
+)
+from phospy.science.datasets.preprocessing.protein_aware_preparation import (
+    ProteinAwarePreparationResult,
+)
 from phospy.science.transformations.contracts import Transformer
 from phospy.science.transformations.transformers import IdentityTransformer
 
@@ -77,6 +88,47 @@ class DatasetBuildExecutor:
     def run(
         self, request: InterpretedDatasetBuildRequest
     ) -> AnalysisReadyPhosphoDataset:
+        preprocessed = self._run_preprocessing(request)
+        validated_site_metadata = self._validate_analysis_ready_site_sequences(
+            preprocessed
+        )
+        transformed = self._resolve_transformation_state(
+            request=request,
+            preprocessed=preprocessed,
+            validated_site_metadata=validated_site_metadata,
+        )
+        protein_aware_preparation = self._run_protein_aware_preparation(
+            request=request,
+            transformed=transformed,
+            validated_site_metadata=validated_site_metadata,
+        )
+        report = self._assemble_preprocessing_report(
+            request=request,
+            preprocessed=preprocessed,
+            transformed=transformed,
+            protein_aware_preparation=protein_aware_preparation,
+        )
+        provenance = self._assemble_run_provenance(
+            request=request,
+            preprocessed=preprocessed,
+            transformed=transformed,
+            validated_site_metadata=validated_site_metadata,
+            protein_aware_preparation=protein_aware_preparation,
+        )
+        return self._construct_dataset(
+            request=request,
+            preprocessed=preprocessed,
+            transformed=transformed,
+            validated_site_metadata=validated_site_metadata,
+            report=report,
+            protein_aware_preparation=protein_aware_preparation,
+            provenance=provenance,
+        )
+
+    def _run_preprocessing(
+        self,
+        request: InterpretedDatasetBuildRequest,
+    ) -> PreprocessedDatasetBuildTables:
         preprocessor_kwargs = {
             "phospho": request.phospho,
             "site_metadata": request.site_metadata,
@@ -88,24 +140,54 @@ class DatasetBuildExecutor:
             preprocessor_kwargs["corrected_preprocessing_output"] = (
                 request.corrected_preprocessing_output
             )
-        preprocessed = self._preprocessor.run(**preprocessor_kwargs)
-        validated_site_metadata = self._site_sequence_validator.run(
+        return self._preprocessor.run(**preprocessor_kwargs)
+
+    def _validate_analysis_ready_site_sequences(
+        self,
+        preprocessed: PreprocessedDatasetBuildTables,
+    ) -> pd.DataFrame:
+        return self._site_sequence_validator.run(
             site_metadata=preprocessed.site_metadata,
             preprocessing_trace=preprocessed.preprocessing_trace,
         )
-        transformed = self._transformation_state_resolver.run(
+
+    def _resolve_transformation_state(
+        self,
+        *,
+        request: InterpretedDatasetBuildRequest,
+        preprocessed: PreprocessedDatasetBuildTables,
+        validated_site_metadata: pd.DataFrame,
+    ) -> ResolvedDatasetTransformationState:
+        return self._transformation_state_resolver.run(
             request=request,
             preprocessed=preprocessed,
             validated_site_metadata=validated_site_metadata,
         )
-        protein_aware_preparation = self._protein_aware_preparation_runner.run(
+
+    def _run_protein_aware_preparation(
+        self,
+        *,
+        request: InterpretedDatasetBuildRequest,
+        transformed: ResolvedDatasetTransformationState,
+        validated_site_metadata: pd.DataFrame,
+    ) -> ProteinAwarePreparationResult | None:
+        return self._protein_aware_preparation_runner.run(
             phospho=transformed.phospho,
             site_metadata=validated_site_metadata,
             total=transformed.total,
             intensity_scale_state=transformed.intensity_scale_state,
             plan=request.preprocessing_plan,
         )
-        report = self._preprocessing_report_assembler.run(
+
+    def _assemble_preprocessing_report(
+        self,
+        *,
+        request: InterpretedDatasetBuildRequest,
+        preprocessed: PreprocessedDatasetBuildTables,
+        transformed: ResolvedDatasetTransformationState,
+        protein_aware_preparation: ProteinAwarePreparationResult | None,
+    ) -> DatasetPreprocessingReport:
+        return self._preprocessing_report_assembler.run(
             row_counts=preprocessed.preprocessing_row_counts,
             operations=preprocessed.preprocessing_operations,
             row_audit=preprocessed.row_audit,
@@ -150,7 +232,17 @@ class DatasetBuildExecutor:
                 int(transformed.phospho.shape[1]),
             ),
         )
-        provenance = self._provenance_assembler.run(
+
+    def _assemble_run_provenance(
+        self,
+        *,
+        request: InterpretedDatasetBuildRequest,
+        preprocessed: PreprocessedDatasetBuildTables,
+        transformed: ResolvedDatasetTransformationState,
+        validated_site_metadata: pd.DataFrame,
+        protein_aware_preparation: ProteinAwarePreparationResult | None,
+    ) -> RunProvenance:
+        return self._provenance_assembler.run(
             request=request,
             preprocessed=preprocessed,
             validated_site_metadata=validated_site_metadata,
@@ -167,6 +259,18 @@ class DatasetBuildExecutor:
                 else protein_aware_preparation.report
             ),
         )
+
+    def _construct_dataset(
+        self,
+        *,
+        request: InterpretedDatasetBuildRequest,
+        preprocessed: PreprocessedDatasetBuildTables,
+        transformed: ResolvedDatasetTransformationState,
+        validated_site_metadata: pd.DataFrame,
+        report: DatasetPreprocessingReport,
+        protein_aware_preparation: ProteinAwarePreparationResult | None,
+        provenance: RunProvenance,
+    ) -> AnalysisReadyPhosphoDataset:
         return AnalysisReadyPhosphoDataset._from_owned(
             phospho=transformed.phospho,
             site_metadata=validated_site_metadata,
