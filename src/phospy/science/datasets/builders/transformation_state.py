@@ -28,6 +28,7 @@ from phospy.science.datasets.preprocessing.models import (
 from phospy.science.datasets.preprocessing.policy_models import IntensityTransformPolicy
 from phospy.science.datasets.processing_state import DatasetProcessingState
 from phospy.science.transformations.models import (
+    DeclaredIntensityScaleDiagnosticPolicy,
     IntensityScaleEstablishmentMode,
     IntensityScaleKind,
     IntensityScaleState,
@@ -59,6 +60,7 @@ class _DeclaredInputIntensityScaleResolution:
 
 class _DeclaredScaleResolverKwargs(TypedDict, total=False):
     declared_input_establishment_mode: IntensityScaleEstablishmentMode
+    declared_scale_diagnostic_policy: DeclaredIntensityScaleDiagnosticPolicy
     input_declaration_source: str | None
     scale_establishment_parameters: Mapping[str, object]
     establishment_transformer_name: str | None
@@ -102,6 +104,9 @@ class DatasetTransformationStateResolver:
             resolver=self._intensity_scale_resolver,
             resolution=declared_input_scale_resolution,
             preprocessing_trace=preprocessed.preprocessing_trace,
+            declared_scale_diagnostic_policy=(
+                _resolve_declared_scale_diagnostic_policy(request)
+            ),
         )
         if _resolver_supports_declared_input_scale_state(
             self._intensity_scale_resolver
@@ -165,6 +170,16 @@ def _resolve_expected_intensity_scale_kind(
     if declared_input_scale_kind is not None:
         return declared_input_scale_kind
     return None
+
+
+def _resolve_declared_scale_diagnostic_policy(
+    request: InterpretedDatasetBuildRequest,
+) -> DeclaredIntensityScaleDiagnosticPolicy:
+    if request.allow_suspicious_declared_input_intensity_scale:
+        return DeclaredIntensityScaleDiagnosticPolicy.WARN
+    if request.declared_input_intensity_scale_kind is IntensityScaleKind.LOG2:
+        return DeclaredIntensityScaleDiagnosticPolicy.ERROR
+    return DeclaredIntensityScaleDiagnosticPolicy.WARN
 
 
 def _resolve_declared_input_intensity_scale_resolution(
@@ -428,6 +443,7 @@ def _resolve_declared_scale_resolver_kwargs(
     resolver: object,
     resolution: _DeclaredInputIntensityScaleResolution | None,
     preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
+    declared_scale_diagnostic_policy: DeclaredIntensityScaleDiagnosticPolicy,
 ) -> _DeclaredScaleResolverKwargs:
     run_method = getattr(resolver, "run", None)
     if run_method is None:
@@ -437,6 +453,8 @@ def _resolve_declared_scale_resolver_kwargs(
         return _DeclaredScaleResolverKwargs()
     supported_parameters = set(code_object.co_varnames)
     kwargs = _DeclaredScaleResolverKwargs()
+    if "declared_scale_diagnostic_policy" in supported_parameters:
+        kwargs["declared_scale_diagnostic_policy"] = declared_scale_diagnostic_policy
     if resolution is not None:
         if "declared_input_establishment_mode" in supported_parameters:
             kwargs["declared_input_establishment_mode"] = resolution.establishment_mode

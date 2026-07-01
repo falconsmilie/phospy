@@ -83,6 +83,8 @@ class DatasetPreprocessingReportAssembler:
         matrix_shape_before: tuple[int, int] | None = None,
         matrix_shape_after: tuple[int, int] | None = None,
         declared_input_intensity_scale_kind: str | None = None,
+        allow_suspicious_declared_input_intensity_scale: bool = False,
+        effective_declared_input_intensity_scale_diagnostic_policy: str = "error",
     ) -> DatasetPreprocessingReport:
         row_count_rows = list(row_count_rows_from_dataframe(row_counts))
         operation_rows = list(operation_rows_from_dataframe(operations))
@@ -206,6 +208,14 @@ class DatasetPreprocessingReportAssembler:
                         preprocessing_trace
                     ),
                     "quantitative_meaning": quantitative_meaning,
+                    "allow_suspicious_declared_input_intensity_scale": (
+                        bool(allow_suspicious_declared_input_intensity_scale)
+                    ),
+                    "effective_declared_input_intensity_scale_diagnostic_policy": (
+                        str(
+                            effective_declared_input_intensity_scale_diagnostic_policy
+                        ).strip()
+                    ),
                 },
                 input_rows=final_dataset_rows,
                 output_rows=final_dataset_rows,

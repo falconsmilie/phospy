@@ -90,6 +90,9 @@ class DatasetBuildRequestInterpreter:
             site_resolution_mode=resolved_sources.site_resolution_mode,
             multi_site_policy=resolved_sources.multi_site_policy,
             allow_opaque_site_values=bool(request.allow_opaque_site_values),
+            allow_suspicious_declared_input_intensity_scale=(
+                request.allow_suspicious_declared_input_intensity_scale
+            ),
             peptide_evidence_resolution=resolved_sources.peptide_evidence_resolution,
             corrected_preprocessing_output=cast(
                 CorrectedPreprocessingOutput | None,

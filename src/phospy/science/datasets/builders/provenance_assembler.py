@@ -100,6 +100,12 @@ class DatasetRunProvenanceAssembler:
             ),
             "intensity_scale_label": intensity_scale_label,
             "intensity_scale_establishment": dict(intensity_scale_establishment),
+            "allow_suspicious_declared_input_intensity_scale": (
+                request.allow_suspicious_declared_input_intensity_scale
+            ),
+            "effective_declared_input_intensity_scale_diagnostic_policy": (
+                _declared_scale_diagnostic_policy_label(request)
+            ),
             "quantitative_meaning": quantitative_meaning,
             "site_identifier_normalisation": (
                 None
@@ -125,6 +131,12 @@ class DatasetRunProvenanceAssembler:
                     "source": (
                         "phospy.science.datasets.builders.transformation_state."
                         "DatasetTransformationStateResolver.run"
+                    ),
+                    "allow_suspicious_declared_input_intensity_scale": (
+                        request.allow_suspicious_declared_input_intensity_scale
+                    ),
+                    "effective_declared_input_intensity_scale_diagnostic_policy": (
+                        _declared_scale_diagnostic_policy_label(request)
                     ),
                     "intensity_scale_establishment": dict(
                         intensity_scale_establishment
@@ -424,3 +436,15 @@ def _dataset_scientific_policies(
             )
         )
     return tuple(policies)
+
+
+def _declared_scale_diagnostic_policy_label(
+    request: InterpretedDatasetBuildRequest,
+) -> str:
+    if request.allow_suspicious_declared_input_intensity_scale:
+        return "warn"
+    if request.declared_input_intensity_scale_kind is None:
+        return "warn"
+    if request.declared_input_intensity_scale_kind.value == "log2":
+        return "error"
+    return "warn"

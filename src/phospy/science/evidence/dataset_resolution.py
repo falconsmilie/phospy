@@ -14,6 +14,7 @@ from phospy.science.evidence.multi_site import (
     MULTI_SITE_POLICY_KEEP_JOINT,
     MULTI_SITE_POLICY_SPLIT_EQUAL_WEIGHT,
     MultiSiteHandlingConfig,
+    parse_phospho_site_tokens,
 )
 from phospy.science.sites.identifiers import parse_canonical_site_identifier
 
@@ -63,6 +64,9 @@ DATASET_PEPTIDE_MIXED_AMBIGUITY_POLICY_SHARED_WEIGHTED_MEAN = (
     "mixed_ambiguous_and_unambiguous_rows_share_same_weighted_mean_aggregation"
 )
 DATASET_PEPTIDE_SITE_SEQUENCE_POLICY_VALIDATE_WITHOUT_REPAIR = "validate_without_repair"
+_SITE_SEQUENCE_SOURCE_PROVIDED = "provided_site_sequence"
+_SITE_SEQUENCE_SOURCE_PEPTIDE_CONTEXT = "peptide_sequence_site_string"
+_SITE_SEQUENCE_SOURCE_MISSING = "missing"
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,6 +91,9 @@ class PeptideEvidenceResolutionSummary:
     provided_site_sequence_count: int
     accepted_site_sequence_count: int
     rejected_site_sequence_count: int
+    provided_site_sequence_used_count: int
+    peptide_context_derived_site_sequence_count: int
+    missing_site_sequence_count: int
     site_sequence_policy: str
 
     def to_payload(self) -> dict[str, object]:
@@ -109,6 +116,13 @@ class PeptideEvidenceResolutionSummary:
             "provided_site_sequence_count": int(self.provided_site_sequence_count),
             "accepted_site_sequence_count": int(self.accepted_site_sequence_count),
             "rejected_site_sequence_count": int(self.rejected_site_sequence_count),
+            "provided_site_sequence_used_count": int(
+                self.provided_site_sequence_used_count
+            ),
+            "peptide_context_derived_site_sequence_count": int(
+                self.peptide_context_derived_site_sequence_count
+            ),
+            "missing_site_sequence_count": int(self.missing_site_sequence_count),
             "site_sequence_policy": self.site_sequence_policy,
         }
 
@@ -188,8 +202,10 @@ class PeptideEvidenceDatasetResolver:
             mapped_rows=mapped_rows,
             sample_columns=evidence.sample_intensity_columns,
         )
-        site_metadata = _build_site_metadata(
-            mapped_rows=mapped_rows, site_ids=phospho.index
+        site_metadata, site_sequence_summary = _build_site_metadata(
+            mapped_rows=mapped_rows,
+            site_ids=phospho.index,
+            multi_site_policy=multi_site_policy,
         )
         accepted_site_sequence_count = _count_non_empty_strings(
             site_metadata.loc[:, "site_sequence"]
@@ -220,7 +236,18 @@ class PeptideEvidenceDatasetResolver:
             site_sequence_column_present=site_sequence_column_present,
             provided_site_sequence_count=provided_site_sequence_count,
             accepted_site_sequence_count=accepted_site_sequence_count,
-            rejected_site_sequence_count=0,
+            rejected_site_sequence_count=int(
+                site_sequence_summary["rejected_provided_context_count"]
+            ),
+            provided_site_sequence_used_count=int(
+                site_sequence_summary["provided_site_sequence_used_count"]
+            ),
+            peptide_context_derived_site_sequence_count=int(
+                site_sequence_summary["peptide_context_derived_site_sequence_count"]
+            ),
+            missing_site_sequence_count=int(
+                site_sequence_summary["missing_site_sequence_count"]
+            ),
             site_sequence_policy=(
                 DATASET_PEPTIDE_SITE_SEQUENCE_POLICY_VALIDATE_WITHOUT_REPAIR
             ),
@@ -255,7 +282,13 @@ def _build_mapped_rows(
     mapping: pd.DataFrame,
     sample_columns: tuple[str, ...],
 ) -> tuple[pd.DataFrame, str]:
-    peptide_fields = ["peptide_row_id", "protein_accession"]
+    peptide_fields = [
+        "peptide_row_id",
+        "protein_accession",
+        "site_string",
+        "peptide_sequence",
+        "multi_site",
+    ]
     if "site_sequence" in evidence_frame.columns:
         peptide_fields.append("site_sequence")
     if "localisation_confidence" in evidence_frame.columns:
@@ -315,12 +348,28 @@ def _aggregate_site_matrix(
     return matrix
 
 
+@dataclass(frozen=True, slots=True)
+class _SiteSequenceResolution:
+    site_sequence: str | None
+    source: str
+    rejected_provided_context_count: int = 0
+
+
 def _build_site_metadata(
-    *, mapped_rows: pd.DataFrame, site_ids: pd.Index
-) -> pd.DataFrame:
+    *,
+    mapped_rows: pd.DataFrame,
+    site_ids: pd.Index,
+    multi_site_policy: str,
+) -> tuple[pd.DataFrame, dict[str, int]]:
     grouped = mapped_rows.groupby("site_id", sort=True)
     include_localisation_confidence = "localisation_confidence" in mapped_rows.columns
     site_rows: list[dict[str, object]] = []
+    site_sequence_source_counts = {
+        _SITE_SEQUENCE_SOURCE_PROVIDED: 0,
+        _SITE_SEQUENCE_SOURCE_PEPTIDE_CONTEXT: 0,
+        _SITE_SEQUENCE_SOURCE_MISSING: 0,
+    }
+    rejected_provided_context_count = 0
     for site_id in site_ids.astype(str).tolist():
         group = grouped.get_group(site_id)
         gene_symbol, site = parse_canonical_site_identifier(
@@ -333,21 +382,22 @@ def _build_site_metadata(
             field_name="protein_accession",
             site_id=site_id,
         )
-        site_sequence = (
-            _first_non_empty_string(group.loc[:, "site_sequence"])
-            if "site_sequence" in group.columns
-            else None
+        site_sequence_resolution = _resolve_site_sequence_for_resolved_site(
+            group=group,
+            site_id=site_id,
+            resolved_site_token=site,
+            multi_site_policy=multi_site_policy,
+        )
+        site_sequence_source_counts[site_sequence_resolution.source] += 1
+        rejected_provided_context_count += (
+            site_sequence_resolution.rejected_provided_context_count
         )
         site_rows.append(
             {
                 "site_id": site_id,
                 "gene_symbol": gene_symbol,
                 "site": site,
-                "site_sequence": _normalize_site_sequence_for_resolved_site(
-                    site_id=site_id,
-                    site_sequence=site_sequence,
-                    resolved_site_token=site,
-                ),
+                "site_sequence": site_sequence_resolution.site_sequence,
                 "protein_accession": protein_accession,
                 "protein_namespace": (
                     "protein_accession" if protein_accession is not None else None
@@ -361,7 +411,194 @@ def _build_site_metadata(
             )
     site_metadata = pd.DataFrame(site_rows).set_index("site_id", drop=True)
     site_metadata.index = pd.Index(site_metadata.index.astype(str), name="site_id")
-    return site_metadata
+    summary = {
+        "rejected_provided_context_count": int(rejected_provided_context_count),
+        "provided_site_sequence_used_count": int(
+            site_sequence_source_counts[_SITE_SEQUENCE_SOURCE_PROVIDED]
+        ),
+        "peptide_context_derived_site_sequence_count": int(
+            site_sequence_source_counts[_SITE_SEQUENCE_SOURCE_PEPTIDE_CONTEXT]
+        ),
+        "missing_site_sequence_count": int(
+            site_sequence_source_counts[_SITE_SEQUENCE_SOURCE_MISSING]
+        ),
+    }
+    return site_metadata, summary
+
+
+def _resolve_site_sequence_for_resolved_site(
+    *,
+    group: pd.DataFrame,
+    site_id: str,
+    resolved_site_token: str,
+    multi_site_policy: str,
+) -> _SiteSequenceResolution:
+    provided_site_sequence = (
+        _first_non_empty_string(group.loc[:, "site_sequence"])
+        if "site_sequence" in group.columns
+        else None
+    )
+    if provided_site_sequence is not None:
+        try:
+            normalized = _normalize_site_sequence_for_resolved_site(
+                site_id=site_id,
+                site_sequence=provided_site_sequence,
+                resolved_site_token=resolved_site_token,
+            )
+        except PhosPyInputError:
+            if not _is_split_multisite_context(
+                group=group,
+                multi_site_policy=multi_site_policy,
+            ):
+                raise
+            derived = _derive_site_sequence_from_peptide_context(
+                group=group,
+                site_id=site_id,
+                resolved_site_token=resolved_site_token,
+            )
+            if derived is None:
+                raise
+            return _SiteSequenceResolution(
+                site_sequence=derived,
+                source=_SITE_SEQUENCE_SOURCE_PEPTIDE_CONTEXT,
+                rejected_provided_context_count=1,
+            )
+        return _SiteSequenceResolution(
+            site_sequence=normalized,
+            source=_SITE_SEQUENCE_SOURCE_PROVIDED,
+        )
+
+    if _is_split_multisite_context(
+        group=group,
+        multi_site_policy=multi_site_policy,
+    ):
+        derived = _derive_site_sequence_from_peptide_context(
+            group=group,
+            site_id=site_id,
+            resolved_site_token=resolved_site_token,
+        )
+        if derived is not None:
+            return _SiteSequenceResolution(
+                site_sequence=derived,
+                source=_SITE_SEQUENCE_SOURCE_PEPTIDE_CONTEXT,
+            )
+
+    return _SiteSequenceResolution(
+        site_sequence=None,
+        source=_SITE_SEQUENCE_SOURCE_MISSING,
+    )
+
+
+def _is_split_multisite_context(
+    *,
+    group: pd.DataFrame,
+    multi_site_policy: str,
+) -> bool:
+    if multi_site_policy != DATASET_MULTI_SITE_POLICY_SPLIT:
+        return False
+    if "multi_site" not in group.columns:
+        return False
+    return bool(group.loc[:, "multi_site"].astype(bool).any())
+
+
+def _derive_site_sequence_from_peptide_context(
+    *,
+    group: pd.DataFrame,
+    site_id: str,
+    resolved_site_token: str,
+) -> str | None:
+    derived_sequences: list[str] = []
+    for _, row in group.iterrows():
+        derived = _derive_site_sequence_from_peptide_row(
+            row=row,
+            site_id=site_id,
+            resolved_site_token=resolved_site_token,
+        )
+        if derived is not None:
+            derived_sequences.append(derived)
+    distinct = tuple(dict.fromkeys(derived_sequences))
+    if len(distinct) != 1:
+        return None
+    return distinct[0]
+
+
+def _derive_site_sequence_from_peptide_row(
+    *,
+    row: pd.Series,
+    site_id: str,
+    resolved_site_token: str,
+) -> str | None:
+    peptide_sequence = _optional_row_string(row, "peptide_sequence")
+    site_string = _optional_row_string(row, "site_string")
+    if peptide_sequence is None or site_string is None:
+        return None
+    sequence = peptide_sequence.strip().upper()
+    if not sequence or not sequence.isalpha():
+        return None
+    try:
+        resolved_tokens = parse_phospho_site_tokens(
+            resolved_site_token,
+            field_name="dataset peptide evidence resolved site token",
+        )
+        declared_tokens = parse_phospho_site_tokens(
+            site_string,
+            field_name="dataset peptide evidence site_string",
+        )
+    except PhosPyInputError:
+        return None
+    if len(resolved_tokens) != 1:
+        return None
+    resolved_token = resolved_tokens[0]
+    possible_starts: set[int] | None = None
+    for token in declared_tokens:
+        token_starts = {
+            int(token.position) - peptide_position + 1
+            for peptide_position, residue in enumerate(sequence, start=1)
+            if residue == token.residue
+        }
+        if not token_starts:
+            return None
+        possible_starts = (
+            token_starts
+            if possible_starts is None
+            else possible_starts.intersection(token_starts)
+        )
+    if possible_starts is None or len(possible_starts) != 1:
+        return None
+    protein_start = next(iter(possible_starts))
+    peptide_positions = [
+        peptide_position
+        for peptide_position, residue in enumerate(sequence, start=1)
+        if residue == resolved_token.residue
+        and protein_start + peptide_position - 1 == int(resolved_token.position)
+    ]
+    if len(peptide_positions) != 1:
+        return None
+    peptide_position = peptide_positions[0]
+    flank = min(peptide_position - 1, len(sequence) - peptide_position)
+    start = peptide_position - flank - 1
+    end = peptide_position + flank
+    derived = sequence[start:end]
+    return _normalize_site_sequence_for_resolved_site(
+        site_id=site_id,
+        site_sequence=derived,
+        resolved_site_token=resolved_site_token,
+    )
+
+
+def _optional_row_string(row: pd.Series, column_name: str) -> str | None:
+    if column_name not in row.index:
+        return None
+    value = row.loc[column_name]
+    try:
+        if bool(pd.isna(value)):
+            return None
+    except (TypeError, ValueError):
+        pass
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text if text else None
 
 
 def _mean_localisation_confidence(values: pd.Series) -> float | None:

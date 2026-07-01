@@ -47,6 +47,16 @@ and compatibility. Builder-created datasets must record construction
 provenance, including construction method, input table identities, and
 processing-state establishment.
 
+Update note (2026-07-01, declared intensity-scale diagnostics): Declared input
+intensity scales are conservative for high-confidence `log2` mismatches by
+default. Declaring `input_intensity_scale="log2"` for values that strongly
+resemble raw linear intensities fails unless the user explicitly sets
+`DatasetBuildRequest.allow_suspicious_declared_input_intensity_scale=True`.
+Other declared-scale diagnostics remain machine-readable provenance warnings.
+The override flag, effective policy, input declaration source, establishment
+mode, and diagnostic warnings must be machine-readable in builder provenance
+and the preprocessing report.
+
 ## Context and Problem Statement
 
 Earlier ADRs established two important truths:

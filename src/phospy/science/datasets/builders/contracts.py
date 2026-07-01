@@ -59,6 +59,7 @@ class InterpretedDatasetBuildRequest:
     site_resolution_mode: str = DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED
     multi_site_policy: str | None = None
     allow_opaque_site_values: bool = False
+    allow_suspicious_declared_input_intensity_scale: bool = False
     peptide_evidence_resolution: dict[str, object] | None = None
     corrected_preprocessing_output: CorrectedPreprocessingOutput | None = None
 

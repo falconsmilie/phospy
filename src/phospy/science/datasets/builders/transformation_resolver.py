@@ -311,7 +311,9 @@ def _declared_scale_diagnostic_error(
         f"{warning_count} diagnostic {warning_label}; first warning: "
         f"{diagnostic_warnings[0]}. Suggested fix: correct input_intensity_scale, "
         "apply a PhosPy transform, or explicitly opt into suspicious declaration "
-        "override at the dataset-build request level once Ticket 8 exists."
+        "override with "
+        "allow_suspicious_declared_input_intensity_scale=True on "
+        "DatasetBuildRequest."
     )
 
 
@@ -356,7 +358,7 @@ def _run_declared_scale_sanity_diagnostics(
                     f"{matrix_label}: declared log2 scale has highly suspicious range; "
                     f"min={min_value:.3f}, max={max_value:.3f}, range={dynamic_range:.3f}"
                 )
-            if median_value >= 10.0 and integer_like_fraction >= 0.95:
+            if median_value >= 1000.0 and integer_like_fraction >= 0.95:
                 warnings.append(
                     f"{matrix_label}: declared log2 scale strongly resembles raw linear intensities; "
                     f"median={median_value:.3f}, integer_like_fraction={integer_like_fraction:.3f}"

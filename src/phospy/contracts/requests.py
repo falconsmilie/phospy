@@ -169,6 +169,7 @@ class DatasetBuildRequest:
         default_factory=DatasetPreprocessingConfig
     )
     input_intensity_scale: IntensityScaleKind | str | None = None
+    allow_suspicious_declared_input_intensity_scale: bool = False
     quantitative_meaning: QuantitativeMeaning | str | None = None
     corrected_preprocessing_output: object | None = None
 

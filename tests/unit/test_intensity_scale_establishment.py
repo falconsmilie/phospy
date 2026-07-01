@@ -223,7 +223,7 @@ def test_suspicious_declared_log2_errors_when_policy_is_error() -> None:
     assert "correct input_intensity_scale" in message
     assert "apply a PhosPy transform" in message
     assert "explicitly opt into suspicious declaration override" in message
-    assert "once Ticket 8 exists" in message
+    assert "allow_suspicious_declared_input_intensity_scale=True" in message
 
 
 def test_suspicious_declared_linear_errors_when_string_policy_is_error() -> None:

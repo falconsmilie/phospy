@@ -104,6 +104,13 @@ class DatasetBuildRequestValidator:
         if request.organism is not None and not isinstance(request.organism, Organism):
             raise PhosPyInputError("dataset build request organism must be an Organism")
         _validate_input_intensity_scale(request.input_intensity_scale)
+        if not isinstance(
+            request.allow_suspicious_declared_input_intensity_scale, bool
+        ):
+            raise PhosPyInputError(
+                "dataset build request "
+                "allow_suspicious_declared_input_intensity_scale must be a bool"
+            )
         _validate_quantitative_meaning(request.quantitative_meaning)
         validate_corrected_preprocessing_output(request.corrected_preprocessing_output)
         if not isinstance(request.allow_opaque_site_values, bool):

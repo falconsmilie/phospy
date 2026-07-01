@@ -309,6 +309,43 @@ def test_builder_rejects_peptide_evidence_sequence_center_residue_mismatch() -> 
     _assert_site_sequence_center_mismatch_message(str(exc_info.value))
 
 
+def test_split_policy_derives_site_specific_context_when_shared_window_mismatches() -> (
+    None
+):
+    evidence = _peptide_evidence_frame(include_single_site=False)
+    evidence.loc[:, "site_string"] = "S10,T12"
+    evidence.loc[:, "peptide_sequence"] = "AAASTTAAAA"
+    evidence.loc[:, "modified_peptide_sequence"] = "AAA(ph)ST(ph)TAAAA"
+    evidence.loc[:, "site_sequence"] = "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA"
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+            peptide_evidence=evidence,
+            peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_SPLIT,
+            input_intensity_scale="linear",
+            organism=Organism.HUMAN,
+        )
+    )
+
+    mapk1_s10 = _site_key_for_display_id(built, "MAPK1;S10;")
+    mapk1_t12 = _site_key_for_display_id(built, "MAPK1;T12;")
+    assert built.site_metadata.loc[mapk1_s10, "site_sequence"] == (
+        "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA"
+    )
+    assert built.site_metadata.loc[mapk1_t12, "site_sequence"] == "AASTTAAAA"
+    assert built.provenance is not None
+    payload = built.provenance.workflow_parameters["peptide_evidence_resolution"]
+    assert isinstance(payload, dict)
+    assert int(payload["provided_site_sequence_count"]) == 1
+    assert int(payload["accepted_site_sequence_count"]) == 2
+    assert int(payload["rejected_site_sequence_count"]) == 1
+    assert int(payload["provided_site_sequence_used_count"]) == 1
+    assert int(payload["peptide_context_derived_site_sequence_count"]) == 1
+    assert int(payload["missing_site_sequence_count"]) == 0
+
+
 def test_peptide_evidence_preserves_matching_sequence_with_only_text_normalisation() -> (
     None
 ):

@@ -191,7 +191,31 @@ def test_builder_identity_pass_through_with_declared_linear_records_declared_mod
     assert workflow_payload["transformer_name"] is None
 
 
-def test_builder_records_suspicious_declared_log2_warning_in_provenance() -> None:
+def test_builder_rejects_suspicious_declared_log2_by_default() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [12000.0, 14000.0], "sample_b": [18000.0, 22000.0]},
+        index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
+    )
+
+    with pytest.raises(
+        TransformationStateEstablishmentError,
+        match="declared log2 intensity scale produced",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=_site_metadata(phospho.index),
+                input_intensity_scale="log2",
+                preprocessing_config=DatasetPreprocessingConfig(
+                    intensity_transform=DatasetIntensityTransformConfig(
+                        policy="identity"
+                    )
+                ),
+            )
+        )
+
+
+def test_builder_records_suspicious_declared_log2_override_in_provenance() -> None:
     phospho = pd.DataFrame(
         {"sample_a": [12000.0, 14000.0], "sample_b": [18000.0, 22000.0]},
         index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
@@ -201,6 +225,7 @@ def test_builder_records_suspicious_declared_log2_warning_in_provenance() -> Non
             phospho=phospho,
             site_metadata=_site_metadata(phospho.index),
             input_intensity_scale="log2",
+            allow_suspicious_declared_input_intensity_scale=True,
             preprocessing_config=DatasetPreprocessingConfig(
                 intensity_transform=DatasetIntensityTransformConfig(policy="identity")
             ),
@@ -211,6 +236,35 @@ def test_builder_records_suspicious_declared_log2_warning_in_provenance() -> Non
     warnings = workflow_payload["diagnostic_warnings"]
     assert isinstance(warnings, list)
     assert any("declared log2 scale is suspicious" in warning for warning in warnings)
+    assert workflow_payload["establishment_mode"] == "declared"
+    assert workflow_payload["input_declaration_source"] == (
+        "dataset_build_request.input_intensity_scale"
+    )
+    assert built.provenance is not None
+    assert (
+        built.provenance.workflow_parameters[
+            "allow_suspicious_declared_input_intensity_scale"
+        ]
+        is True
+    )
+    assert (
+        built.provenance.workflow_parameters[
+            "effective_declared_input_intensity_scale_diagnostic_policy"
+        ]
+        == "warn"
+    )
+    final_parameters = _final_stage_parameters(built)
+    assert final_parameters["allow_suspicious_declared_input_intensity_scale"] is True
+    assert (
+        final_parameters["effective_declared_input_intensity_scale_diagnostic_policy"]
+        == "warn"
+    )
+    final_payload = _final_stage_establishment_payload(built)
+    final_warnings = final_payload["diagnostic_warnings"]
+    assert isinstance(final_warnings, list)
+    assert any(
+        "declared log2 scale is suspicious" in warning for warning in final_warnings
+    )
 
 
 def test_builder_records_suspicious_declared_linear_warning_in_provenance() -> None:
@@ -235,6 +289,19 @@ def test_builder_records_suspicious_declared_linear_warning_in_provenance() -> N
     assert any(
         "declared linear scale contains negative values" in warning
         for warning in warnings
+    )
+    assert built.provenance is not None
+    assert (
+        built.provenance.workflow_parameters[
+            "allow_suspicious_declared_input_intensity_scale"
+        ]
+        is False
+    )
+    assert (
+        built.provenance.workflow_parameters[
+            "effective_declared_input_intensity_scale_diagnostic_policy"
+        ]
+        == "warn"
     )
 
 

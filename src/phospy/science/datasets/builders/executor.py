@@ -123,6 +123,12 @@ class DatasetBuildExecutor:
                 if request.declared_input_intensity_scale_kind is None
                 else request.declared_input_intensity_scale_kind.value
             ),
+            allow_suspicious_declared_input_intensity_scale=(
+                request.allow_suspicious_declared_input_intensity_scale
+            ),
+            effective_declared_input_intensity_scale_diagnostic_policy=(
+                _declared_scale_diagnostic_policy_label(request)
+            ),
             quantitative_meaning=transformed.quantitative_meaning,
             peptide_evidence_resolution=request.peptide_evidence_resolution,
             preprocessing_plan=request.preprocessing_plan,
@@ -175,3 +181,15 @@ class DatasetBuildExecutor:
             provenance=provenance,
             allow_opaque_site_values=request.allow_opaque_site_values,
         )
+
+
+def _declared_scale_diagnostic_policy_label(
+    request: InterpretedDatasetBuildRequest,
+) -> str:
+    if request.allow_suspicious_declared_input_intensity_scale:
+        return "warn"
+    if request.declared_input_intensity_scale_kind is None:
+        return "warn"
+    if request.declared_input_intensity_scale_kind.value == "log2":
+        return "error"
+    return "warn"

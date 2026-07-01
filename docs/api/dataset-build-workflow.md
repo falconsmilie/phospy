@@ -87,6 +87,7 @@ from phospy.api import (
 | `preprocessing_config` | `DatasetPreprocessingConfig` | `DatasetPreprocessingConfig()` | No | Grouped preprocessing policy for transforms, normalisation, missing data, group-aware coverage filter declaration, optional batch correction, total-protein correction, protein-aware preparation, site construction, site-sequence resolution, comparisons, and RUV readiness reporting. |
 | `corrected_preprocessing_output` | `CorrectedPreprocessingOutput` or `None` | `None` | No | Externally resolved batch-corrected preprocessing output. Use only when it is the only matrix-changing preprocessing input after upstream boundary handling; downstream matrix-consuming preprocessing stages must not also be configured. |
 | `input_intensity_scale` | `IntensityScaleKind`, `str`, or `None` | `None` | No | Required when your preprocessing path keeps `intensity_transform.policy="identity"` and you still need a trusted intensity scale (`"linear"` or `"log2"`). |
+| `allow_suspicious_declared_input_intensity_scale` | `bool` | `False` | No | Conservative override for high-confidence declared `log2` diagnostics. Keep `False` unless you intentionally trust a `log2` declaration despite raw-linear-looking matrix values; successful overrides are recorded in provenance and the preprocessing report. |
 | `quantitative_meaning` | `QuantitativeMeaning`, `str`, or `None` | `None` | No | Optional explicit scientific meaning for phospho values (for example `phosphosite_abundance` or `phosphosite_log_abundance`). |
 
 Supported file suffixes are `.csv`, `.tsv`, `.txt` as tab-separated text, and
@@ -285,6 +286,21 @@ request = DatasetBuildRequest(
     input_intensity_scale=IntensityScaleKind.LINEAR,
 )
 ```
+
+Declared input scales are checked against matrix-value diagnostics. By default,
+a high-confidence suspicious `log2` declaration fails dataset construction; for
+example declaring `input_intensity_scale="log2"` for values that strongly
+resemble raw linear intensities raises `TransformationStateEstablishmentError`
+instead of silently accepting or re-transforming the matrix. Other
+declared-scale diagnostics are recorded as provenance warnings. If you have
+external evidence that the suspicious `log2` declaration is correct, set
+`allow_suspicious_declared_input_intensity_scale=True`.
+
+That override is auditable. Successful builds record
+`allow_suspicious_declared_input_intensity_scale`, the effective diagnostic
+policy (`"error"` or `"warn"`), the input declaration source, establishment mode,
+and diagnostic warnings in `dataset.provenance.workflow_parameters` and in the
+final `dataset.preprocessing_report.operations` row.
 
 Use explicit groups when you need a specific preprocessing policy:
 

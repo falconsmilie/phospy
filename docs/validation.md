@@ -92,6 +92,13 @@ Common cross-field checks:
 - when `intensity_transform.policy="identity"`, declare
   `input_intensity_scale` on `DatasetBuildRequest` (`"linear"` or `"log2"`), or
   use an explicit scale-changing transform (for example `policy="log2"`).
+- high-confidence suspicious declared `log2` input scales fail by default when
+  matrix values strongly resemble raw linear intensities. If the declaration is
+  scientifically justified despite diagnostics, set
+  `allow_suspicious_declared_input_intensity_scale=True`; the override flag,
+  effective policy, input declaration source, and diagnostic warnings are
+  recorded in provenance. Other declared-scale diagnostics are recorded as
+  provenance warnings.
 - `missing_data.policy="impute_row_median"` is deterministic.
 - row-median imputation is not left-censored imputation.
 - imputed row-median values are replacements and must not be treated as evidence that the original values were observed.

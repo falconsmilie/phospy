@@ -365,6 +365,37 @@ def test_dataset_build_request_requires_boolean_allow_opaque_site_values() -> No
 
 
 @pytest.mark.parametrize(
+    "value",
+    [
+        pytest.param("true", id="truthy-string"),
+        pytest.param("false", id="falsey-string"),
+        pytest.param(1, id="integer-one"),
+        pytest.param(0, id="integer-zero"),
+    ],
+)
+def test_dataset_build_request_requires_boolean_suspicious_declared_scale_override(
+    value: object,
+) -> None:
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["MAPK14;Y182;"],
+        ),
+        allow_suspicious_declared_input_intensity_scale=value,  # type: ignore[arg-type]
+    )
+    with pytest.raises(
+        PhosPyInputError,
+        match=("allow_suspicious_declared_input_intensity_scale must be a bool"),
+    ):
+        DatasetBuildRequestValidator().run(request)
+
+
+@pytest.mark.parametrize(
     "quantitative_meaning",
     [
         QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE.value,
