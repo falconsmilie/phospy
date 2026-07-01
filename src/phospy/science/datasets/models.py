@@ -866,6 +866,67 @@ def _own_dataset_frames(
     )
 
 
+def _validate_optional_comparisons(
+    *,
+    comparisons: pd.DataFrame | None,
+    expected_index: pd.Index,
+) -> pd.DataFrame | None:
+    if comparisons is None:
+        return None
+
+    comparisons_frame = require_dataframe(
+        comparisons,
+        field_name="dataset.comparisons",
+        allow_empty=True,
+        error_type=DatasetValidationError,
+    )
+    require_non_empty_dataframe(
+        comparisons_frame,
+        field_name="dataset.comparisons",
+        error_type=DatasetValidationError,
+    )
+    require_numeric_dataframe(
+        comparisons_frame,
+        field_name="dataset.comparisons",
+        error_type=DatasetValidationError,
+    )
+    require_finite_numeric_dataframe(
+        comparisons_frame,
+        field_name="dataset.comparisons",
+        error_type=DatasetValidationError,
+        allow_missing=False,
+    )
+    require_unique_columns(
+        comparisons_frame,
+        field_name="dataset.comparisons",
+        error_type=DatasetValidationError,
+    )
+    require_exact_index_match(
+        left=comparisons_frame.index,
+        right=expected_index,
+        left_name="dataset.comparisons.index",
+        right_name="dataset.phospho.index",
+        error_type=DatasetValidationError,
+    )
+    return comparisons_frame
+
+
+def _build_imputation_observation_metadata_or_none(
+    *,
+    imputation_observation_mask: pd.DataFrame | None,
+    phospho_index: pd.Index,
+    sample_index: pd.Index,
+) -> ImputationObservationMetadata | None:
+    if imputation_observation_mask is None:
+        return None
+    return ImputationObservationMetadata(
+        observed_mask=imputation_observation_mask,
+        phospho_index=phospho_index,
+        sample_index=sample_index,
+        _assume_owned=True,
+    )
+
+
 @dataclass(frozen=True, slots=True, init=False)
 class AnalysisReadyPhosphoDataset:
     """Public analysis-ready dataset contract.
@@ -1010,52 +1071,6 @@ class AnalysisReadyPhosphoDataset:
                 "dataset.processing_state.total_protein_correction.applied "
                 "requires dataset.total"
             )
-        if comparisons is not None:
-            comparisons_frame = require_dataframe(
-                comparisons,
-                field_name="dataset.comparisons",
-                allow_empty=True,
-                error_type=DatasetValidationError,
-            )
-            require_non_empty_dataframe(
-                comparisons_frame,
-                field_name="dataset.comparisons",
-                error_type=DatasetValidationError,
-            )
-            require_numeric_dataframe(
-                comparisons_frame,
-                field_name="dataset.comparisons",
-                error_type=DatasetValidationError,
-            )
-            require_finite_numeric_dataframe(
-                comparisons_frame,
-                field_name="dataset.comparisons",
-                error_type=DatasetValidationError,
-                allow_missing=False,
-            )
-            require_unique_columns(
-                comparisons_frame,
-                field_name="dataset.comparisons",
-                error_type=DatasetValidationError,
-            )
-            require_exact_index_match(
-                left=comparisons_frame.index,
-                right=phospho_table.frame.index,
-                left_name="dataset.comparisons.index",
-                right_name="dataset.phospho.index",
-                error_type=DatasetValidationError,
-            )
-            comparisons = comparisons_frame
-        imputation_observation_metadata = (
-            None
-            if imputation_observation_mask is None
-            else ImputationObservationMetadata(
-                observed_mask=imputation_observation_mask,
-                phospho_index=phospho_table.frame.index,
-                sample_index=phospho_table.frame.columns,
-                _assume_owned=True,
-            )
-        )
         validated_intensity_scale_state = _INTENSITY_SCALE_STATE_VALIDATOR.run(
             intensity_scale_state=intensity_scale_state,
             has_total_matrix=total_table is not None,
@@ -1112,6 +1127,17 @@ class AnalysisReadyPhosphoDataset:
             provenance,
             expected_type=RunProvenance,
             error_message="dataset.provenance must be RunProvenance or None",
+        )
+        comparisons = _validate_optional_comparisons(
+            comparisons=comparisons,
+            expected_index=phospho_table.frame.index,
+        )
+        imputation_observation_metadata = (
+            _build_imputation_observation_metadata_or_none(
+                imputation_observation_mask=imputation_observation_mask,
+                phospho_index=phospho_table.frame.index,
+                sample_index=phospho_table.frame.columns,
+            )
         )
         if provenance is None:
             provenance = _direct_construction_provenance(
