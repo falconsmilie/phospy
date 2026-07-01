@@ -309,7 +309,9 @@ class DatasetBuildSourceResolver:
                     "ensure site_metadata provides normalized gene/site values, "
                     "strict residue/position site tokens, organism, and explicit "
                     "protein context via protein_accession, protein_id, or "
-                    "protein_identifier plus protein_namespace"
+                    "protein_identifier plus protein_namespace. Peptide-evidence "
+                    "protein_accession remains accession identity; do not rewrite "
+                    "it into protein_id grouping metadata."
                 ),
                 original_error=exc,
             )

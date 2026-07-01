@@ -328,7 +328,11 @@ def _build_site_metadata(
             field_name="dataset peptide evidence site_id",
             error_type=PhosPyInputError,
         )
-        protein_id = _first_non_empty_string(group.loc[:, "protein_accession"])
+        protein_accession = _single_non_empty_string_or_error(
+            group.loc[:, "protein_accession"],
+            field_name="protein_accession",
+            site_id=site_id,
+        )
         site_sequence = (
             _first_non_empty_string(group.loc[:, "site_sequence"])
             if "site_sequence" in group.columns
@@ -344,7 +348,11 @@ def _build_site_metadata(
                     site_sequence=site_sequence,
                     resolved_site_token=site,
                 ),
-                "protein_id": protein_id,
+                "protein_accession": protein_accession,
+                "protein_namespace": (
+                    "protein_accession" if protein_accession is not None else None
+                ),
+                "protein_identifier": protein_accession,
             }
         )
         if include_localisation_confidence:
@@ -407,6 +415,41 @@ def _first_non_empty_string(values: pd.Series) -> str | None:
         if text:
             return text
     return None
+
+
+def _single_non_empty_string_or_error(
+    values: pd.Series,
+    *,
+    field_name: str,
+    site_id: str,
+) -> str | None:
+    distinct = tuple(dict.fromkeys(_non_empty_strings(values)))
+    if len(distinct) <= 1:
+        return distinct[0] if distinct else None
+    preview = ", ".join(repr(value) for value in distinct[:5])
+    suffix = "" if len(distinct) <= 5 else " ..."
+    raise PhosPyInputError(
+        f"{field_name} must contain at most one distinct non-empty value per "
+        f"resolved site_id; site_id={site_id!r}, conflicting_values=["
+        f"{preview}{suffix}]. Suggested fix: disambiguate peptide-site mapping "
+        "or split rows before building."
+    )
+
+
+def _non_empty_strings(values: pd.Series) -> list[str]:
+    tokens: list[str] = []
+    for value in values.tolist():
+        try:
+            if bool(pd.isna(value)):
+                continue
+        except (TypeError, ValueError):
+            pass
+        if value is None:
+            continue
+        text = str(value).strip()
+        if text:
+            tokens.append(text)
+    return tokens
 
 
 def _count_non_empty_strings(values: pd.Series) -> int:

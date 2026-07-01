@@ -54,6 +54,18 @@ Peptide-to-site aggregation is scientifically explicit and owned by
 This replaces implicit split-plus-mean behaviour with named, provenance-visible
 semantics.
 
+### Protein Identity Metadata
+
+Peptide-evidence protein_accession is row-identity metadata. It must be
+preserved as protein_accession or explicit protein_namespace/protein_identifier
+metadata. It must not be rewritten into protein_id, which remains available for
+grouping semantics.
+
+If peptide-evidence rows collapse to one resolved site, the resolved site must
+not aggregate multiple distinct accessions silently. Conflicting accessions for
+one resolved site are rejected until a future ADR defines explicit aggregation
+semantics.
+
 ## Peptide vs Site Ambiguity
 
 - **Peptide-level ambiguity:** one peptide evidence row references multiple site

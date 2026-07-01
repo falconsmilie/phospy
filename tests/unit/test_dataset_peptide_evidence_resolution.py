@@ -24,6 +24,10 @@ from phospy.science.evidence import (
     PeptideEvidenceDatasetResolver,
     PeptideEvidenceTable,
 )
+from phospy.science.evidence.dataset_resolution import (
+    _single_non_empty_string_or_error,
+)
+from phospy.science.sites.site_keys import decode_site_key
 
 
 def _site_key_for_display_id(
@@ -101,6 +105,14 @@ def _peptide_evidence_frame(*, include_single_site: bool = True) -> pd.DataFrame
     return pd.DataFrame(rows)
 
 
+def _single_site_peptide_evidence_frame() -> pd.DataFrame:
+    evidence = _peptide_evidence_frame(include_single_site=True)
+    return evidence.loc[
+        evidence.loc[:, "peptide_row_id"] == "pep_single",
+        :,
+    ].reset_index(drop=True)
+
+
 def _peptide_evidence_center_residue_mismatch_frame() -> pd.DataFrame:
     evidence = _peptide_evidence_frame(include_single_site=True)
     single_site = evidence.loc[
@@ -155,6 +167,114 @@ def test_peptide_evidence_requires_multi_site_policy() -> None:
         match="peptide_evidence input requires multi_site_policy",
     ):
         DatasetBuildRequestValidator().run(request)
+
+
+def test_peptide_evidence_resolver_preserves_accession_identity_metadata() -> None:
+    resolved = PeptideEvidenceDatasetResolver().run(
+        evidence=PeptideEvidenceTable(
+            frame=_single_site_peptide_evidence_frame(),
+            sample_intensity_columns=("sample_a", "sample_b"),
+        ),
+        multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+    )
+
+    assert "protein_accession" in resolved.site_metadata.columns
+    site_row = resolved.site_metadata.loc["AKT1;S473;", :]
+    assert site_row["protein_accession"] == "P31749"
+    assert "protein_id" not in resolved.site_metadata.columns
+
+
+def test_peptide_evidence_rejects_conflicting_accessions_per_resolved_site() -> None:
+    evidence = pd.concat(
+        [
+            _single_site_peptide_evidence_frame(),
+            _single_site_peptide_evidence_frame(),
+        ],
+        ignore_index=True,
+    )
+    evidence.loc[1, "peptide_row_id"] = "pep_single_conflict"
+    evidence.loc[1, "unique_feature_id"] = "feat_single_conflict"
+    evidence.loc[1, "protein_accession"] = "Q9Y243"
+    evidence.loc[1, "peptide_sequence"] = "CCCCC"
+    evidence.loc[1, "modified_peptide_sequence"] = "CC[+80]CCC"
+
+    with pytest.raises(PhosPyInputError) as exc_info:
+        PeptideEvidenceDatasetResolver().run(
+            evidence=PeptideEvidenceTable(
+                frame=evidence,
+                sample_intensity_columns=("sample_a", "sample_b"),
+            ),
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+        )
+    message = str(exc_info.value)
+    assert "site_id='AKT1;S473;'" in message
+    assert "protein_accession" in message
+    assert "P31749" in message
+    assert "Q9Y243" in message
+    assert "disambiguate peptide-site mapping or split rows before building" in message
+
+
+def test_accession_conflict_helper_returns_none_for_all_empty_values() -> None:
+    assert (
+        _single_non_empty_string_or_error(
+            pd.Series(["", "  ", None, pd.NA]),
+            field_name="protein_accession",
+            site_id="AKT1;S473;",
+        )
+        is None
+    )
+
+
+def test_builder_uses_peptide_evidence_accession_for_site_key_identity() -> None:
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+            peptide_evidence=_single_site_peptide_evidence_frame(),
+            peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+            input_intensity_scale="linear",
+            organism=Organism.HUMAN,
+        )
+    )
+
+    assert built.phospho.index.name == "site_key"
+    assert built.site_metadata.index.name == "site_key"
+    assert "protein_namespace" in built.site_metadata.columns
+    assert "protein_identifier" in built.site_metadata.columns
+    site_key = _site_key_for_display_id(built, "AKT1;S473;")
+    site_row = built.site_metadata.loc[site_key, :]
+    assert site_row["protein_namespace"] == "protein_accession"
+    assert site_row["protein_identifier"] == "P31749"
+    assert "protein_accession" in built.site_metadata.columns
+    assert site_row["protein_accession"] == "P31749"
+
+    decoded = decode_site_key(
+        site_key,
+        field_name="test.builder.peptide_evidence.site_key",
+        error_type=ValueError,
+    )
+    assert decoded.organism == "human"
+    assert decoded.protein_namespace == "protein_accession"
+    assert decoded.protein_identifier == "P31749"
+    assert decoded.residue == "S"
+    assert decoded.position == 473
+
+
+@pytest.mark.parametrize("accession_case", ("missing_column", "blank_value"))
+def test_peptide_evidence_requires_accession_before_resolution(
+    accession_case: str,
+) -> None:
+    evidence = _single_site_peptide_evidence_frame()
+    if accession_case == "missing_column":
+        evidence = evidence.drop(columns=["protein_accession"])
+    else:
+        evidence.loc[:, "protein_accession"] = ""
+
+    with pytest.raises(PhosPyInputError, match="protein_accession"):
+        PeptideEvidenceTable(
+            frame=evidence,
+            sample_intensity_columns=("sample_a", "sample_b"),
+        )
 
 
 def test_peptide_evidence_rejects_site_sequence_center_residue_mismatch() -> None:

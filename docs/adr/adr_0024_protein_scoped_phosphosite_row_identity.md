@@ -63,6 +63,11 @@ Builder input may remain user-friendly and accept legacy display-indexed input
 only when enough protein context is available to deterministically derive
 `site_key`.
 
+Peptide-evidence protein_accession is row-identity metadata. It must be
+preserved as protein_accession or explicit protein_namespace/protein_identifier
+metadata. It must not be rewritten into protein_id, which remains available for
+grouping semantics.
+
 Workflows operate on `site_key`. Site-level workflow outputs that materialize
 row identity include both `site_key` and `display_id`.
 
