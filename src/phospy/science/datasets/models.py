@@ -806,6 +806,66 @@ class ImputationObservationMetadata:
         return borrow_dataframe(self._observed_mask)
 
 
+@dataclass(frozen=True, slots=True)
+class _OwnedDatasetFrames:
+    phospho: pd.DataFrame
+    site_metadata: pd.DataFrame
+    sample_metadata: pd.DataFrame | None
+    total: pd.DataFrame | None
+    comparisons: pd.DataFrame | None
+    imputation_observation_mask: pd.DataFrame | None
+
+
+def _own_dataset_frames(
+    *,
+    phospho: pd.DataFrame,
+    site_metadata: pd.DataFrame,
+    sample_metadata: pd.DataFrame | None,
+    total: pd.DataFrame | None,
+    comparisons: pd.DataFrame | None,
+    imputation_observation_mask: pd.DataFrame | None,
+    assume_owned: bool,
+) -> _OwnedDatasetFrames:
+    return _OwnedDatasetFrames(
+        phospho=own_dataframe(
+            phospho,
+            field_name="dataset.phospho",
+            error_type=DatasetValidationError,
+            assume_owned=assume_owned,
+        ),
+        site_metadata=own_dataframe(
+            site_metadata,
+            field_name="dataset.site_metadata",
+            error_type=DatasetValidationError,
+            assume_owned=assume_owned,
+        ),
+        sample_metadata=own_optional_dataframe(
+            sample_metadata,
+            field_name="dataset.sample_metadata",
+            error_type=DatasetValidationError,
+            assume_owned=assume_owned,
+        ),
+        total=own_optional_dataframe(
+            total,
+            field_name="dataset.total",
+            error_type=DatasetValidationError,
+            assume_owned=assume_owned,
+        ),
+        comparisons=own_optional_dataframe(
+            comparisons,
+            field_name="dataset.comparisons",
+            error_type=DatasetValidationError,
+            assume_owned=assume_owned,
+        ),
+        imputation_observation_mask=own_optional_dataframe(
+            imputation_observation_mask,
+            field_name="dataset.imputation_observation_mask",
+            error_type=DatasetValidationError,
+            assume_owned=assume_owned,
+        ),
+    )
+
+
 @dataclass(frozen=True, slots=True, init=False)
 class AnalysisReadyPhosphoDataset:
     """Public analysis-ready dataset contract.
@@ -882,42 +942,21 @@ class AnalysisReadyPhosphoDataset:
             expected_type=bool,
             error_message="dataset.allow_opaque_site_values must be a bool",
         )
-        phospho = own_dataframe(
-            phospho,
-            field_name="dataset.phospho",
-            error_type=DatasetValidationError,
+        frames = _own_dataset_frames(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            sample_metadata=sample_metadata,
+            total=total,
+            comparisons=comparisons,
+            imputation_observation_mask=imputation_observation_mask,
             assume_owned=_assume_owned,
         )
-        site_metadata = own_dataframe(
-            site_metadata,
-            field_name="dataset.site_metadata",
-            error_type=DatasetValidationError,
-            assume_owned=_assume_owned,
-        )
-        sample_metadata = own_optional_dataframe(
-            sample_metadata,
-            field_name="dataset.sample_metadata",
-            error_type=DatasetValidationError,
-            assume_owned=_assume_owned,
-        )
-        total = own_optional_dataframe(
-            total,
-            field_name="dataset.total",
-            error_type=DatasetValidationError,
-            assume_owned=_assume_owned,
-        )
-        comparisons = own_optional_dataframe(
-            comparisons,
-            field_name="dataset.comparisons",
-            error_type=DatasetValidationError,
-            assume_owned=_assume_owned,
-        )
-        imputation_observation_mask = own_optional_dataframe(
-            imputation_observation_mask,
-            field_name="dataset.imputation_observation_mask",
-            error_type=DatasetValidationError,
-            assume_owned=_assume_owned,
-        )
+        phospho = frames.phospho
+        site_metadata = frames.site_metadata
+        sample_metadata = frames.sample_metadata
+        total = frames.total
+        comparisons = frames.comparisons
+        imputation_observation_mask = frames.imputation_observation_mask
         _require_instance(
             processing_state,
             expected_type=DatasetProcessingState,
