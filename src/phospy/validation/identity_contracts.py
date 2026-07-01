@@ -694,6 +694,7 @@ def enforce_result_identity_metadata_coherence(
     table: pd.DataFrame,
     field_name: str,
     error_type: type[ErrorType],
+    context_label: str = "Identity metadata",
 ) -> None:
     """Require public result identity metadata to agree with encoded site_key."""
 
@@ -715,6 +716,7 @@ def enforce_result_identity_metadata_coherence(
         if parsed_site is None:
             raise error_type(
                 _identity_incoherence_message(
+                    context_label=context_label,
                     field_name=field_name,
                     row_position=row_position,
                     row_label=row_label,
@@ -728,6 +730,7 @@ def enforce_result_identity_metadata_coherence(
         if row_site != encoded_site:
             raise error_type(
                 _identity_incoherence_message(
+                    context_label=context_label,
                     field_name=field_name,
                     row_position=row_position,
                     row_label=row_label,
@@ -752,6 +755,7 @@ def enforce_result_identity_metadata_coherence(
         if observed_display_id != expected_display_id:
             raise error_type(
                 _identity_incoherence_message(
+                    context_label=context_label,
                     field_name=field_name,
                     row_position=row_position,
                     row_label=row_label,
@@ -773,12 +777,14 @@ def enforce_result_identity_metadata_coherence(
                 row_position=row_position,
                 row_label=row_label,
                 column_name=column_name,
+                context_label=context_label,
                 error_type=error_type,
             )
             if row_value == encoded_value:
                 continue
             raise error_type(
                 _identity_incoherence_message(
+                    context_label=context_label,
                     field_name=field_name,
                     row_position=row_position,
                     row_label=row_label,
@@ -1009,10 +1015,12 @@ def _required_present_identity_text(
     row_label: object,
     column_name: str,
     error_type: type[ErrorType],
+    context_label: str = "Identity metadata",
 ) -> str:
     if _is_missing(value):
         raise error_type(
             _identity_incoherence_message(
+                context_label=context_label,
                 field_name=field_name,
                 row_position=row_position,
                 row_label=row_label,
@@ -1022,6 +1030,7 @@ def _required_present_identity_text(
     if not isinstance(value, str) or value.strip() == "":
         raise error_type(
             _identity_incoherence_message(
+                context_label=context_label,
                 field_name=field_name,
                 row_position=row_position,
                 row_label=row_label,
@@ -1033,13 +1042,14 @@ def _required_present_identity_text(
 
 def _identity_incoherence_message(
     *,
+    context_label: str,
     field_name: str,
     row_position: int,
     row_label: object,
     detail: str,
 ) -> str:
     return (
-        "Differential result identity metadata is inconsistent with site_key "
+        f"{context_label} is inconsistent with site_key "
         f"at row {row_position} ({row_label!r}) in {field_name}: {detail}"
     )
 

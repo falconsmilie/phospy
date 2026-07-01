@@ -11,6 +11,9 @@ from phospy.science.differential.models import (
     EmpiricalBayesPriorDiagnostics,
 )
 from phospy.tables.datasets import SiteMetadataTable
+from phospy.validation.identity_contracts import (
+    enforce_result_identity_metadata_coherence,
+)
 from phospy.validation.workflows.identity import (
     DIFFERENTIAL_IDENTITY_CONTRACT,
     KINASE_IDENTITY_CONTRACT,
@@ -193,6 +196,24 @@ def test_site_key_metadata_mismatch_is_rejected_across_identity_boundaries() -> 
         _validate_differential_workflow_identity(site_metadata)
     with pytest.raises(PhosPyInputError, match="protein_identifier is incoherent"):
         _validate_result_boundary(site_metadata)
+
+
+def test_generic_result_identity_metadata_error_uses_generic_context_label() -> None:
+    site_metadata = _identity_metadata()
+    table = _as_result_table(site_metadata)
+    table.loc[site_metadata.index[0], "site"] = "Y999"
+
+    with pytest.raises(PhosPyInputError) as exc_info:
+        enforce_result_identity_metadata_coherence(
+            table=table,
+            field_name="signalome.result_table",
+            error_type=PhosPyInputError,
+        )
+
+    message = str(exc_info.value)
+    assert message.startswith("Identity metadata is inconsistent with site_key")
+    assert "Differential result" not in message
+    assert "site_key encodes Y182 but row metadata site is 'Y999'" in message
 
 
 def test_boundaries_require_different_identity_strictness_without_duplicate_logic() -> (

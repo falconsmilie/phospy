@@ -76,6 +76,7 @@ def validate_result_table_contract(
     enforce_result_identity_metadata_coherence(
         table=table,
         field_name=field_name,
+        context_label="Differential result identity metadata",
         error_type=PhosPyInputError,
     )
 

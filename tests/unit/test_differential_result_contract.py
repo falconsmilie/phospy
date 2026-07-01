@@ -590,11 +590,13 @@ def test_direct_result_construction_rejects_site_mismatch() -> None:
     table.loc[:, "site"] = "T308"
     table.loc[:, "display_id"] = "AKT1;T308;"
 
-    with pytest.raises(
-        PhosPyInputError,
-        match="site_key encodes T309 but row metadata site is 'T308'",
-    ):
+    with pytest.raises(PhosPyInputError) as exc_info:
         _manual_result_with_table(table)
+    message = str(exc_info.value)
+    assert message.startswith(
+        "Differential result identity metadata is inconsistent with site_key"
+    )
+    assert "site_key encodes T309 but row metadata site is 'T308'" in message
 
 
 def test_direct_result_construction_rejects_display_id_site_mismatch() -> None:
