@@ -21,7 +21,7 @@ from phospy.science.differential.models.diagnostics import (
     MeanVarianceTrendDiagnostics,
 )
 from phospy.science.differential.models.tables import (
-    _validate_computation_result_table,
+    validate_computation_result_table_contract,
 )
 
 
@@ -154,7 +154,7 @@ class DifferentialComputationResult:
                 error_type=PhosPyInputError,
                 assume_owned=_assume_owned,
             )
-            _validate_computation_result_table(
+            validate_computation_result_table_contract(
                 owned_table,
                 field_name=(
                     "differential_computation_result.contrast_tables"

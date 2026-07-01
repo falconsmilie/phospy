@@ -51,6 +51,7 @@ tests/performance/test_signalome_clustering_benchmark.py,performance,82,1,true,f
 tests/performance/test_workflow_scale_contracts.py,performance,261,2,true,true,,,,,,
 tests/performance/test_workflow_validation_performance.py,performance,108,2,true,false,,,,,,
 tests/release/test_reference_manifest_gate.py,release,81,2,true,false,,,,,,
+tests/release/test_release_gate_policy.py,release,187,6,true,true,,,,,,
 tests/science/test_kinase_library_motif_scoring_science.py,science,51,1,false,false,,,,,,
 tests/science/test_signalome_identity_coherence.py,science,66,1,false,false,,,,,,
 tests/unit/api/test_api_stability_tiers.py,api,93,5,false,false,,,,,,[auto-orchestration] 7 hit(s); indicators: private_member_access
@@ -207,7 +208,7 @@ tests/unit/test_request_validation_boundaries.py,unit,283,6,true,true,,,,,,
 tests/unit/test_result_snapshot_helpers.py,unit,536,9,false,false,,,,,,
 tests/unit/test_runtime_contract_guards.py,unit,118,4,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for runtime contract guards and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_science_package_ownership.py,unit,113,6,true,true,,,,,,
-tests/unit/test_scientific_coverage_scope_matrix_docs.py,unit,700,26,false,false,,,,,,
+tests/unit/test_scientific_coverage_scope_matrix_docs.py,unit,709,27,false,false,,,,,,
 tests/unit/test_scientific_invariants.py,unit,704,19,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for scientific invariants, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_scientific_policies.py,unit,484,22,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for scientific policies, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_signalome_bundle_reconstruction_identity.py,unit,33,2,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access

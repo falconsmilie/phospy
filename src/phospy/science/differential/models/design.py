@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import cast
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
@@ -161,11 +162,18 @@ def _validate_no_all_constant_site_rows(
     *,
     field_name: str,
 ) -> None:
-    values = frame.to_numpy(dtype=float)
-    constant_mask = np.all(values == values[:, [0]], axis=1)
+    values: npt.NDArray[np.float64] = np.asarray(
+        frame.to_numpy(dtype=float),
+        dtype=np.float64,
+    )
+    constant_mask: npt.NDArray[np.bool_] = np.asarray(
+        np.all(values == values[:, [0]], axis=1),
+        dtype=bool,
+    )
     if not np.any(constant_mask):
         return
-    invalid_labels = frame.index[constant_mask].astype(str).tolist()
+    invalid_positions = np.flatnonzero(constant_mask)
+    invalid_labels = [str(frame.index[int(position)]) for position in invalid_positions]
     preview = ", ".join(invalid_labels[:5])
     suffix = "" if len(invalid_labels) <= 5 else ", ..."
     raise PhosPyInputError(

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import cast
 
@@ -374,10 +375,9 @@ def _require_non_empty_text(value: object, *, field_name: str) -> str:
 def _text_tuple(value: object, *, field_name: str) -> tuple[str, ...]:
     if isinstance(value, str):
         raise PhosPyInputError(f"{field_name} must be a sequence of strings")
-    try:
-        values = tuple(value)  # type: ignore[arg-type]
-    except TypeError as exc:
-        raise PhosPyInputError(f"{field_name} must be a sequence of strings") from exc
+    if not isinstance(value, Iterable):
+        raise PhosPyInputError(f"{field_name} must be a sequence of strings")
+    values = tuple(cast(Iterable[object], value))
     normalized: list[str] = []
     for item in values:
         normalized.append(

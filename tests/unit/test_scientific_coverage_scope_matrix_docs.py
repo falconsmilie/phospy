@@ -409,6 +409,15 @@ def test_pyright_docs_match_current_include_and_strict_scope() -> None:
     assert "already strict-checked" in docs_text
 
 
+def test_pyright_strict_paths_exist() -> None:
+    pyproject_data = tomllib.loads(_read(PYPROJECT))
+    strict_paths = tuple(pyproject_data["tool"]["pyright"]["strict"])
+
+    missing_paths = [path for path in strict_paths if not (ROOT / path).exists()]
+
+    assert missing_paths == []
+
+
 def test_fixed_effect_differential_limitations_are_documented() -> None:
     text = (_scientific_coverage_text() + "\n" + _api_guide_text()).lower()
 

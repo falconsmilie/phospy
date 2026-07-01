@@ -6,8 +6,10 @@ from __future__ import annotations
 import math
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
+import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
@@ -23,7 +25,7 @@ from phospy.science.differential.models.diagnostics import (
     MeanVarianceTrendDiagnostics,
 )
 from phospy.science.differential.models.provenance import DifferentialPolicyProvenance
-from phospy.science.differential.models.tables import _validate_result_table
+from phospy.science.differential.models.tables import validate_result_table_contract
 
 if TYPE_CHECKING:
     from phospy.science.datasets.models import DatasetPreprocessingReport
@@ -191,7 +193,7 @@ class DifferentialAnalysisResult:
                 error_type=PhosPyInputError,
                 assume_owned=_assume_owned,
             )
-            _validate_result_table(
+            validate_result_table_contract(
                 owned_table,
                 field_name=f"differential_result.contrast_tables[{contrast_name!r}]",
             )
@@ -457,20 +459,25 @@ def _unique_text(values: tuple[str, ...]) -> tuple[str, ...]:
 
 def _dataframe_records_payload(frame: pd.DataFrame) -> list[dict[str, object]]:
     records: list[dict[str, object]] = []
-    for record in frame.to_dict(orient="records"):
-        records.append({str(key): _json_scalar(value) for key, value in record.items()})
+    columns = [str(column) for column in frame.columns]
+    values = cast(npt.NDArray[np.object_], frame.to_numpy(dtype=object))
+    for row_position in range(int(values.shape[0])):
+        record: dict[str, object] = {}
+        for column_position, column in enumerate(columns):
+            record[column] = _json_scalar(
+                cast(object, values[row_position, column_position])
+            )
+        records.append(record)
     return records
 
 
 def _json_scalar(value: object) -> object:
     if value is None:
         return None
-    item: object = cast(Any, value).item() if hasattr(value, "item") else value
-    try:
-        is_missing = bool(pd.isna(cast(Any, item)))
-    except (TypeError, ValueError):
-        is_missing = False
-    if is_missing:
+    item: object = (
+        cast(object, value.item()) if isinstance(value, np.generic) else value
+    )
+    if item is pd.NA or item is pd.NaT:
         return None
     if isinstance(item, float) and not math.isfinite(item):
         return None

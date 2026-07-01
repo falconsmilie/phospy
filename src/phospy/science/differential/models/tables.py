@@ -50,7 +50,7 @@ DIFFERENTIAL_IMPUTATION_RESULT_COLUMNS: tuple[str, ...] = (
 )
 
 
-def _validate_result_table(
+def validate_result_table_contract(
     table: pd.DataFrame,
     *,
     field_name: str,
@@ -80,7 +80,7 @@ def _validate_result_table(
     )
 
 
-def _validate_computation_result_table(
+def validate_computation_result_table_contract(
     table: pd.DataFrame,
     *,
     field_name: str,
