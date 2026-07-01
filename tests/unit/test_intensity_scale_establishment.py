@@ -14,6 +14,7 @@ from phospy.science.datasets.builders.transformation_resolver import (
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.datasets.preprocessing.models import PreprocessingPlan
 from phospy.science.transformations.models import (
+    DeclaredIntensityScaleDiagnosticPolicy,
     IntensityScaleEstablishmentMode,
     IntensityScaleEstablishmentSource,
     IntensityScaleState,
@@ -157,6 +158,7 @@ def test_suspicious_declared_log2_records_warning() -> None:
         declared_input_scale_state=_declared_state("log2"),
         declared_input_establishment_mode=IntensityScaleEstablishmentMode.DECLARED,
         input_declaration_source="dataset_build_request.input_intensity_scale",
+        declared_scale_diagnostic_policy=DeclaredIntensityScaleDiagnosticPolicy.WARN,
     )
     provenance = resolved.intensity_scale_state.establishment_provenance
     assert provenance is not None
@@ -198,6 +200,46 @@ def test_declared_log2_impossible_range_records_warning() -> None:
         "declared log2 scale has highly suspicious range" in warning
         for warning in provenance.diagnostic_warnings
     )
+
+
+def test_suspicious_declared_log2_errors_when_policy_is_error() -> None:
+    resolver = DatasetIntensityScaleResolver(transformer=IdentityTransformer())
+    with pytest.raises(TransformationStateEstablishmentError) as exc_info:
+        resolver.run(
+            phospho=_phospho([12000.0, 15000.0, 18000.0]),
+            total=None,
+            declared_input_scale_state=_declared_state("log2"),
+            declared_input_establishment_mode=IntensityScaleEstablishmentMode.DECLARED,
+            input_declaration_source="dataset_build_request.input_intensity_scale",
+            declared_scale_diagnostic_policy=(
+                DeclaredIntensityScaleDiagnosticPolicy.ERROR
+            ),
+        )
+
+    message = str(exc_info.value)
+    assert "declared log2 intensity scale produced" in message
+    assert "4 diagnostic warnings" in message
+    assert "first warning: phospho: declared log2 scale is suspicious" in message
+    assert "correct input_intensity_scale" in message
+    assert "apply a PhosPy transform" in message
+    assert "explicitly opt into suspicious declaration override" in message
+    assert "once Ticket 8 exists" in message
+
+
+def test_suspicious_declared_linear_errors_when_string_policy_is_error() -> None:
+    resolver = DatasetIntensityScaleResolver(transformer=IdentityTransformer())
+    with pytest.raises(
+        TransformationStateEstablishmentError,
+        match="declared linear intensity scale produced",
+    ):
+        resolver.run(
+            phospho=_phospho([-2.0, 10.0, 15.0]),
+            total=None,
+            declared_input_scale_state=_declared_state("linear"),
+            declared_input_establishment_mode=IntensityScaleEstablishmentMode.DECLARED,
+            input_declaration_source="dataset_build_request.input_intensity_scale",
+            declared_scale_diagnostic_policy="error",
+        )
 
 
 def test_declared_linear_log_ratio_like_values_record_warning() -> None:

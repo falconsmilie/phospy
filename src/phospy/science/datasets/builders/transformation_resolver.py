@@ -19,6 +19,7 @@ from phospy.science.transformations._authority import (
 )
 from phospy.science.transformations.contracts import Transformer
 from phospy.science.transformations.models import (
+    DeclaredIntensityScaleDiagnosticPolicy,
     IntensityScaleEstablishmentMode,
     IntensityScaleKind,
     IntensityScaleState,
@@ -61,11 +62,16 @@ class DatasetIntensityScaleResolver:
         declared_input_establishment_mode: IntensityScaleEstablishmentMode | None = (
             None
         ),
+        declared_scale_diagnostic_policy: DeclaredIntensityScaleDiagnosticPolicy
+        | str = DeclaredIntensityScaleDiagnosticPolicy.WARN,
         input_declaration_source: str | None = None,
         scale_establishment_parameters: Mapping[str, object] | None = None,
         establishment_transformer_name: str | None = None,
         establishment_trace_id: str | None = None,
     ) -> ResolvedIntensityScale:
+        diagnostic_policy = _normalize_declared_scale_diagnostic_policy(
+            declared_scale_diagnostic_policy
+        )
         if self._transformer is None:
             raise TransformationStateEstablishmentError(
                 "unable to establish intensity scale state with confidence: "
@@ -171,6 +177,14 @@ class DatasetIntensityScaleResolver:
                 phospho=transformed.phospho,
                 total=transformed.total,
             )
+            if (
+                diagnostic_warnings
+                and diagnostic_policy is DeclaredIntensityScaleDiagnosticPolicy.ERROR
+            ):
+                raise _declared_scale_diagnostic_error(
+                    declared_scale_kind=state.phospho.kind,
+                    diagnostic_warnings=diagnostic_warnings,
+                )
         transformer_source = (
             f"{self._transformer.__class__.__module__}."
             f"{self._transformer.__class__.__qualname__}"
@@ -266,6 +280,39 @@ class DatasetIntensityScaleResolver:
             raise TransformationStateEstablishmentError(
                 f"{source} produced an invalid intensity scale state: {exc}"
             ) from exc
+
+
+def _normalize_declared_scale_diagnostic_policy(
+    policy: DeclaredIntensityScaleDiagnosticPolicy | str,
+) -> DeclaredIntensityScaleDiagnosticPolicy:
+    if isinstance(policy, DeclaredIntensityScaleDiagnosticPolicy):
+        return policy
+    try:
+        return DeclaredIntensityScaleDiagnosticPolicy(str(policy).strip())
+    except ValueError as exc:
+        supported = ", ".join(
+            item.value for item in DeclaredIntensityScaleDiagnosticPolicy
+        )
+        raise TransformationStateEstablishmentError(
+            "unsupported declared intensity-scale diagnostic policy "
+            f"{policy!r}; supported: {supported}"
+        ) from exc
+
+
+def _declared_scale_diagnostic_error(
+    *,
+    declared_scale_kind: IntensityScaleKind,
+    diagnostic_warnings: tuple[str, ...],
+) -> TransformationStateEstablishmentError:
+    warning_count = len(diagnostic_warnings)
+    warning_label = "warning" if warning_count == 1 else "warnings"
+    return TransformationStateEstablishmentError(
+        f"declared {declared_scale_kind.value} intensity scale produced "
+        f"{warning_count} diagnostic {warning_label}; first warning: "
+        f"{diagnostic_warnings[0]}. Suggested fix: correct input_intensity_scale, "
+        "apply a PhosPy transform, or explicitly opt into suspicious declaration "
+        "override at the dataset-build request level once Ticket 8 exists."
+    )
 
 
 def _run_declared_scale_sanity_diagnostics(

@@ -39,6 +39,13 @@ class IntensityScaleEstablishmentMode(str, Enum):
     DERIVED = "derived"
 
 
+class DeclaredIntensityScaleDiagnosticPolicy(str, Enum):
+    """Policy for suspicious declared input intensity-scale diagnostics."""
+
+    WARN = "warn"
+    ERROR = "error"
+
+
 class IntensityScaleEstablishmentSource(str, Enum):
     """Provenance source for how intensity-scale truth was established."""
 
