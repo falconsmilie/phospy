@@ -43,6 +43,25 @@ Identity boundary summary:
 - Duplicate rows are not automatically renamed.
 - Peptide-evidence modelling scope is unchanged in this identity migration.
 
+## Inspecting Builder Diagnostics
+
+Dataset builders expose diagnostics through their documented output objects,
+preprocessing reports, and provenance records.
+
+Do not import internal processing-state classes from `phospy.api.datasets`.
+These classes are implementation details and may change without public API
+guarantees.
+
+Stable code should inspect:
+
+- the returned `AnalysisReadyPhosphoDataset`
+- `dataset.preprocessing_report`
+- `dataset.provenance`
+- documented workflow result fields
+
+This keeps user code independent from internal validation and processing-state
+implementation details.
+
 See
 [ADR-0024: Protein-Scoped Phosphosite Row Identity](../adr/adr_0024_protein_scoped_phosphosite_row_identity.md)
 for the formal architecture decision.

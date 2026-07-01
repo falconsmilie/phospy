@@ -59,15 +59,6 @@ already own fully prepared `site_key`-indexed tables and processing-state
 provenance. Ordinary dataset construction should use
 `AnalysisReadyDatasetBuilder().run(DatasetBuildRequest(...))`.
 
-The `phospy.api.datasets` submodule is stable-only and exports
-`AnalysisReadyPhosphoDataset`. It does not export processing-state internals,
-missing-data or normalisation state records, batch-correction report classes, or
-other nested diagnostic model classes. Inspect diagnostics through returned
-objects such as `dataset.preprocessing_report`,
-`dataset.preprocessing_report.batch_correction`, and workflow result properties
-when those reports are present; importing the underlying diagnostic classes is
-reserved for PhosPy internals through their owning implementation modules.
-
 Use `phospy.api` for stable request, workflow, primary result, reference, enum,
 and common exception contracts. The aggregate facade is intentionally smaller
 than the implementation modules:
@@ -100,6 +91,44 @@ from phospy.api import (
     EnrichmentWorkflowRequest,
     GeneSetCollection,
 )
+```
+
+### Dataset Diagnostics and Internal Processing State
+
+The stable public API does not re-export internal dataset processing-state
+models or low-level diagnostic DTOs. The `phospy.api.datasets` submodule is a
+stable-only route and exports `AnalysisReadyPhosphoDataset` only.
+
+Users should inspect dataset diagnostics through stable public objects,
+including:
+
+- `AnalysisReadyPhosphoDataset` properties
+- preprocessing reports returned by dataset builders
+- workflow result objects
+- provenance records
+
+Classes that describe internal processing state, validation state,
+batch-correction diagnostics, or low-level transformation state are
+implementation details. They may appear in internal modules, but they are not
+stable import targets and should not be imported from `phospy.api`.
+
+Do not write code that depends on imports such as:
+
+```python
+from phospy.api.datasets import DatasetProcessingState
+from phospy.api.datasets import MissingDataState
+```
+
+These names are not part of the stable public API.
+
+Prefer:
+
+```python
+from phospy.api.datasets import AnalysisReadyPhosphoDataset
+
+dataset: AnalysisReadyPhosphoDataset = ...
+report = dataset.preprocessing_report
+provenance = dataset.provenance
 ```
 
 ### API Stability Tiers

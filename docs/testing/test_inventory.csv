@@ -54,9 +54,9 @@ tests/release/test_reference_manifest_gate.py,release,81,2,true,false,,,,,,
 tests/release/test_release_gate_policy.py,release,187,6,true,true,,,,,,
 tests/science/test_kinase_library_motif_scoring_science.py,science,51,1,false,false,,,,,,
 tests/science/test_signalome_identity_coherence.py,science,66,1,false,false,,,,,,
-tests/unit/api/test_api_stability_tiers.py,api,93,5,false,false,,,,,,[auto-orchestration] 7 hit(s); indicators: private_member_access
+tests/unit/api/test_api_stability_tiers.py,api,143,9,false,false,,,,,,[auto-orchestration] 7 hit(s); indicators: private_member_access
 tests/unit/api/test_public_api_dataset_construction.py,api,60,3,false,false,,,,,,
-tests/unit/api/test_public_api_surface.py,api,92,4,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/unit/api/test_public_api_surface.py,api,117,5,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/api/test_validation_not_public_api.py,api,104,5,false,false,,,,,,
 tests/unit/references/test_reference_manifest.py,references,149,7,false,false,,,,,,
 tests/unit/science/datasets/test_analysis_ready_dataset_builder.py,datasets,202,5,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access

@@ -1,4 +1,4 @@
-"""Public dataset models."""
+"""Stable public dataset API."""
 
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 

@@ -14,7 +14,23 @@ README = ROOT / "README.md"
 PRE_REDUCTION_EXPORT_COUNT = 202
 MAX_CURATED_EXPORT_COUNT = 120
 
-FORBIDDEN_AGGREGATE_EXPORTS = frozenset(
+DATASET_INTERNAL_DIAGNOSTIC_EXPORTS = frozenset(
+    {
+        "DatasetProcessingState",
+        "MissingDataState",
+        "NormalisationState",
+        "SiteMatrixState",
+        "SiteSequenceResolutionState",
+        "TotalProteinCorrectionState",
+        "BatchCorrectionDiagnostics",
+        "BatchCorrectionReport",
+        "RUVReadinessState",
+        "RuvReadinessState",
+        "IntensityScaleState",
+    }
+)
+
+FORBIDDEN_AGGREGATE_EXPORTS = DATASET_INTERNAL_DIAGNOSTIC_EXPORTS | frozenset(
     {
         "AnalysisReadyDatasetModelBoundaryValidator",
         "BatchCorrectionAdequacyValidator",
@@ -28,8 +44,6 @@ FORBIDDEN_AGGREGATE_EXPORTS = frozenset(
         "SignalomeWorkflowExecutor",
         "ReferenceBundleBuildRequestValidator",
         "ReferenceBundleValidationReport",
-        "DatasetProcessingState",
-        "BatchCorrectionReport",
         "IMPORTER_QUALITY_STATUS_REPORTED",
     }
 )
@@ -90,3 +104,14 @@ def test_forbidden_internal_names_are_not_aggregate_exports() -> None:
         assert symbol_name not in public_api.__all__
         assert not hasattr(public_api, symbol_name)
         _assert_from_import_fails(symbol_name)
+
+
+def test_dataset_diagnostic_names_are_not_dataset_api_exports() -> None:
+    import phospy.api.datasets as dataset_api
+
+    assert set(dataset_api.__all__) == {"AnalysisReadyPhosphoDataset"}
+    for symbol_name in DATASET_INTERNAL_DIAGNOSTIC_EXPORTS:
+        assert symbol_name not in dataset_api.__all__
+        assert not hasattr(dataset_api, symbol_name)
+        with pytest.raises(ImportError):
+            exec(f"from phospy.api.datasets import {symbol_name}", {})

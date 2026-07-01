@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 from pathlib import Path
 from types import ModuleType
 
@@ -10,6 +11,22 @@ import phospy.api as public_api
 ROOT = Path(__file__).resolve().parents[3]
 API_GUIDE = ROOT / "docs" / "api" / "guide.md"
 POLICY_ADR = ROOT / "docs" / "adr" / "adr_0031_public_api_stability_tiers.md"
+
+DATASET_INTERNAL_DIAGNOSTIC_NAMES = frozenset(
+    {
+        "DatasetProcessingState",
+        "MissingDataState",
+        "NormalisationState",
+        "SiteMatrixState",
+        "SiteSequenceResolutionState",
+        "TotalProteinCorrectionState",
+        "BatchCorrectionDiagnostics",
+        "BatchCorrectionReport",
+        "RUVReadinessState",
+        "RuvReadinessState",
+        "IntensityScaleState",
+    }
+)
 
 
 def test_api_tiers_are_explicit_disjoint_and_drive_all() -> None:
@@ -56,19 +73,52 @@ def test_internal_inventory_documents_removed_previous_exports() -> None:
         "DatasetProcessingState",
         "ReferenceBundleValidationReport",
         "BatchCorrectionReport",
+        "RuvReadinessState",
         "IMPORTER_QUALITY_STATUS_REPORTED",
         "DifferentialPolicyProvenance",
     } <= internal
     assert internal.isdisjoint(public_api.__all__)
 
 
+def test_api_datasets_does_not_export_internal_processing_state_models() -> None:
+    import phospy.api.datasets as dataset_api
+
+    assert DATASET_INTERNAL_DIAGNOSTIC_NAMES.isdisjoint(set(dataset_api.__all__))
+
+
+def test_internal_processing_state_models_are_not_importable_from_api_datasets() -> (
+    None
+):
+    import phospy.api.datasets as dataset_api
+
+    for symbol_name in DATASET_INTERNAL_DIAGNOSTIC_NAMES:
+        assert not hasattr(dataset_api, symbol_name)
+        with pytest.raises(ImportError):
+            exec(f"from phospy.api.datasets import {symbol_name}", {})
+
+
+def test_analysis_ready_dataset_is_public_from_api_datasets() -> None:
+    import phospy.api.datasets as dataset_api
+    from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+
+    namespace: dict[str, object] = {}
+
+    assert set(dataset_api.__all__) == {"AnalysisReadyPhosphoDataset"}
+    assert hasattr(dataset_api, "AnalysisReadyPhosphoDataset")
+    assert dataset_api.AnalysisReadyPhosphoDataset is AnalysisReadyPhosphoDataset
+    exec("from phospy.api.datasets import AnalysisReadyPhosphoDataset", namespace)
+    assert namespace["AnalysisReadyPhosphoDataset"] is AnalysisReadyPhosphoDataset
+
+
 def test_api_dataset_submodule_does_not_export_internal_experimental_names() -> None:
     import phospy.api.datasets as dataset_api
 
     assert set(dataset_api.__all__).isdisjoint(public_api._INTERNAL_EXPERIMENTAL_API)
-    assert not hasattr(dataset_api, "DatasetProcessingState")
-    with pytest.raises(ImportError):
-        exec("from phospy.api.datasets import DatasetProcessingState", {})
+
+
+def test_dataset_diagnostic_public_reexport_modules_do_not_exist() -> None:
+    assert importlib.util.find_spec("phospy.api.diagnostics") is None
+    assert importlib.util.find_spec("phospy.api.advanced_datasets") is None
 
 
 def test_api_submodules_respect_stability_tier_inventory() -> None:

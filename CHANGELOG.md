@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here.
 
+## Unreleased
+
+### API
+
+- Removed internal dataset processing-state and diagnostic implementation
+  classes from `phospy.api.datasets`. Stable users should inspect diagnostics
+  through dataset properties, builder reports, workflow results, and provenance
+  records.
+
 ## [1.6.0] - 2026-06-18
 
 ### Added

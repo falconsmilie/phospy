@@ -49,6 +49,37 @@ preprocessing diagnostics remain inspectable from returned objects such as
 `dataset.preprocessing_report` and workflow result properties when present; the
 diagnostic model classes are not supported import targets under `phospy.api`.
 
+## Dataset Diagnostics Policy
+
+ADR-0031 chooses Option A: PhosPy does not provide a public diagnostic
+re-export module for dataset processing-state internals.
+
+Internal dataset processing-state classes, validation-state classes, and
+low-level diagnostic DTOs are not part of the stable public API. They must not
+be re-exported from `phospy.api` or `phospy.api.datasets`.
+
+Users access diagnostics through stable public result surfaces:
+
+- `AnalysisReadyPhosphoDataset`
+- builder reports
+- workflow result objects
+- provenance records
+- documented serialisable report payloads
+
+This avoids creating a second semi-public API tier for implementation details
+and prevents users from depending on internal classes that are likely to change
+as validation and preprocessing evolve.
+
+### Consequences
+
+- `phospy.api.datasets` exports only stable dataset entrypoints.
+- No `phospy.api.diagnostics` or `phospy.api.advanced_datasets` module is
+  introduced for processing-state internals.
+- Internal diagnostic classes may remain importable from implementation modules,
+  but those imports are unsupported.
+- Tests must verify that public API submodules do not re-export internal
+  processing-state names.
+
 ## Compatibility
 
 This is an intentional public-surface reduction. The project has not promised
@@ -269,6 +300,7 @@ exports.
 - ReferenceBundleValidationReport
 - ReferenceIdentifierNormalisationValidationError
 - ReferenceValidationError
+- RuvReadinessState
 - SiteMatrixState
 - SiteSequenceResolutionRowDiagnostic
 - SiteSequenceResolutionState

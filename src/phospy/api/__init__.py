@@ -11,8 +11,8 @@ Stable public API
 
 Advanced supported API
     Explicitly supported but narrower contracts for advanced configuration,
-    opt-in diagnostic inspection, local reference-resource loading, and typed
-    policy helpers.
+    selected result-table inspection, local reference-resource loading, and
+    typed policy helpers.
 
 Internal / experimental API
     Validators, workflow interpreters/executors, result assemblers, low-level
@@ -340,6 +340,7 @@ _INTERNAL_EXPERIMENTAL_API = (
     "ReferenceBundleValidationReport",
     "ReferenceIdentifierNormalisationValidationError",
     "ReferenceValidationError",
+    "RuvReadinessState",
     "SiteMatrixState",
     "SiteSequenceResolutionRowDiagnostic",
     "SiteSequenceResolutionState",
