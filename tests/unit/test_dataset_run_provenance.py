@@ -5,7 +5,7 @@ import json
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyDatasetBuilder
+from phospy import AnalysisReadyDatasetBuilder, AnalysisReadyPhosphoDataset
 from phospy.api import (
     DatasetBuildRequest,
     DatasetIntensityTransformConfig,
@@ -29,6 +29,10 @@ from phospy.science.sites.site_keys import (
     ProteinScopedPhosphositeKey,
     encode_site_key,
 )
+from tests.support.intensity_scale_states import (
+    supported_linear_intensity_scale_state,
+    supported_linear_processing_state,
+)
 
 
 def _gene_site_key(
@@ -46,6 +50,73 @@ def _gene_site_key(
             residue=residue,
             position=position,
         )
+    )
+
+
+def _direct_analysis_ready_dataset() -> AnalysisReadyPhosphoDataset:
+    display_ids = ["MAPK14;Y182;", "AKT1;T308;"]
+    site_keys = [
+        _gene_site_key(
+            organism=Organism.RAT,
+            gene_symbol="MAPK14",
+            residue="Y",
+            position=182,
+        ),
+        _gene_site_key(
+            organism=Organism.RAT,
+            gene_symbol="AKT1",
+            residue="T",
+            position=308,
+        ),
+    ]
+    site_index = pd.Index(site_keys, name="site_key")
+    sample_index = pd.Index(["sample_a", "sample_b"], name="sample_id")
+    return AnalysisReadyPhosphoDataset(
+        phospho=pd.DataFrame(
+            {
+                "sample_a": [1.0, 2.0],
+                "sample_b": [1.5, 2.5],
+            },
+            index=site_index.copy(),
+        ),
+        site_metadata=pd.DataFrame(
+            {
+                "site_key": site_keys,
+                "display_id": display_ids,
+                "organism": ["rat", "rat"],
+                "protein_namespace": ["protein_id", "protein_id"],
+                "protein_identifier": ["MAPK14", "AKT1"],
+                "gene_symbol": ["MAPK14", "AKT1"],
+                "site": ["Y182", "T308"],
+                "site_sequence": [
+                    "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA",
+                    "AAAAAAAAAAAAAAATAAAAAAAAAAAAAAA",
+                ],
+                "localisation_confidence": [0.95, 0.9],
+            },
+            index=site_index.copy(),
+        ),
+        sample_metadata=pd.DataFrame(
+            {"condition": ["control", "treated"]},
+            index=sample_index.copy(),
+        ),
+        comparisons=pd.DataFrame(
+            {"treated_vs_control": [0.5, 0.7]},
+            index=site_index.copy(),
+        ),
+        imputation_observation_mask=pd.DataFrame(
+            {
+                "sample_a": [True, False],
+                "sample_b": [True, True],
+            },
+            index=site_index.copy(),
+            columns=sample_index.copy(),
+        ),
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
     )
 
 
@@ -256,6 +327,50 @@ def test_collect_environment_provenance_uses_process_cache(
     second = collect_environment_provenance()
     assert invocation_count == 1
     assert first == second
+
+
+def test_direct_dataset_construction_without_provenance_records_marker() -> None:
+    dataset = _direct_analysis_ready_dataset()
+
+    provenance = dataset.provenance
+
+    assert provenance is not None
+    assert provenance.workflow_name == "analysis_ready_dataset_direct_construction"
+    assert provenance.preprocessing_stages == ()
+    assert provenance.reference is None
+    assert provenance.random_state is None
+    assert provenance.random_seed_policy is None
+    assert provenance.scientific_policies == ()
+    assert provenance.workflow_parameters["construction"] == {
+        "method": "AnalysisReadyPhosphoDataset.__init__",
+        "source": "direct_trusted_construction",
+        "builder_used": False,
+        "warning": (
+            "Direct construction cannot prove biological correctness of "
+            "caller-provided analysis-ready state."
+        ),
+    }
+    assert {item.name for item in provenance.input_tables} == {
+        "dataset.phospho",
+        "dataset.site_metadata",
+        "dataset.sample_metadata",
+        "dataset.comparisons",
+        "dataset.imputation_observation_mask",
+    }
+    assert provenance.input_tables == provenance.output_tables
+
+
+def test_direct_dataset_construction_provenance_serializes_round_trip() -> None:
+    dataset = _direct_analysis_ready_dataset()
+    assert dataset.provenance is not None
+
+    payload = to_payload(dataset.provenance)
+    json.dumps(payload)
+    restored = from_payload(payload)
+
+    assert to_payload(restored) == payload
+    assert payload["workflow_name"] == "analysis_ready_dataset_direct_construction"
+    assert payload["preprocessing_stages"] == []
 
 
 def test_dataset_builder_emits_run_provenance_and_stage_details() -> None:

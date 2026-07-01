@@ -121,6 +121,34 @@ def _reference_bundle() -> ReferenceBundle:
     )
 
 
+def test_direct_dataset_construction_marker_is_not_builder_equivalent() -> None:
+    dataset = _dataset_for_workflows()
+
+    provenance = dataset.provenance
+
+    assert provenance is not None
+    assert provenance.workflow_name == "analysis_ready_dataset_direct_construction"
+    assert provenance.preprocessing_stages == ()
+    assert provenance.reference is None
+    assert provenance.random_state is None
+    assert provenance.random_seed_policy is None
+    assert provenance.scientific_policies == ()
+    assert "preprocessing_plan" not in provenance.workflow_parameters
+    assert provenance.workflow_parameters["construction"] == {
+        "method": "AnalysisReadyPhosphoDataset.__init__",
+        "source": "direct_trusted_construction",
+        "builder_used": False,
+        "warning": (
+            "Direct construction cannot prove biological correctness of "
+            "caller-provided analysis-ready state."
+        ),
+    }
+    assert {item.name for item in provenance.input_tables} == {
+        "dataset.phospho",
+        "dataset.site_metadata",
+    }
+
+
 def test_table_hash_changes_when_values_change() -> None:
     table = _base_table()
     changed = table.copy(deep=True)

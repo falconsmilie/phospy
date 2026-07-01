@@ -64,6 +64,11 @@ the primary public construction story. The constructor validates structural
 invariants and processing-state coherence; it cannot prove biological
 correctness of user-asserted provenance.
 
+Update note (2026-07-01, direct-construction provenance): Direct construction
+without supplied provenance receives a minimal direct-construction provenance
+marker. This marker records audit limitations and does not certify biological
+correctness.
+
 Update note (2026-07-01, sequence-context repair boundary): Builder and
 preprocessing lanes may normalise sequence strings, but must not silently repair
 biological identifiers or sequence context. A peptide-evidence `site_sequence`
@@ -357,21 +362,19 @@ The following decisions are now resolved for this ADR.
 4. Public dataset construction should support a flexible builder path so users do not have to manually normalise difficult phosphoproteomics input formats or column naming schemes.
 5. Dataset validation should remain private and should not become a standalone public surface.
 
-The remaining design recommendation is about provenance.
+### Provenance Rule
 
-### Recommendation on Provenance
+Preprocessing provenance remains outside the core public dataset identity, but
+direct construction must not be silently provenance-free.
 
-Preprocessing provenance should remain outside the core public dataset contract.
+Direct construction without supplied provenance receives a minimal
+direct-construction provenance marker. This marker records audit limitations
+and does not certify biological correctness.
 
-The core dataset model should stay focused on validated analysis-ready state. Provenance is valuable, but it is better treated as optional accompanying metadata rather than a required part of the fundamental dataset identity.
-
-This keeps the dataset model smaller and reduces the risk that operational or ingestion-history concerns dominate the core public contract.
-
-If provenance is needed later, preferred options include:
-
-- an optional metadata attachment on workflow results
-- a separate provenance record produced by builders or preprocessing services
-- internal audit metadata that does not reshape the core dataset model
+Builder-created datasets continue to carry builder-owned run provenance,
+including preprocessing stages, construction method, table fingerprints, and
+workflow parameters. Direct-construction markers are deliberately not
+builder-equivalent and must not add fake preprocessing stages.
 
 ## Implementation Guidance
 

@@ -21,7 +21,9 @@ from phospy.frames.ownership import (
     own_dataframe,
     own_optional_dataframe,
 )
-from phospy.provenance.models import RunProvenance
+from phospy.provenance.environment import collect_environment_provenance
+from phospy.provenance.hashing import fingerprint_optional_table
+from phospy.provenance.models import RunProvenance, TableFingerprint
 from phospy.science.datasets.preprocessing.batch_correction import (
     BatchCorrectionReport,
 )
@@ -79,6 +81,63 @@ from phospy.validation.transformations.state import IntensityScaleStateValidator
 _INTENSITY_SCALE_STATE_VALIDATOR = IntensityScaleStateValidator()
 _SITE_ID_REASON_PATTERN = re.compile(r"site identifier|site_id|site id")
 _INVALID_REASON_PATTERN = re.compile(r"invalid|missing|blank|empty")
+_DIRECT_CONSTRUCTION_WORKFLOW_NAME = "analysis_ready_dataset_direct_construction"
+_DIRECT_CONSTRUCTION_WARNING = (
+    "Direct construction cannot prove biological correctness of caller-provided "
+    "analysis-ready state."
+)
+
+
+def _direct_construction_provenance(
+    *,
+    phospho: pd.DataFrame,
+    site_metadata: pd.DataFrame,
+    sample_metadata: pd.DataFrame | None,
+    total: pd.DataFrame | None,
+    comparisons: pd.DataFrame | None,
+    imputation_observation_mask: pd.DataFrame | None,
+) -> RunProvenance:
+    table_entries = (
+        ("dataset.phospho", phospho),
+        ("dataset.site_metadata", site_metadata),
+        ("dataset.sample_metadata", sample_metadata),
+        ("dataset.total", total),
+        ("dataset.comparisons", comparisons),
+        ("dataset.imputation_observation_mask", imputation_observation_mask),
+    )
+    table_fingerprints = _fingerprint_direct_construction_tables(table_entries)
+    return RunProvenance(
+        environment=collect_environment_provenance(),
+        input_tables=table_fingerprints,
+        preprocessing_stages=(),
+        reference=None,
+        workflow_name=_DIRECT_CONSTRUCTION_WORKFLOW_NAME,
+        workflow_parameters={
+            "construction": {
+                "method": "AnalysisReadyPhosphoDataset.__init__",
+                "source": "direct_trusted_construction",
+                "builder_used": False,
+                "warning": _DIRECT_CONSTRUCTION_WARNING,
+            }
+        },
+        random_state=None,
+        random_seed_policy=None,
+        output_tables=table_fingerprints,
+    )
+
+
+def _fingerprint_direct_construction_tables(
+    entries: tuple[tuple[str, pd.DataFrame | None], ...],
+) -> tuple[TableFingerprint, ...]:
+    fingerprints: list[TableFingerprint] = []
+    for name, table in entries:
+        fingerprint = fingerprint_optional_table(table, name=name)
+        if fingerprint is None:
+            continue
+        fingerprints.append(fingerprint)
+    return tuple(fingerprints)
+
+
 _ExpectedType = TypeVar("_ExpectedType")
 IMPUTATION_FEATURE_METADATA_COLUMNS = (
     "imputed_cell_count",
@@ -761,6 +820,8 @@ class AnalysisReadyPhosphoDataset:
     coherence, and established transformation state. It cannot prove the
     biological correctness of user-asserted provenance or scientific claims
     supplied by a direct caller.
+    Direct construction without supplied provenance receives a minimal
+    direct-construction provenance marker that records this audit limitation.
 
     `phospho` stores the quantitative matrix after builder preprocessing policy
     has been applied. When total/protein correction is enabled in the builder
@@ -1013,6 +1074,19 @@ class AnalysisReadyPhosphoDataset:
             expected_type=RunProvenance,
             error_message="dataset.provenance must be RunProvenance or None",
         )
+        if provenance is None:
+            provenance = _direct_construction_provenance(
+                phospho=phospho_table.frame,
+                site_metadata=site_metadata_table.frame,
+                sample_metadata=(
+                    None
+                    if sample_metadata_table is None
+                    else sample_metadata_table.frame
+                ),
+                total=None if total_table is None else total_table.frame,
+                comparisons=comparisons,
+                imputation_observation_mask=imputation_observation_mask,
+            )
         object.__setattr__(
             self, "intensity_scale_state", validated_intensity_scale_state
         )

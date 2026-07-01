@@ -35,6 +35,8 @@ def test_public_api_marks_direct_dataset_construction_advanced_trusted() -> None
     assert "AnalysisReadyDatasetBuilder.run" in model_doc
     assert "cannot prove" in model_doc
     assert "biological correctness" in model_doc
+    assert "minimal" in model_doc
+    assert "direct-construction provenance marker" in model_doc
 
 
 def test_public_docs_examples_use_builder_path() -> None:
@@ -55,3 +57,4 @@ def test_public_docs_examples_use_builder_path() -> None:
         "from phospy import AnalysisReadyDatasetBuilder, AnalysisReadyPhosphoDataset"
     ) not in documentation
     assert "advanced/trusted" in documentation
+    assert "minimal direct-construction provenance marker" in documentation

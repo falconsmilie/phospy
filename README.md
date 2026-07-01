@@ -263,8 +263,10 @@ from phospy import DifferentialAnalysisWorkflow, KinaseWorkflow, SignalomeWorkfl
 ```
 
 `AnalysisReadyPhosphoDataset` remains exported for advanced/trusted callers who
-already have fully prepared `site_key`-indexed tables and processing-state
-provenance. Ordinary user construction should go through
+already have fully prepared `site_key`-indexed tables. Direct construction
+without supplied provenance receives a minimal direct-construction provenance marker;
+this records audit limitations and does not certify biological correctness.
+Ordinary user construction should go through
 `AnalysisReadyDatasetBuilder().run(DatasetBuildRequest(...))`.
 
 Use `phospy.api` for the stable request, workflow, primary result, reference,
