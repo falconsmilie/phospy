@@ -72,6 +72,19 @@ dataset interpretation, before `AnalysisReadyPhosphoDataset` construction.
 `dataset.preprocessing_report` and dataset run provenance record the decision
 and counts.
 
+## Sequence Context Policy
+
+Peptide-evidence resolution may normalise sequence strings by trimming
+surrounding whitespace and uppercasing letters, but it must not repair
+biological sequence context. In particular, the resolver must never rewrite the
+centre residue of a provided `site_sequence` to match a resolved site token.
+
+For unambiguous centred sequence windows, centre-residue mismatch is a hard
+input error. Users must remove the peptide-evidence `site_sequence` value to
+allow trusted reference derivation, or correct the upstream evidence. A future
+repair path would require an explicit ADR and machine-readable provenance for
+the repair decision.
+
 ## Provenance Requirements
 
 The dataset report/provenance includes:

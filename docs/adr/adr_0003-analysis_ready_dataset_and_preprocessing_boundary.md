@@ -64,6 +64,14 @@ the primary public construction story. The constructor validates structural
 invariants and processing-state coherence; it cannot prove biological
 correctness of user-asserted provenance.
 
+Update note (2026-07-01, sequence-context repair boundary): Builder and
+preprocessing lanes may normalise sequence strings, but must not silently repair
+biological identifiers or sequence context. A peptide-evidence `site_sequence`
+whose unambiguous centre residue disagrees with resolved site identity is a
+hard input error unless a future ADR introduces an explicit,
+machine-readable-provenance repair policy. This does not weaken the final
+`AnalysisReadyPhosphoDataset.site_sequence` requirement.
+
 ## Context and Problem Statement
 
 PhosPy is intended to expose one public dataset model and three primary

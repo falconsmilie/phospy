@@ -74,7 +74,7 @@ def _peptide_evidence_frame(*, include_single_site: bool = True) -> pd.DataFrame
             "modified_peptide_sequence": "AA[+80]AAA",
             "multi_site": True,
             "provenance_source": "maxquant",
-            "site_sequence": "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA",
+            "site_sequence": "AAAAAAAAAAAAAAASAAAAAAAAAAAAAA",
             "localisation_confidence": 0.95,
         }
     ]
@@ -98,6 +98,29 @@ def _peptide_evidence_frame(*, include_single_site: bool = True) -> pd.DataFrame
             }
         )
     return pd.DataFrame(rows)
+
+
+def _peptide_evidence_center_residue_mismatch_frame() -> pd.DataFrame:
+    evidence = _peptide_evidence_frame(include_single_site=True)
+    single_site = evidence.loc[
+        evidence.loc[:, "peptide_row_id"] == "pep_single", :
+    ].copy(deep=True)
+    mismatched_sequence = "AAAAAAAAAAAAAAATAAAAAAAAAAAAAAA"
+    assert len(mismatched_sequence) % 2 == 1
+    assert mismatched_sequence[len(mismatched_sequence) // 2] == "T"
+    single_site.loc[:, "site_id"] = "AKT1;S473;"
+    single_site.loc[:, "site_string"] = "S473"
+    single_site.loc[:, "site_sequence"] = mismatched_sequence
+    return single_site.reset_index(drop=True)
+
+
+def _assert_site_sequence_center_mismatch_message(message: str) -> None:
+    lower_message = message.lower()
+    assert "site_sequence" in message
+    assert "centre" in lower_message or "center" in lower_message
+    assert "expected='S'" in message
+    assert "observed='T'" in message
+    assert "AKT1;S473;" in message
 
 
 def test_site_level_input_works_with_safe_default_or_explicit_declaration() -> None:
@@ -131,6 +154,58 @@ def test_peptide_evidence_requires_multi_site_policy() -> None:
         match="peptide_evidence input requires multi_site_policy",
     ):
         DatasetBuildRequestValidator().run(request)
+
+
+def test_peptide_evidence_rejects_site_sequence_center_residue_mismatch() -> None:
+    with pytest.raises(PhosPyInputError) as exc_info:
+        PeptideEvidenceDatasetResolver().run(
+            evidence=PeptideEvidenceTable(
+                frame=_peptide_evidence_center_residue_mismatch_frame(),
+                sample_intensity_columns=("sample_a", "sample_b"),
+            ),
+            multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+        )
+
+    _assert_site_sequence_center_mismatch_message(str(exc_info.value))
+
+
+def test_builder_rejects_peptide_evidence_sequence_center_residue_mismatch() -> None:
+    dataset: AnalysisReadyPhosphoDataset | None = None
+
+    with pytest.raises(PhosPyInputError) as exc_info:
+        dataset = AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                site_resolution_mode=DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+                peptide_evidence=_peptide_evidence_center_residue_mismatch_frame(),
+                peptide_evidence_sample_intensity_columns=("sample_a", "sample_b"),
+                multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+                input_intensity_scale="linear",
+                organism=Organism.HUMAN,
+            )
+        )
+
+    assert dataset is None
+    _assert_site_sequence_center_mismatch_message(str(exc_info.value))
+
+
+def test_peptide_evidence_preserves_matching_sequence_with_only_text_normalisation() -> (
+    None
+):
+    evidence = _peptide_evidence_frame(include_single_site=True)
+    single_site = evidence.loc[
+        evidence.loc[:, "peptide_row_id"] == "pep_single", :
+    ].copy(deep=True)
+    single_site.loc[:, "site_sequence"] = " aaAsaaa "
+
+    resolved = PeptideEvidenceDatasetResolver().run(
+        evidence=PeptideEvidenceTable(
+            frame=single_site.reset_index(drop=True),
+            sample_intensity_columns=("sample_a", "sample_b"),
+        ),
+        multi_site_policy=DATASET_MULTI_SITE_POLICY_KEEP_JOINT,
+    )
+
+    assert resolved.site_metadata.loc["AKT1;S473;", "site_sequence"] == "AAASAAA"
 
 
 def test_reject_policy_fails_on_ambiguous_peptide_evidence() -> None:

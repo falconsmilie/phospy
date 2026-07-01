@@ -312,7 +312,8 @@ def _build_site_metadata(
                 "site_id": site_id,
                 "gene_symbol": gene_symbol,
                 "site": site,
-                "site_sequence": _site_sequence_for_resolved_site(
+                "site_sequence": _normalize_site_sequence_for_resolved_site(
+                    site_id=site_id,
                     site_sequence=site_sequence,
                     resolved_site_token=site,
                 ),
@@ -336,26 +337,34 @@ def _mean_localisation_confidence(values: pd.Series) -> float | None:
     return float(finite.mean())
 
 
-def _site_sequence_for_resolved_site(
+def _normalize_site_sequence_for_resolved_site(
     *,
+    site_id: str,
     site_sequence: str | None,
     resolved_site_token: str,
 ) -> str | None:
     if site_sequence is None:
         return None
     sequence = site_sequence.strip().upper()
+    expected_residue = resolved_site_token.strip().upper()[:1]
+    if expected_residue not in {"S", "T", "Y"}:
+        return sequence
     if len(sequence) < 3:
         return sequence
     if not sequence.isalpha() or (len(sequence) % 2 == 0):
         return sequence
-    expected_residue = resolved_site_token.strip().upper()[:1]
-    if expected_residue not in {"S", "T", "Y"}:
-        return sequence
-    center = len(sequence) // 2
-    observed_residue = sequence[center]
+    centre = len(sequence) // 2
+    observed_residue = sequence[centre]
     if observed_residue == expected_residue:
         return sequence
-    return f"{sequence[:center]}{expected_residue}{sequence[center + 1 :]}"
+    raise PhosPyInputError(
+        "dataset peptide evidence site_sequence centre residue mismatch for "
+        f"site_id={site_id!r}: expected={expected_residue!r} from resolved site "
+        f"token {resolved_site_token!r}, observed={observed_residue!r}. Do not "
+        "provide peptide-evidence site_sequence values that disagree with "
+        "resolved site identity; remove the sequence to enable reference "
+        "derivation or correct the upstream evidence."
+    )
 
 
 def _first_non_empty_string(values: pd.Series) -> str | None:
