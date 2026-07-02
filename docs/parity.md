@@ -27,6 +27,11 @@ A parity claim must say:
 Parity evidence here should be interpreted only for the exact fixture + output +
 comparison rule documented by each test lane.
 
+Parity evidence is also artifact-scoped. A public scientific claim is supported
+only for the exact release artifact that passed the release gate with that
+fixture evidence. A local parity-only pass, default pytest pass, or copied result
+from another commit or distribution is not sufficient release evidence.
+
 ## Active Parity Areas
 
 Current active parity coverage includes:
@@ -90,10 +95,23 @@ pytest tests/parity -m parity -s
 ```
 
 Release decisions should run the full release gate (`make test-release-gate`).
-Parity failures in that gate are release-blocking. The same gate also scans
+Parity failures in that gate are release-blocking, and performance,
+reproducibility, golden, reference-manifest, and threshold-bearing parity gates
+must all pass before a public scientific release. The same gate also scans
 packaged reference manifests and blocks release when a bundled reference is
 missing file hashes, fails hash verification, lacks license/organism/namespace
 metadata, or declares unresolved redistribution status.
+
+The release-gate metadata JSON is the audit record for a gate run. By default it
+is written to:
+
+```text
+build/release-gate/release_gate_metadata.json
+```
+
+Treat that file as the machine-readable record of what artifact/version,
+runtime, dependency snapshot, marker selectors, and fixture/reference versions
+were tested.
 
 Some diagnostic parity tests are informational. Release decisions should use the
 threshold-bearing gates and the documented fixture expectations, not visual

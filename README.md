@@ -60,6 +60,15 @@ pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
 make test-release-gate
 ```
 
+Public scientific release confidence applies only to the exact source tag,
+source archive, wheel, or other release artifact that passed the full release
+gate. Partial local passes, such as default tests, parity-only tests, or
+performance-only tests, are useful development checks but are insufficient for a
+public scientific release. The release gate writes its audit record to
+`build/release-gate/release_gate_metadata.json`; that JSON records the package
+version, runtime, dependency snapshot, test command, marker selectors, and
+fixture/reference fingerprints for the gate run.
+
 ## Quick Start
 
 1. Build an analysis-ready phosphoproteomics dataset.
@@ -91,7 +100,9 @@ biological causality, and PhosPy does not imply GSEA or PTM-SEA support.
 
 Scientific scope categories and parity/open-gap status are maintained in
 [`docs/scientific-coverage.md`](docs/scientific-coverage.md). Parity fixture
-evidence lives in [`docs/parity.md`](docs/parity.md).
+evidence lives in [`docs/parity.md`](docs/parity.md). Parity claims are
+fixture-scoped; they do not transfer to untested fixtures, broader PhosR
+surfaces, or artifacts that did not pass the full release gate.
 Future coverage direction is tracked in
 [`ADR-0025`](docs/adr/adr_0025_competitive_phosphoproteomics_workflow_coverage.md);
 that roadmap is not a current feature-support claim.

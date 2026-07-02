@@ -56,6 +56,19 @@ make test-release-gate
 The publish pipeline (`.github/workflows/publish.yml`) runs this same release
 gate before building and uploading tagged distributions.
 
+Release confidence is artifact-level. A public scientific release claim applies
+only to the exact tagged source tree, source archive, wheel, or other release
+artifact that passed the full gate. Do not treat a partial local pass, a
+parity-only pass, a performance-only pass, or a gate pass from a different
+commit/distribution as sufficient evidence for public release.
+
+The release gate writes a machine-readable audit record to
+`build/release-gate/release_gate_metadata.json` by default. Override the path
+with `RELEASE_GATE_METADATA_PATH=...` when CI or release packaging needs a
+different deterministic location. The JSON records the PhosPy version, Python
+version, platform, dependency snapshot, test command, marker selectors,
+fixture/reference fingerprints, and UTC generation time.
+
 Release-blocking coverage in `make test-release-gate` is:
 
 | Gate | Command selector |
@@ -113,6 +126,11 @@ Source and release archives must be built from tracked source state, not from a
 local working-tree zip. Use a clean tree and a source-aware command such as
 `git archive` for source snapshots, and build package distributions through the
 release workflow after the release gate passes.
+
+Do not broaden a release claim from one artifact to another. If the tagged
+source tree, source archive, wheel, dependency constraints, or bundled fixture
+set changes after a gate run, rerun the full release gate and keep the new
+metadata JSON with the release audit material.
 
 Do not include generated artefacts in source/release archives. Exclude build
 outputs, documentation sites, cache directories, previous archive files, and
