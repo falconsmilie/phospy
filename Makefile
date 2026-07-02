@@ -19,6 +19,8 @@ REWRITE_PARITY_ROOT ?= $(FIXTURES_ROOT)/rewrite_parity
 R_L6_OUTDIR ?= $(REWRITE_PARITY_ROOT)/r_reference_l6
 PUBLIC_WORKFLOW_OUTDIR ?= $(FIXTURES_ROOT)/public_workflow_reference
 ACTIVE_SCRIPTS_DIR ?= scripts/active
+RELEASE_GATE_METADATA_PATH ?= build/release-gate/release_gate_metadata.json
+RELEASE_GATE_COMMAND ?= make test-release-gate
 
 .PHONY: help \
 	check-tools check-r-tools fixtures-dirs \
@@ -96,6 +98,19 @@ test-performance: check-tools
 	$(PYTEST) tests/performance -m "performance or release_gate"
 
 test-release-gate: check-tools
+	PYTHONPATH=src $(PYTHON) -m phospy.release.metadata \
+		--output "$(RELEASE_GATE_METADATA_PATH)" \
+		--test-command "$(RELEASE_GATE_COMMAND)" \
+		--test-marker "not parity and not performance and not release_gate" \
+		--test-marker "release_gate and (reproducibility or golden)" \
+		--test-marker "release_gate" \
+		--test-marker "parity and not parity_diagnostic" \
+		--test-marker "performance or release_gate" \
+		--test-step '$(PYTEST) -m "not parity and not performance and not release_gate"' \
+		--test-step '$(PYTEST) tests/golden tests/unit/test_provenance_regressions.py tests/integration/test_kinase_workflow_integration.py::test_kinase_public_predmat_provenance_matches_golden_contract tests/integration/test_signalome_workflow_integration.py::test_signalome_l6_provenance_matches_golden_contract -m "release_gate and (reproducibility or golden)"' \
+		--test-step '$(PYTEST) tests/release -m "release_gate"' \
+		--test-step '$(PYTEST) tests/parity -m "parity and not parity_diagnostic" -s' \
+		--test-step '$(PYTEST) tests/performance -m "performance or release_gate" -q'
 	$(PYTEST) -m "not parity and not performance and not release_gate"
 	$(PYTEST) tests/golden tests/unit/test_provenance_regressions.py tests/integration/test_kinase_workflow_integration.py::test_kinase_public_predmat_provenance_matches_golden_contract tests/integration/test_signalome_workflow_integration.py::test_signalome_l6_provenance_matches_golden_contract -m "release_gate and (reproducibility or golden)"
 	$(PYTEST) tests/release -m "release_gate"

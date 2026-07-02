@@ -1,10 +1,21 @@
 from __future__ import annotations
 
+import json
+import platform
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import pytest
+
+from phospy.release.metadata import (
+    DEFAULT_RELEASE_GATE_METADATA_PATH,
+    DEFAULT_TEST_COMMAND,
+    DEFAULT_TEST_MARKERS,
+    DEFAULT_TEST_STEPS,
+    write_release_gate_metadata,
+)
 
 try:
     import tomllib
@@ -134,6 +145,113 @@ def test_make_release_gate_covers_declared_blocking_marker_policy() -> None:
     )
     for fragment in required_fragments:
         assert fragment in body
+
+
+def test_make_release_gate_writes_metadata_before_pytest_commands() -> None:
+    body = _make_target_body("test-release-gate")
+    body_lines = body.splitlines()
+
+    metadata_fragment = "$(PYTHON) -m phospy.release.metadata"
+
+    assert (
+        f"RELEASE_GATE_METADATA_PATH ?= {DEFAULT_RELEASE_GATE_METADATA_PATH.as_posix()}"
+    ) in _read("Makefile")
+    assert metadata_fragment in body
+    assert '--output "$(RELEASE_GATE_METADATA_PATH)"' in body
+    metadata_index = next(
+        index for index, line in enumerate(body_lines) if metadata_fragment in line
+    )
+    first_pytest_index = next(
+        index
+        for index, line in enumerate(body_lines)
+        if line.startswith(
+            '$(PYTEST) -m "not parity and not performance and not release_gate"'
+        )
+    )
+    assert metadata_index < first_pytest_index
+
+
+def test_release_gate_writes_metadata_artifact(tmp_path: Path) -> None:
+    metadata_path = tmp_path / "release_gate_metadata.json"
+
+    written_path = write_release_gate_metadata(
+        metadata_path,
+        project_root=ROOT,
+        generated_at_utc="2026-07-02T00:00:00Z",
+    )
+
+    assert written_path == metadata_path
+    assert metadata_path.is_file()
+
+    payload = json.loads(metadata_path.read_text(encoding="utf-8"))
+    serialized_payload = json.dumps(payload)
+    assert {
+        "phospy_version",
+        "python_version",
+        "platform",
+        "dependency_snapshot",
+        "test_command",
+        "test_markers",
+        "parity_fixture_versions",
+        "generated_at_utc",
+    }.issubset(payload)
+    assert str(ROOT) not in serialized_payload
+    assert ROOT.as_posix() not in serialized_payload
+
+
+def test_release_gate_metadata_contains_runtime_and_package_versions(
+    tmp_path: Path,
+) -> None:
+    metadata_path = tmp_path / "release_gate_metadata.json"
+
+    write_release_gate_metadata(
+        metadata_path,
+        project_root=ROOT,
+        generated_at_utc="2026-07-02T00:00:00Z",
+    )
+
+    payload = json.loads(metadata_path.read_text(encoding="utf-8"))
+    generated_at = datetime.fromisoformat(
+        payload["generated_at_utc"].replace("Z", "+00:00")
+    )
+
+    assert payload["phospy_version"] == _load_pyproject()["project"]["version"]
+    assert payload["python_version"] == platform.python_version()
+    assert payload["platform"] == platform.platform()
+    assert generated_at.tzinfo is not None
+    assert payload["test_command"] == DEFAULT_TEST_COMMAND
+    assert payload["test_markers"] == list(DEFAULT_TEST_MARKERS)
+    assert payload["test_steps"] == list(DEFAULT_TEST_STEPS)
+
+    dependency_snapshot = payload["dependency_snapshot"]
+    assert {
+        "numpy",
+        "pandas",
+        "scipy",
+        "scikit-learn",
+        "pytest",
+        "hypothesis",
+    }.issubset(dependency_snapshot)
+    assert all(
+        version is None or isinstance(version, str)
+        for version in dependency_snapshot.values()
+    )
+
+    parity_fixture_versions = payload["parity_fixture_versions"]
+    assert isinstance(parity_fixture_versions, dict)
+    assert "tests/fixtures/rewrite_parity/differential_r_reference" in (
+        parity_fixture_versions
+    )
+    assert "tests/fixtures/public_workflow_reference" in parity_fixture_versions
+    assert "src/phospy/data/reference_bundles/rat/l6_native" in (
+        parity_fixture_versions
+    )
+    assert (
+        parity_fixture_versions[
+            "tests/fixtures/rewrite_parity/differential_r_reference"
+        ]["declared_versions"]["limma"]
+        == "3.66.0"
+    )
 
 
 def test_all_current_release_gate_marked_files_are_collected_by_make_gate() -> None:
