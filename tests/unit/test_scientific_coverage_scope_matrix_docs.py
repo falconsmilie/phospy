@@ -394,6 +394,7 @@ def test_pyright_docs_match_current_include_and_strict_scope() -> None:
         "src/phospy/io",
         "src/phospy/policies",
         "src/phospy/provenance",
+        "src/phospy/release",
         "src/phospy/science",
         "src/phospy/tables",
         "src/phospy/validation",

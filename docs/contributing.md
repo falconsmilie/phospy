@@ -89,6 +89,7 @@ The checked scope is explicitly configured in `pyproject.toml` under
 - `src/phospy/io`
 - `src/phospy/policies`
 - `src/phospy/provenance`
+- `src/phospy/release`
 - `src/phospy/science`
 - `src/phospy/tables`
 - `src/phospy/validation`
@@ -105,4 +106,3 @@ Expectations for typing changes:
 Suppression policy:
 
 > Avoid suppressions by default. Use them only when Pyright cannot model correct runtime behaviour. Every suppression must be narrow, error-code-specific, commented, and justified by tests where practical.
-

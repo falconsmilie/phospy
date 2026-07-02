@@ -94,6 +94,7 @@ Pyright is the configured type checker. The checked scope is listed in
 - `src/phospy/io`
 - `src/phospy/policies`
 - `src/phospy/provenance`
+- `src/phospy/release`
 - `src/phospy/science`
 - `src/phospy/tables`
 - `src/phospy/validation`

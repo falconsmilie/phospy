@@ -51,7 +51,7 @@ tests/performance/test_signalome_clustering_benchmark.py,performance,82,1,true,f
 tests/performance/test_workflow_scale_contracts.py,performance,261,2,true,true,,,,,,
 tests/performance/test_workflow_validation_performance.py,performance,108,2,true,false,,,,,,
 tests/release/test_reference_manifest_gate.py,release,81,2,true,false,,,,,,
-tests/release/test_release_gate_policy.py,release,187,6,true,true,,,,,,
+tests/release/test_release_gate_policy.py,release,305,9,true,true,,,,,,
 tests/science/test_kinase_library_motif_scoring_science.py,science,51,1,false,false,,,,,,
 tests/science/test_signalome_identity_coherence.py,science,66,1,false,false,,,,,,
 tests/unit/api/test_api_stability_tiers.py,api,143,9,false,false,,,,,,[auto-orchestration] 7 hit(s); indicators: private_member_access
@@ -66,7 +66,7 @@ tests/unit/test_activity_science.py,unit,1093,34,false,false,scientific invarian
 tests/unit/test_adr_0027_0029_public_claims.py,unit,478,9,false,false,,,,,,
 tests/unit/test_adr_docs_governance.py,unit,146,4,false,false,,,,,,
 tests/unit/test_analysis_ready_model_boundary_validator.py,unit,728,35,true,true,,,,,,[auto-orchestration] 11 hit(s); indicators: private_member_access
-tests/unit/test_api_configs_refactor_contract.py,unit,50,3,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for api configs refactor contract and increase risk of boundary regressions.,codex-audit,,
+tests/unit/test_api_configs_refactor_contract.py,unit,53,3,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for api configs refactor contract and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_api_documentation_examples.py,unit,1136,14,false,false,,,,,,
 tests/unit/test_batch_correction_metadata_resolution.py,unit,217,8,false,false,,,,,,
 tests/unit/test_batch_correction_plan_interpreter.py,unit,351,7,false,false,,,,,,
@@ -142,7 +142,7 @@ tests/unit/test_imputation_observation_metadata.py,unit,348,15,false,false,,,,,,
 tests/unit/test_intensity_scale_establishment.py,unit,297,11,false,false,,,,,,
 tests/unit/test_internal_batch_correction_request_contract.py,unit,321,11,false,false,,,,,,
 tests/unit/test_io_table_readers.py,unit,275,9,true,true,public API contract,keep,Loss of this file would weaken table-reader input contract coverage and increase risk of invalid external data being accepted or parsed inconsistently.,codex-audit,,New test file classified after audit-doc regeneration.
-tests/unit/test_kinase_bundle_snapshots.py,unit,96,4,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle snapshots, making artifact and output drift unsafe.",codex-audit,,
+tests/unit/test_kinase_bundle_snapshots.py,unit,109,4,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle snapshots, making artifact and output drift unsafe.",codex-audit,,
 tests/unit/test_kinase_library_motif_scoring.py,unit,232,7,false,false,,,,,,
 tests/unit/test_kinase_library_references.py,unit,161,6,false,false,,,,,,
 tests/unit/test_kinase_library_workflow_requirements.py,unit,390,8,false,false,,,,,,
@@ -186,12 +186,12 @@ tests/unit/test_protein_aware_sample_alignment.py,unit,282,10,false,false,,,,,,
 tests/unit/test_protein_mapping.py,unit,210,9,false,false,,,,,,
 tests/unit/test_provenance_hashing.py,unit,421,23,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for provenance hashing, making artifact and output drift unsafe.",codex-audit,,
 tests/unit/test_provenance_regressions.py,unit,659,14,true,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for provenance regressions, making artifact and output drift unsafe.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/unit/test_public_config_self_validation.py,unit,917,31,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public config self validation and increase risk of boundary regressions.,codex-audit,,
+tests/unit/test_public_config_self_validation.py,unit,995,38,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public config self validation and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_public_contract_boundary_honesty.py,unit,320,7,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract boundary honesty and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_contract_dataset.py,unit,408,16,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract dataset and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_contract_enrichment.py,unit,241,11,false,false,,,,,,
 tests/unit/test_public_contract_errors.py,unit,742,24,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract errors and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
-tests/unit/test_public_contract_import_routes.py,unit,275,18,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract import routes and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
+tests/unit/test_public_contract_import_routes.py,unit,276,18,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract import routes and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_public_contract_results.py,unit,375,9,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract results and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_contract_workflows.py,unit,194,7,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract workflows and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_documentation_examples.py,unit,484,7,false,false,,,,,,
@@ -208,7 +208,7 @@ tests/unit/test_request_validation_boundaries.py,unit,283,6,true,true,,,,,,
 tests/unit/test_result_snapshot_helpers.py,unit,536,9,false,false,,,,,,
 tests/unit/test_runtime_contract_guards.py,unit,118,4,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for runtime contract guards and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_science_package_ownership.py,unit,113,6,true,true,,,,,,
-tests/unit/test_scientific_coverage_scope_matrix_docs.py,unit,709,27,false,false,,,,,,
+tests/unit/test_scientific_coverage_scope_matrix_docs.py,unit,710,27,false,false,,,,,,
 tests/unit/test_scientific_invariants.py,unit,704,19,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for scientific invariants, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_scientific_policies.py,unit,484,22,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for scientific policies, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_signalome_bundle_reconstruction_identity.py,unit,33,2,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
@@ -244,12 +244,13 @@ tests/unit/test_transformation_provenance.py,unit,73,2,false,false,,,,,,
 tests/unit/test_validation_common_ownership.py,unit,27,2,false,false,,,,,,
 tests/unit/test_validation_ownership.py,unit,197,9,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in validation ownership; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-OWN-001,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_validation_ownership_contracts.py,unit,72,2,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/unit/test_validator_boundaries.py,unit,1956,68,true,true,duplicate validation matrix,consolidate,Loss of this file would reduce repeated primitive validation coverage for validator boundaries; protections must remain through a consolidated matrix before removal.,codex-audit,TST-VAL-002,Umbrella validator-boundary consolidation ticket that coordinates existing mapped follow-ups in consolidation_coverage_map.md (primitive int/range/enum/dataframe plus signalome/reference domain matrices); auto-orchestration private-member hit is non-routing noise. | [auto-orchestration] 4 hit(s); indicators: private_member_access
+tests/unit/test_validator_boundaries.py,unit,1958,68,true,true,duplicate validation matrix,consolidate,Loss of this file would reduce repeated primitive validation coverage for validator boundaries; protections must remain through a consolidated matrix before removal.,codex-audit,TST-VAL-002,Umbrella validator-boundary consolidation ticket that coordinates existing mapped follow-ups in consolidation_coverage_map.md (primitive int/range/enum/dataframe plus signalome/reference domain matrices); auto-orchestration private-member hit is non-routing noise. | [auto-orchestration] 4 hit(s); indicators: private_member_access
 tests/unit/test_workflow_boundary_error.py,unit,334,9,false,false,regression for past bug,keep,Loss of this file would remove regression protection for previously fragile behavior in workflow boundary error and increase risk of silent reintroduction.,codex-audit,,
 tests/unit/test_workflow_identity_contracts.py,unit,519,14,true,true,,,,,,[auto-orchestration] 6 hit(s); indicators: private_member_access
 tests/unit/test_workflow_public_import_contract.py,unit,91,7,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for workflow public import contract and increase risk of boundary regressions.,codex-audit,,
 tests/unit/validation/test_site_sequence_contracts.py,validation,120,5,true,true,,,,,,
 tests/unit/workflows/differential/test_differential_scope_validation.py,differential,252,7,false,false,,,,,,
+tests/unit/workflows/kinase/test_kinase_attrition_metrics.py,kinase,254,5,false,false,,,,,,
 tests/unit/workflows/kinase/test_kinase_sequence_contract.py,kinase,251,5,true,true,,,,,,
 tests/unit/workflows/kinase/test_site_sequence_conflict_policy.py,kinase,266,6,true,true,,,,,,
 tests/unit/workflows/signalome/test_signalome_sequence_contract.py,signalome,149,3,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access

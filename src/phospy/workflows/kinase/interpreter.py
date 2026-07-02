@@ -23,6 +23,10 @@ from phospy.science.references.resolution import (
     ReferenceResolver,
     ReferenceResolverContract,
 )
+from phospy.workflows.kinase.attrition_metrics import (
+    KinaseAttritionMetrics,
+    build_kinase_attrition_metrics_from_overlap,
+)
 from phospy.workflows.kinase.contracts import (
     ResolvedKinaseActivityExecutionConfig,
     ResolvedKinaseExecutionConfig,
@@ -42,6 +46,7 @@ class _OverlapSummary(TypedDict):
     dataset_sites: int
     reference_sites: int
     overlap_sites: int
+    overlap_site_ids: set[str]
     reference_kinases: int
     kinases_with_overlap: int
     max_quantified_sites_per_kinase: int
@@ -147,11 +152,17 @@ class KinaseWorkflowInterpreter:
             dataset=dataset_phospho,
             site_sequences=site_sequences,
         )
+        attrition_metrics = build_kinase_attrition_metrics_from_overlap(
+            total_dataset_sites=int(overlap_counts["dataset_sites"]),
+            reference_overlap_site_ids=overlap_counts["overlap_site_ids"],
+            sequence_supported_site_index=scoring_site_index,
+        )
         self._validate_scoring_site_support(
             scoring_site_index=scoring_site_index,
             dataset=dataset_phospho,
             site_sequences=site_sequences,
         )
+        self._validate_scored_site_support(attrition_metrics=attrition_metrics)
         scoring_site_keys = set(scoring_site_index.astype(str))
         site_sequences = site_sequences.reindex(scoring_site_index)
         site_identity_map = site_identity_map.reindex(scoring_site_index)
@@ -182,6 +193,7 @@ class KinaseWorkflowInterpreter:
             activity_phospho_matrix=activity_phospho_matrix,
             execution_config=execution_config,
             kinase_library_resource=kinase_library_resource,
+            attrition_metrics=attrition_metrics,
             site_sequence_merge_diagnostics={
                 **merge_result.diagnostics_payload(),
                 "reference_sequence_count": int(references.site_sequences.shape[0]),
@@ -413,13 +425,15 @@ class KinaseWorkflowInterpreter:
         dataset: pd.DataFrame,
         kinase_substrate_map: pd.DataFrame,
     ) -> _OverlapSummary:
-        dataset_sites = set(dataset.index.tolist())
+        dataset_sites = set(dataset.index.astype(str).tolist())
         reference_sites = set(
-            kinase_substrate_map.loc[:, cls._SUBSTRATE_COLUMN].tolist()
+            kinase_substrate_map.loc[:, cls._SUBSTRATE_COLUMN].astype(str).tolist()
         )
         overlapping_sites = dataset_sites.intersection(reference_sites)
         overlapping_map = kinase_substrate_map[
-            kinase_substrate_map.loc[:, cls._SUBSTRATE_COLUMN].isin(overlapping_sites)
+            kinase_substrate_map.loc[:, cls._SUBSTRATE_COLUMN]
+            .astype(str)
+            .isin(overlapping_sites)
         ]
         per_kinase_quantified = cast(
             pd.Series,
@@ -438,6 +452,7 @@ class KinaseWorkflowInterpreter:
             "dataset_sites": len(dataset_sites),
             "reference_sites": len(reference_sites),
             "overlap_sites": len(overlapping_sites),
+            "overlap_site_ids": overlapping_sites,
             "reference_kinases": int(
                 kinase_substrate_map.loc[:, cls._KINASE_COLUMN].nunique()
             ),
@@ -538,6 +553,22 @@ class KinaseWorkflowInterpreter:
             dataset_sites=int(dataset.index.size),
             reference_sequence_sites=int(site_sequences.index.size),
             sequence_supported_sites=0,
+        )
+
+    def _validate_scored_site_support(
+        self,
+        *,
+        attrition_metrics: KinaseAttritionMetrics,
+    ) -> None:
+        if int(attrition_metrics.scored_sites) > 0:
+            return
+        self._raise_boundary_error(
+            seam="kinase.interpreter.scored_site_support",
+            next_action=(
+                "ensure at least one dataset site has both kinase-substrate "
+                "reference overlap and usable site-sequence support"
+            ),
+            **attrition_metrics.to_payload(),
         )
 
     @staticmethod

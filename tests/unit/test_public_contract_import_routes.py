@@ -38,6 +38,7 @@ API_ONLY_CONTRACT_TYPES = {
     "EnrichmentWorkflowRequest",
     "EnrichmentWorkflowResult",
     "GeneSetCollection",
+    "KinaseAttritionPolicy",
     "KinaseWorkflowRequest",
     "KinaseWorkflowResult",
     "Organism",

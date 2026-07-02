@@ -36,6 +36,7 @@ from phospy.api.configs import (
     DatasetSiteSequenceResolutionConfig,
     DatasetTotalProteinCorrectionConfig,
     KinaseActivityConfig,
+    KinaseAttritionPolicy,
     KinasePredictionConfig,
     KinaseScoringConfig,
     SignalomeClusteringConfig,
@@ -379,6 +380,10 @@ def test_dataset_preprocessing_config_presets_return_expected_values() -> None:
             {"allow_mixed_total_protein_quantitative_meaning": "yes"},
             "scoring_config.allow_mixed_total_protein_quantitative_meaning must be a bool",
         ),
+        (
+            {"attrition_policy": object()},
+            "scoring_config.attrition_policy must be KinaseAttritionPolicy",
+        ),
     ],
 )
 def test_kinase_scoring_config_self_validates(
@@ -386,6 +391,77 @@ def test_kinase_scoring_config_self_validates(
 ) -> None:
     with pytest.raises(WorkflowValidationError, match=pattern):
         KinaseScoringConfig(**kwargs)  # type: ignore[arg-type]
+
+
+def test_kinase_attrition_policy_accepts_valid_thresholds() -> None:
+    policy = KinaseAttritionPolicy(
+        minimum_reference_overlap_fraction=0.25,
+        minimum_sequence_supported_fraction=0.5,
+        minimum_scored_fraction=1.0,
+        on_violation="error",
+    )
+
+    assert policy.minimum_reference_overlap_fraction == pytest.approx(0.25)
+    assert policy.minimum_sequence_supported_fraction == pytest.approx(0.5)
+    assert policy.minimum_scored_fraction == pytest.approx(1.0)
+    assert policy.on_violation == "error"
+
+
+def test_kinase_attrition_policy_rejects_negative_fraction() -> None:
+    with pytest.raises(
+        WorkflowValidationError,
+        match="attrition_policy.minimum_reference_overlap_fraction",
+    ):
+        KinaseAttritionPolicy(minimum_reference_overlap_fraction=-0.1)
+
+
+def test_kinase_attrition_policy_rejects_fraction_above_one() -> None:
+    with pytest.raises(
+        WorkflowValidationError,
+        match="attrition_policy.minimum_sequence_supported_fraction",
+    ):
+        KinaseAttritionPolicy(minimum_sequence_supported_fraction=1.1)
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf")])
+def test_kinase_attrition_policy_rejects_nonfinite_fraction(value: float) -> None:
+    with pytest.raises(
+        WorkflowValidationError,
+        match="attrition_policy.minimum_scored_fraction must be finite",
+    ):
+        KinaseAttritionPolicy(minimum_scored_fraction=value)
+
+
+def test_kinase_attrition_policy_rejects_invalid_violation_mode() -> None:
+    with pytest.raises(
+        WorkflowValidationError,
+        match="attrition_policy.on_violation must be one of",
+    ):
+        KinaseAttritionPolicy(on_violation="ignore")  # type: ignore[arg-type]
+
+
+def test_kinase_config_uses_default_attrition_policy() -> None:
+    config = KinaseScoringConfig()
+
+    assert config.attrition_policy == KinaseAttritionPolicy(
+        minimum_reference_overlap_fraction=0.0,
+        minimum_sequence_supported_fraction=0.0,
+        minimum_scored_fraction=0.0,
+        on_violation="warn",
+    )
+
+
+def test_kinase_scoring_config_accepts_attrition_policy() -> None:
+    policy = KinaseAttritionPolicy(
+        minimum_reference_overlap_fraction=0.2,
+        minimum_sequence_supported_fraction=0.3,
+        minimum_scored_fraction=0.4,
+        on_violation="error",
+    )
+
+    config = KinaseScoringConfig(attrition_policy=policy)
+
+    assert config.attrition_policy is policy
 
 
 def test_kinase_scoring_config_presets_return_expected_values() -> None:
@@ -397,11 +473,13 @@ def test_kinase_scoring_config_presets_return_expected_values() -> None:
         == KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
     )
     assert default.include_substrate_contributions is False
+    assert default.attrition_policy == KinaseAttritionPolicy()
     assert (
         strict_missing.profile_missing_value_strategy
         == KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
     )
     assert strict_missing.include_substrate_contributions is False
+    assert strict_missing.attrition_policy == KinaseAttritionPolicy()
 
 
 @pytest.mark.parametrize(

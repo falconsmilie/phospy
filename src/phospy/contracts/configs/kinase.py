@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -125,6 +126,63 @@ KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICIES = frozenset(
         KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS,
     }
 )
+KINASE_ATTRITION_POLICY_ON_VIOLATION_ERROR = "error"
+KINASE_ATTRITION_POLICY_ON_VIOLATION_WARN = "warn"
+KinaseAttritionViolationMode = Literal["error", "warn"]
+KINASE_ATTRITION_POLICY_ON_VIOLATION_MODES = frozenset(
+    {
+        KINASE_ATTRITION_POLICY_ON_VIOLATION_ERROR,
+        KINASE_ATTRITION_POLICY_ON_VIOLATION_WARN,
+    }
+)
+
+
+@dataclass(frozen=True, slots=True)
+class KinaseAttritionPolicy:
+    """Policy thresholds for reporting unacceptable kinase site attrition.
+
+    This is an explicit reliability policy only. It records caller intent for
+    reference-overlap, sequence-support, and final scored-site retention
+    thresholds, plus how a future enforcement layer should react. The current
+    workflow does not enforce these thresholds or drop additional sites.
+    """
+
+    minimum_reference_overlap_fraction: float = 0.0
+    minimum_sequence_supported_fraction: float = 0.0
+    minimum_scored_fraction: float = 0.0
+    on_violation: KinaseAttritionViolationMode = (
+        KINASE_ATTRITION_POLICY_ON_VIOLATION_WARN
+    )
+
+    def __post_init__(self) -> None:
+        reference_overlap = _require_attrition_fraction(
+            self.minimum_reference_overlap_fraction,
+            field_name="attrition_policy.minimum_reference_overlap_fraction",
+        )
+        sequence_supported = _require_attrition_fraction(
+            self.minimum_sequence_supported_fraction,
+            field_name="attrition_policy.minimum_sequence_supported_fraction",
+        )
+        scored = _require_attrition_fraction(
+            self.minimum_scored_fraction,
+            field_name="attrition_policy.minimum_scored_fraction",
+        )
+        if self.on_violation not in KINASE_ATTRITION_POLICY_ON_VIOLATION_MODES:
+            allowed = ", ".join(sorted(KINASE_ATTRITION_POLICY_ON_VIOLATION_MODES))
+            raise WorkflowValidationError(
+                f"attrition_policy.on_violation must be one of: {allowed}"
+            )
+        object.__setattr__(
+            self,
+            "minimum_reference_overlap_fraction",
+            reference_overlap,
+        )
+        object.__setattr__(
+            self,
+            "minimum_sequence_supported_fraction",
+            sequence_supported,
+        )
+        object.__setattr__(self, "minimum_scored_fraction", scored)
 
 
 @dataclass(frozen=True, slots=True)
@@ -178,6 +236,10 @@ class KinaseScoringConfig:
     optional substrate-level contribution rows on the workflow result. It
     defaults to `False` so routine runs do not build a large evidence table.
 
+    `attrition_policy` records caller-defined minimum retained-site fractions
+    for reference overlap, sequence support, and final scoring. The policy is
+    accepted and validated here but is not enforced by the kinase workflow yet.
+
     `profile_missing_value_strategy` controls column-wise median behavior when a
     kinase profile is built from multiple quantified substrates:
 
@@ -191,6 +253,9 @@ class KinaseScoringConfig:
     include_substrate_contributions: bool = False
     profile_missing_value_strategy: KinaseProfileMissingValueStrategy = (
         KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
+    )
+    attrition_policy: KinaseAttritionPolicy = field(
+        default_factory=KinaseAttritionPolicy
     )
     localisation_requirement: LocalisationRequirement = field(
         default_factory=LocalisationRequirement
@@ -227,6 +292,10 @@ class KinaseScoringConfig:
                 "scoring_config.profile_missing_value_strategy must be one of: "
                 f"{allowed}"
             )
+        if not isinstance(self.attrition_policy, KinaseAttritionPolicy):
+            raise WorkflowValidationError(
+                "scoring_config.attrition_policy must be KinaseAttritionPolicy"
+            )
         _require_int_at_least(
             self.min_substrates,
             field_name="scoring_config.min_substrates",
@@ -252,6 +321,17 @@ class KinaseScoringConfig:
                 KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
             )
         )
+
+
+def _require_attrition_fraction(value: object, *, field_name: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise WorkflowValidationError(f"{field_name} must be a float or int")
+    fraction = float(value)
+    if not math.isfinite(fraction):
+        raise WorkflowValidationError(f"{field_name} must be finite")
+    if not 0.0 <= fraction <= 1.0:
+        raise WorkflowValidationError(f"{field_name} must be between 0.0 and 1.0")
+    return fraction
 
 
 @dataclass(frozen=True, slots=True)
@@ -411,6 +491,9 @@ __all__ = [
     "KINASE_ACTIVITY_SSGSEA_RANKING_DIRECTION_DESCENDING",
     "KINASE_ACTIVITY_SSGSEA_RANKING_DIRECTIONS",
     "KINASE_ACTIVITY_TOP_N_SUBSTRATES_FLOOR",
+    "KINASE_ATTRITION_POLICY_ON_VIOLATION_ERROR",
+    "KINASE_ATTRITION_POLICY_ON_VIOLATION_MODES",
+    "KINASE_ATTRITION_POLICY_ON_VIOLATION_WARN",
     "KINASE_PROFILE_MISSING_VALUE_STRATEGIES",
     "KINASE_PROFILE_MISSING_VALUE_STRATEGY_MEDIAN_SKIPNA",
     "KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT",
@@ -427,6 +510,8 @@ __all__ = [
     "KinaseActivityMethod",
     "KinaseActivityPValueMethod",
     "KinaseActivitySsgseaRankingDirection",
+    "KinaseAttritionPolicy",
+    "KinaseAttritionViolationMode",
     "KinaseProfileMissingValueStrategy",
     "KinaseReferenceDisplayAmbiguityPolicy",
     "KinaseScoringMode",

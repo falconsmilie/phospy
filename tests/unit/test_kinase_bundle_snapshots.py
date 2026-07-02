@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from phospy.api.configs import KinaseAttritionPolicy
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles.kinase import KinaseWorkflowConfigSnapshot
 
@@ -13,6 +14,12 @@ def test_kinase_snapshot_payload_round_trip_preserves_fields() -> None:
             "include_diagnostic_scoring_tables": False,
             "include_substrate_contributions": True,
             "profile_missing_value_strategy": "median_skipna",
+            "attrition_policy": {
+                "minimum_reference_overlap_fraction": 0.2,
+                "minimum_sequence_supported_fraction": 0.4,
+                "minimum_scored_fraction": 0.6,
+                "on_violation": "error",
+            },
             "allow_mixed_total_protein_quantitative_meaning": True,
         },
         "prediction_config": {
@@ -38,6 +45,12 @@ def test_kinase_snapshot_payload_round_trip_preserves_fields() -> None:
     }
 
     snapshot = KinaseWorkflowConfigSnapshot.from_payload(payload)
+    assert snapshot.scoring_config.attrition_policy == KinaseAttritionPolicy(
+        minimum_reference_overlap_fraction=0.2,
+        minimum_sequence_supported_fraction=0.4,
+        minimum_scored_fraction=0.6,
+        on_violation="error",
+    )
     assert snapshot.to_payload() == payload
 
 

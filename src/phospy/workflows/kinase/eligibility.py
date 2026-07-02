@@ -5,6 +5,7 @@ from __future__ import annotations
 import pandas as pd
 
 from phospy.contracts.results import KinaseEligibilityReport
+from phospy.errors.workflows import PhosPyWorkflowError
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_LOCALISATION,
 )
@@ -32,10 +33,15 @@ class KinaseEligibilityReportComposer:
         request: ResolvedKinaseWorkflowRequest,
         config: ResolvedKinaseExecutionConfig,
     ) -> KinaseEligibilityReport:
-        dataset_site_index = request.dataset.phospho.index.astype(str)
-        dataset_sites = set(dataset_site_index.tolist())
-        total_dataset_sites = int(len(dataset_sites))
-        sequence_complete_sites = int(len(request.scoring_site_index))
+        attrition_metrics = request.attrition_metrics
+        if attrition_metrics is None:
+            raise PhosPyWorkflowError(
+                "kinase workflow internal invariant failed at seam="
+                "kinase.eligibility.attrition_metrics; resolved request must "
+                "include pre-scoring attrition metrics"
+            )
+        total_dataset_sites = int(attrition_metrics.total_dataset_sites)
+        sequence_complete_sites = int(attrition_metrics.sequence_supported_sites)
 
         localisation_eligible_sites, excluded_low_localisation = (
             self._resolve_localisation_counts(
@@ -54,7 +60,7 @@ class KinaseEligibilityReportComposer:
         reference_overlap_site_ids = sequence_complete_site_ids.intersection(
             reference_sites
         )
-        reference_overlap_sites = int(len(reference_overlap_site_ids))
+        reference_overlap_sites = int(attrition_metrics.scored_sites)
         excluded_no_reference_match = max(
             sequence_complete_sites - reference_overlap_sites,
             0,

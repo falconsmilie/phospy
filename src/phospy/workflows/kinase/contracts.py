@@ -50,6 +50,10 @@ from phospy.validation.datasets.protein_scoped_site_identity import (
 from phospy.validation.datasets.site_metadata import (
     enforce_site_sequence_context_contract,
 )
+from phospy.workflows.kinase.attrition_metrics import (
+    KinaseAttritionMetrics,
+    build_kinase_attrition_metrics,
+)
 from phospy.workflows.kinase.sequence_contracts import (
     dataset_sequence_source_label,
     kinase_sequence_context_contract,
@@ -75,6 +79,7 @@ class ResolvedKinaseWorkflowRequest:
     activity_phospho_matrix: pd.DataFrame
     execution_config: ResolvedKinaseExecutionConfig
     kinase_library_resource: KinaseLibraryResource | None = None
+    attrition_metrics: KinaseAttritionMetrics | None = None
     site_identity_map: pd.DataFrame | None = None
     site_sequence_merge_diagnostics: dict[str, object] = field(default_factory=dict)
     _kinase_substrate_reference: pd.DataFrame = field(
@@ -161,6 +166,21 @@ class ResolvedKinaseWorkflowRequest:
                 "site_key rows; next_action=map reference display IDs onto "
                 "dataset site_key before scoring"
             )
+        attrition_metrics = self.attrition_metrics
+        if attrition_metrics is None:
+            attrition_metrics = build_kinase_attrition_metrics(
+                dataset_site_index=self.dataset.phospho.index,
+                reference_site_index=kinase_substrate_map.loc[:, "substrate_site"],
+                sequence_supported_site_index=self.scoring_site_index,
+            )
+        elif not isinstance(attrition_metrics, KinaseAttritionMetrics):
+            raise WorkflowBoundaryError(
+                "kinase workflow boundary validation failed at seam="
+                "kinase.contracts.attrition_metrics_type; "
+                "attrition_metrics must be KinaseAttritionMetrics; "
+                "next_action=ensure interpreter attaches structured attrition "
+                "metrics before executor scoring"
+            )
         if not self._has_compatible_site_sequence_reference_alignment(
             merged_site_sequences=site_sequences,
             site_identity_map=site_identity_map,
@@ -181,6 +201,7 @@ class ResolvedKinaseWorkflowRequest:
         object.__setattr__(self, "site_sequences", site_sequences)
         object.__setattr__(self, "site_identity_map", site_identity_map)
         object.__setattr__(self, "activity_phospho_matrix", activity_phospho_matrix)
+        object.__setattr__(self, "attrition_metrics", attrition_metrics)
         object.__setattr__(self, "_kinase_substrate_reference", kinase_substrate_map)
         object.__setattr__(self, "_site_sequence_reference", site_sequences)
         object.__setattr__(self, "_activity_phospho_table", activity_phospho_matrix)

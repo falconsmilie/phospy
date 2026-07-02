@@ -10,6 +10,7 @@ from phospy.contracts.results import (
     KinaseWorkflowSiteAttritionSummary,
 )
 from phospy.errors.validation import WorkflowValidationError
+from phospy.errors.workflows import PhosPyWorkflowError
 from phospy.science.datasets.models import (
     PreprocessingSiteAttritionSummary,
     SiteSequenceResolutionReport,
@@ -103,13 +104,20 @@ class KinaseSiteAttritionSummaryComposer:
         prediction_result: KinasePredictionResult,
         activity_enabled: bool,
     ) -> KinaseWorkflowScoringAttritionSummary:
-        final_quantitative_sites = int(request.dataset.phospho.shape[0])
+        attrition_metrics = request.attrition_metrics
+        if attrition_metrics is None:
+            raise PhosPyWorkflowError(
+                "kinase workflow internal invariant failed at seam="
+                "kinase.site_attrition.attrition_metrics; resolved request must "
+                "include pre-scoring attrition metrics"
+            )
+        final_quantitative_sites = int(attrition_metrics.total_dataset_sites)
         motif_sequence_validation = (
             scoring_execution.scoring_result.motif_sequence_validation
         )
         scoring_view = KinaseScoringInternalView(scoring_execution.scoring_result)
         kinase_library_site_diagnostics = scoring_view.kinase_library_site_diagnostics
-        sequence_supported_sites = int(len(request.scoring_site_index))
+        sequence_supported_sites = int(attrition_metrics.sequence_supported_sites)
         if kinase_library_site_diagnostics is not None:
             valid_statuses = {
                 KINASE_LIBRARY_SITE_STATUS_VALID_SCORED_SITE,
@@ -144,11 +152,6 @@ class KinaseSiteAttritionSummaryComposer:
         invalid_or_missing_identifier_sites = set(malformed_identifier_sites)
         invalid_or_missing_identifier_sites.update(motif_invalid_site_ids)
 
-        reference_evidence_sites = {
-            str(site_id)
-            for site_ids in scoring_execution.quantified_substrates.values()
-            for site_id in site_ids
-        }
         final_output_sites = self._count_sites_with_non_missing_scores(
             prediction_result.pred_mat
         )
@@ -175,7 +178,7 @@ class KinaseSiteAttritionSummaryComposer:
             ),
             sites_eligible_for_motif_scoring=motif_valid_sites,
             sites_with_kinase_substrate_reference_profile_evidence=int(
-                len(reference_evidence_sites)
+                attrition_metrics.scored_sites
             ),
             sites_contributing_to_final_fused_prediction_scoring_output=(
                 final_output_sites

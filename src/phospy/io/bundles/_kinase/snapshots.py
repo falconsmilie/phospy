@@ -10,6 +10,7 @@ from phospy.api.configs import (
     KINASE_ACTIVITY_KSEA_P_VALUE_METHODS,
     KINASE_ACTIVITY_METHODS,
     KINASE_ADAPTIVE_POLICIES,
+    KINASE_ATTRITION_POLICY_ON_VIOLATION_MODES,
     KINASE_PREDICTION_MODES,
     KINASE_PROFILE_MISSING_VALUE_STRATEGIES,
     KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
@@ -18,6 +19,8 @@ from phospy.api.configs import (
     KinaseActivityMethod,
     KinaseActivityPValueMethod,
     KinaseAdaptivePolicy,
+    KinaseAttritionPolicy,
+    KinaseAttritionViolationMode,
     KinasePredictionConfig,
     KinasePredictionMode,
     KinaseProfileMissingValueStrategy,
@@ -43,6 +46,7 @@ _SCORING_CONFIG_ALLOWED_FIELDS = frozenset(
         "include_diagnostic_scoring_tables",
         "include_substrate_contributions",
         "profile_missing_value_strategy",
+        "attrition_policy",
         "allow_mixed_total_protein_quantitative_meaning",
     }
 )
@@ -53,6 +57,15 @@ _SCORING_CONFIG_REQUIRED_FIELDS = frozenset(
         "profile_missing_value_strategy",
     }
 )
+_ATTRITION_POLICY_ALLOWED_FIELDS = frozenset(
+    {
+        "minimum_reference_overlap_fraction",
+        "minimum_sequence_supported_fraction",
+        "minimum_scored_fraction",
+        "on_violation",
+    }
+)
+_ATTRITION_POLICY_REQUIRED_FIELDS = _ATTRITION_POLICY_ALLOWED_FIELDS
 _PREDICTION_CONFIG_ALLOWED_FIELDS = frozenset(
     {
         "top_k",
@@ -90,6 +103,7 @@ class KinaseWorkflowConfigSnapshot:
     prediction_config: KinasePredictionConfig
     activity_config: KinaseActivityConfig | None
     _include_scoring_mode: bool = field(default=True, repr=False, compare=False)
+    _include_attrition_policy: bool = field(default=False, repr=False, compare=False)
 
     @classmethod
     def from_request(
@@ -141,6 +155,13 @@ class KinaseWorkflowConfigSnapshot:
         }
         if self.scoring_config.include_substrate_contributions:
             scoring_payload["include_substrate_contributions"] = True
+        if (
+            self._include_attrition_policy
+            or self.scoring_config.attrition_policy != KinaseAttritionPolicy()
+        ):
+            scoring_payload["attrition_policy"] = _attrition_policy_to_payload(
+                self.scoring_config.attrition_policy
+            )
         if self._include_scoring_mode:
             scoring_payload["scoring_mode"] = self.scoring_config.scoring_mode
         return {
@@ -320,6 +341,10 @@ class KinaseWorkflowConfigSnapshot:
                         "allow_mixed_total_protein_quantitative_meaning"
                     ),
                 ),
+                attrition_policy=_parse_attrition_policy(
+                    scoring_payload.get("attrition_policy"),
+                    field_name=f"{scope}.scoring_config.attrition_policy",
+                ),
             ),
             prediction_config=KinasePredictionConfig(
                 top_k=require_int(
@@ -365,6 +390,7 @@ class KinaseWorkflowConfigSnapshot:
             ),
             activity_config=activity_config,
             _include_scoring_mode="scoring_mode" in scoring_payload,
+            _include_attrition_policy="attrition_policy" in scoring_payload,
         )
 
 
@@ -411,6 +437,71 @@ def _parse_scoring_mode(value: str, *, field_name: str) -> KinaseScoringMode:
         allowed = ", ".join(sorted(KINASE_SCORING_MODES))
         raise PhosPyInputError(f"{field_name} must be one of: {allowed}")
     return cast(KinaseScoringMode, value)
+
+
+def _parse_attrition_policy(
+    value: object,
+    *,
+    field_name: str,
+) -> KinaseAttritionPolicy:
+    if value is None:
+        return KinaseAttritionPolicy()
+    payload = require_mapping(value, field_name=field_name)
+    _reject_unsupported_fields(
+        payload,
+        field_name=field_name,
+        allowed_fields=_ATTRITION_POLICY_ALLOWED_FIELDS,
+    )
+    _require_fields(
+        payload,
+        field_name=field_name,
+        required_fields=_ATTRITION_POLICY_REQUIRED_FIELDS,
+    )
+    return KinaseAttritionPolicy(
+        minimum_reference_overlap_fraction=require_float(
+            payload.get("minimum_reference_overlap_fraction"),
+            field_name=f"{field_name}.minimum_reference_overlap_fraction",
+        ),
+        minimum_sequence_supported_fraction=require_float(
+            payload.get("minimum_sequence_supported_fraction"),
+            field_name=f"{field_name}.minimum_sequence_supported_fraction",
+        ),
+        minimum_scored_fraction=require_float(
+            payload.get("minimum_scored_fraction"),
+            field_name=f"{field_name}.minimum_scored_fraction",
+        ),
+        on_violation=_parse_attrition_violation_mode(
+            require_str(
+                payload.get("on_violation"),
+                field_name=f"{field_name}.on_violation",
+            ),
+            field_name=f"{field_name}.on_violation",
+        ),
+    )
+
+
+def _attrition_policy_to_payload(policy: KinaseAttritionPolicy) -> dict[str, object]:
+    return {
+        "minimum_reference_overlap_fraction": (
+            policy.minimum_reference_overlap_fraction
+        ),
+        "minimum_sequence_supported_fraction": (
+            policy.minimum_sequence_supported_fraction
+        ),
+        "minimum_scored_fraction": policy.minimum_scored_fraction,
+        "on_violation": policy.on_violation,
+    }
+
+
+def _parse_attrition_violation_mode(
+    value: str,
+    *,
+    field_name: str,
+) -> KinaseAttritionViolationMode:
+    if value not in KINASE_ATTRITION_POLICY_ON_VIOLATION_MODES:
+        allowed = ", ".join(sorted(KINASE_ATTRITION_POLICY_ON_VIOLATION_MODES))
+        raise PhosPyInputError(f"{field_name} must be one of: {allowed}")
+    return cast(KinaseAttritionViolationMode, value)
 
 
 def _parse_prediction_mode(value: str, *, field_name: str) -> KinasePredictionMode:
