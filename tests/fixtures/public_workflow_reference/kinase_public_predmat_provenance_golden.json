@@ -4,7 +4,33 @@
     "scoring_config": {
       "min_substrates": 2,
       "include_diagnostic_scoring_tables": false,
-      "profile_missing_value_strategy": "strict"
+      "profile_missing_value_strategy": "strict",
+      "attrition_policy": {
+        "minimum_reference_overlap_fraction": 0.0,
+        "minimum_sequence_supported_fraction": 0.0,
+        "minimum_scored_fraction": 0.0,
+        "on_violation": "warn"
+      }
+    },
+    "attrition_provenance": {
+      "metrics": {
+        "total_dataset_sites": 8,
+        "reference_overlap_sites": 8,
+        "sequence_supported_sites": 8,
+        "scored_sites": 8,
+        "reference_overlap_fraction": 1.0,
+        "sequence_supported_fraction": 1.0,
+        "scored_fraction": 1.0
+      },
+      "policy": {
+        "minimum_reference_overlap_fraction": 0.0,
+        "minimum_sequence_supported_fraction": 0.0,
+        "minimum_scored_fraction": 0.0,
+        "on_violation": "warn"
+      },
+      "policy_outcome": "passed",
+      "policy_violations": [],
+      "warning_messages": []
     },
     "prediction_config": {
       "top_k": 4,

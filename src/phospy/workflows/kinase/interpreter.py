@@ -7,6 +7,7 @@ from typing import NoReturn, TypedDict, cast
 import pandas as pd
 
 from phospy.contracts.configs import (
+    KINASE_ATTRITION_POLICY_ON_VIOLATION_ERROR,
     KINASE_SCORING_MODES_REQUIRING_KINASE_LIBRARY,
 )
 from phospy.contracts.requests import KinaseWorkflowRequest
@@ -25,7 +26,10 @@ from phospy.science.references.resolution import (
 )
 from phospy.workflows.kinase.attrition_metrics import (
     KinaseAttritionMetrics,
+    KinaseAttritionPolicyViolation,
     build_kinase_attrition_metrics_from_overlap,
+    build_kinase_attrition_provenance_payload,
+    evaluate_kinase_attrition_policy,
 )
 from phospy.workflows.kinase.contracts import (
     ResolvedKinaseActivityExecutionConfig,
@@ -157,6 +161,10 @@ class KinaseWorkflowInterpreter:
             reference_overlap_site_ids=overlap_counts["overlap_site_ids"],
             sequence_supported_site_index=scoring_site_index,
         )
+        attrition_policy_violations = self._enforce_attrition_policy(
+            attrition_metrics=attrition_metrics,
+            request=request,
+        )
         self._validate_scoring_site_support(
             scoring_site_index=scoring_site_index,
             dataset=dataset_phospho,
@@ -194,6 +202,7 @@ class KinaseWorkflowInterpreter:
             execution_config=execution_config,
             kinase_library_resource=kinase_library_resource,
             attrition_metrics=attrition_metrics,
+            attrition_policy_violations=attrition_policy_violations,
             site_sequence_merge_diagnostics={
                 **merge_result.diagnostics_payload(),
                 "reference_sequence_count": int(references.site_sequences.shape[0]),
@@ -332,6 +341,7 @@ class KinaseWorkflowInterpreter:
                 if request.prediction_config.random_state is None
                 else int(request.prediction_config.random_state)
             ),
+            attrition_policy=request.scoring_config.attrition_policy,
             activity=activity,
         )
 
@@ -569,6 +579,42 @@ class KinaseWorkflowInterpreter:
                 "reference overlap and usable site-sequence support"
             ),
             **attrition_metrics.to_payload(),
+        )
+
+    def _enforce_attrition_policy(
+        self,
+        *,
+        attrition_metrics: KinaseAttritionMetrics,
+        request: KinaseWorkflowRequest,
+    ) -> tuple[KinaseAttritionPolicyViolation, ...]:
+        policy = request.scoring_config.attrition_policy
+        violations = evaluate_kinase_attrition_policy(
+            metrics=attrition_metrics,
+            policy=policy,
+        )
+        if not violations:
+            return ()
+        if policy.on_violation != KINASE_ATTRITION_POLICY_ON_VIOLATION_ERROR:
+            return violations
+        first_violation = violations[0]
+        attrition_provenance = build_kinase_attrition_provenance_payload(
+            metrics=attrition_metrics,
+            policy=policy,
+            violations=violations,
+        )
+        raise WorkflowBoundaryError(
+            first_violation.message,
+            seam="kinase.interpreter.attrition_policy",
+            next_action=(
+                "relax scoring_config.attrition_policy thresholds or provide "
+                "references and site-sequence support with stronger dataset coverage"
+            ),
+            details={
+                "violations": [violation.to_payload() for violation in violations],
+                "attrition_provenance": attrition_provenance,
+                "policy_outcome": attrition_provenance["policy_outcome"],
+                **attrition_metrics.to_payload(),
+            },
         )
 
     @staticmethod

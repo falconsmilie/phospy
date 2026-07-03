@@ -1173,6 +1173,15 @@ def test_kinase_public_predmat_provenance_matches_golden_contract() -> None:
         == (golden["workflow_parameters"]["scoring_config"])
     )
     assert (
+        provenance.workflow_parameters["attrition_provenance"]
+        == (golden["workflow_parameters"]["attrition_provenance"])
+    )
+    assert result.attrition_provenance is not None
+    assert (
+        result.attrition_provenance.to_payload()
+        == golden["workflow_parameters"]["attrition_provenance"]
+    )
+    assert (
         provenance.workflow_parameters["prediction_config"]
         == (golden["workflow_parameters"]["prediction_config"])
     )

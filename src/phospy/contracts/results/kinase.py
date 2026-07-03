@@ -3,10 +3,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 import pandas as pd
 
+from phospy.errors.input import PhosPyInputError
 from phospy.frames.ownership import export_optional_dataframe
 from phospy.provenance.models import RunProvenance
 from phospy.science.activities.models import (
@@ -60,6 +62,98 @@ class KinaseWorkflowSiteAttritionSummary:
 
 
 @dataclass(frozen=True, slots=True)
+class KinaseWorkflowCaveat:
+    """Structured caveat recorded on a kinase workflow result."""
+
+    code: str
+    message: str
+    details: Mapping[str, object] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        code = _require_non_empty_text(
+            self.code,
+            field_name="kinase_workflow_result.caveats[].code",
+        )
+        message = _require_non_empty_text(
+            self.message,
+            field_name="kinase_workflow_result.caveats[].message",
+        )
+        if not isinstance(self.details, Mapping):
+            raise PhosPyInputError(
+                "kinase_workflow_result.caveats[].details must be a mapping"
+            )
+        object.__setattr__(self, "code", code)
+        object.__setattr__(self, "message", message)
+        object.__setattr__(self, "details", dict(self.details))
+
+    def to_payload(self) -> dict[str, object]:
+        return {
+            "code": self.code,
+            "message": self.message,
+            "details": dict(self.details),
+        }
+
+
+_KINASE_ATTRITION_POLICY_OUTCOMES = frozenset({"passed", "warned", "failed"})
+
+
+@dataclass(frozen=True, slots=True)
+class KinaseWorkflowAttritionProvenance:
+    """Structured kinase attrition metrics, policy, and policy outcome."""
+
+    metrics: Mapping[str, object]
+    policy: Mapping[str, object]
+    policy_outcome: str
+    policy_violations: tuple[Mapping[str, object], ...] = ()
+    warning_messages: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        metrics = _require_mapping(
+            self.metrics,
+            field_name="kinase_workflow_result.attrition_provenance.metrics",
+        )
+        policy = _require_mapping(
+            self.policy,
+            field_name="kinase_workflow_result.attrition_provenance.policy",
+        )
+        policy_outcome = _require_policy_outcome(self.policy_outcome)
+        policy_violations = tuple(
+            _require_mapping(
+                violation,
+                field_name=(
+                    "kinase_workflow_result.attrition_provenance.policy_violations[]"
+                ),
+            )
+            for violation in self.policy_violations
+        )
+        warning_messages = tuple(
+            _require_non_empty_text(
+                message,
+                field_name=(
+                    "kinase_workflow_result.attrition_provenance.warning_messages[]"
+                ),
+            )
+            for message in self.warning_messages
+        )
+        object.__setattr__(self, "metrics", metrics)
+        object.__setattr__(self, "policy", policy)
+        object.__setattr__(self, "policy_outcome", policy_outcome)
+        object.__setattr__(self, "policy_violations", policy_violations)
+        object.__setattr__(self, "warning_messages", warning_messages)
+
+    def to_payload(self) -> dict[str, object]:
+        return {
+            "metrics": dict(self.metrics),
+            "policy": dict(self.policy),
+            "policy_outcome": self.policy_outcome,
+            "policy_violations": [
+                dict(violation) for violation in self.policy_violations
+            ],
+            "warning_messages": list(self.warning_messages),
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class KinaseEligibilityReport:
     """Compact, user-facing kinase workflow eligibility counters.
 
@@ -98,8 +192,10 @@ class KinaseWorkflowResult:
     prediction_result: KinasePredictionResult
     eligibility_report: KinaseEligibilityReport | None = None
     site_attrition_summary: KinaseWorkflowSiteAttritionSummary | None = None
+    attrition_provenance: KinaseWorkflowAttritionProvenance | None = None
     activity_result: KinaseActivityResult | None = None
     provenance: RunProvenance | None = None
+    caveats: tuple[KinaseWorkflowCaveat, ...] = ()
     _substrate_contributions: pd.DataFrame | None = field(
         init=False,
         repr=False,
@@ -114,9 +210,11 @@ class KinaseWorkflowResult:
         prediction_result: KinasePredictionResult,
         eligibility_report: KinaseEligibilityReport | None = None,
         site_attrition_summary: KinaseWorkflowSiteAttritionSummary | None = None,
+        attrition_provenance: KinaseWorkflowAttritionProvenance | None = None,
         activity_result: KinaseActivityResult | None = None,
         provenance: RunProvenance | None = None,
         substrate_contributions: pd.DataFrame | None = None,
+        caveats: tuple[KinaseWorkflowCaveat, ...] = (),
         *,
         _assume_owned: bool = False,
     ) -> None:
@@ -126,8 +224,14 @@ class KinaseWorkflowResult:
         object.__setattr__(self, "prediction_result", prediction_result)
         object.__setattr__(self, "eligibility_report", eligibility_report)
         object.__setattr__(self, "site_attrition_summary", site_attrition_summary)
+        object.__setattr__(
+            self,
+            "attrition_provenance",
+            _own_attrition_provenance(attrition_provenance),
+        )
         object.__setattr__(self, "activity_result", activity_result)
         object.__setattr__(self, "provenance", provenance)
+        object.__setattr__(self, "caveats", _own_workflow_caveats(caveats))
         object.__setattr__(
             self,
             "_substrate_contributions",
@@ -168,12 +272,60 @@ def _own_optional_kinase_substrate_contributions(
     ).frame
 
 
+def _own_workflow_caveats(
+    caveats: tuple[KinaseWorkflowCaveat, ...],
+) -> tuple[KinaseWorkflowCaveat, ...]:
+    owned = tuple(caveats)
+    for caveat in owned:
+        if isinstance(caveat, KinaseWorkflowCaveat):
+            continue
+        raise PhosPyInputError(
+            "kinase_workflow_result.caveats must contain KinaseWorkflowCaveat values"
+        )
+    return owned
+
+
+def _own_attrition_provenance(
+    value: KinaseWorkflowAttritionProvenance | None,
+) -> KinaseWorkflowAttritionProvenance | None:
+    if value is None or isinstance(value, KinaseWorkflowAttritionProvenance):
+        return value
+    raise PhosPyInputError(
+        "kinase_workflow_result.attrition_provenance must be "
+        "KinaseWorkflowAttritionProvenance or None"
+    )
+
+
+def _require_mapping(value: object, *, field_name: str) -> dict[str, object]:
+    if not isinstance(value, Mapping):
+        raise PhosPyInputError(f"{field_name} must be a mapping")
+    return {str(key): item for key, item in value.items()}
+
+
+def _require_non_empty_text(value: object, *, field_name: str) -> str:
+    if not isinstance(value, str) or value.strip() == "":
+        raise PhosPyInputError(f"{field_name} must be a non-empty string")
+    return value
+
+
+def _require_policy_outcome(value: object) -> str:
+    if isinstance(value, str) and value in _KINASE_ATTRITION_POLICY_OUTCOMES:
+        return value
+    allowed = ", ".join(sorted(_KINASE_ATTRITION_POLICY_OUTCOMES))
+    raise PhosPyInputError(
+        "kinase_workflow_result.attrition_provenance.policy_outcome must be "
+        f"one of: {allowed}"
+    )
+
+
 __all__ = [
     "ActivityMethodDiagnostics",
     "KinaseActivityResult",
     "KinaseEligibilityReport",
     "KinasePredictionResult",
     "KinaseScoringResult",
+    "KinaseWorkflowAttritionProvenance",
+    "KinaseWorkflowCaveat",
     "KinaseWorkflowPreprocessingAttritionSummary",
     "KinaseWorkflowResult",
     "KinaseWorkflowScoringAttritionSummary",

@@ -4,10 +4,18 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import Literal
 
 import pandas as pd
 
+from phospy.contracts.configs import KinaseAttritionPolicy
 from phospy.errors.workflows import PhosPyWorkflowError
+
+KINASE_ATTRITION_POLICY_CAVEAT_CODE = "kinase_attrition_policy_violation"
+KINASE_ATTRITION_POLICY_OUTCOME_PASSED = "passed"
+KINASE_ATTRITION_POLICY_OUTCOME_WARNED = "warned"
+KINASE_ATTRITION_POLICY_OUTCOME_FAILED = "failed"
+KinaseAttritionPolicyOutcome = Literal["passed", "warned", "failed"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,6 +84,151 @@ class KinaseAttritionMetrics:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class KinaseAttritionPolicyViolation:
+    """A configured attrition-policy threshold violation."""
+
+    threshold_name: str
+    configured_threshold: float
+    observed_value: float
+    total_dataset_sites: int
+    reference_overlap_sites: int
+    sequence_supported_sites: int
+    scored_sites: int
+    message: str
+
+    def to_payload(self) -> dict[str, object]:
+        return {
+            "code": KINASE_ATTRITION_POLICY_CAVEAT_CODE,
+            "threshold_name": self.threshold_name,
+            "configured_threshold": float(self.configured_threshold),
+            "observed_value": float(self.observed_value),
+            "total_dataset_sites": int(self.total_dataset_sites),
+            "reference_overlap_sites": int(self.reference_overlap_sites),
+            "sequence_supported_sites": int(self.sequence_supported_sites),
+            "scored_sites": int(self.scored_sites),
+            "message": self.message,
+        }
+
+
+def evaluate_kinase_attrition_policy(
+    *,
+    metrics: KinaseAttritionMetrics,
+    policy: KinaseAttritionPolicy,
+) -> tuple[KinaseAttritionPolicyViolation, ...]:
+    """Evaluate policy thresholds against one shared metrics object."""
+
+    checks = (
+        (
+            "minimum_reference_overlap_fraction",
+            float(policy.minimum_reference_overlap_fraction),
+            float(metrics.reference_overlap_fraction),
+            "Kinase reference overlap",
+            "reference_overlap_sites",
+            int(metrics.reference_overlap_sites),
+        ),
+        (
+            "minimum_sequence_supported_fraction",
+            float(policy.minimum_sequence_supported_fraction),
+            float(metrics.sequence_supported_fraction),
+            "Kinase site-sequence support",
+            "sequence_supported_sites",
+            int(metrics.sequence_supported_sites),
+        ),
+        (
+            "minimum_scored_fraction",
+            float(policy.minimum_scored_fraction),
+            float(metrics.scored_fraction),
+            "Kinase scoring",
+            "scored_sites",
+            int(metrics.scored_sites),
+        ),
+    )
+    violations: list[KinaseAttritionPolicyViolation] = []
+    for (
+        threshold_name,
+        configured_threshold,
+        observed_value,
+        stage_label,
+        retained_count_name,
+        retained_count,
+    ) in checks:
+        if observed_value >= configured_threshold:
+            continue
+        message = (
+            f"{stage_label} retained {_format_percent(observed_value)} of "
+            "dataset sites, below the configured "
+            f"{threshold_name}={_format_percent(configured_threshold)} "
+            f"({retained_count_name}={retained_count}, "
+            f"total_dataset_sites={int(metrics.total_dataset_sites)})."
+        )
+        violations.append(
+            KinaseAttritionPolicyViolation(
+                threshold_name=threshold_name,
+                configured_threshold=configured_threshold,
+                observed_value=observed_value,
+                total_dataset_sites=int(metrics.total_dataset_sites),
+                reference_overlap_sites=int(metrics.reference_overlap_sites),
+                sequence_supported_sites=int(metrics.sequence_supported_sites),
+                scored_sites=int(metrics.scored_sites),
+                message=message,
+            )
+        )
+    return tuple(violations)
+
+
+def kinase_attrition_policy_to_payload(
+    policy: KinaseAttritionPolicy,
+) -> dict[str, object]:
+    """Return the configured kinase attrition policy as JSON-safe provenance."""
+
+    return {
+        "minimum_reference_overlap_fraction": float(
+            policy.minimum_reference_overlap_fraction
+        ),
+        "minimum_sequence_supported_fraction": float(
+            policy.minimum_sequence_supported_fraction
+        ),
+        "minimum_scored_fraction": float(policy.minimum_scored_fraction),
+        "on_violation": policy.on_violation,
+    }
+
+
+def resolve_kinase_attrition_policy_outcome(
+    *,
+    policy: KinaseAttritionPolicy,
+    violations: tuple[KinaseAttritionPolicyViolation, ...],
+) -> KinaseAttritionPolicyOutcome:
+    """Resolve pass/warn/fail status from the configured policy and violations."""
+
+    if not violations:
+        return KINASE_ATTRITION_POLICY_OUTCOME_PASSED
+    if policy.on_violation == "error":
+        return KINASE_ATTRITION_POLICY_OUTCOME_FAILED
+    return KINASE_ATTRITION_POLICY_OUTCOME_WARNED
+
+
+def build_kinase_attrition_provenance_payload(
+    *,
+    metrics: KinaseAttritionMetrics,
+    policy: KinaseAttritionPolicy,
+    violations: tuple[KinaseAttritionPolicyViolation, ...],
+) -> dict[str, object]:
+    """Build the structured attrition payload shared by results and provenance."""
+
+    warning_messages = tuple(violation.message for violation in violations)
+    return {
+        "metrics": metrics.to_payload(),
+        "policy": kinase_attrition_policy_to_payload(policy),
+        "policy_outcome": resolve_kinase_attrition_policy_outcome(
+            policy=policy,
+            violations=violations,
+        ),
+        "policy_violations": [violation.to_payload() for violation in violations],
+        "warning_messages": list(warning_messages),
+    }
+
+
 def build_kinase_attrition_metrics(
     *,
     dataset_site_index: pd.Index,
@@ -140,8 +293,22 @@ def _string_values(values: Iterable[object]) -> list[str]:
     return [str(value) for value in values]
 
 
+def _format_percent(value: float) -> str:
+    return f"{float(value) * 100:.1f}%"
+
+
 __all__ = [
+    "KINASE_ATTRITION_POLICY_CAVEAT_CODE",
+    "KINASE_ATTRITION_POLICY_OUTCOME_FAILED",
+    "KINASE_ATTRITION_POLICY_OUTCOME_PASSED",
+    "KINASE_ATTRITION_POLICY_OUTCOME_WARNED",
     "KinaseAttritionMetrics",
+    "KinaseAttritionPolicyOutcome",
+    "KinaseAttritionPolicyViolation",
+    "build_kinase_attrition_provenance_payload",
     "build_kinase_attrition_metrics",
     "build_kinase_attrition_metrics_from_overlap",
+    "evaluate_kinase_attrition_policy",
+    "kinase_attrition_policy_to_payload",
+    "resolve_kinase_attrition_policy_outcome",
 ]

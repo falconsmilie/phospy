@@ -37,6 +37,8 @@ from tests.support.site_keys import (
 
 INTENTIONAL_RESULT_COMPATIBILITY_ALIASES = {
     "KinaseEligibilityReport",
+    "KinaseWorkflowAttritionProvenance",
+    "KinaseWorkflowCaveat",
     "KinaseWorkflowPreprocessingAttritionSummary",
     "KinaseWorkflowScoringAttritionSummary",
     "KinaseWorkflowSiteAttritionSummary",
@@ -151,6 +153,8 @@ def test_contract_result_domain_modules_preserve_legacy_import_identity() -> Non
     from phospy.contracts.results.enrichment import EnrichmentWorkflowResult
     from phospy.contracts.results.kinase import (
         KinaseEligibilityReport,
+        KinaseWorkflowAttritionProvenance,
+        KinaseWorkflowCaveat,
         KinaseWorkflowResult,
     )
     from phospy.contracts.results.preprocessing import BatchCorrectionReport
@@ -161,6 +165,11 @@ def test_contract_result_domain_modules_preserve_legacy_import_identity() -> Non
     assert contracts_results.DifferentialAnalysisResult is DifferentialAnalysisResult
     assert contracts_results.EnrichmentWorkflowResult is EnrichmentWorkflowResult
     assert contracts_results.KinaseEligibilityReport is KinaseEligibilityReport
+    assert (
+        contracts_results.KinaseWorkflowAttritionProvenance
+        is KinaseWorkflowAttritionProvenance
+    )
+    assert contracts_results.KinaseWorkflowCaveat is KinaseWorkflowCaveat
     assert contracts_results.KinaseWorkflowResult is KinaseWorkflowResult
     assert contracts_results.BatchCorrectionReport is BatchCorrectionReport
     assert contracts_results.SignalomeWorkflowResult is SignalomeWorkflowResult

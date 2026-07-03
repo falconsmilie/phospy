@@ -364,7 +364,13 @@ def _kinase_manifest_payload(
             None if activity_result is None else activity_result.count_field_semantics
         ),
         "site_attrition_summary": _site_attrition_summary_payload(result),
+        "attrition_provenance": (
+            None
+            if result.attrition_provenance is None
+            else result.attrition_provenance.to_payload()
+        ),
         "eligibility_report": _eligibility_report_payload(result),
+        "caveats": [caveat.to_payload() for caveat in result.caveats],
         "output_format": output_format,
         "provenance": (
             None

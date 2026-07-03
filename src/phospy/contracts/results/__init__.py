@@ -48,6 +48,12 @@ from phospy.contracts.results.kinase import (
     KinaseEligibilityReport as KinaseEligibilityReport,
 )
 from phospy.contracts.results.kinase import (
+    KinaseWorkflowAttritionProvenance as KinaseWorkflowAttritionProvenance,
+)
+from phospy.contracts.results.kinase import (
+    KinaseWorkflowCaveat as KinaseWorkflowCaveat,
+)
+from phospy.contracts.results.kinase import (
     KinaseWorkflowPreprocessingAttritionSummary as KinaseWorkflowPreprocessingAttritionSummary,
 )
 from phospy.contracts.results.kinase import (
@@ -100,6 +106,8 @@ __all__ = [
     "KinaseActivityResult",
     "KinasePredictionResult",
     "KinaseScoringResult",
+    "KinaseWorkflowAttritionProvenance",
+    "KinaseWorkflowCaveat",
     "KinaseWorkflowResult",
     "KseaZScoreActivityDiagnostics",
     "PhosphositeImportResult",

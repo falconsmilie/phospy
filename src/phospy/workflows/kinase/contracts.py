@@ -15,6 +15,7 @@ from phospy.contracts.configs import (
     KinaseActivityPValueMethod,
     KinaseActivitySsgseaRankingDirection,
     KinaseAdaptivePolicy,
+    KinaseAttritionPolicy,
     KinasePredictionMode,
     KinaseProfileMissingValueStrategy,
     KinaseScoringMode,
@@ -52,6 +53,7 @@ from phospy.validation.datasets.site_metadata import (
 )
 from phospy.workflows.kinase.attrition_metrics import (
     KinaseAttritionMetrics,
+    KinaseAttritionPolicyViolation,
     build_kinase_attrition_metrics,
 )
 from phospy.workflows.kinase.sequence_contracts import (
@@ -80,6 +82,7 @@ class ResolvedKinaseWorkflowRequest:
     execution_config: ResolvedKinaseExecutionConfig
     kinase_library_resource: KinaseLibraryResource | None = None
     attrition_metrics: KinaseAttritionMetrics | None = None
+    attrition_policy_violations: tuple[KinaseAttritionPolicyViolation, ...] = ()
     site_identity_map: pd.DataFrame | None = None
     site_sequence_merge_diagnostics: dict[str, object] = field(default_factory=dict)
     _kinase_substrate_reference: pd.DataFrame = field(
@@ -181,6 +184,18 @@ class ResolvedKinaseWorkflowRequest:
                 "next_action=ensure interpreter attaches structured attrition "
                 "metrics before executor scoring"
             )
+        attrition_policy_violations = tuple(self.attrition_policy_violations)
+        for violation in attrition_policy_violations:
+            if isinstance(violation, KinaseAttritionPolicyViolation):
+                continue
+            raise WorkflowBoundaryError(
+                "kinase workflow boundary validation failed at seam="
+                "kinase.contracts.attrition_policy_violations_type; "
+                "attrition_policy_violations must contain "
+                "KinaseAttritionPolicyViolation values; "
+                "next_action=ensure interpreter attaches structured attrition "
+                "policy violations before executor scoring"
+            )
         if not self._has_compatible_site_sequence_reference_alignment(
             merged_site_sequences=site_sequences,
             site_identity_map=site_identity_map,
@@ -202,6 +217,11 @@ class ResolvedKinaseWorkflowRequest:
         object.__setattr__(self, "site_identity_map", site_identity_map)
         object.__setattr__(self, "activity_phospho_matrix", activity_phospho_matrix)
         object.__setattr__(self, "attrition_metrics", attrition_metrics)
+        object.__setattr__(
+            self,
+            "attrition_policy_violations",
+            attrition_policy_violations,
+        )
         object.__setattr__(self, "_kinase_substrate_reference", kinase_substrate_map)
         object.__setattr__(self, "_site_sequence_reference", site_sequences)
         object.__setattr__(self, "_activity_phospho_table", activity_phospho_matrix)
@@ -676,6 +696,9 @@ class ResolvedKinaseExecutionConfig:
     prediction_adaptive_policy: KinaseAdaptivePolicy
     prediction_n_iterations: int
     prediction_random_state: int | None
+    attrition_policy: KinaseAttritionPolicy = field(
+        default_factory=KinaseAttritionPolicy
+    )
     prediction_sampling_policy: PredictionSamplingPolicy = (
         DEFAULT_PREDICTION_SAMPLING_POLICY
     )

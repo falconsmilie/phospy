@@ -82,6 +82,11 @@ def test_signalome_bundle_round_trip_preserves_outputs_and_config(
     assert provenance_to_payload(
         loaded.result.kinase_result.provenance
     ) == provenance_to_payload(result.kinase_result.provenance)
+    assert (
+        loaded.result.kinase_result.attrition_provenance
+        == result.kinase_result.attrition_provenance
+    )
+    assert loaded.result.kinase_result.caveats == result.kinase_result.caveats
     _assert_signalome_result_equal(loaded.result, result)
 
 

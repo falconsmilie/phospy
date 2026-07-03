@@ -9,7 +9,12 @@ from typing import NoReturn
 
 import pandas as pd
 
-from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
+from phospy.api.results import (
+    KinaseWorkflowAttritionProvenance,
+    KinaseWorkflowCaveat,
+    KinaseWorkflowResult,
+    SignalomeWorkflowResult,
+)
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.intensity_scale_state import (
     intensity_scale_state_from_payload,
@@ -328,6 +333,117 @@ def _reconstruct_kinase_result(
             sections=sections,
         ),
         provenance=provenance,
+        attrition_provenance=_kinase_attrition_provenance_from_provenance(provenance),
+        caveats=_kinase_caveats_from_provenance(provenance),
+    )
+
+
+def _kinase_caveats_from_provenance(
+    provenance: RunProvenance,
+) -> tuple[KinaseWorkflowCaveat, ...]:
+    workflow_parameters = provenance.workflow_parameters
+    if not isinstance(workflow_parameters, Mapping):
+        return ()
+    scoring_diagnostics = workflow_parameters.get("scoring_diagnostics")
+    if not isinstance(scoring_diagnostics, Mapping):
+        return ()
+    raw_violations = scoring_diagnostics.get("attrition_policy_violations")
+    if not isinstance(raw_violations, list):
+        attrition_provenance = workflow_parameters.get("attrition_provenance")
+        if isinstance(attrition_provenance, Mapping):
+            raw_violations = attrition_provenance.get("policy_violations")
+    if not isinstance(raw_violations, list):
+        return ()
+    caveats: list[KinaseWorkflowCaveat] = []
+    for raw_violation in raw_violations:
+        if not isinstance(raw_violation, Mapping):
+            continue
+        raw_message = raw_violation.get("message")
+        if not isinstance(raw_message, str) or raw_message.strip() == "":
+            continue
+        raw_code = raw_violation.get("code")
+        code = (
+            raw_code
+            if isinstance(raw_code, str) and raw_code.strip() != ""
+            else "kinase_attrition_policy_violation"
+        )
+        caveats.append(
+            KinaseWorkflowCaveat(
+                code=code,
+                message=raw_message,
+                details=dict(raw_violation),
+            )
+        )
+    return tuple(caveats)
+
+
+def _kinase_attrition_provenance_from_provenance(
+    provenance: RunProvenance,
+) -> KinaseWorkflowAttritionProvenance | None:
+    workflow_parameters = provenance.workflow_parameters
+    if not isinstance(workflow_parameters, Mapping):
+        return None
+    raw_payload = workflow_parameters.get("attrition_provenance")
+    if isinstance(raw_payload, Mapping):
+        return _kinase_attrition_provenance_from_payload(raw_payload)
+    scoring_diagnostics = workflow_parameters.get("scoring_diagnostics")
+    scoring_config = workflow_parameters.get("scoring_config")
+    if not isinstance(scoring_diagnostics, Mapping) or not isinstance(
+        scoring_config, Mapping
+    ):
+        return None
+    metrics = scoring_diagnostics.get("attrition_metrics")
+    policy = scoring_config.get("attrition_policy")
+    if not isinstance(metrics, Mapping) or not isinstance(policy, Mapping):
+        return None
+    raw_violations = scoring_diagnostics.get("attrition_policy_violations", [])
+    violations = raw_violations if isinstance(raw_violations, list) else []
+    outcome = "passed"
+    if violations:
+        outcome = "failed" if policy.get("on_violation") == "error" else "warned"
+    return KinaseWorkflowAttritionProvenance(
+        metrics=metrics,
+        policy=policy,
+        policy_outcome=outcome,
+        policy_violations=tuple(
+            item for item in violations if isinstance(item, Mapping)
+        ),
+        warning_messages=tuple(
+            str(item.get("message"))
+            for item in violations
+            if isinstance(item, Mapping)
+            and isinstance(item.get("message"), str)
+            and str(item.get("message")).strip() != ""
+        ),
+    )
+
+
+def _kinase_attrition_provenance_from_payload(
+    payload: Mapping[str, object],
+) -> KinaseWorkflowAttritionProvenance | None:
+    metrics = payload.get("metrics")
+    policy = payload.get("policy")
+    policy_outcome = payload.get("policy_outcome")
+    if not isinstance(metrics, Mapping) or not isinstance(policy, Mapping):
+        return None
+    if not isinstance(policy_outcome, str):
+        return None
+    raw_violations = payload.get("policy_violations", [])
+    violations = raw_violations if isinstance(raw_violations, list) else []
+    raw_warnings = payload.get("warning_messages", [])
+    warnings = raw_warnings if isinstance(raw_warnings, list) else []
+    return KinaseWorkflowAttritionProvenance(
+        metrics=metrics,
+        policy=policy,
+        policy_outcome=policy_outcome,
+        policy_violations=tuple(
+            item for item in violations if isinstance(item, Mapping)
+        ),
+        warning_messages=tuple(
+            str(item)
+            for item in warnings
+            if isinstance(item, str) and item.strip() != ""
+        ),
     )
 
 

@@ -49,6 +49,10 @@ from phospy.science.prediction.scientific_policies import (
     build_kinase_library_motif_scoring_policy,
     build_motif_profile_rank_fusion_policy,
 )
+from phospy.workflows.kinase.attrition_metrics import (
+    build_kinase_attrition_provenance_payload,
+    kinase_attrition_policy_to_payload,
+)
 from phospy.workflows.kinase.component_models import (
     CANDIDATE_MIN_INCLUSION,
     CANDIDATE_SCORE_THRESHOLD,
@@ -293,6 +297,10 @@ def _build_workflow_parameters(
             scoring_result=scoring_result,
             config=config,
         ),
+        "attrition_provenance": _build_attrition_provenance_payload(
+            request=request,
+            config=config,
+        ),
         "scoring_diagnostics": _build_scoring_diagnostics_payload(
             request=request,
             scoring_result=scoring_result,
@@ -401,6 +409,7 @@ def _build_scoring_config_payload(
             config.include_diagnostic_scoring_tables
         ),
         "profile_missing_value_strategy": str(config.profile_missing_value_strategy),
+        "attrition_policy": kinase_attrition_policy_to_payload(config.attrition_policy),
     }
     if config.include_substrate_contributions:
         payload["include_substrate_contributions"] = True
@@ -419,6 +428,21 @@ def _build_scoring_config_payload(
         }
     )
     return payload
+
+
+def _build_attrition_provenance_payload(
+    *,
+    request: ResolvedKinaseWorkflowRequest,
+    config: ResolvedKinaseExecutionConfig,
+) -> dict[str, object]:
+    metrics = request.attrition_metrics
+    if metrics is None:
+        raise RuntimeError("kinase provenance requires resolved attrition metrics")
+    return build_kinase_attrition_provenance_payload(
+        metrics=metrics,
+        policy=config.attrition_policy,
+        violations=request.attrition_policy_violations,
+    )
 
 
 def _build_scoring_diagnostics_payload(
@@ -481,6 +505,14 @@ def _build_scoring_diagnostics_payload(
         scoring_diagnostics["site_sequence_merge"] = dict(
             request.site_sequence_merge_diagnostics
         )
+    if request.attrition_metrics is not None:
+        scoring_diagnostics["attrition_metrics"] = (
+            request.attrition_metrics.to_payload()
+        )
+    if request.attrition_policy_violations:
+        scoring_diagnostics["attrition_policy_violations"] = [
+            violation.to_payload() for violation in request.attrition_policy_violations
+        ]
     return scoring_diagnostics
 
 

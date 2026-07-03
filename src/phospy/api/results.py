@@ -25,6 +25,8 @@ KinaseWorkflowScoringAttritionSummary = (
 KinaseWorkflowSiteAttritionSummary = (
     _result_contracts.KinaseWorkflowSiteAttritionSummary
 )
+KinaseWorkflowAttritionProvenance = _result_contracts.KinaseWorkflowAttritionProvenance
+KinaseWorkflowCaveat = _result_contracts.KinaseWorkflowCaveat
 
 __all__ = [
     "DifferentialAnalysisResult",
@@ -35,6 +37,8 @@ __all__ = [
     "KinaseEligibilityReport",
     "KinasePredictionResult",
     "KinaseScoringResult",
+    "KinaseWorkflowAttritionProvenance",
+    "KinaseWorkflowCaveat",
     "KinaseWorkflowPreprocessingAttritionSummary",
     "KinaseWorkflowResult",
     "KinaseWorkflowScoringAttritionSummary",

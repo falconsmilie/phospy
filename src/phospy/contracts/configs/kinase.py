@@ -141,10 +141,11 @@ KINASE_ATTRITION_POLICY_ON_VIOLATION_MODES = frozenset(
 class KinaseAttritionPolicy:
     """Policy thresholds for reporting unacceptable kinase site attrition.
 
-    This is an explicit reliability policy only. It records caller intent for
-    reference-overlap, sequence-support, and final scored-site retention
-    thresholds, plus how a future enforcement layer should react. The current
-    workflow does not enforce these thresholds or drop additional sites.
+    This is an explicit reliability policy only. It records caller thresholds
+    for reference-overlap, sequence-support, and final scored-site retention,
+    plus whether threshold violations fail the workflow or continue with
+    structured caveats. The workflow never lowers these thresholds or drops
+    additional sites to satisfy them.
     """
 
     minimum_reference_overlap_fraction: float = 0.0
@@ -237,8 +238,9 @@ class KinaseScoringConfig:
     defaults to `False` so routine runs do not build a large evidence table.
 
     `attrition_policy` records caller-defined minimum retained-site fractions
-    for reference overlap, sequence support, and final scoring. The policy is
-    accepted and validated here but is not enforced by the kinase workflow yet.
+    for reference overlap, sequence support, and final scoring. The interpreter
+    evaluates these thresholds after reference projection and sequence support
+    are known, before scoring starts.
 
     `profile_missing_value_strategy` controls column-wise median behavior when a
     kinase profile is built from multiple quantified substrates:
