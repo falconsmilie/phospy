@@ -31,12 +31,21 @@ _RESULT_STATISTIC_COLUMNS: tuple[str, ...] = ("logFC", "t", "P.Value", "adj.P.Va
 _PUBLIC_RESULT_IDENTITY_COLUMNS: tuple[str, ...] = RESULT_IDENTITY_COLUMNS
 
 DIFFERENTIAL_RESULT_STATUS_COLUMN = "result_status"
+DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN = "result_status_reason"
 DIFFERENTIAL_RESULT_STATUS_TESTED = "tested"
+DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT = "withheld_all_constant"
+DIFFERENTIAL_RESULT_STATUS_WITHHELD_INVALID_NUMERIC_VALUES = (
+    "withheld_invalid_numeric_values"
+)
+DIFFERENTIAL_RESULT_STATUS_WITHHELD_OTHER = "withheld_other"
 DIFFERENTIAL_RESULT_STATUS_WITHHELD_HIGH_IMPUTATION = "withheld_high_imputation"
 DIFFERENTIAL_RESULT_STATUS_WITHHELD_INSUFFICIENT_OBSERVED = (
-    "withheld_insufficient_observed_samples"
+    "withheld_insufficient_observed_values"
 )
 DIFFERENTIAL_RESULT_WITHHELD_STATUSES: tuple[str, ...] = (
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_INVALID_NUMERIC_VALUES,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_OTHER,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_HIGH_IMPUTATION,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_INSUFFICIENT_OBSERVED,
 )
@@ -47,6 +56,7 @@ DIFFERENTIAL_IMPUTATION_RESULT_COLUMNS: tuple[str, ...] = (
     "imputation_policy",
     "imputation_fraction_threshold",
     DIFFERENTIAL_RESULT_STATUS_COLUMN,
+    DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
 )
 
 
@@ -150,7 +160,7 @@ def _validate_result_table_statistics(
         allow_imputation_withheld_status
         and DIFFERENTIAL_RESULT_STATUS_COLUMN in table.columns
     ):
-        _validate_imputation_status_statistics(
+        _validate_status_statistics(
             table=table,
             stat_table=stat_table,
             field_name=field_name,
@@ -174,7 +184,7 @@ def _validate_result_table_statistics(
     )
 
 
-def _validate_imputation_status_statistics(
+def _validate_status_statistics(
     *,
     table: pd.DataFrame,
     stat_table: pd.DataFrame,
@@ -190,6 +200,11 @@ def _validate_imputation_status_statistics(
         raise PhosPyInputError(
             f"{field_name}.{DIFFERENTIAL_RESULT_STATUS_COLUMN} contains unsupported "
             "values: " + ", ".join(repr(value) for value in unknown_statuses)
+        )
+    if DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN not in table.columns:
+        raise PhosPyInputError(
+            f"{field_name} rows with {DIFFERENTIAL_RESULT_STATUS_COLUMN} must include "
+            f"{DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN}"
         )
 
     status_array = status_values.to_numpy(dtype=str)
@@ -217,6 +232,27 @@ def _validate_imputation_status_statistics(
     withheld_row_positions = np.flatnonzero(withheld_mask)
     if not int(withheld_row_positions.size):
         return
+    reason_column = table[DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN]
+    empty_reason_mask = np.asarray(
+        [str(value).strip() == "" for value in reason_column.tolist()],
+        dtype=bool,
+    )
+    invalid_reason_positions = np.flatnonzero(withheld_mask & empty_reason_mask)
+    if int(invalid_reason_positions.size):
+        invalid_labels = [
+            str(table.index[int(position)]) for position in invalid_reason_positions[:3]
+        ]
+        suffix = (
+            ""
+            if int(invalid_reason_positions.size) <= 3
+            else f", +{int(invalid_reason_positions.size - 3)} more"
+        )
+        raise PhosPyInputError(
+            f"{field_name} withheld rows must include a non-empty "
+            f"{DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN}; invalid rows: "
+            + ", ".join(invalid_labels)
+            + suffix
+        )
     withheld_values: npt.NDArray[np.object_] = np.asarray(
         stat_table.to_numpy(dtype=object)[withheld_mask, :],
         dtype=object,
@@ -240,7 +276,7 @@ def _validate_imputation_status_statistics(
             else f", +{int(invalid_positions.shape[0] - 3)} more"
         )
         raise PhosPyInputError(
-            f"{field_name} withheld imputation-policy rows must contain missing "
+            f"{field_name} withheld rows must contain missing "
             "values for logFC, t, P.Value, and adj.P.Val; invalid values: "
             + ", ".join(previews)
             + suffix
@@ -279,8 +315,12 @@ def _validate_unit_interval_column(
 __all__ = [
     "DIFFERENTIAL_IMPUTATION_RESULT_COLUMNS",
     "DIFFERENTIAL_RESULT_STATUS_COLUMN",
+    "DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN",
     "DIFFERENTIAL_RESULT_STATUS_TESTED",
+    "DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT",
     "DIFFERENTIAL_RESULT_STATUS_WITHHELD_HIGH_IMPUTATION",
     "DIFFERENTIAL_RESULT_STATUS_WITHHELD_INSUFFICIENT_OBSERVED",
+    "DIFFERENTIAL_RESULT_STATUS_WITHHELD_INVALID_NUMERIC_VALUES",
+    "DIFFERENTIAL_RESULT_STATUS_WITHHELD_OTHER",
     "DIFFERENTIAL_RESULT_WITHHELD_STATUSES",
 ]

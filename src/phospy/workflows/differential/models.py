@@ -55,6 +55,7 @@ class DifferentialImputationPolicyInputs:
 
     feature_metadata: pd.DataFrame
     result_status: pd.Series
+    result_status_reason: pd.Series
     testable_feature_ids: tuple[str, ...]
     policy: str
     max_fraction: float
@@ -66,6 +67,28 @@ class DifferentialImputationPolicyInputs:
             self,
             "testable_feature_ids",
             tuple(str(value) for value in self.testable_feature_ids),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class DifferentialFeatureEligibilityInputs:
+    """Aligned feature-level eligibility inputs resolved before execution."""
+
+    feature_metadata: pd.DataFrame
+    result_status: pd.Series
+    testable_feature_ids: tuple[str, ...]
+    attach_to_result_tables: bool = False
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "testable_feature_ids",
+            tuple(str(value) for value in self.testable_feature_ids),
+        )
+        object.__setattr__(
+            self,
+            "attach_to_result_tables",
+            bool(self.attach_to_result_tables),
         )
 
 
@@ -212,6 +235,7 @@ class InterpretedDifferentialAnalysisRequest:
     dataset_preprocessing_report: DatasetPreprocessingReport | None = None
     execution_design: DifferentialExecutionDesignInputs | None = None
     imputation_policy_inputs: DifferentialImputationPolicyInputs | None = None
+    feature_eligibility_inputs: DifferentialFeatureEligibilityInputs | None = None
     normalisation_state: str = "not_recorded"
     ruv_readiness_enabled: bool = False
     ruv_readiness_ready: bool = False
@@ -244,6 +268,7 @@ __all__ = [
     "DifferentialConditionContrastVector",
     "DifferentialCovariateColumnMetadata",
     "DifferentialExecutionDesignInputs",
+    "DifferentialFeatureEligibilityInputs",
     "DifferentialImputationPolicyInputs",
     "DifferentialAnalysisExecutorContract",
     "DifferentialAnalysisInterpreterContract",

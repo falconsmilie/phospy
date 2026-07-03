@@ -27,6 +27,7 @@ from phospy.science.differential.models import (
 )
 from phospy.workflows.differential.models import (
     DifferentialExecutionDesignInputs,
+    DifferentialFeatureEligibilityInputs,
     DifferentialImputationPolicyInputs,
     InterpretedDifferentialAnalysisRequest,
 )
@@ -59,7 +60,8 @@ class DifferentialAnalysisExecutor:
             )
         computation_request = request.computation_request
         imputation_policy_inputs = request.imputation_policy_inputs
-        if imputation_policy_inputs is not None:
+        feature_eligibility_inputs = request.feature_eligibility_inputs
+        if imputation_policy_inputs is not None and feature_eligibility_inputs is None:
             computation_request = _filter_computation_request_for_imputation_policy(
                 computation_request=request.computation_request,
                 imputation_policy_inputs=imputation_policy_inputs,
@@ -74,8 +76,8 @@ class DifferentialAnalysisExecutor:
         prior_diagnostics = result.prior_diagnostics
         mean_variance_trend_diagnostics = result.mean_variance_trend_diagnostics
         contrast_source_tables = dict(result._contrast_tables.items())  # pyright: ignore[reportPrivateUsage] - owned contrast tables are forwarded without copying
-        if imputation_policy_inputs is not None:
-            full_index = request.result_identity_metadata.index
+        full_index = request.result_identity_metadata.index
+        if not result.residual_variance.index.equals(full_index):
             residual_variance = _expand_series_to_full_index(
                 result.residual_variance,
                 full_index=full_index,
@@ -113,6 +115,7 @@ class DifferentialAnalysisExecutor:
                 identity_metadata=request.result_identity_metadata,
                 contrast_name=contrast_name,
                 imputation_policy_inputs=imputation_policy_inputs,
+                feature_eligibility_inputs=feature_eligibility_inputs,
             )
             for contrast_name, table in contrast_source_tables.items()
         }
@@ -137,6 +140,11 @@ class DifferentialAnalysisExecutor:
             contrast_tables=contrast_tables,
             workflow_provenance=request.workflow_provenance,
             input_dataset_preprocessing_report=request.dataset_preprocessing_report,
+            feature_eligibility=(
+                None
+                if feature_eligibility_inputs is None
+                else feature_eligibility_inputs.feature_metadata
+            ),
         )
 
 
@@ -146,6 +154,7 @@ def _attach_result_identity_metadata(
     identity_metadata: pd.DataFrame,
     contrast_name: str,
     imputation_policy_inputs: DifferentialImputationPolicyInputs | None = None,
+    feature_eligibility_inputs: DifferentialFeatureEligibilityInputs | None = None,
 ) -> pd.DataFrame:
     if not table.index.equals(identity_metadata.index):
         raise WorkflowBoundaryError(
@@ -158,7 +167,16 @@ def _attach_result_identity_metadata(
             message_prefix="differential workflow boundary validation failed",
         )
     enriched = pd.DataFrame(identity_metadata, copy=True)
-    if imputation_policy_inputs is not None:
+    if (
+        feature_eligibility_inputs is not None
+        and feature_eligibility_inputs.attach_to_result_tables
+    ):
+        _attach_feature_eligibility_metadata(
+            enriched=enriched,
+            feature_eligibility_inputs=feature_eligibility_inputs,
+            contrast_name=contrast_name,
+        )
+    elif imputation_policy_inputs is not None:
         _attach_imputation_policy_metadata(
             enriched=enriched,
             imputation_policy_inputs=imputation_policy_inputs,
@@ -389,6 +407,7 @@ def _filter_computation_request_for_imputation_policy(
         design=computation_request.design,
         contrasts=computation_request.contrasts,
         empirical_bayes=computation_request.empirical_bayes,
+        multiple_testing_method=computation_request.multiple_testing_method,
     )
 
 
@@ -421,6 +440,49 @@ def _attach_imputation_policy_metadata(
     enriched["imputation_policy"] = imputation_policy_inputs.policy
     enriched["imputation_fraction_threshold"] = imputation_policy_inputs.max_fraction
     enriched["result_status"] = result_status.astype(str).to_numpy()
+    enriched["result_status_reason"] = (
+        imputation_policy_inputs.result_status_reason.astype(str).to_numpy()
+    )
+
+
+def _attach_feature_eligibility_metadata(
+    *,
+    enriched: pd.DataFrame,
+    feature_eligibility_inputs: DifferentialFeatureEligibilityInputs,
+    contrast_name: str,
+) -> None:
+    feature_metadata = feature_eligibility_inputs.feature_metadata
+    result_status = feature_eligibility_inputs.result_status
+    if not feature_metadata.index.equals(
+        enriched.index
+    ) or not result_status.index.equals(enriched.index):
+        raise WorkflowBoundaryError(
+            seam="differential.executor.feature_eligibility_alignment",
+            next_action=(
+                "ensure feature eligibility metadata aligns to public "
+                "differential result rows"
+            ),
+            details={"contrast_name": contrast_name},
+            message_prefix="differential workflow boundary validation failed",
+        )
+    columns = (
+        "analysed_value_count",
+        "observed_value_count",
+        "invalid_numeric_value_count",
+        "unique_observed_value_count",
+        "imputed_cell_count",
+        "observed_cell_count",
+        "imputed_fraction",
+        "imputation_policy",
+        "imputation_fraction_threshold",
+        "result_status",
+        "result_status_reason",
+    )
+    for column_name in columns:
+        if column_name not in feature_metadata.columns:
+            continue
+        column = feature_metadata[column_name]
+        enriched[column_name] = column.to_numpy()
 
 
 def _expand_stat_table_to_full_index(

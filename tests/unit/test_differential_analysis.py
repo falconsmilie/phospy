@@ -34,6 +34,11 @@ from phospy.science.datasets.builders.transformation_resolver import (
     DatasetIntensityScaleResolver,
 )
 from phospy.science.datasets.preprocessing.models import PreprocessingPlan
+from phospy.science.differential.models import (
+    DIFFERENTIAL_RESULT_STATUS_COLUMN,
+    DIFFERENTIAL_RESULT_STATUS_TESTED,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
+)
 from phospy.science.sites.site_keys import (
     build_protein_scoped_site_key,
     encode_site_key,
@@ -991,15 +996,18 @@ def test_differential_analysis_fails_when_residual_dof_is_non_positive() -> None
         )
 
 
-def test_differential_analysis_rejects_all_constant_site_intensities() -> None:
+def test_differential_analysis_withholds_all_constant_site_intensities() -> None:
     matrix = pd.DataFrame(
         {
-            "A_1": [5.0, 1.0],
-            "A_2": [5.0, 1.2],
-            "B_1": [5.0, 2.1],
-            "B_2": [5.0, 2.2],
+            "A_1": [5.0, 1.0, 2.0],
+            "A_2": [5.0, 1.2, 2.1],
+            "B_1": [5.0, 2.1, 2.3],
+            "B_2": [5.0, 2.2, 2.4],
         },
-        index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
+        index=pd.Index(
+            ["MAPK14;Y182;", "GSK3B;S9;", "AKT1;T308;"],
+            name="site_id",
+        ),
     )
     design = _design_from_conditions(
         (
@@ -1017,14 +1025,26 @@ def test_differential_analysis_rejects_all_constant_site_intensities() -> None:
         ),
     )
 
-    with pytest.raises(WorkflowValidationError, match="all-constant site"):
-        DifferentialAnalysisWorkflow().run(
-            _request(
-                dataset=_dataset(matrix),
-                design=design,
-                contrasts=contrasts,
-            )
+    result = DifferentialAnalysisWorkflow().run(
+        _request(
+            dataset=_dataset(matrix),
+            design=design,
+            contrasts=contrasts,
         )
+    )
+    table = result.table_for("B_vs_A")
+
+    assert table.iloc[0][DIFFERENTIAL_RESULT_STATUS_COLUMN] == (
+        DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT
+    )
+    assert table.iloc[0][["logFC", "t", "P.Value", "adj.P.Val"]].isna().all()
+    assert table.iloc[1:][DIFFERENTIAL_RESULT_STATUS_COLUMN].tolist() == [
+        DIFFERENTIAL_RESULT_STATUS_TESTED,
+        DIFFERENTIAL_RESULT_STATUS_TESTED,
+    ]
+    assert (
+        np.isfinite(table.iloc[1:][["logFC", "t", "P.Value", "adj.P.Val"]]).all().all()
+    )
 
 
 def test_differential_analysis_rejects_empty_condition_labels() -> None:

@@ -25,7 +25,13 @@ from phospy.science.differential.models.diagnostics import (
     MeanVarianceTrendDiagnostics,
 )
 from phospy.science.differential.models.provenance import DifferentialPolicyProvenance
-from phospy.science.differential.models.tables import validate_result_table_contract
+from phospy.science.differential.models.tables import (
+    DIFFERENTIAL_RESULT_STATUS_COLUMN,
+    DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
+    DIFFERENTIAL_RESULT_STATUS_TESTED,
+    DIFFERENTIAL_RESULT_WITHHELD_STATUSES,
+    validate_result_table_contract,
+)
 
 if TYPE_CHECKING:
     from phospy.science.datasets.models import DatasetPreprocessingReport
@@ -56,6 +62,7 @@ class DifferentialAnalysisResult:
     policy_provenance: DifferentialPolicyProvenance | None
     workflow_provenance: Mapping[str, object] | None
     input_dataset_preprocessing_report: DatasetPreprocessingReport | None
+    _feature_eligibility: pd.DataFrame | None
     _contrast_tables: Mapping[str, pd.DataFrame]
 
     def __init__(
@@ -78,6 +85,7 @@ class DifferentialAnalysisResult:
         policy_provenance: DifferentialPolicyProvenance | None = None,
         workflow_provenance: Mapping[str, object] | None = None,
         input_dataset_preprocessing_report: DatasetPreprocessingReport | None = None,
+        feature_eligibility: pd.DataFrame | None = None,
         _assume_owned: bool = False,
     ) -> None:
         residual_variance = own_series(
@@ -181,6 +189,18 @@ class DifferentialAnalysisResult:
                 "differential_result.input_dataset_preprocessing_report must be "
                 "DatasetPreprocessingReport or None"
             )
+        owned_feature_eligibility: pd.DataFrame | None = None
+        if feature_eligibility is not None:
+            owned_feature_eligibility = own_dataframe(
+                feature_eligibility,
+                field_name="differential_result.feature_eligibility",
+                error_type=PhosPyInputError,
+                assume_owned=_assume_owned,
+            )
+            _validate_feature_eligibility_table(
+                owned_feature_eligibility,
+                expected_index=residual_variance.index,
+            )
         owned_tables: dict[str, pd.DataFrame] = {}
         for contrast_name, table in contrast_tables.items():
             if not isinstance(cast(object, contrast_name), str) or not contrast_name:
@@ -254,6 +274,11 @@ class DifferentialAnalysisResult:
             "input_dataset_preprocessing_report",
             input_dataset_preprocessing_report,
         )
+        object.__setattr__(
+            self,
+            "_feature_eligibility",
+            owned_feature_eligibility,
+        )
         object.__setattr__(self, "_contrast_tables", owned_tables)
 
     @property
@@ -262,6 +287,12 @@ class DifferentialAnalysisResult:
             contrast_name: export_dataframe(table)
             for contrast_name, table in self._contrast_tables.items()
         }
+
+    @property
+    def feature_eligibility(self) -> pd.DataFrame | None:
+        if self._feature_eligibility is None:
+            return None
+        return export_dataframe(self._feature_eligibility)
 
     def table_for(self, contrast_name: str) -> pd.DataFrame:
         if contrast_name not in self._contrast_tables:
@@ -302,6 +333,15 @@ class DifferentialAnalysisResult:
                 contrast_name: _dataframe_records_payload(table)
                 for contrast_name, table in self._contrast_tables.items()
             },
+            **(
+                {}
+                if self._feature_eligibility is None
+                else {
+                    "feature_eligibility": _dataframe_records_payload(
+                        self._feature_eligibility
+                    )
+                }
+            ),
         }
 
     @classmethod
@@ -325,6 +365,7 @@ class DifferentialAnalysisResult:
         policy_provenance: DifferentialPolicyProvenance | None = None,
         workflow_provenance: Mapping[str, object] | None = None,
         input_dataset_preprocessing_report: DatasetPreprocessingReport | None = None,
+        feature_eligibility: pd.DataFrame | None = None,
     ) -> DifferentialAnalysisResult:
         return cls(
             residual_variance=residual_variance,
@@ -344,6 +385,7 @@ class DifferentialAnalysisResult:
             contrast_tables=contrast_tables,
             workflow_provenance=workflow_provenance,
             input_dataset_preprocessing_report=input_dataset_preprocessing_report,
+            feature_eligibility=feature_eligibility,
             _assume_owned=True,
         )
 
@@ -359,6 +401,68 @@ def _is_dataset_preprocessing_report(value: object) -> bool:
         return False
 
     return isinstance(value, _DatasetPreprocessingReport)
+
+
+def _validate_feature_eligibility_table(
+    table: pd.DataFrame,
+    *,
+    expected_index: pd.Index,
+) -> None:
+    if not table.index.equals(expected_index):
+        raise PhosPyInputError(
+            "differential_result.feature_eligibility index must match matrix feature "
+            "index"
+        )
+    required_columns = (
+        "site_key",
+        DIFFERENTIAL_RESULT_STATUS_COLUMN,
+        DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
+    )
+    missing = [column for column in required_columns if column not in table.columns]
+    if missing:
+        raise PhosPyInputError(
+            "differential_result.feature_eligibility is missing required columns: "
+            + ", ".join(missing)
+        )
+    site_key_column = table["site_key"]
+    site_key_values = [str(value) for value in site_key_column.tolist()]
+    expected_site_key_values = [str(value) for value in expected_index.tolist()]
+    if site_key_values != expected_site_key_values:
+        raise PhosPyInputError(
+            "differential_result.feature_eligibility.site_key must exactly match "
+            "the feature index"
+        )
+    status_column = table[DIFFERENTIAL_RESULT_STATUS_COLUMN]
+    status_values = np.asarray(
+        [str(value) for value in status_column.tolist()],
+        dtype=str,
+    )
+    allowed_statuses = {
+        DIFFERENTIAL_RESULT_STATUS_TESTED,
+        *DIFFERENTIAL_RESULT_WITHHELD_STATUSES,
+    }
+    unknown_statuses = sorted(set(status_values.tolist()) - allowed_statuses)
+    if unknown_statuses:
+        raise PhosPyInputError(
+            "differential_result.feature_eligibility.result_status contains "
+            "unsupported values: "
+            + ", ".join(repr(value) for value in unknown_statuses)
+        )
+    withheld_mask = np.isin(status_values, DIFFERENTIAL_RESULT_WITHHELD_STATUSES)
+    reason_column = table[DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN]
+    empty_reason_mask = np.asarray(
+        [str(value).strip() == "" for value in reason_column.tolist()],
+        dtype=bool,
+    )
+    invalid_positions = np.flatnonzero(withheld_mask & empty_reason_mask)
+    if int(invalid_positions.size):
+        invalid_labels = [
+            str(table.index[int(position)]) for position in invalid_positions[:3]
+        ]
+        raise PhosPyInputError(
+            "differential_result.feature_eligibility withheld rows must include "
+            "non-empty result_status_reason values: " + ", ".join(invalid_labels[:3])
+        )
 
 
 def _build_default_model_diagnostics(

@@ -36,7 +36,7 @@ tests/parity/test_activity_stage_parity.py,parity,195,4,true,false,parity,keep,"
 tests/parity/test_adaptive_prediction_parity.py,parity,282,10,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for adaptive prediction parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/parity/test_adaptive_replay_parity.py,parity,251,1,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for adaptive replay parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/parity/test_differential_analysis_parity.py,parity,221,2,true,false,parity,keep,"Loss of this file would remove Python-vs-reference parity guardrails for differential analysis, making release drift against accepted outputs unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
-tests/parity/test_differential_limma_parity.py,parity,265,4,true,false,,,,,,
+tests/parity/test_differential_limma_parity.py,parity,280,4,true,false,,,,,,
 tests/parity/test_kinase_workflow_parity.py,parity,361,4,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for kinase workflow parity, making release drift against accepted references unsafe.",codex-audit,,
 tests/parity/test_l6_prediction_parity.py,parity,498,8,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for l6 prediction parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/parity/test_prediction_science_parity.py,parity,253,3,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for prediction science parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
@@ -100,9 +100,10 @@ tests/unit/test_dataset_site_sequence_resolution.py,unit,508,13,true,true,scient
 tests/unit/test_dataset_site_sequence_resolution_collaborators.py,unit,86,3,true,true,,,,,,
 tests/unit/test_dataset_transformation_state_establishment.py,unit,805,29,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset transformation state establishment and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/unit/test_design_matrix_builder.py,unit,621,20,false,false,,,,,,
-tests/unit/test_differential_analysis.py,unit,1105,23,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for differential analysis behaviour, allowing numerically plausible but scientifically invalid results.",codex-audit,,New test file classified after audit-doc regeneration.
+tests/unit/test_differential_analysis.py,unit,1125,23,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for differential analysis behaviour, allowing numerically plausible but scientifically invalid results.",codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_differential_contrast_helpers.py,unit,143,7,false,false,,,,,,
 tests/unit/test_differential_dataset_eligibility_validator.py,unit,204,7,false,false,,,,,,
+tests/unit/test_differential_feature_eligibility.py,unit,174,3,false,false,,,,,,
 tests/unit/test_differential_fixed_effect_provenance.py,unit,372,5,false,false,,,,,,
 tests/unit/test_differential_imputation_policy.py,unit,293,7,false,false,,,,,,
 tests/unit/test_differential_numerical_guards.py,unit,621,15,true,true,,,,,,
@@ -249,7 +250,7 @@ tests/unit/test_workflow_boundary_error.py,unit,334,9,false,false,regression for
 tests/unit/test_workflow_identity_contracts.py,unit,519,14,true,true,,,,,,[auto-orchestration] 6 hit(s); indicators: private_member_access
 tests/unit/test_workflow_public_import_contract.py,unit,91,7,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for workflow public import contract and increase risk of boundary regressions.,codex-audit,,
 tests/unit/validation/test_site_sequence_contracts.py,validation,120,5,true,true,,,,,,
-tests/unit/workflows/differential/test_differential_scope_validation.py,differential,252,7,false,false,,,,,,
+tests/unit/workflows/differential/test_differential_scope_validation.py,differential,262,7,false,false,,,,,,
 tests/unit/workflows/kinase/test_kinase_attrition_metrics.py,kinase,254,5,false,false,,,,,,
 tests/unit/workflows/kinase/test_kinase_attrition_policy.py,kinase,237,5,false,false,,,,,,
 tests/unit/workflows/kinase/test_kinase_sequence_contract.py,kinase,251,5,true,true,,,,,,

@@ -28,9 +28,13 @@ from phospy.science.design.models import (
     PairedDesignPolicy,
 )
 from phospy.science.differential.models import (
+    DIFFERENTIAL_RESULT_STATUS_COLUMN,
+    DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
     DIFFERENTIAL_RESULT_STATUS_TESTED,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_HIGH_IMPUTATION,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_INSUFFICIENT_OBSERVED,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_INVALID_NUMERIC_VALUES,
     ContrastMatrix,
     DesignMatrix,
 )
@@ -50,6 +54,7 @@ from phospy.workflows.differential.models import (
     DifferentialConditionContrastVector,
     DifferentialCovariateColumnMetadata,
     DifferentialExecutionDesignInputs,
+    DifferentialFeatureEligibilityInputs,
     DifferentialImputationPolicyInputs,
     InterpretedDifferentialAnalysisRequest,
     ValidatedDifferentialAnalysisRequest,
@@ -159,6 +164,28 @@ class DifferentialAnalysisInterpreter:
             max_fraction=request.config.imputed_value_max_fraction,
             minimum_condition_replicates=request.config.minimum_condition_replicates,
         )
+        feature_eligibility_inputs = _build_feature_eligibility_inputs(
+            matrix=matrix_aligned,
+            imputation_policy_inputs=imputation_policy_inputs,
+        )
+        if not feature_eligibility_inputs.testable_feature_ids:
+            raise WorkflowBoundaryError(
+                seam="differential.interpreter.feature_eligibility",
+                next_action=(
+                    "provide at least one feature with finite, non-constant values "
+                    "that satisfies the configured differential eligibility policy"
+                ),
+                details={
+                    "status_counts": _status_counts(
+                        feature_eligibility_inputs.result_status
+                    )
+                },
+                message_prefix="differential workflow boundary validation failed",
+            )
+        matrix_for_computation = _filter_matrix_for_feature_ids(
+            matrix=matrix_aligned,
+            feature_ids=feature_eligibility_inputs.testable_feature_ids,
+        )
 
         design_values = design_aligned.to_numpy(dtype=float)
         design_shape = cast(tuple[int, int], design_values.shape)
@@ -221,7 +248,7 @@ class DifferentialAnalysisInterpreter:
             ),
         )
         computation_request = DifferentialComputationRequest(
-            matrix=cast(pd.DataFrame, matrix_aligned),
+            matrix=cast(pd.DataFrame, matrix_for_computation),
             design=execution_design.design_matrix,
             contrasts=execution_design.contrast_matrix,
             empirical_bayes=request.config.empirical_bayes,
@@ -256,6 +283,7 @@ class DifferentialAnalysisInterpreter:
             dataset_preprocessing_report=resolved_dataset.preprocessing_report,
             execution_design=execution_design,
             imputation_policy_inputs=imputation_policy_inputs,
+            feature_eligibility_inputs=feature_eligibility_inputs,
             normalisation_state=_normalisation_state_label(resolved_dataset),
             ruv_readiness_enabled=bool(
                 resolved_dataset.processing_state.ruv_readiness.enabled
@@ -688,6 +716,156 @@ def _build_result_identity_metadata(
     return cast(pd.DataFrame, identity.loc[:, list(selected_columns)])
 
 
+def _build_feature_eligibility_inputs(
+    *,
+    matrix: pd.DataFrame,
+    imputation_policy_inputs: DifferentialImputationPolicyInputs | None,
+) -> DifferentialFeatureEligibilityInputs:
+    feature_metadata = _base_feature_eligibility_metadata(matrix)
+    statuses = feature_metadata[DIFFERENTIAL_RESULT_STATUS_COLUMN].astype(str)
+    reasons = feature_metadata[DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN].astype(str)
+
+    if imputation_policy_inputs is not None:
+        if (
+            not imputation_policy_inputs.feature_metadata.index.equals(matrix.index)
+            or not imputation_policy_inputs.result_status.index.equals(matrix.index)
+            or not imputation_policy_inputs.result_status_reason.index.equals(
+                matrix.index
+            )
+        ):
+            raise WorkflowBoundaryError(
+                seam="differential.interpreter.feature_eligibility_alignment",
+                next_action=(
+                    "ensure feature eligibility and imputation policy metadata use "
+                    "the same feature index"
+                ),
+                message_prefix="differential workflow boundary validation failed",
+            )
+        imputation_metadata = imputation_policy_inputs.feature_metadata
+        for column_name in (
+            "imputed_cell_count",
+            "observed_cell_count",
+            "imputed_fraction",
+        ):
+            feature_metadata[column_name] = imputation_metadata.loc[
+                :, column_name
+            ].to_numpy()
+        feature_metadata["imputation_policy"] = imputation_policy_inputs.policy
+        feature_metadata["imputation_fraction_threshold"] = (
+            imputation_policy_inputs.max_fraction
+        )
+
+        imputation_statuses = imputation_policy_inputs.result_status.astype(str)
+        imputation_reasons = imputation_policy_inputs.result_status_reason.astype(str)
+        merged_statuses = statuses.copy(deep=True)
+        merged_reasons = reasons.copy(deep=True)
+        base_tested = statuses == DIFFERENTIAL_RESULT_STATUS_TESTED
+        imputation_withheld = imputation_statuses != DIFFERENTIAL_RESULT_STATUS_TESTED
+        imputation_applies = base_tested & imputation_withheld
+        merged_statuses.loc[imputation_applies] = imputation_statuses.loc[
+            imputation_applies
+        ]
+        merged_reasons.loc[imputation_applies] = imputation_reasons.loc[
+            imputation_applies
+        ]
+        statuses = merged_statuses
+        reasons = merged_reasons
+
+    feature_metadata[DIFFERENTIAL_RESULT_STATUS_COLUMN] = statuses.to_numpy(dtype=str)
+    feature_metadata[DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN] = reasons.to_numpy(
+        dtype=str
+    )
+    result_status = pd.Series(
+        statuses.to_numpy(dtype=str),
+        index=matrix.index.copy(),
+        name=DIFFERENTIAL_RESULT_STATUS_COLUMN,
+    )
+    testable_feature_ids = tuple(
+        str(feature_id)
+        for feature_id in result_status.index[
+            result_status == DIFFERENTIAL_RESULT_STATUS_TESTED
+        ].tolist()
+    )
+    attach_to_result_tables = bool(
+        imputation_policy_inputs is not None
+        or (result_status != DIFFERENTIAL_RESULT_STATUS_TESTED).any()
+    )
+    return DifferentialFeatureEligibilityInputs(
+        feature_metadata=feature_metadata,
+        result_status=result_status,
+        testable_feature_ids=testable_feature_ids,
+        attach_to_result_tables=attach_to_result_tables,
+    )
+
+
+def _base_feature_eligibility_metadata(matrix: pd.DataFrame) -> pd.DataFrame:
+    values = np.asarray(matrix.to_numpy(dtype=float), dtype=np.float64)
+    finite_mask = np.isfinite(values)
+    analysed_value_count = int(values.shape[1])
+    observed_value_counts = finite_mask.sum(axis=1).astype(np.int64)
+    invalid_numeric_counts = (~finite_mask).sum(axis=1).astype(np.int64)
+    unique_observed_counts: list[int] = []
+    statuses: list[str] = []
+    reasons: list[str] = []
+
+    for row_position in range(int(values.shape[0])):
+        finite_values = values[row_position, finite_mask[row_position, :]]
+        unique_count = int(np.unique(finite_values).size)
+        unique_observed_counts.append(unique_count)
+        invalid_count = int(invalid_numeric_counts[row_position])
+        if invalid_count > 0:
+            statuses.append(DIFFERENTIAL_RESULT_STATUS_WITHHELD_INVALID_NUMERIC_VALUES)
+            reasons.append(
+                "Feature contains non-finite numeric values in the differential "
+                "design samples."
+            )
+            continue
+        if unique_count <= 1:
+            statuses.append(DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT)
+            reasons.append(
+                "Feature is all-constant across the differential design samples."
+            )
+            continue
+        statuses.append(DIFFERENTIAL_RESULT_STATUS_TESTED)
+        reasons.append(
+            "Feature has finite, non-constant values for the differential design "
+            "samples."
+        )
+
+    return pd.DataFrame(
+        {
+            "site_key": matrix.index.astype(str).tolist(),
+            DIFFERENTIAL_RESULT_STATUS_COLUMN: statuses,
+            DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN: reasons,
+            "analysed_value_count": np.full(
+                int(matrix.shape[0]),
+                analysed_value_count,
+                dtype=np.int64,
+            ),
+            "observed_value_count": observed_value_counts,
+            "invalid_numeric_value_count": invalid_numeric_counts,
+            "unique_observed_value_count": np.asarray(
+                unique_observed_counts,
+                dtype=np.int64,
+            ),
+        },
+        index=matrix.index.copy(),
+    )
+
+
+def _filter_matrix_for_feature_ids(
+    *,
+    matrix: pd.DataFrame,
+    feature_ids: tuple[str, ...],
+) -> pd.DataFrame:
+    return cast(pd.DataFrame, matrix.loc[list(feature_ids), :].copy(deep=True))
+
+
+def _status_counts(result_status: pd.Series) -> dict[str, int]:
+    counts = result_status.astype(str).value_counts(sort=False)
+    return {str(status): int(count) for status, count in counts.items()}
+
+
 def _build_imputation_policy_inputs(
     *,
     dataset_view: DatasetInternalView,
@@ -724,6 +902,7 @@ def _build_imputation_policy_inputs(
         condition_sample_ids=condition_sample_ids,
     )
     statuses: list[str] = []
+    reasons: list[str] = []
     for row_position in range(int(matrix_index.size)):
         if _has_insufficient_observed_samples_for_contrasts(
             row_position=row_position,
@@ -732,16 +911,29 @@ def _build_imputation_policy_inputs(
             minimum_condition_replicates=minimum_condition_replicates,
         ):
             statuses.append(DIFFERENTIAL_RESULT_STATUS_WITHHELD_INSUFFICIENT_OBSERVED)
+            reasons.append(
+                "Feature has fewer observed values than required in at least one "
+                "contrasted condition."
+            )
             continue
         if float(imputed_fraction[row_position]) > float(max_fraction):
             statuses.append(DIFFERENTIAL_RESULT_STATUS_WITHHELD_HIGH_IMPUTATION)
+            reasons.append(
+                "Feature exceeds the configured imputed-value fraction threshold."
+            )
             continue
         statuses.append(DIFFERENTIAL_RESULT_STATUS_TESTED)
+        reasons.append("Feature passed imputation policy checks.")
 
     result_status = pd.Series(
         statuses,
         index=matrix_index.copy(),
         name="result_status",
+    )
+    result_status_reason = pd.Series(
+        reasons,
+        index=matrix_index.copy(),
+        name=DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
     )
     testable_feature_ids = tuple(
         str(feature_id)
@@ -752,6 +944,7 @@ def _build_imputation_policy_inputs(
     return DifferentialImputationPolicyInputs(
         feature_metadata=feature_metadata,
         result_status=result_status,
+        result_status_reason=result_status_reason,
         testable_feature_ids=testable_feature_ids,
         policy=policy,
         max_fraction=max_fraction,

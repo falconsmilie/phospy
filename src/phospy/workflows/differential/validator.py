@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import cast
 
-import numpy as np
 import pandas as pd
 
 from phospy.contracts.configs import (
@@ -188,24 +187,10 @@ __all__ = ["DifferentialAnalysisValidator"]
 
 
 def _validate_analysis_matrix_scope(matrix: pd.DataFrame) -> None:
-    values = matrix.to_numpy(dtype=float)
-    if not np.isfinite(values).all():
+    try:
+        matrix.to_numpy(dtype=float)
+    except (TypeError, ValueError) as exc:
         raise WorkflowValidationError(
-            "differential analysis matrix must contain only finite values before "
-            "execution"
-        )
-    constant_mask = np.all(values == values[:, [0]], axis=1)
-    if not np.any(constant_mask):
-        return
-    all_constant_sites = [
-        str(site_key)
-        for site_key, is_constant in zip(matrix.index, constant_mask, strict=True)
-        if bool(is_constant)
-    ]
-    preview = ", ".join(all_constant_sites[:5])
-    suffix = "" if len(all_constant_sites) <= 5 else ", ..."
-    raise WorkflowValidationError(
-        "differential analysis matrix contains all-constant site intensities, "
-        "which are unsupported for the current differential model; "
-        f"all_constant_sites={preview}{suffix}"
-    )
+            "differential analysis matrix must contain numeric values before "
+            "feature-level eligibility is resolved"
+        ) from exc

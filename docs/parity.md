@@ -157,8 +157,8 @@ pytest tests/parity -m "parity_diagnostic" -s
   protect:
   - two-condition unpaired simple contrasts (`B_vs_A`, `A_vs_B`)
   - small-`n` moderated-statistics behavior
-  - unequal-variance feature handling; all-constant feature rows are now an
-    unsupported-input validation failure, not a parity surface
+  - unequal-variance feature handling; all-constant feature rows are now
+    represented with `withheld_all_constant`, not as a parity surface
   - Benjamini-Hochberg adjusted p-values and contrast ordering/sign conventions
 - Differential parity comparisons use explicit floating-point tolerances in
   parity tests (`rtol=1e-6`, `atol=1e-8`).

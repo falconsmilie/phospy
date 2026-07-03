@@ -17,8 +17,11 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
-from phospy.errors import WorkflowValidationError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.differential.models import (
+    DIFFERENTIAL_RESULT_STATUS_COLUMN,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
+)
 from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
@@ -210,9 +213,21 @@ def test_differential_limma_envelope_fixture_is_source_labelled() -> None:
     assert "Contrasts (column order): B_vs_A then A_vs_B" in provenance
 
 
-def test_full_limma_envelope_fixture_rejects_all_constant_row() -> None:
-    with pytest.raises(WorkflowValidationError, match="all-constant site"):
-        _run_fixture_workflow(supported_subset=False)
+def test_full_limma_envelope_fixture_withholds_all_constant_row() -> None:
+    result = _run_fixture_workflow(supported_subset=False)
+    table = result.table_for("B_vs_A")
+    all_constant_rows = (
+        table[DIFFERENTIAL_RESULT_STATUS_COLUMN]
+        == DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT
+    )
+
+    assert all_constant_rows.any()
+    assert (
+        table.loc[all_constant_rows, ["logFC", "t", "P.Value", "adj.P.Val"]]
+        .isna()
+        .all()
+        .all()
+    )
 
 
 def test_two_condition_small_n_coefficients_match_limma_with_explicit_tolerance() -> (

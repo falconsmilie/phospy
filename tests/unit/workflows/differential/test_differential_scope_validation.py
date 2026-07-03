@@ -17,6 +17,11 @@ from phospy.api import (
     SampleDesignRecord,
 )
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
+from phospy.science.differential.models import (
+    DIFFERENTIAL_RESULT_STATUS_COLUMN,
+    DIFFERENTIAL_RESULT_STATUS_TESTED,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
+)
 from phospy.science.transformations.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
@@ -212,18 +217,23 @@ def test_established_intensity_scale_is_required() -> None:
         DifferentialAnalysisWorkflow().run(_request(dataset=dataset))
 
 
-def test_all_constant_site_intensities_fail_before_execution() -> None:
+def test_all_constant_site_intensities_are_withheld_per_feature() -> None:
     dataset = _dataset()
     matrix = dataset.phospho
     matrix.iloc[0, :] = 5.0
     constant_dataset = _dataset(matrix=matrix)
-    executor = _ExecutorSpy()
 
-    with pytest.raises(WorkflowValidationError, match="all-constant site"):
-        DifferentialAnalysisWorkflow(executor=executor).run(
-            _request(dataset=constant_dataset)
-        )
-    assert executor.calls == 0
+    result = DifferentialAnalysisWorkflow().run(_request(dataset=constant_dataset))
+    table = result.table_for("B_vs_A")
+
+    assert table.iloc[0][DIFFERENTIAL_RESULT_STATUS_COLUMN] == (
+        DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT
+    )
+    assert table.iloc[0][["logFC", "t", "P.Value", "adj.P.Val"]].isna().all()
+    assert table.iloc[1:][DIFFERENTIAL_RESULT_STATUS_COLUMN].tolist() == [
+        DIFFERENTIAL_RESULT_STATUS_TESTED,
+        DIFFERENTIAL_RESULT_STATUS_TESTED,
+    ]
 
 
 def test_differential_docs_do_not_claim_broad_phosr_or_limma_parity() -> None:

@@ -34,7 +34,7 @@ feature:
 
 - `tested`
 - `withheld_high_imputation`
-- `withheld_insufficient_observed_samples`
+- `withheld_insufficient_observed_values`
 
 Rows are withheld when their imputed fraction is above
 `imputed_value_max_fraction`, or when any requested contrast condition has fewer

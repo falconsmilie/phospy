@@ -73,7 +73,7 @@ differential model fitting does not treat imputed cells as fully observed
 measurements. An explicit `imputed_value_policy="withhold_imputed_features"`
 path is supported only when dataset-owned imputation observation metadata is
 present. That policy marks features as `tested`,
-`withheld_high_imputation`, or `withheld_insufficient_observed_samples`, reports
+`withheld_high_imputation`, or `withheld_insufficient_observed_values`, reports
 per-feature `imputed_cell_count`, `observed_cell_count`, `imputed_fraction`, and
 `imputation_policy`, and fits statistics only for tested rows. It is not
 observed-only fitting and does not use feature-specific residual degrees of
@@ -388,7 +388,7 @@ commands/workflows:
 - Differential analysis rejects upstream-imputed datasets by default. The
   explicit `withhold_imputed_features` policy consumes dataset-owned imputation
   observation metadata to mark `tested`, `withheld_high_imputation`, and
-  `withheld_insufficient_observed_samples` rows. Withheld rows receive missing
+  `withheld_insufficient_observed_values` rows. Withheld rows receive missing
   `logFC`, `t`, `P.Value`, and `adj.P.Val`, and are excluded from the
   Benjamini-Hochberg denominator. This policy does not implement observed-only
   fitting or feature-specific residual degrees of freedom.
