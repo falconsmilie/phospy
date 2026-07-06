@@ -11,6 +11,7 @@ import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
 from phospy.frames.ownership import (
+    borrow_dataframe,
     export_dataframe,
     export_series,
     own_dataframe,
@@ -210,6 +211,12 @@ class DifferentialComputationResult:
     def contrast_tables(self) -> dict[str, pd.DataFrame]:
         return {
             contrast_name: export_dataframe(table)
+            for contrast_name, table in self._contrast_tables.items()
+        }
+
+    def _borrow_contrast_tables(self) -> Mapping[str, pd.DataFrame]:
+        return {
+            contrast_name: borrow_dataframe(table)
             for contrast_name, table in self._contrast_tables.items()
         }
 

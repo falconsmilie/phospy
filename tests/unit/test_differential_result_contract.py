@@ -21,6 +21,9 @@ from phospy.errors import DatasetValidationError, PhosPyInputError
 from phospy.science.differential.executor import (
     DifferentialAnalysisExecutor as DifferentialComputationExecutor,
 )
+from phospy.science.differential.internal_view import (
+    DifferentialComputationResultInternalView,
+)
 from phospy.science.differential.models import (
     DifferentialAnalysisRequest as DifferentialComputationRequest,
 )
@@ -687,6 +690,22 @@ def test_internal_stat_only_result_type_is_explicit() -> None:
     assert not isinstance(result, DifferentialAnalysisResult)
     assert list(table.columns) == STATISTIC_COLUMNS
     assert table.index.name == "display_id"
+
+
+def test_differential_result_internal_owned_tables_are_copied() -> None:
+    source_table = _stat_only_display_table()
+    result = _manual_computation_result_with_table(source_table)
+
+    source_table.iloc[0, 0] = 999.0
+    internal_table = DifferentialComputationResultInternalView(result).contrast_tables[
+        "B_vs_A"
+    ]
+    internal_table.iloc[0, 0] = 123.0
+    internal_table.loc[:, "borrowed_only"] = 1.0
+
+    exported = result.table_for("B_vs_A")
+    assert float(exported.iloc[0, 0]) == 1.0
+    assert "borrowed_only" not in exported.columns
 
 
 def test_low_level_differential_executor_returns_computation_result() -> None:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import cast
 
 import numpy as np
@@ -13,6 +14,9 @@ from phospy.science.datasets.preprocessing.batch_correction import (
 )
 from phospy.science.differential.executor import (
     DifferentialAnalysisExecutor as DifferentialComputationExecutor,
+)
+from phospy.science.differential.internal_view import (
+    DifferentialComputationResultInternalView,
 )
 from phospy.science.differential.models import (
     DifferentialAnalysisRequest as DifferentialComputationRequest,
@@ -80,7 +84,9 @@ class DifferentialAnalysisExecutor:
         )
         prior_diagnostics = result.prior_diagnostics
         mean_variance_trend_diagnostics = result.mean_variance_trend_diagnostics
-        contrast_source_tables = dict(result._contrast_tables.items())  # pyright: ignore[reportPrivateUsage] - owned contrast tables are forwarded without copying
+        contrast_source_tables: Mapping[str, pd.DataFrame] = (
+            DifferentialComputationResultInternalView(result).contrast_tables
+        )
         full_index = request.result_identity_metadata.index
         if not result.residual_variance.index.equals(full_index):
             residual_variance = _expand_series_to_full_index(

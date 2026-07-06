@@ -110,11 +110,11 @@ tests/unit/test_differential_numerical_guards.py,unit,621,15,true,true,,,,,,
 tests/unit/test_differential_paired_block_policy_contract.py,unit,91,7,false,false,,,,,,
 tests/unit/test_differential_request_config_refactor.py,unit,58,6,false,false,,,,,,
 tests/unit/test_differential_result_caveats.py,unit,257,4,false,false,,,,,,
-tests/unit/test_differential_result_contract.py,unit,964,32,false,false,,,,,,
+tests/unit/test_differential_result_contract.py,unit,983,33,false,false,,,,,,
 tests/unit/test_differential_result_table_helpers.py,unit,144,10,false,false,,,,,,
 tests/unit/test_differential_technical_replicate_policy.py,unit,538,13,false,false,,,,,,
 tests/unit/test_differential_unsupported_designs.py,unit,251,8,false,false,,,,,,
-tests/unit/test_differential_workflow_components.py,unit,892,27,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/unit/test_differential_workflow_components.py,unit,950,28,true,true,,,,,,[auto-orchestration] 7 hit(s); indicators: private_member_access
 tests/unit/test_docs_identity_contracts.py,unit,248,7,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_docs_support_claim_guard.py,unit,828,10,false,false,,,,,,
 tests/unit/test_docs_terminology_contracts.py,unit,77,3,false,false,,,,,,

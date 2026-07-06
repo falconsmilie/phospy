@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+from collections.abc import Mapping
 from dataclasses import fields
 from typing import Any
 
@@ -35,6 +36,9 @@ from phospy.science.datasets.preprocessing.protein_aware_preparation import (
 from phospy.science.datasets.preprocessing.protein_mapping import ProteinMappingStatus
 from phospy.science.differential.executor import (
     DifferentialAnalysisExecutor as DifferentialComputationExecutor,
+)
+from phospy.science.differential.internal_view import (
+    DifferentialComputationResultInternalView,
 )
 from phospy.science.differential.models import EmpiricalBayesConfig
 from phospy.science.transformations.models import (
@@ -525,6 +529,60 @@ def test_differential_executor_consumes_interpreter_resolved_design_inputs() -> 
         interpreted.execution_design.contrast_matrix.to_dataframe(),
     )
     assert "B_vs_A" in result.contrast_tables
+
+
+def test_differential_workflow_executor_does_not_mutate_computation_result_tables() -> (
+    None
+):
+    interpreted = DifferentialAnalysisInterpreter().run(
+        DifferentialAnalysisValidator().run(_request())
+    )
+
+    class _ComputationResultWithoutPrivateContrastTables:
+        def __init__(self, result: Any) -> None:
+            self._result = result
+
+        def __getattr__(self, name: str) -> object:
+            if name == "_contrast_tables":
+                raise AssertionError(
+                    "workflow executor must use the differential internal view"
+                )
+            return getattr(self._result, name)
+
+        def _borrow_contrast_tables(self) -> Mapping[str, pd.DataFrame]:
+            return DifferentialComputationResultInternalView(
+                self._result
+            ).contrast_tables
+
+    class _ComputationExecutorSpy:
+        def __init__(self) -> None:
+            self.result = None
+            self.before_tables = None
+            self._real_executor = DifferentialComputationExecutor()
+
+        def run(self, request):
+            self.result = self._real_executor.run(request)
+            self.before_tables = {
+                contrast_name: table.copy(deep=True)
+                for contrast_name, table in DifferentialComputationResultInternalView(
+                    self.result
+                ).contrast_tables.items()
+            }
+            return _ComputationResultWithoutPrivateContrastTables(self.result)
+
+    computation_executor = _ComputationExecutorSpy()
+    workflow_result = DifferentialAnalysisExecutor(
+        computation_executor=computation_executor,  # type: ignore[arg-type]
+    ).run(interpreted)
+
+    assert computation_executor.result is not None
+    assert computation_executor.before_tables is not None
+    for contrast_name, before_table in computation_executor.before_tables.items():
+        pd.testing.assert_frame_equal(
+            computation_executor.result.table_for(contrast_name),
+            before_table,
+        )
+    assert "site_key" in workflow_result.table_for("B_vs_A").columns
 
 
 def test_differential_invalid_contrast_fails_before_executor() -> None:
