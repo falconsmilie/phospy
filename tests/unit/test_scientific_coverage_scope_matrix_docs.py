@@ -7,6 +7,9 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - Python < 3.11
     import tomli as tomllib  # type: ignore[no-redef]
 
+from phospy.science.references import validation as reference_manifest_validation
+from phospy.science.references.manifest import RedistributionStatus
+
 ROOT = Path(__file__).resolve().parents[2]
 README_DOC = ROOT / "README.md"
 SCIENTIFIC_COVERAGE_DOC = ROOT / "docs" / "scientific-coverage.md"
@@ -15,9 +18,11 @@ DATASET_BUILD_WORKFLOW_DOC = ROOT / "docs" / "api" / "dataset-build-workflow.md"
 WORKFLOW_CONTRACTS_DOC = ROOT / "docs" / "workflow_contracts.md"
 IMPORTERS_DOC = ROOT / "docs" / "importers.md"
 PARITY_DOC = ROOT / "docs" / "parity.md"
+REFERENCE_BUNDLES_DOC = ROOT / "docs" / "reference_bundles.md"
 MAINTENANCE_DOC = ROOT / "docs" / "maintenance.md"
 CONTRIBUTING_DOC = ROOT / "docs" / "contributing.md"
 PYPROJECT = ROOT / "pyproject.toml"
+ADR_0015_DOC = ROOT / "docs" / "adr" / "adr_0015_reference_and_fixture_data_policy.md"
 ADR_0025_DOC = (
     ROOT
     / "docs"
@@ -62,6 +67,14 @@ def _importers_text() -> str:
 
 def _parity_text() -> str:
     return _read(PARITY_DOC)
+
+
+def _reference_bundles_text() -> str:
+    return _read(REFERENCE_BUNDLES_DOC)
+
+
+def _adr_0015_text() -> str:
+    return _read(ADR_0015_DOC)
 
 
 def _adr_0025_text() -> str:
@@ -218,6 +231,43 @@ def test_docs_importer_support_matches_public_importers() -> None:
     )
     assert "not spectronaut/dia-nn support" in normalized
     assert "not upstream statistical result import" in normalized
+
+
+def test_reference_provenance_docs_match_manifest_schema_and_release_gate() -> None:
+    reference_bundle_text = _reference_bundles_text().lower()
+    docs_text = (
+        _readme_text()
+        + "\n"
+        + _scientific_coverage_text()
+        + "\n"
+        + _parity_text()
+        + "\n"
+        + _reference_bundles_text()
+        + "\n"
+        + _adr_0015_text()
+    )
+    normalized = " ".join(docs_text.lower().split())
+
+    for field_name in sorted(reference_manifest_validation._REQUIRED_MANIFEST_FIELDS):
+        assert f"`{field_name}`" in reference_bundle_text
+    for field_name in sorted(reference_manifest_validation._REQUIRED_FILE_FIELDS):
+        assert f"`{field_name}`" in reference_bundle_text
+    for status in RedistributionStatus:
+        assert f"`{status.value}`" in normalized
+
+    for required in (
+        "redistribution_status` is the governing redistribution field",
+        (
+            "redistribution_allowed` compatibility value must not be used as "
+            "the review authority"
+        ),
+        "unresolved bundled references block release",
+        "external-only references must not be shipped as bundled data",
+        "must not mark references approved without verified evidence",
+        "release gate enforces stricter publication rules",
+        'each bundled manifest must declare `redistribution_status="approved"`',
+    ):
+        assert required in normalized
 
 
 def test_docs_do_not_claim_ruv_support() -> None:

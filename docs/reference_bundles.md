@@ -14,26 +14,70 @@ Current packaged lanes:
 
 | Organism | Bundle ID | Status |
 | --- | --- | --- |
-| rat | `l6_native` | Bundled locally with a hash-verifiable manifest; release publication is blocked while redistribution remains unresolved |
+| rat | `l6_native` | Bundled locally with a hash-verifiable manifest and explicit provenance caveats |
 | human | N/A | Not bundled; no approved redistributable lane is committed |
 | mouse | N/A | Not bundled; no approved redistributable lane is committed |
 
 Each packaged bundle must have one manifest for the logical reference bundle,
-not one manifest per CSV. The manifest includes:
+not one manifest per CSV.
 
-- reference identity: `reference_id`, display name, organism, taxonomy ID,
-  protein/identifier namespace, and reference version
-- source metadata: source name/version/URL/publication, source license and
-  license URL, derived-from lineage, generator, and generation timestamp
-- redistribution metadata: `redistribution_allowed` plus notes
-- file metadata for every packaged file: relative path, role, format, SHA-256,
-  row count, and column names when practical
-- sequence-window metadata for sequence-aware references
+### Bundled Manifest Schema
+
+Every bundled reference manifest must contain these top-level fields:
+
+- identity and scope: `reference_id`, `display_name`, `organism`,
+  `taxonomy_id`, `protein_namespace`, and `reference_version`
+- source and build provenance: `source_name`, `source_url`, `source_version`,
+  `retrieved_at`, `derived_from`, `generated_by`, `generated_at_utc`, and
+  `manifest_schema_version`
+- license and redistribution metadata: `license_name`, `license_url`,
+  `redistribution_status`, and `redistribution_notes`
+- package integrity metadata: `table_sha256` and `files`
+
+Every `files` item must contain:
+
+- `relative_path`
+- `role`
+- `format`
+- `sha256`
+- `row_count`
+- `column_names`
+
+Sequence-aware manifests may also carry `source_publication`,
+`sequence_context_policy`, `sequence_window_length`, `sequence_center_index`,
+`allowed_sequence_alphabet`, `organism_common_name`, `supports`, and
+`limitations`. When one of `sequence_window_length` or
+`sequence_center_index` is present, both must be present and the center index
+must be inside the declared window.
+
+`redistribution_allowed` is a derived compatibility boolean, not the
+authoritative redistribution field for review or release. The authoritative
+field is `redistribution_status`.
+
+### Redistribution Status
+
+`redistribution_status` has three allowed values:
+
+- `approved`: the only release-eligible bundled status. Use it only when the
+  manifest records verified license or permission evidence for the exact files
+  being packaged. `license_name` and `license_url` are required, and
+  `redistribution_notes` must state the evidence basis.
+- `external_only`: the reference source is known, but users must obtain it
+  outside the package under the source provider's terms. External-only
+  references must not be shipped as bundled data.
+- `unresolved`: redistribution review is incomplete, missing, or not strong
+  enough to support packaging. Unresolved bundled references block release.
+
+Codex agents and human developers must not mark references approved without
+verified evidence in the manifest. A lineage note, hash, upstream package name,
+or optimistic interpretation of a third-party license is not enough.
 
 Runtime bundled-reference loading validates the manifest and file hashes before
-the tables are exposed to workflows. The release gate enforces the stricter
-publication rule: any bundled manifest with `redistribution_allowed=false`
-fails release validation.
+the tables are exposed to workflows. The release gate enforces stricter
+publication rules: every packaged file must be listed, every declared file hash
+must match, required organism/source/license metadata must be present, and each
+bundled manifest must declare `redistribution_status="approved"`. Packaged
+manifests that declare `external_only` or `unresolved` fail release validation.
 
 ### Rat `l6_native` Provenance
 
@@ -47,17 +91,17 @@ The upstream PhosR package metadata declares GPL-3 + file `LICENSE`. That is
 not the same as independent approval for every underlying scientific source:
 PhosR documentation identifies `PhosphoSite.mouse` as extracted from
 PhosphoSitePlus and identifies the L6 phosphoproteome object with PRIDE
-accession notes. The rat manifest therefore records redistribution for this
-exact derived CSV snapshot as not independently verified. Do not use this
-bundle as approval precedent for human, mouse, PhosphoSitePlus, Kinase Library,
-PRIDE, or other third-party reference data.
+accession notes. The rat manifest records explicit caveats for this exact
+derived CSV snapshot. Do not use this bundle as approval precedent for human,
+mouse, PhosphoSitePlus, Kinase Library, PRIDE, or other third-party reference
+data.
 
 Human or mouse lanes may be added only when the committed manifest documents:
 
 - source name, version if known, URL, and publication where applicable
 - license name/text and license URL
 - file-level SHA-256 hashes for every packaged reference file
-- `redistribution_allowed=true`
+- `redistribution_status="approved"`
 - redistribution notes explaining why the license or permission permits
   packaging
 - sequence-context policy when sequence windows are included

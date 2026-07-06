@@ -117,14 +117,43 @@ Each runtime manifest should declare organism scope, identifier namespace, sourc
 
 Every bundled runtime lane must include a machine-readable manifest (reference
 data card) that is treated as runtime governance metadata, not optional notes.
-At minimum, the card must include:
+Every bundled reference manifest must contain the schema fields required by
+`src/phospy/science/references/validation.py`:
 
-- artifact identity and version
-- organism and identifier namespace
-- source provenance and redistribution/license metadata
-- supported workflow lanes and explicit exclusions
-- sequence-window and schema assumptions
-- known limitations and reviewer notes
+- identity and scope: `reference_id`, `display_name`, `organism`,
+  `taxonomy_id`, `protein_namespace`, and `reference_version`
+- source and build provenance: `source_name`, `source_url`, `source_version`,
+  `retrieved_at`, `derived_from`, `generated_by`, `generated_at_utc`, and
+  `manifest_schema_version`
+- license and redistribution metadata: `license_name`, `license_url`,
+  `redistribution_status`, and `redistribution_notes`
+- package integrity metadata: `table_sha256` and `files`
+
+Every `files` entry must contain `relative_path`, `role`, `format`, `sha256`,
+`row_count`, and `column_names`. Sequence-aware bundled references should also
+record the sequence-context policy, sequence-window length, center index,
+allowed alphabet, supported uses, and known limitations when applicable.
+
+`redistribution_status` is the governing redistribution field. The derived
+`redistribution_allowed` compatibility value must not be used as the review
+authority.
+
+### Redistribution Status Policy
+
+The allowed `redistribution_status` values are:
+
+- `approved`: release eligible only when the manifest contains verified license
+  or written-permission evidence for the exact files being packaged.
+- `external_only`: reference source is known, but the package must not ship the
+  data. Users may supply local files under their own source terms.
+- `unresolved`: redistribution evidence is missing, incomplete, or not yet
+  reviewed.
+
+Unresolved bundled references block release. External-only references must not
+be shipped as bundled data. Codex agents and human developers must not mark
+references approved without verified evidence. Source lineage, file hashes,
+and upstream package names are provenance evidence, not redistribution approval
+by themselves.
 
 ## Category 2: Test Fixture Data
 
@@ -429,4 +458,3 @@ Together, these ADRs establish:
 Yang, P., Patrick, E., Humphrey, S. J., Ghazanfar, S., James, D. E., Jothi, R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14), i349-i356.
 
 YangLab. (n.d.). *PhosR* [Computer software]. GitHub. https://github.com/PYangLab/PhosR
-

@@ -100,7 +100,12 @@ reproducibility, golden, reference-manifest, and threshold-bearing parity gates
 must all pass before a public scientific release. The same gate also scans
 packaged reference manifests and blocks release when a bundled reference is
 missing file hashes, fails hash verification, lacks license/organism/namespace
-metadata, or declares unresolved redistribution status.
+metadata, or declares a non-release-eligible `redistribution_status`.
+`unresolved` bundled references block release, and `external_only` references
+must not be shipped as bundled data. `approved` requires verified evidence in
+the manifest for the exact packaged files; developers and Codex agents must not
+use optimistic wording or source-lineage notes as a substitute for that
+evidence.
 
 The release-gate metadata JSON is the audit record for a gate run. By default it
 is written to:
