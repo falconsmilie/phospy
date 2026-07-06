@@ -61,7 +61,12 @@ class DifferentialAnalysisExecutor:
         computation_request = request.computation_request
         imputation_policy_inputs = request.imputation_policy_inputs
         feature_eligibility_inputs = request.feature_eligibility_inputs
-        if imputation_policy_inputs is not None and feature_eligibility_inputs is None:
+        if feature_eligibility_inputs is not None:
+            computation_request = _filter_computation_request_for_feature_eligibility(
+                computation_request=request.computation_request,
+                feature_eligibility_inputs=feature_eligibility_inputs,
+            )
+        elif imputation_policy_inputs is not None:
             computation_request = _filter_computation_request_for_imputation_policy(
                 computation_request=request.computation_request,
                 imputation_policy_inputs=imputation_policy_inputs,
@@ -376,21 +381,77 @@ def _filter_computation_request_for_imputation_policy(
     computation_request: DifferentialComputationRequest,
     imputation_policy_inputs: DifferentialImputationPolicyInputs,
 ) -> DifferentialComputationRequest:
-    testable_feature_ids = list(imputation_policy_inputs.testable_feature_ids)
+    return _filter_computation_request_for_feature_ids(
+        computation_request=computation_request,
+        feature_ids=imputation_policy_inputs.testable_feature_ids,
+        seam="differential.executor.imputation_policy_testable_features",
+        next_action=(
+            "raise differential.imputed_value_max_fraction, require more "
+            "observed values per condition, or use a non-imputed dataset"
+        ),
+        details={"policy": imputation_policy_inputs.policy},
+    )
+
+
+def _filter_computation_request_for_feature_eligibility(
+    *,
+    computation_request: DifferentialComputationRequest,
+    feature_eligibility_inputs: DifferentialFeatureEligibilityInputs,
+) -> DifferentialComputationRequest:
+    return _filter_computation_request_for_feature_ids(
+        computation_request=computation_request,
+        feature_ids=feature_eligibility_inputs.testable_feature_ids,
+        seam="differential.executor.feature_eligibility_testable_features",
+        next_action=(
+            "ensure differential feature eligibility is resolved before "
+            "statistical execution and at least one feature remains testable"
+        ),
+        details={
+            "status_counts": _status_counts(feature_eligibility_inputs.result_status)
+        },
+    )
+
+
+def _filter_computation_request_for_feature_ids(
+    *,
+    computation_request: DifferentialComputationRequest,
+    feature_ids: tuple[str, ...],
+    seam: str,
+    next_action: str,
+    details: dict[str, object],
+) -> DifferentialComputationRequest:
+    testable_feature_ids = list(feature_ids)
     if not testable_feature_ids:
         raise WorkflowBoundaryError(
-            seam="differential.executor.imputation_policy_testable_features",
-            next_action=(
-                "raise differential.imputed_value_max_fraction, require more "
-                "observed values per condition, or use a non-imputed dataset"
-            ),
-            details={"policy": imputation_policy_inputs.policy},
+            seam=seam,
+            next_action=next_action,
+            details=details,
             message_prefix="differential workflow boundary validation failed",
         )
+    current_feature_ids = tuple(
+        str(feature_id) for feature_id in computation_request.matrix.index.tolist()
+    )
+    if current_feature_ids == tuple(testable_feature_ids):
+        return computation_request
     row_positions_by_feature_id = {
         str(feature_id): position
         for position, feature_id in enumerate(computation_request.matrix.index)
     }
+    missing_feature_ids = [
+        feature_id
+        for feature_id in testable_feature_ids
+        if feature_id not in row_positions_by_feature_id
+    ]
+    if missing_feature_ids:
+        raise WorkflowBoundaryError(
+            seam=seam,
+            next_action=(
+                "ensure the interpreted computation matrix contains every "
+                "testable feature selected by differential feature eligibility"
+            ),
+            details={**details, "missing_feature_ids": missing_feature_ids[:5]},
+            message_prefix="differential workflow boundary validation failed",
+        )
     row_positions = [
         row_positions_by_feature_id[feature_id] for feature_id in testable_feature_ids
     ]
@@ -409,6 +470,11 @@ def _filter_computation_request_for_imputation_policy(
         empirical_bayes=computation_request.empirical_bayes,
         multiple_testing_method=computation_request.multiple_testing_method,
     )
+
+
+def _status_counts(result_status: pd.Series) -> dict[str, int]:
+    counts = result_status.astype(str).value_counts(sort=False)
+    return {str(status): int(count) for status, count in counts.items()}
 
 
 def _attach_imputation_policy_metadata(

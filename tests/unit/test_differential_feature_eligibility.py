@@ -5,13 +5,18 @@ import pandas as pd
 
 from phospy.api import (
     Contrast,
+    DifferentialAnalysisConfig,
     DifferentialAnalysisRequest,
     DifferentialAnalysisWorkflow,
     ExperimentalDesign,
+    MultipleTestingConfig,
     Organism,
     SampleDesignRecord,
 )
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.differential.executor import (
+    DifferentialAnalysisExecutor as DifferentialComputationExecutor,
+)
 from phospy.science.differential.models import (
     DIFFERENTIAL_RESULT_STATUS_COLUMN,
     DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
@@ -19,14 +24,17 @@ from phospy.science.differential.models import (
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
 )
 from phospy.science.statistics.multiple_testing import adjust_p_values
+from phospy.workflows.differential.executor import (
+    DifferentialAnalysisExecutor as DifferentialWorkflowExecutor,
+)
 from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
 )
 from tests.support.site_keys import protein_site_key_index, site_key_context_columns
 
-_GENES = ("MAPK14", "AKT1", "GSK3B")
-_SITES = ("Y182", "T308", "S9")
+_GENES = ["MAPK14", "AKT1", "GSK3B"]
+_SITES = ["Y182", "T308", "S9"]
 
 
 def _site_index() -> pd.Index:
@@ -109,6 +117,96 @@ def _request() -> DifferentialAnalysisRequest:
                 denominator_condition="A",
             ),
         ),
+    )
+
+
+def test_differential_executor_receives_only_eligible_rows() -> None:
+    class _ComputationExecutorSpy:
+        def __init__(self) -> None:
+            self.received_feature_ids: tuple[str, ...] = ()
+            self._real_executor = DifferentialComputationExecutor()
+
+        def run(self, request):
+            self.received_feature_ids = tuple(
+                str(feature_id) for feature_id in request.matrix.index.tolist()
+            )
+            return self._real_executor.run(request)
+
+    computation_executor = _ComputationExecutorSpy()
+
+    DifferentialAnalysisWorkflow(
+        executor=DifferentialWorkflowExecutor(
+            computation_executor=computation_executor,  # type: ignore[arg-type]
+        )
+    ).run(_request())
+
+    assert computation_executor.received_feature_ids == tuple(
+        str(feature_id) for feature_id in _site_index()[1:].tolist()
+    )
+
+
+def test_differential_result_preserves_original_row_alignment() -> None:
+    result = DifferentialAnalysisWorkflow().run(_request())
+    table = result.table_for("B_vs_A")
+    expected_index = _site_index().tolist()
+
+    assert table.index.tolist() == expected_index
+    assert table.loc[:, "site_key"].tolist() == expected_index
+    assert result.residual_variance_series().index.tolist() == expected_index
+    assert result.feature_eligibility is not None
+    assert result.feature_eligibility.index.tolist() == expected_index
+
+
+def test_differential_adjusted_p_values_exclude_withheld_rows() -> None:
+    base_request = _request()
+    result = DifferentialAnalysisWorkflow().run(
+        DifferentialAnalysisRequest(
+            dataset=base_request.dataset,
+            design=base_request.design,
+            contrasts=base_request.contrasts,
+            config=DifferentialAnalysisConfig(
+                multiple_testing=MultipleTestingConfig(method="bonferroni")
+            ),
+        )
+    )
+    table = result.table_for("B_vs_A")
+    tested = (
+        table[DIFFERENTIAL_RESULT_STATUS_COLUMN] == DIFFERENTIAL_RESULT_STATUS_TESTED
+    )
+
+    expected_adjusted = adjust_p_values(
+        table.loc[tested, "P.Value"].to_numpy(dtype=float),
+        method="bonferroni",
+    )
+    np.testing.assert_allclose(
+        table.loc[tested, "adj.P.Val"].to_numpy(dtype=float),
+        expected_adjusted,
+        rtol=1e-12,
+        atol=1e-12,
+    )
+    assert table.loc[~tested, "adj.P.Val"].isna().all()
+
+
+def test_differential_withheld_rows_have_null_statistics() -> None:
+    result = DifferentialAnalysisWorkflow().run(_request())
+    table = result.table_for("B_vs_A")
+    withheld = (
+        table[DIFFERENTIAL_RESULT_STATUS_COLUMN] != DIFFERENTIAL_RESULT_STATUS_TESTED
+    )
+
+    assert withheld.any()
+    assert (
+        table.loc[withheld, ["logFC", "t", "P.Value", "adj.P.Val"]].isna().all().all()
+    )
+    assert (
+        table.loc[withheld, DIFFERENTIAL_RESULT_STATUS_COLUMN].astype(str).ne("").all()
+    )
+    assert (
+        table.loc[withheld, DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN]
+        .astype(str)
+        .str.strip()
+        .ne("")
+        .all()
     )
 
 
