@@ -11,6 +11,7 @@ from phospy.api.results import (
     KinaseWorkflowCaveat,
     KinaseWorkflowResult,
 )
+from phospy.contracts.result_caveats import result_caveats_from_payloads
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._kinase.manifest import KinaseManifestSections
 from phospy.io.bundles._shared.intensity_scale_state import (
@@ -323,7 +324,10 @@ def reconstruct_kinase_result(
         provenance=provenance,
         substrate_contributions=substrate_contributions,
         attrition_provenance=_kinase_attrition_provenance_from_provenance(provenance),
-        caveats=_kinase_caveats_from_provenance(provenance),
+        caveats=(
+            result_caveats_from_payloads(sections.caveats_payload)
+            or _kinase_caveats_from_provenance(provenance)
+        ),
         _assume_owned=True,
     )
 

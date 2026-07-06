@@ -15,6 +15,10 @@ from phospy.api import (
 from phospy.api.results import KinaseWorkflowResult
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.workflows.kinase.caveats import (
+    KINASE_ATTRITION_POLICY_CAVEAT_CODE,
+    KINASE_PERMISSIVE_LOCALISATION_POLICY_CAVEAT_CODE,
+)
 from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
 from tests.support.intensity_scale_states import (
@@ -111,6 +115,12 @@ def _strict_scored_fraction_policy(*, on_violation: str) -> KinaseAttritionPolic
     )
 
 
+def _caveat_by_code(result: KinaseWorkflowResult, code: str):
+    matches = [caveat for caveat in result.caveats if caveat.code == code]
+    assert len(matches) == 1
+    return matches[0]
+
+
 def test_kinase_attrition_policy_error_blocks_scoring() -> None:
     class _ExecutorMustNotRun:
         def run(
@@ -140,14 +150,36 @@ def test_kinase_result_caveats_include_attrition_warning() -> None:
     assert result.attrition_provenance.policy["minimum_scored_fraction"] == (
         pytest.approx(0.75)
     )
-    assert len(result.caveats) == 1
-    caveat = result.caveats[0]
-    assert caveat.code == "kinase_attrition_policy_violation"
+    caveat = _caveat_by_code(result, KINASE_ATTRITION_POLICY_CAVEAT_CODE)
     assert caveat.severity == "warning"
     assert caveat.details["threshold_name"] == "minimum_scored_fraction"
     assert caveat.details["configured_threshold"] == pytest.approx(0.75)
     assert caveat.details["observed_value"] == pytest.approx(0.5)
     assert result.attrition_provenance.warning_messages == (caveat.message,)
+
+
+def test_kinase_result_caveats_include_permissive_localisation_policy() -> None:
+    result = KinaseWorkflow().run(
+        _request(
+            KinaseAttritionPolicy(
+                minimum_reference_overlap_fraction=0.25,
+                minimum_sequence_supported_fraction=0.25,
+                minimum_scored_fraction=0.25,
+                on_violation="warn",
+            )
+        )
+    )
+
+    caveat = _caveat_by_code(
+        result,
+        KINASE_PERMISSIVE_LOCALISATION_POLICY_CAVEAT_CODE,
+    )
+
+    assert caveat.severity == "warning"
+    assert caveat.details["policy"] == "allow_unknown"
+    assert caveat.details["workflow_scope"] == "kinase_scoring"
+    assert caveat.details["minimum_probability"] is None
+    assert caveat.details["site_count"] == 4
 
 
 def test_kinase_attrition_policy_error_message_contains_counts_and_threshold() -> None:
@@ -193,7 +225,9 @@ def test_kinase_result_exposes_attrition_metrics() -> None:
     assert attrition.policy["minimum_scored_fraction"] == pytest.approx(0.25)
     assert attrition.policy["on_violation"] == "warn"
     assert attrition.policy_violations == ()
-    assert result.caveats == ()
+    assert all(
+        caveat.code != KINASE_ATTRITION_POLICY_CAVEAT_CODE for caveat in result.caveats
+    )
 
 
 def test_kinase_provenance_records_attrition_policy_and_metrics() -> None:
@@ -203,7 +237,7 @@ def test_kinase_provenance_records_attrition_policy_and_metrics() -> None:
 
     summary = result.site_attrition_summary
     assert summary is not None
-    caveat = result.caveats[0]
+    caveat = _caveat_by_code(result, KINASE_ATTRITION_POLICY_CAVEAT_CODE)
     assert caveat.details["total_dataset_sites"] == (
         summary.scoring.final_quantitative_sites_entering_scoring
     )

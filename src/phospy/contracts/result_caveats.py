@@ -119,6 +119,40 @@ def validate_result_caveats(
     return owned
 
 
+def result_caveats_from_payloads(
+    raw_payloads: object,
+) -> tuple[ResultCaveat, ...]:
+    """Parse persisted caveat payloads into validated ResultCaveat objects."""
+
+    if not isinstance(raw_payloads, list):
+        return ()
+    caveats: list[ResultCaveat] = []
+    for raw_payload in raw_payloads:
+        if not isinstance(raw_payload, Mapping):
+            continue
+        code = raw_payload.get("code")
+        severity = raw_payload.get("severity")
+        message = raw_payload.get("message")
+        details = raw_payload.get("details", {})
+        if not isinstance(code, str) or code.strip() == "":
+            continue
+        if not isinstance(severity, str) or severity not in _RESULT_CAVEAT_SEVERITIES:
+            continue
+        if not isinstance(message, str) or message.strip() == "":
+            continue
+        if not isinstance(details, Mapping):
+            continue
+        caveats.append(
+            ResultCaveat(
+                code=code,
+                severity=cast(ResultCaveatSeverity, severity),
+                message=message,
+                details=dict(details),
+            )
+        )
+    return tuple(caveats)
+
+
 def _require_result_caveat_severity(value: object) -> ResultCaveatSeverity:
     if isinstance(value, str) and value in _RESULT_CAVEAT_SEVERITIES:
         return cast(ResultCaveatSeverity, value)
@@ -150,5 +184,6 @@ def _require_details_mapping(
 __all__ = [
     "ResultCaveat",
     "ResultCaveatSeverity",
+    "result_caveats_from_payloads",
     "validate_result_caveats",
 ]

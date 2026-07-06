@@ -10,7 +10,6 @@ import pandas as pd
 from phospy.contracts.results import (
     KinaseEligibilityReport,
     KinaseWorkflowAttritionProvenance,
-    KinaseWorkflowCaveat,
     KinaseWorkflowResult,
     KinaseWorkflowSiteAttritionSummary,
 )
@@ -20,6 +19,7 @@ from phospy.science.prediction.models import KinasePredictionResult, KinaseScori
 from phospy.workflows.kinase.attrition_metrics import (
     build_kinase_attrition_provenance_payload,
 )
+from phospy.workflows.kinase.caveats import build_kinase_result_caveats
 from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
 
 
@@ -73,14 +73,9 @@ class KinaseResultAssembler:
             activity_result=activity_result,
             provenance=provenance,
             substrate_contributions=substrate_contributions,
-            caveats=tuple(
-                KinaseWorkflowCaveat(
-                    code=str(violation.to_payload()["code"]),
-                    severity="warning",
-                    message=violation.message,
-                    details=violation.to_payload(),
-                )
-                for violation in request.attrition_policy_violations
+            caveats=build_kinase_result_caveats(
+                request=request,
+                scoring_result=scoring_result,
             ),
             _assume_owned=True,
         )

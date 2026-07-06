@@ -17,6 +17,7 @@ from phospy.science.signalomes.models import (
     SignalomeNetworkCorrelationDiagnostics,
 )
 from phospy.science.signalomes.science import build_expanded_signalome_table
+from phospy.workflows.signalome.caveats import build_signalome_result_caveats
 from phospy.workflows.signalome.component_helpers import (
     prediction_shape_details,
     raise_boundary_error,
@@ -122,6 +123,7 @@ class SignalomeResultAssembler:
             site_membership=site_membership,
             protein_site_context=protein_site_context,
             provenance=provenance,
+            caveats=build_signalome_result_caveats(request=request),
         )
 
 

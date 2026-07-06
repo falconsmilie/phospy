@@ -15,6 +15,7 @@ from phospy.api.results import (
     KinaseWorkflowResult,
     SignalomeWorkflowResult,
 )
+from phospy.contracts.result_caveats import result_caveats_from_payloads
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.intensity_scale_state import (
     intensity_scale_state_from_payload,
@@ -203,6 +204,7 @@ def reconstruct_signalome_result(
         site_membership=optional_tables.site_membership,
         protein_site_context=optional_tables.protein_site_context,
         provenance=provenances.signalome,
+        caveats=result_caveats_from_payloads(sections.signalome_caveats_payload),
     )
 
 
@@ -334,7 +336,10 @@ def _reconstruct_kinase_result(
         ),
         provenance=provenance,
         attrition_provenance=_kinase_attrition_provenance_from_provenance(provenance),
-        caveats=_kinase_caveats_from_provenance(provenance),
+        caveats=(
+            result_caveats_from_payloads(sections.upstream_kinase_caveats_payload)
+            or _kinase_caveats_from_provenance(provenance)
+        ),
     )
 
 

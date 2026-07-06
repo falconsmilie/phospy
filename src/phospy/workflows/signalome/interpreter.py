@@ -275,6 +275,7 @@ class SignalomeWorkflowInterpreter:
                     policy=str(request.config.validation.score_preconditioning_policy)
                 )
             ),
+            localisation_requirement=request.config.validation.localisation_requirement,
         )
 
 

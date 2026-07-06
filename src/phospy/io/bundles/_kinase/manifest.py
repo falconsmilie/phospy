@@ -44,6 +44,7 @@ class KinaseManifestSections:
     activity_tables: Mapping[str, object]
     provenance_payload: Mapping[str, object]
     config_snapshot_path: str
+    caveats_payload: object = ()
 
 
 _LEGACY_KINASE_BUNDLE_SCHEMA_ERROR = (
@@ -51,6 +52,19 @@ _LEGACY_KINASE_BUNDLE_SCHEMA_ERROR = (
     "with the current PhosPy version."
 )
 _MANIFEST_ALLOWED_FIELDS = frozenset(
+    {
+        "bundle_type",
+        "manifest_version",
+        "table_format",
+        "dataset",
+        "resolved_references",
+        "outputs",
+        "provenance",
+        "config_snapshot",
+        "caveats",
+    }
+)
+_MANIFEST_REQUIRED_FIELDS = frozenset(
     {
         "bundle_type",
         "manifest_version",
@@ -175,6 +189,7 @@ def build_manifest(
             },
         },
         "provenance": provenance_to_payload(result.provenance),
+        "caveats": [caveat.to_payload() for caveat in result.caveats],
         "config_snapshot": CONFIG_SNAPSHOT_RELATIVE_PATH,
     }
 
@@ -190,7 +205,7 @@ def parse_manifest(payload: Mapping[str, object]) -> KinaseManifestSections:
     _require_fields(
         payload,
         field_name="bundle manifest",
-        required_fields=_MANIFEST_ALLOWED_FIELDS,
+        required_fields=_MANIFEST_REQUIRED_FIELDS,
         unsupported_shape=True,
     )
     bundle_type = require_str(
@@ -445,6 +460,7 @@ def parse_manifest(payload: Mapping[str, object]) -> KinaseManifestSections:
             payload.get("config_snapshot"),
             field_name="bundle manifest.config_snapshot",
         ),
+        caveats_payload=payload.get("caveats", []),
     )
 
 

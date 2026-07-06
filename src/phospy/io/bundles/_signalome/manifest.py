@@ -50,6 +50,8 @@ class SignalomeManifestSections:
     signalome_tables: Mapping[str, object]
     provenance_payload: Mapping[str, object]
     config_snapshot_path: str
+    signalome_caveats_payload: object = ()
+    upstream_kinase_caveats_payload: object = ()
 
 
 _LEGACY_SIGNALOME_BUNDLE_SCHEMA_ERROR = (
@@ -57,6 +59,20 @@ _LEGACY_SIGNALOME_BUNDLE_SCHEMA_ERROR = (
     "with the current PhosPy version."
 )
 _MANIFEST_ALLOWED_FIELDS = frozenset(
+    {
+        "bundle_type",
+        "manifest_version",
+        "table_format",
+        "dataset",
+        "resolved_references",
+        "upstream_kinase_outputs",
+        "signalome_outputs",
+        "provenance",
+        "config_snapshot",
+        "caveats",
+    }
+)
+_MANIFEST_REQUIRED_FIELDS = frozenset(
     {
         "bundle_type",
         "manifest_version",
@@ -75,7 +91,10 @@ _DATASET_TABLE_KEYS = frozenset(
 )
 _REFERENCES_ALLOWED_FIELDS = frozenset({"metadata", "tables"})
 _REFERENCE_TABLE_KEYS = frozenset({"kinase_substrate_map", "site_sequences"})
-_UPSTREAM_OUTPUTS_ALLOWED_FIELDS = frozenset({"scoring", "prediction", "activity"})
+_UPSTREAM_OUTPUTS_ALLOWED_FIELDS = frozenset(
+    {"scoring", "prediction", "activity", "caveats"}
+)
+_UPSTREAM_OUTPUTS_REQUIRED_FIELDS = frozenset({"scoring", "prediction", "activity"})
 _SCORING_ALLOWED_FIELDS = frozenset({"tables"})
 _SCORING_TABLE_KEYS = frozenset(
     {
@@ -200,6 +219,7 @@ def build_manifest(
                 "enabled": result.kinase_result.activity_result is not None,
                 "tables": dict(activity_tables),
             },
+            "caveats": [caveat.to_payload() for caveat in result.kinase_result.caveats],
         },
         "signalome_outputs": {
             "metadata": {
@@ -220,6 +240,7 @@ def build_manifest(
             },
             "tables": dict(signalome_tables),
         },
+        "caveats": [caveat.to_payload() for caveat in result.caveats],
         "provenance": provenance_to_payload(result.provenance),
         "config_snapshot": CONFIG_SNAPSHOT_RELATIVE_PATH,
     }
@@ -236,7 +257,7 @@ def parse_manifest(payload: Mapping[str, object]) -> SignalomeManifestSections:
     _require_fields(
         payload,
         field_name="bundle manifest",
-        required_fields=_MANIFEST_ALLOWED_FIELDS,
+        required_fields=_MANIFEST_REQUIRED_FIELDS,
         unsupported_shape=True,
     )
     bundle_type = require_str(
@@ -304,7 +325,7 @@ def parse_manifest(payload: Mapping[str, object]) -> SignalomeManifestSections:
     _require_fields(
         upstream_payload,
         field_name="bundle manifest.upstream_kinase_outputs",
-        required_fields=_UPSTREAM_OUTPUTS_ALLOWED_FIELDS,
+        required_fields=_UPSTREAM_OUTPUTS_REQUIRED_FIELDS,
         unsupported_shape=True,
     )
     scoring_payload = require_mapping(
@@ -514,6 +535,8 @@ def parse_manifest(payload: Mapping[str, object]) -> SignalomeManifestSections:
             payload.get("config_snapshot"),
             field_name="bundle manifest.config_snapshot",
         ),
+        signalome_caveats_payload=payload.get("caveats", []),
+        upstream_kinase_caveats_payload=upstream_payload.get("caveats", []),
     )
 
 

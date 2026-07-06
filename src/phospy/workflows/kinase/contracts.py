@@ -19,6 +19,7 @@ from phospy.contracts.configs import (
     KinasePredictionMode,
     KinaseProfileMissingValueStrategy,
     KinaseScoringMode,
+    LocalisationRequirement,
 )
 from phospy.contracts.requests import KinaseWorkflowRequest
 from phospy.contracts.results import KinaseWorkflowResult
@@ -85,6 +86,7 @@ class ResolvedKinaseWorkflowRequest:
     attrition_policy_violations: tuple[KinaseAttritionPolicyViolation, ...] = ()
     site_identity_map: pd.DataFrame | None = None
     site_sequence_merge_diagnostics: dict[str, object] = field(default_factory=dict)
+    reference_resolution_details: dict[str, object] = field(default_factory=dict)
     _kinase_substrate_reference: pd.DataFrame = field(
         init=False,
         repr=False,
@@ -705,6 +707,9 @@ class ResolvedKinaseExecutionConfig:
     activity: ResolvedKinaseActivityExecutionConfig | None = None
     scoring_mode: KinaseScoringMode = KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED
     include_substrate_contributions: bool = False
+    localisation_requirement: LocalisationRequirement = field(
+        default_factory=LocalisationRequirement
+    )
 
 
 class KinaseWorkflowValidatorContract(Protocol):

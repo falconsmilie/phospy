@@ -12,6 +12,7 @@ from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.prediction.policies import resolve_prediction_sampling_policy
 from phospy.science.references.kinase_library import KinaseLibraryResource
+from phospy.science.references.models import ReferenceBundle, ReferencePreset
 from phospy.science.references.resolution import (
     BundledReferenceProvider,
     ReferenceResolver,
@@ -174,6 +175,10 @@ class KinaseWorkflowInterpreter:
                 "execution_substrate_map_count": int(kinase_substrate_map.shape[0]),
                 "display_reference_matching": display_reference_matching,
             },
+            reference_resolution_details=self._build_reference_resolution_details(
+                request=request,
+                references=references,
+            ),
         )
 
     @staticmethod
@@ -304,7 +309,44 @@ class KinaseWorkflowInterpreter:
             ),
             attrition_policy=request.scoring_config.attrition_policy,
             activity=activity,
+            localisation_requirement=request.scoring_config.localisation_requirement,
         )
+
+    @staticmethod
+    def _build_reference_resolution_details(
+        *,
+        request: KinaseWorkflowRequest,
+        references: ReferenceBundle,
+    ) -> dict[str, object]:
+        reference_input = request.references
+        reference_input_kind = "reference_bundle"
+        reference_input_value = "explicit_bundle"
+        if isinstance(reference_input, ReferencePreset):
+            reference_input_kind = "reference_preset"
+            reference_input_value = reference_input.value
+        provenance = references.provenance
+        return {
+            "reference_input_kind": reference_input_kind,
+            "reference_input_value": reference_input_value,
+            "dataset_organism": (
+                None
+                if request.dataset.organism is None
+                else request.dataset.organism.value
+            ),
+            "resolved_reference_organism": references.organism.value,
+            "resolved_reference_source_type": (
+                "unknown" if provenance is None else provenance.source_type
+            ),
+            "resolved_reference_bundle_id": (
+                None if provenance is None else provenance.bundle_id
+            ),
+            "resolved_reference_source_name": (
+                None if provenance is None else provenance.source_name
+            ),
+            "resolved_reference_source_version": (
+                None if provenance is None else provenance.source_version
+            ),
+        }
 
     def _resolve_kinase_library_resource(
         self,

@@ -1,0 +1,249 @@
+"""Structured caveats for kinase workflow results."""
+
+from __future__ import annotations
+
+import pandas as pd
+
+from phospy.contracts.configs import KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED
+from phospy.contracts.result_caveats import ResultCaveat
+from phospy.science.prediction.models import KinaseScoringResult
+from phospy.science.prediction.scoring import (
+    KINASE_SCORE_SOURCE_PROFILE_ONLY_MOTIF_MISSING_OR_CONSTANT,
+    KINASE_SCORE_SOURCE_PROFILE_ONLY_NO_MOTIF_OVERLAP,
+)
+from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
+from phospy.workflows.result_caveat_helpers import (
+    build_localisation_policy_details,
+    deduplicate_caveats,
+    is_permissive_localisation_requirement,
+)
+
+KINASE_ATTRITION_POLICY_CAVEAT_CODE = "kinase_attrition_policy_violation"
+KINASE_PERMISSIVE_LOCALISATION_POLICY_CAVEAT_CODE = (
+    "kinase_permissive_localisation_policy"
+)
+KINASE_NON_DEFAULT_REFERENCE_SOURCE_CAVEAT_CODE = "kinase_non_default_reference_source"
+KINASE_REFERENCE_AUTO_RESOLUTION_CAVEAT_CODE = "kinase_reference_auto_resolution"
+KINASE_REFERENCE_SCORE_FALLBACK_CAVEAT_CODE = "kinase_reference_score_fallback"
+KINASE_SCORING_LIMITATION_CAVEAT_CODE = "kinase_non_phosr_equivalent_scoring"
+
+
+def build_kinase_result_caveats(
+    *,
+    request: ResolvedKinaseWorkflowRequest,
+    scoring_result: KinaseScoringResult,
+) -> tuple[ResultCaveat, ...]:
+    """Build compact machine-readable caveats for kinase workflow results."""
+
+    caveats: list[ResultCaveat] = []
+    caveats.extend(_attrition_policy_caveats(request))
+    localisation = _permissive_localisation_caveat(request)
+    if localisation is not None:
+        caveats.append(localisation)
+    reference_source = _non_default_reference_source_caveat(request)
+    if reference_source is not None:
+        caveats.append(reference_source)
+    reference_resolution = _reference_auto_resolution_caveat(request)
+    if reference_resolution is not None:
+        caveats.append(reference_resolution)
+    score_fallback = _reference_score_fallback_caveat(scoring_result)
+    if score_fallback is not None:
+        caveats.append(score_fallback)
+    caveats.append(_scoring_limitation_caveat(request, scoring_result))
+    return deduplicate_caveats(caveats)
+
+
+def _attrition_policy_caveats(
+    request: ResolvedKinaseWorkflowRequest,
+) -> tuple[ResultCaveat, ...]:
+    caveats: list[ResultCaveat] = []
+    for violation in request.attrition_policy_violations:
+        payload = violation.to_payload()
+        code = payload.get("code", KINASE_ATTRITION_POLICY_CAVEAT_CODE)
+        caveats.append(
+            ResultCaveat(
+                code=str(code),
+                severity="warning",
+                message=violation.message,
+                details=payload,
+            )
+        )
+    return tuple(caveats)
+
+
+def _permissive_localisation_caveat(
+    request: ResolvedKinaseWorkflowRequest,
+) -> ResultCaveat | None:
+    requirement = request.execution_config.localisation_requirement
+    if not is_permissive_localisation_requirement(requirement):
+        return None
+    details = build_localisation_policy_details(
+        site_metadata=request.dataset.site_metadata,
+        requirement=requirement,
+        workflow_scope="kinase_scoring",
+    )
+    policy = str(requirement.policy)
+    return ResultCaveat(
+        code=KINASE_PERMISSIVE_LOCALISATION_POLICY_CAVEAT_CODE,
+        severity="warning",
+        message=(
+            "Kinase workflow localisation policy does not enforce a minimum "
+            "localisation probability; unknown or low-confidence phosphosite "
+            "localisation can remain in scoring inputs."
+        ),
+        details=details | {"policy_is_permissive": True, "policy": policy},
+    )
+
+
+def _non_default_reference_source_caveat(
+    request: ResolvedKinaseWorkflowRequest,
+) -> ResultCaveat | None:
+    provenance = request.references.provenance
+    source_type = None if provenance is None else provenance.source_type
+    if source_type == "bundled":
+        return None
+    details = _reference_details(request)
+    details["expected_default_source_type"] = "bundled"
+    return ResultCaveat(
+        code=KINASE_NON_DEFAULT_REFERENCE_SOURCE_CAVEAT_CODE,
+        severity="warning",
+        message=(
+            "Kinase workflow used a non-default reference source; scoring and "
+            "prediction depend on the supplied reference bundle content."
+        ),
+        details=details,
+    )
+
+
+def _reference_auto_resolution_caveat(
+    request: ResolvedKinaseWorkflowRequest,
+) -> ResultCaveat | None:
+    resolution = request.reference_resolution_details
+    if str(resolution.get("reference_input_value", "")) != "auto":
+        return None
+    details = _reference_details(request)
+    details.update({str(key): value for key, value in resolution.items()})
+    return ResultCaveat(
+        code=KINASE_REFERENCE_AUTO_RESOLUTION_CAVEAT_CODE,
+        severity="info",
+        message=(
+            "Kinase workflow resolved ReferencePreset.AUTO from dataset.organism; "
+            "results depend on the bundled reference lane selected at runtime."
+        ),
+        details=details,
+    )
+
+
+def _reference_score_fallback_caveat(
+    scoring_result: KinaseScoringResult,
+) -> ResultCaveat | None:
+    summary = scoring_result.score_source_summary
+    if summary is None or summary.empty:
+        return None
+    details = _score_source_summary_details(summary)
+    fallback_count = _sum_int(
+        summary, "profile_only_motif_missing_or_constant_count"
+    ) + _sum_int(summary, "profile_only_no_motif_overlap_count")
+    if fallback_count <= 0:
+        return None
+    return ResultCaveat(
+        code=KINASE_REFERENCE_SCORE_FALLBACK_CAVEAT_CODE,
+        severity="warning",
+        message=(
+            "Kinase rank-weighted scoring used profile-only fallback for one or "
+            "more kinase-site scores because motif/reference evidence was "
+            "unavailable or unusable."
+        ),
+        details=details,
+    )
+
+
+def _scoring_limitation_caveat(
+    request: ResolvedKinaseWorkflowRequest,
+    scoring_result: KinaseScoringResult,
+) -> ResultCaveat:
+    scoring_mode = str(request.execution_config.scoring_mode)
+    details = {
+        "scoring_mode": scoring_mode,
+        "score_source": scoring_result.score_source,
+        "score_scale": scoring_result.score_scale,
+        "default_scoring_mode": KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
+        "site_count": int(scoring_result.profile_scores.shape[0]),
+        "kinase_count": int(scoring_result.profile_scores.shape[1]),
+        "kinase_library_resource_provided": (
+            request.kinase_library_resource is not None
+        ),
+    }
+    return ResultCaveat(
+        code=KINASE_SCORING_LIMITATION_CAVEAT_CODE,
+        severity="info",
+        message=(
+            "Kinase scoring uses PhosPy workflow scoring semantics; outputs are "
+            "not exact PhosR numerical equivalents."
+        ),
+        details=details,
+    )
+
+
+def _reference_details(request: ResolvedKinaseWorkflowRequest) -> dict[str, object]:
+    provenance = request.references.provenance
+    details: dict[str, object] = {
+        "reference_organism": request.references.organism.value,
+        "kinase_substrate_record_count": int(
+            request.references.kinase_substrate_map.shape[0]
+        ),
+        "site_sequence_record_count": int(request.references.site_sequences.shape[0]),
+    }
+    if provenance is None:
+        details["source_type"] = "unknown"
+        return details
+    details.update(
+        {
+            "source_type": provenance.source_type,
+            "bundle_id": provenance.bundle_id,
+            "source_name": provenance.source_name,
+            "source_version": provenance.source_version,
+            "identifier_namespace": provenance.identifier_namespace,
+        }
+    )
+    return details
+
+
+def _score_source_summary_details(summary: pd.DataFrame) -> dict[str, object]:
+    fallback_columns = (
+        "profile_only_motif_missing_or_constant_count",
+        "profile_only_no_motif_overlap_count",
+    )
+    fused_column = "fused_motif_profile_evidence_count"
+    unavailable_column = "unavailable_no_score_count"
+    affected = summary.loc[:, list(fallback_columns)].sum(axis=1) > 0
+    details: dict[str, object] = {
+        "affected_kinase_count": int(affected.sum()),
+        "kinase_count": int(summary.shape[0]),
+        "score_source_summary_columns": [str(column) for column in summary],
+        "profile_only_source_labels": [
+            KINASE_SCORE_SOURCE_PROFILE_ONLY_MOTIF_MISSING_OR_CONSTANT,
+            KINASE_SCORE_SOURCE_PROFILE_ONLY_NO_MOTIF_OVERLAP,
+        ],
+    }
+    for column in (*fallback_columns, fused_column, unavailable_column):
+        details[column] = _sum_int(summary, column)
+    details["total_score_cells"] = _sum_int(summary, "total_sites_count")
+    return details
+
+
+def _sum_int(frame: pd.DataFrame, column: str) -> int:
+    if column not in frame.columns:
+        return 0
+    return int(frame.loc[:, column].sum())
+
+
+__all__ = [
+    "KINASE_ATTRITION_POLICY_CAVEAT_CODE",
+    "KINASE_NON_DEFAULT_REFERENCE_SOURCE_CAVEAT_CODE",
+    "KINASE_PERMISSIVE_LOCALISATION_POLICY_CAVEAT_CODE",
+    "KINASE_REFERENCE_AUTO_RESOLUTION_CAVEAT_CODE",
+    "KINASE_REFERENCE_SCORE_FALLBACK_CAVEAT_CODE",
+    "KINASE_SCORING_LIMITATION_CAVEAT_CODE",
+    "build_kinase_result_caveats",
+]

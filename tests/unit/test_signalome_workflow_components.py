@@ -35,8 +35,13 @@ from phospy.science.signalomes.science import (
     build_signalome_module_table,
     select_kinase_substrates,
 )
+from phospy.workflows.signalome.caveats import (
+    SIGNALOME_PERMISSIVE_LOCALISATION_POLICY_CAVEAT_CODE,
+    SIGNALOME_PROTEIN_ID_GROUPING_ASSUMPTION_CAVEAT_CODE,
+)
 from phospy.workflows.signalome.clustering_runner import SignalomeClusteringRunner
 from phospy.workflows.signalome.context_tables import SignalomeContextTableBuilder
+from phospy.workflows.signalome.executor import SignalomeWorkflowExecutor
 from phospy.workflows.signalome.interpreter import SignalomeWorkflowInterpreter
 from phospy.workflows.signalome.module_tables import SignalomeModuleTableBuilder
 from phospy.workflows.signalome.network_builder import SignalomeNetworkBuilder
@@ -201,6 +206,12 @@ def _strings_from(value: object) -> tuple[str, ...]:
 
     _visit(value)
     return tuple(strings)
+
+
+def _caveat_by_code(result: SignalomeWorkflowResult, code: str):
+    matches = [caveat for caveat in result.caveats if caveat.code == code]
+    assert len(matches) == 1
+    return matches[0]
 
 
 def test_signalome_clustering_runner_returns_expected_diagnostics() -> None:
@@ -639,6 +650,37 @@ def test_signalome_result_assembly_preserves_public_result_shape() -> None:
     assert result.site_membership is not None
     assert result.protein_site_context is not None
     assert result.provenance.workflow_name == "signalome_workflow"
+
+
+def test_signalome_result_caveats_include_grouping_assumption() -> None:
+    result = SignalomeWorkflowExecutor().run(_resolved_request())
+
+    caveat = _caveat_by_code(
+        result,
+        SIGNALOME_PROTEIN_ID_GROUPING_ASSUMPTION_CAVEAT_CODE,
+    )
+
+    assert caveat.severity == "info"
+    assert caveat.details["grouping_column"] == "protein_id"
+    assert caveat.details["grouping_source"] == "dataset.site_metadata.protein_id"
+    assert caveat.details["retained_signalome_site_count"] == 3
+    assert caveat.details["unique_protein_group_count"] == 2
+    assert caveat.details["multi_site_protein_group_count"] == 1
+
+
+def test_signalome_result_caveats_include_permissive_localisation_policy() -> None:
+    result = SignalomeWorkflowExecutor().run(_resolved_request())
+
+    caveat = _caveat_by_code(
+        result,
+        SIGNALOME_PERMISSIVE_LOCALISATION_POLICY_CAVEAT_CODE,
+    )
+
+    assert caveat.severity == "warning"
+    assert caveat.details["policy"] == "allow_unknown"
+    assert caveat.details["workflow_scope"] == "signalome"
+    assert caveat.details["minimum_probability"] is None
+    assert caveat.details["retained_signalome_site_count"] == 3
 
 
 def test_signalome_duplicate_display_ids_remain_separate_by_site_key() -> None:
