@@ -8,6 +8,9 @@ import numpy as np
 from scipy import stats
 from scipy.special import digamma, polygamma
 
+_TREND_EXACT_FEATURE_LIMIT = 1_024
+_TREND_MAX_ANCHORS = 2_048
+
 
 @dataclass(frozen=True, slots=True)
 class EmpiricalBayesFit:
@@ -281,7 +284,12 @@ def _fit_mean_variance_trend(
     *,
     span: float = 0.4,
 ) -> np.ndarray:
-    """Fit a smooth mean-variance trend using local linear regression."""
+    """Fit a smooth mean-variance trend using deterministic local regression.
+
+    Small inputs use the exact per-feature tricube local-linear smoother. Larger
+    inputs evaluate the same local fit at deterministic sorted-rank anchors and
+    interpolate between anchors to avoid the previous quadratic full-matrix scan.
+    """
 
     if mean_intensity.size < 3:
         return np.full_like(log_variances, float(np.mean(log_variances)))
@@ -290,31 +298,32 @@ def _fit_mean_variance_trend(
     x = mean_intensity[order]
     y = log_variances[order]
     n = x.size
-    window = min(n, max(5, int(np.ceil(span * n))))
-    fitted = np.empty(n, dtype=float)
-
-    for idx in range(n):
-        distance = np.abs(x - x[idx])
-        bandwidth = float(np.partition(distance, window - 1)[window - 1])
-        if bandwidth <= 0.0:
-            same = distance == 0.0
-            fitted[idx] = float(np.mean(y[same]))
-            continue
-        u = distance / bandwidth
-        weights = np.where(u < 1.0, (1.0 - u**3) ** 3, 0.0)
-        x_centered = x - x[idx]
-        xw = x_centered * weights
-        s0 = float(np.sum(weights))
-        s1 = float(np.sum(xw))
-        s2 = float(np.sum(x_centered * xw))
-        t0 = float(np.sum(weights * y))
-        t1 = float(np.sum(xw * y))
-        determinant = s0 * s2 - s1 * s1
-        if determinant <= 1e-12 or not np.isfinite(determinant):
-            fitted[idx] = t0 / max(s0, 1e-12)
-            continue
-        intercept = (t0 * s2 - t1 * s1) / determinant
-        fitted[idx] = intercept
+    if x[0] == x[-1]:
+        fitted = np.full(n, float(np.mean(y)), dtype=float)
+    elif n <= _TREND_EXACT_FEATURE_LIMIT:
+        all_indices = np.arange(n, dtype=np.intp)
+        fitted = _fit_local_linear_at_sorted_indices(
+            x,
+            y,
+            target_indices=all_indices,
+            span=span,
+        )
+    else:
+        anchor_count = min(n, _TREND_MAX_ANCHORS)
+        anchor_indices = np.unique(
+            np.rint(np.linspace(0, n - 1, anchor_count)).astype(np.intp)
+        )
+        anchor_fit = _fit_local_linear_at_sorted_indices(
+            x,
+            y,
+            target_indices=anchor_indices,
+            span=span,
+        )
+        fitted = _interpolate_anchor_trend(
+            x,
+            anchor_indices=anchor_indices,
+            anchor_fit=anchor_fit,
+        )
 
     unsorted = np.empty_like(fitted)
     unsorted[order] = fitted
@@ -323,3 +332,59 @@ def _fit_mean_variance_trend(
         fill = float(np.mean(log_variances))
         unsorted[~finite] = fill
     return unsorted
+
+
+def _fit_local_linear_at_sorted_indices(
+    x: np.ndarray,
+    y: np.ndarray,
+    *,
+    target_indices: np.ndarray,
+    span: float,
+) -> np.ndarray:
+    window = min(x.size, max(5, int(np.ceil(span * x.size))))
+    fitted = np.empty(target_indices.size, dtype=float)
+
+    for output_idx, target_idx in enumerate(target_indices):
+        distance = np.abs(x - x[int(target_idx)])
+        bandwidth = float(np.partition(distance, window - 1)[window - 1])
+        if bandwidth <= 0.0:
+            same = distance == 0.0
+            fitted[output_idx] = float(np.mean(y[same]))
+            continue
+        u = distance / bandwidth
+        weights = np.where(u < 1.0, (1.0 - u**3) ** 3, 0.0)
+        x_centered = x - x[int(target_idx)]
+        xw = x_centered * weights
+        s0 = float(np.sum(weights))
+        s1 = float(np.sum(xw))
+        s2 = float(np.sum(x_centered * xw))
+        t0 = float(np.sum(weights * y))
+        t1 = float(np.sum(xw * y))
+        determinant = s0 * s2 - s1 * s1
+        if determinant <= 1e-12 or not np.isfinite(determinant):
+            fitted[output_idx] = t0 / max(s0, 1e-12)
+            continue
+        fitted[output_idx] = (t0 * s2 - t1 * s1) / determinant
+
+    return fitted
+
+
+def _interpolate_anchor_trend(
+    x: np.ndarray,
+    *,
+    anchor_indices: np.ndarray,
+    anchor_fit: np.ndarray,
+) -> np.ndarray:
+    anchor_x = x[anchor_indices]
+    unique_anchor_x, inverse = np.unique(anchor_x, return_inverse=True)
+    if unique_anchor_x.size == 1:
+        return np.full(x.size, float(np.mean(anchor_fit)), dtype=float)
+    if unique_anchor_x.size != anchor_x.size:
+        fit_sums = np.zeros(unique_anchor_x.size, dtype=float)
+        fit_counts = np.zeros(unique_anchor_x.size, dtype=float)
+        np.add.at(fit_sums, inverse, anchor_fit)
+        np.add.at(fit_counts, inverse, 1.0)
+        unique_anchor_fit = fit_sums / fit_counts
+    else:
+        unique_anchor_fit = anchor_fit
+    return np.interp(x, unique_anchor_x, unique_anchor_fit)
