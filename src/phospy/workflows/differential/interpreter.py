@@ -49,6 +49,7 @@ from phospy.validation.identity_contracts import (
 from phospy.validation.workflows.differential import (
     ExperimentalDesignContractValidator,
 )
+from phospy.workflows.differential.caveats import build_differential_result_caveats
 from phospy.workflows.differential.models import (
     DifferentialBlockColumnMetadata,
     DifferentialConditionContrastVector,
@@ -272,6 +273,21 @@ class DifferentialAnalysisInterpreter:
             design_rank=rank,
             residual_degrees_of_freedom=residual_dof,
         )
+        ruv_readiness_enabled = bool(
+            resolved_dataset.processing_state.ruv_readiness.enabled
+        )
+        ruv_readiness_ready = bool(
+            resolved_dataset.processing_state.ruv_readiness.ready
+        )
+        caveats = build_differential_result_caveats(
+            dataset=resolved_dataset,
+            config=request.config,
+            policy_provenance=policy_provenance,
+            imputation_policy_inputs=imputation_policy_inputs,
+            feature_eligibility_inputs=feature_eligibility_inputs,
+            ruv_readiness_enabled=ruv_readiness_enabled,
+            ruv_readiness_ready=ruv_readiness_ready,
+        )
         return InterpretedDifferentialAnalysisRequest(
             computation_request=computation_request,
             result_identity_metadata=result_identity_metadata,
@@ -280,17 +296,14 @@ class DifferentialAnalysisInterpreter:
             residual_degrees_of_freedom=residual_dof,
             policy_provenance=policy_provenance,
             workflow_provenance=resolved_workflow_provenance,
+            caveats=caveats,
             dataset_preprocessing_report=resolved_dataset.preprocessing_report,
             execution_design=execution_design,
             imputation_policy_inputs=imputation_policy_inputs,
             feature_eligibility_inputs=feature_eligibility_inputs,
             normalisation_state=_normalisation_state_label(resolved_dataset),
-            ruv_readiness_enabled=bool(
-                resolved_dataset.processing_state.ruv_readiness.enabled
-            ),
-            ruv_readiness_ready=bool(
-                resolved_dataset.processing_state.ruv_readiness.ready
-            ),
+            ruv_readiness_enabled=ruv_readiness_enabled,
+            ruv_readiness_ready=ruv_readiness_ready,
         )
 
 

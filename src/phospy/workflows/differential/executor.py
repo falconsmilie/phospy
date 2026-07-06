@@ -144,6 +144,7 @@ class DifferentialAnalysisExecutor:
             policy_provenance=request.policy_provenance,
             contrast_tables=contrast_tables,
             workflow_provenance=request.workflow_provenance,
+            caveats=request.caveats,
             input_dataset_preprocessing_report=request.dataset_preprocessing_report,
             feature_eligibility=(
                 None

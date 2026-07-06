@@ -1,0 +1,257 @@
+from __future__ import annotations
+
+import pandas as pd
+import pytest
+
+from phospy.api import (
+    Contrast,
+    DifferentialAnalysisConfig,
+    DifferentialAnalysisRequest,
+    DifferentialAnalysisWorkflow,
+    ExperimentalDesign,
+    Organism,
+    SampleDesignRecord,
+)
+from phospy.science.datasets.builders.preprocessing import (
+    build_dataset_processing_state,
+)
+from phospy.science.datasets.builders.transformation_resolver import (
+    DatasetIntensityScaleResolver,
+)
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.science.datasets.preprocessing.models import PreprocessingPlan
+from phospy.science.differential.models import (
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
+)
+from phospy.science.transformations.models import (
+    IntensityScaleEstablishmentMode,
+    IntensityScaleState,
+    MatrixIntensityScaleState,
+)
+from phospy.science.transformations.transformers import IdentityTransformer
+from phospy.workflows.differential.caveats import (
+    DIFFERENTIAL_DECLARED_SCALE_OVERRIDE_CAVEAT_CODE,
+    DIFFERENTIAL_DIRECT_TRUSTED_DATASET_CAVEAT_CODE,
+    DIFFERENTIAL_IMPUTATION_WITHHOLDING_POLICY_CAVEAT_CODE,
+    DIFFERENTIAL_WITHHELD_FEATURES_CAVEAT_CODE,
+)
+from tests.support.intensity_scale_states import supported_log2_intensity_scale_state
+from tests.support.processing_state import (
+    imputed_processing_state as valid_imputed_processing_state,
+)
+from tests.support.site_keys import protein_site_key_index, site_key_context_columns
+
+_GENES = ["MAPK14", "AKT1", "GSK3B", "RPS6"]
+_SITES = ["Y182", "T308", "S9", "S235"]
+_SAMPLES = ("A_1", "A_2", "A_3", "B_1", "B_2", "B_3")
+
+
+def _site_index() -> pd.Index:
+    return protein_site_key_index(protein_identifiers=_GENES, sites=_SITES)
+
+
+def _site_metadata(index: pd.Index) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "site_key": index.astype(str).tolist(),
+            "display_id": [
+                f"{gene};{site};" for gene, site in zip(_GENES, _SITES, strict=True)
+            ],
+            **site_key_context_columns(index),
+            "gene_symbol": _GENES,
+            "site": _SITES,
+            "site_sequence": [("A" * 15) + site[0] + ("A" * 15) for site in _SITES],
+            "protein_id": _GENES,
+        },
+        index=index.copy(),
+    )
+
+
+def _phospho(index: pd.Index, *, constant_first: bool = False) -> pd.DataFrame:
+    first_row = [10.0] * 6 if constant_first else [10.0, 10.1, 9.9, 15.0, 15.1, 14.9]
+    return pd.DataFrame(
+        {
+            "A_1": [first_row[0], 20.0, 5.0, 30.0],
+            "A_2": [first_row[1], 20.2, 5.1, 30.2],
+            "A_3": [first_row[2], 20.1, 5.2, 30.1],
+            "B_1": [first_row[3], 24.0, 6.0, 29.0],
+            "B_2": [first_row[4], 24.1, 6.2, 29.2],
+            "B_3": [first_row[5], 24.2, 6.1, 29.1],
+        },
+        index=index.copy(),
+    )
+
+
+def _observed_mask(index: pd.Index) -> pd.DataFrame:
+    mask = pd.DataFrame(True, index=index.copy(), columns=pd.Index(_SAMPLES))
+    mask.loc[index[1], "B_3"] = False
+    mask.loc[index[2], ["A_3", "B_3"]] = False
+    mask.loc[index[3], ["B_2", "B_3"]] = False
+    return mask
+
+
+def _dataset(
+    phospho: pd.DataFrame,
+    *,
+    intensity_scale_state: IntensityScaleState | None = None,
+    imputed: bool = False,
+    imputation_observation_mask: pd.DataFrame | None = None,
+) -> AnalysisReadyPhosphoDataset:
+    if intensity_scale_state is None:
+        intensity_scale_state = supported_log2_intensity_scale_state(
+            has_total_matrix=False
+        )
+    processing_state = build_dataset_processing_state(
+        plan=PreprocessingPlan.default(),
+        intensity_scale_state=intensity_scale_state,
+    )
+    if imputed:
+        processing_state = valid_imputed_processing_state(processing_state)
+    return AnalysisReadyPhosphoDataset(
+        phospho=phospho,
+        site_metadata=_site_metadata(phospho.index),
+        imputation_observation_mask=imputation_observation_mask,
+        organism=Organism.RAT,
+        intensity_scale_state=intensity_scale_state,
+        processing_state=processing_state,
+    )
+
+
+def _design() -> ExperimentalDesign:
+    return ExperimentalDesign(
+        samples=tuple(
+            SampleDesignRecord(
+                sample_id=sample_id,
+                condition=sample_id.split("_", maxsplit=1)[0],
+                biological_replicate_id=sample_id,
+            )
+            for sample_id in _SAMPLES
+        )
+    )
+
+
+def _request(
+    dataset: AnalysisReadyPhosphoDataset,
+    *,
+    config: DifferentialAnalysisConfig | None = None,
+) -> DifferentialAnalysisRequest:
+    return DifferentialAnalysisRequest(
+        dataset=dataset,
+        design=_design(),
+        contrasts=(
+            Contrast(
+                name="B_vs_A",
+                numerator_condition="B",
+                denominator_condition="A",
+            ),
+        ),
+        config=DifferentialAnalysisConfig() if config is None else config,
+    )
+
+
+def _declared_log2_intensity_scale_state(
+    phospho: pd.DataFrame,
+) -> IntensityScaleState:
+    declared_state = IntensityScaleState(
+        phospho=MatrixIntensityScaleState.log2(established_by="test.declaration"),
+        total=None,
+    )
+    return (
+        DatasetIntensityScaleResolver(transformer=IdentityTransformer())
+        .run(
+            phospho=phospho,
+            total=None,
+            declared_input_scale_state=declared_state,
+            declared_input_establishment_mode=IntensityScaleEstablishmentMode.DECLARED,
+            input_declaration_source="tests.unit.test_differential_result_caveats",
+        )
+        .intensity_scale_state
+    )
+
+
+def _caveat_by_code(result, code: str):
+    matches = [caveat for caveat in result.caveats if caveat.code == code]
+    assert len(matches) == 1
+    return matches[0]
+
+
+def test_differential_result_caveats_include_direct_dataset_construction() -> None:
+    index = _site_index()
+    result = DifferentialAnalysisWorkflow().run(_request(_dataset(_phospho(index))))
+
+    caveat = _caveat_by_code(result, DIFFERENTIAL_DIRECT_TRUSTED_DATASET_CAVEAT_CODE)
+
+    assert caveat.severity == "info"
+    assert caveat.details["construction_source"] == "direct_trusted_construction"
+    assert "input_tables" not in caveat.details
+
+
+def test_differential_result_caveats_include_withheld_features() -> None:
+    index = _site_index()
+    result = DifferentialAnalysisWorkflow().run(
+        _request(_dataset(_phospho(index, constant_first=True)))
+    )
+
+    caveat = _caveat_by_code(result, DIFFERENTIAL_WITHHELD_FEATURES_CAVEAT_CODE)
+
+    assert caveat.severity == "warning"
+    assert caveat.details["withheld_feature_count"] == 1
+    status_counts = caveat.details["status_counts"]
+    assert isinstance(status_counts, dict)
+    assert status_counts[DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT] == 1
+    assert caveat.details["result_status_column"] == "result_status"
+    assert caveat.details["result_status_reason_column"] == "result_status_reason"
+
+
+def test_differential_result_caveats_include_imputation_policy_when_used() -> None:
+    index = _site_index()
+    dataset = _dataset(
+        _phospho(index),
+        imputed=True,
+        imputation_observation_mask=_observed_mask(index),
+    )
+
+    result = DifferentialAnalysisWorkflow().run(
+        _request(
+            dataset,
+            config=DifferentialAnalysisConfig(
+                imputed_value_policy="withhold_imputed_features",
+                imputed_value_max_fraction=0.20,
+            ),
+        )
+    )
+
+    caveat = _caveat_by_code(
+        result,
+        DIFFERENTIAL_IMPUTATION_WITHHOLDING_POLICY_CAVEAT_CODE,
+    )
+
+    assert caveat.severity == "warning"
+    assert caveat.details["policy"] == "withhold_imputed_features"
+    assert caveat.details["imputed_value_max_fraction"] == pytest.approx(0.20)
+    assert caveat.details["withheld_feature_count"] == 2
+    assert caveat.details["testable_feature_count"] == 2
+
+
+def test_differential_result_caveats_include_declared_scale_override_when_used() -> (
+    None
+):
+    index = _site_index()
+    suspicious_matrix = _phospho(index) * 10000.0
+    state = _declared_log2_intensity_scale_state(suspicious_matrix)
+
+    result = DifferentialAnalysisWorkflow().run(
+        _request(
+            _dataset(suspicious_matrix, intensity_scale_state=state),
+            config=DifferentialAnalysisConfig(
+                allow_suspicious_declared_input_scale=True
+            ),
+        )
+    )
+
+    caveat = _caveat_by_code(result, DIFFERENTIAL_DECLARED_SCALE_OVERRIDE_CAVEAT_CODE)
+
+    assert caveat.severity == "warning"
+    assert caveat.details["establishment_mode"] == "declared"
+    assert caveat.details["diagnostic_warning_count"] >= 1
+    assert caveat.details["override_config"] == "allow_suspicious_declared_input_scale"

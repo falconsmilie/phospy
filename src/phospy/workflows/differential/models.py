@@ -9,6 +9,7 @@ from typing import Protocol
 import pandas as pd
 
 from phospy.contracts.configs import DifferentialAnalysisConfig, PairedDesignPolicy
+from phospy.contracts.result_caveats import ResultCaveat
 from phospy.science.datasets.models import (
     AnalysisReadyPhosphoDataset,
     DatasetPreprocessingReport,
@@ -232,6 +233,7 @@ class InterpretedDifferentialAnalysisRequest:
     residual_degrees_of_freedom: float
     policy_provenance: DifferentialPolicyProvenance | None = None
     workflow_provenance: Mapping[str, object] | None = None
+    caveats: tuple[ResultCaveat, ...] = ()
     dataset_preprocessing_report: DatasetPreprocessingReport | None = None
     execution_design: DifferentialExecutionDesignInputs | None = None
     imputation_policy_inputs: DifferentialImputationPolicyInputs | None = None
