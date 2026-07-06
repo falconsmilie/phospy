@@ -3,19 +3,16 @@
 from __future__ import annotations
 
 import json
-from datetime import date
 from functools import cache
 from importlib import resources
 
 import pandas as pd
 
 from phospy.errors.references import ReferenceResolutionError, UnsupportedOrganismError
-from phospy.provenance.models import JsonValue
 from phospy.science.references.models import (
     BundledReferenceLane,
     Organism,
     ReferenceManifest,
-    SequenceWindowDefinition,
 )
 from phospy.science.references.validation import load_reference_manifest
 from phospy.science.sites.identifiers import (
@@ -26,60 +23,12 @@ from phospy.science.sites.identifiers import (
 _BUNDLED_DEFAULTS: dict[Organism, str] = {
     Organism.RAT: "l6_native",
 }
-_REDISTRIBUTION_APPROVAL_REQUIRED_ORGANISMS = frozenset(
-    {
-        Organism.HUMAN,
-        Organism.MOUSE,
-    }
-)
 _MANIFEST_FILENAME = "manifest.json"
 _REFERENCE_BUNDLE_DOCS_URL = "https://phospy.com/docs/api/guide/#references"
 _EXPLICIT_REFERENCE_BUNDLE_GUIDANCE = (
     "provide an explicit ReferenceBundle by passing "
     "ReferenceBundle(organism=..., kinase_substrate_map=..., site_sequences=...) "
     "as the references input"
-)
-_REQUIRED_MANIFEST_FIELDS = frozenset(
-    {
-        "organism",
-        "bundle_id",
-        "identifier_namespace",
-        "source_name",
-        "source_version",
-        "retrieved_at",
-        "license",
-        "redistribution_status",
-        "sequence_window",
-        "supports",
-        "limitations",
-    }
-)
-_REQUIRED_APPROVED_REDISTRIBUTION_FIELDS = frozenset(
-    {
-        "source_url",
-        "license_url",
-        "retrieval_method",
-        "redistribution_basis",
-    }
-)
-_APPROVED_REDISTRIBUTION_STATUS_TOKENS = (
-    "redistribution approved",
-    "approved for redistribution",
-    "redistribution allowed",
-    "allowed for redistribution",
-    "redistributable",
-)
-_UNAPPROVED_REDISTRIBUTION_STATUS_TOKENS = (
-    "not approved",
-    "not allowed",
-    "restricted",
-    "prohibited",
-    "forbidden",
-    "unclear",
-    "unknown",
-    "pending",
-    "todo",
-    "placeholder",
 )
 
 
@@ -102,7 +51,7 @@ def available_bundled_reference_lanes() -> tuple[BundledReferenceLane, ...]:
                 source_name=manifest.source_name,
                 source_version=manifest.reference_version,
                 retrieved_at=manifest.retrieved_at,
-                redistribution_status=manifest.redistribution_status,
+                redistribution_status=manifest.redistribution_status.value,
                 supports=manifest.supports,
                 limitations=manifest.limitations,
             )
@@ -319,281 +268,11 @@ def load_bundled_motif_sizes(organism: Organism) -> pd.Series | None:
     return sizes
 
 
-def _parse_reference_manifest_payload(
-    *,
-    payload: dict[str, object],
-    organism: Organism,
-    reference_name: str,
-) -> ReferenceManifest:
-    from phospy.science.references.validation import parse_reference_manifest_payload
-
-    manifest = parse_reference_manifest_payload(
-        payload,
-        context=f"{organism.value}/{reference_name}/{_MANIFEST_FILENAME}",
-    )
-    expected_organism = organism.value
-    declared_organism_tokens = {manifest.organism.strip().lower()}
-    if manifest.organism_common_name is not None:
-        declared_organism_tokens.add(manifest.organism_common_name.strip().lower())
-    if expected_organism not in declared_organism_tokens:
-        raise ReferenceResolutionError(
-            "bundled reference manifest organism does not match runtime lane for "
-            f"{organism.value}/{reference_name}/{_MANIFEST_FILENAME}: "
-            f"expected token {expected_organism!r}, got organism={manifest.organism!r}, "
-            f"organism_common_name={manifest.organism_common_name!r}"
-        )
-    return manifest
-
-
-def _require_approved_redistribution_metadata(
-    *,
-    payload: dict[str, object],
-    redistribution_status: str,
-    context: str,
-) -> None:
-    missing = sorted(
-        key for key in _REQUIRED_APPROVED_REDISTRIBUTION_FIELDS if key not in payload
-    )
-    if missing:
-        missing_text = ", ".join(missing)
-        raise ReferenceResolutionError(
-            "human/mouse bundled reference manifest requires redistribution "
-            f"approval metadata for {context}: {missing_text}"
-        )
-    for key in sorted(_REQUIRED_APPROVED_REDISTRIBUTION_FIELDS):
-        _require_manifest_string(payload, key=key, context=context)
-
-    normalized_status = redistribution_status.strip().lower()
-    if any(
-        token in normalized_status for token in _UNAPPROVED_REDISTRIBUTION_STATUS_TOKENS
-    ) or not any(
-        token in normalized_status for token in _APPROVED_REDISTRIBUTION_STATUS_TOKENS
-    ):
-        raise ReferenceResolutionError(
-            "human/mouse bundled reference manifest redistribution_status must "
-            "explicitly say redistribution is approved/allowed and must not be "
-            f"ambiguous for {context}"
-        )
-
-
 def _format_supported_bundled_organisms() -> str:
     supported = tuple(item.value for item in supported_bundled_organisms())
     if not supported:
         return "(none)"
     return ", ".join(supported)
-
-
-def _parse_sequence_window(
-    *,
-    value: object,
-    context: str,
-) -> SequenceWindowDefinition:
-    if not isinstance(value, dict):
-        raise ReferenceResolutionError(
-            "bundled reference manifest sequence_window must be an object for "
-            f"{context}"
-        )
-    upstream = _require_manifest_int(
-        value,
-        key="upstream_residues",
-        context=context,
-    )
-    downstream = _require_manifest_int(
-        value,
-        key="downstream_residues",
-        context=context,
-    )
-    central_required_raw = value.get("central_residue_required")
-    if not isinstance(central_required_raw, bool):
-        raise ReferenceResolutionError(
-            "bundled reference manifest sequence_window.central_residue_required "
-            f"must be boolean for {context}"
-        )
-    if upstream < 0 or downstream < 0:
-        raise ReferenceResolutionError(
-            "bundled reference manifest sequence_window residue counts must be >= 0 "
-            f"for {context}"
-        )
-    return SequenceWindowDefinition(
-        upstream_residues=upstream,
-        downstream_residues=downstream,
-        central_residue_required=central_required_raw,
-    )
-
-
-def _require_manifest_date(
-    payload: dict[str, object],
-    *,
-    key: str,
-    context: str,
-) -> date:
-    value = payload.get(key)
-    if not isinstance(value, str) or not value.strip():
-        raise ReferenceResolutionError(
-            f"bundled reference manifest {key} must be YYYY-MM-DD for {context}"
-        )
-    normalized = value.strip()
-    try:
-        return date.fromisoformat(normalized)
-    except ValueError as exc:
-        raise ReferenceResolutionError(
-            f"bundled reference manifest {key} must be YYYY-MM-DD for {context}"
-        ) from exc
-
-
-def _require_manifest_fields(payload: dict[str, object], *, context: str) -> None:
-    missing = sorted(key for key in _REQUIRED_MANIFEST_FIELDS if key not in payload)
-    if missing:
-        missing_text = ", ".join(missing)
-        raise ReferenceResolutionError(
-            "bundled reference manifest is missing required field(s) for "
-            f"{context}: {missing_text}"
-        )
-
-
-def _require_manifest_string(
-    payload: dict[str, object],
-    *,
-    key: str,
-    context: str,
-) -> str:
-    value = payload.get(key)
-    if not isinstance(value, str) or not value.strip():
-        raise ReferenceResolutionError(
-            f"bundled reference manifest {key} must be a non-empty string for {context}"
-        )
-    return value.strip()
-
-
-def _optional_manifest_string(
-    payload: dict[str, object],
-    *,
-    key: str,
-    context: str,
-) -> str | None:
-    value = payload.get(key)
-    if value is None:
-        return None
-    if not isinstance(value, str):
-        raise ReferenceResolutionError(
-            f"bundled reference manifest {key} must be a string or null for {context}"
-        )
-    normalized = value.strip()
-    return normalized if normalized else None
-
-
-def _require_manifest_string_list(
-    payload: dict[str, object],
-    *,
-    key: str,
-    context: str,
-) -> tuple[str, ...]:
-    value = payload.get(key)
-    if not isinstance(value, list):
-        raise ReferenceResolutionError(
-            f"bundled reference manifest {key} must be an array of strings for {context}"
-        )
-    resolved: list[str] = []
-    for index, item in enumerate(value):
-        if not isinstance(item, str) or not item.strip():
-            raise ReferenceResolutionError(
-                "bundled reference manifest "
-                f"{key}[{index}] must be a non-empty string for {context}"
-            )
-        resolved.append(item.strip())
-    if not resolved:
-        raise ReferenceResolutionError(
-            f"bundled reference manifest {key} must not be empty for {context}"
-        )
-    return tuple(resolved)
-
-
-def _optional_manifest_string_list(
-    payload: dict[str, object],
-    *,
-    key: str,
-    context: str,
-) -> tuple[str, ...] | None:
-    if key not in payload:
-        return None
-    return _require_manifest_string_list(payload, key=key, context=context)
-
-
-def _optional_manifest_json_object(
-    payload: dict[str, object],
-    *,
-    key: str,
-    context: str,
-) -> dict[str, JsonValue] | None:
-    value = payload.get(key)
-    if value is None:
-        return None
-    if not isinstance(value, dict):
-        raise ReferenceResolutionError(
-            f"bundled reference manifest {key} must be an object for {context}"
-        )
-    if not value:
-        raise ReferenceResolutionError(
-            f"bundled reference manifest {key} must not be empty for {context}"
-        )
-    resolved: dict[str, JsonValue] = {}
-    for raw_key, raw_item in value.items():
-        if not isinstance(raw_key, str) or not raw_key.strip():
-            raise ReferenceResolutionError(
-                f"bundled reference manifest {key} keys must be non-empty strings "
-                f"for {context}"
-            )
-        resolved[raw_key.strip()] = _require_json_value(
-            raw_item,
-            context=f"{context}.{key}.{raw_key}",
-        )
-    return resolved
-
-
-def _require_json_value(value: object, *, context: str) -> JsonValue:
-    if (
-        value is None
-        or isinstance(value, str)
-        or isinstance(value, bool)
-        or isinstance(value, int)
-        or isinstance(value, float)
-    ):
-        return value
-    if isinstance(value, list):
-        return [
-            _require_json_value(item, context=f"{context}[{index}]")
-            for index, item in enumerate(value)
-        ]
-    if isinstance(value, dict):
-        resolved: dict[str, JsonValue] = {}
-        for raw_key, raw_item in value.items():
-            if not isinstance(raw_key, str) or not raw_key.strip():
-                raise ReferenceResolutionError(
-                    "bundled reference manifest JSON object keys must be "
-                    f"non-empty strings for {context}"
-                )
-            resolved[raw_key.strip()] = _require_json_value(
-                raw_item,
-                context=f"{context}.{raw_key}",
-            )
-        return resolved
-    raise ReferenceResolutionError(
-        f"bundled reference manifest value must be JSON-serializable for {context}"
-    )
-
-
-def _require_manifest_int(
-    payload: dict[str, object],
-    *,
-    key: str,
-    context: str,
-) -> int:
-    value = payload.get(key)
-    if isinstance(value, bool) or not isinstance(value, int):
-        raise ReferenceResolutionError(
-            f"bundled reference manifest {key} must be an integer for {context}"
-        )
-    return int(value)
 
 
 def _read_csv_resource(

@@ -9,6 +9,7 @@ from phospy.api import (
 )
 from phospy.errors.validation import ReferenceValidationError
 from phospy.science.references.models import (
+    RedistributionStatus,
     ReferenceBundleValidationReport,
     ReferenceFileManifest,
     ReferenceManifest,
@@ -139,7 +140,7 @@ def test_report_includes_available_provenance_fields() -> None:
     assert fields["source_name"] == "unit reference source"
     assert fields["source_version"] == "v1"
     assert fields["license"] == "unit test license"
-    assert fields["redistribution_status"] == "redistributable synthetic fixture"
+    assert fields["redistribution_status"] == "approved"
     assert fields["source_files_available"] is True
 
 
@@ -200,14 +201,18 @@ def _manifest(
         protein_namespace="display_id (GENE_SYMBOL;RESIDUE;)",
         reference_version="v1",
         source_name="unit reference source",
+        source_url="https://example.test/reference",
         source_version="v1",
-        source_license="unit test license",
-        redistribution_allowed=True,
+        retrieved_at="2026-06-23",
+        table_sha256="a" * 64,
+        license_name="unit test license",
+        license_url="https://example.test/license",
+        redistribution_status=RedistributionStatus.APPROVED,
         redistribution_notes="redistributable synthetic fixture",
         derived_from=("unit test",),
         generated_by="unit test",
         generated_at_utc="2026-06-23T00:00:00Z",
-        manifest_schema_version="1.0",
+        manifest_schema_version="1.1",
         files=_file_manifests(source_files=source_files),
         sequence_context_policy="centered phosphosite sequence window",
         sequence_window_length=31,

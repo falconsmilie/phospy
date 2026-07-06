@@ -16,8 +16,10 @@ from phospy.provenance.references import fingerprint_local_reference_source_file
 from phospy.science.references.identifiers import (
     merge_reference_identifier_normalisation_reports,
 )
+from phospy.science.references.manifest import REFERENCE_MANIFEST_SCHEMA_VERSION
 from phospy.science.references.models import (
     Organism,
+    RedistributionStatus,
     ReferenceBuildPath,
     ReferenceBundle,
     ReferenceBundleBuildRequest,
@@ -294,6 +296,24 @@ class ReferenceBundleBuilder:
             if request.bundle_id is not None
             else self._default_bundle_id(request)
         )
+        files = (
+            ReferenceFileManifest(
+                relative_path=str(request.kinase_substrate_path),
+                role="kinase_substrate",
+                format=_reference_file_format(request.kinase_substrate_path),
+                sha256=str(kinase_source_file["sha256"]),
+                row_count=int(kinase_source.shape[0]),
+                column_names=tuple(str(item) for item in kinase_source.columns),
+            ),
+            ReferenceFileManifest(
+                relative_path=str(request.site_sequence_path),
+                role="site_sequences",
+                format=_reference_file_format(request.site_sequence_path),
+                sha256=str(sequence_source_file["sha256"]),
+                row_count=int(sequence_source.shape[0]),
+                column_names=tuple(str(item) for item in sequence_source.columns),
+            ),
+        )
         return ReferenceManifest(
             reference_id=bundle_id,
             display_name=request.source_name,
@@ -307,9 +327,13 @@ class ReferenceBundleBuilder:
             protein_namespace=request.identifier_namespace,
             reference_version=request.source_version,
             source_name=request.source_name,
+            source_url=None,
             source_version=request.source_version,
-            source_license=request.license,
-            redistribution_allowed=_redistribution_allowed_from_status(
+            retrieved_at=request.retrieved_at,
+            table_sha256=str(kinase_source_file["sha256"]),
+            license_name=request.license,
+            license_url=None,
+            redistribution_status=_structured_redistribution_status(
                 request.redistribution_status
             ),
             redistribution_notes=request.redistribution_status,
@@ -319,25 +343,8 @@ class ReferenceBundleBuilder:
             ),
             generated_by="ReferenceBundleBuilder",
             generated_at_utc=f"{request.retrieved_at.isoformat()}T00:00:00Z",
-            manifest_schema_version="1.0",
-            files=(
-                ReferenceFileManifest(
-                    relative_path=str(request.kinase_substrate_path),
-                    role="kinase_substrate",
-                    format=_reference_file_format(request.kinase_substrate_path),
-                    sha256=str(kinase_source_file["sha256"]),
-                    row_count=int(kinase_source.shape[0]),
-                    column_names=tuple(str(item) for item in kinase_source.columns),
-                ),
-                ReferenceFileManifest(
-                    relative_path=str(request.site_sequence_path),
-                    role="site_sequences",
-                    format=_reference_file_format(request.site_sequence_path),
-                    sha256=str(sequence_source_file["sha256"]),
-                    row_count=int(sequence_source.shape[0]),
-                    column_names=tuple(str(item) for item in sequence_source.columns),
-                ),
-            ),
+            manifest_schema_version=REFERENCE_MANIFEST_SCHEMA_VERSION,
+            files=files,
             sequence_context_policy=(
                 "centered phosphosite sequence window"
                 if sequence_window.central_residue_required
@@ -584,13 +591,14 @@ def _taxonomy_id(organism: Organism) -> int:
     }[organism]
 
 
-def _redistribution_allowed_from_status(status: str) -> bool:
-    normalized = status.strip().lower()
-    disallowed_tokens = ("not", "unknown", "unclear", "restricted", "prohibited")
-    allowed_tokens = ("redistributable", "redistribution allowed", "approved", "cc0")
-    return any(token in normalized for token in allowed_tokens) and not any(
-        token in normalized for token in disallowed_tokens
-    )
+def _structured_redistribution_status(status: str) -> RedistributionStatus:
+    try:
+        resolved = RedistributionStatus(status.strip())
+    except ValueError:
+        return RedistributionStatus.UNRESOLVED
+    if resolved is RedistributionStatus.APPROVED:
+        return RedistributionStatus.UNRESOLVED
+    return resolved
 
 
 def _reference_file_format(path: ReferenceBuildPath) -> str:

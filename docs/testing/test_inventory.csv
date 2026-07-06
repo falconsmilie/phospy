@@ -2,7 +2,7 @@ path,test_area,line_count,test_function_count,uses_pytest_mark,uses_parametrizat
 tests/architecture/test_api_boundaries.py,architecture,90,4,false,false,,,,,,
 tests/architecture/test_validation_boundaries.py,architecture,267,6,false,false,,,,,,[auto-orchestration] 5 hit(s); indicators: private_member_access
 tests/golden/test_differential_fixture_provenance_golden.py,golden,343,3,true,false,,,,,,
-tests/integration/references/test_bundled_reference_manifests.py,references,118,3,true,false,,,,,,
+tests/integration/references/test_bundled_reference_manifests.py,references,125,3,true,false,,,,,,
 tests/integration/science/datasets/test_analysis_ready_dataset_construction_boundary.py,datasets,107,3,true,false,,,,,,
 tests/integration/test_dataset_batch_correction_validation.py,integration,294,6,true,false,,,,,,
 tests/integration/test_dataset_builder_boundary_honesty_integration.py,integration,496,11,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset builder boundary honesty integration and increase risk of boundary regressions.,codex-audit,,
@@ -51,7 +51,7 @@ tests/performance/test_performance_contracts.py,performance,1265,16,true,false,p
 tests/performance/test_signalome_clustering_benchmark.py,performance,82,1,true,false,performance/memory contract,keep,"Loss of this file would remove runtime and memory envelope checks for signalome clustering benchmark, allowing performance regressions to ship undetected.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/performance/test_workflow_scale_contracts.py,performance,261,2,true,true,,,,,,
 tests/performance/test_workflow_validation_performance.py,performance,108,2,true,false,,,,,,
-tests/release/test_reference_manifest_gate.py,release,81,2,true,false,,,,,,
+tests/release/test_reference_manifest_gate.py,release,83,2,true,false,,,,,,
 tests/release/test_release_gate_policy.py,release,305,9,true,true,,,,,,
 tests/science/test_empirical_bayes_trend_smoothing.py,science,150,2,false,false,,,,,,
 tests/science/test_kinase_library_motif_scoring_science.py,science,51,1,false,false,,,,,,
@@ -60,7 +60,7 @@ tests/unit/api/test_api_stability_tiers.py,api,143,9,false,false,,,,,,[auto-orch
 tests/unit/api/test_public_api_dataset_construction.py,api,68,3,false,false,,,,,,
 tests/unit/api/test_public_api_surface.py,api,117,5,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/api/test_validation_not_public_api.py,api,104,5,false,false,,,,,,
-tests/unit/references/test_reference_manifest.py,references,149,7,false,false,,,,,,
+tests/unit/references/test_reference_manifest.py,references,224,12,false,false,,,,,,
 tests/unit/science/datasets/test_analysis_ready_dataset_builder.py,datasets,202,5,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/science/datasets/test_processing_state.py,datasets,395,20,false,false,,,,,,
 tests/unit/science/differential/test_differential_diagnostics.py,differential,110,2,false,false,,,,,,
@@ -203,9 +203,9 @@ tests/unit/test_public_documentation_examples.py,unit,484,7,false,false,,,,,,
 tests/unit/test_public_examples_contract.py,unit,41,3,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public examples contract and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_reader_enrichment_sets.py,unit,151,6,true,true,,,,,,
 tests/unit/test_reader_table_parsing_helpers.py,unit,186,6,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/unit/test_reference_bundle_builder.py,unit,303,8,false,false,,,,,,
-tests/unit/test_reference_bundle_manifests.py,unit,376,16,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/unit/test_reference_bundle_validation_report.py,unit,255,8,false,false,,,,,,
+tests/unit/test_reference_bundle_builder.py,unit,333,9,false,false,,,,,,
+tests/unit/test_reference_bundle_manifests.py,unit,384,16,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/unit/test_reference_bundle_validation_report.py,unit,260,8,false,false,,,,,,
 tests/unit/test_reference_identifier_normalisation.py,unit,614,20,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for reference identifier normalisation and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_reference_provenance.py,unit,235,7,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for reference provenance, making artifact and output drift unsafe.",codex-audit,,
 tests/unit/test_reference_runtime_policy.py,unit,100,5,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for reference runtime policy and increase risk of boundary regressions.,codex-audit,,

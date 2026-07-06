@@ -4,10 +4,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from enum import Enum
 
 from phospy.provenance.models import JsonValue
 
-REFERENCE_MANIFEST_SCHEMA_VERSION = "1.0"
+REFERENCE_MANIFEST_SCHEMA_VERSION = "1.1"
+
+
+class RedistributionStatus(str, Enum):
+    """Machine-readable redistribution status for reference manifests."""
+
+    APPROVED = "approved"
+    EXTERNAL_ONLY = "external_only"
+    UNRESOLVED = "unresolved"
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,18 +97,20 @@ class ReferenceManifest:
     protein_namespace: str
     reference_version: str
     source_name: str
-    source_license: str
-    redistribution_allowed: bool
+    source_url: str | None
+    source_version: str | None
+    retrieved_at: date
+    table_sha256: str
+    license_name: str | None
+    license_url: str | None
+    redistribution_status: RedistributionStatus
     redistribution_notes: str
     derived_from: tuple[str, ...]
     generated_by: str
     generated_at_utc: str
     manifest_schema_version: str
     files: tuple[ReferenceFileManifest, ...]
-    source_version: str | None = None
-    source_url: str | None = None
     source_publication: str | None = None
-    source_license_url: str | None = None
     sequence_context_policy: str | None = None
     sequence_window_length: int | None = None
     sequence_center_index: int | None = None
@@ -116,16 +127,13 @@ class ReferenceManifest:
             "protein_namespace",
             "reference_version",
             "source_name",
-            "source_license",
+            "table_sha256",
             "redistribution_notes",
             "generated_by",
             "generated_at_utc",
             "manifest_schema_version",
         ):
             object.__setattr__(self, field_name, str(getattr(self, field_name)).strip())
-        object.__setattr__(
-            self, "redistribution_allowed", bool(self.redistribution_allowed)
-        )
         object.__setattr__(
             self,
             "derived_from",
@@ -136,15 +144,18 @@ class ReferenceManifest:
             self, "source_version", _optional_string(self.source_version)
         )
         object.__setattr__(self, "source_url", _optional_string(self.source_url))
+        object.__setattr__(self, "retrieved_at", _coerce_date(self.retrieved_at))
+        object.__setattr__(self, "license_name", _optional_string(self.license_name))
+        object.__setattr__(self, "license_url", _optional_string(self.license_url))
+        object.__setattr__(
+            self,
+            "redistribution_status",
+            _coerce_redistribution_status(self.redistribution_status),
+        )
         object.__setattr__(
             self,
             "source_publication",
             _optional_string(self.source_publication),
-        )
-        object.__setattr__(
-            self,
-            "source_license_url",
-            _optional_string(self.source_license_url),
         )
         object.__setattr__(
             self,
@@ -188,19 +199,25 @@ class ReferenceManifest:
     def license(self) -> str:
         """Compatibility alias for older reference-bundle metadata."""
 
-        return self.source_license
+        return "" if self.license_name is None else self.license_name
 
     @property
-    def license_url(self) -> str | None:
+    def source_license(self) -> str:
         """Compatibility alias for older reference-bundle metadata."""
 
-        return self.source_license_url
+        return self.license
 
     @property
-    def redistribution_status(self) -> str:
+    def source_license_url(self) -> str | None:
         """Compatibility alias for older reference-bundle metadata."""
 
-        return self.redistribution_notes
+        return self.license_url
+
+    @property
+    def redistribution_allowed(self) -> bool:
+        """Compatibility boolean derived from structured redistribution status."""
+
+        return self.redistribution_status is RedistributionStatus.APPROVED
 
     @property
     def retrieval_method(self) -> str:
@@ -219,12 +236,6 @@ class ReferenceManifest:
         """Compatibility alias for older reference-bundle metadata."""
 
         return (*self.derived_from, self.redistribution_notes)
-
-    @property
-    def retrieved_at(self) -> date:
-        """Compatibility date derived from the manifest generation timestamp."""
-
-        return date.fromisoformat(self.generated_at_utc[:10])
 
     @property
     def sequence_window(self) -> SequenceWindowDefinition:
@@ -263,9 +274,12 @@ class ReferenceManifest:
             "source_name": self.source_name,
             "source_version": self.source_version,
             "source_url": self.source_url,
+            "retrieved_at": self.retrieved_at.isoformat(),
+            "table_sha256": self.table_sha256,
             "source_publication": self.source_publication,
-            "source_license": self.source_license,
-            "source_license_url": self.source_license_url,
+            "license_name": self.license_name,
+            "license_url": self.license_url,
+            "redistribution_status": self.redistribution_status.value,
             "redistribution_allowed": self.redistribution_allowed,
             "redistribution_notes": self.redistribution_notes,
             "derived_from": list(self.derived_from),
@@ -287,8 +301,8 @@ class ReferenceManifest:
                 "identifier_namespace": self.identifier_namespace,
                 "license": self.license,
                 "license_url": self.license_url,
-                "redistribution_status": self.redistribution_status,
-                "retrieved_at": self.retrieved_at.isoformat(),
+                "source_license": self.source_license,
+                "source_license_url": self.source_license_url,
                 "retrieval_method": self.retrieval_method,
                 "redistribution_basis": self.redistribution_basis,
                 "provenance_notes": list(self.provenance_notes),
@@ -306,6 +320,28 @@ def _optional_string(value: object) -> str | None:
     return text if text else None
 
 
+def _coerce_date(value: date | str) -> date:
+    if isinstance(value, date):
+        return value
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError("reference manifest retrieved_at must be YYYY-MM-DD")
+    return date.fromisoformat(value.strip())
+
+
+def _coerce_redistribution_status(
+    value: RedistributionStatus | str,
+) -> RedistributionStatus:
+    if isinstance(value, RedistributionStatus):
+        return value
+    try:
+        return RedistributionStatus(str(value).strip())
+    except ValueError as exc:
+        allowed = ", ".join(item.value for item in RedistributionStatus)
+        raise ValueError(
+            f"reference manifest redistribution_status must be one of: {allowed}"
+        ) from exc
+
+
 def _source_file_key(file_manifest: ReferenceFileManifest) -> str:
     normalized = file_manifest.role.strip().lower().replace("-", "_").replace(" ", "_")
     return normalized or file_manifest.relative_path
@@ -315,5 +351,6 @@ __all__ = [
     "REFERENCE_MANIFEST_SCHEMA_VERSION",
     "ReferenceFileManifest",
     "ReferenceManifest",
+    "RedistributionStatus",
     "SequenceWindowDefinition",
 ]

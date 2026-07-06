@@ -109,7 +109,8 @@ def test_reference_bundle_builder_provenance_records_source_and_redistribution_m
     assert bundle.manifest is not None
     assert bundle.manifest.bundle_id == "synthetic_mouse_local_v1"
     assert bundle.manifest.license == "CC0 synthetic"
-    assert bundle.manifest.redistribution_status == "redistributable"
+    assert bundle.manifest.redistribution_status == "unresolved"
+    assert bundle.manifest.redistribution_notes == "redistributable"
     assert bundle.manifest.source_files is not None
     assert set(bundle.manifest.source_files) == {
         "kinase_substrate",
@@ -130,7 +131,8 @@ def test_reference_bundle_builder_provenance_records_source_and_redistribution_m
     }
     assert bundle.provenance.manifest is not None
     assert bundle.provenance.manifest["license"] == "CC0 synthetic"
-    assert bundle.provenance.manifest["redistribution_status"] == "redistributable"
+    assert bundle.provenance.manifest["redistribution_status"] == "unresolved"
+    assert bundle.provenance.manifest["redistribution_notes"] == "redistributable"
     source_files = bundle.provenance.manifest["source_files"]
     assert isinstance(source_files, dict)
     assert source_files["kinase_substrate"]["sha256"]
@@ -140,6 +142,34 @@ def test_reference_bundle_builder_provenance_records_source_and_redistribution_m
         "references.site_sequences",
     }
     assert bundle.provenance.identifier_normalisation is not None
+
+
+def test_reference_bundle_builder_does_not_mark_approval_without_license_url(
+    tmp_path: Path,
+) -> None:
+    kinase_path, sequence_path = _write_reference_sources(
+        tmp_path,
+        organism_label="mouse",
+    )
+
+    bundle = ReferenceBundleBuilder().run(
+        ReferenceBundleBuildRequest(
+            organism=Organism.MOUSE,
+            kinase_substrate_path=kinase_path,
+            site_sequence_path=sequence_path,
+            source_name="synthetic approval source",
+            source_version="v1",
+            retrieved_at="2026-06-11",
+            license="CC0 synthetic",
+            redistribution_status="approved",
+            identifier_namespace="display_id (GENE_SYMBOL;RESIDUE;)",
+        )
+    )
+
+    assert bundle.manifest is not None
+    assert bundle.manifest.redistribution_status == "unresolved"
+    assert bundle.manifest.redistribution_notes == "approved"
+    assert bundle.manifest.license_url is None
 
 
 def test_reference_bundle_builder_rejects_missing_sequence_context(

@@ -12,7 +12,11 @@ from phospy.errors.references import (
 )
 from phospy.science.references import resources as reference_resources
 from phospy.science.references.errors import ReferenceManifestError
-from phospy.science.references.models import Organism, ReferencePreset
+from phospy.science.references.models import (
+    Organism,
+    RedistributionStatus,
+    ReferencePreset,
+)
 from phospy.science.references.resolution import ReferenceResolver
 from phospy.science.references.resources import (
     available_bundled_reference_lanes,
@@ -58,6 +62,7 @@ def test_valid_bundled_manifest_loads_for_supported_runtime_lane() -> None:
     assert "gpl-3" in manifest.source_license.lower()
     assert "phosphositeplus" in manifest.source_license.lower()
     assert "pride" in manifest.source_license.lower()
+    assert manifest.redistribution_status is RedistributionStatus.APPROVED
     assert manifest.redistribution_allowed is True
     assert "not independently verified" in manifest.redistribution_notes.lower()
     assert {item.relative_path for item in manifest.files} == {
@@ -84,8 +89,7 @@ def test_available_bundled_reference_lanes_reports_manifest_metadata() -> None:
     assert lane.source_name
     assert lane.source_version == "bundled-snapshot-2026-04-16"
     assert lane.retrieved_at.isoformat() == "2026-04-16"
-    assert lane.redistribution_status
-    assert "not independently verified" in lane.redistribution_status.lower()
+    assert lane.redistribution_status == "approved"
     assert "site_sequence_derivation" in lane.supports
     assert lane.limitations
     assert lane.to_payload()["organism"] == Organism.RAT.value
@@ -142,6 +146,7 @@ def test_human_mouse_lane_loads_only_if_committed_and_approved(
 
     assert bundle.organism is organism
     assert bundle.manifest is not None
+    assert bundle.manifest.redistribution_status is RedistributionStatus.APPROVED
     assert bundle.manifest.redistribution_allowed is True
     assert not bundle.kinase_substrate_map.empty
     assert not bundle.site_sequences.empty
@@ -174,6 +179,7 @@ def test_human_mouse_bundle_directories_are_not_stray_or_unapproved(
     assert committed_lanes == [default_bundle]
 
     manifest = load_bundled_reference_manifest(organism)
+    assert manifest.redistribution_status is RedistributionStatus.APPROVED
     assert manifest.redistribution_allowed is True
 
 
@@ -345,16 +351,18 @@ def _write_temporary_manifest_bundle(tmp_path: Path, *, file_hash: str) -> None:
         "reference_version": "v1",
         "source_name": "unit source",
         "source_version": "source-v1",
-        "source_url": None,
+        "source_url": "https://example.test/reference",
+        "retrieved_at": "2026-06-29",
+        "table_sha256": file_hash,
         "source_publication": None,
-        "source_license": "CC0 synthetic",
-        "source_license_url": None,
-        "redistribution_allowed": True,
+        "license_name": "CC0 synthetic",
+        "license_url": "https://example.test/license",
+        "redistribution_status": "approved",
         "redistribution_notes": "synthetic test fixture",
         "derived_from": ["unit test"],
         "generated_by": "unit test",
         "generated_at_utc": "2026-06-29T00:00:00Z",
-        "manifest_schema_version": "1.0",
+        "manifest_schema_version": "1.1",
         "files": [
             {
                 "relative_path": "reference.csv",

@@ -24,13 +24,13 @@ def test_reference_manifest_release_gate_fails_for_invalid_fixture(
     data = "kinase,site_id\nAKT1,MAPK1;S123;\n"
     (bundle_root / "substrate_map.csv").write_text(data, encoding="utf-8")
     payload = _valid_manifest_payload(sha256(data.encode("utf-8")).hexdigest())
-    payload["source_license"] = ""
+    payload["license_name"] = ""
     (bundle_root / "manifest.json").write_text(
         json.dumps(payload, indent=2),
         encoding="utf-8",
     )
 
-    with pytest.raises(ReferenceManifestError, match="source_license"):
+    with pytest.raises(ReferenceManifestError, match="license_name"):
         validate_bundled_reference_manifests(tmp_path / "reference_bundles")
 
 
@@ -54,16 +54,18 @@ def _valid_manifest_payload(file_hash: str) -> dict[str, object]:
         "reference_version": "v1",
         "source_name": "unit source",
         "source_version": None,
-        "source_url": None,
+        "source_url": "https://example.test/reference",
+        "retrieved_at": "2026-06-29",
+        "table_sha256": file_hash,
         "source_publication": None,
-        "source_license": "CC0 synthetic",
-        "source_license_url": None,
-        "redistribution_allowed": True,
+        "license_name": "CC0 synthetic",
+        "license_url": "https://example.test/license",
+        "redistribution_status": "approved",
         "redistribution_notes": "synthetic test fixture",
         "derived_from": ["unit test"],
         "generated_by": "unit test",
         "generated_at_utc": "2026-06-29T00:00:00Z",
-        "manifest_schema_version": "1.0",
+        "manifest_schema_version": "1.1",
         "files": [
             {
                 "relative_path": "substrate_map.csv",

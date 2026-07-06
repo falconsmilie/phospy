@@ -16,6 +16,9 @@ from phospy.frames.ownership import export_dataframe, own_dataframe
 from phospy.provenance.hashing import fingerprint_table
 from phospy.provenance.models import JsonValue, ReferenceProvenance
 from phospy.science.references.manifest import (
+    RedistributionStatus as RedistributionStatus,
+)
+from phospy.science.references.manifest import (
     ReferenceFileManifest as ReferenceFileManifest,
 )
 from phospy.science.references.manifest import (

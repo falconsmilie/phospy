@@ -22,6 +22,7 @@ __all__ = [
     "ReferenceFileManifest",
     "ReferenceManifest",
     "ReferencePreset",
+    "RedistributionStatus",
     "SequenceWindowDefinition",
     "load_kinase_library_resource",
 ]
@@ -39,6 +40,7 @@ if TYPE_CHECKING:
     from phospy.science.references.models import (
         BundledReferenceLane,
         Organism,
+        RedistributionStatus,
         ReferenceBundle,
         ReferenceBundleBuildRequest,
         ReferenceBundleMissingValueCount,

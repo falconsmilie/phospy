@@ -114,7 +114,8 @@ the public `DifferentialAnalysisResult.caveats` entries.
 
 Kinase workflow caveats include attrition policy warnings, permissive
 localisation policy, non-default reference sources, automatic reference
-resolution, score-source fallback, and non-PhosR-equivalent scoring scope.
+resolution, score-source fallback, and scoring scope that is not
+PhosR-equivalent.
 Kinase validators and interpreters own reference compatibility, resolved
 eligibility, and score-source facts. Kinase result assembly owns the final
 top-level caveats on `KinaseWorkflowResult`.

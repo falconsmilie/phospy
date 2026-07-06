@@ -8,7 +8,11 @@ import pytest
 
 from phospy.science.references import resources as reference_resources
 from phospy.science.references.errors import ReferenceManifestError
-from phospy.science.references.models import Organism, ReferencePreset
+from phospy.science.references.models import (
+    Organism,
+    RedistributionStatus,
+    ReferencePreset,
+)
 from phospy.science.references.resolution import ReferenceResolver
 from phospy.science.references.resources import load_bundled_reference_manifest
 from phospy.science.references.validation import validate_bundled_reference_manifests
@@ -31,6 +35,7 @@ def test_bundled_reference_manifests_are_structurally_valid() -> None:
         "site_sequences.csv",
         "substrate_map.csv",
     }
+    assert rat_manifest.redistribution_status is RedistributionStatus.APPROVED
     assert rat_manifest.redistribution_allowed is True
 
 
@@ -87,16 +92,18 @@ def _write_invalid_bundle(tmp_path: Path) -> None:
         "reference_version": "v1",
         "source_name": "unit source",
         "source_version": "source-v1",
-        "source_url": None,
+        "source_url": "https://example.test/reference",
+        "retrieved_at": "2026-06-29",
+        "table_sha256": sha256(b"different").hexdigest(),
         "source_publication": None,
-        "source_license": "CC0 synthetic",
-        "source_license_url": None,
-        "redistribution_allowed": True,
+        "license_name": "CC0 synthetic",
+        "license_url": "https://example.test/license",
+        "redistribution_status": "approved",
         "redistribution_notes": "synthetic test fixture",
         "derived_from": ["unit test"],
         "generated_by": "unit test",
         "generated_at_utc": "2026-06-29T00:00:00Z",
-        "manifest_schema_version": "1.0",
+        "manifest_schema_version": "1.1",
         "files": [
             {
                 "relative_path": "substrate_map.csv",

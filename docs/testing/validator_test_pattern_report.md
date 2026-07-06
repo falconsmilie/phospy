@@ -130,7 +130,7 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | --- | --- | ---: | --- |
 | tests/unit/test_config_validation_primitives.py | test_require_optional_int_at_least_matrix | 94 | `# Matrix keeps before/after coverage obvious for optional-positive integer cases.` |
 | tests/unit/test_public_config_self_validation.py | test_optional_positive_integer_config_fields_self_validate | 627 | `# Consolidated matrix for optional integer boundaries keeps field-level messages explicit.` |
-| tests/unit/test_reference_bundle_validation_report.py | test_duplicate_reference_records_are_rejected | 109 | `match="duplicate \\(kinase, substrate_site\\) pairs",` |
+| tests/unit/test_reference_bundle_validation_report.py | test_duplicate_reference_records_are_rejected | 110 | `match="duplicate \\(kinase, substrate_site\\) pairs",` |
 | tests/unit/test_site_identity_validation.py | test_validate_identity_optional_columns_rejects_non_string_values | 106 | `with pytest.raises(ValueError, match="optional identity columns"):` |
 | tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_min_observed_values_for_forbid_policy | 541 | `"missing_data.min_observed_values must be None when "` |
 | tests/unit/test_validator_boundaries.py | test_dataset_build_request_rejects_site_matrix_minimum_observed_without_policy | 694 | `"AnalysisReadyPhosphoDataset construction and must be None"` |
@@ -175,10 +175,10 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | tests/unit/test_prediction_sequence_validation.py | test_invalid_reference_sequences_do_not_change_motif_profile | 799 | `valid_map = pd.DataFrame(` |
 | tests/unit/test_prediction_sequence_validation.py | test_motif_library_validation_rows_preserve_reference_provenance | 1014 | `kinase_substrate_map=pd.DataFrame(` |
 | tests/unit/test_prediction_sequence_validation.py | test_query_sequence_validation_behavior_remains_unchanged_with_library_validation | 1047 | `kinase_substrate_map=pd.DataFrame(` |
-| tests/unit/test_reference_bundle_validation_report.py | test_validator_rejects_missing_required_table | 77 | `with pytest.raises(ReferenceValidationError, match="must be a pandas DataFrame"):` |
-| tests/unit/test_reference_bundle_validation_report.py | test_validator_rejects_missing_required_column | 86 | `invalid_sequences = pd.DataFrame(` |
-| tests/unit/test_reference_bundle_validation_report.py | test_duplicate_reference_records_are_rejected | 100 | `duplicate_map = pd.DataFrame(` |
-| tests/unit/test_reference_bundle_validation_report.py | test_invalid_bundle_still_rejected_when_sequence_entries_are_missing | 150 | `kinase_substrate_map=pd.DataFrame(` |
+| tests/unit/test_reference_bundle_validation_report.py | test_validator_rejects_missing_required_table | 78 | `with pytest.raises(ReferenceValidationError, match="must be a pandas DataFrame"):` |
+| tests/unit/test_reference_bundle_validation_report.py | test_validator_rejects_missing_required_column | 87 | `invalid_sequences = pd.DataFrame(` |
+| tests/unit/test_reference_bundle_validation_report.py | test_duplicate_reference_records_are_rejected | 101 | `duplicate_map = pd.DataFrame(` |
+| tests/unit/test_reference_bundle_validation_report.py | test_invalid_bundle_still_rejected_when_sequence_entries_are_missing | 151 | `kinase_substrate_map=pd.DataFrame(` |
 | tests/unit/test_site_identity_validation.py | test_validate_identity_optional_columns_accepts_missing_and_strings | 70 | `frame = pd.DataFrame(` |
 | tests/unit/test_site_identity_validation.py | test_validate_identity_optional_columns_rejects_non_string_values | 93 | `frame = pd.DataFrame(` |
 | tests/unit/test_site_identity_validation.py | test_protein_scoped_identity_rejects_missing_site_key_column | 297 | `with pytest.raises(ValueError, match="missing required columns: site_key"):` |
@@ -250,12 +250,12 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | tests/unit/test_prediction_sequence_validation.py | test_kinase_workflow_exposes_sequence_validation_diagnostics | 447 | `references = ReferenceBundle(` |
 | tests/unit/test_prediction_sequence_validation.py | test_kinase_workflow_reports_partial_sequence_coverage_in_provenance | 604 | `references = ReferenceBundle(` |
 | tests/unit/test_prediction_sequence_validation.py | test_kinase_workflow_continues_when_no_sites_have_valid_sequence | 681 | `references = ReferenceBundle(` |
-| tests/unit/test_reference_bundle_validation_report.py | test_valid_reference_bundle_exposes_structured_validation_report | 24 | `assert isinstance(report, ReferenceBundleValidationReport)` |
-| tests/unit/test_reference_bundle_validation_report.py | test_validator_rejects_missing_required_table | 78 | `ReferenceBundleValidator().run(` |
-| tests/unit/test_reference_bundle_validation_report.py | test_validator_rejects_missing_required_column | 92 | `ReferenceBundleValidator().run(` |
-| tests/unit/test_reference_bundle_validation_report.py | test_duplicate_reference_records_are_rejected | 111 | `ReferenceBundle(` |
-| tests/unit/test_reference_bundle_validation_report.py | test_report_warns_when_organism_and_namespace_metadata_are_limited | 119 | `bundle = ReferenceBundle(` |
-| tests/unit/test_reference_bundle_validation_report.py | test_invalid_bundle_still_rejected_when_sequence_entries_are_missing | 148 | `ReferenceBundle(` |
+| tests/unit/test_reference_bundle_validation_report.py | test_valid_reference_bundle_exposes_structured_validation_report | 25 | `assert isinstance(report, ReferenceBundleValidationReport)` |
+| tests/unit/test_reference_bundle_validation_report.py | test_validator_rejects_missing_required_table | 79 | `ReferenceBundleValidator().run(` |
+| tests/unit/test_reference_bundle_validation_report.py | test_validator_rejects_missing_required_column | 93 | `ReferenceBundleValidator().run(` |
+| tests/unit/test_reference_bundle_validation_report.py | test_duplicate_reference_records_are_rejected | 112 | `ReferenceBundle(` |
+| tests/unit/test_reference_bundle_validation_report.py | test_report_warns_when_organism_and_namespace_metadata_are_limited | 120 | `bundle = ReferenceBundle(` |
+| tests/unit/test_reference_bundle_validation_report.py | test_invalid_bundle_still_rejected_when_sequence_entries_are_missing | 149 | `ReferenceBundle(` |
 | tests/unit/test_validation_ownership.py | test_reference_compatibility_is_enforced_at_workflow_runtime_boundary | 100 | `references=ReferencePreset.HUMAN,` |
 | tests/unit/test_validation_ownership.py | test_reference_resolver_delegates_compatibility_and_does_not_duplicate_checks | 121 | `assert "ReferenceBundleValidator" not in resolver_source` |
 | tests/unit/test_validation_ownership.py | test_reference_compatibility_validator_is_single_owner_for_compatibility_rules | 131 | `assert "ReferencePreset.AUTO requires dataset.organism" in source` |

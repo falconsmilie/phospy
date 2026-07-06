@@ -364,7 +364,7 @@ def _build_provenance_fields(
             fields[key] = value
     if manifest is not None:
         fields["license"] = manifest.license
-        fields["redistribution_status"] = manifest.redistribution_status
+        fields["redistribution_status"] = manifest.redistribution_status.value
         fields["supports"] = manifest.supports
         fields["limitations"] = manifest.limitations
         if manifest.source_url is not None:

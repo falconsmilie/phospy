@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import date
 from hashlib import sha256
 from pathlib import Path
 from typing import cast
@@ -11,6 +12,7 @@ from typing import cast
 from phospy.science.references.errors import ReferenceManifestError
 from phospy.science.references.manifest import (
     REFERENCE_MANIFEST_SCHEMA_VERSION,
+    RedistributionStatus,
     ReferenceFileManifest,
     ReferenceManifest,
 )
@@ -25,8 +27,13 @@ _REQUIRED_MANIFEST_FIELDS = frozenset(
         "protein_namespace",
         "reference_version",
         "source_name",
-        "source_license",
-        "redistribution_allowed",
+        "source_url",
+        "source_version",
+        "retrieved_at",
+        "table_sha256",
+        "license_name",
+        "license_url",
+        "redistribution_status",
         "redistribution_notes",
         "derived_from",
         "generated_by",
@@ -115,24 +122,18 @@ def parse_reference_manifest_payload(
         source_name=_require_string(payload, key="source_name", context=context),
         source_version=_optional_string(payload, key="source_version", context=context),
         source_url=_optional_string(payload, key="source_url", context=context),
+        retrieved_at=_require_date(payload, key="retrieved_at", context=context),
+        table_sha256=_require_string(payload, key="table_sha256", context=context),
         source_publication=_optional_string(
             payload,
             key="source_publication",
             context=context,
         ),
-        source_license=_require_string(
+        license_name=_optional_string(payload, key="license_name", context=context),
+        license_url=_optional_string(payload, key="license_url", context=context),
+        redistribution_status=_require_redistribution_status(
             payload,
-            key="source_license",
-            context=context,
-        ),
-        source_license_url=_optional_string(
-            payload,
-            key="source_license_url",
-            context=context,
-        ),
-        redistribution_allowed=_require_bool(
-            payload,
-            key="redistribution_allowed",
+            key="redistribution_status",
             context=context,
         ),
         redistribution_notes=_require_string(
@@ -204,11 +205,11 @@ def validate_reference_manifest(
     _validate_sequence_context(manifest)
     if (
         bundled or require_redistribution_allowed
-    ) and not manifest.redistribution_allowed:
+    ) and manifest.redistribution_status is not RedistributionStatus.APPROVED:
         raise ReferenceManifestError(
-            "bundled reference manifest declares redistribution_allowed=False "
-            f"for {manifest.reference_id}; package release is blocked until "
-            "redistribution is resolved"
+            "bundled reference manifest redistribution_status must be 'approved' "
+            f"for release-gate validation: {manifest.reference_id} declares "
+            f"{manifest.redistribution_status.value!r}"
         )
     listed_files: set[Path] = set()
     for file_manifest in manifest.files:
@@ -219,6 +220,7 @@ def validate_reference_manifest(
         )
         listed_files.add(resolved_path)
         _validate_file_manifest(file_manifest, path=resolved_path)
+    _validate_table_sha256_matches_declared_file(manifest)
     if require_all_files_listed:
         _validate_all_bundle_files_listed(
             root=root,
@@ -265,16 +267,27 @@ def _validate_required_manifest_values(manifest: ReferenceManifest) -> None:
         "protein_namespace",
         "reference_version",
         "source_name",
-        "source_license",
+        "table_sha256",
     ):
         value = getattr(manifest, field_name)
         if not isinstance(value, str) or not value.strip():
             raise ReferenceManifestError(
                 f"reference manifest {field_name} must be a non-empty string"
             )
-    if not isinstance(manifest.redistribution_allowed, bool):
+    if not _SHA256_PATTERN.match(manifest.table_sha256):
         raise ReferenceManifestError(
-            "reference manifest redistribution_allowed must be boolean"
+            "reference manifest table_sha256 is missing or invalid"
+        )
+    if not isinstance(manifest.redistribution_status, RedistributionStatus):
+        raise ReferenceManifestError(
+            "reference manifest redistribution_status must be a RedistributionStatus"
+        )
+    if manifest.redistribution_status is RedistributionStatus.APPROVED and (
+        manifest.license_name is None or manifest.license_url is None
+    ):
+        raise ReferenceManifestError(
+            "reference manifest license_name and license_url are required when "
+            "redistribution_status is 'approved'"
         )
     if not manifest.files:
         raise ReferenceManifestError("reference manifest files must not be empty")
@@ -335,6 +348,14 @@ def _validate_file_manifest(
             "reference manifest file hash mismatch for "
             f"{file_manifest.relative_path}: expected {file_manifest.sha256}, "
             f"actual {actual_hash}"
+        )
+
+
+def _validate_table_sha256_matches_declared_file(manifest: ReferenceManifest) -> None:
+    declared_file_hashes = {item.sha256 for item in manifest.files}
+    if manifest.table_sha256 not in declared_file_hashes:
+        raise ReferenceManifestError(
+            "reference manifest table_sha256 must match one declared file sha256"
         )
 
 
@@ -487,13 +508,36 @@ def _optional_string(
     return text if text else None
 
 
-def _require_bool(payload: dict[str, object], *, key: str, context: str) -> bool:
+def _require_date(payload: dict[str, object], *, key: str, context: str) -> date:
     value = payload.get(key)
-    if not isinstance(value, bool):
+    if not isinstance(value, str) or not value.strip():
         raise ReferenceManifestError(
-            f"reference manifest {key} must be boolean for {context}"
+            f"reference manifest {key} must be YYYY-MM-DD for {context}"
         )
-    return bool(value)
+    try:
+        return date.fromisoformat(value.strip())
+    except ValueError as exc:
+        raise ReferenceManifestError(
+            f"reference manifest {key} must be YYYY-MM-DD for {context}"
+        ) from exc
+
+
+def _require_redistribution_status(
+    payload: dict[str, object], *, key: str, context: str
+) -> RedistributionStatus:
+    value = payload.get(key)
+    if not isinstance(value, str) or not value.strip():
+        allowed = ", ".join(item.value for item in RedistributionStatus)
+        raise ReferenceManifestError(
+            f"reference manifest {key} must be one of {allowed} for {context}"
+        )
+    try:
+        return RedistributionStatus(value.strip())
+    except ValueError as exc:
+        allowed = ", ".join(item.value for item in RedistributionStatus)
+        raise ReferenceManifestError(
+            f"reference manifest {key} must be one of {allowed} for {context}"
+        ) from exc
 
 
 def _optional_int(payload: dict[str, object], *, key: str, context: str) -> int | None:

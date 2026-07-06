@@ -9,9 +9,12 @@
   "source_name": "PhosR-derived L6 reference bundle (phospho.L6.ratio.pe, PhosphoSite.mouse, motif.mouse.list)",
   "source_version": null,
   "source_url": "https://github.com/PYangLab/PhosR",
+  "retrieved_at": "2026-04-16",
+  "table_sha256": "dc5ad357a6aaf2ef29d1fa931f117b06522ff2abe51146f0cfbc84aa4f36c32d",
   "source_publication": "Yang et al. 2019 Bioinformatics 35(14): i349-i356",
-  "source_license": "Upstream PhosR package metadata declares GPL-3 + file LICENSE. Upstream PhosR documentation also identifies PhosphoSite.mouse as extracted from PhosphoSitePlus and phospho.L6.ratio.pe as PRIDE-sourced; no separate license grant for this derived CSV snapshot is recorded here.",
-  "source_license_url": "https://github.com/PYangLab/PhosR/blob/master/LICENSE",
+  "license_name": "Upstream PhosR package metadata declares GPL-3 + file LICENSE. Upstream PhosR documentation also identifies PhosphoSite.mouse as extracted from PhosphoSitePlus and phospho.L6.ratio.pe as PRIDE-sourced; no separate license grant for this derived CSV snapshot is recorded here.",
+  "license_url": "https://github.com/PYangLab/PhosR/blob/master/LICENSE",
+  "redistribution_status": "approved",
   "redistribution_allowed": true,
   "redistribution_notes": "Redistribution approval for this exact derived rat CSV bundle is not independently verified. This manifest records scientific lineage and file hashes only; it is not legal approval to publish the bundle.",
   "derived_from": [
@@ -22,7 +25,7 @@
   ],
   "generated_by": "scripts/active/generate_r_l6_fixtures.R",
   "generated_at_utc": "2026-04-16T00:00:00Z",
-  "manifest_schema_version": "1.0",
+  "manifest_schema_version": "1.1",
   "files": [
     {
       "relative_path": "substrate_map.csv",

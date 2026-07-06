@@ -7,20 +7,61 @@ from pathlib import Path
 import pytest
 
 from phospy.science.references.errors import ReferenceManifestError
+from phospy.science.references.models import RedistributionStatus
 from phospy.science.references.validation import load_reference_manifest
 
 
-def test_valid_manifest_loads_successfully(tmp_path: Path) -> None:
+def test_valid_approved_manifest_loads_successfully(tmp_path: Path) -> None:
     manifest_path = _write_manifest_bundle(tmp_path)
 
     manifest = load_reference_manifest(manifest_path)
 
     assert manifest.reference_id == "unit_reference"
     assert manifest.reference_version == "v1"
+    assert manifest.table_sha256 == manifest.files[0].sha256
+    assert manifest.license_name == "CC0 synthetic"
+    assert manifest.license_url == "https://example.test/license"
+    assert manifest.redistribution_status is RedistributionStatus.APPROVED
     assert manifest.redistribution_allowed is True
     assert manifest.files[0].relative_path == "reference.csv"
     assert manifest.sequence_window.upstream_residues == 1
     assert manifest.sequence_window.downstream_residues == 1
+
+
+def test_valid_external_only_manifest_loads_successfully(tmp_path: Path) -> None:
+    manifest_path = _write_manifest_bundle(
+        tmp_path,
+        manifest_overrides={
+            "license_name": None,
+            "license_url": None,
+            "redistribution_status": "external_only",
+            "redistribution_notes": "source must be supplied externally",
+        },
+    )
+
+    manifest = load_reference_manifest(manifest_path)
+
+    assert manifest.redistribution_status is RedistributionStatus.EXTERNAL_ONLY
+    assert manifest.redistribution_allowed is False
+    assert manifest.license_name is None
+    assert manifest.license_url is None
+
+
+def test_unresolved_manifest_loads_during_ordinary_parsing(tmp_path: Path) -> None:
+    manifest_path = _write_manifest_bundle(
+        tmp_path,
+        manifest_overrides={
+            "license_name": None,
+            "license_url": None,
+            "redistribution_status": "unresolved",
+            "redistribution_notes": "redistribution review has not completed",
+        },
+    )
+
+    manifest = load_reference_manifest(manifest_path)
+
+    assert manifest.redistribution_status is RedistributionStatus.UNRESOLVED
+    assert manifest.redistribution_allowed is False
 
 
 def test_missing_required_field_raises_reference_manifest_error(
@@ -54,6 +95,36 @@ def test_sha256_mismatch_raises_reference_manifest_error(tmp_path: Path) -> None
         load_reference_manifest(manifest_path)
 
 
+def test_missing_table_sha256_raises_reference_manifest_error(tmp_path: Path) -> None:
+    manifest_path = _write_manifest_bundle(
+        tmp_path,
+        manifest_overrides={"table_sha256": ""},
+    )
+
+    with pytest.raises(ReferenceManifestError, match="table_sha256"):
+        load_reference_manifest(manifest_path)
+
+
+def test_missing_license_for_approved_manifest_raises(tmp_path: Path) -> None:
+    manifest_path = _write_manifest_bundle(
+        tmp_path,
+        manifest_overrides={"license_name": "", "license_url": None},
+    )
+
+    with pytest.raises(ReferenceManifestError, match="license_name and license_url"):
+        load_reference_manifest(manifest_path)
+
+
+def test_invalid_redistribution_status_raises(tmp_path: Path) -> None:
+    manifest_path = _write_manifest_bundle(
+        tmp_path,
+        manifest_overrides={"redistribution_status": "redistributable"},
+    )
+
+    with pytest.raises(ReferenceManifestError, match="redistribution_status"):
+        load_reference_manifest(manifest_path)
+
+
 def test_sequence_window_length_without_center_index_raises(
     tmp_path: Path,
 ) -> None:
@@ -76,18 +147,20 @@ def test_sequence_center_index_outside_window_length_raises(tmp_path: Path) -> N
         load_reference_manifest(manifest_path)
 
 
-def test_bundled_manifest_with_disallowed_redistribution_raises(
+def test_unresolved_bundled_manifest_is_rejected(
     tmp_path: Path,
 ) -> None:
     manifest_path = _write_manifest_bundle(
         tmp_path,
         manifest_overrides={
-            "redistribution_allowed": False,
-            "redistribution_notes": "local/private use only",
+            "license_name": None,
+            "license_url": None,
+            "redistribution_status": "unresolved",
+            "redistribution_notes": "redistribution review has not completed",
         },
     )
 
-    with pytest.raises(ReferenceManifestError, match="package release is blocked"):
+    with pytest.raises(ReferenceManifestError, match="release-gate"):
         load_reference_manifest(manifest_path, bundled=True)
 
 
@@ -121,16 +194,18 @@ def _write_manifest_bundle(
         "reference_version": "v1",
         "source_name": "unit source",
         "source_version": "source-v1",
-        "source_url": None,
+        "source_url": "https://example.test/reference",
+        "retrieved_at": "2026-06-29",
+        "table_sha256": file_hash,
         "source_publication": None,
-        "source_license": "CC0 synthetic",
-        "source_license_url": None,
-        "redistribution_allowed": True,
+        "license_name": "CC0 synthetic",
+        "license_url": "https://example.test/license",
+        "redistribution_status": "approved",
         "redistribution_notes": "synthetic test fixture",
         "derived_from": ["unit test"],
         "generated_by": "unit test",
         "generated_at_utc": "2026-06-29T00:00:00Z",
-        "manifest_schema_version": "1.0",
+        "manifest_schema_version": "1.1",
         "files": [file_payload],
         "sequence_context_policy": "centered phosphosite sequence window",
         "sequence_window_length": 3,
