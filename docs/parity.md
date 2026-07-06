@@ -157,9 +157,20 @@ pytest tests/parity -m "parity_diagnostic" -s
   protect:
   - two-condition unpaired simple contrasts (`B_vs_A`, `A_vs_B`)
   - small-`n` moderated-statistics behavior
-  - unequal-variance feature handling; all-constant feature rows are now
-    represented with `withheld_all_constant`, not as a parity surface
-  - Benjamini-Hochberg adjusted p-values and contrast ordering/sign conventions
+  - unequal-variance feature handling
+  - Benjamini-Hochberg adjusted p-values for fixtures whose rows are all tested
+    and contrast ordering/sign conventions
+- PhosPy withholds all-constant feature rows before differential model fitting.
+  Those rows are reported with `result_status="withheld_all_constant"` and
+  missing `logFC`, `t`, `P.Value`, and `adj.P.Val` values.
+- Withheld rows are not included in multiple-testing correction. Adjustment is
+  computed per contrast over tested rows only, then withheld rows are expanded
+  back into the result table with missing statistics.
+- Differential parity comparisons that use fixtures containing withheld rows are
+  performed only on rows with `result_status="tested"`. Withheld all-constant
+  rows document a PhosPy safety policy, not a limma parity surface.
+- This tested-row comparison scope does not claim that PhosPy reproduces all
+  limma edge-case behavior for constant or otherwise untestable features.
 - Differential parity comparisons use explicit floating-point tolerances in
   parity tests (`rtol=1e-6`, `atol=1e-8`).
 - Missing-value handling is an intentional contract difference:

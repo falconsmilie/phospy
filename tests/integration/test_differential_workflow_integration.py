@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -19,10 +20,16 @@ from phospy.api import (
     SampleDesignRecord,
 )
 from phospy.errors import WorkflowValidationError
+from phospy.science.differential.models import (
+    DIFFERENTIAL_RESULT_STATUS_COLUMN,
+    DIFFERENTIAL_RESULT_STATUS_TESTED,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
+)
 from phospy.science.sites.site_keys import (
     build_protein_scoped_site_key,
     encode_site_key,
 )
+from phospy.science.statistics.multiple_testing import adjust_p_values
 from phospy.science.transformations.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
@@ -171,6 +178,54 @@ def test_differential_workflow_runs_on_analysis_ready_dataset() -> None:
     assert table.index.tolist() == _dataset().phospho.index.tolist()
     assert (table.loc[:, "adj.P.Val"] >= 0.0).all()
     assert (table.loc[:, "adj.P.Val"] <= 1.0).all()
+
+
+def test_differential_workflow_excludes_withheld_rows_from_multiple_testing() -> None:
+    base_dataset = _dataset()
+    matrix = base_dataset.phospho
+    matrix.iloc[0, :] = 5.0
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=matrix,
+        site_metadata=base_dataset.site_metadata,
+        organism=base_dataset.organism,
+        intensity_scale_state=base_dataset.intensity_scale_state,
+        processing_state=base_dataset.processing_state,
+    )
+
+    result = DifferentialAnalysisWorkflow().run(
+        DifferentialAnalysisRequest(
+            dataset=dataset,
+            design=_design(),
+            contrasts=_contrasts(),
+        )
+    )
+    table = result.table_for("B_vs_A")
+    tested_rows = (
+        table[DIFFERENTIAL_RESULT_STATUS_COLUMN] == DIFFERENTIAL_RESULT_STATUS_TESTED
+    )
+    withheld_rows = (
+        table[DIFFERENTIAL_RESULT_STATUS_COLUMN]
+        == DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT
+    )
+
+    assert int(tested_rows.sum()) == 3
+    assert int(withheld_rows.sum()) == 1
+    assert (
+        table.loc[withheld_rows, ["logFC", "t", "P.Value", "adj.P.Val"]]
+        .isna()
+        .all()
+        .all()
+    )
+    expected_adjusted = adjust_p_values(
+        table.loc[tested_rows, "P.Value"].to_numpy(dtype=float),
+        method="benjamini_hochberg",
+    )
+    np.testing.assert_allclose(
+        table.loc[tested_rows, "adj.P.Val"].to_numpy(dtype=float),
+        expected_adjusted,
+        rtol=1e-12,
+        atol=1e-12,
+    )
 
 
 def test_differential_workflow_invalid_contrast_fails_before_execution() -> None:

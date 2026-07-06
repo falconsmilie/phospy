@@ -12,7 +12,7 @@ tests/integration/test_dataset_importer_handoff.py,integration,60,1,true,false,,
 tests/integration/test_dataset_native_correction_preprocessing_integration.py,integration,1738,39,true,true,,,,,,
 tests/integration/test_dataset_protein_aware_alignment_diagnostics.py,integration,177,2,true,false,,,,,,
 tests/integration/test_differential_with_technical_replicates.py,integration,198,3,false,false,,,,,,
-tests/integration/test_differential_workflow_integration.py,integration,417,8,false,false,,,,,,
+tests/integration/test_differential_workflow_integration.py,integration,472,9,false,false,,,,,,
 tests/integration/test_fragpipe_importer_dataset_integration.py,integration,71,1,true,false,,,,,,
 tests/integration/test_identity_aware_workflows.py,integration,463,7,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/integration/test_kinase_bundle_integration.py,integration,925,8,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle integration, making artifact and output drift unsafe.",codex-audit,,
@@ -36,7 +36,7 @@ tests/parity/test_activity_stage_parity.py,parity,195,4,true,false,parity,keep,"
 tests/parity/test_adaptive_prediction_parity.py,parity,282,10,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for adaptive prediction parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/parity/test_adaptive_replay_parity.py,parity,251,1,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for adaptive replay parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/parity/test_differential_analysis_parity.py,parity,221,2,true,false,parity,keep,"Loss of this file would remove Python-vs-reference parity guardrails for differential analysis, making release drift against accepted outputs unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
-tests/parity/test_differential_limma_parity.py,parity,280,4,true,false,,,,,,
+tests/parity/test_differential_limma_parity.py,parity,332,6,true,false,,,,,,
 tests/parity/test_kinase_workflow_parity.py,parity,361,4,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for kinase workflow parity, making release drift against accepted references unsafe.",codex-audit,,
 tests/parity/test_l6_prediction_parity.py,parity,498,8,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for l6 prediction parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/parity/test_prediction_science_parity.py,parity,253,3,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for prediction science parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.

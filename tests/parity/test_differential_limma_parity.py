@@ -20,6 +20,7 @@ from phospy.api import (
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.differential.models import (
     DIFFERENTIAL_RESULT_STATUS_COLUMN,
+    DIFFERENTIAL_RESULT_STATUS_TESTED,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
 )
 from tests.support.intensity_scale_states import (
@@ -60,12 +61,6 @@ def _load_matrix() -> pd.DataFrame:
     ]
     matrix.index = pd.Index(canonical_ids, name=matrix.index.name)
     return matrix
-
-
-def _drop_all_constant_rows(matrix: pd.DataFrame) -> pd.DataFrame:
-    values = matrix.to_numpy(dtype=float)
-    mask = ~(values == values[:, [0]]).all(axis=1)
-    return matrix.loc[mask, :].copy(deep=True)
 
 
 def _load_design() -> pd.DataFrame:
@@ -175,10 +170,14 @@ def _contrasts_from_matrix(contrasts: pd.DataFrame) -> tuple[Contrast, ...]:
     return tuple(typed)
 
 
-def _run_fixture_workflow(*, supported_subset: bool = True) -> object:
+def _all_constant_row_mask(matrix: pd.DataFrame) -> pd.Series:
+    values = matrix.to_numpy(dtype=float)
+    mask = (values == values[:, [0]]).all(axis=1)
+    return pd.Series(mask, index=matrix.index.copy())
+
+
+def _run_fixture_workflow() -> object:
     matrix = _load_matrix()
-    if supported_subset:
-        matrix = _drop_all_constant_rows(matrix)
     design_matrix = _load_design()
     contrast_matrix = _load_contrasts_matrix()
     request = DifferentialAnalysisRequest(
@@ -213,8 +212,18 @@ def test_differential_limma_envelope_fixture_is_source_labelled() -> None:
     assert "Contrasts (column order): B_vs_A then A_vs_B" in provenance
 
 
+def test_differential_parity_fixture_records_withheld_feature_count() -> None:
+    matrix = _load_matrix()
+    withheld_mask = _all_constant_row_mask(matrix)
+    provenance = (DIFF_PARITY_DIR / "PROVENANCE.md").read_text(encoding="utf-8")
+
+    assert int(withheld_mask.sum()) == 1
+    assert matrix.index[withheld_mask].tolist() == ["SITE5;S5;"]
+    assert "PhosPy withheld feature count: 1 all-constant row (SITE_05)" in provenance
+
+
 def test_full_limma_envelope_fixture_withholds_all_constant_row() -> None:
-    result = _run_fixture_workflow(supported_subset=False)
+    result = _run_fixture_workflow()
     table = result.table_for("B_vs_A")
     all_constant_rows = (
         table[DIFFERENTIAL_RESULT_STATUS_COLUMN]
@@ -230,6 +239,33 @@ def test_full_limma_envelope_fixture_withholds_all_constant_row() -> None:
     )
 
 
+def test_differential_parity_excludes_withheld_rows_from_comparison() -> None:
+    result = _run_fixture_workflow()
+    table = result.table_for("B_vs_A")
+    tested_rows = (
+        table[DIFFERENTIAL_RESULT_STATUS_COLUMN] == DIFFERENTIAL_RESULT_STATUS_TESTED
+    )
+    withheld_rows = (
+        table[DIFFERENTIAL_RESULT_STATUS_COLUMN]
+        == DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT
+    )
+    observed = table.loc[tested_rows, ["logFC"]]
+    expected = _load_expected(
+        "B_vs_A",
+        result_site_index=table.index,
+    ).loc[tested_rows, ["logFC"]]
+
+    assert int(withheld_rows.sum()) == 1
+    assert not observed.index.intersection(table.index[withheld_rows]).any()
+    pdt.assert_frame_equal(
+        observed,
+        expected,
+        check_exact=False,
+        rtol=PARITY_RTOL,
+        atol=PARITY_ATOL,
+    )
+
+
 def test_two_condition_small_n_coefficients_match_limma_with_explicit_tolerance() -> (
     None
 ):
@@ -240,11 +276,15 @@ def test_two_condition_small_n_coefficients_match_limma_with_explicit_tolerance(
 
     for contrast_name in ("B_vs_A", "A_vs_B"):
         table = result.table_for(contrast_name)
-        observed = table.loc[:, ["logFC"]]
+        tested_rows = (
+            table[DIFFERENTIAL_RESULT_STATUS_COLUMN]
+            == DIFFERENTIAL_RESULT_STATUS_TESTED
+        )
+        observed = table.loc[tested_rows, ["logFC"]]
         expected = _load_expected(
             contrast_name,
-            result_site_index=observed.index,
-        ).loc[:, ["logFC"]]
+            result_site_index=table.index,
+        ).loc[tested_rows, ["logFC"]]
         pdt.assert_frame_equal(
             observed,
             expected,
@@ -252,13 +292,25 @@ def test_two_condition_small_n_coefficients_match_limma_with_explicit_tolerance(
             rtol=PARITY_RTOL,
             atol=PARITY_ATOL,
         )
-        assert np.isfinite(table.loc[:, ["t", "P.Value", "adj.P.Val"]].to_numpy()).all()
+        assert np.isfinite(
+            table.loc[tested_rows, ["t", "P.Value", "adj.P.Val"]].to_numpy()
+        ).all()
 
 
 def test_reverse_contrast_preserves_sign_convention_and_order() -> None:
     result = _run_fixture_workflow()
-    b_vs_a = result.table_for("B_vs_A").loc[:, ["logFC", "t", "P.Value"]]
-    a_vs_b = result.table_for("A_vs_B").loc[:, ["logFC", "t", "P.Value"]]
+    b_vs_a_table = result.table_for("B_vs_A")
+    a_vs_b_table = result.table_for("A_vs_B")
+    tested_rows = (
+        b_vs_a_table[DIFFERENTIAL_RESULT_STATUS_COLUMN]
+        == DIFFERENTIAL_RESULT_STATUS_TESTED
+    )
+    assert tested_rows.equals(
+        a_vs_b_table[DIFFERENTIAL_RESULT_STATUS_COLUMN]
+        == DIFFERENTIAL_RESULT_STATUS_TESTED
+    )
+    b_vs_a = b_vs_a_table.loc[tested_rows, ["logFC", "t", "P.Value"]]
+    a_vs_b = a_vs_b_table.loc[tested_rows, ["logFC", "t", "P.Value"]]
 
     np.testing.assert_allclose(
         b_vs_a.loc[:, "logFC"].to_numpy(dtype=float),
