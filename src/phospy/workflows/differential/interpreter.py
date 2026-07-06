@@ -6,6 +6,7 @@ from typing import cast
 
 import numpy as np
 import pandas as pd
+from numpy.typing import NDArray
 
 from phospy.contracts.configs.differential import (
     IMPUTED_VALUE_POLICY_REJECT,
@@ -48,6 +49,16 @@ from phospy.validation.identity_contracts import (
 )
 from phospy.validation.workflows.differential import (
     ExperimentalDesignContractValidator,
+)
+from phospy.workflows._pandas_typing import (
+    dataframe_column,
+    dataframe_copy,
+    dataframe_loc,
+    dataframe_reindex,
+    index_as_strings,
+    index_snapshot,
+    series_as_strings,
+    series_copy,
 )
 from phospy.workflows.differential.caveats import build_differential_result_caveats
 from phospy.workflows.differential.models import (
@@ -127,7 +138,10 @@ class DifferentialAnalysisInterpreter:
         analysis_sample_ids = resolved_analysis_sample_ids
         resolved_dataset_view = DatasetInternalView(resolved_dataset)
         resolved_site_metadata = resolved_dataset_view.site_metadata
-        matrix = resolved_dataset_view.phospho.loc[:, list(analysis_sample_ids)]
+        matrix = dataframe_loc(
+            resolved_dataset_view.phospho,
+            columns=list(analysis_sample_ids),
+        )
         matrix = _prefer_site_key_index_for_differential_results(
             matrix=matrix,
             site_metadata=resolved_site_metadata,
@@ -145,12 +159,12 @@ class DifferentialAnalysisInterpreter:
                     "analysis matrix sample order"
                 ),
                 details={
-                    "matrix_samples": matrix_samples.astype(str).tolist(),
-                    "design_samples": design_samples.astype(str).tolist(),
+                    "matrix_samples": index_as_strings(matrix_samples),
+                    "design_samples": index_as_strings(design_samples),
                 },
                 message_prefix="differential workflow boundary validation failed",
             )
-        matrix_aligned = cast(pd.DataFrame, matrix.copy(deep=True))
+        matrix_aligned = dataframe_copy(matrix, deep=True)
         result_identity_metadata = _build_result_identity_metadata(
             site_metadata=resolved_site_metadata,
             expected_index=matrix_aligned.index,
@@ -188,8 +202,11 @@ class DifferentialAnalysisInterpreter:
             feature_ids=feature_eligibility_inputs.testable_feature_ids,
         )
 
-        design_values = design_aligned.to_numpy(dtype=float)
-        design_shape = cast(tuple[int, int], design_values.shape)
+        design_values: NDArray[np.float64] = np.asarray(
+            design_aligned.to_numpy(dtype=float),
+            dtype=np.float64,
+        )
+        design_shape = design_values.shape
         sample_count = int(design_shape[0])
         coefficient_count = int(design_shape[1])
         rank = int(np.linalg.matrix_rank(design_values))
@@ -220,10 +237,28 @@ class DifferentialAnalysisInterpreter:
                 message_prefix="differential workflow boundary validation failed",
             )
 
-        xtx_inv = np.linalg.pinv(design_values.T @ design_values)
-        contrast_values = contrasts_aligned.to_numpy(dtype=float)
-        contrast_covariance = contrast_values.T @ xtx_inv @ contrast_values
-        contrast_scale = np.sqrt(np.diag(contrast_covariance))
+        design_transpose = np.transpose(design_values)
+        contrast_values: NDArray[np.float64] = np.asarray(
+            contrasts_aligned.to_numpy(dtype=float),
+            dtype=np.float64,
+        )
+        contrast_transpose = np.transpose(contrast_values)
+        design_crossproduct = cast(
+            NDArray[np.float64],
+            np.matmul(design_transpose, design_values),
+        )
+        xtx_inv = cast(
+            NDArray[np.float64],
+            np.linalg.pinv(design_crossproduct),
+        )
+        contrast_covariance = cast(
+            NDArray[np.float64],
+            np.matmul(np.matmul(contrast_transpose, xtx_inv), contrast_values),
+        )
+        contrast_scale = cast(
+            NDArray[np.float64],
+            np.sqrt(np.diagonal(contrast_covariance)),
+        )
         if np.any(~np.isfinite(contrast_scale)) or np.any(contrast_scale <= 0.0):
             raise WorkflowBoundaryError(
                 seam="differential.interpreter.non_estimable_contrast",
@@ -232,7 +267,7 @@ class DifferentialAnalysisInterpreter:
                     "resolved design matrix"
                 ),
                 details={
-                    "contrast_names": contrasts_aligned.columns.astype(str).tolist(),
+                    "contrast_names": index_as_strings(contrasts_aligned.columns),
                 },
                 message_prefix="differential workflow boundary validation failed",
             )
@@ -243,13 +278,10 @@ class DifferentialAnalysisInterpreter:
             design_aligned=design_aligned,
             contrasts_aligned=contrasts_aligned,
             design_build_result=resolved_design_build_result,
-            paired_design_policy=cast(
-                PairedDesignPolicy,
-                request.config.paired_design_policy,
-            ),
+            paired_design_policy=request.config.paired_design_policy,
         )
         computation_request = DifferentialComputationRequest(
-            matrix=cast(pd.DataFrame, matrix_for_computation),
+            matrix=matrix_for_computation,
             design=execution_design.design_matrix,
             contrasts=execution_design.contrast_matrix,
             empirical_bayes=request.config.empirical_bayes,
@@ -337,10 +369,8 @@ def _build_execution_design_inputs(
         if design_build_result is not None
         else design.condition_labels()
     )
-    design_matrix = DesignMatrix(cast(pd.DataFrame, design_aligned.copy(deep=True)))
-    contrast_matrix = ContrastMatrix(
-        cast(pd.DataFrame, contrasts_aligned.copy(deep=True))
-    )
+    design_matrix = DesignMatrix(dataframe_copy(design_aligned, deep=True))
+    contrast_matrix = ContrastMatrix(dataframe_copy(contrasts_aligned, deep=True))
     covariate_columns = _build_covariate_column_metadata(
         design=design,
         design_build_result=design_build_result,
@@ -593,10 +623,11 @@ def _build_condition_contrast_vectors(
                 details={"contrast": contrast.name},
                 message_prefix="differential workflow boundary validation failed",
             )
-        vector = contrasts_aligned.loc[:, contrast.name]
+        vector = dataframe_column(contrasts_aligned, contrast.name)
+        vector_values = vector.to_numpy(dtype=float)
         coefficients = tuple(
-            (str(coefficient_name), float(vector.loc[coefficient_name]))
-            for coefficient_name in contrasts_aligned.index
+            (str(coefficient_name), float(vector_values[row_index]))
+            for row_index, coefficient_name in enumerate(contrasts_aligned.index)
         )
         contrast_vectors.append(
             DifferentialConditionContrastVector(
@@ -658,7 +689,10 @@ def _build_result_identity_metadata(
             ),
         )
     try:
-        aligned = cast(pd.DataFrame, site_metadata.loc[expected_index].copy(deep=True))
+        aligned = dataframe_copy(
+            dataframe_loc(site_metadata, rows=expected_index),
+            deep=True,
+        )
     except KeyError as exc:
         raise WorkflowBoundaryError(
             seam="differential.interpreter.result_identity_alignment",
@@ -682,7 +716,7 @@ def _build_result_identity_metadata(
             },
             message_prefix="differential workflow boundary validation failed",
         )
-    identity = cast(pd.DataFrame, aligned.copy(deep=True))
+    identity = dataframe_copy(aligned, deep=True)
     try:
         enforce_site_key_column_raw_matches_index(
             site_metadata=identity,
@@ -720,13 +754,15 @@ def _build_result_identity_metadata(
             details={"error": str(exc)},
             message_prefix="differential workflow boundary validation failed",
         ) from exc
-    identity.index = pd.Index(site_key_values.tolist(), name="site_key")
-    identity.loc[:, "site_key"] = site_key_values.tolist()
-    identity.loc[:, "display_id"] = display_id_values.tolist()
+    site_key_list = series_as_strings(site_key_values)
+    display_id_list = series_as_strings(display_id_values)
+    identity.index = pd.Index(site_key_list, name="site_key")
+    identity["site_key"] = site_key_list
+    identity["display_id"] = display_id_list
     selected_columns = required_columns + tuple(
         column for column in optional_columns if column in aligned.columns
     )
-    return cast(pd.DataFrame, identity.loc[:, list(selected_columns)])
+    return dataframe_loc(identity, columns=list(selected_columns))
 
 
 def _build_feature_eligibility_inputs(
@@ -760,9 +796,10 @@ def _build_feature_eligibility_inputs(
             "observed_cell_count",
             "imputed_fraction",
         ):
-            feature_metadata[column_name] = imputation_metadata.loc[
-                :, column_name
-            ].to_numpy()
+            feature_metadata[column_name] = dataframe_column(
+                imputation_metadata,
+                column_name,
+            ).to_numpy()
         feature_metadata["imputation_policy"] = imputation_policy_inputs.policy
         feature_metadata["imputation_fraction_threshold"] = (
             imputation_policy_inputs.max_fraction
@@ -790,14 +827,17 @@ def _build_feature_eligibility_inputs(
     )
     result_status = pd.Series(
         statuses.to_numpy(dtype=str),
-        index=matrix.index.copy(),
+        index=index_snapshot(matrix.index),
         name=DIFFERENTIAL_RESULT_STATUS_COLUMN,
     )
     testable_feature_ids = tuple(
         str(feature_id)
-        for feature_id in result_status.index[
-            result_status == DIFFERENTIAL_RESULT_STATUS_TESTED
-        ].tolist()
+        for feature_id, status in zip(
+            result_status.index,
+            result_status.to_numpy(dtype=str),
+            strict=True,
+        )
+        if status == DIFFERENTIAL_RESULT_STATUS_TESTED
     )
     attach_to_result_tables = bool(
         imputation_policy_inputs is not None
@@ -847,7 +887,7 @@ def _base_feature_eligibility_metadata(matrix: pd.DataFrame) -> pd.DataFrame:
 
     return pd.DataFrame(
         {
-            "site_key": matrix.index.astype(str).tolist(),
+            "site_key": index_as_strings(matrix.index),
             DIFFERENTIAL_RESULT_STATUS_COLUMN: statuses,
             DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN: reasons,
             "analysed_value_count": np.full(
@@ -862,7 +902,7 @@ def _base_feature_eligibility_metadata(matrix: pd.DataFrame) -> pd.DataFrame:
                 dtype=np.int64,
             ),
         },
-        index=matrix.index.copy(),
+        index=index_snapshot(matrix.index),
     )
 
 
@@ -871,7 +911,10 @@ def _filter_matrix_for_feature_ids(
     matrix: pd.DataFrame,
     feature_ids: tuple[str, ...],
 ) -> pd.DataFrame:
-    return cast(pd.DataFrame, matrix.loc[list(feature_ids), :].copy(deep=True))
+    return dataframe_copy(
+        dataframe_loc(matrix, rows=list(feature_ids)),
+        deep=True,
+    )
 
 
 def _status_counts(result_status: pd.Series) -> dict[str, int]:
@@ -940,19 +983,22 @@ def _build_imputation_policy_inputs(
 
     result_status = pd.Series(
         statuses,
-        index=matrix_index.copy(),
+        index=index_snapshot(matrix_index),
         name="result_status",
     )
     result_status_reason = pd.Series(
         reasons,
-        index=matrix_index.copy(),
+        index=index_snapshot(matrix_index),
         name=DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
     )
     testable_feature_ids = tuple(
         str(feature_id)
-        for feature_id in result_status.index[
-            result_status == DIFFERENTIAL_RESULT_STATUS_TESTED
-        ].tolist()
+        for feature_id, status in zip(
+            result_status.index,
+            result_status.to_numpy(dtype=str),
+            strict=True,
+        )
+        if status == DIFFERENTIAL_RESULT_STATUS_TESTED
     )
     return DifferentialImputationPolicyInputs(
         feature_metadata=feature_metadata,
@@ -994,9 +1040,9 @@ def _condition_observed_counts_for_analysis(
             matrix_index=matrix_index,
             sample_ids=sample_ids,
         )
-        observed_counts[condition] = cast(
-            pd.Series,
-            summary.loc[:, "observed_cell_count"].copy(deep=True),
+        observed_counts[condition] = series_copy(
+            dataframe_column(summary, "observed_cell_count"),
+            deep=True,
         )
     return observed_counts
 
@@ -1009,7 +1055,7 @@ def _imputation_summary_for_differential(
 ) -> pd.DataFrame:
     try:
         summary = dataset_view.imputation_observation_summary(
-            feature_ids=tuple(matrix_index.tolist()),
+            feature_ids=tuple(index_as_strings(matrix_index)),
             sample_ids=sample_ids,
         )
     except DatasetValidationError as exc:
@@ -1064,7 +1110,7 @@ def _imputation_summary_for_differential(
             ),
             message_prefix="differential workflow boundary validation failed",
         )
-    return cast(pd.DataFrame, summary.copy(deep=True))
+    return dataframe_copy(summary, deep=True)
 
 
 def _has_insufficient_observed_samples_for_contrasts(
@@ -1102,7 +1148,7 @@ def _prefer_site_key_index_for_differential_results(
             ),
             message_prefix="differential workflow boundary validation failed",
         )
-    aligned_metadata = site_metadata.reindex(matrix.index)
+    aligned_metadata = dataframe_reindex(site_metadata, matrix.index)
     try:
         site_keys = enforce_site_key_column(
             site_metadata=aligned_metadata,
@@ -1124,8 +1170,8 @@ def _prefer_site_key_index_for_differential_results(
             details={"error": str(exc)},
             message_prefix="differential workflow boundary validation failed",
         ) from exc
-    remapped = matrix.copy(deep=True)
-    remapped.index = pd.Index(site_keys.tolist(), name="site_key")
+    remapped = dataframe_copy(matrix, deep=True)
+    remapped.index = pd.Index(series_as_strings(site_keys), name="site_key")
     return remapped
 
 

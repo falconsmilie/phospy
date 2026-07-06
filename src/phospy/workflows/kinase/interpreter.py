@@ -18,6 +18,15 @@ from phospy.science.references.resolution import (
     ReferenceResolver,
     ReferenceResolverContract,
 )
+from phospy.workflows._pandas_typing import (
+    dataframe_column,
+    dataframe_copy,
+    dataframe_loc,
+    dataframe_reindex,
+    dataframe_reset_index,
+    index_as_strings,
+    series_as_strings,
+)
 from phospy.workflows.kinase.contracts import (
     ResolvedKinaseActivityExecutionConfig,
     ResolvedKinaseExecutionConfig,
@@ -79,10 +88,15 @@ class KinaseWorkflowInterpreter:
         kinase_library_resource = self._resolve_kinase_library_resource(
             request=request,
         )
-        reference_site_count = int(
-            references.kinase_substrate_map.loc[:, "substrate_site"]
-            .astype(str)
-            .nunique()
+        reference_site_count = len(
+            frozenset(
+                series_as_strings(
+                    dataframe_column(
+                        references.kinase_substrate_map,
+                        "substrate_site",
+                    )
+                )
+            )
         )
         projection_result = self._reference_projector.run(
             reference_kinase_substrate_map=references.kinase_substrate_map,
@@ -124,7 +138,10 @@ class KinaseWorkflowInterpreter:
             dataset=dataset_phospho,
             site_sequences=site_sequences,
         )
-        activity_phospho_matrix = dataset_phospho.loc[scoring_site_index, :]
+        activity_phospho_matrix = dataframe_loc(
+            dataset_phospho,
+            rows=scoring_site_index,
+        )
         execution_config = self._resolve_execution_config(request)
         resolved_inputs = ResolvedKinaseInputs(
             dataset=request.dataset,
@@ -140,18 +157,19 @@ class KinaseWorkflowInterpreter:
             kinase_library_resource=kinase_library_resource,
         )
         self._resolved_validator.run(resolved_inputs)
-        scoring_site_keys = set(scoring_site_index.astype(str))
-        site_sequences = site_sequences.reindex(scoring_site_index)
-        site_identity_map = site_identity_map.reindex(scoring_site_index)
-        kinase_substrate_map = (
-            kinase_substrate_map.loc[
-                kinase_substrate_map.loc[:, "substrate_site"]
-                .astype(str)
-                .isin(scoring_site_keys),
-                :,
-            ]
-            .reset_index(drop=True)
-            .copy(deep=True)
+        scoring_site_keys = set(index_as_strings(scoring_site_index))
+        site_sequences = dataframe_reindex(site_sequences, scoring_site_index)
+        site_identity_map = dataframe_reindex(site_identity_map, scoring_site_index)
+        substrate_sites = series_as_strings(
+            dataframe_column(kinase_substrate_map, "substrate_site")
+        )
+        substrate_site_mask = [site in scoring_site_keys for site in substrate_sites]
+        kinase_substrate_map = dataframe_copy(
+            dataframe_reset_index(
+                dataframe_loc(kinase_substrate_map, rows=substrate_site_mask),
+                drop=True,
+            ),
+            deep=True,
         )
         return ResolvedKinaseWorkflowRequest(
             dataset=request.dataset,
@@ -206,15 +224,19 @@ class KinaseWorkflowInterpreter:
                     f"site identity columns: {joined}"
                 ),
             )
-        aligned_metadata = site_metadata.reindex(dataset.index)
-        site_key_values = (
-            aligned_metadata.loc[:, "site_key"].fillna("").astype(str).str.strip()
+        aligned_metadata = dataframe_reindex(site_metadata, dataset.index)
+        site_key_values = series_as_strings(
+            dataframe_column(aligned_metadata, "site_key"),
+            fill_missing="",
+            strip=True,
         )
-        display_id_values = (
-            aligned_metadata.loc[:, "display_id"].fillna("").astype(str).str.strip()
+        display_id_values = series_as_strings(
+            dataframe_column(aligned_metadata, "display_id"),
+            fill_missing="",
+            strip=True,
         )
-        site_keys = dataset.index.astype(str).tolist()
-        if site_key_values.tolist() != site_keys:
+        site_keys = index_as_strings(dataset.index)
+        if site_key_values != site_keys:
             raise WorkflowBoundaryError(
                 seam="kinase.interpreter.site_identity_map",
                 next_action=(
@@ -224,20 +246,21 @@ class KinaseWorkflowInterpreter:
                 details={"dataset_site_count": int(dataset.index.size)},
                 message_prefix="kinase workflow boundary validation failed",
             )
-        if (display_id_values == "").any():
+        empty_display_id_count = sum(
+            1 for display_id in display_id_values if display_id == ""
+        )
+        if empty_display_id_count:
             raise WorkflowBoundaryError(
                 seam="kinase.interpreter.site_identity_map",
                 next_action=(
                     "ensure dataset.site_metadata.display_id is present for every "
                     "scoring site"
                 ),
-                details={
-                    "empty_display_id_count": int((display_id_values == "").sum())
-                },
+                details={"empty_display_id_count": empty_display_id_count},
                 message_prefix="kinase workflow boundary validation failed",
             )
         return pd.DataFrame(
-            {"site_key": site_keys, "display_id": display_id_values.tolist()},
+            {"site_key": site_keys, "display_id": display_id_values},
             index=pd.Index(site_keys, name="site_key"),
         )
 
@@ -399,7 +422,7 @@ class KinaseWorkflowInterpreter:
         dataset: pd.DataFrame,
         site_sequences: pd.DataFrame,
     ) -> pd.Index:
-        sequence_sites = set(site_sequences.index.tolist())
+        sequence_sites = set(site_sequences.index)
         scoring_sites = [
             site_id for site_id in dataset.index if site_id in sequence_sites
         ]

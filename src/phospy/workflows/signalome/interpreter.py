@@ -17,6 +17,15 @@ from phospy.science.prediction.scoring import (
 from phospy.science.signalomes.clustering.policies import (
     resolve_candidate_scoring_policy_definition,
 )
+from phospy.workflows._pandas_typing import (
+    dataframe_column,
+    dataframe_copy,
+    dataframe_loc,
+    dataframe_reindex,
+    index_as_strings,
+    index_snapshot,
+    series_as_strings,
+)
 from phospy.workflows.signalome.alignment_diagnostics import (
     SignalomeAlignmentDiagnosticsBuilder,
 )
@@ -86,7 +95,7 @@ class SignalomeWorkflowInterpreter:
         dataset_phospho = dataset_view.phospho
         dataset_site_metadata = dataset_view.site_metadata
         dataset_sites = pd.Index(
-            dataset_phospho.index.astype(str),
+            index_as_strings(dataset_phospho.index),
             name=dataset_phospho.index.name,
         )
         prediction_result = request.kinase_result.prediction_result
@@ -127,9 +136,10 @@ class SignalomeWorkflowInterpreter:
                 score_preconditioning_policy=execution_config.score_preconditioning_policy,
             )
         retained_site_index = preconditioning_result.downstream_score_matrix.index
-        retained_prediction_matrix = aligned_matrices.aligned_prediction_matrix.loc[
-            retained_site_index
-        ]
+        retained_prediction_matrix = dataframe_loc(
+            aligned_matrices.aligned_prediction_matrix,
+            rows=retained_site_index,
+        )
         (
             aligned_site_key_index,
             retained_site_key_index,
@@ -139,7 +149,7 @@ class SignalomeWorkflowInterpreter:
             retained_site_index=retained_site_index,
         )
         prediction_output_index = pd.Index(
-            retained_site_key_index.tolist(),
+            index_as_strings(retained_site_key_index),
             name=(
                 prediction_matrix_input.index.name
                 if prediction_matrix_input.index.name is not None
@@ -147,17 +157,19 @@ class SignalomeWorkflowInterpreter:
             ),
         )
         downstream_output_index = pd.Index(
-            retained_site_key_index.tolist(),
+            index_as_strings(retained_site_key_index),
             name=(
                 score_selection.downstream_score_matrix.index.name
                 if score_selection.downstream_score_matrix.index.name is not None
                 else retained_site_key_index.name
             ),
         )
-        retained_prediction_matrix = retained_prediction_matrix.copy(deep=False)
+        retained_prediction_matrix = dataframe_copy(
+            retained_prediction_matrix, deep=False
+        )
         retained_prediction_matrix.index = prediction_output_index
-        downstream_score_matrix = preconditioning_result.downstream_score_matrix.copy(
-            deep=False
+        downstream_score_matrix = dataframe_copy(
+            preconditioning_result.downstream_score_matrix, deep=False
         )
         downstream_score_matrix.index = downstream_output_index
         site_to_protein = self._protein_resolver.run(
@@ -167,7 +179,7 @@ class SignalomeWorkflowInterpreter:
                 aligned_matrices.aligned_site_index.size - retained_site_index.size
             ),
         )
-        site_to_protein.index = retained_site_key_index.copy()
+        site_to_protein.index = index_snapshot(retained_site_key_index)
         dataset_sites_for_diagnostics = _map_site_index_to_site_keys(
             site_metadata=dataset_site_metadata,
             site_index=aligned_matrices.dataset_site_index,
@@ -289,36 +301,47 @@ def _resolve_site_key_indexes(
         raise WorkflowBoundaryError(
             "signalome interpreter requires dataset.site_metadata.site_key"
         )
-    aligned_metadata = site_metadata.reindex(aligned_site_index)
-    aligned_site_keys = (
-        aligned_metadata.loc[:, _SITE_KEY_COLUMN].fillna("").astype(str).str.strip()
+    aligned_metadata = dataframe_reindex(site_metadata, aligned_site_index)
+    aligned_site_key_values = series_as_strings(
+        dataframe_column(aligned_metadata, _SITE_KEY_COLUMN),
+        fill_missing="",
+        strip=True,
     )
-    if (aligned_site_keys == "").any():
+    if any(site_key == "" for site_key in aligned_site_key_values):
         raise WorkflowBoundaryError(
             "signalome interpreter cannot resolve site_key for aligned sites from "
             "dataset.site_metadata.site_key"
         )
-    if aligned_site_keys.duplicated().any():
+    if len(frozenset(aligned_site_key_values)) != len(aligned_site_key_values):
         raise WorkflowBoundaryError(
             "signalome interpreter requires unique site_key values across aligned sites"
         )
-    if aligned_site_keys.tolist() != aligned_site_index.astype(str).tolist():
+    if aligned_site_key_values != index_as_strings(aligned_site_index):
         raise WorkflowBoundaryError(
             "signalome interpreter requires dataset.site_metadata.site_key to "
             "match aligned site indexes"
         )
     aligned_site_key_index = pd.Index(
-        aligned_site_keys.tolist(),
+        aligned_site_key_values,
         name=_resolved_index_name_for_site_keys(
-            resolved_site_keys=aligned_site_keys.tolist(),
+            resolved_site_keys=aligned_site_key_values,
             source_site_index=aligned_site_index,
         ),
     )
-    retained_mask = aligned_site_index.isin(retained_site_index)
+    retained_site_values = set(retained_site_index)
+    retained_site_key_values = [
+        site_key
+        for site_value, site_key in zip(
+            aligned_site_index,
+            aligned_site_key_values,
+            strict=True,
+        )
+        if site_value in retained_site_values
+    ]
     retained_site_key_index = pd.Index(
-        aligned_site_keys.loc[retained_mask].tolist(),
+        retained_site_key_values,
         name=_resolved_index_name_for_site_keys(
-            resolved_site_keys=aligned_site_keys.loc[retained_mask].tolist(),
+            resolved_site_keys=retained_site_key_values,
             source_site_index=retained_site_index,
         ),
     )
@@ -331,19 +354,23 @@ def _map_site_index_to_site_keys(
     site_index: pd.Index,
     allow_unmapped: bool = False,
 ) -> pd.Index:
-    source_index = pd.Index(site_index.astype(str).tolist(), name=site_index.name)
+    source_index = pd.Index(index_as_strings(site_index), name=site_index.name)
     if _SITE_KEY_COLUMN not in site_metadata.columns:
         raise WorkflowBoundaryError(
             "signalome interpreter requires dataset.site_metadata.site_key"
         )
-    metadata = site_metadata.copy(deep=False)
+    metadata = dataframe_copy(site_metadata, deep=False)
     metadata.index = pd.Index(
-        metadata.index.astype(str).tolist(), name=metadata.index.name
+        index_as_strings(metadata.index), name=metadata.index.name
     )
-    site_keys = metadata.loc[:, _SITE_KEY_COLUMN].fillna("").astype(str).str.strip()
-    mapping = dict(zip(metadata.index.tolist(), site_keys.tolist(), strict=False))
+    site_keys = series_as_strings(
+        dataframe_column(metadata, _SITE_KEY_COLUMN),
+        fill_missing="",
+        strip=True,
+    )
+    mapping = dict(zip(index_as_strings(metadata.index), site_keys, strict=False))
     mapped: list[str] = []
-    for value in source_index.astype(str).tolist():
+    for value in index_as_strings(source_index):
         resolved = mapping.get(value, "")
         if resolved == "":
             if allow_unmapped:
@@ -368,7 +395,7 @@ def _resolved_index_name_for_site_keys(
     resolved_site_keys: list[str],
     source_site_index: pd.Index,
 ) -> str:
-    source_values = source_site_index.astype(str).tolist()
+    source_values = index_as_strings(source_site_index)
     if len(resolved_site_keys) == len(source_values) and all(
         resolved == source
         for resolved, source in zip(resolved_site_keys, source_values, strict=True)
