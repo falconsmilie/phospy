@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
+import numpy as np
 import pandas as pd
 
 from phospy.errors.validation import DatasetValidationError
@@ -81,6 +82,8 @@ from phospy.validation.transformations.state import IntensityScaleStateValidator
 
 _PROCESSING_STATE_COMPAT_EXPORTS = (_require_boolean_observation_mask,)
 _INTENSITY_SCALE_STATE_VALIDATOR = IntensityScaleStateValidator()
+_NUMPY_DTYPES_WITH_NAN_SENTINELS = frozenset(("f", "c"))
+_NUMPY_DTYPES_WITHOUT_MISSING_SENTINELS = frozenset(("i", "u"))
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,6 +191,43 @@ def _validate_optional_comparisons(
     return comparisons_frame
 
 
+def _analysis_ready_matrix_missing_value_count(matrix: pd.DataFrame) -> int:
+    if _can_use_fast_numeric_missing_value_scan(matrix):
+        try:
+            return _fast_numeric_missing_value_count(matrix)
+        except (AttributeError, TypeError, ValueError):
+            pass
+    return _object_level_missing_value_count(matrix)
+
+
+def _can_use_fast_numeric_missing_value_scan(matrix: pd.DataFrame) -> bool:
+    for dtype in matrix.dtypes:
+        if pd.api.types.is_bool_dtype(dtype):
+            return False
+        if not pd.api.types.is_numeric_dtype(dtype):
+            return False
+    return True
+
+
+def _fast_numeric_missing_value_count(matrix: pd.DataFrame) -> int:
+    values = matrix.to_numpy(copy=False)
+    if values.dtype.kind in _NUMPY_DTYPES_WITHOUT_MISSING_SENTINELS:
+        return 0
+    if values.dtype.kind in _NUMPY_DTYPES_WITH_NAN_SENTINELS:
+        return int(np.count_nonzero(np.isnan(values)))
+
+    missing_mask = np.asarray(pd.isna(values), dtype=bool)
+    return int(np.count_nonzero(missing_mask))
+
+
+def _object_level_missing_value_count(matrix: pd.DataFrame) -> int:
+    return sum(
+        1
+        for value in matrix.to_numpy(dtype="object").ravel()
+        if _is_missing_value(value)
+    )
+
+
 @dataclass(frozen=True, slots=True, init=False)
 class AnalysisReadyPhosphoDataset:
     """Public analysis-ready dataset contract.
@@ -290,11 +330,7 @@ class AnalysisReadyPhosphoDataset:
                 "dataset.processing_state must be a DatasetProcessingState instance"
             ),
         )
-        raw_missing_value_count = sum(
-            1
-            for value in phospho.to_numpy(dtype="object").ravel()
-            if _is_missing_value(value)
-        )
+        raw_missing_value_count = _analysis_ready_matrix_missing_value_count(phospho)
         if raw_missing_value_count > 0 and _missing_data_state_claims_no_missing_values(
             processing_state
         ):

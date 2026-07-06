@@ -44,7 +44,7 @@ tests/parity/test_preprocessing_science_parity.py,parity,562,6,true,false,parity
 tests/parity/test_public_predmat_parity.py,parity,128,2,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for public predmat parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/parity/test_signalome_clustering_backend_parity.py,parity,94,2,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for signalome clustering backend parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/parity/test_signalome_workflow_parity.py,parity,369,7,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for signalome workflow parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
-tests/performance/test_dataset_validation_performance.py,performance,336,7,true,false,,,,,,
+tests/performance/test_dataset_validation_performance.py,performance,361,8,true,false,,,,,,
 tests/performance/test_importer_performance.py,performance,106,2,true,false,,,,,,
 tests/performance/test_performance_contracts.py,performance,1265,16,true,false,performance/memory contract,keep,"Loss of this file would remove runtime and memory envelope checks for performance contracts, allowing performance regressions to ship undetected.",codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/performance/test_signalome_clustering_benchmark.py,performance,82,1,true,false,performance/memory contract,keep,"Loss of this file would remove runtime and memory envelope checks for signalome clustering benchmark, allowing performance regressions to ship undetected.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
@@ -65,7 +65,7 @@ tests/unit/science/differential/test_differential_diagnostics.py,differential,11
 tests/unit/test_activity_science.py,unit,1093,34,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for activity science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_adr_0027_0029_public_claims.py,unit,478,9,false,false,,,,,,
 tests/unit/test_adr_docs_governance.py,unit,146,4,false,false,,,,,,
-tests/unit/test_analysis_ready_model_boundary_validator.py,unit,728,35,true,true,,,,,,[auto-orchestration] 11 hit(s); indicators: private_member_access
+tests/unit/test_analysis_ready_model_boundary_validator.py,unit,804,38,true,true,,,,,,[auto-orchestration] 12 hit(s); indicators: private_member_access
 tests/unit/test_api_configs_refactor_contract.py,unit,53,3,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for api configs refactor contract and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_api_documentation_examples.py,unit,1136,14,false,false,,,,,,
 tests/unit/test_batch_correction_metadata_resolution.py,unit,217,8,false,false,,,,,,

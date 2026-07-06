@@ -10,6 +10,7 @@ from phospy.errors.validation import DatasetValidationError
 from phospy.science.datasets.models import (
     AnalysisReadyPhosphoDataset,
     ImputationObservationMetadata,
+    _analysis_ready_matrix_missing_value_count,
     _require_boolean_observation_mask,
 )
 from phospy.science.references.models import Organism
@@ -35,6 +36,7 @@ from tests.support.performance_contracts import (
     DATASET_VALIDATION_SMALL_N_SITES,
     deterministic_analysis_ready_dataset_tables,
     measure_runtime_and_peak_mib,
+    median_runtime_seconds,
 )
 
 pytestmark = [pytest.mark.performance, pytest.mark.release_gate]
@@ -123,6 +125,29 @@ def test_medium_dataset_construction_completes_under_generous_threshold(
     )
     assert dataset.site_metadata.index.equals(dataset.phospho.index)
     assert runtime_seconds < DATASET_VALIDATION_MEDIUM_CONSTRUCTION_RUNTIME_SECONDS_MAX
+
+
+def test_analysis_ready_missing_value_scan_scales_for_numeric_matrix(
+    medium_dataset_tables: tuple[pd.DataFrame, pd.DataFrame],
+) -> None:
+    phospho, _site_metadata = medium_dataset_tables
+    object_phospho = phospho.astype(object)
+
+    assert _analysis_ready_matrix_missing_value_count(phospho) == 0
+    assert _analysis_ready_matrix_missing_value_count(object_phospho) == 0
+
+    numeric_runtime_seconds = median_runtime_seconds(
+        lambda: _analysis_ready_matrix_missing_value_count(phospho),
+        repeats=5,
+        warmup=True,
+    )
+    object_runtime_seconds = median_runtime_seconds(
+        lambda: _analysis_ready_matrix_missing_value_count(object_phospho),
+        repeats=3,
+        warmup=True,
+    )
+
+    assert numeric_runtime_seconds < object_runtime_seconds
 
 
 def test_large_site_metadata_validation_completes_under_generous_threshold(

@@ -14,6 +14,8 @@ from phospy.errors.base import PhosPyError
 
 ValidationErrorType = type[PhosPyError]
 _ALIGNMENT_EXAMPLE_LIMIT = 5
+_NUMPY_DTYPES_WITH_NAN_SENTINELS = frozenset(("f", "c"))
+_NUMPY_DTYPES_WITHOUT_MISSING_SENTINELS = frozenset(("i", "u"))
 
 
 def require_dataframe(
@@ -96,11 +98,7 @@ def require_finite_numeric_dataframe(
 ) -> pd.DataFrame:
     """Require one numeric DataFrame to satisfy finite-value constraints."""
 
-    cell_values = value.to_numpy(dtype="object", copy=False)
-    missing_array: npt.NDArray[np.bool_] = np.asarray(
-        pd.isna(cell_values),
-        dtype=bool,
-    )
+    missing_array = _finite_numeric_missing_mask(value)
 
     missing_mask = pd.DataFrame(
         missing_array,
@@ -136,6 +134,34 @@ def require_finite_numeric_dataframe(
             f"{_invalid_location_preview(infinite_mask)}; infinite_entries={infinite_count}"
         )
     return value
+
+
+def _finite_numeric_missing_mask(value: pd.DataFrame) -> npt.NDArray[np.bool_]:
+    if _can_use_fast_numeric_missing_mask(value):
+        try:
+            return _fast_numeric_missing_mask(value)
+        except (AttributeError, TypeError, ValueError):
+            pass
+    cell_values = value.to_numpy(dtype="object", copy=False)
+    return np.asarray(pd.isna(cell_values), dtype=bool)
+
+
+def _can_use_fast_numeric_missing_mask(value: pd.DataFrame) -> bool:
+    for dtype in value.dtypes:
+        if pd.api.types.is_bool_dtype(dtype):
+            return False
+        if not pd.api.types.is_numeric_dtype(dtype):
+            return False
+    return True
+
+
+def _fast_numeric_missing_mask(value: pd.DataFrame) -> npt.NDArray[np.bool_]:
+    values = value.to_numpy(copy=False)
+    if values.dtype.kind in _NUMPY_DTYPES_WITHOUT_MISSING_SENTINELS:
+        return np.zeros(value.shape, dtype=bool)
+    if values.dtype.kind in _NUMPY_DTYPES_WITH_NAN_SENTINELS:
+        return np.asarray(np.isnan(values), dtype=bool)
+    return np.asarray(pd.isna(values), dtype=bool)
 
 
 def require_unique_index(

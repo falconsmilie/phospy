@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import phospy.science.datasets.models as dataset_models
 from phospy.errors.validation import (
     DatasetValidationError,
     TransformationValidationError,
@@ -34,6 +35,11 @@ _MODEL_BOUNDARY_ERRORS = (DatasetValidationError, TransformationValidationError)
 _CENTRED_Y_SEQUENCE = "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA"
 _CENTRED_T_SEQUENCE = "AAAAAAAAAAAAAAATAAAAAAAAAAAAAAA"
 _CENTRED_S_SEQUENCE = "AAAAAAAAAAAAAAASAAAAAAAAAAAAAAA"
+_NO_MISSING_PROCESSING_STATE_ERROR = (
+    "dataset.phospho must not contain missing values; "
+    "dataset.processing_state.missing_data claims no missing values "
+    "but dataset.phospho contains missing values"
+)
 
 
 def _site_key(*, protein_identifier: str, residue: str, position: int) -> str:
@@ -708,6 +714,76 @@ def test_model_boundary_validator_parity_for_incomplete_phospho_matrix() -> None
     phospho.iloc[0, 0] = float("nan")
     payload["phospho"] = phospho
     _assert_constructor_and_adapter_reject(payload)
+
+
+def test_analysis_ready_numeric_matrix_missing_values_use_fast_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = _valid_payload()
+    phospho = payload["phospho"].copy(deep=True)
+    phospho.iloc[0, 0] = np.nan
+    payload["phospho"] = phospho
+
+    def fail_if_scalar_fallback_runs(value: object) -> bool:
+        raise AssertionError(f"unexpected scalar missing-value scan for {value!r}")
+
+    monkeypatch.setattr(
+        dataset_models,
+        "_is_missing_value",
+        fail_if_scalar_fallback_runs,
+    )
+
+    with pytest.raises(DatasetValidationError) as exc_info:
+        AnalysisReadyPhosphoDataset(**payload)
+
+    assert str(exc_info.value) == _NO_MISSING_PROCESSING_STATE_ERROR
+
+
+def test_analysis_ready_object_matrix_missing_values_use_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = _valid_payload()
+    phospho = payload["phospho"].copy(deep=True).astype(object)
+    phospho.iloc[0, 0] = None
+    payload["phospho"] = phospho
+    observed_values: list[object] = []
+    original_is_missing_value = dataset_models._is_missing_value
+
+    def spy_is_missing_value(value: object) -> bool:
+        observed_values.append(value)
+        return original_is_missing_value(value)
+
+    monkeypatch.setattr(dataset_models, "_is_missing_value", spy_is_missing_value)
+
+    with pytest.raises(DatasetValidationError) as exc_info:
+        AnalysisReadyPhosphoDataset(**payload)
+
+    assert str(exc_info.value) == _NO_MISSING_PROCESSING_STATE_ERROR
+    assert observed_values
+    assert any(value is None for value in observed_values)
+
+
+@pytest.mark.parametrize(
+    ("dtype", "missing_value"),
+    [
+        pytest.param("float64", np.nan, id="float-nan"),
+        pytest.param("Float64", pd.NA, id="nullable-float-pd-na"),
+        pytest.param("object", None, id="object-none"),
+    ],
+)
+def test_analysis_ready_missing_value_detection_preserves_error_behavior(
+    dtype: str,
+    missing_value: object,
+) -> None:
+    payload = _valid_payload()
+    phospho = payload["phospho"].copy(deep=True).astype(dtype)
+    phospho.iloc[0, 0] = missing_value
+    payload["phospho"] = phospho
+
+    with pytest.raises(DatasetValidationError) as exc_info:
+        AnalysisReadyPhosphoDataset(**payload)
+
+    assert str(exc_info.value) == _NO_MISSING_PROCESSING_STATE_ERROR
 
 
 @pytest.mark.parametrize(
