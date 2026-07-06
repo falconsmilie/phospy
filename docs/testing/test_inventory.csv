@@ -103,7 +103,7 @@ tests/unit/test_design_matrix_builder.py,unit,621,20,false,false,,,,,,
 tests/unit/test_differential_analysis.py,unit,1125,23,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for differential analysis behaviour, allowing numerically plausible but scientifically invalid results.",codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_differential_contrast_helpers.py,unit,143,7,false,false,,,,,,
 tests/unit/test_differential_dataset_eligibility_validator.py,unit,204,7,false,false,,,,,,
-tests/unit/test_differential_feature_eligibility.py,unit,174,3,false,false,,,,,,
+tests/unit/test_differential_feature_eligibility.py,unit,272,7,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_differential_fixed_effect_provenance.py,unit,372,5,false,false,,,,,,
 tests/unit/test_differential_imputation_policy.py,unit,293,7,false,false,,,,,,
 tests/unit/test_differential_numerical_guards.py,unit,621,15,true,true,,,,,,
