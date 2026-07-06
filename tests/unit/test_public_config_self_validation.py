@@ -18,6 +18,8 @@ from phospy.api.configs import (
     KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT,
+    LOCALISATION_POLICY_REQUIRE_THRESHOLD,
+    LOCALISATION_PRODUCTION_MINIMUM_PROBABILITY,
     SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
     SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
     SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
@@ -39,6 +41,7 @@ from phospy.api.configs import (
     KinaseAttritionPolicy,
     KinasePredictionConfig,
     KinaseScoringConfig,
+    LocalisationRequirement,
     SignalomeClusteringConfig,
     SignalomeConfig,
     SignalomeOutputConfig,
@@ -462,6 +465,35 @@ def test_kinase_scoring_config_accepts_attrition_policy() -> None:
     config = KinaseScoringConfig(attrition_policy=policy)
 
     assert config.attrition_policy is policy
+
+
+def test_localisation_requirement_production_requires_probability_threshold() -> None:
+    requirement = LocalisationRequirement.production_site_level()
+
+    assert requirement.policy == LOCALISATION_POLICY_REQUIRE_THRESHOLD
+    assert requirement.require_present is True
+    assert requirement.requires_probability_column is True
+    assert requirement.minimum_probability == pytest.approx(
+        LOCALISATION_PRODUCTION_MINIMUM_PROBABILITY
+    )
+    assert LocalisationRequirement().requires_probability_column is False
+    assert LocalisationRequirement().minimum_probability is None
+
+
+def test_kinase_production_config_uses_strict_localisation() -> None:
+    production = KinaseScoringConfig.production()
+
+    assert (
+        production.localisation_requirement
+        == LocalisationRequirement.production_site_level()
+    )
+    assert (
+        production.profile_missing_value_strategy
+        == KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
+    )
+    assert KinaseScoringConfig.default().localisation_requirement == (
+        LocalisationRequirement()
+    )
 
 
 def test_kinase_scoring_config_presets_return_expected_values() -> None:
@@ -925,6 +957,21 @@ def test_signalome_config_presets_return_expected_values() -> None:
     )
     assert default.output.network_min_paired_finite_observations is None
     assert SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT == 2
+
+
+def test_signalome_production_config_uses_strict_localisation() -> None:
+    production = SignalomeConfig.production()
+
+    assert production.validation.localisation_requirement == (
+        LocalisationRequirement.production_site_level()
+    )
+    assert (
+        production.validation.score_preconditioning_policy
+        == SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
+    )
+    assert SignalomeConfig().validation.localisation_requirement == (
+        LocalisationRequirement()
+    )
 
 
 def test_signalome_config_removes_large_dataset_preset() -> None:

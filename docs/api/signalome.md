@@ -58,6 +58,17 @@ preprocessing = DatasetPreprocessingConfig(
 With this policy, dataset build fails when localisation metadata is missing,
 invalid, missing per row, or below threshold.
 
+For production workflow validation, use the signalome preset that carries the
+same site-level threshold requirement into the request:
+
+```python
+from phospy.api import SignalomeConfig
+
+config = SignalomeConfig.production()
+```
+
+The default `SignalomeConfig()` remains permissive for backwards compatibility.
+
 ## Request Object
 
 Use `SignalomeWorkflowRequest`.
@@ -91,6 +102,7 @@ Useful presets:
 
 ```python
 strict = SignalomeConfig.strict()
+production = SignalomeConfig.production()
 permissive = SignalomeConfig.permissive_missing_scores()
 sampled = SignalomeConfig.sampled_candidate_scoring()
 ```
@@ -105,6 +117,7 @@ Important fields:
 | `clustering.candidate_scoring_policy` | `"full"` | `"sampled"` approximates candidate module-count scoring only. |
 | `clustering.clustering_engine` | `"scipy_hierarchical"` | `"exact_python"` is also available. |
 | `validation.score_preconditioning_policy` | `"error_on_drop"` | `"allow_and_report"` drops all-missing score rows and reports counts. |
+| `validation.localisation_requirement` | `LocalisationRequirement()` | Workflow-level localisation requirement. Use `SignalomeConfig.production()` for the 0.75 production threshold. |
 | `output.network_policy` | `"signed"` | Also supports `"positive_only"` and `"absolute_threshold"`. |
 | `output.network_min_paired_finite_observations` | `None` | Use `None` to keep the built-in minimum of two paired finite observations for network correlations. Set an integer to require more paired finite scores before a candidate edge can be retained. |
 | `performance.max_exact_tree_sites` | `2000` | Exact tree scale guardrail. |

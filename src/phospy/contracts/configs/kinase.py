@@ -324,6 +324,13 @@ class KinaseScoringConfig:
             )
         )
 
+    @classmethod
+    def production(cls) -> KinaseScoringConfig:
+        """Return production scoring config with strict site-level localisation."""
+        return cls(
+            localisation_requirement=LocalisationRequirement.production_site_level()
+        )
+
 
 def _require_attrition_fraction(value: object, *, field_name: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):

@@ -62,6 +62,18 @@ preprocessing = DatasetPreprocessingConfig(
 With this policy, dataset build fails when the localisation column is missing,
 invalid, missing per row, or below threshold.
 
+For production workflow validation, use the scoring preset that carries the
+same site-level threshold requirement into the kinase request:
+
+```python
+from phospy.api import KinaseScoringConfig
+
+scoring_config = KinaseScoringConfig.production()
+```
+
+The default `KinaseScoringConfig.default()` remains permissive for backwards
+compatibility.
+
 ## Request Object
 
 Use `KinaseWorkflowRequest`.
@@ -101,7 +113,7 @@ Important `KinaseScoringConfig` fields:
 | `include_diagnostic_scoring_tables` | `False` | Adds non-primary diagnostic scoring tables. |
 | `include_substrate_contributions` | `False` | Assembles and adds an optional substrate-level contribution table to `KinaseWorkflowResult`. |
 | `profile_missing_value_strategy` | `"strict"` | Use `"median_skipna"` only when skipping missing profile values is intended. |
-| `localisation_requirement` | `LocalisationRequirement()` | Workflow-level localisation requirement. |
+| `localisation_requirement` | `LocalisationRequirement()` | Workflow-level localisation requirement. Use `KinaseScoringConfig.production()` for the 0.75 production threshold. |
 | `allow_mixed_total_protein_quantitative_meaning` | `False` | Keep `False` unless mixed corrected/uncorrected rows are intended. |
 
 ### Minimum Substrate Support

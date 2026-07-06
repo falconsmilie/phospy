@@ -11,6 +11,7 @@ from phospy.errors.validation import WorkflowValidationError
 LOCALISATION_POLICY_ALLOW_UNKNOWN = "allow_unknown"
 LOCALISATION_POLICY_REQUIRE_PRESENT = "require_present"
 LOCALISATION_POLICY_REQUIRE_THRESHOLD = "require_threshold"
+LOCALISATION_PRODUCTION_MINIMUM_PROBABILITY = 0.75
 LocalisationPolicy = Literal[
     "allow_unknown",
     "require_present",
@@ -58,10 +59,19 @@ class LocalisationRequirement:
     def requires_probability_column(self) -> bool:
         return self.require_present or self.minimum_probability is not None
 
+    @classmethod
+    def production_site_level(cls) -> LocalisationRequirement:
+        """Return the production site-level localisation policy."""
+        return cls(
+            require_present=True,
+            minimum_probability=LOCALISATION_PRODUCTION_MINIMUM_PROBABILITY,
+        )
+
 
 __all__ = [
     "LOCALISATION_POLICIES",
     "LOCALISATION_POLICY_ALLOW_UNKNOWN",
+    "LOCALISATION_PRODUCTION_MINIMUM_PROBABILITY",
     "LOCALISATION_POLICY_REQUIRE_PRESENT",
     "LOCALISATION_POLICY_REQUIRE_THRESHOLD",
     "LocalisationPolicy",

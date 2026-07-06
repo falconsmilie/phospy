@@ -363,6 +363,15 @@ class SignalomeConfig:
             )
         )
 
+    @classmethod
+    def production(cls) -> SignalomeConfig:
+        """Return production signalome config with strict site-level localisation."""
+        return cls(
+            validation=SignalomeValidationConfig(
+                localisation_requirement=LocalisationRequirement.production_site_level()
+            )
+        )
+
 
 __all__ = [
     "SIGNALOME_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT",
