@@ -151,7 +151,7 @@ tests/unit/test_kinase_science.py,unit,393,11,false,false,scientific invariant,k
 tests/unit/test_kinase_scoring_transforms.py,unit,25,1,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for kinase scoring transforms, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_kinase_site_sequence_support_collaborators.py,unit,374,7,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in kinase site sequence support collaborators; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-ORCH-002,Route to TST-ORCH-002 for site-sequence collaborator rewrite toward interpreter/workflow boundary behavior assertions.
 tests/unit/test_kinase_substrate_contributions.py,unit,483,6,false,false,,,,,,
-tests/unit/test_kinase_workflow_components.py,unit,1466,34,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase workflow components and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 21 hit(s); indicators: private_member_access
+tests/unit/test_kinase_workflow_components.py,unit,1470,34,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase workflow components and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 21 hit(s); indicators: private_member_access
 tests/unit/test_kinase_workflow_diagnostics.py,unit,905,16,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase workflow diagnostics and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 5 hit(s); indicators: private_member_access
 tests/unit/test_localisation_policy_preprocessing.py,unit,185,6,true,true,,,,,,
 tests/unit/test_log2_transformer.py,unit,176,6,true,true,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access
@@ -207,7 +207,7 @@ tests/unit/test_reference_provenance.py,unit,235,7,false,false,provenance/golden
 tests/unit/test_reference_runtime_policy.py,unit,100,5,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for reference runtime policy and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_request_validation_boundaries.py,unit,283,6,true,true,,,,,,
 tests/unit/test_result_snapshot_helpers.py,unit,536,9,false,false,,,,,,
-tests/unit/test_runtime_contract_guards.py,unit,118,4,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for runtime contract guards and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
+tests/unit/test_runtime_contract_guards.py,unit,145,4,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for runtime contract guards and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_science_package_ownership.py,unit,113,6,true,true,,,,,,
 tests/unit/test_scientific_coverage_scope_matrix_docs.py,unit,710,27,false,false,,,,,,
 tests/unit/test_scientific_invariants.py,unit,704,19,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for scientific invariants, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
@@ -254,6 +254,7 @@ tests/unit/workflows/differential/test_differential_scope_validation.py,differen
 tests/unit/workflows/kinase/test_kinase_attrition_metrics.py,kinase,254,5,false,false,,,,,,
 tests/unit/workflows/kinase/test_kinase_attrition_policy.py,kinase,237,5,false,false,,,,,,
 tests/unit/workflows/kinase/test_kinase_sequence_contract.py,kinase,251,5,true,true,,,,,,
+tests/unit/workflows/kinase/test_resolved_kinase_validator.py,kinase,257,4,false,false,,,,,,
 tests/unit/workflows/kinase/test_site_sequence_conflict_policy.py,kinase,266,6,true,true,,,,,,
 tests/unit/workflows/signalome/test_signalome_sequence_contract.py,signalome,149,3,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/validation/test_shared_identity_contracts.py,validation,233,6,false,false,,,,,,

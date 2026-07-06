@@ -41,6 +41,9 @@ from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
 from phospy.workflows.kinase.prediction_runner import KinasePredictionRunner
 from phospy.workflows.kinase.provenance import KinaseProvenanceBuilder
 from phospy.workflows.kinase.reference_projection import KinaseReferenceProjector
+from phospy.workflows.kinase.resolved_validator import (
+    ResolvedKinaseEligibilityValidator,
+)
 from phospy.workflows.kinase.result_assembly import KinaseResultAssembler
 from phospy.workflows.kinase.science import (
     build_kinase_profiles,
@@ -373,6 +376,7 @@ def test_kinase_stage_components_expose_run() -> None:
         KinaseWorkflow,
         KinaseWorkflowValidator,
         KinaseWorkflowInterpreter,
+        ResolvedKinaseEligibilityValidator,
         KinaseWorkflowExecutor,
     ):
         assert callable(getattr(stage_type, "run", None))

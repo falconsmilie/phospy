@@ -12,10 +12,14 @@ from phospy.errors import (
 )
 from phospy.science.datasets.builders.reader import DatasetInputReader
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.references.models import Organism, ReferencePreset
+from phospy.science.references.models import Organism, ReferenceBundle, ReferencePreset
 from phospy.science.references.resolution import ReferenceResolver
 from phospy.validation.references.compatibility import ReferenceCompatibilityValidator
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
+from phospy.workflows.kinase.resolved_validator import (
+    ResolvedKinaseEligibilityValidator,
+    ResolvedKinaseInputs,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -93,10 +97,11 @@ def test_reference_compatibility_auto_resolution_stays_explicit_without_assert(
         )
 
 
-def test_kinase_interpreter_rejects_invalid_overlap_summary_state() -> None:
-    interpreter = KinaseWorkflowInterpreter()
+def test_resolved_kinase_validator_rejects_invalid_overlap_summary_state() -> None:
+    validator = ResolvedKinaseEligibilityValidator()
+    dataset = _dataset()
     request = KinaseWorkflowRequest(
-        dataset=_dataset(),
+        dataset=dataset,
         references=ReferencePreset.AUTO,
         scoring_config=KinaseScoringConfig(min_substrates=2),
         prediction_config=KinasePredictionConfig(
@@ -112,7 +117,29 @@ def test_kinase_interpreter_rejects_invalid_overlap_summary_state() -> None:
     ):
         # Intentional private-seam guard: this validates a defensive contract on the
         # internal overlap summary shape, which cannot be reached via public requests.
-        interpreter._validate_eligible_kinases(
+        validator._validate_eligible_kinases(
             overlap_counts={"per_kinase_quantified": []},  # type: ignore[arg-type]
-            request=request,
+            resolved_inputs=ResolvedKinaseInputs(
+                dataset=dataset,
+                dataset_phospho=dataset.phospho,
+                references=ReferenceBundle(
+                    organism=Organism.RAT,
+                    kinase_substrate_map=pd.DataFrame(
+                        {"kinase": ["K"], "substrate_site": ["MAPK14;Y182;"]}
+                    ),
+                    site_sequences=pd.DataFrame(
+                        {"site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"]},
+                        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+                    ),
+                ),
+                kinase_substrate_map=pd.DataFrame(),
+                site_sequences=pd.DataFrame(),
+                site_identity_map=pd.DataFrame(),
+                scoring_site_index=pd.Index([], name=dataset.phospho.index.name),
+                activity_phospho_matrix=dataset.phospho.iloc[0:0],
+                execution_config=KinaseWorkflowInterpreter._resolve_execution_config(
+                    request
+                ),
+                reference_site_count=0,
+            ),
         )
