@@ -6,6 +6,7 @@ import pytest
 from phospy.api import (
     EnrichmentConfig,
     EnrichmentSetCollection,
+    EnrichmentWorkflow,
     EnrichmentWorkflowRequest,
     GeneSetCollection,
     PtmSetCollection,
@@ -114,6 +115,32 @@ def test_enrichment_validation_rejects_identifier_kind_mismatch() -> None:
         EnrichmentWorkflowValidator().run(request)
 
 
+def test_enrichment_validator_rejects_invalid_identifier_kind() -> None:
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind="accession",  # type: ignore[arg-type]
+        set_collection=_gene_collection(),
+        selected_identifiers=("AKT1",),
+        background_universe=("AKT1", "MAPK1", "MTOR"),
+    )
+
+    with pytest.raises(WorkflowValidationError, match="identifier_kind.*one of"):
+        EnrichmentWorkflowValidator().run(request)
+
+
+def test_enrichment_validator_rejects_collection_background_mismatch() -> None:
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=_site_collection(),
+        selected_identifiers=("AKT1",),
+        background_universe=("AKT1", "MAPK1", "MTOR"),
+    )
+
+    with pytest.raises(WorkflowValidationError, match="set_collection.*match"):
+        EnrichmentWorkflowValidator().run(request)
+
+
 def test_enrichment_validation_rejects_missing_identifier_column() -> None:
     request = EnrichmentWorkflowRequest(
         identifier_column="gene_symbol",
@@ -194,6 +221,89 @@ def test_enrichment_validation_rejects_mutated_invalid_set_size_filters() -> Non
 
     with pytest.raises(WorkflowValidationError, match="config.min_set_size"):
         EnrichmentWorkflowValidator().run(request)
+
+
+def test_enrichment_validator_rejects_invalid_config_type() -> None:
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=_gene_collection(),
+        selected_identifiers=("AKT1",),
+        background_universe=("AKT1", "MAPK1", "MTOR"),
+        config=object(),  # type: ignore[arg-type]
+    )
+
+    with pytest.raises(WorkflowValidationError, match="config.*EnrichmentConfig"):
+        EnrichmentWorkflowValidator().run(request)
+
+
+def test_enrichment_validator_rejects_multiple_input_sources() -> None:
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=_gene_collection(),
+        input_table=pd.DataFrame({"gene_symbol": ["AKT1"]}),
+        selected_identifiers=("AKT1",),
+        background_universe=("AKT1", "MAPK1", "MTOR"),
+    )
+
+    with pytest.raises(WorkflowValidationError, match="exactly one"):
+        EnrichmentWorkflowValidator().run(request)
+
+
+def test_enrichment_validator_rejects_missing_input_source() -> None:
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=_gene_collection(),
+        background_universe=("AKT1", "MAPK1", "MTOR"),
+    )
+
+    with pytest.raises(WorkflowValidationError, match="exactly one"):
+        EnrichmentWorkflowValidator().run(request)
+
+
+def test_enrichment_validator_rejects_empty_selected_identifiers() -> None:
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=_gene_collection(),
+        selected_identifiers=(),
+        background_universe=("AKT1", "MAPK1", "MTOR"),
+    )
+
+    with pytest.raises(WorkflowValidationError, match="selected_identifiers"):
+        EnrichmentWorkflowValidator().run(request)
+
+
+def test_enrichment_validator_rejects_empty_input_table() -> None:
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=_gene_collection(),
+        input_table=pd.DataFrame(columns=["gene_symbol"]),
+        background_universe=("AKT1", "MAPK1", "MTOR"),
+    )
+
+    with pytest.raises(WorkflowValidationError, match="input_table.*non-empty"):
+        EnrichmentWorkflowValidator().run(request)
+
+
+def test_enrichment_workflow_run_rejects_invalid_request_before_execution() -> None:
+    class _ExecutorMustNotRun:
+        def run(self, request: object) -> object:
+            raise AssertionError("executor should not be called")
+
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind="accession",  # type: ignore[arg-type]
+        set_collection=_gene_collection(),
+        selected_identifiers=("AKT1",),
+        background_universe=("AKT1", "MAPK1", "MTOR"),
+    )
+
+    with pytest.raises(WorkflowValidationError, match="identifier_kind"):
+        EnrichmentWorkflow(executor=_ExecutorMustNotRun()).run(request)  # type: ignore[arg-type]
 
 
 def test_enrichment_validation_preserves_selected_identifiers_outside_background() -> (

@@ -26,7 +26,6 @@ from phospy.contracts.configs import (
     KinaseSiteSequenceConflictPolicy,
     SignalomeConfig,
 )
-from phospy.errors.validation import WorkflowValidationError
 from phospy.science.datasets.builders.contracts import DatasetInput
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.design.contrast_helpers import (
@@ -53,10 +52,6 @@ from phospy.science.enrichment.models import (
     EnrichmentSetCollection,
     GeneSetCollection,
     PtmSetCollection,
-    _normalise_identifier_sequence,
-    _require_collection_matches_identifier_kind,
-    _require_identifier_kind,
-    _require_non_empty_string,
 )
 from phospy.science.evidence import dataset_resolution as _dataset_resolution
 from phospy.science.references.kinase_library import KinaseLibraryResource
@@ -178,11 +173,10 @@ class DatasetBuildRequest:
 class EnrichmentWorkflowRequest:
     """Request for native enrichment.
 
-    Construction records user intent and validates only local contract
-    invariants: one input source, explicit identifier semantics, explicit
-    gene/PTM-set collection, explicit non-empty background universe, and config
-    type. It does not calculate enrichment statistics, load online resources,
-    or infer a background universe.
+    Construction stores the payload only. Identifier semantics, collection and
+    background compatibility, input-source selection, input emptiness, and
+    config type are validated by ``EnrichmentWorkflow.run(...)`` before
+    interpretation or execution.
     """
 
     identifier_column: str
@@ -192,49 +186,6 @@ class EnrichmentWorkflowRequest:
     config: EnrichmentConfig = field(default_factory=EnrichmentConfig)
     input_table: DatasetInput | None = None
     selected_identifiers: Sequence[str] | None = None
-
-    def __post_init__(self) -> None:
-        identifier_column = _require_non_empty_string(
-            self.identifier_column,
-            field_name="enrichment_request.identifier_column",
-        )
-        identifier_kind = _require_identifier_kind(
-            self.identifier_kind,
-            field_name="enrichment_request.identifier_kind",
-        )
-        set_collection = _require_collection_matches_identifier_kind(
-            self.set_collection,
-            identifier_kind=identifier_kind,
-            field_name="enrichment_request.set_collection",
-        )
-        background_universe = _normalise_identifier_sequence(
-            self.background_universe,
-            field_name="enrichment_request.background_universe",
-        )
-        if not isinstance(self.config, EnrichmentConfig):
-            raise WorkflowValidationError(
-                "enrichment_request.config must be EnrichmentConfig"
-            )
-        has_input_table = self.input_table is not None
-        has_selected_identifiers = self.selected_identifiers is not None
-        if has_input_table == has_selected_identifiers:
-            raise WorkflowValidationError(
-                "enrichment_request requires exactly one of input_table or "
-                "selected_identifiers"
-            )
-        selected_identifiers = (
-            None
-            if self.selected_identifiers is None
-            else _normalise_identifier_sequence(
-                self.selected_identifiers,
-                field_name="enrichment_request.selected_identifiers",
-            )
-        )
-        object.__setattr__(self, "identifier_column", identifier_column)
-        object.__setattr__(self, "identifier_kind", identifier_kind)
-        object.__setattr__(self, "set_collection", set_collection)
-        object.__setattr__(self, "background_universe", background_universe)
-        object.__setattr__(self, "selected_identifiers", selected_identifiers)
 
 
 @dataclass(frozen=True, slots=True)
