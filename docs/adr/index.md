@@ -49,3 +49,4 @@ Use these ADRs when you need rationale and tradeoffs.
 | ADR-0030 | Ranked-List Enrichment Prerequisites | Accepted | 2026-06-23 | [adr_0030_ranked_list_enrichment_prerequisites.md](adr_0030_ranked_list_enrichment_prerequisites.md) |
 | ADR-0031 | Public API Stability Tiers | Accepted | 2026-06-30 | [adr_0031_public_api_stability_tiers.md](adr_0031_public_api_stability_tiers.md) |
 | ADR-0032 | Differential Declared Scale Eligibility Override | Accepted | 2026-07-01 | [adr_0032_differential_declared_scale_eligibility_override.md](adr_0032_differential_declared_scale_eligibility_override.md) |
+| ADR-0033 | Result Caveats and Scientific Warning Ownership | Accepted | 2026-07-06 | [adr_0033_result_caveats.md](adr_0033_result_caveats.md) |
