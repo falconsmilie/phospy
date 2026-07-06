@@ -154,6 +154,72 @@ def _supported_dataset_state(*, has_total_matrix: bool) -> dict[str, object]:
     }
 
 
+def test_analysis_ready_from_trusted_tables_enforces_site_sequence() -> None:
+    bad_site_metadata = _site_metadata().drop(columns=["site_sequence"])
+    with pytest.raises(
+        DatasetValidationError,
+        match="dataset.site_metadata is missing required columns: site_sequence",
+    ):
+        AnalysisReadyPhosphoDataset.from_trusted_tables(
+            phospho=_phospho(),
+            site_metadata=bad_site_metadata,
+            organism=Organism.RAT,
+            **_supported_dataset_state(has_total_matrix=False),
+        )
+
+
+def test_analysis_ready_from_trusted_tables_matches_constructor_validation() -> None:
+    bad_sample_metadata = pd.DataFrame(
+        {"condition": ["control"]},
+        index=pd.Index(["wrong_sample"], name="sample_id"),
+    )
+
+    with pytest.raises(DatasetValidationError) as factory_exc:
+        AnalysisReadyPhosphoDataset.from_trusted_tables(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(),
+            sample_metadata=bad_sample_metadata,
+            organism=Organism.RAT,
+            **_supported_dataset_state(has_total_matrix=False),
+        )
+    with pytest.raises(DatasetValidationError) as constructor_exc:
+        AnalysisReadyPhosphoDataset(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(),
+            sample_metadata=bad_sample_metadata,
+            organism=Organism.RAT,
+            **_supported_dataset_state(has_total_matrix=False),
+        )
+
+    assert type(factory_exc.value) is type(constructor_exc.value)
+    assert str(factory_exc.value) == str(constructor_exc.value)
+
+
+def test_analysis_ready_from_trusted_tables_records_trusted_construction_marker() -> (
+    None
+):
+    dataset = AnalysisReadyPhosphoDataset.from_trusted_tables(
+        phospho=_phospho(),
+        site_metadata=_site_metadata(),
+        organism=Organism.RAT,
+        **_supported_dataset_state(has_total_matrix=False),
+    )
+
+    provenance = dataset.provenance
+
+    assert provenance is not None
+    assert provenance.workflow_name == "analysis_ready_dataset_direct_construction"
+    assert provenance.workflow_parameters["construction"] == {
+        "method": "AnalysisReadyPhosphoDataset.__init__",
+        "source": "direct_trusted_construction",
+        "builder_used": False,
+        "warning": (
+            "Direct construction cannot prove biological correctness of "
+            "caller-provided analysis-ready state."
+        ),
+    }
+
+
 def test_dataset_rejects_missing_site_sequence_column() -> None:
     bad_site_metadata = _site_metadata().drop(columns=["site_sequence"])
     with pytest.raises(

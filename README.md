@@ -274,8 +274,13 @@ from phospy import DifferentialAnalysisWorkflow, KinaseWorkflow, SignalomeWorkfl
 ```
 
 `AnalysisReadyPhosphoDataset` remains exported for advanced/trusted callers who
-already have fully prepared `site_key`-indexed tables. Direct construction
-without supplied provenance receives a minimal direct-construction provenance marker;
+already have fully prepared `site_key`-indexed tables. Advanced callers should
+prefer the explicit trusted factory
+`AnalysisReadyPhosphoDataset.from_trusted_tables(...)`; it runs the same
+structural validation as direct construction, including required
+`site_sequence`, but cannot prove the biological correctness of user-asserted
+state or provenance. Direct construction remains available for compatibility.
+Construction without supplied provenance receives a minimal direct-construction provenance marker;
 this records audit limitations and does not certify biological correctness.
 Ordinary user construction should go through
 `AnalysisReadyDatasetBuilder().run(DatasetBuildRequest(...))`.

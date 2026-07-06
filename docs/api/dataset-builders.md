@@ -16,14 +16,18 @@ Identity boundary summary:
 - `AnalysisReadyPhosphoDataset.site_metadata["display_id"]` is required.
 - `AnalysisReadyPhosphoDataset.site_metadata["site_key"]` must exactly match
   `site_metadata.index`.
-- Direct analysis-ready construction is advanced/trusted use only and requires
-  auditable protein context metadata:
+- Advanced/trusted analysis-ready construction should use
+  `AnalysisReadyPhosphoDataset.from_trusted_tables(...)` when callers already
+  own prepared tables. The compatibility constructor remains available.
+- Trusted analysis-ready construction requires auditable protein context
+  metadata:
   `organism`, `protein_namespace`, `protein_identifier`, `gene_symbol`, `site`,
   and `site_sequence`.
-- Direct analysis-ready construction requires encoded `site_key` indexes and
+- Trusted analysis-ready construction requires encoded `site_key` indexes and
   does not silently fall back to display-site identity.
-- Direct construction validates structural invariants, but it cannot prove the
-  biological correctness of user-asserted provenance.
+- Trusted construction validates structural invariants, including required
+  `site_sequence`, but it cannot prove the biological correctness of
+  user-asserted provenance.
 - Builder input may accept legacy display-indexed shape only when enough
   protein context exists to derive `site_key`.
 - Workflows operate on `site_key`; site-level outputs that materialize row

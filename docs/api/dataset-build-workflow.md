@@ -15,14 +15,17 @@ label and may repeat when distinct `site_key` values preserve the protein
 context.
 
 Direct `AnalysisReadyPhosphoDataset` construction is an advanced/trusted path,
-not the ordinary user construction story. It requires encoded `site_key`
-indexes and auditable identity metadata (`site_key`, `display_id`, `organism`,
-`protein_namespace`, `protein_identifier`, `gene_symbol`, `site`, and
-`site_sequence`). It does not silently fall back to display-site identity, and
-constructor validation cannot prove the biological correctness of user-asserted
-provenance. The builder may accept legacy display-indexed input only when
-`site_metadata` contains enough protein context to derive `site_key` without
-ambiguity.
+not the ordinary user construction story. Advanced callers should prefer
+`AnalysisReadyPhosphoDataset.from_trusted_tables(...)` when they already own
+analysis-ready tables. The factory delegates to constructor validation and
+requires encoded `site_key` indexes and auditable identity metadata
+(`site_key`, `display_id`, `organism`, `protein_namespace`,
+`protein_identifier`, `gene_symbol`, `site`, and `site_sequence`). It does not
+silently fall back to display-site identity, and validation cannot prove the
+biological correctness of user-asserted provenance. The compatibility
+constructor remains available. The builder may accept legacy display-indexed
+input only when `site_metadata` contains enough protein context to derive
+`site_key` without ambiguity.
 
 `DatasetBuildRequest` is a lightweight command payload. Constructing it stores
 the requested inputs and policies, but does not prove the dataset-build request
@@ -145,7 +148,8 @@ phospho = pd.DataFrame(
 
 `site_metadata` must align to `phospho.index`.
 This builder example intentionally omits `site_key`; direct
-`AnalysisReadyPhosphoDataset` construction cannot omit it.
+`AnalysisReadyPhosphoDataset` construction and the
+`from_trusted_tables(...)` factory cannot omit it.
 
 ```python
 site_metadata = pd.DataFrame(

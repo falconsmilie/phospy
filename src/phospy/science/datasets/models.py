@@ -934,7 +934,11 @@ class AnalysisReadyPhosphoDataset:
     Direct construction is for trusted advanced/internal use. Ordinary users
     should construct datasets through ``AnalysisReadyDatasetBuilder.run(...)``,
     which owns user-input interpretation, preprocessing, processing-state
-    establishment, and construction provenance.
+    establishment, and construction provenance. Advanced callers who already
+    own complete analysis-ready tables should prefer
+    ``AnalysisReadyPhosphoDataset.from_trusted_tables(...)`` as the explicit
+    trusted construction lane. The public constructor remains available for
+    compatibility.
 
     Construction validates structural invariants, including table shape,
     alignment, analysis-ready ``site_key`` identity, processing-state
@@ -1264,6 +1268,57 @@ class AnalysisReadyPhosphoDataset:
         return self.imputation_observation_summary_dataframe(
             feature_ids=feature_ids,
             sample_ids=sample_ids,
+        )
+
+    @classmethod
+    def from_trusted_tables(
+        cls,
+        *,
+        phospho: pd.DataFrame,
+        site_metadata: pd.DataFrame,
+        intensity_scale_state: IntensityScaleState,
+        processing_state: DatasetProcessingState,
+        sample_metadata: pd.DataFrame | None = None,
+        total: pd.DataFrame | None = None,
+        comparisons: pd.DataFrame | None = None,
+        imputation_observation_mask: pd.DataFrame | None = None,
+        organism: Organism | None = None,
+        preprocessing_report: DatasetPreprocessingReport | None = None,
+        protein_aware_preparation: ProteinAwarePreparationResult | None = None,
+        provenance: RunProvenance | None = None,
+        allow_opaque_site_values: bool = False,
+    ) -> AnalysisReadyPhosphoDataset:
+        """Construct from caller-owned analysis-ready tables.
+
+        This explicit trusted factory is for advanced/internal callers that
+        already own fully prepared ``site_key``-indexed tables, complete
+        ``site_sequence`` evidence, established intensity-scale state, and
+        coherent processing state. It delegates to the existing constructor and
+        enforces the same structural invariants as direct construction,
+        including table shape, alignment, site identity, ``site_sequence``
+        validation, and state coherence.
+
+        Validation can confirm structural consistency, but it cannot prove the
+        biological correctness of caller-asserted analysis-ready state,
+        provenance, or scientific claims. Without supplied provenance, the
+        dataset receives the same direct trusted-construction marker used by
+        the compatibility constructor.
+        """
+
+        return cls(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            intensity_scale_state=intensity_scale_state,
+            processing_state=processing_state,
+            sample_metadata=sample_metadata,
+            total=total,
+            comparisons=comparisons,
+            imputation_observation_mask=imputation_observation_mask,
+            organism=organism,
+            preprocessing_report=preprocessing_report,
+            protein_aware_preparation=protein_aware_preparation,
+            provenance=provenance,
+            allow_opaque_site_values=allow_opaque_site_values,
         )
 
     @classmethod

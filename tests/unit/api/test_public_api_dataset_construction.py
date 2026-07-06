@@ -28,15 +28,22 @@ def test_public_api_documents_builder_as_supported_construction_path() -> None:
 
 def test_public_api_marks_direct_dataset_construction_advanced_trusted() -> None:
     model_doc = AnalysisReadyPhosphoDataset.__doc__
+    factory_doc = AnalysisReadyPhosphoDataset.from_trusted_tables.__doc__
 
     assert model_doc is not None
+    assert factory_doc is not None
     assert "trusted advanced/internal use" in model_doc
     assert "Ordinary users" in model_doc
     assert "AnalysisReadyDatasetBuilder.run" in model_doc
+    assert "from_trusted_tables" in model_doc
     assert "cannot prove" in model_doc
     assert "biological correctness" in model_doc
     assert "minimal" in model_doc
     assert "direct-construction provenance marker" in model_doc
+    assert "same structural invariants as direct construction" in factory_doc
+    assert "site_sequence" in factory_doc
+    assert "cannot prove" in factory_doc
+    assert "biological correctness" in factory_doc
 
 
 def test_public_docs_examples_use_builder_path() -> None:
@@ -57,4 +64,5 @@ def test_public_docs_examples_use_builder_path() -> None:
         "from phospy import AnalysisReadyDatasetBuilder, AnalysisReadyPhosphoDataset"
     ) not in documentation
     assert "advanced/trusted" in documentation
+    assert "AnalysisReadyPhosphoDataset.from_trusted_tables" in documentation
     assert "minimal direct-construction provenance marker" in documentation
