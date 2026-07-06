@@ -11,7 +11,7 @@ from phospy.api import (
     ReferenceBundle,
 )
 from phospy.api.configs import (
-    KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
+    KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
     KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
 )
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
@@ -187,7 +187,7 @@ def test_existing_default_scoring_mode_is_unchanged() -> None:
 def test_kinase_library_mode_requires_resource_in_validator() -> None:
     with pytest.raises(WorkflowValidationError, match="kinase_library_resource"):
         KinaseWorkflow().run(
-            _request(scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF)
+            _request(scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF)
         )
 
 
@@ -198,7 +198,7 @@ def test_kinase_library_resource_organism_mismatch_fails_in_interpreter() -> Non
     ):
         KinaseWorkflow().run(
             _request(
-                scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
+                scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
                 kinase_library_resource=_kinase_library_resource(
                     organism=Organism.MOUSE
                 ),
@@ -209,7 +209,7 @@ def test_kinase_library_resource_organism_mismatch_fails_in_interpreter() -> Non
 def test_kinase_library_mode_exposes_scores_source_provenance_and_attrition() -> None:
     result = KinaseWorkflow().run(
         _request(
-            scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
+            scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
             kinase_library_resource=_kinase_library_resource(),
         )
     )
@@ -239,7 +239,10 @@ def test_kinase_library_mode_exposes_scores_source_provenance_and_attrition() ->
 
     assert result.provenance is not None
     scoring_config = result.provenance.workflow_parameters["scoring_config"]
-    assert scoring_config["scoring_mode"] == KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF
+    assert (
+        scoring_config["scoring_mode"]
+        == KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF
+    )
     assert scoring_config["score_source"] == "kinase_library_motif_scores"
     assert scoring_config["score_scale"] == KINASE_LIBRARY_WORKFLOW_SCORE_SCALE
     policy_ids = {policy.id.value for policy in result.provenance.scientific_policies}

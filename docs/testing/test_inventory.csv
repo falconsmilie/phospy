@@ -16,7 +16,7 @@ tests/integration/test_differential_workflow_integration.py,integration,472,9,fa
 tests/integration/test_fragpipe_importer_dataset_integration.py,integration,71,1,true,false,,,,,,
 tests/integration/test_identity_aware_workflows.py,integration,463,7,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/integration/test_kinase_bundle_integration.py,integration,925,8,true,true,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle integration, making artifact and output drift unsafe.",codex-audit,,
-tests/integration/test_kinase_library_workflow_scoring.py,integration,246,4,true,false,,,,,,
+tests/integration/test_kinase_library_workflow_scoring.py,integration,249,4,true,false,,,,,,
 tests/integration/test_kinase_scoring_contract_integration.py,integration,299,5,true,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase scoring contract integration and increase risk of boundary regressions.,codex-audit,,
 tests/integration/test_kinase_site_attrition_summary.py,integration,274,2,true,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase site attrition summary and increase risk of boundary regressions.,codex-audit,,
 tests/integration/test_kinase_workflow_integration.py,integration,1220,17,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase workflow integration and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
@@ -31,7 +31,7 @@ tests/integration/test_signalome_publishing_integration.py,integration,198,2,tru
 tests/integration/test_signalome_workflow_integration.py,integration,741,9,true,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for signalome workflow integration and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/integration/workflows/differential/test_differential_result_provenance.py,differential,255,3,false,false,,,,,,
 tests/integration/workflows/kinase/test_kinase_sequence_conflict_integration.py,kinase,228,4,true,true,,,,,,
-tests/integration/workflows/kinase/test_kinase_sequence_validation.py,kinase,167,1,true,false,,,,,,
+tests/integration/workflows/kinase/test_kinase_sequence_validation.py,kinase,169,1,true,false,,,,,,
 tests/parity/test_activity_stage_parity.py,parity,195,4,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for activity stage parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/parity/test_adaptive_prediction_parity.py,parity,282,10,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for adaptive prediction parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
 tests/parity/test_adaptive_replay_parity.py,parity,251,1,true,false,parity,keep,"Loss of this file would remove Python-vs-PhosR parity guardrails for adaptive replay parity, making release drift against accepted references unsafe.",codex-audit,,Release-gated parity seam; keep unless parity policy changes explicitly.
@@ -150,7 +150,7 @@ tests/unit/test_io_table_readers.py,unit,275,9,true,true,public API contract,kee
 tests/unit/test_kinase_bundle_snapshots.py,unit,109,4,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle snapshots, making artifact and output drift unsafe.",codex-audit,,
 tests/unit/test_kinase_library_motif_scoring.py,unit,232,7,false,false,,,,,,
 tests/unit/test_kinase_library_references.py,unit,161,6,false,false,,,,,,
-tests/unit/test_kinase_library_workflow_requirements.py,unit,390,8,false,false,,,,,,
+tests/unit/test_kinase_library_workflow_requirements.py,unit,428,9,false,false,,,,,,
 tests/unit/test_kinase_science.py,unit,393,11,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for kinase science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_kinase_scoring_transforms.py,unit,25,1,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for kinase scoring transforms, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_kinase_site_sequence_support_collaborators.py,unit,374,7,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in kinase site sequence support collaborators; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-ORCH-002,Route to TST-ORCH-002 for site-sequence collaborator rewrite toward interpreter/workflow boundary behavior assertions.
@@ -258,7 +258,7 @@ tests/unit/validation/test_site_sequence_contracts.py,validation,120,5,true,true
 tests/unit/workflows/differential/test_differential_scope_validation.py,differential,262,7,false,false,,,,,,
 tests/unit/workflows/kinase/test_kinase_attrition_metrics.py,kinase,254,5,false,false,,,,,,
 tests/unit/workflows/kinase/test_kinase_attrition_policy.py,kinase,272,6,false,false,,,,,,
-tests/unit/workflows/kinase/test_kinase_sequence_contract.py,kinase,251,5,true,true,,,,,,
+tests/unit/workflows/kinase/test_kinase_sequence_contract.py,kinase,253,5,true,true,,,,,,
 tests/unit/workflows/kinase/test_resolved_kinase_validator.py,kinase,257,4,false,false,,,,,,
 tests/unit/workflows/kinase/test_site_sequence_conflict_policy.py,kinase,266,6,true,true,,,,,,
 tests/unit/workflows/signalome/test_signalome_sequence_contract.py,signalome,149,3,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access

@@ -12,6 +12,7 @@ import pandas as pd
 from phospy.contracts.configs import (
     KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
     KINASE_SCORING_MODES,
+    normalize_kinase_scoring_mode,
 )
 from phospy.errors.validation import PhosPyValidationError
 from phospy.frames.ownership import (
@@ -581,7 +582,7 @@ class KinaseScoringResult:
 
 
 def _validate_scoring_mode(value: object) -> str:
-    text = str(value)
+    text = normalize_kinase_scoring_mode(value, warn_on_deprecated_alias=True)
     if text not in KINASE_SCORING_MODES:
         allowed = ", ".join(sorted(KINASE_SCORING_MODES))
         raise PhosPyValidationError(

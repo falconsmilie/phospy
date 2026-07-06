@@ -13,7 +13,9 @@ from phospy.api import (
     Organism,
     ReferenceBundle,
 )
-from phospy.api.configs import KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF
+from phospy.api.configs import (
+    KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
+)
 from phospy.errors import WorkflowValidationError
 from phospy.provenance.hashing import fingerprint_table
 from phospy.provenance.models import KinaseLibraryResourceProvenance
@@ -146,7 +148,7 @@ def test_invalid_fixed_window_sequence_is_rejected_before_scoring() -> None:
         references=_references_with_invalid_window(),
         scoring_config=KinaseScoringConfig(
             min_substrates=2,
-            scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
+            scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
         ),
         prediction_config=KinasePredictionConfig(
             top_k=1,

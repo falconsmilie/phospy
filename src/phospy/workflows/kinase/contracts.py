@@ -20,6 +20,7 @@ from phospy.contracts.configs import (
     KinaseProfileMissingValueStrategy,
     KinaseScoringMode,
     LocalisationRequirement,
+    normalize_kinase_scoring_mode,
 )
 from phospy.contracts.requests import KinaseWorkflowRequest
 from phospy.contracts.results import KinaseWorkflowResult
@@ -710,6 +711,13 @@ class ResolvedKinaseExecutionConfig:
     localisation_requirement: LocalisationRequirement = field(
         default_factory=LocalisationRequirement
     )
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "scoring_mode",
+            normalize_kinase_scoring_mode(self.scoring_mode),
+        )
 
 
 class KinaseWorkflowValidatorContract(Protocol):

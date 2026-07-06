@@ -266,7 +266,7 @@ def test_all_current_release_gate_marked_files_are_collected_by_make_gate() -> N
     release_gate_files = {
         path.relative_to(ROOT).as_posix()
         for path in (ROOT / "tests").rglob("test_*.py")
-        if "release_gate" in path.read_text(encoding="utf-8")
+        if "pytest.mark.release_gate" in path.read_text(encoding="utf-8")
     }
     assert release_gate_files
 

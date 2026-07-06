@@ -5,8 +5,9 @@
 from __future__ import annotations
 
 import math
+import warnings
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Literal, cast
 
 from phospy.contracts.configs.common import _require_int_at_least, _require_real_between
 from phospy.contracts.configs.localisation import LocalisationRequirement
@@ -16,21 +17,35 @@ from phospy.policies import PolicyEnum
 KINASE_SCORING_MIN_SUBSTRATES_FLOOR = 2
 KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED = "phosr_rank_weighted"
 KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF = "kinase_library_motif"
+KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF = "kinase_library_contextual_motif"
 KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF = "combined_profile_motif"
+KINASE_LIBRARY_MOTIF_ALIAS_DEPRECATION_MESSAGE = (
+    "'kinase_library_motif' is deprecated because it requires contextual "
+    "profile/reference-substrate eligibility. Use "
+    "'kinase_library_contextual_motif' for the current behavior."
+)
 KinaseScoringMode = Literal[
     "phosr_rank_weighted",
+    "kinase_library_contextual_motif",
     "kinase_library_motif",
     "combined_profile_motif",
 ]
+KINASE_SCORING_MODE_ALIASES = {
+    KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF: (
+        KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF
+    ),
+}
 KINASE_SCORING_MODES = frozenset(
     {
         KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
+        KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
         KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
         KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF,
     }
 )
 KINASE_SCORING_MODES_REQUIRING_KINASE_LIBRARY = frozenset(
     {
+        KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
         KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
         KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF,
     }
@@ -137,6 +152,24 @@ KINASE_ATTRITION_POLICY_ON_VIOLATION_MODES = frozenset(
 )
 
 
+def normalize_kinase_scoring_mode(
+    value: object,
+    *,
+    warn_on_deprecated_alias: bool = False,
+) -> KinaseScoringMode:
+    """Return the canonical internal scoring-mode name for public aliases."""
+
+    text = str(value)
+    normalized = KINASE_SCORING_MODE_ALIASES.get(text, text)
+    if text in KINASE_SCORING_MODE_ALIASES and warn_on_deprecated_alias:
+        warnings.warn(
+            KINASE_LIBRARY_MOTIF_ALIAS_DEPRECATION_MESSAGE,
+            DeprecationWarning,
+            stacklevel=3,
+        )
+    return cast(KinaseScoringMode, normalized)
+
+
 @dataclass(frozen=True, slots=True)
 class KinaseAttritionPolicy:
     """Policy thresholds for reporting unacceptable kinase site attrition.
@@ -219,14 +252,16 @@ class KinaseScoringConfig:
     rules. This is a PhosPy-specific scoring mode, not an exact PhosR
     implementation and not a numerical compatibility mode.
 
-    `"kinase_library_motif"` and `"combined_profile_motif"` are workflow-level
-    opt-ins for caller-supplied Kinase Library-style resources. They still run
-    inside normal kinase workflow interpretation: reference resolution,
-    display-ID projection, site-sequence support, and eligible
+    `"kinase_library_contextual_motif"` and `"combined_profile_motif"` are
+    workflow-level opt-ins for caller-supplied Kinase Library-style resources.
+    They still run inside normal kinase workflow interpretation: reference
+    resolution, display-ID projection, site-sequence support, and eligible
     kinase-substrate-map context remain required. The local
     `KinaseLibraryResource` supplies motif matrices for workflow support
     scores; it is not a replacement for the workflow reference bundle and does
-    not imply official Kinase Library predictor parity.
+    not imply official Kinase Library predictor parity. The legacy
+    `"kinase_library_motif"` string is accepted as a deprecated alias for
+    `"kinase_library_contextual_motif"` during migration.
 
     `include_diagnostic_scoring_tables` controls publication of non-authoritative
     diagnostic scoring outputs (`motif_scores`, `score_fusion_weights`). The
@@ -280,11 +315,16 @@ class KinaseScoringConfig:
                 "scoring_config.allow_mixed_total_protein_quantitative_meaning "
                 "must be a bool"
             )
-        if self.scoring_mode not in KINASE_SCORING_MODES:
+        normalized_scoring_mode = normalize_kinase_scoring_mode(
+            self.scoring_mode,
+            warn_on_deprecated_alias=True,
+        )
+        if normalized_scoring_mode not in KINASE_SCORING_MODES:
             allowed = ", ".join(sorted(KINASE_SCORING_MODES))
             raise WorkflowValidationError(
                 f"scoring_config.scoring_mode must be one of: {allowed}"
             )
+        object.__setattr__(self, "scoring_mode", normalized_scoring_mode)
         if (
             self.profile_missing_value_strategy
             not in KINASE_PROFILE_MISSING_VALUE_STRATEGIES
@@ -506,11 +546,14 @@ __all__ = [
     "KINASE_PROFILE_MISSING_VALUE_STRATEGIES",
     "KINASE_PROFILE_MISSING_VALUE_STRATEGY_MEDIAN_SKIPNA",
     "KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT",
+    "KINASE_LIBRARY_MOTIF_ALIAS_DEPRECATION_MESSAGE",
     "KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICIES",
     "KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS",
     "KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR",
     "KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF",
+    "KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF",
     "KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF",
+    "KINASE_SCORING_MODE_ALIASES",
     "KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED",
     "KINASE_SCORING_MODES",
     "KINASE_SCORING_MODES_REQUIRING_KINASE_LIBRARY",
@@ -527,4 +570,5 @@ __all__ = [
     "KinaseSiteSequenceConflictPolicy",
     "LocalisationRequirement",
     "KinaseScoringConfig",
+    "normalize_kinase_scoring_mode",
 ]

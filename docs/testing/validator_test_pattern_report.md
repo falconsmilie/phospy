@@ -42,7 +42,7 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 
 | File | Test | Line | Evidence |
 | --- | --- | ---: | --- |
-| tests/integration/workflows/kinase/test_kinase_sequence_validation.py | test_invalid_fixed_window_sequence_is_rejected_before_scoring | 148 | `min_substrates=2,` |
+| tests/integration/workflows/kinase/test_kinase_sequence_validation.py | test_invalid_fixed_window_sequence_is_rejected_before_scoring | 150 | `min_substrates=2,` |
 | tests/unit/test_config_validation_primitives.py | test_require_optional_int_at_least_matrix | 88 | `def test_require_optional_int_at_least_matrix(` |
 | tests/unit/test_prediction_sequence_validation.py | test_kinase_workflow_exposes_sequence_validation_diagnostics | 471 | `min_substrates=2,` |
 | tests/unit/test_prediction_sequence_validation.py | test_kinase_workflow_reports_partial_sequence_coverage_in_provenance | 628 | `scoring_config=KinaseScoringConfig(min_substrates=2),` |

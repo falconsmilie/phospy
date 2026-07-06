@@ -8,7 +8,7 @@ import pandas as pd
 
 from phospy.contracts.configs import (
     KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF,
-    KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
+    KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
 )
 from phospy.errors.workflows import WorkflowStageError
 from phospy.science.prediction.models import KinaseScoringResult
@@ -52,9 +52,10 @@ from phospy.workflows.kinase.science import (
 class KinaseScoringRunner:
     """Run workflow scoring and resolve the downstream score lane.
 
-    Kinase Library motif mode is still workflow orchestration: profile context
-    is built from the resolved kinase-substrate map before the mode-specific
-    branch selects Kinase Library motif scores as the downstream support matrix.
+    Kinase Library contextual motif mode is still workflow orchestration:
+    profile context is built from the resolved kinase-substrate map before the
+    mode-specific branch selects Kinase Library motif scores as the downstream
+    support matrix.
     """
 
     def __init__(
@@ -125,8 +126,8 @@ class KinaseScoringRunner:
         site_identity_series = request.site_sequences.loc[:, "display_id"]
         # Kinase Library modes intentionally branch here. They must not reuse or
         # fall back to PhosPy's PhosR-inspired motif-frequency scorer below.
-        if config.scoring_mode == KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF:
-            return self._run_kinase_library_motif_mode(
+        if config.scoring_mode == KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF:
+            return self._run_kinase_library_contextual_motif_mode(
                 request=request,
                 config=config,
                 collect_substrate_contributions=collect_substrate_contributions,
@@ -253,7 +254,7 @@ class KinaseScoringRunner:
             substrate_contributions=substrate_contributions,
         )
 
-    def _run_kinase_library_motif_mode(
+    def _run_kinase_library_contextual_motif_mode(
         self,
         *,
         request: ResolvedKinaseWorkflowRequest,

@@ -10,7 +10,9 @@ from phospy.api import (
     Organism,
     ReferenceBundle,
 )
-from phospy.api.configs import KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF
+from phospy.api.configs.kinase import (
+    KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
+)
 from phospy.errors import WorkflowValidationError
 from phospy.provenance.hashing import fingerprint_table
 from phospy.provenance.models import KinaseLibraryResourceProvenance
@@ -156,7 +158,7 @@ def _request(
         references=_references() if references is None else references,
         scoring_config=KinaseScoringConfig(
             min_substrates=2,
-            scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
+            scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
         ),
         prediction_config=KinasePredictionConfig(
             top_k=2,
@@ -224,7 +226,7 @@ def test_kinase_library_mode_rejects_invalid_selected_sequence_context(
         KinaseWorkflowValidator().run(_request(references=references))
 
     message = str(exc_info.value)
-    assert "kinase_library_motif" in message
+    assert "kinase_library_contextual_motif" in message
     assert "expected_length=15" in message
     assert "expected_center_index=7" in message
     assert site_key in message

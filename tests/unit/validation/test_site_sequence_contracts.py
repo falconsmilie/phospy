@@ -51,7 +51,7 @@ def _enforce(
         site_metadata=site_metadata,
         field_name="test.site_metadata",
         workflow_name="kinase workflow request",
-        scoring_mode="kinase_library_motif",
+        scoring_mode="kinase_library_contextual_motif",
         contract=_contract() if contract is None else contract,
         error_type=WorkflowValidationError,
         sequence_source_by_site=sequence_source_by_site,
@@ -83,7 +83,7 @@ def test_fixed_window_contract_rejects_invalid_sequence_context(
 
     message = str(exc_info.value)
     assert "site-key-1" in message
-    assert "kinase_library_motif" in message
+    assert "kinase_library_contextual_motif" in message
     assert "expected_length=15" in message
     assert "expected_center_index=7" in message
     assert expected in message

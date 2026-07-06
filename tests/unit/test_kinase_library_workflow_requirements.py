@@ -12,7 +12,11 @@ from phospy.api import (
     Organism,
     ReferenceBundle,
 )
-from phospy.api.configs import KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF
+from phospy.api.configs.kinase import (
+    KINASE_LIBRARY_MOTIF_ALIAS_DEPRECATION_MESSAGE,
+    KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
+    KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
+)
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
 from phospy.provenance.hashing import fingerprint_table
 from phospy.provenance.models import KinaseLibraryResourceProvenance
@@ -59,7 +63,7 @@ _SEQUENCES_BY_DISPLAY_ID = {
 def test_kinase_library_workflow_scoring_succeeds_with_all_required_inputs() -> None:
     result = KinaseWorkflow().run(
         _request(
-            scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
+            scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
             kinase_library_resource=_kinase_library_resource(),
         )
     )
@@ -70,15 +74,49 @@ def test_kinase_library_workflow_scoring_succeeds_with_all_required_inputs() -> 
     assert result.scoring_result.rank_weighted_fusion_scores is None
     assert result.scoring_result.motif_scores is None
     assert result.scoring_result.score_source == "kinase_library_motif_scores"
+    assert (
+        result.scoring_result.scoring_mode
+        == KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF
+    )
     assert result.scoring_result.score_scale == KINASE_LIBRARY_WORKFLOW_SCORE_SCALE
     assert result.prediction_result.pred_mat.columns.astype(str).tolist() == ["KLIB_ST"]
     assert scores.columns.astype(str).tolist() == ["KLIB_ST"]
 
 
+def test_kinase_library_motif_alias_warns_and_records_contextual_mode() -> None:
+    with pytest.warns(
+        DeprecationWarning,
+        match=KINASE_LIBRARY_MOTIF_ALIAS_DEPRECATION_MESSAGE,
+    ):
+        request = _request(
+            scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
+            kinase_library_resource=_kinase_library_resource(),
+        )
+
+    assert (
+        request.scoring_config.scoring_mode
+        == KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF
+    )
+
+    result = KinaseWorkflow().run(request)
+
+    assert (
+        result.scoring_result.scoring_mode
+        == KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF
+    )
+    assert result.scoring_result.kinase_library_motif_scores is not None
+    assert result.provenance is not None
+    scoring_config = result.provenance.workflow_parameters["scoring_config"]
+    assert (
+        scoring_config["scoring_mode"]
+        == KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF
+    )
+
+
 def test_kinase_library_workflow_mode_requires_local_resource() -> None:
     with pytest.raises(WorkflowValidationError, match="kinase_library_resource"):
         KinaseWorkflow().run(
-            _request(scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF)
+            _request(scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF)
         )
 
 
@@ -87,7 +125,7 @@ def test_kinase_library_workflow_mode_still_requires_eligible_reference_map() ->
         KinaseWorkflow().run(
             _request(
                 references=_references(mapped_display_ids=("GENE1;S1;",)),
-                scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
+                scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
                 kinase_library_resource=_kinase_library_resource(),
             )
         )
@@ -122,7 +160,7 @@ def test_kinase_library_workflow_mode_fails_when_no_site_sequences_resolve() -> 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
         interpreter.run(
             _request(
-                scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
+                scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
                 kinase_library_resource=_kinase_library_resource(),
             )
         )
@@ -148,7 +186,7 @@ def test_kinase_library_workflow_mode_fails_when_residue_class_resources_are_mis
                     mapped_display_ids=("GENE1;S1;", "GENE2;T2;"),
                     sequence_display_ids=("GENE1;S1;", "GENE2;T2;"),
                 ),
-                scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
+                scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
                 kinase_library_resource=_kinase_library_resource(
                     kinase="KLIB_TYR",
                     residue_class=KinaseLibraryResidueClass.TYR,
@@ -166,7 +204,7 @@ def test_kinase_library_workflow_mode_fails_when_residue_class_resources_are_mis
 def test_kinase_library_workflow_mode_does_not_call_phosr_inspired_fallback() -> None:
     interpreted = KinaseWorkflowInterpreter().run(
         _request(
-            scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
+            scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
             kinase_library_resource=_kinase_library_resource(),
         )
     )
@@ -368,7 +406,7 @@ def _request(
     *,
     dataset: AnalysisReadyPhosphoDataset | None = None,
     references: ReferenceBundle | None = None,
-    scoring_mode: str = KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
+    scoring_mode: str = KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
     kinase_library_resource: KinaseLibraryResource | None = None,
 ) -> KinaseWorkflowRequest:
     return KinaseWorkflowRequest(
