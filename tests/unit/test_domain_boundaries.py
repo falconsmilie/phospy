@@ -220,6 +220,48 @@ def test_analysis_ready_from_trusted_tables_records_trusted_construction_marker(
     }
 
 
+def test_direct_construction_records_provenance_marker() -> None:
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=_phospho(),
+        site_metadata=_site_metadata(),
+        organism=Organism.RAT,
+        **_supported_dataset_state(has_total_matrix=False),
+    )
+
+    provenance = dataset.provenance
+
+    assert provenance is not None
+    assert provenance.workflow_name == "analysis_ready_dataset_direct_construction"
+    assert provenance.workflow_parameters["construction"]["source"] == (
+        "direct_trusted_construction"
+    )
+
+
+def test_trusted_factory_records_same_direct_construction_marker() -> None:
+    direct_dataset = AnalysisReadyPhosphoDataset(
+        phospho=_phospho(),
+        site_metadata=_site_metadata(),
+        organism=Organism.RAT,
+        **_supported_dataset_state(has_total_matrix=False),
+    )
+    trusted_dataset = AnalysisReadyPhosphoDataset.from_trusted_tables(
+        phospho=_phospho(),
+        site_metadata=_site_metadata(),
+        organism=Organism.RAT,
+        **_supported_dataset_state(has_total_matrix=False),
+    )
+
+    assert direct_dataset.provenance is not None
+    assert trusted_dataset.provenance is not None
+    assert trusted_dataset.provenance.workflow_name == (
+        direct_dataset.provenance.workflow_name
+    )
+    assert (
+        trusted_dataset.provenance.workflow_parameters["construction"]
+        == (direct_dataset.provenance.workflow_parameters["construction"])
+    )
+
+
 def test_dataset_rejects_missing_site_sequence_column() -> None:
     bad_site_metadata = _site_metadata().drop(columns=["site_sequence"])
     with pytest.raises(

@@ -9,6 +9,10 @@ import pandas as pd
 from phospy.contracts.configs import DifferentialAnalysisConfig
 from phospy.contracts.result_caveats import ResultCaveat
 from phospy.provenance.models import RunProvenance
+from phospy.science.datasets.direct_construction import (
+    DIRECT_CONSTRUCTION_SOURCE,
+    DIRECT_CONSTRUCTION_WORKFLOW_NAME,
+)
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.differential.models import (
     DIFFERENTIAL_RESULT_STATUS_COLUMN,
@@ -31,9 +35,6 @@ DIFFERENTIAL_IMPUTATION_WITHHOLDING_POLICY_CAVEAT_CODE = (
 )
 DIFFERENTIAL_WITHHELD_FEATURES_CAVEAT_CODE = "differential_withheld_features"
 DIFFERENTIAL_NARROW_PARITY_ENVELOPE_CAVEAT_CODE = "differential_narrow_parity_envelope"
-
-_DIRECT_CONSTRUCTION_WORKFLOW_NAME = "analysis_ready_dataset_direct_construction"
-_DIRECT_CONSTRUCTION_SOURCE = "direct_trusted_construction"
 
 
 def build_differential_result_caveats(
@@ -143,8 +144,8 @@ def _direct_construction_details(
     construction = _construction_payload(provenance.workflow_parameters)
     source = construction.get("source")
     if (
-        provenance.workflow_name != _DIRECT_CONSTRUCTION_WORKFLOW_NAME
-        and source != _DIRECT_CONSTRUCTION_SOURCE
+        provenance.workflow_name != DIRECT_CONSTRUCTION_WORKFLOW_NAME
+        and source != DIRECT_CONSTRUCTION_SOURCE
     ):
         return None
 

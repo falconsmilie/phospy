@@ -16,9 +16,10 @@ from phospy.frames.ownership import (
     own_dataframe,
     own_optional_dataframe,
 )
-from phospy.provenance.environment import collect_environment_provenance
-from phospy.provenance.hashing import fingerprint_optional_table
-from phospy.provenance.models import RunProvenance, TableFingerprint
+from phospy.provenance.models import RunProvenance
+from phospy.science.datasets.direct_construction import (
+    build_direct_construction_provenance,
+)
 from phospy.science.datasets.imputation_metadata import (
     IMPUTATION_FEATURE_METADATA_COLUMNS as IMPUTATION_FEATURE_METADATA_COLUMNS,
 )
@@ -80,61 +81,6 @@ from phospy.validation.transformations.state import IntensityScaleStateValidator
 
 _PROCESSING_STATE_COMPAT_EXPORTS = (_require_boolean_observation_mask,)
 _INTENSITY_SCALE_STATE_VALIDATOR = IntensityScaleStateValidator()
-_DIRECT_CONSTRUCTION_WORKFLOW_NAME = "analysis_ready_dataset_direct_construction"
-_DIRECT_CONSTRUCTION_WARNING = (
-    "Direct construction cannot prove biological correctness of caller-provided "
-    "analysis-ready state."
-)
-
-
-def _direct_construction_provenance(
-    *,
-    phospho: pd.DataFrame,
-    site_metadata: pd.DataFrame,
-    sample_metadata: pd.DataFrame | None,
-    total: pd.DataFrame | None,
-    comparisons: pd.DataFrame | None,
-    imputation_observation_mask: pd.DataFrame | None,
-) -> RunProvenance:
-    table_entries = (
-        ("dataset.phospho", phospho),
-        ("dataset.site_metadata", site_metadata),
-        ("dataset.sample_metadata", sample_metadata),
-        ("dataset.total", total),
-        ("dataset.comparisons", comparisons),
-        ("dataset.imputation_observation_mask", imputation_observation_mask),
-    )
-    table_fingerprints = _fingerprint_direct_construction_tables(table_entries)
-    return RunProvenance(
-        environment=collect_environment_provenance(),
-        input_tables=table_fingerprints,
-        preprocessing_stages=(),
-        reference=None,
-        workflow_name=_DIRECT_CONSTRUCTION_WORKFLOW_NAME,
-        workflow_parameters={
-            "construction": {
-                "method": "AnalysisReadyPhosphoDataset.__init__",
-                "source": "direct_trusted_construction",
-                "builder_used": False,
-                "warning": _DIRECT_CONSTRUCTION_WARNING,
-            }
-        },
-        random_state=None,
-        random_seed_policy=None,
-        output_tables=table_fingerprints,
-    )
-
-
-def _fingerprint_direct_construction_tables(
-    entries: tuple[tuple[str, pd.DataFrame | None], ...],
-) -> tuple[TableFingerprint, ...]:
-    fingerprints: list[TableFingerprint] = []
-    for name, table in entries:
-        fingerprint = fingerprint_optional_table(table, name=name)
-        if fingerprint is None:
-            continue
-        fingerprints.append(fingerprint)
-    return tuple(fingerprints)
 
 
 @dataclass(frozen=True, slots=True)
@@ -459,7 +405,7 @@ class AnalysisReadyPhosphoDataset:
             )
         )
         if provenance is None:
-            provenance = _direct_construction_provenance(
+            provenance = build_direct_construction_provenance(
                 phospho=phospho_table.frame,
                 site_metadata=site_metadata_table.frame,
                 sample_metadata=(
