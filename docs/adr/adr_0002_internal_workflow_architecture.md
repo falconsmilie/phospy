@@ -176,6 +176,48 @@ It may not:
 
 The executor should be the stage where domain services are coordinated, not the stage where the public request is still being understood.
 
+### Post-Resolution Validator Pattern
+
+Some workflows have scientific eligibility checks that cannot be evaluated from
+the raw public request. Those checks depend on references, policies, or
+configuration that the interpreter must first resolve into executable inputs.
+This is the **post-resolution validator** pattern.
+
+Responsibility is split as follows:
+
+- initial workflow validators validate request, dataset, and configuration
+  invariants available before interpretation
+- interpreters may resolve references, configuration, policies, and identifiers
+  into execution-ready inputs
+- resolved validators validate scientific eligibility that depends on those
+  resolved inputs
+- executors must not perform validation except defensive internal checks for
+  impossible or programmer-error states
+
+The kinase workflow is the motivating case. `KinaseWorkflowValidator` can check
+request-level configuration policy, dataset identity requirements, localisation
+policy, and reference-input compatibility before interpretation. It cannot know
+whether a selected or caller-supplied reference bundle will still have enough
+usable substrate overlap after display IDs are projected to dataset `site_key`
+rows, site-sequence support is merged, and execution config is resolved.
+
+`KinaseWorkflowInterpreter` therefore resolves the references, projects
+reference substrate IDs onto dataset row identity, resolves sequence support and
+execution config, and then delegates the resolved scientific eligibility checks
+to `ResolvedKinaseEligibilityValidator` before the executor receives the
+execution request. That resolved validator owns checks such as reference
+coverage, eligible kinase counts after projection, sequence-supported scoring
+sites, scored-site support, attrition policy, and kinase-library resource
+usability.
+
+A post-resolution validator is not a general validation hook. It must have a
+clear resolved-input DTO, it must run after interpretation and before execution,
+and it must not repeat request-boundary validation or run scoring, prediction,
+activity, or signalome algorithms. The public workflow still coordinates a
+validator, interpreter, and executor; the post-resolution validator is a narrow
+validation seam used only when interpretation creates facts required for
+scientific eligibility.
+
 ## Interface Rules
 
 Interfaces are allowed and encouraged only at real extension seams.
