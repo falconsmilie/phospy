@@ -33,6 +33,7 @@ from phospy.science.statistics.multiple_testing import (
 from phospy.science.statistics.multiple_testing import (
     run as run_multiple_testing_correction,
 )
+from phospy.workflows.enrichment.caveats import build_enrichment_result_caveats
 from phospy.workflows.enrichment.models import (
     InterpretedEnrichmentWorkflowRequest,
     MultipleTestingCorrectionRunner,
@@ -152,12 +153,18 @@ class EnrichmentWorkflowExecutor:
             unmatched_identifiers=unmatched_identifiers,
             set_size_filter_result=set_size_filter_result,
         )
+        caveats = build_enrichment_result_caveats(
+            request=request,
+            background_summary=background_summary,
+            set_collection_summary=set_collection_summary,
+        )
         preliminary = EnrichmentWorkflowResult(
             identifier_kind=request.identifier_semantics.identifier_kind,
             set_collection=request.set_collection,
             config=request.config,
             records=records,
             unmatched_identifiers=unmatched_identifiers,
+            caveats=caveats,
             diagnostics=diagnostics,
             method_metadata=request.method_metadata,
             background_summary=background_summary,
@@ -173,6 +180,7 @@ class EnrichmentWorkflowExecutor:
             config=request.config,
             records=records,
             unmatched_identifiers=unmatched_identifiers,
+            caveats=caveats,
             diagnostics=diagnostics,
             method_metadata=request.method_metadata,
             background_summary=background_summary,

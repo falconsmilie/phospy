@@ -125,6 +125,7 @@ tests/unit/test_duplicate_site_resolution_reports.py,unit,682,16,true,true,scien
 tests/unit/test_enrichment_collections.py,unit,98,5,false,false,,,,,,
 tests/unit/test_enrichment_multiple_testing_correction.py,unit,158,9,false,false,,,,,,
 tests/unit/test_enrichment_ora.py,unit,185,7,false,false,,,,,,
+tests/unit/test_enrichment_result_caveats.py,unit,96,4,false,false,,,,,,
 tests/unit/test_enrichment_workflow_boundaries.py,unit,9,1,false,false,,,,,,
 tests/unit/test_enrichment_workflow_stage_boundaries.py,unit,218,6,false,false,,,,,,
 tests/unit/test_enrichment_workflow_validation.py,unit,333,20,true,true,,,,,,
