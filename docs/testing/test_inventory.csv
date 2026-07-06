@@ -1,6 +1,6 @@
 path,test_area,line_count,test_function_count,uses_pytest_mark,uses_parametrization,primary_category,recommended_action,protected_risk_or_contract,reviewer,followup_ticket,notes
 tests/architecture/test_api_boundaries.py,architecture,90,4,false,false,,,,,,
-tests/architecture/test_validation_boundaries.py,architecture,140,5,false,false,,,,,,[auto-orchestration] 5 hit(s); indicators: private_member_access
+tests/architecture/test_validation_boundaries.py,architecture,267,6,false,false,,,,,,[auto-orchestration] 5 hit(s); indicators: private_member_access
 tests/golden/test_differential_fixture_provenance_golden.py,golden,343,3,true,false,,,,,,
 tests/integration/references/test_bundled_reference_manifests.py,references,118,3,true,false,,,,,,
 tests/integration/science/datasets/test_analysis_ready_dataset_construction_boundary.py,datasets,107,3,true,false,,,,,,

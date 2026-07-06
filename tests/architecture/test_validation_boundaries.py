@@ -5,13 +5,6 @@ import inspect
 from pathlib import Path
 
 import phospy.api as public_api
-from phospy.api.requests import (
-    DatasetBuildRequest,
-    DifferentialAnalysisRequest,
-    KinaseWorkflowRequest,
-    PhosphositeImportRequest,
-    SignalomeWorkflowRequest,
-)
 from phospy.workflows.differential.validator import DifferentialAnalysisValidator
 from phospy.workflows.kinase.validator import KinaseWorkflowValidator
 from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
@@ -40,12 +33,45 @@ DATASET_VALIDATOR_EXPORT_NAMES = frozenset(
     }
 )
 
-DATASET_REQUEST_DTOS = (
-    DatasetBuildRequest,
-    DifferentialAnalysisRequest,
-    KinaseWorkflowRequest,
-    PhosphositeImportRequest,
-    SignalomeWorkflowRequest,
+EXPECTED_REQUEST_DTO_NAMES = frozenset(
+    {
+        "DatasetBuildRequest",
+        "DifferentialAnalysisRequest",
+        "EnrichmentWorkflowRequest",
+        "KinaseWorkflowRequest",
+        "PhosphositeImportRequest",
+        "SignalomeWorkflowRequest",
+    }
+)
+
+ALLOWED_REQUEST_POST_INIT_CALLS = frozenset(
+    {
+        "bool",
+        "dict",
+        "float",
+        "frozenset",
+        "int",
+        "isinstance",
+        "list",
+        "object.__setattr__",
+        "set",
+        "str",
+        "tuple",
+    }
+)
+
+NONTRIVIAL_REQUEST_POST_INIT_NODES = (
+    ast.Assert,
+    ast.AsyncFor,
+    ast.AsyncWith,
+    ast.For,
+    ast.Import,
+    ast.ImportFrom,
+    ast.Match,
+    ast.Raise,
+    ast.Try,
+    ast.While,
+    ast.With,
 )
 
 
@@ -58,6 +84,92 @@ def _imported_modules(path: Path) -> list[str]:
         if isinstance(node, ast.ImportFrom) and node.module is not None:
             modules.append(node.module)
     return modules
+
+
+def _dotted_name(node: ast.AST) -> str | None:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        value_name = _dotted_name(node.value)
+        if value_name is None:
+            return None
+        return f"{value_name}.{node.attr}"
+    return None
+
+
+def _has_dataclass_decorator(node: ast.ClassDef) -> bool:
+    for decorator in node.decorator_list:
+        decorated = decorator.func if isinstance(decorator, ast.Call) else decorator
+        name = _dotted_name(decorated)
+        if name == "dataclass" or (name is not None and name.endswith(".dataclass")):
+            return True
+    return False
+
+
+def _request_dto_classes(tree: ast.Module) -> list[ast.ClassDef]:
+    return [
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef)
+        and node.name.endswith("Request")
+        and _has_dataclass_decorator(node)
+    ]
+
+
+def _method_named(node: ast.ClassDef, method_name: str) -> ast.FunctionDef | None:
+    for item in node.body:
+        if isinstance(item, ast.FunctionDef) and item.name == method_name:
+            return item
+    return None
+
+
+def _self_attribute_path(node: ast.Attribute) -> tuple[str, ...]:
+    parts: list[str] = []
+    current: ast.AST = node
+    while isinstance(current, ast.Attribute):
+        parts.append(current.attr)
+        current = current.value
+    if isinstance(current, ast.Name) and current.id == "self":
+        return tuple(reversed(parts))
+    return ()
+
+
+def _is_allowed_request_post_init_call(call_name: str | None) -> bool:
+    if call_name in ALLOWED_REQUEST_POST_INIT_CALLS:
+        return True
+    if call_name is None or "." in call_name:
+        return False
+
+    return call_name[:1].isupper() and not call_name.endswith("Validator")
+
+
+def _nontrivial_request_post_init_reasons(
+    class_name: str, method: ast.FunctionDef
+) -> list[str]:
+    reasons: set[str] = set()
+
+    for node in ast.walk(method):
+        if isinstance(node, NONTRIVIAL_REQUEST_POST_INIT_NODES):
+            reasons.add(f"{class_name}.__post_init__ uses {type(node).__name__}")
+        if isinstance(node, ast.Call):
+            call_name = _dotted_name(node.func)
+            if not _is_allowed_request_post_init_call(call_name):
+                reasons.add(
+                    f"{class_name}.__post_init__ calls {call_name or '<dynamic call>'}"
+                )
+        if isinstance(node, ast.Compare) and any(
+            not isinstance(operator, (ast.Is, ast.IsNot)) for operator in node.ops
+        ):
+            reasons.add(f"{class_name}.__post_init__ compares domain values")
+        if isinstance(node, ast.Attribute):
+            path = _self_attribute_path(node)
+            if len(path) > 1:
+                reasons.add(
+                    f"{class_name}.__post_init__ reads nested scientific state "
+                    f"self.{'.'.join(path)}"
+                )
+
+    return sorted(reasons)
 
 
 def test_api_package_does_not_import_private_dataset_validation_modules() -> None:
@@ -115,11 +227,26 @@ def test_workflow_validators_compose_shared_and_domain_validation() -> None:
     assert "enforce_required_non_empty_string_column(" in signalome_grouping_source
 
 
+def test_workflow_request_dtos_do_not_own_domain_validation() -> None:
+    tree = ast.parse(
+        REQUEST_CONTRACTS_PATH.read_text(encoding="utf-8"),
+        filename=str(REQUEST_CONTRACTS_PATH),
+    )
+    request_classes = _request_dto_classes(tree)
+    discovered_request_names = {node.name for node in request_classes}
+    offenders = [
+        reason
+        for class_node in request_classes
+        if (post_init := _method_named(class_node, "__post_init__")) is not None
+        for reason in _nontrivial_request_post_init_reasons(class_node.name, post_init)
+    ]
+
+    assert EXPECTED_REQUEST_DTO_NAMES.issubset(discovered_request_names)
+    assert offenders == []
+
+
 def test_dataset_request_dtos_do_not_call_private_dataset_validators() -> None:
     request_source = REQUEST_CONTRACTS_PATH.read_text(encoding="utf-8")
-
-    for request_type in DATASET_REQUEST_DTOS:
-        assert "__post_init__" not in request_type.__dict__
 
     assert DATASET_VALIDATION_PREFIX not in request_source
     for symbol_name in DATASET_VALIDATOR_EXPORT_NAMES:
