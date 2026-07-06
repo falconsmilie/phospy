@@ -76,6 +76,7 @@ class KinaseResultAssembler:
             caveats=tuple(
                 KinaseWorkflowCaveat(
                     code=str(violation.to_payload()["code"]),
+                    severity="warning",
                     message=violation.message,
                     details=violation.to_payload(),
                 )

@@ -193,7 +193,7 @@ tests/unit/test_public_contract_dataset.py,unit,408,16,true,true,public API cont
 tests/unit/test_public_contract_enrichment.py,unit,254,11,false,false,,,,,,
 tests/unit/test_public_contract_errors.py,unit,742,24,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract errors and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_contract_import_routes.py,unit,276,18,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract import routes and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/unit/test_public_contract_results.py,unit,384,9,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract results and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
+tests/unit/test_public_contract_results.py,unit,387,9,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract results and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_contract_workflows.py,unit,194,7,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract workflows and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_documentation_examples.py,unit,484,7,false,false,,,,,,
 tests/unit/test_public_examples_contract.py,unit,41,3,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public examples contract and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
@@ -206,6 +206,7 @@ tests/unit/test_reference_identifier_normalisation.py,unit,614,20,false,false,pu
 tests/unit/test_reference_provenance.py,unit,235,7,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for reference provenance, making artifact and output drift unsafe.",codex-audit,,
 tests/unit/test_reference_runtime_policy.py,unit,100,5,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for reference runtime policy and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_request_validation_boundaries.py,unit,283,6,true,true,,,,,,
+tests/unit/test_result_caveats.py,unit,69,3,false,false,,,,,,
 tests/unit/test_result_snapshot_helpers.py,unit,536,9,false,false,,,,,,
 tests/unit/test_runtime_contract_guards.py,unit,145,4,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for runtime contract guards and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_science_package_ownership.py,unit,113,6,true,true,,,,,,
@@ -252,7 +253,7 @@ tests/unit/test_workflow_public_import_contract.py,unit,91,7,true,true,public AP
 tests/unit/validation/test_site_sequence_contracts.py,validation,120,5,true,true,,,,,,
 tests/unit/workflows/differential/test_differential_scope_validation.py,differential,262,7,false,false,,,,,,
 tests/unit/workflows/kinase/test_kinase_attrition_metrics.py,kinase,254,5,false,false,,,,,,
-tests/unit/workflows/kinase/test_kinase_attrition_policy.py,kinase,237,5,false,false,,,,,,
+tests/unit/workflows/kinase/test_kinase_attrition_policy.py,kinase,238,5,false,false,,,,,,
 tests/unit/workflows/kinase/test_kinase_sequence_contract.py,kinase,251,5,true,true,,,,,,
 tests/unit/workflows/kinase/test_resolved_kinase_validator.py,kinase,257,4,false,false,,,,,,
 tests/unit/workflows/kinase/test_site_sequence_conflict_policy.py,kinase,266,6,true,true,,,,,,

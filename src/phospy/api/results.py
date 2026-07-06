@@ -11,6 +11,7 @@ from phospy.contracts.results import (
     KinaseScoringResult,
     KinaseWorkflowResult,
     PhosphositeImportResult,
+    ResultCaveat,
     SignalomeWorkflowResult,
 )
 
@@ -44,5 +45,6 @@ __all__ = [
     "KinaseWorkflowScoringAttritionSummary",
     "KinaseWorkflowSiteAttritionSummary",
     "PhosphositeImportResult",
+    "ResultCaveat",
     "SignalomeWorkflowResult",
 ]

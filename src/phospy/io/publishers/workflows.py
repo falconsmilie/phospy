@@ -527,6 +527,7 @@ def _signalome_manifest_payload(
         "score_preconditioning_diagnostics": _score_preconditioning_payload(result),
         "alignment_diagnostics": _alignment_diagnostics_payload(result),
         "network_correlation_diagnostics": _network_correlation_payload(result),
+        "caveats": [caveat.to_payload() for caveat in result.caveats],
         "output_format": output_format,
         "provenance": (
             None

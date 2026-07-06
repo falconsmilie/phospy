@@ -12,6 +12,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
+from phospy.contracts.result_caveats import ResultCaveat, validate_result_caveats
 from phospy.errors.input import PhosPyInputError
 from phospy.frames.ownership import (
     export_dataframe,
@@ -61,6 +62,7 @@ class DifferentialAnalysisResult:
     diagnostics: DifferentialModelDiagnostics
     policy_provenance: DifferentialPolicyProvenance | None
     workflow_provenance: Mapping[str, object] | None
+    caveats: tuple[ResultCaveat, ...]
     input_dataset_preprocessing_report: DatasetPreprocessingReport | None
     _feature_eligibility: pd.DataFrame | None
     _contrast_tables: Mapping[str, pd.DataFrame]
@@ -84,6 +86,7 @@ class DifferentialAnalysisResult:
         diagnostics: DifferentialModelDiagnostics | None = None,
         policy_provenance: DifferentialPolicyProvenance | None = None,
         workflow_provenance: Mapping[str, object] | None = None,
+        caveats: tuple[ResultCaveat, ...] = (),
         input_dataset_preprocessing_report: DatasetPreprocessingReport | None = None,
         feature_eligibility: pd.DataFrame | None = None,
         _assume_owned: bool = False,
@@ -181,6 +184,10 @@ class DifferentialAnalysisResult:
             raise PhosPyInputError(
                 "differential_result.workflow_provenance must be a mapping or None"
             )
+        caveats = validate_result_caveats(
+            caveats,
+            field_name="differential_result.caveats",
+        )
         if (
             input_dataset_preprocessing_report is not None
             and not _is_dataset_preprocessing_report(input_dataset_preprocessing_report)
@@ -269,6 +276,7 @@ class DifferentialAnalysisResult:
                 else {str(key): value for key, value in workflow_provenance.items()}
             ),
         )
+        object.__setattr__(self, "caveats", caveats)
         object.__setattr__(
             self,
             "input_dataset_preprocessing_report",
@@ -318,6 +326,7 @@ class DifferentialAnalysisResult:
         """Return a JSON-compatible differential result payload."""
 
         return {
+            "caveats": [caveat.to_payload() for caveat in self.caveats],
             "diagnostics": self.diagnostics.to_payload(),
             "empirical_bayes": {
                 "method": self.empirical_bayes_method,
@@ -364,6 +373,7 @@ class DifferentialAnalysisResult:
         diagnostics: DifferentialModelDiagnostics | None = None,
         policy_provenance: DifferentialPolicyProvenance | None = None,
         workflow_provenance: Mapping[str, object] | None = None,
+        caveats: tuple[ResultCaveat, ...] = (),
         input_dataset_preprocessing_report: DatasetPreprocessingReport | None = None,
         feature_eligibility: pd.DataFrame | None = None,
     ) -> DifferentialAnalysisResult:
@@ -384,6 +394,7 @@ class DifferentialAnalysisResult:
             policy_provenance=policy_provenance,
             contrast_tables=contrast_tables,
             workflow_provenance=workflow_provenance,
+            caveats=caveats,
             input_dataset_preprocessing_report=input_dataset_preprocessing_report,
             feature_eligibility=feature_eligibility,
             _assume_owned=True,

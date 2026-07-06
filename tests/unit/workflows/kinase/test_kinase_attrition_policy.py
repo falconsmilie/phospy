@@ -143,6 +143,7 @@ def test_kinase_result_caveats_include_attrition_warning() -> None:
     assert len(result.caveats) == 1
     caveat = result.caveats[0]
     assert caveat.code == "kinase_attrition_policy_violation"
+    assert caveat.severity == "warning"
     assert caveat.details["threshold_name"] == "minimum_scored_fraction"
     assert caveat.details["configured_threshold"] == pytest.approx(0.75)
     assert caveat.details["observed_value"] == pytest.approx(0.5)

@@ -102,6 +102,7 @@ from phospy.api.results import (
     KinaseScoringResult,
     KinaseWorkflowResult,
     PhosphositeImportResult,
+    ResultCaveat,
     SignalomeWorkflowResult,
 )
 from phospy.api.workflows import (
@@ -188,6 +189,7 @@ _STABLE_PUBLIC_API = (
     "KinasePredictionResult",
     "KinaseScoringResult",
     "KinaseWorkflowResult",
+    "ResultCaveat",
     "SignalomeWorkflowResult",
     "Organism",
     "ReferenceBundle",
@@ -403,6 +405,7 @@ __all__ = [
     "KinasePredictionResult",
     "KinaseScoringResult",
     "KinaseWorkflowResult",
+    "ResultCaveat",
     "SignalomeWorkflowResult",
     "Organism",
     "ReferenceBundle",

@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from phospy.contracts.result_caveats import (
+    ResultCaveat,
+    ResultCaveatSeverity,
+)
 from phospy.contracts.results.base import (
     IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
     IMPORTER_QUALITY_STATUS_NOT_REPORTED,
@@ -115,6 +119,8 @@ __all__ = [
     "ProteinAwarePreparationReport",
     "ProteinAwarePreparationResult",
     "ProteinAwareSiteEligibility",
+    "ResultCaveat",
+    "ResultCaveatSeverity",
     "SsgseaSubstrateEnrichmentActivityDiagnostics",
     "SignalomeWorkflowResult",
     "WeightedSubstrateActivityDiagnostics",

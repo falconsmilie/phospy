@@ -370,6 +370,7 @@ def _kinase_caveats_from_provenance(
         caveats.append(
             KinaseWorkflowCaveat(
                 code=code,
+                severity="warning",
                 message=raw_message,
                 details=dict(raw_violation),
             )

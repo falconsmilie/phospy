@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
+from phospy.contracts.result_caveats import ResultCaveat, validate_result_caveats
 from phospy.errors.input import PhosPyInputError
 from phospy.frames.ownership import export_optional_dataframe
 from phospy.provenance.models import RunProvenance
@@ -25,6 +26,8 @@ from phospy.science.datasets.models import (
 from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.science.references.models import ReferenceBundle
 from phospy.tables.kinase import KinaseSubstrateContributionTable
+
+KinaseWorkflowCaveat = ResultCaveat
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,39 +62,6 @@ class KinaseWorkflowSiteAttritionSummary:
 
     preprocessing: KinaseWorkflowPreprocessingAttritionSummary
     scoring: KinaseWorkflowScoringAttritionSummary
-
-
-@dataclass(frozen=True, slots=True)
-class KinaseWorkflowCaveat:
-    """Structured caveat recorded on a kinase workflow result."""
-
-    code: str
-    message: str
-    details: Mapping[str, object] = field(default_factory=dict)
-
-    def __post_init__(self) -> None:
-        code = _require_non_empty_text(
-            self.code,
-            field_name="kinase_workflow_result.caveats[].code",
-        )
-        message = _require_non_empty_text(
-            self.message,
-            field_name="kinase_workflow_result.caveats[].message",
-        )
-        if not isinstance(self.details, Mapping):
-            raise PhosPyInputError(
-                "kinase_workflow_result.caveats[].details must be a mapping"
-            )
-        object.__setattr__(self, "code", code)
-        object.__setattr__(self, "message", message)
-        object.__setattr__(self, "details", dict(self.details))
-
-    def to_payload(self) -> dict[str, object]:
-        return {
-            "code": self.code,
-            "message": self.message,
-            "details": dict(self.details),
-        }
 
 
 _KINASE_ATTRITION_POLICY_OUTCOMES = frozenset({"passed", "warned", "failed"})
@@ -195,7 +165,7 @@ class KinaseWorkflowResult:
     attrition_provenance: KinaseWorkflowAttritionProvenance | None = None
     activity_result: KinaseActivityResult | None = None
     provenance: RunProvenance | None = None
-    caveats: tuple[KinaseWorkflowCaveat, ...] = ()
+    caveats: tuple[ResultCaveat, ...] = ()
     _substrate_contributions: pd.DataFrame | None = field(
         init=False,
         repr=False,
@@ -214,7 +184,7 @@ class KinaseWorkflowResult:
         activity_result: KinaseActivityResult | None = None,
         provenance: RunProvenance | None = None,
         substrate_contributions: pd.DataFrame | None = None,
-        caveats: tuple[KinaseWorkflowCaveat, ...] = (),
+        caveats: tuple[ResultCaveat, ...] = (),
         *,
         _assume_owned: bool = False,
     ) -> None:
@@ -273,16 +243,12 @@ def _own_optional_kinase_substrate_contributions(
 
 
 def _own_workflow_caveats(
-    caveats: tuple[KinaseWorkflowCaveat, ...],
-) -> tuple[KinaseWorkflowCaveat, ...]:
-    owned = tuple(caveats)
-    for caveat in owned:
-        if isinstance(caveat, KinaseWorkflowCaveat):
-            continue
-        raise PhosPyInputError(
-            "kinase_workflow_result.caveats must contain KinaseWorkflowCaveat values"
-        )
-    return owned
+    caveats: tuple[ResultCaveat, ...],
+) -> tuple[ResultCaveat, ...]:
+    return validate_result_caveats(
+        caveats,
+        field_name="kinase_workflow_result.caveats",
+    )
 
 
 def _own_attrition_provenance(

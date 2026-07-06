@@ -54,6 +54,7 @@ EXPECTED_RESULT_EXPORTS = {
     "KinaseScoringResult",
     "KinaseWorkflowResult",
     "PhosphositeImportResult",
+    "ResultCaveat",
     "SignalomeWorkflowResult",
 } | INTENTIONAL_RESULT_COMPATIBILITY_ALIASES
 
@@ -145,6 +146,7 @@ def test_public_result_exports_match_contract() -> None:
 
 def test_contract_result_domain_modules_preserve_legacy_import_identity() -> None:
     import phospy.contracts.results as contracts_results
+    from phospy.contracts.result_caveats import ResultCaveat
     from phospy.contracts.results.base import (
         ImporterQualityReport,
         PhosphositeImportResult,
@@ -160,6 +162,7 @@ def test_contract_result_domain_modules_preserve_legacy_import_identity() -> Non
     from phospy.contracts.results.preprocessing import BatchCorrectionReport
     from phospy.contracts.results.signalome import SignalomeWorkflowResult
 
+    assert contracts_results.ResultCaveat is ResultCaveat
     assert contracts_results.ImporterQualityReport is ImporterQualityReport
     assert contracts_results.PhosphositeImportResult is PhosphositeImportResult
     assert contracts_results.DifferentialAnalysisResult is DifferentialAnalysisResult

@@ -12,6 +12,7 @@ from phospy.contracts.configs.preprocessing import (
     CorrectionMissingnessPolicy,
     InternalBatchCorrectionRequest,
 )
+from phospy.contracts.result_caveats import ResultCaveat, validate_result_caveats
 from phospy.provenance.models import BatchCorrectionProvenance, JsonValue
 from phospy.science.datasets.preprocessing.control_sites import (
     ControlSiteMapping,
@@ -53,6 +54,17 @@ class BatchCorrectionWorkflowResult:
     warnings: tuple[str, ...]
     provenance: BatchCorrectionProvenance
     corrected_preprocessing_output: CorrectedPreprocessingOutput
+    caveats: tuple[ResultCaveat, ...] = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "caveats",
+            validate_result_caveats(
+                self.caveats,
+                field_name="batch_correction_workflow_result.caveats",
+            ),
+        )
 
     @property
     def corrected(self) -> pd.DataFrame:

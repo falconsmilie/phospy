@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
+from phospy.contracts.result_caveats import ResultCaveat, validate_result_caveats
 from phospy.contracts.results.kinase import KinaseWorkflowResult
 from phospy.errors.validation import WorkflowValidationError
 from phospy.frames.ownership import export_optional_dataframe, own_optional_dataframe
@@ -82,6 +83,7 @@ class SignalomeWorkflowResult:
         default_factory=default_signalome_alignment_diagnostics
     )
     provenance: RunProvenance | None = None
+    caveats: tuple[ResultCaveat, ...] = ()
     _expanded_signalome: pd.DataFrame | None = field(init=False, repr=False)
     _site_membership: pd.DataFrame | None = field(init=False, repr=False)
     _protein_site_context: pd.DataFrame | None = field(init=False, repr=False)
@@ -105,6 +107,7 @@ class SignalomeWorkflowResult:
         site_membership: pd.DataFrame | None = None,
         protein_site_context: pd.DataFrame | None = None,
         provenance: RunProvenance | None = None,
+        caveats: tuple[ResultCaveat, ...] = (),
         _assume_owned: bool = False,
     ) -> None:
         object.__setattr__(self, "dataset", dataset)
@@ -140,6 +143,15 @@ class SignalomeWorkflowResult:
             ),
         )
         object.__setattr__(self, "provenance", provenance)
+        object.__setattr__(
+            self,
+            "caveats",
+            validate_result_caveats(
+                caveats,
+                field_name="signalome_result.caveats",
+                error_type=WorkflowValidationError,
+            ),
+        )
         object.__setattr__(
             self,
             "_init_payload",
@@ -247,6 +259,7 @@ class SignalomeWorkflowResult:
         site_membership: pd.DataFrame | None = None,
         protein_site_context: pd.DataFrame | None = None,
         provenance: RunProvenance | None = None,
+        caveats: tuple[ResultCaveat, ...] = (),
     ) -> SignalomeWorkflowResult:
         return cls(
             dataset=dataset,
@@ -261,6 +274,7 @@ class SignalomeWorkflowResult:
             site_membership=site_membership,
             protein_site_context=protein_site_context,
             provenance=provenance,
+            caveats=caveats,
             _assume_owned=True,
         )
 

@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from phospy.contracts.configs import EnrichmentConfig
+from phospy.contracts.result_caveats import ResultCaveat, validate_result_caveats
 from phospy.errors.validation import WorkflowValidationError
 from phospy.frames.ownership import export_dataframe, own_dataframe
 from phospy.provenance.models import RunProvenance
@@ -41,6 +42,7 @@ class EnrichmentWorkflowResult:
     records: tuple[EnrichmentResultRecord, ...] = ()
     unmatched_identifiers: tuple[str, ...] = ()
     warnings: tuple[str, ...] = ()
+    caveats: tuple[ResultCaveat, ...] = ()
     diagnostics: Mapping[str, object] = field(default_factory=dict)
     method_metadata: Mapping[str, object] = field(default_factory=dict)
     background_summary: Mapping[str, object] = field(default_factory=dict)
@@ -85,6 +87,11 @@ class EnrichmentWorkflowResult:
             allow_empty=True,
         )
         warnings = tuple(_validate_enrichment_warning(value) for value in self.warnings)
+        caveats = validate_result_caveats(
+            self.caveats,
+            field_name="enrichment_result.caveats",
+            error_type=WorkflowValidationError,
+        )
         if not isinstance(self.diagnostics, Mapping):
             raise WorkflowValidationError(
                 "enrichment_result.diagnostics must be a mapping"
@@ -118,6 +125,7 @@ class EnrichmentWorkflowResult:
         object.__setattr__(self, "records", records)
         object.__setattr__(self, "unmatched_identifiers", unmatched_identifiers)
         object.__setattr__(self, "warnings", warnings)
+        object.__setattr__(self, "caveats", caveats)
         object.__setattr__(self, "diagnostics", dict(self.diagnostics))
         object.__setattr__(self, "method_metadata", dict(self.method_metadata))
         object.__setattr__(self, "background_summary", dict(self.background_summary))
