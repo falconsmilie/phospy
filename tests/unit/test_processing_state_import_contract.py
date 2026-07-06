@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from phospy.science.datasets import processing_state
+from phospy.science.datasets import imputation_metadata, processing_state
+from phospy.science.datasets.imputation_metadata import (
+    ImputationObservationMetadata as DedicatedImputationObservationMetadata,
+)
 from phospy.science.datasets.models import (
     DatasetPreprocessingReport as ModelsDatasetPreprocessingReport,
 )
@@ -53,6 +56,11 @@ def test_processing_state_public_import_contract() -> None:
         int,
     )
     assert JsonValue is not None
+    assert (
+        imputation_metadata.ImputationObservationMetadata
+        is DedicatedImputationObservationMetadata
+    )
+    assert DedicatedImputationObservationMetadata is ImputationObservationMetadata
 
 
 def test_processing_state_models_import_compatibility() -> None:

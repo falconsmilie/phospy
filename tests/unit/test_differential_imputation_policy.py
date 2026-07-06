@@ -146,6 +146,17 @@ def test_differential_imputation_policy_reject_is_default() -> None:
         )
 
 
+def test_differential_rejects_imputed_dataset_without_required_policy() -> None:
+    with pytest.raises(WorkflowValidationError, match="imputed cells"):
+        DifferentialAnalysisWorkflow().run(
+            DifferentialAnalysisRequest(
+                dataset=_imputed_dataset(),
+                design=_design(),
+                contrasts=_contrasts(),
+            )
+        )
+
+
 def test_differential_imputation_policy_requires_metadata_for_non_reject() -> None:
     with pytest.raises(
         WorkflowValidationError,

@@ -210,6 +210,30 @@ def test_dataset_imputation_summary_fails_when_imputed_state_lacks_mask() -> Non
         )
 
 
+def test_analysis_ready_dataset_rejects_imputed_without_observation_mask() -> None:
+    index = _site_index()
+    processing_state = supported_linear_processing_state(has_total_matrix=False)
+    imputed_processing_state = valid_imputed_processing_state(processing_state)
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=_complete_phospho(index),
+        site_metadata=_site_metadata(index),
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=imputed_processing_state,
+    )
+
+    with pytest.raises(
+        DatasetValidationError,
+        match="imputation_observation_mask.*missing_data\\.imputed",
+    ):
+        dataset.imputation_observation_summary_dataframe(
+            feature_ids=[index[0]],
+            sample_ids=["sample_a"],
+        )
+
+
 def test_dataset_rejects_imputation_observation_mask_with_wrong_feature_labels() -> (
     None
 ):
@@ -297,6 +321,25 @@ def test_dataset_accepts_aligned_imputation_observation_mask() -> None:
     observed_mask = dataset.imputation_observed_mask_dataframe()
     assert observed_mask is not None
     pd.testing.assert_frame_equal(observed_mask, mask)
+
+
+def test_imputation_metadata_round_trips_through_dataset() -> None:
+    index = _site_index()
+    mask = _aligned_observation_mask(index)
+    dataset = _construct_dataset_with_mask(mask)
+
+    metadata = dataset.imputation_observation_metadata
+    observed_mask = dataset.imputation_observed_mask_dataframe()
+    feature_summary = dataset.imputation_feature_metadata
+
+    assert metadata is not None
+    assert observed_mask is not None
+    assert feature_summary is not None
+    pd.testing.assert_frame_equal(metadata.observed_mask_dataframe(), mask)
+    pd.testing.assert_frame_equal(observed_mask, mask)
+    assert feature_summary["imputed_cell_count"].tolist() == [1, 1, 0]
+    assert feature_summary["observed_cell_count"].tolist() == [1, 1, 2]
+    assert feature_summary["imputed_fraction"].tolist() == [0.5, 0.5, 0.0]
 
 
 def test_imputation_metadata_rejects_misaligned_rows() -> None:
