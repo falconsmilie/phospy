@@ -41,7 +41,11 @@ from phospy.science.datasets.preprocessing.stage_registry import (
 )
 from phospy.science.prediction.candidates import build_candidate_substrate_list
 from phospy.science.prediction.scoring import select_downstream_score_matrix
-from phospy.science.scoring.policy_models import DownstreamScoreSource, ThresholdMode
+from phospy.science.scoring.policy_models import (
+    DownstreamScoreSource,
+    ProfileSelfInclusionPolicy,
+    ThresholdMode,
+)
 
 
 def test_preprocessing_plan_converts_public_strings_to_internal_policy_enums() -> None:
@@ -332,6 +336,14 @@ def test_kinase_scoring_config_accepts_localisation_requirement() -> None:
         localisation_requirement=LocalisationRequirement(require_present=True),
     )
     assert config.localisation_requirement.policy == "require_present"
+
+
+def test_kinase_scoring_config_converts_profile_self_inclusion_policy_to_enum() -> None:
+    config = KinaseScoringConfig(profile_self_inclusion_policy="leave_one_out")
+
+    assert (
+        config.profile_self_inclusion_policy is ProfileSelfInclusionPolicy.LEAVE_ONE_OUT
+    )
 
 
 def test_signalome_validation_config_accepts_localisation_requirement() -> None:

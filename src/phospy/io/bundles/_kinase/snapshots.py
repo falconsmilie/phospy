@@ -13,6 +13,8 @@ from phospy.api.configs import (
     KINASE_ATTRITION_POLICY_ON_VIOLATION_MODES,
     KINASE_PREDICTION_MODES,
     KINASE_PROFILE_MISSING_VALUE_STRATEGIES,
+    KINASE_PROFILE_SELF_INCLUSION_POLICIES,
+    KINASE_PROFILE_SELF_INCLUSION_POLICY_ALLOW,
     KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
     KINASE_SCORING_MODES,
     KinaseActivityConfig,
@@ -26,6 +28,7 @@ from phospy.api.configs import (
     KinaseProfileMissingValueStrategy,
     KinaseScoringConfig,
     KinaseScoringMode,
+    ProfileSelfInclusionPolicy,
 )
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.primitives import (
@@ -46,6 +49,7 @@ _SCORING_CONFIG_ALLOWED_FIELDS = frozenset(
         "include_diagnostic_scoring_tables",
         "include_substrate_contributions",
         "profile_missing_value_strategy",
+        "profile_self_inclusion_policy",
         "attrition_policy",
         "allow_mixed_total_protein_quantitative_meaning",
     }
@@ -148,6 +152,9 @@ class KinaseWorkflowConfigSnapshot:
             ),
             "profile_missing_value_strategy": (
                 self.scoring_config.profile_missing_value_strategy
+            ),
+            "profile_self_inclusion_policy": str(
+                self.scoring_config.profile_self_inclusion_policy
             ),
             "allow_mixed_total_protein_quantitative_meaning": (
                 self.scoring_config.allow_mixed_total_protein_quantitative_meaning
@@ -332,6 +339,20 @@ class KinaseWorkflowConfigSnapshot:
                         ),
                     )
                 ),
+                profile_self_inclusion_policy=_parse_profile_self_inclusion_policy(
+                    require_str(
+                        scoring_payload.get(
+                            "profile_self_inclusion_policy",
+                            str(KINASE_PROFILE_SELF_INCLUSION_POLICY_ALLOW),
+                        ),
+                        field_name=(
+                            f"{scope}.scoring_config.profile_self_inclusion_policy"
+                        ),
+                    ),
+                    field_name=(
+                        f"{scope}.scoring_config.profile_self_inclusion_policy"
+                    ),
+                ),
                 allow_mixed_total_protein_quantitative_meaning=require_bool(
                     scoring_payload.get(
                         "allow_mixed_total_protein_quantitative_meaning", False
@@ -430,6 +451,18 @@ def _parse_profile_missing_value_strategy(
         allowed = ", ".join(sorted(KINASE_PROFILE_MISSING_VALUE_STRATEGIES))
         raise PhosPyInputError(f"{field_name} must be one of: {allowed}")
     return cast(KinaseProfileMissingValueStrategy, value)
+
+
+def _parse_profile_self_inclusion_policy(
+    value: str, *, field_name: str
+) -> ProfileSelfInclusionPolicy:
+    try:
+        return ProfileSelfInclusionPolicy(value)
+    except ValueError as exc:
+        allowed = ", ".join(
+            sorted(str(policy) for policy in KINASE_PROFILE_SELF_INCLUSION_POLICIES)
+        )
+        raise PhosPyInputError(f"{field_name} must be one of: {allowed}") from exc
 
 
 def _parse_scoring_mode(value: str, *, field_name: str) -> KinaseScoringMode:

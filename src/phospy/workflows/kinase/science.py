@@ -85,16 +85,10 @@ def build_kinase_profiles(
         substrate_counts[str(kinase)] = len(quantified_sites)
         if len(quantified_sites) < min_substrates:
             continue
-        quantified_matrix = numeric_phospho.loc[quantified_sites, :]
-        if quantified_matrix.shape[0] == 1:
-            profile = quantified_matrix.iloc[0].astype(float)
-        elif (
-            profile_missing_value_strategy
-            == KINASE_PROFILE_MISSING_VALUE_STRATEGY_MEDIAN_SKIPNA
-        ):
-            profile = quantified_matrix.median(axis=0, skipna=True).astype(float)
-        else:
-            profile = quantified_matrix.median(axis=0, skipna=False).astype(float)
+        profile = _aggregate_profile(
+            numeric_phospho.loc[quantified_sites, :],
+            profile_missing_value_strategy=profile_missing_value_strategy,
+        )
         profile_rows[str(kinase)] = profile
         quantified_substrates[str(kinase)] = quantified_sites
 
@@ -162,6 +156,76 @@ def score_profile_correlations(
         index=phospho.index.copy(),
         columns=profile_matrix.index.copy(),
     )
+
+
+def score_profile_correlations_leave_one_out(
+    *,
+    phospho: pd.DataFrame,
+    profile_build: KinaseProfileBuild,
+    min_substrates: int,
+    profile_missing_value_strategy: KinaseProfileMissingValueStrategy = (
+        KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
+    ),
+) -> pd.DataFrame:
+    """Score known substrate cells after removing the scored site from its profile."""
+
+    scores = score_profile_correlations(
+        phospho=phospho,
+        profile_matrix=profile_build.profile_matrix,
+    )
+    if scores.empty:
+        return scores
+    if min_substrates < KINASE_SCORING_MIN_SUBSTRATES_FLOOR:
+        raise WorkflowStageError(
+            "kinase workflow internal invariant failed at seam="
+            "kinase.science.leave_one_out_min_substrate_floor; "
+            "min_substrates must be greater than or equal to "
+            f"{KINASE_SCORING_MIN_SUBSTRATES_FLOOR}"
+        )
+    if profile_missing_value_strategy not in KINASE_PROFILE_MISSING_VALUE_STRATEGIES:
+        allowed = ", ".join(sorted(KINASE_PROFILE_MISSING_VALUE_STRATEGIES))
+        raise WorkflowStageError(
+            "kinase workflow internal invariant failed at seam="
+            "kinase.science.leave_one_out_profile_missing_value_strategy; "
+            "profile_missing_value_strategy must be one of: "
+            f"{allowed}"
+        )
+    numeric_phospho = _require_numeric_matrix(
+        phospho.reindex(columns=profile_build.profile_matrix.columns),
+        field_name="kinase.workflow.leave_one_out_scoring_phospho",
+    )
+    observed_sites = set(numeric_phospho.index)
+    for kinase, quantified_sites in profile_build.quantified_substrates.items():
+        if kinase not in scores.columns:
+            continue
+        for scored_site in quantified_sites:
+            if scored_site not in observed_sites:
+                continue
+            remaining_sites = [
+                site
+                for site in quantified_sites
+                if site != scored_site and site in observed_sites
+            ]
+            if len(remaining_sites) < min_substrates:
+                scores.at[scored_site, kinase] = np.nan
+                continue
+            leave_one_out_profile = _aggregate_profile(
+                numeric_phospho.loc[remaining_sites, :],
+                profile_missing_value_strategy=profile_missing_value_strategy,
+            )
+            leave_one_out_profile_matrix = pd.DataFrame(
+                [leave_one_out_profile.to_numpy(dtype=float, copy=False)],
+                index=pd.Index([kinase], name="kinase"),
+                columns=profile_build.profile_matrix.columns.copy(),
+                dtype=float,
+            )
+            leave_one_out_site = numeric_phospho.loc[[scored_site], :]
+            leave_one_out_score = score_profile_correlations(
+                phospho=leave_one_out_site,
+                profile_matrix=leave_one_out_profile_matrix,
+            )
+            scores.at[scored_site, kinase] = leave_one_out_score.iat[0, 0]
+    return scores
 
 
 def rank_kinases_for_prediction(
@@ -360,6 +424,21 @@ def _require_numeric_matrix(
             f"{field_name} must not contain infinite numeric values"
         )
     return numeric
+
+
+def _aggregate_profile(
+    quantified_matrix: pd.DataFrame,
+    *,
+    profile_missing_value_strategy: KinaseProfileMissingValueStrategy,
+) -> pd.Series:
+    if quantified_matrix.shape[0] == 1:
+        return quantified_matrix.iloc[0].astype(float)
+    if (
+        profile_missing_value_strategy
+        == KINASE_PROFILE_MISSING_VALUE_STRATEGY_MEDIAN_SKIPNA
+    ):
+        return quantified_matrix.median(axis=0, skipna=True).astype(float)
+    return quantified_matrix.median(axis=0, skipna=False).astype(float)
 
 
 def _column_series(frame: pd.DataFrame, column_name: str) -> pd.Series:

@@ -12,6 +12,7 @@ def test_public_config_imports_remain_stable() -> None:
         KinaseActivityConfig,
         KinaseAttritionPolicy,
         KinasePredictionConfig,
+        ProfileSelfInclusionPolicy,
         SignalomeConfig,
     )
 
@@ -24,6 +25,7 @@ def test_public_config_imports_remain_stable() -> None:
     assert KinaseActivityConfig is not None
     assert KinaseAttritionPolicy is not None
     assert KinasePredictionConfig is not None
+    assert ProfileSelfInclusionPolicy is not None
     assert SignalomeConfig is not None
 
 
@@ -34,6 +36,7 @@ def test_config_all_exports_public_api() -> None:
     assert "KinaseActivityConfig" in configs.__all__
     assert "KinaseAttritionPolicy" in configs.__all__
     assert "KinasePredictionConfig" in configs.__all__
+    assert "ProfileSelfInclusionPolicy" in configs.__all__
     assert "SignalomeConfig" in configs.__all__
     assert "DatasetTotalProteinCorrectionConfig" in configs.__all__
     assert "DatasetBatchCorrectionConfig" in configs.__all__

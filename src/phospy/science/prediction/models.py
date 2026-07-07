@@ -31,10 +31,14 @@ from phospy.science.prediction.scoring import (
     KINASE_SCORE_SOURCE_VALUES,
 )
 from phospy.science.prediction.sequence_validation import SequenceValidationResult
-from phospy.science.scoring.policy_models import DownstreamScoreSource
+from phospy.science.scoring.policy_models import (
+    DownstreamScoreSource,
+    ProfileSelfInclusionPolicy,
+)
 from phospy.science.sites.validation import require_site_key_index
 from phospy.tables.base import require_canonical_label_index
 from phospy.tables.kinase import KinasePredictionMatrix, KinaseScoreMatrix
+from phospy.validation.common.config_values import coerce_policy_enum
 from phospy.validation.common.dataframes import (
     require_dataframe,
     require_exact_index_match,
@@ -63,6 +67,8 @@ class KinaseScoringResult:
     `score_source_summary` is a compact per-kinase evidence-source diagnostic.
     `score_source_matrix` is an optional per-site/per-kinase evidence-source
     diagnostic table.
+    `profile_self_inclusion_policy` records whether known substrate sites were
+    allowed to contribute to their own kinase profile scores.
     """
 
     motif_sequence_validation: SequenceValidationResult | None = None
@@ -70,6 +76,9 @@ class KinaseScoringResult:
     scoring_mode: str = KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED
     score_scale: str = "relative_support_score_unit_interval"
     score_scale_metadata: Mapping[str, object] | None = None
+    profile_self_inclusion_policy: ProfileSelfInclusionPolicy = (
+        ProfileSelfInclusionPolicy.ALLOW
+    )
     _profile_scores: pd.DataFrame = field(init=False, repr=False)
     _motif_scores: pd.DataFrame | None = field(init=False, repr=False)
     _rank_weighted_fusion_scores: pd.DataFrame | None = field(init=False, repr=False)
@@ -110,6 +119,9 @@ class KinaseScoringResult:
         score_source: DownstreamScoreSource | str | None = None,
         score_scale: str | None = None,
         score_scale_metadata: Mapping[str, object] | None = None,
+        profile_self_inclusion_policy: ProfileSelfInclusionPolicy | str = (
+            ProfileSelfInclusionPolicy.ALLOW
+        ),
         motif_sequence_validation: SequenceValidationResult | None = None,
         motif_library_validation: MotifLibraryValidationResult | None = None,
         _assume_owned: bool = False,
@@ -133,6 +145,11 @@ class KinaseScoringResult:
             self,
             "score_scale_metadata",
             _own_score_scale_metadata(score_scale_metadata),
+        )
+        object.__setattr__(
+            self,
+            "profile_self_inclusion_policy",
+            _validate_profile_self_inclusion_policy(profile_self_inclusion_policy),
         )
         object.__setattr__(self, "_score_source", resolved_score_source)
         profile_scores = KinaseScoreMatrix(
@@ -400,6 +417,9 @@ class KinaseScoringResult:
         score_source: DownstreamScoreSource | str | None = None,
         score_scale: str | None = None,
         score_scale_metadata: Mapping[str, object] | None = None,
+        profile_self_inclusion_policy: ProfileSelfInclusionPolicy | str = (
+            ProfileSelfInclusionPolicy.ALLOW
+        ),
         motif_sequence_validation: SequenceValidationResult | None = None,
         motif_library_validation: MotifLibraryValidationResult | None = None,
     ) -> KinaseScoringResult:
@@ -491,6 +511,11 @@ class KinaseScoringResult:
             result,
             "score_scale_metadata",
             _own_score_scale_metadata(score_scale_metadata),
+        )
+        object.__setattr__(
+            result,
+            "profile_self_inclusion_policy",
+            _validate_profile_self_inclusion_policy(profile_self_inclusion_policy),
         )
         object.__setattr__(result, "_score_source", resolved_score_source)
         object.__setattr__(result, "_profile_scores", profile_scores)
@@ -589,6 +614,17 @@ def _validate_scoring_mode(value: object) -> str:
             f"scoring_result.scoring_mode must be one of: {allowed}"
         )
     return text
+
+
+def _validate_profile_self_inclusion_policy(
+    value: object,
+) -> ProfileSelfInclusionPolicy:
+    return coerce_policy_enum(
+        ProfileSelfInclusionPolicy,
+        value,
+        field_name="scoring_result.profile_self_inclusion_policy",
+        error_type=PhosPyValidationError,
+    )
 
 
 def _resolve_score_source(

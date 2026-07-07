@@ -29,7 +29,10 @@ from phospy.science.prediction.scoring import (
     fuse_profile_and_motif_scores_by_rank_weight,
     resolve_downstream_score_matrix,
 )
-from phospy.science.scoring.policy_models import DownstreamScoreSource
+from phospy.science.scoring.policy_models import (
+    DownstreamScoreSource,
+    ProfileSelfInclusionPolicy,
+)
 from phospy.workflows.kinase.component_models import KinaseScoringRunResult
 from phospy.workflows.kinase.contracts import (
     ResolvedKinaseExecutionConfig,
@@ -47,6 +50,7 @@ from phospy.workflows.kinase.science import (
     KinaseProfileBuild,
     build_kinase_profiles,
     score_profile_correlations,
+    score_profile_correlations_leave_one_out,
 )
 from phospy.workflows.kinase.scoring_mode_contracts import (
     kinase_scoring_mode_input_contract,
@@ -140,6 +144,15 @@ class KinaseScoringRunner:
             phospho=scoring_phospho,
             profile_matrix=profile_build.profile_matrix,
         )
+        if config.profile_self_inclusion_policy is (
+            ProfileSelfInclusionPolicy.LEAVE_ONE_OUT
+        ):
+            profile_scores = score_profile_correlations_leave_one_out(
+                phospho=scoring_phospho,
+                profile_build=profile_build,
+                min_substrates=scoring_min_substrates,
+                profile_missing_value_strategy=config.profile_missing_value_strategy,
+            )
         # Kinase Library modes intentionally branch here. They must not reuse or
         # fall back to PhosPy's PhosR-inspired motif-frequency scorer below.
         if config.scoring_mode == KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF:
@@ -234,6 +247,7 @@ class KinaseScoringRunner:
             motif_sequence_validation=motif_result.sequence_validation,
             motif_library_validation=motif_result.library_validation,
             scoring_mode=config.scoring_mode,
+            profile_self_inclusion_policy=config.profile_self_inclusion_policy,
             score_source=DownstreamScoreSource.RANK_WEIGHTED_FUSION_SCORES,
             score_scale="relative_support_score_unit_interval",
         )
@@ -310,6 +324,7 @@ class KinaseScoringRunner:
             scoring_mode=config.scoring_mode,
             score_source=DownstreamScoreSource.KINASE_LIBRARY_MOTIF_SCORES,
             score_scale=KINASE_LIBRARY_WORKFLOW_SCORE_SCALE,
+            profile_self_inclusion_policy=config.profile_self_inclusion_policy,
             score_scale_metadata={
                 **library_result.score_scale_metadata,
                 "uses_profile_correlation": False,
@@ -359,6 +374,7 @@ class KinaseScoringRunner:
             scoring_mode=config.scoring_mode,
             score_source=DownstreamScoreSource.KINASE_LIBRARY_MOTIF_SCORES,
             score_scale=KINASE_LIBRARY_WORKFLOW_SCORE_SCALE,
+            profile_self_inclusion_policy=config.profile_self_inclusion_policy,
             score_scale_metadata=library_result.score_scale_metadata,
         )
         substrate_contributions = self._build_substrate_contributions(
@@ -430,6 +446,7 @@ class KinaseScoringRunner:
             scoring_mode=config.scoring_mode,
             score_source=DownstreamScoreSource.COMBINED_PROFILE_MOTIF_SCORES,
             score_scale="combined_profile_kinase_library_motif_unit_interval",
+            profile_self_inclusion_policy=config.profile_self_inclusion_policy,
             score_scale_metadata={
                 **library_result.score_scale_metadata,
                 "authoritative_matrix": "combined_profile_motif_scores",

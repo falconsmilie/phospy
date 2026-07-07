@@ -20,6 +20,7 @@ from phospy.contracts.configs import (
     KinaseProfileMissingValueStrategy,
     KinaseScoringMode,
     LocalisationRequirement,
+    ProfileSelfInclusionPolicy,
     normalize_kinase_scoring_mode,
 )
 from phospy.contracts.requests import KinaseWorkflowRequest
@@ -35,6 +36,7 @@ from phospy.science.sites.validation import (
     require_site_key_index,
     require_site_key_series,
 )
+from phospy.validation.common.config_values import coerce_policy_enum
 from phospy.validation.common.dataframes import (
     require_canonical_string_column,
     require_columns,
@@ -709,6 +711,9 @@ class ResolvedKinaseExecutionConfig:
     prediction_adaptive_policy: KinaseAdaptivePolicy
     prediction_n_iterations: int
     prediction_random_state: int | None
+    profile_self_inclusion_policy: ProfileSelfInclusionPolicy = (
+        ProfileSelfInclusionPolicy.ALLOW
+    )
     attrition_policy: KinaseAttritionPolicy = field(
         default_factory=KinaseAttritionPolicy
     )
@@ -727,6 +732,16 @@ class ResolvedKinaseExecutionConfig:
             self,
             "scoring_mode",
             normalize_kinase_scoring_mode(self.scoring_mode),
+        )
+        object.__setattr__(
+            self,
+            "profile_self_inclusion_policy",
+            coerce_policy_enum(
+                ProfileSelfInclusionPolicy,
+                self.profile_self_inclusion_policy,
+                field_name="kinase.execution_config.profile_self_inclusion_policy",
+                error_type=WorkflowBoundaryError,
+            ),
         )
 
 

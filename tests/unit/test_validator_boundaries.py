@@ -21,6 +21,7 @@ from phospy.api.configs import (
     KinasePredictionConfig,
     KinaseScoringConfig,
     LocalisationRequirement,
+    ProfileSelfInclusionPolicy,
     SignalomeClusteringConfig,
     SignalomeConfig,
     SignalomeOutputConfig,
@@ -90,6 +91,10 @@ def test_kinase_scoring_default_sets_two_substrate_support_floor() -> None:
     assert KinaseScoringConfig().include_diagnostic_scoring_tables is False
     assert KinaseScoringConfig().include_substrate_contributions is False
     assert KinaseScoringConfig().profile_missing_value_strategy == "strict"
+    assert (
+        KinaseScoringConfig().profile_self_inclusion_policy
+        is ProfileSelfInclusionPolicy.ALLOW
+    )
     assert KinaseScoringConfig().attrition_policy == KinaseAttritionPolicy()
 
 

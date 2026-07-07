@@ -14,6 +14,7 @@ def test_kinase_snapshot_payload_round_trip_preserves_fields() -> None:
             "include_diagnostic_scoring_tables": False,
             "include_substrate_contributions": True,
             "profile_missing_value_strategy": "median_skipna",
+            "profile_self_inclusion_policy": "leave_one_out",
             "attrition_policy": {
                 "minimum_reference_overlap_fraction": 0.2,
                 "minimum_sequence_supported_fraction": 0.4,

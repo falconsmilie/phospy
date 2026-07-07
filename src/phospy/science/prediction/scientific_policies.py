@@ -9,7 +9,10 @@ from phospy.provenance.scientific_policy_models import (
     ScientificPolicyId,
     ScientificPolicyRecord,
 )
-from phospy.science.scoring.policy_models import ThresholdMode
+from phospy.science.scoring.policy_models import (
+    ProfileSelfInclusionPolicy,
+    ThresholdMode,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,8 +22,19 @@ class KinaseProfileScoringPolicy:
     profile_missing_value_strategy: str
     min_substrates_floor: int
     requested_min_substrates: int
-    self_inclusion_behavior: str = "self_inclusion"
-    leave_one_out_enabled: bool = False
+    profile_self_inclusion_policy: ProfileSelfInclusionPolicy | str = (
+        ProfileSelfInclusionPolicy.ALLOW
+    )
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "profile_self_inclusion_policy",
+            ProfileSelfInclusionPolicy.parse(
+                self.profile_self_inclusion_policy,
+                field_name="kinase profile scoring policy profile_self_inclusion_policy",
+            ),
+        )
 
     @property
     def record(self) -> ScientificPolicyRecord:
@@ -28,8 +42,7 @@ class KinaseProfileScoringPolicy:
             profile_missing_value_strategy=self.profile_missing_value_strategy,
             min_substrates_floor=self.min_substrates_floor,
             requested_min_substrates=self.requested_min_substrates,
-            self_inclusion_behavior=self.self_inclusion_behavior,
-            leave_one_out_enabled=self.leave_one_out_enabled,
+            profile_self_inclusion_policy=self.profile_self_inclusion_policy,
         )
 
 
@@ -167,9 +180,16 @@ def build_kinase_profile_scoring_policy(
     profile_missing_value_strategy: str,
     min_substrates_floor: int,
     requested_min_substrates: int,
-    self_inclusion_behavior: str = "self_inclusion",
-    leave_one_out_enabled: bool = False,
+    profile_self_inclusion_policy: ProfileSelfInclusionPolicy | str = (
+        ProfileSelfInclusionPolicy.ALLOW
+    ),
 ) -> ScientificPolicyRecord:
+    resolved_policy = ProfileSelfInclusionPolicy.parse(
+        profile_self_inclusion_policy,
+        field_name="kinase profile scoring policy profile_self_inclusion_policy",
+    )
+    leave_one_out_enabled = resolved_policy is ProfileSelfInclusionPolicy.LEAVE_ONE_OUT
+    self_inclusion_allowed = resolved_policy is ProfileSelfInclusionPolicy.ALLOW
     return ScientificPolicyRecord(
         id=ScientificPolicyId.KINASE_PROFILE_SCORING,
         name="Kinase Profile Scoring Policy",
@@ -180,15 +200,31 @@ def build_kinase_profile_scoring_policy(
         ),
         parameters={
             "profile_missing_value_strategy": str(profile_missing_value_strategy),
-            "self_inclusion_behavior": str(self_inclusion_behavior),
+            "profile_self_inclusion_policy": resolved_policy.value,
+            "self_inclusion_behavior": (
+                "self_inclusion" if self_inclusion_allowed else "leave_one_out"
+            ),
+            "self_inclusion_allowed": bool(self_inclusion_allowed),
             "leave_one_out_enabled": bool(leave_one_out_enabled),
             "min_substrates_floor": int(min_substrates_floor),
             "requested_min_substrates": int(requested_min_substrates),
         },
         assumptions=(
-            "Profiles can include the same substrate site that is later scored when "
-            "that site is present in the kinase profile definition.",
-            "Leave-one-out profile recomputation is not applied in this policy.",
+            (
+                "Profiles can include the same substrate site that is later "
+                "scored when that site is present in the kinase profile "
+                "definition."
+                if self_inclusion_allowed
+                else "Known substrate profile scores are recomputed without the "
+                "scored site when leave-one-out support remains available."
+            ),
+            (
+                "Leave-one-out profile recomputation is not applied in this policy."
+                if self_inclusion_allowed
+                else "Leave-one-out cells are left missing when excluding the "
+                "scored substrate drops profile support below the configured "
+                "minimum."
+            ),
             "Profile missing-value strategy affects profile medians and can change "
             "site-level downstream support.",
         ),

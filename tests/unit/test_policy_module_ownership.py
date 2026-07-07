@@ -12,7 +12,11 @@ from phospy.science.datasets.preprocessing.policy_models import (
     TotalProteinCorrectionPolicy,
 )
 from phospy.science.differential.policy_models import TechnicalReplicatePolicy
-from phospy.science.scoring.policy_models import DownstreamScoreSource, ThresholdMode
+from phospy.science.scoring.policy_models import (
+    DownstreamScoreSource,
+    ProfileSelfInclusionPolicy,
+    ThresholdMode,
+)
 
 
 def test_preprocessing_policies_are_owned_by_preprocessing_module() -> None:
@@ -40,6 +44,9 @@ def test_differential_policy_is_owned_by_differential_module() -> None:
 def test_scoring_policies_are_owned_by_scoring_module() -> None:
     assert ThresholdMode.__module__ == "phospy.science.scoring.policy_models"
     assert DownstreamScoreSource.__module__ == "phospy.science.scoring.policy_models"
+    assert (
+        ProfileSelfInclusionPolicy.__module__ == "phospy.science.scoring.policy_models"
+    )
 
 
 def test_policy_base_is_owned_by_policies_infrastructure_module() -> None:
@@ -61,6 +68,10 @@ def test_policy_parse_behaviour_is_preserved_for_owner_modules() -> None:
         ThresholdMode.parse("score >= threshold", field_name="x")
         is ThresholdMode.GREATER_THAN_OR_EQUAL
     )
+    assert (
+        ProfileSelfInclusionPolicy.parse("allow", field_name="x")
+        is ProfileSelfInclusionPolicy.ALLOW
+    )
 
 
 @pytest.mark.parametrize(
@@ -69,6 +80,7 @@ def test_policy_parse_behaviour_is_preserved_for_owner_modules() -> None:
         (MissingDataPolicy, "not_valid"),
         (TechnicalReplicatePolicy, "not_valid"),
         (ThresholdMode, "not_valid"),
+        (ProfileSelfInclusionPolicy, "not_valid"),
     ],
 )
 def test_policy_parse_invalid_values_raise_input_error(

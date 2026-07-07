@@ -316,6 +316,9 @@ class KinaseWorkflowInterpreter:
                 request.scoring_config.include_substrate_contributions
             ),
             profile_missing_value_strategy=request.scoring_config.profile_missing_value_strategy,
+            profile_self_inclusion_policy=(
+                request.scoring_config.profile_self_inclusion_policy
+            ),
             prediction_top_k=int(request.prediction_config.top_k),
             prediction_deterministic_max_selected_kinases=int(
                 request.prediction_config.deterministic_max_selected_kinases

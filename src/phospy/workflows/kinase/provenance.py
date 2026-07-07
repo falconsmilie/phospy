@@ -427,6 +427,7 @@ def _build_scoring_config_payload(
         "include_diagnostic_scoring_tables": bool(
             config.include_diagnostic_scoring_tables
         ),
+        "profile_self_inclusion_policy": str(config.profile_self_inclusion_policy),
         "attrition_policy": kinase_attrition_policy_to_payload(config.attrition_policy),
     }
     if profile_correlation_enabled:
@@ -576,6 +577,9 @@ def _build_scientific_policy_records(
                     ),
                     min_substrates_floor=KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
                     requested_min_substrates=int(config.scoring_min_substrates),
+                    profile_self_inclusion_policy=(
+                        config.profile_self_inclusion_policy
+                    ),
                 ).record,
             ]
         )

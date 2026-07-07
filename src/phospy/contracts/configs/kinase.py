@@ -13,6 +13,8 @@ from phospy.contracts.configs.common import _require_int_at_least, _require_real
 from phospy.contracts.configs.localisation import LocalisationRequirement
 from phospy.errors.validation import WorkflowValidationError
 from phospy.policies import PolicyEnum
+from phospy.science.scoring.policy_models import ProfileSelfInclusionPolicy
+from phospy.validation.common.config_values import coerce_policy_enum
 
 KINASE_SCORING_MIN_SUBSTRATES_FLOOR = 2
 KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED = "phosr_rank_weighted"
@@ -64,6 +66,16 @@ KINASE_PROFILE_MISSING_VALUE_STRATEGIES = frozenset(
     {
         KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT,
         KINASE_PROFILE_MISSING_VALUE_STRATEGY_MEDIAN_SKIPNA,
+    }
+)
+KINASE_PROFILE_SELF_INCLUSION_POLICY_ALLOW = ProfileSelfInclusionPolicy.ALLOW
+KINASE_PROFILE_SELF_INCLUSION_POLICY_LEAVE_ONE_OUT = (
+    ProfileSelfInclusionPolicy.LEAVE_ONE_OUT
+)
+KINASE_PROFILE_SELF_INCLUSION_POLICIES = frozenset(
+    {
+        KINASE_PROFILE_SELF_INCLUSION_POLICY_ALLOW,
+        KINASE_PROFILE_SELF_INCLUSION_POLICY_LEAVE_ONE_OUT,
     }
 )
 KINASE_ACTIVITY_MIN_SUBSTRATES_FLOOR = 1
@@ -292,6 +304,12 @@ class KinaseScoringConfig:
 
     - `"strict"` propagates missing values (`median(..., skipna=False)`)
     - `"median_skipna"` ignores missing values (`median(..., skipna=True)`)
+
+    `profile_self_inclusion_policy` declares whether a known substrate site is
+    allowed to contribute to the kinase profile used to score that same site.
+    The default (`"allow"`) preserves historical scoring behavior. The
+    `"leave_one_out"` opt-in recomputes a site's profile score without that
+    site when it is part of the kinase's quantified substrate profile.
     """
 
     min_substrates: int = KINASE_SCORING_MIN_SUBSTRATES_FLOOR
@@ -300,6 +318,9 @@ class KinaseScoringConfig:
     include_substrate_contributions: bool = False
     profile_missing_value_strategy: KinaseProfileMissingValueStrategy = (
         KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
+    )
+    profile_self_inclusion_policy: ProfileSelfInclusionPolicy = (
+        ProfileSelfInclusionPolicy.ALLOW
     )
     attrition_policy: KinaseAttritionPolicy = field(
         default_factory=KinaseAttritionPolicy
@@ -344,6 +365,17 @@ class KinaseScoringConfig:
                 "scoring_config.profile_missing_value_strategy must be one of: "
                 f"{allowed}"
             )
+        profile_self_inclusion_policy = coerce_policy_enum(
+            ProfileSelfInclusionPolicy,
+            self.profile_self_inclusion_policy,
+            field_name="scoring_config.profile_self_inclusion_policy",
+            error_type=WorkflowValidationError,
+        )
+        object.__setattr__(
+            self,
+            "profile_self_inclusion_policy",
+            profile_self_inclusion_policy,
+        )
         if not isinstance(self.attrition_policy, KinaseAttritionPolicy):
             raise WorkflowValidationError(
                 "scoring_config.attrition_policy must be KinaseAttritionPolicy"
@@ -556,6 +588,9 @@ __all__ = [
     "KINASE_PROFILE_MISSING_VALUE_STRATEGIES",
     "KINASE_PROFILE_MISSING_VALUE_STRATEGY_MEDIAN_SKIPNA",
     "KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT",
+    "KINASE_PROFILE_SELF_INCLUSION_POLICIES",
+    "KINASE_PROFILE_SELF_INCLUSION_POLICY_ALLOW",
+    "KINASE_PROFILE_SELF_INCLUSION_POLICY_LEAVE_ONE_OUT",
     "KINASE_LIBRARY_MOTIF_ALIAS_DEPRECATION_MESSAGE",
     "KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICIES",
     "KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS",
@@ -580,6 +615,7 @@ __all__ = [
     "KinaseScoringMode",
     "KinaseSiteSequenceConflictPolicy",
     "LocalisationRequirement",
+    "ProfileSelfInclusionPolicy",
     "KinaseScoringConfig",
     "normalize_kinase_scoring_mode",
 ]

@@ -362,7 +362,9 @@ def test_kinase_profile_scoring_policy_exposes_self_inclusion_semantics() -> Non
     )
 
     assert policy.record.id == ScientificPolicyId.KINASE_PROFILE_SCORING
+    assert policy.record.parameters["profile_self_inclusion_policy"] == "allow"
     assert policy.record.parameters["self_inclusion_behavior"] == "self_inclusion"
+    assert policy.record.parameters["self_inclusion_allowed"] is True
     assert policy.record.parameters["leave_one_out_enabled"] is False
 
 

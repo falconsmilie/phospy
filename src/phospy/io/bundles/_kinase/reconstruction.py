@@ -182,6 +182,9 @@ def reconstruct_kinase_result(
                 "kinase_library_kinase_diagnostics"
             ),
         ),
+        profile_self_inclusion_policy=_profile_self_inclusion_policy_from_provenance(
+            provenance
+        ),
     )
 
     prediction_result = KinasePredictionResult(
@@ -347,6 +350,19 @@ def _parse_bundle_provenance(payload: Mapping[str, object]) -> RunProvenance:
         return provenance_from_payload(payload)
     except PhosPyInputError as exc:
         _raise_legacy_bundle_schema(exc)
+
+
+def _profile_self_inclusion_policy_from_provenance(
+    provenance: RunProvenance,
+) -> str:
+    workflow_parameters = provenance.workflow_parameters
+    if not isinstance(workflow_parameters, Mapping):
+        return "allow"
+    scoring_config = workflow_parameters.get("scoring_config")
+    if not isinstance(scoring_config, Mapping):
+        return "allow"
+    policy = scoring_config.get("profile_self_inclusion_policy")
+    return policy if isinstance(policy, str) else "allow"
 
 
 def _kinase_caveats_from_provenance(

@@ -42,6 +42,7 @@ API_ONLY_CONTRACT_TYPES = {
     "KinaseWorkflowRequest",
     "KinaseWorkflowResult",
     "Organism",
+    "ProfileSelfInclusionPolicy",
     "ReferenceBundle",
     "ReferencePreset",
     "PtmSetCollection",

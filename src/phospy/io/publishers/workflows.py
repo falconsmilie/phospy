@@ -343,6 +343,9 @@ def _kinase_manifest_payload(
         "scoring_mode": result.scoring_result.scoring_mode,
         "score_source": result.scoring_result.score_source,
         "score_scale": result.scoring_result.score_scale,
+        "profile_self_inclusion_policy": str(
+            result.scoring_result.profile_self_inclusion_policy
+        ),
         "activity_enabled": activity_result is not None,
         "activity_method": (
             None

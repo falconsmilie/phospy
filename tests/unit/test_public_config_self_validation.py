@@ -42,6 +42,7 @@ from phospy.api.configs import (
     KinasePredictionConfig,
     KinaseScoringConfig,
     LocalisationRequirement,
+    ProfileSelfInclusionPolicy,
     SignalomeClusteringConfig,
     SignalomeConfig,
     SignalomeOutputConfig,
@@ -380,6 +381,10 @@ def test_dataset_preprocessing_config_presets_return_expected_values() -> None:
             "scoring_config.profile_missing_value_strategy must be one of",
         ),
         (
+            {"profile_self_inclusion_policy": "invalid"},
+            "scoring_config.profile_self_inclusion_policy must be one of",
+        ),
+        (
             {"allow_mixed_total_protein_quantitative_meaning": "yes"},
             "scoring_config.allow_mixed_total_protein_quantitative_meaning must be a bool",
         ),
@@ -452,6 +457,7 @@ def test_kinase_config_uses_default_attrition_policy() -> None:
         minimum_scored_fraction=0.0,
         on_violation="warn",
     )
+    assert config.profile_self_inclusion_policy is ProfileSelfInclusionPolicy.ALLOW
 
 
 def test_kinase_scoring_config_accepts_attrition_policy() -> None:
@@ -506,12 +512,16 @@ def test_kinase_scoring_config_presets_return_expected_values() -> None:
     )
     assert default.include_substrate_contributions is False
     assert default.attrition_policy == KinaseAttritionPolicy()
+    assert default.profile_self_inclusion_policy is ProfileSelfInclusionPolicy.ALLOW
     assert (
         strict_missing.profile_missing_value_strategy
         == KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
     )
     assert strict_missing.include_substrate_contributions is False
     assert strict_missing.attrition_policy == KinaseAttritionPolicy()
+    assert (
+        strict_missing.profile_self_inclusion_policy is ProfileSelfInclusionPolicy.ALLOW
+    )
 
 
 @pytest.mark.parametrize(
