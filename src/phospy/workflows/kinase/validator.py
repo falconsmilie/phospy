@@ -10,7 +10,6 @@ import pandas as pd
 
 from phospy.contracts.configs import (
     KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICIES,
-    KINASE_SCORING_MODES_REQUIRING_KINASE_LIBRARY,
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET,
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE,
@@ -33,6 +32,9 @@ from phospy.validation.workflows.configs import (
 from phospy.validation.workflows.identity import (
     KINASE_IDENTITY_CONTRACT,
     enforce_workflow_site_identity_contract,
+)
+from phospy.workflows.kinase.scoring_mode_contracts import (
+    kinase_scoring_mode_input_contract,
 )
 from phospy.workflows.kinase.sequence_contracts import (
     dataset_sequence_source_label,
@@ -87,7 +89,8 @@ class KinaseWorkflowValidator:
             prediction_config=request.prediction_config,
             activity_config=request.activity_config,
         )
-        if scoring_config.scoring_mode in KINASE_SCORING_MODES_REQUIRING_KINASE_LIBRARY:
+        mode_contract = kinase_scoring_mode_input_contract(scoring_config.scoring_mode)
+        if mode_contract.requires_kinase_library_resource:
             if request.kinase_library_resource is None:
                 raise WorkflowValidationError(
                     "kinase workflow request kinase_library_resource is required "

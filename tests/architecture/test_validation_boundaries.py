@@ -4,8 +4,18 @@ import ast
 import inspect
 from pathlib import Path
 
+import phospy
 import phospy.api as public_api
 from phospy.workflows.differential.validator import DifferentialAnalysisValidator
+from phospy.workflows.kinase.resolved_validator import (
+    ResolvedKinaseEligibilityValidator,
+)
+from phospy.workflows.kinase.scoring_mode_contracts import (
+    KinaseScoringModeInputContract,
+)
+from phospy.workflows.kinase.sequence_contracts import (
+    kinase_sequence_context_contract,
+)
 from phospy.workflows.kinase.validator import KinaseWorkflowValidator
 from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
 
@@ -225,6 +235,27 @@ def test_workflow_validators_compose_shared_and_domain_validation() -> None:
     assert "enforce_localisation_requirement(" in kinase_source
     assert "enforce_localisation_requirement(" in signalome_source
     assert "enforce_required_non_empty_string_column(" in signalome_grouping_source
+
+
+def test_kinase_scoring_mode_input_requirements_are_contract_owned() -> None:
+    validator_source = inspect.getsource(KinaseWorkflowValidator.run)
+    resolved_validator_source = inspect.getsource(
+        ResolvedKinaseEligibilityValidator.run
+    )
+    sequence_contract_source = inspect.getsource(kinase_sequence_context_contract)
+
+    assert "kinase_scoring_mode_input_contract(" in validator_source
+    assert "kinase_scoring_mode_input_contract(" in resolved_validator_source
+    assert "kinase_scoring_mode_input_contract(" in sequence_contract_source
+    assert "KINASE_SCORING_MODES_REQUIRING_KINASE_LIBRARY" not in validator_source
+
+
+def test_kinase_scoring_mode_input_contract_remains_internal() -> None:
+    assert not hasattr(public_api, "KinaseScoringModeInputContract")
+    assert not hasattr(phospy, "KinaseScoringModeInputContract")
+    assert KinaseScoringModeInputContract.__module__.startswith(
+        "phospy.workflows.kinase."
+    )
 
 
 def test_workflow_request_dtos_do_not_own_domain_validation() -> None:

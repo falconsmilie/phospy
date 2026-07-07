@@ -6,7 +6,6 @@ from typing import NoReturn
 
 import pandas as pd
 
-from phospy.contracts.configs import KINASE_SCORING_MODES_REQUIRING_KINASE_LIBRARY
 from phospy.contracts.requests import KinaseWorkflowRequest
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.datasets.internal_view import DatasetInternalView
@@ -36,6 +35,9 @@ from phospy.workflows.kinase.reference_projection import KinaseReferenceProjecto
 from phospy.workflows.kinase.resolved_validator import (
     ResolvedKinaseEligibilityValidator,
     ResolvedKinaseInputs,
+)
+from phospy.workflows.kinase.scoring_mode_contracts import (
+    kinase_scoring_mode_input_contract,
 )
 from phospy.workflows.kinase.site_sequence_policy import (
     resolve_site_sequence_conflict_policy,
@@ -377,7 +379,8 @@ class KinaseWorkflowInterpreter:
         request: KinaseWorkflowRequest,
     ) -> KinaseLibraryResource | None:
         scoring_mode = request.scoring_config.scoring_mode
-        if scoring_mode not in KINASE_SCORING_MODES_REQUIRING_KINASE_LIBRARY:
+        mode_contract = kinase_scoring_mode_input_contract(scoring_mode)
+        if not mode_contract.requires_kinase_library_resource:
             return None
         resource = request.kinase_library_resource
         if not isinstance(resource, KinaseLibraryResource):

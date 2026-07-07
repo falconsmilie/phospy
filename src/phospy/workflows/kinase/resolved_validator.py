@@ -7,10 +7,7 @@ from typing import NoReturn, TypedDict, cast
 
 import pandas as pd
 
-from phospy.contracts.configs import (
-    KINASE_ATTRITION_POLICY_ON_VIOLATION_ERROR,
-    KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY,
-)
+from phospy.contracts.configs import KINASE_ATTRITION_POLICY_ON_VIOLATION_ERROR
 from phospy.errors.workflows import PhosPyWorkflowError, WorkflowBoundaryError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.prediction.motif_scoring import (
@@ -27,6 +24,9 @@ from phospy.workflows.kinase.attrition_metrics import (
     evaluate_kinase_attrition_policy,
 )
 from phospy.workflows.kinase.contracts import ResolvedKinaseExecutionConfig
+from phospy.workflows.kinase.scoring_mode_contracts import (
+    kinase_scoring_mode_input_contract,
+)
 
 
 class _OverlapSummary(TypedDict):
@@ -71,9 +71,10 @@ class ResolvedKinaseEligibilityValidator:
             dataset=resolved_inputs.dataset_phospho,
             kinase_substrate_map=resolved_inputs.kinase_substrate_map,
         )
-        requires_profile_context = _requires_reference_substrate_profiles(
+        mode_contract = kinase_scoring_mode_input_contract(
             resolved_inputs.execution_config.scoring_mode
         )
+        requires_profile_context = mode_contract.requires_substrate_reference_overlap
         if requires_profile_context:
             self._validate_reference_coverage(
                 overlap_counts=overlap_counts,
@@ -366,10 +367,6 @@ def _central_residue_class(
     if residue == "Y":
         return KINASE_LIBRARY_RESIDUE_CLASS_TYR
     return None
-
-
-def _requires_reference_substrate_profiles(scoring_mode: str) -> bool:
-    return str(scoring_mode) != KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY
 
 
 __all__ = [

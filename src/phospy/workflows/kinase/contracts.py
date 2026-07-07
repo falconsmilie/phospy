@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Protocol
 import pandas as pd
 
 from phospy.contracts.configs import (
-    KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY,
     KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET,
     KinaseActivityMethod,
@@ -58,6 +57,9 @@ from phospy.workflows.kinase.attrition_metrics import (
     KinaseAttritionMetrics,
     KinaseAttritionPolicyViolation,
     build_kinase_attrition_metrics,
+)
+from phospy.workflows.kinase.scoring_mode_contracts import (
+    kinase_scoring_mode_input_contract,
 )
 from phospy.workflows.kinase.sequence_contracts import (
     dataset_sequence_source_label,
@@ -237,7 +239,8 @@ class ResolvedKinaseWorkflowRequest:
         *,
         scoring_mode: str,
     ) -> pd.DataFrame:
-        allow_empty = str(scoring_mode) == KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY
+        mode_contract = kinase_scoring_mode_input_contract(scoring_mode)
+        allow_empty = not mode_contract.requires_substrate_reference_overlap
         try:
             frame = require_dataframe(
                 value,

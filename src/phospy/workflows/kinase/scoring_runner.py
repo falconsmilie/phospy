@@ -48,6 +48,9 @@ from phospy.workflows.kinase.science import (
     build_kinase_profiles,
     score_profile_correlations,
 )
+from phospy.workflows.kinase.scoring_mode_contracts import (
+    kinase_scoring_mode_input_contract,
+)
 
 
 class KinaseScoringRunner:
@@ -112,7 +115,8 @@ class KinaseScoringRunner:
         scoring_phospho = request.activity_phospho_matrix
         sequence_series = request.site_sequences.loc[:, "site_sequence"]
         site_identity_series = request.site_sequences.loc[:, "display_id"]
-        if config.scoring_mode == KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY:
+        mode_contract = kinase_scoring_mode_input_contract(config.scoring_mode)
+        if not mode_contract.requires_profile_construction:
             return self._run_kinase_library_motif_only_mode(
                 request=request,
                 config=config,
@@ -274,6 +278,13 @@ class KinaseScoringRunner:
         sequence_series: pd.Series,
         site_identity_series: pd.Series,
     ) -> KinaseScoringRunResult:
+        if config.scoring_mode != KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY:
+            raise WorkflowStageError(
+                "kinase workflow internal invariant failed at seam="
+                "kinase.executor.profile_free_scoring_mode; scoring mode "
+                f"{config.scoring_mode!r} declares no profile construction but has "
+                "no profile-free scoring implementation"
+            )
         library_resource = request.kinase_library_resource
         if library_resource is None:
             raise WorkflowStageError(

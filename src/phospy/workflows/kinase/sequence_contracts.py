@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from phospy.contracts.configs import KINASE_SCORING_MODES_REQUIRING_KINASE_LIBRARY
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.references.kinase_library import KinaseLibraryResource
 from phospy.validation.identity_contracts import SequenceContextContract
+from phospy.workflows.kinase.scoring_mode_contracts import (
+    kinase_scoring_mode_input_contract,
+)
 
 
 def kinase_sequence_context_contract(
@@ -15,7 +17,8 @@ def kinase_sequence_context_contract(
 ) -> SequenceContextContract | None:
     """Return the workflow sequence contract selected by kinase scoring config."""
 
-    if scoring_mode not in KINASE_SCORING_MODES_REQUIRING_KINASE_LIBRARY:
+    mode_contract = kinase_scoring_mode_input_contract(scoring_mode)
+    if not mode_contract.requires_kinase_library_resource:
         return None
     if not isinstance(kinase_library_resource, KinaseLibraryResource):
         return None
