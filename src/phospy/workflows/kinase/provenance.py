@@ -14,6 +14,7 @@ from phospy.contracts.configs import (
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
     KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF,
+    KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY,
     KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
     KINASE_SCORING_MODES_REQUIRING_KINASE_LIBRARY,
 )
@@ -192,7 +193,10 @@ def _build_output_table_fingerprints(
 ) -> tuple[TableFingerprint, ...]:
     return _collect_fingerprints(
         (
-            ("outputs.scoring.profile_scores", scoring_result.profile_scores),
+            (
+                "outputs.scoring.profile_scores",
+                _profile_scores_for_output_fingerprint(scoring_result),
+            ),
             ("outputs.scoring.motif_scores", scoring_result.motif_scores),
             (
                 "outputs.scoring.rank_weighted_fusion_scores",
@@ -269,6 +273,19 @@ def _build_output_table_fingerprints(
             ),
         )
     )
+
+
+def _profile_scores_for_output_fingerprint(
+    scoring_result: KinaseScoringResult,
+) -> pd.DataFrame | None:
+    metadata = (
+        {}
+        if scoring_result.score_scale_metadata is None
+        else dict(scoring_result.score_scale_metadata)
+    )
+    if metadata.get("uses_profile_correlation") is False:
+        return None
+    return scoring_result.profile_scores
 
 
 def _collect_fingerprints(
@@ -403,14 +420,32 @@ def _build_scoring_config_payload(
     scoring_result: KinaseScoringResult,
     config: ResolvedKinaseExecutionConfig,
 ) -> dict[str, object]:
+    profile_correlation_enabled = (
+        str(config.scoring_mode) != KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY
+    )
     payload: dict[str, object] = {
-        "min_substrates": int(config.scoring_min_substrates),
         "include_diagnostic_scoring_tables": bool(
             config.include_diagnostic_scoring_tables
         ),
-        "profile_missing_value_strategy": str(config.profile_missing_value_strategy),
         "attrition_policy": kinase_attrition_policy_to_payload(config.attrition_policy),
     }
+    if profile_correlation_enabled:
+        payload.update(
+            {
+                "min_substrates": int(config.scoring_min_substrates),
+                "profile_missing_value_strategy": str(
+                    config.profile_missing_value_strategy
+                ),
+            }
+        )
+    else:
+        payload.update(
+            {
+                "uses_profile_correlation": False,
+                "uses_reference_substrate_profiles": False,
+                "uses_sequence_motif_resource": True,
+            }
+        )
     if config.include_substrate_contributions:
         payload["include_substrate_contributions"] = True
     if config.scoring_mode == KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED:
@@ -486,9 +521,17 @@ def _build_scoring_diagnostics_payload(
             .items()
         }
     if scoring_result.score_scale_metadata is not None:
-        scoring_diagnostics["score_scale_metadata"] = dict(
-            scoring_result.score_scale_metadata
-        )
+        score_scale_metadata = dict(scoring_result.score_scale_metadata)
+        scoring_diagnostics["score_scale_metadata"] = score_scale_metadata
+        for evidence_key in (
+            "uses_profile_correlation",
+            "uses_reference_substrate_profiles",
+            "uses_sequence_motif_resource",
+        ):
+            if evidence_key in score_scale_metadata:
+                scoring_diagnostics[evidence_key] = bool(
+                    score_scale_metadata[evidence_key]
+                )
     if scoring_result.score_source_summary is not None:
         score_source_summary = scoring_result.score_source_summary
         by_kinase: dict[str, dict[str, int]] = {}
@@ -522,14 +565,20 @@ def _build_scientific_policy_records(
     scoring_result: KinaseScoringResult,
     duplicate_site_policy: ScientificPolicyRecord | None,
 ) -> tuple[ScientificPolicyRecord, ...]:
-    scientific_policies = [
-        PROFILE_CORRELATION_SHIFTED_UNIT_POLICY,
-        KinaseProfileScoringPolicy(
-            profile_missing_value_strategy=str(config.profile_missing_value_strategy),
-            min_substrates_floor=KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
-            requested_min_substrates=int(config.scoring_min_substrates),
-        ).record,
-    ]
+    scientific_policies: list[ScientificPolicyRecord] = []
+    if str(config.scoring_mode) != KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY:
+        scientific_policies.extend(
+            [
+                PROFILE_CORRELATION_SHIFTED_UNIT_POLICY,
+                KinaseProfileScoringPolicy(
+                    profile_missing_value_strategy=str(
+                        config.profile_missing_value_strategy
+                    ),
+                    min_substrates_floor=KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
+                    requested_min_substrates=int(config.scoring_min_substrates),
+                ).record,
+            ]
+        )
     if config.scoring_mode in {
         KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
         KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF,

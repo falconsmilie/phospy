@@ -7,7 +7,10 @@ from typing import NoReturn, TypedDict, cast
 
 import pandas as pd
 
-from phospy.contracts.configs import KINASE_ATTRITION_POLICY_ON_VIOLATION_ERROR
+from phospy.contracts.configs import (
+    KINASE_ATTRITION_POLICY_ON_VIOLATION_ERROR,
+    KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY,
+)
 from phospy.errors.workflows import PhosPyWorkflowError, WorkflowBoundaryError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.prediction.motif_scoring import (
@@ -68,14 +71,18 @@ class ResolvedKinaseEligibilityValidator:
             dataset=resolved_inputs.dataset_phospho,
             kinase_substrate_map=resolved_inputs.kinase_substrate_map,
         )
-        self._validate_reference_coverage(
-            overlap_counts=overlap_counts,
-            resolved_inputs=resolved_inputs,
+        requires_profile_context = _requires_reference_substrate_profiles(
+            resolved_inputs.execution_config.scoring_mode
         )
-        self._validate_eligible_kinases(
-            overlap_counts=overlap_counts,
-            resolved_inputs=resolved_inputs,
-        )
+        if requires_profile_context:
+            self._validate_reference_coverage(
+                overlap_counts=overlap_counts,
+                resolved_inputs=resolved_inputs,
+            )
+            self._validate_eligible_kinases(
+                overlap_counts=overlap_counts,
+                resolved_inputs=resolved_inputs,
+            )
         attrition_metrics = build_kinase_attrition_metrics_from_overlap(
             total_dataset_sites=int(overlap_counts["dataset_sites"]),
             reference_overlap_site_ids=overlap_counts["overlap_site_ids"],
@@ -91,7 +98,8 @@ class ResolvedKinaseEligibilityValidator:
             dataset=resolved_inputs.dataset_phospho,
             site_sequences=resolved_inputs.site_sequences,
         )
-        self._validate_scored_site_support(attrition_metrics=attrition_metrics)
+        if requires_profile_context:
+            self._validate_scored_site_support(attrition_metrics=attrition_metrics)
         self._validate_kinase_library_resource_usability(
             resource=resolved_inputs.kinase_library_resource,
             site_sequences=resolved_inputs.site_sequences.reindex(
@@ -358,6 +366,10 @@ def _central_residue_class(
     if residue == "Y":
         return KINASE_LIBRARY_RESIDUE_CLASS_TYR
     return None
+
+
+def _requires_reference_substrate_profiles(scoring_mode: str) -> bool:
+    return str(scoring_mode) != KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY
 
 
 __all__ = [

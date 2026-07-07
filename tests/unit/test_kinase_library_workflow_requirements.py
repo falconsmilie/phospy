@@ -16,6 +16,7 @@ from phospy.api.configs.kinase import (
     KINASE_LIBRARY_MOTIF_ALIAS_DEPRECATION_MESSAGE,
     KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
     KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
+    KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY,
 )
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
 from phospy.provenance.hashing import fingerprint_table
@@ -136,6 +137,95 @@ def test_kinase_library_workflow_mode_still_requires_eligible_reference_map() ->
     assert error.details["max_quantified_sites_per_kinase"] == 1
 
 
+def test_kinase_library_motif_only_succeeds_when_contextual_overlap_is_insufficient() -> (
+    None
+):
+    references = _references(
+        mapped_display_ids=("OTHER;S1;",),
+        sequence_display_ids=(
+            "GENE1;S1;",
+            "GENE2;T2;",
+            "GENE3;Y3;",
+            "OTHER;S1;",
+        ),
+    )
+    resource = _kinase_library_resource()
+
+    with pytest.raises(WorkflowBoundaryError) as contextual_error:
+        KinaseWorkflow().run(
+            _request(
+                references=references,
+                scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
+                kinase_library_resource=resource,
+            )
+        )
+
+    assert contextual_error.value.seam == "kinase.interpreter.reference_coverage"
+
+    result = KinaseWorkflow().run(
+        _request(
+            references=references,
+            scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY,
+            kinase_library_resource=resource,
+        )
+    )
+
+    assert result.scoring_result.scoring_mode == (
+        KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY
+    )
+    assert result.scoring_result.score_source == "kinase_library_motif_scores"
+    assert result.scoring_result.rank_weighted_fusion_scores is None
+    assert result.scoring_result.combined_profile_motif_scores is None
+    assert result.scoring_result.score_fusion_weights is None
+    assert result.scoring_result.score_source_summary is None
+    assert result.scoring_result.profile_scores.shape == (3, 0)
+    scores = result.scoring_result.kinase_library_motif_scores
+    assert scores is not None
+    assert scores.columns.astype(str).tolist() == ["KLIB_ST"]
+    assert result.substrate_contributions is None
+
+    motif_only_caveat = next(
+        caveat
+        for caveat in result.caveats
+        if caveat.code == "kinase_library_motif_only_sequence_evidence"
+    )
+    assert "motif-only scoring uses sequence motif evidence only" in (
+        motif_only_caveat.message
+    )
+    assert motif_only_caveat.details["uses_profile_correlation"] is False
+    assert motif_only_caveat.details["uses_reference_substrate_profiles"] is False
+    assert motif_only_caveat.details["uses_sequence_motif_resource"] is True
+
+    assert result.provenance is not None
+    scoring_config = result.provenance.workflow_parameters["scoring_config"]
+    assert scoring_config["scoring_mode"] == (
+        KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY
+    )
+    assert scoring_config["uses_profile_correlation"] is False
+    assert scoring_config["uses_reference_substrate_profiles"] is False
+    assert scoring_config["uses_sequence_motif_resource"] is True
+    assert "profile_missing_value_strategy" not in scoring_config
+    assert "min_substrates" not in scoring_config
+
+    scoring_diagnostics = result.provenance.workflow_parameters["scoring_diagnostics"]
+    assert scoring_diagnostics["uses_profile_correlation"] is False
+    assert scoring_diagnostics["uses_reference_substrate_profiles"] is False
+    assert scoring_diagnostics["uses_sequence_motif_resource"] is True
+    metadata = scoring_diagnostics["score_scale_metadata"]
+    assert metadata["uses_profile_correlation"] is False
+    assert metadata["uses_reference_substrate_profiles"] is False
+    assert metadata["uses_sequence_motif_resource"] is True
+
+    output_table_names = {
+        fingerprint.name for fingerprint in result.provenance.output_tables
+    }
+    assert "outputs.scoring.profile_scores" not in output_table_names
+    policy_ids = {policy.id.value for policy in result.provenance.scientific_policies}
+    assert "kinase_library_motif_scoring_v1" in policy_ids
+    assert "profile_correlation_shifted_unit_v1" not in policy_ids
+    assert "kinase_profile_scoring_v1" not in policy_ids
+
+
 def test_kinase_library_workflow_mode_fails_when_no_site_sequences_resolve() -> None:
     class _NoSequenceSupportBuilder:
         def run(self, **kwargs: object) -> KinaseSiteSequenceSupportResult:
@@ -223,6 +313,37 @@ def test_kinase_library_workflow_mode_does_not_call_phosr_inspired_fallback() ->
     assert scoring.scoring_result.kinase_library_motif_scores is not None
     assert scoring.scoring_result.motif_scores is None
     assert scoring.scoring_result.rank_weighted_fusion_scores is None
+
+
+def test_kinase_library_motif_only_does_not_build_profiles() -> None:
+    interpreted = KinaseWorkflowInterpreter().run(
+        _request(
+            references=_references(
+                mapped_display_ids=("OTHER;S1;",),
+                sequence_display_ids=(
+                    "GENE1;S1;",
+                    "GENE2;T2;",
+                    "GENE3;Y3;",
+                    "OTHER;S1;",
+                ),
+            ),
+            scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY,
+            kinase_library_resource=_kinase_library_resource(),
+        )
+    )
+
+    def _fail_if_profiles_are_built(**_: object) -> object:
+        raise AssertionError("motif-only mode must not build kinase profiles")
+
+    scoring = KinaseScoringRunner(build_profiles=_fail_if_profiles_are_built).run(
+        request=interpreted,
+        config=interpreted.execution_config,
+    )
+
+    assert scoring.downstream_score_source == "kinase_library_motif_scores"
+    assert scoring.quantified_substrates == {}
+    assert scoring.scoring_result.profile_scores.shape[1] == 0
+    assert scoring.scoring_result.kinase_library_motif_scores is not None
 
 
 def test_raw_science_scores_and_workflow_support_scores_remain_distinct() -> None:

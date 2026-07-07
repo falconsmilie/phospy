@@ -17,6 +17,7 @@ from phospy.policies import PolicyEnum
 KINASE_SCORING_MIN_SUBSTRATES_FLOOR = 2
 KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED = "phosr_rank_weighted"
 KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF = "kinase_library_motif"
+KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY = "kinase_library_motif_only"
 KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF = "kinase_library_contextual_motif"
 KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF = "combined_profile_motif"
 KINASE_LIBRARY_MOTIF_ALIAS_DEPRECATION_MESSAGE = (
@@ -28,6 +29,7 @@ KinaseScoringMode = Literal[
     "phosr_rank_weighted",
     "kinase_library_contextual_motif",
     "kinase_library_motif",
+    "kinase_library_motif_only",
     "combined_profile_motif",
 ]
 KINASE_SCORING_MODE_ALIASES = {
@@ -40,6 +42,7 @@ KINASE_SCORING_MODES = frozenset(
         KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
         KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
         KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
+        KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY,
         KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF,
     }
 )
@@ -47,6 +50,7 @@ KINASE_SCORING_MODES_REQUIRING_KINASE_LIBRARY = frozenset(
     {
         KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
         KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF,
+        KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY,
         KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF,
     }
 )
@@ -251,6 +255,12 @@ class KinaseScoringConfig:
     evidence with rank-derived weights under the configured substrate/support
     rules. This is a PhosPy-specific scoring mode, not an exact PhosR
     implementation and not a numerical compatibility mode.
+
+    `"kinase_library_motif_only"` is a motif-only scoring mode for
+    caller-supplied Kinase Library-style resources. It uses workflow-validated
+    site identity and centered sequence context but does not construct
+    substrate-derived kinase profiles or require quantified known-substrate
+    profile overlap.
 
     `"kinase_library_contextual_motif"` and `"combined_profile_motif"` are
     workflow-level opt-ins for caller-supplied Kinase Library-style resources.
@@ -553,6 +563,7 @@ __all__ = [
     "KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF",
     "KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF",
     "KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF",
+    "KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY",
     "KINASE_SCORING_MODE_ALIASES",
     "KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED",
     "KINASE_SCORING_MODES",

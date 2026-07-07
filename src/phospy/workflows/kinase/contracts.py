@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Protocol
 import pandas as pd
 
 from phospy.contracts.configs import (
+    KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY,
     KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET,
     KinaseActivityMethod,
@@ -106,7 +107,8 @@ class ResolvedKinaseWorkflowRequest:
 
     def __post_init__(self) -> None:
         kinase_substrate_map = self._validate_kinase_substrate_map(
-            self.kinase_substrate_map
+            self.kinase_substrate_map,
+            scoring_mode=self.execution_config.scoring_mode,
         )
         site_sequences = self._validate_site_sequences(self.site_sequences)
         activity_phospho_matrix = self._validate_activity_phospho_table(
@@ -230,12 +232,17 @@ class ResolvedKinaseWorkflowRequest:
         object.__setattr__(self, "_activity_phospho_table", activity_phospho_matrix)
 
     @staticmethod
-    def _validate_kinase_substrate_map(value: object) -> pd.DataFrame:
+    def _validate_kinase_substrate_map(
+        value: object,
+        *,
+        scoring_mode: str,
+    ) -> pd.DataFrame:
+        allow_empty = str(scoring_mode) == KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY
         try:
             frame = require_dataframe(
                 value,
                 field_name="kinase_request.kinase_substrate_map",
-                allow_empty=False,
+                allow_empty=allow_empty,
                 error_type=WorkflowBoundaryError,
             )
             require_columns(

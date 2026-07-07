@@ -9,6 +9,7 @@ import pandas as pd
 from phospy.contracts.configs import (
     KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF,
     KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
+    KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY,
 )
 from phospy.errors.workflows import WorkflowStageError
 from phospy.science.prediction.models import KinaseScoringResult
@@ -56,6 +57,10 @@ class KinaseScoringRunner:
     profile context is built from the resolved kinase-substrate map before the
     mode-specific branch selects Kinase Library motif scores as the downstream
     support matrix.
+
+    Kinase Library motif-only mode is intentionally different: it branches
+    before substrate-derived profiles are built and uses sequence motif evidence
+    as the authoritative score matrix.
     """
 
     def __init__(
@@ -105,6 +110,15 @@ class KinaseScoringRunner:
         include_diagnostic_tables = config.include_diagnostic_scoring_tables
         scoring_min_substrates = int(config.scoring_min_substrates)
         scoring_phospho = request.activity_phospho_matrix
+        sequence_series = request.site_sequences.loc[:, "site_sequence"]
+        site_identity_series = request.site_sequences.loc[:, "display_id"]
+        if config.scoring_mode == KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY:
+            return self._run_kinase_library_motif_only_mode(
+                request=request,
+                config=config,
+                sequence_series=sequence_series,
+                site_identity_series=site_identity_series,
+            )
         profile_build = self._build_profiles(
             phospho=scoring_phospho,
             kinase_substrate_map=request.kinase_substrate_map,
@@ -122,8 +136,6 @@ class KinaseScoringRunner:
             phospho=scoring_phospho,
             profile_matrix=profile_build.profile_matrix,
         )
-        sequence_series = request.site_sequences.loc[:, "site_sequence"]
-        site_identity_series = request.site_sequences.loc[:, "display_id"]
         # Kinase Library modes intentionally branch here. They must not reuse or
         # fall back to PhosPy's PhosR-inspired motif-frequency scorer below.
         if config.scoring_mode == KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF:
@@ -252,6 +264,56 @@ class KinaseScoringRunner:
             quantified_substrates=profile_build.quantified_substrates,
             downstream_score_selection_policy=downstream_score_selection_policy,
             substrate_contributions=substrate_contributions,
+        )
+
+    def _run_kinase_library_motif_only_mode(
+        self,
+        *,
+        request: ResolvedKinaseWorkflowRequest,
+        config: ResolvedKinaseExecutionConfig,
+        sequence_series: pd.Series,
+        site_identity_series: pd.Series,
+    ) -> KinaseScoringRunResult:
+        library_resource = request.kinase_library_resource
+        if library_resource is None:
+            raise WorkflowStageError(
+                "kinase workflow internal invariant failed at seam="
+                "kinase.executor.kinase_library_motif_only_resource; interpreter "
+                "should resolve a KinaseLibraryResource for motif-only scoring"
+            )
+        library_result = self._kinase_library_scorer.run(
+            resource=library_resource,
+            site_sequences=sequence_series.loc[request.scoring_site_index],
+            site_identities=site_identity_series.loc[request.scoring_site_index],
+            site_index=tuple(str(site_id) for site_id in request.scoring_site_index),
+        )
+        profile_scores = pd.DataFrame(
+            index=library_result.scores.index.copy(),
+            dtype=float,
+        )
+        scoring_result = KinaseScoringResult._from_owned(
+            profile_scores=profile_scores,
+            kinase_library_motif_scores=library_result.scores,
+            kinase_library_site_diagnostics=library_result.site_diagnostics,
+            kinase_library_kinase_diagnostics=library_result.kinase_diagnostics,
+            scoring_mode=config.scoring_mode,
+            score_source=DownstreamScoreSource.KINASE_LIBRARY_MOTIF_SCORES,
+            score_scale=KINASE_LIBRARY_WORKFLOW_SCORE_SCALE,
+            score_scale_metadata={
+                **library_result.score_scale_metadata,
+                "uses_profile_correlation": False,
+                "uses_reference_substrate_profiles": False,
+                "uses_sequence_motif_resource": True,
+                "profile_scores_semantics": "not_computed_for_motif_only_mode",
+            },
+        )
+        return KinaseScoringRunResult(
+            scoring_result=scoring_result,
+            downstream_score_matrix=library_result.scores,
+            downstream_score_source=DownstreamScoreSource.KINASE_LIBRARY_MOTIF_SCORES,
+            quantified_substrates={},
+            downstream_score_selection_policy=None,
+            substrate_contributions=None,
         )
 
     def _run_kinase_library_contextual_motif_mode(

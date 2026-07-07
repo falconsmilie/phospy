@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.contracts.configs import KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED
+from phospy.contracts.configs import (
+    KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY,
+    KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
+)
 from phospy.contracts.result_caveats import ResultCaveat
 from phospy.science.prediction.models import KinaseScoringResult
 from phospy.science.prediction.scoring import (
@@ -26,6 +29,7 @@ KINASE_NON_DEFAULT_REFERENCE_SOURCE_CAVEAT_CODE = "kinase_non_default_reference_
 KINASE_REFERENCE_AUTO_RESOLUTION_CAVEAT_CODE = "kinase_reference_auto_resolution"
 KINASE_REFERENCE_SCORE_FALLBACK_CAVEAT_CODE = "kinase_reference_score_fallback"
 KINASE_SCORING_LIMITATION_CAVEAT_CODE = "kinase_non_phosr_equivalent_scoring"
+KINASE_LIBRARY_MOTIF_ONLY_CAVEAT_CODE = "kinase_library_motif_only_sequence_evidence"
 
 
 def build_kinase_result_caveats(
@@ -49,6 +53,9 @@ def build_kinase_result_caveats(
     score_fallback = _reference_score_fallback_caveat(scoring_result)
     if score_fallback is not None:
         caveats.append(score_fallback)
+    motif_only = _kinase_library_motif_only_caveat(request, scoring_result)
+    if motif_only is not None:
+        caveats.append(motif_only)
     caveats.append(_scoring_limitation_caveat(request, scoring_result))
     return deduplicate_caveats(caveats)
 
@@ -158,18 +165,49 @@ def _reference_score_fallback_caveat(
     )
 
 
+def _kinase_library_motif_only_caveat(
+    request: ResolvedKinaseWorkflowRequest,
+    scoring_result: KinaseScoringResult,
+) -> ResultCaveat | None:
+    scoring_mode = str(request.execution_config.scoring_mode)
+    if scoring_mode != KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY:
+        return None
+    authoritative = scoring_result.authoritative_scores
+    return ResultCaveat(
+        code=KINASE_LIBRARY_MOTIF_ONLY_CAVEAT_CODE,
+        severity="warning",
+        message=(
+            "Kinase Library motif-only scoring uses sequence motif evidence only. "
+            "It does not use quantified known-substrate profile correlation and "
+            "should not be interpreted as kinase activity or causal kinase "
+            "assignment."
+        ),
+        details={
+            "scoring_mode": scoring_mode,
+            "score_source": scoring_result.score_source,
+            "score_scale": scoring_result.score_scale,
+            "site_count": int(authoritative.shape[0]),
+            "kinase_count": int(authoritative.shape[1]),
+            "uses_profile_correlation": False,
+            "uses_reference_substrate_profiles": False,
+            "uses_sequence_motif_resource": True,
+        },
+    )
+
+
 def _scoring_limitation_caveat(
     request: ResolvedKinaseWorkflowRequest,
     scoring_result: KinaseScoringResult,
 ) -> ResultCaveat:
     scoring_mode = str(request.execution_config.scoring_mode)
+    authoritative = scoring_result.authoritative_scores
     details = {
         "scoring_mode": scoring_mode,
         "score_source": scoring_result.score_source,
         "score_scale": scoring_result.score_scale,
         "default_scoring_mode": KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
-        "site_count": int(scoring_result.profile_scores.shape[0]),
-        "kinase_count": int(scoring_result.profile_scores.shape[1]),
+        "site_count": int(authoritative.shape[0]),
+        "kinase_count": int(authoritative.shape[1]),
         "kinase_library_resource_provided": (
             request.kinase_library_resource is not None
         ),
@@ -244,6 +282,7 @@ __all__ = [
     "KINASE_PERMISSIVE_LOCALISATION_POLICY_CAVEAT_CODE",
     "KINASE_REFERENCE_AUTO_RESOLUTION_CAVEAT_CODE",
     "KINASE_REFERENCE_SCORE_FALLBACK_CAVEAT_CODE",
+    "KINASE_LIBRARY_MOTIF_ONLY_CAVEAT_CODE",
     "KINASE_SCORING_LIMITATION_CAVEAT_CODE",
     "build_kinase_result_caveats",
 ]
