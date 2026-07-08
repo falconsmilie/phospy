@@ -40,6 +40,9 @@ from phospy.science.signalomes.clustering.tree_building import (
     summarize_clustering_missing_value_diagnostics,
 )
 from phospy.science.signalomes.models import SignalomeNetworkCorrelationDiagnostics
+from phospy.workflows.intensity_scale_evidence import (
+    input_intensity_scale_evidence_payload,
+)
 from phospy.workflows.signalome.component_models import SignalomeScaleGuardDecision
 from phospy.workflows.signalome.contracts import (
     ResolvedSignalomeExecutionConfig,
@@ -202,35 +205,43 @@ def _build_workflow_parameters(
     clustering_missing_value_diagnostics: SignalomeClusteringMissingValueDiagnostics,
     upstream_provenance: RunProvenance | None,
 ) -> dict[str, object]:
-    return {
-        "site_token_validation": _build_site_token_validation_payload(request),
-        "signalome_config": _build_signalome_config_payload(
-            config=config,
-            clustering_missing_value_diagnostics=(clustering_missing_value_diagnostics),
-        ),
-        "scale_guard": _build_scale_guard_payload(scale_guard_decision),
-        "module_selection_diagnostics": asdict(
-            clustering_result.module_selection_diagnostics
-        ),
-        "score_preconditioning_diagnostics": asdict(
-            request.score_preconditioning_diagnostics
-        ),
-        "alignment_diagnostics": asdict(request.alignment_diagnostics),
-        "network_correlation_diagnostics": asdict(network_correlation_diagnostics),
-        "signalome_score_semantics": _build_signalome_score_semantics(
-            request=request,
-            config=config,
-            clustering_result=clustering_result,
-            network_correlation_diagnostics=network_correlation_diagnostics,
-            scale_guard_decision=scale_guard_decision,
-            clustering_missing_value_diagnostics=(clustering_missing_value_diagnostics),
-        ),
-        "upstream_kinase_provenance": (
-            None
-            if upstream_provenance is None
-            else provenance_to_payload(upstream_provenance)
-        ),
-    }
+    payload = input_intensity_scale_evidence_payload(request.dataset)
+    payload.update(
+        {
+            "site_token_validation": _build_site_token_validation_payload(request),
+            "signalome_config": _build_signalome_config_payload(
+                config=config,
+                clustering_missing_value_diagnostics=(
+                    clustering_missing_value_diagnostics
+                ),
+            ),
+            "scale_guard": _build_scale_guard_payload(scale_guard_decision),
+            "module_selection_diagnostics": asdict(
+                clustering_result.module_selection_diagnostics
+            ),
+            "score_preconditioning_diagnostics": asdict(
+                request.score_preconditioning_diagnostics
+            ),
+            "alignment_diagnostics": asdict(request.alignment_diagnostics),
+            "network_correlation_diagnostics": asdict(network_correlation_diagnostics),
+            "signalome_score_semantics": _build_signalome_score_semantics(
+                request=request,
+                config=config,
+                clustering_result=clustering_result,
+                network_correlation_diagnostics=network_correlation_diagnostics,
+                scale_guard_decision=scale_guard_decision,
+                clustering_missing_value_diagnostics=(
+                    clustering_missing_value_diagnostics
+                ),
+            ),
+            "upstream_kinase_provenance": (
+                None
+                if upstream_provenance is None
+                else provenance_to_payload(upstream_provenance)
+            ),
+        }
+    )
+    return payload
 
 
 def _build_site_token_validation_payload(

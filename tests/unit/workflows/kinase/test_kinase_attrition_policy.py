@@ -15,6 +15,9 @@ from phospy.api import (
 from phospy.api.results import KinaseWorkflowResult
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.workflows.intensity_scale_evidence import (
+    INPUT_INTENSITY_SCALE_DECLARED_CAVEAT_CODE,
+)
 from phospy.workflows.kinase.caveats import (
     KINASE_ATTRITION_POLICY_CAVEAT_CODE,
     KINASE_PERMISSIVE_LOCALISATION_POLICY_CAVEAT_CODE,
@@ -182,6 +185,29 @@ def test_kinase_result_caveats_include_permissive_localisation_policy() -> None:
     assert caveat.details["site_count"] == 4
 
 
+def test_kinase_result_caveats_include_declared_input_scale_evidence() -> None:
+    result = KinaseWorkflow().run(
+        _request(
+            KinaseAttritionPolicy(
+                minimum_reference_overlap_fraction=0.25,
+                minimum_sequence_supported_fraction=0.25,
+                minimum_scored_fraction=0.25,
+                on_violation="warn",
+            )
+        )
+    )
+
+    caveat = _caveat_by_code(result, INPUT_INTENSITY_SCALE_DECLARED_CAVEAT_CODE)
+
+    assert caveat.severity == "warning"
+    assert caveat.details["input_intensity_scale"] == "linear"
+    assert caveat.details["input_intensity_scale_evidence_level"] == (
+        "declared_by_user"
+    )
+    assert caveat.details["input_intensity_scale_source"] == "declared_by_user"
+    assert caveat.details["workflow_scope"] == "kinase_scoring"
+
+
 def test_kinase_attrition_policy_error_message_contains_counts_and_threshold() -> None:
     with pytest.raises(WorkflowBoundaryError) as exc_info:
         KinaseWorkflowInterpreter().run(
@@ -252,6 +278,11 @@ def test_kinase_provenance_records_attrition_policy_and_metrics() -> None:
     assert result.provenance is not None
     assert result.attrition_provenance is not None
     workflow_parameters = result.provenance.workflow_parameters
+    assert workflow_parameters["input_intensity_scale"] == "linear"
+    assert workflow_parameters["input_intensity_scale_evidence_level"] == (
+        "declared_by_user"
+    )
+    assert workflow_parameters["input_intensity_scale_source"] == "declared_by_user"
     attrition_provenance = workflow_parameters["attrition_provenance"]
     assert isinstance(attrition_provenance, dict)
     assert attrition_provenance["policy_outcome"] == "warned"

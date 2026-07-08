@@ -16,6 +16,9 @@ from phospy.science.prediction.scoring import (
 )
 from phospy.science.scoring.policy_models import ProfileSelfInclusionPolicy
 from phospy.tables.kinase import KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_UNSCORED
+from phospy.workflows.intensity_scale_evidence import (
+    build_declared_input_intensity_scale_caveat,
+)
 from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
 from phospy.workflows.result_caveat_helpers import (
     build_localisation_policy_details,
@@ -44,6 +47,12 @@ def build_kinase_result_caveats(
     """Build compact machine-readable caveats for kinase workflow results."""
 
     caveats: list[ResultCaveat] = []
+    declared_input_scale = build_declared_input_intensity_scale_caveat(
+        dataset=request.dataset,
+        workflow_scope="kinase_scoring",
+    )
+    if declared_input_scale is not None:
+        caveats.append(declared_input_scale)
     caveats.extend(_attrition_policy_caveats(request))
     localisation = _permissive_localisation_caveat(request)
     if localisation is not None:

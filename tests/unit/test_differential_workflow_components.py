@@ -44,6 +44,7 @@ from phospy.science.differential.models import EmpiricalBayesConfig
 from phospy.science.transformations.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
+    QuantitativeMeaning,
 )
 from phospy.workflows.differential.executor import DifferentialAnalysisExecutor
 from phospy.workflows.differential.interpreter import DifferentialAnalysisInterpreter
@@ -375,7 +376,16 @@ def test_differential_workflow_does_not_consume_protein_aware_preparation_result
     )
     assert not hasattr(prepared_result, "protein_aware_preparation")
     assert not hasattr(prepared_result, "protein_covariate_matrix")
-    assert prepared_result.workflow_provenance is None
+    assert prepared_result.workflow_provenance is not None
+    assert prepared_result.workflow_provenance["input_intensity_scale"] == "log2"
+    assert (
+        prepared_result.workflow_provenance["input_intensity_scale_evidence_level"]
+        == "declared_by_user"
+    )
+    assert (
+        prepared_result.workflow_provenance["input_intensity_scale_source"]
+        == "declared_by_user"
+    )
     assert prepared_result.input_dataset_preprocessing_report is not None
     assert (
         prepared_result.input_dataset_preprocessing_report.protein_aware_preparation
@@ -725,6 +735,34 @@ def test_differential_invalid_scale_fails_before_executor() -> None:
         DifferentialAnalysisWorkflow(executor=_ExecutorSpy()).run(  # type: ignore[arg-type]
             DifferentialAnalysisRequest(
                 dataset=linear_dataset,
+                design=_request().design,
+                contrasts=_request().contrasts,
+            )
+        )
+    assert calls["executor"] == 0
+
+
+def test_differential_unknown_scale_fails_before_executor() -> None:
+    calls = {"executor": 0}
+
+    class _ExecutorSpy:
+        def run(self, request: InterpretedDifferentialAnalysisRequest):
+            calls["executor"] += 1
+            raise AssertionError("executor should not be called")
+
+    dataset = _dataset()
+    unknown_state = IntensityScaleState.raw(
+        has_total_matrix=False
+    ).with_quantitative_meaning(QuantitativeMeaning.UNKNOWN)
+    unsafe_replace_dataset_intensity_scale_state(dataset, unknown_state)
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="requires established log2-scale phospho intensities",
+    ):
+        DifferentialAnalysisWorkflow(executor=_ExecutorSpy()).run(  # type: ignore[arg-type]
+            DifferentialAnalysisRequest(
+                dataset=dataset,
                 design=_request().design,
                 contrasts=_request().contrasts,
             )

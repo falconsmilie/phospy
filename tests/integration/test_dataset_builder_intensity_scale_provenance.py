@@ -91,6 +91,7 @@ def test_builder_declared_log2_records_declared_establishment_mode_in_provenance
     workflow_payload = _workflow_establishment_payload(built)
     final_stage_payload = _final_stage_establishment_payload(built)
     assert workflow_payload["establishment_mode"] == "declared"
+    assert workflow_payload["evidence_level"] == "declared_by_user"
     assert (
         workflow_payload["establishment_source"]
         == IntensityScaleEstablishmentSource.DECLARED_BY_USER.value
@@ -121,6 +122,7 @@ def test_builder_log2_transformation_records_transformed_mode_in_provenance() ->
 
     workflow_payload = _workflow_establishment_payload(built)
     assert workflow_payload["establishment_mode"] == "transformed"
+    assert workflow_payload["evidence_level"] == "observed_transformation"
     assert (
         workflow_payload["establishment_source"]
         == IntensityScaleEstablishmentSource.TRANSFORMED_BY_PHOSPY.value
@@ -184,6 +186,7 @@ def test_builder_identity_pass_through_with_declared_linear_records_declared_mod
 
     workflow_payload = _workflow_establishment_payload(built)
     assert workflow_payload["establishment_mode"] == "declared"
+    assert workflow_payload["evidence_level"] == "declared_by_user"
     assert (
         workflow_payload["establishment_source"]
         == IntensityScaleEstablishmentSource.DECLARED_BY_USER.value

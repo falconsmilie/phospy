@@ -26,6 +26,9 @@ from phospy.science.differential.models import (
     DifferentialUnsupportedDesignPolicyProvenance,
 )
 from phospy.workflows.differential.models import ValidatedDifferentialAnalysisRequest
+from phospy.workflows.intensity_scale_evidence import (
+    input_intensity_scale_evidence_from_dataset,
+)
 
 _DIFFERENTIAL_TEST_STATISTIC = "moderated_t"
 _DIFFERENTIAL_P_VALUE_METHOD = "two_sided_t_distribution_survival_function"
@@ -129,6 +132,9 @@ def build_differential_policy_provenance(
     covariate_provenance = _fixed_effect_covariate_provenance(request)
     design_formula = _design_formula(request)
     input_intensity_scale = _input_intensity_scale_label(request)
+    input_intensity_scale_evidence = input_intensity_scale_evidence_from_dataset(
+        request.dataset
+    )
 
     contrast_definitions: list[DifferentialContrastDefinition] = []
     for contrast in request.contrasts:
@@ -204,6 +210,12 @@ def build_differential_policy_provenance(
             p_value_method=_DIFFERENTIAL_P_VALUE_METHOD,
             adjusted_p_value_method=request.config.multiple_testing.method,
             input_intensity_scale=input_intensity_scale,
+            input_intensity_scale_evidence_level=(
+                input_intensity_scale_evidence.input_intensity_scale_evidence_level
+            ),
+            input_intensity_scale_source=(
+                input_intensity_scale_evidence.input_intensity_scale_source
+            ),
             logfc_interpretation=_logfc_interpretation(input_intensity_scale),
             allow_suspicious_declared_input_scale=(
                 request.config.allow_suspicious_declared_input_scale

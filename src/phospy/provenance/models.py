@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from phospy.errors.input import PhosPyInputError
 from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
 
 if TYPE_CHECKING:
@@ -38,6 +39,75 @@ def _empty_platform_provenance() -> dict[str, str]:
 
 def _empty_json_mapping() -> dict[str, JsonValue]:
     return {}
+
+
+def _required_provenance_text(value: object, *, field_name: str) -> str:
+    text = str(value).strip()
+    if not text:
+        raise PhosPyInputError(f"{field_name} must be non-empty")
+    return text
+
+
+def _optional_provenance_text(value: object | None) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+@dataclass(frozen=True, slots=True)
+class InputIntensityScaleEvidence:
+    """Workflow-visible evidence for how input intensity scale was established."""
+
+    input_intensity_scale: str
+    input_intensity_scale_evidence_level: str
+    input_intensity_scale_source: str
+    input_intensity_scale_source_detail: str | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "input_intensity_scale",
+            _required_provenance_text(
+                self.input_intensity_scale,
+                field_name="input_intensity_scale",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "input_intensity_scale_evidence_level",
+            _required_provenance_text(
+                self.input_intensity_scale_evidence_level,
+                field_name="input_intensity_scale_evidence_level",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "input_intensity_scale_source",
+            _required_provenance_text(
+                self.input_intensity_scale_source,
+                field_name="input_intensity_scale_source",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "input_intensity_scale_source_detail",
+            _optional_provenance_text(self.input_intensity_scale_source_detail),
+        )
+
+    def to_payload(self) -> dict[str, object]:
+        payload: dict[str, object] = {
+            "input_intensity_scale": self.input_intensity_scale,
+            "input_intensity_scale_evidence_level": (
+                self.input_intensity_scale_evidence_level
+            ),
+            "input_intensity_scale_source": self.input_intensity_scale_source,
+        }
+        if self.input_intensity_scale_source_detail is not None:
+            payload["input_intensity_scale_source_detail"] = (
+                self.input_intensity_scale_source_detail
+            )
+        return payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -204,6 +274,7 @@ __all__ = [
     "BatchCorrectionProvenance",
     "BatchCorrectionRejectedEntity",
     "EnvironmentProvenance",
+    "InputIntensityScaleEvidence",
     "JsonValue",
     "KinaseLibraryResourceProvenance",
     "PreprocessingStageProvenance",

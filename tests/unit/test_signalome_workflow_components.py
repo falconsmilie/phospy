@@ -35,6 +35,9 @@ from phospy.science.signalomes.science import (
     build_signalome_module_table,
     select_kinase_substrates,
 )
+from phospy.workflows.intensity_scale_evidence import (
+    INPUT_INTENSITY_SCALE_DECLARED_CAVEAT_CODE,
+)
 from phospy.workflows.signalome.caveats import (
     SIGNALOME_PERMISSIVE_LOCALISATION_POLICY_CAVEAT_CODE,
     SIGNALOME_PROTEIN_ID_GROUPING_ASSUMPTION_CAVEAT_CODE,
@@ -484,6 +487,13 @@ def test_signalome_provenance_builder_records_scale_and_backend_fields() -> None
     )
 
     assert provenance.workflow_name == "signalome_workflow"
+    assert provenance.workflow_parameters["input_intensity_scale"] == "linear"
+    assert provenance.workflow_parameters["input_intensity_scale_evidence_level"] == (
+        "declared_by_user"
+    )
+    assert provenance.workflow_parameters["input_intensity_scale_source"] == (
+        "declared_by_user"
+    )
     assert "signalome_config" in provenance.workflow_parameters
     assert "scale_guard" in provenance.workflow_parameters
     assert "module_selection_diagnostics" in provenance.workflow_parameters
@@ -681,6 +691,20 @@ def test_signalome_result_caveats_include_permissive_localisation_policy() -> No
     assert caveat.details["workflow_scope"] == "signalome"
     assert caveat.details["minimum_probability"] is None
     assert caveat.details["retained_signalome_site_count"] == 3
+
+
+def test_signalome_result_caveats_include_declared_input_scale_evidence() -> None:
+    result = SignalomeWorkflowExecutor().run(_resolved_request())
+
+    caveat = _caveat_by_code(result, INPUT_INTENSITY_SCALE_DECLARED_CAVEAT_CODE)
+
+    assert caveat.severity == "warning"
+    assert caveat.details["input_intensity_scale"] == "linear"
+    assert caveat.details["input_intensity_scale_evidence_level"] == (
+        "declared_by_user"
+    )
+    assert caveat.details["input_intensity_scale_source"] == "declared_by_user"
+    assert caveat.details["workflow_scope"] == "signalome"
 
 
 def test_signalome_duplicate_display_ids_remain_separate_by_site_key() -> None:

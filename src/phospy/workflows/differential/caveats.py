@@ -23,6 +23,9 @@ from phospy.workflows.differential.models import (
     DifferentialFeatureEligibilityInputs,
     DifferentialImputationPolicyInputs,
 )
+from phospy.workflows.intensity_scale_evidence import (
+    build_declared_input_intensity_scale_caveat,
+)
 
 DIFFERENTIAL_DIRECT_TRUSTED_DATASET_CAVEAT_CODE = (
     "differential_direct_trusted_dataset_construction"
@@ -50,6 +53,13 @@ def build_differential_result_caveats(
     """Build compact machine-readable caveats for the public result."""
 
     caveats: list[ResultCaveat] = []
+
+    declared_input_scale = build_declared_input_intensity_scale_caveat(
+        dataset=dataset,
+        workflow_scope="differential",
+    )
+    if declared_input_scale is not None:
+        caveats.append(declared_input_scale)
 
     direct_construction_details = _direct_construction_details(dataset.provenance)
     if direct_construction_details is not None:

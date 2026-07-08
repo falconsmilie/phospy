@@ -328,6 +328,11 @@ class DifferentialAnalysisResult:
         return {
             "caveats": [caveat.to_payload() for caveat in self.caveats],
             "diagnostics": self.diagnostics.to_payload(),
+            "workflow_provenance": (
+                None
+                if self.workflow_provenance is None
+                else _json_payload(self.workflow_provenance)
+            ),
             "empirical_bayes": {
                 "method": self.empirical_bayes_method,
                 "robust": self.empirical_bayes_robust,
@@ -597,6 +602,19 @@ def _json_scalar(value: object) -> object:
     if isinstance(item, float) and not math.isfinite(item):
         return None
     return item
+
+
+def _json_payload(value: object) -> object:
+    if isinstance(value, Mapping):
+        mapping = cast(Mapping[object, object], value)
+        return {str(key): _json_payload(item) for key, item in mapping.items()}
+    if isinstance(value, tuple):
+        values = cast(tuple[object, ...], value)
+        return [_json_payload(item) for item in values]
+    if isinstance(value, list):
+        values = cast(list[object], value)
+        return [_json_payload(item) for item in values]
+    return _json_scalar(value)
 
 
 __all__ = ["DifferentialAnalysisResult"]

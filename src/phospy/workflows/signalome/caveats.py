@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from phospy.contracts.result_caveats import ResultCaveat
 from phospy.science.scoring.policy_models import DownstreamScoreSource
+from phospy.workflows.intensity_scale_evidence import (
+    build_declared_input_intensity_scale_caveat,
+)
 from phospy.workflows.kinase.caveats import (
     KINASE_NON_DEFAULT_REFERENCE_SOURCE_CAVEAT_CODE,
     KINASE_REFERENCE_SCORE_FALLBACK_CAVEAT_CODE,
@@ -37,6 +40,12 @@ def build_signalome_result_caveats(
     """Build compact machine-readable caveats for signalome workflow results."""
 
     caveats: list[ResultCaveat] = []
+    declared_input_scale = build_declared_input_intensity_scale_caveat(
+        dataset=request.dataset,
+        workflow_scope="signalome",
+    )
+    if declared_input_scale is not None:
+        caveats.append(declared_input_scale)
     upstream_attrition = _upstream_kinase_attrition_caveat(request)
     if upstream_attrition is not None:
         caveats.append(upstream_attrition)

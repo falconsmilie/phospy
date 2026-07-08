@@ -53,6 +53,9 @@ from phospy.science.prediction.scientific_policies import (
 from phospy.tables.kinase import (
     KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_UNSCORED,
 )
+from phospy.workflows.intensity_scale_evidence import (
+    input_intensity_scale_evidence_payload,
+)
 from phospy.workflows.kinase.attrition_metrics import (
     build_kinase_attrition_provenance_payload,
     kinase_attrition_policy_to_payload,
@@ -314,27 +317,31 @@ def _build_workflow_parameters(
     scoring_result: KinaseScoringResult,
     activity_result: KinaseActivityResult | None,
 ) -> dict[str, object]:
-    return {
-        "site_token_validation": _build_site_token_validation_payload(request),
-        "scoring_config": _build_scoring_config_payload(
-            request=request,
-            scoring_result=scoring_result,
-            config=config,
-        ),
-        "attrition_provenance": _build_attrition_provenance_payload(
-            request=request,
-            config=config,
-        ),
-        "scoring_diagnostics": _build_scoring_diagnostics_payload(
-            request=request,
-            scoring_result=scoring_result,
-        ),
-        "prediction_config": _build_prediction_config_payload(config),
-        "activity_config": _build_activity_config_payload(
-            config=config,
-            activity_result=activity_result,
-        ),
-    }
+    payload = input_intensity_scale_evidence_payload(request.dataset)
+    payload.update(
+        {
+            "site_token_validation": _build_site_token_validation_payload(request),
+            "scoring_config": _build_scoring_config_payload(
+                request=request,
+                scoring_result=scoring_result,
+                config=config,
+            ),
+            "attrition_provenance": _build_attrition_provenance_payload(
+                request=request,
+                config=config,
+            ),
+            "scoring_diagnostics": _build_scoring_diagnostics_payload(
+                request=request,
+                scoring_result=scoring_result,
+            ),
+            "prediction_config": _build_prediction_config_payload(config),
+            "activity_config": _build_activity_config_payload(
+                config=config,
+                activity_result=activity_result,
+            ),
+        }
+    )
+    return payload
 
 
 def _build_site_token_validation_payload(

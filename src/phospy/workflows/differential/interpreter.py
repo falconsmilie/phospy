@@ -77,6 +77,9 @@ from phospy.workflows.differential.provenance import (
 from phospy.workflows.differential.replicates import (
     TechnicalReplicateAggregator,
 )
+from phospy.workflows.intensity_scale_evidence import (
+    with_input_intensity_scale_evidence,
+)
 
 
 class DifferentialAnalysisInterpreter:
@@ -286,6 +289,10 @@ class DifferentialAnalysisInterpreter:
             contrasts=execution_design.contrast_matrix,
             empirical_bayes=request.config.empirical_bayes,
             multiple_testing_method=request.config.multiple_testing.method,
+        )
+        resolved_workflow_provenance = with_input_intensity_scale_evidence(
+            resolved_workflow_provenance,
+            dataset=resolved_dataset,
         )
         provenance_request = ValidatedDifferentialAnalysisRequest(
             dataset=resolved_dataset,

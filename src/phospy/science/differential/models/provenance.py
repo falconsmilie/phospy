@@ -358,6 +358,8 @@ class DifferentialStatisticalTestingProvenance:
     p_value_method: str
     adjusted_p_value_method: str
     input_intensity_scale: str = "not_recorded"
+    input_intensity_scale_evidence_level: str = "not_recorded"
+    input_intensity_scale_source: str = "not_recorded"
     logfc_interpretation: str = "not_recorded"
     allow_suspicious_declared_input_scale: bool = False
 
@@ -382,6 +384,16 @@ class DifferentialStatisticalTestingProvenance:
                 "differential_policy_provenance.statistical_testing."
                 "input_intensity_scale must be non-empty"
             )
+        if not self.input_intensity_scale_evidence_level:
+            raise PhosPyInputError(
+                "differential_policy_provenance.statistical_testing."
+                "input_intensity_scale_evidence_level must be non-empty"
+            )
+        if not self.input_intensity_scale_source:
+            raise PhosPyInputError(
+                "differential_policy_provenance.statistical_testing."
+                "input_intensity_scale_source must be non-empty"
+            )
         if not self.logfc_interpretation:
             raise PhosPyInputError(
                 "differential_policy_provenance.statistical_testing."
@@ -405,6 +417,16 @@ class DifferentialStatisticalTestingProvenance:
             self,
             "input_intensity_scale",
             str(self.input_intensity_scale),
+        )
+        object.__setattr__(
+            self,
+            "input_intensity_scale_evidence_level",
+            str(self.input_intensity_scale_evidence_level),
+        )
+        object.__setattr__(
+            self,
+            "input_intensity_scale_source",
+            str(self.input_intensity_scale_source),
         )
         object.__setattr__(
             self,

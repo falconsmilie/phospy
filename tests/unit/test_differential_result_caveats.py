@@ -25,15 +25,23 @@ from phospy.science.differential.models import (
 )
 from phospy.science.transformations.models import (
     IntensityScaleEstablishmentMode,
+    IntensityScaleEvidenceLevel,
+    IntensityScaleKind,
     IntensityScaleState,
     MatrixIntensityScaleState,
 )
-from phospy.science.transformations.transformers import IdentityTransformer
+from phospy.science.transformations.transformers import (
+    IdentityTransformer,
+    Log2Transformer,
+)
 from phospy.workflows.differential.caveats import (
     DIFFERENTIAL_DECLARED_SCALE_OVERRIDE_CAVEAT_CODE,
     DIFFERENTIAL_DIRECT_TRUSTED_DATASET_CAVEAT_CODE,
     DIFFERENTIAL_IMPUTATION_WITHHOLDING_POLICY_CAVEAT_CODE,
     DIFFERENTIAL_WITHHELD_FEATURES_CAVEAT_CODE,
+)
+from phospy.workflows.intensity_scale_evidence import (
+    INPUT_INTENSITY_SCALE_DECLARED_CAVEAT_CODE,
 )
 from tests.support.intensity_scale_states import supported_log2_intensity_scale_state
 from tests.support.processing_state import (
@@ -169,6 +177,26 @@ def _declared_log2_intensity_scale_state(
     )
 
 
+def _observed_log2_dataset(index: pd.Index) -> AnalysisReadyPhosphoDataset:
+    target_log2_values = _phospho(index)
+    linear_values = 2.0**target_log2_values
+    resolved = DatasetIntensityScaleResolver(
+        transformer=Log2Transformer(pseudocount=0.0)
+    ).run(
+        phospho=linear_values,
+        total=None,
+        expected_scale_kind=IntensityScaleKind.LOG2,
+        scale_establishment_evidence_level=(
+            IntensityScaleEvidenceLevel.OBSERVED_TRANSFORMATION
+        ),
+        scale_establishment_parameters={"operation": "log2", "pseudocount": 0.0},
+    )
+    return _dataset(
+        resolved.phospho,
+        intensity_scale_state=resolved.intensity_scale_state,
+    )
+
+
 def _caveat_by_code(result, code: str):
     matches = [caveat for caveat in result.caveats if caveat.code == code]
     assert len(matches) == 1
@@ -255,3 +283,62 @@ def test_differential_result_caveats_include_declared_scale_override_when_used()
     assert caveat.details["establishment_mode"] == "declared"
     assert caveat.details["diagnostic_warning_count"] >= 1
     assert caveat.details["override_config"] == "allow_suspicious_declared_input_scale"
+
+
+def test_differential_result_provenance_includes_observed_transformation_evidence() -> (
+    None
+):
+    index = _site_index()
+    result = DifferentialAnalysisWorkflow().run(_request(_observed_log2_dataset(index)))
+
+    assert result.workflow_provenance is not None
+    assert result.workflow_provenance["input_intensity_scale"] == "log2"
+    assert (
+        result.workflow_provenance["input_intensity_scale_evidence_level"]
+        == "observed_transformation"
+    )
+    assert (
+        result.workflow_provenance["input_intensity_scale_source"]
+        == "transformed_by_phospy"
+    )
+    assert result.policy_provenance is not None
+    testing_policy = result.policy_provenance.statistical_testing
+    assert testing_policy.input_intensity_scale_evidence_level == (
+        "observed_transformation"
+    )
+    assert testing_policy.input_intensity_scale_source == "transformed_by_phospy"
+    payload = result.to_payload()
+    assert payload["workflow_provenance"] == result.workflow_provenance
+    assert all(
+        caveat.code != INPUT_INTENSITY_SCALE_DECLARED_CAVEAT_CODE
+        for caveat in result.caveats
+    )
+
+
+def test_differential_result_provenance_includes_declared_scale_evidence_and_caveat() -> (
+    None
+):
+    index = _site_index()
+    result = DifferentialAnalysisWorkflow().run(_request(_dataset(_phospho(index))))
+
+    assert result.workflow_provenance is not None
+    assert result.workflow_provenance["input_intensity_scale"] == "log2"
+    assert (
+        result.workflow_provenance["input_intensity_scale_evidence_level"]
+        == "declared_by_user"
+    )
+    assert (
+        result.workflow_provenance["input_intensity_scale_source"] == "declared_by_user"
+    )
+    assert result.policy_provenance is not None
+    testing_policy = result.policy_provenance.statistical_testing
+    assert testing_policy.input_intensity_scale_evidence_level == "declared_by_user"
+    assert testing_policy.input_intensity_scale_source == "declared_by_user"
+
+    caveat = _caveat_by_code(result, INPUT_INTENSITY_SCALE_DECLARED_CAVEAT_CODE)
+    assert caveat.severity == "warning"
+    assert caveat.details["input_intensity_scale"] == "log2"
+    assert caveat.details["input_intensity_scale_evidence_level"] == (
+        "declared_by_user"
+    )
+    assert caveat.details["workflow_scope"] == "differential"
