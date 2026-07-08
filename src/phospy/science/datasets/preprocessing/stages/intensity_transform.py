@@ -54,16 +54,25 @@ class IntensityTransformStage:
             phospho=transformed_phospho,
             total=transformed_total,
         )
+        input_phospho_hash = hash_table_tolerance(
+            state.phospho,
+            name="intensity_transform.input.phospho",
+        )
+        output_phospho_hash = hash_table_tolerance(
+            transformed_phospho,
+            name="intensity_transform.output.phospho",
+        )
+        intensity_transformation_event = transformed.intensity_transformation_event
+        if intensity_transformation_event is not None:
+            intensity_transformation_event = replace(
+                intensity_transformation_event,
+                input_fingerprint=input_phospho_hash,
+                output_fingerprint=output_phospho_hash,
+            )
         diagnostics = {
             **dict(transformed.provenance),
-            "input_phospho_hash": hash_table_tolerance(
-                state.phospho,
-                name="intensity_transform.input.phospho",
-            ),
-            "output_phospho_hash": hash_table_tolerance(
-                transformed_phospho,
-                name="intensity_transform.output.phospho",
-            ),
+            "input_phospho_hash": input_phospho_hash,
+            "output_phospho_hash": output_phospho_hash,
         }
         diagnostics.setdefault(
             "output_intensity_scale_kind",
@@ -101,6 +110,7 @@ class IntensityTransformStage:
                 "notes": "stage executed",
                 "diagnostics": diagnostics,
             },
+            intensity_transformation_event=intensity_transformation_event,
         )
 
 

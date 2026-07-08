@@ -67,6 +67,7 @@ from phospy.science.datasets.preprocessing.report_schema import (
     dataframe_from_row_audit_rows,
     reorder_columns,
 )
+from phospy.science.transformations.models import IntensityTransformationEvent
 
 _UNSUPPORTED_BATCH_CORRECTION_METHOD_RUV_III_STYLE = "ruv_iii_style"
 
@@ -693,6 +694,7 @@ class PreprocessingStageResult:
     diagnostics: Mapping[str, object] = field(default_factory=dict)
     report_rows: Sequence[PreprocessingReportRow] = ()
     batch_correction_provenance: BatchCorrectionProvenance | None = None
+    intensity_transformation_event: IntensityTransformationEvent | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -722,6 +724,7 @@ class PreprocessingStageExecution:
     notes: str | None = None
     diagnostics: Mapping[str, object] = field(default_factory=dict)
     batch_correction_provenance: BatchCorrectionProvenance | None = None
+    intensity_transformation_event: IntensityTransformationEvent | None = None
 
     @property
     def input_rows(self) -> int:

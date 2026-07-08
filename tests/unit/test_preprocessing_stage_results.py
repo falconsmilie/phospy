@@ -7,7 +7,10 @@ import pytest
 
 from phospy.errors.build import DatasetBuildError
 from phospy.errors.input import PhosPyInputError
-from phospy.science.datasets.builders.contracts import InterpretedDatasetBuildRequest
+from phospy.science.datasets.builders.contracts import (
+    InterpretedDatasetBuildRequest,
+    PreprocessedDatasetBuildTables,
+)
 from phospy.science.datasets.builders.executor import DatasetBuildExecutor
 from phospy.science.datasets.builders.preprocessing import (
     DatasetPreprocessor,
@@ -41,7 +44,10 @@ from phospy.science.datasets.preprocessing.stages.total_protein_correction impor
 )
 from phospy.science.datasets.processing_state import MissingDataDiagnosticsV1
 from phospy.science.transformations.models import (
+    IntensityScaleEvidenceLevel,
     IntensityScaleKind,
+    IntensityTransformationEvent,
+    MatrixIntensityScaleState,
     QuantitativeMeaning,
 )
 from tests.support.intensity_scale_states import supported_linear_intensity_scale_state
@@ -143,6 +149,36 @@ def _custom_stage_metadata(stage_key: str) -> PreprocessingStageMetadata:
         serialize_parameters=lambda _plan: {},
         consumed_input_tables=("dataset.phospho",),
         produced_output_tables=("dataset.phospho",),
+    )
+
+
+def _linear_scale() -> MatrixIntensityScaleState:
+    return MatrixIntensityScaleState.linear(established_by="tests.linear")
+
+
+def _log2_scale() -> MatrixIntensityScaleState:
+    return MatrixIntensityScaleState.log2(established_by="tests.log2")
+
+
+def _log2_event() -> IntensityTransformationEvent:
+    return IntensityTransformationEvent(
+        transformer_name="tests.Log2Transformer",
+        input_scale=_linear_scale(),
+        output_scale=_log2_scale(),
+        evidence_level=IntensityScaleEvidenceLevel.OBSERVED_TRANSFORMATION,
+        transformation_kind="log2",
+        pseudocount=1.0,
+    )
+
+
+def _linear_identity_event() -> IntensityTransformationEvent:
+    scale = _linear_scale()
+    return IntensityTransformationEvent(
+        transformer_name="tests.IdentityTransformer",
+        input_scale=scale,
+        output_scale=scale,
+        evidence_level=IntensityScaleEvidenceLevel.DECLARED_BY_USER,
+        transformation_kind="identity",
     )
 
 
@@ -412,6 +448,74 @@ def test_intensity_transform_stage_returns_stage_result() -> None:
     _assert_stage_result_contract(result)
 
 
+def test_intensity_transform_stage_emits_typed_transformation_event() -> None:
+    phospho = _phospho()
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=_site_metadata(phospho.index),
+        sample_metadata=None,
+        total=_total(phospho.columns),
+        plan=PreprocessingPlan(
+            intensity_transform_policy="log2",
+            intensity_transform_pseudocount=1.0,
+            stage_order=("intensity_transform",),
+        ),
+    )
+
+    result = IntensityTransformStage().run(state)
+
+    event = result.intensity_transformation_event
+    assert isinstance(event, IntensityTransformationEvent)
+    assert event.transformation_kind == "log2"
+    assert event.input_scale.kind is IntensityScaleKind.LINEAR
+    assert event.output_scale.kind is IntensityScaleKind.LOG2
+    assert event.pseudocount == 1.0
+    assert isinstance(event.input_fingerprint, str)
+    assert isinstance(event.output_fingerprint, str)
+
+
+def test_intensity_transform_stage_keeps_diagnostics_for_reporting() -> None:
+    phospho = _phospho()
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=_site_metadata(phospho.index),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan(
+            intensity_transform_policy="log2",
+            intensity_transform_pseudocount=1.0,
+            stage_order=("intensity_transform",),
+        ),
+    )
+
+    result = IntensityTransformStage().run(state)
+
+    diagnostics = result.diagnostics["diagnostics"]
+    assert isinstance(diagnostics, Mapping)
+    assert diagnostics["policy"] == "log2"
+    assert diagnostics["pseudocount"] == 1.0
+    assert isinstance(diagnostics["input_phospho_hash"], str)
+    assert isinstance(diagnostics["output_phospho_hash"], str)
+
+
+def test_non_intensity_stage_does_not_need_transformation_event() -> None:
+    phospho = _phospho()
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=_site_metadata(phospho.index),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan(
+            missing_data_policy="forbid",
+            stage_order=("missing_data",),
+        ),
+    )
+
+    result = MissingDataStage().run(state)
+
+    assert result.intensity_transformation_event is None
+
+
 def test_normalisation_stage_returns_stage_result() -> None:
     phospho = _phospho()
     state = PreprocessingState(
@@ -557,6 +661,145 @@ def test_pipeline_uses_stage_owned_diagnostics_and_report_rows() -> None:
     assert len(final_state.report_rows) == 1
     assert final_state.report_rows[0].table == "row_audit"
     assert isinstance(final_state.report_rows[0].values, PreprocessingRowAuditRow)
+
+
+def test_pipeline_trace_preserves_typed_intensity_transformation_event() -> None:
+    phospho = _phospho()
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=_site_metadata(phospho.index),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan(
+            intensity_transform_policy="log2",
+            intensity_transform_pseudocount=1.0,
+            stage_order=("intensity_transform",),
+        ),
+    )
+
+    _, trace = PreprocessingPipeline().run_with_trace(state)
+
+    event = trace[0].intensity_transformation_event
+    assert isinstance(event, IntensityTransformationEvent)
+    assert event.output_scale.kind is IntensityScaleKind.LOG2
+
+
+def test_preprocessing_report_preserves_typed_intensity_transformation_event() -> None:
+    site_index = _analysis_site_index()
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [4.0, 8.0],
+            "sample_b": [6.0, 12.0],
+        },
+        index=site_index,
+    )
+    site_metadata = _analysis_site_metadata(phospho.index)
+
+    built = DatasetBuildExecutor().run(
+        InterpretedDatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            sample_metadata=None,
+            total=None,
+            organism=None,
+            preprocessing_plan=PreprocessingPlan(
+                intensity_transform_policy="log2",
+                intensity_transform_pseudocount=1.0,
+                stage_order=("intensity_transform",),
+            ),
+        )
+    )
+
+    assert built.preprocessing_report is not None
+    event = built.preprocessing_report.intensity_transformation_event
+    assert isinstance(event, IntensityTransformationEvent)
+    assert event.output_scale.kind is IntensityScaleKind.LOG2
+    assert built.preprocessing_report.intensity_transformation_summary() is event
+
+
+def test_builder_uses_typed_event_without_intensity_diagnostics() -> None:
+    site_index = _analysis_site_index()
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [2.321928094887362, 3.169925001442312],
+            "sample_b": [2.584962500721156, 3.700439718141092],
+        },
+        index=site_index,
+    )
+    site_metadata = _analysis_site_metadata(phospho.index)
+    event = _log2_event()
+
+    class EventOnlyPreprocessor:
+        def run(self, **_kwargs: object) -> PreprocessedDatasetBuildTables:
+            return PreprocessedDatasetBuildTables(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                sample_metadata=None,
+                total=None,
+                intensity_transformation_event=event,
+            )
+
+    built = DatasetBuildExecutor(preprocessor=EventOnlyPreprocessor()).run(
+        InterpretedDatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            sample_metadata=None,
+            total=None,
+            organism=None,
+            preprocessing_plan=PreprocessingPlan(
+                intensity_transform_policy="log2",
+                intensity_transform_pseudocount=1.0,
+                stage_order=("intensity_transform",),
+            ),
+        )
+    )
+
+    assert built.intensity_scale_state.kind is IntensityScaleKind.LOG2
+    assert built.preprocessing_report is not None
+    assert built.preprocessing_report.intensity_transformation_event is event
+
+
+def test_pipeline_rejects_conflicting_intensity_transformation_events() -> None:
+    class Log2EventStage:
+        stage_key = "log2_event"
+
+        def run(self, state: PreprocessingState) -> PreprocessingStageResult:
+            return PreprocessingStageResult(
+                state=state,
+                intensity_transformation_event=_log2_event(),
+            )
+
+    class LinearIdentityEventStage:
+        stage_key = "linear_identity_event"
+
+        def run(self, state: PreprocessingState) -> PreprocessingStageResult:
+            return PreprocessingStageResult(
+                state=state,
+                intensity_transformation_event=_linear_identity_event(),
+            )
+
+    phospho = _phospho()
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=_site_metadata(phospho.index),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan(
+            stage_order=("log2_event", "linear_identity_event"),
+        ),
+    )
+
+    with pytest.raises(
+        DatasetBuildError,
+        match="intensity transformation event conflict",
+    ):
+        PreprocessingPipeline(
+            stage_registry=(Log2EventStage(), LinearIdentityEventStage()),
+            stage_metadata_registry=(
+                _custom_stage_metadata("log2_event"),
+                _custom_stage_metadata("linear_identity_event"),
+            ),
+        ).run_with_trace(state)
 
 
 def test_pipeline_rejects_unsupported_stage_report_rows() -> None:

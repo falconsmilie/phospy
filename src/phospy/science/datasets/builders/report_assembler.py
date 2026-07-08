@@ -54,6 +54,7 @@ from phospy.science.datasets.preprocessing.report_schema import (
 from phospy.science.evidence.dataset_resolution import (
     PeptideEvidenceResolutionSummary,
 )
+from phospy.science.transformations.models import IntensityTransformationEvent
 
 _FINAL_DATASET_STAGE = "final_dataset_construction"
 _PEPTIDE_EVIDENCE_RESOLUTION_STAGE = "peptide_evidence_resolution"
@@ -92,7 +93,13 @@ class DatasetPreprocessingReportAssembler:
         declared_input_intensity_scale_kind: str | None = None,
         allow_suspicious_declared_input_intensity_scale: bool = False,
         effective_declared_input_intensity_scale_diagnostic_policy: str = "error",
+        intensity_transformation_event: IntensityTransformationEvent | None = None,
     ) -> DatasetPreprocessingReport:
+        resolved_intensity_transformation_event = (
+            intensity_transformation_event
+            if intensity_transformation_event is not None
+            else _resolve_intensity_transformation_event(preprocessing_trace)
+        )
         row_count_rows = list(row_count_rows_from_dataframe(row_counts))
         operation_rows = list(operation_rows_from_dataframe(operations))
         row_audit_rows = row_audit_rows_from_dataframe(row_audit)
@@ -260,6 +267,7 @@ class DatasetPreprocessingReportAssembler:
             site_sequence_resolution=site_sequence_resolution,
             batch_correction=batch_correction,
             protein_aware_preparation=protein_aware_preparation_report,
+            intensity_transformation_event=resolved_intensity_transformation_event,
         )
 
 
@@ -658,6 +666,19 @@ def _resolve_stage(
         if stage.stage == stage_key:
             return stage
     return None
+
+
+def _resolve_intensity_transformation_event(
+    preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
+) -> IntensityTransformationEvent | None:
+    if preprocessing_trace is None:
+        return None
+    event: IntensityTransformationEvent | None = None
+    for stage in preprocessing_trace:
+        if stage.intensity_transformation_event is None:
+            continue
+        event = stage.intensity_transformation_event
+    return event
 
 
 def _audit_payload(value: object | None) -> dict[str, object] | None:

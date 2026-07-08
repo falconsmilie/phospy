@@ -36,6 +36,7 @@ from phospy.science.datasets.preprocessing.state_builder import (
 from phospy.science.datasets.processing_state import DatasetProcessingState
 from phospy.science.transformations.models import (
     IntensityScaleState,
+    IntensityTransformationEvent,
     QuantitativeMeaning,
 )
 from phospy.validation.datasets.preprocessing import (
@@ -109,6 +110,7 @@ class DatasetPreprocessor:
         report_tables = compose_stage_owned_report_tables(
             preprocessed_state.report_rows
         )
+        intensity_transformation_event = _resolve_intensity_transformation_event(trace)
         return PreprocessedDatasetBuildTables(
             phospho=preprocessed_state.phospho,
             site_metadata=preprocessed_state.site_metadata,
@@ -128,6 +130,7 @@ class DatasetPreprocessor:
             metadata_conflicts=report_tables.metadata_conflicts,
             batch_correction_metadata=preprocessed_state.batch_correction_metadata,
             batch_correction_report=preprocessed_state.batch_correction_report,
+            intensity_transformation_event=intensity_transformation_event,
         )
 
 
@@ -186,3 +189,14 @@ def build_dataset_processing_state(
         final_site_metadata=final_site_metadata,
         final_sample_metadata=final_sample_metadata,
     )
+
+
+def _resolve_intensity_transformation_event(
+    trace: tuple[PreprocessingStageExecution, ...],
+) -> IntensityTransformationEvent | None:
+    event: IntensityTransformationEvent | None = None
+    for record in trace:
+        if record.intensity_transformation_event is None:
+            continue
+        event = record.intensity_transformation_event
+    return event

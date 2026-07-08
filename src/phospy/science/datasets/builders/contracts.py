@@ -40,6 +40,7 @@ from phospy.science.transformations.models import (
     IntensityScaleEstablishmentMode,
     IntensityScaleKind,
     IntensityScaleState,
+    IntensityTransformationEvent,
     QuantitativeMeaning,
 )
 
@@ -95,6 +96,7 @@ class PreprocessedDatasetBuildTables:
     metadata_conflicts: pd.DataFrame | None = None
     batch_correction_metadata: ResolvedBatchCorrectionMetadata | None = None
     batch_correction_report: BatchCorrectionReport | None = None
+    intensity_transformation_event: IntensityTransformationEvent | None = None
 
 
 class DatasetBuildValidatorContract(Protocol):

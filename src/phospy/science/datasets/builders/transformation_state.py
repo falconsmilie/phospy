@@ -27,10 +27,11 @@ from phospy.science.datasets.processing_state import DatasetProcessingState
 from phospy.science.transformations.models import (
     DeclaredIntensityScaleDiagnosticPolicy,
     IntensityScaleEstablishmentMode,
+    IntensityScaleEvidenceLevel,
     IntensityScaleKind,
     IntensityScaleState,
+    IntensityTransformationEvent,
     MatrixIntensityScaleState,
-    QuantitativeMeaning,
 )
 
 
@@ -72,9 +73,17 @@ class DatasetTransformationStateResolver:
         preprocessed: PreprocessedDatasetBuildTables,
         validated_site_metadata: pd.DataFrame,
     ) -> ResolvedDatasetTransformationState:
+        intensity_transformation_event = (
+            preprocessed.intensity_transformation_event
+            if preprocessed.intensity_transformation_event is not None
+            else _resolve_intensity_transformation_event(
+                preprocessed.preprocessing_trace
+            )
+        )
         declared_input_scale_resolution = _resolve_declared_input_intensity_scale_resolution(
             preprocessing_plan=request.preprocessing_plan,
             preprocessing_trace=preprocessed.preprocessing_trace,
+            intensity_transformation_event=intensity_transformation_event,
             declared_input_scale_kind=request.declared_input_intensity_scale_kind,
             declared_input_scale_source=request.declared_input_intensity_scale_source,
             has_total_matrix=preprocessed.total is not None,
@@ -182,10 +191,28 @@ def _resolve_declared_input_intensity_scale_resolution(
     *,
     preprocessing_plan: PreprocessingPlan,
     preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
+    intensity_transformation_event: IntensityTransformationEvent | None,
     declared_input_scale_kind: IntensityScaleKind | None,
     declared_input_scale_source: str | None,
     has_total_matrix: bool,
 ) -> _DeclaredInputIntensityScaleResolution | None:
+    intensity_transform_stage = _resolve_intensity_transform_stage(preprocessing_trace)
+    if intensity_transformation_event is not None:
+        return _DeclaredInputIntensityScaleResolution(
+            state=_build_intensity_scale_state_from_event(
+                intensity_transformation_event=intensity_transformation_event,
+                has_total_matrix=has_total_matrix,
+            ),
+            establishment_mode=_resolve_event_establishment_mode(
+                intensity_transformation_event
+            ),
+            input_declaration_source=None,
+            establishment_parameters=_resolve_transformed_establishment_parameters(
+                intensity_transform_stage=intensity_transform_stage,
+                intensity_transformation_event=intensity_transformation_event,
+            ),
+            establishment_transformer_name=intensity_transformation_event.transformer_name,
+        )
     if declared_input_scale_kind is not None:
         return _DeclaredInputIntensityScaleResolution(
             state=_build_declared_intensity_scale_state(
@@ -204,23 +231,6 @@ def _resolve_declared_input_intensity_scale_resolution(
                 "declared_scale_kind": declared_input_scale_kind.value,
             },
             establishment_transformer_name=None,
-        )
-    intensity_transform_stage = _resolve_intensity_transform_stage(preprocessing_trace)
-    transformed_state = _resolve_transformed_state_from_intensity_stage(
-        intensity_transform_stage=intensity_transform_stage,
-        has_total_matrix=has_total_matrix,
-    )
-    if transformed_state is not None:
-        return _DeclaredInputIntensityScaleResolution(
-            state=transformed_state,
-            establishment_mode=IntensityScaleEstablishmentMode.TRANSFORMED,
-            input_declaration_source=None,
-            establishment_parameters=_resolve_transformed_establishment_parameters(
-                intensity_transform_stage=intensity_transform_stage
-            ),
-            establishment_transformer_name=_resolve_transformed_transformer_name(
-                intensity_transform_stage=intensity_transform_stage
-            ),
         )
     if (
         intensity_transform_stage is None
@@ -243,162 +253,90 @@ def _resolve_intensity_transform_stage(
     return None
 
 
-def _resolve_transformed_state_from_intensity_stage(
+def _resolve_intensity_transformation_event(
+    preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
+) -> IntensityTransformationEvent | None:
+    if preprocessing_trace is None:
+        return None
+    event: IntensityTransformationEvent | None = None
+    for stage in preprocessing_trace:
+        if stage.intensity_transformation_event is None:
+            continue
+        event = stage.intensity_transformation_event
+    return event
+
+
+def _build_intensity_scale_state_from_event(
     *,
-    intensity_transform_stage: PreprocessingStageExecution | None,
+    intensity_transformation_event: IntensityTransformationEvent,
     has_total_matrix: bool,
-) -> IntensityScaleState | None:
-    if intensity_transform_stage is None:
-        return None
-    diagnostics = intensity_transform_stage.diagnostics
-    if not isinstance(diagnostics, Mapping):
-        return None
-    transformer_state = diagnostics.get("transformer_state")
-    if not isinstance(transformer_state, Mapping):
-        return None
-    phospho_payload = transformer_state.get("phospho")
-    if not isinstance(phospho_payload, Mapping):
-        raise DatasetBuildError(
-            "intensity-transform stage diagnostics is missing transformer_state.phospho"
+) -> IntensityScaleState:
+    output_scale = intensity_transformation_event.output_scale
+    total_state = (
+        None
+        if not has_total_matrix
+        else MatrixIntensityScaleState(
+            kind=output_scale.kind,
+            transformed=output_scale.transformed,
+            established_by=output_scale.established_by,
         )
-    phospho_state = _matrix_state_from_payload(
-        phospho_payload,
-        field_name="transformer_state.phospho",
-    )
-    total_payload = transformer_state.get("total")
-    if total_payload is None:
-        if has_total_matrix:
-            raise DatasetBuildError(
-                "intensity-transform stage diagnostics omitted transformer_state.total "
-                "for a dataset with total input matrix"
-            )
-        total_state = None
-    else:
-        if not has_total_matrix:
-            raise DatasetBuildError(
-                "intensity-transform stage diagnostics reported transformer_state.total "
-                "for a dataset without total input matrix"
-            )
-        if not isinstance(total_payload, Mapping):
-            raise DatasetBuildError(
-                "intensity-transform stage diagnostics contains invalid "
-                "transformer_state.total payload"
-            )
-        total_state = _matrix_state_from_payload(
-            total_payload,
-            field_name="transformer_state.total",
-        )
-    quantity_payload = transformer_state.get("quantity")
-    quantity = _resolve_transformer_state_quantity(
-        quantity_payload,
-        field_name="transformer_state.quantity",
     )
     return IntensityScaleState(
-        phospho=phospho_state,
+        phospho=output_scale,
         total=total_state,
-        quantity=quantity,
     )
 
 
-def _matrix_state_from_payload(
-    payload: Mapping[str, object],
-    *,
-    field_name: str,
-) -> MatrixIntensityScaleState:
-    kind_payload = payload.get("kind")
-    transformed_payload = payload.get("transformed")
-    established_by_payload = payload.get("established_by")
-    if not isinstance(kind_payload, str) or not kind_payload.strip():
-        raise DatasetBuildError(
-            f"intensity-transform stage diagnostics {field_name}.kind must be a "
-            "non-empty string"
-        )
-    if not isinstance(transformed_payload, bool):
-        raise DatasetBuildError(
-            f"intensity-transform stage diagnostics {field_name}.transformed must be a "
-            "boolean"
-        )
-    if (
-        not isinstance(established_by_payload, str)
-        or not established_by_payload.strip()
-    ):
-        raise DatasetBuildError(
-            f"intensity-transform stage diagnostics {field_name}.established_by "
-            "must be a non-empty string"
-        )
-    try:
-        kind = IntensityScaleKind(str(kind_payload))
-    except ValueError as exc:
-        supported = ", ".join(item.value for item in IntensityScaleKind)
-        raise DatasetBuildError(
-            f"intensity-transform stage diagnostics {field_name}.kind must be one of: "
-            f"{supported}"
-        ) from exc
-    return MatrixIntensityScaleState(
-        kind=kind,
-        transformed=transformed_payload,
-        established_by=established_by_payload,
-    )
-
-
-def _resolve_transformer_state_quantity(
-    value: object,
-    *,
-    field_name: str,
-) -> QuantitativeMeaning | None:
-    if value is None:
-        return None
-    normalized = str(value).strip()
-    if not normalized:
-        return None
-    try:
-        return QuantitativeMeaning(normalized)
-    except ValueError as exc:
-        supported = ", ".join(item.value for item in QuantitativeMeaning)
-        raise DatasetBuildError(
-            f"intensity-transform stage diagnostics {field_name} must be one of: "
-            f"{supported}"
-        ) from exc
+def _resolve_event_establishment_mode(
+    event: IntensityTransformationEvent,
+) -> IntensityScaleEstablishmentMode:
+    if event.evidence_level is IntensityScaleEvidenceLevel.DECLARED_BY_USER:
+        return IntensityScaleEstablishmentMode.DECLARED
+    normalized_kind = event.transformation_kind.lower().replace("-", "_")
+    if normalized_kind in {"identity", "passthrough", "pass_through"}:
+        return IntensityScaleEstablishmentMode.IDENTITY
+    return IntensityScaleEstablishmentMode.TRANSFORMED
 
 
 def _resolve_transformed_establishment_parameters(
     *,
     intensity_transform_stage: PreprocessingStageExecution | None,
+    intensity_transformation_event: IntensityTransformationEvent,
 ) -> Mapping[str, object]:
-    if intensity_transform_stage is None:
-        return {}
-    diagnostics = (
-        {}
-        if not isinstance(intensity_transform_stage.diagnostics, Mapping)
-        else intensity_transform_stage.diagnostics
+    operation = (
+        intensity_transformation_event.transformation_kind
+        if intensity_transform_stage is None
+        else str(intensity_transform_stage.operation)
     )
     parameters: dict[str, object] = {
-        "operation": str(intensity_transform_stage.operation),
-        **dict(intensity_transform_stage.parameters),
+        "operation": operation,
+        "transformation_kind": intensity_transformation_event.transformation_kind,
+        "input_scale": intensity_transformation_event.input_scale.kind.value,
+        "output_scale": intensity_transformation_event.output_scale.kind.value,
     }
-    for optional_key in ("pseudocount", "affected_matrices"):
+    if intensity_transform_stage is not None:
+        parameters.update(dict(intensity_transform_stage.parameters))
+    if intensity_transformation_event.pseudocount is not None:
+        parameters["pseudocount"] = intensity_transformation_event.pseudocount
+    if intensity_transformation_event.input_fingerprint is not None:
+        parameters["input_fingerprint"] = (
+            intensity_transformation_event.input_fingerprint
+        )
+    if intensity_transformation_event.output_fingerprint is not None:
+        parameters["output_fingerprint"] = (
+            intensity_transformation_event.output_fingerprint
+        )
+    diagnostics: Mapping[str, object] = {}
+    if intensity_transform_stage is not None and isinstance(
+        intensity_transform_stage.diagnostics,
+        Mapping,
+    ):
+        diagnostics = intensity_transform_stage.diagnostics
+    for optional_key in ("affected_matrices",):
         value = diagnostics.get(optional_key)
         if value is not None:
             parameters[optional_key] = value
     return parameters
-
-
-def _resolve_transformed_transformer_name(
-    *,
-    intensity_transform_stage: PreprocessingStageExecution | None,
-) -> str | None:
-    if intensity_transform_stage is None:
-        return None
-    diagnostics = intensity_transform_stage.diagnostics
-    if not isinstance(diagnostics, Mapping):
-        return None
-    value = diagnostics.get("transformer_name")
-    if value is None:
-        return None
-    normalized = str(value).strip()
-    if not normalized:
-        return None
-    return normalized
 
 
 def _build_declared_intensity_scale_state(

@@ -231,6 +231,9 @@ class DatasetBuildExecutor:
                 int(transformed.phospho.shape[0]),
                 int(transformed.phospho.shape[1]),
             ),
+            intensity_transformation_event=(
+                preprocessed.intensity_transformation_event
+            ),
         )
 
     def _assemble_run_provenance(

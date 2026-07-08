@@ -37,6 +37,10 @@ from phospy.science.datasets.preprocessing.stage_registry import (
     build_registered_preprocessing_stage_instances,
     resolve_registered_preprocessing_stages,
 )
+from phospy.science.transformations.models import (
+    IntensityTransformationEvent,
+    MatrixIntensityScaleState,
+)
 
 _RESERVED_DIAGNOSTIC_KEYS = frozenset(
     {
@@ -100,6 +104,10 @@ class PreprocessingPipeline:
         current = state
         trace: list[PreprocessingStageExecution] = []
         report_rows: list[PreprocessingReportRow] = list(current.report_rows)
+        previous_intensity_transformation_event: IntensityTransformationEvent | None = (
+            None
+        )
+        previous_intensity_transformation_stage: str | None = None
         for stage_key in current.plan.stage_order:
             stage = self._stages_by_key.get(stage_key)
             if stage is None:
@@ -121,6 +129,19 @@ class PreprocessingPipeline:
                     "dataset preprocessing stage returned an invalid result payload: "
                     f"{stage_key}"
                 )
+            intensity_transformation_event = _normalize_intensity_transformation_event(
+                stage_key=stage_key,
+                event=stage_result.intensity_transformation_event,
+            )
+            if intensity_transformation_event is not None:
+                _validate_intensity_transformation_event_sequence(
+                    previous_stage=previous_intensity_transformation_stage,
+                    previous_event=previous_intensity_transformation_event,
+                    current_stage=stage_key,
+                    current_event=intensity_transformation_event,
+                )
+                previous_intensity_transformation_event = intensity_transformation_event
+                previous_intensity_transformation_stage = stage_key
             current = stage_result.state
             report_rows.extend(_normalize_report_rows(stage_result.report_rows))
             phospho_input_hash = hash_table_tolerance(
@@ -194,6 +215,7 @@ class PreprocessingPipeline:
                     batch_correction_provenance=(
                         stage_result.batch_correction_provenance
                     ),
+                    intensity_transformation_event=intensity_transformation_event,
                 )
             )
         if report_rows:
@@ -290,6 +312,58 @@ def _normalize_stage_diagnostics(
         "notes": notes,
         "diagnostics": diagnostics,
     }
+
+
+def _normalize_intensity_transformation_event(
+    *,
+    stage_key: str,
+    event: object | None,
+) -> IntensityTransformationEvent | None:
+    if event is None:
+        return None
+    if not isinstance(event, IntensityTransformationEvent):
+        raise DatasetBuildError(
+            "dataset preprocessing intensity transformation event parse error: "
+            f"stage={stage_key!r}, expected IntensityTransformationEvent or None, "
+            f"got {event!r} ({type(event).__name__})"
+        )
+    return event
+
+
+def _validate_intensity_transformation_event_sequence(
+    *,
+    previous_stage: str | None,
+    previous_event: IntensityTransformationEvent | None,
+    current_stage: str,
+    current_event: IntensityTransformationEvent,
+) -> None:
+    if previous_event is None:
+        return
+    if _same_matrix_intensity_scale(
+        previous_event.output_scale,
+        current_event.input_scale,
+    ):
+        return
+    previous_label = "unknown" if previous_stage is None else previous_stage
+    raise DatasetBuildError(
+        "dataset preprocessing intensity transformation event conflict: "
+        f"stage {current_stage!r} declares input scale "
+        f"{_format_matrix_intensity_scale(current_event.input_scale)} but previous "
+        f"event from stage {previous_label!r} produced output scale "
+        f"{_format_matrix_intensity_scale(previous_event.output_scale)}"
+    )
+
+
+def _same_matrix_intensity_scale(
+    left: MatrixIntensityScaleState,
+    right: MatrixIntensityScaleState,
+) -> bool:
+    return left.kind is right.kind and left.transformed == right.transformed
+
+
+def _format_matrix_intensity_scale(state: MatrixIntensityScaleState) -> str:
+    transformed_label = "transformed" if state.transformed else "untransformed"
+    return f"{state.kind.value} ({transformed_label})"
 
 
 def _coerce_string_tuple(

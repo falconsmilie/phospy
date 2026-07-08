@@ -83,6 +83,7 @@ from phospy.science.datasets.preprocessing.report_schema import (
     dataframe_from_row_count_rows,
     reorder_columns,
 )
+from phospy.science.transformations.models import IntensityTransformationEvent
 from phospy.validation.common.dataframes import (
     require_columns,
 )
@@ -141,6 +142,10 @@ class DatasetPreprocessingReport:
         init=False,
         repr=False,
     )
+    _intensity_transformation_event: IntensityTransformationEvent | None = field(
+        init=False,
+        repr=False,
+    )
 
     def __init__(
         self,
@@ -154,6 +159,7 @@ class DatasetPreprocessingReport:
         site_sequence_resolution: SiteSequenceResolutionReport | None = None,
         batch_correction: BatchCorrectionReport | None = None,
         protein_aware_preparation: ProteinAwarePreparationReport | None = None,
+        intensity_transformation_event: IntensityTransformationEvent | None = None,
         _assume_owned: bool = False,
     ) -> None:
         row_counts = own_dataframe(
@@ -291,6 +297,19 @@ class DatasetPreprocessingReport:
             "_protein_aware_preparation",
             protein_aware_preparation,
         )
+        _require_optional_instance(
+            intensity_transformation_event,
+            expected_type=IntensityTransformationEvent,
+            error_message=(
+                "dataset.preprocessing_report.intensity_transformation_event must "
+                "be IntensityTransformationEvent or None"
+            ),
+        )
+        object.__setattr__(
+            self,
+            "_intensity_transformation_event",
+            intensity_transformation_event,
+        )
 
     @property
     def row_counts(self) -> pd.DataFrame:
@@ -331,6 +350,12 @@ class DatasetPreprocessingReport:
     @property
     def protein_aware_preparation(self) -> ProteinAwarePreparationReport | None:
         return self._protein_aware_preparation
+
+    @property
+    def intensity_transformation_event(
+        self,
+    ) -> IntensityTransformationEvent | None:
+        return self._intensity_transformation_event
 
     def _borrow_row_counts_frame(self) -> pd.DataFrame:
         """Package-private row-count snapshot for internal read paths."""
@@ -419,6 +444,13 @@ class DatasetPreprocessingReport:
 
         return self._protein_aware_preparation
 
+    def intensity_transformation_summary(
+        self,
+    ) -> IntensityTransformationEvent | None:
+        """Return typed intensity-scale transition evidence when available."""
+
+        return self._intensity_transformation_event
+
     def site_attrition_summary(self) -> PreprocessingSiteAttritionSummary:
         """Return compact preprocessing-owned site attrition counters."""
 
@@ -465,6 +497,7 @@ class DatasetPreprocessingReport:
         site_sequence_resolution: SiteSequenceResolutionReport | None = None,
         batch_correction: BatchCorrectionReport | None = None,
         protein_aware_preparation: ProteinAwarePreparationReport | None = None,
+        intensity_transformation_event: IntensityTransformationEvent | None = None,
     ) -> DatasetPreprocessingReport:
         return cls._from_owned(
             row_counts=dataframe_from_row_count_rows(row_count_rows),
@@ -485,6 +518,7 @@ class DatasetPreprocessingReport:
             site_sequence_resolution=site_sequence_resolution,
             batch_correction=batch_correction,
             protein_aware_preparation=protein_aware_preparation,
+            intensity_transformation_event=intensity_transformation_event,
         )
 
     @classmethod
@@ -501,6 +535,7 @@ class DatasetPreprocessingReport:
         site_sequence_resolution: SiteSequenceResolutionReport | None = None,
         batch_correction: BatchCorrectionReport | None = None,
         protein_aware_preparation: ProteinAwarePreparationReport | None = None,
+        intensity_transformation_event: IntensityTransformationEvent | None = None,
     ) -> DatasetPreprocessingReport:
         return cls(
             row_counts=row_counts,
@@ -513,6 +548,7 @@ class DatasetPreprocessingReport:
             site_sequence_resolution=site_sequence_resolution,
             batch_correction=batch_correction,
             protein_aware_preparation=protein_aware_preparation,
+            intensity_transformation_event=intensity_transformation_event,
             _assume_owned=True,
         )
 
