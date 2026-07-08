@@ -12,6 +12,7 @@ from phospy.api import (
     DatasetIntensityTransformConfig,
     DatasetPreprocessingConfig,
 )
+from phospy.errors.build import DatasetBuildError
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.transformations import (
     InvalidTransformationStateError,
@@ -26,7 +27,10 @@ from phospy.io.bundles._shared.processing_state import (
     processing_state_from_payload,
 )
 from phospy.science.datasets.builders import transformation_state
-from phospy.science.datasets.builders.contracts import PreprocessedDatasetBuildTables
+from phospy.science.datasets.builders.contracts import (
+    InterpretedDatasetBuildRequest,
+    PreprocessedDatasetBuildTables,
+)
 from phospy.science.datasets.builders.executor import DatasetBuildExecutor
 from phospy.science.datasets.builders.preprocessing import (
     build_dataset_processing_state,
@@ -35,7 +39,11 @@ from phospy.science.datasets.builders.transformation_resolver import (
     DatasetIntensityScaleResolver,
 )
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.science.datasets.preprocessing.models import PreprocessingPlan
+from phospy.science.datasets.preprocessing.models import (
+    DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
+    PreprocessingPlan,
+    PreprocessingStageExecution,
+)
 from phospy.science.references.models import Organism
 from phospy.science.sites.site_keys import (
     build_protein_scoped_site_key,
@@ -45,8 +53,10 @@ from phospy.science.transformations.contracts import TransformationResult
 from phospy.science.transformations.models import (
     IntensityScaleEstablishmentMode,
     IntensityScaleEstablishmentSource,
+    IntensityScaleEvidenceLevel,
     IntensityScaleKind,
     IntensityScaleState,
+    IntensityTransformationEvent,
     MatrixIntensityScaleState,
     establish_intensity_scale_state,
 )
@@ -82,6 +92,41 @@ def _phospho() -> pd.DataFrame:
 
 def _total() -> pd.DataFrame:
     return pd.DataFrame({"sample_a": [2.0]}, index=["MAPK14"])
+
+
+def _log2_event(*, pseudocount: float = 1.0) -> IntensityTransformationEvent:
+    return IntensityTransformationEvent(
+        transformer_name=(
+            "phospy.science.transformations.transformers.log2.Log2Transformer"
+        ),
+        input_scale=MatrixIntensityScaleState.linear(established_by="tests.linear"),
+        output_scale=MatrixIntensityScaleState.log2(established_by="tests.log2"),
+        evidence_level=IntensityScaleEvidenceLevel.OBSERVED_TRANSFORMATION,
+        transformation_kind="log2",
+        pseudocount=pseudocount,
+        input_fingerprint="input-fingerprint",
+        output_fingerprint="output-fingerprint",
+    )
+
+
+def _intensity_transform_execution(
+    *,
+    event: IntensityTransformationEvent | object | None,
+    diagnostics: dict[str, object] | None = None,
+) -> PreprocessingStageExecution:
+    return PreprocessingStageExecution(
+        stage=DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
+        operation="log2",
+        parameters={"pseudocount": 1.0},
+        input_shape=(1, 1),
+        output_shape=(1, 1),
+        input_hash="input-hash",
+        output_hash="output-hash",
+        phospho_input_hash="input-phospho-hash",
+        phospho_output_hash="output-phospho-hash",
+        diagnostics={} if diagnostics is None else diagnostics,
+        intensity_transformation_event=event,  # type: ignore[arg-type]
+    )
 
 
 def _site_metadata() -> pd.DataFrame:
@@ -662,6 +707,212 @@ def test_builder_fails_on_expected_log2_without_transform_or_declaration() -> No
                 organism=Organism.RAT,
                 preprocessing_config=DatasetPreprocessingConfig(
                     intensity_transform=DatasetIntensityTransformConfig(policy="log2")
+                ),
+            )
+        )
+
+
+def test_builder_observed_typed_event_establishes_log2_before_declaration() -> None:
+    event = _log2_event(pseudocount=0.5)
+
+    class EventPreprocessor:
+        def run(
+            self,
+            *,
+            phospho: pd.DataFrame,
+            site_metadata: pd.DataFrame,
+            sample_metadata: pd.DataFrame | None,
+            total: pd.DataFrame | None,
+            plan: PreprocessingPlan,
+        ) -> PreprocessedDatasetBuildTables:
+            return PreprocessedDatasetBuildTables(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                sample_metadata=sample_metadata,
+                total=total,
+                preprocessing_trace=(_intensity_transform_execution(event=event),),
+                intensity_transformation_event=event,
+            )
+
+    built = DatasetBuildExecutor(preprocessor=EventPreprocessor()).run(
+        InterpretedDatasetBuildRequest(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(),
+            sample_metadata=None,
+            total=None,
+            organism=Organism.RAT,
+            declared_input_intensity_scale_kind=IntensityScaleKind.LINEAR,
+            preprocessing_plan=PreprocessingPlan(
+                intensity_transform_policy="log2",
+                intensity_transform_pseudocount=0.5,
+                stage_order=("intensity_transform",),
+            ),
+        )
+    )
+
+    assert built.intensity_scale_state.kind is IntensityScaleKind.LOG2
+    provenance = built.intensity_scale_state.establishment_provenance
+    assert provenance is not None
+    assert provenance.mode is IntensityScaleEstablishmentMode.TRANSFORMED
+    assert (
+        provenance.evidence_level is IntensityScaleEvidenceLevel.OBSERVED_TRANSFORMATION
+    )
+    assert provenance.transformer_name == event.transformer_name
+    assert provenance.parameters["pseudocount"] == 0.5
+    assert provenance.parameters["input_fingerprint"] == "input-fingerprint"
+    assert provenance.parameters["output_fingerprint"] == "output-fingerprint"
+    assert built.provenance is not None
+    workflow_payload = built.provenance.workflow_parameters[
+        "intensity_scale_establishment"
+    ]
+    assert isinstance(workflow_payload, dict)
+    assert workflow_payload["evidence_level"] == "observed_transformation"
+    assert workflow_payload["transformer_name"] == event.transformer_name
+
+
+def test_builder_declared_only_scale_records_declared_evidence() -> None:
+    class NoopPreprocessor:
+        def run(
+            self,
+            *,
+            phospho: pd.DataFrame,
+            site_metadata: pd.DataFrame,
+            sample_metadata: pd.DataFrame | None,
+            total: pd.DataFrame | None,
+            plan: PreprocessingPlan,
+        ) -> PreprocessedDatasetBuildTables:
+            return PreprocessedDatasetBuildTables(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                sample_metadata=sample_metadata,
+                total=total,
+                preprocessing_trace=None,
+            )
+
+    built = DatasetBuildExecutor(preprocessor=NoopPreprocessor()).run(
+        InterpretedDatasetBuildRequest(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(),
+            sample_metadata=None,
+            total=None,
+            organism=Organism.RAT,
+            declared_input_intensity_scale_kind=IntensityScaleKind.LINEAR,
+            declared_input_intensity_scale_source=(
+                "dataset_build_request.input_intensity_scale"
+            ),
+        )
+    )
+
+    provenance = built.intensity_scale_state.establishment_provenance
+    assert provenance is not None
+    assert provenance.mode is IntensityScaleEstablishmentMode.DECLARED
+    assert provenance.evidence_level is IntensityScaleEvidenceLevel.DECLARED_BY_USER
+    assert (
+        provenance.input_declaration_source
+        == "dataset_build_request.input_intensity_scale"
+    )
+    assert built.provenance is not None
+    workflow_payload = built.provenance.workflow_parameters[
+        "intensity_scale_establishment"
+    ]
+    assert isinstance(workflow_payload, dict)
+    assert workflow_payload["evidence_level"] == "declared_by_user"
+    assert workflow_payload["establishment_mode"] == "declared"
+
+
+def test_builder_malformed_typed_event_fails_clearly() -> None:
+    class MalformedEventPreprocessor:
+        def run(
+            self,
+            *,
+            phospho: pd.DataFrame,
+            site_metadata: pd.DataFrame,
+            sample_metadata: pd.DataFrame | None,
+            total: pd.DataFrame | None,
+            plan: PreprocessingPlan,
+        ) -> PreprocessedDatasetBuildTables:
+            return PreprocessedDatasetBuildTables(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                sample_metadata=sample_metadata,
+                total=total,
+                preprocessing_trace=None,
+                intensity_transformation_event={  # type: ignore[arg-type]
+                    "evidence_level": "observed_transformation"
+                },
+            )
+
+    with pytest.raises(
+        DatasetBuildError,
+        match="must be IntensityTransformationEvent or None",
+    ):
+        DatasetBuildExecutor(preprocessor=MalformedEventPreprocessor()).run(
+            InterpretedDatasetBuildRequest(
+                phospho=_phospho(),
+                site_metadata=_site_metadata(),
+                sample_metadata=None,
+                total=None,
+                organism=Organism.RAT,
+                preprocessing_plan=PreprocessingPlan(
+                    intensity_transform_policy="log2",
+                    stage_order=("intensity_transform",),
+                ),
+            )
+        )
+
+
+def test_builder_rejects_old_diagnostics_only_intensity_state() -> None:
+    class DiagnosticsOnlyPreprocessor:
+        def run(
+            self,
+            *,
+            phospho: pd.DataFrame,
+            site_metadata: pd.DataFrame,
+            sample_metadata: pd.DataFrame | None,
+            total: pd.DataFrame | None,
+            plan: PreprocessingPlan,
+        ) -> PreprocessedDatasetBuildTables:
+            diagnostics = {
+                "transformer_name": (
+                    "phospy.science.transformations.transformers.log2.Log2Transformer"
+                ),
+                "pseudocount": 1.0,
+                "transformer_state": {
+                    "phospho": {
+                        "kind": "log2",
+                        "transformed": True,
+                        "established_by": "legacy.diagnostics",
+                    },
+                    "total": None,
+                },
+            }
+            return PreprocessedDatasetBuildTables(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                sample_metadata=sample_metadata,
+                total=total,
+                preprocessing_trace=(
+                    _intensity_transform_execution(
+                        event=None,
+                        diagnostics=diagnostics,
+                    ),
+                ),
+            )
+
+    with pytest.raises(
+        TransformationStateEstablishmentError,
+        match="did not emit a typed observed IntensityTransformationEvent",
+    ):
+        DatasetBuildExecutor(preprocessor=DiagnosticsOnlyPreprocessor()).run(
+            InterpretedDatasetBuildRequest(
+                phospho=_phospho(),
+                site_metadata=_site_metadata(),
+                sample_metadata=None,
+                total=None,
+                organism=Organism.RAT,
+                preprocessing_plan=PreprocessingPlan(
+                    intensity_transform_policy="log2",
+                    stage_order=("intensity_transform",),
                 ),
             )
         )

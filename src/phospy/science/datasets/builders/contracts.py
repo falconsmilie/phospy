@@ -38,6 +38,7 @@ from phospy.science.sites.identifiers import SiteIdentifierNormalisationReport
 from phospy.science.transformations.models import (
     DeclaredIntensityScaleDiagnosticPolicy,
     IntensityScaleEstablishmentMode,
+    IntensityScaleEvidenceLevel,
     IntensityScaleKind,
     IntensityScaleState,
     IntensityTransformationEvent,
@@ -149,6 +150,7 @@ class DatasetIntensityScaleResolverContract(Protocol):
         ),
         input_declaration_source: str | None = None,
         scale_establishment_parameters: Mapping[str, object] | None = None,
+        scale_establishment_evidence_level: IntensityScaleEvidenceLevel | None = None,
         establishment_transformer_name: str | None = None,
         establishment_trace_id: str | None = None,
         declared_scale_diagnostic_policy: DeclaredIntensityScaleDiagnosticPolicy

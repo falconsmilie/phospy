@@ -51,6 +51,7 @@ class ResolvedDatasetTransformationState:
 class _DeclaredInputIntensityScaleResolution:
     state: IntensityScaleState
     establishment_mode: IntensityScaleEstablishmentMode
+    evidence_level: IntensityScaleEvidenceLevel
     input_declaration_source: str | None
     establishment_parameters: Mapping[str, object]
     establishment_transformer_name: str | None
@@ -73,17 +74,37 @@ class DatasetTransformationStateResolver:
         preprocessed: PreprocessedDatasetBuildTables,
         validated_site_metadata: pd.DataFrame,
     ) -> ResolvedDatasetTransformationState:
-        intensity_transformation_event = (
-            preprocessed.intensity_transformation_event
-            if preprocessed.intensity_transformation_event is not None
-            else _resolve_intensity_transformation_event(
-                preprocessed.preprocessing_trace
+        intensity_transformation_events = _resolve_intensity_transformation_events(
+            preprocessed=preprocessed
+        )
+        observed_intensity_transformation_event = (
+            _select_intensity_transformation_event(
+                intensity_transformation_events,
+                evidence_level=IntensityScaleEvidenceLevel.OBSERVED_TRANSFORMATION,
             )
+        )
+        inferred_intensity_transformation_event = (
+            _select_intensity_transformation_event(
+                intensity_transformation_events,
+                evidence_level=IntensityScaleEvidenceLevel.INFERRED_FROM_METADATA,
+            )
+        )
+        _reject_missing_observed_intensity_transformation_event(
+            preprocessing_plan=request.preprocessing_plan,
+            preprocessing_trace=preprocessed.preprocessing_trace,
+            observed_intensity_transformation_event=(
+                observed_intensity_transformation_event
+            ),
         )
         declared_input_scale_resolution = _resolve_declared_input_intensity_scale_resolution(
             preprocessing_plan=request.preprocessing_plan,
             preprocessing_trace=preprocessed.preprocessing_trace,
-            intensity_transformation_event=intensity_transformation_event,
+            observed_intensity_transformation_event=(
+                observed_intensity_transformation_event
+            ),
+            inferred_intensity_transformation_event=(
+                inferred_intensity_transformation_event
+            ),
             declared_input_scale_kind=request.declared_input_intensity_scale_kind,
             declared_input_scale_source=request.declared_input_intensity_scale_source,
             has_total_matrix=preprocessed.total is not None,
@@ -116,6 +137,11 @@ class DatasetTransformationStateResolver:
                 None
                 if declared_input_scale_resolution is None
                 else dict(declared_input_scale_resolution.establishment_parameters)
+            ),
+            scale_establishment_evidence_level=(
+                None
+                if declared_input_scale_resolution is None
+                else declared_input_scale_resolution.evidence_level
             ),
             establishment_transformer_name=(
                 None
@@ -191,27 +217,32 @@ def _resolve_declared_input_intensity_scale_resolution(
     *,
     preprocessing_plan: PreprocessingPlan,
     preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
-    intensity_transformation_event: IntensityTransformationEvent | None,
+    observed_intensity_transformation_event: IntensityTransformationEvent | None,
+    inferred_intensity_transformation_event: IntensityTransformationEvent | None,
     declared_input_scale_kind: IntensityScaleKind | None,
     declared_input_scale_source: str | None,
     has_total_matrix: bool,
 ) -> _DeclaredInputIntensityScaleResolution | None:
     intensity_transform_stage = _resolve_intensity_transform_stage(preprocessing_trace)
-    if intensity_transformation_event is not None:
+    if observed_intensity_transformation_event is not None:
         return _DeclaredInputIntensityScaleResolution(
             state=_build_intensity_scale_state_from_event(
-                intensity_transformation_event=intensity_transformation_event,
+                intensity_transformation_event=observed_intensity_transformation_event,
                 has_total_matrix=has_total_matrix,
             ),
             establishment_mode=_resolve_event_establishment_mode(
-                intensity_transformation_event
+                observed_intensity_transformation_event
             ),
+            evidence_level=observed_intensity_transformation_event.evidence_level,
             input_declaration_source=None,
             establishment_parameters=_resolve_transformed_establishment_parameters(
                 intensity_transform_stage=intensity_transform_stage,
-                intensity_transformation_event=intensity_transformation_event,
+                intensity_transformation_event=observed_intensity_transformation_event,
+                has_total_matrix=has_total_matrix,
             ),
-            establishment_transformer_name=intensity_transformation_event.transformer_name,
+            establishment_transformer_name=(
+                observed_intensity_transformation_event.transformer_name
+            ),
         )
     if declared_input_scale_kind is not None:
         return _DeclaredInputIntensityScaleResolution(
@@ -223,6 +254,7 @@ def _resolve_declared_input_intensity_scale_resolution(
                 ),
             ),
             establishment_mode=IntensityScaleEstablishmentMode.DECLARED,
+            evidence_level=IntensityScaleEvidenceLevel.DECLARED_BY_USER,
             input_declaration_source=(
                 declared_input_scale_source
                 or "dataset_build_request.input_intensity_scale"
@@ -231,6 +263,26 @@ def _resolve_declared_input_intensity_scale_resolution(
                 "declared_scale_kind": declared_input_scale_kind.value,
             },
             establishment_transformer_name=None,
+        )
+    if inferred_intensity_transformation_event is not None:
+        return _DeclaredInputIntensityScaleResolution(
+            state=_build_intensity_scale_state_from_event(
+                intensity_transformation_event=inferred_intensity_transformation_event,
+                has_total_matrix=has_total_matrix,
+            ),
+            establishment_mode=_resolve_event_establishment_mode(
+                inferred_intensity_transformation_event
+            ),
+            evidence_level=inferred_intensity_transformation_event.evidence_level,
+            input_declaration_source=None,
+            establishment_parameters=_resolve_transformed_establishment_parameters(
+                intensity_transform_stage=intensity_transform_stage,
+                intensity_transformation_event=inferred_intensity_transformation_event,
+                has_total_matrix=has_total_matrix,
+            ),
+            establishment_transformer_name=(
+                inferred_intensity_transformation_event.transformer_name
+            ),
         )
     if (
         intensity_transform_stage is None
@@ -253,17 +305,82 @@ def _resolve_intensity_transform_stage(
     return None
 
 
-def _resolve_intensity_transformation_event(
-    preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
-) -> IntensityTransformationEvent | None:
-    if preprocessing_trace is None:
-        return None
-    event: IntensityTransformationEvent | None = None
-    for stage in preprocessing_trace:
+def _resolve_intensity_transformation_events(
+    *,
+    preprocessed: PreprocessedDatasetBuildTables,
+) -> tuple[IntensityTransformationEvent, ...]:
+    events: list[IntensityTransformationEvent] = []
+    for index, stage in enumerate(preprocessed.preprocessing_trace or ()):
         if stage.intensity_transformation_event is None:
             continue
-        event = stage.intensity_transformation_event
-    return event
+        events.append(
+            _require_intensity_transformation_event(
+                stage.intensity_transformation_event,
+                source=(
+                    "preprocessed.preprocessing_trace"
+                    f"[{index}].intensity_transformation_event"
+                ),
+            )
+        )
+    if preprocessed.intensity_transformation_event is not None:
+        events.append(
+            _require_intensity_transformation_event(
+                preprocessed.intensity_transformation_event,
+                source="preprocessed.intensity_transformation_event",
+            )
+        )
+    return tuple(events)
+
+
+def _require_intensity_transformation_event(
+    value: object,
+    *,
+    source: str,
+) -> IntensityTransformationEvent:
+    if isinstance(value, IntensityTransformationEvent):
+        return value
+    raise DatasetBuildError(
+        "dataset preprocessing intensity transformation event parse error: "
+        f"{source} must be IntensityTransformationEvent or None, got "
+        f"{value!r} ({type(value).__name__})"
+    )
+
+
+def _select_intensity_transformation_event(
+    events: tuple[IntensityTransformationEvent, ...],
+    *,
+    evidence_level: IntensityScaleEvidenceLevel,
+) -> IntensityTransformationEvent | None:
+    selected: IntensityTransformationEvent | None = None
+    for event in events:
+        if event.evidence_level is evidence_level:
+            selected = event
+    return selected
+
+
+def _reject_missing_observed_intensity_transformation_event(
+    *,
+    preprocessing_plan: PreprocessingPlan,
+    preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
+    observed_intensity_transformation_event: IntensityTransformationEvent | None,
+) -> None:
+    if observed_intensity_transformation_event is not None:
+        return
+    intensity_transform_stage = _resolve_intensity_transform_stage(preprocessing_trace)
+    if intensity_transform_stage is None:
+        return
+    operation = str(intensity_transform_stage.operation).strip()
+    if (
+        preprocessing_plan.intensity_transform_policy
+        is not IntensityTransformPolicy.LOG2
+        and operation != IntensityTransformPolicy.LOG2.value
+    ):
+        return
+    raise TransformationStateEstablishmentError(
+        "preprocessing intensity_transform policy='log2' did not emit a typed "
+        "observed IntensityTransformationEvent; dataset intensity scale state "
+        "cannot be established from diagnostics-only transformation metadata"
+    )
 
 
 def _build_intensity_scale_state_from_event(
@@ -292,6 +409,8 @@ def _resolve_event_establishment_mode(
 ) -> IntensityScaleEstablishmentMode:
     if event.evidence_level is IntensityScaleEvidenceLevel.DECLARED_BY_USER:
         return IntensityScaleEstablishmentMode.DECLARED
+    if event.evidence_level is IntensityScaleEvidenceLevel.INFERRED_FROM_METADATA:
+        return IntensityScaleEstablishmentMode.DERIVED
     normalized_kind = event.transformation_kind.lower().replace("-", "_")
     if normalized_kind in {"identity", "passthrough", "pass_through"}:
         return IntensityScaleEstablishmentMode.IDENTITY
@@ -302,6 +421,7 @@ def _resolve_transformed_establishment_parameters(
     *,
     intensity_transform_stage: PreprocessingStageExecution | None,
     intensity_transformation_event: IntensityTransformationEvent,
+    has_total_matrix: bool,
 ) -> Mapping[str, object]:
     operation = (
         intensity_transformation_event.transformation_kind
@@ -313,6 +433,7 @@ def _resolve_transformed_establishment_parameters(
         "transformation_kind": intensity_transformation_event.transformation_kind,
         "input_scale": intensity_transformation_event.input_scale.kind.value,
         "output_scale": intensity_transformation_event.output_scale.kind.value,
+        "affected_matrices": ["phospho", "total"] if has_total_matrix else ["phospho"],
     }
     if intensity_transform_stage is not None:
         parameters.update(dict(intensity_transform_stage.parameters))
@@ -326,16 +447,6 @@ def _resolve_transformed_establishment_parameters(
         parameters["output_fingerprint"] = (
             intensity_transformation_event.output_fingerprint
         )
-    diagnostics: Mapping[str, object] = {}
-    if intensity_transform_stage is not None and isinstance(
-        intensity_transform_stage.diagnostics,
-        Mapping,
-    ):
-        diagnostics = intensity_transform_stage.diagnostics
-    for optional_key in ("affected_matrices",):
-        value = diagnostics.get(optional_key)
-        if value is not None:
-            parameters[optional_key] = value
     return parameters
 
 

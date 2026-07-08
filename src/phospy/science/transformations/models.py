@@ -85,6 +85,7 @@ class IntensityScaleEstablishmentProvenance:
     scale: str
     mode: IntensityScaleEstablishmentMode
     source: IntensityScaleEstablishmentSource
+    evidence_level: IntensityScaleEvidenceLevel = IntensityScaleEvidenceLevel.UNKNOWN
     transformer_name: str | None = None
     input_declaration_source: str | None = None
     parameters: dict[str, object] = field(
@@ -124,6 +125,8 @@ class IntensityScaleEstablishmentProvenance:
                     f"{self.source!r}; supported: {supported}"
                 ) from exc
             object.__setattr__(self, "source", source)
+        evidence_level = _normalize_intensity_scale_evidence_level(self.evidence_level)
+        object.__setattr__(self, "evidence_level", evidence_level)
         transformer_name = (
             None
             if self.transformer_name is None
@@ -163,6 +166,7 @@ class IntensityScaleEstablishmentProvenance:
             "scale": self.scale,
             "establishment_mode": self.mode.value,
             "establishment_source": self.source.value,
+            "evidence_level": self.evidence_level.value,
             "transformer_name": self.transformer_name,
             "input_declaration_source": self.input_declaration_source,
             "parameters": dict(self.parameters),
@@ -441,6 +445,9 @@ class IntensityScaleState:
         establishment_mode: IntensityScaleEstablishmentMode = (
             IntensityScaleEstablishmentMode.IDENTITY
         ),
+        evidence_level: IntensityScaleEvidenceLevel = (
+            IntensityScaleEvidenceLevel.UNKNOWN
+        ),
         transformer_name: str | None = IDENTITY_INTENSITY_SCALE_ESTABLISHER,
         input_declaration_source: str | None = None,
         parameters: Mapping[str, object] | None = None,
@@ -454,6 +461,7 @@ class IntensityScaleState:
             established_via=established_via,
             authority=_authority,
             establishment_mode=establishment_mode,
+            evidence_level=evidence_level,
             transformer_name=transformer_name,
             input_declaration_source=input_declaration_source,
             parameters={} if parameters is None else parameters,
@@ -467,6 +475,7 @@ class IntensityScaleState:
         established_via: str,
         authority: EstablishmentAuthority | None,
         establishment_mode: IntensityScaleEstablishmentMode,
+        evidence_level: IntensityScaleEvidenceLevel | str,
         transformer_name: str | None,
         input_declaration_source: str | None,
         parameters: Mapping[str, object],
@@ -494,6 +503,9 @@ class IntensityScaleState:
                     f"{establishment_mode!r}; supported: {supported}"
                 ) from exc
         authority_source = resolve_establishment_authority_source(authority)
+        resolved_evidence_level = _normalize_intensity_scale_evidence_level(
+            evidence_level
+        )
         established = IntensityScaleState(
             phospho=self.phospho,
             total=self.total,
@@ -521,6 +533,7 @@ class IntensityScaleState:
                     authority_source=authority_source,
                     establishment_mode=resolved_mode,
                 ),
+                evidence_level=resolved_evidence_level,
                 transformer_name=transformer_name,
                 input_declaration_source=input_declaration_source,
                 parameters=dict(parameters),
@@ -576,6 +589,7 @@ def establish_intensity_scale_state(
     establishment_mode: IntensityScaleEstablishmentMode = (
         IntensityScaleEstablishmentMode.DERIVED
     ),
+    evidence_level: IntensityScaleEvidenceLevel = IntensityScaleEvidenceLevel.UNKNOWN,
     transformer_name: str | None = None,
     input_declaration_source: str | None = None,
     parameters: Mapping[str, object] | None = None,
@@ -593,6 +607,7 @@ def establish_intensity_scale_state(
         established_via=established_via,
         authority=_authority,
         establishment_mode=establishment_mode,
+        evidence_level=evidence_level,
         transformer_name=transformer_name,
         input_declaration_source=input_declaration_source,
         parameters={} if parameters is None else parameters,

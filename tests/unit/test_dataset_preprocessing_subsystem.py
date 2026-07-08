@@ -57,6 +57,7 @@ from phospy.science.sites.site_keys import (
 from phospy.science.transformations.models import (
     DeclaredIntensityScaleDiagnosticPolicy,
     IntensityScaleEstablishmentMode,
+    IntensityScaleEvidenceLevel,
     IntensityScaleKind,
     IntensityScaleState,
     QuantitativeMeaning,
@@ -2151,6 +2152,8 @@ def test_executor_delegates_preprocessing_to_internal_subsystem() -> None:
             | None = None,
             input_declaration_source: str | None = None,
             scale_establishment_parameters: Mapping[str, object] | None = None,
+            scale_establishment_evidence_level: IntensityScaleEvidenceLevel
+            | None = None,
             establishment_transformer_name: str | None = None,
             establishment_trace_id: str | None = None,
             declared_scale_diagnostic_policy: DeclaredIntensityScaleDiagnosticPolicy
@@ -2170,6 +2173,10 @@ def test_executor_delegates_preprocessing_to_internal_subsystem() -> None:
                 == "dataset_build_request.input_intensity_scale"
             )
             assert scale_establishment_parameters == {"declared_scale_kind": "linear"}
+            assert (
+                scale_establishment_evidence_level
+                is IntensityScaleEvidenceLevel.DECLARED_BY_USER
+            )
             assert establishment_transformer_name is None
             assert establishment_trace_id is None
             assert (

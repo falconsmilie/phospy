@@ -21,6 +21,7 @@ from phospy.science.transformations.contracts import Transformer
 from phospy.science.transformations.models import (
     DeclaredIntensityScaleDiagnosticPolicy,
     IntensityScaleEstablishmentMode,
+    IntensityScaleEvidenceLevel,
     IntensityScaleKind,
     IntensityScaleState,
     establish_intensity_scale_state,
@@ -66,6 +67,7 @@ class DatasetIntensityScaleResolver:
         | str = DeclaredIntensityScaleDiagnosticPolicy.WARN,
         input_declaration_source: str | None = None,
         scale_establishment_parameters: Mapping[str, object] | None = None,
+        scale_establishment_evidence_level: IntensityScaleEvidenceLevel | None = None,
         establishment_transformer_name: str | None = None,
         establishment_trace_id: str | None = None,
     ) -> ResolvedIntensityScale:
@@ -194,10 +196,15 @@ class DatasetIntensityScaleResolver:
             default_transformer_name=transformer_source,
             explicit_transformer_name=establishment_transformer_name,
         )
+        evidence_level = self._resolve_evidence_level(
+            establishment_mode=establishment_mode,
+            explicit_evidence_level=scale_establishment_evidence_level,
+        )
         established_state = establish_intensity_scale_state(
             state,
             established_via=transformer_source,
             establishment_mode=establishment_mode,
+            evidence_level=evidence_level,
             transformer_name=transformer_name,
             input_declaration_source=input_declaration_source,
             parameters=(
@@ -263,6 +270,20 @@ class DatasetIntensityScaleResolver:
         if establishment_mode is IntensityScaleEstablishmentMode.DECLARED:
             return None
         return default_transformer_name
+
+    @staticmethod
+    def _resolve_evidence_level(
+        *,
+        establishment_mode: IntensityScaleEstablishmentMode,
+        explicit_evidence_level: IntensityScaleEvidenceLevel | None,
+    ) -> IntensityScaleEvidenceLevel:
+        if explicit_evidence_level is not None:
+            if isinstance(explicit_evidence_level, IntensityScaleEvidenceLevel):
+                return explicit_evidence_level
+            return IntensityScaleEvidenceLevel(str(explicit_evidence_level))
+        if establishment_mode is IntensityScaleEstablishmentMode.DECLARED:
+            return IntensityScaleEvidenceLevel.DECLARED_BY_USER
+        return IntensityScaleEvidenceLevel.UNKNOWN
 
     def _validate_state(
         self,
