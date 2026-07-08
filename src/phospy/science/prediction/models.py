@@ -37,7 +37,11 @@ from phospy.science.scoring.policy_models import (
 )
 from phospy.science.sites.validation import require_site_key_index
 from phospy.tables.base import require_canonical_label_index
-from phospy.tables.kinase import KinasePredictionMatrix, KinaseScoreMatrix
+from phospy.tables.kinase import (
+    KinasePredictionMatrix,
+    KinaseProfileScoreDiagnosticTable,
+    KinaseScoreMatrix,
+)
 from phospy.validation.common.config_values import coerce_policy_enum
 from phospy.validation.common.dataframes import (
     require_dataframe,
@@ -67,6 +71,8 @@ class KinaseScoringResult:
     `score_source_summary` is a compact per-kinase evidence-source diagnostic.
     `score_source_matrix` is an optional per-site/per-kinase evidence-source
     diagnostic table.
+    `profile_score_diagnostics` records sparse profile-scoring diagnostics such
+    as leave-one-out cells that could not be scored after self-exclusion.
     `profile_self_inclusion_policy` records whether known substrate sites were
     allowed to contribute to their own kinase profile scores.
     """
@@ -93,6 +99,10 @@ class KinaseScoringResult:
     _score_fusion_weights: pd.DataFrame | None = field(init=False, repr=False)
     _score_source_matrix: pd.DataFrame | None = field(init=False, repr=False)
     _score_source_summary: pd.DataFrame | None = field(init=False, repr=False)
+    _profile_score_diagnostics: pd.DataFrame | None = field(
+        init=False,
+        repr=False,
+    )
     _kinase_library_site_diagnostics: pd.DataFrame | None = field(
         init=False,
         repr=False,
@@ -113,6 +123,7 @@ class KinaseScoringResult:
         score_fusion_weights: pd.DataFrame | None = None,
         score_source_matrix: pd.DataFrame | None = None,
         score_source_summary: pd.DataFrame | None = None,
+        profile_score_diagnostics: pd.DataFrame | None = None,
         kinase_library_site_diagnostics: pd.DataFrame | None = None,
         kinase_library_kinase_diagnostics: pd.DataFrame | None = None,
         scoring_mode: str = KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
@@ -217,6 +228,10 @@ class KinaseScoringResult:
             error_type=PhosPyValidationError,
             assume_owned=_assume_owned,
         )
+        profile_score_diagnostics = _own_optional_profile_score_diagnostics(
+            profile_score_diagnostics,
+            assume_owned=_assume_owned,
+        )
         kinase_library_site_diagnostics = own_optional_dataframe(
             kinase_library_site_diagnostics,
             field_name="scoring_result.kinase_library_site_diagnostics",
@@ -260,6 +275,11 @@ class KinaseScoringResult:
         object.__setattr__(self, "_score_fusion_weights", score_fusion_weights)
         object.__setattr__(self, "_score_source_matrix", score_source_matrix)
         object.__setattr__(self, "_score_source_summary", score_source_summary)
+        object.__setattr__(
+            self,
+            "_profile_score_diagnostics",
+            profile_score_diagnostics,
+        )
         object.__setattr__(
             self,
             "_kinase_library_site_diagnostics",
@@ -320,6 +340,10 @@ class KinaseScoringResult:
         return export_optional_dataframe(self._score_source_summary)
 
     @property
+    def profile_score_diagnostics(self) -> pd.DataFrame | None:
+        return export_optional_dataframe(self._profile_score_diagnostics)
+
+    @property
     def kinase_library_site_diagnostics(self) -> pd.DataFrame | None:
         return export_optional_dataframe(self._kinase_library_site_diagnostics)
 
@@ -375,6 +399,11 @@ class KinaseScoringResult:
 
         return _borrow_optional_dataframe(self._score_source_summary)
 
+    def _borrow_profile_score_diagnostics_frame(self) -> pd.DataFrame | None:
+        """Package-private profile-score diagnostic snapshot."""
+
+        return _borrow_optional_dataframe(self._profile_score_diagnostics)
+
     def _borrow_kinase_library_site_diagnostics_frame(self) -> pd.DataFrame | None:
         """Package-private Kinase Library site-diagnostics snapshot."""
 
@@ -411,6 +440,7 @@ class KinaseScoringResult:
         score_fusion_weights: pd.DataFrame | None = None,
         score_source_matrix: pd.DataFrame | None = None,
         score_source_summary: pd.DataFrame | None = None,
+        profile_score_diagnostics: pd.DataFrame | None = None,
         kinase_library_site_diagnostics: pd.DataFrame | None = None,
         kinase_library_kinase_diagnostics: pd.DataFrame | None = None,
         scoring_mode: str = KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
@@ -454,6 +484,10 @@ class KinaseScoringResult:
         _require_optional_frame_type(
             score_source_summary,
             field_name="scoring_result.score_source_summary",
+        )
+        _require_optional_frame_type(
+            profile_score_diagnostics,
+            field_name="scoring_result.profile_score_diagnostics",
         )
         _require_optional_frame_type(
             kinase_library_site_diagnostics,
@@ -540,6 +574,11 @@ class KinaseScoringResult:
         object.__setattr__(result, "_score_source_summary", score_source_summary)
         object.__setattr__(
             result,
+            "_profile_score_diagnostics",
+            profile_score_diagnostics,
+        )
+        object.__setattr__(
+            result,
             "_kinase_library_site_diagnostics",
             kinase_library_site_diagnostics,
         )
@@ -589,6 +628,11 @@ class KinaseScoringResult:
         """Return an optional score-source summary snapshot isolated from this result."""
 
         return export_optional_dataframe(self._score_source_summary)
+
+    def profile_score_diagnostics_dataframe(self) -> pd.DataFrame | None:
+        """Return optional sparse profile-score diagnostics."""
+
+        return export_optional_dataframe(self._profile_score_diagnostics)
 
     def kinase_library_site_diagnostics_dataframe(self) -> pd.DataFrame | None:
         """Return optional Kinase Library site diagnostics."""
@@ -675,6 +719,19 @@ def _own_score_scale_metadata(
             "scoring_result.score_scale_metadata must be a mapping or None"
         )
     return MappingProxyType({str(key): item for key, item in value.items()})
+
+
+def _own_optional_profile_score_diagnostics(
+    table: pd.DataFrame | None,
+    *,
+    assume_owned: bool,
+) -> pd.DataFrame | None:
+    if table is None:
+        return None
+    return KinaseProfileScoreDiagnosticTable(
+        frame=table,
+        _assume_owned=assume_owned,
+    ).frame
 
 
 def _validate_authoritative_score_source(

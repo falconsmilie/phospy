@@ -151,7 +151,7 @@ tests/unit/test_kinase_bundle_snapshots.py,unit,110,4,false,false,provenance/gol
 tests/unit/test_kinase_library_motif_scoring.py,unit,232,7,false,false,,,,,,
 tests/unit/test_kinase_library_references.py,unit,161,6,false,false,,,,,,
 tests/unit/test_kinase_library_workflow_requirements.py,unit,549,11,false,false,,,,,,
-tests/unit/test_kinase_science.py,unit,393,11,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for kinase science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
+tests/unit/test_kinase_science.py,unit,474,12,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for kinase science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_kinase_scoring_transforms.py,unit,25,1,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for kinase scoring transforms, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_kinase_site_sequence_support_collaborators.py,unit,374,7,false,false,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in kinase site sequence support collaborators; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-ORCH-002,Route to TST-ORCH-002 for site-sequence collaborator rewrite toward interpreter/workflow boundary behavior assertions.
 tests/unit/test_kinase_substrate_contributions.py,unit,483,6,false,false,,,,,,
@@ -260,7 +260,7 @@ tests/unit/workflows/kinase/test_kinase_attrition_metrics.py,kinase,254,5,false,
 tests/unit/workflows/kinase/test_kinase_attrition_policy.py,kinase,272,6,false,false,,,,,,
 tests/unit/workflows/kinase/test_kinase_scoring_mode_contracts.py,kinase,452,10,true,true,,,,,,
 tests/unit/workflows/kinase/test_kinase_sequence_contract.py,kinase,253,5,true,true,,,,,,
-tests/unit/workflows/kinase/test_profile_self_inclusion_policy.py,kinase,167,3,false,false,,,,,,
+tests/unit/workflows/kinase/test_profile_self_inclusion_policy.py,kinase,326,6,false,false,,,,,,
 tests/unit/workflows/kinase/test_resolved_kinase_validator.py,kinase,257,4,false,false,,,,,,
 tests/unit/workflows/kinase/test_site_sequence_conflict_policy.py,kinase,266,6,true,true,,,,,,
 tests/unit/workflows/signalome/test_signalome_sequence_contract.py,signalome,149,3,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access

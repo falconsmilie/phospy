@@ -9,10 +9,16 @@ from phospy.api.configs import (
     KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT,
 )
 from phospy.errors import WorkflowStageError
+from phospy.tables.kinase import (
+    KINASE_PROFILE_SCORE_DIAGNOSTIC_REASON_INSUFFICIENT_SUBSTRATES_AFTER_LEAVE_ONE_OUT,
+    KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_SCORED,
+    KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_UNSCORED,
+)
 from phospy.workflows.kinase.science import (
     build_kinase_profiles,
     build_prediction_outputs,
     score_profile_correlations,
+    score_profile_correlations_leave_one_out_with_diagnostics,
 )
 
 
@@ -391,3 +397,78 @@ def test_build_kinase_profiles_deduplicates_and_filters_missing_substrates() -> 
     assert result.substrate_counts.to_dict() == {"K1": 2, "K2": 1}
     assert result.profile_matrix.at["K1", "sample_a"] == pytest.approx(3.0)
     assert result.profile_matrix.at["K1", "sample_b"] == pytest.approx(5.0)
+
+
+def test_leave_one_out_profile_scoring_is_per_site_and_per_kinase() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [10.0, 10.0, 0.0],
+            "sample_b": [0.0, 0.0, 10.0],
+            "sample_c": [0.0, 0.0, 0.0],
+        },
+        index=pd.Index(["SITE_DRIVER", "SITE_HELPER_A", "SITE_HELPER_B"], name="site"),
+    )
+    kinase_substrate_map = pd.DataFrame(
+        {
+            "kinase": [
+                "K_LONG",
+                "K_LONG",
+                "K_LONG",
+                "K_SHORT",
+                "K_SHORT",
+                "K_OTHER",
+                "K_OTHER",
+            ],
+            "substrate_site": [
+                "SITE_DRIVER",
+                "SITE_HELPER_A",
+                "SITE_HELPER_B",
+                "SITE_DRIVER",
+                "SITE_HELPER_A",
+                "SITE_HELPER_A",
+                "SITE_HELPER_B",
+            ],
+        }
+    )
+    profile_build = build_kinase_profiles(
+        phospho=phospho,
+        kinase_substrate_map=kinase_substrate_map,
+        min_substrates=2,
+    )
+    allow_scores = score_profile_correlations(
+        phospho=phospho,
+        profile_matrix=profile_build.profile_matrix,
+    )
+
+    leave_one_out = score_profile_correlations_leave_one_out_with_diagnostics(
+        phospho=phospho,
+        profile_build=profile_build,
+        min_substrates=2,
+    )
+
+    assert allow_scores.at["SITE_DRIVER", "K_LONG"] == pytest.approx(1.0)
+    assert leave_one_out.scores.at["SITE_DRIVER", "K_LONG"] != pytest.approx(
+        allow_scores.at["SITE_DRIVER", "K_LONG"]
+    )
+    assert leave_one_out.scores.at["SITE_DRIVER", "K_OTHER"] == pytest.approx(
+        allow_scores.at["SITE_DRIVER", "K_OTHER"]
+    )
+    assert pd.isna(leave_one_out.scores.at["SITE_DRIVER", "K_SHORT"])
+
+    diagnostics = leave_one_out.diagnostics
+    short_driver = diagnostics.loc[
+        (diagnostics.loc[:, "kinase"] == "K_SHORT")
+        & (diagnostics.loc[:, "substrate_site"] == "SITE_DRIVER")
+    ].iloc[0]
+    assert short_driver.status == KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_UNSCORED
+    assert (
+        short_driver.reason
+        == KINASE_PROFILE_SCORE_DIAGNOSTIC_REASON_INSUFFICIENT_SUBSTRATES_AFTER_LEAVE_ONE_OUT
+    )
+    assert int(short_driver.substrates_after_leave_one_out) == 1
+    long_driver = diagnostics.loc[
+        (diagnostics.loc[:, "kinase"] == "K_LONG")
+        & (diagnostics.loc[:, "substrate_site"] == "SITE_DRIVER")
+    ].iloc[0]
+    assert long_driver.status == KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_SCORED
+    assert pd.isna(long_driver.reason)

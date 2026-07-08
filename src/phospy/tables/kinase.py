@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
+from numbers import Real
 
 import pandas as pd
 
@@ -31,6 +32,20 @@ KINASE_SUBSTRATE_CONTRIBUTION_EXCLUDED_NOT_IN_PROFILE_SUPPORT = (
     "substrate_not_in_profile_support"
 )
 KINASE_SUBSTRATE_CONTRIBUTION_EXCLUDED_NOT_QUANTIFIED = "substrate_not_quantified"
+KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_SCORED = "scored_after_leave_one_out"
+KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_UNSCORED = "unscored"
+KINASE_PROFILE_SCORE_DIAGNOSTIC_REASON_INSUFFICIENT_SUBSTRATES_AFTER_LEAVE_ONE_OUT = (
+    "insufficient_substrates_after_leave_one_out"
+)
+KINASE_PROFILE_SCORE_DIAGNOSTIC_COLUMNS: tuple[str, ...] = (
+    "kinase",
+    "substrate_site",
+    "status",
+    "reason",
+    "substrates_before_leave_one_out",
+    "substrates_after_leave_one_out",
+    "min_substrates",
+)
 KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS: tuple[str, ...] = (
     "kinase",
     "substrate_site",
@@ -50,6 +65,17 @@ _KINASE_SUBSTRATE_CONTRIBUTION_STATUSES = frozenset(
     {
         KINASE_SUBSTRATE_CONTRIBUTION_STATUS_INCLUDED,
         KINASE_SUBSTRATE_CONTRIBUTION_STATUS_EXCLUDED,
+    }
+)
+_KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUSES = frozenset(
+    {
+        KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_SCORED,
+        KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_UNSCORED,
+    }
+)
+_KINASE_PROFILE_SCORE_DIAGNOSTIC_REASONS = frozenset(
+    {
+        KINASE_PROFILE_SCORE_DIAGNOSTIC_REASON_INSUFFICIENT_SUBSTRATES_AFTER_LEAVE_ONE_OUT,
     }
 )
 _CONTRIBUTION_REQUIRED_TEXT_COLUMNS = (
@@ -185,6 +211,56 @@ class KinaseSubstrateContributionTable(TableSchema):
         _require_contribution_numeric_or_missing(frame, field_name=self.field_name)
         _require_contribution_status(frame, field_name=self.field_name)
         _require_contribution_ambiguous_flags(frame, field_name=self.field_name)
+        return frame
+
+
+@dataclass(frozen=True, slots=True)
+class KinaseProfileScoreDiagnosticTable(TableSchema):
+    """Schema wrapper for sparse profile-score diagnostic rows."""
+
+    field_name: str = field(
+        default="scoring_result.profile_score_diagnostics",
+        repr=False,
+        compare=False,
+    )
+
+    _field_name = "scoring_result.profile_score_diagnostics"
+    _error_type = PhosPyValidationError
+
+    def _own_frame(self, assume_owned: bool) -> pd.DataFrame:
+        return own_dataframe(
+            self.frame,
+            field_name=self.field_name,
+            error_type=self._error_type,
+            assume_owned=assume_owned,
+        )
+
+    def _validate_frame(self, frame: pd.DataFrame) -> pd.DataFrame:
+        require_dataframe(
+            frame,
+            field_name=self.field_name,
+            allow_empty=True,
+            error_type=self._error_type,
+        )
+        require_unique_columns(
+            frame,
+            field_name=self.field_name,
+            error_type=self._error_type,
+        )
+        observed_columns = tuple(str(column) for column in frame.columns.tolist())
+        if observed_columns != KINASE_PROFILE_SCORE_DIAGNOSTIC_COLUMNS:
+            raise self._error_type(
+                f"{self.field_name} columns must exactly match "
+                f"{list(KINASE_PROFILE_SCORE_DIAGNOSTIC_COLUMNS)}"
+            )
+        if frame.empty:
+            return frame
+        _require_profile_score_diagnostic_text(frame, field_name=self.field_name)
+        _require_profile_score_diagnostic_status_and_reason(
+            frame,
+            field_name=self.field_name,
+        )
+        _require_profile_score_diagnostic_counts(frame, field_name=self.field_name)
         return frame
 
 
@@ -349,6 +425,94 @@ def _require_contribution_ambiguous_flags(
     ]
     if invalid:
         raise PhosPyValidationError(f"{field_name}.ambiguous must contain bool values")
+
+
+def _require_profile_score_diagnostic_text(
+    frame: pd.DataFrame,
+    *,
+    field_name: str,
+) -> None:
+    for column_name in ("kinase", "substrate_site"):
+        invalid = [
+            index
+            for index, value in frame.loc[:, column_name].items()
+            if not isinstance(value, str) or value.strip() == ""
+        ]
+        if invalid:
+            raise PhosPyValidationError(
+                f"{field_name}.{column_name} must contain non-empty strings"
+            )
+
+
+def _require_profile_score_diagnostic_status_and_reason(
+    frame: pd.DataFrame,
+    *,
+    field_name: str,
+) -> None:
+    invalid_statuses = [
+        value
+        for value in frame.loc[:, "status"].tolist()
+        if not isinstance(value, str)
+        or value not in _KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUSES
+    ]
+    if invalid_statuses:
+        allowed = ", ".join(sorted(_KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUSES))
+        raise PhosPyValidationError(f"{field_name}.status must be one of: {allowed}")
+    for row in frame.loc[:, ["status", "reason"]].itertuples(index=False):
+        status = str(row.status)
+        reason = row.reason
+        if status == KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_SCORED:
+            if not _is_missing_value(reason):
+                raise PhosPyValidationError(
+                    f"{field_name}.reason must be missing for scored rows"
+                )
+            continue
+        if not isinstance(reason, str) or reason not in (
+            _KINASE_PROFILE_SCORE_DIAGNOSTIC_REASONS
+        ):
+            allowed = ", ".join(sorted(_KINASE_PROFILE_SCORE_DIAGNOSTIC_REASONS))
+            raise PhosPyValidationError(
+                f"{field_name}.reason must be one of {allowed} for unscored rows"
+            )
+
+
+def _require_profile_score_diagnostic_counts(
+    frame: pd.DataFrame,
+    *,
+    field_name: str,
+) -> None:
+    count_columns = (
+        "substrates_before_leave_one_out",
+        "substrates_after_leave_one_out",
+        "min_substrates",
+    )
+    for column_name in count_columns:
+        invalid = []
+        for index, value in frame.loc[:, column_name].items():
+            if isinstance(value, bool) or not isinstance(value, Real):
+                invalid.append(index)
+                continue
+            numeric_float = float(value)
+            numeric_value = int(numeric_float)
+            if numeric_value < 0 or float(numeric_value) != numeric_float:
+                invalid.append(index)
+        if invalid:
+            raise PhosPyValidationError(
+                f"{field_name}.{column_name} must contain non-negative integers"
+            )
+    scored = frame.loc[:, "status"] == KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_SCORED
+    after = frame.loc[:, "substrates_after_leave_one_out"].astype(int)
+    minimum = frame.loc[:, "min_substrates"].astype(int)
+    if bool((after.loc[scored] < minimum.loc[scored]).any()):
+        raise PhosPyValidationError(
+            f"{field_name}.substrates_after_leave_one_out must be at least "
+            "min_substrates for scored rows"
+        )
+    if bool((after.loc[~scored] >= minimum.loc[~scored]).any()):
+        raise PhosPyValidationError(
+            f"{field_name}.substrates_after_leave_one_out must be below "
+            "min_substrates for unscored rows"
+        )
 
 
 def _is_bool_value(value: object) -> bool:

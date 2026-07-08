@@ -50,7 +50,7 @@ from phospy.workflows.kinase.science import (
     KinaseProfileBuild,
     build_kinase_profiles,
     score_profile_correlations,
-    score_profile_correlations_leave_one_out,
+    score_profile_correlations_leave_one_out_with_diagnostics,
 )
 from phospy.workflows.kinase.scoring_mode_contracts import (
     kinase_scoring_mode_input_contract,
@@ -140,6 +140,7 @@ class KinaseScoringRunner:
                 "kinase.executor.scoring_profiles; interpreter should reject "
                 "requests with zero eligible kinases before scoring"
             )
+        profile_score_diagnostics: pd.DataFrame | None = None
         profile_scores = self._score_profiles(
             phospho=scoring_phospho,
             profile_matrix=profile_build.profile_matrix,
@@ -147,12 +148,18 @@ class KinaseScoringRunner:
         if config.profile_self_inclusion_policy is (
             ProfileSelfInclusionPolicy.LEAVE_ONE_OUT
         ):
-            profile_scores = score_profile_correlations_leave_one_out(
-                phospho=scoring_phospho,
-                profile_build=profile_build,
-                min_substrates=scoring_min_substrates,
-                profile_missing_value_strategy=config.profile_missing_value_strategy,
+            leave_one_out_result = (
+                score_profile_correlations_leave_one_out_with_diagnostics(
+                    phospho=scoring_phospho,
+                    profile_build=profile_build,
+                    min_substrates=scoring_min_substrates,
+                    profile_missing_value_strategy=(
+                        config.profile_missing_value_strategy
+                    ),
+                )
             )
+            profile_scores = leave_one_out_result.scores
+            profile_score_diagnostics = leave_one_out_result.diagnostics
         # Kinase Library modes intentionally branch here. They must not reuse or
         # fall back to PhosPy's PhosR-inspired motif-frequency scorer below.
         if config.scoring_mode == KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF:
@@ -161,6 +168,7 @@ class KinaseScoringRunner:
                 config=config,
                 collect_substrate_contributions=collect_substrate_contributions,
                 profile_scores=profile_scores,
+                profile_score_diagnostics=profile_score_diagnostics,
                 profile_build=profile_build,
                 sequence_series=sequence_series,
                 site_identity_series=site_identity_series,
@@ -171,6 +179,7 @@ class KinaseScoringRunner:
                 config=config,
                 collect_substrate_contributions=collect_substrate_contributions,
                 profile_scores=profile_scores,
+                profile_score_diagnostics=profile_score_diagnostics,
                 profile_build=profile_build,
                 sequence_series=sequence_series,
                 site_identity_series=site_identity_series,
@@ -244,6 +253,7 @@ class KinaseScoringRunner:
             score_fusion_weights=score_fusion_weights,
             score_source_matrix=diagnostic_score_source_matrix,
             score_source_summary=score_source_summary,
+            profile_score_diagnostics=profile_score_diagnostics,
             motif_sequence_validation=motif_result.sequence_validation,
             motif_library_validation=motif_result.library_validation,
             scoring_mode=config.scoring_mode,
@@ -349,6 +359,7 @@ class KinaseScoringRunner:
         config: ResolvedKinaseExecutionConfig,
         collect_substrate_contributions: bool,
         profile_scores: pd.DataFrame,
+        profile_score_diagnostics: pd.DataFrame | None,
         profile_build: KinaseProfileBuild,
         sequence_series: pd.Series,
         site_identity_series: pd.Series,
@@ -371,6 +382,7 @@ class KinaseScoringRunner:
             kinase_library_motif_scores=library_result.scores,
             kinase_library_site_diagnostics=library_result.site_diagnostics,
             kinase_library_kinase_diagnostics=library_result.kinase_diagnostics,
+            profile_score_diagnostics=profile_score_diagnostics,
             scoring_mode=config.scoring_mode,
             score_source=DownstreamScoreSource.KINASE_LIBRARY_MOTIF_SCORES,
             score_scale=KINASE_LIBRARY_WORKFLOW_SCORE_SCALE,
@@ -402,6 +414,7 @@ class KinaseScoringRunner:
         config: ResolvedKinaseExecutionConfig,
         collect_substrate_contributions: bool,
         profile_scores: pd.DataFrame,
+        profile_score_diagnostics: pd.DataFrame | None,
         profile_build: KinaseProfileBuild,
         sequence_series: pd.Series,
         site_identity_series: pd.Series,
@@ -443,6 +456,7 @@ class KinaseScoringRunner:
             score_fusion_weights=score_fusion_weights,
             kinase_library_site_diagnostics=library_result.site_diagnostics,
             kinase_library_kinase_diagnostics=library_result.kinase_diagnostics,
+            profile_score_diagnostics=profile_score_diagnostics,
             scoring_mode=config.scoring_mode,
             score_source=DownstreamScoreSource.COMBINED_PROFILE_MOTIF_SCORES,
             score_scale="combined_profile_kinase_library_motif_unit_interval",

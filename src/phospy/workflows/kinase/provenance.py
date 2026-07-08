@@ -50,6 +50,9 @@ from phospy.science.prediction.scientific_policies import (
     build_kinase_library_motif_scoring_policy,
     build_motif_profile_rank_fusion_policy,
 )
+from phospy.tables.kinase import (
+    KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_UNSCORED,
+)
 from phospy.workflows.kinase.attrition_metrics import (
     build_kinase_attrition_provenance_payload,
     kinase_attrition_policy_to_payload,
@@ -196,6 +199,10 @@ def _build_output_table_fingerprints(
             (
                 "outputs.scoring.profile_scores",
                 _profile_scores_for_output_fingerprint(scoring_result),
+            ),
+            (
+                "outputs.scoring.profile_score_diagnostics",
+                scoring_result.profile_score_diagnostics,
             ),
             ("outputs.scoring.motif_scores", scoring_result.motif_scores),
             (
@@ -545,6 +552,11 @@ def _build_scoring_diagnostics_payload(
             str(column): int(value)
             for column, value in score_source_summary.sum(axis=0).items()
         }
+    profile_score_diagnostics = scoring_result.profile_score_diagnostics
+    if profile_score_diagnostics is not None:
+        scoring_diagnostics["profile_score_diagnostics"] = (
+            _profile_score_diagnostics_payload(profile_score_diagnostics)
+        )
     if request.site_sequence_merge_diagnostics:
         scoring_diagnostics["site_sequence_merge"] = dict(
             request.site_sequence_merge_diagnostics
@@ -558,6 +570,32 @@ def _build_scoring_diagnostics_payload(
             violation.to_payload() for violation in request.attrition_policy_violations
         ]
     return scoring_diagnostics
+
+
+def _profile_score_diagnostics_payload(
+    diagnostics: pd.DataFrame,
+) -> dict[str, object]:
+    status_counts = {
+        str(key): int(value)
+        for key, value in diagnostics.loc[:, "status"]
+        .astype(str)
+        .value_counts()
+        .items()
+    }
+    reason_series = diagnostics.loc[
+        diagnostics.loc[:, "status"].astype(str)
+        == KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_UNSCORED,
+        "reason",
+    ]
+    reason_counts = {
+        str(key): int(value)
+        for key, value in reason_series.astype(str).value_counts().items()
+    }
+    return {
+        "row_count": int(diagnostics.shape[0]),
+        "status_counts": status_counts,
+        "unscored_reason_counts": reason_counts,
+    }
 
 
 def _build_scientific_policy_records(

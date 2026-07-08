@@ -186,6 +186,12 @@ def _write_kinase_scoring_outputs(
         written_key="kinase.scoring.profile_scores",
     )
     _write_optional_output_table(
+        result.scoring_result.profile_score_diagnostics,
+        scoring_dir / f"profile_score_diagnostics{suffix}",
+        written=written,
+        written_key="kinase.scoring.profile_score_diagnostics",
+    )
+    _write_optional_output_table(
         result.scoring_result.motif_scores,
         scoring_dir / f"motif_scores{suffix}",
         written=written,

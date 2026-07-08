@@ -15,6 +15,7 @@ from phospy.science.prediction.scoring import (
     KINASE_SCORE_SOURCE_PROFILE_ONLY_NO_MOTIF_OVERLAP,
 )
 from phospy.science.scoring.policy_models import ProfileSelfInclusionPolicy
+from phospy.tables.kinase import KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_UNSCORED
 from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
 from phospy.workflows.result_caveat_helpers import (
     build_localisation_policy_details,
@@ -32,6 +33,7 @@ KINASE_REFERENCE_SCORE_FALLBACK_CAVEAT_CODE = "kinase_reference_score_fallback"
 KINASE_SCORING_LIMITATION_CAVEAT_CODE = "kinase_non_phosr_equivalent_scoring"
 KINASE_LIBRARY_MOTIF_ONLY_CAVEAT_CODE = "kinase_library_motif_only_sequence_evidence"
 KINASE_PROFILE_SELF_INCLUSION_CAVEAT_CODE = "kinase_profile_self_inclusion_allowed"
+KINASE_PROFILE_LEAVE_ONE_OUT_CAVEAT_CODE = "kinase_profile_leave_one_out"
 
 
 def build_kinase_result_caveats(
@@ -205,25 +207,44 @@ def _profile_self_inclusion_caveat(
     scoring_result: KinaseScoringResult,
 ) -> ResultCaveat | None:
     policy = request.execution_config.profile_self_inclusion_policy
-    if policy is not ProfileSelfInclusionPolicy.ALLOW:
-        return None
     authoritative = scoring_result.authoritative_scores
-    return ResultCaveat(
-        code=KINASE_PROFILE_SELF_INCLUSION_CAVEAT_CODE,
-        severity="warning",
-        message=(
-            "Kinase profile scoring allowed self-inclusion: a known substrate site "
-            "may contribute to the kinase profile used to score that same site. "
-            "Scores are exploratory and may be inflated for known substrates."
-        ),
-        details={
+    if policy is ProfileSelfInclusionPolicy.ALLOW:
+        return ResultCaveat(
+            code=KINASE_PROFILE_SELF_INCLUSION_CAVEAT_CODE,
+            severity="warning",
+            message=(
+                "Kinase profile scoring allowed self-inclusion: a known substrate site "
+                "may contribute to the kinase profile used to score that same site. "
+                "Scores are exploratory and may be inflated for known substrates."
+            ),
+            details={
+                "profile_self_inclusion_policy": policy.value,
+                "self_inclusion_allowed": True,
+                "leave_one_out_enabled": False,
+                "site_count": int(authoritative.shape[0]),
+                "kinase_count": int(authoritative.shape[1]),
+            },
+        )
+    if policy is ProfileSelfInclusionPolicy.LEAVE_ONE_OUT:
+        details = {
             "profile_self_inclusion_policy": policy.value,
-            "self_inclusion_allowed": True,
-            "leave_one_out_enabled": False,
+            "self_inclusion_allowed": False,
+            "leave_one_out_enabled": True,
             "site_count": int(authoritative.shape[0]),
             "kinase_count": int(authoritative.shape[1]),
-        },
-    )
+        }
+        details.update(_leave_one_out_diagnostic_details(scoring_result))
+        return ResultCaveat(
+            code=KINASE_PROFILE_LEAVE_ONE_OUT_CAVEAT_CODE,
+            severity="info",
+            message=(
+                "Leave-one-out profile scoring was used. Known substrate sites "
+                "were excluded from their own kinase profiles before scoring "
+                "where applicable."
+            ),
+            details=details,
+        )
+    return None
 
 
 def _scoring_limitation_caveat(
@@ -301,6 +322,36 @@ def _score_source_summary_details(summary: pd.DataFrame) -> dict[str, object]:
     return details
 
 
+def _leave_one_out_diagnostic_details(
+    scoring_result: KinaseScoringResult,
+) -> dict[str, object]:
+    diagnostics = scoring_result.profile_score_diagnostics
+    if diagnostics is None:
+        return {
+            "profile_score_diagnostics_present": False,
+            "leave_one_out_diagnostic_row_count": 0,
+            "leave_one_out_unscored_cell_count": 0,
+            "leave_one_out_unscored_reasons": {},
+        }
+    unscored = diagnostics.loc[
+        diagnostics.loc[:, "status"].astype(str)
+        == KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_UNSCORED,
+        :,
+    ]
+    return {
+        "profile_score_diagnostics_present": True,
+        "leave_one_out_diagnostic_row_count": int(diagnostics.shape[0]),
+        "leave_one_out_unscored_cell_count": int(unscored.shape[0]),
+        "leave_one_out_unscored_reasons": {
+            str(key): int(value)
+            for key, value in unscored.loc[:, "reason"]
+            .astype(str)
+            .value_counts()
+            .items()
+        },
+    }
+
+
 def _sum_int(frame: pd.DataFrame, column: str) -> int:
     if column not in frame.columns:
         return 0
@@ -315,6 +366,7 @@ __all__ = [
     "KINASE_REFERENCE_SCORE_FALLBACK_CAVEAT_CODE",
     "KINASE_LIBRARY_MOTIF_ONLY_CAVEAT_CODE",
     "KINASE_PROFILE_SELF_INCLUSION_CAVEAT_CODE",
+    "KINASE_PROFILE_LEAVE_ONE_OUT_CAVEAT_CODE",
     "KINASE_SCORING_LIMITATION_CAVEAT_CODE",
     "build_kinase_result_caveats",
 ]

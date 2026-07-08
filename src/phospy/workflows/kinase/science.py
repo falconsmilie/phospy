@@ -15,6 +15,12 @@ from phospy.contracts.configs import (
     KinaseProfileMissingValueStrategy,
 )
 from phospy.errors.workflows import WorkflowStageError
+from phospy.tables.kinase import (
+    KINASE_PROFILE_SCORE_DIAGNOSTIC_COLUMNS,
+    KINASE_PROFILE_SCORE_DIAGNOSTIC_REASON_INSUFFICIENT_SUBSTRATES_AFTER_LEAVE_ONE_OUT,
+    KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_SCORED,
+    KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_UNSCORED,
+)
 from phospy.workflows.kinase.scoring_transforms import (
     shift_correlation_to_unit_support,
 )
@@ -27,6 +33,14 @@ class KinaseProfileBuild:
     profile_matrix: pd.DataFrame
     quantified_substrates: dict[str, list[str]]
     substrate_counts: pd.Series
+
+
+@dataclass(frozen=True, slots=True)
+class KinaseProfileLeaveOneOutScoringResult:
+    """Leave-one-out profile scores plus sparse per-cell diagnostics."""
+
+    scores: pd.DataFrame
+    diagnostics: pd.DataFrame
 
 
 def build_kinase_profiles(
@@ -169,12 +183,34 @@ def score_profile_correlations_leave_one_out(
 ) -> pd.DataFrame:
     """Score known substrate cells after removing the scored site from its profile."""
 
+    return score_profile_correlations_leave_one_out_with_diagnostics(
+        phospho=phospho,
+        profile_build=profile_build,
+        min_substrates=min_substrates,
+        profile_missing_value_strategy=profile_missing_value_strategy,
+    ).scores
+
+
+def score_profile_correlations_leave_one_out_with_diagnostics(
+    *,
+    phospho: pd.DataFrame,
+    profile_build: KinaseProfileBuild,
+    min_substrates: int,
+    profile_missing_value_strategy: KinaseProfileMissingValueStrategy = (
+        KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
+    ),
+) -> KinaseProfileLeaveOneOutScoringResult:
+    """Score known substrate cells with per-cell leave-one-out diagnostics."""
+
     scores = score_profile_correlations(
         phospho=phospho,
         profile_matrix=profile_build.profile_matrix,
     )
     if scores.empty:
-        return scores
+        return KinaseProfileLeaveOneOutScoringResult(
+            scores=scores,
+            diagnostics=_empty_leave_one_out_diagnostics(),
+        )
     if min_substrates < KINASE_SCORING_MIN_SUBSTRATES_FLOOR:
         raise WorkflowStageError(
             "kinase workflow internal invariant failed at seam="
@@ -195,9 +231,14 @@ def score_profile_correlations_leave_one_out(
         field_name="kinase.workflow.leave_one_out_scoring_phospho",
     )
     observed_sites = set(numeric_phospho.index)
+    diagnostic_rows: list[dict[str, object]] = []
     for kinase, quantified_sites in profile_build.quantified_substrates.items():
         if kinase not in scores.columns:
             continue
+        quantified_observed_sites = [
+            site for site in quantified_sites if site in observed_sites
+        ]
+        substrates_before_leave_one_out = len(quantified_observed_sites)
         for scored_site in quantified_sites:
             if scored_site not in observed_sites:
                 continue
@@ -206,8 +247,24 @@ def score_profile_correlations_leave_one_out(
                 for site in quantified_sites
                 if site != scored_site and site in observed_sites
             ]
+            substrates_after_leave_one_out = len(remaining_sites)
             if len(remaining_sites) < min_substrates:
                 scores.at[scored_site, kinase] = np.nan
+                diagnostic_rows.append(
+                    _leave_one_out_diagnostic_row(
+                        kinase=kinase,
+                        scored_site=scored_site,
+                        status=KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_UNSCORED,
+                        reason=(
+                            KINASE_PROFILE_SCORE_DIAGNOSTIC_REASON_INSUFFICIENT_SUBSTRATES_AFTER_LEAVE_ONE_OUT
+                        ),
+                        substrates_before_leave_one_out=(
+                            substrates_before_leave_one_out
+                        ),
+                        substrates_after_leave_one_out=substrates_after_leave_one_out,
+                        min_substrates=min_substrates,
+                    )
+                )
                 continue
             leave_one_out_profile = _aggregate_profile(
                 numeric_phospho.loc[remaining_sites, :],
@@ -225,7 +282,50 @@ def score_profile_correlations_leave_one_out(
                 profile_matrix=leave_one_out_profile_matrix,
             )
             scores.at[scored_site, kinase] = leave_one_out_score.iat[0, 0]
-    return scores
+            diagnostic_rows.append(
+                _leave_one_out_diagnostic_row(
+                    kinase=kinase,
+                    scored_site=scored_site,
+                    status=KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_SCORED,
+                    reason=None,
+                    substrates_before_leave_one_out=(substrates_before_leave_one_out),
+                    substrates_after_leave_one_out=substrates_after_leave_one_out,
+                    min_substrates=min_substrates,
+                )
+            )
+    diagnostics = pd.DataFrame.from_records(
+        diagnostic_rows,
+        columns=pd.Index(KINASE_PROFILE_SCORE_DIAGNOSTIC_COLUMNS),
+    )
+    return KinaseProfileLeaveOneOutScoringResult(
+        scores=scores,
+        diagnostics=diagnostics,
+    )
+
+
+def _empty_leave_one_out_diagnostics() -> pd.DataFrame:
+    return pd.DataFrame(columns=pd.Index(KINASE_PROFILE_SCORE_DIAGNOSTIC_COLUMNS))
+
+
+def _leave_one_out_diagnostic_row(
+    *,
+    kinase: str,
+    scored_site: str,
+    status: str,
+    reason: str | None,
+    substrates_before_leave_one_out: int,
+    substrates_after_leave_one_out: int,
+    min_substrates: int,
+) -> dict[str, object]:
+    return {
+        "kinase": str(kinase),
+        "substrate_site": str(scored_site),
+        "status": str(status),
+        "reason": reason,
+        "substrates_before_leave_one_out": int(substrates_before_leave_one_out),
+        "substrates_after_leave_one_out": int(substrates_after_leave_one_out),
+        "min_substrates": int(min_substrates),
+    }
 
 
 def rank_kinases_for_prediction(

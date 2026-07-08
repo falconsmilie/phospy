@@ -41,6 +41,10 @@ class KinaseScoringInternalView:
         return self._result._borrow_authoritative_scores_frame()
 
     @property
+    def profile_score_diagnostics(self) -> pd.DataFrame | None:
+        return self._result._borrow_profile_score_diagnostics_frame()
+
+    @property
     def kinase_library_site_diagnostics(self) -> pd.DataFrame | None:
         return self._result._borrow_kinase_library_site_diagnostics_frame()
 
