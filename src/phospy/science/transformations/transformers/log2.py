@@ -8,8 +8,10 @@ import pandas as pd
 from phospy.errors.input import PhosPyInputError
 from phospy.science.transformations.contracts import TransformationResult
 from phospy.science.transformations.models import (
+    IntensityScaleEvidenceLevel,
     IntensityScaleKind,
     IntensityScaleState,
+    IntensityTransformationEvent,
     MatrixIntensityScaleState,
 )
 
@@ -69,6 +71,16 @@ class Log2Transformer:
             ),
         )
         transformer_name = f"{self.__class__.__module__}.{self.__class__.__qualname__}"
+        transformation_event = IntensityTransformationEvent(
+            transformer_name=transformer_name,
+            input_scale=MatrixIntensityScaleState.linear(
+                established_by=_LOG2_ESTABLISHED_BY
+            ),
+            output_scale=state.phospho,
+            evidence_level=IntensityScaleEvidenceLevel.OBSERVED_TRANSFORMATION,
+            transformation_kind="log2",
+            pseudocount=self._pseudocount,
+        )
         return TransformationResult(
             phospho=transformed_phospho,
             total=transformed_total,
@@ -82,6 +94,7 @@ class Log2Transformer:
                 "transformer_name": transformer_name,
                 "transformer_state": _serialize_intensity_scale_state(state),
             },
+            intensity_transformation_event=transformation_event,
         )
 
 

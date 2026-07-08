@@ -145,6 +145,7 @@ tests/unit/test_importer_analysis_ready_boundary.py,unit,180,5,false,false,,,,,,
 tests/unit/test_importer_quality_report.py,unit,173,4,false,false,,,,,,
 tests/unit/test_imputation_observation_metadata.py,unit,391,17,false,false,,,,,,
 tests/unit/test_intensity_scale_establishment.py,unit,297,11,false,false,,,,,,
+tests/unit/test_intensity_transformation_event.py,unit,107,6,true,true,,,,,,
 tests/unit/test_internal_batch_correction_request_contract.py,unit,321,11,false,false,,,,,,
 tests/unit/test_io_table_readers.py,unit,275,9,true,true,public API contract,keep,Loss of this file would weaken table-reader input contract coverage and increase risk of invalid external data being accepted or parsed inconsistently.,codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_kinase_bundle_snapshots.py,unit,110,4,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for kinase bundle snapshots, making artifact and output drift unsafe.",codex-audit,,
@@ -158,7 +159,7 @@ tests/unit/test_kinase_substrate_contributions.py,unit,483,6,false,false,,,,,,
 tests/unit/test_kinase_workflow_components.py,unit,1470,34,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase workflow components and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 21 hit(s); indicators: private_member_access
 tests/unit/test_kinase_workflow_diagnostics.py,unit,905,16,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for kinase workflow diagnostics and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 5 hit(s); indicators: private_member_access
 tests/unit/test_localisation_policy_preprocessing.py,unit,185,6,true,true,,,,,,
-tests/unit/test_log2_transformer.py,unit,176,6,true,true,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access
+tests/unit/test_log2_transformer.py,unit,185,6,true,true,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/unit/test_maintainer_scripts_smoke.py,unit,283,8,true,true,provenance/golden contract,keep,"Active maintainer scripts for parity fixtures, provenance goldens, and public workflow references must remain import-safe and path-stable without generation side effects on import.",codex-audit,TST-SCRIPTS-001,"Smoke coverage for protected release-maintainer scripts under scripts/active, scripts/support, and scripts/run_pyright.py."
 tests/unit/test_maxquant_phosphosite_importer.py,unit,315,10,false,false,,,,,,
 tests/unit/test_missing_data_split_modules.py,unit,523,18,true,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for missing data split modules, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,

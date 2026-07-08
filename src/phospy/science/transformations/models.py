@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum
@@ -52,6 +53,15 @@ class IntensityScaleEstablishmentSource(str, Enum):
     TRANSFORMED_BY_PHOSPY = "transformed_by_phospy"
     DECLARED_BY_USER = "declared_by_user"
     RESTORED_FROM_TRUSTED_PROVENANCE = "restored_from_trusted_provenance"
+
+
+class IntensityScaleEvidenceLevel(str, Enum):
+    """Evidence level supporting an intensity-scale transition event."""
+
+    OBSERVED_TRANSFORMATION = "observed_transformation"
+    DECLARED_BY_USER = "declared_by_user"
+    INFERRED_FROM_METADATA = "inferred_from_metadata"
+    UNKNOWN = "unknown"
 
 
 class QuantitativeMeaning(str, Enum):
@@ -210,6 +220,86 @@ class MatrixIntensityScaleState:
             transformed=True,
             established_by=established_by,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class IntensityTransformationEvent:
+    """Typed scientific evidence for an intensity-scale transition."""
+
+    transformer_name: str
+    input_scale: MatrixIntensityScaleState
+    output_scale: MatrixIntensityScaleState
+    evidence_level: IntensityScaleEvidenceLevel
+    transformation_kind: str
+    pseudocount: float | None = None
+    input_fingerprint: str | None = None
+    output_fingerprint: str | None = None
+
+    def __post_init__(self) -> None:
+        transformer_name = _normalize_required_text(
+            self.transformer_name,
+            field_name="transformer_name",
+        )
+        object.__setattr__(self, "transformer_name", transformer_name)
+
+        evidence_level = _normalize_intensity_scale_evidence_level(self.evidence_level)
+        object.__setattr__(self, "evidence_level", evidence_level)
+
+        if not isinstance(cast(object, self.input_scale), MatrixIntensityScaleState):
+            raise InvalidTransformationStateError(
+                "intensity transformation event input_scale must be a "
+                "MatrixIntensityScaleState"
+            )
+        if not isinstance(cast(object, self.output_scale), MatrixIntensityScaleState):
+            if evidence_level is IntensityScaleEvidenceLevel.OBSERVED_TRANSFORMATION:
+                raise InvalidTransformationStateError(
+                    "observed intensity transformation event requires a known "
+                    "output scale"
+                )
+            raise InvalidTransformationStateError(
+                "intensity transformation event output_scale must be a "
+                "MatrixIntensityScaleState"
+            )
+
+        transformation_kind = _normalize_required_text(
+            self.transformation_kind,
+            field_name="transformation_kind",
+        )
+        object.__setattr__(self, "transformation_kind", transformation_kind)
+
+        pseudocount = _normalize_intensity_transformation_pseudocount(self.pseudocount)
+        object.__setattr__(self, "pseudocount", pseudocount)
+        object.__setattr__(
+            self,
+            "input_fingerprint",
+            _normalize_optional_text(self.input_fingerprint),
+        )
+        object.__setattr__(
+            self,
+            "output_fingerprint",
+            _normalize_optional_text(self.output_fingerprint),
+        )
+
+        _validate_intensity_transformation_event_transition(
+            input_scale=self.input_scale,
+            output_scale=self.output_scale,
+            evidence_level=evidence_level,
+            transformation_kind=transformation_kind,
+        )
+
+    def to_payload(self) -> dict[str, object]:
+        """Return JSON-safe payload for reporting/provenance surfaces."""
+
+        return {
+            "transformer_name": self.transformer_name,
+            "input_scale": _matrix_intensity_scale_payload(self.input_scale),
+            "output_scale": _matrix_intensity_scale_payload(self.output_scale),
+            "evidence_level": self.evidence_level.value,
+            "transformation_kind": self.transformation_kind,
+            "pseudocount": self.pseudocount,
+            "input_fingerprint": self.input_fingerprint,
+            "output_fingerprint": self.output_fingerprint,
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -509,6 +599,137 @@ def establish_intensity_scale_state(
         trace_id=trace_id,
         diagnostic_warnings=diagnostic_warnings,
     )
+
+
+def _normalize_required_text(value: object, *, field_name: str) -> str:
+    if not isinstance(value, str):
+        raise InvalidTransformationStateError(
+            f"intensity transformation event {field_name} must be a non-empty string"
+        )
+    normalized = value.strip()
+    if not normalized:
+        raise InvalidTransformationStateError(
+            f"intensity transformation event {field_name} must be a non-empty string"
+        )
+    return normalized
+
+
+def _normalize_optional_text(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = str(value).strip()
+    if not normalized:
+        return None
+    return normalized
+
+
+def _normalize_intensity_scale_evidence_level(
+    evidence_level: IntensityScaleEvidenceLevel | str,
+) -> IntensityScaleEvidenceLevel:
+    raw_evidence_level = cast(object, evidence_level)
+    if isinstance(raw_evidence_level, IntensityScaleEvidenceLevel):
+        return raw_evidence_level
+    try:
+        return IntensityScaleEvidenceLevel(str(raw_evidence_level).strip())
+    except ValueError as exc:
+        supported = ", ".join(member.value for member in IntensityScaleEvidenceLevel)
+        raise InvalidTransformationStateError(
+            "unsupported intensity-scale evidence level "
+            f"{raw_evidence_level!r}; supported: {supported}"
+        ) from exc
+
+
+def _normalize_intensity_transformation_pseudocount(
+    pseudocount: float | None,
+) -> float | None:
+    if pseudocount is None:
+        return None
+    try:
+        resolved = float(pseudocount)
+    except (TypeError, ValueError) as exc:
+        raise InvalidTransformationStateError(
+            "intensity transformation event pseudocount must be a finite number"
+        ) from exc
+    if not math.isfinite(resolved):
+        raise InvalidTransformationStateError(
+            "intensity transformation event pseudocount must be finite"
+        )
+    if resolved < 0:
+        raise InvalidTransformationStateError(
+            "intensity transformation event pseudocount must be greater than or "
+            "equal to 0"
+        )
+    return resolved
+
+
+def _validate_intensity_transformation_event_transition(
+    *,
+    input_scale: MatrixIntensityScaleState,
+    output_scale: MatrixIntensityScaleState,
+    evidence_level: IntensityScaleEvidenceLevel,
+    transformation_kind: str,
+) -> None:
+    normalized_kind = transformation_kind.lower().replace("-", "_")
+    if normalized_kind in {
+        "identity",
+        "passthrough",
+        "pass_through",
+        "declaration",
+        "declared",
+        "declared_by_user",
+    }:
+        if not _same_matrix_intensity_scale(input_scale, output_scale):
+            raise InvalidTransformationStateError(
+                "inconsistent intensity transformation event scale transition: "
+                f"{transformation_kind!r} requires matching input and output scales"
+            )
+        return
+
+    if normalized_kind in {
+        "log2",
+        "log2_transform",
+        "log2_transformation",
+        "linear_to_log2",
+    }:
+        if (
+            input_scale.kind is not IntensityScaleKind.LINEAR
+            or input_scale.transformed
+            or output_scale.kind is not IntensityScaleKind.LOG2
+            or not output_scale.transformed
+        ):
+            raise InvalidTransformationStateError(
+                "inconsistent intensity transformation event scale transition: "
+                "log2 requires linear input scale and log2 output scale"
+            )
+        return
+
+    if _same_matrix_intensity_scale(input_scale, output_scale):
+        return
+
+    evidence = evidence_level.value
+    raise InvalidTransformationStateError(
+        "inconsistent intensity transformation event scale transition: "
+        f"{transformation_kind!r} with evidence level {evidence!r} does not define "
+        f"a supported transition from {input_scale.kind.value!r} to "
+        f"{output_scale.kind.value!r}"
+    )
+
+
+def _same_matrix_intensity_scale(
+    left: MatrixIntensityScaleState,
+    right: MatrixIntensityScaleState,
+) -> bool:
+    return left.kind is right.kind and left.transformed == right.transformed
+
+
+def _matrix_intensity_scale_payload(
+    state: MatrixIntensityScaleState,
+) -> dict[str, object]:
+    return {
+        "kind": state.kind.value,
+        "transformed": bool(state.transformed),
+        "established_by": state.established_by,
+    }
 
 
 def _normalize_quantitative_meaning(

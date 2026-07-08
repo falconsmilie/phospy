@@ -16,8 +16,10 @@ from phospy.science.datasets.preprocessing.stages.intensity_transform import (
 )
 from phospy.science.transformations.contracts import TransformationResult
 from phospy.science.transformations.models import (
+    IntensityScaleEvidenceLevel,
     IntensityScaleKind,
     IntensityScaleState,
+    IntensityTransformationEvent,
 )
 from phospy.science.transformations.transformers import Log2Transformer
 
@@ -92,6 +94,13 @@ def test_log2_transformer_returns_log2_intensity_scale_state() -> None:
     assert transformed.provenance["affected_matrices"] == ["phospho", "total"]
     assert transformed.provenance["output_intensity_scale_kind"] == "log2"
     assert isinstance(transformed.provenance["transformer_state"], dict)
+    event = transformed.intensity_transformation_event
+    assert isinstance(event, IntensityTransformationEvent)
+    assert event.evidence_level is IntensityScaleEvidenceLevel.OBSERVED_TRANSFORMATION
+    assert event.transformation_kind == "log2"
+    assert event.input_scale.kind is IntensityScaleKind.LINEAR
+    assert event.output_scale.kind is IntensityScaleKind.LOG2
+    assert event.pseudocount == 1.0
 
 
 def test_log2_transformer_exposes_scale_capabilities() -> None:

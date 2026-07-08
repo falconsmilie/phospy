@@ -8,7 +8,10 @@ from typing import Protocol
 
 import pandas as pd
 
-from phospy.science.transformations.models import IntensityScaleState
+from phospy.science.transformations.models import (
+    IntensityScaleState,
+    IntensityTransformationEvent,
+)
 
 
 def _default_transformation_provenance() -> dict[str, object]:
@@ -25,6 +28,7 @@ class TransformationResult:
     provenance: Mapping[str, object] = field(
         default_factory=_default_transformation_provenance
     )
+    intensity_transformation_event: IntensityTransformationEvent | None = None
 
 
 class Transformer(Protocol):
