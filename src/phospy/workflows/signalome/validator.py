@@ -43,7 +43,7 @@ from phospy.validation.workflows.identity import (
 )
 from phospy.validation.workflows.quantitative import (
     WorkflowQuantitativeInputValidator,
-    phosphosite_abundance_workflow_input_contract,
+    signalome_workflow_input_contract,
 )
 
 SIGNALOME_PROTEIN_GROUPING_METADATA_NOTE = (
@@ -100,7 +100,7 @@ class SignalomeWorkflowValidator:
         )
         self._quantitative_input_validator.run(
             dataset=dataset,
-            contract=phosphosite_abundance_workflow_input_contract(
+            contract=signalome_workflow_input_contract(
                 allow_mixed_total_protein_quantitative_meaning=(
                     config.validation.allow_mixed_total_protein_quantitative_meaning
                 )

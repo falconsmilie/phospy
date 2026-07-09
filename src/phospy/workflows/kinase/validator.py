@@ -42,7 +42,7 @@ from phospy.validation.workflows.identity import (
 )
 from phospy.validation.workflows.quantitative import (
     WorkflowQuantitativeInputValidator,
-    phosphosite_abundance_workflow_input_contract,
+    kinase_profile_scoring_workflow_input_contract,
 )
 from phospy.workflows.kinase.scoring_mode_contracts import (
     kinase_scoring_mode_input_contract,
@@ -131,7 +131,7 @@ class KinaseWorkflowValidator:
         )
         self._quantitative_input_validator.run(
             dataset=dataset,
-            contract=phosphosite_abundance_workflow_input_contract(
+            contract=kinase_profile_scoring_workflow_input_contract(
                 allow_mixed_total_protein_quantitative_meaning=(
                     scoring_config.allow_mixed_total_protein_quantitative_meaning
                 )

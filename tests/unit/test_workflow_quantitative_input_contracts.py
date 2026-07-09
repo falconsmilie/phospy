@@ -161,6 +161,126 @@ def _differential_request(
     )
 
 
+def _assert_expected_actual_meaning_error(
+    exc: pytest.ExceptionInfo[WorkflowValidationError],
+    *,
+    context: str,
+    expected_meaning: str,
+    actual_meaning: QuantitativeMeaning,
+) -> None:
+    message = str(exc.value)
+    assert f"{context} requires quantitative meaning in" in message
+    assert repr(expected_meaning) in message
+    assert f"got {actual_meaning.value!r}" in message
+
+
+def test_differential_validator_accepts_log_abundance_input_meaning() -> None:
+    dataset = _dataset()
+
+    validated = DifferentialAnalysisValidator().run(_differential_request(dataset))
+
+    assert validated.dataset is dataset
+
+
+@pytest.mark.parametrize(
+    "meaning",
+    [
+        pytest.param(
+            QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE,
+            id="contrast-logfc",
+        ),
+        pytest.param(QuantitativeMeaning.ACTIVITY_SCORE, id="activity-score"),
+    ],
+)
+def test_differential_validator_rejects_incompatible_quantitative_meanings(
+    meaning: QuantitativeMeaning,
+) -> None:
+    dataset = _dataset_with_meaning(meaning)
+
+    with pytest.raises(WorkflowValidationError) as exc_info:
+        DifferentialAnalysisValidator().run(_differential_request(dataset))
+
+    _assert_expected_actual_meaning_error(
+        exc_info,
+        context="differential workflow request dataset",
+        expected_meaning=QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE.value,
+        actual_meaning=meaning,
+    )
+
+
+def test_kinase_validator_accepts_log_abundance_input_meaning() -> None:
+    dataset = _dataset()
+    request = _kinase_request(dataset)
+
+    validated = KinaseWorkflowValidator().run(request)
+
+    assert validated is request
+
+
+@pytest.mark.parametrize(
+    "meaning",
+    [
+        pytest.param(
+            QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE,
+            id="contrast-logfc",
+        ),
+        pytest.param(
+            QuantitativeMeaning.DIFFERENTIAL_EFFECT_SIZE,
+            id="differential-effect",
+        ),
+    ],
+)
+def test_kinase_validator_rejects_incompatible_quantitative_meanings(
+    meaning: QuantitativeMeaning,
+) -> None:
+    dataset = _dataset_with_meaning(meaning)
+
+    with pytest.raises(WorkflowValidationError) as exc_info:
+        KinaseWorkflowValidator().run(_kinase_request(dataset))
+
+    _assert_expected_actual_meaning_error(
+        exc_info,
+        context="kinase workflow request dataset",
+        expected_meaning=QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE.value,
+        actual_meaning=meaning,
+    )
+
+
+def test_signalome_validator_accepts_log_abundance_input_meaning() -> None:
+    dataset = _dataset()
+    request = _signalome_request(dataset)
+
+    validated = SignalomeWorkflowValidator().run(request)
+
+    assert validated is request
+
+
+@pytest.mark.parametrize(
+    "meaning",
+    [
+        pytest.param(
+            QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE,
+            id="contrast-logfc",
+        ),
+        pytest.param(QuantitativeMeaning.ACTIVITY_SCORE, id="activity-score"),
+    ],
+)
+def test_signalome_validator_rejects_incompatible_quantitative_meanings(
+    meaning: QuantitativeMeaning,
+) -> None:
+    dataset = _dataset_with_meaning(meaning)
+
+    with pytest.raises(WorkflowValidationError) as exc_info:
+        SignalomeWorkflowValidator().run(_signalome_request(dataset))
+
+    _assert_expected_actual_meaning_error(
+        exc_info,
+        context="signalome workflow request kinase_result.dataset",
+        expected_meaning=QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE.value,
+        actual_meaning=meaning,
+    )
+
+
 def test_log_abundance_meaning_requires_log2_scale_at_state_construction() -> None:
     with pytest.raises(
         InvalidTransformationStateError,

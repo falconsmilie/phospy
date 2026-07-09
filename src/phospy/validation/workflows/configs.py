@@ -11,7 +11,10 @@ from phospy.contracts.configs import (
 from phospy.errors.validation import WorkflowValidationError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.transformations.models import QuantitativeMeaning
-from phospy.validation.workflows.quantitative import is_mixed_quantitative_meaning
+from phospy.validation.workflows.quantitative import (
+    is_mixed_quantitative_meaning,
+    phosphosite_abundance_workflow_input_contract,
+)
 
 _MIXED_QUANTITATIVE_MEANING = QuantitativeMeaning.MIXED_PHOSPHO_TOTAL_LOG_RATIO_AND_PHOSPHOSITE_LOG_ABUNDANCE.value
 
@@ -84,6 +87,13 @@ def reject_mixed_total_protein_quantitative_meaning(
         return
     if allow_mixed:
         return
+    contract = phosphosite_abundance_workflow_input_contract(
+        allow_mixed_total_protein_quantitative_meaning=False
+    )
+    expected = ", ".join(
+        repr(value.value)
+        for value in sorted(contract.allowed_meanings, key=lambda item: item.value)
+    )
     diagnostics = dataset.processing_state.total_protein_correction.diagnostics
     uncorrected_row_count = None
     unmatched_policy = None
@@ -91,6 +101,8 @@ def reject_mixed_total_protein_quantitative_meaning(
         uncorrected_row_count = diagnostics.get("uncorrected_row_count")
         unmatched_policy = diagnostics.get("unmatched_policy")
     raise WorkflowValidationError(
+        f"{context} requires quantitative meaning in {{{expected}}}; "
+        f"got {_MIXED_QUANTITATIVE_MEANING!r}. "
         f"{context} received a dataset with mixed total-protein quantitative meaning "
         f"({_MIXED_QUANTITATIVE_MEANING}). "
         f"uncorrected_rows={uncorrected_row_count!r}, "

@@ -119,22 +119,26 @@ class WorkflowQuantitativeInputValidator:
             raise WorkflowValidationError(
                 f"{context} quantitative input state is missing quantitative meaning"
             )
+        allowed = _format_quantitative_meanings(contract.allowed_meanings)
         if (
             quantity is QuantitativeMeaning.UNKNOWN
             and not contract.allow_unknown_meaning
         ):
             raise WorkflowValidationError(
-                f"{context} rejects unknown quantitative meaning by default; "
+                f"{context} requires quantitative meaning in {{{allowed}}}; "
+                f"got {quantity.value!r}. "
+                "unknown quantitative meaning is rejected by default; "
                 "provide an explicit workflow override before using unknown matrix "
                 "semantics"
             )
         if is_mixed_quantitative_meaning(quantity) and not contract.allow_mixed_meaning:
             raise WorkflowValidationError(
-                f"{context} requires homogeneous quantitative matrix semantics; "
-                f"received mixed quantitative meaning {quantity.value!r}"
+                f"{context} requires quantitative meaning in {{{allowed}}}; "
+                f"got {quantity.value!r}. "
+                "Mixed quantitative matrix semantics are not allowed unless the "
+                "workflow explicitly enables them"
             )
         if quantity not in contract.allowed_meanings:
-            allowed = _format_quantitative_meanings(contract.allowed_meanings)
             raise WorkflowValidationError(
                 f"{context} requires quantitative meaning in {{{allowed}}}; "
                 f"got {quantity.value!r}"
@@ -163,6 +167,32 @@ def phosphosite_abundance_workflow_input_contract(
         allowed_scales=frozenset({IntensityScaleKind.LINEAR, IntensityScaleKind.LOG2}),
         require_established_scale=True,
         allow_mixed_meaning=allow_mixed_total_protein_quantitative_meaning,
+    )
+
+
+def kinase_profile_scoring_workflow_input_contract(
+    *,
+    allow_mixed_total_protein_quantitative_meaning: bool = False,
+) -> WorkflowQuantitativeInputContract:
+    """Return the quantitative contract for kinase profile scoring inputs."""
+
+    return phosphosite_abundance_workflow_input_contract(
+        allow_mixed_total_protein_quantitative_meaning=(
+            allow_mixed_total_protein_quantitative_meaning
+        )
+    )
+
+
+def signalome_workflow_input_contract(
+    *,
+    allow_mixed_total_protein_quantitative_meaning: bool = False,
+) -> WorkflowQuantitativeInputContract:
+    """Return the quantitative contract for signalome upstream dataset inputs."""
+
+    return phosphosite_abundance_workflow_input_contract(
+        allow_mixed_total_protein_quantitative_meaning=(
+            allow_mixed_total_protein_quantitative_meaning
+        )
     )
 
 
@@ -219,5 +249,7 @@ __all__ = [
     "WorkflowQuantitativeInputContract",
     "WorkflowQuantitativeInputValidator",
     "is_mixed_quantitative_meaning",
+    "kinase_profile_scoring_workflow_input_contract",
     "phosphosite_abundance_workflow_input_contract",
+    "signalome_workflow_input_contract",
 ]

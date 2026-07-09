@@ -256,7 +256,7 @@ tests/unit/test_validator_boundaries.py,unit,1963,68,true,true,duplicate validat
 tests/unit/test_workflow_boundary_error.py,unit,334,9,false,false,regression for past bug,keep,Loss of this file would remove regression protection for previously fragile behavior in workflow boundary error and increase risk of silent reintroduction.,codex-audit,,
 tests/unit/test_workflow_identity_contracts.py,unit,519,14,true,true,,,,,,[auto-orchestration] 6 hit(s); indicators: private_member_access
 tests/unit/test_workflow_public_import_contract.py,unit,91,7,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for workflow public import contract and increase risk of boundary regressions.,codex-audit,,
-tests/unit/test_workflow_quantitative_input_contracts.py,unit,280,8,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
+tests/unit/test_workflow_quantitative_input_contracts.py,unit,400,14,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/validation/test_reference_context_compatibility.py,validation,198,7,false,false,,,,,,
 tests/unit/validation/test_site_sequence_contracts.py,validation,120,5,true,true,,,,,,
 tests/unit/workflows/differential/test_differential_scope_validation.py,differential,262,7,false,false,,,,,,
