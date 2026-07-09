@@ -106,7 +106,7 @@ tests/unit/test_design_matrix_builder.py,unit,621,20,false,false,,,,,,
 tests/unit/test_differential_analysis.py,unit,1125,23,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for differential analysis behaviour, allowing numerically plausible but scientifically invalid results.",codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_differential_contrast_helpers.py,unit,143,7,false,false,,,,,,
 tests/unit/test_differential_dataset_eligibility_validator.py,unit,204,7,false,false,,,,,,
-tests/unit/test_differential_feature_eligibility.py,unit,272,7,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/unit/test_differential_feature_eligibility.py,unit,376,8,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_differential_fixed_effect_provenance.py,unit,372,5,false,false,,,,,,
 tests/unit/test_differential_imputation_policy.py,unit,304,8,false,false,,,,,,
 tests/unit/test_differential_numerical_guards.py,unit,621,15,true,true,,,,,,
@@ -139,7 +139,7 @@ tests/unit/test_fasta_sequence_repository.py,unit,125,8,false,false,public API c
 tests/unit/test_fragpipe_ptmprophet_importer.py,unit,379,14,false,false,,,,,,
 tests/unit/test_frame_ownership_policy.py,unit,1358,27,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for frame ownership policy and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 53 hit(s); indicators: private_member_access
 tests/unit/test_generate_test_inventory_tool.py,unit,132,1,true,true,public API contract,keep,Loss of this file would weaken protection for the testing audit inventory generator and could allow manual audit classifications to be lost during regeneration.,codex-audit,TST-AUDIT-TOOL-001,Audit tooling regression coverage; keep as part of testing-governance infrastructure.
-tests/unit/test_group_coverage_filter_preprocessing.py,unit,242,7,false,false,,,,,,
+tests/unit/test_group_coverage_filter_preprocessing.py,unit,258,7,false,false,,,,,,
 tests/unit/test_group_coverage_filter_preprocessing_config.py,unit,195,10,true,true,,,,,,
 tests/unit/test_historical_baseline_science.py,unit,424,8,true,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for historical baseline science, making artifact and output drift unsafe.",codex-audit,,
 tests/unit/test_importer_analysis_ready_boundary.py,unit,180,5,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
@@ -214,7 +214,7 @@ tests/unit/test_reference_runtime_policy.py,unit,100,5,true,true,public API cont
 tests/unit/test_request_validation_boundaries.py,unit,283,6,true,true,,,,,,
 tests/unit/test_result_caveats.py,unit,69,3,false,false,,,,,,
 tests/unit/test_result_snapshot_helpers.py,unit,536,9,false,false,,,,,,
-tests/unit/test_row_attrition_provenance.py,unit,143,7,true,true,,,,,,
+tests/unit/test_row_attrition_provenance.py,unit,141,7,true,true,,,,,,
 tests/unit/test_runtime_contract_guards.py,unit,145,4,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for runtime contract guards and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_science_package_ownership.py,unit,113,6,true,true,,,,,,
 tests/unit/test_scientific_coverage_scope_matrix_docs.py,unit,760,28,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access

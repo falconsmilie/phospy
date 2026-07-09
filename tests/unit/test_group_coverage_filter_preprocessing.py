@@ -161,6 +161,22 @@ def test_group_coverage_filter_retains_sites_passing_in_one_group() -> None:
     assert str(dropped.iloc[0]["action"]) == "dropped"
     assert "insufficient finite coverage" in str(dropped.iloc[0]["reason"])
 
+    provenance = dataset.provenance
+    row_attrition = provenance.workflow_parameters["row_attrition"]
+    assert row_attrition["input_rows"] == 4
+    assert row_attrition["final_rows"] == 3
+    assert len(row_attrition["records"]) == 1
+    record = row_attrition["records"][0]
+    assert record["stage"] == "group_coverage_filter"
+    assert record["input_rows"] == 4
+    assert record["output_rows"] == 3
+    assert record["removed_rows"] == 1
+    assert record["reason"] == (
+        "insufficient finite coverage within configured sample groups"
+    )
+    assert len(record["examples"]) == 1
+    assert "GSK3B" in record["examples"][0]
+
 
 def test_group_coverage_filter_count_threshold_boundary_is_inclusive() -> None:
     dataset = _build_dataset()

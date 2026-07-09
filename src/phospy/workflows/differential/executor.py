@@ -7,8 +7,10 @@ from typing import cast
 
 import numpy as np
 import pandas as pd
+from numpy.typing import NDArray
 
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.provenance import RowAttritionRecord, RowAttritionReport
 from phospy.science.datasets.preprocessing.batch_correction import (
     BatchCorrectionReport,
 )
@@ -19,15 +21,23 @@ from phospy.science.differential.internal_view import (
     DifferentialComputationResultInternalView,
 )
 from phospy.science.differential.models import (
-    DifferentialAnalysisRequest as DifferentialComputationRequest,
-)
-from phospy.science.differential.models import (
+    DIFFERENTIAL_RESULT_STATUS_COLUMN,
+    DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
+    DIFFERENTIAL_RESULT_STATUS_WITHHELD_OTHER,
     DifferentialAnalysisResult,
     DifferentialComputationResult,
     DifferentialContrastDefinition,
     DifferentialModelDiagnostics,
     EmpiricalBayesPriorDiagnostics,
     MeanVarianceTrendDiagnostics,
+)
+from phospy.science.differential.models import (
+    DifferentialAnalysisRequest as DifferentialComputationRequest,
+)
+from phospy.workflows._pandas_typing import (
+    dataframe_column,
+    dataframe_copy,
+    dataframe_loc,
 )
 from phospy.workflows.differential.models import (
     DifferentialExecutionDesignInputs,
@@ -75,6 +85,44 @@ class DifferentialAnalysisExecutor:
                 computation_request=request.computation_request,
                 imputation_policy_inputs=imputation_policy_inputs,
             )
+        model_fit_feature_ids = _feature_ids(computation_request.matrix.index)
+        failed_model_fit_feature_ids = _failed_model_fit_feature_ids(
+            computation_request
+        )
+        if failed_model_fit_feature_ids:
+            valid_model_fit_feature_ids = tuple(
+                feature_id
+                for feature_id in model_fit_feature_ids
+                if feature_id not in set(failed_model_fit_feature_ids)
+            )
+            computation_request = _filter_computation_request_for_feature_ids(
+                computation_request=computation_request,
+                feature_ids=valid_model_fit_feature_ids,
+                seam="differential.executor.model_fit_valid_features",
+                next_action=(
+                    "provide at least one feature whose fitted residual variance is "
+                    "finite and positive under the resolved differential design"
+                ),
+                details={
+                    "failed_model_fit_feature_ids": list(
+                        failed_model_fit_feature_ids[:5]
+                    ),
+                    "failed_model_fit_count": int(len(failed_model_fit_feature_ids)),
+                },
+            )
+            if feature_eligibility_inputs is not None:
+                feature_eligibility_inputs = _with_failed_model_fit_status(
+                    feature_eligibility_inputs=feature_eligibility_inputs,
+                    failed_feature_ids=failed_model_fit_feature_ids,
+                )
+        valid_test_feature_ids = _feature_ids(computation_request.matrix.index)
+        workflow_provenance = _with_row_attrition_provenance(
+            workflow_provenance=request.workflow_provenance,
+            input_feature_ids=_feature_ids(request.result_identity_metadata.index),
+            model_fit_feature_ids=model_fit_feature_ids,
+            failed_model_fit_feature_ids=failed_model_fit_feature_ids,
+            multiple_testing_feature_ids=valid_test_feature_ids,
+        )
         result = self._computation_executor.run(computation_request)
         residual_variance = result.residual_variance
         posterior_residual_variance = result.posterior_residual_variance
@@ -149,7 +197,7 @@ class DifferentialAnalysisExecutor:
             diagnostics=diagnostics,
             policy_provenance=request.policy_provenance,
             contrast_tables=contrast_tables,
-            workflow_provenance=request.workflow_provenance,
+            workflow_provenance=workflow_provenance,
             caveats=request.caveats,
             input_dataset_preprocessing_report=request.dataset_preprocessing_report,
             feature_eligibility=(
@@ -477,6 +525,169 @@ def _filter_computation_request_for_feature_ids(
         empirical_bayes=computation_request.empirical_bayes,
         multiple_testing_method=computation_request.multiple_testing_method,
     )
+
+
+def _failed_model_fit_feature_ids(
+    computation_request: DifferentialComputationRequest,
+) -> tuple[str, ...]:
+    matrix = computation_request.matrix
+    design_frame = computation_request.design.frame
+    matrix_aligned = dataframe_loc(matrix, columns=list(design_frame.index))
+    design_values: NDArray[np.float64] = np.asarray(
+        design_frame.to_numpy(dtype=float),
+        dtype=np.float64,
+    )
+    rank = int(np.linalg.matrix_rank(design_values))
+    residual_dof = float(int(design_values.shape[0]) - rank)
+    if residual_dof <= 0.0:
+        return ()
+
+    matrix_values: NDArray[np.float64] = np.asarray(
+        matrix_aligned.to_numpy(dtype=float),
+        dtype=np.float64,
+    )
+    response: NDArray[np.float64] = np.transpose(matrix_values)
+    design_transpose: NDArray[np.float64] = np.transpose(design_values)
+    design_crossproduct: NDArray[np.float64] = design_transpose @ design_values
+    xtx_inv: NDArray[np.float64] = cast(
+        NDArray[np.float64],
+        np.linalg.pinv(design_crossproduct),
+    )
+    coefficients: NDArray[np.float64] = xtx_inv @ design_transpose @ response
+    fitted_values: NDArray[np.float64] = design_values @ coefficients
+    residuals: NDArray[np.float64] = response - fitted_values
+    rss: NDArray[np.float64] = cast(
+        NDArray[np.float64],
+        np.sum(np.square(residuals), axis=0),
+    )
+    residual_variance: NDArray[np.float64] = np.asarray(
+        rss / residual_dof,
+        dtype=np.float64,
+    )
+    failed_mask = ~np.isfinite(residual_variance) | (residual_variance <= 0.0)
+    return tuple(
+        str(feature_id)
+        for feature_id, failed in zip(matrix_aligned.index, failed_mask, strict=True)
+        if bool(failed)
+    )
+
+
+def _with_failed_model_fit_status(
+    *,
+    feature_eligibility_inputs: DifferentialFeatureEligibilityInputs,
+    failed_feature_ids: tuple[str, ...],
+) -> DifferentialFeatureEligibilityInputs:
+    failed_feature_id_set = set(failed_feature_ids)
+    feature_metadata = dataframe_copy(
+        feature_eligibility_inputs.feature_metadata,
+        deep=True,
+    )
+    status_values: NDArray[np.object_] = np.array(
+        dataframe_column(feature_metadata, DIFFERENTIAL_RESULT_STATUS_COLUMN).to_numpy(
+            dtype=object
+        ),
+        dtype=object,
+        copy=True,
+    )
+    reason_values: NDArray[np.object_] = np.array(
+        dataframe_column(
+            feature_metadata,
+            DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
+        ).to_numpy(dtype=object),
+        dtype=object,
+        copy=True,
+    )
+    fit_failure_reason = (
+        "Feature model fit failed before multiple-testing correction; residual "
+        "variance was zero or non-finite."
+    )
+    for row_position, label in enumerate(feature_metadata.index):
+        if str(label) not in failed_feature_id_set:
+            continue
+        status_values[int(row_position)] = DIFFERENTIAL_RESULT_STATUS_WITHHELD_OTHER
+        reason_values[int(row_position)] = fit_failure_reason
+    feature_metadata[DIFFERENTIAL_RESULT_STATUS_COLUMN] = status_values
+    feature_metadata[DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN] = reason_values
+    result_status = pd.Series(
+        status_values.astype(str),
+        index=_index_snapshot(feature_eligibility_inputs.result_status.index),
+        name=DIFFERENTIAL_RESULT_STATUS_COLUMN,
+    )
+    return DifferentialFeatureEligibilityInputs(
+        feature_metadata=feature_metadata,
+        result_status=result_status,
+        testable_feature_ids=tuple(
+            feature_id
+            for feature_id in feature_eligibility_inputs.testable_feature_ids
+            if feature_id not in failed_feature_id_set
+        ),
+        attach_to_result_tables=True,
+    )
+
+
+def _with_row_attrition_provenance(
+    *,
+    workflow_provenance: Mapping[str, object] | None,
+    input_feature_ids: tuple[str, ...],
+    model_fit_feature_ids: tuple[str, ...],
+    failed_model_fit_feature_ids: tuple[str, ...],
+    multiple_testing_feature_ids: tuple[str, ...],
+) -> Mapping[str, object]:
+    payload: dict[str, object] = (
+        {} if workflow_provenance is None else dict(workflow_provenance)
+    )
+    input_count = int(len(input_feature_ids))
+    model_fit_count = int(len(model_fit_feature_ids))
+    failed_count = int(len(failed_model_fit_feature_ids))
+    multiple_testing_count = int(len(multiple_testing_feature_ids))
+    payload["row_attrition_metrics"] = {
+        "input_sites": input_count,
+        "sites_retained_for_model_fitting": model_fit_count,
+        "sites_excluded_before_testing": input_count - model_fit_count,
+        "sites_with_failed_model_fit": failed_count,
+        "sites_included_in_multiple_testing_family": multiple_testing_count,
+    }
+
+    records: list[RowAttritionRecord] = []
+    if input_count > model_fit_count:
+        records.append(
+            RowAttritionRecord(
+                stage="differential_feature_eligibility",
+                input_rows=input_count,
+                output_rows=model_fit_count,
+                removed_rows=input_count - model_fit_count,
+                reason="sites_excluded_before_testing",
+                examples=_examples(
+                    tuple(
+                        feature_id
+                        for feature_id in input_feature_ids
+                        if feature_id not in set(model_fit_feature_ids)
+                    )
+                ),
+            )
+        )
+    if failed_count:
+        records.append(
+            RowAttritionRecord(
+                stage="differential_model_fit",
+                input_rows=model_fit_count,
+                output_rows=multiple_testing_count,
+                removed_rows=failed_count,
+                reason="failed_model_fit",
+                examples=_examples(failed_model_fit_feature_ids),
+            )
+        )
+    if records:
+        payload["row_attrition"] = RowAttritionReport.from_records(records).to_payload()
+    return payload
+
+
+def _feature_ids(index: pd.Index) -> tuple[str, ...]:
+    return tuple(str(feature_id) for feature_id in index.tolist())
+
+
+def _examples(values: tuple[str, ...]) -> tuple[str, ...]:
+    return tuple(str(value) for value in values[:5])
 
 
 def _status_counts(result_status: pd.Series) -> dict[str, int]:

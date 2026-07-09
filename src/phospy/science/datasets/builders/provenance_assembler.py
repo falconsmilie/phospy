@@ -14,6 +14,8 @@ from phospy.provenance.models import (
     DeterminismKind,
     JsonValue,
     PreprocessingStageProvenance,
+    RowAttritionRecord,
+    RowAttritionReport,
     RunProvenance,
     TableFingerprint,
 )
@@ -28,6 +30,7 @@ from phospy.science.datasets.builders.sequence_derivation import (
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
+    DATASET_PREPROCESSING_STAGE_GROUP_COVERAGE_FILTER,
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
     DATASET_PREPROCESSING_STAGE_LOCALISATION,
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
@@ -158,6 +161,9 @@ class DatasetRunProvenanceAssembler:
                 },
             },
         }
+        row_attrition_report = _build_row_attrition_report(preprocessing_trace)
+        if row_attrition_report is not None:
+            workflow_parameters["row_attrition"] = row_attrition_report.to_payload()
         if protein_aware_preparation_report is not None:
             workflow_parameters["protein_aware_preparation"] = (
                 _protein_aware_preparation_to_payload(protein_aware_preparation_report)
@@ -256,6 +262,154 @@ def _stage_trace_to_provenance(
         )
         for item in trace
     )
+
+
+def _build_row_attrition_report(
+    trace: tuple[PreprocessingStageExecution, ...] | None,
+) -> RowAttritionReport | None:
+    records: list[RowAttritionRecord] = []
+    for item in trace or ():
+        records.extend(_row_attrition_records_for_stage(item))
+    if not records:
+        return None
+    return RowAttritionReport.from_records(records)
+
+
+def _row_attrition_records_for_stage(
+    item: PreprocessingStageExecution,
+) -> tuple[RowAttritionRecord, ...]:
+    input_rows = int(item.input_rows)
+    output_rows = int(item.output_rows)
+    if output_rows >= input_rows:
+        return ()
+    if item.stage == DATASET_PREPROCESSING_STAGE_SITE_MATRIX:
+        return _site_matrix_row_attrition_records(item)
+    return (
+        RowAttritionRecord(
+            stage=item.stage,
+            input_rows=input_rows,
+            output_rows=output_rows,
+            removed_rows=input_rows - output_rows,
+            reason=_row_attrition_reason_for_stage(item),
+            examples=_examples(item.dropped_row_ids),
+        ),
+    )
+
+
+def _site_matrix_row_attrition_records(
+    item: PreprocessingStageExecution,
+) -> tuple[RowAttritionRecord, ...]:
+    diagnostics = item.diagnostics
+    current_input_rows = int(item.input_rows)
+    records: list[RowAttritionRecord] = []
+
+    missing_sequence_ids = _string_tuple(
+        diagnostics.get("dropped_missing_sequence_row_ids")
+    )
+    if missing_sequence_ids:
+        current_input_rows = _append_row_attrition_record(
+            records,
+            stage=item.stage,
+            input_rows=current_input_rows,
+            removed_rows=len(missing_sequence_ids),
+            reason="invalid_site_sequence",
+            examples=_examples(missing_sequence_ids),
+        )
+
+    incomplete_value_ids = _string_tuple(diagnostics.get("dropped_incomplete_row_ids"))
+    if incomplete_value_ids:
+        current_input_rows = _append_row_attrition_record(
+            records,
+            stage=item.stage,
+            input_rows=current_input_rows,
+            removed_rows=len(incomplete_value_ids),
+            reason="filtered_by_missingness_policy",
+            examples=_examples(incomplete_value_ids),
+        )
+
+    accounted_ids = {*missing_sequence_ids, *incomplete_value_ids}
+    all_dropped_ids = _string_tuple(
+        diagnostics.get("dropped_row_ids", item.dropped_row_ids)
+    )
+    duplicate_examples = tuple(
+        row_id for row_id in all_dropped_ids if row_id not in accounted_ids
+    )
+    remaining_removed_rows = current_input_rows - int(item.output_rows)
+    if remaining_removed_rows > 0:
+        current_input_rows = _append_row_attrition_record(
+            records,
+            stage=item.stage,
+            input_rows=current_input_rows,
+            removed_rows=remaining_removed_rows,
+            reason="duplicate_site_resolution",
+            examples=_examples(duplicate_examples),
+        )
+
+    if current_input_rows != int(item.output_rows):
+        return (
+            RowAttritionRecord(
+                stage=item.stage,
+                input_rows=int(item.input_rows),
+                output_rows=int(item.output_rows),
+                removed_rows=int(item.input_rows) - int(item.output_rows),
+                reason="site_matrix_row_filtering",
+                examples=_examples(item.dropped_row_ids),
+            ),
+        )
+    return tuple(records)
+
+
+def _append_row_attrition_record(
+    records: list[RowAttritionRecord],
+    *,
+    stage: str,
+    input_rows: int,
+    removed_rows: int,
+    reason: str,
+    examples: tuple[str, ...],
+) -> int:
+    output_rows = int(input_rows) - int(removed_rows)
+    records.append(
+        RowAttritionRecord(
+            stage=stage,
+            input_rows=int(input_rows),
+            output_rows=output_rows,
+            removed_rows=int(removed_rows),
+            reason=reason,
+            examples=examples,
+        )
+    )
+    return output_rows
+
+
+def _row_attrition_reason_for_stage(item: PreprocessingStageExecution) -> str:
+    diagnostics = item.diagnostics
+    if item.stage == DATASET_PREPROCESSING_STAGE_GROUP_COVERAGE_FILTER:
+        removal_reason = diagnostics.get("removal_reason")
+        if isinstance(removal_reason, str) and removal_reason.strip():
+            return removal_reason
+        return "insufficient finite coverage within configured sample groups"
+    if item.stage == DATASET_PREPROCESSING_STAGE_MISSING_DATA:
+        if _string_tuple(diagnostics.get("dropped_rows_above_max_missing_fraction")):
+            return "filtered_by_missingness_policy"
+        if _string_tuple(diagnostics.get("rows_not_imputable")):
+            return "missing_intensity_values"
+        return "missing_data_row_filtering"
+    return f"{item.stage}_row_filtering"
+
+
+def _string_tuple(value: object) -> tuple[str, ...]:
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        return (value,)
+    if isinstance(value, tuple | list):
+        return tuple(str(item) for item in value)
+    return ()
+
+
+def _examples(values: tuple[str, ...]) -> tuple[str, ...]:
+    return tuple(str(value) for value in values[:5])
 
 
 def _resolve_determinism_kind(value: object) -> DeterminismKind:
