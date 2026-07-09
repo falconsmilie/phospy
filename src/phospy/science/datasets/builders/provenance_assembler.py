@@ -10,7 +10,7 @@ from phospy.errors.build import DatasetBuildError
 from phospy.provenance.environment import collect_environment_provenance
 from phospy.provenance.hashing import fingerprint_optional_table
 from phospy.provenance.models import (
-    PREPROCESSING_STAGE_DETERMINISM_PURE,
+    DeterminismKind,
     JsonValue,
     PreprocessingStageProvenance,
     RunProvenance,
@@ -235,11 +235,8 @@ def _stage_trace_to_provenance(
             produced_output_tables=tuple(item.produced_output_tables),
             backend=item.backend,
             random_seed=item.random_seed,
-            determinism=(
-                str(item.determinism).strip()
-                if str(item.determinism).strip()
-                else PREPROCESSING_STAGE_DETERMINISM_PURE
-            ),
+            determinism=_resolve_determinism_kind(item.determinism),
+            reproducibility_caveats=tuple(item.reproducibility_caveats),
             imputed_cell_count=int(item.imputed_cell_count),
             imputed_row_ids=item.imputed_row_ids,
             notes=item.notes,
@@ -251,6 +248,17 @@ def _stage_trace_to_provenance(
         )
         for item in trace
     )
+
+
+def _resolve_determinism_kind(value: object) -> DeterminismKind:
+    if isinstance(value, DeterminismKind):
+        return value
+    normalized = str(value).strip()
+    if normalized == "" or normalized == "pure":
+        return DeterminismKind.DETERMINISTIC
+    if normalized == "external_dependency":
+        return DeterminismKind.EXTERNALLY_NONDETERMINISTIC
+    return DeterminismKind(normalized)
 
 
 def _to_stage_diagnostics_payload(

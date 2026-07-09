@@ -24,6 +24,7 @@ from phospy.science.datasets.preprocessing.report_rows import (
 )
 from phospy.science.datasets.preprocessing.report_schema import PreprocessingRowAuditRow
 from phospy.science.datasets.preprocessing.stage_contract import (
+    DeterminismKind,
     PreprocessingStageContract,
 )
 from phospy.validation.datasets.site_metadata import (
@@ -321,6 +322,7 @@ LOCALISATION_CONFIDENCE_STAGE_CONTRACT = PreprocessingStageContract(
     ),
     stage_factory=LocalisationConfidenceStage,
     backend="pandas",
+    determinism_kind=DeterminismKind.DETERMINISTIC,
     diagnostics_metadata={
         "known_diagnostics_fields": (
             "mode",

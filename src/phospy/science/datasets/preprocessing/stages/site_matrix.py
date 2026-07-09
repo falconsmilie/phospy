@@ -26,6 +26,7 @@ from phospy.science.datasets.preprocessing.report_rows import (
     report_rows_from_row_audit_rows,
 )
 from phospy.science.datasets.preprocessing.stage_contract import (
+    DeterminismKind,
     PreprocessingStageContract,
 )
 from phospy.science.datasets.preprocessing.stages.site_matrix_components import (
@@ -546,6 +547,7 @@ SITE_MATRIX_STAGE_CONTRACT = PreprocessingStageContract(
     ),
     stage_factory=SiteMatrixStage,
     backend="pandas",
+    determinism_kind=DeterminismKind.DETERMINISTIC,
     diagnostics_metadata={
         "known_diagnostics_fields": (
             "dropped_missing_sequence_row_ids",

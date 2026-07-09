@@ -15,6 +15,7 @@ from phospy.science.datasets.preprocessing.models import (
 )
 from phospy.science.datasets.preprocessing.policy_models import IntensityTransformPolicy
 from phospy.science.datasets.preprocessing.stage_contract import (
+    DeterminismKind,
     PreprocessingStageContract,
 )
 from phospy.science.transformations.contracts import Transformer
@@ -138,6 +139,7 @@ INTENSITY_TRANSFORM_STAGE_CONTRACT = PreprocessingStageContract(
     ),
     stage_factory=IntensityTransformStage,
     backend="numpy",
+    determinism_kind=DeterminismKind.DETERMINISTIC,
     diagnostics_metadata={
         "known_diagnostics_fields": (
             "policy",

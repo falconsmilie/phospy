@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -13,10 +15,13 @@ from phospy.provenance.hashing import (
 )
 from phospy.provenance.models import (
     ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V2,
+    PREPROCESSING_EXTERNAL_NONDETERMINISM_CAVEAT_CODE,
     PREPROCESSING_STAGE_DETERMINISM_PURE,
     PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
+    DeterminismKind,
     EnvironmentProvenance,
     PreprocessingStageProvenance,
+    ReproducibilityCaveat,
     RunProvenance,
 )
 from phospy.provenance.serialization import from_payload, to_payload
@@ -317,6 +322,39 @@ def test_current_provenance_payload_omits_legacy_hash_and_determinism_aliases() 
     assert "hash_algorithm" not in keys
     assert "hash_value" not in keys
     assert "is_deterministic" not in keys
+
+
+def test_external_nondeterminism_caveat_round_trips_in_stage_provenance() -> None:
+    provenance = _current_run_provenance()
+    caveat = ReproducibilityCaveat(
+        code=PREPROCESSING_EXTERNAL_NONDETERMINISM_CAVEAT_CODE,
+        severity="warning",
+        message="External preprocessing execution requires external state.",
+        details={
+            "stage": "missing_data",
+            "determinism_kind": "externally_nondeterministic",
+        },
+    )
+    stage = replace(
+        provenance.preprocessing_stages[0],
+        determinism=DeterminismKind.EXTERNALLY_NONDETERMINISTIC,
+        reproducibility_caveats=(caveat,),
+    )
+    payload = to_payload(replace(provenance, preprocessing_stages=(stage,)))
+    stage_payload = payload["preprocessing_stages"][0]
+    assert isinstance(stage_payload, dict)
+    assert stage_payload["determinism"] == "externally_nondeterministic"
+    caveat_payloads = stage_payload["reproducibility_caveats"]
+    assert isinstance(caveat_payloads, list)
+    assert (
+        caveat_payloads[0]["code"] == PREPROCESSING_EXTERNAL_NONDETERMINISM_CAVEAT_CODE
+    )
+
+    restored = from_payload(payload)
+
+    restored_stage = restored.preprocessing_stages[0]
+    assert restored_stage.determinism is DeterminismKind.EXTERNALLY_NONDETERMINISTIC
+    assert restored_stage.reproducibility_caveats == (caveat,)
 
 
 @pytest.mark.parametrize(

@@ -23,10 +23,12 @@ from phospy.provenance.hashing import (
     hash_table_tolerance,
 )
 from phospy.provenance.models import (
-    PREPROCESSING_STAGE_DETERMINISM_PURE,
+    PREPROCESSING_EXTERNAL_NONDETERMINISM_CAVEAT_CODE,
     PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
     BatchCorrectionProvenance,
+    DeterminismKind,
     JsonValue,
+    ReproducibilityCaveat,
     TableFingerprint,
 )
 from phospy.provenance.serialization import batch_correction_provenance_from_payload
@@ -580,8 +582,11 @@ def _build_stage_execution(
         produced_output_tables=produced_output_tables,
         backend="resolved_correction_result",
         random_seed=None,
-        determinism=PREPROCESSING_STAGE_DETERMINISM_PURE,
-        is_deterministic=True,
+        determinism=DeterminismKind.EXTERNALLY_NONDETERMINISTIC,
+        reproducibility_caveats=_external_correction_reproducibility_caveats(
+            method=str(correction_output.batch_correction_report.method),
+        ),
+        is_deterministic=False,
         imputed_cell_count=0,
         imputed_row_ids=(),
         notes="resolved correction output integrated before dataset boundary",
@@ -590,6 +595,30 @@ def _build_stage_execution(
             previous=previous,
             current=current,
             correction_output=correction_output,
+        ),
+    )
+
+
+def _external_correction_reproducibility_caveats(
+    *,
+    method: str,
+) -> tuple[ReproducibilityCaveat, ...]:
+    return (
+        ReproducibilityCaveat(
+            code=PREPROCESSING_EXTERNAL_NONDETERMINISM_CAVEAT_CODE,
+            severity="warning",
+            message=(
+                "Corrected preprocessing output was produced outside the dataset "
+                "preprocessing pipeline; exact reproduction requires the external "
+                "execution environment, runtime state, and inputs used to produce "
+                "the recorded matrix."
+            ),
+            details={
+                "stage": DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
+                "operation": method,
+                "backend": "resolved_correction_result",
+                "determinism_kind": (DeterminismKind.EXTERNALLY_NONDETERMINISTIC.value),
+            },
         ),
     )
 

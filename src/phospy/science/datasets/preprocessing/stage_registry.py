@@ -75,6 +75,10 @@ def _build_stage_metadata_by_key(
             raise DatasetBuildError(
                 f"{context} contains stage {stage_key!r} without random-seed resolver"
             )
+        if not callable(metadata.resolve_determinism_kind):
+            raise DatasetBuildError(
+                f"{context} contains stage {stage_key!r} without determinism resolver"
+            )
         if not isinstance(metadata.diagnostics_metadata, Mapping):
             raise DatasetBuildError(
                 f"{context} contains stage {stage_key!r} with invalid diagnostics metadata"

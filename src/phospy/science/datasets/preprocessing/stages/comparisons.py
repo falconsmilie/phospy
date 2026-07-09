@@ -30,6 +30,7 @@ from phospy.science.datasets.preprocessing.report_schema import (
     COMPARISON_PAIR_STATS_COLUMNS,
 )
 from phospy.science.datasets.preprocessing.stage_contract import (
+    DeterminismKind,
     PreprocessingStageContract,
 )
 
@@ -462,6 +463,7 @@ COMPARISONS_STAGE_CONTRACT = PreprocessingStageContract(
     ),
     stage_factory=ComparisonsStage,
     backend="pandas",
+    determinism_kind=DeterminismKind.DETERMINISTIC,
     diagnostics_metadata={
         "known_diagnostics_fields": (
             "policy",

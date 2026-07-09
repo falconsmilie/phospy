@@ -9,16 +9,18 @@ from phospy.errors.input import PhosPyInputError
 from phospy.provenance.models import (
     BATCH_CORRECTION_PROVENANCE_SCHEMA_VERSION_V1,
     ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V2,
-    PREPROCESSING_STAGE_DETERMINISM_EXTERNAL_DEPENDENCY,
+    PREPROCESSING_STAGE_DETERMINISM_EXTERNALLY_NONDETERMINISTIC,
     PREPROCESSING_STAGE_DETERMINISM_PURE,
     PREPROCESSING_STAGE_DETERMINISM_SEEDED_STOCHASTIC,
     PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
     BatchCorrectionProvenance,
     BatchCorrectionRejectedEntity,
+    DeterminismKind,
     EnvironmentProvenance,
     JsonValue,
     PreprocessingStageProvenance,
     ReferenceProvenance,
+    ReproducibilityCaveat,
     RunProvenance,
     TableFingerprint,
 )
@@ -37,6 +39,10 @@ _LEGACY_PROVENANCE_SCHEMA_ERROR = (
 )
 _LEGACY_TABLE_FINGERPRINT_FIELDS = frozenset({"hash_algorithm", "hash_value"})
 _LEGACY_PREPROCESSING_STAGE_FIELDS = frozenset({"is_deterministic"})
+_DETERMINISM_ALIASES = {
+    "pure": DeterminismKind.DETERMINISTIC,
+    "external_dependency": DeterminismKind.EXTERNALLY_NONDETERMINISTIC,
+}
 
 
 def to_payload(provenance: RunProvenance) -> dict[str, object]:
@@ -673,7 +679,11 @@ def _stage_to_payload(stage: PreprocessingStageProvenance) -> dict[str, object]:
         ],
         "backend": stage.backend,
         "random_seed": stage.random_seed,
-        "determinism": determinism,
+        "determinism": determinism.value,
+        "reproducibility_caveats": [
+            _reproducibility_caveat_to_payload(item)
+            for item in stage.reproducibility_caveats
+        ],
         "dropped_row_ids": list(stage.dropped_row_ids),
         "dropped_row_count": int(stage.dropped_row_count),
         "imputed_cell_count": int(stage.imputed_cell_count),
@@ -751,6 +761,20 @@ def _stage_from_payload(payload: Mapping[str, object]) -> PreprocessingStageProv
         payload.get("determinism"),
         field_name="preprocessing_stage.determinism",
     )
+    reproducibility_caveats = tuple(
+        _reproducibility_caveat_from_payload(
+            _require_mapping(
+                item,
+                field_name=(f"preprocessing_stage.reproducibility_caveats[{position}]"),
+            )
+        )
+        for position, item in enumerate(
+            _require_sequence(
+                payload.get("reproducibility_caveats", []),
+                field_name="preprocessing_stage.reproducibility_caveats",
+            )
+        )
+    )
     input_hash = _require_str(
         payload.get("input_hash"),
         field_name="preprocessing_stage.input_hash",
@@ -809,6 +833,7 @@ def _stage_from_payload(payload: Mapping[str, object]) -> PreprocessingStageProv
         ),
         random_seed=random_seed,
         determinism=determinism,
+        reproducibility_caveats=reproducibility_caveats,
         imputed_cell_count=_require_int(
             payload.get("imputed_cell_count", 0),
             field_name="preprocessing_stage.imputed_cell_count",
@@ -1181,20 +1206,52 @@ def _table_fingerprints_from_payload(
     )
 
 
-def _resolve_determinism(value: object, *, field_name: str) -> str:
+def _reproducibility_caveat_to_payload(
+    caveat: ReproducibilityCaveat,
+) -> dict[str, object]:
+    return caveat.to_payload()
+
+
+def _reproducibility_caveat_from_payload(
+    payload: Mapping[str, object],
+) -> ReproducibilityCaveat:
+    details = _require_mapping(
+        payload.get("details", {}),
+        field_name="reproducibility_caveat.details",
+    )
+    return ReproducibilityCaveat(
+        code=_require_str(
+            payload.get("code"),
+            field_name="reproducibility_caveat.code",
+        ),
+        severity=_require_str(
+            payload.get("severity"),
+            field_name="reproducibility_caveat.severity",
+        ),
+        message=_require_str(
+            payload.get("message"),
+            field_name="reproducibility_caveat.message",
+        ),
+        details={str(key): _to_json_value(value) for key, value in details.items()},
+    )
+
+
+def _resolve_determinism(value: object, *, field_name: str) -> DeterminismKind:
+    if isinstance(value, DeterminismKind):
+        return value
     normalized = _require_str(value, field_name=field_name)
-    if normalized not in {
-        PREPROCESSING_STAGE_DETERMINISM_PURE,
-        PREPROCESSING_STAGE_DETERMINISM_SEEDED_STOCHASTIC,
-        PREPROCESSING_STAGE_DETERMINISM_EXTERNAL_DEPENDENCY,
-    }:
+    alias = _DETERMINISM_ALIASES.get(normalized)
+    if alias is not None:
+        return alias
+    try:
+        return DeterminismKind(normalized)
+    except ValueError as exc:
         raise PhosPyInputError(
             f"{field_name} must be one of: "
             f"{PREPROCESSING_STAGE_DETERMINISM_PURE!r}, "
             f"{PREPROCESSING_STAGE_DETERMINISM_SEEDED_STOCHASTIC!r}, "
-            f"{PREPROCESSING_STAGE_DETERMINISM_EXTERNAL_DEPENDENCY!r}"
-        )
-    return normalized
+            f"{PREPROCESSING_STAGE_DETERMINISM_EXTERNALLY_NONDETERMINISTIC!r}"
+        ) from exc
 
 
 def _reject_legacy_provenance_fields(

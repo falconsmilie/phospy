@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import TYPE_CHECKING
 
 from phospy.errors.input import PhosPyInputError
@@ -20,17 +21,93 @@ PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3 = 3
 ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V1 = 1
 ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V2 = 2
 BATCH_CORRECTION_PROVENANCE_SCHEMA_VERSION_V1 = 1
-PREPROCESSING_STAGE_DETERMINISM_PURE = "pure"
-PREPROCESSING_STAGE_DETERMINISM_SEEDED_STOCHASTIC = "seeded_stochastic"
-PREPROCESSING_STAGE_DETERMINISM_EXTERNAL_DEPENDENCY = "external_dependency"
+
+
+class DeterminismKind(str, Enum):
+    """Declared execution determinism for preprocessing stage provenance."""
+
+    DETERMINISTIC = "deterministic"
+    SEEDED_STOCHASTIC = "seeded_stochastic"
+    EXTERNALLY_NONDETERMINISTIC = "externally_nondeterministic"
+
+
+PREPROCESSING_STAGE_DETERMINISM_DETERMINISTIC = DeterminismKind.DETERMINISTIC.value
+PREPROCESSING_STAGE_DETERMINISM_PURE = PREPROCESSING_STAGE_DETERMINISM_DETERMINISTIC
+PREPROCESSING_STAGE_DETERMINISM_SEEDED_STOCHASTIC = (
+    DeterminismKind.SEEDED_STOCHASTIC.value
+)
+PREPROCESSING_STAGE_DETERMINISM_EXTERNALLY_NONDETERMINISTIC = (
+    DeterminismKind.EXTERNALLY_NONDETERMINISTIC.value
+)
+PREPROCESSING_STAGE_DETERMINISM_EXTERNAL_DEPENDENCY = (
+    PREPROCESSING_STAGE_DETERMINISM_EXTERNALLY_NONDETERMINISTIC
+)
+PREPROCESSING_EXTERNAL_NONDETERMINISM_CAVEAT_CODE = (
+    "preprocessing_external_nondeterminism"
+)
 BATCH_CORRECTION_SELECTED_SITE_KEY_ROW_SENTINELS = frozenset(
     {"not_provided", "unknown", "none", "null"}
 )
+_REPRODUCIBILITY_CAVEAT_SEVERITIES = frozenset({"warning", "error"})
 
 JsonPrimitive = str | int | float | bool | None
 JsonValue = (
     JsonPrimitive | list["JsonValue"] | tuple["JsonValue", ...] | dict[str, "JsonValue"]
 )
+
+
+@dataclass(frozen=True, slots=True)
+class ReproducibilityCaveat:
+    """Machine-readable reproducibility caveat for provenance records."""
+
+    code: str
+    severity: str
+    message: str
+    details: Mapping[str, JsonValue] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "code",
+            _required_provenance_text(
+                self.code, field_name="reproducibility_caveat.code"
+            ),
+        )
+        severity = _required_provenance_text(
+            self.severity,
+            field_name="reproducibility_caveat.severity",
+        )
+        if severity not in _REPRODUCIBILITY_CAVEAT_SEVERITIES:
+            supported = ", ".join(sorted(_REPRODUCIBILITY_CAVEAT_SEVERITIES))
+            raise PhosPyInputError(
+                "reproducibility_caveat.severity must be one of: " + supported
+            )
+        object.__setattr__(self, "severity", severity)
+        object.__setattr__(
+            self,
+            "message",
+            _required_provenance_text(
+                self.message,
+                field_name="reproducibility_caveat.message",
+            ),
+        )
+        if not isinstance(self.details, Mapping):
+            raise PhosPyInputError("reproducibility_caveat.details must be a mapping")
+        object.__setattr__(
+            self,
+            "details",
+            {str(key): value for key, value in self.details.items()},
+        )
+
+    def to_payload(self) -> dict[str, object]:
+        """Return a JSON-compatible caveat payload."""
+
+        return {
+            "code": self.code,
+            "severity": self.severity,
+            "message": self.message,
+            "details": dict(self.details),
+        }
 
 
 def _empty_platform_provenance() -> dict[str, str]:
@@ -165,7 +242,8 @@ class PreprocessingStageProvenance:
     produced_output_tables: tuple[TableFingerprint, ...] = ()
     backend: str | None = None
     random_seed: int | None = None
-    determinism: str = PREPROCESSING_STAGE_DETERMINISM_PURE
+    determinism: DeterminismKind | str = DeterminismKind.DETERMINISTIC
+    reproducibility_caveats: tuple[ReproducibilityCaveat, ...] = ()
     imputed_cell_count: int = 0
     imputed_row_ids: tuple[str, ...] = ()
     notes: str | None = None
@@ -273,12 +351,20 @@ __all__ = [
     "BATCH_CORRECTION_SELECTED_SITE_KEY_ROW_SENTINELS",
     "BatchCorrectionProvenance",
     "BatchCorrectionRejectedEntity",
+    "DeterminismKind",
     "EnvironmentProvenance",
     "InputIntensityScaleEvidence",
     "JsonValue",
     "KinaseLibraryResourceProvenance",
+    "PREPROCESSING_EXTERNAL_NONDETERMINISM_CAVEAT_CODE",
+    "PREPROCESSING_STAGE_DETERMINISM_DETERMINISTIC",
+    "PREPROCESSING_STAGE_DETERMINISM_EXTERNALLY_NONDETERMINISTIC",
+    "PREPROCESSING_STAGE_DETERMINISM_EXTERNAL_DEPENDENCY",
+    "PREPROCESSING_STAGE_DETERMINISM_PURE",
+    "PREPROCESSING_STAGE_DETERMINISM_SEEDED_STOCHASTIC",
     "PreprocessingStageProvenance",
     "ReferenceProvenance",
+    "ReproducibilityCaveat",
     "RunProvenance",
     "TableFingerprint",
 ]

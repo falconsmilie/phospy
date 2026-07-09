@@ -6,6 +6,7 @@ from collections.abc import Mapping
 
 import pandas as pd
 
+from phospy.provenance.models import DeterminismKind
 from phospy.science.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingStageExecution,
@@ -193,6 +194,9 @@ def _with_execution_summary(
             stage=stage,
             base_parameters=base_parameters,
         ),
+        "determinism_kind": _determinism_kind_value(record.determinism),
+        "random_seed": record.random_seed,
+        "reproducibility_caveat_count": int(len(record.reproducibility_caveats)),
         "dropped_sample_count": dropped_sample_count,
         "diagnostic_keys": sorted(diagnostics.keys()),
         "diagnostic_summary": _extract_scalar_diagnostics(diagnostics),
@@ -217,6 +221,17 @@ def _resolve_imputation_scope(
     if policy == "forbid":
         return "none"
     return None
+
+
+def _determinism_kind_value(value: object) -> str:
+    if isinstance(value, DeterminismKind):
+        return value.value
+    normalized = str(value).strip()
+    if normalized == "" or normalized == "pure":
+        return DeterminismKind.DETERMINISTIC.value
+    if normalized == "external_dependency":
+        return DeterminismKind.EXTERNALLY_NONDETERMINISTIC.value
+    return normalized
 
 
 def _extract_scalar_diagnostics(values: Mapping[str, object]) -> dict[str, object]:

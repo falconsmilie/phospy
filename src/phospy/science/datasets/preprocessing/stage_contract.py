@@ -6,6 +6,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 
 from phospy.errors.build import DatasetBuildError
+from phospy.provenance.models import DeterminismKind
 from phospy.science.datasets.preprocessing.models import (
     PREPROCESSING_STATE_TABLE_KEYS,
     PreprocessingPlan,
@@ -18,6 +19,9 @@ _OperationResolver = Callable[[PreprocessingPlan], str]
 _StageFactory = Callable[[], PreprocessingStage]
 _PlanValidator = Callable[[PreprocessingPlan], None]
 _RandomSeedResolver = Callable[[Mapping[str, object], str], int | None]
+_DeterminismDeclaration = (
+    DeterminismKind | str | Callable[[PreprocessingPlan], DeterminismKind | str]
+)
 
 
 def _always_include(_plan: PreprocessingPlan) -> bool:
@@ -49,6 +53,7 @@ class InterpretedPreprocessingStageContract:
     parameters: dict[str, object]
     consumed_input_tables: tuple[PreprocessingStateTableKey, ...]
     produced_output_tables: tuple[PreprocessingStateTableKey, ...]
+    determinism_kind: DeterminismKind
     backend: str | None = None
 
 
@@ -65,6 +70,7 @@ class PreprocessingStageContract:
     stage_factory: _StageFactory | None = None
     provenance_stage: str | None = None
     backend: str | None = None
+    determinism_kind: _DeterminismDeclaration = DeterminismKind.DETERMINISTIC
     include_in_builder_provenance: bool = True
     include_when: Callable[[PreprocessingPlan], bool] = field(default=_always_include)
     diagnostics_metadata: Mapping[str, object] = field(default_factory=dict)
@@ -85,6 +91,15 @@ class PreprocessingStageContract:
                 role="consumed_input_tables",
             ),
         )
+        if not callable(self.determinism_kind):
+            object.__setattr__(
+                self,
+                "determinism_kind",
+                _normalize_determinism_kind(
+                    self.determinism_kind,
+                    stage_key=normalized_stage_key,
+                ),
+            )
         object.__setattr__(
             self,
             "produced_output_tables",
@@ -115,7 +130,16 @@ class PreprocessingStageContract:
             parameters=self.serialize_parameters(plan),
             consumed_input_tables=self.consumed_input_tables,
             produced_output_tables=self.produced_output_tables,
+            determinism_kind=self.resolve_determinism_kind(plan),
             backend=self.backend,
+        )
+
+    def resolve_determinism_kind(self, plan: PreprocessingPlan) -> DeterminismKind:
+        declaration = self.determinism_kind
+        resolved = declaration(plan) if callable(declaration) else declaration
+        return _normalize_determinism_kind(
+            resolved,
+            stage_key=self.stage_key,
         )
 
 
@@ -163,7 +187,41 @@ def _normalize_stage_table_keys(
     return tuple(normalized)
 
 
+def _normalize_determinism_kind(
+    value: DeterminismKind | str,
+    *,
+    stage_key: str,
+) -> DeterminismKind:
+    if isinstance(value, DeterminismKind):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip()
+        aliases = {
+            "pure": DeterminismKind.DETERMINISTIC,
+            "external_dependency": DeterminismKind.EXTERNALLY_NONDETERMINISTIC,
+        }
+        alias = aliases.get(normalized)
+        if alias is not None:
+            return alias
+        try:
+            return DeterminismKind(normalized)
+        except ValueError as exc:
+            supported = ", ".join(item.value for item in DeterminismKind)
+            raise DatasetBuildError(
+                "dataset preprocessing stage metadata contains unknown "
+                "determinism kind: "
+                f"stage={stage_key or '<empty>'!r}, determinism_kind={value!r}; "
+                f"supported determinism kinds: {supported}"
+            ) from exc
+    raise DatasetBuildError(
+        "dataset preprocessing stage metadata contains invalid determinism kind: "
+        f"stage={stage_key or '<empty>'!r}, got {value!r} "
+        f"({type(value).__name__})"
+    )
+
+
 __all__ = [
+    "DeterminismKind",
     "InterpretedPreprocessingStageContract",
     "PreprocessingStageContract",
     "normalize_stage_table_keys",

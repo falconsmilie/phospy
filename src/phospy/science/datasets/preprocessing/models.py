@@ -32,9 +32,10 @@ from phospy.contracts.configs import (
 from phospy.contracts.configs.preprocessing import InternalBatchCorrectionRequest
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.models import (
-    PREPROCESSING_STAGE_DETERMINISM_PURE,
     PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
     BatchCorrectionProvenance,
+    DeterminismKind,
+    ReproducibilityCaveat,
     TableFingerprint,
 )
 from phospy.science.datasets.preprocessing.batch_correction import (
@@ -717,7 +718,8 @@ class PreprocessingStageExecution:
     produced_output_tables: tuple[TableFingerprint, ...] = ()
     backend: str | None = None
     random_seed: int | None = None
-    determinism: str = PREPROCESSING_STAGE_DETERMINISM_PURE
+    determinism: DeterminismKind | str = DeterminismKind.DETERMINISTIC
+    reproducibility_caveats: tuple[ReproducibilityCaveat, ...] = ()
     is_deterministic: bool = True
     imputed_cell_count: int = 0
     imputed_row_ids: tuple[str, ...] = ()

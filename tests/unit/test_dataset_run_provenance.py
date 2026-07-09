@@ -436,7 +436,7 @@ def test_dataset_builder_emits_run_provenance_and_stage_details() -> None:
     assert "dataset.site_metadata" in consumed_names
     assert "dataset.phospho" in produced_names
     assert missing_stage.backend in {"pandas", "numpy", None}
-    assert missing_stage.determinism == "pure"
+    assert missing_stage.determinism == "deterministic"
     assert missing_stage.random_seed is None
     assert isinstance(missing_stage.phospho_input_hash, str)
     assert isinstance(missing_stage.phospho_output_hash, str)

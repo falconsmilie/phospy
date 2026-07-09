@@ -16,9 +16,10 @@ from phospy.provenance.hashing import (
     hash_table_tolerance,
 )
 from phospy.provenance.models import (
-    PREPROCESSING_STAGE_DETERMINISM_PURE,
-    PREPROCESSING_STAGE_DETERMINISM_SEEDED_STOCHASTIC,
+    PREPROCESSING_EXTERNAL_NONDETERMINISM_CAVEAT_CODE,
     PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
+    DeterminismKind,
+    ReproducibilityCaveat,
     TableFingerprint,
 )
 from phospy.science.datasets.preprocessing.models import (
@@ -172,7 +173,17 @@ class PreprocessingPipeline:
                     diagnostics["diagnostics"], stage_key
                 ),
             )
-            determinism = _resolve_stage_determinism(random_seed=random_seed)
+            determinism = _resolve_stage_determinism(
+                stage_key=stage_key,
+                determinism_kind=interpreted_contract.determinism_kind,
+                random_seed=random_seed,
+            )
+            reproducibility_caveats = _build_stage_reproducibility_caveats(
+                stage=interpreted_contract.stage,
+                operation=interpreted_contract.operation,
+                backend=interpreted_contract.backend,
+                determinism=determinism,
+            )
             trace.append(
                 PreprocessingStageExecution(
                     stage=interpreted_contract.stage,
@@ -206,8 +217,8 @@ class PreprocessingPipeline:
                     backend=interpreted_contract.backend,
                     random_seed=random_seed,
                     determinism=determinism,
-                    is_deterministic=determinism
-                    == PREPROCESSING_STAGE_DETERMINISM_PURE,
+                    reproducibility_caveats=reproducibility_caveats,
+                    is_deterministic=determinism is DeterminismKind.DETERMINISTIC,
                     imputed_cell_count=int(diagnostics["imputed_cell_count"]),
                     imputed_row_ids=tuple(diagnostics["imputed_row_ids"]),
                     notes=diagnostics["notes"],
@@ -497,10 +508,47 @@ def _resolve_random_seed(
     )
 
 
-def _resolve_stage_determinism(*, random_seed: int | None) -> str:
-    if random_seed is None:
-        return PREPROCESSING_STAGE_DETERMINISM_PURE
-    return PREPROCESSING_STAGE_DETERMINISM_SEEDED_STOCHASTIC
+def _resolve_stage_determinism(
+    *,
+    stage_key: str,
+    determinism_kind: DeterminismKind,
+    random_seed: int | None,
+) -> DeterminismKind:
+    if determinism_kind is DeterminismKind.SEEDED_STOCHASTIC and random_seed is None:
+        raise DatasetBuildError(
+            "dataset preprocessing stage declared seeded stochastic execution "
+            "but did not record an explicit random seed: "
+            f"stage={stage_key!r}, determinism_kind={determinism_kind.value!r}"
+        )
+    return determinism_kind
+
+
+def _build_stage_reproducibility_caveats(
+    *,
+    stage: str,
+    operation: str,
+    backend: str | None,
+    determinism: DeterminismKind,
+) -> tuple[ReproducibilityCaveat, ...]:
+    if determinism is not DeterminismKind.EXTERNALLY_NONDETERMINISTIC:
+        return ()
+    return (
+        ReproducibilityCaveat(
+            code=PREPROCESSING_EXTERNAL_NONDETERMINISM_CAVEAT_CODE,
+            severity="warning",
+            message=(
+                "Preprocessing stage declares externally nondeterministic "
+                "execution; exact reproduction requires the external system, "
+                "runtime state, and inputs used to produce the recorded output."
+            ),
+            details={
+                "stage": stage,
+                "operation": operation,
+                "backend": backend,
+                "determinism_kind": determinism.value,
+            },
+        ),
+    )
 
 
 def _hash_stage_table_fingerprints(

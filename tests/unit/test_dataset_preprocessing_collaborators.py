@@ -476,6 +476,7 @@ def test_provenance_adapter_includes_execution_summary_for_imputation_stage() ->
     assert summary["dropped_rows"] == 1
     assert summary["imputed_cell_count"] == 2
     assert summary["imputation_scope"] == "per_row"
+    assert summary["determinism_kind"] == "deterministic"
     assert summary["diagnostic_summary"]["output_missing_cell_count"] == 0
 
 

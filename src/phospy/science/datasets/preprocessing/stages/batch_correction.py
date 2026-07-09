@@ -36,6 +36,7 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingStateTableKey,
 )
 from phospy.science.datasets.preprocessing.stage_contract import (
+    DeterminismKind,
     PreprocessingStageContract,
 )
 from phospy.validation.datasets.batch_correction import (
@@ -351,6 +352,7 @@ BATCH_CORRECTION_STAGE_CONTRACT = PreprocessingStageContract(
     produced_output_tables=(PreprocessingStateTableKey.DATASET_PHOSPHO,),
     stage_factory=BatchCorrectionStage,
     backend="numpy",
+    determinism_kind=DeterminismKind.DETERMINISTIC,
     include_when=_include_when,
     diagnostics_metadata={
         "known_diagnostics_fields": (

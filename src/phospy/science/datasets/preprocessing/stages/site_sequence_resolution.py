@@ -22,6 +22,7 @@ from phospy.science.datasets.preprocessing.site_sequence import (
     SiteSequenceResolutionRequestBuilder,
 )
 from phospy.science.datasets.preprocessing.stage_contract import (
+    DeterminismKind,
     PreprocessingStageContract,
 )
 from phospy.science.sequences.resolver import (
@@ -215,6 +216,7 @@ SITE_SEQUENCE_RESOLUTION_STAGE_CONTRACT = PreprocessingStageContract(
     produced_output_tables=(PreprocessingStateTableKey.DATASET_SITE_METADATA,),
     stage_factory=SiteSequenceResolutionStage,
     backend="phospy.science.sequences",
+    determinism_kind=DeterminismKind.DETERMINISTIC,
     include_when=_include_when_enabled,
     diagnostics_metadata={
         "diagnostics_schema_version": 1,

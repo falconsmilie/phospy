@@ -13,6 +13,9 @@ from phospy.api.configs import (
     DatasetSiteMatrixConfig,
 )
 from phospy.errors.build import DatasetBuildError
+from phospy.provenance.models import (
+    PREPROCESSING_EXTERNAL_NONDETERMINISM_CAVEAT_CODE,
+)
 from phospy.science.datasets.builders.preprocessing import DatasetPreprocessor
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
@@ -30,6 +33,7 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingState,
 )
 from phospy.science.datasets.preprocessing.pipeline import PreprocessingPipeline
+from phospy.science.datasets.preprocessing.stage_contract import DeterminismKind
 from phospy.science.datasets.preprocessing.stage_registry import (
     PreprocessingStageMetadata,
     get_preprocessing_stage_metadata,
@@ -145,6 +149,7 @@ def test_every_registered_stage_has_required_metadata_contract_fields() -> None:
         assert callable(metadata.operation_name)
         assert callable(metadata.serialize_parameters)
         assert isinstance(metadata.serialize_parameters(plan), dict)
+        assert isinstance(metadata.resolve_determinism_kind(plan), DeterminismKind)
         assert isinstance(metadata.diagnostics_metadata, dict)
         assert metadata.diagnostics_metadata
 
@@ -376,3 +381,127 @@ def test_custom_stage_registration_is_stage_owned() -> None:
     assert trace[0].operation == "fake"
     assert trace[0].parameters == {"mode": "test"}
     assert trace[0].diagnostics["policy"] == "fake"
+
+
+def _fake_stage_state(stage_key: str) -> PreprocessingState:
+    phospho = _phospho()
+    return PreprocessingState(
+        phospho=phospho,
+        site_metadata=_site_metadata(phospho.index),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan(stage_order=(stage_key,)),
+    )
+
+
+def _fake_stage_contract(
+    *,
+    stage_key: str,
+    determinism_kind: DeterminismKind,
+) -> PreprocessingStageMetadata:
+    return PreprocessingStageMetadata(
+        stage_key=stage_key,
+        display_label=stage_key,
+        provenance_stage=stage_key,
+        operation_name=lambda _plan: "fake_operation",
+        serialize_parameters=lambda _plan: {"mode": "test"},
+        consumed_input_tables=("dataset.phospho",),
+        produced_output_tables=("dataset.phospho",),
+        determinism_kind=determinism_kind,
+        diagnostics_metadata={"known_diagnostics_fields": ("random_seed",)},
+    )
+
+
+def test_deterministic_stage_contract_runs_without_seed() -> None:
+    class FakeDeterministicStage:
+        stage_key = "fake_deterministic"
+
+        def run(self, state: PreprocessingState) -> PreprocessingStageResult:
+            return PreprocessingStageResult(state=state)
+
+    _, trace = PreprocessingPipeline(
+        stage_registry=(FakeDeterministicStage(),),
+        stage_metadata_registry=(
+            _fake_stage_contract(
+                stage_key="fake_deterministic",
+                determinism_kind=DeterminismKind.DETERMINISTIC,
+            ),
+        ),
+    ).run_with_trace(_fake_stage_state("fake_deterministic"))
+
+    assert trace[0].determinism is DeterminismKind.DETERMINISTIC
+    assert trace[0].random_seed is None
+    assert trace[0].reproducibility_caveats == ()
+
+
+def test_seeded_stochastic_stage_contract_runs_with_explicit_seed() -> None:
+    class FakeSeededStage:
+        stage_key = "fake_seeded"
+
+        def run(self, state: PreprocessingState) -> PreprocessingStageResult:
+            return PreprocessingStageResult(
+                state=state,
+                diagnostics={"diagnostics": {"random_seed": 123}},
+            )
+
+    _, trace = PreprocessingPipeline(
+        stage_registry=(FakeSeededStage(),),
+        stage_metadata_registry=(
+            _fake_stage_contract(
+                stage_key="fake_seeded",
+                determinism_kind=DeterminismKind.SEEDED_STOCHASTIC,
+            ),
+        ),
+    ).run_with_trace(_fake_stage_state("fake_seeded"))
+
+    assert trace[0].determinism is DeterminismKind.SEEDED_STOCHASTIC
+    assert trace[0].random_seed == 123
+    assert trace[0].reproducibility_caveats == ()
+
+
+def test_seeded_stochastic_stage_contract_without_seed_fails() -> None:
+    class FakeSeededStage:
+        stage_key = "fake_seeded_without_seed"
+
+        def run(self, state: PreprocessingState) -> PreprocessingStageResult:
+            return PreprocessingStageResult(state=state)
+
+    with pytest.raises(
+        DatasetBuildError, match="did not record an explicit random seed"
+    ):
+        PreprocessingPipeline(
+            stage_registry=(FakeSeededStage(),),
+            stage_metadata_registry=(
+                _fake_stage_contract(
+                    stage_key="fake_seeded_without_seed",
+                    determinism_kind=DeterminismKind.SEEDED_STOCHASTIC,
+                ),
+            ),
+        ).run_with_trace(_fake_stage_state("fake_seeded_without_seed"))
+
+
+def test_externally_nondeterministic_stage_records_reproducibility_caveat() -> None:
+    class FakeExternalStage:
+        stage_key = "fake_external"
+
+        def run(self, state: PreprocessingState) -> PreprocessingStageResult:
+            return PreprocessingStageResult(state=state)
+
+    _, trace = PreprocessingPipeline(
+        stage_registry=(FakeExternalStage(),),
+        stage_metadata_registry=(
+            _fake_stage_contract(
+                stage_key="fake_external",
+                determinism_kind=DeterminismKind.EXTERNALLY_NONDETERMINISTIC,
+            ),
+        ),
+    ).run_with_trace(_fake_stage_state("fake_external"))
+
+    record = trace[0]
+    assert record.determinism is DeterminismKind.EXTERNALLY_NONDETERMINISTIC
+    assert record.is_deterministic is False
+    assert len(record.reproducibility_caveats) == 1
+    caveat = record.reproducibility_caveats[0]
+    assert caveat.code == PREPROCESSING_EXTERNAL_NONDETERMINISM_CAVEAT_CODE
+    assert caveat.severity == "warning"
+    assert caveat.details["determinism_kind"] == "externally_nondeterministic"

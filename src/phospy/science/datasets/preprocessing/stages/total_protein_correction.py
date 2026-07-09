@@ -28,6 +28,7 @@ from phospy.science.datasets.preprocessing.policy_models import (
     TotalProteinCorrectionPolicy,
 )
 from phospy.science.datasets.preprocessing.stage_contract import (
+    DeterminismKind,
     PreprocessingStageContract,
 )
 from phospy.science.datasets.processing_state import (
@@ -708,6 +709,7 @@ TOTAL_PROTEIN_CORRECTION_STAGE_CONTRACT = PreprocessingStageContract(
     produced_output_tables=(PreprocessingStateTableKey.DATASET_PHOSPHO,),
     stage_factory=TotalProteinCorrectionStage,
     backend="pandas",
+    determinism_kind=DeterminismKind.DETERMINISTIC,
     diagnostics_metadata={
         "diagnostics_schema_version": (
             TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1

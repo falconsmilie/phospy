@@ -24,6 +24,7 @@ from phospy.science.datasets.preprocessing.report_rows import (
 )
 from phospy.science.datasets.preprocessing.report_schema import PreprocessingRowAuditRow
 from phospy.science.datasets.preprocessing.stage_contract import (
+    DeterminismKind,
     PreprocessingStageContract,
 )
 from phospy.validation.datasets.group_coverage_filter import (
@@ -424,6 +425,7 @@ GROUP_COVERAGE_FILTER_STAGE_CONTRACT = PreprocessingStageContract(
     ),
     stage_factory=GroupCoverageFilterStage,
     backend="numpy",
+    determinism_kind=DeterminismKind.DETERMINISTIC,
     include_when=_include_when,
     diagnostics_metadata={
         "known_diagnostics_fields": (
