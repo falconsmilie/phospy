@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
+from numbers import Integral
 from typing import TYPE_CHECKING
 
 from phospy.errors.input import PhosPyInputError
@@ -189,6 +190,158 @@ class InputIntensityScaleEvidence:
 
 
 @dataclass(frozen=True, slots=True)
+class RowAttritionRecord:
+    """Standard count-only provenance for rows removed at one workflow stage."""
+
+    stage: str
+    input_rows: int
+    output_rows: int
+    removed_rows: int
+    reason: str
+    examples: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        input_rows = _required_non_negative_row_count(
+            self.input_rows,
+            field_name="row_attrition_record.input_rows",
+        )
+        output_rows = _required_non_negative_row_count(
+            self.output_rows,
+            field_name="row_attrition_record.output_rows",
+        )
+        removed_rows = _required_non_negative_row_count(
+            self.removed_rows,
+            field_name="row_attrition_record.removed_rows",
+        )
+        if output_rows > input_rows:
+            raise PhosPyInputError(
+                "row_attrition_record.output_rows must be less than or equal "
+                "to input_rows"
+            )
+        expected_removed_rows = input_rows - output_rows
+        if removed_rows != expected_removed_rows:
+            raise PhosPyInputError(
+                "row_attrition_record.removed_rows must equal input_rows - output_rows"
+            )
+        object.__setattr__(
+            self,
+            "stage",
+            _required_provenance_text(
+                self.stage,
+                field_name="row_attrition_record.stage",
+            ),
+        )
+        object.__setattr__(self, "input_rows", input_rows)
+        object.__setattr__(self, "output_rows", output_rows)
+        object.__setattr__(self, "removed_rows", removed_rows)
+        object.__setattr__(
+            self,
+            "reason",
+            _required_provenance_text(
+                self.reason,
+                field_name="row_attrition_record.reason",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "examples",
+            _required_provenance_text_tuple(
+                self.examples,
+                field_name="row_attrition_record.examples",
+            ),
+        )
+
+    def to_payload(self) -> dict[str, object]:
+        """Return a JSON-compatible row-attrition record payload."""
+
+        return {
+            "stage": self.stage,
+            "input_rows": int(self.input_rows),
+            "output_rows": int(self.output_rows),
+            "removed_rows": int(self.removed_rows),
+            "reason": self.reason,
+            "examples": list(self.examples),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class RowAttritionReport:
+    """Ordered row-attrition provenance across workflow stages."""
+
+    records: tuple[RowAttritionRecord, ...]
+    input_rows: int
+    final_rows: int
+
+    def __post_init__(self) -> None:
+        records = _required_row_attrition_record_tuple(self.records)
+        input_rows = _required_non_negative_row_count(
+            self.input_rows,
+            field_name="row_attrition_report.input_rows",
+        )
+        final_rows = _required_non_negative_row_count(
+            self.final_rows,
+            field_name="row_attrition_report.final_rows",
+        )
+        if final_rows > input_rows:
+            raise PhosPyInputError(
+                "row_attrition_report.final_rows must be less than or equal "
+                "to input_rows"
+            )
+        if records:
+            if records[0].input_rows != input_rows:
+                raise PhosPyInputError(
+                    "row_attrition_report.input_rows must match the first "
+                    "record input_rows"
+                )
+            if records[-1].output_rows != final_rows:
+                raise PhosPyInputError(
+                    "row_attrition_report.final_rows must match the last "
+                    "record output_rows"
+                )
+            for previous, current in zip(records[:-1], records[1:], strict=True):
+                if current.input_rows != previous.output_rows:
+                    raise PhosPyInputError(
+                        "row_attrition_report records must form a continuous "
+                        "row-count chain"
+                    )
+        elif final_rows != input_rows:
+            raise PhosPyInputError(
+                "row_attrition_report.final_rows must equal input_rows when "
+                "records is empty"
+            )
+        object.__setattr__(self, "records", records)
+        object.__setattr__(self, "input_rows", input_rows)
+        object.__setattr__(self, "final_rows", final_rows)
+
+    @classmethod
+    def from_records(
+        cls,
+        records: Sequence[RowAttritionRecord],
+    ) -> RowAttritionReport:
+        """Create a report using the first input and last output row counts."""
+
+        record_tuple = _required_row_attrition_record_tuple(records)
+        if not record_tuple:
+            raise PhosPyInputError(
+                "row_attrition_report.records must contain at least one record"
+            )
+        return cls(
+            records=record_tuple,
+            input_rows=record_tuple[0].input_rows,
+            final_rows=record_tuple[-1].output_rows,
+        )
+
+    def to_payload(self) -> dict[str, object]:
+        """Return a JSON-compatible row-attrition report payload."""
+
+        return {
+            "records": [record.to_payload() for record in self.records],
+            "input_rows": int(self.input_rows),
+            "final_rows": int(self.final_rows),
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class TableFingerprint:
     """Deterministic table fingerprint metadata."""
 
@@ -353,6 +506,52 @@ class RunProvenance:
     reference_context: ReferenceContext | None = None
 
 
+def _required_non_negative_row_count(value: object, *, field_name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, Integral):
+        raise PhosPyInputError(f"{field_name} must be a non-negative integer")
+    count = int(value)
+    if count < 0:
+        raise PhosPyInputError(f"{field_name} must be non-negative")
+    return count
+
+
+def _required_provenance_text_tuple(
+    values: object,
+    *,
+    field_name: str,
+) -> tuple[str, ...]:
+    if isinstance(values, (str, bytes, bytearray)) or not isinstance(
+        values,
+        Sequence,
+    ):
+        raise PhosPyInputError(f"{field_name} must be a sequence of strings")
+    return tuple(
+        _required_provenance_text(value, field_name=f"{field_name}[]")
+        for value in values
+    )
+
+
+def _required_row_attrition_record_tuple(
+    records: object,
+) -> tuple[RowAttritionRecord, ...]:
+    if isinstance(records, (str, bytes, bytearray)) or not isinstance(
+        records,
+        Sequence,
+    ):
+        raise PhosPyInputError(
+            "row_attrition_report.records must be a sequence of "
+            "RowAttritionRecord values"
+        )
+    record_tuple = tuple(records)
+    for record in record_tuple:
+        if not isinstance(record, RowAttritionRecord):
+            raise PhosPyInputError(
+                "row_attrition_report.records must contain only "
+                "RowAttritionRecord values"
+            )
+    return record_tuple
+
+
 __all__ = [
     "BATCH_CORRECTION_PROVENANCE_SCHEMA_VERSION_V1",
     "BATCH_CORRECTION_SELECTED_SITE_KEY_ROW_SENTINELS",
@@ -372,6 +571,8 @@ __all__ = [
     "PreprocessingStageProvenance",
     "ReferenceProvenance",
     "ReproducibilityCaveat",
+    "RowAttritionRecord",
+    "RowAttritionReport",
     "RunProvenance",
     "TableFingerprint",
 ]

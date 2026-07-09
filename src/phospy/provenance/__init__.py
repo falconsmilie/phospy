@@ -26,6 +26,8 @@ from phospy.provenance.models import (
     PreprocessingStageProvenance,
     ReferenceProvenance,
     ReproducibilityCaveat,
+    RowAttritionRecord,
+    RowAttritionReport,
     RunProvenance,
     TableFingerprint,
 )
@@ -56,6 +58,8 @@ __all__ = [
     "PreprocessingStageProvenance",
     "ReferenceProvenance",
     "ReproducibilityCaveat",
+    "RowAttritionRecord",
+    "RowAttritionReport",
     "RunProvenance",
     "ScientificPolicyId",
     "ScientificPolicyParameter",
