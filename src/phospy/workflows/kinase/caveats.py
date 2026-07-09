@@ -16,12 +16,16 @@ from phospy.science.prediction.scoring import (
 )
 from phospy.science.scoring.policy_models import ProfileSelfInclusionPolicy
 from phospy.tables.kinase import KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_UNSCORED
+from phospy.validation.identity_contracts import (
+    validate_reference_context_compatibility,
+)
 from phospy.workflows.intensity_scale_evidence import (
     build_declared_input_intensity_scale_caveat,
 )
 from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
 from phospy.workflows.result_caveat_helpers import (
     build_localisation_policy_details,
+    build_reference_context_compatibility_caveat,
     deduplicate_caveats,
     is_permissive_localisation_requirement,
 )
@@ -60,6 +64,9 @@ def build_kinase_result_caveats(
     reference_source = _non_default_reference_source_caveat(request)
     if reference_source is not None:
         caveats.append(reference_source)
+    reference_context = _reference_context_unknown_caveat(request)
+    if reference_context is not None:
+        caveats.append(reference_context)
     reference_resolution = _reference_auto_resolution_caveat(request)
     if reference_resolution is not None:
         caveats.append(reference_resolution)
@@ -135,6 +142,25 @@ def _non_default_reference_source_caveat(
             "prediction depend on the supplied reference bundle content."
         ),
         details=details,
+    )
+
+
+def _reference_context_unknown_caveat(
+    request: ResolvedKinaseWorkflowRequest,
+) -> ResultCaveat | None:
+    warning = validate_reference_context_compatibility(
+        request.dataset.reference_context,
+        None
+        if request.references.provenance is None
+        else request.references.provenance.reference_context,
+        operation="kinase workflow result dataset/reference bundle",
+        allow_unknown=True,
+    )
+    if warning is None:
+        return None
+    return build_reference_context_compatibility_caveat(
+        warning,
+        workflow_scope="kinase_scoring",
     )
 
 

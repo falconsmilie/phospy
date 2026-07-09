@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from phospy.contracts.result_caveats import ResultCaveat
 from phospy.science.scoring.policy_models import DownstreamScoreSource
+from phospy.validation.identity_contracts import (
+    validate_reference_context_compatibility,
+)
 from phospy.workflows.intensity_scale_evidence import (
     build_declared_input_intensity_scale_caveat,
 )
@@ -14,6 +17,7 @@ from phospy.workflows.kinase.caveats import (
 )
 from phospy.workflows.result_caveat_helpers import (
     build_localisation_policy_details,
+    build_reference_context_compatibility_caveat,
     deduplicate_caveats,
     is_permissive_localisation_requirement,
 )
@@ -52,6 +56,7 @@ def build_signalome_result_caveats(
     prediction_reference = _prediction_reference_limitation_caveat(request)
     if prediction_reference is not None:
         caveats.append(prediction_reference)
+    caveats.extend(_reference_context_unknown_caveats(request))
     localisation = _permissive_localisation_caveat(request)
     if localisation is not None:
         caveats.append(localisation)
@@ -153,6 +158,41 @@ def _prediction_reference_limitation_caveat(
         ),
         details=details,
     )
+
+
+def _reference_context_unknown_caveats(
+    request: ResolvedSignalomeWorkflowRequest,
+) -> tuple[ResultCaveat, ...]:
+    caveats: list[ResultCaveat] = []
+    dataset_context = request.dataset.reference_context
+    result_provenance = request.kinase_result.provenance
+    for operation, right_context in (
+        (
+            "signalome workflow result dataset/upstream kinase result",
+            None if result_provenance is None else result_provenance.reference_context,
+        ),
+        (
+            "signalome workflow result dataset/upstream kinase reference",
+            None
+            if request.kinase_result.references.provenance is None
+            else request.kinase_result.references.provenance.reference_context,
+        ),
+    ):
+        warning = validate_reference_context_compatibility(
+            dataset_context,
+            right_context,
+            operation=operation,
+            allow_unknown=True,
+        )
+        if warning is None:
+            continue
+        caveats.append(
+            build_reference_context_compatibility_caveat(
+                warning,
+                workflow_scope="signalome",
+            )
+        )
+    return tuple(caveats)
 
 
 def _permissive_localisation_caveat(

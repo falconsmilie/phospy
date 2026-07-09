@@ -8,6 +8,7 @@ import pandas as pd
 
 from phospy.contracts.configs.localisation import LocalisationRequirement
 from phospy.contracts.result_caveats import ResultCaveat
+from phospy.validation.identity_contracts import ReferenceContextCompatibilityWarning
 
 
 def build_localisation_policy_details(
@@ -53,6 +54,23 @@ def is_permissive_localisation_requirement(
     return requirement.minimum_probability is None
 
 
+def build_reference_context_compatibility_caveat(
+    warning: ReferenceContextCompatibilityWarning,
+    *,
+    workflow_scope: str,
+) -> ResultCaveat:
+    """Convert a reference-context compatibility warning into a result caveat."""
+
+    details = warning.to_payload()
+    details["workflow_scope"] = workflow_scope
+    return ResultCaveat(
+        code=warning.code,
+        severity="warning",
+        message=warning.message,
+        details=details,
+    )
+
+
 def deduplicate_caveats(
     caveats: Iterable[ResultCaveat],
 ) -> tuple[ResultCaveat, ...]:
@@ -81,6 +99,7 @@ def _resolve_localisation_column_name(site_metadata: pd.DataFrame) -> str | None
 
 
 __all__ = [
+    "build_reference_context_compatibility_caveat",
     "build_localisation_policy_details",
     "deduplicate_caveats",
     "is_permissive_localisation_requirement",

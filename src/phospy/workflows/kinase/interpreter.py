@@ -17,6 +17,9 @@ from phospy.science.references.resolution import (
     ReferenceResolver,
     ReferenceResolverContract,
 )
+from phospy.validation.identity_contracts import (
+    validate_reference_context_compatibility,
+)
 from phospy.workflows._pandas_typing import (
     dataframe_column,
     dataframe_copy,
@@ -86,6 +89,15 @@ class KinaseWorkflowInterpreter:
         references = self._reference_resolver.run(
             request.references,
             dataset_organism=request.dataset.organism,
+        )
+        validate_reference_context_compatibility(
+            request.dataset.reference_context,
+            None
+            if references.provenance is None
+            else references.provenance.reference_context,
+            operation="kinase workflow resolved dataset/reference bundle",
+            allow_unknown=True,
+            error_type=WorkflowBoundaryError,
         )
         kinase_library_resource = self._resolve_kinase_library_resource(
             request=request,

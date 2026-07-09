@@ -229,6 +229,7 @@ def test_workflow_validators_compose_shared_and_domain_validation() -> None:
     for source in (differential_source, kinase_source, signalome_source):
         assert "enforce_workflow_site_identity_contract(" in source
 
+    assert "validate_reference_context_compatibility(" in kinase_source
     assert "self._dataset_eligibility_validator.run(" in differential_source
     assert "self._design_validator.run(" in differential_source
     assert "self._technical_replicate_planner.run(" in differential_source

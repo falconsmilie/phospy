@@ -14,6 +14,7 @@ from phospy.science.prediction.internal_view import (
     KinasePredictionInternalView,
     KinaseScoringInternalView,
 )
+from phospy.science.references.models import ReferenceContext
 from phospy.science.scoring.policy_models import DownstreamScoreSource
 from phospy.validation.common.dataframes import (
     require_dataframe,
@@ -30,6 +31,7 @@ from phospy.validation.datasets.site_metadata import (
 )
 from phospy.validation.identity_contracts import (
     WORKFLOW_CENTERED_SEQUENCE_CONTEXT_CONTRACT,
+    validate_reference_context_compatibility,
 )
 from phospy.validation.workflows.configs import (
     SignalomeConfigValidator,
@@ -75,6 +77,7 @@ class SignalomeWorkflowValidator:
             )
         config = self._config_validator.run(request.config)
         dataset = request.kinase_result.dataset
+        _require_reference_context_compatibility(request.kinase_result)
         dataset_view = DatasetInternalView(dataset)
         prediction_result = request.kinase_result.prediction_result
         scoring_result = request.kinase_result.scoring_result
@@ -305,3 +308,33 @@ class SignalomeWorkflowValidator:
                 "signalome protein grouping metadata requirement failed: "
                 f"{exc}. {SIGNALOME_PROTEIN_GROUPING_METADATA_NOTE}"
             ) from exc
+
+
+def _require_reference_context_compatibility(
+    kinase_result: KinaseWorkflowResult,
+) -> None:
+    dataset_context = kinase_result.dataset.reference_context
+    result_provenance = kinase_result.provenance
+    validate_reference_context_compatibility(
+        dataset_context,
+        None if result_provenance is None else result_provenance.reference_context,
+        operation="signalome workflow request dataset/upstream kinase result",
+        allow_unknown=True,
+        error_type=WorkflowValidationError,
+    )
+    validate_reference_context_compatibility(
+        dataset_context,
+        _reference_bundle_context(kinase_result),
+        operation="signalome workflow request dataset/upstream kinase reference",
+        allow_unknown=True,
+        error_type=WorkflowValidationError,
+    )
+
+
+def _reference_bundle_context(
+    kinase_result: KinaseWorkflowResult,
+) -> ReferenceContext | None:
+    provenance = kinase_result.references.provenance
+    if provenance is None:
+        return None
+    return provenance.reference_context

@@ -19,11 +19,18 @@ from phospy.errors.validation import WorkflowValidationError
 from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.references.kinase_library import KinaseLibraryResource
-from phospy.science.references.models import ReferenceBundle, ReferencePreset
+from phospy.science.references.models import (
+    ReferenceBundle,
+    ReferenceContext,
+    ReferencePreset,
+)
 from phospy.validation.common.dataframes import require_dataframe
 from phospy.validation.datasets.site_metadata import (
     enforce_localisation_requirement,
     enforce_site_sequence_context_contract,
+)
+from phospy.validation.identity_contracts import (
+    validate_reference_context_compatibility,
 )
 from phospy.validation.workflows.configs import (
     KinaseWorkflowConfigValidator,
@@ -69,6 +76,14 @@ class KinaseWorkflowValidator:
         if not isinstance(references, (ReferencePreset, ReferenceBundle)):
             raise WorkflowValidationError(
                 "kinase workflow request references must be ReferencePreset or ReferenceBundle"
+            )
+        if isinstance(references, ReferenceBundle):
+            validate_reference_context_compatibility(
+                dataset.reference_context,
+                _reference_bundle_context(references),
+                operation="kinase workflow request dataset/reference bundle",
+                allow_unknown=True,
+                error_type=WorkflowValidationError,
             )
         if (
             request.reference_display_ambiguity_policy
@@ -243,6 +258,15 @@ def _normalise_sequence_value(value: object) -> str | None:
         return None
     text = str(value).strip()
     return text or None
+
+
+def _reference_bundle_context(
+    references: ReferenceBundle,
+) -> ReferenceContext | None:
+    provenance = references.provenance
+    if provenance is None:
+        return None
+    return provenance.reference_context
 
 
 def _is_missing(value: object) -> bool:
