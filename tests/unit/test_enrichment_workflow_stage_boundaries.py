@@ -10,7 +10,6 @@ from phospy.api import (
 )
 from phospy.api.configs import (
     ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
-    MULTIPLE_TESTING_CORRECTION_NONE,
 )
 from phospy.errors import WorkflowBoundaryError
 from phospy.science.enrichment.ora import OraResult, OraResultRecord
@@ -187,32 +186,30 @@ def test_enrichment_executor_consumes_interpreted_inputs_without_inference() -> 
                         overlap_size=2,
                         overlap_identifiers=("AKT1", "MAPK1"),
                         p_value=0.25,
+                        adjusted_p_value=0.125,
+                        correction_method=(
+                            interpreted.method_config.multiple_testing_correction
+                        ),
                         enrichment_ratio=1.5,
                         set_identifiers_outside_background_count=0,
                     ),
                 ),
             )
 
-    def correction_runner(p_values, *, method):
-        captured["correction_p_values"] = tuple(p_values)
-        captured["correction_method"] = method
-        return (0.5,)
-
     result = EnrichmentWorkflowExecutor(
         ora_engine=_OraEngineSpy(),
-        correction_runner=correction_runner,
     ).run(interpreted)
 
     assert captured["selected_identifiers"] == interpreted.selected_identifiers
     assert captured["background_universe"] == interpreted.background_universe
     assert captured["enrichment_sets"] is interpreted.set_collection
     assert captured["config"].multiple_testing_correction == (
-        MULTIPLE_TESTING_CORRECTION_NONE
-    )
-    assert captured["correction_p_values"] == (0.25,)
-    assert captured["correction_method"] == (
         interpreted.method_config.multiple_testing_correction
     )
-    assert result.records[0].adjusted_p_value == 0.5
+    assert result.records[0].p_value == 0.25
+    assert result.records[0].adjusted_p_value == 0.125
+    assert result.records[0].correction_method == (
+        interpreted.method_config.multiple_testing_correction
+    )
     assert result.background_summary["source"] == "explicit"
     assert isinstance(result.table, pd.DataFrame)

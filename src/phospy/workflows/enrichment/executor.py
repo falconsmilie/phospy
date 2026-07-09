@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import Literal, cast
 
 import pandas as pd
@@ -30,13 +30,9 @@ from phospy.science.enrichment.ora import (
 from phospy.science.statistics.multiple_testing import (
     MultipleTestingCorrection,
 )
-from phospy.science.statistics.multiple_testing import (
-    run as run_multiple_testing_correction,
-)
 from phospy.workflows.enrichment.caveats import build_enrichment_result_caveats
 from phospy.workflows.enrichment.models import (
     InterpretedEnrichmentWorkflowRequest,
-    MultipleTestingCorrectionRunner,
     OraEngineContract,
 )
 
@@ -83,10 +79,8 @@ class EnrichmentWorkflowExecutor:
         self,
         *,
         ora_engine: OraEngineContract | None = None,
-        correction_runner: MultipleTestingCorrectionRunner | None = None,
     ) -> None:
         self._ora_engine = ora_engine or OraEngine()
-        self._correction_runner = correction_runner or run_multiple_testing_correction
 
     def run(
         self, request: InterpretedEnrichmentWorkflowRequest
@@ -100,42 +94,22 @@ class EnrichmentWorkflowExecutor:
                 message_prefix="enrichment workflow boundary validation failed",
             )
 
-        raw_config = replace(
-            request.method_config,
-            multiple_testing_correction=MULTIPLE_TESTING_CORRECTION_NONE,
-        )
         set_size_filter_result = _prepare_set_collection_for_execution(request)
         if set_size_filter_result.tested_set_collection is None:
-            ora_result = _empty_ora_result(request=request, config=raw_config)
+            ora_result = _empty_ora_result(
+                request=request,
+                config=request.method_config,
+            )
         else:
             ora_result = self._ora_engine.run(
                 selected_identifiers=request.selected_identifiers,
                 background_universe=request.background_universe,
                 enrichment_sets=set_size_filter_result.tested_set_collection,
-                config=raw_config,
-            )
-        adjusted_p_values = self._correction_runner(
-            tuple(record.p_value for record in ora_result.records),
-            method=request.method_config.multiple_testing_correction,
-        )
-        if len(adjusted_p_values) != len(ora_result.records):
-            raise WorkflowBoundaryError(
-                seam="enrichment.executor.correction_result_length",
-                next_action=(
-                    "ensure the multiple-testing correction helper returns one "
-                    "adjusted p-value per ORA record"
-                ),
-                details={
-                    "record_count": len(ora_result.records),
-                    "adjusted_count": len(adjusted_p_values),
-                },
-                message_prefix="enrichment workflow boundary validation failed",
+                config=request.method_config,
             )
 
         records = _build_result_records(
             ora_records=ora_result.records,
-            adjusted_p_values=adjusted_p_values,
-            correction_method=request.method_config.multiple_testing_correction,
         )
         unmatched_identifiers = _unmatched_selected_identifiers(ora_result)
         background_summary = _execution_background_summary(
@@ -172,6 +146,7 @@ class EnrichmentWorkflowExecutor:
         )
         provenance = _build_run_provenance(
             request=request,
+            ora_result=ora_result,
             result_table=preliminary.table,
         )
         return EnrichmentWorkflowResult(
@@ -192,15 +167,9 @@ class EnrichmentWorkflowExecutor:
 def _build_result_records(
     *,
     ora_records: tuple[OraResultRecord, ...],
-    adjusted_p_values: tuple[float | None, ...],
-    correction_method: MultipleTestingCorrection,
 ) -> tuple[EnrichmentResultRecord, ...]:
     records: list[EnrichmentResultRecord] = []
-    for ora_record, adjusted_p_value in zip(
-        ora_records,
-        adjusted_p_values,
-        strict=True,
-    ):
+    for ora_record in ora_records:
         records.append(
             EnrichmentResultRecord(
                 term_id=ora_record.set_id,
@@ -212,8 +181,8 @@ def _build_result_records(
                 set_size=ora_record.raw_set_size,
                 overlap_identifiers=ora_record.overlap_identifiers,
                 p_value=ora_record.p_value,
-                adjusted_p_value=adjusted_p_value,
-                correction_method=correction_method,
+                adjusted_p_value=ora_record.adjusted_p_value,
+                correction_method=ora_record.correction_method,
                 enrichment_ratio=ora_record.enrichment_ratio,
             )
         )
@@ -589,8 +558,11 @@ def _dropped_set_reason_counts(
 def _build_run_provenance(
     *,
     request: InterpretedEnrichmentWorkflowRequest,
+    ora_result: OraResult,
     result_table: pd.DataFrame,
 ) -> RunProvenance:
+    multiple_testing_method = ora_result.config.multiple_testing_correction
+    number_of_tests = len(ora_result.records)
     workflow_parameters = {
         "method": request.config.method,
         "identifier_kind": request.identifier_semantics.identifier_kind,
@@ -604,6 +576,9 @@ def _build_run_provenance(
         "multiple_testing_correction": (
             request.method_config.multiple_testing_correction
         ),
+        "multiple_testing_method": multiple_testing_method,
+        "number_of_tests": number_of_tests,
+        "correction_owner": "ora_engine",
         "set_collection": _set_collection_provenance(request),
         "offline_no_online_resource_policy": (
             ENRICHMENT_OFFLINE_NO_ONLINE_RESOURCE_POLICY

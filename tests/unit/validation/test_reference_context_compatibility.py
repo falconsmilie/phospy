@@ -173,7 +173,9 @@ def test_unknown_context_passes_only_with_explicit_override_warning() -> None:
     assert warning.code == REFERENCE_CONTEXT_UNKNOWN_CAVEAT_CODE
     assert warning.severity == "warning"
     assert warning.missing_contexts == ("right",)
-    assert warning.to_payload()["operation"] == "unit allowed unknown context"
+    payload = warning.to_payload()
+    assert payload["operation"] == "unit allowed unknown context"
+    assert payload["missing_contexts"] == ["right"]
 
 
 def test_kinase_workflow_validator_rejects_mismatched_reference_context() -> None:

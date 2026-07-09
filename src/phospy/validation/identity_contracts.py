@@ -149,7 +149,7 @@ class ReferenceContextCompatibilityWarning:
             "severity": self.severity,
             "message": self.message,
             "operation": self.operation,
-            "missing_contexts": self.missing_contexts,
+            "missing_contexts": list(self.missing_contexts),
             "left_reference_context_id": self.left_reference_context_id,
             "right_reference_context_id": self.right_reference_context_id,
         }

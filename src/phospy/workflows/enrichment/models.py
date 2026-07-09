@@ -15,7 +15,6 @@ from phospy.science.enrichment.models import (
     EnrichmentSetCollection,
 )
 from phospy.science.enrichment.ora import OraConfig, OraResult
-from phospy.science.statistics.multiple_testing import MultipleTestingCorrection
 from phospy.validation.workflows.enrichment import EnrichmentSelectedIdentifierSource
 
 EnrichmentAnalysisLevel = Literal["gene", "ptm"]
@@ -89,17 +88,6 @@ class OraEngineContract(Protocol):
     ) -> OraResult: ...
 
 
-class MultipleTestingCorrectionRunner(Protocol):
-    """Internal contract for multiple-testing correction."""
-
-    def __call__(
-        self,
-        p_values: Sequence[float | None],
-        *,
-        method: MultipleTestingCorrection,
-    ) -> tuple[float | None, ...]: ...
-
-
 class EnrichmentWorkflowExecutorContract(Protocol):
     """Internal contract for enrichment workflow execution."""
 
@@ -115,7 +103,6 @@ __all__ = [
     "EnrichmentWorkflowInterpreterContract",
     "EnrichmentWorkflowValidatorContract",
     "InterpretedEnrichmentWorkflowRequest",
-    "MultipleTestingCorrectionRunner",
     "OraEngineContract",
     "ValidatedEnrichmentWorkflowRequest",
 ]

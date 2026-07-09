@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import socket
+from dataclasses import replace
 
 import pandas as pd
 import pytest
@@ -118,6 +119,9 @@ def test_enrichment_workflow_provenance_records_method_and_limitations() -> None
     assert parameters["background_universe_size"] == 5
     assert parameters["selected_identifier_count"] == 2
     assert parameters["multiple_testing_correction"] == "benjamini_hochberg"
+    assert parameters["multiple_testing_method"] == "benjamini_hochberg"
+    assert parameters["number_of_tests"] == len(result.records)
+    assert parameters["correction_owner"] == "ora_engine"
     assert parameters["offline_no_online_resource_policy"] == (
         "offline_user_supplied_collections_only"
     )
@@ -309,6 +313,7 @@ def test_enrichment_workflow_applies_multiple_testing_correction() -> None:
     result = EnrichmentWorkflow().run(request)
 
     assert all(record.adjusted_p_value is not None for record in result.records)
+    assert all(record.p_value is not None for record in result.records)
     assert all(
         record.correction_method == "benjamini_hochberg" for record in result.records
     )
@@ -374,9 +379,11 @@ def test_enrichment_workflow_supports_configured_correction_methods(
     assert correction_diagnostics["applied"] is expected_applied
     assert correction_diagnostics["tested_record_count"] == len(result.records)
     assert result.provenance is not None
-    assert result.provenance.workflow_parameters["multiple_testing_correction"] == (
-        method
-    )
+    parameters = result.provenance.workflow_parameters
+    assert parameters["multiple_testing_correction"] == method
+    assert parameters["multiple_testing_method"] == method
+    assert parameters["number_of_tests"] == len(result.records)
+    assert parameters["correction_owner"] == "ora_engine"
 
 
 def test_enrichment_workflow_empty_and_no_hit_sets_are_reported() -> None:
@@ -398,7 +405,7 @@ def test_enrichment_workflow_empty_and_no_hit_sets_are_reported() -> None:
     assert "CELL_CYCLE" in result.diagnostics["ora"]["no_hit_set_ids"]
 
 
-def test_enrichment_executor_calls_ora_and_correction_helper() -> None:
+def test_enrichment_executor_uses_ora_adjusted_p_values_without_overwrite() -> None:
     validated = EnrichmentWorkflowValidator().run(
         EnrichmentWorkflowRequest(
             identifier_column="gene_symbol",
@@ -410,33 +417,37 @@ def test_enrichment_executor_calls_ora_and_correction_helper() -> None:
     )
     interpreted = EnrichmentWorkflowInterpreter().run(validated)
     calls: list[str] = []
+    engine_adjusted_values = (0.11, 0.22, 0.33)
 
     class Engine:
         def run(self, **kwargs: object) -> object:
             calls.append("ora")
             assert kwargs["selected_identifiers"] == ("AKT1", "MAPK1")
-            return OraEngine().run(**kwargs)  # type: ignore[arg-type]
-
-    def correction_runner(
-        p_values: tuple[float | None, ...],
-        *,
-        method: str,
-    ) -> tuple[float | None, ...]:
-        calls.append("correction")
-        assert method == "benjamini_hochberg"
-        return tuple(0.5 for _ in p_values)
+            assert kwargs["config"].multiple_testing_correction == "benjamini_hochberg"
+            ora_result = OraEngine().run(**kwargs)  # type: ignore[arg-type]
+            adjusted_records = tuple(
+                replace(
+                    record,
+                    adjusted_p_value=adjusted_p_value,
+                )
+                for record, adjusted_p_value in zip(
+                    ora_result.records,
+                    engine_adjusted_values,
+                    strict=True,
+                )
+            )
+            return replace(ora_result, records=adjusted_records)
 
     result = EnrichmentWorkflowExecutor(
         ora_engine=Engine(),  # type: ignore[arg-type]
-        correction_runner=correction_runner,  # type: ignore[arg-type]
     ).run(interpreted)
 
-    assert calls == ["ora", "correction"]
-    assert tuple(record.adjusted_p_value for record in result.records) == (
-        0.5,
-        0.5,
-        0.5,
+    assert calls == ["ora"]
+    assert (
+        tuple(record.adjusted_p_value for record in result.records)
+        == engine_adjusted_values
     )
+    assert all(record.p_value is not None for record in result.records)
 
 
 def test_enrichment_workflow_has_no_internet_dependency(

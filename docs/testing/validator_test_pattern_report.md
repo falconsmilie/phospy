@@ -67,7 +67,7 @@ These are candidate consolidations for follow-up tickets, not immediate rewrites
 | tests/unit/test_validator_boundaries.py | test_kinase_validator_requires_centred_sequence_context | 1162 | `scoring_config=KinaseScoringConfig(min_substrates=2),` |
 | tests/unit/test_validator_boundaries.py | test_kinase_validator_allows_gapped_flanks_when_centre_is_valid | 1187 | `scoring_config=KinaseScoringConfig(min_substrates=2),` |
 | tests/unit/test_validator_boundaries.py | test_signalome_request_module_count_optional_positive_integer_boundary | 1365 | `module_count: object,` |
-| tests/unit/validation/test_reference_context_compatibility.py | test_kinase_workflow_validator_rejects_mismatched_reference_context | 183 | `scoring_config=KinaseScoringConfig(min_substrates=2),` |
+| tests/unit/validation/test_reference_context_compatibility.py | test_kinase_workflow_validator_rejects_mismatched_reference_context | 185 | `scoring_config=KinaseScoringConfig(min_substrates=2),` |
 | tests/unit/workflows/kinase/test_resolved_kinase_validator.py | test_kinase_interpreter_delegates_resolved_validation | 239 | `scoring_config=KinaseScoringConfig(min_substrates=2),` |
 
 ### Non-Empty String
