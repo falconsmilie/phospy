@@ -72,10 +72,73 @@ class QuantitativeMeaning(str, Enum):
     PHOSPHO_TOTAL_LOG_RATIO = "phospho_total_log_ratio"
     CONTRAST_LOG2_FOLD_CHANGE = "contrast_log2_fold_change"
     DIFFERENTIAL_EFFECT_SIZE = "differential_effect_size"
+    ACTIVITY_SCORE = "activity_score"
     MIXED_PHOSPHO_TOTAL_LOG_RATIO_AND_PHOSPHOSITE_LOG_ABUNDANCE = (
         "mixed_phospho_total_log_ratio_and_phosphosite_log_abundance"
     )
     UNKNOWN = "unknown"
+
+
+@dataclass(frozen=True, slots=True)
+class QuantitativeMeaningScaleRule:
+    """Allowed scale and semantic role for one quantitative meaning."""
+
+    meaning: QuantitativeMeaning
+    allowed_scales: frozenset[IntensityScaleKind]
+    semantic_role: str
+
+
+_QUANTITATIVE_MEANING_SCALE_RULES: Final[tuple[QuantitativeMeaningScaleRule, ...]] = (
+    QuantitativeMeaningScaleRule(
+        meaning=QuantitativeMeaning.PHOSPHOSITE_ABUNDANCE,
+        allowed_scales=frozenset({IntensityScaleKind.LINEAR}),
+        semantic_role="phosphosite_abundance_matrix",
+    ),
+    QuantitativeMeaningScaleRule(
+        meaning=QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE,
+        allowed_scales=frozenset({IntensityScaleKind.LOG2}),
+        semantic_role="phosphosite_abundance_matrix",
+    ),
+    QuantitativeMeaningScaleRule(
+        meaning=QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO,
+        allowed_scales=frozenset({IntensityScaleKind.LOG2}),
+        semantic_role="total_corrected_log_ratio_matrix",
+    ),
+    QuantitativeMeaningScaleRule(
+        meaning=QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE,
+        allowed_scales=frozenset({IntensityScaleKind.LOG2}),
+        semantic_role="contrast_or_effect_matrix",
+    ),
+    QuantitativeMeaningScaleRule(
+        meaning=QuantitativeMeaning.DIFFERENTIAL_EFFECT_SIZE,
+        allowed_scales=frozenset({IntensityScaleKind.LOG2}),
+        semantic_role="contrast_or_effect_matrix",
+    ),
+    QuantitativeMeaningScaleRule(
+        meaning=QuantitativeMeaning.ACTIVITY_SCORE,
+        allowed_scales=frozenset({IntensityScaleKind.LINEAR, IntensityScaleKind.LOG2}),
+        semantic_role="activity_score_matrix",
+    ),
+    QuantitativeMeaningScaleRule(
+        meaning=(
+            QuantitativeMeaning.MIXED_PHOSPHO_TOTAL_LOG_RATIO_AND_PHOSPHOSITE_LOG_ABUNDANCE
+        ),
+        allowed_scales=frozenset({IntensityScaleKind.LOG2}),
+        semantic_role="mixed_matrix",
+    ),
+    QuantitativeMeaningScaleRule(
+        meaning=QuantitativeMeaning.UNKNOWN,
+        allowed_scales=frozenset({IntensityScaleKind.LINEAR, IntensityScaleKind.LOG2}),
+        semantic_role="unknown_matrix",
+    ),
+)
+_QUANTITATIVE_MEANING_SCALE_RULE_BY_MEANING: Final[
+    dict[QuantitativeMeaning, QuantitativeMeaningScaleRule]
+] = {rule.meaning: rule for rule in _QUANTITATIVE_MEANING_SCALE_RULES}
+if set(_QUANTITATIVE_MEANING_SCALE_RULE_BY_MEANING) != set(QuantitativeMeaning):
+    raise RuntimeError(
+        "QuantitativeMeaning scale rules must cover every QuantitativeMeaning member"
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -775,28 +838,22 @@ def _validate_quantitative_meaning_kind_coherence(
     quantity: QuantitativeMeaning,
     kind: IntensityScaleKind,
 ) -> None:
-    if quantity is QuantitativeMeaning.UNKNOWN:
+    rule = _QUANTITATIVE_MEANING_SCALE_RULE_BY_MEANING[quantity]
+    if kind in rule.allowed_scales:
         return
-    if (
-        quantity is QuantitativeMeaning.PHOSPHOSITE_ABUNDANCE
-        and kind is not IntensityScaleKind.LINEAR
-    ):
+    allowed = ", ".join(sorted(scale.value for scale in rule.allowed_scales))
+    if len(rule.allowed_scales) == 1:
+        allowed = f"{allowed} intensity scale"
+    else:
+        allowed = f"one of these intensity scales: {allowed}"
+    if quantity is QuantitativeMeaning.PHOSPHOSITE_ABUNDANCE:
         raise InvalidTransformationStateError(
             "quantitative meaning 'phosphosite_abundance' requires linear "
             "intensity scale"
         )
-    if (
-        quantity
-        in {
-            QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE,
-            QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO,
-            QuantitativeMeaning.MIXED_PHOSPHO_TOTAL_LOG_RATIO_AND_PHOSPHOSITE_LOG_ABUNDANCE,
-        }
-        and kind is not IntensityScaleKind.LOG2
-    ):
-        raise InvalidTransformationStateError(
-            f"quantitative meaning '{quantity.value}' requires log2 intensity scale"
-        )
+    raise InvalidTransformationStateError(
+        f"quantitative meaning '{quantity.value}' requires {allowed}"
+    )
 
 
 def _resolve_establishment_source(

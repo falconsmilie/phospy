@@ -330,7 +330,7 @@ def test_processing_state_builder_emits_default_total_correction_diagnostics_whe
         ),
         pytest.param(
             PreprocessingPlan.default(),
-            supported_linear_intensity_scale_state(has_total_matrix=False),
+            _supported_log2_intensity_scale_state(has_total_matrix=False),
             QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE,
             QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE.value,
             id="contrast-logfc-explicit",

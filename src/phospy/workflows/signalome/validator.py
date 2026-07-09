@@ -41,6 +41,10 @@ from phospy.validation.workflows.identity import (
     SIGNALOME_IDENTITY_CONTRACT,
     enforce_workflow_site_identity_contract,
 )
+from phospy.validation.workflows.quantitative import (
+    WorkflowQuantitativeInputValidator,
+    phosphosite_abundance_workflow_input_contract,
+)
 
 SIGNALOME_PROTEIN_GROUPING_METADATA_NOTE = (
     "Signalome uses dataset.site_metadata.protein_id as algorithm-specific "
@@ -62,9 +66,15 @@ class SignalomeWorkflowValidator:
     """Validate `SignalomeWorkflowRequest` before interpretation."""
 
     def __init__(
-        self, *, config_validator: SignalomeConfigValidator | None = None
+        self,
+        *,
+        config_validator: SignalomeConfigValidator | None = None,
+        quantitative_input_validator: WorkflowQuantitativeInputValidator | None = None,
     ) -> None:
         self._config_validator = config_validator or SignalomeConfigValidator()
+        self._quantitative_input_validator = (
+            quantitative_input_validator or WorkflowQuantitativeInputValidator()
+        )
 
     def run(self, request: SignalomeWorkflowRequest) -> SignalomeWorkflowRequest:
         if not isinstance(request, SignalomeWorkflowRequest):
@@ -86,6 +96,15 @@ class SignalomeWorkflowValidator:
         reject_mixed_total_protein_quantitative_meaning(
             dataset=dataset,
             allow_mixed=config.validation.allow_mixed_total_protein_quantitative_meaning,
+            context="signalome workflow request kinase_result.dataset",
+        )
+        self._quantitative_input_validator.run(
+            dataset=dataset,
+            contract=phosphosite_abundance_workflow_input_contract(
+                allow_mixed_total_protein_quantitative_meaning=(
+                    config.validation.allow_mixed_total_protein_quantitative_meaning
+                )
+            ),
             context="signalome workflow request kinase_result.dataset",
         )
 

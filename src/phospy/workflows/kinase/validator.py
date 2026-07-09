@@ -40,6 +40,10 @@ from phospy.validation.workflows.identity import (
     KINASE_IDENTITY_CONTRACT,
     enforce_workflow_site_identity_contract,
 )
+from phospy.validation.workflows.quantitative import (
+    WorkflowQuantitativeInputValidator,
+    phosphosite_abundance_workflow_input_contract,
+)
 from phospy.workflows.kinase.scoring_mode_contracts import (
     kinase_scoring_mode_input_contract,
 )
@@ -59,8 +63,12 @@ class KinaseWorkflowValidator:
         self,
         *,
         config_validator: KinaseWorkflowConfigValidator | None = None,
+        quantitative_input_validator: WorkflowQuantitativeInputValidator | None = None,
     ) -> None:
         self._config_validator = config_validator or KinaseWorkflowConfigValidator()
+        self._quantitative_input_validator = (
+            quantitative_input_validator or WorkflowQuantitativeInputValidator()
+        )
 
     def run(self, request: object) -> KinaseWorkflowRequest:
         if not isinstance(request, KinaseWorkflowRequest):
@@ -119,6 +127,15 @@ class KinaseWorkflowValidator:
         reject_mixed_total_protein_quantitative_meaning(
             dataset=dataset,
             allow_mixed=scoring_config.allow_mixed_total_protein_quantitative_meaning,
+            context="kinase workflow request dataset",
+        )
+        self._quantitative_input_validator.run(
+            dataset=dataset,
+            contract=phosphosite_abundance_workflow_input_contract(
+                allow_mixed_total_protein_quantitative_meaning=(
+                    scoring_config.allow_mixed_total_protein_quantitative_meaning
+                )
+            ),
             context="kinase workflow request dataset",
         )
         dataset_view = DatasetInternalView(dataset)

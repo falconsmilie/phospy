@@ -932,7 +932,7 @@ def test_executor_applies_explicit_quantitative_meaning_to_dataset_and_provenanc
             sample_metadata=None,
             total=None,
             organism=None,
-            declared_input_intensity_scale_kind=IntensityScaleKind.LINEAR,
+            declared_input_intensity_scale_kind=IntensityScaleKind.LOG2,
             preprocessing_plan=PreprocessingPlan.default(),
             quantitative_meaning=QuantitativeMeaning.CONTRAST_LOG2_FOLD_CHANGE,
         )

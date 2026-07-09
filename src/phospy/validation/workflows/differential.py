@@ -38,6 +38,10 @@ from phospy.science.transformations.models import (
     IntensityScaleEstablishmentMode,
     IntensityScaleKind,
 )
+from phospy.validation.workflows.quantitative import (
+    DIFFERENTIAL_LOG_ABUNDANCE_INPUT_CONTRACT,
+    WorkflowQuantitativeInputValidator,
+)
 
 _DIFFERENTIAL_LOGFC_SCALE_ERROR_MESSAGE = (
     "Differential analysis reports logFC and therefore requires established "
@@ -665,6 +669,15 @@ class ExperimentalDesignContractValidator:
 class DifferentialDatasetEligibilityValidator:
     """Validate dataset quantitative-scale eligibility for differential logFC."""
 
+    def __init__(
+        self,
+        *,
+        quantitative_input_validator: WorkflowQuantitativeInputValidator | None = None,
+    ) -> None:
+        self._quantitative_input_validator = (
+            quantitative_input_validator or WorkflowQuantitativeInputValidator()
+        )
+
     def run(
         self,
         *,
@@ -705,6 +718,11 @@ class DifferentialDatasetEligibilityValidator:
             or phospho_scale.kind is not IntensityScaleKind.LOG2
         ):
             raise WorkflowValidationError(_DIFFERENTIAL_LOGFC_SCALE_ERROR_MESSAGE)
+        self._quantitative_input_validator.run(
+            dataset=dataset,
+            contract=DIFFERENTIAL_LOG_ABUNDANCE_INPUT_CONTRACT,
+            context="differential workflow request dataset",
+        )
         provenance = dataset.intensity_scale_state.establishment_provenance
         if (
             provenance is not None

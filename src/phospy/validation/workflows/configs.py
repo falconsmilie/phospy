@@ -11,6 +11,7 @@ from phospy.contracts.configs import (
 from phospy.errors.validation import WorkflowValidationError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.transformations.models import QuantitativeMeaning
+from phospy.validation.workflows.quantitative import is_mixed_quantitative_meaning
 
 _MIXED_QUANTITATIVE_MEANING = QuantitativeMeaning.MIXED_PHOSPHO_TOTAL_LOG_RATIO_AND_PHOSPHOSITE_LOG_ABUNDANCE.value
 
@@ -79,7 +80,7 @@ def reject_mixed_total_protein_quantitative_meaning(
     context: str,
 ) -> None:
     quantity = dataset.intensity_scale_state.quantity
-    if quantity is None or quantity.value != _MIXED_QUANTITATIVE_MEANING:
+    if not is_mixed_quantitative_meaning(quantity):
         return
     if allow_mixed:
         return
