@@ -1,6 +1,6 @@
 path,test_area,line_count,test_function_count,uses_pytest_mark,uses_parametrization,primary_category,recommended_action,protected_risk_or_contract,reviewer,followup_ticket,notes
 tests/architecture/test_api_boundaries.py,architecture,141,6,false,false,,,,,,
-tests/architecture/test_validation_boundaries.py,architecture,299,8,false,false,,,,,,[auto-orchestration] 5 hit(s); indicators: private_member_access
+tests/architecture/test_validation_boundaries.py,architecture,585,18,false,false,,,,,,[auto-orchestration] 10 hit(s); indicators: private_member_access
 tests/golden/test_differential_fixture_provenance_golden.py,golden,343,3,true,false,,,,,,
 tests/integration/references/test_bundled_reference_manifests.py,references,125,3,true,false,,,,,,
 tests/integration/science/datasets/test_analysis_ready_dataset_construction_boundary.py,datasets,107,3,true,false,,,,,,
@@ -67,7 +67,7 @@ tests/unit/science/datasets/test_processing_state.py,datasets,395,20,false,false
 tests/unit/science/differential/test_differential_diagnostics.py,differential,110,2,false,false,,,,,,
 tests/unit/test_activity_science.py,unit,1093,34,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for activity science, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_adr_0027_0029_public_claims.py,unit,478,9,false,false,,,,,,
-tests/unit/test_adr_docs_governance.py,unit,146,4,false,false,,,,,,
+tests/unit/test_adr_docs_governance.py,unit,175,5,false,false,,,,,,
 tests/unit/test_analysis_ready_model_boundary_validator.py,unit,804,38,true,true,,,,,,[auto-orchestration] 12 hit(s); indicators: private_member_access
 tests/unit/test_api_configs_refactor_contract.py,unit,56,3,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for api configs refactor contract and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_api_documentation_examples.py,unit,1136,14,false,false,,,,,,
