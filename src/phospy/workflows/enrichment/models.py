@@ -32,6 +32,8 @@ class ValidatedEnrichmentWorkflowRequest:
     selected_identifiers: tuple[str, ...]
     config: EnrichmentConfig
     selected_identifier_source: EnrichmentSelectedIdentifierSource
+    selected_identifier_input_count: int
+    background_identifier_input_count: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +61,8 @@ class InterpretedEnrichmentWorkflowRequest:
     background_summary: dict[str, object]
     set_collection_summary: dict[str, object]
     diagnostics: dict[str, object]
+    selected_identifier_input_count: int
+    background_identifier_input_count: int
 
 
 class EnrichmentWorkflowValidatorContract(Protocol):

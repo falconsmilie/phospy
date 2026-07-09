@@ -288,6 +288,24 @@ def test_kinase_provenance_records_attrition_policy_and_metrics() -> None:
     assert attrition_provenance["policy_outcome"] == "warned"
     assert attrition_provenance["metrics"] == result.attrition_provenance.metrics
     assert attrition_provenance["policy"] == result.attrition_provenance.policy
+    row_attrition_metrics = workflow_parameters["row_attrition_metrics"]
+    assert isinstance(row_attrition_metrics, dict)
+    assert row_attrition_metrics["input_sites"] == 4
+    assert row_attrition_metrics["sites_missing_valid_centered_sequence"] == 0
+    assert row_attrition_metrics["sites_not_present_in_reference_resource"] == 2
+    assert row_attrition_metrics["sites_with_reference_and_sequence_support"] == 2
+    assert (
+        row_attrition_metrics["site_kinase_pairs_considered"]
+        >= (row_attrition_metrics["site_kinase_pairs_scored"])
+    )
+    row_attrition = workflow_parameters["row_attrition"]
+    assert isinstance(row_attrition, dict)
+    assert row_attrition["input_rows"] == 4
+    assert row_attrition["final_rows"] == 2
+    assert row_attrition["records"][0]["reason"] == (
+        "sites_not_present_in_reference_resource"
+    )
+    assert row_attrition["records"][0]["removed_rows"] == 2
     scoring_diagnostics = result.provenance.workflow_parameters["scoring_diagnostics"]
     assert isinstance(scoring_diagnostics, dict)
     attrition_metrics = scoring_diagnostics["attrition_metrics"]

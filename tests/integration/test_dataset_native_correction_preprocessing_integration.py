@@ -1329,10 +1329,10 @@ def test_downstream_workflow_consumes_corrected_analysis_ready_dataset_only() ->
     phospho = _phospho()
     corrected = pd.DataFrame(
         {
-            "sample_1": [10.0, 2.0],
-            "sample_2": [14.0, 1.0],
-            "sample_3": [10.0, 2.0],
-            "sample_4": [14.0, 1.0],
+            "sample_1": [9.9, 1.9],
+            "sample_2": [14.1, 1.1],
+            "sample_3": [10.1, 2.1],
+            "sample_4": [13.9, 0.9],
         },
         index=_resolved_correction_matrix(phospho).index.copy(),
     )

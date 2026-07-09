@@ -126,8 +126,10 @@ def test_enrichment_interpreter_resolves_set_and_background_execution_inputs() -
     assert interpreted.identifier_semantics.analysis_level == "gene"
     assert interpreted.background_summary == {
         "source": "explicit",
+        "provided_identifier_count": 3,
         "universe_size": 3,
         "selected_identifier_count": 2,
+        "selected_identifier_input_count": 2,
         "selected_identifier_source": "selected_identifiers",
     }
     assert interpreted.set_collection_summary["set_count"] == 2

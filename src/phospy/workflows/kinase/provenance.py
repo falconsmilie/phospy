@@ -68,6 +68,9 @@ from phospy.workflows.kinase.contracts import (
     ResolvedKinaseExecutionConfig,
     ResolvedKinaseWorkflowRequest,
 )
+from phospy.workflows.kinase.row_attrition import (
+    build_kinase_row_attrition_provenance,
+)
 
 
 class KinaseProvenanceBuilder:
@@ -319,6 +322,10 @@ def _build_workflow_parameters(
     activity_result: KinaseActivityResult | None,
 ) -> dict[str, object]:
     payload = input_intensity_scale_evidence_payload(request.dataset)
+    row_attrition = build_kinase_row_attrition_provenance(
+        request=request,
+        scoring_result=scoring_result,
+    )
     payload.update(
         {
             "site_token_validation": _build_site_token_validation_payload(request),
@@ -340,6 +347,7 @@ def _build_workflow_parameters(
                 config=config,
                 activity_result=activity_result,
             ),
+            **row_attrition.to_workflow_parameters(),
         }
     )
     return payload

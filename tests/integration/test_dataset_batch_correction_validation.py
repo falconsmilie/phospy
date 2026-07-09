@@ -185,10 +185,10 @@ def test_dataset_batch_correction_downstream_differential_uses_corrected_matrix(
 def _log2_batch_effect_phospho() -> pd.DataFrame:
     return pd.DataFrame(
         {
-            "sample_1": [10.0, 2.0],
-            "sample_2": [14.0, 1.0],
-            "sample_3": [15.0, 7.0],
-            "sample_4": [19.0, 6.0],
+            "sample_1": [9.9, 1.9],
+            "sample_2": [14.1, 1.1],
+            "sample_3": [15.1, 7.1],
+            "sample_4": [18.9, 5.9],
         },
         index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
     )
@@ -209,10 +209,10 @@ def _expected_batch_corrected_log2_matrix(
 ) -> pd.DataFrame:
     return pd.DataFrame(
         {
-            "sample_1": [10.0, 2.0],
-            "sample_2": [14.0, 1.0],
-            "sample_3": [10.0, 2.0],
-            "sample_4": [14.0, 1.0],
+            "sample_1": [9.9, 1.9],
+            "sample_2": [14.1, 1.1],
+            "sample_3": [10.1, 2.1],
+            "sample_4": [13.9, 0.9],
         },
         index=index.copy(),
         columns=columns.copy(),

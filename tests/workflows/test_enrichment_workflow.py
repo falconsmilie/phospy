@@ -136,6 +136,58 @@ def test_enrichment_workflow_provenance_records_method_and_limitations() -> None
     assert any("GO, KEGG, Reactome, and PTM-SEA" in item for item in limitations)
 
 
+def test_enrichment_workflow_provenance_records_identifier_and_set_attrition() -> None:
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=GeneSetCollection(
+            sets={
+                "TESTED": ("AKT1", "MAPK1"),
+                "TOO_SMALL": ("OUTSIDE_A",),
+                "TOO_LARGE": ("AKT1", "MAPK1", "MTOR", "CDK1"),
+            },
+            identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+            source_name="unit_test",
+        ),
+        selected_identifiers=("AKT1", "AKT1", "OUTSIDE_SELECTED", "MAPK1"),
+        background_universe=("AKT1", "MAPK1", "MTOR", "CDK1", "CDK1"),
+        config=EnrichmentConfig(min_set_size=1, max_set_size=3),
+    )
+
+    result = EnrichmentWorkflow().run(request)
+
+    assert result.provenance is not None
+    parameters = result.provenance.workflow_parameters
+    metrics = parameters["row_attrition_metrics"]
+    assert metrics["selected_identifiers_provided"] == 4
+    assert metrics["selected_identifiers_prepared"] == 3
+    assert metrics["selected_identifiers_retained_in_universe"] == 2
+    assert metrics["selected_identifiers_dropped_outside_universe"] == 1
+    assert metrics["background_identifiers_provided"] == 5
+    assert metrics["background_identifiers_retained_in_universe"] == 4
+    assert metrics["sets_provided"] == 3
+    assert metrics["sets_tested"] == 1
+    assert metrics["sets_skipped_due_to_min_max_size"] == 2
+    assert metrics["sets_skipped_due_to_min_size"] == 1
+    assert metrics["sets_skipped_due_to_max_size"] == 1
+
+    row_attrition = parameters["row_attrition"]
+    selected = row_attrition["selected_identifiers"]
+    assert selected["input_rows"] == 4
+    assert selected["final_rows"] == 2
+    assert [record["reason"] for record in selected["records"]] == [
+        "selected_identifiers_dropped_before_universe_intersection",
+        "selected_identifiers_not_retained_in_universe",
+    ]
+    background = row_attrition["background_identifiers"]
+    assert background["input_rows"] == 5
+    assert background["final_rows"] == 4
+    sets = row_attrition["sets"]
+    assert sets["input_rows"] == 3
+    assert sets["final_rows"] == 1
+    assert sets["records"][0]["examples"] == ["TOO_SMALL", "TOO_LARGE"]
+
+
 def test_enrichment_workflow_happy_path_with_site_keys() -> None:
     request = EnrichmentWorkflowRequest(
         identifier_column="site_key",

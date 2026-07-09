@@ -59,8 +59,10 @@ class EnrichmentWorkflowInterpreter:
         }
         background_summary: dict[str, object] = {
             "source": "explicit",
+            "provided_identifier_count": request.background_identifier_input_count,
             "universe_size": len(request.background_universe),
             "selected_identifier_count": len(request.selected_identifiers),
+            "selected_identifier_input_count": request.selected_identifier_input_count,
             "selected_identifier_source": request.selected_identifier_source,
         }
         set_collection_summary = _summarise_set_collection(
@@ -85,6 +87,8 @@ class EnrichmentWorkflowInterpreter:
             background_summary=background_summary,
             set_collection_summary=set_collection_summary,
             diagnostics=diagnostics,
+            selected_identifier_input_count=request.selected_identifier_input_count,
+            background_identifier_input_count=request.background_identifier_input_count,
         )
 
 

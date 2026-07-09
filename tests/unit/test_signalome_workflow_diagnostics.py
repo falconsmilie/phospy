@@ -1749,6 +1749,17 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
     )
     assert result.provenance is not None
     workflow_parameters = result.provenance.workflow_parameters
+    row_attrition_metrics = workflow_parameters["row_attrition_metrics"]
+    assert row_attrition_metrics["input_sites"] == 3
+    assert row_attrition_metrics["sites_missing_sequence_context"] == 0
+    assert row_attrition_metrics["sites_missing_protein_grouping_metadata"] == 0
+    assert row_attrition_metrics["sites_removed_by_score_preconditioning"] == 1
+    assert row_attrition_metrics["sites_retained_for_signalome_scoring_clustering"] == 2
+    row_attrition = workflow_parameters["row_attrition"]
+    assert row_attrition["input_rows"] == 3
+    assert row_attrition["final_rows"] == 2
+    assert row_attrition["records"][0]["reason"] == ("removed_by_score_preconditioning")
+    assert row_attrition["records"][0]["removed_rows"] == 1
     scale_guard = workflow_parameters["scale_guard"]
     assert {
         "site_count",

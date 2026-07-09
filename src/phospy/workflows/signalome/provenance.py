@@ -48,6 +48,9 @@ from phospy.workflows.signalome.contracts import (
     ResolvedSignalomeExecutionConfig,
     ResolvedSignalomeWorkflowRequest,
 )
+from phospy.workflows.signalome.row_attrition import (
+    build_signalome_row_attrition_provenance,
+)
 from phospy.workflows.signalome.scientific_policies import ScorePreconditioningPolicy
 
 
@@ -207,6 +210,7 @@ def _build_workflow_parameters(
     upstream_provenance: RunProvenance | None,
 ) -> dict[str, object]:
     payload = input_intensity_scale_evidence_payload(request.dataset)
+    row_attrition = build_signalome_row_attrition_provenance(request)
     payload.update(
         {
             "site_token_validation": _build_site_token_validation_payload(request),
@@ -240,6 +244,7 @@ def _build_workflow_parameters(
                 if upstream_provenance is None
                 else provenance_to_payload(upstream_provenance)
             ),
+            **row_attrition.to_workflow_parameters(),
         }
     )
     return payload
