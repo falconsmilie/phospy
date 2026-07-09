@@ -78,6 +78,7 @@ from phospy.workflows.differential.replicates import (
     TechnicalReplicateAggregator,
 )
 from phospy.workflows.intensity_scale_evidence import (
+    with_input_dataset_reference_context,
     with_input_intensity_scale_evidence,
 )
 
@@ -291,6 +292,10 @@ class DifferentialAnalysisInterpreter:
             multiple_testing_method=request.config.multiple_testing.method,
         )
         resolved_workflow_provenance = with_input_intensity_scale_evidence(
+            resolved_workflow_provenance,
+            dataset=resolved_dataset,
+        )
+        resolved_workflow_provenance = with_input_dataset_reference_context(
             resolved_workflow_provenance,
             dataset=resolved_dataset,
         )

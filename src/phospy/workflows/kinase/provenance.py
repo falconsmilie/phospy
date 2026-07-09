@@ -125,6 +125,7 @@ class KinaseProvenanceBuilder:
             random_seed_policy=self._resolve_seed_policy(config),
             output_tables=output_tables,
             scientific_policies=scientific_policies,
+            reference_context=request.dataset.reference_context,
         )
 
     @staticmethod

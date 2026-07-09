@@ -23,6 +23,7 @@ from phospy.science.references.models import (
     ReferenceBuildPath,
     ReferenceBundle,
     ReferenceBundleBuildRequest,
+    ReferenceContext,
     ReferenceFileManifest,
     ReferenceManifest,
     SequenceWindowDefinition,
@@ -180,6 +181,7 @@ class ReferenceBundleBuilder:
                 ),
             ),
             identifier_normalisation=identifier_normalisation,
+            reference_context=ReferenceContext.from_manifest(manifest),
         )
         return ReferenceBundle._from_owned(  # pyright: ignore[reportPrivateUsage] - builder owns trusted transformation before public validation
             organism=validated.organism,

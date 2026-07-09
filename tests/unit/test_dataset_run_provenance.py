@@ -459,6 +459,84 @@ def test_dataset_builder_emits_run_provenance_and_stage_details() -> None:
     assert ScientificPolicyId.PREPROCESSING_STAGE_ORDER in policy_ids
 
 
+def test_dataset_builder_records_reference_context_from_bundled_sequence_derivation() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0], "sample_b": [2.0]},
+        index=pd.Index(["AAK1;S677;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["AAK1"],
+            "site": ["S677"],
+            "protein_id": ["AAK1"],
+            "localisation_confidence": [0.95],
+        },
+        index=phospho.index.copy(),
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            input_intensity_scale="linear",
+        )
+    )
+
+    provenance = built.provenance
+    assert provenance is not None
+    assert provenance.reference is None
+    assert provenance.reference_context is not None
+    assert built.reference_context is provenance.reference_context
+    assert provenance.reference_context.organism == Organism.RAT.value
+    assert provenance.reference_context.reference_context_id.startswith(
+        "reference-context-v1:"
+    )
+    restored = from_payload(to_payload(provenance))
+    assert restored.reference_context is not None
+    assert (
+        restored.reference_context.reference_context_id
+        == provenance.reference_context.reference_context_id
+    )
+
+
+def test_dataset_builder_records_unknown_reference_context_when_not_reference_derived() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0], "sample_b": [2.0]},
+        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "site_sequence": ["AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA"],
+            "protein_id": ["MAPK14"],
+            "localisation_confidence": [0.95],
+        },
+        index=phospho.index.copy(),
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            input_intensity_scale="linear",
+        )
+    )
+
+    assert built.provenance is not None
+    assert built.provenance.reference_context is None
+    assert built.reference_context is None
+    payload = to_payload(built.provenance)
+    assert "reference_context" in payload
+    assert payload["reference_context"] is None
+
+
 def test_dataset_builder_provenance_records_site_identifier_normalisation_changes() -> (
     None
 ):

@@ -62,7 +62,7 @@ from phospy.science.datasets.processing_state import (
 from phospy.science.datasets.processing_state import (
     require_optional_instance as _require_optional_instance,
 )
-from phospy.science.references.models import Organism
+from phospy.science.references.models import Organism, ReferenceContext
 from phospy.science.transformations.models import IntensityScaleState
 from phospy.tables.datasets import (
     PhosphoIntensityMatrix,
@@ -520,6 +520,12 @@ class AnalysisReadyPhosphoDataset:
     @property
     def opaque_site_values_allowed(self) -> bool:
         return bool(self._allow_opaque_site_values)
+
+    @property
+    def reference_context(self) -> ReferenceContext | None:
+        if self.provenance is None:
+            return None
+        return self.provenance.reference_context
 
     def _borrow_phospho_frame(self) -> pd.DataFrame:
         """Package-private phospho snapshot for DatasetInternalView."""

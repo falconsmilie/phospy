@@ -19,12 +19,14 @@ __all__ = [
     "ReferenceBundleSourceFileValidationReport",
     "ReferenceBundleTableValidationReport",
     "ReferenceBundleValidationReport",
+    "ReferenceContext",
     "ReferenceFileManifest",
     "ReferenceManifest",
     "ReferencePreset",
     "RedistributionStatus",
     "SequenceWindowDefinition",
     "load_kinase_library_resource",
+    "reference_context_from_provenance",
 ]
 
 if TYPE_CHECKING:
@@ -47,10 +49,12 @@ if TYPE_CHECKING:
         ReferenceBundleSourceFileValidationReport,
         ReferenceBundleTableValidationReport,
         ReferenceBundleValidationReport,
+        ReferenceContext,
         ReferenceFileManifest,
         ReferenceManifest,
         ReferencePreset,
         SequenceWindowDefinition,
+        reference_context_from_provenance,
     )
 
 

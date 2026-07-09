@@ -77,6 +77,35 @@ def with_input_intensity_scale_evidence(
     return payload
 
 
+def input_dataset_reference_context_payload(
+    dataset: AnalysisReadyPhosphoDataset,
+) -> dict[str, object]:
+    """Return the JSON-safe input dataset reference context payload."""
+
+    reference_context = dataset.reference_context
+    return {
+        "reference_context": (
+            None if reference_context is None else reference_context.to_payload()
+        )
+    }
+
+
+def with_input_dataset_reference_context(
+    parameters: Mapping[str, object] | None,
+    *,
+    dataset: AnalysisReadyPhosphoDataset,
+) -> dict[str, object]:
+    """Merge input dataset reference context into workflow parameters."""
+
+    payload = (
+        {}
+        if parameters is None
+        else {str(key): value for key, value in parameters.items()}
+    )
+    payload.update(input_dataset_reference_context_payload(dataset))
+    return payload
+
+
 def build_declared_input_intensity_scale_caveat(
     *,
     dataset: AnalysisReadyPhosphoDataset,
@@ -118,5 +147,7 @@ __all__ = [
     "input_intensity_scale_evidence_from_dataset",
     "input_intensity_scale_evidence_from_state",
     "input_intensity_scale_evidence_payload",
+    "input_dataset_reference_context_payload",
     "with_input_intensity_scale_evidence",
+    "with_input_dataset_reference_context",
 ]

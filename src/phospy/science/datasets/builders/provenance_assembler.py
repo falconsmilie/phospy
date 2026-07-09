@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from typing import cast
 
 import pandas as pd
 
@@ -20,6 +21,9 @@ from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
 from phospy.science.datasets.builders.contracts import (
     InterpretedDatasetBuildRequest,
     PreprocessedDatasetBuildTables,
+)
+from phospy.science.datasets.builders.sequence_derivation import (
+    SiteSequenceDerivationReport,
 )
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
@@ -44,6 +48,7 @@ from phospy.science.datasets.preprocessing.scientific_policies import (
     PreprocessingStageOrderPolicy,
     build_duplicate_site_resolution_policy,
 )
+from phospy.science.references.models import ReferenceContext
 
 _SUPPORTED_PREPROCESSING_STAGE_ORDER = (
     DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
@@ -172,6 +177,9 @@ class DatasetRunProvenanceAssembler:
             output_tables=output_tables,
             scientific_policies=_dataset_scientific_policies(
                 request.preprocessing_plan
+            ),
+            reference_context=_reference_context_from_site_sequence_derivation(
+                request.site_sequence_derivation
             ),
         )
 
@@ -474,4 +482,14 @@ def _audit_payload(value: object | None) -> dict[str, object] | None:
     raise DatasetBuildError(
         "dataset builder audit reports must expose to_payload() returning a dict; "
         f"got {type(value).__name__}"
+    )
+
+
+def _reference_context_from_site_sequence_derivation(
+    report: SiteSequenceDerivationReport | None,
+) -> ReferenceContext | None:
+    if report is None or report.reference_manifest is None:
+        return None
+    return ReferenceContext.from_manifest_payload(
+        cast(Mapping[str, JsonValue], report.reference_manifest)
     )

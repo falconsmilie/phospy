@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from phospy.science.references.identifiers import (
         ReferenceIdentifierNormalisationReport,
     )
+    from phospy.science.references.models import ReferenceContext
 
 PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V1 = 1
 PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V2 = 2
@@ -307,6 +308,7 @@ class ReferenceProvenance:
     sequence_window: Mapping[str, JsonValue] | None = None
     manifest: Mapping[str, JsonValue] | None = None
     identifier_normalisation: ReferenceIdentifierNormalisationReport | None = None
+    reference_context: ReferenceContext | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -332,6 +334,10 @@ class RunProvenance:
 
     Workflow-specific audit details that are not table-transforming stages, such
     as protein-aware preparation summaries, belong in `workflow_parameters`.
+    `reference_context` records the biological reference context of the input
+    dataset for downstream compatibility checks. `reference` remains the
+    workflow reference resource provenance when a workflow consumes an explicit
+    reference bundle.
     """
 
     environment: EnvironmentProvenance
@@ -344,6 +350,7 @@ class RunProvenance:
     random_seed_policy: str | None
     output_tables: tuple[TableFingerprint, ...]
     scientific_policies: tuple[ScientificPolicyRecord, ...] = ()
+    reference_context: ReferenceContext | None = None
 
 
 __all__ = [

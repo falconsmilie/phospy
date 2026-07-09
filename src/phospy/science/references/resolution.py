@@ -7,7 +7,12 @@ from typing import Protocol
 from phospy.errors.references import ReferenceResolutionError
 from phospy.provenance.hashing import fingerprint_table
 from phospy.provenance.models import ReferenceProvenance
-from phospy.science.references.models import Organism, ReferenceBundle, ReferencePreset
+from phospy.science.references.models import (
+    Organism,
+    ReferenceBundle,
+    ReferenceContext,
+    ReferencePreset,
+)
 from phospy.science.references.resources import (
     bundled_reference_name_for_organism,
     load_bundled_kinase_substrate_map,
@@ -75,6 +80,7 @@ class BundledReferenceProvider:
                     name="references.site_sequences",
                 ),
             ),
+            reference_context=ReferenceContext.from_manifest(manifest),
         )
         return ReferenceBundle._from_owned(  # pyright: ignore[reportPrivateUsage] - trusted internal constructor avoids redundant frame copies
             organism=organism,

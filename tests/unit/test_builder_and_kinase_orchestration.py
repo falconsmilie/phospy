@@ -29,9 +29,11 @@ from phospy.api.results import (
     KinasePredictionResult,
     KinaseScoringResult,
 )
+from phospy.provenance.models import EnvironmentProvenance, RunProvenance
 from phospy.science.datasets.builders.contracts import InterpretedDatasetBuildRequest
 from phospy.science.datasets.preprocessing.models import PreprocessingPlan
 from phospy.science.prediction.policies import resolve_prediction_sampling_policy
+from phospy.science.references.models import ReferenceContext
 from phospy.science.signalomes.models import (
     KinaseNetwork,
     SignalomeAssignments,
@@ -419,6 +421,59 @@ def test_workflow_run_contract_returns_nested_results() -> None:
     assert not hasattr(result, "rank_weighted_fusion_scores")
     assert not hasattr(result, "weights")
     assert not hasattr(result, "substrate_list")
+
+
+def test_kinase_workflow_result_provenance_copies_input_dataset_reference_context() -> (
+    None
+):
+    reference_context = ReferenceContext(
+        organism=Organism.RAT.value,
+        protein_namespace="protein_id",
+        source_name="unit-test-reference",
+        source_version="v1",
+        proteome_version=None,
+        reference_table_sha256="a" * 64,
+    )
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=_phospho(),
+        site_metadata=_site_metadata(),
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+        provenance=RunProvenance(
+            environment=EnvironmentProvenance(
+                package_name="phospy",
+                package_version="test",
+                python_version="3.13",
+                dependency_versions={},
+            ),
+            input_tables=(),
+            preprocessing_stages=(),
+            reference=None,
+            workflow_name="unit_test_dataset",
+            workflow_parameters={},
+            random_state=None,
+            random_seed_policy=None,
+            output_tables=(),
+            reference_context=reference_context,
+        ),
+    )
+
+    result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=_bundle(),
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            activity_config=None,
+        )
+    )
+
+    assert result.provenance is not None
+    assert result.references.provenance is not None
+    assert result.references.provenance.reference_context is None
+    assert result.provenance.reference_context is reference_context
 
 
 def test_workflow_public_entrypoint_exercises_collaborators() -> None:

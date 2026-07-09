@@ -51,6 +51,12 @@ def test_bundled_reference_resolution_sets_bundled_provenance() -> None:
     assert resolved.provenance.identifier_namespace is not None
     assert resolved.provenance.sequence_window is not None
     assert resolved.provenance.manifest is not None
+    assert resolved.provenance.reference_context is not None
+    assert resolved.provenance.reference_context.organism == Organism.RAT.value
+    assert (
+        resolved.provenance.reference_context.protein_namespace
+        == resolved.provenance.identifier_namespace
+    )
     assert (
         resolved.provenance.manifest.get("bundle_id") == resolved.provenance.bundle_id
     )
@@ -115,6 +121,11 @@ def test_bundled_reference_provenance_serialization_round_trip_preserves_manifes
     assert "provenance_notes" in restored.reference.manifest
     assert restored.reference.source_name is not None
     assert restored.reference.identifier_namespace is not None
+    assert restored.reference.reference_context is not None
+    assert (
+        restored.reference.reference_context.reference_context_id
+        == resolved.provenance.reference_context.reference_context_id
+    )
 
 
 def test_explicit_reference_bundle_provenance_includes_identifier_normalisation() -> (

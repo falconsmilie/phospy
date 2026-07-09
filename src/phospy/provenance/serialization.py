@@ -25,6 +25,7 @@ from phospy.provenance.models import (
     TableFingerprint,
 )
 from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
+from phospy.science.references.models import ReferenceContext
 
 if TYPE_CHECKING:
     from phospy.science.references.identifiers import (
@@ -60,6 +61,11 @@ def to_payload(provenance: RunProvenance) -> dict[str, object]:
             None
             if provenance.reference is None
             else _reference_to_payload(provenance.reference)
+        ),
+        "reference_context": (
+            None
+            if provenance.reference_context is None
+            else provenance.reference_context.to_payload()
         ),
         "workflow_name": provenance.workflow_name,
         "workflow_parameters": _to_json_safe(provenance.workflow_parameters),
@@ -104,6 +110,10 @@ def from_payload(payload: Mapping[str, object]) -> RunProvenance:
         reference = _reference_from_payload(
             _require_mapping(reference_raw, field_name="provenance.reference")
         )
+    reference_context_payload = _optional_mapping(
+        payload.get("reference_context"),
+        field_name="provenance.reference_context",
+    )
     workflow_parameters = _require_mapping(
         payload.get("workflow_parameters"),
         field_name="provenance.workflow_parameters",
@@ -166,6 +176,9 @@ def from_payload(payload: Mapping[str, object]) -> RunProvenance:
             )
             for position, item in enumerate(scientific_policies_payload)
         ),
+        reference_context=None
+        if reference_context_payload is None
+        else ReferenceContext.from_payload(reference_context_payload),
     )
 
 
@@ -865,6 +878,11 @@ def _reference_to_payload(reference: ReferenceProvenance) -> dict[str, object]:
         "manifest": (
             None if reference.manifest is None else _to_json_safe(reference.manifest)
         ),
+        "reference_context": (
+            None
+            if reference.reference_context is None
+            else reference.reference_context.to_payload()
+        ),
         "table_fingerprints": [
             _table_fingerprint_to_payload(item) for item in reference.table_fingerprints
         ],
@@ -890,6 +908,10 @@ def _reference_from_payload(payload: Mapping[str, object]) -> ReferenceProvenanc
     manifest_payload = _optional_mapping(
         payload.get("manifest"),
         field_name="reference_provenance.manifest",
+    )
+    reference_context_payload = _optional_mapping(
+        payload.get("reference_context"),
+        field_name="reference_provenance.reference_context",
     )
     return ReferenceProvenance(
         source_type=_require_str(
@@ -931,6 +953,9 @@ def _reference_from_payload(payload: Mapping[str, object]) -> ReferenceProvenanc
         else {
             str(key): _to_json_value(value) for key, value in manifest_payload.items()
         },
+        reference_context=None
+        if reference_context_payload is None
+        else ReferenceContext.from_payload(reference_context_payload),
         table_fingerprints=tuple(
             _table_fingerprint_from_payload(
                 _require_mapping(

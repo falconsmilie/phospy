@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import InitVar, dataclass, field
 from datetime import date
 from enum import Enum
@@ -13,7 +14,7 @@ import pandas as pd
 
 from phospy.errors.validation import ReferenceValidationError
 from phospy.frames.ownership import export_dataframe, own_dataframe
-from phospy.provenance.hashing import fingerprint_table
+from phospy.provenance.hashing import fingerprint_table, hash_json_payload
 from phospy.provenance.models import JsonValue, ReferenceProvenance
 from phospy.science.references.manifest import (
     RedistributionStatus as RedistributionStatus,
@@ -53,10 +54,227 @@ class ReferencePreset(str, Enum):
 
 
 ReferenceBuildPath = str | Path | PathLike[str]
+_REFERENCE_CONTEXT_ID_PREFIX = "reference-context-v1:"
 
 
 def _empty_json_dict() -> dict[str, JsonValue]:
     return {}
+
+
+@dataclass(frozen=True, slots=True)
+class ReferenceContext:
+    """Comparable biological reference identity context."""
+
+    organism: str
+    protein_namespace: str
+    source_name: str
+    source_version: str
+    proteome_version: str | None
+    reference_table_sha256: str | None
+    reference_context_id: str = field(init=False, compare=False)
+
+    def __post_init__(self) -> None:
+        organism = _required_reference_context_text(
+            self.organism,
+            field_name="reference_context.organism",
+        ).lower()
+        protein_namespace = _required_reference_context_text(
+            self.protein_namespace,
+            field_name="reference_context.protein_namespace",
+        )
+        source_name = _required_reference_context_text(
+            self.source_name,
+            field_name="reference_context.source_name",
+        )
+        source_version = _required_reference_context_text(
+            self.source_version,
+            field_name="reference_context.source_version",
+        )
+        proteome_version = _optional_reference_context_text(self.proteome_version)
+        reference_table_sha256 = _optional_reference_context_text(
+            self.reference_table_sha256
+        )
+        if reference_table_sha256 is not None:
+            reference_table_sha256 = reference_table_sha256.lower()
+        object.__setattr__(self, "organism", organism)
+        object.__setattr__(self, "protein_namespace", protein_namespace)
+        object.__setattr__(self, "source_name", source_name)
+        object.__setattr__(self, "source_version", source_version)
+        object.__setattr__(self, "proteome_version", proteome_version)
+        object.__setattr__(
+            self,
+            "reference_table_sha256",
+            reference_table_sha256,
+        )
+        object.__setattr__(
+            self,
+            "reference_context_id",
+            _REFERENCE_CONTEXT_ID_PREFIX + hash_json_payload(self._identity_payload()),
+        )
+
+    @classmethod
+    def from_manifest(cls, manifest: ReferenceManifest) -> ReferenceContext:
+        """Build a reference context from manifest identity metadata."""
+
+        return cls(
+            organism=manifest.organism_common_name or manifest.organism,
+            protein_namespace=manifest.protein_namespace,
+            source_name=manifest.source_name,
+            source_version=manifest.source_version or manifest.reference_version,
+            proteome_version=None,
+            reference_table_sha256=manifest.table_sha256,
+        )
+
+    @classmethod
+    def from_manifest_payload(
+        cls,
+        payload: Mapping[str, JsonValue],
+    ) -> ReferenceContext | None:
+        """Build a reference context from serialized manifest identity metadata."""
+
+        return _reference_context_from_manifest_payload(payload)
+
+    @classmethod
+    def from_payload(cls, payload: Mapping[str, object]) -> ReferenceContext:
+        """Deserialize a reference context payload."""
+
+        return cls(
+            organism=_payload_required_text(
+                payload,
+                "organism",
+                field_name="reference_context.organism",
+            ),
+            protein_namespace=_payload_required_text(
+                payload,
+                "protein_namespace",
+                field_name="reference_context.protein_namespace",
+            ),
+            source_name=_payload_required_text(
+                payload,
+                "source_name",
+                field_name="reference_context.source_name",
+            ),
+            source_version=_payload_required_text(
+                payload,
+                "source_version",
+                field_name="reference_context.source_version",
+            ),
+            proteome_version=_payload_optional_text(payload.get("proteome_version")),
+            reference_table_sha256=_payload_optional_text(
+                payload.get("reference_table_sha256")
+            ),
+        )
+
+    def to_payload(self) -> dict[str, JsonValue]:
+        """Return a JSON-compatible reference-context payload."""
+
+        payload = self._identity_payload()
+        payload["reference_context_id"] = self.reference_context_id
+        return payload
+
+    def _identity_payload(self) -> dict[str, JsonValue]:
+        return {
+            "organism": self.organism,
+            "protein_namespace": self.protein_namespace,
+            "source_name": self.source_name,
+            "source_version": self.source_version,
+            "proteome_version": self.proteome_version,
+            "reference_table_sha256": self.reference_table_sha256,
+        }
+
+
+def reference_context_from_provenance(
+    provenance: ReferenceProvenance,
+    *,
+    manifest: ReferenceManifest | None = None,
+) -> ReferenceContext | None:
+    """Resolve a reference context from provenance or richer manifest metadata."""
+
+    if provenance.reference_context is not None:
+        return provenance.reference_context
+    if manifest is not None:
+        return ReferenceContext.from_manifest(manifest)
+    if provenance.manifest is not None:
+        return _reference_context_from_manifest_payload(provenance.manifest)
+    if (
+        provenance.source_name is None
+        or provenance.source_version is None
+        or provenance.identifier_namespace is None
+    ):
+        return None
+    return ReferenceContext(
+        organism=provenance.organism,
+        protein_namespace=provenance.identifier_namespace,
+        source_name=provenance.source_name,
+        source_version=provenance.source_version,
+        proteome_version=None,
+        reference_table_sha256=None,
+    )
+
+
+def _reference_context_from_manifest_payload(
+    payload: Mapping[str, JsonValue],
+) -> ReferenceContext | None:
+    organism = _payload_optional_text(
+        payload.get("organism_common_name")
+    ) or _payload_optional_text(payload.get("organism"))
+    protein_namespace = _payload_optional_text(
+        payload.get("protein_namespace")
+    ) or _payload_optional_text(payload.get("identifier_namespace"))
+    source_name = _payload_optional_text(payload.get("source_name"))
+    source_version = _payload_optional_text(
+        payload.get("source_version")
+    ) or _payload_optional_text(payload.get("reference_version"))
+    if (
+        organism is None
+        or protein_namespace is None
+        or source_name is None
+        or source_version is None
+    ):
+        return None
+    return ReferenceContext(
+        organism=organism,
+        protein_namespace=protein_namespace,
+        source_name=source_name,
+        source_version=source_version,
+        proteome_version=_payload_optional_text(payload.get("proteome_version")),
+        reference_table_sha256=_payload_optional_text(payload.get("table_sha256")),
+    )
+
+
+def _required_reference_context_text(value: object, *, field_name: str) -> str:
+    text = str(value).strip()
+    if not text:
+        raise ReferenceValidationError(f"{field_name} must be non-empty")
+    return text
+
+
+def _optional_reference_context_text(value: object | None) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _payload_required_text(
+    payload: Mapping[str, object],
+    key: str,
+    *,
+    field_name: str,
+) -> str:
+    value = payload.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise ReferenceValidationError(f"{field_name} must be non-empty")
+    return value.strip()
+
+
+def _payload_optional_text(value: object) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    return text or None
 
 
 @dataclass(frozen=True, slots=True)
@@ -266,6 +484,9 @@ class ReferenceBundle:
         )
         provenance = self.provenance
         manifest = self.manifest
+        reference_context = (
+            ReferenceContext.from_manifest(manifest) if manifest is not None else None
+        )
         from phospy.validation.references.bundle import ReferenceBundleValidator
 
         validation = ReferenceBundleValidator().run(
@@ -292,24 +513,47 @@ class ReferenceBundle:
                     ),
                 ),
                 identifier_normalisation=identifier_normalisation,
+                reference_context=reference_context,
             )
-        elif (
-            provenance.source_type == "explicit"
-            and provenance.identifier_normalisation is None
-        ):
-            provenance = ReferenceProvenance(
-                source_type=provenance.source_type,
-                organism=provenance.organism,
-                bundle_id=provenance.bundle_id,
-                source_name=provenance.source_name,
-                source_version=provenance.source_version,
-                retrieved_at=provenance.retrieved_at,
-                identifier_namespace=provenance.identifier_namespace,
-                sequence_window=provenance.sequence_window,
-                manifest=provenance.manifest,
-                table_fingerprints=provenance.table_fingerprints,
-                identifier_normalisation=identifier_normalisation,
+        else:
+            resolved_reference_context = reference_context_from_provenance(
+                provenance,
+                manifest=manifest,
             )
+            should_attach_identifier_normalisation = (
+                provenance.source_type == "explicit"
+                and provenance.identifier_normalisation is None
+            )
+            should_attach_reference_context = (
+                provenance.reference_context is None
+                and resolved_reference_context is not None
+            )
+            if (
+                should_attach_identifier_normalisation
+                or should_attach_reference_context
+            ):
+                provenance = ReferenceProvenance(
+                    source_type=provenance.source_type,
+                    organism=provenance.organism,
+                    bundle_id=provenance.bundle_id,
+                    source_name=provenance.source_name,
+                    source_version=provenance.source_version,
+                    retrieved_at=provenance.retrieved_at,
+                    identifier_namespace=provenance.identifier_namespace,
+                    sequence_window=provenance.sequence_window,
+                    manifest=provenance.manifest,
+                    table_fingerprints=provenance.table_fingerprints,
+                    identifier_normalisation=(
+                        identifier_normalisation
+                        if should_attach_identifier_normalisation
+                        else provenance.identifier_normalisation
+                    ),
+                    reference_context=(
+                        resolved_reference_context
+                        if should_attach_reference_context
+                        else provenance.reference_context
+                    ),
+                )
         object.__setattr__(
             self,
             "kinase_substrate_map",

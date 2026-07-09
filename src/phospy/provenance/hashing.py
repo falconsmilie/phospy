@@ -16,6 +16,7 @@ import pandas as pd
 from phospy.provenance.models import JsonValue, TableFingerprint
 
 DEFAULT_TABLE_HASH_ALGORITHM = "sha256"
+DEFAULT_STABLE_JSON_HASH_ALGORITHM = "sha256-stable-json-v1"
 DEFAULT_EXACT_TABLE_HASH_ALGORITHM = "sha256-stable-json-v1"
 DEFAULT_TOLERANCE_TABLE_HASH_ALGORITHM = "sha256-float-round-8dp-v1"
 _MISSING_SENTINEL = "<MISSING>"
@@ -155,6 +156,18 @@ def fingerprint_optional_matrix(
     if matrix is None:
         return None
     return fingerprint_matrix(matrix, name=name, algorithm=algorithm)
+
+
+def hash_json_payload(
+    payload: JsonValue,
+    *,
+    algorithm: str = DEFAULT_TABLE_HASH_ALGORITHM,
+) -> str:
+    """Return a deterministic digest for a JSON-compatible payload."""
+
+    hasher = hashlib.new(algorithm)
+    _update(hasher, payload)
+    return hasher.hexdigest()
 
 
 def _fingerprint_optional_table_with_normalized_axes(
@@ -379,12 +392,14 @@ def _normalize_table_axes_for_fingerprint(table: pd.DataFrame) -> pd.DataFrame:
 
 __all__ = [
     "DEFAULT_EXACT_TABLE_HASH_ALGORITHM",
+    "DEFAULT_STABLE_JSON_HASH_ALGORITHM",
     "DEFAULT_TABLE_HASH_ALGORITHM",
     "DEFAULT_TOLERANCE_TABLE_HASH_ALGORITHM",
     "fingerprint_matrix",
     "fingerprint_optional_matrix",
     "fingerprint_optional_table",
     "fingerprint_table",
+    "hash_json_payload",
     "hash_table_exact",
     "hash_table_tolerance",
 ]

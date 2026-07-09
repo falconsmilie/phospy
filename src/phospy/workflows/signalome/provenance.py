@@ -124,6 +124,7 @@ class SignalomeProvenanceBuilder:
             random_seed_policy=None,
             output_tables=output_tables,
             scientific_policies=scientific_policies,
+            reference_context=request.dataset.reference_context,
         )
 
     @staticmethod
