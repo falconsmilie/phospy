@@ -296,8 +296,8 @@ facade is intentionally smaller than the implementation modules; validators,
 workflow executors, processing-state internals, nested diagnostic records, and
 compatibility constants are not stable public API.
 
-`EnrichmentWorkflow` is a supported public workflow from `phospy.api` and
-`phospy.workflows`:
+`EnrichmentWorkflow` is a supported public workflow from `phospy.api`, not a
+top-level `phospy` convenience export:
 
 ```python
 from phospy.api import EnrichmentConfig, EnrichmentWorkflow

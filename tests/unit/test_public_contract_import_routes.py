@@ -35,6 +35,7 @@ API_ONLY_CONTRACT_TYPES = {
     "DatasetSiteMatrixConfig",
     "EnrichmentConfig",
     "EnrichmentIdentifierKind",
+    "EnrichmentWorkflow",
     "EnrichmentWorkflowRequest",
     "EnrichmentWorkflowResult",
     "GeneSetCollection",
@@ -102,6 +103,7 @@ def test_top_level_package_exports_only_curated_convenience_surface() -> None:
     for exported in API_ONLY_CONTRACT_TYPES:
         assert exported in public_api.__all__
         assert exported not in phospy.__all__
+        assert not hasattr(phospy, exported)
 
 
 def test_differential_analysis_is_not_supported_from_phospy_api_namespace() -> None:

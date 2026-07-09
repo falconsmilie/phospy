@@ -38,6 +38,8 @@ signalome_result = SignalomeWorkflow().run(signalome_request)
 Enrichment is independent of the dataset/kinase/signalome chain:
 
 ```python
+from phospy.api import EnrichmentWorkflow
+
 enrichment_result = EnrichmentWorkflow().run(enrichment_request)
 ```
 
@@ -86,7 +88,8 @@ from phospy.api import (
 )
 ```
 
-`EnrichmentWorkflow` is a supported public workflow from `phospy.api`:
+`EnrichmentWorkflow` is a supported public workflow from `phospy.api`, not a
+top-level `phospy` convenience export:
 
 ```python
 from phospy.api import (

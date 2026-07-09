@@ -103,6 +103,8 @@ Sets outside the configured range are excluded before ORA p-values are
 calculated. Multiple-testing correction then uses only the tested sets.
 
 ```python
+from phospy.api import EnrichmentConfig, EnrichmentWorkflow, EnrichmentWorkflowRequest
+
 request = EnrichmentWorkflowRequest(
     identifier_column="gene_symbol",
     identifier_kind="gene_symbol",
@@ -121,7 +123,8 @@ print(result.diagnostics["set_size_filter"]["dropped_set_count"])
 
 ## Running the Workflow
 
-`EnrichmentWorkflow` is exported from `phospy.api`.
+`EnrichmentWorkflow` is exported from `phospy.api`, not from the top-level
+`phospy` package.
 
 ```python
 from phospy.api import EnrichmentWorkflow
