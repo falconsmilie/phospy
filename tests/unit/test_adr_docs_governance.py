@@ -8,6 +8,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 ADR_ROOT = ROOT / "docs" / "adr"
 ADR_INDEX = ADR_ROOT / "index.md"
+ADR_0034 = (
+    ADR_ROOT / "adr_0034_quantitative_state_motif_semantics_and_reference_context.md"
+)
 
 _ADR_ID_PATTERN = re.compile(r"^- \*\*ADR ID:\*\*\s*(ADR-\d{4})\s*$", re.MULTILINE)
 _ADR_STATUS_PATTERN = re.compile(r"^- \*\*Status:\*\*\s*(.+?)\s*$", re.MULTILINE)
@@ -144,3 +147,29 @@ def test_adr_0012_is_not_active_governance() -> None:
     adr_0012 = ADR_ROOT / "adr_0012_rewrite_roadmap_and_fresh_start_plan.md"
     _, status = _parse_adr_control(adr_0012)
     assert status != "Accepted", "ADR-0012 must not be an active accepted decision"
+
+
+def test_adr_0034_records_quantitative_motif_and_reference_decisions() -> None:
+    normalized = " ".join(_read_text(ADR_0034).lower().split())
+
+    required_terms = (
+        "kinase_library_contextual_motif",
+        "kinase_library_motif_only",
+        "profile_self_inclusion_policy",
+        "observed_transformation",
+        "declared_by_user",
+        "inferred_from_metadata",
+        "input_intensity_scale_declared_by_user",
+        "referencecontext",
+        "`site_key` does not include reference version",
+        "phosphosite_abundance",
+        "phosphosite_log_abundance",
+        "contrast_log2_fold_change",
+        "differential_effect_size",
+        "activity_score",
+        "mixed_phospho_total_log_ratio_and_phosphosite_log_abundance",
+        "unknown quantitative meaning is rejected by default",
+    )
+    missing = [term for term in required_terms if term not in normalized]
+
+    assert missing == []
