@@ -57,6 +57,24 @@ class _DeclaredInputIntensityScaleResolution:
     establishment_transformer_name: str | None
 
 
+@dataclass(frozen=True, slots=True)
+class _SourcedIntensityTransformationEvent:
+    source: str
+    event: IntensityTransformationEvent
+
+
+_INTENSITY_TRANSFORMATION_EVENT_DEDUP_FIELDS = (
+    "transformer_name",
+    "input_scale",
+    "output_scale",
+    "evidence_level",
+    "transformation_kind",
+    "pseudocount",
+    "input_fingerprint",
+    "output_fingerprint",
+)
+
+
 class DatasetTransformationStateResolver:
     """Resolve final dataset transformation state from preprocessing outputs."""
 
@@ -309,27 +327,107 @@ def _resolve_intensity_transformation_events(
     *,
     preprocessed: PreprocessedDatasetBuildTables,
 ) -> tuple[IntensityTransformationEvent, ...]:
-    events: list[IntensityTransformationEvent] = []
+    events: list[_SourcedIntensityTransformationEvent] = []
     for index, stage in enumerate(preprocessed.preprocessing_trace or ()):
         if stage.intensity_transformation_event is None:
             continue
+        source = (
+            f"preprocessed.preprocessing_trace[{index}].intensity_transformation_event"
+        )
         events.append(
-            _require_intensity_transformation_event(
-                stage.intensity_transformation_event,
-                source=(
-                    "preprocessed.preprocessing_trace"
-                    f"[{index}].intensity_transformation_event"
+            _SourcedIntensityTransformationEvent(
+                source=source,
+                event=_require_intensity_transformation_event(
+                    stage.intensity_transformation_event,
+                    source=source,
                 ),
             )
         )
     if preprocessed.intensity_transformation_event is not None:
         events.append(
-            _require_intensity_transformation_event(
-                preprocessed.intensity_transformation_event,
+            _SourcedIntensityTransformationEvent(
                 source="preprocessed.intensity_transformation_event",
+                event=_require_intensity_transformation_event(
+                    preprocessed.intensity_transformation_event,
+                    source="preprocessed.intensity_transformation_event",
+                ),
             )
         )
-    return tuple(events)
+    return _deduplicate_or_reject_intensity_transformation_events(tuple(events))
+
+
+def _deduplicate_or_reject_intensity_transformation_events(
+    events: tuple[_SourcedIntensityTransformationEvent, ...],
+) -> tuple[IntensityTransformationEvent, ...]:
+    selected_by_evidence: dict[
+        IntensityScaleEvidenceLevel, _SourcedIntensityTransformationEvent
+    ] = {}
+    unique_events: list[IntensityTransformationEvent] = []
+    for sourced in events:
+        evidence_level = sourced.event.evidence_level
+        existing = selected_by_evidence.get(evidence_level)
+        if existing is None:
+            selected_by_evidence[evidence_level] = sourced
+            unique_events.append(sourced.event)
+            continue
+        differing_fields = _differing_intensity_transformation_event_fields(
+            existing.event,
+            sourced.event,
+        )
+        if differing_fields:
+            _raise_intensity_transformation_event_conflict(
+                evidence_level=evidence_level,
+                first_source=existing.source,
+                conflicting_source=sourced.source,
+                differing_fields=differing_fields,
+                first_event=existing.event,
+                conflicting_event=sourced.event,
+            )
+        # Duplicate event from trace/top-level provenance surfaces.
+    return tuple(unique_events)
+
+
+def _intensity_transformation_event_comparison_payload(
+    event: IntensityTransformationEvent,
+) -> dict[str, object]:
+    payload = event.to_payload()
+    return {
+        field_name: payload[field_name]
+        for field_name in _INTENSITY_TRANSFORMATION_EVENT_DEDUP_FIELDS
+    }
+
+
+def _differing_intensity_transformation_event_fields(
+    left: IntensityTransformationEvent,
+    right: IntensityTransformationEvent,
+) -> tuple[str, ...]:
+    left_payload = _intensity_transformation_event_comparison_payload(left)
+    right_payload = _intensity_transformation_event_comparison_payload(right)
+    return tuple(
+        field_name
+        for field_name in _INTENSITY_TRANSFORMATION_EVENT_DEDUP_FIELDS
+        if left_payload[field_name] != right_payload[field_name]
+    )
+
+
+def _raise_intensity_transformation_event_conflict(
+    *,
+    evidence_level: IntensityScaleEvidenceLevel,
+    first_source: str,
+    conflicting_source: str,
+    differing_fields: tuple[str, ...],
+    first_event: IntensityTransformationEvent,
+    conflicting_event: IntensityTransformationEvent,
+) -> None:
+    field_label = "/".join(differing_fields)
+    raise DatasetBuildError(
+        "dataset preprocessing intensity transformation event conflict: "
+        f"evidence_level={evidence_level.value!r} appears more than once with "
+        f"different {field_label}; sources: {first_source} and "
+        f"{conflicting_source}; transformer_names: "
+        f"first={first_event.transformer_name!r}, "
+        f"conflicting={conflicting_event.transformer_name!r}"
+    )
 
 
 def _require_intensity_transformation_event(
@@ -351,11 +449,28 @@ def _select_intensity_transformation_event(
     *,
     evidence_level: IntensityScaleEvidenceLevel,
 ) -> IntensityTransformationEvent | None:
-    selected: IntensityTransformationEvent | None = None
+    matching_events: list[IntensityTransformationEvent] = []
     for event in events:
         if event.evidence_level is evidence_level:
-            selected = event
-    return selected
+            matching_events.append(event)
+    if not matching_events:
+        return None
+    first_event = matching_events[0]
+    for index, event in enumerate(matching_events[1:], start=1):
+        differing_fields = _differing_intensity_transformation_event_fields(
+            first_event,
+            event,
+        )
+        if differing_fields:
+            _raise_intensity_transformation_event_conflict(
+                evidence_level=evidence_level,
+                first_source="events[0]",
+                conflicting_source=f"events[{index}]",
+                differing_fields=differing_fields,
+                first_event=first_event,
+                conflicting_event=event,
+            )
+    return first_event
 
 
 def _reject_missing_observed_intensity_transformation_event(

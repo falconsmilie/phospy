@@ -94,18 +94,43 @@ def _total() -> pd.DataFrame:
     return pd.DataFrame({"sample_a": [2.0]}, index=["MAPK14"])
 
 
-def _log2_event(*, pseudocount: float = 1.0) -> IntensityTransformationEvent:
+def _log2_event(
+    *,
+    pseudocount: float = 1.0,
+    output_established_by: str = "tests.log2",
+) -> IntensityTransformationEvent:
     return IntensityTransformationEvent(
         transformer_name=(
             "phospy.science.transformations.transformers.log2.Log2Transformer"
         ),
         input_scale=MatrixIntensityScaleState.linear(established_by="tests.linear"),
-        output_scale=MatrixIntensityScaleState.log2(established_by="tests.log2"),
+        output_scale=MatrixIntensityScaleState.log2(
+            established_by=output_established_by
+        ),
         evidence_level=IntensityScaleEvidenceLevel.OBSERVED_TRANSFORMATION,
         transformation_kind="log2",
         pseudocount=pseudocount,
         input_fingerprint="input-fingerprint",
         output_fingerprint="output-fingerprint",
+    )
+
+
+def _declared_event(
+    *,
+    kind: IntensityScaleKind = IntensityScaleKind.LOG2,
+    established_by: str = "tests.declared",
+) -> IntensityTransformationEvent:
+    scale = (
+        MatrixIntensityScaleState.log2(established_by=established_by)
+        if kind is IntensityScaleKind.LOG2
+        else MatrixIntensityScaleState.linear(established_by=established_by)
+    )
+    return IntensityTransformationEvent(
+        transformer_name="dataset_build_request.input_intensity_scale",
+        input_scale=scale,
+        output_scale=scale,
+        evidence_level=IntensityScaleEvidenceLevel.DECLARED_BY_USER,
+        transformation_kind="declared_by_user",
     )
 
 
@@ -768,6 +793,248 @@ def test_builder_observed_typed_event_establishes_log2_before_declaration() -> N
     assert isinstance(workflow_payload, dict)
     assert workflow_payload["evidence_level"] == "observed_transformation"
     assert workflow_payload["transformer_name"] == event.transformer_name
+
+
+def test_builder_deduplicates_identical_trace_and_top_level_transformation_event() -> (
+    None
+):
+    trace_event = _log2_event(pseudocount=0.25)
+    top_level_event = _log2_event(pseudocount=0.25)
+    assert trace_event == top_level_event
+    assert trace_event is not top_level_event
+
+    class EventPreprocessor:
+        def run(
+            self,
+            *,
+            phospho: pd.DataFrame,
+            site_metadata: pd.DataFrame,
+            sample_metadata: pd.DataFrame | None,
+            total: pd.DataFrame | None,
+            plan: PreprocessingPlan,
+        ) -> PreprocessedDatasetBuildTables:
+            return PreprocessedDatasetBuildTables(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                sample_metadata=sample_metadata,
+                total=total,
+                preprocessing_trace=(
+                    _intensity_transform_execution(event=trace_event),
+                ),
+                intensity_transformation_event=top_level_event,
+            )
+
+    built = DatasetBuildExecutor(preprocessor=EventPreprocessor()).run(
+        InterpretedDatasetBuildRequest(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(),
+            sample_metadata=None,
+            total=None,
+            organism=Organism.RAT,
+            preprocessing_plan=PreprocessingPlan(
+                intensity_transform_policy="log2",
+                intensity_transform_pseudocount=0.25,
+                stage_order=("intensity_transform",),
+            ),
+        )
+    )
+
+    provenance = built.intensity_scale_state.establishment_provenance
+    assert provenance is not None
+    assert (
+        provenance.evidence_level is IntensityScaleEvidenceLevel.OBSERVED_TRANSFORMATION
+    )
+    assert provenance.parameters["pseudocount"] == 0.25
+
+
+def test_builder_rejects_conflicting_observed_transformation_events() -> None:
+    trace_event = _log2_event(pseudocount=0.5)
+    top_level_event = _log2_event(pseudocount=1.0)
+
+    class EventPreprocessor:
+        def run(
+            self,
+            *,
+            phospho: pd.DataFrame,
+            site_metadata: pd.DataFrame,
+            sample_metadata: pd.DataFrame | None,
+            total: pd.DataFrame | None,
+            plan: PreprocessingPlan,
+        ) -> PreprocessedDatasetBuildTables:
+            return PreprocessedDatasetBuildTables(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                sample_metadata=sample_metadata,
+                total=total,
+                preprocessing_trace=(
+                    _intensity_transform_execution(event=trace_event),
+                ),
+                intensity_transformation_event=top_level_event,
+            )
+
+    with pytest.raises(
+        DatasetBuildError,
+        match="evidence_level='observed_transformation'",
+    ):
+        DatasetBuildExecutor(preprocessor=EventPreprocessor()).run(
+            InterpretedDatasetBuildRequest(
+                phospho=_phospho(),
+                site_metadata=_site_metadata(),
+                sample_metadata=None,
+                total=None,
+                organism=Organism.RAT,
+                preprocessing_plan=PreprocessingPlan(
+                    intensity_transform_policy="log2",
+                    stage_order=("intensity_transform",),
+                ),
+            )
+        )
+
+
+def test_builder_rejects_conflicting_declared_transformation_events() -> None:
+    trace_event = _declared_event(
+        kind=IntensityScaleKind.LOG2,
+        established_by="tests.declared.log2",
+    )
+    top_level_event = _declared_event(
+        kind=IntensityScaleKind.LINEAR,
+        established_by="tests.declared.linear",
+    )
+
+    class EventPreprocessor:
+        def run(
+            self,
+            *,
+            phospho: pd.DataFrame,
+            site_metadata: pd.DataFrame,
+            sample_metadata: pd.DataFrame | None,
+            total: pd.DataFrame | None,
+            plan: PreprocessingPlan,
+        ) -> PreprocessedDatasetBuildTables:
+            return PreprocessedDatasetBuildTables(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                sample_metadata=sample_metadata,
+                total=total,
+                preprocessing_trace=(
+                    _intensity_transform_execution(event=trace_event),
+                ),
+                intensity_transformation_event=top_level_event,
+            )
+
+    with pytest.raises(
+        DatasetBuildError,
+        match=("evidence_level='declared_by_user'.*different input_scale/output_scale"),
+    ):
+        DatasetBuildExecutor(preprocessor=EventPreprocessor()).run(
+            InterpretedDatasetBuildRequest(
+                phospho=_phospho(),
+                site_metadata=_site_metadata(),
+                sample_metadata=None,
+                total=None,
+                organism=Organism.RAT,
+            )
+        )
+
+
+def test_builder_conflicting_event_error_identifies_sources_and_fields() -> None:
+    trace_event = _log2_event(pseudocount=0.5)
+    top_level_event = _log2_event(
+        pseudocount=1.0,
+        output_established_by="tests.other.log2",
+    )
+
+    class EventPreprocessor:
+        def run(
+            self,
+            *,
+            phospho: pd.DataFrame,
+            site_metadata: pd.DataFrame,
+            sample_metadata: pd.DataFrame | None,
+            total: pd.DataFrame | None,
+            plan: PreprocessingPlan,
+        ) -> PreprocessedDatasetBuildTables:
+            return PreprocessedDatasetBuildTables(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                sample_metadata=sample_metadata,
+                total=total,
+                preprocessing_trace=(
+                    _intensity_transform_execution(event=trace_event),
+                ),
+                intensity_transformation_event=top_level_event,
+            )
+
+    with pytest.raises(DatasetBuildError) as exc_info:
+        DatasetBuildExecutor(preprocessor=EventPreprocessor()).run(
+            InterpretedDatasetBuildRequest(
+                phospho=_phospho(),
+                site_metadata=_site_metadata(),
+                sample_metadata=None,
+                total=None,
+                organism=Organism.RAT,
+                preprocessing_plan=PreprocessingPlan(
+                    intensity_transform_policy="log2",
+                    stage_order=("intensity_transform",),
+                ),
+            )
+        )
+
+    message = str(exc_info.value)
+    assert "evidence_level='observed_transformation'" in message
+    assert (
+        "preprocessed.preprocessing_trace[0].intensity_transformation_event" in message
+    )
+    assert "preprocessed.intensity_transformation_event" in message
+    assert "output_scale/pseudocount" in message
+    assert trace_event.transformer_name in message
+
+
+def test_builder_observed_event_still_takes_priority_over_declared_input_scale() -> (
+    None
+):
+    event = _log2_event(pseudocount=0.5)
+
+    class EventPreprocessor:
+        def run(
+            self,
+            *,
+            phospho: pd.DataFrame,
+            site_metadata: pd.DataFrame,
+            sample_metadata: pd.DataFrame | None,
+            total: pd.DataFrame | None,
+            plan: PreprocessingPlan,
+        ) -> PreprocessedDatasetBuildTables:
+            return PreprocessedDatasetBuildTables(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                sample_metadata=sample_metadata,
+                total=total,
+                preprocessing_trace=(_intensity_transform_execution(event=event),),
+            )
+
+    built = DatasetBuildExecutor(preprocessor=EventPreprocessor()).run(
+        InterpretedDatasetBuildRequest(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(),
+            sample_metadata=None,
+            total=None,
+            organism=Organism.RAT,
+            declared_input_intensity_scale_kind=IntensityScaleKind.LINEAR,
+            preprocessing_plan=PreprocessingPlan(
+                intensity_transform_policy="log2",
+                intensity_transform_pseudocount=0.5,
+                stage_order=("intensity_transform",),
+            ),
+        )
+    )
+
+    provenance = built.intensity_scale_state.establishment_provenance
+    assert built.intensity_scale_state.kind is IntensityScaleKind.LOG2
+    assert provenance is not None
+    assert (
+        provenance.evidence_level is IntensityScaleEvidenceLevel.OBSERVED_TRANSFORMATION
+    )
 
 
 def test_builder_declared_only_scale_records_declared_evidence() -> None:
