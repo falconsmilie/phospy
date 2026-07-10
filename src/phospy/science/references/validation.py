@@ -12,6 +12,8 @@ from typing import cast
 from phospy.science.references.errors import ReferenceManifestError
 from phospy.science.references.manifest import (
     REFERENCE_MANIFEST_SCHEMA_VERSION,
+    RedistributionEvidence,
+    RedistributionEvidenceType,
     RedistributionStatus,
     ReferenceFileManifest,
     ReferenceManifest,
@@ -51,6 +53,25 @@ _REQUIRED_FILE_FIELDS = frozenset(
         "row_count",
         "column_names",
     }
+)
+_REQUIRED_REDISTRIBUTION_EVIDENCE_FIELDS = frozenset(
+    {
+        "evidence_type",
+        "applies_to_exact_packaged_files",
+        "evidence_url",
+        "evidence_reference",
+        "verified_at",
+    }
+)
+_APPROVAL_CONTRADICTION_PHRASES = (
+    "not independently verified",
+    "not verified",
+    "unverified",
+    "not legal approval",
+    "not approval",
+    "unresolved",
+    "unknown",
+    "no separate license grant",
 )
 
 
@@ -141,6 +162,11 @@ def parse_reference_manifest_payload(
             key="redistribution_notes",
             context=context,
         ),
+        redistribution_evidence=_optional_redistribution_evidence(
+            payload,
+            key="redistribution_evidence",
+            context=context,
+        ),
         derived_from=_require_string_tuple(
             payload,
             key="derived_from",
@@ -201,16 +227,11 @@ def validate_reference_manifest(
     if not isinstance(manifest, ReferenceManifest):
         raise ReferenceManifestError("reference manifest must be ReferenceManifest")
     root = Path(bundle_root)
-    _validate_required_manifest_values(manifest)
+    release_gate = bundled or require_redistribution_allowed
+    _validate_required_manifest_values(manifest, release_gate=release_gate)
     _validate_sequence_context(manifest)
-    if (
-        bundled or require_redistribution_allowed
-    ) and manifest.redistribution_status is not RedistributionStatus.APPROVED:
-        raise ReferenceManifestError(
-            "bundled reference manifest redistribution_status must be 'approved' "
-            f"for release-gate validation: {manifest.reference_id} declares "
-            f"{manifest.redistribution_status.value!r}"
-        )
+    if release_gate:
+        _validate_release_gate_redistribution_approval(manifest)
     listed_files: set[Path] = set()
     for file_manifest in manifest.files:
         resolved_path = _resolve_manifest_file_path(
@@ -260,7 +281,11 @@ def validate_bundled_reference_manifests(
     return tuple(manifests)
 
 
-def _validate_required_manifest_values(manifest: ReferenceManifest) -> None:
+def _validate_required_manifest_values(
+    manifest: ReferenceManifest,
+    *,
+    release_gate: bool,
+) -> None:
     for field_name in (
         "reference_id",
         "organism",
@@ -285,12 +310,128 @@ def _validate_required_manifest_values(manifest: ReferenceManifest) -> None:
     if manifest.redistribution_status is RedistributionStatus.APPROVED and (
         manifest.license_name is None or manifest.license_url is None
     ):
+        if release_gate:
+            field = "license_name" if manifest.license_name is None else "license_url"
+            raise ReferenceManifestError(
+                _format_release_gate_failure(
+                    manifest,
+                    field=field,
+                    reason=(
+                        "approved bundled reference requires license_name and "
+                        "license_url"
+                    ),
+                )
+            )
         raise ReferenceManifestError(
             "reference manifest license_name and license_url are required when "
             "redistribution_status is 'approved'"
         )
     if not manifest.files:
         raise ReferenceManifestError("reference manifest files must not be empty")
+
+
+def _validate_release_gate_redistribution_approval(
+    manifest: ReferenceManifest,
+) -> None:
+    if manifest.redistribution_status is not RedistributionStatus.APPROVED:
+        raise ReferenceManifestError(
+            _format_release_gate_failure(
+                manifest,
+                field="redistribution_status",
+                reason=(
+                    "bundled reference requires redistribution_status 'approved' "
+                    "for release-gate validation"
+                ),
+            )
+        )
+    _validate_approved_text_has_no_contradictions(manifest)
+    evidence = manifest.redistribution_evidence
+    if evidence is None:
+        raise ReferenceManifestError(
+            _format_release_gate_failure(
+                manifest,
+                field="redistribution_evidence",
+                reason=(
+                    "approved bundled reference requires structured exact-file "
+                    "redistribution evidence"
+                ),
+            )
+        )
+    if not evidence.applies_to_exact_packaged_files:
+        raise ReferenceManifestError(
+            _format_release_gate_failure(
+                manifest,
+                field="redistribution_evidence.applies_to_exact_packaged_files",
+                reason=(
+                    "approved bundled reference evidence must apply to exact "
+                    "packaged files"
+                ),
+            )
+        )
+    if not evidence.evidence_reference.strip():
+        raise ReferenceManifestError(
+            _format_release_gate_failure(
+                manifest,
+                field="redistribution_evidence.evidence_reference",
+                reason=(
+                    "approved bundled reference evidence_reference must be non-empty"
+                ),
+            )
+        )
+
+
+def _validate_approved_text_has_no_contradictions(
+    manifest: ReferenceManifest,
+) -> None:
+    approval_text_fields: tuple[tuple[str, str | None], ...] = (
+        ("redistribution_notes", manifest.redistribution_notes),
+        ("license_name", manifest.license_name),
+        *(
+            (f"limitations[{index}]", limitation)
+            for index, limitation in enumerate(manifest.limitations)
+        ),
+    )
+    for field, value in approval_text_fields:
+        if value is None:
+            continue
+        phrase = _find_approval_contradiction_phrase(value)
+        if phrase is not None:
+            raise ReferenceManifestError(
+                _format_release_gate_failure(
+                    manifest,
+                    field=field,
+                    reason=(
+                        "approved bundled reference contains contradictory "
+                        f"approval text: {phrase!r}"
+                    ),
+                )
+            )
+
+
+def _find_approval_contradiction_phrase(value: str) -> str | None:
+    normalized = " ".join(value.lower().split())
+    for phrase in _APPROVAL_CONTRADICTION_PHRASES:
+        if re.search(rf"(?<!\w){re.escape(phrase)}(?!\w)", normalized):
+            return phrase
+    return None
+
+
+def _format_release_gate_failure(
+    manifest: ReferenceManifest,
+    *,
+    field: str,
+    reason: str,
+) -> str:
+    return (
+        "reference release gate failed: "
+        f"reference_id={manifest.reference_id!r}, "
+        f"display_name={manifest.display_name!r}, "
+        f"organism={manifest.organism!r}, "
+        f"protein_namespace={manifest.protein_namespace!r}, "
+        f"field={field!r}, "
+        f"redistribution_status={manifest.redistribution_status.value!r}: "
+        f"{reason}"
+    )
 
 
 def _validate_sequence_context(manifest: ReferenceManifest) -> None:
@@ -538,6 +679,85 @@ def _require_redistribution_status(
         raise ReferenceManifestError(
             f"reference manifest {key} must be one of {allowed} for {context}"
         ) from exc
+
+
+def _optional_redistribution_evidence(
+    payload: dict[str, object],
+    *,
+    key: str,
+    context: str,
+) -> RedistributionEvidence | None:
+    if key not in payload or payload.get(key) is None:
+        return None
+    value = payload.get(key)
+    if not isinstance(value, dict):
+        raise ReferenceManifestError(
+            f"reference manifest {key} must be an object or null for {context}"
+        )
+    evidence_payload = cast(dict[str, object], value)
+    evidence_context = f"{context}.{key}"
+    _require_fields(
+        evidence_payload,
+        required_fields=_REQUIRED_REDISTRIBUTION_EVIDENCE_FIELDS,
+        context=evidence_context,
+    )
+    return RedistributionEvidence(
+        evidence_type=_require_redistribution_evidence_type(
+            evidence_payload,
+            key="evidence_type",
+            context=evidence_context,
+        ),
+        applies_to_exact_packaged_files=_require_bool(
+            evidence_payload,
+            key="applies_to_exact_packaged_files",
+            context=evidence_context,
+        ),
+        evidence_url=_optional_string(
+            evidence_payload,
+            key="evidence_url",
+            context=evidence_context,
+        ),
+        evidence_reference=_require_string(
+            evidence_payload,
+            key="evidence_reference",
+            context=evidence_context,
+        ),
+        verified_at=_require_date(
+            evidence_payload,
+            key="verified_at",
+            context=evidence_context,
+        ),
+    )
+
+
+def _require_redistribution_evidence_type(
+    payload: dict[str, object],
+    *,
+    key: str,
+    context: str,
+) -> RedistributionEvidenceType:
+    value = payload.get(key)
+    if not isinstance(value, str) or not value.strip():
+        allowed = ", ".join(item.value for item in RedistributionEvidenceType)
+        raise ReferenceManifestError(
+            f"reference manifest {key} must be one of {allowed} for {context}"
+        )
+    try:
+        return RedistributionEvidenceType(value.strip())
+    except ValueError as exc:
+        allowed = ", ".join(item.value for item in RedistributionEvidenceType)
+        raise ReferenceManifestError(
+            f"reference manifest {key} must be one of {allowed} for {context}"
+        ) from exc
+
+
+def _require_bool(payload: dict[str, object], *, key: str, context: str) -> bool:
+    value = payload.get(key)
+    if not isinstance(value, bool):
+        raise ReferenceManifestError(
+            f"reference manifest {key} must be true or false for {context}"
+        )
+    return value
 
 
 def _optional_int(payload: dict[str, object], *, key: str, context: str) -> int | None:

@@ -19,6 +19,15 @@ class RedistributionStatus(str, Enum):
     UNRESOLVED = "unresolved"
 
 
+class RedistributionEvidenceType(str, Enum):
+    """Machine-readable evidence category for exact-file redistribution approval."""
+
+    LICENSE = "license"
+    PERMISSION = "permission"
+    PUBLIC_DOMAIN = "public_domain"
+    SYNTHETIC_FIXTURE = "synthetic_fixture"
+
+
 @dataclass(frozen=True, slots=True)
 class SequenceWindowDefinition:
     """Reference sequence-window definition for centralized site sequences."""
@@ -32,6 +41,57 @@ class SequenceWindowDefinition:
             "upstream_residues": int(self.upstream_residues),
             "downstream_residues": int(self.downstream_residues),
             "central_residue_required": bool(self.central_residue_required),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class RedistributionEvidence:
+    """Exact-file redistribution approval evidence for release-gate validation."""
+
+    evidence_type: RedistributionEvidenceType | str
+    applies_to_exact_packaged_files: bool
+    evidence_url: str | None
+    evidence_reference: str
+    verified_at: date
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "evidence_type",
+            _coerce_redistribution_evidence_type(self.evidence_type),
+        )
+        if not isinstance(self.applies_to_exact_packaged_files, bool):
+            raise ValueError(
+                "reference manifest "
+                "redistribution_evidence.applies_to_exact_packaged_files must be bool"
+            )
+        object.__setattr__(
+            self,
+            "applies_to_exact_packaged_files",
+            self.applies_to_exact_packaged_files,
+        )
+        object.__setattr__(
+            self,
+            "evidence_url",
+            _optional_string(self.evidence_url),
+        )
+        object.__setattr__(
+            self,
+            "evidence_reference",
+            str(self.evidence_reference).strip(),
+        )
+        object.__setattr__(self, "verified_at", _coerce_date(self.verified_at))
+
+    def to_payload(self) -> dict[str, JsonValue]:
+        evidence_type = _coerce_redistribution_evidence_type(self.evidence_type)
+        return {
+            "evidence_type": evidence_type.value,
+            "applies_to_exact_packaged_files": bool(
+                self.applies_to_exact_packaged_files
+            ),
+            "evidence_url": self.evidence_url,
+            "evidence_reference": self.evidence_reference,
+            "verified_at": self.verified_at.isoformat(),
         }
 
 
@@ -118,6 +178,7 @@ class ReferenceManifest:
     organism_common_name: str | None = None
     supports: tuple[str, ...] = ()
     limitations: tuple[str, ...] = ()
+    redistribution_evidence: RedistributionEvidence | None = None
 
     def __post_init__(self) -> None:
         for field_name in (
@@ -152,6 +213,14 @@ class ReferenceManifest:
             "redistribution_status",
             _coerce_redistribution_status(self.redistribution_status),
         )
+        if self.redistribution_evidence is not None and not isinstance(
+            self.redistribution_evidence,
+            RedistributionEvidence,
+        ):
+            raise ValueError(
+                "reference manifest redistribution_evidence must be "
+                "RedistributionEvidence or None"
+            )
         object.__setattr__(
             self,
             "source_publication",
@@ -295,6 +364,10 @@ class ReferenceManifest:
             "supports": list(self.supports),
             "limitations": list(self.limitations),
         }
+        if self.redistribution_evidence is not None:
+            payload["redistribution_evidence"] = (
+                self.redistribution_evidence.to_payload()
+            )
         payload.update(
             {
                 "bundle_id": self.bundle_id,
@@ -342,6 +415,21 @@ def _coerce_redistribution_status(
         ) from exc
 
 
+def _coerce_redistribution_evidence_type(
+    value: RedistributionEvidenceType | str,
+) -> RedistributionEvidenceType:
+    if isinstance(value, RedistributionEvidenceType):
+        return value
+    try:
+        return RedistributionEvidenceType(str(value).strip())
+    except ValueError as exc:
+        allowed = ", ".join(item.value for item in RedistributionEvidenceType)
+        raise ValueError(
+            "reference manifest redistribution_evidence.evidence_type must be "
+            f"one of: {allowed}"
+        ) from exc
+
+
 def _source_file_key(file_manifest: ReferenceFileManifest) -> str:
     normalized = file_manifest.role.strip().lower().replace("-", "_").replace(" ", "_")
     return normalized or file_manifest.relative_path
@@ -351,6 +439,8 @@ __all__ = [
     "REFERENCE_MANIFEST_SCHEMA_VERSION",
     "ReferenceFileManifest",
     "ReferenceManifest",
+    "RedistributionEvidence",
+    "RedistributionEvidenceType",
     "RedistributionStatus",
     "SequenceWindowDefinition",
 ]

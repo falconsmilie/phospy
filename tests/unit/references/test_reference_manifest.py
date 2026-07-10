@@ -28,6 +28,36 @@ def test_valid_approved_manifest_loads_successfully(tmp_path: Path) -> None:
     assert manifest.sequence_window.downstream_residues == 1
 
 
+def test_approved_manifest_parses_structured_redistribution_evidence(
+    tmp_path: Path,
+) -> None:
+    evidence = {
+        "evidence_type": "synthetic_fixture",
+        "applies_to_exact_packaged_files": True,
+        "evidence_url": "https://example.test/approval-record",
+        "evidence_reference": "unit approval record for exact packaged fixture",
+        "verified_at": "2026-06-29",
+    }
+    manifest_path = _write_manifest_bundle(
+        tmp_path,
+        manifest_overrides={"redistribution_evidence": evidence},
+    )
+
+    manifest = load_reference_manifest(manifest_path)
+
+    assert manifest.redistribution_evidence is not None
+    assert manifest.redistribution_evidence.evidence_type.value == "synthetic_fixture"
+    assert manifest.redistribution_evidence.applies_to_exact_packaged_files is True
+    assert manifest.redistribution_evidence.evidence_url == (
+        "https://example.test/approval-record"
+    )
+    assert manifest.redistribution_evidence.evidence_reference == (
+        "unit approval record for exact packaged fixture"
+    )
+    assert manifest.redistribution_evidence.verified_at.isoformat() == "2026-06-29"
+    assert manifest.to_payload()["redistribution_evidence"] == evidence
+
+
 def test_valid_external_only_manifest_loads_successfully(tmp_path: Path) -> None:
     manifest_path = _write_manifest_bundle(
         tmp_path,
