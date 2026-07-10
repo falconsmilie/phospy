@@ -22,7 +22,7 @@ def test_bundled_runtime_lane_inventory_reports_existing_rat_lane() -> None:
     assert len(rat_lanes) == 1
     lane = rat_lanes[0]
     assert lane.bundle_id == "l6_native"
-    assert lane.source_version == "bundled-snapshot-2026-04-16"
+    assert lane.source_version == "PhosR 1.20.0"
     assert lane.retrieved_at.isoformat() == "2026-04-16"
     assert lane.redistribution_status
     assert lane.supports

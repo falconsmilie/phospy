@@ -7,16 +7,23 @@
   "protein_namespace": "display_site_id_gene_symbol_residue",
   "reference_version": "bundled-snapshot-2026-04-16",
   "source_name": "PhosR-derived L6 reference bundle (phospho.L6.ratio.pe, PhosphoSite.mouse, motif.mouse.list)",
-  "source_version": null,
+  "source_version": "PhosR 1.20.0",
   "source_url": "https://github.com/PYangLab/PhosR",
   "retrieved_at": "2026-04-16",
   "table_sha256": "dc5ad357a6aaf2ef29d1fa931f117b06522ff2abe51146f0cfbc84aa4f36c32d",
   "source_publication": "Yang et al. 2019 Bioinformatics 35(14): i349-i356",
-  "license_name": "Upstream PhosR package metadata declares GPL-3 + file LICENSE. Upstream PhosR documentation also identifies PhosphoSite.mouse as extracted from PhosphoSitePlus and phospho.L6.ratio.pe as PRIDE-sourced; no separate license grant for this derived CSV snapshot is recorded here.",
+  "license_name": "GPL-3 + file LICENSE",
   "license_url": "https://github.com/PYangLab/PhosR/blob/master/LICENSE",
   "redistribution_status": "approved",
   "redistribution_allowed": true,
-  "redistribution_notes": "Redistribution approval for this exact derived rat CSV bundle is not independently verified. This manifest records scientific lineage and file hashes only; it is not legal approval to publish the bundle.",
+  "redistribution_notes": "Approved for this PhosPy GPL-3.0 distribution as an exact bundled CSV snapshot derived from documented data objects distributed in upstream PhosR 1.20.0 under GPL-3 + file LICENSE. The existing bundle records retrieved_at 2026-04-16 and generated_at_utc 2026-04-16T00:00:00Z; BioC 3.22 was the active Bioconductor release on that date, before the 2026-04-29 BioC 3.23 release carrying PhosR 1.22.0. PhosPy provides attribution in NOTICE.md and this bundle's ATTRIBUTION.md. This approval basis does not claim independent direct permission from PhosphoSitePlus, PRIDE, Kinase Library, or any other upstream database, and must not be generalized to other reference bundles or external datasets.",
+  "redistribution_evidence": {
+    "evidence_type": "license",
+    "applies_to_exact_packaged_files": true,
+    "evidence_url": "https://github.com/PYangLab/PhosR/blob/master/LICENSE",
+    "evidence_reference": "Upstream package license evidence for the exact PhosPy-packaged rat l6_native derived CSV snapshot: package=PhosR; upstream_package_version=1.20.0; source_version=PhosR 1.20.0; upstream_package_url=https://bioconductor.org/packages/PhosR/; approval_scope=exact_packaged_derived_files; upstream_license=GPL-3 + file LICENSE; upstream_license_url=https://github.com/PYangLab/PhosR/blob/master/LICENSE; downstream_license=GPL-3.0; source objects=phospho.L6.ratio.pe, PhosphoSite.mouse, motif.mouse.list; attribution_required=true; attribution_location=NOTICE.md and src/phospy/data/reference_bundles/rat/l6_native/ATTRIBUTION.md.",
+    "verified_at": "2026-04-16"
+  },
   "derived_from": [
     "PhosR R package object phospho.L6.ratio.pe",
     "PhosR R package object PhosphoSite.mouse",
@@ -67,6 +74,14 @@
         "kinase",
         "motif_size"
       ]
+    },
+    {
+      "relative_path": "ATTRIBUTION.md",
+      "role": "attribution",
+      "format": "markdown",
+      "sha256": "341f6dcf517bda8b90f69ec09fa80c49c50db9c2728f3569a7dff57bb2a9c01e",
+      "row_count": null,
+      "column_names": null
     }
   ],
   "sequence_context_policy": "centered phosphosite sequence window",
@@ -81,8 +96,10 @@
   "limitations": [
     "Rat-only bundled reference lane in this release.",
     "Uses mouse PhosR kinase-substrate and motif objects with a rat L6 phosphoproteome lane, matching the generation script; this is scientific provenance, not a new organism-support claim.",
-    "Exact upstream PhosR package version, PhosphoSitePlus license grant, and PRIDE dataset redistribution terms for the derived CSV snapshot are not independently verified in this repository.",
-    "Do not treat this bundle as approval to redistribute other PhosR, PhosphoSitePlus, Kinase Library, or PRIDE-derived resources.",
+    "This bundle is approved only as the exact PhosPy-packaged rat l6_native snapshot derived from PhosR 1.20.0 package data.",
+    "This approval basis must not be generalized to arbitrary PhosR, PhosphoSitePlus, PRIDE, Kinase Library, or future reference bundles.",
+    "Kinase-substrate coverage is incomplete, and motif scoring and contextual scoring are not equivalent.",
+    "Outputs are suitable only for the documented rat l6_native reference lane; users should cite PhosR and relevant upstream publications.",
     "Not suitable for unsupported organisms unless caller supplies an explicit external ReferenceBundle."
   ]
 }

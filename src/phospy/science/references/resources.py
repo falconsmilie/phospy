@@ -44,12 +44,17 @@ def available_bundled_reference_lanes() -> tuple[BundledReferenceLane, ...]:
     lanes: list[BundledReferenceLane] = []
     for organism in supported_bundled_organisms():
         manifest = load_bundled_reference_manifest(organism)
+        if manifest.source_version is None:
+            raise ReferenceResolutionError(
+                "bundled reference manifest is missing source_version for "
+                f"{organism.value}/{manifest.bundle_id}"
+            )
         lanes.append(
             BundledReferenceLane(
                 organism=organism,
                 bundle_id=manifest.bundle_id,
                 source_name=manifest.source_name,
-                source_version=manifest.reference_version,
+                source_version=manifest.source_version,
                 retrieved_at=manifest.retrieved_at,
                 redistribution_status=manifest.redistribution_status.value,
                 supports=manifest.supports,

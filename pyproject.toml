@@ -206,5 +206,6 @@ reportMissingTypeStubs = "none"
 phospy = [
   "data/reference_bundles/*/*/*.csv",
   "data/reference_bundles/*/*/*.json",
+  "data/reference_bundles/*/*/*.md",
 ]
 

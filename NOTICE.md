@@ -35,16 +35,25 @@ PhosR maintainers.
 Runtime reference bundles are package data only when they are committed under
 `src/phospy/data/reference_bundles`.
 
-The current packaged rat lane is `rat/l6_native`. Its manifest records a
-PhosR-derived lineage from `phospho.L6.ratio.pe`, `PhosphoSite.mouse`, and
-`motif.mouse.list`, generated with
-`scripts/active/generate_r_l6_fixtures.R` and packaged on 2026-04-16.
+The packaged rat reference lane `rat/l6_native` contains derived CSV snapshots
+generated from documented data objects in upstream PhosR 1.20.0:
 
-PhosR package metadata declares GPL-3 + file `LICENSE`, but upstream PhosR
-documentation identifies PhosphoSitePlus-derived annotations and PRIDE-sourced
-phosphoproteomics data in the objects used for the rat lane. This repository
-does not record independent written redistribution approval for the exact
-derived rat CSV snapshot.
+- `phospho.L6.ratio.pe`
+- `PhosphoSite.mouse`
+- `motif.mouse.list`
+
+The upstream PhosR package is distributed under GPL-3 + file `LICENSE`. PhosPy
+is distributed under GPL-3.0 and includes this exact derived snapshot with
+attribution to PhosR and the PhosR publications.
+
+This attribution and redistribution statement applies only to the exact files
+committed under:
+
+`src/phospy/data/reference_bundles/rat/l6_native`
+
+It does not grant or imply permission to redistribute arbitrary PhosR,
+PhosphoSitePlus, PRIDE, Kinase Library, or other third-party datasets outside
+this bundled snapshot.
 
 This release does not include packaged human or mouse reference lanes. Human or
 mouse packaged lanes require manifest metadata documenting source provenance,

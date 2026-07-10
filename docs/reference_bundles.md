@@ -14,7 +14,7 @@ Current packaged lanes:
 
 | Organism | Bundle ID | Status |
 | --- | --- | --- |
-| rat | `l6_native` | Bundled locally with a hash-verifiable manifest and explicit provenance caveats |
+| rat | `l6_native` | Approved bundled snapshot with hash-verifiable files and structured exact-file license evidence |
 | human | N/A | Not bundled; no approved redistributable lane is committed |
 | mouse | N/A | Not bundled; no approved redistributable lane is committed |
 
@@ -31,7 +31,8 @@ Every bundled reference manifest must contain these top-level fields:
   `retrieved_at`, `derived_from`, `generated_by`, `generated_at_utc`, and
   `manifest_schema_version`
 - license and redistribution metadata: `license_name`, `license_url`,
-  `redistribution_status`, and `redistribution_notes`
+  `redistribution_status`, `redistribution_notes`, and
+  `redistribution_evidence`
 - package integrity metadata: `table_sha256` and `files`
 
 Every `files` item must contain:
@@ -50,18 +51,19 @@ Sequence-aware manifests may also carry `source_publication`,
 `sequence_center_index` is present, both must be present and the center index
 must be inside the declared window.
 
-`redistribution_allowed` is a derived compatibility boolean, not the
-authoritative redistribution field for review or release. The authoritative
-field is `redistribution_status`.
+`redistribution_status` is the governing redistribution field.
+`redistribution_allowed` compatibility value must not be used as the review
+authority.
 
 ### Redistribution Status
 
 `redistribution_status` has three allowed values:
 
 - `approved`: the only release-eligible bundled status. Use it only when the
-  manifest records verified license or permission evidence for the exact files
-  being packaged. `license_name` and `license_url` are required, and
-  `redistribution_notes` must state the evidence basis.
+  manifest records verified structured license or permission evidence for the
+  exact files being packaged. `source_version`, `license_name`, `license_url`,
+  and `redistribution_evidence` are required, and `redistribution_notes` must
+  state the evidence basis without contradicting the approved state.
 - `external_only`: the reference source is known, but users must obtain it
   outside the package under the source provider's terms. External-only
   references must not be shipped as bundled data.
@@ -75,26 +77,28 @@ or optimistic interpretation of a third-party license is not enough.
 Runtime bundled-reference loading validates the manifest and file hashes before
 the tables are exposed to workflows. The release gate enforces stricter
 publication rules: every packaged file must be listed, every declared file hash
-must match, required organism/source/license metadata must be present, and each
-bundled manifest must declare `redistribution_status="approved"`. Packaged
-manifests that declare `external_only` or `unresolved` fail release validation.
+must match, required organism/source/license metadata must be present,
+approved bundled references require structured exact-file redistribution
+evidence, and each bundled manifest must declare
+`redistribution_status="approved"`. Packaged manifests that declare
+`external_only` or `unresolved` fail release validation.
 
 ### Rat `l6_native` Provenance
 
-The packaged rat lane is a PhosR-derived snapshot packaged on 2026-04-16.
-Its manifest records the generation lineage as PhosR data objects
-`phospho.L6.ratio.pe`, `PhosphoSite.mouse`, and `motif.mouse.list`, generated
-through `scripts/active/generate_r_l6_fixtures.R` and redistributed as CSVs
-under `src/phospy/data/reference_bundles/rat/l6_native/`.
+The packaged rat lane is an exact PhosPy-packaged snapshot derived from PhosR
+1.20.0 package data and packaged on 2026-04-16. Its manifest records the
+generation lineage as PhosR data objects `phospho.L6.ratio.pe`,
+`PhosphoSite.mouse`, and `motif.mouse.list`, generated through
+`scripts/active/generate_r_l6_fixtures.R` and redistributed as CSVs under
+`src/phospy/data/reference_bundles/rat/l6_native/`.
 
-The upstream PhosR package metadata declares GPL-3 + file `LICENSE`. That is
-not the same as independent approval for every underlying scientific source:
-PhosR documentation identifies `PhosphoSite.mouse` as extracted from
-PhosphoSitePlus and identifies the L6 phosphoproteome object with PRIDE
-accession notes. The rat manifest records explicit caveats for this exact
-derived CSV snapshot. Do not use this bundle as approval precedent for human,
-mouse, PhosphoSitePlus, Kinase Library, PRIDE, or other third-party reference
-data.
+The upstream PhosR package metadata declares GPL-3 + file `LICENSE`, and the
+rat manifest records structured exact-file license evidence for this committed
+PhosR 1.20.0-derived snapshot. That approval applies only to the exact files in
+`src/phospy/data/reference_bundles/rat/l6_native/`. It does not claim
+independent direct permission from PhosphoSitePlus, PRIDE, Kinase Library, or
+other upstream databases, and it must not be generalized to human, mouse,
+future PhosR, future PhosPy, or other third-party reference data.
 
 Human or mouse lanes may be added only when the committed manifest documents:
 
@@ -102,8 +106,9 @@ Human or mouse lanes may be added only when the committed manifest documents:
 - license name/text and license URL
 - file-level SHA-256 hashes for every packaged reference file
 - `redistribution_status="approved"`
+- structured exact-file `redistribution_evidence`
 - redistribution notes explaining why the license or permission permits
-  packaging
+  packaging without generalizing approval to other bundles or external datasets
 - sequence-context policy when sequence windows are included
 - limitations and supported uses in the manifest payload
 

@@ -7,22 +7,27 @@ from pathlib import Path
 import pytest
 
 from phospy.science.references.errors import ReferenceManifestError
+from phospy.science.references.manifest import RedistributionEvidenceType
 from phospy.science.references.validation import validate_bundled_reference_manifests
 
 pytestmark = pytest.mark.release_gate
 
 
-def test_current_rat_manifest_fails_release_gate_until_source_version_is_recorded() -> (
+def test_bundled_rat_l6_native_manifest_is_release_eligible_with_phosr_1_20_0_license_evidence() -> (
     None
 ):
-    with pytest.raises(ReferenceManifestError) as exc_info:
-        validate_bundled_reference_manifests(_reference_bundles_root())
+    manifests = validate_bundled_reference_manifests(_reference_bundles_root())
 
-    message = str(exc_info.value)
-    assert "reference_id='l6_native'" in message
-    assert "field='source_version'" in message
-    assert "redistribution_status='approved'" in message
-    assert "non-empty string" in message
+    rat_manifest = next(
+        manifest for manifest in manifests if manifest.reference_id == "l6_native"
+    )
+    assert rat_manifest.source_version == "PhosR 1.20.0"
+    assert rat_manifest.redistribution_evidence is not None
+    evidence = rat_manifest.redistribution_evidence
+    assert evidence.evidence_type is RedistributionEvidenceType.LICENSE
+    assert evidence.applies_to_exact_packaged_files is True
+    assert "upstream_package_version=1.20.0" in evidence.evidence_reference
+    assert "approval_scope=exact_packaged_derived_files" in evidence.evidence_reference
 
 
 def test_reference_manifest_release_gate_fails_for_invalid_fixture(

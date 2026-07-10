@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from importlib import resources
 from pathlib import Path
 
 import pytest
@@ -12,6 +13,7 @@ from phospy.errors.references import (
 )
 from phospy.science.references import resources as reference_resources
 from phospy.science.references.errors import ReferenceManifestError
+from phospy.science.references.manifest import RedistributionEvidenceType
 from phospy.science.references.models import (
     Organism,
     RedistributionStatus,
@@ -55,17 +57,28 @@ def test_valid_bundled_manifest_loads_for_supported_runtime_lane() -> None:
     assert manifest.protein_namespace
     assert manifest.identifier_namespace == manifest.protein_namespace
     assert manifest.reference_version == "bundled-snapshot-2026-04-16"
+    assert manifest.source_version == "PhosR 1.20.0"
     assert manifest.source_name
     assert manifest.source_url == "https://github.com/PYangLab/PhosR"
     assert manifest.source_license_url
     assert manifest.source_license
-    assert "gpl-3" in manifest.source_license.lower()
-    assert "phosphositeplus" in manifest.source_license.lower()
-    assert "pride" in manifest.source_license.lower()
+    assert manifest.source_license == "GPL-3 + file LICENSE"
     assert manifest.redistribution_status is RedistributionStatus.APPROVED
     assert manifest.redistribution_allowed is True
-    assert "not independently verified" in manifest.redistribution_notes.lower()
+    assert "PhosR 1.20.0" in manifest.redistribution_notes
+    assert "does not claim independent direct permission" in (
+        manifest.redistribution_notes
+    )
+    assert manifest.redistribution_evidence is not None
+    assert manifest.redistribution_evidence.evidence_type is (
+        RedistributionEvidenceType.LICENSE
+    )
+    assert manifest.redistribution_evidence.applies_to_exact_packaged_files is True
+    assert "upstream_package_version=1.20.0" in (
+        manifest.redistribution_evidence.evidence_reference
+    )
     assert {item.relative_path for item in manifest.files} == {
+        "ATTRIBUTION.md",
         "motif_scores.csv",
         "motif_sizes.csv",
         "site_sequences.csv",
@@ -75,7 +88,16 @@ def test_valid_bundled_manifest_loads_for_supported_runtime_lane() -> None:
     assert manifest.sequence_window.downstream_residues == 15
     assert "site_sequence_derivation" in manifest.supports
     assert manifest.limitations
-    assert any("not independently" in item.lower() for item in manifest.limitations)
+    combined_text = " ".join(
+        (
+            manifest.redistribution_notes,
+            *manifest.limitations,
+            manifest.redistribution_evidence.evidence_reference,
+        )
+    ).lower()
+    assert "not independently verified" not in combined_text
+    assert "not legal approval" not in combined_text
+    assert "unresolved" not in combined_text
 
 
 def test_available_bundled_reference_lanes_reports_manifest_metadata() -> None:
@@ -87,7 +109,7 @@ def test_available_bundled_reference_lanes_reports_manifest_metadata() -> None:
     assert lane.organism is Organism.RAT
     assert lane.bundle_id == "l6_native"
     assert lane.source_name
-    assert lane.source_version == "bundled-snapshot-2026-04-16"
+    assert lane.source_version == "PhosR 1.20.0"
     assert lane.retrieved_at.isoformat() == "2026-04-16"
     assert lane.redistribution_status == "approved"
     assert "site_sequence_derivation" in lane.supports
@@ -123,6 +145,20 @@ def test_supported_bundled_lanes_have_required_runtime_files_and_manifest_metada
         assert manifest.files
         assert manifest.sequence_window.upstream_residues >= 0
         assert manifest.sequence_window.downstream_residues >= 0
+
+
+def test_bundled_rat_attribution_is_available_as_package_data() -> None:
+    attribution = (
+        resources.files("phospy")
+        .joinpath("data")
+        .joinpath("reference_bundles")
+        .joinpath("rat")
+        .joinpath("l6_native")
+        .joinpath("ATTRIBUTION.md")
+    )
+
+    assert attribution.is_file()
+    assert "Source version: PhosR 1.20.0" in attribution.read_text(encoding="utf-8")
 
 
 @pytest.mark.parametrize(

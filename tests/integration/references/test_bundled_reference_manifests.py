@@ -8,6 +8,7 @@ import pytest
 
 from phospy.science.references import resources as reference_resources
 from phospy.science.references.errors import ReferenceManifestError
+from phospy.science.references.manifest import RedistributionEvidenceType
 from phospy.science.references.models import (
     Organism,
     RedistributionStatus,
@@ -30,6 +31,7 @@ def test_bundled_reference_manifests_are_structurally_valid() -> None:
     rat_manifest = manifests[0]
     assert rat_manifest.files
     assert {item.relative_path for item in rat_manifest.files} == {
+        "ATTRIBUTION.md",
         "motif_scores.csv",
         "motif_sizes.csv",
         "site_sequences.csv",
@@ -37,6 +39,36 @@ def test_bundled_reference_manifests_are_structurally_valid() -> None:
     }
     assert rat_manifest.redistribution_status is RedistributionStatus.APPROVED
     assert rat_manifest.redistribution_allowed is True
+    assert rat_manifest.source_version == "PhosR 1.20.0"
+    assert rat_manifest.redistribution_evidence is not None
+    evidence = rat_manifest.redistribution_evidence
+    assert evidence.evidence_type is RedistributionEvidenceType.LICENSE
+    assert evidence.applies_to_exact_packaged_files is True
+    assert (
+        evidence.evidence_url == "https://github.com/PYangLab/PhosR/blob/master/LICENSE"
+    )
+    assert "package=PhosR" in evidence.evidence_reference
+    assert "upstream_package_version=1.20.0" in evidence.evidence_reference
+    assert "approval_scope=exact_packaged_derived_files" in evidence.evidence_reference
+    assert "upstream_license=GPL-3 + file LICENSE" in evidence.evidence_reference
+    assert "downstream_license=GPL-3.0" in evidence.evidence_reference
+    assert "attribution_location=" in evidence.evidence_reference
+
+    bundle_path = Path("src/phospy/data/reference_bundles/rat/l6_native")
+    assert (bundle_path / "ATTRIBUTION.md").is_file()
+    combined_text = " ".join(
+        str(value)
+        for value in [
+            rat_manifest.redistribution_notes,
+            *rat_manifest.limitations,
+            evidence.evidence_reference,
+        ]
+        if value
+    ).lower()
+    assert "not independently verified" not in combined_text
+    assert "not legal approval" not in combined_text
+    assert "unresolved" not in combined_text
+    assert "does not claim independent direct permission" in combined_text
 
 
 def test_runtime_bundled_manifest_validates_hashes_before_table_loading() -> None:

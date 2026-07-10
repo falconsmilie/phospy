@@ -85,8 +85,8 @@ Bundled runtime references in the current release are rat-only. For human or
 mouse work, create and pass an explicit `ReferenceBundle` in Python instead of
 using `ReferencePreset.AUTO`.
 Packaged references are governed by a manifest `redistribution_status`: only
-`approved` references with verified license or permission evidence are
-release-eligible, `unresolved` bundled references block release, and
+`approved` references with structured exact-file license or permission evidence
+are release-eligible, `unresolved` bundled references block release, and
 `external_only` references are caller-supplied local data that must not be
 shipped as bundled data.
 
