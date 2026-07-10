@@ -116,11 +116,16 @@ class ReferenceContext:
     def from_manifest(cls, manifest: ReferenceManifest) -> ReferenceContext:
         """Build a reference context from manifest identity metadata."""
 
+        source_version = manifest.source_version
+        if source_version is None:
+            raise ReferenceValidationError(
+                "reference_context.source_version must be non-empty"
+            )
         return cls(
             organism=manifest.organism_common_name or manifest.organism,
             protein_namespace=manifest.protein_namespace,
             source_name=manifest.source_name,
-            source_version=manifest.source_version or manifest.reference_version,
+            source_version=source_version,
             proteome_version=None,
             reference_table_sha256=manifest.table_sha256,
         )
@@ -193,7 +198,7 @@ def reference_context_from_provenance(
     if provenance.reference_context is not None:
         return provenance.reference_context
     if manifest is not None:
-        return ReferenceContext.from_manifest(manifest)
+        return reference_context_from_manifest_if_complete(manifest)
     if provenance.manifest is not None:
         return _reference_context_from_manifest_payload(provenance.manifest)
     if (
@@ -212,6 +217,17 @@ def reference_context_from_provenance(
     )
 
 
+def reference_context_from_manifest_if_complete(
+    manifest: ReferenceManifest,
+) -> ReferenceContext | None:
+    """Build reference context only when manifest identity metadata is complete."""
+
+    source_version = manifest.source_version
+    if not isinstance(source_version, str) or not source_version.strip():
+        return None
+    return ReferenceContext.from_manifest(manifest)
+
+
 def _reference_context_from_manifest_payload(
     payload: Mapping[str, JsonValue],
 ) -> ReferenceContext | None:
@@ -222,9 +238,7 @@ def _reference_context_from_manifest_payload(
         payload.get("protein_namespace")
     ) or _payload_optional_text(payload.get("identifier_namespace"))
     source_name = _payload_optional_text(payload.get("source_name"))
-    source_version = _payload_optional_text(
-        payload.get("source_version")
-    ) or _payload_optional_text(payload.get("reference_version"))
+    source_version = _payload_optional_text(payload.get("source_version"))
     if (
         organism is None
         or protein_namespace is None
@@ -243,6 +257,8 @@ def _reference_context_from_manifest_payload(
 
 
 def _required_reference_context_text(value: object, *, field_name: str) -> str:
+    if value is None:
+        raise ReferenceValidationError(f"{field_name} must be non-empty")
     text = str(value).strip()
     if not text:
         raise ReferenceValidationError(f"{field_name} must be non-empty")
@@ -485,7 +501,9 @@ class ReferenceBundle:
         provenance = self.provenance
         manifest = self.manifest
         reference_context = (
-            ReferenceContext.from_manifest(manifest) if manifest is not None else None
+            reference_context_from_manifest_if_complete(manifest)
+            if manifest is not None
+            else None
         )
         from phospy.validation.references.bundle import ReferenceBundleValidator
 

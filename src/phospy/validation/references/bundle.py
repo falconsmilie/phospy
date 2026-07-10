@@ -20,8 +20,8 @@ from phospy.science.references.models import (
     ReferenceBundleSourceFileValidationReport,
     ReferenceBundleTableValidationReport,
     ReferenceBundleValidationReport,
-    ReferenceContext,
     ReferenceManifest,
+    reference_context_from_manifest_if_complete,
 )
 from phospy.tables.references import KinaseSubstrateReference, SiteSequenceReference
 
@@ -365,7 +365,11 @@ def _build_provenance_fields(
             fields[key] = value
     reference_context = (
         None if provenance is None else provenance.reference_context
-    ) or (ReferenceContext.from_manifest(manifest) if manifest is not None else None)
+    ) or (
+        reference_context_from_manifest_if_complete(manifest)
+        if manifest is not None
+        else None
+    )
     if reference_context is not None:
         fields["reference_context_id"] = reference_context.reference_context_id
     if manifest is not None:

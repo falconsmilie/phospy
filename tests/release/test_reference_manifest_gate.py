@@ -12,7 +12,7 @@ from phospy.science.references.validation import validate_bundled_reference_mani
 pytestmark = pytest.mark.release_gate
 
 
-def test_current_rat_manifest_fails_release_gate_until_approval_evidence_is_recorded() -> (
+def test_current_rat_manifest_fails_release_gate_until_source_version_is_recorded() -> (
     None
 ):
     with pytest.raises(ReferenceManifestError) as exc_info:
@@ -20,9 +20,9 @@ def test_current_rat_manifest_fails_release_gate_until_approval_evidence_is_reco
 
     message = str(exc_info.value)
     assert "reference_id='l6_native'" in message
-    assert "field='redistribution_notes'" in message
+    assert "field='source_version'" in message
     assert "redistribution_status='approved'" in message
-    assert "not independently verified" in message
+    assert "non-empty string" in message
 
 
 def test_reference_manifest_release_gate_fails_for_invalid_fixture(
@@ -48,6 +48,22 @@ def test_release_gate_rejects_approved_manifest_without_redistribution_evidence(
     message = str(exc_info.value)
     assert "field='redistribution_evidence'" in message
     assert "requires structured exact-file redistribution evidence" in message
+
+
+def test_reference_manifest_release_gate_fails_when_source_version_missing(
+    tmp_path: Path,
+) -> None:
+    root = _write_manifest_bundle(
+        tmp_path,
+        manifest_overrides={"source_version": None},
+    )
+
+    with pytest.raises(ReferenceManifestError) as exc_info:
+        validate_bundled_reference_manifests(root)
+
+    message = str(exc_info.value)
+    assert "field='source_version'" in message
+    assert "non-empty string" in message
 
 
 def test_release_gate_rejects_approved_manifest_with_unverified_notes(
@@ -92,6 +108,26 @@ def test_release_gate_error_identifies_reference_organism_namespace_field_and_st
     assert "organism='Rattus norvegicus'" in message
     assert "protein_namespace='display_site_id'" in message
     assert "field='redistribution_notes'" in message
+    assert "redistribution_status='approved'" in message
+
+
+def test_reference_manifest_release_gate_error_identifies_source_version_context(
+    tmp_path: Path,
+) -> None:
+    root = _write_manifest_bundle(
+        tmp_path,
+        manifest_overrides={"source_version": " "},
+    )
+
+    with pytest.raises(ReferenceManifestError) as exc_info:
+        validate_bundled_reference_manifests(root)
+
+    message = str(exc_info.value)
+    assert "reference release gate failed:" in message
+    assert "reference_id='unit_reference'" in message
+    assert "organism='Rattus norvegicus'" in message
+    assert "protein_namespace='display_site_id'" in message
+    assert "field='source_version'" in message
     assert "redistribution_status='approved'" in message
 
 
@@ -207,7 +243,7 @@ def _valid_manifest_payload(file_hash: str) -> dict[str, object]:
         "protein_namespace": "display_site_id",
         "reference_version": "v1",
         "source_name": "unit source",
-        "source_version": None,
+        "source_version": "unit-source-v1",
         "source_url": "https://example.test/reference",
         "retrieved_at": "2026-06-29",
         "table_sha256": file_hash,

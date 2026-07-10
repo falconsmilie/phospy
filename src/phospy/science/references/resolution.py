@@ -10,8 +10,8 @@ from phospy.provenance.models import ReferenceProvenance
 from phospy.science.references.models import (
     Organism,
     ReferenceBundle,
-    ReferenceContext,
     ReferencePreset,
+    reference_context_from_manifest_if_complete,
 )
 from phospy.science.references.resources import (
     bundled_reference_name_for_organism,
@@ -80,7 +80,7 @@ class BundledReferenceProvider:
                     name="references.site_sequences",
                 ),
             ),
-            reference_context=ReferenceContext.from_manifest(manifest),
+            reference_context=reference_context_from_manifest_if_complete(manifest),
         )
         return ReferenceBundle._from_owned(  # pyright: ignore[reportPrivateUsage] - trusted internal constructor avoids redundant frame copies
             organism=organism,

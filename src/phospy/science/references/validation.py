@@ -231,6 +231,7 @@ def validate_reference_manifest(
     _validate_required_manifest_values(manifest, release_gate=release_gate)
     _validate_sequence_context(manifest)
     if release_gate:
+        _require_release_manifest_field(manifest, field_name="source_version")
         _validate_release_gate_redistribution_approval(manifest)
     listed_files: set[Path] = set()
     for file_manifest in manifest.files:
@@ -375,6 +376,25 @@ def _validate_release_gate_redistribution_approval(
                 field="redistribution_evidence.evidence_reference",
                 reason=(
                     "approved bundled reference evidence_reference must be non-empty"
+                ),
+            )
+        )
+
+
+def _require_release_manifest_field(
+    manifest: ReferenceManifest,
+    *,
+    field_name: str,
+) -> None:
+    value = getattr(manifest, field_name)
+    if not isinstance(value, str) or not value.strip():
+        raise ReferenceManifestError(
+            _format_release_gate_failure(
+                manifest,
+                field=field_name,
+                reason=(
+                    "bundled reference requires source_version to be a "
+                    "non-empty string for release-gate validation"
                 ),
             )
         )
