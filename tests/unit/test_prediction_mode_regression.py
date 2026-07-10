@@ -13,6 +13,7 @@ from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.api.configs import (
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
@@ -91,6 +92,15 @@ def _references() -> ReferenceBundle:
     )
 
 
+def _scoring_config(**kwargs: object) -> KinaseScoringConfig:
+    return KinaseScoringConfig(
+        reference_context_compatibility_policy=(
+            ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+        ),
+        **kwargs,
+    )
+
+
 def _run_workflow(
     *,
     workflow: KinaseWorkflow,
@@ -128,7 +138,7 @@ def test_supported_prediction_modes_preserve_scoring_stage_semantics(
     workflow = KinaseWorkflow()
     dataset = _dataset()
     references = _references()
-    scoring_config = KinaseScoringConfig(
+    scoring_config = _scoring_config(
         min_substrates=2,
         include_diagnostic_scoring_tables=include_diagnostics,
     )
@@ -184,7 +194,7 @@ def test_prediction_modes_keep_distinct_mode_specific_size_semantics() -> None:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=references,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=2,
                 deterministic_max_selected_kinases=1,
@@ -198,7 +208,7 @@ def test_prediction_modes_keep_distinct_mode_specific_size_semantics() -> None:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=references,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=2,
                 deterministic_max_selected_kinases=1,
@@ -241,7 +251,7 @@ def test_kinase_provenance_records_active_scientific_policies() -> None:
         KinaseWorkflowRequest(
             dataset=_dataset(),
             references=_references(),
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=2,
                 deterministic_max_selected_kinases=2,
@@ -279,7 +289,7 @@ def test_adaptive_prediction_provenance_records_exact_seed() -> None:
         KinaseWorkflowRequest(
             dataset=_dataset(),
             references=_references(),
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=2,
                 deterministic_max_selected_kinases=2,

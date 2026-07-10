@@ -21,6 +21,7 @@ from phospy.api import (
     KinaseScoringConfig,
     KinaseWorkflowRequest,
     Organism,
+    ReferenceContextCompatibilityPolicy,
     ReferencePreset,
     SampleDesignRecord,
     SignalomeWorkflowRequest,
@@ -119,7 +120,12 @@ def _build_kinase_request(
     return KinaseWorkflowRequest(
         dataset=dataset,
         references=ReferencePreset.AUTO,
-        scoring_config=KinaseScoringConfig(min_substrates=2),
+        scoring_config=KinaseScoringConfig(
+            min_substrates=2,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
+        ),
         prediction_config=KinasePredictionConfig(
             top_k=6,
             deterministic_max_selected_kinases=12,
@@ -279,7 +285,12 @@ def test_signalome_still_requires_explicit_protein_identity() -> None:
         KinaseWorkflowRequest(
             dataset=dataset_without_protein,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=KinaseScoringConfig(
+                min_substrates=2,
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
+            ),
             prediction_config=KinasePredictionConfig(
                 top_k=6,
                 deterministic_max_selected_kinases=12,

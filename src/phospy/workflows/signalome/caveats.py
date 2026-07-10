@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from phospy.contracts.configs import ReferenceContextCompatibilityPolicy
 from phospy.contracts.result_caveats import ResultCaveat
 from phospy.science.scoring.policy_models import DownstreamScoreSource
 from phospy.validation.identity_contracts import (
@@ -163,6 +164,12 @@ def _prediction_reference_limitation_caveat(
 def _reference_context_unknown_caveats(
     request: ResolvedSignalomeWorkflowRequest,
 ) -> tuple[ResultCaveat, ...]:
+    policy = request.execution_config.reference_context_compatibility_policy
+    allow_unknown = (
+        policy is ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+    )
+    if not allow_unknown:
+        return ()
     caveats: list[ResultCaveat] = []
     dataset_context = request.dataset.reference_context
     result_provenance = request.kinase_result.provenance
@@ -182,13 +189,14 @@ def _reference_context_unknown_caveats(
             dataset_context,
             right_context,
             operation=operation,
-            allow_unknown=True,
+            allow_unknown=allow_unknown,
         )
         if warning is None:
             continue
         caveats.append(
             build_reference_context_compatibility_caveat(
                 warning,
+                policy=policy,
                 workflow_scope="signalome",
             )
         )

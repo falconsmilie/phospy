@@ -67,7 +67,11 @@ from phospy.api import SignalomeConfig
 config = SignalomeConfig.production()
 ```
 
-The default `SignalomeConfig()` remains permissive for backwards compatibility.
+The default `SignalomeConfig()` keeps localisation permissive for backwards
+compatibility, but reference-context compatibility is conservative: unknown
+context fails unless
+`ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT` is set
+explicitly.
 
 ## Request Object
 
@@ -234,8 +238,10 @@ directionality, skipped-edge diagnostics, and interpretation limits.
 ```python
 from phospy import SignalomeWorkflow
 from phospy.api import (
+    ReferenceContextCompatibilityPolicy,
     SignalomeClusteringConfig,
     SignalomeConfig,
+    SignalomeValidationConfig,
     SignalomeWorkflowRequest,
 )
 
@@ -243,7 +249,12 @@ config = SignalomeConfig(
     clustering=SignalomeClusteringConfig(
         module_count=None,
         clustering_engine="scipy_hierarchical",
-    )
+    ),
+    validation=SignalomeValidationConfig(
+        reference_context_compatibility_policy=(
+            ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+        )
+    ),
 )
 
 signalome_result = SignalomeWorkflow().run(

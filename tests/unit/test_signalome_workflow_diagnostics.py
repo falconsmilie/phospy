@@ -27,6 +27,7 @@ from phospy.api.configs import (
     SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.api.results import (
     KinasePredictionResult,
@@ -83,7 +84,9 @@ from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
 )
-from tests.support.signalome_config import build_signalome_config
+from tests.support.signalome_config import (
+    build_signalome_config as _build_signalome_config,
+)
 from tests.support.site_keys import (
     site_key_context_columns,
     site_key_index_from_display_ids,
@@ -95,6 +98,14 @@ _PROPERTY_SETTINGS = settings(
     deadline=None,
     derandomize=True,
 )
+
+
+def build_signalome_config(**kwargs: object) -> SignalomeConfig:
+    kwargs.setdefault(
+        "reference_context_compatibility_policy",
+        ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT,
+    )
+    return _build_signalome_config(**kwargs)
 
 
 def _dataset(
@@ -295,6 +306,9 @@ def _execution_config(config: SignalomeConfig) -> ResolvedSignalomeExecutionConf
             None
             if config.clustering.module_count is None
             else int(config.clustering.module_count)
+        ),
+        reference_context_compatibility_policy=(
+            config.validation.reference_context_compatibility_policy
         ),
     )
 

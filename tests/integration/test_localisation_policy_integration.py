@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import pandas as pd
 import pytest
 
@@ -7,6 +9,7 @@ from phospy.api.configs import (
     KinasePredictionConfig,
     KinaseScoringConfig,
     LocalisationRequirement,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.api.requests import KinaseWorkflowRequest, SignalomeWorkflowRequest
 from phospy.api.results import KinaseWorkflowResult
@@ -27,6 +30,15 @@ from tests.support.site_keys import (
 )
 
 pytestmark = pytest.mark.integration
+
+
+def _kinase_scoring_config(**kwargs: Any) -> KinaseScoringConfig:
+    return KinaseScoringConfig(
+        reference_context_compatibility_policy=(
+            ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+        ),
+        **kwargs,
+    )
 
 
 def _dataset(
@@ -106,7 +118,7 @@ def test_analysis_ready_dataset_with_unknown_localisation_allows_default_kinase_
     request = KinaseWorkflowRequest(
         dataset=_dataset(),
         references=_references(),
-        scoring_config=KinaseScoringConfig(min_substrates=2),
+        scoring_config=_kinase_scoring_config(min_substrates=2),
         prediction_config=KinasePredictionConfig(
             top_k=5,
             deterministic_max_selected_kinases=5,
@@ -124,7 +136,7 @@ def test_analysis_ready_dataset_with_unknown_localisation_rejects_localisation_s
     request = KinaseWorkflowRequest(
         dataset=_dataset(),
         references=_references(),
-        scoring_config=KinaseScoringConfig(
+        scoring_config=_kinase_scoring_config(
             min_substrates=2,
             localisation_requirement=LocalisationRequirement(require_present=True),
         ),
@@ -159,7 +171,7 @@ def test_analysis_ready_dataset_with_below_threshold_localisation_rejects_thresh
     request = KinaseWorkflowRequest(
         dataset=_dataset(localisation_probability=0.6),
         references=_references(),
-        scoring_config=KinaseScoringConfig(
+        scoring_config=_kinase_scoring_config(
             min_substrates=2,
             localisation_requirement=LocalisationRequirement(minimum_probability=0.75),
         ),

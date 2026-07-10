@@ -22,6 +22,7 @@ from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+    ReferenceContextCompatibilityPolicy,
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import (
@@ -93,6 +94,9 @@ _AKT1_T308_KEY = protein_site_key(protein_identifier="AKT1", site="T308")
 _KINASE_DISPLAY_IDS = [*_DISPLAY_IDS, "AKT1;T308;"]
 _KINASE_SITE_INDEX = pd.Index([*_SITE_KEYS, _AKT1_T308_KEY], name="site_key")
 _KINASE_SITE_KEYS = _KINASE_SITE_INDEX.astype(str).tolist()
+_ALLOW_UNKNOWN_REFERENCE_CONTEXT = (
+    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+)
 
 
 def _phospho() -> pd.DataFrame:
@@ -201,7 +205,12 @@ def _kinase_result():
                 ),
             ),
             references=references,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=KinaseScoringConfig(
+                min_substrates=2,
+                reference_context_compatibility_policy=(
+                    _ALLOW_UNKNOWN_REFERENCE_CONTEXT
+                ),
+            ),
             prediction_config=KinasePredictionConfig(
                 top_k=1,
                 deterministic_max_selected_kinases=2,
@@ -247,7 +256,10 @@ def _signalome_request_for_read_path_mutation_checks() -> SignalomeWorkflowReque
             prediction_result=KinasePredictionResult(pred_mat=prediction_matrix),
             activity_result=None,
         ),
-        config=build_signalome_config(substrate_support_cutoff=0.5),
+        config=build_signalome_config(
+            substrate_support_cutoff=0.5,
+            reference_context_compatibility_policy=(_ALLOW_UNKNOWN_REFERENCE_CONTEXT),
+        ),
     )
 
 
@@ -877,7 +889,12 @@ def test_safe_public_export_does_not_change_owned_provenance_state() -> None:
                 .run(
                     SignalomeWorkflowRequest(
                         kinase_result=_kinase_result(),
-                        config=build_signalome_config(substrate_support_cutoff=0.5),
+                        config=build_signalome_config(
+                            substrate_support_cutoff=0.5,
+                            reference_context_compatibility_policy=(
+                                _ALLOW_UNKNOWN_REFERENCE_CONTEXT
+                            ),
+                        ),
                     )
                 )
                 .to_dataframe
@@ -890,7 +907,12 @@ def test_safe_public_export_does_not_change_owned_provenance_state() -> None:
                 .run(
                     SignalomeWorkflowRequest(
                         kinase_result=_kinase_result(),
-                        config=build_signalome_config(substrate_support_cutoff=0.5),
+                        config=build_signalome_config(
+                            substrate_support_cutoff=0.5,
+                            reference_context_compatibility_policy=(
+                                _ALLOW_UNKNOWN_REFERENCE_CONTEXT
+                            ),
+                        ),
                     )
                 )
                 .module_assignments.to_pandas
@@ -903,7 +925,12 @@ def test_safe_public_export_does_not_change_owned_provenance_state() -> None:
                 .run(
                     SignalomeWorkflowRequest(
                         kinase_result=_kinase_result(),
-                        config=build_signalome_config(substrate_support_cutoff=0.5),
+                        config=build_signalome_config(
+                            substrate_support_cutoff=0.5,
+                            reference_context_compatibility_policy=(
+                                _ALLOW_UNKNOWN_REFERENCE_CONTEXT
+                            ),
+                        ),
                     )
                 )
                 .signalome_modules.to_pandas
@@ -916,7 +943,12 @@ def test_safe_public_export_does_not_change_owned_provenance_state() -> None:
                 .run(
                     SignalomeWorkflowRequest(
                         kinase_result=_kinase_result(),
-                        config=build_signalome_config(substrate_support_cutoff=0.5),
+                        config=build_signalome_config(
+                            substrate_support_cutoff=0.5,
+                            reference_context_compatibility_policy=(
+                                _ALLOW_UNKNOWN_REFERENCE_CONTEXT
+                            ),
+                        ),
                     )
                 )
                 .kinase_network.to_pandas
@@ -939,7 +971,12 @@ def test_public_signalome_exports_isolated_from_mutation() -> None:
     result = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=_kinase_result(),
-            config=build_signalome_config(substrate_support_cutoff=0.5),
+            config=build_signalome_config(
+                substrate_support_cutoff=0.5,
+                reference_context_compatibility_policy=(
+                    _ALLOW_UNKNOWN_REFERENCE_CONTEXT
+                ),
+            ),
         )
     )
 
@@ -1335,7 +1372,12 @@ def test_signalome_result_table_properties_are_defensive_snapshots() -> None:
     signalome_result = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=_kinase_result(),
-            config=build_signalome_config(substrate_support_cutoff=0.5),
+            config=build_signalome_config(
+                substrate_support_cutoff=0.5,
+                reference_context_compatibility_policy=(
+                    _ALLOW_UNKNOWN_REFERENCE_CONTEXT
+                ),
+            ),
         )
     )
 

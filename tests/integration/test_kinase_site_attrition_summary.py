@@ -19,6 +19,7 @@ from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.io.publishers.workflows import publish_kinase_workflow
 
@@ -154,7 +155,12 @@ def test_kinase_workflow_exposes_compact_site_attrition_summary() -> None:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=_build_references(),
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=KinaseScoringConfig(
+                min_substrates=2,
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
+            ),
             prediction_config=KinasePredictionConfig(
                 top_k=3,
                 deterministic_max_selected_kinases=3,
@@ -239,7 +245,12 @@ def test_published_kinase_manifest_includes_site_attrition_summary(
         KinaseWorkflowRequest(
             dataset=dataset,
             references=_build_references(),
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=KinaseScoringConfig(
+                min_substrates=2,
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
+            ),
             prediction_config=KinasePredictionConfig(
                 top_k=3,
                 deterministic_max_selected_kinases=3,

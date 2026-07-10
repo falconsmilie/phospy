@@ -11,6 +11,7 @@ from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.science.prediction.motif_scoring import (
     DEFAULT_MOTIF_FLANK_SIZE,
@@ -470,6 +471,9 @@ def test_kinase_workflow_exposes_sequence_validation_diagnostics() -> None:
         scoring_config=KinaseScoringConfig(
             min_substrates=2,
             include_diagnostic_scoring_tables=True,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
         ),
         prediction_config=KinasePredictionConfig(
             top_k=1,
@@ -625,7 +629,12 @@ def test_kinase_workflow_reports_partial_sequence_coverage_in_provenance() -> No
         KinaseWorkflowRequest(
             dataset=dataset,
             references=references,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=KinaseScoringConfig(
+                min_substrates=2,
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
+            ),
             prediction_config=KinasePredictionConfig(
                 top_k=1,
                 deterministic_max_selected_kinases=1,
@@ -699,6 +708,9 @@ def test_kinase_workflow_continues_when_no_sites_have_valid_sequence() -> None:
             scoring_config=KinaseScoringConfig(
                 min_substrates=2,
                 include_diagnostic_scoring_tables=True,
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
             ),
             prediction_config=KinasePredictionConfig(
                 top_k=1,

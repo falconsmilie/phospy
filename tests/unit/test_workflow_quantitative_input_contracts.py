@@ -8,8 +8,10 @@ from phospy.api import (
     Contrast,
     DifferentialAnalysisRequest,
     ExperimentalDesign,
+    KinaseScoringConfig,
     KinaseWorkflowRequest,
     Organism,
+    ReferenceContextCompatibilityPolicy,
     SampleDesignRecord,
     SignalomeWorkflowRequest,
 )
@@ -111,6 +113,12 @@ def _kinase_request(dataset: AnalysisReadyPhosphoDataset) -> KinaseWorkflowReque
     return KinaseWorkflowRequest(
         dataset=dataset,
         references=_reference_bundle(),
+        scoring_config=KinaseScoringConfig(
+            min_substrates=2,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
+        ),
         activity_config=None,
     )
 
@@ -134,7 +142,12 @@ def _signalome_request(
             scoring_result=KinaseScoringResult(profile_scores=score_matrix),
             prediction_result=KinasePredictionResult(pred_mat=prediction_matrix),
         ),
-        config=build_signalome_config(substrate_support_cutoff=0.5),
+        config=build_signalome_config(
+            substrate_support_cutoff=0.5,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
+        ),
     )
 
 

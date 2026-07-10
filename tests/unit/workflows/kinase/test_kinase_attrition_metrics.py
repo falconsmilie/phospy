@@ -9,6 +9,7 @@ from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.errors.workflows import PhosPyWorkflowError, WorkflowBoundaryError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
@@ -132,7 +133,12 @@ def _request(
     return KinaseWorkflowRequest(
         dataset=dataset,
         references=references,
-        scoring_config=KinaseScoringConfig(min_substrates=2),
+        scoring_config=KinaseScoringConfig(
+            min_substrates=2,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
+        ),
         prediction_config=KinasePredictionConfig(
             top_k=2,
             deterministic_max_selected_kinases=2,

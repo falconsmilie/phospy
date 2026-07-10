@@ -10,6 +10,7 @@ from phospy.api.configs import (
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.api.requests import KinaseWorkflowRequest
 from phospy.provenance.scientific_policy_models import ScientificPolicyId
@@ -79,7 +80,12 @@ def test_kinase_workflow_runs_ssgsea_substrate_enrichment_activity() -> None:
         KinaseWorkflowRequest(
             dataset=_dataset(),
             references=_references(),
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=KinaseScoringConfig(
+                min_substrates=2,
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
+            ),
             prediction_config=KinasePredictionConfig(
                 top_k=4,
                 deterministic_max_selected_kinases=2,

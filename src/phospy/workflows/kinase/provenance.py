@@ -451,6 +451,9 @@ def _build_scoring_config_payload(
             config.include_diagnostic_scoring_tables
         ),
         "profile_self_inclusion_policy": str(config.profile_self_inclusion_policy),
+        "reference_context_compatibility_policy": str(
+            config.reference_context_compatibility_policy
+        ),
         "attrition_policy": kinase_attrition_policy_to_payload(config.attrition_policy),
     }
     if profile_correlation_enabled:

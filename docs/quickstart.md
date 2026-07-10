@@ -59,6 +59,8 @@ duplicate-site preprocessing policy.
 ## 3. Run the Python Workflow
 
 ```python title="Analysis Ready Dataset, Kinase Workflow, and Signalome Workflow"
+from dataclasses import replace
+
 import pandas as pd
 
 from phospy import (
@@ -73,8 +75,10 @@ from phospy.api import (
     KinaseScoringConfig,
     KinaseWorkflowRequest,
     Organism,
+    ReferenceContextCompatibilityPolicy,
     ReferencePreset,
     SignalomeConfig,
+    SignalomeValidationConfig,
     SignalomeWorkflowRequest,
 )
 
@@ -117,7 +121,11 @@ kinase_result = KinaseWorkflow().run(
     KinaseWorkflowRequest(
         dataset=dataset,
         references=ReferencePreset.AUTO,
-        scoring_config=KinaseScoringConfig.default(),
+        scoring_config=KinaseScoringConfig(
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            )
+        ),
         prediction_config=KinasePredictionConfig.deterministic(),
         activity_config=None,
         site_sequence_conflict_policy="prefer_reference",
@@ -127,7 +135,14 @@ kinase_result = KinaseWorkflow().run(
 signalome_result = SignalomeWorkflow().run(
     SignalomeWorkflowRequest(
         kinase_result=kinase_result,
-        config=SignalomeConfig.sampled_candidate_scoring(),
+        config=replace(
+            SignalomeConfig.sampled_candidate_scoring(),
+            validation=SignalomeValidationConfig(
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                )
+            ),
+        ),
     )
 )
 

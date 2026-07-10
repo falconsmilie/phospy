@@ -14,9 +14,11 @@ from phospy.api import (
     DatasetBuildRequest,
     DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
+    KinaseScoringConfig,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
+    ReferenceContextCompatibilityPolicy,
     ReferencePreset,
 )
 
@@ -73,6 +75,11 @@ def run_demo() -> KinaseWorkflowResult:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
+            scoring_config=KinaseScoringConfig(
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                )
+            ),
             activity_config=None,
             site_sequence_conflict_policy="prefer_reference",
         )

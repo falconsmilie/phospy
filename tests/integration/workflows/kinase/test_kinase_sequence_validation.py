@@ -12,6 +12,7 @@ from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.api.configs import (
     KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
@@ -149,6 +150,9 @@ def test_invalid_fixed_window_sequence_is_rejected_before_scoring() -> None:
         scoring_config=KinaseScoringConfig(
             min_substrates=2,
             scoring_mode=KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
         ),
         prediction_config=KinasePredictionConfig(
             top_k=1,

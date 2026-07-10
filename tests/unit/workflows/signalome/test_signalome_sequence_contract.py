@@ -3,7 +3,12 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.api import Organism, ReferenceBundle, SignalomeWorkflowRequest
+from phospy.api import (
+    Organism,
+    ReferenceBundle,
+    ReferenceContextCompatibilityPolicy,
+    SignalomeWorkflowRequest,
+)
 from phospy.api.results import (
     KinasePredictionResult,
     KinaseScoringResult,
@@ -97,7 +102,12 @@ def _request(
 ) -> SignalomeWorkflowRequest:
     return SignalomeWorkflowRequest(
         kinase_result=_kinase_result(dataset),
-        config=build_signalome_config(substrate_support_cutoff=0.5),
+        config=build_signalome_config(
+            substrate_support_cutoff=0.5,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
+        ),
     )
 
 

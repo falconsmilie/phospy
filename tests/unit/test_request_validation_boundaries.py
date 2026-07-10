@@ -20,6 +20,7 @@ from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+    ReferenceContextCompatibilityPolicy,
     SampleDesignRecord,
     SignalomeWorkflowRequest,
 )
@@ -35,6 +36,7 @@ from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
 )
+from tests.support.signalome_config import build_signalome_config
 from tests.support.site_keys import protein_site_key_index, site_key_context_columns
 
 
@@ -268,7 +270,12 @@ def test_invalid_signalome_request_fails_at_workflow_validation_stage() -> None:
     interpreter = _UnexpectedStage("signalome interpreter")
     executor = _UnexpectedStage("signalome executor")
     request = SignalomeWorkflowRequest(
-        kinase_result=_kinase_result_missing_signalome_protein_id()
+        kinase_result=_kinase_result_missing_signalome_protein_id(),
+        config=build_signalome_config(
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            )
+        ),
     )
 
     with pytest.raises(WorkflowValidationError) as exc_info:

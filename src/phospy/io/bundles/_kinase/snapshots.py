@@ -29,6 +29,7 @@ from phospy.api.configs import (
     KinaseScoringConfig,
     KinaseScoringMode,
     ProfileSelfInclusionPolicy,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.primitives import (
@@ -50,6 +51,7 @@ _SCORING_CONFIG_ALLOWED_FIELDS = frozenset(
         "include_substrate_contributions",
         "profile_missing_value_strategy",
         "profile_self_inclusion_policy",
+        "reference_context_compatibility_policy",
         "attrition_policy",
         "allow_mixed_total_protein_quantitative_meaning",
     }
@@ -158,6 +160,9 @@ class KinaseWorkflowConfigSnapshot:
             ),
             "allow_mixed_total_protein_quantitative_meaning": (
                 self.scoring_config.allow_mixed_total_protein_quantitative_meaning
+            ),
+            "reference_context_compatibility_policy": str(
+                self.scoring_config.reference_context_compatibility_policy
             ),
         }
         if self.scoring_config.include_substrate_contributions:
@@ -362,9 +367,29 @@ class KinaseWorkflowConfigSnapshot:
                         "allow_mixed_total_protein_quantitative_meaning"
                     ),
                 ),
+                reference_context_compatibility_policy=(
+                    _parse_reference_context_compatibility_policy(
+                        require_str(
+                            scoring_payload.get(
+                                "reference_context_compatibility_policy",
+                                str(
+                                    ReferenceContextCompatibilityPolicy.REQUIRE_KNOWN_MATCH
+                                ),
+                            ),
+                            field_name=(
+                                f"{scope}.scoring_config."
+                                "reference_context_compatibility_policy"
+                            ),
+                        ),
+                        field_name=(
+                            f"{scope}.scoring_config."
+                            "reference_context_compatibility_policy"
+                        ),
+                    )
+                ),
                 attrition_policy=_parse_attrition_policy(
                     scoring_payload.get("attrition_policy"),
-                    field_name=f"{scope}.scoring_config.attrition_policy",
+                    field_name=(f"{scope}.scoring_config.attrition_policy"),
                 ),
             ),
             prediction_config=KinasePredictionConfig(
@@ -461,6 +486,18 @@ def _parse_profile_self_inclusion_policy(
     except ValueError as exc:
         allowed = ", ".join(
             sorted(str(policy) for policy in KINASE_PROFILE_SELF_INCLUSION_POLICIES)
+        )
+        raise PhosPyInputError(f"{field_name} must be one of: {allowed}") from exc
+
+
+def _parse_reference_context_compatibility_policy(
+    value: str, *, field_name: str
+) -> ReferenceContextCompatibilityPolicy:
+    try:
+        return ReferenceContextCompatibilityPolicy(value)
+    except ValueError as exc:
+        allowed = ", ".join(
+            sorted(str(policy) for policy in ReferenceContextCompatibilityPolicy)
         )
         raise PhosPyInputError(f"{field_name} must be one of: {allowed}") from exc
 

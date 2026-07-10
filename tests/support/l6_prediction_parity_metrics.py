@@ -12,6 +12,7 @@ from phospy.api import (
     KinasePredictionConfig,
     KinaseScoringConfig,
     KinaseWorkflowRequest,
+    ReferenceContextCompatibilityPolicy,
     ReferencePreset,
 )
 from tests.support.rewrite_fixture_data import (
@@ -537,6 +538,9 @@ def _run_l6_workflow(adaptive_policy: str):
             scoring_config=KinaseScoringConfig(
                 min_substrates=2,
                 include_diagnostic_scoring_tables=True,
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
             ),
             prediction_config=KinasePredictionConfig(
                 top_k=30,

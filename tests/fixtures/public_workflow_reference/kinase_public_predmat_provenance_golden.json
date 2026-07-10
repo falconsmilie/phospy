@@ -6,6 +6,7 @@
       "include_diagnostic_scoring_tables": false,
       "profile_missing_value_strategy": "strict",
       "profile_self_inclusion_policy": "allow",
+      "reference_context_compatibility_policy": "allow_unknown_with_caveat",
       "attrition_policy": {
         "minimum_reference_overlap_fraction": 0.0,
         "minimum_sequence_supported_fraction": 0.0,

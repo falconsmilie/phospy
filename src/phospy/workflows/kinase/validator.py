@@ -13,6 +13,7 @@ from phospy.contracts.configs import (
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET,
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.contracts.requests import KinaseWorkflowRequest
 from phospy.errors.validation import WorkflowValidationError
@@ -85,12 +86,20 @@ class KinaseWorkflowValidator:
             raise WorkflowValidationError(
                 "kinase workflow request references must be ReferencePreset or ReferenceBundle"
             )
+        scoring_config, _, _ = self._config_validator.run(
+            scoring_config=request.scoring_config,
+            prediction_config=request.prediction_config,
+            activity_config=request.activity_config,
+        )
         if isinstance(references, ReferenceBundle):
             validate_reference_context_compatibility(
                 dataset.reference_context,
                 _reference_bundle_context(references),
                 operation="kinase workflow request dataset/reference bundle",
-                allow_unknown=True,
+                allow_unknown=(
+                    scoring_config.reference_context_compatibility_policy
+                    is ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
                 error_type=WorkflowValidationError,
             )
         if (
@@ -106,11 +115,6 @@ class KinaseWorkflowValidator:
             request.site_sequence_conflict_policy,
             field_name="kinase workflow request site_sequence_conflict_policy",
             error_type=WorkflowValidationError,
-        )
-        scoring_config, _, _ = self._config_validator.run(
-            scoring_config=request.scoring_config,
-            prediction_config=request.prediction_config,
-            activity_config=request.activity_config,
         )
         mode_contract = kinase_scoring_mode_input_contract(scoring_config.scoring_mode)
         if mode_contract.requires_kinase_library_resource:

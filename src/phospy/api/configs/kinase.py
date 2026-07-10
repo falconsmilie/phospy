@@ -61,7 +61,13 @@ from phospy.contracts.configs.kinase import (
     KinaseSiteSequenceConflictPolicy,
     LocalisationRequirement,
     ProfileSelfInclusionPolicy,
+    ReferenceContextCompatibilityPolicy,
     normalize_kinase_scoring_mode,
+)
+from phospy.contracts.configs.reference_context import (
+    REFERENCE_CONTEXT_COMPATIBILITY_POLICIES,
+    REFERENCE_CONTEXT_COMPATIBILITY_POLICY_ALLOW_UNKNOWN_WITH_CAVEAT,
+    REFERENCE_CONTEXT_COMPATIBILITY_POLICY_REQUIRE_KNOWN_MATCH,
 )
 
 __all__ = [
@@ -112,6 +118,9 @@ __all__ = [
     "KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR",
     "KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_DATASET",
     "KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE",
+    "REFERENCE_CONTEXT_COMPATIBILITY_POLICIES",
+    "REFERENCE_CONTEXT_COMPATIBILITY_POLICY_ALLOW_UNKNOWN_WITH_CAVEAT",
+    "REFERENCE_CONTEXT_COMPATIBILITY_POLICY_REQUIRE_KNOWN_MATCH",
     "KinaseActivityConfig",
     "KinaseActivityMethod",
     "KinaseActivityPValueMethod",
@@ -125,5 +134,6 @@ __all__ = [
     "KinaseScoringMode",
     "KinaseSiteSequenceConflictPolicy",
     "LocalisationRequirement",
+    "ReferenceContextCompatibilityPolicy",
     "normalize_kinase_scoring_mode",
 ]

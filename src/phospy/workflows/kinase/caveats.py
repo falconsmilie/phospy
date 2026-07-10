@@ -7,6 +7,7 @@ import pandas as pd
 from phospy.contracts.configs import (
     KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY,
     KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.contracts.result_caveats import ResultCaveat
 from phospy.science.prediction.models import KinaseScoringResult
@@ -148,18 +149,25 @@ def _non_default_reference_source_caveat(
 def _reference_context_unknown_caveat(
     request: ResolvedKinaseWorkflowRequest,
 ) -> ResultCaveat | None:
+    policy = request.execution_config.reference_context_compatibility_policy
+    allow_unknown = (
+        policy is ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+    )
+    if not allow_unknown:
+        return None
     warning = validate_reference_context_compatibility(
         request.dataset.reference_context,
         None
         if request.references.provenance is None
         else request.references.provenance.reference_context,
         operation="kinase workflow result dataset/reference bundle",
-        allow_unknown=True,
+        allow_unknown=allow_unknown,
     )
     if warning is None:
         return None
     return build_reference_context_compatibility_caveat(
         warning,
+        policy=policy,
         workflow_scope="kinase_scoring",
     )
 

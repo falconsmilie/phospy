@@ -11,6 +11,7 @@ from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.api.results import KinaseWorkflowResult
 from phospy.errors.workflows import WorkflowBoundaryError
@@ -101,6 +102,9 @@ def _request(policy: KinaseAttritionPolicy) -> KinaseWorkflowRequest:
         scoring_config=KinaseScoringConfig(
             min_substrates=2,
             attrition_policy=policy,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
         ),
         prediction_config=KinasePredictionConfig(
             top_k=2,

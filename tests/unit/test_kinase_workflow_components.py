@@ -13,6 +13,8 @@ from phospy.api.configs import (
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS,
     KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.api.requests import KinaseWorkflowRequest
 from phospy.api.results import (
@@ -268,6 +270,15 @@ def _mixed_case_references() -> ReferenceBundle:
     )
 
 
+def _allow_unknown_reference_context_scoring_config() -> KinaseScoringConfig:
+    return KinaseScoringConfig(
+        min_substrates=2,
+        reference_context_compatibility_policy=(
+            ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+        ),
+    )
+
+
 def _config(
     *,
     prediction_mode: str = KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
@@ -415,6 +426,7 @@ def test_kinase_interpreter_resolves_and_projects_references_for_execution() -> 
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.RAT,
+            scoring_config=_allow_unknown_reference_context_scoring_config(),
         )
     )
 
@@ -701,7 +713,11 @@ def test_already_normalised_execution_inputs_are_accepted() -> None:
 
 def test_workflow_execution_with_valid_reference_bundle_still_succeeds() -> None:
     interpreted = KinaseWorkflowInterpreter().run(
-        KinaseWorkflowRequest(dataset=_dataset(), references=_references())
+        KinaseWorkflowRequest(
+            dataset=_dataset(),
+            references=_references(),
+            scoring_config=_allow_unknown_reference_context_scoring_config(),
+        )
     )
     scoring = KinaseScoringRunner().run(
         request=interpreted,
@@ -714,7 +730,11 @@ def test_workflow_execution_with_valid_reference_bundle_still_succeeds() -> None
 
 def test_interpreter_preserves_reference_bundle_validation_report() -> None:
     interpreted = KinaseWorkflowInterpreter().run(
-        KinaseWorkflowRequest(dataset=_dataset(), references=_references())
+        KinaseWorkflowRequest(
+            dataset=_dataset(),
+            references=_references(),
+            scoring_config=_allow_unknown_reference_context_scoring_config(),
+        )
     )
 
     report = interpreted.references.validation_report
@@ -732,6 +752,7 @@ def test_interpreter_overlap_uses_normalised_reference_tables_after_bundle_const
     request = KinaseWorkflowRequest(
         dataset=_dataset(),
         references=_mixed_case_references(),
+        scoring_config=_allow_unknown_reference_context_scoring_config(),
     )
 
     interpreted = KinaseWorkflowInterpreter().run(request)
@@ -757,6 +778,7 @@ def test_interpreter_maps_one_display_reference_to_multiple_site_keys() -> None:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=_references(),
+            scoring_config=_allow_unknown_reference_context_scoring_config(),
             reference_display_ambiguity_policy=(
                 KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS
             ),
@@ -791,6 +813,7 @@ def test_duplicate_display_ids_are_accepted_before_reference_projection() -> Non
     request = KinaseWorkflowRequest(
         dataset=_dataset_with_duplicate_display_ids(),
         references=_references(),
+        scoring_config=_allow_unknown_reference_context_scoring_config(),
     )
 
     validated = KinaseWorkflowValidator().run(request)
@@ -807,7 +830,11 @@ def test_ambiguous_display_reference_projection_fails_by_default() -> None:
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
         KinaseWorkflowInterpreter().run(
-            KinaseWorkflowRequest(dataset=dataset, references=_references())
+            KinaseWorkflowRequest(
+                dataset=dataset,
+                references=_references(),
+                scoring_config=_allow_unknown_reference_context_scoring_config(),
+            )
         )
 
     error = exc_info.value
@@ -840,6 +867,7 @@ def test_projected_kinase_substrate_map_preserves_site_key_identity() -> None:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=_references(),
+            scoring_config=_allow_unknown_reference_context_scoring_config(),
             reference_display_ambiguity_policy=(
                 KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS
             ),
@@ -869,6 +897,7 @@ def test_one_to_many_reference_matching_diagnostic_includes_display_and_site_key
         KinaseWorkflowRequest(
             dataset=dataset,
             references=_references(),
+            scoring_config=_allow_unknown_reference_context_scoring_config(),
             reference_display_ambiguity_policy=(
                 KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS
             ),
@@ -1027,6 +1056,7 @@ def test_duplicate_display_id_does_not_overwrite_prediction_rows() -> None:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=_references(),
+            scoring_config=_allow_unknown_reference_context_scoring_config(),
             reference_display_ambiguity_policy=(
                 KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS
             ),

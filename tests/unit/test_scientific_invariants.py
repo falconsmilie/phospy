@@ -15,6 +15,7 @@ from phospy.api.configs import (
     SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
     SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.api.results import (
     KinasePredictionResult,
@@ -599,6 +600,9 @@ def test_signalome_missing_value_preconditioning_is_recorded_in_diagnostics_and_
                 score_preconditioning_policy=(
                     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
                 ),
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
             ),
         )
     )
@@ -651,6 +655,9 @@ def test_signalome_backend_selection_metadata_is_recorded_clearly() -> None:
                 clustering_engine=SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
                 candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
                 max_full_candidate_scoring_sites=2,
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
             ),
         )
     )

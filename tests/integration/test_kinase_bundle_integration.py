@@ -22,6 +22,7 @@ from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.api.configs import (
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
@@ -590,7 +591,12 @@ def _build_request(*, activity: bool) -> KinaseWorkflowRequest:
     return KinaseWorkflowRequest(
         dataset=dataset,
         references=references,
-        scoring_config=KinaseScoringConfig(min_substrates=2),
+        scoring_config=KinaseScoringConfig(
+            min_substrates=2,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
+        ),
         prediction_config=KinasePredictionConfig(
             top_k=2,
             deterministic_max_selected_kinases=2,
@@ -686,6 +692,9 @@ def _build_request_with_subtract_log_total_and_uncorrected_rows(
         scoring_config=KinaseScoringConfig(
             min_substrates=2,
             allow_mixed_total_protein_quantitative_meaning=True,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
         ),
         prediction_config=KinasePredictionConfig(
             top_k=2,
@@ -776,7 +785,12 @@ def _build_request_with_subtract_log_total(*, activity: bool) -> KinaseWorkflowR
     return KinaseWorkflowRequest(
         dataset=dataset,
         references=references,
-        scoring_config=KinaseScoringConfig(min_substrates=2),
+        scoring_config=KinaseScoringConfig(
+            min_substrates=2,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
+        ),
         prediction_config=KinasePredictionConfig(
             top_k=2,
             deterministic_max_selected_kinases=2,

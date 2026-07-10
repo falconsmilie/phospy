@@ -21,6 +21,7 @@ from phospy.contracts.configs import (
     KinaseScoringMode,
     LocalisationRequirement,
     ProfileSelfInclusionPolicy,
+    ReferenceContextCompatibilityPolicy,
     normalize_kinase_scoring_mode,
 )
 from phospy.contracts.requests import KinaseWorkflowRequest
@@ -726,6 +727,9 @@ class ResolvedKinaseExecutionConfig:
     localisation_requirement: LocalisationRequirement = field(
         default_factory=LocalisationRequirement
     )
+    reference_context_compatibility_policy: ReferenceContextCompatibilityPolicy = (
+        ReferenceContextCompatibilityPolicy.REQUIRE_KNOWN_MATCH
+    )
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -740,6 +744,18 @@ class ResolvedKinaseExecutionConfig:
                 ProfileSelfInclusionPolicy,
                 self.profile_self_inclusion_policy,
                 field_name="kinase.execution_config.profile_self_inclusion_policy",
+                error_type=WorkflowBoundaryError,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "reference_context_compatibility_policy",
+            coerce_policy_enum(
+                ReferenceContextCompatibilityPolicy,
+                self.reference_context_compatibility_policy,
+                field_name=(
+                    "kinase.execution_config.reference_context_compatibility_policy"
+                ),
                 error_type=WorkflowBoundaryError,
             ),
         )

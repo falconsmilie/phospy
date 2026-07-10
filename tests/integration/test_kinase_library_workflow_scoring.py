@@ -9,6 +9,7 @@ from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.api.configs import (
     KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
@@ -162,6 +163,9 @@ def _request(
             min_substrates=2,
             scoring_mode=scoring_mode,
             include_diagnostic_scoring_tables=True,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
         ),
         prediction_config=KinasePredictionConfig(
             top_k=2,

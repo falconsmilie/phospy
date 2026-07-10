@@ -10,6 +10,7 @@ from phospy.api.configs import (
     SIGNALOME_CLUSTERING_ENGINES,
     SIGNALOME_KINASE_NETWORK_POLICIES,
     SIGNALOME_SCORE_PRECONDITIONING_POLICIES,
+    ReferenceContextCompatibilityPolicy,
     SignalomeClusteringConfig,
     SignalomeConfig,
     SignalomeOutputConfig,
@@ -57,6 +58,7 @@ _VALIDATION_ALLOWED_FIELDS = frozenset(
     {
         "score_preconditioning_policy",
         "allow_mixed_total_protein_quantitative_meaning",
+        "reference_context_compatibility_policy",
     }
 )
 _VALIDATION_REQUIRED_FIELDS = _VALIDATION_ALLOWED_FIELDS
@@ -74,6 +76,18 @@ _PERFORMANCE_ALLOWED_FIELDS = frozenset(
     {"max_exact_tree_sites", "max_full_candidate_scoring_sites"}
 )
 _PERFORMANCE_REQUIRED_FIELDS = _PERFORMANCE_ALLOWED_FIELDS
+
+
+def _parse_reference_context_compatibility_policy(
+    value: str, *, field_name: str
+) -> ReferenceContextCompatibilityPolicy:
+    try:
+        return ReferenceContextCompatibilityPolicy(value)
+    except ValueError as exc:
+        allowed = ", ".join(
+            sorted(str(policy) for policy in ReferenceContextCompatibilityPolicy)
+        )
+        raise PhosPyInputError(f"{field_name} must be one of: {allowed}") from exc
 
 
 def signalome_config_from_payload(
@@ -191,6 +205,21 @@ def signalome_config_from_payload(
             "allow_mixed_total_protein_quantitative_meaning"
         ),
     )
+    reference_context_compatibility_policy = (
+        _parse_reference_context_compatibility_policy(
+            require_str(
+                validation_payload.get("reference_context_compatibility_policy"),
+                field_name=(
+                    f"{scope}.signalome_config.validation."
+                    "reference_context_compatibility_policy"
+                ),
+            ),
+            field_name=(
+                f"{scope}.signalome_config.validation."
+                "reference_context_compatibility_policy"
+            ),
+        )
+    )
     if score_preconditioning_policy not in SIGNALOME_SCORE_PRECONDITIONING_POLICIES:
         allowed = ", ".join(sorted(SIGNALOME_SCORE_PRECONDITIONING_POLICIES))
         raise PhosPyInputError(
@@ -291,6 +320,9 @@ def signalome_config_from_payload(
             score_preconditioning_policy=score_preconditioning_policy,  # type: ignore[arg-type]
             allow_mixed_total_protein_quantitative_meaning=(
                 allow_mixed_total_protein_quantitative_meaning
+            ),
+            reference_context_compatibility_policy=(
+                reference_context_compatibility_policy
             ),
         ),
         output=SignalomeOutputConfig(

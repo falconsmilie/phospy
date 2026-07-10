@@ -288,6 +288,9 @@ class SignalomeWorkflowInterpreter:
                 )
             ),
             localisation_requirement=request.config.validation.localisation_requirement,
+            reference_context_compatibility_policy=(
+                request.config.validation.reference_context_compatibility_policy
+            ),
         )
 
 

@@ -71,8 +71,11 @@ from phospy.api import KinaseScoringConfig
 scoring_config = KinaseScoringConfig.production()
 ```
 
-The default `KinaseScoringConfig.default()` remains permissive for backwards
-compatibility.
+The default `KinaseScoringConfig.default()` keeps localisation permissive for
+backwards compatibility, but reference-context compatibility is conservative:
+unknown context fails unless
+`ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT` is set
+explicitly.
 
 ## Request Object
 
@@ -371,6 +374,7 @@ from phospy.api import (
     KinasePredictionConfig,
     KinaseScoringConfig,
     KinaseWorkflowRequest,
+    ReferenceContextCompatibilityPolicy,
     ReferencePreset,
 )
 
@@ -380,6 +384,9 @@ request = KinaseWorkflowRequest(
     scoring_config=KinaseScoringConfig(
         min_substrates=2,
         include_diagnostic_scoring_tables=False,
+        reference_context_compatibility_policy=(
+            ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+        ),
     ),
     prediction_config=KinasePredictionConfig.deterministic(),
     activity_config=None,

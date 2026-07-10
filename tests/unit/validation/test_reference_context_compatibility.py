@@ -152,7 +152,7 @@ def test_mismatched_namespace_fails() -> None:
     assert "protein_namespace" in str(exc_info.value)
 
 
-def test_unknown_context_fails_by_default() -> None:
+def test_reference_context_validator_unknown_fails_by_default() -> None:
     with pytest.raises(PhosPyValidationError, match="unknown reference context"):
         validate_reference_context_compatibility(
             _context(),

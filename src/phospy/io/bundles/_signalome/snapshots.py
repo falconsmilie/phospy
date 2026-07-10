@@ -79,6 +79,9 @@ class SignalomeWorkflowConfigSnapshot:
                     "allow_mixed_total_protein_quantitative_meaning": bool(
                         self.signalome_config.validation.allow_mixed_total_protein_quantitative_meaning
                     ),
+                    "reference_context_compatibility_policy": str(
+                        self.signalome_config.validation.reference_context_compatibility_policy
+                    ),
                 },
                 "output": {
                     "network_correlation_threshold": float(

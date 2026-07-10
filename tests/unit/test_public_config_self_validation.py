@@ -20,6 +20,7 @@ from phospy.api.configs import (
     KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT,
     LOCALISATION_POLICY_REQUIRE_THRESHOLD,
     LOCALISATION_PRODUCTION_MINIMUM_PROBABILITY,
+    REFERENCE_CONTEXT_COMPATIBILITY_POLICY_REQUIRE_KNOWN_MATCH,
     SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
     SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
     SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
@@ -43,6 +44,7 @@ from phospy.api.configs import (
     KinaseScoringConfig,
     LocalisationRequirement,
     ProfileSelfInclusionPolicy,
+    ReferenceContextCompatibilityPolicy,
     SignalomeClusteringConfig,
     SignalomeConfig,
     SignalomeOutputConfig,
@@ -385,6 +387,10 @@ def test_dataset_preprocessing_config_presets_return_expected_values() -> None:
             "scoring_config.profile_self_inclusion_policy must be one of",
         ),
         (
+            {"reference_context_compatibility_policy": "invalid"},
+            "scoring_config.reference_context_compatibility_policy must be one of",
+        ),
+        (
             {"allow_mixed_total_protein_quantitative_meaning": "yes"},
             "scoring_config.allow_mixed_total_protein_quantitative_meaning must be a bool",
         ),
@@ -458,6 +464,10 @@ def test_kinase_config_uses_default_attrition_policy() -> None:
         on_violation="warn",
     )
     assert config.profile_self_inclusion_policy is ProfileSelfInclusionPolicy.ALLOW
+    assert (
+        config.reference_context_compatibility_policy
+        is ReferenceContextCompatibilityPolicy.REQUIRE_KNOWN_MATCH
+    )
 
 
 def test_kinase_scoring_config_accepts_attrition_policy() -> None:
@@ -521,6 +531,10 @@ def test_kinase_scoring_config_presets_return_expected_values() -> None:
     assert strict_missing.attrition_policy == KinaseAttritionPolicy()
     assert (
         strict_missing.profile_self_inclusion_policy is ProfileSelfInclusionPolicy.ALLOW
+    )
+    assert (
+        default.reference_context_compatibility_policy
+        == REFERENCE_CONTEXT_COMPATIBILITY_POLICY_REQUIRE_KNOWN_MATCH
     )
 
 
@@ -799,6 +813,15 @@ def test_kinase_activity_config_self_validates(
             "signalome workflow request config.validation.allow_mixed_total_protein_quantitative_meaning",
         ),
         (
+            lambda: SignalomeValidationConfig(
+                reference_context_compatibility_policy="invalid"  # type: ignore[arg-type]
+            ),
+            (
+                "signalome workflow request config.validation."
+                "reference_context_compatibility_policy"
+            ),
+        ),
+        (
             lambda: SignalomeClusteringConfig(module_selection_max_clusters=0),
             "module_selection_max_clusters",
         ),
@@ -967,6 +990,10 @@ def test_signalome_config_presets_return_expected_values() -> None:
     )
     assert default.output.network_min_paired_finite_observations is None
     assert SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT == 2
+    assert (
+        default.validation.reference_context_compatibility_policy
+        == REFERENCE_CONTEXT_COMPATIBILITY_POLICY_REQUIRE_KNOWN_MATCH
+    )
 
 
 def test_signalome_production_config_uses_strict_localisation() -> None:

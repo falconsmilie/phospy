@@ -294,6 +294,9 @@ def _build_signalome_config_payload(
             "allow_mixed_total_protein_quantitative_meaning": bool(
                 config.allow_mixed_total_protein_quantitative_meaning
             ),
+            "reference_context_compatibility_policy": str(
+                config.reference_context_compatibility_policy
+            ),
         },
         "output": {
             "network_correlation_threshold": float(

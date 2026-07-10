@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import Any
 
 import pandas as pd
 import pytest
@@ -16,6 +17,7 @@ from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+    ReferenceContextCompatibilityPolicy,
     ReferencePreset,
 )
 from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
@@ -34,6 +36,15 @@ from tests.support.rewrite_fixture_data import (
 # tests/fixtures/rewrite_parity/r_reference_l6/native_profile_scores.csv
 # (see PROVENANCE.md in the same directory).
 pytestmark = pytest.mark.parity
+
+
+def _scoring_config(**kwargs: Any) -> KinaseScoringConfig:
+    return KinaseScoringConfig(
+        reference_context_compatibility_policy=(
+            ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+        ),
+        **kwargs,
+    )
 
 
 def _site_key_for_display_id(site_metadata: pd.DataFrame, display_id: str) -> str:
@@ -70,7 +81,7 @@ def test_scoring_outputs_match_selected_reference_profile_values(
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(
+            scoring_config=_scoring_config(
                 min_substrates=2,
                 include_diagnostic_scoring_tables=True,
             ),
@@ -136,7 +147,7 @@ def test_prediction_top_sites_align_with_reference_ranking_subset(
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=3,
                 deterministic_max_selected_kinases=200,
@@ -188,7 +199,7 @@ def test_scoring_outputs_include_motif_and_rank_weighted_fusion_tables(
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(
+            scoring_config=_scoring_config(
                 min_substrates=2,
                 include_diagnostic_scoring_tables=True,
             ),
@@ -309,7 +320,7 @@ def test_profile_missing_value_policy_changes_downstream_lane_for_mixed_missing_
         KinaseWorkflowRequest(
             dataset=dataset,
             references=references,
-            scoring_config=KinaseScoringConfig(
+            scoring_config=_scoring_config(
                 min_substrates=2,
                 profile_missing_value_strategy="strict",
             ),
@@ -330,7 +341,7 @@ def test_profile_missing_value_policy_changes_downstream_lane_for_mixed_missing_
         KinaseWorkflowRequest(
             dataset=dataset,
             references=references,
-            scoring_config=KinaseScoringConfig(
+            scoring_config=_scoring_config(
                 min_substrates=2,
                 profile_missing_value_strategy="median_skipna",
             ),

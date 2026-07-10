@@ -9,7 +9,12 @@ from typing import Literal
 
 from phospy.contracts.configs.common import _require_int_at_least, _require_real_between
 from phospy.contracts.configs.localisation import LocalisationRequirement
+from phospy.contracts.configs.reference_context import (
+    REFERENCE_CONTEXT_COMPATIBILITY_POLICY_REQUIRE_KNOWN_MATCH,
+    ReferenceContextCompatibilityPolicy,
+)
 from phospy.errors.validation import WorkflowValidationError
+from phospy.validation.common.config_values import coerce_policy_enum
 
 SIGNALOME_MODULE_COUNT_FLOOR = 1
 SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT = 0.5
@@ -195,6 +200,9 @@ class SignalomeValidationConfig:
     allow_mixed_total_protein_quantitative_meaning: bool = (
         SIGNALOME_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT
     )
+    reference_context_compatibility_policy: ReferenceContextCompatibilityPolicy = (
+        REFERENCE_CONTEXT_COMPATIBILITY_POLICY_REQUIRE_KNOWN_MATCH
+    )
 
     def __post_init__(self) -> None:
         if not isinstance(self.allow_mixed_total_protein_quantitative_meaning, bool):
@@ -219,6 +227,20 @@ class SignalomeValidationConfig:
                 "signalome workflow request config.validation."
                 "localisation_requirement must be LocalisationRequirement"
             )
+        reference_context_compatibility_policy = coerce_policy_enum(
+            ReferenceContextCompatibilityPolicy,
+            self.reference_context_compatibility_policy,
+            field_name=(
+                "signalome workflow request config.validation."
+                "reference_context_compatibility_policy"
+            ),
+            error_type=WorkflowValidationError,
+        )
+        object.__setattr__(
+            self,
+            "reference_context_compatibility_policy",
+            reference_context_compatibility_policy,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -414,4 +436,5 @@ __all__ = [
     "SignalomeScientificConfig",
     "SignalomeScorePreconditioningPolicy",
     "SignalomeValidationConfig",
+    "ReferenceContextCompatibilityPolicy",
 ]

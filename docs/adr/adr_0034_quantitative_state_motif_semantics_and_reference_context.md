@@ -152,10 +152,15 @@ contexts, including:
   sides have reference context; and
 - result caveat assembly when unknown context was explicitly allowed earlier.
 
-`validate_reference_context_compatibility(...)` is the shared validator. Mismatched
-known contexts fail. Unknown contexts fail by default and may proceed only when
-the calling workflow sets an explicit `allow_unknown=True` policy and propagates
-the corresponding warning/caveat.
+`validate_reference_context_compatibility(...)` is the shared validator.
+Mismatched known contexts fail under every policy. Unknown contexts fail by
+default through `ReferenceContextCompatibilityPolicy.REQUIRE_KNOWN_MATCH`.
+Kinase and signalome workflows may proceed with unknown reference context only
+when their public config explicitly selects
+`ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT`. In that case,
+the workflow must emit a warning-severity result caveat that records the policy,
+workflow scope, operation, missing side or sides, and available left/right
+`reference_context_id` values.
 
 `ReferenceContext` is not license metadata and does not approve redistribution.
 Reference manifests and reference validation remain responsible for license and

@@ -240,8 +240,8 @@ def validate_reference_context_compatibility(
     raise error_type(
         "reference-context compatibility failed for "
         f"operation={resolved_operation!r}: unknown reference context for "
-        f"{', '.join(missing_contexts)}; set allow_unknown=True only when the "
-        "calling workflow has an explicit policy for unknown reference context"
+        f"{', '.join(missing_contexts)}; configure an explicit workflow policy "
+        "only when unknown reference context is scientifically acceptable"
     )
 
 

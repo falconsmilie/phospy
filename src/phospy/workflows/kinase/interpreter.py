@@ -6,6 +6,7 @@ from typing import NoReturn
 
 import pandas as pd
 
+from phospy.contracts.configs import ReferenceContextCompatibilityPolicy
 from phospy.contracts.requests import KinaseWorkflowRequest
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.datasets.internal_view import DatasetInternalView
@@ -96,7 +97,10 @@ class KinaseWorkflowInterpreter:
             if references.provenance is None
             else references.provenance.reference_context,
             operation="kinase workflow resolved dataset/reference bundle",
-            allow_unknown=True,
+            allow_unknown=(
+                request.scoring_config.reference_context_compatibility_policy
+                is ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
             error_type=WorkflowBoundaryError,
         )
         kinase_library_resource = self._resolve_kinase_library_resource(
@@ -350,6 +354,9 @@ class KinaseWorkflowInterpreter:
             attrition_policy=request.scoring_config.attrition_policy,
             activity=activity,
             localisation_requirement=request.scoring_config.localisation_requirement,
+            reference_context_compatibility_policy=(
+                request.scoring_config.reference_context_compatibility_policy
+            ),
         )
 
     @staticmethod

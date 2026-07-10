@@ -13,6 +13,7 @@ from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.workflows.kinase.contracts import (
@@ -191,7 +192,12 @@ def test_interpreter_conflict_error_policy_fails_before_executor_runs() -> None:
     request = KinaseWorkflowRequest(
         dataset=dataset,
         references=references,
-        scoring_config=KinaseScoringConfig(min_substrates=2),
+        scoring_config=KinaseScoringConfig(
+            min_substrates=2,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
+        ),
         prediction_config=KinasePredictionConfig(
             top_k=2,
             deterministic_max_selected_kinases=2,
@@ -241,7 +247,12 @@ def test_interpreter_default_prefer_reference_records_conflict_diagnostics_in_pr
         KinaseWorkflowRequest(
             dataset=dataset,
             references=references,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=KinaseScoringConfig(
+                min_substrates=2,
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
+            ),
             prediction_config=KinasePredictionConfig(
                 top_k=2,
                 deterministic_max_selected_kinases=2,
@@ -288,7 +299,12 @@ def test_interpreter_prefer_dataset_selects_dataset_sequence_and_contract_accept
     request = KinaseWorkflowRequest(
         dataset=dataset,
         references=references,
-        scoring_config=KinaseScoringConfig(min_substrates=2),
+        scoring_config=KinaseScoringConfig(
+            min_substrates=2,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
+        ),
         prediction_config=KinasePredictionConfig(
             top_k=2,
             deterministic_max_selected_kinases=2,

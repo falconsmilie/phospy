@@ -4,6 +4,7 @@ import json
 import re
 from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -23,6 +24,7 @@ from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+    ReferenceContextCompatibilityPolicy,
     ReferencePreset,
 )
 from phospy.api.configs import (
@@ -44,6 +46,15 @@ from tests.support.rewrite_fixture_data import (
 pytestmark = pytest.mark.integration
 _PUBLIC_SITE_ID_PATTERN = re.compile(r"^\s*[^;]+\s*;\s*[^;]+\s*;\s*$")
 _LEGACY_PUBLIC_SITE_ID_PATTERN = re.compile(r"^\s*([A-Za-z][A-Za-z0-9]*)_(\d+)\s*$")
+
+
+def _workflow_scoring_config(**kwargs: Any) -> KinaseScoringConfig:
+    return KinaseScoringConfig(
+        reference_context_compatibility_policy=(
+            ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+        ),
+        **kwargs,
+    )
 
 
 def _canonical_public_site_components(
@@ -237,7 +248,7 @@ def test_kinase_workflow_uses_dataset_site_sequences_without_mutating_references
         KinaseWorkflowRequest(
             dataset=dataset,
             references=references,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_workflow_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=2,
                 deterministic_max_selected_kinases=2,
@@ -322,7 +333,7 @@ def test_kinase_workflow_site_sequence_conflict_policy_is_public_request_option(
     request = KinaseWorkflowRequest(
         dataset=dataset,
         references=references,
-        scoring_config=KinaseScoringConfig(min_substrates=2),
+        scoring_config=_workflow_scoring_config(min_substrates=2),
         prediction_config=KinasePredictionConfig(
             top_k=2,
             deterministic_max_selected_kinases=2,
@@ -364,7 +375,7 @@ def test_kinase_workflow_runs_dataset_to_kinase_path() -> None:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_workflow_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=6,
                 deterministic_max_selected_kinases=8,
@@ -429,7 +440,7 @@ def test_kinase_workflow_activity_stage_is_optional() -> None:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_workflow_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=5,
                 deterministic_max_selected_kinases=6,
@@ -447,7 +458,7 @@ def test_kinase_activity_method_identity_is_present_in_result_and_provenance() -
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_workflow_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=5,
                 deterministic_max_selected_kinases=8,
@@ -496,7 +507,7 @@ def test_kinase_workflow_supports_ksea_activity_method_with_statistics_output() 
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_workflow_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=5,
                 deterministic_max_selected_kinases=8,
@@ -596,7 +607,7 @@ def test_weighted_and_ksea_activity_methods_are_independently_selectable() -> No
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_workflow_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=5,
                 deterministic_max_selected_kinases=8,
@@ -615,7 +626,7 @@ def test_weighted_and_ksea_activity_methods_are_independently_selectable() -> No
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_workflow_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=5,
                 deterministic_max_selected_kinases=8,
@@ -652,7 +663,7 @@ def test_kinase_publish_manifest_includes_activity_method_identity(
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_workflow_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=5,
                 deterministic_max_selected_kinases=8,
@@ -693,7 +704,7 @@ def test_kinase_publish_writes_ksea_activity_substrate_counts_from_result(
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_workflow_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=5,
                 deterministic_max_selected_kinases=8,
@@ -737,6 +748,7 @@ def test_kinase_workflow_default_scoring_floor_supports_realistic_input() -> Non
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
+            scoring_config=_workflow_scoring_config(),
             prediction_config=KinasePredictionConfig(
                 top_k=5,
                 deterministic_max_selected_kinases=6,
@@ -795,7 +807,7 @@ def test_explicit_mixed_case_references_align_and_emit_normalised_identifiers() 
         KinaseWorkflowRequest(
             dataset=dataset,
             references=references,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_workflow_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=2,
                 deterministic_max_selected_kinases=1,
@@ -830,7 +842,7 @@ def test_prediction_changes_when_downstream_matrix_switches_profile_vs_combined(
     request = KinaseWorkflowRequest(
         dataset=dataset,
         references=ReferencePreset.AUTO,
-        scoring_config=KinaseScoringConfig(min_substrates=2),
+        scoring_config=_workflow_scoring_config(min_substrates=2),
         prediction_config=KinasePredictionConfig(
             top_k=6,
             deterministic_max_selected_kinases=12,
@@ -891,7 +903,7 @@ def test_diagnostic_scoring_tables_are_opt_in_without_changing_supported_lane() 
     request_default = KinaseWorkflowRequest(
         dataset=dataset,
         references=ReferencePreset.AUTO,
-        scoring_config=KinaseScoringConfig(min_substrates=2),
+        scoring_config=_workflow_scoring_config(min_substrates=2),
         prediction_config=KinasePredictionConfig(
             top_k=6,
             deterministic_max_selected_kinases=12,
@@ -902,7 +914,7 @@ def test_diagnostic_scoring_tables_are_opt_in_without_changing_supported_lane() 
     request_with_diagnostics = KinaseWorkflowRequest(
         dataset=dataset,
         references=ReferencePreset.AUTO,
-        scoring_config=KinaseScoringConfig(
+        scoring_config=_workflow_scoring_config(
             min_substrates=2,
             include_diagnostic_scoring_tables=True,
         ),
@@ -975,7 +987,7 @@ def test_profile_missing_value_strategy_flows_from_request_to_science(
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(
+            scoring_config=_workflow_scoring_config(
                 min_substrates=2,
                 profile_missing_value_strategy="median_skipna",
             ),
@@ -1047,7 +1059,7 @@ def test_motif_library_build_is_limited_to_profile_eligible_kinases(
         KinaseWorkflowRequest(
             dataset=dataset,
             references=references,
-            scoring_config=KinaseScoringConfig(
+            scoring_config=_workflow_scoring_config(
                 min_substrates=2,
                 include_diagnostic_scoring_tables=True,
             ),
@@ -1148,7 +1160,7 @@ def test_kinase_public_predmat_provenance_matches_golden_contract() -> None:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=references,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_workflow_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=4,
                 deterministic_max_selected_kinases=3,

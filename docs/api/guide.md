@@ -301,8 +301,10 @@ from phospy.api import (
     DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
     IntensityScaleKind,
+    KinaseScoringConfig,
     KinaseWorkflowRequest,
     Organism,
+    ReferenceContextCompatibilityPolicy,
     ReferencePreset,
 )
 
@@ -353,6 +355,11 @@ kinase_result = KinaseWorkflow().run(
     KinaseWorkflowRequest(
         dataset=dataset,
         references=ReferencePreset.AUTO,
+        scoring_config=KinaseScoringConfig(
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            )
+        ),
         activity_config=None,
     )
 )

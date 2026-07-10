@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.contracts.configs import SignalomeConfig
+from phospy.contracts.configs import (
+    ReferenceContextCompatibilityPolicy,
+    SignalomeConfig,
+)
 from phospy.contracts.configs.localisation import LocalisationRequirement
 from phospy.contracts.requests import SignalomeWorkflowRequest
 from phospy.contracts.results import KinaseWorkflowResult
@@ -87,7 +90,10 @@ class SignalomeWorkflowValidator:
             )
         config = self._config_validator.run(request.config)
         dataset = request.kinase_result.dataset
-        _require_reference_context_compatibility(request.kinase_result)
+        _require_reference_context_compatibility(
+            request.kinase_result,
+            policy=config.validation.reference_context_compatibility_policy,
+        )
         dataset_view = DatasetInternalView(dataset)
         prediction_result = request.kinase_result.prediction_result
         scoring_result = request.kinase_result.scoring_result
@@ -331,21 +337,26 @@ class SignalomeWorkflowValidator:
 
 def _require_reference_context_compatibility(
     kinase_result: KinaseWorkflowResult,
+    *,
+    policy: ReferenceContextCompatibilityPolicy,
 ) -> None:
     dataset_context = kinase_result.dataset.reference_context
     result_provenance = kinase_result.provenance
+    allow_unknown = (
+        policy is ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+    )
     validate_reference_context_compatibility(
         dataset_context,
         None if result_provenance is None else result_provenance.reference_context,
         operation="signalome workflow request dataset/upstream kinase result",
-        allow_unknown=True,
+        allow_unknown=allow_unknown,
         error_type=WorkflowValidationError,
     )
     validate_reference_context_compatibility(
         dataset_context,
         _reference_bundle_context(kinase_result),
         operation="signalome workflow request dataset/upstream kinase reference",
-        allow_unknown=True,
+        allow_unknown=allow_unknown,
         error_type=WorkflowValidationError,
     )
 

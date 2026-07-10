@@ -22,6 +22,7 @@ def test_kinase_snapshot_payload_round_trip_preserves_fields() -> None:
                 "on_violation": "error",
             },
             "allow_mixed_total_protein_quantitative_meaning": True,
+            "reference_context_compatibility_policy": "require_known_match",
         },
         "prediction_config": {
             "top_k": 5,

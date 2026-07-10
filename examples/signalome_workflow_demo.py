@@ -14,10 +14,14 @@ from phospy.api import (
     DatasetBuildRequest,
     DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
+    KinaseScoringConfig,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
+    ReferenceContextCompatibilityPolicy,
     ReferencePreset,
+    SignalomeConfig,
+    SignalomeValidationConfig,
     SignalomeWorkflowRequest,
     SignalomeWorkflowResult,
 )
@@ -77,6 +81,11 @@ def _build_kinase_result() -> KinaseWorkflowResult:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
+            scoring_config=KinaseScoringConfig(
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                )
+            ),
             activity_config=None,
         )
     )
@@ -85,7 +94,16 @@ def _build_kinase_result() -> KinaseWorkflowResult:
 def run_demo() -> SignalomeWorkflowResult:
     kinase_result = _build_kinase_result()
     return SignalomeWorkflow().run(
-        SignalomeWorkflowRequest(kinase_result=kinase_result)
+        SignalomeWorkflowRequest(
+            kinase_result=kinase_result,
+            config=SignalomeConfig(
+                validation=SignalomeValidationConfig(
+                    reference_context_compatibility_policy=(
+                        ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                    )
+                )
+            ),
+        )
     )
 
 

@@ -1,5 +1,10 @@
 """Public compatibility wrapper for internal contract ownership."""
 
+from phospy.contracts.configs.reference_context import (
+    REFERENCE_CONTEXT_COMPATIBILITY_POLICIES,
+    REFERENCE_CONTEXT_COMPATIBILITY_POLICY_ALLOW_UNKNOWN_WITH_CAVEAT,
+    REFERENCE_CONTEXT_COMPATIBILITY_POLICY_REQUIRE_KNOWN_MATCH,
+)
 from phospy.contracts.configs.signalome import (
     SIGNALOME_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT,
     SIGNALOME_ASSIGNMENT_POLICIES,
@@ -30,6 +35,7 @@ from phospy.contracts.configs.signalome import (
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
     LocalisationRequirement,
+    ReferenceContextCompatibilityPolicy,
     SignalomeAssignmentPolicy,
     SignalomeCandidateScoringPolicy,
     SignalomeClusteringConfig,
@@ -45,6 +51,9 @@ from phospy.contracts.configs.signalome import (
 
 __all__ = [
     "LocalisationRequirement",
+    "REFERENCE_CONTEXT_COMPATIBILITY_POLICIES",
+    "REFERENCE_CONTEXT_COMPATIBILITY_POLICY_ALLOW_UNKNOWN_WITH_CAVEAT",
+    "REFERENCE_CONTEXT_COMPATIBILITY_POLICY_REQUIRE_KNOWN_MATCH",
     "SIGNALOME_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT",
     "SIGNALOME_ASSIGNMENT_POLICIES",
     "SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY",
@@ -73,6 +82,7 @@ __all__ = [
     "SIGNALOME_SCORE_PRECONDITIONING_POLICIES",
     "SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT",
     "SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP",
+    "ReferenceContextCompatibilityPolicy",
     "SignalomeAssignmentPolicy",
     "SignalomeCandidateScoringPolicy",
     "SignalomeClusteringConfig",

@@ -14,6 +14,7 @@ from phospy.api import (
     KinasePredictionConfig,
     KinaseScoringConfig,
     KinaseWorkflowRequest,
+    ReferenceContextCompatibilityPolicy,
     ReferencePreset,
     SignalomeWorkflowRequest,
 )
@@ -56,7 +57,12 @@ def _run_signalome_l6_supported_slice():
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=KinaseScoringConfig(
+                min_substrates=2,
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
+            ),
             prediction_config=KinasePredictionConfig(
                 top_k=6,
                 deterministic_max_selected_kinases=12,

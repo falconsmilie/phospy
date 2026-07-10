@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from typing import Any
 
 import pandas.testing as pdt
 import pytest
@@ -23,6 +24,7 @@ from phospy.api import (
     KinaseScoringConfig,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
+    ReferenceContextCompatibilityPolicy,
     ReferencePreset,
     SignalomeWorkflowRequest,
 )
@@ -43,6 +45,15 @@ from tests.support.rewrite_fixture_data import (
 from tests.support.signalome_config import build_signalome_config
 
 pytestmark = pytest.mark.integration
+
+
+def _kinase_scoring_config(**kwargs: Any) -> KinaseScoringConfig:
+    return KinaseScoringConfig(
+        reference_context_compatibility_policy=(
+            ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+        ),
+        **kwargs,
+    )
 
 
 def _is_text_dtype(values: object) -> bool:
@@ -149,7 +160,7 @@ def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_kinase_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=6,
                 deterministic_max_selected_kinases=12,
@@ -298,7 +309,7 @@ def test_signalome_workflow_runs_with_scipy_clustering_engine() -> None:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_kinase_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=6,
                 deterministic_max_selected_kinases=12,
@@ -363,7 +374,7 @@ def test_signalome_workflow_requires_explicit_dataset_site_metadata_protein_id()
         KinaseWorkflowRequest(
             dataset=dataset_without_protein,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_kinase_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=6,
                 deterministic_max_selected_kinases=12,
@@ -406,7 +417,7 @@ def test_signalome_workflow_uses_explicit_dataset_protein_identity_when_present(
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_kinase_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=6,
                 deterministic_max_selected_kinases=12,
@@ -433,7 +444,7 @@ def test_signalome_threshold_knobs_do_not_cross_couple_unrelated_outputs() -> No
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_kinase_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=6,
                 deterministic_max_selected_kinases=12,
@@ -496,7 +507,7 @@ def test_signalome_network_uses_rank_weighted_fusion_downstream_scores_when_avai
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_kinase_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=6,
                 deterministic_max_selected_kinases=12,
@@ -544,7 +555,7 @@ def test_signalome_workflow_accepts_sparse_missing_rank_weighted_fusion_score_ro
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_kinase_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=6,
                 deterministic_max_selected_kinases=12,
@@ -606,7 +617,7 @@ def test_signalome_workflow_rejects_sparse_missing_rank_weighted_fusion_rows_und
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_kinase_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=6,
                 deterministic_max_selected_kinases=12,
@@ -663,7 +674,7 @@ def test_signalome_l6_provenance_matches_golden_contract() -> None:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_kinase_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=6,
                 deterministic_max_selected_kinases=12,

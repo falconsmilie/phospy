@@ -24,6 +24,7 @@ def test_kinase_example_keeps_bundled_reference_lane_explicit() -> None:
     source = (EXAMPLES_DIR / "kinase_workflow_demo.py").read_text(encoding="utf-8")
 
     assert "references=ReferencePreset.AUTO" in source
+    assert "ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT" in source
     assert "organism=Organism.RAT" in source
     assert "DatasetLocalisationConfig(" in source
     assert 'confidence_column="localisation_confidence"' in source
@@ -34,8 +35,11 @@ def test_signalome_example_keeps_explicit_protein_identity_contract() -> None:
     source = (EXAMPLES_DIR / "signalome_workflow_demo.py").read_text(encoding="utf-8")
 
     assert '"protein_id": ["TSC2", "GSK3A"]' in source
-    assert "SignalomeWorkflowRequest(kinase_result=kinase_result)" in source
-    assert "SignalomeConfig" not in source
+    assert "SignalomeWorkflowRequest(" in source
+    assert "kinase_result=kinase_result" in source
+    assert "SignalomeConfig(" in source
+    assert "SignalomeValidationConfig(" in source
+    assert "ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT" in source
     assert "DatasetLocalisationConfig(" in source
     assert 'confidence_column="localisation_confidence"' in source
     assert "min_confidence=0.75" in source

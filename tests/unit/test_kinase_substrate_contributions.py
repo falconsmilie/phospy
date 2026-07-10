@@ -12,6 +12,7 @@ from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.api.configs import (
     KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ALLOW_WITH_DIAGNOSTICS,
@@ -171,7 +172,12 @@ def test_scoring_runner_skips_contribution_builder_when_collection_disabled(
         KinaseWorkflowRequest(
             dataset=_dataset(),
             references=_references(),
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=KinaseScoringConfig(
+                min_substrates=2,
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
+            ),
             prediction_config=KinasePredictionConfig(
                 top_k=2,
                 deterministic_max_selected_kinases=2,
@@ -202,6 +208,9 @@ def test_scoring_runner_collects_internal_contributions_when_requested() -> None
             min_substrates=2,
             include_diagnostic_scoring_tables=True,
             include_substrate_contributions=True,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
         ),
         prediction_config=KinasePredictionConfig(
             top_k=2,
@@ -411,6 +420,9 @@ def _contribution_request(
         scoring_config=KinaseScoringConfig(
             min_substrates=2,
             include_substrate_contributions=include_substrate_contributions,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
         ),
         prediction_config=KinasePredictionConfig(
             top_k=3,

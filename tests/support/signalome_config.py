@@ -12,6 +12,7 @@ from phospy.api.configs import (
     SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
     LocalisationRequirement,
+    ReferenceContextCompatibilityPolicy,
     SignalomeAssignmentPolicy,
     SignalomeCandidateScoringPolicy,
     SignalomeClusteringConfig,
@@ -38,6 +39,9 @@ def build_signalome_config(
     ),
     allow_mixed_total_protein_quantitative_meaning: bool = False,
     localisation_requirement: LocalisationRequirement | None = None,
+    reference_context_compatibility_policy: ReferenceContextCompatibilityPolicy = (
+        ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+    ),
     module_count: int | None = None,
     module_selection_primary_correlation_threshold: float = (
         SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT
@@ -83,6 +87,9 @@ def build_signalome_config(
             ),
             allow_mixed_total_protein_quantitative_meaning=(
                 allow_mixed_total_protein_quantitative_meaning
+            ),
+            reference_context_compatibility_policy=(
+                reference_context_compatibility_policy
             ),
         ),
         output=SignalomeOutputConfig(

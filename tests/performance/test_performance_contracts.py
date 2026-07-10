@@ -15,6 +15,7 @@ from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+    ReferenceContextCompatibilityPolicy,
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import KinaseScoringResult, KinaseWorkflowResult
@@ -376,6 +377,9 @@ def _build_kinase_result_for_signalome_performance(
         scoring_config=KinaseScoringConfig(
             min_substrates=2,
             include_diagnostic_scoring_tables=False,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
         ),
         prediction_config=KinasePredictionConfig(
             top_k=6,
@@ -1085,6 +1089,9 @@ def test_large_reference_map_contract_keeps_filtered_scoring_bounded() -> None:
         scoring_config=KinaseScoringConfig(
             min_substrates=2,
             include_diagnostic_scoring_tables=False,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
         ),
         prediction_config=KinasePredictionConfig(
             top_k=6,
@@ -1126,6 +1133,9 @@ def test_diagnostic_scoring_tables_contract_has_bounded_runtime_overhead() -> No
         scoring_config=KinaseScoringConfig(
             min_substrates=2,
             include_diagnostic_scoring_tables=False,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
         ),
         prediction_config=KinasePredictionConfig(
             top_k=6,
@@ -1140,6 +1150,9 @@ def test_diagnostic_scoring_tables_contract_has_bounded_runtime_overhead() -> No
         scoring_config=KinaseScoringConfig(
             min_substrates=2,
             include_diagnostic_scoring_tables=True,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
         ),
         prediction_config=KinasePredictionConfig(
             top_k=6,

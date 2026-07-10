@@ -20,6 +20,7 @@ from phospy.api import (
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
+    ReferenceContextCompatibilityPolicy,
     ReferencePreset,
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
@@ -118,6 +119,24 @@ def _reference_bundle() -> ReferenceBundle:
             },
             index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
         ),
+    )
+
+
+def _kinase_scoring_config(**kwargs: object) -> KinaseScoringConfig:
+    return KinaseScoringConfig(
+        reference_context_compatibility_policy=(
+            ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+        ),
+        **kwargs,
+    )
+
+
+def _signalome_config(**kwargs: object):
+    return build_signalome_config(
+        reference_context_compatibility_policy=(
+            ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+        ),
+        **kwargs,
     )
 
 
@@ -413,6 +432,7 @@ def test_active_scientific_policy_ids_are_present_in_kinase_and_signalome_proven
         KinaseWorkflowRequest(
             dataset=dataset,
             references=references,
+            scoring_config=_kinase_scoring_config(),
             activity_config=KinaseActivityConfig(enabled=False),
         )
     )
@@ -451,7 +471,7 @@ def test_active_scientific_policy_ids_are_present_in_kinase_and_signalome_proven
     signalome_result = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=signalome_kinase_result,
-            config=build_signalome_config(module_count=1),
+            config=_signalome_config(module_count=1),
         )
     )
     signalome_policy_ids = {
@@ -477,6 +497,7 @@ def test_provenance_policy_metadata_includes_stable_name_and_version() -> None:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=references,
+            scoring_config=_kinase_scoring_config(),
             activity_config=KinaseActivityConfig(enabled=False),
         )
     )
@@ -504,7 +525,7 @@ def test_provenance_policy_metadata_includes_stable_name_and_version() -> None:
     signalome_result = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=signalome_kinase_result,
-            config=build_signalome_config(module_count=1),
+            config=_signalome_config(module_count=1),
         )
     )
 
@@ -531,7 +552,7 @@ def test_adaptive_kinase_prediction_records_random_seed_provenance() -> None:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_kinase_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 mode="adaptive_ensemble",
                 top_k=4,
@@ -609,6 +630,7 @@ def test_kinase_provenance_includes_duplicate_site_resolution_policy_when_prepro
         KinaseWorkflowRequest(
             dataset=dataset,
             references=references,
+            scoring_config=_kinase_scoring_config(),
             activity_config=KinaseActivityConfig(enabled=False),
         )
     )
@@ -628,7 +650,7 @@ def test_workflow_provenance_fingerprints_and_policy_versions_are_stable() -> No
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_kinase_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=4,
                 deterministic_max_selected_kinases=8,
@@ -640,7 +662,7 @@ def test_workflow_provenance_fingerprints_and_policy_versions_are_stable() -> No
     signalome_result = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
-            config=build_signalome_config(module_count=1),
+            config=_signalome_config(module_count=1),
         )
     )
 

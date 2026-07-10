@@ -17,7 +17,11 @@ from phospy.api import (
     SampleDesignRecord,
     SignalomeWorkflowRequest,
 )
-from phospy.api.configs import KinasePredictionConfig, KinaseScoringConfig
+from phospy.api.configs import (
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
 from phospy.api.results import (
     KinasePredictionResult,
     KinaseScoringResult,
@@ -191,7 +195,12 @@ def _signalome_request(
             ),
             activity_result=None,
         ),
-        config=build_signalome_config(substrate_support_cutoff=0.5),
+        config=build_signalome_config(
+            substrate_support_cutoff=0.5,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
+        ),
     )
 
 
@@ -203,7 +212,12 @@ def _kinase_request(
     return KinaseWorkflowRequest(
         dataset=dataset,
         references=_references() if references is None else references,
-        scoring_config=KinaseScoringConfig(min_substrates=2),
+        scoring_config=KinaseScoringConfig(
+            min_substrates=2,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
+        ),
         prediction_config=KinasePredictionConfig(
             top_k=5,
             deterministic_max_selected_kinases=5,

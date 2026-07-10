@@ -11,7 +11,11 @@ from phospy.api import (
     Organism,
     ReferenceBundle,
 )
-from phospy.api.configs import KinaseScoringConfig, ProfileSelfInclusionPolicy
+from phospy.api.configs import (
+    KinaseScoringConfig,
+    ProfileSelfInclusionPolicy,
+    ReferenceContextCompatibilityPolicy,
+)
 from phospy.provenance.scientific_policy_models import ScientificPolicyId
 from phospy.tables.kinase import (
     KINASE_PROFILE_SCORE_DIAGNOSTIC_REASON_INSUFFICIENT_SUBSTRATES_AFTER_LEAVE_ONE_OUT,
@@ -136,7 +140,13 @@ def _request(
     return KinaseWorkflowRequest(
         dataset=_dataset(),
         references=references or _references(),
-        scoring_config=scoring_config or KinaseScoringConfig(min_substrates=2),
+        scoring_config=scoring_config
+        or KinaseScoringConfig(
+            min_substrates=2,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
+        ),
         prediction_config=KinasePredictionConfig(
             top_k=3,
             deterministic_max_selected_kinases=1,
@@ -217,6 +227,9 @@ def test_leave_one_out_changes_known_substrate_profile_score() -> None:
                 profile_self_inclusion_policy=(
                     ProfileSelfInclusionPolicy.LEAVE_ONE_OUT
                 ),
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
             )
         )
     )
@@ -245,6 +258,9 @@ def test_leave_one_out_insufficient_substrates_are_explicitly_diagnosed() -> Non
                 min_substrates=2,
                 profile_self_inclusion_policy=(
                     ProfileSelfInclusionPolicy.LEAVE_ONE_OUT
+                ),
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
                 ),
             ),
             references=_references_with_short_and_long_kinases(),
@@ -287,6 +303,9 @@ def test_leave_one_out_result_records_caveat_and_provenance() -> None:
                 min_substrates=2,
                 profile_self_inclusion_policy=(
                     ProfileSelfInclusionPolicy.LEAVE_ONE_OUT
+                ),
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
                 ),
             ),
             references=_references_with_short_and_long_kinases(),

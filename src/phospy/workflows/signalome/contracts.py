@@ -10,6 +10,7 @@ import pandas as pd
 from phospy.contracts.configs import (
     SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT,
     LocalisationRequirement,
+    ReferenceContextCompatibilityPolicy,
     SignalomeAssignmentPolicy,
     SignalomeCandidateScoringPolicy,
     SignalomeKinaseNetworkPolicy,
@@ -64,6 +65,9 @@ class ResolvedSignalomeExecutionConfig:
     score_preconditioning_policy_definition: ScientificPolicyRecord | None = None
     localisation_requirement: LocalisationRequirement = field(
         default_factory=LocalisationRequirement
+    )
+    reference_context_compatibility_policy: ReferenceContextCompatibilityPolicy = (
+        ReferenceContextCompatibilityPolicy.REQUIRE_KNOWN_MATCH
     )
 
 

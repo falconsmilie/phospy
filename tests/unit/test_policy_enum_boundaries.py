@@ -17,6 +17,7 @@ from phospy.api.configs import (
     DatasetTotalProteinCorrectionConfig,
     KinaseScoringConfig,
     LocalisationRequirement,
+    ReferenceContextCompatibilityPolicy,
     SignalomeValidationConfig,
 )
 from phospy.errors.input import PhosPyInputError
@@ -346,8 +347,32 @@ def test_kinase_scoring_config_converts_profile_self_inclusion_policy_to_enum() 
     )
 
 
+def test_kinase_scoring_config_converts_reference_context_policy_to_enum() -> None:
+    config = KinaseScoringConfig(
+        reference_context_compatibility_policy="allow_unknown_with_caveat"
+    )
+
+    assert (
+        config.reference_context_compatibility_policy
+        is ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+    )
+
+
 def test_signalome_validation_config_accepts_localisation_requirement() -> None:
     config = SignalomeValidationConfig(
         localisation_requirement=LocalisationRequirement(minimum_probability=0.6)
     )
     assert config.localisation_requirement.policy == "require_threshold"
+
+
+def test_signalome_validation_config_converts_reference_context_policy_to_enum() -> (
+    None
+):
+    config = SignalomeValidationConfig(
+        reference_context_compatibility_policy="allow_unknown_with_caveat"
+    )
+
+    assert (
+        config.reference_context_compatibility_policy
+        is ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+    )

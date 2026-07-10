@@ -7,6 +7,7 @@ from phospy.api import SignalomeConfig
 from phospy.api.configs import (
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
     SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
+    ReferenceContextCompatibilityPolicy,
     SignalomeOutputConfig,
     SignalomeScientificConfig,
     SignalomeValidationConfig,
@@ -57,6 +58,9 @@ def _full_signalome_snapshot_payload(
                 SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
             ),
             "allow_mixed_total_protein_quantitative_meaning": False,
+            "reference_context_compatibility_policy": (
+                ReferenceContextCompatibilityPolicy.REQUIRE_KNOWN_MATCH.value
+            ),
         },
         "output": {
             "network_correlation_threshold": 0.6,
@@ -86,12 +90,11 @@ def _full_signalome_snapshot_payload(
             assert isinstance(clustering, dict)
             clustering[key] = value
             continue
-        if key in {"score_preconditioning_policy"}:
-            validation = signalome_config["validation"]
-            assert isinstance(validation, dict)
-            validation[key] = value
-            continue
-        if key in {"allow_mixed_total_protein_quantitative_meaning"}:
+        if key in {
+            "score_preconditioning_policy",
+            "allow_mixed_total_protein_quantitative_meaning",
+            "reference_context_compatibility_policy",
+        }:
             validation = signalome_config["validation"]
             assert isinstance(validation, dict)
             validation[key] = value
@@ -220,6 +223,9 @@ def test_signalome_snapshot_payload_round_trip_preserves_all_fields() -> None:
                     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
                 ),
                 "allow_mixed_total_protein_quantitative_meaning": True,
+                "reference_context_compatibility_policy": (
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT.value
+                ),
             },
             "output": {
                 "network_correlation_threshold": 0.73,
@@ -288,6 +294,22 @@ def test_signalome_snapshot_rejects_missing_mixed_total_protein_flag() -> None:
         match=(
             "validation is missing required field\\(s\\): "
             "allow_mixed_total_protein_quantitative_meaning"
+        ),
+    ):
+        SignalomeWorkflowConfigSnapshot.from_payload(payload)
+
+
+def test_signalome_snapshot_rejects_missing_reference_context_policy() -> None:
+    payload = _full_signalome_snapshot_payload()
+    validation = payload["signalome_config"]["validation"]
+    assert isinstance(validation, dict)
+    validation.pop("reference_context_compatibility_policy", None)
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "validation is missing required field\\(s\\): "
+            "reference_context_compatibility_policy"
         ),
     ):
         SignalomeWorkflowConfigSnapshot.from_payload(payload)

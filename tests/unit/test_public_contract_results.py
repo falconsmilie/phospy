@@ -16,6 +16,7 @@ from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+    ReferenceContextCompatibilityPolicy,
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import (
@@ -124,12 +125,21 @@ def _references() -> ReferenceBundle:
     )
 
 
+def _scoring_config(**kwargs: object) -> KinaseScoringConfig:
+    return KinaseScoringConfig(
+        reference_context_compatibility_policy=(
+            ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+        ),
+        **kwargs,
+    )
+
+
 def _kinase_result() -> KinaseWorkflowResult:
     return KinaseWorkflow().run(
         KinaseWorkflowRequest(
             dataset=_dataset(),
             references=_references(),
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=1,
                 deterministic_max_selected_kinases=2,
@@ -230,7 +240,12 @@ def test_signalome_result_keeps_nested_kinase_result_contract() -> None:
     signalome_result = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
-            config=build_signalome_config(substrate_support_cutoff=0.5),
+            config=build_signalome_config(
+                substrate_support_cutoff=0.5,
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
+            ),
         )
     )
     assert isinstance(signalome_result, SignalomeWorkflowResult)
@@ -283,7 +298,7 @@ def test_kinase_result_exposes_supported_activity_stage_outputs_when_enabled() -
         KinaseWorkflowRequest(
             dataset=_dataset(),
             references=_references(),
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=1,
                 deterministic_max_selected_kinases=2,
@@ -329,7 +344,7 @@ def test_kinase_result_can_include_opt_in_diagnostic_scoring_tables() -> None:
         KinaseWorkflowRequest(
             dataset=_dataset(),
             references=_references(),
-            scoring_config=KinaseScoringConfig(
+            scoring_config=_scoring_config(
                 min_substrates=2,
                 include_diagnostic_scoring_tables=True,
             ),
@@ -357,7 +372,7 @@ def test_kinase_provenance_uses_renamed_scoring_and_activity_output_tables() -> 
         KinaseWorkflowRequest(
             dataset=_dataset(),
             references=_references(),
-            scoring_config=KinaseScoringConfig(
+            scoring_config=_scoring_config(
                 min_substrates=2,
                 include_diagnostic_scoring_tables=True,
             ),

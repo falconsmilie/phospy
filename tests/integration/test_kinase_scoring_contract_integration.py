@@ -11,6 +11,7 @@ from phospy.api import (
     KinasePredictionConfig,
     KinaseScoringConfig,
     KinaseWorkflowRequest,
+    ReferenceContextCompatibilityPolicy,
     ReferencePreset,
 )
 from phospy.api.configs import (
@@ -38,6 +39,9 @@ def _run_workflow(*, dataset, references, mode: str):
             scoring_config=KinaseScoringConfig(
                 min_substrates=2,
                 include_diagnostic_scoring_tables=True,
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
             ),
             prediction_config=KinasePredictionConfig(
                 top_k=6,

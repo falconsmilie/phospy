@@ -57,11 +57,13 @@ def is_permissive_localisation_requirement(
 def build_reference_context_compatibility_caveat(
     warning: ReferenceContextCompatibilityWarning,
     *,
+    policy: object,
     workflow_scope: str,
 ) -> ResultCaveat:
     """Convert a reference-context compatibility warning into a result caveat."""
 
     details = warning.to_payload()
+    details["policy"] = str(policy)
     details["workflow_scope"] = workflow_scope
     return ResultCaveat(
         code=warning.code,

@@ -7,6 +7,7 @@ from phospy import AnalysisReadyPhosphoDataset
 from phospy.api import (
     DatasetBuildRequest,
     Organism,
+    ReferenceContextCompatibilityPolicy,
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import (
@@ -154,7 +155,11 @@ def _request(
             score_matrix=score_matrix,
             dataset=dataset,
         ),
-        config=build_signalome_config(),
+        config=build_signalome_config(
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            )
+        ),
     )
 
 

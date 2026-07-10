@@ -160,6 +160,10 @@ from phospy.api import (
     Organism,
     ReferencePreset,
 )
+from phospy.api.configs import (
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+)
 
 # Tiny synthetic example for workflow mechanics only (not biological discovery).
 phospho = pd.DataFrame(
@@ -245,6 +249,11 @@ kinase_result = KinaseWorkflow().run(
         # Safe in this example because organism=rat and bundled runtime
         # references in this release are rat-only.
         references=ReferencePreset.AUTO,
+        scoring_config=KinaseScoringConfig(
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            )
+        ),
         activity_config=None,
     )
 )

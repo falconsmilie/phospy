@@ -17,7 +17,8 @@
       },
       "validation": {
         "score_preconditioning_policy": "error_on_drop",
-        "allow_mixed_total_protein_quantitative_meaning": false
+        "allow_mixed_total_protein_quantitative_meaning": false,
+        "reference_context_compatibility_policy": "allow_unknown_with_caveat"
       },
       "output": {
         "network_correlation_threshold": 0.5,

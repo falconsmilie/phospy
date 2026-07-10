@@ -17,6 +17,7 @@ from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+    ReferenceContextCompatibilityPolicy,
 )
 from tests.support.rewrite_fixture_data import (
     load_public_predmat_historical_baseline_default,
@@ -259,7 +260,12 @@ def _run_public_predmat_lane(
             references=_build_public_predmat_references(
                 reverse_order=reverse_reference_order
             ),
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=KinaseScoringConfig(
+                min_substrates=2,
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
+            ),
             prediction_config=KinasePredictionConfig(
                 top_k=4,
                 deterministic_max_selected_kinases=3,

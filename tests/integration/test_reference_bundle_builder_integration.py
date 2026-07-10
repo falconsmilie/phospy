@@ -14,6 +14,7 @@ from phospy.api import (
     Organism,
     ReferenceBundleBuilder,
     ReferenceBundleBuildRequest,
+    ReferenceContextCompatibilityPolicy,
 )
 
 pytestmark = pytest.mark.integration
@@ -86,7 +87,12 @@ def test_local_mouse_reference_bundle_builder_output_runs_in_kinase_workflow(
         KinaseWorkflowRequest(
             dataset=dataset,
             references=references,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=KinaseScoringConfig(
+                min_substrates=2,
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
+            ),
             prediction_config=KinasePredictionConfig(
                 top_k=1,
                 deterministic_max_selected_kinases=1,

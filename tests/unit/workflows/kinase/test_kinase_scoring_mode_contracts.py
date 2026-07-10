@@ -11,6 +11,7 @@ from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.api.configs.kinase import (
     KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF,
@@ -440,6 +441,9 @@ def _request(
         scoring_config=KinaseScoringConfig(
             min_substrates=2,
             scoring_mode=scoring_mode,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
         ),
         prediction_config=KinasePredictionConfig(
             top_k=2,

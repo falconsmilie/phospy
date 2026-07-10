@@ -17,6 +17,7 @@ from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+    ReferenceContextCompatibilityPolicy,
     SignalomeConfig,
     SignalomeWorkflowRequest,
 )
@@ -371,7 +372,12 @@ def test_expanded_signalome_historical_baseline_locks_supported_lane_to_material
         KinaseWorkflowRequest(
             dataset=_dataset(),
             references=_references(),
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=KinaseScoringConfig(
+                min_substrates=2,
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
+            ),
             prediction_config=KinasePredictionConfig(
                 top_k=2,
                 deterministic_max_selected_kinases=2,
@@ -386,6 +392,9 @@ def test_expanded_signalome_historical_baseline_locks_supported_lane_to_material
             config=build_signalome_config(
                 substrate_support_cutoff=0.5,
                 network_correlation_threshold=0.5,
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
             ),
         )
     )

@@ -18,6 +18,7 @@ from phospy.api.configs import (
     KinasePredictionConfig,
     KinaseReferenceDisplayAmbiguityPolicy,
     KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.api.results import (
     KinasePredictionResult,
@@ -154,7 +155,12 @@ def build_duplicate_display_kinase_request(
             build_duplicate_display_kinase_dataset() if dataset is None else dataset
         ),
         references=build_duplicate_display_reference_bundle(),
-        scoring_config=KinaseScoringConfig(min_substrates=2),
+        scoring_config=KinaseScoringConfig(
+            min_substrates=2,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
+        ),
         prediction_config=KinasePredictionConfig(
             top_k=2,
             deterministic_max_selected_kinases=2,

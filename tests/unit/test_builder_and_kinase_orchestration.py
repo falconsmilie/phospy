@@ -19,6 +19,7 @@ from phospy.api import (
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
+    ReferenceContextCompatibilityPolicy,
     ReferencePreset,
     SignalomeConfig,
     SignalomeWorkflowRequest,
@@ -200,6 +201,9 @@ def _resolved_kinase_execution_config(
             request.prediction_config.adaptive_policy
         ),
         activity=activity,
+        reference_context_compatibility_policy=(
+            request.scoring_config.reference_context_compatibility_policy
+        ),
     )
 
 
@@ -235,6 +239,9 @@ def _resolved_signalome_execution_config(
             None
             if config.clustering.module_count is None
             else int(config.clustering.module_count)
+        ),
+        reference_context_compatibility_policy=(
+            config.validation.reference_context_compatibility_policy
         ),
     )
 
@@ -410,7 +417,12 @@ def test_workflow_run_contract_returns_nested_results() -> None:
         KinaseWorkflowRequest(
             dataset=_dataset(),
             references=_bundle(),
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=KinaseScoringConfig(
+                min_substrates=2,
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
+            ),
             activity_config=None,
         )
     )
@@ -465,7 +477,12 @@ def test_kinase_workflow_result_provenance_copies_input_dataset_reference_contex
         KinaseWorkflowRequest(
             dataset=dataset,
             references=_bundle(),
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=KinaseScoringConfig(
+                min_substrates=2,
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
+            ),
             activity_config=None,
         )
     )
@@ -541,13 +558,23 @@ def test_signalome_workflow_public_entrypoint_exercises_collaborators() -> None:
         KinaseWorkflowRequest(
             dataset=_dataset(),
             references=_bundle(),
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=KinaseScoringConfig(
+                min_substrates=2,
+                reference_context_compatibility_policy=(
+                    ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+                ),
+            ),
             activity_config=None,
         )
     )
     request = SignalomeWorkflowRequest(
         kinase_result=kinase_result,
-        config=build_signalome_config(substrate_support_cutoff=0.5),
+        config=build_signalome_config(
+            substrate_support_cutoff=0.5,
+            reference_context_compatibility_policy=(
+                ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+            ),
+        ),
     )
     score_matrix = kinase_result.scoring_result.profile_scores
     interpreted = ResolvedSignalomeWorkflowRequest(

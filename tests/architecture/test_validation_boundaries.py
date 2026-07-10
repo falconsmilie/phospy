@@ -11,6 +11,7 @@ import phospy
 import phospy.api as public_api
 import phospy.api.requests as public_request_api
 import phospy.api.workflows as public_workflow_api
+import phospy.validation.identity_contracts as identity_contracts
 from phospy.errors.validation import DatasetValidationError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.references.models import Organism
@@ -475,6 +476,11 @@ def test_reference_context_and_quantitative_validators_are_validation_owned() ->
             f"{VALIDATION_PREFIX}."
         )
         assert validation_root in _validation_owned_symbol_path(symbol).parents
+
+
+def test_reference_context_policy_is_not_exported_from_private_validation_api() -> None:
+    assert "ReferenceContextCompatibilityPolicy" not in identity_contracts.__all__
+    assert not hasattr(identity_contracts, "ReferenceContextCompatibilityPolicy")
 
 
 def test_request_dto_modules_do_not_import_validation_domains() -> None:

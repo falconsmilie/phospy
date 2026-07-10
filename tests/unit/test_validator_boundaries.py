@@ -22,6 +22,7 @@ from phospy.api.configs import (
     KinaseScoringConfig,
     LocalisationRequirement,
     ProfileSelfInclusionPolicy,
+    ReferenceContextCompatibilityPolicy,
     SignalomeClusteringConfig,
     SignalomeConfig,
     SignalomeOutputConfig,
@@ -56,7 +57,9 @@ from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
 )
-from tests.support.signalome_config import build_signalome_config
+from tests.support.signalome_config import (
+    build_signalome_config as _build_signalome_config,
+)
 from tests.support.site_keys import (
     site_key_context_columns,
     site_key_index_from_display_ids,
@@ -155,6 +158,23 @@ def _references() -> ReferenceBundle:
             index=pd.Index(["MAPK14;Y182;"], name="site_id"),
         ),
     )
+
+
+def _kinase_scoring_config(**kwargs: object) -> KinaseScoringConfig:
+    return KinaseScoringConfig(
+        reference_context_compatibility_policy=(
+            ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+        ),
+        **kwargs,
+    )
+
+
+def build_signalome_config(**kwargs: object) -> SignalomeConfig:
+    kwargs.setdefault(
+        "reference_context_compatibility_policy",
+        ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT,
+    )
+    return _build_signalome_config(**kwargs)
 
 
 def _mixed_total_correction_dataset() -> AnalysisReadyPhosphoDataset:
@@ -272,7 +292,7 @@ def _mixed_total_kinase_request(
     return KinaseWorkflowRequest(
         dataset=_mixed_total_correction_dataset(),
         references=_references(),
-        scoring_config=KinaseScoringConfig(
+        scoring_config=_kinase_scoring_config(
             min_substrates=2,
             allow_mixed_total_protein_quantitative_meaning=allow_mixed_total_protein_quantitative_meaning,
         ),
@@ -857,6 +877,7 @@ def test_kinase_validator_rejects_unknown_reference_display_ambiguity_policy() -
     request = KinaseWorkflowRequest(
         dataset=_dataset(),
         references=_references(),
+        scoring_config=_kinase_scoring_config(),
         reference_display_ambiguity_policy="warn",  # type: ignore[arg-type]
     )
 
@@ -994,7 +1015,7 @@ def test_kinase_reference_compatibility_boundary_matrix(
     request = KinaseWorkflowRequest(
         dataset=_dataset(),
         references=reference_source,  # type: ignore[arg-type]
-        scoring_config=KinaseScoringConfig(min_substrates=2),
+        scoring_config=_kinase_scoring_config(min_substrates=2),
         prediction_config=KinasePredictionConfig(
             top_k=5,
             deterministic_max_selected_kinases=5,
@@ -1052,7 +1073,7 @@ def test_kinase_validator_allows_unknown_localisation_by_default() -> None:
     request = KinaseWorkflowRequest(
         dataset=_dataset(),
         references=_references(),
-        scoring_config=KinaseScoringConfig(min_substrates=2),
+        scoring_config=_kinase_scoring_config(min_substrates=2),
         prediction_config=KinasePredictionConfig(
             top_k=5,
             deterministic_max_selected_kinases=5,
@@ -1068,7 +1089,7 @@ def test_kinase_validator_can_require_localisation_probability_presence() -> Non
     request = KinaseWorkflowRequest(
         dataset=_dataset(),
         references=_references(),
-        scoring_config=KinaseScoringConfig(
+        scoring_config=_kinase_scoring_config(
             min_substrates=2,
             localisation_requirement=LocalisationRequirement(require_present=True),
         ),
@@ -1097,7 +1118,7 @@ def test_kinase_validator_can_require_localisation_probability_threshold() -> No
     request = KinaseWorkflowRequest(
         dataset=dataset,
         references=_references(),
-        scoring_config=KinaseScoringConfig(
+        scoring_config=_kinase_scoring_config(
             min_substrates=2,
             localisation_requirement=LocalisationRequirement(minimum_probability=0.75),
         ),
@@ -1121,6 +1142,7 @@ def test_kinase_validator_rejects_malformed_site_tokens() -> None:
     request = KinaseWorkflowRequest(
         dataset=dataset,
         references=_references(),
+        scoring_config=_kinase_scoring_config(),
     )
 
     with pytest.raises(
@@ -1159,7 +1181,7 @@ def test_kinase_validator_requires_centred_sequence_context(
     request = KinaseWorkflowRequest(
         dataset=dataset,
         references=_references(),
-        scoring_config=KinaseScoringConfig(min_substrates=2),
+        scoring_config=_kinase_scoring_config(min_substrates=2),
         prediction_config=KinasePredictionConfig(
             top_k=5,
             deterministic_max_selected_kinases=5,
@@ -1184,7 +1206,7 @@ def test_kinase_validator_allows_gapped_flanks_when_centre_is_valid() -> None:
     request = KinaseWorkflowRequest(
         dataset=dataset,
         references=_references(),
-        scoring_config=KinaseScoringConfig(min_substrates=2),
+        scoring_config=_kinase_scoring_config(min_substrates=2),
         prediction_config=KinasePredictionConfig(
             top_k=5,
             deterministic_max_selected_kinases=5,
@@ -1727,7 +1749,7 @@ def test_kinase_validator_does_not_filter_rows_for_localisation_policy() -> None
     request = KinaseWorkflowRequest(
         dataset=dataset,
         references=references,
-        scoring_config=KinaseScoringConfig(
+        scoring_config=_kinase_scoring_config(
             localisation_requirement=LocalisationRequirement()
         ),
     )

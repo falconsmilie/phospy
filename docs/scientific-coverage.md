@@ -43,6 +43,11 @@ compatible organism, residue-class lanes, score matrices, sequence-window
 definition, and provenance. No official Kinase Library compatibility or parity
 claim is made.
 
+Reference-context compatibility is conservative by default: kinase and signalome
+workflows require known matching dataset/reference contexts. The explicit
+`ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT` config override
+permits unknown context only with result caveats; known mismatches never pass.
+
 Native enrichment support is offline over-representation analysis (ORA) over
 caller-supplied `GeneSetCollection`, `PtmSetCollection`, or homogeneous
 `EnrichmentSetCollection` inputs. The background universe is explicit and

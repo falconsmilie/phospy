@@ -11,6 +11,10 @@ from typing import Literal, cast
 
 from phospy.contracts.configs.common import _require_int_at_least, _require_real_between
 from phospy.contracts.configs.localisation import LocalisationRequirement
+from phospy.contracts.configs.reference_context import (
+    REFERENCE_CONTEXT_COMPATIBILITY_POLICY_REQUIRE_KNOWN_MATCH,
+    ReferenceContextCompatibilityPolicy,
+)
 from phospy.errors.validation import WorkflowValidationError
 from phospy.policies import PolicyEnum
 from phospy.science.scoring.policy_models import ProfileSelfInclusionPolicy
@@ -310,6 +314,12 @@ class KinaseScoringConfig:
     The default (`"allow"`) preserves historical scoring behavior. The
     `"leave_one_out"` opt-in recomputes a site's profile score without that
     site when it is part of the kinase's quantified substrate profile.
+
+    `reference_context_compatibility_policy` controls how the workflow handles
+    missing dataset/reference biological reference context. The default requires
+    known matching contexts. The explicit `"allow_unknown_with_caveat"` override
+    permits unknown context only with a result caveat; mismatched known contexts
+    are always rejected.
     """
 
     min_substrates: int = KINASE_SCORING_MIN_SUBSTRATES_FLOOR
@@ -327,6 +337,9 @@ class KinaseScoringConfig:
     )
     localisation_requirement: LocalisationRequirement = field(
         default_factory=LocalisationRequirement
+    )
+    reference_context_compatibility_policy: ReferenceContextCompatibilityPolicy = (
+        REFERENCE_CONTEXT_COMPATIBILITY_POLICY_REQUIRE_KNOWN_MATCH
     )
     allow_mixed_total_protein_quantitative_meaning: bool = (
         KINASE_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT
@@ -375,6 +388,17 @@ class KinaseScoringConfig:
             self,
             "profile_self_inclusion_policy",
             profile_self_inclusion_policy,
+        )
+        reference_context_compatibility_policy = coerce_policy_enum(
+            ReferenceContextCompatibilityPolicy,
+            self.reference_context_compatibility_policy,
+            field_name="scoring_config.reference_context_compatibility_policy",
+            error_type=WorkflowValidationError,
+        )
+        object.__setattr__(
+            self,
+            "reference_context_compatibility_policy",
+            reference_context_compatibility_policy,
         )
         if not isinstance(self.attrition_policy, KinaseAttritionPolicy):
             raise WorkflowValidationError(
@@ -616,6 +640,7 @@ __all__ = [
     "KinaseSiteSequenceConflictPolicy",
     "LocalisationRequirement",
     "ProfileSelfInclusionPolicy",
+    "ReferenceContextCompatibilityPolicy",
     "KinaseScoringConfig",
     "normalize_kinase_scoring_mode",
 ]

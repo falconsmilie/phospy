@@ -15,6 +15,7 @@ from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+    ReferenceContextCompatibilityPolicy,
     ReferencePreset,
 )
 from phospy.errors import WorkflowBoundaryError
@@ -101,6 +102,15 @@ def _bundle(kinase_substrate_map: pd.DataFrame) -> ReferenceBundle:
             },
             index=unique_sites,
         ),
+    )
+
+
+def _scoring_config(**kwargs: object) -> KinaseScoringConfig:
+    return KinaseScoringConfig(
+        reference_context_compatibility_policy=(
+            ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
+        ),
+        **kwargs,
     )
 
 
@@ -223,6 +233,7 @@ def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
                 }
             )
         ),
+        scoring_config=_scoring_config(),
     )
 
     interpreted = KinaseWorkflowInterpreter().run(request)
@@ -278,7 +289,11 @@ def test_interpreter_merges_dataset_site_sequences_without_mutating_references()
     original_reference_sequences = references.site_sequences.copy(deep=True)
 
     interpreted = KinaseWorkflowInterpreter().run(
-        KinaseWorkflowRequest(dataset=dataset, references=references)
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=references,
+            scoring_config=_scoring_config(),
+        )
     )
 
     assert set(interpreted.site_sequences.index.astype(str)) == set(
@@ -302,7 +317,7 @@ def test_scoring_results_are_reference_input_form_invariant_for_equivalent_conte
     preset_request = KinaseWorkflowRequest(
         dataset=dataset,
         references=ReferencePreset.AUTO,
-        scoring_config=KinaseScoringConfig(min_substrates=2),
+        scoring_config=_scoring_config(min_substrates=2),
         prediction_config=KinasePredictionConfig(
             top_k=6,
             deterministic_max_selected_kinases=8,
@@ -313,7 +328,7 @@ def test_scoring_results_are_reference_input_form_invariant_for_equivalent_conte
     bundle_request = KinaseWorkflowRequest(
         dataset=dataset,
         references=explicit_bundle,
-        scoring_config=KinaseScoringConfig(min_substrates=2),
+        scoring_config=_scoring_config(min_substrates=2),
         prediction_config=KinasePredictionConfig(
             top_k=6,
             deterministic_max_selected_kinases=8,
@@ -365,7 +380,7 @@ def test_workflow_uses_execution_time_merged_site_sequences() -> None:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=references,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=2,
                 deterministic_max_selected_kinases=2,
@@ -396,7 +411,7 @@ def test_boundary_error_reports_unusable_reference_coverage_counts() -> None:
     request = KinaseWorkflowRequest(
         dataset=dataset,
         references=references,
-        scoring_config=KinaseScoringConfig(min_substrates=2),
+        scoring_config=_scoring_config(min_substrates=2),
         prediction_config=KinasePredictionConfig(
             top_k=2,
             deterministic_max_selected_kinases=2,
@@ -440,7 +455,7 @@ def test_boundary_error_reports_empty_eligible_kinase_set_counts() -> None:
     request = KinaseWorkflowRequest(
         dataset=dataset,
         references=references,
-        scoring_config=KinaseScoringConfig(min_substrates=2),
+        scoring_config=_scoring_config(min_substrates=2),
         prediction_config=KinasePredictionConfig(
             top_k=3,
             deterministic_max_selected_kinases=5,
@@ -482,6 +497,7 @@ def test_default_scoring_floor_rejects_single_substrate_kinase_profiles() -> Non
             KinaseWorkflowRequest(
                 dataset=dataset,
                 references=references,
+                scoring_config=_scoring_config(),
             )
         )
 
@@ -514,7 +530,7 @@ def test_eligibility_report_full_reference_overlap_counts() -> None:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=references,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=2,
                 deterministic_max_selected_kinases=2,
@@ -560,7 +576,7 @@ def test_eligibility_report_partial_overlap_and_kinase_threshold_shortfall_count
         KinaseWorkflowRequest(
             dataset=dataset,
             references=references,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=2,
                 deterministic_max_selected_kinases=2,
@@ -619,7 +635,7 @@ def test_eligibility_report_includes_localisation_counts_when_policy_available()
                     }
                 )
             ),
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=_scoring_config(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=2,
                 deterministic_max_selected_kinases=2,
@@ -650,7 +666,7 @@ def test_boundary_error_reports_prediction_ensemble_collapse_counts() -> None:
     request = KinaseWorkflowRequest(
         dataset=dataset,
         references=references,
-        scoring_config=KinaseScoringConfig(min_substrates=2),
+        scoring_config=_scoring_config(min_substrates=2),
         prediction_config=KinasePredictionConfig(
             top_k=2,
             deterministic_max_selected_kinases=3,
