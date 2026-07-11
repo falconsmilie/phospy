@@ -1772,7 +1772,10 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
     row_attrition = workflow_parameters["row_attrition"]
     assert row_attrition["input_rows"] == 3
     assert row_attrition["final_rows"] == 2
-    assert row_attrition["records"][0]["reason"] == ("removed_by_score_preconditioning")
+    assert row_attrition["records"][0]["stage"] == "signalome_score_preconditioning"
+    assert row_attrition["records"][0]["reason"] == (
+        "sites_removed_by_score_preconditioning"
+    )
     assert row_attrition["records"][0]["removed_rows"] == 1
     scale_guard = workflow_parameters["scale_guard"]
     assert {
