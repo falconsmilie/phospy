@@ -89,6 +89,8 @@ class EnrichmentWorkflowInterpreter:
             diagnostics=diagnostics,
             selected_identifier_input_count=request.selected_identifier_input_count,
             background_identifier_input_count=request.background_identifier_input_count,
+            selected_identifier_provenance=request.selected_identifier_provenance,
+            background_identifier_provenance=request.background_identifier_provenance,
         )
 
 

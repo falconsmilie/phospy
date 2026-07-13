@@ -14,6 +14,10 @@ for building an explicit human/mouse-style `ReferenceBundle`.
 Use `maxquant_importer_demo.py` when you need to translate MaxQuant-style
 `Phospho (STY)Sites.txt` columns into dataset-builder input candidates.
 
+Use `enrichment_provenance_demo.py` when you need to see manual and
+PhosPy-derived quantitative identifier-set provenance on enrichment requests and
+results.
+
 They intentionally keep the story small:
 
 - rat bundled-reference lane first

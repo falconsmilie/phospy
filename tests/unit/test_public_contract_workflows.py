@@ -61,6 +61,8 @@ EXPECTED_REQUEST_EXPORTS = {
     "DifferentialAnalysisRequest",
     "EmpiricalBayesConfig",
     "EnrichmentIdentifierKind",
+    "EnrichmentIdentifierSetProvenance",
+    "EnrichmentIdentifierSetSourceType",
     "EnrichmentSet",
     "EnrichmentSetCollection",
     "EnrichmentWorkflowRequest",

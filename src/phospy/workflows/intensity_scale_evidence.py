@@ -114,6 +114,20 @@ def build_declared_input_intensity_scale_caveat(
     """Return the shared caveat for declared-only input scale evidence."""
 
     evidence = input_intensity_scale_evidence_from_dataset(dataset)
+    return build_declared_input_intensity_scale_evidence_caveat(
+        evidence=evidence,
+        workflow_scope=workflow_scope,
+    )
+
+
+def build_declared_input_intensity_scale_evidence_caveat(
+    *,
+    evidence: InputIntensityScaleEvidence,
+    workflow_scope: str,
+    extra_details: Mapping[str, object] | None = None,
+) -> ResultCaveat | None:
+    """Return the shared caveat for declared-only input scale evidence."""
+
     if (
         evidence.input_intensity_scale_evidence_level
         != IntensityScaleEvidenceLevel.DECLARED_BY_USER.value
@@ -121,6 +135,8 @@ def build_declared_input_intensity_scale_caveat(
         return None
     details = evidence.to_payload()
     details["workflow_scope"] = str(workflow_scope)
+    if extra_details is not None:
+        details.update({str(key): value for key, value in extra_details.items()})
     return ResultCaveat(
         code=INPUT_INTENSITY_SCALE_DECLARED_CAVEAT_CODE,
         severity="warning",
@@ -144,6 +160,7 @@ __all__ = [
     "INPUT_INTENSITY_SCALE_DECLARED_CAVEAT_CODE",
     "INPUT_INTENSITY_SCALE_DECLARED_CAVEAT_MESSAGE",
     "build_declared_input_intensity_scale_caveat",
+    "build_declared_input_intensity_scale_evidence_caveat",
     "input_intensity_scale_evidence_from_dataset",
     "input_intensity_scale_evidence_from_state",
     "input_intensity_scale_evidence_payload",

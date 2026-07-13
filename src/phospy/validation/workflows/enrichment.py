@@ -4,11 +4,17 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from numbers import Integral
 from typing import Literal, cast
 
 from phospy.contracts.configs import EnrichmentConfig
+from phospy.contracts.enrichment_identifier_sets import (
+    EnrichmentIdentifierSetProvenance,
+    EnrichmentIdentifierSetSourceType,
+)
 from phospy.contracts.requests import EnrichmentWorkflowRequest
 from phospy.errors.validation import WorkflowValidationError
+from phospy.provenance.models import InputIntensityScaleEvidence
 from phospy.science.enrichment.models import (
     ENRICHMENT_COLLECTION_KIND_GENE_SET,
     ENRICHMENT_COLLECTION_KIND_PTM_SET,
@@ -21,6 +27,10 @@ from phospy.science.enrichment.models import (
     EnrichmentIdentifierKind,
     EnrichmentSet,
     EnrichmentSetCollection,
+)
+from phospy.science.transformations.models import (
+    IntensityScaleEvidenceLevel,
+    IntensityScaleKind,
 )
 from phospy.validation.common.dataframes import require_columns, require_dataframe
 
@@ -39,6 +49,8 @@ class ValidatedEnrichmentWorkflowRequest:
     selected_identifiers: tuple[str, ...]
     config: EnrichmentConfig
     selected_identifier_source: EnrichmentSelectedIdentifierSource
+    selected_identifier_provenance: EnrichmentIdentifierSetProvenance | None
+    background_identifier_provenance: EnrichmentIdentifierSetProvenance | None
 
 
 class EnrichmentWorkflowValidator:
@@ -62,6 +74,15 @@ class EnrichmentWorkflowValidator:
             request.set_collection,
             identifier_kind=identifier_kind,
         )
+        if (
+            request.background_identifier_provenance is not None
+            and request.background_universe is None
+        ):
+            raise WorkflowValidationError(
+                "Background identifier-set provenance is invalid: "
+                "background_identifier_provenance requires explicit "
+                "background_universe"
+            )
         background_universe = _normalise_identifier_sequence(
             request.background_universe,
             field_name="enrichment workflow request background_universe",
@@ -74,6 +95,18 @@ class EnrichmentWorkflowValidator:
                 identifier_column=identifier_column,
             )
         )
+        selected_identifier_provenance = _validate_identifier_set_provenance(
+            request.selected_identifier_provenance,
+            role="Selected",
+            field_name="selected_identifier_provenance",
+            normalized_identifier_count=len(selected_identifiers),
+        )
+        background_identifier_provenance = _validate_identifier_set_provenance(
+            request.background_identifier_provenance,
+            role="Background",
+            field_name="background_identifier_provenance",
+            normalized_identifier_count=len(background_universe),
+        )
 
         return ValidatedEnrichmentWorkflowRequest(
             request=request,
@@ -84,6 +117,8 @@ class EnrichmentWorkflowValidator:
             selected_identifiers=selected_identifiers,
             config=config,
             selected_identifier_source=selected_identifier_source,
+            selected_identifier_provenance=selected_identifier_provenance,
+            background_identifier_provenance=background_identifier_provenance,
         )
 
 
@@ -250,6 +285,209 @@ def _validate_config(value: object) -> EnrichmentConfig:
             "or equal to config.max_set_size"
         )
     return value
+
+
+def _validate_identifier_set_provenance(
+    value: object | None,
+    *,
+    role: Literal["Selected", "Background"],
+    field_name: str,
+    normalized_identifier_count: int,
+) -> EnrichmentIdentifierSetProvenance | None:
+    if value is None:
+        return None
+    if not isinstance(value, EnrichmentIdentifierSetProvenance):
+        raise WorkflowValidationError(
+            f"{role} identifier-set provenance is invalid: {field_name} must be "
+            "EnrichmentIdentifierSetProvenance"
+        )
+    source_type = _validate_identifier_set_source_type(
+        value.source_type,
+        role=role,
+    )
+    source_label = _require_provenance_text(
+        value.source_label,
+        role=role,
+        field_name="source_label",
+    )
+    identifier_count = _validate_identifier_count(
+        value.identifier_count,
+        role=role,
+    )
+    if identifier_count != normalized_identifier_count:
+        raise WorkflowValidationError(
+            f"{role} identifier-set provenance count mismatch: "
+            f"declared identifier_count={identifier_count}, "
+            "normalized request identifier count="
+            f"{normalized_identifier_count}."
+        )
+    upstream_workflow_id = _validate_optional_provenance_text(
+        value.upstream_workflow_id,
+        role=role,
+        field_name="upstream_workflow_id",
+    )
+    upstream_result_id = _validate_optional_provenance_text(
+        value.upstream_result_id,
+        role=role,
+        field_name="upstream_result_id",
+    )
+    evidence = value.input_intensity_scale_evidence
+    if source_type is EnrichmentIdentifierSetSourceType.PHOSPY_DERIVED_QUANTITATIVE:
+        evidence = _validate_input_intensity_scale_evidence(
+            evidence,
+            role=role,
+        )
+    elif evidence is not None:
+        raise WorkflowValidationError(
+            f"{role} identifier-set provenance is invalid: "
+            "input_intensity_scale_evidence is only valid when "
+            "source_type='phospy_derived_quantitative'; "
+            f"observed source_type={source_type.value!r}."
+        )
+    return EnrichmentIdentifierSetProvenance(
+        source_type=source_type,
+        source_label=source_label,
+        identifier_count=identifier_count,
+        upstream_workflow_id=upstream_workflow_id,
+        upstream_result_id=upstream_result_id,
+        input_intensity_scale_evidence=evidence,
+    )
+
+
+def _validate_identifier_set_source_type(
+    value: object,
+    *,
+    role: Literal["Selected", "Background"],
+) -> EnrichmentIdentifierSetSourceType:
+    if isinstance(value, EnrichmentIdentifierSetSourceType):
+        return value
+    try:
+        return EnrichmentIdentifierSetSourceType(str(value).strip())
+    except ValueError as exc:
+        supported = ", ".join(item.value for item in EnrichmentIdentifierSetSourceType)
+        raise WorkflowValidationError(
+            f"{role} identifier-set provenance is invalid: source_type must be "
+            f"one of: {supported}; observed={value!r}"
+        ) from exc
+
+
+def _validate_identifier_count(
+    value: object,
+    *,
+    role: Literal["Selected", "Background"],
+) -> int:
+    if isinstance(value, bool) or not isinstance(value, Integral):
+        raise WorkflowValidationError(
+            f"{role} identifier-set provenance is invalid: identifier_count must "
+            "be a non-negative integer"
+        )
+    count = int(value)
+    if count < 0:
+        raise WorkflowValidationError(
+            f"{role} identifier-set provenance is invalid: identifier_count must "
+            "be nonnegative"
+        )
+    return count
+
+
+def _validate_input_intensity_scale_evidence(
+    value: object | None,
+    *,
+    role: Literal["Selected", "Background"],
+) -> InputIntensityScaleEvidence:
+    if value is None:
+        raise WorkflowValidationError(
+            f"{role} identifier-set provenance is invalid: "
+            "source_type='phospy_derived_quantitative' requires "
+            "input_intensity_scale_evidence."
+        )
+    if not isinstance(value, InputIntensityScaleEvidence):
+        raise WorkflowValidationError(
+            f"{role} identifier-set provenance is invalid: "
+            "input_intensity_scale_evidence must be InputIntensityScaleEvidence"
+        )
+    input_intensity_scale = _validate_intensity_scale(
+        value.input_intensity_scale,
+        role=role,
+    )
+    evidence_level = _validate_intensity_scale_evidence_level(
+        value.input_intensity_scale_evidence_level,
+        role=role,
+    )
+    evidence_source = _require_provenance_text(
+        value.input_intensity_scale_source,
+        role=role,
+        field_name="input_intensity_scale_evidence.input_intensity_scale_source",
+    )
+    source_detail = _validate_optional_provenance_text(
+        value.input_intensity_scale_source_detail,
+        role=role,
+        field_name="input_intensity_scale_evidence.input_intensity_scale_source_detail",
+    )
+    return InputIntensityScaleEvidence(
+        input_intensity_scale=input_intensity_scale.value,
+        input_intensity_scale_evidence_level=evidence_level.value,
+        input_intensity_scale_source=evidence_source,
+        input_intensity_scale_source_detail=source_detail,
+    )
+
+
+def _validate_intensity_scale(
+    value: object,
+    *,
+    role: Literal["Selected", "Background"],
+) -> IntensityScaleKind:
+    try:
+        return IntensityScaleKind(str(value).strip())
+    except ValueError as exc:
+        supported = ", ".join(item.value for item in IntensityScaleKind)
+        raise WorkflowValidationError(
+            f"{role} identifier-set provenance is invalid: "
+            "input_intensity_scale_evidence.input_intensity_scale must be one "
+            f"of: {supported}; observed={value!r}"
+        ) from exc
+
+
+def _validate_intensity_scale_evidence_level(
+    value: object,
+    *,
+    role: Literal["Selected", "Background"],
+) -> IntensityScaleEvidenceLevel:
+    try:
+        return IntensityScaleEvidenceLevel(str(value).strip())
+    except ValueError as exc:
+        supported = ", ".join(item.value for item in IntensityScaleEvidenceLevel)
+        raise WorkflowValidationError(
+            f"{role} identifier-set provenance is invalid: "
+            "input_intensity_scale_evidence."
+            "input_intensity_scale_evidence_level must be one of: "
+            f"{supported}; observed={value!r}"
+        ) from exc
+
+
+def _require_provenance_text(
+    value: object,
+    *,
+    role: Literal["Selected", "Background"],
+    field_name: str,
+) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise WorkflowValidationError(
+            f"{role} identifier-set provenance is invalid: {field_name} must be "
+            "nonblank"
+        )
+    return value.strip()
+
+
+def _validate_optional_provenance_text(
+    value: object | None,
+    *,
+    role: Literal["Selected", "Background"],
+    field_name: str,
+) -> str | None:
+    if value is None:
+        return None
+    return _require_provenance_text(value, role=role, field_name=field_name)
 
 
 def _require_identifier_kind(

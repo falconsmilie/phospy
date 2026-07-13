@@ -524,6 +524,16 @@ offline/no-online-resource policy, and explicit limitations. These records
 state what was executed; they do not imply bundled GO, KEGG, Reactome, PTM-SEA,
 online enrichment service access, GSEA, ssGSEA, or PTM-SEA support.
 
+When callers supply typed selected/background identifier-set provenance,
+enrichment result provenance also records compact per-role source type, source
+label, normalized identifier count, upstream workflow/result IDs, and typed
+input-intensity-scale evidence. This provenance is optional for legacy/manual
+identifier lists. It is required when a caller labels an identifier set as
+PhosPy-derived quantitative, because the enrichment result must preserve whether
+the upstream quantitative intensity scale was observed through transformation
+or declared by the user. Declared evidence produces a role-specific caveat;
+observed transformation evidence is recorded without that declared-only caveat.
+
 ## Saved Output and Provenance Schemas
 
 Only current PhosPy-generated bundles and provenance payloads are supported.

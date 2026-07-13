@@ -26,6 +26,10 @@ from phospy.contracts.configs import (
     KinaseSiteSequenceConflictPolicy,
     SignalomeConfig,
 )
+from phospy.contracts.enrichment_identifier_sets import (
+    EnrichmentIdentifierSetProvenance,
+    EnrichmentIdentifierSetSourceType,
+)
 from phospy.science.datasets.builders.contracts import DatasetInput
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.design.contrast_helpers import (
@@ -186,6 +190,8 @@ class EnrichmentWorkflowRequest:
     config: EnrichmentConfig = field(default_factory=EnrichmentConfig)
     input_table: DatasetInput | None = None
     selected_identifiers: Sequence[str] | None = None
+    selected_identifier_provenance: EnrichmentIdentifierSetProvenance | None = None
+    background_identifier_provenance: EnrichmentIdentifierSetProvenance | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -276,6 +282,8 @@ __all__ = [
     "DifferentialAnalysisRequest",
     "EmpiricalBayesConfig",
     "EnrichmentIdentifierKind",
+    "EnrichmentIdentifierSetProvenance",
+    "EnrichmentIdentifierSetSourceType",
     "EnrichmentSet",
     "EnrichmentSetCollection",
     "EnrichmentWorkflowRequest",

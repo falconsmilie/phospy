@@ -128,6 +128,7 @@ tests/unit/test_domain_boundaries.py,unit,1251,57,true,true,public API contract,
 tests/unit/test_downstream_batch_correction_boundaries.py,unit,507,8,true,true,,,,,,
 tests/unit/test_duplicate_site_resolution_reports.py,unit,682,16,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for duplicate site resolution reports, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_enrichment_collections.py,unit,98,5,false,false,,,,,,
+tests/unit/test_enrichment_identifier_set_provenance.py,unit,510,19,true,true,,,,,,
 tests/unit/test_enrichment_multiple_testing_correction.py,unit,158,9,false,false,,,,,,
 tests/unit/test_enrichment_ora.py,unit,185,7,false,false,,,,,,
 tests/unit/test_enrichment_result_caveats.py,unit,96,4,false,false,,,,,,
@@ -202,7 +203,7 @@ tests/unit/test_public_contract_enrichment.py,unit,254,11,false,false,,,,,,
 tests/unit/test_public_contract_errors.py,unit,742,24,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract errors and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_contract_import_routes.py,unit,280,18,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract import routes and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_public_contract_results.py,unit,402,9,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract results and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
-tests/unit/test_public_contract_workflows.py,unit,194,7,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract workflows and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
+tests/unit/test_public_contract_workflows.py,unit,196,7,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract workflows and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_documentation_examples.py,unit,484,7,false,false,,,,,,
 tests/unit/test_public_examples_contract.py,unit,45,3,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public examples contract and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_reader_enrichment_sets.py,unit,151,6,true,true,,,,,,

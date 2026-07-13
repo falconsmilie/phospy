@@ -278,6 +278,13 @@ metadata where available. Environment provenance supports reproducibility
 audits, but it does not guarantee bitwise identical numeric outputs across
 different machines or dependency builds.
 
+Enrichment identifier-set provenance is role-specific. Selected and background
+sets use the same typed provenance model, and PhosPy-derived quantitative sets
+must carry typed input-intensity-scale evidence. Manual and raw identifier lists
+remain valid without provenance. Declared quantitative scale evidence is exposed
+as a caveat; observed transformation evidence is recorded in provenance without
+the declared-only caveat.
+
 Saved workflow bundles and provenance payloads are supported only for the
 current PhosPy schema. Legacy saved-result compatibility has been intentionally
 removed. Regenerate older development-version outputs instead of relying on

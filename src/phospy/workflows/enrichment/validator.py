@@ -41,6 +41,8 @@ class EnrichmentWorkflowValidator:
             selected_identifier_source=validated.selected_identifier_source,
             selected_identifier_input_count=selected_identifier_input_count,
             background_identifier_input_count=background_identifier_input_count,
+            selected_identifier_provenance=validated.selected_identifier_provenance,
+            background_identifier_provenance=validated.background_identifier_provenance,
         )
 
 

@@ -9,6 +9,9 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from phospy.contracts.configs import EnrichmentConfig
+from phospy.contracts.enrichment_identifier_sets import (
+    EnrichmentIdentifierSetProvenance,
+)
 from phospy.contracts.result_caveats import ResultCaveat, validate_result_caveats
 from phospy.errors.validation import WorkflowValidationError
 from phospy.frames.ownership import export_dataframe, own_dataframe
@@ -47,6 +50,8 @@ class EnrichmentWorkflowResult:
     method_metadata: Mapping[str, object] = field(default_factory=dict)
     background_summary: Mapping[str, object] = field(default_factory=dict)
     set_collection_summary: Mapping[str, object] = field(default_factory=dict)
+    selected_identifier_provenance: EnrichmentIdentifierSetProvenance | None = None
+    background_identifier_provenance: EnrichmentIdentifierSetProvenance | None = None
     provenance: RunProvenance | None = None
     _result_table: pd.DataFrame = field(init=False, repr=False, compare=False)
 
@@ -108,6 +113,14 @@ class EnrichmentWorkflowResult:
             raise WorkflowValidationError(
                 "enrichment_result.set_collection_summary must be a mapping"
             )
+        selected_identifier_provenance = _validate_optional_identifier_set_provenance(
+            self.selected_identifier_provenance,
+            field_name="enrichment_result.selected_identifier_provenance",
+        )
+        background_identifier_provenance = _validate_optional_identifier_set_provenance(
+            self.background_identifier_provenance,
+            field_name="enrichment_result.background_identifier_provenance",
+        )
         if self.provenance is not None and not isinstance(
             self.provenance, RunProvenance
         ):
@@ -133,6 +146,16 @@ class EnrichmentWorkflowResult:
             self,
             "set_collection_summary",
             dict(self.set_collection_summary),
+        )
+        object.__setattr__(
+            self,
+            "selected_identifier_provenance",
+            selected_identifier_provenance,
+        )
+        object.__setattr__(
+            self,
+            "background_identifier_provenance",
+            background_identifier_provenance,
         )
         object.__setattr__(self, "_result_table", result_table)
 
@@ -197,6 +220,18 @@ def _validate_enrichment_warning(value: object) -> str:
             "enrichment_result.warnings must contain non-empty strings"
         )
     return value.strip()
+
+
+def _validate_optional_identifier_set_provenance(
+    value: object | None,
+    *,
+    field_name: str,
+) -> EnrichmentIdentifierSetProvenance | None:
+    if value is None or isinstance(value, EnrichmentIdentifierSetProvenance):
+        return value
+    raise WorkflowValidationError(
+        f"{field_name} must be EnrichmentIdentifierSetProvenance or None"
+    )
 
 
 __all__ = [

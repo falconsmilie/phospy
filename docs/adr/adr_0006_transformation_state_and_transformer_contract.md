@@ -22,6 +22,17 @@ That blending made ownership and validation ambiguous.
 Recent implementation changes also established explicit intensity-scale
 establishment modes, so the ADR must record the supported provenance model.
 
+Update note (2026-07-13, enrichment identifier-set provenance):
+`EnrichmentWorkflowRequest` may carry typed selected/background identifier-set
+provenance. For PhosPy-derived quantitative identifier sets, the provenance
+must include the shared `InputIntensityScaleEvidence` model. This keeps
+enrichment provenance aligned with dataset and workflow intensity-scale
+evidence without inferring scale from values, column names, diagnostics, or
+labels. Manual and raw identifier lists remain valid without intensity-scale
+evidence. Declared quantitative scale evidence produces a role-specific
+enrichment caveat; observed transformation evidence is recorded without that
+declared-only caveat.
+
 ## Decision
 
 PhosPy uses two required boundary models on `AnalysisReadyPhosphoDataset`:

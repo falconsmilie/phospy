@@ -5,6 +5,9 @@ from __future__ import annotations
 from phospy.contracts.result_caveats import ResultCaveat
 from phospy.science.enrichment.models import ENRICHMENT_METHOD_OVER_REPRESENTATION
 from phospy.workflows.enrichment.models import InterpretedEnrichmentWorkflowRequest
+from phospy.workflows.intensity_scale_evidence import (
+    build_declared_input_intensity_scale_evidence_caveat,
+)
 from phospy.workflows.result_caveat_helpers import deduplicate_caveats
 
 ENRICHMENT_OFFLINE_ORA_ONLY_SCOPE_CAVEAT_CODE = "enrichment_offline_ora_only_scope"
@@ -26,7 +29,16 @@ def build_enrichment_result_caveats(
     """Build compact machine-readable caveats for enrichment workflow results."""
 
     return deduplicate_caveats(
-        (
+        caveat
+        for caveat in (
+            _identifier_set_declared_scale_caveat(
+                request=request,
+                role="selected",
+            ),
+            _identifier_set_declared_scale_caveat(
+                request=request,
+                role="background",
+            ),
             _offline_ora_only_scope_caveat(
                 request=request,
                 set_collection_summary=set_collection_summary,
@@ -38,6 +50,33 @@ def build_enrichment_result_caveats(
             _identifier_kind_assumption_caveat(request),
             _no_rank_based_semantics_caveat(request),
         )
+        if caveat is not None
+    )
+
+
+def _identifier_set_declared_scale_caveat(
+    *,
+    request: InterpretedEnrichmentWorkflowRequest,
+    role: str,
+) -> ResultCaveat | None:
+    provenance = (
+        request.selected_identifier_provenance
+        if role == "selected"
+        else request.background_identifier_provenance
+    )
+    if provenance is None or provenance.input_intensity_scale_evidence is None:
+        return None
+    evidence = provenance.input_intensity_scale_evidence
+    return build_declared_input_intensity_scale_evidence_caveat(
+        evidence=evidence,
+        workflow_scope="enrichment",
+        extra_details={
+            "identifier_set_role": role,
+            "identifier_set_source_type": provenance.source_type.value,
+            "identifier_set_source_label": provenance.source_label,
+            "declared_input_intensity_scale": evidence.input_intensity_scale,
+            "scale_declared_not_observed": True,
+        },
     )
 
 

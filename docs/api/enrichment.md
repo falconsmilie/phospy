@@ -58,10 +58,95 @@ Important fields:
 | `config` | `EnrichmentConfig` for method and multiple-testing policy. |
 | `input_table` | Optional table source; mutually exclusive with `selected_identifiers`. |
 | `selected_identifiers` | Optional explicit identifier list; mutually exclusive with `input_table`. |
+| `selected_identifier_provenance` | Optional typed provenance for the selected identifier set. |
+| `background_identifier_provenance` | Optional typed provenance for the explicit background set. |
 
-Construction checks local request invariants such as exactly one input source
-and matching collection semantics. Workflow execution calculates enrichment
-statistics.
+Construction stores the request payload and can coerce provenance mappings into
+typed dataclasses. Workflow validation owns identifier-source selection,
+collection/background compatibility, identifier-count checks, and provenance
+compatibility. Workflow execution calculates enrichment statistics.
+
+## Identifier-Set Provenance
+
+Identifier-set provenance is optional for legacy and ordinary manual enrichment
+requests. A request with no selected or background provenance keeps those fields
+absent; PhosPy does not silently label omitted provenance as manual.
+
+Use `EnrichmentIdentifierSetProvenance` when you want the result to distinguish
+manual/raw identifier lists from identifier sets derived from PhosPy
+quantitative workflows. The same typed model is used for both selected and
+background sets.
+
+`source_type` is one of:
+
+- `EnrichmentIdentifierSetSourceType.MANUAL`
+- `EnrichmentIdentifierSetSourceType.RAW_IDENTIFIER_LIST`
+- `EnrichmentIdentifierSetSourceType.PHOSPY_DERIVED_QUANTITATIVE`
+
+For `MANUAL` and `RAW_IDENTIFIER_LIST`, intensity-scale evidence is not needed
+and should not be supplied. For `PHOSPY_DERIVED_QUANTITATIVE`, typed
+`InputIntensityScaleEvidence` is mandatory so downstream provenance preserves
+whether the upstream quantitative scale came from an observed transformation or
+from a user declaration.
+
+`identifier_count` must match the workflow-normalized identifier count:
+distinct, nonblank identifiers after enrichment input normalization and before
+reference mapping, annotation-universe overlap, term filtering, statistical
+testing, or multiple-testing correction. For the background role, provenance is
+valid only when an explicit `background_universe` is supplied.
+
+Manual selected list with optional manual provenance:
+
+```python
+from phospy.api import (
+    EnrichmentIdentifierSetProvenance,
+    EnrichmentIdentifierSetSourceType,
+)
+
+selected_provenance = EnrichmentIdentifierSetProvenance(
+    source_type=EnrichmentIdentifierSetSourceType.MANUAL,
+    source_label="curated hit list",
+    identifier_count=2,
+)
+
+request = EnrichmentWorkflowRequest(
+    identifier_column="gene_symbol",
+    identifier_kind="gene_symbol",
+    set_collection=collection,
+    selected_identifiers=("AKT1", "MAPK1"),
+    background_universe=("AKT1", "MAPK1", "MTOR", "CDK1", "CDK2"),
+    selected_identifier_provenance=selected_provenance,
+)
+```
+
+PhosPy-derived quantitative selected set with observed transformation evidence:
+
+```python
+from phospy.api import (
+    EnrichmentIdentifierSetProvenance,
+    EnrichmentIdentifierSetSourceType,
+)
+from phospy.provenance.models import InputIntensityScaleEvidence
+
+selected_provenance = EnrichmentIdentifierSetProvenance(
+    source_type=EnrichmentIdentifierSetSourceType.PHOSPY_DERIVED_QUANTITATIVE,
+    source_label="differential significant genes",
+    identifier_count=2,
+    upstream_workflow_id="differential-workflow",
+    upstream_result_id="contrast-a-vs-b",
+    input_intensity_scale_evidence=InputIntensityScaleEvidence(
+        input_intensity_scale="log2",
+        input_intensity_scale_evidence_level="observed_transformation",
+        input_intensity_scale_source="phospy.science.transformations.transformers.log2",
+        input_intensity_scale_source_detail="log2_transform",
+    ),
+)
+```
+
+If `input_intensity_scale_evidence_level="declared_by_user"`, the enrichment
+result emits a role-specific caveat for the selected or background set. Observed
+transformation evidence is recorded in the result and run provenance, but does
+not emit the declared-scale caveat.
 
 ## Request Configuration
 
@@ -150,6 +235,8 @@ Important fields and helpers:
 | `method_metadata` | Method metadata. |
 | `background_summary` | Background-universe summary. |
 | `set_collection_summary` | Collection summary. |
+| `selected_identifier_provenance` | Typed selected identifier-set provenance, when supplied. |
+| `background_identifier_provenance` | Typed background identifier-set provenance, when supplied. |
 | `provenance` | Run provenance populated by workflow execution. |
 
 The result table includes one row per tested term with overlap counts, overlap
@@ -214,6 +301,14 @@ analysis level, explicit background size, selected identifier count, selected
 identifier source, set-collection source metadata when provided,
 multiple-testing correction, table fingerprints, offline/no-online-resource policy,
 and limitations.
+
+When identifier-set provenance is supplied, `result.provenance.workflow_parameters`
+also stores compact `selected_identifier_provenance` and
+`background_identifier_provenance` payloads. These payloads include source type,
+source label, normalized identifier count, upstream workflow/result IDs when
+provided, and the nested input-intensity-scale evidence payload. They do not
+copy full identifier lists; identifier lists remain represented by the existing
+input-table fingerprints.
 
 ## Limitations
 

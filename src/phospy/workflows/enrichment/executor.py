@@ -7,6 +7,9 @@ from typing import Literal, cast
 
 import pandas as pd
 
+from phospy.contracts.enrichment_identifier_sets import (
+    EnrichmentIdentifierSetProvenance,
+)
 from phospy.contracts.results import EnrichmentWorkflowResult
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.provenance import (
@@ -145,6 +148,8 @@ class EnrichmentWorkflowExecutor:
             method_metadata=request.method_metadata,
             background_summary=background_summary,
             set_collection_summary=set_collection_summary,
+            selected_identifier_provenance=request.selected_identifier_provenance,
+            background_identifier_provenance=request.background_identifier_provenance,
         )
         provenance = _build_run_provenance(
             request=request,
@@ -163,6 +168,8 @@ class EnrichmentWorkflowExecutor:
             method_metadata=request.method_metadata,
             background_summary=background_summary,
             set_collection_summary=set_collection_summary,
+            selected_identifier_provenance=request.selected_identifier_provenance,
+            background_identifier_provenance=request.background_identifier_provenance,
             provenance=provenance,
         )
 
@@ -598,6 +605,12 @@ def _build_run_provenance(
         "number_of_tests": number_of_tests,
         "correction_owner": "ora_engine",
         "set_collection": _set_collection_provenance(request),
+        "selected_identifier_provenance": _identifier_set_provenance_payload(
+            request.selected_identifier_provenance
+        ),
+        "background_identifier_provenance": _identifier_set_provenance_payload(
+            request.background_identifier_provenance
+        ),
         "offline_no_online_resource_policy": (
             ENRICHMENT_OFFLINE_NO_ONLINE_RESOURCE_POLICY
         ),
@@ -843,6 +856,14 @@ def _set_collection_provenance(
             for enrichment_set in request.set_collection.enrichment_sets
         ),
     }
+
+
+def _identifier_set_provenance_payload(
+    provenance: EnrichmentIdentifierSetProvenance | None,
+) -> dict[str, object] | None:
+    if provenance is None:
+        return None
+    return provenance.to_payload()
 
 
 def _identifier_table(identifiers: tuple[str, ...]) -> pd.DataFrame:

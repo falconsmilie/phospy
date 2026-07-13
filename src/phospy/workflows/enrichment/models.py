@@ -7,6 +7,9 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from phospy.contracts.configs import EnrichmentConfig
+from phospy.contracts.enrichment_identifier_sets import (
+    EnrichmentIdentifierSetProvenance,
+)
 from phospy.contracts.requests import EnrichmentWorkflowRequest
 from phospy.contracts.results import EnrichmentWorkflowResult
 from phospy.science.enrichment.models import (
@@ -34,6 +37,8 @@ class ValidatedEnrichmentWorkflowRequest:
     selected_identifier_source: EnrichmentSelectedIdentifierSource
     selected_identifier_input_count: int
     background_identifier_input_count: int
+    selected_identifier_provenance: EnrichmentIdentifierSetProvenance | None
+    background_identifier_provenance: EnrichmentIdentifierSetProvenance | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,6 +68,8 @@ class InterpretedEnrichmentWorkflowRequest:
     diagnostics: dict[str, object]
     selected_identifier_input_count: int
     background_identifier_input_count: int
+    selected_identifier_provenance: EnrichmentIdentifierSetProvenance | None
+    background_identifier_provenance: EnrichmentIdentifierSetProvenance | None
 
 
 class EnrichmentWorkflowValidatorContract(Protocol):
