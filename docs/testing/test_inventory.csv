@@ -51,8 +51,9 @@ tests/performance/test_performance_contracts.py,performance,1278,16,true,false,p
 tests/performance/test_signalome_clustering_benchmark.py,performance,82,1,true,false,performance/memory contract,keep,"Loss of this file would remove runtime and memory envelope checks for signalome clustering benchmark, allowing performance regressions to ship undetected.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/performance/test_workflow_scale_contracts.py,performance,261,2,true,true,,,,,,
 tests/performance/test_workflow_validation_performance.py,performance,108,2,true,false,,,,,,
+tests/release/test_reference_bundle_distribution.py,release,218,7,true,false,,,,,,
 tests/release/test_reference_manifest_gate.py,release,716,29,true,true,,,,,,
-tests/release/test_release_gate_policy.py,release,305,9,true,true,,,,,,
+tests/release/test_release_gate_policy.py,release,326,10,true,true,,,,,,
 tests/science/test_empirical_bayes_trend_smoothing.py,science,150,2,false,false,,,,,,
 tests/science/test_kinase_library_motif_scoring_science.py,science,51,1,false,false,,,,,,
 tests/science/test_signalome_identity_coherence.py,science,66,1,false,false,,,,,,

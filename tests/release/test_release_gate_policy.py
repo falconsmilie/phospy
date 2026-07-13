@@ -106,6 +106,15 @@ def test_publish_workflow_cannot_publish_without_scientific_release_gate() -> No
 
     assert "run: make test-release-gate" in release_gate
     assert _has_needs(build, "release-gate")
+    assert "python scripts/validate_reference_bundle_distribution.py dist/*.whl" in (
+        build
+    )
+    assert build.index("python -m build") < build.index(
+        "python scripts/validate_reference_bundle_distribution.py dist/*.whl"
+    )
+    assert build.index(
+        "python scripts/validate_reference_bundle_distribution.py dist/*.whl"
+    ) < build.index("uses: actions/upload-artifact@v5")
     assert _has_needs(testpypi, "build")
     assert _has_needs(pypi, "build")
 
@@ -287,6 +296,18 @@ def test_ci_keeps_diagnostic_parity_non_blocking() -> None:
     assert "continue-on-error: true" not in hard_parity
     assert "continue-on-error: true" in diagnostics
     assert '-m "parity_diagnostic"' in diagnostics
+
+
+def test_ci_distribution_build_validates_reference_bundle_wheels() -> None:
+    workflow = _read(".github/workflows/ci.yml")
+    build = _workflow_job_block(workflow, "build-distributions")
+    validation_command = (
+        "python scripts/validate_reference_bundle_distribution.py dist/*.whl"
+    )
+
+    assert validation_command in build
+    assert build.index("python -m build") < build.index(validation_command)
+    assert build.index(validation_command) < build.index("twine check dist/*")
 
 
 @pytest.mark.parametrize(

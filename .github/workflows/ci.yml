@@ -330,4 +330,5 @@ jobs:
           python -m pip install --upgrade pip
           pip install build twine
           python -m build
+          python scripts/validate_reference_bundle_distribution.py dist/*.whl
           twine check dist/*
