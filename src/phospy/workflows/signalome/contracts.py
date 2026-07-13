@@ -19,6 +19,7 @@ from phospy.contracts.configs import (
 from phospy.contracts.requests import SignalomeWorkflowRequest
 from phospy.contracts.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.provenance.models import RowAttritionRecord
 from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.prediction.scoring import DownstreamScoreSelectionPolicy
@@ -102,6 +103,7 @@ class ResolvedSignalomeWorkflowRequest:
         default_factory=default_signalome_alignment_diagnostics
     )
     downstream_score_selection_policy: DownstreamScoreSelectionPolicy | None = None
+    row_attrition_records: tuple[RowAttritionRecord, ...] = ()
     _downstream_score_table: KinaseScoreMatrix = field(
         init=False,
         repr=False,
@@ -154,11 +156,23 @@ class ResolvedSignalomeWorkflowRequest:
                 "site_to_protein to retained downstream score sites after "
                 "score preconditioning"
             )
+        row_attrition_records = tuple(self.row_attrition_records)
+        for record in row_attrition_records:
+            if isinstance(record, RowAttritionRecord):
+                continue
+            raise WorkflowBoundaryError(
+                "signalome workflow boundary validation failed at seam="
+                "signalome.contracts.row_attrition_records_type; "
+                "row_attrition_records must contain RowAttritionRecord values; "
+                "next_action=ensure interpreter attaches structured causal "
+                "row-attrition records before executor scoring"
+            )
         object.__setattr__(
             self, "downstream_score_matrix", downstream_score_table.frame
         )
         object.__setattr__(self, "downstream_score_source", downstream_score_source)
         object.__setattr__(self, "prediction_matrix", prediction_table.frame)
+        object.__setattr__(self, "row_attrition_records", row_attrition_records)
         object.__setattr__(self, "_downstream_score_table", downstream_score_table)
         object.__setattr__(self, "_prediction_table", prediction_table)
 

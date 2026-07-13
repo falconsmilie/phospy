@@ -8,6 +8,7 @@ import pytest
 from phospy.api import (
     KinasePredictionConfig,
     KinaseScoringConfig,
+    KinaseWorkflow,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
@@ -290,11 +291,21 @@ def test_kinase_library_motif_only_does_not_require_substrate_reference_overlap(
     )
 
     resolved = KinaseWorkflowInterpreter().run(request)
+    result = KinaseWorkflow().run(request)
 
     assert resolved.kinase_substrate_map.empty
     assert resolved.execution_config.scoring_mode == (
         KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY
     )
+    assert result.provenance is not None
+    workflow_parameters = result.provenance.workflow_parameters
+    assert (
+        workflow_parameters["row_attrition_metrics"][
+            "sites_not_present_in_reference_resource"
+        ]
+        == 0
+    )
+    assert "row_attrition" not in workflow_parameters
 
 
 def _window(residue: str) -> str:

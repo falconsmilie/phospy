@@ -1,195 +1,229 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 import pandas as pd
 
-from phospy.contracts.configs import (
-    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
-    LocalisationRequirement,
+from phospy.api import (
+    Organism,
+    ReferenceBundle,
+    SignalomeWorkflowRequest,
 )
-from phospy.science.signalomes.models import SignalomeScorePreconditioningDiagnostics
+from phospy.api.results import (
+    KinasePredictionResult,
+    KinaseScoringResult,
+    KinaseWorkflowResult,
+)
+from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.workflows.signalome.interpreter import SignalomeWorkflowInterpreter
 from phospy.workflows.signalome.row_attrition import (
     build_signalome_row_attrition_provenance,
 )
+from tests.support.intensity_scale_states import (
+    supported_linear_intensity_scale_state,
+    supported_linear_processing_state,
+)
+from tests.support.signalome_config import build_signalome_config
+from tests.support.site_keys import (
+    site_key_context_columns,
+    site_key_index_from_display_ids,
+)
 
 
-def _request(
+def _window(display_id: str) -> str:
+    residue = display_id.split(";")[1][0].upper()
+    return ("A" * 15) + residue + ("A" * 15)
+
+
+def _dataset(display_ids: list[str]) -> AnalysisReadyPhosphoDataset:
+    site_index = site_key_index_from_display_ids(display_ids)
+    return AnalysisReadyPhosphoDataset(
+        phospho=pd.DataFrame(
+            {
+                "sample_a": [1.0 + index for index, _ in enumerate(display_ids)],
+                "sample_b": [2.0 + index for index, _ in enumerate(display_ids)],
+            },
+            index=site_index.copy(),
+        ),
+        site_metadata=pd.DataFrame(
+            {
+                "site_key": site_index.astype(str).tolist(),
+                "display_id": display_ids,
+                **site_key_context_columns(site_index),
+                "gene_symbol": [
+                    display_id.split(";", 1)[0] for display_id in display_ids
+                ],
+                "protein_id": [
+                    display_id.split(";", 1)[0] for display_id in display_ids
+                ],
+                "site": [display_id.split(";")[1] for display_id in display_ids],
+                "site_sequence": [_window(display_id) for display_id in display_ids],
+            },
+            index=site_index.copy(),
+        ),
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+
+
+def _matrix(
     *,
-    site_ids: tuple[str, ...] = ("S1", "S2", "S3"),
-    retained_site_ids: tuple[str, ...] = ("S1", "S3"),
-    prediction_site_ids: tuple[str, ...] | None = None,
-    score_site_ids: tuple[str, ...] | None = None,
-    sequences: dict[str, object] | None = None,
-    localisation: dict[str, object] | None = None,
-    proteins: dict[str, object] | None = None,
-    score_values: dict[str, tuple[float, ...]] | None = None,
-    preconditioning_drop_count: int = 0,
-    localisation_requirement: LocalisationRequirement | None = None,
-) -> SimpleNamespace:
-    prediction_site_ids = (
-        site_ids if prediction_site_ids is None else prediction_site_ids
-    )
-    score_site_ids = site_ids if score_site_ids is None else score_site_ids
-    sequence_values = {
-        site_id: ("A" * 15) + "S" + ("A" * 15) for site_id in site_ids
-    } | (sequences or {})
-    localisation_values = {site_id: 0.95 for site_id in site_ids} | (localisation or {})
-    protein_values = {
-        site_id: f"P{index}" for index, site_id in enumerate(site_ids)
-    } | (proteins or {})
-    score_values = score_values or {
-        site_id: (1.0 + index,) for index, site_id in enumerate(score_site_ids)
-    }
-    raw_scores = pd.DataFrame.from_dict(
-        {site_id: score_values[site_id] for site_id in score_site_ids},
-        orient="index",
-        columns=["K1"],
-    )
-    raw_scores.index.name = "site_key"
-    prediction_matrix = pd.DataFrame(
-        {"K1": [0.5 for _ in prediction_site_ids]},
-        index=pd.Index(prediction_site_ids, name="site_key"),
-    )
-    retained_scores = raw_scores.reindex(index=list(retained_site_ids))
-    input_row_count = len(set(prediction_site_ids).intersection(set(score_site_ids)))
-    return SimpleNamespace(
-        dataset=SimpleNamespace(
-            phospho=pd.DataFrame(
-                {"sample": range(len(site_ids))},
-                index=pd.Index(site_ids, name="site_key"),
-            ),
-            site_metadata=pd.DataFrame(
+    index: pd.Index,
+    values: list[list[float]],
+) -> pd.DataFrame:
+    return pd.DataFrame(values, index=index.copy(), columns=["KINASE_A", "KINASE_B"])
+
+
+def _kinase_result(
+    *,
+    dataset: AnalysisReadyPhosphoDataset,
+    prediction_matrix: pd.DataFrame,
+    score_matrix: pd.DataFrame,
+) -> KinaseWorkflowResult:
+    display_ids = dataset.site_metadata.loc[:, "display_id"].astype(str).tolist()
+    return KinaseWorkflowResult(
+        dataset=dataset,
+        references=ReferenceBundle(
+            organism=Organism.RAT,
+            kinase_substrate_map=pd.DataFrame(
                 {
-                    "site_sequence": [sequence_values[site_id] for site_id in site_ids],
-                    "localisation_probability": [
-                        localisation_values[site_id] for site_id in site_ids
-                    ],
-                    "protein_id": [protein_values[site_id] for site_id in site_ids],
-                },
-                index=pd.Index(site_ids, name="site_key"),
+                    "kinase": ["KINASE_A" for _ in display_ids],
+                    "substrate_site": display_ids,
+                }
+            ),
+            site_sequences=pd.DataFrame(
+                {"site_sequence": [_window(display_id) for display_id in display_ids]},
+                index=pd.Index(display_ids, name="site_id"),
             ),
         ),
-        kinase_result=SimpleNamespace(
-            prediction_result=SimpleNamespace(pred_mat=prediction_matrix),
-            scoring_result=SimpleNamespace(authoritative_scores=raw_scores),
+        scoring_result=KinaseScoringResult(
+            profile_scores=score_matrix,
+            rank_weighted_fusion_scores=score_matrix,
         ),
-        downstream_score_matrix=retained_scores,
-        execution_config=SimpleNamespace(
-            localisation_requirement=(
-                LocalisationRequirement()
-                if localisation_requirement is None
-                else localisation_requirement
-            )
-        ),
-        score_preconditioning_diagnostics=SignalomeScorePreconditioningDiagnostics(
-            input_row_count=input_row_count,
-            dropped_all_missing_row_count=preconditioning_drop_count,
-            retained_row_count=len(retained_site_ids),
-            policy=SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
-        ),
+        prediction_result=KinasePredictionResult(pred_mat=prediction_matrix),
+        activity_result=None,
     )
 
 
-def _records(provenance) -> tuple[dict[str, object], ...]:
+def _interpreted_request(
+    *,
+    display_ids: list[str],
+    prediction_site_index: pd.Index | None = None,
+    score_site_index: pd.Index | None = None,
+    score_values: list[list[float]] | None = None,
+):
+    dataset = _dataset(display_ids)
+    site_index = dataset.phospho.index
+    prediction_index = (
+        site_index if prediction_site_index is None else prediction_site_index
+    )
+    score_index = site_index if score_site_index is None else score_site_index
+    prediction_matrix = _matrix(
+        index=prediction_index,
+        values=[[0.8, 0.2] for _ in range(int(prediction_index.size))],
+    )
+    scores = _matrix(
+        index=score_index,
+        values=(
+            score_values
+            if score_values is not None
+            else [[1.0, 0.5] for _ in range(int(score_index.size))]
+        ),
+    )
+    return SignalomeWorkflowInterpreter().run(
+        SignalomeWorkflowRequest(
+            kinase_result=_kinase_result(
+                dataset=dataset,
+                prediction_matrix=prediction_matrix,
+                score_matrix=scores,
+            ),
+            config=build_signalome_config(
+                substrate_support_cutoff=0.5,
+                score_preconditioning_policy="allow_and_report",
+            ),
+        )
+    )
+
+
+def test_signalome_score_preconditioning_record_uses_actual_stage_indexes() -> None:
+    interpreted = _interpreted_request(
+        display_ids=["P1;S1;", "P2;S2;", "P3;S3;"],
+        score_values=[
+            [float("nan"), float("nan")],
+            [2.0, 3.0],
+            [1.0, 2.0],
+        ],
+    )
+
+    provenance = build_signalome_row_attrition_provenance(
+        interpreted,
+        final_site_ids=interpreted.downstream_score_matrix.index,
+    )
+
     assert provenance.row_attrition is not None
-    return tuple(record.to_payload() for record in provenance.row_attrition.records)
-
-
-def test_signalome_row_attrition_records_sequence_context_drops() -> None:
-    request = _request(sequences={"S2": ""})
-    result = build_signalome_row_attrition_provenance(request)
-
-    records = _records(result)
-
-    assert records[0]["stage"] == "signalome_sequence_context"
-    assert records[0]["reason"] == "sites_missing_sequence_context"
-    assert records[0]["examples"] == ["S2"]
-
-
-def test_signalome_row_attrition_records_localisation_drops_when_applicable() -> None:
-    request = _request(
-        localisation={"S2": 0.2},
-        localisation_requirement=LocalisationRequirement(minimum_probability=0.75),
+    records = provenance.row_attrition.records
+    assert len(records) == 1
+    assert records[0].stage == "signalome_score_preconditioning"
+    assert records[0].reason == "sites_removed_by_score_preconditioning"
+    assert records[0].input_rows == 3
+    assert records[0].output_rows == 2
+    assert records[0].examples == (str(interpreted.dataset.phospho.index[0]),)
+    assert provenance.metrics["sites_removed_by_score_preconditioning"] == 1
+    assert provenance.row_attrition.final_rows == int(
+        interpreted.downstream_score_matrix.shape[0]
     )
-    result = build_signalome_row_attrition_provenance(request)
-
-    records = _records(result)
-
-    assert records[0]["stage"] == "signalome_localisation_metadata"
-    assert records[0]["reason"] == "sites_below_localisation_threshold"
-    assert records[0]["examples"] == ["S2"]
 
 
-def test_signalome_row_attrition_records_missing_protein_grouping() -> None:
-    request = _request(proteins={"S2": ""})
-    result = build_signalome_row_attrition_provenance(request)
-
-    records = _records(result)
-
-    assert records[0]["stage"] == "signalome_protein_grouping"
-    assert records[0]["reason"] == "sites_missing_protein_grouping_metadata"
-    assert records[0]["examples"] == ["S2"]
-
-
-def test_signalome_row_attrition_records_score_preconditioning_drops() -> None:
-    request = _request(
-        score_values={"S1": (1.0,), "S2": (float("nan"),), "S3": (0.5,)},
-        preconditioning_drop_count=1,
+def test_signalome_internal_sequential_records_are_continuous_without_double_count() -> (
+    None
+):
+    display_ids = ["P1;S1;", "P2;S2;", "P3;S3;", "P4;S4;"]
+    dataset = _dataset(display_ids)
+    site_index = dataset.phospho.index
+    # The public validator rejects prediction/score index mismatches. This direct
+    # interpreter test covers the private alignment filter without weakening that
+    # public validation boundary.
+    interpreted = _interpreted_request(
+        display_ids=display_ids,
+        prediction_site_index=site_index.delete(3),
+        score_site_index=site_index,
+        score_values=[
+            [1.0, 0.5],
+            [float("nan"), float("nan")],
+            [2.0, 3.0],
+            [4.0, 5.0],
+        ],
     )
-    result = build_signalome_row_attrition_provenance(request)
 
-    records = _records(result)
-
-    assert records[0]["stage"] == "signalome_score_preconditioning"
-    assert records[0]["reason"] == "sites_removed_by_score_preconditioning"
-    assert records[0]["examples"] == ["S2"]
-
-
-def test_signalome_row_attrition_does_not_double_count_sites() -> None:
-    request = _request(
-        sequences={"S2": ""},
-        score_values={"S1": (1.0,), "S2": (float("nan"),), "S3": (0.5,)},
-        preconditioning_drop_count=1,
+    provenance = build_signalome_row_attrition_provenance(
+        interpreted,
+        final_site_ids=interpreted.downstream_score_matrix.index,
     )
-    result = build_signalome_row_attrition_provenance(request)
 
-    records = _records(result)
-
-    assert [record["stage"] for record in records] == [
-        "signalome_score_preconditioning"
-    ]
-    assert sum(int(record["removed_rows"]) for record in records) == 1
-    assert result.metrics["sites_removed_by_score_preconditioning"] == 1
-
-
-def test_signalome_row_attrition_report_counts_are_continuous() -> None:
-    request = _request(
-        site_ids=("S1", "S2", "S3", "S4", "S5"),
-        retained_site_ids=("S1",),
-        prediction_site_ids=("S1", "S4", "S5"),
-        score_site_ids=("S1", "S3", "S4", "S5"),
-        sequences={"S2": ""},
-        score_values={
-            "S1": (1.0,),
-            "S3": (0.5,),
-            "S4": (float("nan"),),
-            "S5": (0.2,),
-        },
-        preconditioning_drop_count=1,
-    )
-    result = build_signalome_row_attrition_provenance(request)
-
-    records = result.row_attrition.records
-
-    assert [(record.input_rows, record.output_rows) for record in records] == [
-        (5, 3),
-        (3, 2),
-        (2, 1),
-    ]
+    assert provenance.row_attrition is not None
+    records = provenance.row_attrition.records
     assert [record.stage for record in records] == [
         "signalome_site_alignment",
         "signalome_score_preconditioning",
-        "signalome_scoring_clustering_retention",
     ]
-    assert result.row_attrition.final_rows == 1
+    assert [(record.input_rows, record.output_rows) for record in records] == [
+        (4, 3),
+        (3, 2),
+    ]
+    assert sum(record.removed_rows for record in records) == 2
+    assert all(record.removed_rows > 0 for record in records)
+
+
+def test_signalome_no_zero_removal_record_when_no_rows_removed() -> None:
+    interpreted = _interpreted_request(
+        display_ids=["P1;S1;", "P2;S2;", "P3;S3;"],
+    )
+
+    provenance = build_signalome_row_attrition_provenance(
+        interpreted,
+        final_site_ids=interpreted.downstream_score_matrix.index,
+    )
+
+    assert provenance.row_attrition is None
+    assert provenance.metrics["sites_removed_by_score_preconditioning"] == 0

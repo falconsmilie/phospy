@@ -27,6 +27,7 @@ from phospy.contracts.configs import (
 from phospy.contracts.requests import KinaseWorkflowRequest
 from phospy.contracts.results import KinaseWorkflowResult
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.provenance.models import RowAttritionRecord
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.prediction.policies import (
     DEFAULT_PREDICTION_SAMPLING_POLICY,
@@ -91,6 +92,7 @@ class ResolvedKinaseWorkflowRequest:
     kinase_library_resource: KinaseLibraryResource | None = None
     attrition_metrics: KinaseAttritionMetrics | None = None
     attrition_policy_violations: tuple[KinaseAttritionPolicyViolation, ...] = ()
+    row_attrition_records: tuple[RowAttritionRecord, ...] = ()
     site_identity_map: pd.DataFrame | None = None
     site_sequence_merge_diagnostics: dict[str, object] = field(default_factory=dict)
     reference_resolution_details: dict[str, object] = field(default_factory=dict)
@@ -206,6 +208,17 @@ class ResolvedKinaseWorkflowRequest:
                 "next_action=ensure interpreter attaches structured attrition "
                 "policy violations before executor scoring"
             )
+        row_attrition_records = tuple(self.row_attrition_records)
+        for record in row_attrition_records:
+            if isinstance(record, RowAttritionRecord):
+                continue
+            raise WorkflowBoundaryError(
+                "kinase workflow boundary validation failed at seam="
+                "kinase.contracts.row_attrition_records_type; "
+                "row_attrition_records must contain RowAttritionRecord values; "
+                "next_action=ensure interpreter attaches structured causal "
+                "row-attrition records before executor scoring"
+            )
         if not self._has_compatible_site_sequence_reference_alignment(
             merged_site_sequences=site_sequences,
             site_identity_map=site_identity_map,
@@ -232,6 +245,7 @@ class ResolvedKinaseWorkflowRequest:
             "attrition_policy_violations",
             attrition_policy_violations,
         )
+        object.__setattr__(self, "row_attrition_records", row_attrition_records)
         object.__setattr__(self, "_kinase_substrate_reference", kinase_substrate_map)
         object.__setattr__(self, "_site_sequence_reference", site_sequences)
         object.__setattr__(self, "_activity_phospho_table", activity_phospho_matrix)

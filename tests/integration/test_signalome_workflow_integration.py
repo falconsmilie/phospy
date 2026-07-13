@@ -607,6 +607,23 @@ def test_signalome_workflow_accepts_sparse_missing_rank_weighted_fusion_score_ro
         expected_retained_rows
     )
     assert result.score_preconditioning_diagnostics.policy == "allow_and_report"
+    assert result.provenance is not None
+    workflow_parameters = result.provenance.workflow_parameters
+    row_attrition_metrics = workflow_parameters["row_attrition_metrics"]
+    assert row_attrition_metrics["sites_removed_by_score_preconditioning"] == 5
+    assert row_attrition_metrics["sites_retained_for_signalome_scoring_clustering"] == (
+        expected_retained_rows
+    )
+    row_attrition = workflow_parameters["row_attrition"]
+    assert row_attrition["input_rows"] == expected_input_rows
+    assert row_attrition["final_rows"] == result.module_assignments.table.shape[0]
+    assert len(row_attrition["records"]) == 1
+    record = row_attrition["records"][0]
+    assert record["stage"] == "signalome_score_preconditioning"
+    assert record["reason"] == "sites_removed_by_score_preconditioning"
+    assert record["removed_rows"] == 5
+    assert record["input_rows"] == expected_input_rows
+    assert record["output_rows"] == expected_retained_rows
 
 
 def test_signalome_workflow_rejects_sparse_missing_rank_weighted_fusion_rows_under_default_strict_policy() -> (

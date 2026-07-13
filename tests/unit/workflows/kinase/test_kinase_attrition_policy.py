@@ -302,14 +302,11 @@ def test_kinase_provenance_records_attrition_policy_and_metrics() -> None:
         row_attrition_metrics["site_kinase_pairs_considered"]
         >= (row_attrition_metrics["site_kinase_pairs_scored"])
     )
-    row_attrition = workflow_parameters["row_attrition"]
-    assert isinstance(row_attrition, dict)
-    assert row_attrition["input_rows"] == 4
-    assert row_attrition["final_rows"] == 2
-    assert row_attrition["records"][0]["reason"] == (
-        "sites_not_present_in_reference_resource"
+    assert "row_attrition" not in workflow_parameters
+    assert (
+        result.scoring_result.authoritative_scores.shape[0]
+        == (row_attrition_metrics["input_sites"])
     )
-    assert row_attrition["records"][0]["removed_rows"] == 2
     scoring_diagnostics = result.provenance.workflow_parameters["scoring_diagnostics"]
     assert isinstance(scoring_diagnostics, dict)
     attrition_metrics = scoring_diagnostics["attrition_metrics"]

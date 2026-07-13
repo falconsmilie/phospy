@@ -111,6 +111,7 @@ class SignalomeProvenanceBuilder:
             request=request,
             config=config,
             clustering_result=clustering_result,
+            final_site_ids=module_assignments.index,
             network_correlation_diagnostics=network_correlation_diagnostics,
             scale_guard_decision=scale_guard_decision,
             clustering_missing_value_diagnostics=clustering_missing_value_diagnostics,
@@ -204,13 +205,17 @@ def _build_workflow_parameters(
     request: ResolvedSignalomeWorkflowRequest,
     config: ResolvedSignalomeExecutionConfig,
     clustering_result: ClusterSitesResult,
+    final_site_ids: pd.Index,
     network_correlation_diagnostics: SignalomeNetworkCorrelationDiagnostics,
     scale_guard_decision: SignalomeScaleGuardDecision,
     clustering_missing_value_diagnostics: SignalomeClusteringMissingValueDiagnostics,
     upstream_provenance: RunProvenance | None,
 ) -> dict[str, object]:
     payload = input_intensity_scale_evidence_payload(request.dataset)
-    row_attrition = build_signalome_row_attrition_provenance(request)
+    row_attrition = build_signalome_row_attrition_provenance(
+        request,
+        final_site_ids=final_site_ids,
+    )
     payload.update(
         {
             "site_token_validation": _build_site_token_validation_payload(request),

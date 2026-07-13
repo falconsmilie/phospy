@@ -278,6 +278,17 @@ metadata where available. Environment provenance supports reproducibility
 audits, but it does not guarantee bitwise identical numeric outputs across
 different machines or dependency builds.
 
+Typed `row_attrition` reports are causal site-row provenance. Each record is
+created from the immediate input and output site-row indexes of the stage that
+removed rows; workflows do not infer a stage reason solely because a row is
+absent from the final result. Removed identifiers are represented only by a
+capped deterministic sample. `row_attrition_metrics` remains available for
+compatibility diagnostics, including site/kinase-pair attrition, but pair loss
+is not encoded as site-row loss. Invalid preconditions such as missing
+`site_sequence`, required localisation metadata, or signalome `protein_id`
+grouping metadata fail validation before execution rather than producing
+synthetic attrition records.
+
 Enrichment identifier-set provenance is role-specific. Selected and background
 sets use the same typed provenance model, and PhosPy-derived quantitative sets
 must carry typed input-intensity-scale evidence. Manual and raw identifier lists

@@ -167,6 +167,40 @@ Reference manifests and reference validation remain responsible for license and
 redistribution status. Contributors must not mark references approved without
 verified evidence for the exact packaged files.
 
+## Row-Attrition Provenance
+
+Typed row-attrition records are causal execution facts, not explanations guessed
+from initial-versus-final absence. A workflow may emit a `row_attrition` record
+only when the stage that performed a filter has captured its immediate input
+site-row index and output site-row index. The record stores counts and a capped,
+deterministic sample of removed identifiers; public provenance must not
+serialize complete removed-ID lists.
+
+Compatibility metrics remain available through `row_attrition_metrics`, but
+metrics do not create machine-readable stage causality. When a metric and a
+typed causal record describe the same stage count, they must agree.
+
+Current classification:
+
+- `AnalysisReadyPhosphoDataset` still requires `site_sequence`. Missing or
+  structurally invalid sequence context is a validation failure, not a
+  synthetic kinase or signalome attrition record.
+- Explicit localisation requirements are validation preconditions for kinase
+  and signalome. Missing or below-threshold localisation metadata fails before
+  execution when the workflow contract requires it.
+- Signalome `protein_id` grouping metadata is required by the signalome
+  validator. Missing grouping metadata is not inferred as a later execution
+  filter.
+- Kinase reference/resource overlap is required for profile-dependent modes,
+  but motif-only kinase scoring does not require substrate-reference overlap
+  and must not emit a reference-overlap site-row record.
+- Site-row attrition and site/kinase-pair attrition are distinct. Pair-only
+  scoring loss remains pair attrition in metrics and must not be encoded as a
+  site-row removal.
+- Signalome score preconditioning and any actual downstream scoring/clustering
+  site-retention filter are execution-stage filters and must emit typed records
+  when they remove site rows.
+
 ## Consequences
 
 Positive consequences:

@@ -26,6 +26,7 @@ from phospy.workflows._pandas_typing import (
     index_snapshot,
     series_as_strings,
 )
+from phospy.workflows._row_attrition import make_row_attrition_record
 from phospy.workflows.signalome.alignment_diagnostics import (
     SignalomeAlignmentDiagnosticsBuilder,
 )
@@ -148,6 +149,26 @@ class SignalomeWorkflowInterpreter:
             aligned_site_index=aligned_matrices.aligned_site_index,
             retained_site_index=retained_site_index,
         )
+        row_attrition_records = tuple(
+            record
+            for record in (
+                make_row_attrition_record(
+                    workflow="signalome",
+                    stage="signalome_site_alignment",
+                    reason="not_shared_across_dataset_prediction_and_downstream_scores",
+                    input_site_ids=dataset_sites,
+                    output_site_ids=aligned_site_key_index,
+                ),
+                make_row_attrition_record(
+                    workflow="signalome",
+                    stage="signalome_score_preconditioning",
+                    reason="sites_removed_by_score_preconditioning",
+                    input_site_ids=aligned_site_key_index,
+                    output_site_ids=retained_site_key_index,
+                ),
+            )
+            if record is not None
+        )
         prediction_output_index = pd.Index(
             index_as_strings(retained_site_key_index),
             name=(
@@ -227,6 +248,7 @@ class SignalomeWorkflowInterpreter:
             downstream_score_selection_policy=(
                 score_selection.downstream_score_selection_policy
             ),
+            row_attrition_records=row_attrition_records,
         )
 
     @staticmethod

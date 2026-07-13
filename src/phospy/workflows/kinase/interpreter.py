@@ -30,6 +30,7 @@ from phospy.workflows._pandas_typing import (
     index_as_strings,
     series_as_strings,
 )
+from phospy.workflows._row_attrition import make_row_attrition_record
 from phospy.workflows.kinase.contracts import (
     ResolvedKinaseActivityExecutionConfig,
     ResolvedKinaseExecutionConfig,
@@ -156,6 +157,19 @@ class KinaseWorkflowInterpreter:
             dataset=dataset_phospho,
             site_sequences=site_sequences,
         )
+        row_attrition_records = tuple(
+            record
+            for record in (
+                make_row_attrition_record(
+                    workflow="kinase",
+                    stage="kinase_sequence_context",
+                    reason="sites_missing_valid_centered_sequence",
+                    input_site_ids=dataset_phospho.index,
+                    output_site_ids=scoring_site_index,
+                ),
+            )
+            if record is not None
+        )
         activity_phospho_matrix = dataframe_loc(
             dataset_phospho,
             rows=scoring_site_index,
@@ -201,6 +215,7 @@ class KinaseWorkflowInterpreter:
             kinase_library_resource=kinase_library_resource,
             attrition_metrics=resolved_inputs.attrition_metrics,
             attrition_policy_violations=(resolved_inputs.attrition_policy_violations),
+            row_attrition_records=row_attrition_records,
             site_sequence_merge_diagnostics={
                 **merge_result.diagnostics_payload(),
                 "reference_sequence_count": int(references.site_sequences.shape[0]),

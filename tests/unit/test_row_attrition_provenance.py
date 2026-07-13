@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import pandas as pd
 import pytest
 
 from phospy.errors.input import PhosPyInputError
+from phospy.errors.workflows import WorkflowStageError
 from phospy.provenance import RowAttritionRecord, RowAttritionReport
+from phospy.workflows._row_attrition import (
+    make_row_attrition_record,
+    reconcile_row_attrition_report,
+)
 
 
 def test_row_attrition_record_accepts_valid_counts() -> None:
@@ -138,4 +144,97 @@ def test_row_attrition_report_rejects_plain_dict_records() -> None:
             ),
             input_rows=2,
             final_rows=1,
+        )
+
+
+def test_make_row_attrition_record_samples_removed_ids_deterministically() -> None:
+    record = make_row_attrition_record(
+        workflow="test_workflow",
+        stage="filter_stage",
+        reason="test_filter",
+        input_site_ids=pd.Index(["S1", "S2", "S3", "S4", "S5", "S6", "S7"]),
+        output_site_ids=pd.Index(["S7"]),
+    )
+
+    assert record is not None
+    assert record.removed_rows == 6
+    assert record.examples == ("S1", "S2", "S3", "S4", "S5")
+
+
+def test_make_row_attrition_record_omits_zero_removal_records() -> None:
+    record = make_row_attrition_record(
+        workflow="test_workflow",
+        stage="filter_stage",
+        reason="test_filter",
+        input_site_ids=pd.Index(["S1", "S2"]),
+        output_site_ids=pd.Index(["S1", "S2"]),
+    )
+
+    assert record is None
+
+
+def test_make_row_attrition_record_rejects_output_site_absent_from_input() -> None:
+    with pytest.raises(
+        WorkflowStageError,
+        match="stage=filter_stage; input_count=2; output_count=2",
+    ):
+        make_row_attrition_record(
+            workflow="test_workflow",
+            stage="filter_stage",
+            reason="test_filter",
+            input_site_ids=pd.Index(["S1", "S2"]),
+            output_site_ids=pd.Index(["S1", "S3"]),
+        )
+
+
+def test_row_attrition_reconciliation_rejects_discontinuity() -> None:
+    records = (
+        RowAttritionRecord(
+            stage="first",
+            input_rows=4,
+            output_rows=3,
+            removed_rows=1,
+            reason="first_filter",
+        ),
+        RowAttritionRecord(
+            stage="second",
+            input_rows=2,
+            output_rows=1,
+            removed_rows=1,
+            reason="second_filter",
+        ),
+    )
+
+    with pytest.raises(
+        WorkflowStageError,
+        match="stage=second; input_count=2; output_count=1; expected_preceding_count=3",
+    ):
+        reconcile_row_attrition_report(
+            workflow="test_workflow",
+            records=records,
+            initial_site_ids=pd.Index(["S1", "S2", "S3", "S4"]),
+            final_site_ids=pd.Index(["S1"]),
+        )
+
+
+def test_row_attrition_reconciliation_rejects_wrong_final_count() -> None:
+    records = (
+        RowAttritionRecord(
+            stage="first",
+            input_rows=4,
+            output_rows=3,
+            removed_rows=1,
+            reason="first_filter",
+        ),
+    )
+
+    with pytest.raises(
+        WorkflowStageError,
+        match="stage=first; input_count=4; output_count=3",
+    ):
+        reconcile_row_attrition_report(
+            workflow="test_workflow",
+            records=records,
+            initial_site_ids=pd.Index(["S1", "S2", "S3", "S4"]),
+            final_site_ids=pd.Index(["S1", "S2"]),
         )
