@@ -32,30 +32,95 @@ def test_approved_manifest_parses_structured_redistribution_evidence(
     tmp_path: Path,
 ) -> None:
     evidence = {
-        "evidence_type": "synthetic_fixture",
-        "applies_to_exact_packaged_files": True,
+        "evidence_type": "upstream_package_license",
+        "upstream_package": {
+            "package_name": "UnitPackage",
+            "package_version": "1.0.0",
+            "license_name": "CC0-1.0",
+            "license_url": "https://example.test/license",
+        },
+        "scope": {
+            "reference_id": "unit_reference",
+            "reference_version": "v1",
+            "applies_to_exact_packaged_files": True,
+            "packaged_files": ["reference.csv"],
+            "applies_to_future_bundles": False,
+        },
+        "attribution": {
+            "repository_notice_path": "NOTICE.md",
+            "bundle_attribution_path": "ATTRIBUTION.md",
+        },
+        "independent_database_permission_claimed": False,
         "evidence_url": "https://example.test/approval-record",
-        "evidence_reference": "unit approval record for exact packaged fixture",
         "verified_at": "2026-06-29",
+        "notes": "unit approval record for exact packaged fixture",
     }
     manifest_path = _write_manifest_bundle(
         tmp_path,
-        manifest_overrides={"redistribution_evidence": evidence},
+        manifest_overrides={
+            "license_name": "CC0-1.0",
+            "redistribution_evidence": evidence,
+        },
     )
 
     manifest = load_reference_manifest(manifest_path)
 
     assert manifest.redistribution_evidence is not None
-    assert manifest.redistribution_evidence.evidence_type.value == "synthetic_fixture"
-    assert manifest.redistribution_evidence.applies_to_exact_packaged_files is True
+    assert (
+        manifest.redistribution_evidence.evidence_type.value
+        == "upstream_package_license"
+    )
+    assert manifest.redistribution_evidence.upstream_package.package_name == (
+        "UnitPackage"
+    )
+    assert manifest.redistribution_evidence.scope.applies_to_exact_packaged_files is (
+        True
+    )
+    assert manifest.redistribution_evidence.scope.packaged_files == ("reference.csv",)
     assert manifest.redistribution_evidence.evidence_url == (
         "https://example.test/approval-record"
     )
-    assert manifest.redistribution_evidence.evidence_reference == (
+    assert manifest.redistribution_evidence.notes == (
         "unit approval record for exact packaged fixture"
+    )
+    assert (
+        manifest.redistribution_evidence.independent_database_permission_claimed
+        is False
     )
     assert manifest.redistribution_evidence.verified_at.isoformat() == "2026-06-29"
     assert manifest.to_payload()["redistribution_evidence"] == evidence
+
+
+def test_raw_redistribution_allowed_must_be_boolean(tmp_path: Path) -> None:
+    manifest_path = _write_manifest_bundle(
+        tmp_path,
+        manifest_overrides={"redistribution_allowed": "true"},
+    )
+
+    with pytest.raises(ReferenceManifestError, match="redistribution_allowed"):
+        load_reference_manifest(manifest_path)
+
+
+def test_raw_redistribution_allowed_contradiction_raises(tmp_path: Path) -> None:
+    manifest_path = _write_manifest_bundle(
+        tmp_path,
+        manifest_overrides={"redistribution_allowed": False},
+    )
+
+    with pytest.raises(ReferenceManifestError, match="contradicts"):
+        load_reference_manifest(manifest_path)
+
+
+def test_unrecognized_redistribution_evidence_field_raises(tmp_path: Path) -> None:
+    evidence = _structured_evidence()
+    evidence["free_text_approval"] = "not authoritative"
+    manifest_path = _write_manifest_bundle(
+        tmp_path,
+        manifest_overrides={"redistribution_evidence": evidence},
+    )
+
+    with pytest.raises(ReferenceManifestError, match="unrecognized field"):
+        load_reference_manifest(manifest_path)
 
 
 def test_valid_external_only_manifest_loads_successfully(tmp_path: Path) -> None:
@@ -65,6 +130,7 @@ def test_valid_external_only_manifest_loads_successfully(tmp_path: Path) -> None
             "license_name": None,
             "license_url": None,
             "redistribution_status": "external_only",
+            "redistribution_allowed": False,
             "redistribution_notes": "source must be supplied externally",
         },
     )
@@ -84,6 +150,7 @@ def test_unresolved_manifest_loads_during_ordinary_parsing(tmp_path: Path) -> No
             "license_name": None,
             "license_url": None,
             "redistribution_status": "unresolved",
+            "redistribution_allowed": False,
             "redistribution_notes": "redistribution review has not completed",
         },
     )
@@ -186,11 +253,12 @@ def test_unresolved_bundled_manifest_is_rejected(
             "license_name": None,
             "license_url": None,
             "redistribution_status": "unresolved",
+            "redistribution_allowed": False,
             "redistribution_notes": "redistribution review has not completed",
         },
     )
 
-    with pytest.raises(ReferenceManifestError, match="release-gate"):
+    with pytest.raises(ReferenceManifestError, match="redistribution_status"):
         load_reference_manifest(manifest_path, bundled=True)
 
 
@@ -231,6 +299,7 @@ def _write_manifest_bundle(
         "license_name": "CC0 synthetic",
         "license_url": "https://example.test/license",
         "redistribution_status": "approved",
+        "redistribution_allowed": True,
         "redistribution_notes": "synthetic test fixture",
         "derived_from": ["unit test"],
         "generated_by": "unit test",
@@ -252,3 +321,30 @@ def _write_manifest_bundle(
         encoding="utf-8",
     )
     return manifest_path
+
+
+def _structured_evidence() -> dict[str, object]:
+    return {
+        "evidence_type": "upstream_package_license",
+        "upstream_package": {
+            "package_name": "UnitPackage",
+            "package_version": "1.0.0",
+            "license_name": "CC0 synthetic",
+            "license_url": "https://example.test/license",
+        },
+        "scope": {
+            "reference_id": "unit_reference",
+            "reference_version": "v1",
+            "applies_to_exact_packaged_files": True,
+            "packaged_files": ["reference.csv"],
+            "applies_to_future_bundles": False,
+        },
+        "attribution": {
+            "repository_notice_path": "NOTICE.md",
+            "bundle_attribution_path": "ATTRIBUTION.md",
+        },
+        "independent_database_permission_claimed": False,
+        "evidence_url": "https://example.test/approval-record",
+        "verified_at": "2026-06-29",
+        "notes": "unit approval record for exact packaged fixture",
+    }

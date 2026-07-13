@@ -8,7 +8,7 @@ endorsed by the PhosR authors unless they explicitly say so.
 
 - **Name:** PhosR
 - **Repository:** https://github.com/PYangLab/PhosR
-- **Licence:** GPL-3.0
+- **Licence:** GPL-3 + file LICENSE
 
 ## Attribution
 

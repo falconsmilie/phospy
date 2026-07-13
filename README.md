@@ -85,10 +85,12 @@ Bundled runtime references in the current release are rat-only. For human or
 mouse work, create and pass an explicit `ReferenceBundle` in Python instead of
 using `ReferencePreset.AUTO`.
 Packaged references are governed by a manifest `redistribution_status`: only
-`approved` references with structured exact-file license or permission evidence
-are release-eligible, `unresolved` bundled references block release, and
-`external_only` references are caller-supplied local data that must not be
-shipped as bundled data.
+`approved` references with typed upstream-package license evidence for the exact
+snapshot and packaged files are release-eligible, `unresolved` bundled
+references block release, and `external_only` references are caller-supplied
+local data that must not be shipped as bundled data. The raw
+`redistribution_allowed` manifest value is only a compatibility mirror and must
+not contradict `redistribution_status`.
 
 The default kinase `scoring_mode="phosr_rank_weighted"` is PhosR-inspired
 rank-weighted scoring implemented by PhosPy. It combines available profile and

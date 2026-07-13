@@ -71,12 +71,14 @@ def test_valid_bundled_manifest_loads_for_supported_runtime_lane() -> None:
     )
     assert manifest.redistribution_evidence is not None
     assert manifest.redistribution_evidence.evidence_type is (
-        RedistributionEvidenceType.LICENSE
+        RedistributionEvidenceType.UPSTREAM_PACKAGE_LICENSE
     )
-    assert manifest.redistribution_evidence.applies_to_exact_packaged_files is True
-    assert "upstream_package_version=1.20.0" in (
-        manifest.redistribution_evidence.evidence_reference
+    assert manifest.redistribution_evidence.upstream_package.package_name == "PhosR"
+    assert manifest.redistribution_evidence.upstream_package.package_version == "1.20.0"
+    assert (
+        manifest.redistribution_evidence.scope.applies_to_exact_packaged_files is True
     )
+    assert manifest.redistribution_evidence.scope.applies_to_future_bundles is False
     assert {item.relative_path for item in manifest.files} == {
         "ATTRIBUTION.md",
         "motif_scores.csv",
@@ -92,7 +94,7 @@ def test_valid_bundled_manifest_loads_for_supported_runtime_lane() -> None:
         (
             manifest.redistribution_notes,
             *manifest.limitations,
-            manifest.redistribution_evidence.evidence_reference,
+            manifest.redistribution_evidence.notes or "",
         )
     ).lower()
     assert "not independently verified" not in combined_text

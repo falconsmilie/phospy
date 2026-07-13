@@ -18,11 +18,34 @@
   "redistribution_allowed": true,
   "redistribution_notes": "Approved for this PhosPy GPL-3.0 distribution as an exact bundled CSV snapshot derived from documented data objects distributed in upstream PhosR 1.20.0 under GPL-3 + file LICENSE. The existing bundle records retrieved_at 2026-04-16 and generated_at_utc 2026-04-16T00:00:00Z; BioC 3.22 was the active Bioconductor release on that date, before the 2026-04-29 BioC 3.23 release carrying PhosR 1.22.0. PhosPy provides attribution in NOTICE.md and this bundle's ATTRIBUTION.md. This approval basis does not claim independent direct permission from PhosphoSitePlus, PRIDE, Kinase Library, or any other upstream database, and must not be generalized to other reference bundles or external datasets.",
   "redistribution_evidence": {
-    "evidence_type": "license",
-    "applies_to_exact_packaged_files": true,
-    "evidence_url": "https://github.com/PYangLab/PhosR/blob/master/LICENSE",
-    "evidence_reference": "Upstream package license evidence for the exact PhosPy-packaged rat l6_native derived CSV snapshot: package=PhosR; upstream_package_version=1.20.0; source_version=PhosR 1.20.0; upstream_package_url=https://bioconductor.org/packages/PhosR/; approval_scope=exact_packaged_derived_files; upstream_license=GPL-3 + file LICENSE; upstream_license_url=https://github.com/PYangLab/PhosR/blob/master/LICENSE; downstream_license=GPL-3.0; source objects=phospho.L6.ratio.pe, PhosphoSite.mouse, motif.mouse.list; attribution_required=true; attribution_location=NOTICE.md and src/phospy/data/reference_bundles/rat/l6_native/ATTRIBUTION.md.",
-    "verified_at": "2026-04-16"
+    "evidence_type": "upstream_package_license",
+    "upstream_package": {
+      "package_name": "PhosR",
+      "package_version": "1.20.0",
+      "license_name": "GPL-3 + file LICENSE",
+      "license_url": "https://github.com/PYangLab/PhosR/blob/master/LICENSE"
+    },
+    "scope": {
+      "reference_id": "l6_native",
+      "reference_version": "bundled-snapshot-2026-04-16",
+      "applies_to_exact_packaged_files": true,
+      "packaged_files": [
+        "substrate_map.csv",
+        "site_sequences.csv",
+        "motif_scores.csv",
+        "motif_sizes.csv",
+        "ATTRIBUTION.md"
+      ],
+      "applies_to_future_bundles": false
+    },
+    "attribution": {
+      "repository_notice_path": "NOTICE.md",
+      "bundle_attribution_path": "ATTRIBUTION.md"
+    },
+    "independent_database_permission_claimed": false,
+    "evidence_url": "https://bioconductor.org/packages/3.22/bioc/html/PhosR.html",
+    "verified_at": "2026-04-16",
+    "notes": "Approval applies only to this exact PhosR-derived snapshot. This does not apply to future bundles. No independent direct permission from PhosphoSitePlus, PRIDE, Kinase Library, or other upstream scientific databases is claimed."
   },
   "derived_from": [
     "PhosR R package object phospho.L6.ratio.pe",

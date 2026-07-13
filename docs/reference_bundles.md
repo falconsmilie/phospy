@@ -14,7 +14,7 @@ Current packaged lanes:
 
 | Organism | Bundle ID | Status |
 | --- | --- | --- |
-| rat | `l6_native` | Approved bundled snapshot with hash-verifiable files and structured exact-file license evidence |
+| rat | `l6_native` | Approved bundled snapshot with hash-verifiable files and structured exact-file upstream-package license evidence |
 | human | N/A | Not bundled; no approved redistributable lane is committed |
 | mouse | N/A | Not bundled; no approved redistributable lane is committed |
 
@@ -31,7 +31,7 @@ Every bundled reference manifest must contain these top-level fields:
   `retrieved_at`, `derived_from`, `generated_by`, `generated_at_utc`, and
   `manifest_schema_version`
 - license and redistribution metadata: `license_name`, `license_url`,
-  `redistribution_status`, `redistribution_notes`, and
+  `redistribution_status`, `redistribution_allowed`, `redistribution_notes`, and
   `redistribution_evidence`
 - package integrity metadata: `table_sha256` and `files`
 
@@ -53,17 +53,20 @@ must be inside the declared window.
 
 `redistribution_status` is the governing redistribution field.
 `redistribution_allowed` compatibility value must not be used as the review
-authority.
+authority. If present in JSON, it must be a boolean and must mirror
+`redistribution_status`: `true` only for `approved`, `false` for
+`external_only` and `unresolved`.
 
 ### Redistribution Status
 
 `redistribution_status` has three allowed values:
 
 - `approved`: the only release-eligible bundled status. Use it only when the
-  manifest records verified structured license or permission evidence for the
-  exact files being packaged. `source_version`, `license_name`, `license_url`,
-  and `redistribution_evidence` are required, and `redistribution_notes` must
-  state the evidence basis without contradicting the approved state.
+  manifest records verified structured upstream-package license evidence for the
+  exact snapshot and exact files being packaged. `source_version`,
+  `license_name`, `license_url`, and `redistribution_evidence` are required,
+  and `redistribution_notes` must state the evidence basis without contradicting
+  the approved state.
 - `external_only`: the reference source is known, but users must obtain it
   outside the package under the source provider's terms. External-only
   references must not be shipped as bundled data.
@@ -78,10 +81,32 @@ Runtime bundled-reference loading validates the manifest and file hashes before
 the tables are exposed to workflows. The release gate enforces stricter
 publication rules: every packaged file must be listed, every declared file hash
 must match, required organism/source/license metadata must be present,
-approved bundled references require structured exact-file redistribution
+approved bundled references require structured exact-snapshot redistribution
 evidence, and each bundled manifest must declare
 `redistribution_status="approved"`. Packaged manifests that declare
 `external_only` or `unresolved` fail release validation.
+
+For `redistribution_status="approved"`, `redistribution_evidence` must be an
+object with these enforced fields:
+
+- `evidence_type`: currently `upstream_package_license`
+- `upstream_package`: `package_name`, `package_version`, `license_name`, and
+  optional `license_url`; `license_name` must be machine-readable and must
+  agree with manifest-level `license_name`
+- `scope`: `reference_id`, `reference_version`,
+  `applies_to_exact_packaged_files`, `packaged_files`, and
+  `applies_to_future_bundles`; the scope ID/version must match the manifest,
+  exact-file scope must be `true`, future-bundle scope must be `false`, and
+  `packaged_files` must be duplicate-free relative POSIX paths that exactly
+  equal the manifest `files[].relative_path` set
+- `attribution`: `repository_notice_path` and `bundle_attribution_path`; the
+  repository notice file must exist during source release validation, and the
+  bundle attribution path must be listed in `files` and exist in the bundle
+- `independent_database_permission_claimed`: must be `false`
+- optional `evidence_url`, `verified_at`, and narrow-scope `notes`
+
+Unrecognized fields inside `redistribution_evidence` or its nested objects fail
+validation.
 
 ### Rat `l6_native` Provenance
 
@@ -92,8 +117,8 @@ generation lineage as PhosR data objects `phospho.L6.ratio.pe`,
 `scripts/active/generate_r_l6_fixtures.R` and redistributed as CSVs under
 `src/phospy/data/reference_bundles/rat/l6_native/`.
 
-The upstream PhosR package metadata declares GPL-3 + file `LICENSE`, and the
-rat manifest records structured exact-file license evidence for this committed
+The upstream PhosR 1.20.0 package metadata declares `GPL-3 + file LICENSE`, and
+the rat manifest records typed exact-file license evidence for this committed
 PhosR 1.20.0-derived snapshot. That approval applies only to the exact files in
 `src/phospy/data/reference_bundles/rat/l6_native/`. It does not claim
 independent direct permission from PhosphoSitePlus, PRIDE, Kinase Library, or
@@ -106,7 +131,9 @@ Human or mouse lanes may be added only when the committed manifest documents:
 - license name/text and license URL
 - file-level SHA-256 hashes for every packaged reference file
 - `redistribution_status="approved"`
-- structured exact-file `redistribution_evidence`
+- structured exact-snapshot `redistribution_evidence` with upstream package
+  license metadata, exact packaged-file scope, attribution paths, no
+  future-bundle scope, and no independent database permission claim
 - redistribution notes explaining why the license or permission permits
   packaging without generalizing approval to other bundles or external datasets
 - sequence-context policy when sequence windows are included

@@ -42,17 +42,28 @@ def test_bundled_reference_manifests_are_structurally_valid() -> None:
     assert rat_manifest.source_version == "PhosR 1.20.0"
     assert rat_manifest.redistribution_evidence is not None
     evidence = rat_manifest.redistribution_evidence
-    assert evidence.evidence_type is RedistributionEvidenceType.LICENSE
-    assert evidence.applies_to_exact_packaged_files is True
-    assert (
-        evidence.evidence_url == "https://github.com/PYangLab/PhosR/blob/master/LICENSE"
+    assert evidence.evidence_type is (
+        RedistributionEvidenceType.UPSTREAM_PACKAGE_LICENSE
     )
-    assert "package=PhosR" in evidence.evidence_reference
-    assert "upstream_package_version=1.20.0" in evidence.evidence_reference
-    assert "approval_scope=exact_packaged_derived_files" in evidence.evidence_reference
-    assert "upstream_license=GPL-3 + file LICENSE" in evidence.evidence_reference
-    assert "downstream_license=GPL-3.0" in evidence.evidence_reference
-    assert "attribution_location=" in evidence.evidence_reference
+    assert evidence.upstream_package.package_name == "PhosR"
+    assert evidence.upstream_package.package_version == "1.20.0"
+    assert evidence.upstream_package.license_name == "GPL-3 + file LICENSE"
+    assert evidence.scope.applies_to_exact_packaged_files is True
+    assert evidence.scope.applies_to_future_bundles is False
+    assert set(evidence.scope.packaged_files) == {
+        "ATTRIBUTION.md",
+        "motif_scores.csv",
+        "motif_sizes.csv",
+        "site_sequences.csv",
+        "substrate_map.csv",
+    }
+    assert evidence.attribution.repository_notice_path == "NOTICE.md"
+    assert evidence.attribution.bundle_attribution_path == "ATTRIBUTION.md"
+    assert evidence.independent_database_permission_claimed is False
+    assert (
+        evidence.evidence_url
+        == "https://bioconductor.org/packages/3.22/bioc/html/PhosR.html"
+    )
 
     bundle_path = Path("src/phospy/data/reference_bundles/rat/l6_native")
     assert (bundle_path / "ATTRIBUTION.md").is_file()
@@ -61,7 +72,7 @@ def test_bundled_reference_manifests_are_structurally_valid() -> None:
         for value in [
             rat_manifest.redistribution_notes,
             *rat_manifest.limitations,
-            evidence.evidence_reference,
+            evidence.notes,
         ]
         if value
     ).lower()

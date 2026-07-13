@@ -126,7 +126,8 @@ Every bundled reference manifest must contain the schema fields required by
   `retrieved_at`, `derived_from`, `generated_by`, `generated_at_utc`, and
   `manifest_schema_version`
 - license and redistribution metadata: `license_name`, `license_url`,
-  `redistribution_status`, and `redistribution_notes`
+  `redistribution_status`, `redistribution_allowed`,
+  `redistribution_notes`, and `redistribution_evidence`
 - package integrity metadata: `table_sha256` and `files`
 
 Every `files` entry must contain `relative_path`, `role`, `format`, `sha256`,
@@ -136,14 +137,17 @@ allowed alphabet, supported uses, and known limitations when applicable.
 
 `redistribution_status` is the governing redistribution field. The derived
 `redistribution_allowed` compatibility value must not be used as the review
-authority.
+authority. If JSON includes `redistribution_allowed`, it must be a boolean and
+must mirror `redistribution_status`: `true` for `approved`, `false` for
+`external_only` or `unresolved`.
 
 ### Redistribution Status Policy
 
 The allowed `redistribution_status` values are:
 
-- `approved`: release eligible only when the manifest contains verified license
-  or written-permission evidence for the exact files being packaged.
+- `approved`: release eligible only when the manifest contains typed
+  upstream-package license evidence for the exact snapshot and exact files being
+  packaged.
 - `external_only`: reference source is known, but the package must not ship the
   data. Users may supply local files under their own source terms.
 - `unresolved`: redistribution evidence is missing, incomplete, or not yet
@@ -154,6 +158,22 @@ be shipped as bundled data. Codex agents and human developers must not mark
 references approved without verified evidence. Source lineage, file hashes,
 and upstream package names are provenance evidence, not redistribution approval
 by themselves.
+
+For approved bundled manifests, `redistribution_evidence` is release-significant
+typed state rather than approval prose. It records:
+
+- `evidence_type="upstream_package_license"`
+- upstream package name, package version, machine-readable license name, and
+  optional license URL
+- scope reference ID/version, exact packaged-file coverage, duplicate-free
+  relative POSIX packaged-file paths, and no future-bundle coverage
+- repository notice and bundle-local attribution paths
+- `independent_database_permission_claimed=false`
+
+The release gate checks that evidence license metadata agrees with the manifest
+license, scope ID/version match the manifest, scope files exactly equal
+`files[].relative_path`, attribution files exist, and contradictory legal
+approval text or affirmative independent database permission claims are absent.
 
 ## Category 2: Test Fixture Data
 
