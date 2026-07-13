@@ -165,7 +165,7 @@ class ReferenceBundleBuilder:
             organism=validated.organism.value,
             bundle_id=manifest.bundle_id,
             source_name=manifest.source_name,
-            source_version=manifest.reference_version,
+            source_version=manifest.source_version,
             retrieved_at=manifest.retrieved_at.isoformat(),
             identifier_namespace=manifest.identifier_namespace,
             sequence_window=manifest.sequence_window.to_payload(),

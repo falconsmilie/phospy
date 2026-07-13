@@ -51,7 +51,7 @@ tests/performance/test_performance_contracts.py,performance,1278,16,true,false,p
 tests/performance/test_signalome_clustering_benchmark.py,performance,82,1,true,false,performance/memory contract,keep,"Loss of this file would remove runtime and memory envelope checks for signalome clustering benchmark, allowing performance regressions to ship undetected.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/performance/test_workflow_scale_contracts.py,performance,261,2,true,true,,,,,,
 tests/performance/test_workflow_validation_performance.py,performance,108,2,true,false,,,,,,
-tests/release/test_reference_manifest_gate.py,release,718,29,true,true,,,,,,
+tests/release/test_reference_manifest_gate.py,release,716,29,true,true,,,,,,
 tests/release/test_release_gate_policy.py,release,305,9,true,true,,,,,,
 tests/science/test_empirical_bayes_trend_smoothing.py,science,150,2,false,false,,,,,,
 tests/science/test_kinase_library_motif_scoring_science.py,science,51,1,false,false,,,,,,
@@ -62,6 +62,7 @@ tests/unit/api/test_public_api_surface.py,api,117,5,false,false,,,,,,[auto-orche
 tests/unit/api/test_validation_not_public_api.py,api,104,5,false,false,,,,,,
 tests/unit/references/test_reference_context.py,references,161,9,false,false,,,,,,
 tests/unit/references/test_reference_manifest.py,references,350,16,false,false,,,,,,
+tests/unit/references/test_reference_provenance_source_versions.py,references,416,9,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/science/datasets/test_analysis_ready_dataset_builder.py,datasets,202,5,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/science/datasets/test_processing_state.py,datasets,395,20,false,false,,,,,,
 tests/unit/science/differential/test_differential_diagnostics.py,differential,110,2,false,false,,,,,,
@@ -206,7 +207,7 @@ tests/unit/test_public_examples_contract.py,unit,45,3,false,false,public API con
 tests/unit/test_reader_enrichment_sets.py,unit,151,6,true,true,,,,,,
 tests/unit/test_reader_table_parsing_helpers.py,unit,186,6,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_reference_bundle_builder.py,unit,333,9,false,false,,,,,,
-tests/unit/test_reference_bundle_manifests.py,unit,431,17,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/unit/test_reference_bundle_manifests.py,unit,422,17,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_reference_bundle_validation_report.py,unit,260,8,false,false,,,,,,
 tests/unit/test_reference_identifier_normalisation.py,unit,614,20,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for reference identifier normalisation and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_reference_provenance.py,unit,246,7,false,false,provenance/golden contract,keep,"Loss of this file would remove reproducibility/provenance golden checks for reference provenance, making artifact and output drift unsafe.",codex-audit,,

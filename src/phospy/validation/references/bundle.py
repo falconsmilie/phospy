@@ -350,7 +350,7 @@ def _build_provenance_fields(
         ),
         (
             "source_version",
-            _resolve_bundle_version(provenance=provenance, manifest=manifest),
+            _resolve_source_version(provenance=provenance, manifest=manifest),
         ),
         (
             "retrieved_at",
@@ -446,6 +446,18 @@ def _resolve_bundle_version(
 ) -> str | None:
     if manifest is not None:
         return manifest.reference_version
+    if provenance is not None:
+        return provenance.source_version
+    return None
+
+
+def _resolve_source_version(
+    *,
+    provenance: ReferenceProvenance | None,
+    manifest: ReferenceManifest | None,
+) -> str | None:
+    if manifest is not None:
+        return manifest.source_version
     if provenance is not None:
         return provenance.source_version
     return None

@@ -9,6 +9,7 @@ from numbers import Integral
 from typing import TYPE_CHECKING
 
 from phospy.errors.input import PhosPyInputError
+from phospy.errors.validation import ReferenceValidationError
 from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
 
 if TYPE_CHECKING:
@@ -463,6 +464,23 @@ class ReferenceProvenance:
     identifier_normalisation: ReferenceIdentifierNormalisationReport | None = None
     reference_context: ReferenceContext | None = None
 
+    def __post_init__(self) -> None:
+        source_version = _optional_provenance_text(self.source_version)
+        object.__setattr__(self, "source_version", source_version)
+        validate_reference_source_version_agreement(
+            (
+                ("provenance.source_version", source_version),
+                (
+                    "reference_context.source_version",
+                    _reference_context_source_version(self.reference_context),
+                ),
+                (
+                    "manifest.source_version",
+                    _manifest_source_version(self.manifest),
+                ),
+            )
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class KinaseLibraryResourceProvenance:
@@ -550,6 +568,50 @@ def _required_row_attrition_record_tuple(
                 "RowAttritionRecord values"
             )
     return record_tuple
+
+
+def validate_reference_source_version_agreement(
+    entries: Sequence[tuple[str, object | None]],
+) -> None:
+    known: list[tuple[str, str]] = []
+    for label, value in entries:
+        normalized = _known_reference_source_version(value)
+        if normalized is not None:
+            known.append((label, normalized))
+    if len(known) < 2:
+        return
+    baseline_label, baseline_value = known[0]
+    for label, value in known[1:]:
+        if value == baseline_value:
+            continue
+        raise ReferenceValidationError(
+            "Reference provenance source-version mismatch:\n"
+            f"{baseline_label}={baseline_value!r},\n"
+            f"{label}={value!r}"
+        )
+
+
+def _known_reference_source_version(value: object | None) -> str | None:
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    return text or None
+
+
+def _reference_context_source_version(reference_context: object | None) -> str | None:
+    if reference_context is None:
+        return None
+    return _known_reference_source_version(
+        getattr(reference_context, "source_version", None)
+    )
+
+
+def _manifest_source_version(
+    manifest: Mapping[str, JsonValue] | None,
+) -> str | None:
+    if not isinstance(manifest, Mapping):
+        return None
+    return _known_reference_source_version(manifest.get("source_version"))
 
 
 __all__ = [

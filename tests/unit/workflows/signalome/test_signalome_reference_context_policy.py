@@ -124,7 +124,7 @@ def _references(
             organism=Organism.RAT.value,
             bundle_id=None,
             source_name="unit-reference",
-            source_version="v1",
+            source_version=context.source_version,
             identifier_namespace="gene_symbol",
             table_fingerprints=(),
             reference_context=context,

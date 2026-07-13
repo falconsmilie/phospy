@@ -250,6 +250,13 @@ Builder-created bundles include local-source provenance:
 - table fingerprints
 - identifier-normalisation diagnostics
 
+`source_version` is the upstream package, database, or caller-supplied source
+identity version. `reference_version` is the local PhosPy reference snapshot
+version for the packaged or constructed bundle. These values are intentionally
+separate: a missing upstream source identity is unknown, not implicitly equal to
+the local snapshot version, and provenance must not copy `reference_version`
+into `source_version`.
+
 If `sequence_window` is not supplied, the builder infers it only from uniform
 odd-length centered `site_sequence` windows whose central residues are all
 `S`, `T`, or `Y`. Otherwise pass an explicit `SequenceWindowDefinition`.

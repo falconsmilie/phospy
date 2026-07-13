@@ -58,6 +58,12 @@ class BundledReferenceProvider:
                 f"for organism '{organism.value}': expected '{bundle_id}', "
                 f"got '{manifest.bundle_id}'"
             )
+        source_version = manifest.source_version
+        if source_version is None:
+            raise ReferenceResolutionError(
+                "bundled reference manifest is missing source_version for "
+                f"{organism.value}/{manifest.bundle_id}"
+            )
         kinase_substrate_map = load_bundled_kinase_substrate_map(organism)
         site_sequences = load_bundled_site_sequences(organism)
         provenance = ReferenceProvenance(
@@ -65,7 +71,7 @@ class BundledReferenceProvider:
             organism=organism.value,
             bundle_id=bundle_id,
             source_name=manifest.source_name,
-            source_version=manifest.reference_version,
+            source_version=source_version,
             retrieved_at=manifest.retrieved_at.isoformat(),
             identifier_namespace=manifest.identifier_namespace,
             sequence_window=manifest.sequence_window.to_payload(),

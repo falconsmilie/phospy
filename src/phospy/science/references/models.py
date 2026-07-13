@@ -15,7 +15,11 @@ import pandas as pd
 from phospy.errors.validation import ReferenceValidationError
 from phospy.frames.ownership import export_dataframe, own_dataframe
 from phospy.provenance.hashing import fingerprint_table, hash_json_payload
-from phospy.provenance.models import JsonValue, ReferenceProvenance
+from phospy.provenance.models import (
+    JsonValue,
+    ReferenceProvenance,
+    validate_reference_source_version_agreement,
+)
 from phospy.science.references.manifest import (
     RedistributionStatus as RedistributionStatus,
 )
@@ -293,6 +297,14 @@ def _payload_optional_text(value: object) -> str | None:
     return text or None
 
 
+def _reference_context_source_version(
+    reference_context: ReferenceContext | None,
+) -> str | None:
+    if reference_context is None:
+        return None
+    return reference_context.source_version
+
+
 @dataclass(frozen=True, slots=True)
 class ReferenceBundleBuildRequest:
     """Request for building a local-source reference bundle.
@@ -505,6 +517,21 @@ class ReferenceBundle:
             if manifest is not None
             else None
         )
+        if provenance is not None:
+            validate_reference_source_version_agreement(
+                (
+                    ("provenance.source_version", provenance.source_version),
+                    (
+                        "reference_context.source_version",
+                        _reference_context_source_version(provenance.reference_context)
+                        or _reference_context_source_version(reference_context),
+                    ),
+                    (
+                        "manifest.source_version",
+                        None if manifest is None else manifest.source_version,
+                    ),
+                )
+            )
         from phospy.validation.references.bundle import ReferenceBundleValidator
 
         validation = ReferenceBundleValidator().run(
