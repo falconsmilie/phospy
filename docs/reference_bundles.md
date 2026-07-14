@@ -174,17 +174,36 @@ references = ReferenceBundleBuilder().run(
         kinase_substrate_path="mouse_kinase_substrates.csv",
         site_sequence_path="mouse_site_sequences.csv",
         source_name="local curated kinase reference",
-        source_version="2026-06-11",
-        retrieved_at="2026-06-11",
+        source_version="upstream-package-7.4",
+        retrieved_at="2026-07-14",
         license="record the source license here",
         redistribution_status="record redistribution status here",
         identifier_namespace="display_id (GENE_SYMBOL;RESIDUE;)",
+        reference_version="local-snapshot-2026-07-14",
     )
 )
 ```
 
 The result is a normal validated `ReferenceBundle` and can be passed directly
 to `KinaseWorkflowRequest(references=references)`.
+
+`ReferenceBundleBuildRequest.source_version` identifies the upstream package,
+database, or caller-source version. `reference_version` identifies the local
+PhosPy snapshot being built. For example, a local bundle can use
+`source_version="upstream-package-7.4"` and
+`reference_version="local-snapshot-2026-07-14"` at the same time.
+
+If `reference_version` is omitted, the builder derives a deterministic local
+snapshot version from the two source-file SHA-256 fingerprints:
+
+```text
+kinase_substrate:<kinase SHA-256>\nsite_sequences:<sequence SHA-256>\n
+```
+
+The builder SHA-256 hashes that specified ASCII byte string and emits
+`local-snapshot-sha256-<64-character digest>`. Rebuilding identical files
+produces the same local snapshot version; changing either source file changes
+it.
 
 ## Validation Report
 
@@ -271,7 +290,9 @@ identity version. `reference_version` is the local PhosPy reference snapshot
 version for the packaged or constructed bundle. These values are intentionally
 separate: a missing upstream source identity is unknown, not implicitly equal to
 the local snapshot version, and provenance must not copy `reference_version`
-into `source_version`.
+into `source_version`. For builder-created local bundles, omit
+`reference_version` only when the content-derived
+`local-snapshot-sha256-...` identity is the intended local snapshot version.
 
 If `sequence_window` is not supplied, the builder infers it only from uniform
 odd-length centered `site_sequence` windows whose central residues are all

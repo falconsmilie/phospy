@@ -35,6 +35,7 @@ class ValidatedReferenceBundleBuildRequest:
     organism_common_name: str | None
     supports: tuple[str, ...]
     limitations: tuple[str, ...]
+    reference_version: str | None
 
 
 class ReferenceBundleBuildRequestValidator:
@@ -106,6 +107,10 @@ class ReferenceBundleBuildRequestValidator:
             limitations=self._require_non_empty_string_sequence(
                 request.limitations,
                 field_name="reference bundle build request limitations",
+            ),
+            reference_version=self._optional_non_empty_string(
+                request.reference_version,
+                field_name="reference bundle build request reference_version",
             ),
         )
 

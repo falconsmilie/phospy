@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from dataclasses import replace
 from hashlib import sha256
 from pathlib import Path
 
@@ -27,6 +26,7 @@ from phospy.science.references.models import (
     ReferenceFileManifest,
     ReferenceManifest,
     ReferencePreset,
+    SequenceWindowDefinition,
     reference_context_from_provenance,
 )
 from phospy.science.references.resolution import (
@@ -101,23 +101,16 @@ def test_bundled_provider_rejects_missing_manifest_source_version_before_tables(
     assert table_loads == []
 
 
-def test_builder_propagates_manifest_source_version_not_reference_version(
+def test_stock_builder_preserves_distinct_explicit_reference_and_source_versions(
     tmp_path: Path,
 ) -> None:
     kinase_path, sequence_path = _write_reference_sources(tmp_path)
 
-    bundle = _DistinctReferenceVersionBuilder().run(
-        ReferenceBundleBuildRequest(
-            organism=Organism.RAT,
-            kinase_substrate_path=kinase_path,
-            site_sequence_path=sequence_path,
-            source_name="unit upstream source",
-            source_version=UPSTREAM_SOURCE_VERSION,
-            retrieved_at="2026-06-11",
-            license="synthetic test license",
-            redistribution_status="redistributable synthetic fixture",
-            identifier_namespace="display_id (GENE_SYMBOL;RESIDUE;)",
-            bundle_id="unit_local_snapshot",
+    bundle = ReferenceBundleBuilder().run(
+        _build_request(
+            kinase_path,
+            sequence_path,
+            reference_version=f" {LOCAL_REFERENCE_VERSION} ",
         )
     )
 
@@ -133,6 +126,241 @@ def test_builder_propagates_manifest_source_version_not_reference_version(
     assert bundle.provenance.manifest is not None
     assert bundle.provenance.manifest["reference_version"] == LOCAL_REFERENCE_VERSION
     assert bundle.provenance.manifest["source_version"] == UPSTREAM_SOURCE_VERSION
+
+
+def test_stock_builder_generates_deterministic_content_reference_version_when_omitted(
+    tmp_path: Path,
+) -> None:
+    kinase_path, sequence_path = _write_reference_sources(tmp_path)
+
+    first = ReferenceBundleBuilder().run(
+        ReferenceBundleBuildRequest(
+            organism=Organism.RAT,
+            kinase_substrate_path=kinase_path,
+            site_sequence_path=sequence_path,
+            source_name="unit upstream source",
+            source_version=UPSTREAM_SOURCE_VERSION,
+            retrieved_at="2026-06-11",
+            license="synthetic test license",
+            redistribution_status="redistributable synthetic fixture",
+            identifier_namespace="display_id (GENE_SYMBOL;RESIDUE;)",
+            bundle_id="unit_local_snapshot",
+        )
+    )
+    second = ReferenceBundleBuilder().run(
+        ReferenceBundleBuildRequest(
+            organism=Organism.RAT,
+            kinase_substrate_path=kinase_path,
+            site_sequence_path=sequence_path,
+            source_name="unit upstream source",
+            source_version=UPSTREAM_SOURCE_VERSION,
+            retrieved_at="2026-06-11",
+            license="synthetic test license",
+            redistribution_status="redistributable synthetic fixture",
+            identifier_namespace="display_id (GENE_SYMBOL;RESIDUE;)",
+            bundle_id="unit_local_snapshot",
+        )
+    )
+
+    expected = _expected_generated_reference_version(kinase_path, sequence_path)
+
+    assert first.manifest is not None
+    assert second.manifest is not None
+    assert first.manifest.reference_version == expected
+    assert second.manifest.reference_version == expected
+    assert first.manifest.source_version == UPSTREAM_SOURCE_VERSION
+
+
+def test_generated_reference_version_changes_when_kinase_source_bytes_change(
+    tmp_path: Path,
+) -> None:
+    kinase_path, sequence_path = _write_reference_sources(tmp_path)
+    first = ReferenceBundleBuilder().run(
+        _build_request(kinase_path, sequence_path, reference_version=None)
+    )
+
+    pd.DataFrame(
+        {
+            "kinase": [" akt1 ", "Map3k1"],
+            "site_id": [" mapk1 ; s123 ", "Mapk1;Y185;"],
+            "organism": ["rat", "rat"],
+        }
+    ).to_csv(kinase_path, index=False)
+
+    second = ReferenceBundleBuilder().run(
+        _build_request(kinase_path, sequence_path, reference_version=None)
+    )
+
+    assert first.manifest is not None
+    assert second.manifest is not None
+    assert first.manifest.reference_version != second.manifest.reference_version
+    assert second.manifest.reference_version == _expected_generated_reference_version(
+        kinase_path,
+        sequence_path,
+    )
+
+
+def test_generated_reference_version_changes_when_sequence_source_bytes_change(
+    tmp_path: Path,
+) -> None:
+    kinase_path, sequence_path = _write_reference_sources(tmp_path)
+    first = ReferenceBundleBuilder().run(
+        _build_request(kinase_path, sequence_path, reference_version=None)
+    )
+
+    pd.DataFrame(
+        {
+            "site_id": [" mapk1 ; s123 ", "Mapk1;Y185;"],
+            "site_sequence": [_window("S"), _window("Y")],
+            "display_id": ["mapk1;s123", "MAPK1;Y185;"],
+            "organism": ["Rattus norvegicus", "Rattus norvegicus"],
+        }
+    ).to_csv(sequence_path, index=False)
+
+    second = ReferenceBundleBuilder().run(
+        _build_request(kinase_path, sequence_path, reference_version=None)
+    )
+
+    assert first.manifest is not None
+    assert second.manifest is not None
+    assert first.manifest.reference_version != second.manifest.reference_version
+    assert second.manifest.reference_version == _expected_generated_reference_version(
+        kinase_path,
+        sequence_path,
+    )
+
+
+def test_builder_provenance_and_context_use_upstream_source_version(
+    tmp_path: Path,
+) -> None:
+    kinase_path, sequence_path = _write_reference_sources(tmp_path)
+
+    bundle = ReferenceBundleBuilder().run(
+        _build_request(
+            kinase_path,
+            sequence_path,
+            reference_version=LOCAL_REFERENCE_VERSION,
+        )
+    )
+
+    assert bundle.provenance is not None
+    assert bundle.provenance.source_version == UPSTREAM_SOURCE_VERSION
+    assert bundle.provenance.reference_context is not None
+    assert bundle.provenance.reference_context.source_version == (
+        UPSTREAM_SOURCE_VERSION
+    )
+    context = reference_context_from_provenance(bundle.provenance)
+    assert context is not None
+    assert context.source_version == UPSTREAM_SOURCE_VERSION
+    assert bundle.validation_report.provenance_fields["source_version"] == (
+        UPSTREAM_SOURCE_VERSION
+    )
+
+
+def test_builder_serialization_preserves_local_and_upstream_versions(
+    tmp_path: Path,
+) -> None:
+    kinase_path, sequence_path = _write_reference_sources(tmp_path)
+    bundle = ReferenceBundleBuilder().run(
+        _build_request(
+            kinase_path,
+            sequence_path,
+            reference_version=LOCAL_REFERENCE_VERSION,
+        )
+    )
+
+    assert bundle.provenance is not None
+    restored = from_payload(to_payload(_run_provenance(bundle.provenance)))
+
+    assert restored.reference is not None
+    assert restored.reference.source_version == UPSTREAM_SOURCE_VERSION
+    assert restored.reference.reference_context is not None
+    assert restored.reference.reference_context.source_version == (
+        UPSTREAM_SOURCE_VERSION
+    )
+    assert restored.reference.manifest is not None
+    assert restored.reference.manifest["reference_version"] == LOCAL_REFERENCE_VERSION
+    assert restored.reference.manifest["source_version"] == UPSTREAM_SOURCE_VERSION
+
+
+def test_existing_request_without_reference_version_remains_valid(
+    tmp_path: Path,
+) -> None:
+    kinase_path, sequence_path = _write_reference_sources(tmp_path)
+
+    bundle = ReferenceBundleBuilder().run(
+        ReferenceBundleBuildRequest(
+            organism=Organism.RAT,
+            kinase_substrate_path=kinase_path,
+            site_sequence_path=sequence_path,
+            source_name="unit upstream source",
+            source_version=UPSTREAM_SOURCE_VERSION,
+            retrieved_at="2026-06-11",
+            license="synthetic test license",
+            redistribution_status="redistributable synthetic fixture",
+            identifier_namespace="display_id (GENE_SYMBOL;RESIDUE;)",
+            bundle_id="unit_local_snapshot",
+        )
+    )
+
+    assert bundle.manifest is not None
+    assert bundle.manifest.reference_version.startswith("local-snapshot-sha256-")
+    assert bundle.manifest.source_version == UPSTREAM_SOURCE_VERSION
+
+
+def test_existing_optional_positional_arguments_are_not_reinterpreted(
+    tmp_path: Path,
+) -> None:
+    kinase_path, sequence_path = _write_reference_sources(tmp_path)
+    sequence_window = SequenceWindowDefinition(
+        upstream_residues=15,
+        downstream_residues=15,
+        central_residue_required=True,
+    )
+
+    request = ReferenceBundleBuildRequest(
+        Organism.RAT,
+        kinase_path,
+        sequence_path,
+        "unit upstream source",
+        UPSTREAM_SOURCE_VERSION,
+        "2026-06-11",
+        "synthetic test license",
+        "redistributable synthetic fixture",
+        "display_id (GENE_SYMBOL;RESIDUE;)",
+        sequence_window,
+        "positional_bundle",
+        "rat",
+        ("kinase_workflow",),
+        ("legacy positional limitation",),
+    )
+
+    assert request.sequence_window is sequence_window
+    assert request.bundle_id == "positional_bundle"
+    assert request.organism_common_name == "rat"
+    assert request.supports == ("kinase_workflow",)
+    assert request.limitations == ("legacy positional limitation",)
+    assert request.reference_version is None
+
+    bundle = ReferenceBundleBuilder().run(request)
+
+    assert bundle.manifest is not None
+    assert bundle.manifest.bundle_id == "positional_bundle"
+
+
+def test_blank_reference_version_fails_build_request_validation(
+    tmp_path: Path,
+) -> None:
+    kinase_path, sequence_path = _write_reference_sources(tmp_path)
+
+    with pytest.raises(ReferenceResolutionError, match="reference_version"):
+        ReferenceBundleBuilder().run(
+            _build_request(
+                kinase_path,
+                sequence_path,
+                reference_version=" ",
+            )
+        )
 
 
 def test_manifest_context_and_provenance_source_version_agreement_succeeds() -> None:
@@ -240,24 +468,6 @@ def test_placeholder_approved_source_version_fails_release_validation(
         load_reference_manifest(manifest_path, bundled=True)
 
 
-class _DistinctReferenceVersionBuilder(ReferenceBundleBuilder):
-    def _build_manifest(
-        self,
-        request,
-        *,
-        sequence_window,
-        kinase_source,
-        sequence_source,
-    ) -> ReferenceManifest:
-        manifest = super()._build_manifest(
-            request,
-            sequence_window=sequence_window,
-            kinase_source=kinase_source,
-            sequence_source=sequence_source,
-        )
-        return replace(manifest, reference_version=LOCAL_REFERENCE_VERSION)
-
-
 def _context(*, source_version: str) -> ReferenceContext:
     return ReferenceContext(
         organism="rat",
@@ -342,6 +552,38 @@ def _run_provenance(reference: ReferenceProvenance) -> RunProvenance:
         random_seed_policy=None,
         output_tables=(),
     )
+
+
+def _build_request(
+    kinase_path: Path,
+    sequence_path: Path,
+    *,
+    reference_version: str | None,
+) -> ReferenceBundleBuildRequest:
+    return ReferenceBundleBuildRequest(
+        organism=Organism.RAT,
+        kinase_substrate_path=kinase_path,
+        site_sequence_path=sequence_path,
+        source_name="unit upstream source",
+        source_version=UPSTREAM_SOURCE_VERSION,
+        retrieved_at="2026-06-11",
+        license="synthetic test license",
+        redistribution_status="redistributable synthetic fixture",
+        identifier_namespace="display_id (GENE_SYMBOL;RESIDUE;)",
+        bundle_id="unit_local_snapshot",
+        reference_version=reference_version,
+    )
+
+
+def _expected_generated_reference_version(
+    kinase_path: Path,
+    sequence_path: Path,
+) -> str:
+    canonical = (
+        f"kinase_substrate:{sha256(kinase_path.read_bytes()).hexdigest()}\n"
+        f"site_sequences:{sha256(sequence_path.read_bytes()).hexdigest()}\n"
+    )
+    return f"local-snapshot-sha256-{sha256(canonical.encode('ascii')).hexdigest()}"
 
 
 def _write_reference_sources(tmp_path: Path) -> tuple[Path, Path]:

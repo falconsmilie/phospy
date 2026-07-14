@@ -63,7 +63,7 @@ tests/unit/api/test_public_api_surface.py,api,117,5,false,false,,,,,,[auto-orche
 tests/unit/api/test_validation_not_public_api.py,api,104,5,false,false,,,,,,
 tests/unit/references/test_reference_context.py,references,161,9,false,false,,,,,,
 tests/unit/references/test_reference_manifest.py,references,558,25,true,true,,,,,,
-tests/unit/references/test_reference_provenance_source_versions.py,references,416,9,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
+tests/unit/references/test_reference_provenance_source_versions.py,references,658,17,true,true,,,,,,
 tests/unit/science/datasets/test_analysis_ready_dataset_builder.py,datasets,202,5,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/science/datasets/test_processing_state.py,datasets,395,20,false,false,,,,,,
 tests/unit/science/differential/test_differential_diagnostics.py,differential,110,2,false,false,,,,,,

@@ -311,7 +311,9 @@ class ReferenceBundleBuildRequest:
 
     Construction stores caller intent only. File existence, source metadata,
     column mapping, organism compatibility, and reference validity are enforced
-    by ``ReferenceBundleBuilder.run(...)``.
+    by ``ReferenceBundleBuilder.run(...)``. ``source_version`` identifies the
+    upstream package, database, or caller source. ``reference_version`` is an
+    optional local PhosPy snapshot identity consumed by the builder.
     """
 
     organism: Organism
@@ -333,6 +335,7 @@ class ReferenceBundleBuildRequest:
     limitations: tuple[str, ...] = (
         "caller-supplied local source files; redistribution governed by request metadata",
     )
+    reference_version: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

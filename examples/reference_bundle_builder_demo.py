@@ -40,11 +40,12 @@ def main() -> None:
                 kinase_substrate_path=kinase_path,
                 site_sequence_path=sequence_path,
                 source_name="synthetic local mouse reference",
-                source_version="demo-v1",
-                retrieved_at="2026-06-11",
+                source_version="upstream-package-7.4",
+                retrieved_at="2026-07-14",
                 license="synthetic demo data",
                 redistribution_status="redistributable synthetic fixture",
                 identifier_namespace="display_id (GENE_SYMBOL;RESIDUE;)",
+                reference_version="local-snapshot-2026-07-14",
             )
         )
 
@@ -55,6 +56,9 @@ def main() -> None:
     print(
         f"Source type: {references.provenance.source_type if references.provenance else None}"
     )
+    if references.manifest is not None:
+        print(f"Reference version: {references.manifest.reference_version}")
+        print(f"Source version: {references.manifest.source_version}")
 
 
 def _window(center: str) -> str:

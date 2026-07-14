@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable
+from hashlib import sha256
 from pathlib import Path
 
 import pandas as pd
@@ -293,6 +294,14 @@ class ReferenceBundleBuilder:
             request.site_sequence_path,
             role="site_sequences",
         )
+        kinase_source_sha256 = str(kinase_source_file["sha256"])
+        sequence_source_sha256 = str(sequence_source_file["sha256"])
+        reference_version = request.reference_version
+        if reference_version is None:
+            reference_version = _generated_local_reference_version(
+                kinase_sha256=kinase_source_sha256,
+                sequence_sha256=sequence_source_sha256,
+            )
         bundle_id = (
             request.bundle_id
             if request.bundle_id is not None
@@ -303,7 +312,7 @@ class ReferenceBundleBuilder:
                 relative_path=str(request.kinase_substrate_path),
                 role="kinase_substrate",
                 format=_reference_file_format(request.kinase_substrate_path),
-                sha256=str(kinase_source_file["sha256"]),
+                sha256=kinase_source_sha256,
                 row_count=int(kinase_source.shape[0]),
                 column_names=tuple(str(item) for item in kinase_source.columns),
             ),
@@ -311,7 +320,7 @@ class ReferenceBundleBuilder:
                 relative_path=str(request.site_sequence_path),
                 role="site_sequences",
                 format=_reference_file_format(request.site_sequence_path),
-                sha256=str(sequence_source_file["sha256"]),
+                sha256=sequence_source_sha256,
                 row_count=int(sequence_source.shape[0]),
                 column_names=tuple(str(item) for item in sequence_source.columns),
             ),
@@ -327,12 +336,12 @@ class ReferenceBundleBuilder:
             taxonomy_id=_taxonomy_id(request.organism),
             organism_common_name=request.organism.value,
             protein_namespace=request.identifier_namespace,
-            reference_version=request.source_version,
+            reference_version=reference_version,
             source_name=request.source_name,
             source_url=None,
             source_version=request.source_version,
             retrieved_at=request.retrieved_at,
-            table_sha256=str(kinase_source_file["sha256"]),
+            table_sha256=kinase_source_sha256,
             license_name=request.license,
             license_url=None,
             redistribution_status=_structured_redistribution_status(
@@ -601,6 +610,15 @@ def _structured_redistribution_status(status: str) -> RedistributionStatus:
     if resolved is RedistributionStatus.APPROVED:
         return RedistributionStatus.UNRESOLVED
     return resolved
+
+
+def _generated_local_reference_version(
+    *,
+    kinase_sha256: str,
+    sequence_sha256: str,
+) -> str:
+    canonical = f"kinase_substrate:{kinase_sha256}\nsite_sequences:{sequence_sha256}\n"
+    return f"local-snapshot-sha256-{sha256(canonical.encode('ascii')).hexdigest()}"
 
 
 def _reference_file_format(path: ReferenceBuildPath) -> str:
