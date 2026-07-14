@@ -112,7 +112,12 @@ object with these enforced fields:
   repository notice file must exist during source release validation, and the
   bundle attribution path must be listed in `files` and exist in the bundle
 - `independent_database_permission_claimed`: must be `false`
-- optional `evidence_url`, `verified_at`, and narrow-scope `notes`
+- `verified_at`: optional in the general typed model, but mandatory for
+  approved bundled release evidence; the verification date must be supplied
+  explicitly as an ISO `YYYY-MM-DD` calendar date and is never inferred from
+  retrieval dates, generation dates, filesystem metadata, Git history, notes,
+  or wheel metadata
+- optional `evidence_url` and narrow-scope `notes`
 
 Unrecognized fields inside `redistribution_evidence` or its nested objects fail
 validation. Unsupported extension fields are rejected rather than ignored for

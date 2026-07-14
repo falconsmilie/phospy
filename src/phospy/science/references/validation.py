@@ -586,6 +586,7 @@ def _validate_release_gate_redistribution_approval(
             )
         )
     _validate_release_evidence_upstream_package(manifest, evidence)
+    _validate_release_evidence_verified_at(manifest, evidence)
     _validate_release_evidence_scope(manifest, evidence)
     _validate_release_evidence_attribution(
         manifest,
@@ -594,6 +595,25 @@ def _validate_release_gate_redistribution_approval(
     )
     _validate_release_independent_database_permission(manifest, evidence)
     _validate_rat_l6_native_policy(manifest, evidence)
+
+
+def _validate_release_evidence_verified_at(
+    manifest: ReferenceManifest,
+    evidence: RedistributionEvidence,
+) -> None:
+    if isinstance(evidence.verified_at, date):
+        return
+    raise ReferenceManifestError(
+        _format_release_gate_failure(
+            manifest,
+            field="redistribution_evidence.verified_at",
+            actual_value=evidence.verified_at,
+            reason=(
+                "missing or null verified_at; approved bundled evidence requires "
+                "an explicit verification date"
+            ),
+        )
+    )
 
 
 def _require_release_source_version(manifest: ReferenceManifest) -> None:
@@ -1479,9 +1499,8 @@ def _optional_redistribution_evidence(
             key="evidence_url",
             context=evidence_context,
         ),
-        verified_at=_optional_date(
+        verified_at=_optional_redistribution_evidence_verified_at(
             evidence_payload,
-            key="verified_at",
             context=evidence_context,
         ),
         notes=_optional_string(
@@ -1490,6 +1509,22 @@ def _optional_redistribution_evidence(
             context=evidence_context,
         ),
     )
+
+
+def _optional_redistribution_evidence_verified_at(
+    payload: dict[str, object],
+    *,
+    context: str,
+) -> date | None:
+    if "verified_at" not in payload or payload.get("verified_at") is None:
+        return None
+    try:
+        return _require_date(payload, key="verified_at", context=context)
+    except ReferenceManifestError as exc:
+        raise ReferenceManifestError(
+            "reference manifest redistribution_evidence.verified_at must be "
+            f"YYYY-MM-DD for {context}"
+        ) from exc
 
 
 def _require_upstream_package_license_evidence(

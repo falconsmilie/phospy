@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from hashlib import sha256
 from pathlib import Path
 
@@ -89,6 +90,50 @@ def test_approved_manifest_parses_structured_redistribution_evidence(
     )
     assert manifest.redistribution_evidence.verified_at.isoformat() == "2026-06-29"
     assert manifest.to_payload()["redistribution_evidence"] == evidence
+
+
+@pytest.mark.parametrize(
+    "raw_verified_at",
+    [
+        pytest.param("", id="blank"),
+        pytest.param("   ", id="whitespace"),
+        pytest.param("2026/06/29", id="malformed"),
+        pytest.param("2026-02-30", id="impossible-date"),
+    ],
+)
+def test_manifest_rejects_blank_or_invalid_verified_at(
+    tmp_path: Path,
+    raw_verified_at: object,
+) -> None:
+    evidence = _structured_evidence()
+    evidence["verified_at"] = raw_verified_at
+    manifest_path = _write_manifest_bundle(
+        tmp_path,
+        manifest_overrides={"redistribution_evidence": evidence},
+    )
+
+    with pytest.raises(ReferenceManifestError) as exc_info:
+        load_reference_manifest(manifest_path)
+
+    message = str(exc_info.value)
+    assert "redistribution_evidence.verified_at" in message
+    assert "YYYY-MM-DD" in message
+
+
+def test_verified_at_round_trips_as_iso_date(tmp_path: Path) -> None:
+    evidence = _structured_evidence()
+    manifest_path = _write_manifest_bundle(
+        tmp_path,
+        manifest_overrides={"redistribution_evidence": evidence},
+    )
+
+    manifest = load_reference_manifest(manifest_path)
+
+    assert manifest.redistribution_evidence is not None
+    assert manifest.redistribution_evidence.verified_at == date(2026, 6, 29)
+    payload = manifest.to_payload()["redistribution_evidence"]
+    assert isinstance(payload, dict)
+    assert payload["verified_at"] == "2026-06-29"
 
 
 def test_raw_redistribution_allowed_absence_remains_supported(
@@ -282,6 +327,28 @@ def test_valid_external_only_manifest_loads_successfully(tmp_path: Path) -> None
     assert manifest.redistribution_allowed is False
     assert manifest.license_name is None
     assert manifest.license_url is None
+
+
+def test_external_only_manifest_can_represent_null_verified_at(
+    tmp_path: Path,
+) -> None:
+    evidence = _structured_evidence()
+    evidence["verified_at"] = None
+    manifest_path = _write_manifest_bundle(
+        tmp_path,
+        manifest_overrides={
+            "redistribution_status": "external_only",
+            "redistribution_allowed": False,
+            "redistribution_notes": "source must be supplied externally",
+            "redistribution_evidence": evidence,
+        },
+    )
+
+    manifest = load_reference_manifest(manifest_path)
+
+    assert manifest.redistribution_status is RedistributionStatus.EXTERNAL_ONLY
+    assert manifest.redistribution_evidence is not None
+    assert manifest.redistribution_evidence.verified_at is None
 
 
 def test_unresolved_manifest_loads_during_ordinary_parsing(tmp_path: Path) -> None:

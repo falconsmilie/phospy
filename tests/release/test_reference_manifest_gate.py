@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
+from datetime import date
 from hashlib import sha256
 from pathlib import Path
 
@@ -44,6 +45,17 @@ def test_bundled_rat_l6_native_manifest_is_release_eligible_with_phosr_1_20_0_li
     assert evidence.independent_database_permission_claimed is False
 
 
+def test_real_rat_manifest_keeps_expected_verification_date() -> None:
+    manifests = validate_bundled_reference_manifests(_reference_bundles_root())
+
+    rat_manifest = next(
+        manifest for manifest in manifests if manifest.reference_id == "l6_native"
+    )
+
+    assert rat_manifest.redistribution_evidence is not None
+    assert rat_manifest.redistribution_evidence.verified_at == date(2026, 4, 16)
+
+
 def test_release_gate_accepts_approved_manifest_with_structured_exact_file_evidence(
     tmp_path: Path,
 ) -> None:
@@ -79,6 +91,33 @@ def test_release_gate_rejects_approved_manifest_without_redistribution_evidence(
     assert "field='redistribution_evidence'" in message
     assert "actual_value=None" in message
     assert "requires structured exact-file redistribution evidence" in message
+
+
+def test_release_gate_requires_verified_at_for_approved_evidence(
+    tmp_path: Path,
+) -> None:
+    root = _write_manifest_bundle(tmp_path, remove_evidence_field="verified_at")
+
+    message = _release_error(root)
+
+    assert "field='redistribution_evidence.verified_at'" in message
+    assert "actual_value=None" in message
+    assert "missing or null verified_at" in message
+    assert "requires an explicit verification date" in message
+
+
+def test_release_gate_rejects_null_verified_at(tmp_path: Path) -> None:
+    root = _write_manifest_bundle(
+        tmp_path,
+        evidence_overrides={"verified_at": None},
+    )
+
+    message = _release_error(root)
+
+    assert "field='redistribution_evidence.verified_at'" in message
+    assert "actual_value=None" in message
+    assert "missing or null verified_at" in message
+    assert "requires an explicit verification date" in message
 
 
 @pytest.mark.parametrize("source_version", [None, " "])
@@ -714,6 +753,7 @@ def _write_manifest_bundle(
     upstream_overrides: dict[str, object] | None = None,
     scope_overrides: dict[str, object] | None = None,
     attribution_overrides: dict[str, object] | None = None,
+    remove_evidence_field: str | None = None,
     remove_redistribution_evidence: bool = False,
     files_without_attribution: bool = False,
     omit_notice_file: bool = False,
@@ -780,6 +820,8 @@ def _write_manifest_bundle(
         attribution = evidence["attribution"]
         assert isinstance(attribution, dict)
         attribution.update(attribution_overrides)
+    if remove_evidence_field is not None:
+        evidence.pop(remove_evidence_field, None)
     payload["redistribution_evidence"] = evidence
     if manifest_overrides is not None:
         payload.update(manifest_overrides)
