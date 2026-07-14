@@ -1,0 +1,4 @@
+# Reference bundles are exact-byte release assets.
+# Their manifest digests, rather than an EOL convention, define their bytes.
+src/phospy/data/reference_bundles/** -text
+src/phospy/data/reference_bundles/** -diff
