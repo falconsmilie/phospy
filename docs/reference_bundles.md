@@ -56,6 +56,9 @@ must be inside the declared window.
 authority. If present in JSON, it must be a boolean and must mirror
 `redistribution_status`: `true` only for `approved`, `false` for
 `external_only` and `unresolved`.
+When the raw JSON key `redistribution_allowed` is present, its value must be a
+JSON Boolean. JSON `null` is invalid. Omitting the compatibility key is
+distinct from supplying `null`.
 
 ### Redistribution Status
 

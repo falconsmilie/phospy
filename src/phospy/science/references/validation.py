@@ -1614,7 +1614,8 @@ def _require_bool(payload: dict[str, object], *, key: str, context: str) -> bool
     value = payload.get(key)
     if not isinstance(value, bool):
         raise ReferenceManifestError(
-            f"reference manifest {key} must be true or false for {context}"
+            f"reference manifest {key} must be a JSON Boolean (true or false) "
+            f"for {context}; got {value!r} (type {type(value).__name__})"
         )
     return value
 
@@ -1622,7 +1623,7 @@ def _require_bool(payload: dict[str, object], *, key: str, context: str) -> bool
 def _optional_bool(
     payload: dict[str, object], *, key: str, context: str
 ) -> bool | None:
-    if key not in payload or payload.get(key) is None:
+    if key not in payload:
         return None
     return _require_bool(payload, key=key, context=context)
 

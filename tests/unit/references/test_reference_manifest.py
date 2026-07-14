@@ -91,13 +91,122 @@ def test_approved_manifest_parses_structured_redistribution_evidence(
     assert manifest.to_payload()["redistribution_evidence"] == evidence
 
 
-def test_raw_redistribution_allowed_must_be_boolean(tmp_path: Path) -> None:
+def test_raw_redistribution_allowed_absence_remains_supported(
+    tmp_path: Path,
+) -> None:
     manifest_path = _write_manifest_bundle(
         tmp_path,
-        manifest_overrides={"redistribution_allowed": "true"},
+        remove_manifest_field="redistribution_allowed",
     )
 
-    with pytest.raises(ReferenceManifestError, match="redistribution_allowed"):
+    manifest = load_reference_manifest(manifest_path)
+
+    assert manifest.raw_redistribution_allowed is None
+    assert manifest.redistribution_allowed is True
+
+
+def test_raw_redistribution_allowed_null_is_rejected(tmp_path: Path) -> None:
+    manifest_path = _write_manifest_bundle(
+        tmp_path,
+        manifest_overrides={"redistribution_allowed": None},
+    )
+
+    with pytest.raises(ReferenceManifestError) as exc_info:
+        load_reference_manifest(manifest_path)
+
+    message = str(exc_info.value)
+    assert "redistribution_allowed" in message
+    assert "JSON Boolean" in message
+    assert "None" in message
+
+
+@pytest.mark.parametrize(
+    "raw_value",
+    [
+        pytest.param(None, id="null"),
+        pytest.param("true", id="string-true"),
+        pytest.param("false", id="string-false"),
+        pytest.param(0, id="integer-zero"),
+        pytest.param(1, id="integer-one"),
+        pytest.param(0.0, id="float-zero"),
+        pytest.param([], id="array"),
+        pytest.param({}, id="object"),
+    ],
+)
+def test_raw_redistribution_allowed_non_boolean_values_are_rejected(
+    tmp_path: Path,
+    raw_value: object,
+) -> None:
+    manifest_path = _write_manifest_bundle(
+        tmp_path,
+        manifest_overrides={"redistribution_allowed": raw_value},
+    )
+
+    with pytest.raises(ReferenceManifestError) as exc_info:
+        load_reference_manifest(manifest_path)
+
+    message = str(exc_info.value)
+    assert "redistribution_allowed" in message
+    assert "JSON Boolean" in message
+    assert type(raw_value).__name__ in message
+
+
+@pytest.mark.parametrize(
+    ("redistribution_status", "raw_value", "expected_allowed"),
+    [
+        pytest.param("approved", True, True, id="approved-true"),
+        pytest.param("unresolved", False, False, id="unresolved-false"),
+        pytest.param("external_only", False, False, id="external-only-false"),
+    ],
+)
+def test_raw_redistribution_allowed_status_agreement(
+    tmp_path: Path,
+    redistribution_status: str,
+    raw_value: bool,
+    expected_allowed: bool,
+) -> None:
+    manifest_path = _write_manifest_bundle(
+        tmp_path,
+        manifest_overrides={
+            "license_name": None if not expected_allowed else "CC0 synthetic",
+            "license_url": (
+                None if not expected_allowed else "https://example.test/license"
+            ),
+            "redistribution_status": redistribution_status,
+            "redistribution_allowed": raw_value,
+            "redistribution_notes": "synthetic test fixture",
+        },
+    )
+
+    manifest = load_reference_manifest(manifest_path)
+
+    assert manifest.raw_redistribution_allowed is raw_value
+    assert manifest.redistribution_allowed is expected_allowed
+
+
+@pytest.mark.parametrize(
+    "redistribution_status",
+    [
+        pytest.param("unresolved", id="unresolved"),
+        pytest.param("external_only", id="external-only"),
+    ],
+)
+def test_non_releasable_status_with_true_raw_flag_is_rejected(
+    tmp_path: Path,
+    redistribution_status: str,
+) -> None:
+    manifest_path = _write_manifest_bundle(
+        tmp_path,
+        manifest_overrides={
+            "license_name": None,
+            "license_url": None,
+            "redistribution_status": redistribution_status,
+            "redistribution_allowed": True,
+            "redistribution_notes": "redistribution review has not completed",
+        },
+    )
+
+    with pytest.raises(ReferenceManifestError, match="contradicts"):
         load_reference_manifest(manifest_path)
 
 

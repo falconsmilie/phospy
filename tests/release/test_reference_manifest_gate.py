@@ -461,6 +461,65 @@ def test_release_gate_rejects_approved_raw_redistribution_allowed_false(
     assert "must be true when redistribution_status is 'approved'" in message
 
 
+@pytest.mark.parametrize(
+    "raw_value",
+    [
+        pytest.param(None, id="null"),
+        pytest.param("true", id="string-true"),
+        pytest.param("false", id="string-false"),
+        pytest.param(0, id="integer-zero"),
+        pytest.param(1, id="integer-one"),
+        pytest.param(0.0, id="float-zero"),
+        pytest.param([], id="array"),
+        pytest.param({}, id="object"),
+    ],
+)
+def test_release_gate_rejects_raw_redistribution_allowed_non_boolean_values(
+    tmp_path: Path,
+    raw_value: object,
+) -> None:
+    root = _write_manifest_bundle(
+        tmp_path,
+        manifest_overrides={"redistribution_allowed": raw_value},
+    )
+
+    message = _release_error(root)
+
+    assert "redistribution_allowed" in message
+    assert "JSON Boolean" in message
+    assert type(raw_value).__name__ in message
+
+
+@pytest.mark.parametrize(
+    "redistribution_status",
+    [
+        pytest.param("unresolved", id="unresolved"),
+        pytest.param("external_only", id="external-only"),
+    ],
+)
+def test_release_gate_rejects_non_releasable_status_with_true_raw_flag(
+    tmp_path: Path,
+    redistribution_status: str,
+) -> None:
+    root = _write_manifest_bundle(
+        tmp_path,
+        manifest_overrides={
+            "license_name": None,
+            "license_url": None,
+            "redistribution_status": redistribution_status,
+            "redistribution_allowed": True,
+            "redistribution_notes": "redistribution review has not completed",
+        },
+        remove_redistribution_evidence=True,
+    )
+
+    message = _release_error(root)
+
+    assert "field='redistribution_allowed'" in message
+    assert "actual_value=True" in message
+    assert "must be false for non-releasable redistribution_status values" in message
+
+
 def test_release_gate_rejects_external_only_bundled_manifest(
     tmp_path: Path,
 ) -> None:
