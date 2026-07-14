@@ -5,6 +5,7 @@ from copy import deepcopy
 from datetime import date
 from hashlib import sha256
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -13,6 +14,23 @@ from phospy.science.references.manifest import RedistributionEvidenceType
 from phospy.science.references.validation import validate_bundled_reference_manifests
 
 pytestmark = pytest.mark.release_gate
+
+_REQUIRED_SEMANTIC_ERROR_LABELS = (
+    "reference_id=",
+    "display_name=",
+    "organism=",
+    "namespace=",
+    "field=",
+    "redistribution_status=",
+    "actual_value=",
+    "reason=",
+)
+_REQUIRED_FILE_ERROR_LABELS = (
+    *_REQUIRED_SEMANTIC_ERROR_LABELS,
+    "file=",
+    "expected_digest=",
+    "actual_digest=",
+)
 
 
 def test_bundled_rat_l6_native_manifest_is_release_eligible_with_phosr_1_20_0_license_evidence() -> (
@@ -705,6 +723,242 @@ def test_release_gate_rejects_unresolved_bundled_manifest(
     assert "requires redistribution_status 'approved'" in message
 
 
+@pytest.mark.parametrize(
+    ("bundle_kwargs", "expected_snippets"),
+    [
+        pytest.param(
+            {"manifest_overrides": {"redistribution_allowed": "true"}},
+            (
+                "field='redistribution_allowed'",
+                "actual_value='true'",
+                "JSON Boolean",
+            ),
+            id="malformed-raw-boolean",
+        ),
+        pytest.param(
+            {"manifest_overrides": {"extra_release_note": "reviewed by unit test"}},
+            (
+                "field='extra_release_note'",
+                "actual_value='reviewed by unit test'",
+                "unrecognized field",
+            ),
+            id="unknown-top-level-field",
+        ),
+        pytest.param(
+            {"file_overrides": {"extra_release_note": "reviewed by unit test"}},
+            (
+                "field='files[0].extra_release_note'",
+                "actual_value='reviewed by unit test'",
+                "unrecognized field",
+            ),
+            id="unknown-file-entry-field",
+        ),
+        pytest.param(
+            {"remove_redistribution_evidence": True},
+            (
+                "field='redistribution_evidence'",
+                "actual_value=None",
+                "requires structured exact-file redistribution evidence",
+            ),
+            id="missing-evidence",
+        ),
+        pytest.param(
+            {"remove_evidence_field": "verified_at"},
+            (
+                "field='redistribution_evidence.verified_at'",
+                "actual_value=None",
+                "missing or null verified_at",
+            ),
+            id="missing-verification-date",
+        ),
+        pytest.param(
+            {"manifest_overrides": {"source_version": "unknown"}},
+            (
+                "field='source_version'",
+                "actual_value='unknown'",
+                "must not be a placeholder",
+            ),
+            id="placeholder-source-version",
+        ),
+        pytest.param(
+            {
+                "manifest_overrides": {
+                    "license_name": None,
+                    "license_url": None,
+                    "redistribution_status": "unresolved",
+                    "redistribution_allowed": False,
+                    "redistribution_notes": "redistribution review has not completed",
+                },
+                "remove_redistribution_evidence": True,
+            },
+            (
+                "field='redistribution_status'",
+                "redistribution_status='unresolved'",
+                "requires redistribution_status 'approved'",
+            ),
+            id="unresolved-status",
+        ),
+        pytest.param(
+            {
+                "manifest_overrides": {
+                    "license_name": None,
+                    "license_url": None,
+                    "redistribution_status": "external_only",
+                    "redistribution_allowed": False,
+                    "redistribution_notes": "source must be supplied externally",
+                },
+                "remove_redistribution_evidence": True,
+            },
+            (
+                "field='redistribution_status'",
+                "redistribution_status='external_only'",
+                "requires redistribution_status 'approved'",
+            ),
+            id="external-only-status",
+        ),
+        pytest.param(
+            {"scope_overrides": {"reference_id": "other_reference"}},
+            (
+                "field='redistribution_evidence.scope.reference_id'",
+                "actual_value='other_reference'",
+                "expected 'unit_reference'; got 'other_reference'",
+            ),
+            id="evidence-reference-id-mismatch",
+        ),
+        pytest.param(
+            {"scope_overrides": {"reference_version": "v2"}},
+            (
+                "field='redistribution_evidence.scope.reference_version'",
+                "actual_value='v2'",
+                "expected 'v1'; got 'v2'",
+            ),
+            id="evidence-reference-version-mismatch",
+        ),
+        pytest.param(
+            {"scope_overrides": {"applies_to_future_bundles": True}},
+            (
+                "field='redistribution_evidence.scope.applies_to_future_bundles'",
+                "actual_value=True",
+                "must not cover future bundles",
+            ),
+            id="future-bundle-scope",
+        ),
+        pytest.param(
+            {"scope_overrides": {"packaged_files": ["substrate_map.csv"]}},
+            (
+                "field='redistribution_evidence.scope.packaged_files'",
+                "missing=['ATTRIBUTION.md']",
+                "must exactly match manifest file paths",
+            ),
+            id="evidence-packaged-file-mismatch",
+        ),
+        pytest.param(
+            {
+                "manifest_overrides": {
+                    "redistribution_notes": "This is not legal approval."
+                }
+            },
+            (
+                "field='redistribution_notes'",
+                "actual_value='This is not legal approval.'",
+                "contradictory approval text",
+            ),
+            id="contradictory-approval-text",
+        ),
+        pytest.param(
+            {
+                "manifest_overrides": {
+                    "redistribution_notes": (
+                        "Independent direct permission from PhosphoSitePlus is claimed."
+                    )
+                }
+            },
+            (
+                "field='redistribution_notes'",
+                "claims independent direct database permission",
+                "actual_value='Independent direct permission from PhosphoSitePlus "
+                "is claimed.'",
+            ),
+            id="independent-database-permission-claim",
+        ),
+    ],
+)
+def test_semantic_release_errors_follow_diagnostic_contract(
+    tmp_path: Path,
+    bundle_kwargs: dict[str, Any],
+    expected_snippets: tuple[str, ...],
+) -> None:
+    root = _write_manifest_bundle(tmp_path, **bundle_kwargs)
+
+    message = _release_error(root)
+
+    _assert_error_labels(message, _REQUIRED_SEMANTIC_ERROR_LABELS)
+    assert "reference_id='unit_reference'" in message
+    assert "display_name='Unit reference'" in message
+    assert "organism='Rattus norvegicus'" in message
+    assert "namespace='display_site_id'" in message
+    for snippet in expected_snippets:
+        assert snippet in message
+
+
+@pytest.mark.parametrize(
+    ("bundle_kwargs", "expected_file", "expected_digest", "actual_digest"),
+    [
+        pytest.param(
+            {
+                "file_overrides": {"relative_path": "missing.csv"},
+                "scope_overrides": {
+                    "packaged_files": ["missing.csv", "ATTRIBUTION.md"]
+                },
+            },
+            "missing.csv",
+            "<source_digest>",
+            "missing",
+            id="missing-source-file",
+        ),
+        pytest.param(
+            {"file_overrides": {"sha256": "0" * 64}},
+            "substrate_map.csv",
+            "0" * 64,
+            "<source_digest>",
+            id="source-hash-mismatch",
+        ),
+    ],
+)
+def test_source_file_errors_follow_diagnostic_contract(
+    tmp_path: Path,
+    bundle_kwargs: dict[str, Any],
+    expected_file: str,
+    expected_digest: str,
+    actual_digest: str,
+) -> None:
+    root = _write_manifest_bundle(tmp_path, **bundle_kwargs)
+    source_digest = sha256(
+        (root / "rat" / "unit_reference" / "substrate_map.csv").read_bytes()
+    ).hexdigest()
+    if expected_digest == "<source_digest>":
+        expected_digest = source_digest
+    if actual_digest == "<source_digest>":
+        actual_digest = source_digest
+
+    message = _release_error(root)
+
+    _assert_error_labels(message, _REQUIRED_FILE_ERROR_LABELS)
+    assert f"file='{expected_file}'" in message
+    assert f"expected_digest={expected_digest}" in message
+    assert f"actual_digest={actual_digest}" in message
+
+
+def test_parser_error_reports_missing_context_literals(tmp_path: Path) -> None:
+    root = _write_manifest_bundle(tmp_path, remove_manifest_field="display_name")
+
+    message = _release_error(root)
+
+    _assert_error_labels(message, _REQUIRED_SEMANTIC_ERROR_LABELS)
+    assert "display_name=<missing>" in message
+    assert "field='display_name'" in message
+
+
 def test_release_gate_error_identifies_reference_context_field_status_and_actual_value(
     tmp_path: Path,
 ) -> None:
@@ -734,6 +988,11 @@ def _release_error(root: Path) -> str:
     return str(exc_info.value)
 
 
+def _assert_error_labels(message: str, labels: tuple[str, ...]) -> None:
+    for label in labels:
+        assert label in message
+
+
 def _reference_bundles_root() -> Path:
     return (
         Path(__file__).resolve().parents[2]
@@ -754,6 +1013,7 @@ def _write_manifest_bundle(
     scope_overrides: dict[str, object] | None = None,
     attribution_overrides: dict[str, object] | None = None,
     remove_evidence_field: str | None = None,
+    remove_manifest_field: str | None = None,
     remove_redistribution_evidence: bool = False,
     files_without_attribution: bool = False,
     omit_notice_file: bool = False,
@@ -825,6 +1085,8 @@ def _write_manifest_bundle(
     payload["redistribution_evidence"] = evidence
     if manifest_overrides is not None:
         payload.update(manifest_overrides)
+    if remove_manifest_field is not None:
+        payload.pop(remove_manifest_field, None)
     if remove_redistribution_evidence:
         payload.pop("redistribution_evidence", None)
     (bundle_root / "manifest.json").write_text(

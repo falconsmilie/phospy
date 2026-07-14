@@ -282,7 +282,7 @@ class ReferenceFileManifest:
         object.__setattr__(self, "relative_path", str(self.relative_path).strip())
         object.__setattr__(self, "role", str(self.role).strip())
         object.__setattr__(self, "format", str(self.format).strip())
-        object.__setattr__(self, "sha256", str(self.sha256).strip().lower())
+        object.__setattr__(self, "sha256", str(self.sha256).strip())
         if self.row_count is not None:
             object.__setattr__(self, "row_count", int(self.row_count))
         if self.column_names is not None:

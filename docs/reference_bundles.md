@@ -95,6 +95,16 @@ evidence, and each bundled manifest must declare
 `redistribution_status="approved"`. Packaged manifests that declare
 `external_only` or `unresolved` fail release validation.
 
+Release-validation diagnostics use stable labels so maintainers and CI logs can
+identify the failed manifest and field without reverse-engineering prose. Every
+semantic release error includes `reference_id=`, `display_name=`, `organism=`,
+`namespace=`, `field=`, `redistribution_status=`, `actual_value=`, and
+`reason=`. Source-tree file integrity diagnostics also include `file=`,
+`expected_digest=`, and `actual_digest=`; a missing declared file reports
+`actual_digest=missing`. These messages are diagnostic output only. External
+tools may assert the labels, but must not reconstruct redistribution approval
+state from error text.
+
 For `redistribution_status="approved"`, `redistribution_evidence` must be an
 object with these enforced fields:
 

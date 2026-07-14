@@ -51,8 +51,8 @@ tests/performance/test_performance_contracts.py,performance,1278,16,true,false,p
 tests/performance/test_signalome_clustering_benchmark.py,performance,82,1,true,false,performance/memory contract,keep,"Loss of this file would remove runtime and memory envelope checks for signalome clustering benchmark, allowing performance regressions to ship undetected.",codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/performance/test_workflow_scale_contracts.py,performance,261,2,true,true,,,,,,
 tests/performance/test_workflow_validation_performance.py,performance,108,2,true,false,,,,,,
-tests/release/test_reference_bundle_distribution.py,release,218,7,true,false,,,,,,
-tests/release/test_reference_manifest_gate.py,release,922,41,true,true,,,,,,
+tests/release/test_reference_bundle_distribution.py,release,274,8,true,true,,,,,,
+tests/release/test_reference_manifest_gate.py,release,1184,44,true,true,,,,,,
 tests/release/test_release_gate_policy.py,release,326,10,true,true,,,,,,
 tests/science/test_empirical_bayes_trend_smoothing.py,science,150,2,false,false,,,,,,
 tests/science/test_kinase_library_motif_scoring_science.py,science,51,1,false,false,,,,,,
@@ -62,7 +62,7 @@ tests/unit/api/test_public_api_dataset_construction.py,api,68,3,false,false,,,,,
 tests/unit/api/test_public_api_surface.py,api,117,5,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/api/test_validation_not_public_api.py,api,104,5,false,false,,,,,,
 tests/unit/references/test_reference_context.py,references,161,9,false,false,,,,,,
-tests/unit/references/test_reference_manifest.py,references,558,25,true,true,,,,,,
+tests/unit/references/test_reference_manifest.py,references,576,26,true,true,,,,,,
 tests/unit/references/test_reference_provenance_source_versions.py,references,658,17,true,true,,,,,,
 tests/unit/science/datasets/test_analysis_ready_dataset_builder.py,datasets,202,5,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/science/datasets/test_processing_state.py,datasets,395,20,false,false,,,,,,

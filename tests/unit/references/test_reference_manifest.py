@@ -400,6 +400,24 @@ def test_sha256_mismatch_raises_reference_manifest_error(tmp_path: Path) -> None
         load_reference_manifest(manifest_path)
 
 
+def test_invalid_declared_file_digest_reports_expected_sha256_format(
+    tmp_path: Path,
+) -> None:
+    manifest_path = _write_manifest_bundle(
+        tmp_path,
+        file_overrides={"sha256": "NOT_A_SHA256"},
+    )
+
+    with pytest.raises(ReferenceManifestError) as exc_info:
+        load_reference_manifest(manifest_path)
+
+    message = str(exc_info.value)
+    assert "field=\"files['reference.csv'].sha256\"" in message
+    assert "expected_digest=lowercase sha256 hex digest" in message
+    assert "actual_digest=NOT_A_SHA256" in message
+    assert "64-character lowercase hexadecimal SHA-256 digest" in message
+
+
 def test_missing_table_sha256_raises_reference_manifest_error(tmp_path: Path) -> None:
     manifest_path = _write_manifest_bundle(
         tmp_path,
