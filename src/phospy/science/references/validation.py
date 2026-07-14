@@ -47,7 +47,51 @@ _REQUIRED_MANIFEST_FIELDS = frozenset(
         "files",
     }
 )
+_ALLOWED_MANIFEST_FIELDS = frozenset(
+    {
+        "reference_id",
+        "display_name",
+        "organism",
+        "taxonomy_id",
+        "protein_namespace",
+        "reference_version",
+        "source_name",
+        "source_url",
+        "source_version",
+        "retrieved_at",
+        "table_sha256",
+        "source_publication",
+        "license_name",
+        "license_url",
+        "redistribution_status",
+        "redistribution_allowed",
+        "redistribution_notes",
+        "redistribution_evidence",
+        "derived_from",
+        "generated_by",
+        "generated_at_utc",
+        "manifest_schema_version",
+        "files",
+        "sequence_context_policy",
+        "sequence_window_length",
+        "sequence_center_index",
+        "allowed_sequence_alphabet",
+        "organism_common_name",
+        "supports",
+        "limitations",
+    }
+)
 _REQUIRED_FILE_FIELDS = frozenset(
+    {
+        "relative_path",
+        "role",
+        "format",
+        "sha256",
+        "row_count",
+        "column_names",
+    }
+)
+_ALLOWED_FILE_FIELDS = frozenset(
     {
         "relative_path",
         "role",
@@ -236,6 +280,11 @@ def parse_reference_manifest_payload(
     """Parse a JSON object into the typed manifest model."""
 
     _require_fields(payload, required_fields=_REQUIRED_MANIFEST_FIELDS, context=context)
+    _reject_unrecognized_fields(
+        payload,
+        allowed_fields=_ALLOWED_MANIFEST_FIELDS,
+        context=context,
+    )
     files = _parse_file_manifests(payload.get("files"), context=f"{context}.files")
     redistribution_status = _require_redistribution_status(
         payload,
@@ -1247,45 +1296,52 @@ def _parse_file_manifests(
         raise ReferenceManifestError(f"{context} must not be empty")
     files: list[ReferenceFileManifest] = []
     for index, item in enumerate(value):
+        file_context = f"{context}[{index}]"
         if not isinstance(item, dict):
-            raise ReferenceManifestError(f"{context}[{index}] must be an object")
+            raise ReferenceManifestError(f"{file_context} must be an object")
         file_payload = cast(dict[str, object], item)
         _require_fields(
             file_payload,
             required_fields=_REQUIRED_FILE_FIELDS,
-            context=f"{context}[{index}]",
+            context=file_context,
+        )
+        _reject_unrecognized_fields(
+            file_payload,
+            allowed_fields=_ALLOWED_FILE_FIELDS,
+            context=file_context,
+            field_path_prefix=f"files[{index}]",
         )
         files.append(
             ReferenceFileManifest(
                 relative_path=_require_string(
                     file_payload,
                     key="relative_path",
-                    context=f"{context}[{index}]",
+                    context=file_context,
                 ),
                 role=_require_string(
                     file_payload,
                     key="role",
-                    context=f"{context}[{index}]",
+                    context=file_context,
                 ),
                 format=_require_string(
                     file_payload,
                     key="format",
-                    context=f"{context}[{index}]",
+                    context=file_context,
                 ),
                 sha256=_require_string(
                     file_payload,
                     key="sha256",
-                    context=f"{context}[{index}]",
+                    context=file_context,
                 ),
                 row_count=_optional_int(
                     file_payload,
                     key="row_count",
-                    context=f"{context}[{index}]",
+                    context=file_context,
                 ),
                 column_names=_optional_column_names(
                     file_payload,
                     key="column_names",
-                    context=f"{context}[{index}]",
+                    context=file_context,
                 ),
             )
         )
@@ -1393,6 +1449,7 @@ def _optional_redistribution_evidence(
         evidence_payload,
         allowed_fields=_ALLOWED_REDISTRIBUTION_EVIDENCE_FIELDS,
         context=evidence_context,
+        field_path_prefix=key,
     )
     return RedistributionEvidence(
         evidence_type=_require_redistribution_evidence_type(
@@ -1455,6 +1512,7 @@ def _require_upstream_package_license_evidence(
         upstream_payload,
         allowed_fields=_ALLOWED_UPSTREAM_PACKAGE_FIELDS,
         context=upstream_context,
+        field_path_prefix="redistribution_evidence.upstream_package",
     )
     return UpstreamPackageLicenseEvidence(
         package_name=_require_string(
@@ -1496,6 +1554,7 @@ def _require_redistribution_scope(
         scope_payload,
         allowed_fields=_ALLOWED_REDISTRIBUTION_SCOPE_FIELDS,
         context=scope_context,
+        field_path_prefix="redistribution_evidence.scope",
     )
     return RedistributionScope(
         reference_id=_require_string(
@@ -1546,6 +1605,7 @@ def _require_redistribution_attribution(
         attribution_payload,
         allowed_fields=_ALLOWED_REDISTRIBUTION_ATTRIBUTION_FIELDS,
         context=attribution_context,
+        field_path_prefix="redistribution_evidence.attribution",
     )
     return RedistributionAttribution(
         repository_notice_path=_require_string(
@@ -1580,12 +1640,18 @@ def _reject_unrecognized_fields(
     *,
     allowed_fields: frozenset[str],
     context: str,
+    field_path_prefix: str = "",
 ) -> None:
     extra = sorted(field for field in payload if field not in allowed_fields)
     if extra:
+        paths = (
+            extra
+            if not field_path_prefix
+            else [f"{field_path_prefix}.{field}" for field in extra]
+        )
         raise ReferenceManifestError(
             f"reference manifest has unrecognized field(s) for {context}: "
-            f"{', '.join(extra)}"
+            f"{', '.join(paths)}"
         )
 
 

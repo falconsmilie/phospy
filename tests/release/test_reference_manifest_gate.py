@@ -396,6 +396,108 @@ def test_release_gate_rejects_contradictory_approval_text_in_any_string_field(
     assert f"contradictory approval text: {phrase!r}" in message
 
 
+def test_manifest_rejects_unknown_top_level_field(tmp_path: Path) -> None:
+    root = _write_manifest_bundle(
+        tmp_path,
+        manifest_overrides={"extra_release_note": "reviewed by unit test"},
+    )
+
+    message = _release_error(root)
+
+    assert "unrecognized field" in message
+    assert "extra_release_note" in message
+
+
+def test_manifest_rejects_unknown_file_entry_field(tmp_path: Path) -> None:
+    root = _write_manifest_bundle(
+        tmp_path,
+        file_overrides={"extra_release_note": "reviewed by unit test"},
+    )
+
+    message = _release_error(root)
+
+    assert "unrecognized field" in message
+    assert "files[0].extra_release_note" in message
+
+
+def test_unknown_top_level_field_cannot_hide_approval_contradiction(
+    tmp_path: Path,
+) -> None:
+    root = _write_manifest_bundle(
+        tmp_path,
+        manifest_overrides={
+            "extra_release_note": "The exact packaged bundle has not been approved."
+        },
+    )
+
+    message = _release_error(root)
+
+    assert "unrecognized field" in message
+    assert "extra_release_note" in message
+    assert "contradictory approval text" not in message
+
+
+def test_unknown_file_field_cannot_hide_approval_contradiction(
+    tmp_path: Path,
+) -> None:
+    root = _write_manifest_bundle(
+        tmp_path,
+        file_overrides={
+            "extra_release_note": "The exact packaged bundle has not been approved."
+        },
+    )
+
+    message = _release_error(root)
+
+    assert "unrecognized field" in message
+    assert "files[0].extra_release_note" in message
+    assert "contradictory approval text" not in message
+
+
+def test_known_limitations_field_still_rejects_approval_contradiction(
+    tmp_path: Path,
+) -> None:
+    root = _write_manifest_bundle(
+        tmp_path,
+        manifest_overrides={"limitations": ["Redistribution remains unresolved."]},
+    )
+
+    message = _release_error(root)
+
+    assert "field='limitations[0]'" in message
+    assert "contradictory approval text: 'redistribution remains unresolved'" in message
+
+
+def test_scientific_unknown_language_remains_allowed(tmp_path: Path) -> None:
+    root = _write_manifest_bundle(
+        tmp_path,
+        manifest_overrides={
+            "limitations": ["Coverage of unknown kinase substrates remains incomplete."]
+        },
+    )
+
+    manifests = validate_bundled_reference_manifests(root)
+
+    assert len(manifests) == 1
+
+
+def test_exact_snapshot_scope_language_remains_allowed(tmp_path: Path) -> None:
+    root = _write_manifest_bundle(
+        tmp_path,
+        evidence_overrides={
+            "notes": (
+                "No independent direct permission from PhosphoSitePlus is claimed. "
+                "Approval applies only to this exact PhosR-derived snapshot. "
+                "This does not apply to future bundles."
+            )
+        },
+    )
+
+    manifests = validate_bundled_reference_manifests(root)
+
+    assert len(manifests) == 1
+
+
 def test_release_gate_accepts_limited_scope_and_no_independent_permission_language(
     tmp_path: Path,
 ) -> None:
@@ -607,6 +709,7 @@ def _write_manifest_bundle(
     tmp_path: Path,
     *,
     manifest_overrides: dict[str, object] | None = None,
+    file_overrides: dict[str, object] | None = None,
     evidence_overrides: dict[str, object] | None = None,
     upstream_overrides: dict[str, object] | None = None,
     scope_overrides: dict[str, object] | None = None,
@@ -638,6 +741,8 @@ def _write_manifest_bundle(
             "column_names": ["kinase", "site_id"],
         }
     ]
+    if file_overrides is not None:
+        file_payloads[0].update(file_overrides)
     if not files_without_attribution:
         attribution_hash = (
             sha256(attribution_path.read_bytes()).hexdigest()

@@ -44,6 +44,12 @@ Every `files` item must contain:
 - `row_count`
 - `column_names`
 
+Manifest JSON uses a strict schema. Unsupported extension fields are rejected
+rather than ignored at the top level and in every `files[]` entry. Compatibility
+aliases emitted by runtime payloads, such as `bundle_id`, `source_files`, or
+`sequence_window`, are derived outputs and are not accepted manifest-input
+fields.
+
 Sequence-aware manifests may also carry `source_publication`,
 `sequence_context_policy`, `sequence_window_length`, `sequence_center_index`,
 `allowed_sequence_alphabet`, `organism_common_name`, `supports`, and
@@ -109,7 +115,9 @@ object with these enforced fields:
 - optional `evidence_url`, `verified_at`, and narrow-scope `notes`
 
 Unrecognized fields inside `redistribution_evidence` or its nested objects fail
-validation.
+validation. Unsupported extension fields are rejected rather than ignored for
+the evidence object, its `upstream_package`, `scope`, and `attribution`
+objects.
 
 ### Rat `l6_native` Provenance
 

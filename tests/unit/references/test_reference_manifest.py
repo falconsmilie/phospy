@@ -228,8 +228,40 @@ def test_unrecognized_redistribution_evidence_field_raises(tmp_path: Path) -> No
         manifest_overrides={"redistribution_evidence": evidence},
     )
 
-    with pytest.raises(ReferenceManifestError, match="unrecognized field"):
+    with pytest.raises(ReferenceManifestError) as exc_info:
         load_reference_manifest(manifest_path)
+
+    message = str(exc_info.value)
+    assert "unrecognized field" in message
+    assert "redistribution_evidence.free_text_approval" in message
+
+
+def test_unrecognized_top_level_manifest_field_raises(tmp_path: Path) -> None:
+    manifest_path = _write_manifest_bundle(
+        tmp_path,
+        manifest_overrides={"extra_release_note": "reviewed by unit test"},
+    )
+
+    with pytest.raises(ReferenceManifestError) as exc_info:
+        load_reference_manifest(manifest_path)
+
+    message = str(exc_info.value)
+    assert "unrecognized field" in message
+    assert "extra_release_note" in message
+
+
+def test_unrecognized_file_manifest_field_raises(tmp_path: Path) -> None:
+    manifest_path = _write_manifest_bundle(
+        tmp_path,
+        file_overrides={"extra_release_note": "reviewed by unit test"},
+    )
+
+    with pytest.raises(ReferenceManifestError) as exc_info:
+        load_reference_manifest(manifest_path)
+
+    message = str(exc_info.value)
+    assert "unrecognized field" in message
+    assert "files[0].extra_release_note" in message
 
 
 def test_valid_external_only_manifest_loads_successfully(tmp_path: Path) -> None:
