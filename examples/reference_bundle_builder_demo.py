@@ -17,6 +17,8 @@ def main() -> None:
         root = Path(tmp_dir)
         kinase_path = root / "mouse_kinase_substrates.csv"
         sequence_path = root / "mouse_site_sequences.csv"
+        upstream_source_version = "upstream-package-7.4"
+        local_reference_version = "local-snapshot-2026-07-14"
         pd.DataFrame(
             {
                 "kinase": ["Map2k1", "Akt1"],
@@ -40,12 +42,26 @@ def main() -> None:
                 kinase_substrate_path=kinase_path,
                 site_sequence_path=sequence_path,
                 source_name="synthetic local mouse reference",
-                source_version="upstream-package-7.4",
+                source_version=upstream_source_version,
                 retrieved_at="2026-07-14",
                 license="synthetic demo data",
                 redistribution_status="redistributable synthetic fixture",
                 identifier_namespace="display_id (GENE_SYMBOL;RESIDUE;)",
-                reference_version="local-snapshot-2026-07-14",
+                reference_version=local_reference_version,
+            )
+        )
+        fallback_references = ReferenceBundleBuilder().run(
+            ReferenceBundleBuildRequest(
+                organism=Organism.MOUSE,
+                kinase_substrate_path=kinase_path,
+                site_sequence_path=sequence_path,
+                source_name="synthetic local mouse reference",
+                source_version=upstream_source_version,
+                retrieved_at="2026-07-14",
+                license="synthetic demo data",
+                redistribution_status="redistributable synthetic fixture",
+                identifier_namespace="display_id (GENE_SYMBOL;RESIDUE;)",
+                bundle_id="synthetic_mouse_content_snapshot",
             )
         )
 
@@ -59,6 +75,11 @@ def main() -> None:
     if references.manifest is not None:
         print(f"Reference version: {references.manifest.reference_version}")
         print(f"Source version: {references.manifest.source_version}")
+    if fallback_references.manifest is not None:
+        print(
+            "Deterministic fallback reference version: "
+            f"{fallback_references.manifest.reference_version}"
+        )
 
 
 def _window(center: str) -> str:

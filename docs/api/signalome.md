@@ -223,6 +223,13 @@ scientific policy records, table fingerprints, and signalome score semantics.
 The semantics include the network threshold, policy, correlation basis, edge
 directionality, skipped-edge diagnostics, and interpretation limits.
 
+Signalome provenance uses the same causal site-row attrition contract as other
+workflows. `row_attrition`, when present, records only stage-local site-row
+removal proven from that stage's input and output site indexes. Compatibility
+diagnostics such as `row_attrition_metrics`, alignment diagnostics, and
+correlation skipped-edge counts remain separate diagnostics and are not treated
+as site-row removal.
+
 ## Limitations
 
 - Requires explicit `protein_id` grouping metadata for interpreted sites.

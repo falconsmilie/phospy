@@ -85,6 +85,8 @@ distinct from supplying `null`.
 Codex agents and human developers must not mark references approved without
 verified evidence in the manifest. A lineage note, hash, upstream package name,
 or optimistic interpretation of a third-party license is not enough.
+File hashes establish source and package byte identity for validation; hashes
+alone do not establish redistribution approval.
 
 Runtime bundled-reference loading validates the manifest and file hashes before
 the tables are exposed to workflows. The release gate enforces stricter

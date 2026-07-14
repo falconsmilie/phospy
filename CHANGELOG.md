@@ -11,6 +11,19 @@ All notable changes to this project are documented here.
   through dataset properties, builder reports, workflow results, and provenance
   records.
 
+### Documentation
+
+- Aligned release documentation with completed FU-01 through FU-05 follow-up
+  behavior: exact-byte source-tree and wheel reference-bundle validation; typed
+  exact-snapshot redistribution evidence; strict manifest/evidence schema
+  rejection of unknown fields; strict raw JSON Boolean approval-state parsing;
+  mandatory explicit `verified_at` dates for approved bundled evidence; separate
+  local `reference_version` and upstream `source_version` in the builder,
+  including the deterministic content-derived fallback; typed selected and
+  background enrichment provenance without changing ORA statistics; and causal
+  kinase/signalome site-row attrition while preserving legacy compatibility
+  metrics such as site/kinase-pair counts.
+
 ## [1.6.0] - 2026-06-18
 
 ### Added
@@ -19,8 +32,8 @@ All notable changes to this project are documented here.
   auditable site identity from explicit protein context.
 - dedicated dataset identity validators for encoded site keys, display-label handling, and protein-scoped site metadata
   coherence.
-- local reference-bundle builder support, stricter reference manifests/provenance, approved human and mouse reference
-  bundle handling, and explicit rat bundled-reference licence/provenance metadata.
+- local reference-bundle builder support, stricter reference manifests/provenance, caller-supplied human and mouse
+  reference bundle handling, and explicit rat bundled-reference licence/provenance metadata.
 - Kinase Library reference schema loading, motif scoring, reference display-ambiguity policy handling, and KinaseWorkflow
   integration.
 - ssGSEA-style kinase substrate-enrichment activity scoring, method-specific activity diagnostics, and method-neutral

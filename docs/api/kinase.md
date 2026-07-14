@@ -354,6 +354,14 @@ configuration, scientific policy records, table fingerprints, and workflow
 diagnostics. Adaptive prediction requires `random_state` when
 `mode="adaptive_ensemble"` so reruns can be audited.
 
+Kinase provenance separates causal site-row attrition from compatibility
+metrics. `row_attrition`, when present, records only stage-local site-row
+removal proven from that stage's input and output site indexes. It does not
+encode site/kinase-pair loss as row loss. `row_attrition_metrics` remains
+available for legacy compatibility diagnostics, including
+`site_kinase_pairs_considered`, `site_kinase_pairs_scored`, and unscored-pair
+counts.
+
 ## Limitations
 
 - Bundled runtime references are rat-first in this release.

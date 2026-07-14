@@ -2,9 +2,8 @@
 
 ## Version 1.6.0
 
-These notes describe the next planned release. The package metadata and
-citation file still identify the current packaged release as `1.5.2` until the
-release version is bumped.
+These notes describe Version 1.6.0. The package metadata in `pyproject.toml`
+and the citation metadata in `CITATION.cff` both declare `1.6.0`.
 
 ## Release Overview
 
@@ -22,9 +21,14 @@ ssGSEA-style kinase activity, and offline enrichment ORA.
   metadata, builder support, identity validators, and regression coverage
   across dataset construction, kinase, differential, signalome, bundle
   reconstruction, and public output tables.
-- Local reference-bundle builder support, stricter reference manifest and
-  provenance validation, approved human/mouse reference-bundle handling, and
-  tightened rat bundled-reference licence/provenance metadata.
+- Local reference-bundle builder support with separate upstream
+  `source_version` and local PhosPy `reference_version` fields. When
+  `reference_version` is omitted, the builder emits a deterministic
+  `local-snapshot-sha256-...` value derived from the two local source-file
+  SHA-256 fingerprints.
+- Stricter reference manifest and provenance validation, caller-supplied
+  human/mouse reference-bundle handling, and tightened rat bundled-reference
+  licence/provenance metadata.
 - Kinase Library-style reference schema loading, motif scoring, reference
   display-ambiguity policy handling, and KinaseWorkflow integration for
   caller-supplied local `KinaseLibraryResource` values. This is not an official
@@ -131,10 +135,23 @@ ssGSEA-style kinase activity, and offline enrichment ORA.
 - Testing audit documentation, performance-contract expectations, bundled rat
   reference metadata, Kinase Library workflow requirements, and motif-scoring
   support-boundary docs were refreshed.
+- Reference-bundle release hardening now validates exact bytes in the source
+  tree and built wheels, rejects unknown manifest/evidence fields, rejects
+  non-Boolean or JSON null raw `redistribution_allowed` values, requires an
+  explicit `verified_at` date for approved bundled evidence, and treats file
+  hashes as integrity checks rather than redistribution approval.
 
 ## Scientific Scope
 
-Bundled runtime references remain rat-only for `ReferencePreset.AUTO`.
+Bundled runtime references remain rat-only for `ReferencePreset.AUTO`. The only
+approved packaged runtime reference is the exact rat `l6_native` snapshot
+derived from upstream PhosR 1.20.0 package data. Its approval is scoped only to
+the exact packaged files in that committed PhosPy snapshot. It does not approve
+future bundles, other rat bundles, other organisms, or future PhosR/PhosPy
+snapshots, and it does not claim independent direct permission from
+PhosphoSitePlus, PRIDE, Kinase Library, or another upstream scientific
+database.
+
 Human and mouse remain valid organisms, but workflows require an explicit
 caller-supplied `ReferenceBundle` unless a future release adds approved
 redistributable packaged data.
@@ -151,6 +168,17 @@ equivalence, validated Kinase Library parity, or PTM-SEA support.
 Enrichment support is offline ORA over caller-supplied collections and explicit
 backgrounds. It does not bundle GO, KEGG, Reactome, PTM-SEA, PTMsigDB, Enrichr,
 gseapy, clusterProfiler, GSEA, or online-service behaviour.
+Typed selected/background identifier-set provenance is optional and does not
+change enrichment statistics. PhosPy-derived quantitative provenance preserves
+declared-versus-observed input intensity-scale evidence: declared-only evidence
+emits the documented caveat, while observed transformation evidence is recorded
+without that caveat.
+
+Kinase and signalome provenance distinguish causal site-row attrition from
+compatibility metrics. `row_attrition` records stage-local site-row removals
+only when rows are actually removed by that stage. `row_attrition_metrics`
+remains available for legacy diagnostics, including kinase site/kinase-pair
+counts, but pair loss is not encoded as site-row loss.
 
 Fixed-effect batch/covariate/block differential designs, linear batch
 residualisation, and native SPS/RUV-style preprocessing correction through

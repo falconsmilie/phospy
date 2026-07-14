@@ -139,7 +139,13 @@ allowed alphabet, supported uses, and known limitations when applicable.
 `redistribution_allowed` compatibility value must not be used as the review
 authority. If JSON includes `redistribution_allowed`, it must be a boolean and
 must mirror `redistribution_status`: `true` for `approved`, `false` for
-`external_only` or `unresolved`.
+`external_only` or `unresolved`. JSON `null`, string booleans, numeric values,
+arrays, and objects are invalid for this raw approval-state field.
+
+Runtime manifest JSON uses strict input schemas. Unknown fields are rejected at
+the manifest top level, in `files[]` entries, in `redistribution_evidence`, and
+in each nested evidence object. Compatibility aliases derived for runtime
+payloads are not accepted as manifest-input fields.
 
 ### Redistribution Status Policy
 
@@ -157,7 +163,8 @@ Unresolved bundled references block release. External-only references must not
 be shipped as bundled data. Codex agents and human developers must not mark
 references approved without verified evidence. Source lineage, file hashes,
 and upstream package names are provenance evidence, not redistribution approval
-by themselves.
+by themselves. File hashes establish source and package byte identity for
+validation; hashes alone do not establish redistribution approval.
 
 For approved bundled manifests, `redistribution_evidence` is release-significant
 typed state rather than approval prose. It records:
@@ -169,11 +176,25 @@ typed state rather than approval prose. It records:
   relative POSIX packaged-file paths, and no future-bundle coverage
 - repository notice and bundle-local attribution paths
 - `independent_database_permission_claimed=false`
+- an explicit ISO `YYYY-MM-DD` `verified_at` date for approved bundled release
+  evidence; this date is never inferred from retrieval dates, generation dates,
+  filesystem metadata, Git history, notes, or wheel metadata
 
 The release gate checks that evidence license metadata agrees with the manifest
 license, scope ID/version match the manifest, scope files exactly equal
 `files[].relative_path`, attribution files exist, and contradictory legal
 approval text or affirmative independent database permission claims are absent.
+
+### Current Rat `l6_native` Scope
+
+The current approved packaged runtime reference scope is only the exact rat
+`l6_native` snapshot derived from upstream PhosR 1.20.0 package data and
+committed under `src/phospy/data/reference_bundles/rat/l6_native/`. The approval
+applies only to the exact packaged files in that committed PhosPy snapshot. It
+does not approve future bundles, other rat bundles, other organisms, or future
+PhosR/PhosPy snapshots, and it does not claim independent direct permission
+from PhosphoSitePlus, PRIDE, Kinase Library, or another upstream scientific
+database.
 
 ## Category 2: Test Fixture Data
 
