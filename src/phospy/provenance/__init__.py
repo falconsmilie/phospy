@@ -18,6 +18,7 @@ from phospy.provenance.hashing import (
     hash_table_tolerance,
 )
 from phospy.provenance.models import (
+    TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V1,
     BatchCorrectionProvenance,
     BatchCorrectionRejectedEntity,
     DeterminismKind,
@@ -30,6 +31,7 @@ from phospy.provenance.models import (
     RowAttritionReport,
     RunProvenance,
     TableFingerprint,
+    TrustedDatasetConstructionAssertions,
 )
 from phospy.provenance.references import fingerprint_local_reference_source_file
 from phospy.provenance.scientific_policy_models import (
@@ -64,7 +66,9 @@ __all__ = [
     "ScientificPolicyId",
     "ScientificPolicyParameter",
     "ScientificPolicyRecord",
+    "TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V1",
     "TableFingerprint",
+    "TrustedDatasetConstructionAssertions",
     "batch_correction_provenance_from_payload",
     "batch_correction_provenance_to_payload",
     "collect_batch_correction_environment_provenance",

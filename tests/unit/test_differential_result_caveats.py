@@ -209,8 +209,15 @@ def test_differential_result_caveats_include_direct_dataset_construction() -> No
 
     caveat = _caveat_by_code(result, DIFFERENTIAL_DIRECT_TRUSTED_DATASET_CAVEAT_CODE)
 
-    assert caveat.severity == "info"
+    assert caveat.severity == "warning"
     assert caveat.details["construction_source"] == "direct_trusted_construction"
+    assert caveat.details["trusted_assertion_metadata_provided"] is False
+    assert caveat.details["missing_trusted_assertions"] == [
+        "sequence_user_asserted",
+        "identity_user_asserted",
+        "quantitative_meaning_user_asserted",
+        "reference_context_user_asserted",
+    ]
     assert "input_tables" not in caveat.details
 
 

@@ -6,7 +6,11 @@ import pandas as pd
 
 from phospy.provenance.environment import collect_environment_provenance
 from phospy.provenance.hashing import fingerprint_optional_table
-from phospy.provenance.models import RunProvenance, TableFingerprint
+from phospy.provenance.models import (
+    RunProvenance,
+    TableFingerprint,
+    TrustedDatasetConstructionAssertions,
+)
 
 DIRECT_CONSTRUCTION_WORKFLOW_NAME = "analysis_ready_dataset_direct_construction"
 DIRECT_CONSTRUCTION_METHOD = "AnalysisReadyPhosphoDataset.__init__"
@@ -14,6 +18,11 @@ DIRECT_CONSTRUCTION_SOURCE = "direct_trusted_construction"
 DIRECT_CONSTRUCTION_WARNING = (
     "Direct construction cannot prove biological correctness of caller-provided "
     "analysis-ready state."
+)
+DIRECT_CONSTRUCTION_MISSING_ASSERTIONS_WARNING = (
+    "No typed trusted construction assertion metadata was supplied; sequence, "
+    "identity, quantitative meaning, and reference context are not recorded as "
+    "user-asserted."
 )
 
 
@@ -25,9 +34,15 @@ def build_direct_construction_provenance(
     total: pd.DataFrame | None,
     comparisons: pd.DataFrame | None,
     imputation_observation_mask: pd.DataFrame | None,
+    trusted_construction_assertions: TrustedDatasetConstructionAssertions | None,
 ) -> RunProvenance:
     """Build the minimal provenance marker for trusted direct construction."""
 
+    assertions = (
+        TrustedDatasetConstructionAssertions.missing()
+        if trusted_construction_assertions is None
+        else trusted_construction_assertions
+    )
     table_entries = (
         ("dataset.phospho", phospho),
         ("dataset.site_metadata", site_metadata),
@@ -37,20 +52,26 @@ def build_direct_construction_provenance(
         ("dataset.imputation_observation_mask", imputation_observation_mask),
     )
     table_fingerprints = _fingerprint_direct_construction_tables(table_entries)
+    construction_payload: dict[str, object] = {
+        "method": DIRECT_CONSTRUCTION_METHOD,
+        "source": DIRECT_CONSTRUCTION_SOURCE,
+        "builder_used": False,
+        "warning": DIRECT_CONSTRUCTION_WARNING,
+        "trusted_construction_assertions": assertions.to_payload(),
+        "trusted_assertion_metadata_provided": (assertions.assertion_metadata_provided),
+        "missing_trusted_assertions": list(assertions.missing_assertions),
+    }
+    if not assertions.assertion_metadata_provided:
+        construction_payload["assertion_warning"] = (
+            DIRECT_CONSTRUCTION_MISSING_ASSERTIONS_WARNING
+        )
     return RunProvenance(
         environment=collect_environment_provenance(),
         input_tables=table_fingerprints,
         preprocessing_stages=(),
         reference=None,
         workflow_name=DIRECT_CONSTRUCTION_WORKFLOW_NAME,
-        workflow_parameters={
-            "construction": {
-                "method": DIRECT_CONSTRUCTION_METHOD,
-                "source": DIRECT_CONSTRUCTION_SOURCE,
-                "builder_used": False,
-                "warning": DIRECT_CONSTRUCTION_WARNING,
-            }
-        },
+        workflow_parameters={"construction": construction_payload},
         random_state=None,
         random_seed_policy=None,
         output_tables=table_fingerprints,
@@ -71,6 +92,7 @@ def _fingerprint_direct_construction_tables(
 
 __all__ = [
     "DIRECT_CONSTRUCTION_METHOD",
+    "DIRECT_CONSTRUCTION_MISSING_ASSERTIONS_WARNING",
     "DIRECT_CONSTRUCTION_SOURCE",
     "DIRECT_CONSTRUCTION_WARNING",
     "DIRECT_CONSTRUCTION_WORKFLOW_NAME",

@@ -341,15 +341,25 @@ def test_direct_dataset_construction_without_provenance_records_marker() -> None
     assert provenance.random_state is None
     assert provenance.random_seed_policy is None
     assert provenance.scientific_policies == ()
-    assert provenance.workflow_parameters["construction"] == {
-        "method": "AnalysisReadyPhosphoDataset.__init__",
-        "source": "direct_trusted_construction",
-        "builder_used": False,
-        "warning": (
-            "Direct construction cannot prove biological correctness of "
-            "caller-provided analysis-ready state."
-        ),
-    }
+    construction = provenance.workflow_parameters["construction"]
+    assert isinstance(construction, dict)
+    assert construction["method"] == "AnalysisReadyPhosphoDataset.__init__"
+    assert construction["source"] == "direct_trusted_construction"
+    assert construction["builder_used"] is False
+    assert construction["warning"] == (
+        "Direct construction cannot prove biological correctness of "
+        "caller-provided analysis-ready state."
+    )
+    assert construction["trusted_assertion_metadata_provided"] is False
+    assert construction["missing_trusted_assertions"] == [
+        "sequence_user_asserted",
+        "identity_user_asserted",
+        "quantitative_meaning_user_asserted",
+        "reference_context_user_asserted",
+    ]
+    assertions = construction["trusted_construction_assertions"]
+    assert isinstance(assertions, dict)
+    assert assertions["assertion_metadata_provided"] is False
     assert {item.name for item in provenance.input_tables} == {
         "dataset.phospho",
         "dataset.site_metadata",
@@ -371,6 +381,19 @@ def test_direct_dataset_construction_provenance_serializes_round_trip() -> None:
     assert to_payload(restored) == payload
     assert payload["workflow_name"] == "analysis_ready_dataset_direct_construction"
     assert payload["preprocessing_stages"] == []
+    workflow_parameters = payload["workflow_parameters"]
+    assert isinstance(workflow_parameters, dict)
+    construction = workflow_parameters["construction"]
+    assert isinstance(construction, dict)
+    trusted_assertions = construction["trusted_construction_assertions"]
+    assert isinstance(trusted_assertions, dict)
+    assert trusted_assertions["assertion_metadata_provided"] is False
+    assert trusted_assertions["missing_assertions"] == [
+        "sequence_user_asserted",
+        "identity_user_asserted",
+        "quantitative_meaning_user_asserted",
+        "reference_context_user_asserted",
+    ]
 
 
 def test_dataset_builder_emits_run_provenance_and_stage_details() -> None:

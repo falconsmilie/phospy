@@ -43,6 +43,17 @@ compatible organism, residue-class lanes, score matrices, sequence-window
 definition, and provenance. No official Kinase Library compatibility or parity
 claim is made.
 
+Sequence support uses a layered readiness contract. Analysis-ready sequence
+evidence means `AnalysisReadyPhosphoDataset` carries a required, plausible
+`site_sequence` value for each row. Workflow-specific sequence-context readiness
+is validated later by sequence-aware workflows against the selected
+dataset/reference sequence and active scoring contract. Every current kinase
+scoring mode requires centered phosphosite context; Kinase Library
+resource-backed motif modes additionally require the exact fixed centered
+window, source, residue lane, and alphabet/padding policy supplied by the
+caller-provided resource. Not every `site_sequence` value that passes dataset
+construction is motif-ready.
+
 Reference-context compatibility is conservative by default: kinase and signalome
 workflows require known matching dataset/reference contexts. The explicit
 `ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT` config override
@@ -316,7 +327,7 @@ claimed.
 | Kinase activity scoring | `validated PhosPy implementation` | Supported exploratory activity score methods: `simplified_weighted_substrate_activity_v1`, `ksea_zscore_activity_v1`, and `ssgsea_substrate_enrichment_activity_v1` | Unit activity tests (`tests/unit/test_activity_science.py`), workflow activity tests (`tests/workflows/test_kinase_activity_ssgsea.py`), and parity activity gate (`tests/parity/test_activity_stage_parity.py`) | Scores depend on substrate coverage and reference evidence; sparse support weakens interpretation. KSEA-style activity scores are not a claim of full PhosR kinase activity equivalence. ssGSEA-style activity-like scores are a PhosPy rank-walk implementation and are not a PTM-SEA parity claim. Causal kinase activity claims require external validation. |
 | Signalome analysis | `parity-gated` | `SignalomeWorkflow` module assignment, network outputs, and protein-site context | `tests/parity/test_signalome_workflow_parity.py`, `tests/parity/test_signalome_clustering_backend_parity.py` | Derived summaries, not causal proof. Requires explicit signalome protein grouping metadata in `site_metadata.protein_id`. |
 | Signalome sampled candidate scoring policy | `experimental` | `SignalomeConfig.sampled_candidate_scoring()` approximates candidate module-count scoring | Parity/contract coverage through signalome parity tests and workflow contract checks | Approximation applies to candidate scoring only; tree generation remains exact-policy governed. |
-| Sequence context | `parity-gated` | `site_sequence` required at analysis-ready boundary and used in kinase scoring/prediction | `tests/parity/test_l6_prediction_parity.py`, `tests/parity/test_prediction_science_parity.py` | Sequence quality remains an upstream dependency. |
+| Sequence context | `parity-gated` | `site_sequence` is required as analysis-ready sequence evidence, and kinase/signalome validators separately enforce workflow-specific centered sequence-context readiness before sequence-aware scoring/prediction. | `tests/parity/test_l6_prediction_parity.py`, `tests/parity/test_prediction_science_parity.py` | Base dataset validation is plausibility-level and does not make every `site_sequence` motif-ready. Kinase Library-style motif scoring requires the exact centered window from the selected `KinaseLibraryResource`, with known source and compatible residue lane. |
 | Localisation handling | `validated PhosPy implementation` | Localisation confidence validation and fail-fast threshold policies are supported | `tests/unit/test_localisation_policy_preprocessing.py`, `tests/unit/test_validator_boundaries.py` | No full localisation-filter workflow parity claim in this release. |
 | Phosphosite importers | `validated PhosPy implementation` | Generic `MappedPhosphositeTableImporter`, `MaxQuantPhosphositeImporter`, and `FragPipePTMProphetImporter` translate upstream phosphosite tables into `PhosphositeImportResult` candidates and dataset-builder requests | `tests/unit/test_maxquant_phosphosite_importer.py`, `tests/unit/test_fragpipe_ptmprophet_importer.py`, `tests/integration/test_maxquant_importer_dataset_integration.py`, `tests/integration/test_fragpipe_importer_dataset_integration.py` | Importers do not construct analysis-ready datasets, infer sample groups, infer contrasts, infer batches or blocks, infer differential design, or bypass builder validation. Targeted MaxQuant and FragPipe/PTMProphet adapters are not broad vendor/search-engine parity, Spectronaut/DIA-NN support, or upstream statistical result import. Generic mapped import of a caller-mapped compatible table is not a dedicated Spectronaut or DIA-NN importer. |
 | Missing values | `parity-gated` | Missing-data policy execution in preprocessing and downstream score preconditioning | `tests/parity/test_preprocessing_science_parity.py`, unit missing-data tests | Policy choice changes retained rows and downstream behavior. |
@@ -382,6 +393,10 @@ commands/workflows:
 - Kinase Library workflow motif scores are normalized per kinase matrix to a
   unit interval for within-run ranking support. They are not calibrated
   probabilities and do not imply activity without an explicit activity method.
+- An `AnalysisReadyPhosphoDataset` with `site_sequence` has required sequence
+  evidence, not guaranteed motif-ready sequence context. Sequence-aware
+  workflows may still reject rows or requests that fail centered-context,
+  sequence-source, residue, alphabet, padding, or conflict-policy requirements.
 - In `KinaseWorkflow`, `scoring_mode="kinase_library_motif"` still runs inside
   normal kinase workflow orchestration. Reference discovery and display-to-row
   projection happen before scoring; profile context from the resolved

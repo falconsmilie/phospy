@@ -25,6 +25,7 @@ from phospy.workflows.intensity_scale_evidence import (
 )
 from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
 from phospy.workflows.result_caveat_helpers import (
+    build_direct_trusted_dataset_construction_caveat,
     build_localisation_policy_details,
     build_reference_context_compatibility_caveat,
     deduplicate_caveats,
@@ -42,6 +43,7 @@ KINASE_SCORING_LIMITATION_CAVEAT_CODE = "kinase_non_phosr_equivalent_scoring"
 KINASE_LIBRARY_MOTIF_ONLY_CAVEAT_CODE = "kinase_library_motif_only_sequence_evidence"
 KINASE_PROFILE_SELF_INCLUSION_CAVEAT_CODE = "kinase_profile_self_inclusion_allowed"
 KINASE_PROFILE_LEAVE_ONE_OUT_CAVEAT_CODE = "kinase_profile_leave_one_out"
+KINASE_DIRECT_TRUSTED_DATASET_CAVEAT_CODE = "kinase_direct_trusted_dataset_construction"
 
 
 def build_kinase_result_caveats(
@@ -58,6 +60,14 @@ def build_kinase_result_caveats(
     )
     if declared_input_scale is not None:
         caveats.append(declared_input_scale)
+    direct_construction = build_direct_trusted_dataset_construction_caveat(
+        dataset=request.dataset,
+        code=KINASE_DIRECT_TRUSTED_DATASET_CAVEAT_CODE,
+        workflow_scope="kinase_scoring",
+        workflow_label="kinase workflow",
+    )
+    if direct_construction is not None:
+        caveats.append(direct_construction)
     caveats.extend(_attrition_policy_caveats(request))
     localisation = _permissive_localisation_caveat(request)
     if localisation is not None:
@@ -403,6 +413,7 @@ def _sum_int(frame: pd.DataFrame, column: str) -> int:
 
 __all__ = [
     "KINASE_ATTRITION_POLICY_CAVEAT_CODE",
+    "KINASE_DIRECT_TRUSTED_DATASET_CAVEAT_CODE",
     "KINASE_NON_DEFAULT_REFERENCE_SOURCE_CAVEAT_CODE",
     "KINASE_PERMISSIVE_LOCALISATION_POLICY_CAVEAT_CODE",
     "KINASE_REFERENCE_AUTO_RESOLUTION_CAVEAT_CODE",

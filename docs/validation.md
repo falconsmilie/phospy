@@ -25,6 +25,11 @@ or blank values until a workflow explicitly requires it. Signalome is the
 workflow that requires complete `protein_id` values as algorithm-specific
 protein grouping metadata.
 
+At the analysis-ready dataset boundary, `site_sequence` means required sequence
+evidence for the row: a non-empty, plausible amino-acid context string aligned
+to the phosphosite identity. It does not mean the value is already suitable for
+motif scoring or any specific sequence-aware workflow.
+
 `sample_metadata`, when provided, must align to the phospho sample columns and
 must have unique column names.
 
@@ -74,13 +79,22 @@ A built `AnalysisReadyPhosphoDataset` must have:
 - an `Organism` enum value or `None`
 - explicit intensity-scale and processing-state metadata
 
-The dataset boundary treats `site_sequence` as required sequence evidence and
-validates it as a plausible amino-acid context. That base check is deliberately
-not the same as a workflow-specific motif window contract. Sequence-aware
-workflows may impose stricter requirements on the selected sequence context,
-including exact window length, center index, center residue, alphabet,
-terminal-padding policy, lowercase policy, modified-residue-symbol policy, and
-known sequence source.
+Sequence readiness has two levels:
+
+- Analysis-ready sequence evidence: `AnalysisReadyPhosphoDataset` requires
+  `site_sequence` for every row and validates it as a plausible amino-acid
+  context string.
+- Workflow-specific sequence-context readiness: a sequence-aware workflow
+  validates the selected dataset/reference sequence after request-specific
+  resolution and conflict policy. That stricter contract may require centered
+  phosphosite context, exact window length, center index, center residue,
+  alphabet, terminal-padding policy, lowercase policy,
+  modified-residue-symbol policy, and known sequence source.
+
+The base dataset check is deliberately plausibility-level. Dataset construction
+does not know which workflow, scoring mode, reference bundle, conflict policy, or
+motif resource will later be selected, so it cannot prove biological correctness
+or motif readiness for every `site_sequence` value.
 
 ## Preprocessing Rules
 
@@ -201,15 +215,18 @@ be disabled with `activity_config=None`, which is useful for tiny examples.
 Mixed corrected/uncorrected quantitative meaning is rejected by default; set
 `scoring_config.allow_mixed_total_protein_quantitative_meaning=True` to opt in.
 
-Kinase Library-style motif scoring validates the selected site sequence against
-the local `KinaseLibraryResource.sequence_window` before interpretation can
-reach scoring. The sequence must be present, non-empty, exactly the configured
-window length, centered at the configured index, and centered on `S`, `T`, or
-`Y`. Unsupported characters, lowercase residues, modified-residue symbols, and
-terminal padding are rejected unless the selected workflow contract explicitly
-allows them. Opaque display labels are not sequence evidence, unknown sequence
-source is invalid, and incompatible dataset/reference sequences require an
-explicit conflict policy such as `prefer_dataset` or `prefer_reference`.
+Every current kinase scoring mode requires workflow-specific centered
+phosphosite sequence context before execution. Kinase Library-style motif modes
+add a fixed centered-window contract from the local
+`KinaseLibraryResource.sequence_window`: the selected sequence must be present,
+non-empty, exactly the configured upstream-plus-site-plus-downstream length,
+centered at the configured index, and centered on `S`, `T`, or `Y`. Unsupported
+characters, lowercase residues, modified-residue symbols, and terminal padding
+are rejected unless the selected workflow contract explicitly allows them.
+Opaque display labels are not sequence evidence, unknown sequence source is
+invalid for Kinase Library motif scoring, and incompatible dataset/reference
+sequences require an explicit conflict policy such as `prefer_dataset` or
+`prefer_reference`.
 
 ### Signalome Workflow
 
@@ -221,8 +238,9 @@ protein identity.
 Signalome aligns dataset, prediction, and score tables by `site_key` and does
 not reinterpret display IDs as row identity.
 Signalome validates that sequence-aware upstream site identity still provides a
-centered phosphosite sequence context, but it does not apply the fixed Kinase
-Library motif-window length contract.
+centered phosphosite sequence context, including an `S`, `T`, or `Y` center that
+matches the site residue, but it does not apply the fixed Kinase Library
+motif-window length contract.
 Mixed corrected/uncorrected quantitative meaning is rejected by default; set
 `config.validation.allow_mixed_total_protein_quantitative_meaning=True` to opt in.
 

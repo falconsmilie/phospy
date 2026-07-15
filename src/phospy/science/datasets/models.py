@@ -17,7 +17,7 @@ from phospy.frames.ownership import (
     own_dataframe,
     own_optional_dataframe,
 )
-from phospy.provenance.models import RunProvenance
+from phospy.provenance.models import RunProvenance, TrustedDatasetConstructionAssertions
 from phospy.science.datasets.direct_construction import (
     build_direct_construction_provenance,
 )
@@ -191,6 +191,19 @@ def _validate_optional_comparisons(
     return comparisons_frame
 
 
+def _resolve_trusted_construction_assertions(
+    *,
+    trusted_construction_assertions: TrustedDatasetConstructionAssertions | None,
+    provenance: RunProvenance | None,
+    assume_owned: bool,
+) -> TrustedDatasetConstructionAssertions | None:
+    if trusted_construction_assertions is not None:
+        return trusted_construction_assertions
+    if provenance is None or not assume_owned:
+        return TrustedDatasetConstructionAssertions.missing()
+    return None
+
+
 def _analysis_ready_matrix_missing_value_count(matrix: pd.DataFrame) -> int:
     if _can_use_fast_numeric_missing_value_scan(matrix):
         try:
@@ -246,8 +259,10 @@ class AnalysisReadyPhosphoDataset:
     coherence, and established transformation state. It cannot prove the
     biological correctness of user-asserted provenance or scientific claims
     supplied by a direct caller.
-    Direct construction without supplied provenance receives a minimal
-    direct-construction provenance marker that records this audit limitation.
+    Direct construction without supplied assertion metadata records explicit
+    missing trusted-construction assertions; direct construction without
+    supplied provenance receives a minimal direct-construction provenance marker
+    that records this audit limitation.
 
     `phospho` stores the quantitative matrix after builder preprocessing policy
     has been applied. When total/protein correction is enabled in the builder
@@ -274,6 +289,7 @@ class AnalysisReadyPhosphoDataset:
     preprocessing_report: DatasetPreprocessingReport | None = None
     protein_aware_preparation: ProteinAwarePreparationResult | None = None
     provenance: RunProvenance | None = None
+    trusted_construction_assertions: TrustedDatasetConstructionAssertions | None = None
     allow_opaque_site_values: bool = False
     _phospho: pd.DataFrame = field(init=False, repr=False)
     _site_metadata: pd.DataFrame = field(init=False, repr=False)
@@ -301,6 +317,8 @@ class AnalysisReadyPhosphoDataset:
         protein_aware_preparation: ProteinAwarePreparationResult | None = None,
         provenance: RunProvenance | None = None,
         allow_opaque_site_values: bool = False,
+        trusted_construction_assertions: TrustedDatasetConstructionAssertions
+        | None = None,
         _assume_owned: bool = False,
     ) -> None:
         _require_instance(
@@ -429,6 +447,21 @@ class AnalysisReadyPhosphoDataset:
             expected_type=RunProvenance,
             error_message="dataset.provenance must be RunProvenance or None",
         )
+        _require_optional_instance(
+            trusted_construction_assertions,
+            expected_type=TrustedDatasetConstructionAssertions,
+            error_message=(
+                "dataset.trusted_construction_assertions must be "
+                "TrustedDatasetConstructionAssertions or None"
+            ),
+        )
+        resolved_trusted_construction_assertions = (
+            _resolve_trusted_construction_assertions(
+                trusted_construction_assertions=trusted_construction_assertions,
+                provenance=provenance,
+                assume_owned=_assume_owned,
+            )
+        )
         comparisons = _validate_optional_comparisons(
             comparisons=comparisons,
             expected_index=phospho_table.frame.index,
@@ -452,6 +485,9 @@ class AnalysisReadyPhosphoDataset:
                 total=None if total_table is None else total_table.frame,
                 comparisons=comparisons,
                 imputation_observation_mask=imputation_observation_mask,
+                trusted_construction_assertions=(
+                    resolved_trusted_construction_assertions
+                ),
             )
         object.__setattr__(
             self, "intensity_scale_state", validated_intensity_scale_state
@@ -459,6 +495,11 @@ class AnalysisReadyPhosphoDataset:
         object.__setattr__(self, "processing_state", processing_state)
         object.__setattr__(self, "organism", organism)
         object.__setattr__(self, "preprocessing_report", preprocessing_report)
+        object.__setattr__(
+            self,
+            "trusted_construction_assertions",
+            resolved_trusted_construction_assertions,
+        )
         object.__setattr__(
             self,
             "protein_aware_preparation",
@@ -589,6 +630,8 @@ class AnalysisReadyPhosphoDataset:
         preprocessing_report: DatasetPreprocessingReport | None = None,
         protein_aware_preparation: ProteinAwarePreparationResult | None = None,
         provenance: RunProvenance | None = None,
+        trusted_construction_assertions: TrustedDatasetConstructionAssertions
+        | None = None,
         allow_opaque_site_values: bool = False,
     ) -> AnalysisReadyPhosphoDataset:
         """Construct from caller-owned analysis-ready tables.
@@ -603,9 +646,14 @@ class AnalysisReadyPhosphoDataset:
 
         Validation can confirm structural consistency, but it cannot prove the
         biological correctness of caller-asserted analysis-ready state,
-        provenance, or scientific claims. Without supplied provenance, the
-        dataset receives the same direct trusted-construction marker used by
-        the compatibility constructor.
+        provenance, or scientific claims. Pass
+        ``trusted_construction_assertions`` when sequence, identity,
+        quantitative meaning, and reference context are asserted by the caller.
+        Without supplied assertion metadata, the dataset records explicit
+        missing assertion provenance and downstream workflows can surface a
+        stronger trusted-construction caveat. Without supplied run provenance,
+        the dataset receives the same direct trusted-construction marker used
+        by the compatibility constructor.
         """
 
         return cls(
@@ -621,6 +669,7 @@ class AnalysisReadyPhosphoDataset:
             preprocessing_report=preprocessing_report,
             protein_aware_preparation=protein_aware_preparation,
             provenance=provenance,
+            trusted_construction_assertions=trusted_construction_assertions,
             allow_opaque_site_values=allow_opaque_site_values,
         )
 

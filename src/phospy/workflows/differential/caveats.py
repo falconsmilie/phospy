@@ -2,17 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-
 import pandas as pd
 
 from phospy.contracts.configs import DifferentialAnalysisConfig
 from phospy.contracts.result_caveats import ResultCaveat
-from phospy.provenance.models import RunProvenance
-from phospy.science.datasets.direct_construction import (
-    DIRECT_CONSTRUCTION_SOURCE,
-    DIRECT_CONSTRUCTION_WORKFLOW_NAME,
-)
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.differential.models import (
     DIFFERENTIAL_RESULT_STATUS_COLUMN,
@@ -25,6 +18,9 @@ from phospy.workflows.differential.models import (
 )
 from phospy.workflows.intensity_scale_evidence import (
     build_declared_input_intensity_scale_caveat,
+)
+from phospy.workflows.result_caveat_helpers import (
+    build_direct_trusted_dataset_construction_caveat,
 )
 
 DIFFERENTIAL_DIRECT_TRUSTED_DATASET_CAVEAT_CODE = (
@@ -61,20 +57,14 @@ def build_differential_result_caveats(
     if declared_input_scale is not None:
         caveats.append(declared_input_scale)
 
-    direct_construction_details = _direct_construction_details(dataset.provenance)
-    if direct_construction_details is not None:
-        caveats.append(
-            ResultCaveat(
-                code=DIFFERENTIAL_DIRECT_TRUSTED_DATASET_CAVEAT_CODE,
-                severity="info",
-                message=(
-                    "Input dataset was directly constructed as trusted "
-                    "analysis-ready state; differential analysis did not rerun "
-                    "dataset-building validation."
-                ),
-                details=direct_construction_details,
-            )
-        )
+    direct_construction = build_direct_trusted_dataset_construction_caveat(
+        dataset=dataset,
+        code=DIFFERENTIAL_DIRECT_TRUSTED_DATASET_CAVEAT_CODE,
+        workflow_scope="differential",
+        workflow_label="differential analysis",
+    )
+    if direct_construction is not None:
+        caveats.append(direct_construction)
 
     declared_scale_details = _declared_scale_override_details(
         dataset=dataset,
@@ -144,39 +134,6 @@ def build_differential_result_caveats(
         )
 
     return tuple(caveats)
-
-
-def _direct_construction_details(
-    provenance: RunProvenance | None,
-) -> dict[str, object] | None:
-    if provenance is None:
-        return None
-    construction = _construction_payload(provenance.workflow_parameters)
-    source = construction.get("source")
-    if (
-        provenance.workflow_name != DIRECT_CONSTRUCTION_WORKFLOW_NAME
-        and source != DIRECT_CONSTRUCTION_SOURCE
-    ):
-        return None
-
-    details: dict[str, object] = {
-        "dataset_workflow_name": provenance.workflow_name,
-        "construction_source": "" if source is None else str(source),
-    }
-    builder_used = construction.get("builder_used")
-    if isinstance(builder_used, bool):
-        details["builder_used"] = builder_used
-    warning = construction.get("warning")
-    if isinstance(warning, str) and warning.strip():
-        details["construction_warning"] = warning.strip()
-    return details
-
-
-def _construction_payload(parameters: Mapping[str, object]) -> Mapping[str, object]:
-    construction = parameters.get("construction")
-    if isinstance(construction, Mapping):
-        return construction
-    return {}
 
 
 def _declared_scale_override_details(

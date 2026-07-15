@@ -40,15 +40,42 @@ support and must not be promoted through `phospy.api` or the root package.
 Request DTOs may enforce narrow local type checks, but they must not become the
 owner of dataset validation.
 
+## Sequence Readiness Contract
+
+This ADR distinguishes three related states:
+
+- Analysis-ready sequence evidence: `AnalysisReadyPhosphoDataset` requires
+  `site_sequence` for every row. The dataset boundary checks that the value is a
+  non-empty, plausible amino-acid context aligned to phosphosite identity.
+- Workflow-specific sequence-context readiness: sequence-aware workflows resolve
+  the selected dataset/reference sequence and validate it against the active
+  workflow and scoring-mode contract before execution.
+- Kinase/motif-specific centered window readiness: Kinase Library resource-backed
+  motif modes require the selected sequence to match the
+  `KinaseLibraryResource.sequence_window` exactly, including
+  upstream-plus-site-plus-downstream length, center index, `S/T/Y` center
+  residue matched to the site, known sequence source, supported alphabet, and
+  accepted padding/lowercase/modified-residue policy.
+
+Base dataset validation is intentionally plausibility-level. Dataset
+construction happens before a caller selects a workflow, scoring mode,
+reference bundle, sequence conflict policy, or motif resource. It must therefore
+require `site_sequence` evidence without implying that every value is biologically
+correct, centered on the phosphosite, sourced for motif scoring, or compatible
+with a future resource-specific window. Stricter centered-sequence validation
+belongs to the sequence-aware workflow validators.
+
 ## Kinase Scoring Mode Semantics
 
 Kinase scoring modes are explicit workflow contracts.
 `kinase_scoring_mode_input_contract(...)` defines whether a scoring mode
 requires site sequences, centered sequence context, substrate/reference overlap,
 a `KinaseLibraryResource`, and profile construction. Every current kinase
-scoring mode requires `site_sequence` evidence. This matches the
-`AnalysisReadyPhosphoDataset` boundary, which requires complete
-`site_sequence` metadata.
+scoring mode requires `site_sequence` evidence and centered sequence context.
+The `site_sequence` evidence requirement matches the
+`AnalysisReadyPhosphoDataset` boundary, but the centered-context requirement is
+stricter and remains workflow-owned. Passing dataset construction does not make
+a sequence motif-ready.
 
 `kinase_library_contextual_motif` is contextual motif mode. It requires a
 caller-supplied `KinaseLibraryResource`, normal kinase workflow reference

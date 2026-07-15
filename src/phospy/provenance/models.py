@@ -24,6 +24,7 @@ PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3 = 3
 ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V1 = 1
 ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V2 = 2
 BATCH_CORRECTION_PROVENANCE_SCHEMA_VERSION_V1 = 1
+TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V1 = 1
 
 
 class DeterminismKind(str, Enum):
@@ -128,6 +129,12 @@ def _required_provenance_text(value: object, *, field_name: str) -> str:
     return text
 
 
+def _required_provenance_bool(value: object, *, field_name: str) -> bool:
+    if not isinstance(value, bool):
+        raise PhosPyInputError(f"{field_name} must be a bool")
+    return bool(value)
+
+
 def _optional_provenance_text(value: object | None) -> str | None:
     if value is None:
         return None
@@ -188,6 +195,159 @@ class InputIntensityScaleEvidence:
                 self.input_intensity_scale_source_detail
             )
         return payload
+
+
+@dataclass(frozen=True, slots=True)
+class TrustedDatasetConstructionAssertions:
+    """User assertion provenance for trusted direct dataset construction."""
+
+    sequence_user_asserted: bool
+    identity_user_asserted: bool
+    quantitative_meaning_user_asserted: bool
+    reference_context_user_asserted: bool
+    assertion_metadata_provided: bool = True
+    asserted_by: str | None = None
+    assertion_source: str | None = None
+    notes: str | None = None
+    schema_version: int = TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V1
+
+    def __post_init__(self) -> None:
+        sequence_user_asserted = _required_provenance_bool(
+            self.sequence_user_asserted,
+            field_name="trusted_dataset_construction_assertions.sequence_user_asserted",
+        )
+        identity_user_asserted = _required_provenance_bool(
+            self.identity_user_asserted,
+            field_name="trusted_dataset_construction_assertions.identity_user_asserted",
+        )
+        quantitative_meaning_user_asserted = _required_provenance_bool(
+            self.quantitative_meaning_user_asserted,
+            field_name=(
+                "trusted_dataset_construction_assertions."
+                "quantitative_meaning_user_asserted"
+            ),
+        )
+        reference_context_user_asserted = _required_provenance_bool(
+            self.reference_context_user_asserted,
+            field_name=(
+                "trusted_dataset_construction_assertions."
+                "reference_context_user_asserted"
+            ),
+        )
+        assertion_metadata_provided = _required_provenance_bool(
+            self.assertion_metadata_provided,
+            field_name=(
+                "trusted_dataset_construction_assertions.assertion_metadata_provided"
+            ),
+        )
+        if not assertion_metadata_provided and any(
+            (
+                sequence_user_asserted,
+                identity_user_asserted,
+                quantitative_meaning_user_asserted,
+                reference_context_user_asserted,
+            )
+        ):
+            raise PhosPyInputError(
+                "trusted_dataset_construction_assertions cannot record user "
+                "assertions when assertion_metadata_provided is False"
+            )
+        schema_version = _required_non_negative_row_count(
+            self.schema_version,
+            field_name="trusted_dataset_construction_assertions.schema_version",
+        )
+        if schema_version != TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V1:
+            raise PhosPyInputError(
+                "trusted_dataset_construction_assertions.schema_version must be "
+                f"{TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V1}"
+            )
+        object.__setattr__(
+            self,
+            "sequence_user_asserted",
+            sequence_user_asserted,
+        )
+        object.__setattr__(self, "identity_user_asserted", identity_user_asserted)
+        object.__setattr__(
+            self,
+            "quantitative_meaning_user_asserted",
+            quantitative_meaning_user_asserted,
+        )
+        object.__setattr__(
+            self,
+            "reference_context_user_asserted",
+            reference_context_user_asserted,
+        )
+        object.__setattr__(
+            self,
+            "assertion_metadata_provided",
+            assertion_metadata_provided,
+        )
+        object.__setattr__(
+            self,
+            "asserted_by",
+            _optional_provenance_text(self.asserted_by),
+        )
+        object.__setattr__(
+            self,
+            "assertion_source",
+            _optional_provenance_text(self.assertion_source),
+        )
+        object.__setattr__(self, "notes", _optional_provenance_text(self.notes))
+        object.__setattr__(self, "schema_version", schema_version)
+
+    @classmethod
+    def missing(cls) -> TrustedDatasetConstructionAssertions:
+        """Return explicit metadata for absent trusted assertion provenance."""
+
+        return cls(
+            sequence_user_asserted=False,
+            identity_user_asserted=False,
+            quantitative_meaning_user_asserted=False,
+            reference_context_user_asserted=False,
+            assertion_metadata_provided=False,
+            notes="No typed trusted construction assertion metadata was supplied.",
+        )
+
+    @property
+    def missing_assertions(self) -> tuple[str, ...]:
+        """Return required assertion fields not recorded as user-asserted."""
+
+        missing: list[str] = []
+        if not self.sequence_user_asserted:
+            missing.append("sequence_user_asserted")
+        if not self.identity_user_asserted:
+            missing.append("identity_user_asserted")
+        if not self.quantitative_meaning_user_asserted:
+            missing.append("quantitative_meaning_user_asserted")
+        if not self.reference_context_user_asserted:
+            missing.append("reference_context_user_asserted")
+        return tuple(missing)
+
+    @property
+    def all_required_assertions_present(self) -> bool:
+        """Return whether all required trusted construction assertions are present."""
+
+        return not self.missing_assertions
+
+    def to_payload(self) -> dict[str, object]:
+        """Return a JSON-compatible trusted assertion payload."""
+
+        return {
+            "schema_version": int(self.schema_version),
+            "assertion_metadata_provided": bool(self.assertion_metadata_provided),
+            "sequence_user_asserted": bool(self.sequence_user_asserted),
+            "identity_user_asserted": bool(self.identity_user_asserted),
+            "quantitative_meaning_user_asserted": bool(
+                self.quantitative_meaning_user_asserted
+            ),
+            "reference_context_user_asserted": bool(
+                self.reference_context_user_asserted
+            ),
+            "missing_assertions": list(self.missing_assertions),
+            "asserted_by": self.asserted_by,
+            "assertion_source": self.assertion_source,
+            "notes": self.notes,
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -637,4 +797,6 @@ __all__ = [
     "RowAttritionReport",
     "RunProvenance",
     "TableFingerprint",
+    "TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V1",
+    "TrustedDatasetConstructionAssertions",
 ]

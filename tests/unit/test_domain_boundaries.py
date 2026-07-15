@@ -209,15 +209,22 @@ def test_analysis_ready_from_trusted_tables_records_trusted_construction_marker(
 
     assert provenance is not None
     assert provenance.workflow_name == "analysis_ready_dataset_direct_construction"
-    assert provenance.workflow_parameters["construction"] == {
-        "method": "AnalysisReadyPhosphoDataset.__init__",
-        "source": "direct_trusted_construction",
-        "builder_used": False,
-        "warning": (
-            "Direct construction cannot prove biological correctness of "
-            "caller-provided analysis-ready state."
-        ),
-    }
+    construction = provenance.workflow_parameters["construction"]
+    assert isinstance(construction, dict)
+    assert construction["method"] == "AnalysisReadyPhosphoDataset.__init__"
+    assert construction["source"] == "direct_trusted_construction"
+    assert construction["builder_used"] is False
+    assert construction["warning"] == (
+        "Direct construction cannot prove biological correctness of "
+        "caller-provided analysis-ready state."
+    )
+    assert construction["trusted_assertion_metadata_provided"] is False
+    assert construction["missing_trusted_assertions"] == [
+        "sequence_user_asserted",
+        "identity_user_asserted",
+        "quantitative_meaning_user_asserted",
+        "reference_context_user_asserted",
+    ]
 
 
 def test_direct_construction_records_provenance_marker() -> None:
