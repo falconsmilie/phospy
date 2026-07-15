@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 from phospy.contracts.configs.differential import (
     IMPUTED_VALUE_POLICY_REJECT,
@@ -421,7 +421,10 @@ def _technical_replicate_groups(
     if workflow_provenance is None:
         return ()
     groups_raw = workflow_provenance.get("groups")
-    if not isinstance(groups_raw, list):
+    if not isinstance(groups_raw, Sequence) or isinstance(
+        groups_raw,
+        (str, bytes, bytearray),
+    ):
         return ()
     groups: list[DifferentialTechnicalReplicateGroup] = []
     for item in groups_raw:
@@ -429,8 +432,11 @@ def _technical_replicate_groups(
             continue
         input_sample_ids = item.get("input_sample_ids")
         technical_replicate_ids = item.get("technical_replicate_ids")
-        if not isinstance(input_sample_ids, list) or not isinstance(
-            technical_replicate_ids, list
+        if (
+            not isinstance(input_sample_ids, Sequence)
+            or isinstance(input_sample_ids, (str, bytes, bytearray))
+            or not isinstance(technical_replicate_ids, Sequence)
+            or isinstance(technical_replicate_ids, (str, bytes, bytearray))
         ):
             continue
         groups.append(

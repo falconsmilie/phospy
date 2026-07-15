@@ -6,6 +6,7 @@ from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, cast
 
 from phospy.errors.input import PhosPyInputError
+from phospy.provenance.immutability import thaw_json_value
 from phospy.provenance.models import (
     BATCH_CORRECTION_PROVENANCE_SCHEMA_VERSION_V1,
     ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V2,
@@ -1133,14 +1134,7 @@ def _reference_identifier_normalisation_record_from_payload(
 
 
 def _to_json_safe(value: object) -> object:
-    if isinstance(value, Mapping):
-        mapping = cast(Mapping[object, object], value)
-        return {str(key): _to_json_safe(item) for key, item in mapping.items()}
-    if isinstance(value, tuple):
-        return [_to_json_safe(item) for item in cast(tuple[object, ...], value)]
-    if isinstance(value, list):
-        return [_to_json_safe(item) for item in cast(list[object], value)]
-    return value
+    return thaw_json_value(value, field_name="provenance")
 
 
 def _to_json_value(value: object) -> JsonValue:

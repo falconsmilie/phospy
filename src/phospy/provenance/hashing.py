@@ -13,6 +13,7 @@ from typing import Any, cast
 import numpy as np
 import pandas as pd
 
+from phospy.provenance.immutability import thaw_json_value
 from phospy.provenance.models import JsonValue, TableFingerprint
 
 DEFAULT_TABLE_HASH_ALGORITHM = "sha256"
@@ -185,8 +186,9 @@ def _fingerprint_optional_table_with_normalized_axes(
 
 
 def _update(hasher: hashlib._Hash, payload: Any) -> None:  # type: ignore[attr-defined]
+    safe_payload = thaw_json_value(payload, field_name="provenance_hash_payload")
     encoded = json.dumps(
-        payload,
+        safe_payload,
         sort_keys=True,
         separators=(",", ":"),
         ensure_ascii=True,

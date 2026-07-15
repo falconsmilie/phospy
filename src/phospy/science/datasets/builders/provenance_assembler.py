@@ -431,7 +431,7 @@ def _to_stage_diagnostics_payload(
     payload = _to_json_mapping(values)
     transformer_state = payload.get("transformer_state")
     if isinstance(transformer_state, dict):
-        state_payload = dict(transformer_state)
+        state_payload = _to_json_mapping(transformer_state)
         state_payload["quantity"] = quantitative_meaning
         payload["transformer_state"] = state_payload
     return payload

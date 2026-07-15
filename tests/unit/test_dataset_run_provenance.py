@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping, Sequence
 
 import pandas as pd
 import pytest
@@ -342,7 +343,7 @@ def test_direct_dataset_construction_without_provenance_records_marker() -> None
     assert provenance.random_seed_policy is None
     assert provenance.scientific_policies == ()
     construction = provenance.workflow_parameters["construction"]
-    assert isinstance(construction, dict)
+    assert isinstance(construction, Mapping)
     assert construction["method"] == "AnalysisReadyPhosphoDataset.__init__"
     assert construction["source"] == "direct_trusted_construction"
     assert construction["builder_used"] is False
@@ -351,14 +352,14 @@ def test_direct_dataset_construction_without_provenance_records_marker() -> None
         "caller-provided analysis-ready state."
     )
     assert construction["trusted_assertion_metadata_provided"] is False
-    assert construction["missing_trusted_assertions"] == [
+    assert construction["missing_trusted_assertions"] == (
         "sequence_user_asserted",
         "identity_user_asserted",
         "quantitative_meaning_user_asserted",
         "reference_context_user_asserted",
-    ]
+    )
     assertions = construction["trusted_construction_assertions"]
-    assert isinstance(assertions, dict)
+    assert isinstance(assertions, Mapping)
     assert assertions["assertion_metadata_provided"] is False
     assert {item.name for item in provenance.input_tables} == {
         "dataset.phospho",
@@ -591,10 +592,11 @@ def test_dataset_builder_provenance_records_site_identifier_normalisation_change
     normalisation_payload = built.provenance.workflow_parameters.get(
         "site_identifier_normalisation"
     )
-    assert isinstance(normalisation_payload, dict)
+    assert isinstance(normalisation_payload, Mapping)
     assert normalisation_payload["changed_identifier_count"] >= 2
     records = normalisation_payload["records"]
-    assert isinstance(records, list)
+    assert isinstance(records, Sequence)
+    assert not isinstance(records, (str, bytes, bytearray))
     fields = {record["field_name"] for record in records}
     assert "dataset build request phospho.index" in fields
     assert "dataset build request site_metadata.index" in fields
@@ -700,9 +702,10 @@ def test_run_provenance_serializes_resolved_stage_order_for_minprob_with_log2() 
     )
     assert built.provenance is not None
     preprocessing_plan = built.provenance.workflow_parameters["preprocessing_plan"]
-    assert isinstance(preprocessing_plan, dict)
+    assert isinstance(preprocessing_plan, Mapping)
     resolved_stage_order = preprocessing_plan["resolved_stage_order"]
-    assert isinstance(resolved_stage_order, list)
+    assert isinstance(resolved_stage_order, Sequence)
+    assert not isinstance(resolved_stage_order, (str, bytes, bytearray))
     assert [item["stage"] for item in resolved_stage_order[:3]] == [
         "localisation_confidence",
         "intensity_transform",
@@ -760,9 +763,10 @@ def test_run_provenance_serializes_resolved_stage_order_for_non_minprob_with_log
     )
     assert built.provenance is not None
     preprocessing_plan = built.provenance.workflow_parameters["preprocessing_plan"]
-    assert isinstance(preprocessing_plan, dict)
+    assert isinstance(preprocessing_plan, Mapping)
     resolved_stage_order = preprocessing_plan["resolved_stage_order"]
-    assert isinstance(resolved_stage_order, list)
+    assert isinstance(resolved_stage_order, Sequence)
+    assert not isinstance(resolved_stage_order, (str, bytes, bytearray))
     assert [item["stage"] for item in resolved_stage_order[:3]] == [
         "localisation_confidence",
         "missing_data",

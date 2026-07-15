@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 import pandas as pd
 import pytest
 
@@ -155,7 +157,7 @@ def test_direct_dataset_construction_marker_is_not_builder_equivalent() -> None:
     assert provenance.scientific_policies == ()
     assert "preprocessing_plan" not in provenance.workflow_parameters
     construction = provenance.workflow_parameters["construction"]
-    assert isinstance(construction, dict)
+    assert isinstance(construction, Mapping)
     assert construction["method"] == "AnalysisReadyPhosphoDataset.__init__"
     assert construction["source"] == "direct_trusted_construction"
     assert construction["builder_used"] is False
@@ -164,14 +166,14 @@ def test_direct_dataset_construction_marker_is_not_builder_equivalent() -> None:
         "caller-provided analysis-ready state."
     )
     assert construction["trusted_assertion_metadata_provided"] is False
-    assert construction["missing_trusted_assertions"] == [
+    assert construction["missing_trusted_assertions"] == (
         "sequence_user_asserted",
         "identity_user_asserted",
         "quantitative_meaning_user_asserted",
         "reference_context_user_asserted",
-    ]
+    )
     trusted_assertions = construction["trusted_construction_assertions"]
-    assert isinstance(trusted_assertions, dict)
+    assert isinstance(trusted_assertions, Mapping)
     assert trusted_assertions["assertion_metadata_provided"] is False
     payload = to_payload(provenance)
     restored = from_payload(payload)

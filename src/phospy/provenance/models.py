@@ -6,10 +6,16 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from numbers import Integral
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeAlias
 
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.validation import ReferenceValidationError
+from phospy.provenance.immutability import (
+    FrozenJsonValue,
+    freeze_json_mapping,
+    freeze_optional_json_mapping,
+    thaw_json_mapping,
+)
 from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
 
 if TYPE_CHECKING:
@@ -55,8 +61,11 @@ BATCH_CORRECTION_SELECTED_SITE_KEY_ROW_SENTINELS = frozenset(
 _REPRODUCIBILITY_CAVEAT_SEVERITIES = frozenset({"warning", "error"})
 
 JsonPrimitive = str | int | float | bool | None
-JsonValue = (
-    JsonPrimitive | list["JsonValue"] | tuple["JsonValue", ...] | dict[str, "JsonValue"]
+JsonValue: TypeAlias = (
+    FrozenJsonValue
+    | tuple["JsonValue", ...]
+    | list["JsonValue"]
+    | dict[str, "JsonValue"]
 )
 
 
@@ -95,12 +104,13 @@ class ReproducibilityCaveat:
                 field_name="reproducibility_caveat.message",
             ),
         )
-        if not isinstance(self.details, Mapping):
-            raise PhosPyInputError("reproducibility_caveat.details must be a mapping")
         object.__setattr__(
             self,
             "details",
-            {str(key): value for key, value in self.details.items()},
+            freeze_json_mapping(
+                self.details,
+                field_name="reproducibility_caveat.details",
+            ),
         )
 
     def to_payload(self) -> dict[str, object]:
@@ -110,7 +120,10 @@ class ReproducibilityCaveat:
             "code": self.code,
             "severity": self.severity,
             "message": self.message,
-            "details": dict(self.details),
+            "details": thaw_json_mapping(
+                self.details,
+                field_name="reproducibility_caveat.details",
+            ),
         }
 
 
@@ -519,6 +532,26 @@ class TableFingerprint:
     index_structure: Mapping[str, JsonValue] | None = None
     column_index_structure: Mapping[str, JsonValue] | None = None
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "column_names", tuple(self.column_names))
+        object.__setattr__(self, "dtypes", tuple(self.dtypes))
+        object.__setattr__(
+            self,
+            "index_structure",
+            freeze_optional_json_mapping(
+                self.index_structure,
+                field_name="table_fingerprint.index_structure",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "column_index_structure",
+            freeze_optional_json_mapping(
+                self.column_index_structure,
+                field_name="table_fingerprint.column_index_structure",
+            ),
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class EnvironmentProvenance:
@@ -535,6 +568,56 @@ class EnvironmentProvenance:
     timezone: str | None = None
     locale: dict[str, str | None] = field(default_factory=dict)
     constraints_fingerprint: dict[str, str | None] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "dependency_versions",
+            freeze_json_mapping(
+                self.dependency_versions,
+                field_name="environment_provenance.dependency_versions",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "platform",
+            freeze_json_mapping(
+                self.platform,
+                field_name="environment_provenance.platform",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "blas_lapack",
+            freeze_json_mapping(
+                self.blas_lapack,
+                field_name="environment_provenance.blas_lapack",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "thread_environment",
+            freeze_json_mapping(
+                self.thread_environment,
+                field_name="environment_provenance.thread_environment",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "locale",
+            freeze_json_mapping(
+                self.locale,
+                field_name="environment_provenance.locale",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "constraints_fingerprint",
+            freeze_json_mapping(
+                self.constraints_fingerprint,
+                field_name="environment_provenance.constraints_fingerprint",
+            ),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -565,6 +648,79 @@ class PreprocessingStageProvenance:
     diagnostics: dict[str, JsonValue] | None = None
     batch_correction_provenance: BatchCorrectionProvenance | None = None
 
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "parameters",
+            freeze_json_mapping(
+                self.parameters,
+                field_name="preprocessing_stage.parameters",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "input_shape",
+            _required_shape(
+                self.input_shape, field_name="preprocessing_stage.input_shape"
+            ),
+        )
+        object.__setattr__(
+            self,
+            "output_shape",
+            _required_shape(
+                self.output_shape,
+                field_name="preprocessing_stage.output_shape",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "dropped_row_ids",
+            _provenance_string_tuple(
+                self.dropped_row_ids,
+                field_name="preprocessing_stage.dropped_row_ids",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "consumed_input_tables",
+            _required_table_fingerprint_tuple(
+                self.consumed_input_tables,
+                field_name="preprocessing_stage.consumed_input_tables",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "produced_output_tables",
+            _required_table_fingerprint_tuple(
+                self.produced_output_tables,
+                field_name="preprocessing_stage.produced_output_tables",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "reproducibility_caveats",
+            _required_reproducibility_caveat_tuple(
+                self.reproducibility_caveats,
+                field_name="preprocessing_stage.reproducibility_caveats",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "imputed_row_ids",
+            _provenance_string_tuple(
+                self.imputed_row_ids,
+                field_name="preprocessing_stage.imputed_row_ids",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "diagnostics",
+            freeze_optional_json_mapping(
+                self.diagnostics,
+                field_name="preprocessing_stage.diagnostics",
+            ),
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class BatchCorrectionRejectedEntity:
@@ -574,6 +730,16 @@ class BatchCorrectionRejectedEntity:
     identifier: str
     reason: str
     details: Mapping[str, JsonValue] | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "details",
+            freeze_optional_json_mapping(
+                self.details,
+                field_name="batch_correction_rejected_entity.details",
+            ),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -606,6 +772,132 @@ class BatchCorrectionProvenance:
     schema_version: int = BATCH_CORRECTION_PROVENANCE_SCHEMA_VERSION_V1
     imputation_policy: Mapping[str, JsonValue] = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "resolved_parameters",
+            freeze_json_mapping(
+                self.resolved_parameters,
+                field_name="batch_correction_provenance.resolved_parameters",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "preprocessing_stage_order",
+            _provenance_string_tuple(
+                self.preprocessing_stage_order,
+                field_name="batch_correction_provenance.preprocessing_stage_order",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "control_site_source",
+            freeze_json_mapping(
+                self.control_site_source,
+                field_name="batch_correction_provenance.control_site_source",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "selected_site_key_rows",
+            _provenance_string_tuple(
+                self.selected_site_key_rows,
+                field_name="batch_correction_provenance.selected_site_key_rows",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "batch_metadata",
+            freeze_json_mapping(
+                self.batch_metadata,
+                field_name="batch_correction_provenance.batch_metadata",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "replicate_metadata",
+            freeze_optional_json_mapping(
+                self.replicate_metadata,
+                field_name="batch_correction_provenance.replicate_metadata",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "design_metadata",
+            freeze_json_mapping(
+                self.design_metadata,
+                field_name="batch_correction_provenance.design_metadata",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "missing_value_policy",
+            freeze_json_mapping(
+                self.missing_value_policy,
+                field_name="batch_correction_provenance.missing_value_policy",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "observation_masks",
+            _required_table_fingerprint_tuple(
+                self.observation_masks,
+                field_name="batch_correction_provenance.observation_masks",
+            ),
+        )
+        if not isinstance(self.input_matrix_fingerprint, TableFingerprint):
+            raise PhosPyInputError(
+                "batch_correction_provenance.input_matrix_fingerprint must be "
+                "a TableFingerprint"
+            )
+        if self.output_matrix_fingerprint is not None and not isinstance(
+            self.output_matrix_fingerprint,
+            TableFingerprint,
+        ):
+            raise PhosPyInputError(
+                "batch_correction_provenance.output_matrix_fingerprint must be "
+                "a TableFingerprint or None"
+            )
+        object.__setattr__(
+            self,
+            "diagnostics",
+            freeze_json_mapping(
+                self.diagnostics,
+                field_name="batch_correction_provenance.diagnostics",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "warnings",
+            _provenance_string_tuple(
+                self.warnings,
+                field_name="batch_correction_provenance.warnings",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "rejected_entities",
+            _required_batch_correction_rejected_entity_tuple(
+                self.rejected_entities,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "dependency_versions",
+            freeze_json_mapping(
+                self.dependency_versions,
+                field_name="batch_correction_provenance.dependency_versions",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "imputation_policy",
+            freeze_json_mapping(
+                self.imputation_policy,
+                field_name="batch_correction_provenance.imputation_policy",
+            ),
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class ReferenceProvenance:
@@ -625,6 +917,30 @@ class ReferenceProvenance:
     reference_context: ReferenceContext | None = None
 
     def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "table_fingerprints",
+            _required_table_fingerprint_tuple(
+                self.table_fingerprints,
+                field_name="reference_provenance.table_fingerprints",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "sequence_window",
+            freeze_optional_json_mapping(
+                self.sequence_window,
+                field_name="reference_provenance.sequence_window",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "manifest",
+            freeze_optional_json_mapping(
+                self.manifest,
+                field_name="reference_provenance.manifest",
+            ),
+        )
         source_version = _optional_provenance_text(self.source_version)
         object.__setattr__(self, "source_version", source_version)
         validate_reference_source_version_agreement(
@@ -658,6 +974,41 @@ class KinaseLibraryResourceProvenance:
     retrieved_at: str | None = None
     manifest: Mapping[str, JsonValue] | None = None
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "organisms", tuple(self.organisms))
+        object.__setattr__(
+            self,
+            "sequence_window",
+            freeze_json_mapping(
+                self.sequence_window,
+                field_name="kinase_library_resource_provenance.sequence_window",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "source_files",
+            freeze_json_mapping(
+                self.source_files,
+                field_name="kinase_library_resource_provenance.source_files",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "table_fingerprints",
+            _required_table_fingerprint_tuple(
+                self.table_fingerprints,
+                field_name="kinase_library_resource_provenance.table_fingerprints",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "manifest",
+            freeze_optional_json_mapping(
+                self.manifest,
+                field_name="kinase_library_resource_provenance.manifest",
+            ),
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class RunProvenance:
@@ -682,6 +1033,53 @@ class RunProvenance:
     output_tables: tuple[TableFingerprint, ...]
     scientific_policies: tuple[ScientificPolicyRecord, ...] = ()
     reference_context: ReferenceContext | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.environment, EnvironmentProvenance):
+            raise PhosPyInputError(
+                "run_provenance.environment must be EnvironmentProvenance"
+            )
+        object.__setattr__(
+            self,
+            "input_tables",
+            _required_table_fingerprint_tuple(
+                self.input_tables,
+                field_name="run_provenance.input_tables",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "preprocessing_stages",
+            _required_preprocessing_stage_tuple(self.preprocessing_stages),
+        )
+        if self.reference is not None and not isinstance(
+            self.reference,
+            ReferenceProvenance,
+        ):
+            raise PhosPyInputError(
+                "run_provenance.reference must be ReferenceProvenance or None"
+            )
+        object.__setattr__(
+            self,
+            "workflow_parameters",
+            freeze_json_mapping(
+                self.workflow_parameters,
+                field_name="run_provenance.workflow_parameters",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "output_tables",
+            _required_table_fingerprint_tuple(
+                self.output_tables,
+                field_name="run_provenance.output_tables",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "scientific_policies",
+            _required_scientific_policy_tuple(self.scientific_policies),
+        )
 
 
 def _required_non_negative_row_count(value: object, *, field_name: str) -> int:
@@ -709,6 +1107,31 @@ def _required_provenance_text_tuple(
     )
 
 
+def _provenance_string_tuple(
+    values: object,
+    *,
+    field_name: str,
+) -> tuple[str, ...]:
+    if isinstance(values, (str, bytes, bytearray)) or not isinstance(
+        values,
+        Sequence,
+    ):
+        raise PhosPyInputError(f"{field_name} must be a sequence of strings")
+    return tuple(str(value) for value in values)
+
+
+def _required_shape(value: object, *, field_name: str) -> tuple[int, int]:
+    if isinstance(value, (str, bytes, bytearray)) or not isinstance(value, Sequence):
+        raise PhosPyInputError(f"{field_name} must contain exactly two integers")
+    sequence = tuple(value)
+    if len(sequence) != 2:
+        raise PhosPyInputError(f"{field_name} must contain exactly two integers")
+    return (
+        _required_non_negative_row_count(sequence[0], field_name=f"{field_name}[0]"),
+        _required_non_negative_row_count(sequence[1], field_name=f"{field_name}[1]"),
+    )
+
+
 def _required_row_attrition_record_tuple(
     records: object,
 ) -> tuple[RowAttritionRecord, ...]:
@@ -728,6 +1151,83 @@ def _required_row_attrition_record_tuple(
                 "RowAttritionRecord values"
             )
     return record_tuple
+
+
+def _required_table_fingerprint_tuple(
+    values: object,
+    *,
+    field_name: str,
+) -> tuple[TableFingerprint, ...]:
+    if isinstance(values, (str, bytes, bytearray)) or not isinstance(values, Sequence):
+        raise PhosPyInputError(f"{field_name} must be a sequence")
+    fingerprints = tuple(values)
+    for fingerprint in fingerprints:
+        if not isinstance(fingerprint, TableFingerprint):
+            raise PhosPyInputError(
+                f"{field_name} must contain only TableFingerprint values"
+            )
+    return fingerprints
+
+
+def _required_reproducibility_caveat_tuple(
+    values: object,
+    *,
+    field_name: str,
+) -> tuple[ReproducibilityCaveat, ...]:
+    if isinstance(values, (str, bytes, bytearray)) or not isinstance(values, Sequence):
+        raise PhosPyInputError(f"{field_name} must be a sequence")
+    caveats = tuple(values)
+    for caveat in caveats:
+        if not isinstance(caveat, ReproducibilityCaveat):
+            raise PhosPyInputError(
+                f"{field_name} must contain only ReproducibilityCaveat values"
+            )
+    return caveats
+
+
+def _required_batch_correction_rejected_entity_tuple(
+    values: object,
+) -> tuple[BatchCorrectionRejectedEntity, ...]:
+    field_name = "batch_correction_provenance.rejected_entities"
+    if isinstance(values, (str, bytes, bytearray)) or not isinstance(values, Sequence):
+        raise PhosPyInputError(f"{field_name} must be a sequence")
+    entities = tuple(values)
+    for entity in entities:
+        if not isinstance(entity, BatchCorrectionRejectedEntity):
+            raise PhosPyInputError(
+                f"{field_name} must contain only BatchCorrectionRejectedEntity values"
+            )
+    return entities
+
+
+def _required_preprocessing_stage_tuple(
+    values: object,
+) -> tuple[PreprocessingStageProvenance, ...]:
+    field_name = "run_provenance.preprocessing_stages"
+    if isinstance(values, (str, bytes, bytearray)) or not isinstance(values, Sequence):
+        raise PhosPyInputError(f"{field_name} must be a sequence")
+    stages = tuple(values)
+    for stage in stages:
+        if not isinstance(stage, PreprocessingStageProvenance):
+            raise PhosPyInputError(
+                f"{field_name} must contain only PreprocessingStageProvenance values"
+            )
+    return stages
+
+
+def _required_scientific_policy_tuple(
+    values: object,
+) -> tuple[ScientificPolicyRecord, ...]:
+    field_name = "run_provenance.scientific_policies"
+    if isinstance(values, (str, bytes, bytearray)) or not isinstance(values, Sequence):
+        raise PhosPyInputError(f"{field_name} must be a sequence")
+    policies = tuple(values)
+    for policy in policies:
+        if not isinstance(policy, ScientificPolicyRecord):
+            raise PhosPyInputError(
+                f"{field_name} must contain only ScientificPolicyRecord values"
+            )
+    return policies
 
 
 def validate_reference_source_version_agreement(

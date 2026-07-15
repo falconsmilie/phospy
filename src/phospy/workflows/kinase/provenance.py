@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 
 import pandas as pd
 
@@ -163,7 +163,11 @@ class KinaseProvenanceBuilder:
         if not isinstance(preprocessing_plan, Mapping):
             return None
         stage_order = preprocessing_plan.get("stage_order")
-        if not isinstance(stage_order, list) or "site_matrix" not in stage_order:
+        if (
+            not isinstance(stage_order, Sequence)
+            or isinstance(stage_order, (str, bytes, bytearray))
+            or "site_matrix" not in stage_order
+        ):
             return None
         duplicate_site_policy = preprocessing_plan.get(
             "site_matrix_duplicate_site_policy"

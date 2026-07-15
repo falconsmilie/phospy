@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from typing import TYPE_CHECKING
 
 import pandas as pd
@@ -192,7 +192,11 @@ def direct_trusted_dataset_caveat_severity(
     metadata_provided = details.get("trusted_assertion_metadata_provided")
     if metadata_provided is not True:
         return "warning"
-    if isinstance(missing, list) and missing:
+    if (
+        isinstance(missing, Sequence)
+        and not isinstance(missing, (str, bytes, bytearray))
+        and missing
+    ):
         return "warning"
     return "info"
 
@@ -248,7 +252,10 @@ def _missing_trusted_assertions(
     assertion_payload: Mapping[str, object],
 ) -> tuple[str, ...]:
     raw_missing = assertion_payload.get("missing_assertions")
-    if isinstance(raw_missing, list):
+    if isinstance(raw_missing, Sequence) and not isinstance(
+        raw_missing,
+        (str, bytes, bytearray),
+    ):
         return tuple(str(item) for item in raw_missing)
     return tuple(
         field_name

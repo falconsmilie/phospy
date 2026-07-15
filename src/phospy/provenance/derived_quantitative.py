@@ -12,6 +12,11 @@ from phospy.provenance.hashing import (
     DEFAULT_STABLE_JSON_HASH_ALGORITHM,
     hash_json_payload,
 )
+from phospy.provenance.immutability import (
+    freeze_json_mapping,
+    freeze_json_value,
+    thaw_json_mapping,
+)
 from phospy.provenance.models import (
     EnvironmentProvenance,
     JsonValue,
@@ -461,9 +466,18 @@ class DerivedQuantitativeDataProvenance:
                 "output_intensity_scale": self.output_intensity_scale,
                 "quantitative_meaning": self.quantitative_meaning,
             },
-            "missingness_policy": dict(self.missingness_policy),
-            "matrices_transformed": dict(self.matrices_transformed),
-            "parameters": dict(self.parameters),
+            "missingness_policy": thaw_json_mapping(
+                self.missingness_policy,
+                field_name="derived_quantitative_data.missingness_policy",
+            ),
+            "matrices_transformed": thaw_json_mapping(
+                self.matrices_transformed,
+                field_name="derived_quantitative_data.matrices_transformed",
+            ),
+            "parameters": thaw_json_mapping(
+                self.parameters,
+                field_name="derived_quantitative_data.parameters",
+            ),
             "parent_dataset_fingerprint": _fingerprint_summary_payload(
                 self.parent_dataset_fingerprints
             ),
@@ -634,7 +648,7 @@ def _sample_mapping_tuple(
     return sample_mapping
 
 
-def _bool_mapping(values: object, *, field_name: str) -> dict[str, bool]:
+def _bool_mapping(values: object, *, field_name: str) -> Mapping[str, bool]:
     if not isinstance(values, Mapping):
         raise PhosPyInputError(f"{field_name} must be a mapping")
     result: dict[str, bool] = {}
@@ -642,25 +656,26 @@ def _bool_mapping(values: object, *, field_name: str) -> dict[str, bool]:
         if not isinstance(value, bool):
             raise PhosPyInputError(f"{field_name}.{str(key)} must be a bool")
         result[str(key)] = bool(value)
-    return result
+    return cast(
+        Mapping[str, bool],
+        freeze_json_mapping(result, field_name=field_name),
+    )
 
 
-def _json_mapping(values: object, *, field_name: str) -> dict[str, JsonValue]:
+def _json_mapping(values: object, *, field_name: str) -> Mapping[str, JsonValue]:
     if not isinstance(values, Mapping):
         raise PhosPyInputError(f"{field_name} must be a mapping")
-    return {str(key): _to_json_value(value) for key, value in values.items()}
+    return cast(
+        Mapping[str, JsonValue],
+        freeze_json_mapping(values, field_name=field_name),
+    )
 
 
 def _to_json_value(value: object) -> JsonValue:
-    if value is None or isinstance(value, (str, int, float, bool)):
-        return value
-    if isinstance(value, Mapping):
-        return {str(key): _to_json_value(item) for key, item in value.items()}
-    if isinstance(value, tuple):
-        return [_to_json_value(item) for item in value]
-    if isinstance(value, list):
-        return [_to_json_value(item) for item in value]
-    return str(value)
+    return cast(
+        JsonValue,
+        freeze_json_value(value, field_name="derived_quantitative_data"),
+    )
 
 
 def _required_text(value: object, *, field_name: str) -> str:

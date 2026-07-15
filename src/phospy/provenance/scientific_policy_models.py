@@ -5,7 +5,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
-from types import MappingProxyType
+
+from phospy.provenance.immutability import freeze_json_mapping, thaw_json_mapping
 
 ScientificPolicyParameter = str | int | float | bool | None
 
@@ -52,9 +53,15 @@ class ScientificPolicyRecord:
         object.__setattr__(
             self,
             "parameters",
-            MappingProxyType(
-                {str(key): value for key, value in self.parameters.items()}
+            freeze_json_mapping(
+                self.parameters,
+                field_name="scientific_policy_record.parameters",
             ),
+        )
+        object.__setattr__(
+            self,
+            "assumptions",
+            tuple(str(value) for value in self.assumptions),
         )
 
     def to_payload(self) -> dict[str, object]:
@@ -63,7 +70,10 @@ class ScientificPolicyRecord:
             "name": self.name,
             "version": self.version,
             "description": self.description,
-            "parameters": dict(self.parameters),
+            "parameters": thaw_json_mapping(
+                self.parameters,
+                field_name="scientific_policy_record.parameters",
+            ),
             "assumptions": list(self.assumptions),
             "output_scale": self.output_scale,
             "quantitative_meaning": self.quantitative_meaning,
@@ -77,14 +87,8 @@ class ScientificPolicyRecord:
         else:
             resolved_assumptions = ()
         parameters_raw = payload.get("parameters", {})
-        parameters: dict[str, object]
         if isinstance(parameters_raw, dict):
-            parameters = {}
-            for key, value in parameters_raw.items():
-                if value is None or isinstance(value, (str, int, float, bool)):
-                    parameters[str(key)] = value
-                else:
-                    parameters[str(key)] = str(value)
+            parameters = {str(key): value for key, value in parameters_raw.items()}
         else:
             parameters = {}
         output_scale = payload.get("output_scale")
