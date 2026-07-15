@@ -15,7 +15,10 @@ For CI-aligned dependency resolution:
 pip install -c constraints/ci.txt -e ".[dev,test]"
 ```
 
-For full release-gate validation (includes reproducibility/golden and performance):
+For full release-gate validation, install the release extras first. The
+authoritative release-gate command is `make test-release-gate`; it includes
+release tests, reproducibility/golden checks, parity tests, and performance
+contract tests:
 
 ```bash
 pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
@@ -52,6 +55,11 @@ Run full scientific release validation before tagging a release:
 ```bash
 make test-release-gate
 ```
+
+Default `pytest` or `pytest -m "not parity"` is a fast local development check,
+not sufficient for release and not release verification. Parity tests, release
+tests, reproducibility/golden checks, and performance contracts are not optional
+for public release decisions.
 
 The publish pipeline (`.github/workflows/publish.yml`) runs this same release
 gate before building and uploading tagged distributions.

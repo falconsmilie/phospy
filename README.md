@@ -52,8 +52,10 @@ pip install -c constraints/ci.txt -e ".[dev,test]"
 pytest tests/parity -m parity -s
 ```
 
-For full release-gate validation (unit/integration, reproducibility goldens,
-parity, and performance):
+For public release verification, the authoritative release-gate command is
+`make test-release-gate`. It runs the default non-parity suite, release tests,
+reproducibility/golden checks, threshold-bearing parity tests, and performance
+contract tests:
 
 ```bash
 pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
@@ -64,7 +66,8 @@ Public scientific release confidence applies only to the exact source tag,
 source archive, wheel, or other release artifact that passed the full release
 gate. Partial local passes, such as default tests, parity-only tests, or
 performance-only tests, are useful development checks but are insufficient for a
-public scientific release. The release gate writes its audit record to
+public scientific release; default `pytest` is not sufficient for release and is
+not release verification. The release gate writes its audit record to
 `build/release-gate/release_gate_metadata.json`; that JSON records the package
 version, runtime, dependency snapshot, test command, marker selectors, and
 fixture/reference fingerprints for the gate run.

@@ -39,6 +39,17 @@ RELEASE_PARITY_FILES = (
     Path("tests/parity/test_signalome_clustering_backend_parity.py"),
 )
 
+AUTHORITATIVE_RELEASE_GATE_COMMAND = "make test-release-gate"
+PUBLIC_RELEASE_INSTRUCTION_DOCS = (
+    Path("README.md"),
+    Path("docs/maintenance.md"),
+    Path("docs/testing/README.md"),
+    Path("docs/testing/pytest_markers.md"),
+    Path("docs/contributing.md"),
+    Path(".github/CONTRIBUTING.md"),
+    Path("docs/scientific-coverage.md"),
+)
+
 
 def _read(relative_path: str | Path) -> str:
     return (ROOT / relative_path).read_text(encoding="utf-8").replace("\r\n", "\n")
@@ -95,6 +106,36 @@ def _has_needs(job_block: str, dependency: str) -> bool:
 
 def test_default_pytest_keeps_parity_out_of_fast_local_loop() -> None:
     assert _pytest_config()["addopts"] == '-m "not parity"'
+
+
+def test_release_gate_command_is_maintained_project_authority() -> None:
+    makefile = _read("Makefile")
+    body = _make_target_body("test-release-gate")
+
+    assert DEFAULT_TEST_COMMAND == AUTHORITATIVE_RELEASE_GATE_COMMAND
+    assert f"RELEASE_GATE_COMMAND ?= {AUTHORITATIVE_RELEASE_GATE_COMMAND}" in makefile
+    assert '--test-command "$(RELEASE_GATE_COMMAND)"' in body
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    PUBLIC_RELEASE_INSTRUCTION_DOCS,
+    ids=lambda path: path.as_posix(),
+)
+def test_maintained_release_instructions_require_full_gate(
+    relative_path: Path,
+) -> None:
+    text = _read(relative_path)
+    normalized = re.sub(r"\s+", " ", text.lower())
+    normalized_without_markdown = normalized.replace("`", "")
+
+    assert AUTHORITATIVE_RELEASE_GATE_COMMAND in text
+    assert "default pytest" in normalized_without_markdown
+    assert "not sufficient for release" in normalized
+    assert "release tests" in normalized
+    assert "parity" in normalized
+    assert "golden" in normalized or "reproducibility" in normalized
+    assert "performance" in normalized
 
 
 def test_publish_workflow_cannot_publish_without_scientific_release_gate() -> None:

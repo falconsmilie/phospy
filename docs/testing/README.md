@@ -14,10 +14,12 @@ The testing audit system exists to:
 ## Release-Gate Policy
 
 Default `pytest` excludes parity tests for developer speed through the
-`pyproject.toml` addopts setting. Public releases must run
+`pyproject.toml` addopts setting. It is not sufficient for release. Public
+releases must run the authoritative release-gate command,
 `make test-release-gate`; that target is the release-blocking command and
-includes the default non-parity suite, provenance/golden checks, reference
-manifest gates, threshold-bearing parity tests, and performance contracts.
+includes the default non-parity suite, release tests, provenance/golden checks,
+reference manifest gates, threshold-bearing parity tests, and performance
+contracts.
 
 `parity_diagnostic` tests are informational unless they are intentionally
 promoted into the release selector.

@@ -347,8 +347,11 @@ claimed.
 
 ## Release-Gated Scientific Checks
 
-Release-bearing scientific checks are documented and executable with these exact
-commands/workflows:
+Release-bearing scientific checks are documented and executable through the
+authoritative local release-gate command, `make test-release-gate`. Default
+`pytest` is not sufficient for release because it does not run all release
+tests, threshold-bearing parity lanes, reproducibility/golden checks, and
+performance contracts. The maintained commands/workflows are:
 
 - Local release gate command: `make test-release-gate`
 - `make test-release-gate` executes:

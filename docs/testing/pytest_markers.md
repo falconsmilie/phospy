@@ -18,7 +18,9 @@ policy.
 
 ## Release-Gated Suites
 
-Public releases must run `make test-release-gate`. That target blocks release on:
+Public releases must run the authoritative release-gate command,
+`make test-release-gate`. Default `pytest` is a local development check and is
+not sufficient for release. The release gate blocks release on:
 
 | Marker or suite | Release status |
 | --- | --- |
@@ -45,6 +47,10 @@ Based on that configuration:
 - Exclude slow tests in local loops: `pytest -m "not parity and not slow"`
 - Performance-only validation: `pytest tests/performance -m "performance or release_gate"`
 - Full release-gate validation command: `make test-release-gate`
+
+The default local run deliberately omits release tests, threshold-bearing parity
+tests, and performance contracts unless they are selected separately through the
+release gate.
 
 This page documents marker usage and the release-gate command path used by
 release CI.

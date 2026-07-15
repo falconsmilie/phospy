@@ -53,7 +53,10 @@ pytest tests/parity -m parity -s
 ```
 
 Run full release validation when changing scientific/parity/provenance/performance
-behavior or before preparing a release:
+behavior or before preparing a release. The authoritative release-gate command
+is `make test-release-gate`; default `pytest` is not sufficient for release, and
+release tests, reproducibility/golden checks, parity tests, and performance
+contracts are release-blocking:
 
 ```bash
 pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
