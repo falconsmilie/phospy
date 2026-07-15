@@ -189,6 +189,14 @@ class DifferentialModelDiagnostics:
     batch_or_covariate_terms: tuple[str, ...]
     unsupported_assumptions: tuple[str, ...]
     warnings: tuple[str, ...]
+    decomposition_method: str = "not_recorded"
+    solver: str = "not_recorded"
+    column_scale_method: str = "not_recorded"
+    rank_tolerance_policy: str = "not_recorded"
+    rank_tolerance: float = 0.0
+    condition_number: float = 0.0
+    max_condition_number: float = 0.0
+    singular_values: tuple[float, ...] = ()
 
     def __post_init__(self) -> None:
         rank = _require_non_negative_int(
@@ -211,6 +219,24 @@ class DifferentialModelDiagnostics:
             raise PhosPyInputError(
                 "differential_result.diagnostics.residual_degrees_of_freedom "
                 "must be >= 0.0"
+            )
+        rank_tolerance = _require_non_negative_finite_float(
+            self.rank_tolerance,
+            field_name="differential_result.diagnostics.rank_tolerance",
+        )
+        condition_number = _require_non_negative_finite_float(
+            self.condition_number,
+            field_name="differential_result.diagnostics.condition_number",
+        )
+        max_condition_number = _require_non_negative_finite_float(
+            self.max_condition_number,
+            field_name="differential_result.diagnostics.max_condition_number",
+        )
+        singular_values = tuple(float(value) for value in self.singular_values)
+        if any(value < 0.0 or not math.isfinite(value) for value in singular_values):
+            raise PhosPyInputError(
+                "differential_result.diagnostics.singular_values must contain "
+                "finite values >= 0.0"
             )
         contrast_definitions = tuple(self.contrast_definitions)
         for definition in contrast_definitions:
@@ -243,6 +269,42 @@ class DifferentialModelDiagnostics:
         object.__setattr__(self, "n_samples", n_samples)
         object.__setattr__(self, "n_sites", n_sites)
         object.__setattr__(self, "residual_degrees_of_freedom", residual_dof)
+        object.__setattr__(
+            self,
+            "decomposition_method",
+            _require_non_empty_text(
+                self.decomposition_method,
+                field_name="differential_result.diagnostics.decomposition_method",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "solver",
+            _require_non_empty_text(
+                self.solver,
+                field_name="differential_result.diagnostics.solver",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "column_scale_method",
+            _require_non_empty_text(
+                self.column_scale_method,
+                field_name="differential_result.diagnostics.column_scale_method",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "rank_tolerance_policy",
+            _require_non_empty_text(
+                self.rank_tolerance_policy,
+                field_name="differential_result.diagnostics.rank_tolerance_policy",
+            ),
+        )
+        object.__setattr__(self, "rank_tolerance", rank_tolerance)
+        object.__setattr__(self, "condition_number", condition_number)
+        object.__setattr__(self, "max_condition_number", max_condition_number)
+        object.__setattr__(self, "singular_values", singular_values)
         object.__setattr__(
             self,
             "variance_method",
@@ -338,6 +400,14 @@ class DifferentialModelDiagnostics:
             "n_samples": self.n_samples,
             "n_sites": self.n_sites,
             "residual_degrees_of_freedom": self.residual_degrees_of_freedom,
+            "decomposition_method": self.decomposition_method,
+            "solver": self.solver,
+            "column_scale_method": self.column_scale_method,
+            "rank_tolerance_policy": self.rank_tolerance_policy,
+            "rank_tolerance": self.rank_tolerance,
+            "condition_number": self.condition_number,
+            "max_condition_number": self.max_condition_number,
+            "singular_values": list(self.singular_values),
             "variance_method": self.variance_method,
             "moderation_method": self.moderation_method,
             "multiple_testing_method": self.multiple_testing_method,
@@ -403,6 +473,13 @@ def _require_finite_float(value: object, *, field_name: str) -> float:
     numeric = float(value)
     if not math.isfinite(numeric):
         raise PhosPyInputError(f"{field_name} must be finite")
+    return numeric
+
+
+def _require_non_negative_finite_float(value: object, *, field_name: str) -> float:
+    numeric = _require_finite_float(value, field_name=field_name)
+    if numeric < 0.0:
+        raise PhosPyInputError(f"{field_name} must be >= 0.0")
     return numeric
 
 

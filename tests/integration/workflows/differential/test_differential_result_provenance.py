@@ -186,6 +186,13 @@ def test_differential_result_diagnostics_are_present_and_serialized() -> None:
     assert diagnostics.n_samples == 4
     assert diagnostics.n_sites == 3
     assert diagnostics.residual_degrees_of_freedom == 2.0
+    assert diagnostics.decomposition_method == "scaled_svd"
+    assert diagnostics.solver == "scaled_svd_least_squares"
+    assert diagnostics.column_scale_method == "l2_norm"
+    assert diagnostics.rank_tolerance >= 0.0
+    assert diagnostics.condition_number >= 1.0
+    assert diagnostics.max_condition_number == 1.0e10
+    assert len(diagnostics.singular_values) == 2
     assert diagnostics.variance_method == "ordinary_least_squares_residual_variance"
     assert diagnostics.moderation_method == "empirical_bayes_standard"
     assert diagnostics.multiple_testing_method == "benjamini_hochberg"
@@ -203,6 +210,15 @@ def test_differential_result_diagnostics_are_present_and_serialized() -> None:
     payload = result.to_payload()
     assert payload["diagnostics"] == diagnostics.to_payload()
     json.dumps(payload, allow_nan=False)
+    assert result.policy_provenance is not None
+    design_provenance = result.policy_provenance.design
+    assert design_provenance.decomposition_method == diagnostics.decomposition_method
+    assert design_provenance.solver == diagnostics.solver
+    assert design_provenance.conditioning_validation_status == (
+        "validated_scaled_svd_conditioning"
+    )
+    assert design_provenance.condition_number == diagnostics.condition_number
+    assert design_provenance.singular_values == diagnostics.singular_values
 
 
 def test_differential_result_diagnostics_warn_on_batch_assumption_boundaries() -> None:

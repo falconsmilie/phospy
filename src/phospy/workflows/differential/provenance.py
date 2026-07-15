@@ -13,6 +13,7 @@ from phospy.science.design.matrix_builder import (
     describe_fixed_effect_design,
 )
 from phospy.science.design.models import ExperimentalDesign
+from phospy.science.differential.linear_model import DifferentialDesignDecomposition
 from phospy.science.differential.models import (
     DifferentialContrastDefinition,
     DifferentialDesignMatrixSummary,
@@ -78,6 +79,7 @@ _DIFFERENTIAL_UNSUPPORTED_ENFORCEMENT_STAGE = (
 )
 _DIFFERENTIAL_RANK_VALIDATION_STATUS = "validated_full_rank"
 _DIFFERENTIAL_ESTIMABILITY_VALIDATION_STATUS = "validated_estimable"
+_DIFFERENTIAL_CONDITIONING_VALIDATION_STATUS = "validated_scaled_svd_conditioning"
 _DIFFERENTIAL_BLOCK_ID_FIELD_NAME = "block_id"
 _DIFFERENTIAL_REJECT_BLOCK_CONDITION_COVERAGE_RULE = (
     "block terms are not constructed under paired_design_policy='reject'; "
@@ -116,8 +118,7 @@ _DIFFERENTIAL_FIXED_BLOCK_LIMITATIONS: tuple[str, ...] = (
 def build_differential_policy_provenance(
     *,
     request: ValidatedDifferentialAnalysisRequest,
-    design_rank: int,
-    residual_degrees_of_freedom: float,
+    design_decomposition: DifferentialDesignDecomposition,
 ) -> DifferentialPolicyProvenance:
     """Build deterministic structured differential-policy provenance records."""
 
@@ -163,8 +164,18 @@ def build_differential_policy_provenance(
             coefficient_labels=coefficient_labels,
             sample_count=len(sample_labels),
             coefficient_count=len(coefficient_labels),
-            rank=int(design_rank),
-            residual_degrees_of_freedom=float(residual_degrees_of_freedom),
+            rank=int(design_decomposition.rank),
+            residual_degrees_of_freedom=float(
+                design_decomposition.residual_degrees_of_freedom
+            ),
+            decomposition_method=design_decomposition.decomposition_method,
+            solver=design_decomposition.solver,
+            column_scale_method=design_decomposition.column_scale_method,
+            rank_tolerance_policy=design_decomposition.rank_tolerance_policy,
+            rank_tolerance=design_decomposition.rank_tolerance,
+            condition_number=design_decomposition.condition_number,
+            max_condition_number=design_decomposition.max_condition_number,
+            singular_values=design_decomposition.singular_values,
             description=_design_description(
                 formula=design_formula,
                 covariates=covariate_provenance,
@@ -184,6 +195,9 @@ def build_differential_policy_provenance(
             ),
             limitations=_design_limitations(request.config.paired_design_policy),
             rank_validation_status=_DIFFERENTIAL_RANK_VALIDATION_STATUS,
+            conditioning_validation_status=(
+                _DIFFERENTIAL_CONDITIONING_VALIDATION_STATUS
+            ),
             estimability_validation_status=(
                 _DIFFERENTIAL_ESTIMABILITY_VALIDATION_STATUS
             ),

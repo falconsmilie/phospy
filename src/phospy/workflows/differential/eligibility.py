@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -17,6 +16,10 @@ from phospy.errors.validation import DatasetValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.design.models import Contrast, ExperimentalDesign
+from phospy.science.differential.linear_model import (
+    DifferentialDesignDecompositionError,
+    decompose_differential_design,
+)
 from phospy.science.differential.models import (
     DIFFERENTIAL_RESULT_STATUS_COLUMN,
     DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
@@ -522,9 +525,9 @@ def _failed_model_fit_feature_ids(
         design_frame.to_numpy(dtype=float),
         dtype=np.float64,
     )
-    rank = int(np.linalg.matrix_rank(design_values))
-    residual_dof = float(int(design_values.shape[0]) - rank)
-    if residual_dof <= 0.0:
+    try:
+        design_decomposition = decompose_differential_design(design_values)
+    except DifferentialDesignDecompositionError:
         return ()
 
     matrix_values: NDArray[np.float64] = np.asarray(
@@ -532,23 +535,10 @@ def _failed_model_fit_feature_ids(
         dtype=np.float64,
     )
     response: NDArray[np.float64] = np.transpose(matrix_values)
-    design_transpose: NDArray[np.float64] = np.transpose(design_values)
-    design_crossproduct: NDArray[np.float64] = design_transpose @ design_values
-    xtx_inv: NDArray[np.float64] = cast(
-        NDArray[np.float64],
-        np.linalg.pinv(design_crossproduct),
-    )
-    coefficients: NDArray[np.float64] = xtx_inv @ design_transpose @ response
-    fitted_values: NDArray[np.float64] = design_values @ coefficients
-    residuals: NDArray[np.float64] = response - fitted_values
-    rss: NDArray[np.float64] = cast(
-        NDArray[np.float64],
-        np.sum(np.square(residuals), axis=0),
-    )
-    residual_variance: NDArray[np.float64] = np.asarray(
-        rss / residual_dof,
-        dtype=np.float64,
-    )
+    try:
+        residual_variance = design_decomposition.fit(response).residual_variance
+    except DifferentialDesignDecompositionError:
+        return ()
     failed_mask = ~np.isfinite(residual_variance) | (residual_variance <= 0.0)
     return tuple(
         str(feature_id)

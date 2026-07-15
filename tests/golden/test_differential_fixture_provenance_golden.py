@@ -172,6 +172,14 @@ def test_differential_policy_provenance_snapshot_is_stable() -> None:
             "coefficient_count": policy.design.coefficient_count,
             "rank": policy.design.rank,
             "residual_degrees_of_freedom": policy.design.residual_degrees_of_freedom,
+            "decomposition_method": policy.design.decomposition_method,
+            "solver": policy.design.solver,
+            "column_scale_method": policy.design.column_scale_method,
+            "rank_tolerance_policy": policy.design.rank_tolerance_policy,
+            "rank_tolerance": policy.design.rank_tolerance,
+            "condition_number": policy.design.condition_number,
+            "max_condition_number": policy.design.max_condition_number,
+            "singular_values": list(policy.design.singular_values),
             "paired_design_policy": policy.design.paired_design_policy,
             "block_id_field_name": policy.design.block_id_field_name,
             "block_count": policy.design.block_count,
@@ -183,6 +191,9 @@ def test_differential_policy_provenance_snapshot_is_stable() -> None:
             "condition_coverage_rule": policy.design.condition_coverage_rule,
             "limitations": list(policy.design.limitations),
             "rank_validation_status": policy.design.rank_validation_status,
+            "conditioning_validation_status": (
+                policy.design.conditioning_validation_status
+            ),
             "estimability_validation_status": (
                 policy.design.estimability_validation_status
             ),
@@ -259,6 +270,17 @@ def test_differential_policy_provenance_snapshot_is_stable() -> None:
             "coefficient_count": 2,
             "rank": 2,
             "residual_degrees_of_freedom": 2.0,
+            "decomposition_method": "scaled_svd",
+            "solver": "scaled_svd_least_squares",
+            "column_scale_method": "l2_norm",
+            "rank_tolerance_policy": (
+                "rank = count(singular_value > eps * max(n_samples, "
+                "n_coefficients) * largest_singular_value) after L2 column scaling"
+            ),
+            "rank_tolerance": 8.881784197001252e-16,
+            "condition_number": 1.0000000000000002,
+            "max_condition_number": 10000000000.0,
+            "singular_values": [1.0, 0.9999999999999999],
             "paired_design_policy": "reject",
             "block_id_field_name": "block_id",
             "block_count": 0,
@@ -285,6 +307,7 @@ def test_differential_policy_provenance_snapshot_is_stable() -> None:
                 ),
             ],
             "rank_validation_status": "validated_full_rank",
+            "conditioning_validation_status": "validated_scaled_svd_conditioning",
             "estimability_validation_status": "validated_estimable",
         },
         "contrasts": [

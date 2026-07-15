@@ -495,6 +495,7 @@ def test_differential_interpreter_checks_sample_to_design_alignment() -> None:
                 analysis_sample_ids=validated.analysis_sample_ids,
                 design_matrix=type(validated.design_matrix)(misaligned_design),
                 contrast_matrix=validated.contrast_matrix,
+                design_decomposition=validated.design_decomposition,
                 config=validated.config,
             )
         )
@@ -941,10 +942,20 @@ def test_differential_validator_passes_config_values_to_collaborators() -> None:
             calls["allow_design_subset"] = allow_design_subset
             calls["minimum_condition_replicates"] = minimum_condition_replicates
             calls["paired_design_policy"] = paired_design_policy
+            from phospy.science.differential.linear_model import (
+                decompose_differential_design,
+            )
             from phospy.validation.workflows.differential import (
                 ValidatedExperimentalDesignContract,
             )
 
+            design_frame = pd.DataFrame(
+                {
+                    "A": [1.0, 1.0, 0.0, 0.0],
+                    "B": [0.0, 0.0, 1.0, 1.0],
+                },
+                index=pd.Index(["A_1", "A_2", "B_1", "B_2"], name="sample"),
+            )
             return ValidatedExperimentalDesignContract(
                 design=design,
                 contrasts=contrasts,
@@ -952,16 +963,13 @@ def test_differential_validator_passes_config_values_to_collaborators() -> None:
                     record.sample_id for record in design.samples
                 ),
                 condition_labels=("A", "B"),
-                design_frame=pd.DataFrame(
-                    {
-                        "A": [1.0, 1.0, 0.0, 0.0],
-                        "B": [0.0, 0.0, 1.0, 1.0],
-                    },
-                    index=pd.Index(["A_1", "A_2", "B_1", "B_2"], name="sample"),
-                ),
+                design_frame=design_frame,
                 contrast_frame=pd.DataFrame(
                     {"B_vs_A": [-1.0, 1.0]},
                     index=pd.Index(["A", "B"], name="coefficient"),
+                ),
+                design_decomposition=decompose_differential_design(
+                    design_frame.to_numpy(dtype=float)
                 ),
             )
 

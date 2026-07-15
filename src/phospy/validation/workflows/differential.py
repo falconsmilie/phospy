@@ -34,6 +34,11 @@ from phospy.science.design.models import (
     ExperimentalDesign,
     SampleDesignRecord,
 )
+from phospy.science.differential.linear_model import (
+    DifferentialDesignDecomposition,
+    DifferentialDesignDecompositionError,
+    decompose_differential_design,
+)
 from phospy.science.transformations.models import (
     IntensityScaleEstablishmentMode,
     IntensityScaleKind,
@@ -69,6 +74,7 @@ class ValidatedExperimentalDesignContract:
     condition_labels: tuple[str, ...]
     design_frame: pd.DataFrame
     contrast_frame: pd.DataFrame
+    design_decomposition: DifferentialDesignDecomposition
     design_build_result: DesignMatrixBuildResult | None = None
 
 
@@ -219,7 +225,7 @@ class ExperimentalDesignContractValidator:
             condition_labels=known_conditions,
             contrasts=normalized_contrasts,
         )
-        self._validate_resolved_fixed_effect_design(
+        design_decomposition = self._validate_resolved_fixed_effect_design(
             design_frame=design_frame,
             contrast_frame=contrast_frame,
         )
@@ -230,6 +236,7 @@ class ExperimentalDesignContractValidator:
             condition_labels=known_conditions,
             design_frame=design_frame,
             contrast_frame=contrast_frame,
+            design_decomposition=design_decomposition,
             design_build_result=design_build_result,
         )
 
@@ -519,7 +526,7 @@ class ExperimentalDesignContractValidator:
         *,
         design_frame: pd.DataFrame,
         contrast_frame: pd.DataFrame,
-    ) -> None:
+    ) -> DifferentialDesignDecomposition:
         if not design_frame.index.is_unique:
             raise WorkflowValidationError(
                 "experimental design matrix sample labels must be unique"
@@ -556,51 +563,23 @@ class ExperimentalDesignContractValidator:
                 "numeric values"
             )
 
-        coefficient_count = int(design_values.shape[1])
-        rank = int(np.linalg.matrix_rank(design_values))
-        if rank < coefficient_count:
+        try:
+            design_decomposition = decompose_differential_design(design_values)
+        except DifferentialDesignDecompositionError as exc:
             coefficients = ", ".join(str(label) for label in design_frame.columns)
             raise WorkflowValidationError(
-                "experimental design matrix is rank deficient; condition and "
-                "fixed-effect terms are collinear or confounded. Remove redundant "
-                "or confounded covariates before running differential analysis; "
-                f"rank={rank}, columns={coefficient_count}, coefficients="
-                f"{coefficients}"
-            )
+                "experimental design matrix is rank deficient or too "
+                "ill-conditioned for stable differential linear-model fitting; "
+                "condition and fixed-effect terms may be collinear or confounded. "
+                "Remove redundant/confounded covariates or respecify the design "
+                "before running differential analysis; coefficients="
+                f"{coefficients}; {exc}"
+            ) from exc
 
-        zero_contrasts = [
-            str(name)
-            for name, values in contrast_frame.items()
-            if np.allclose(values.to_numpy(dtype=float), 0.0)
-        ]
-        if zero_contrasts:
-            raise WorkflowValidationError(
-                "experimental design contrast vectors must not be zero-length; "
-                "invalid contrasts: " + ", ".join(zero_contrasts)
-            )
-
-        design_transpose = np.transpose(design_values)
-        contrast_transpose = np.transpose(contrast_values)
-        design_crossproduct = cast(
-            npt.NDArray[np.float64],
-            np.matmul(design_transpose, design_values),
+        invalid_positions = design_decomposition.invalid_contrast_positions(
+            contrast_values
         )
-        xtx_inv = cast(
-            npt.NDArray[np.float64],
-            np.linalg.pinv(design_crossproduct),
-        )
-        contrast_covariance = cast(
-            npt.NDArray[np.float64],
-            np.matmul(np.matmul(contrast_transpose, xtx_inv), contrast_values),
-        )
-        contrast_scale = cast(
-            npt.NDArray[np.float64],
-            np.sqrt(np.diagonal(contrast_covariance)),
-        )
-        invalid_positions = np.flatnonzero(
-            ~np.isfinite(contrast_scale) | (contrast_scale <= 0.0)
-        )
-        if invalid_positions.size:
+        if invalid_positions:
             invalid_contrasts = [
                 str(contrast_frame.columns[int(position)])
                 for position in invalid_positions
@@ -611,6 +590,7 @@ class ExperimentalDesignContractValidator:
                 "collinear design terms. Invalid contrasts: "
                 + ", ".join(invalid_contrasts)
             )
+        return design_decomposition
 
     @staticmethod
     def _records_by_condition(

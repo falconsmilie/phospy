@@ -16,7 +16,7 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
-from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
+from phospy.errors import WorkflowValidationError
 from phospy.science.differential.models import (
     DIFFERENTIAL_RESULT_STATUS_COLUMN,
     DIFFERENTIAL_RESULT_STATUS_TESTED,
@@ -178,7 +178,10 @@ def test_unknown_contrast_condition_fails_before_execution() -> None:
 def test_insufficient_residual_degrees_of_freedom_fails_before_execution() -> None:
     executor = _ExecutorSpy()
 
-    with pytest.raises(WorkflowBoundaryError, match="residual_dof"):
+    with pytest.raises(
+        WorkflowValidationError,
+        match="residual degrees of freedom must be positive",
+    ):
         DifferentialAnalysisWorkflow(executor=executor).run(
             _request(
                 dataset=_dataset(samples=("A_1", "B_1")),

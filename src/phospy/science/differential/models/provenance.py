@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import cast
 
@@ -62,6 +63,14 @@ class DifferentialDesignMatrixSummary:
     coefficient_count: int
     rank: int
     residual_degrees_of_freedom: float
+    decomposition_method: str = "not_recorded"
+    solver: str = "not_recorded"
+    column_scale_method: str = "not_recorded"
+    rank_tolerance_policy: str = "not_recorded"
+    rank_tolerance: float = 0.0
+    condition_number: float = 0.0
+    max_condition_number: float = 0.0
+    singular_values: tuple[float, ...] = ()
     description: str = ""
     condition_columns: tuple[str, ...] = ()
     covariates: tuple[DifferentialFixedEffectCovariateProvenance, ...] = ()
@@ -76,6 +85,7 @@ class DifferentialDesignMatrixSummary:
     condition_coverage_rule: str = ""
     limitations: tuple[str, ...] = ()
     rank_validation_status: str = "not_recorded"
+    conditioning_validation_status: str = "not_recorded"
     estimability_validation_status: str = "not_recorded"
 
     def __post_init__(self) -> None:
@@ -114,9 +124,37 @@ class DifferentialDesignMatrixSummary:
                 "differential_policy_provenance.design.residual_degrees_of_freedom "
                 "must be > 0.0"
             )
+        if self.rank_tolerance < 0.0 or not math.isfinite(self.rank_tolerance):
+            raise PhosPyInputError(
+                "differential_policy_provenance.design.rank_tolerance must be "
+                "finite and >= 0.0"
+            )
+        if self.condition_number < 0.0 or not math.isfinite(self.condition_number):
+            raise PhosPyInputError(
+                "differential_policy_provenance.design.condition_number must be "
+                "finite and >= 0.0"
+            )
+        if self.max_condition_number < 0.0 or not math.isfinite(
+            self.max_condition_number
+        ):
+            raise PhosPyInputError(
+                "differential_policy_provenance.design.max_condition_number must "
+                "be finite and >= 0.0"
+            )
+        singular_values = tuple(float(value) for value in self.singular_values)
+        if any(value < 0.0 or not math.isfinite(value) for value in singular_values):
+            raise PhosPyInputError(
+                "differential_policy_provenance.design.singular_values must contain "
+                "finite values >= 0.0"
+            )
         if self.block_count < 0:
             raise PhosPyInputError(
                 "differential_policy_provenance.design.block_count must be >= 0"
+            )
+        if not self.conditioning_validation_status:
+            raise PhosPyInputError(
+                "differential_policy_provenance.design."
+                "conditioning_validation_status must be non-empty"
             )
         if not self.rank_validation_status:
             raise PhosPyInputError(
@@ -155,6 +193,30 @@ class DifferentialDesignMatrixSummary:
             "condition_columns",
             tuple(str(value) for value in self.condition_columns),
         )
+        object.__setattr__(
+            self,
+            "decomposition_method",
+            str(self.decomposition_method),
+        )
+        object.__setattr__(self, "solver", str(self.solver))
+        object.__setattr__(
+            self,
+            "column_scale_method",
+            str(self.column_scale_method),
+        )
+        object.__setattr__(
+            self,
+            "rank_tolerance_policy",
+            str(self.rank_tolerance_policy),
+        )
+        object.__setattr__(self, "rank_tolerance", float(self.rank_tolerance))
+        object.__setattr__(self, "condition_number", float(self.condition_number))
+        object.__setattr__(
+            self,
+            "max_condition_number",
+            float(self.max_condition_number),
+        )
+        object.__setattr__(self, "singular_values", singular_values)
         object.__setattr__(self, "covariates", covariates)
         object.__setattr__(
             self,
@@ -210,6 +272,11 @@ class DifferentialDesignMatrixSummary:
             self,
             "rank_validation_status",
             str(self.rank_validation_status),
+        )
+        object.__setattr__(
+            self,
+            "conditioning_validation_status",
+            str(self.conditioning_validation_status),
         )
         object.__setattr__(
             self,

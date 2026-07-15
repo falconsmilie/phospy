@@ -174,6 +174,7 @@ class DifferentialAnalysisValidator:
             analysis_sample_ids=validated_design_contract.analysis_sample_ids,
             design_matrix=design_matrix,
             contrast_matrix=contrast_matrix,
+            design_decomposition=validated_design_contract.design_decomposition,
             config=config,
             policy_provenance=None,
             technical_replicate_aggregation_plan=technical_replicate_aggregation_plan,

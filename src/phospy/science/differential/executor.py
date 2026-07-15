@@ -10,6 +10,10 @@ from scipy import stats
 
 from phospy.errors.input import PhosPyInputError
 from phospy.science.differential.empirical_bayes import fit_empirical_bayes
+from phospy.science.differential.linear_model import (
+    DifferentialDesignDecompositionError,
+    decompose_differential_design,
+)
 from phospy.science.differential.models import (
     DifferentialAnalysisRequest,
     DifferentialComputationResult,
@@ -32,28 +36,25 @@ class DifferentialAnalysisExecutor:
         design_values = design_aligned.to_numpy(dtype=float)
         if design_values.ndim != 2:
             raise PhosPyInputError("differential.design must be two-dimensional")
-        design_shape = cast(tuple[int, int], design_values.shape)
-        sample_count = int(design_shape[0])
-        coefficient_count = int(design_shape[1])
-        rank = int(np.linalg.matrix_rank(design_values))
-        if rank < coefficient_count:
+        try:
+            design_decomposition = decompose_differential_design(design_values)
+        except DifferentialDesignDecompositionError as error:
             raise PhosPyInputError(
-                "differential.design must be full column rank for moderated-contrast "
-                f"analysis; rank={rank}, columns={coefficient_count}"
-            )
-        residual_dof = float(sample_count - rank)
-        if residual_dof <= 0.0:
-            raise PhosPyInputError(
-                "differential analysis residual degrees of freedom must be positive; "
-                f"samples={sample_count}, rank={rank}, residual_dof={residual_dof}"
-            )
+                "differential.design is not admissible for stable moderated-contrast "
+                f"analysis: {error}"
+            ) from error
+        residual_dof = design_decomposition.residual_degrees_of_freedom
 
         response = matrix_aligned.to_numpy(dtype=float).T
-        xtx_inv = np.linalg.pinv(design_values.T @ design_values)
-        coefficients = xtx_inv @ design_values.T @ response
-        residuals = response - design_values @ coefficients
-        rss = np.sum(residuals**2, axis=0)
-        residual_variance = rss / residual_dof
+        try:
+            linear_fit = design_decomposition.fit(response)
+        except DifferentialDesignDecompositionError as error:
+            raise PhosPyInputError(
+                "differential model fitting failed under the shared design "
+                f"decomposition: {error}"
+            ) from error
+        coefficients = linear_fit.coefficients
+        residual_variance = linear_fit.residual_variance
         mean_intensity = np.mean(response, axis=0)
 
         try:
@@ -100,8 +101,7 @@ class DifferentialAnalysisExecutor:
 
         contrasts = contrast_aligned.to_numpy(dtype=float)
         contrast_effects = coefficients.T @ contrasts
-        contrast_covariance = contrasts.T @ xtx_inv @ contrasts
-        contrast_scale = np.sqrt(np.diag(contrast_covariance))
+        contrast_scale = design_decomposition.contrast_scales(contrasts)
         if np.any(~np.isfinite(contrast_scale)) or np.any(contrast_scale <= 0.0):
             raise PhosPyInputError(
                 "differential.contrasts contains non-estimable or zero-length contrast "

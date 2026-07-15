@@ -88,6 +88,33 @@ No condition inference from sample names is allowed.
 No condition/replicate/batch/block inference from dataset sample metadata is
 allowed.
 
+Differential linear-model numerics are owned by one shared scaled-SVD
+decomposition contract in `phospy.science.differential.linear_model`.
+Validation, interpretation, feature-eligibility screening, provenance, and
+execution consume that contract rather than independently computing rank,
+conditioning, coefficients, covariance, or residual degrees of freedom.
+
+The admissibility policy is:
+
+- design columns are L2-rescaled before SVD rank and conditioning checks, so
+  ordinary covariate unit changes do not change estimability decisions;
+- rank is `count(singular_value > eps * max(n_samples, n_coefficients) *
+  largest_singular_value)` on the scaled design;
+- designs must be full column rank and have positive residual degrees of
+  freedom;
+- scaled-design condition number must be `<= 1.0e10`;
+- designs above that threshold are rejected before model fitting rather than
+  accepted with a warning;
+- coefficient estimates are solved from the scaled SVD and transformed back to
+  original coefficient units;
+- coefficient covariance and contrast covariance are derived from the same SVD
+  factors;
+- fitting must not use `pinv(X.T @ X)` or other normal-equation inversions.
+
+Result policy provenance and diagnostics record the decomposition method,
+solver, column-scaling policy, rank tolerance policy/value, singular values,
+condition number, and maximum admissible condition number.
+
 ## Consequences
 
 - **Positive**
@@ -127,6 +154,8 @@ allowed.
   `src/phospy/workflows/differential/validator.py`.
 - Differential provenance construction:
   `src/phospy/workflows/differential/provenance.py`.
+- Differential numerical linear-model decomposition:
+  `src/phospy/science/differential/linear_model.py`.
 - Ownership registry alignment:
   `docs/validation-ownership.md` (Design matrix validity, Contrast validity,
   Replicate policy).

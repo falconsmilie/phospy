@@ -10,6 +10,13 @@ from phospy.science.differential.empirical_bayes import (
     fit_empirical_bayes,
 )
 from phospy.science.differential.executor import DifferentialAnalysisExecutor
+from phospy.science.differential.linear_model import (
+    DIFFERENTIAL_LINEAR_MODEL_DECOMPOSITION_METHOD,
+    DIFFERENTIAL_LINEAR_MODEL_MAX_CONDITION_NUMBER,
+    DIFFERENTIAL_LINEAR_MODEL_SOLVER,
+    DifferentialDesignDecompositionError,
+    decompose_differential_design,
+)
 from phospy.science.differential.models import (
     DifferentialAnalysisRequest,
     DifferentialAnalysisResult,
@@ -181,9 +188,7 @@ def _manual_contrast_effects(
     response = matrix.loc[:, design.index].to_numpy(dtype=float).T
     design_values = design.to_numpy(dtype=float)
     contrast_values = contrasts.loc[design.columns].to_numpy(dtype=float)
-    coefficients = (
-        np.linalg.pinv(design_values.T @ design_values) @ design_values.T @ response
-    )
+    coefficients, *_ = np.linalg.lstsq(design_values, response, rcond=None)
     return pd.DataFrame(
         coefficients.T @ contrast_values,
         index=matrix.index.copy(),
@@ -371,6 +376,210 @@ def test_continuous_covariate_adjusted_model_uses_supplied_design() -> None:
         atol=1e-12,
     )
     assert result.residual_degrees_of_freedom == pytest.approx(3.0)
+
+
+def test_full_rank_near_confounded_covariate_fit_is_stable() -> None:
+    samples = pd.Index(
+        ["A_1", "A_2", "A_3", "B_1", "B_2", "B_3"],
+        name="sample",
+    )
+    condition_b = np.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0], dtype=float)
+    almost_condition_b = condition_b + np.array(
+        [-1e-5, 0.0, 1e-5, -1e-5, 0.0, 1e-5],
+        dtype=float,
+    )
+    design = pd.DataFrame(
+        {
+            "A": 1.0 - condition_b,
+            "B": condition_b,
+            "almost_B": almost_condition_b,
+        },
+        index=samples,
+        dtype=float,
+    )
+    contrasts = pd.DataFrame(
+        {"B_vs_A": [-1.0, 1.0, 0.0]},
+        index=pd.Index(["A", "B", "almost_B"], name="coefficient"),
+    )
+    matrix = pd.DataFrame(
+        {
+            sample: [
+                2.0
+                + 0.4 * condition_b[position]
+                + 0.7 * almost_condition_b[position]
+                + 0.01 * float(position),
+                -1.0
+                + 0.2 * condition_b[position]
+                - 0.3 * almost_condition_b[position]
+                + 0.02 * float(position),
+            ]
+            for position, sample in enumerate(samples)
+        },
+        index=pd.Index(["site1", "site2"], name="site_id"),
+    )
+
+    decomposition = decompose_differential_design(design.to_numpy(dtype=float))
+    assert decomposition.rank == 3
+    assert (
+        decomposition.condition_number < DIFFERENTIAL_LINEAR_MODEL_MAX_CONDITION_NUMBER
+    )
+
+    result = DifferentialAnalysisExecutor().run(
+        DifferentialAnalysisRequest(matrix=matrix, design=design, contrasts=contrasts)
+    )
+    table = result.table_for("B_vs_A")
+    expected = _manual_contrast_effects(
+        matrix=matrix,
+        design=design,
+        contrasts=contrasts,
+    )
+    np.testing.assert_allclose(
+        table.loc[:, "logFC"].to_numpy(dtype=float),
+        expected.loc[:, "B_vs_A"].to_numpy(dtype=float),
+        rtol=1e-8,
+        atol=1e-8,
+    )
+    assert np.isfinite(table.loc[:, "t"]).all()
+
+
+def test_executor_rejects_exactly_rank_deficient_design() -> None:
+    matrix, _, adjusted_design, adjusted_contrast = _continuous_covariate_inputs()
+    deficient_design = adjusted_design.copy(deep=True)
+    deficient_design.loc[:, "duplicate_B"] = deficient_design.loc[:, "B"]
+    deficient_contrast = adjusted_contrast.copy(deep=True)
+    deficient_contrast.loc["duplicate_B"] = 0.0
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="rank deficient under scaled SVD decomposition",
+    ):
+        DifferentialAnalysisExecutor().run(
+            DifferentialAnalysisRequest(
+                matrix=matrix,
+                design=deficient_design,
+                contrasts=deficient_contrast,
+            )
+        )
+
+
+def test_rescaled_covariate_preserves_estimable_condition_contrast() -> None:
+    matrix, _, design, contrast = _continuous_covariate_inputs()
+    rescaled_design = design.copy(deep=True)
+    rescaled_design.loc[:, "dose"] = rescaled_design.loc[:, "dose"] * 1.0e6
+
+    original = DifferentialAnalysisExecutor().run(
+        DifferentialAnalysisRequest(matrix=matrix, design=design, contrasts=contrast)
+    )
+    rescaled = DifferentialAnalysisExecutor().run(
+        DifferentialAnalysisRequest(
+            matrix=matrix,
+            design=rescaled_design,
+            contrasts=contrast,
+        )
+    )
+
+    pd.testing.assert_series_equal(
+        original.table_for("B_vs_A").loc[:, "logFC"],
+        rescaled.table_for("B_vs_A").loc[:, "logFC"],
+        rtol=1e-9,
+        atol=1e-9,
+        check_names=False,
+    )
+    pd.testing.assert_series_equal(
+        original.table_for("B_vs_A").loc[:, "t"],
+        rescaled.table_for("B_vs_A").loc[:, "t"],
+        rtol=1e-7,
+        atol=1e-7,
+        check_names=False,
+    )
+
+
+def test_scaled_svd_decomposition_matches_known_coefficient_covariance_fixture() -> (
+    None
+):
+    design = np.array(
+        [
+            [1.0, 0.0],
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [0.0, 1.0],
+        ],
+        dtype=float,
+    )
+    response = np.array([[1.0], [3.0], [3.0], [5.0]], dtype=float)
+
+    decomposition = decompose_differential_design(design)
+    fit = decomposition.fit(response)
+    covariance = decomposition.coefficient_covariance
+    contrast_covariance = decomposition.contrast_covariance(
+        np.array([[-1.0], [1.0]], dtype=float)
+    )
+
+    np.testing.assert_allclose(fit.coefficients[:, 0], np.array([2.0, 4.0]))
+    assert fit.residual_variance[0] == pytest.approx(2.0)
+    np.testing.assert_allclose(covariance, np.diag([0.5, 0.5]), atol=1e-12)
+    assert contrast_covariance[0, 0] == pytest.approx(1.0)
+    assert (
+        decomposition.decomposition_method
+        == DIFFERENTIAL_LINEAR_MODEL_DECOMPOSITION_METHOD
+    )
+    assert decomposition.solver == DIFFERENTIAL_LINEAR_MODEL_SOLVER
+
+
+def test_contrast_covariance_regression_for_adjusted_design() -> None:
+    design = np.array(
+        [
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [1.0, 0.0, 1.0],
+            [0.0, 1.0, 1.0],
+        ],
+        dtype=float,
+    )
+    contrasts = np.array(
+        [
+            [-1.0, 0.0],
+            [1.0, 0.0],
+            [0.0, 1.0],
+        ],
+        dtype=float,
+    )
+
+    covariance = decompose_differential_design(design).contrast_covariance(contrasts)
+
+    np.testing.assert_allclose(
+        covariance,
+        np.array([[1.0, 0.0], [0.0, 1.0]], dtype=float),
+        atol=1e-12,
+    )
+
+
+def test_scaled_svd_condition_threshold_boundary() -> None:
+    def _design_for_condition(target_condition: float) -> np.ndarray:
+        rho = (target_condition**2 - 1.0) / (target_condition**2 + 1.0)
+        return np.array(
+            [
+                [1.0, rho],
+                [0.0, np.sqrt(1.0 - rho**2)],
+                [0.0, 0.0],
+            ],
+            dtype=float,
+        )
+
+    at_threshold = decompose_differential_design(
+        _design_for_condition(10.0),
+        max_condition_number=10.0,
+    )
+    assert at_threshold.condition_number == pytest.approx(10.0)
+
+    with pytest.raises(
+        DifferentialDesignDecompositionError,
+        match="too ill-conditioned",
+    ):
+        decompose_differential_design(
+            _design_for_condition(10.1),
+            max_condition_number=10.0,
+        )
 
 
 def test_executor_rejects_misaligned_contrast_vector_clearly() -> None:

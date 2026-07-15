@@ -2,11 +2,7 @@
 
 from __future__ import annotations
 
-from typing import cast
-
-import numpy as np
 import pandas as pd
-from numpy.typing import NDArray
 
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.datasets.internal_view import DatasetInternalView
@@ -23,6 +19,7 @@ from phospy.science.design.models import (
     ExperimentalDesign,
     PairedDesignPolicy,
 )
+from phospy.science.differential.linear_model import DifferentialDesignDecomposition
 from phospy.science.differential.models import (
     ContrastMatrix,
     DesignMatrix,
@@ -103,6 +100,7 @@ class DifferentialAnalysisInterpreter:
         resolved_analysis_sample_ids = request.analysis_sample_ids
         resolved_design_matrix = request.design_matrix
         resolved_contrast_matrix = request.contrast_matrix
+        resolved_design_decomposition = request.design_decomposition
         resolved_workflow_provenance = request.workflow_provenance
         resolved_design_build_result = request.design_build_result
 
@@ -130,6 +128,9 @@ class DifferentialAnalysisInterpreter:
             resolved_design_matrix = DesignMatrix(resolved_design_contract.design_frame)
             resolved_contrast_matrix = ContrastMatrix(
                 resolved_design_contract.contrast_frame
+            )
+            resolved_design_decomposition = (
+                resolved_design_contract.design_decomposition
             )
             resolved_design_build_result = resolved_design_contract.design_build_result
 
@@ -198,64 +199,13 @@ class DifferentialAnalysisInterpreter:
             feature_ids=feature_eligibility_inputs.testable_feature_ids,
         )
 
-        design_values: NDArray[np.float64] = np.asarray(
-            design_aligned.to_numpy(dtype=float),
-            dtype=np.float64,
+        rank = int(resolved_design_decomposition.rank)
+        residual_dof = float(resolved_design_decomposition.residual_degrees_of_freedom)
+        contrast_values = contrasts_aligned.to_numpy(dtype=float)
+        invalid_contrast_positions = (
+            resolved_design_decomposition.invalid_contrast_positions(contrast_values)
         )
-        design_shape = design_values.shape
-        sample_count = int(design_shape[0])
-        coefficient_count = int(design_shape[1])
-        rank = int(np.linalg.matrix_rank(design_values))
-        if rank < coefficient_count:
-            raise WorkflowBoundaryError(
-                seam="differential.interpreter.design_rank",
-                next_action=(
-                    "remove collinear design terms or simplify the design matrix so "
-                    "it is full column rank"
-                ),
-                details={"rank": rank, "columns": coefficient_count},
-                message_prefix="differential workflow boundary validation failed",
-            )
-
-        residual_dof = float(sample_count - rank)
-        if residual_dof <= 0.0:
-            raise WorkflowBoundaryError(
-                seam="differential.interpreter.residual_dof",
-                next_action=(
-                    "increase sample count or reduce design terms so residual "
-                    "degrees of freedom stays positive"
-                ),
-                details={
-                    "samples": sample_count,
-                    "rank": rank,
-                    "residual_dof": residual_dof,
-                },
-                message_prefix="differential workflow boundary validation failed",
-            )
-
-        design_transpose = np.transpose(design_values)
-        contrast_values: NDArray[np.float64] = np.asarray(
-            contrasts_aligned.to_numpy(dtype=float),
-            dtype=np.float64,
-        )
-        contrast_transpose = np.transpose(contrast_values)
-        design_crossproduct = cast(
-            NDArray[np.float64],
-            np.matmul(design_transpose, design_values),
-        )
-        xtx_inv = cast(
-            NDArray[np.float64],
-            np.linalg.pinv(design_crossproduct),
-        )
-        contrast_covariance = cast(
-            NDArray[np.float64],
-            np.matmul(np.matmul(contrast_transpose, xtx_inv), contrast_values),
-        )
-        contrast_scale = cast(
-            NDArray[np.float64],
-            np.sqrt(np.diagonal(contrast_covariance)),
-        )
-        if np.any(~np.isfinite(contrast_scale)) or np.any(contrast_scale <= 0.0):
+        if invalid_contrast_positions:
             raise WorkflowBoundaryError(
                 seam="differential.interpreter.non_estimable_contrast",
                 next_action=(
@@ -263,7 +213,10 @@ class DifferentialAnalysisInterpreter:
                     "resolved design matrix"
                 ),
                 details={
-                    "contrast_names": index_as_strings(contrasts_aligned.columns),
+                    "contrast_names": [
+                        str(contrasts_aligned.columns[int(position)])
+                        for position in invalid_contrast_positions
+                    ],
                 },
                 message_prefix="differential workflow boundary validation failed",
             )
@@ -275,6 +228,7 @@ class DifferentialAnalysisInterpreter:
             contrasts_aligned=contrasts_aligned,
             design_build_result=resolved_design_build_result,
             paired_design_policy=request.config.paired_design_policy,
+            design_decomposition=resolved_design_decomposition,
         )
         computation_request = DifferentialComputationRequest(
             matrix=matrix_for_computation,
@@ -298,6 +252,7 @@ class DifferentialAnalysisInterpreter:
             analysis_sample_ids=resolved_analysis_sample_ids,
             design_matrix=resolved_design_matrix,
             contrast_matrix=resolved_contrast_matrix,
+            design_decomposition=resolved_design_decomposition,
             config=request.config,
             technical_replicate_aggregation_plan=aggregation_plan,
             workflow_provenance=resolved_workflow_provenance,
@@ -306,8 +261,7 @@ class DifferentialAnalysisInterpreter:
         )
         policy_provenance = build_differential_policy_provenance(
             request=provenance_request,
-            design_rank=rank,
-            residual_degrees_of_freedom=residual_dof,
+            design_decomposition=resolved_design_decomposition,
         )
         ruv_readiness_enabled = bool(
             resolved_dataset.processing_state.ruv_readiness.enabled
@@ -330,6 +284,7 @@ class DifferentialAnalysisInterpreter:
             config=request.config,
             design_rank=rank,
             residual_degrees_of_freedom=residual_dof,
+            design_decomposition=resolved_design_decomposition,
             policy_provenance=policy_provenance,
             workflow_provenance=resolved_workflow_provenance,
             caveats=caveats,
@@ -351,6 +306,7 @@ def _build_execution_design_inputs(
     contrasts_aligned: pd.DataFrame,
     design_build_result: DesignMatrixBuildResult | None,
     paired_design_policy: PairedDesignPolicy,
+    design_decomposition: DifferentialDesignDecomposition,
 ) -> DifferentialExecutionDesignInputs:
     sample_order = tuple(str(label) for label in design_aligned.index)
     coefficient_labels = tuple(str(label) for label in design_aligned.columns)
@@ -404,6 +360,7 @@ def _build_execution_design_inputs(
         block_column_metadata=block_column_metadata,
         condition_labels=condition_labels,
         coefficient_labels=coefficient_labels,
+        design_decomposition=design_decomposition,
     )
 
 

@@ -18,7 +18,6 @@ from phospy.api import (
 from phospy.api.configs import PAIRED_DESIGN_POLICY_FIXED_BLOCK
 from phospy.errors import (
     PhosPyInputError,
-    WorkflowBoundaryError,
     WorkflowValidationError,
 )
 from phospy.science.differential.executor import DifferentialAnalysisExecutor
@@ -223,8 +222,8 @@ def test_workflow_rejects_non_positive_residual_dof_for_small_n_design() -> None
         )
     )
     with pytest.raises(
-        WorkflowBoundaryError,
-        match="differential.interpreter.residual_dof",
+        WorkflowValidationError,
+        match="residual degrees of freedom must be positive",
     ):
         DifferentialAnalysisWorkflow().run(
             _workflow_request(
@@ -247,5 +246,5 @@ def test_core_executor_rejects_rank_deficient_design_matrix() -> None:
     ).set_index("coefficient")
     request = CoreDiffRequest(matrix=matrix, design=design, contrasts=contrasts)
 
-    with pytest.raises(PhosPyInputError, match="full column rank"):
+    with pytest.raises(PhosPyInputError, match="rank deficient"):
         DifferentialAnalysisExecutor().run(request)

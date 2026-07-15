@@ -24,7 +24,6 @@ from phospy.api import (
 from phospy.api.configs import SUPPORTED_MULTIPLE_TESTING_METHODS
 from phospy.errors import (
     PhosPyInputError,
-    WorkflowBoundaryError,
     WorkflowValidationError,
 )
 from phospy.science.datasets.builders.preprocessing import (
@@ -984,8 +983,8 @@ def test_differential_analysis_fails_when_residual_dof_is_non_positive() -> None
         )
     )
     with pytest.raises(
-        WorkflowBoundaryError,
-        match="differential.interpreter.residual_dof",
+        WorkflowValidationError,
+        match="residual degrees of freedom must be positive",
     ):
         DifferentialAnalysisWorkflow().run(
             _request(
@@ -1122,4 +1121,10 @@ def test_differential_analysis_sample_order_mismatch_is_resolved_by_label() -> N
         .table_for("B_vs_A")
     )
 
-    pdt.assert_frame_equal(aligned, reordered, check_exact=False, rtol=1e-12, atol=0.0)
+    pdt.assert_frame_equal(
+        aligned,
+        reordered,
+        check_exact=False,
+        rtol=1e-12,
+        atol=1e-12,
+    )

@@ -16,6 +16,9 @@ from phospy.science.datasets.models import (
 )
 from phospy.science.design.matrix_builder import DesignMatrixBuildResult
 from phospy.science.design.models import Contrast, ExperimentalDesign
+from phospy.science.differential.linear_model import (
+    DifferentialDesignDecomposition,
+)
 from phospy.science.differential.models import (
     ContrastMatrix,
     DesignMatrix,
@@ -40,6 +43,7 @@ class ValidatedDifferentialAnalysisRequest:
     analysis_sample_ids: tuple[str, ...]
     design_matrix: DesignMatrix
     contrast_matrix: ContrastMatrix
+    design_decomposition: DifferentialDesignDecomposition
     config: DifferentialAnalysisConfig
     policy_provenance: DifferentialPolicyProvenance | None = None
     technical_replicate_aggregation_plan: TechnicalReplicateAggregationPlan | None = (
@@ -186,6 +190,7 @@ class DifferentialExecutionDesignInputs:
     block_column_metadata: DifferentialBlockColumnMetadata | None
     condition_labels: tuple[str, ...]
     coefficient_labels: tuple[str, ...]
+    design_decomposition: DifferentialDesignDecomposition
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -231,6 +236,7 @@ class InterpretedDifferentialAnalysisRequest:
     config: DifferentialAnalysisConfig
     design_rank: int
     residual_degrees_of_freedom: float
+    design_decomposition: DifferentialDesignDecomposition
     policy_provenance: DifferentialPolicyProvenance | None = None
     workflow_provenance: Mapping[str, object] | None = None
     caveats: tuple[ResultCaveat, ...] = ()
