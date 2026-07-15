@@ -35,6 +35,8 @@ from phospy.science.activities.methods import (
 )
 from phospy.science.activities.models import KinaseActivityResult
 from phospy.science.activities.scientific_policies import (
+    SSGSEA_PERMUTATION_RNG_SEED_POLICY,
+    SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION,
     build_ksea_zscore_activity_policy,
     build_simplified_weighted_substrate_activity_policy,
     build_ssgsea_substrate_enrichment_activity_policy,
@@ -414,6 +416,16 @@ def _build_activity_config_payload(
             None
             if config.activity.ssgsea_random_seed is None
             else int(config.activity.ssgsea_random_seed)
+        ),
+        "ssgsea_permutation_rng_seed_policy": (
+            SSGSEA_PERMUTATION_RNG_SEED_POLICY
+            if int(config.activity.ssgsea_permutations) > 0
+            else None
+        ),
+        "ssgsea_permutation_rng_seed_policy_version": (
+            SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION
+            if int(config.activity.ssgsea_permutations) > 0
+            else None
         ),
         "ssgsea_adjust_p_values": bool(config.activity.ssgsea_adjust_p_values),
         "ssgsea_q_value_method": (

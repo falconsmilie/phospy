@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from io import StringIO
+
 import pandas as pd
 import pandas.testing as pdt
 import pytest
@@ -17,6 +19,7 @@ from phospy.science.activities.methods.ssgsea_substrate_enrichment import (
     SSGSEA_STATUS_COMPUTED,
     SSGSEA_STATUS_INSUFFICIENT_SUBSTRATES,
     SsgseaSubstrateEnrichmentActivityMethod,
+    _derive_ssgsea_permutation_seed,
 )
 from phospy.science.activities.models import (
     KinaseActivityInputs,
@@ -25,6 +28,11 @@ from phospy.science.activities.models import (
     PredMatOverlapSummary,
     SsgseaSubstrateEnrichmentActivityDiagnostics,
     WeightedSubstrateActivityDiagnostics,
+)
+from phospy.science.activities.scientific_policies import (
+    SSGSEA_PERMUTATION_RNG_SEED_POLICY,
+    SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION,
+    SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION,
 )
 from phospy.science.activities.scoring import (
     SimplifiedWeightedSubstrateActivityPolicy,
@@ -132,6 +140,111 @@ def _ssgsea_result(
     ).run(
         effect_matrix=_with_site_key_index(effect_matrix),
         kinase_substrate_membership=_membership(kinase_to_sites),
+    )
+
+
+def _sort_named_frame(frame: pd.DataFrame) -> pd.DataFrame:
+    return frame.sort_index(axis=0).sort_index(axis=1)
+
+
+def _assert_optional_named_frame_equal(
+    left: pd.DataFrame | None,
+    right: pd.DataFrame | None,
+    *,
+    index_labels: list[str] | None = None,
+    column_labels: list[str] | None = None,
+) -> None:
+    if left is None:
+        assert right is None
+        return
+    assert right is not None
+    left_frame = left
+    right_frame = right
+    if index_labels is not None:
+        left_frame = left_frame.loc[index_labels, :]
+        right_frame = right_frame.loc[index_labels, :]
+    if column_labels is not None:
+        left_frame = left_frame.loc[:, column_labels]
+        right_frame = right_frame.loc[:, column_labels]
+    pdt.assert_frame_equal(
+        _sort_named_frame(left_frame),
+        _sort_named_frame(right_frame),
+    )
+
+
+def _assert_named_ssgsea_result_equal(
+    left,
+    right,
+    *,
+    index_labels: list[str] | None = None,
+    column_labels: list[str] | None = None,
+    compare_q_values: bool = True,
+) -> None:
+    _assert_optional_named_frame_equal(
+        left.activity_matrix,
+        right.activity_matrix,
+        index_labels=index_labels,
+        column_labels=column_labels,
+    )
+    _assert_optional_named_frame_equal(
+        left.substrate_count_matrix,
+        right.substrate_count_matrix,
+        index_labels=index_labels,
+        column_labels=column_labels,
+    )
+    _assert_optional_named_frame_equal(
+        left.p_value_matrix,
+        right.p_value_matrix,
+        index_labels=index_labels,
+        column_labels=column_labels,
+    )
+    if compare_q_values:
+        _assert_optional_named_frame_equal(
+            left.q_value_matrix,
+            right.q_value_matrix,
+            index_labels=index_labels,
+            column_labels=column_labels,
+        )
+
+    left_stats = left.statistics_table
+    right_stats = right.statistics_table
+    assert left_stats is not None
+    assert right_stats is not None
+    stat_columns = [
+        "enrichment_score",
+        "p_value",
+        "q_value",
+        "n_substrates",
+        "n_background_sites",
+        "permutation_count",
+        "random_seed",
+        "computability_status",
+    ]
+    if not compare_q_values:
+        stat_columns.remove("q_value")
+    left_named = left_stats.set_index(["kinase", "condition"]).sort_index()
+    right_named = right_stats.set_index(["kinase", "condition"]).sort_index()
+    if index_labels is not None or column_labels is not None:
+        kinase_labels = (
+            set(index_labels)
+            if index_labels is not None
+            else {str(value[0]) for value in left_named.index}
+        )
+        condition_labels = (
+            set(column_labels)
+            if column_labels is not None
+            else {str(value[1]) for value in left_named.index}
+        )
+        selected_index = [
+            value
+            for value in left_named.index
+            if str(value[0]) in kinase_labels and str(value[1]) in condition_labels
+        ]
+        left_named = left_named.loc[selected_index, :]
+        right_named = right_named.loc[selected_index, :]
+    pdt.assert_frame_equal(
+        left_named.loc[:, stat_columns],
+        right_named.loc[:, stat_columns],
     )
 
 
@@ -254,6 +367,200 @@ def test_ssgsea_seed_reproducibility_for_permutation_p_values() -> None:
     pdt.assert_frame_equal(first.q_value_matrix, second.q_value_matrix)
 
 
+def test_ssgsea_permutation_results_are_kinase_order_invariant() -> None:
+    effect_matrix = pd.DataFrame(
+        {
+            "c1": [8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0],
+            "c2": [1.0, 4.0, 2.0, 8.0, 3.0, 7.0, 5.0, 6.0],
+        },
+        index=[
+            "S1;S1;",
+            "S2;S2;",
+            "S3;S3;",
+            "S4;S4;",
+            "S5;S5;",
+            "S6;S6;",
+            "S7;S7;",
+            "S8;S8;",
+        ],
+    )
+    kinase_to_sites = {
+        "K_TOP": ["S1;S1;", "S2;S2;", "S4;S4;"],
+        "K_MID": ["S3;S3;", "S5;S5;", "S7;S7;"],
+        "K_BOTTOM": ["S6;S6;", "S7;S7;", "S8;S8;"],
+    }
+
+    first = _ssgsea_result(
+        effect_matrix=effect_matrix,
+        kinase_to_sites=kinase_to_sites,
+        permutation_count=80,
+        random_seed=37,
+    )
+    second = _ssgsea_result(
+        effect_matrix=effect_matrix,
+        kinase_to_sites=dict(reversed(list(kinase_to_sites.items()))),
+        permutation_count=80,
+        random_seed=37,
+    )
+
+    _assert_named_ssgsea_result_equal(first, second)
+
+
+def test_ssgsea_permutation_results_are_condition_order_invariant() -> None:
+    effect_matrix = pd.DataFrame(
+        {
+            "c1": [8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0],
+            "c2": [1.0, 4.0, 2.0, 8.0, 3.0, 7.0, 5.0, 6.0],
+        },
+        index=[
+            "S1;S1;",
+            "S2;S2;",
+            "S3;S3;",
+            "S4;S4;",
+            "S5;S5;",
+            "S6;S6;",
+            "S7;S7;",
+            "S8;S8;",
+        ],
+    )
+    kinase_to_sites = {
+        "K_TOP": ["S1;S1;", "S2;S2;", "S4;S4;"],
+        "K_MID": ["S3;S3;", "S5;S5;", "S7;S7;"],
+        "K_BOTTOM": ["S6;S6;", "S7;S7;", "S8;S8;"],
+    }
+
+    first = _ssgsea_result(
+        effect_matrix=effect_matrix,
+        kinase_to_sites=kinase_to_sites,
+        permutation_count=80,
+        random_seed=37,
+    )
+    second = _ssgsea_result(
+        effect_matrix=effect_matrix.loc[:, ["c2", "c1"]],
+        kinase_to_sites=kinase_to_sites,
+        permutation_count=80,
+        random_seed=37,
+    )
+
+    _assert_named_ssgsea_result_equal(first, second)
+
+
+def test_ssgsea_permutation_results_ignore_unrelated_kinase_insertion() -> None:
+    effect_matrix = pd.DataFrame(
+        {
+            "c1": [8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0],
+            "c2": [1.0, 4.0, 2.0, 8.0, 3.0, 7.0, 5.0, 6.0],
+        },
+        index=[
+            "S1;S1;",
+            "S2;S2;",
+            "S3;S3;",
+            "S4;S4;",
+            "S5;S5;",
+            "S6;S6;",
+            "S7;S7;",
+            "S8;S8;",
+        ],
+    )
+    base_kinase_to_sites = {
+        "K_TOP": ["S1;S1;", "S2;S2;", "S4;S4;"],
+        "K_BOTTOM": ["S6;S6;", "S7;S7;", "S8;S8;"],
+    }
+    extended_kinase_to_sites = {
+        "K_UNRELATED": ["S2;S2;", "S5;S5;", "S8;S8;"],
+        **base_kinase_to_sites,
+    }
+
+    first = _ssgsea_result(
+        effect_matrix=effect_matrix,
+        kinase_to_sites=base_kinase_to_sites,
+        permutation_count=80,
+        random_seed=37,
+        adjust_p_values=False,
+    )
+    second = _ssgsea_result(
+        effect_matrix=effect_matrix,
+        kinase_to_sites=extended_kinase_to_sites,
+        permutation_count=80,
+        random_seed=37,
+        adjust_p_values=False,
+    )
+
+    _assert_named_ssgsea_result_equal(
+        first,
+        second,
+        index_labels=["K_TOP", "K_BOTTOM"],
+        compare_q_values=False,
+    )
+
+
+def test_ssgsea_permutation_seed_derivation_changes_with_global_seed() -> None:
+    first_seed = _derive_ssgsea_permutation_seed(
+        random_seed=37,
+        condition_name="c1",
+        kinase_name="K_TOP",
+    )
+    second_seed = _derive_ssgsea_permutation_seed(
+        random_seed=38,
+        condition_name="c1",
+        kinase_name="K_TOP",
+    )
+
+    assert first_seed != second_seed
+
+
+def test_ssgsea_permutation_results_survive_input_serialization_round_trip() -> None:
+    effect_matrix = _with_site_key_index(
+        pd.DataFrame(
+            {
+                "c1": [8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0],
+                "c2": [1.0, 4.0, 2.0, 8.0, 3.0, 7.0, 5.0, 6.0],
+            },
+            index=[
+                "S1;S1;",
+                "S2;S2;",
+                "S3;S3;",
+                "S4;S4;",
+                "S5;S5;",
+                "S6;S6;",
+                "S7;S7;",
+                "S8;S8;",
+            ],
+        )
+    )
+    membership = _membership(
+        {
+            "K_TOP": ["S1;S1;", "S2;S2;", "S4;S4;"],
+            "K_MID": ["S3;S3;", "S5;S5;", "S7;S7;"],
+            "K_BOTTOM": ["S6;S6;", "S7;S7;", "S8;S8;"],
+        }
+    )
+    method = SsgseaSubstrateEnrichmentActivityMethod(
+        min_substrates=2,
+        permutation_count=80,
+        random_seed=37,
+    )
+
+    first = method.run(
+        effect_matrix=effect_matrix,
+        kinase_substrate_membership=membership,
+    )
+    restored_effect_matrix = pd.read_json(
+        StringIO(effect_matrix.to_json(orient="split")),
+        orient="split",
+    )
+    restored_membership = pd.read_json(
+        StringIO(membership.to_json(orient="records")),
+        orient="records",
+    )
+    second = method.run(
+        effect_matrix=restored_effect_matrix,
+        kinase_substrate_membership=restored_membership,
+    )
+
+    _assert_named_ssgsea_result_equal(first, second)
+
+
 def test_ssgsea_result_populates_contract_and_policy_provenance() -> None:
     effect_matrix = pd.DataFrame(
         {"c1": [4.0, 3.0, 2.0, 1.0]},
@@ -282,9 +589,19 @@ def test_ssgsea_result_populates_contract_and_policy_provenance() -> None:
     assert policy.id == ScientificPolicyId.SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY
     payload = policy.to_payload()
     assert payload["id"] == "ssgsea_substrate_enrichment_activity_v1"
+    assert payload["version"] == SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION
     parameters = payload["parameters"]
     assert isinstance(parameters, dict)
+    assert parameters["method_version"] == (
+        SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION
+    )
     assert parameters["random_seed"] == 3
+    assert parameters["permutation_rng_seed_policy"] == (
+        SSGSEA_PERMUTATION_RNG_SEED_POLICY
+    )
+    assert parameters["permutation_rng_seed_policy_version"] == (
+        SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION
+    )
     assert parameters["q_value_method"] == SSGSEA_Q_VALUE_METHOD_BENJAMINI_HOCHBERG
 
 

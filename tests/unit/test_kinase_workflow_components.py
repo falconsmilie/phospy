@@ -24,6 +24,10 @@ from phospy.api.results import (
     KinaseWorkflowSiteAttritionSummary,
 )
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.science.activities.scientific_policies import (
+    SSGSEA_PERMUTATION_RNG_SEED_POLICY,
+    SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION,
+)
 from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.science.sites.site_keys import (
     build_protein_scoped_site_key,
@@ -1396,6 +1400,12 @@ def test_provenance_builder_includes_ssgsea_policy_when_selected() -> None:
     activity_payload = provenance.workflow_parameters["activity_config"]
     assert isinstance(activity_payload, dict)
     assert activity_payload["ssgsea_random_seed"] == 13
+    assert activity_payload["ssgsea_permutation_rng_seed_policy"] == (
+        SSGSEA_PERMUTATION_RNG_SEED_POLICY
+    )
+    assert activity_payload["ssgsea_permutation_rng_seed_policy_version"] == (
+        SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION
+    )
 
 
 def test_result_assembler_preserves_owned_dataframe_transfer() -> None:

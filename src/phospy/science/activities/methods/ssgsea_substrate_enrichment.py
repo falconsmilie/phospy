@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass
 
 import numpy as np
@@ -15,6 +17,9 @@ from phospy.science.activities.models import (
     SsgseaSubstrateEnrichmentActivityDiagnostics,
 )
 from phospy.science.activities.scientific_policies import (
+    SSGSEA_PERMUTATION_RNG_SEED_POLICY,
+    SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION,
+    SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION,
     build_ssgsea_substrate_enrichment_activity_policy,
 )
 from phospy.science.activities.statistics import benjamini_hochberg_q_values
@@ -47,6 +52,8 @@ SSGSEA_STATUS_NO_FINITE_SUBSTRATE_VALUES = "no_finite_substrate_values"
 
 _KINASE_COLUMN = "kinase"
 _SUBSTRATE_COLUMN = "substrate_site"
+_SSGSEA_PERMUTATION_STREAM_NAME = "substrate_label_permutation"
+_SSGSEA_PERMUTATION_SEED_DIGEST_SIZE_BYTES = 16
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,14 +163,13 @@ class SsgseaSubstrateEnrichmentActivityMethod:
             else None
         )
 
-        rng: np.random.Generator | None = None
+        random_seed: int | None = None
         if int(self.permutation_count) > 0:
-            random_seed = self.random_seed
-            if random_seed is None:
+            if self.random_seed is None:
                 raise ValueError(
                     "ssgsea random_seed must be set when permutation_count is positive"
                 )
-            rng = np.random.default_rng(int(random_seed))
+            random_seed = int(self.random_seed)
         effect_values = effects.to_numpy(dtype=float, copy=False)
         rows: list[dict[str, object]] = []
         counts = {
@@ -214,13 +220,18 @@ class SsgseaSubstrateEnrichmentActivityMethod:
                             kinase_position,
                             condition_position,
                         ] = float(enrichment_score)
-                        if rng is not None and p_value_matrix is not None:
+                        if random_seed is not None and p_value_matrix is not None:
+                            permutation_rng = _make_ssgsea_permutation_rng(
+                                random_seed=int(random_seed),
+                                condition_name=str(condition_name),
+                                kinase_name=str(kinase_name),
+                            )
                             p_value = _permutation_p_value(
                                 observed_score=float(enrichment_score),
                                 n_background=n_background,
                                 n_substrates=n_substrates,
                                 permutation_count=int(self.permutation_count),
-                                rng=rng,
+                                rng=permutation_rng,
                             )
                             p_value_matrix.iat[
                                 kinase_position,
@@ -497,6 +508,49 @@ def _permutation_p_value(
         if abs(float(score)) >= observed_abs:
             extreme_count += 1
     return float((extreme_count + 1) / (int(permutation_count) + 1))
+
+
+def _make_ssgsea_permutation_rng(
+    *,
+    random_seed: int,
+    condition_name: str,
+    kinase_name: str,
+) -> np.random.Generator:
+    return np.random.default_rng(
+        _derive_ssgsea_permutation_seed(
+            random_seed=int(random_seed),
+            condition_name=str(condition_name),
+            kinase_name=str(kinase_name),
+        )
+    )
+
+
+def _derive_ssgsea_permutation_seed(
+    *,
+    random_seed: int,
+    condition_name: str,
+    kinase_name: str,
+) -> int:
+    seed_material = {
+        "condition": str(condition_name),
+        "kinase": str(kinase_name),
+        "method_id": SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_METHOD.activity_method_id,
+        "method_version": SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION,
+        "random_seed": int(random_seed),
+        "seed_policy": SSGSEA_PERMUTATION_RNG_SEED_POLICY,
+        "seed_policy_version": SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION,
+        "stream": _SSGSEA_PERMUTATION_STREAM_NAME,
+    }
+    encoded = json.dumps(
+        seed_material,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    digest = hashlib.blake2b(
+        encoded,
+        digest_size=_SSGSEA_PERMUTATION_SEED_DIGEST_SIZE_BYTES,
+    ).digest()
+    return int.from_bytes(digest, "little")
 
 
 def _apply_q_values(

@@ -8,6 +8,14 @@ from phospy.provenance.scientific_policy_models import (
 )
 from phospy.science.scoring.policy_models import ThresholdMode
 
+SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION = "1"
+SSGSEA_PERMUTATION_RNG_SEED_POLICY = "stable_by_method_condition_kinase"
+SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION = "1"
+SSGSEA_PERMUTATION_RNG_SEED_MATERIAL = (
+    "blake2b-128-json(method_id, method_version, seed_policy, "
+    "seed_policy_version, random_seed, condition, kinase, stream)"
+)
+
 
 def build_simplified_weighted_substrate_activity_policy(
     *,
@@ -115,15 +123,18 @@ def build_ssgsea_substrate_enrichment_activity_policy(
     adjust_p_values: bool,
     q_value_method: str | None,
 ) -> ScientificPolicyRecord:
+    has_permutations = int(permutation_count) > 0
     return ScientificPolicyRecord(
         id=ScientificPolicyId.SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY,
         name="ssgsea_substrate_enrichment_activity_v1",
-        version="1",
+        version=SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION,
         description=(
             "Computes a PhosPy ssGSEA-style kinase substrate-set enrichment "
             "score over ranked phosphosite effect values."
         ),
         parameters={
+            "method_id": ScientificPolicyId.SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY.value,
+            "method_version": SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION,
             "min_substrates": int(min_substrates),
             "ranking_direction": str(ranking_direction),
             "rank_walk_rule": (
@@ -139,6 +150,15 @@ def build_ssgsea_substrate_enrichment_activity_policy(
                 else None
             ),
             "random_seed": None if random_seed is None else int(random_seed),
+            "permutation_rng_seed_policy": (
+                SSGSEA_PERMUTATION_RNG_SEED_POLICY if has_permutations else None
+            ),
+            "permutation_rng_seed_policy_version": (
+                SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION if has_permutations else None
+            ),
+            "permutation_rng_seed_material": (
+                SSGSEA_PERMUTATION_RNG_SEED_MATERIAL if has_permutations else None
+            ),
             "adjust_p_values": bool(adjust_p_values),
             "q_value_method": None if q_value_method is None else str(q_value_method),
         },
@@ -148,7 +168,8 @@ def build_ssgsea_substrate_enrichment_activity_policy(
             "support.",
             "Sparse or missing substrate support weakens interpretation.",
             "Permutation p-values, when requested, use seeded random substrate-set "
-            "label permutations.",
+            "label permutations with deterministic child RNG streams keyed by "
+            "method, condition, kinase, and user seed.",
             "The enrichment score does not prove kinase activation or causal "
             "regulation; causal kinase activity claims require external validation.",
             "This is a validated PhosPy implementation and is not a PTM-SEA "
@@ -174,4 +195,8 @@ __all__ = [
     "build_ksea_zscore_activity_policy",
     "build_simplified_weighted_substrate_activity_policy",
     "build_ssgsea_substrate_enrichment_activity_policy",
+    "SSGSEA_PERMUTATION_RNG_SEED_MATERIAL",
+    "SSGSEA_PERMUTATION_RNG_SEED_POLICY",
+    "SSGSEA_PERMUTATION_RNG_SEED_POLICY_VERSION",
+    "SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION",
 ]
