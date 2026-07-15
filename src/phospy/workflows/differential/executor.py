@@ -7,7 +7,6 @@ from typing import cast
 
 import numpy as np
 import pandas as pd
-from numpy.typing import NDArray
 
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.provenance import RowAttritionRecord, RowAttritionReport
@@ -21,9 +20,9 @@ from phospy.science.differential.internal_view import (
     DifferentialComputationResultInternalView,
 )
 from phospy.science.differential.models import (
-    DIFFERENTIAL_RESULT_STATUS_COLUMN,
-    DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
-    DIFFERENTIAL_RESULT_STATUS_WITHHELD_OTHER,
+    DifferentialAnalysisRequest as DifferentialComputationRequest,
+)
+from phospy.science.differential.models import (
     DifferentialAnalysisResult,
     DifferentialComputationResult,
     DifferentialContrastDefinition,
@@ -31,13 +30,10 @@ from phospy.science.differential.models import (
     EmpiricalBayesPriorDiagnostics,
     MeanVarianceTrendDiagnostics,
 )
-from phospy.science.differential.models import (
-    DifferentialAnalysisRequest as DifferentialComputationRequest,
-)
-from phospy.workflows._pandas_typing import (
-    dataframe_column,
-    dataframe_copy,
-    dataframe_loc,
+from phospy.workflows.differential.eligibility import (
+    DifferentialPostFitEligibilityResolver,
+    differential_status_counts,
+    feature_ids,
 )
 from phospy.workflows.differential.models import (
     DifferentialExecutionDesignInputs,
@@ -54,9 +50,14 @@ class DifferentialAnalysisExecutor:
         self,
         *,
         computation_executor: DifferentialComputationExecutor | None = None,
+        post_fit_eligibility_resolver: DifferentialPostFitEligibilityResolver
+        | None = None,
     ) -> None:
         self._computation_executor = (
             computation_executor or DifferentialComputationExecutor()
+        )
+        self._post_fit_eligibility_resolver = (
+            post_fit_eligibility_resolver or DifferentialPostFitEligibilityResolver()
         )
 
     def run(
@@ -85,19 +86,16 @@ class DifferentialAnalysisExecutor:
                 computation_request=request.computation_request,
                 imputation_policy_inputs=imputation_policy_inputs,
             )
-        model_fit_feature_ids = _feature_ids(computation_request.matrix.index)
-        failed_model_fit_feature_ids = _failed_model_fit_feature_ids(
-            computation_request
+        post_fit_eligibility = self._post_fit_eligibility_resolver.run(
+            computation_request=computation_request,
+            feature_eligibility_inputs=feature_eligibility_inputs,
         )
+        model_fit_feature_ids = post_fit_eligibility.model_fit_feature_ids
+        failed_model_fit_feature_ids = post_fit_eligibility.failed_model_fit_feature_ids
         if failed_model_fit_feature_ids:
-            valid_model_fit_feature_ids = tuple(
-                feature_id
-                for feature_id in model_fit_feature_ids
-                if feature_id not in set(failed_model_fit_feature_ids)
-            )
             computation_request = _filter_computation_request_for_feature_ids(
                 computation_request=computation_request,
-                feature_ids=valid_model_fit_feature_ids,
+                feature_ids=post_fit_eligibility.valid_model_fit_feature_ids,
                 seam="differential.executor.model_fit_valid_features",
                 next_action=(
                     "provide at least one feature whose fitted residual variance is "
@@ -110,15 +108,11 @@ class DifferentialAnalysisExecutor:
                     "failed_model_fit_count": int(len(failed_model_fit_feature_ids)),
                 },
             )
-            if feature_eligibility_inputs is not None:
-                feature_eligibility_inputs = _with_failed_model_fit_status(
-                    feature_eligibility_inputs=feature_eligibility_inputs,
-                    failed_feature_ids=failed_model_fit_feature_ids,
-                )
-        valid_test_feature_ids = _feature_ids(computation_request.matrix.index)
+            feature_eligibility_inputs = post_fit_eligibility.feature_eligibility_inputs
+        valid_test_feature_ids = feature_ids(computation_request.matrix.index)
         workflow_provenance = _with_row_attrition_provenance(
             workflow_provenance=request.workflow_provenance,
-            input_feature_ids=_feature_ids(request.result_identity_metadata.index),
+            input_feature_ids=feature_ids(request.result_identity_metadata.index),
             model_fit_feature_ids=model_fit_feature_ids,
             failed_model_fit_feature_ids=failed_model_fit_feature_ids,
             multiple_testing_feature_ids=valid_test_feature_ids,
@@ -462,7 +456,9 @@ def _filter_computation_request_for_feature_eligibility(
             "statistical execution and at least one feature remains testable"
         ),
         details={
-            "status_counts": _status_counts(feature_eligibility_inputs.result_status)
+            "status_counts": differential_status_counts(
+                feature_eligibility_inputs.result_status
+            )
         },
     )
 
@@ -527,104 +523,6 @@ def _filter_computation_request_for_feature_ids(
     )
 
 
-def _failed_model_fit_feature_ids(
-    computation_request: DifferentialComputationRequest,
-) -> tuple[str, ...]:
-    matrix = computation_request.matrix
-    design_frame = computation_request.design.frame
-    matrix_aligned = dataframe_loc(matrix, columns=list(design_frame.index))
-    design_values: NDArray[np.float64] = np.asarray(
-        design_frame.to_numpy(dtype=float),
-        dtype=np.float64,
-    )
-    rank = int(np.linalg.matrix_rank(design_values))
-    residual_dof = float(int(design_values.shape[0]) - rank)
-    if residual_dof <= 0.0:
-        return ()
-
-    matrix_values: NDArray[np.float64] = np.asarray(
-        matrix_aligned.to_numpy(dtype=float),
-        dtype=np.float64,
-    )
-    response: NDArray[np.float64] = np.transpose(matrix_values)
-    design_transpose: NDArray[np.float64] = np.transpose(design_values)
-    design_crossproduct: NDArray[np.float64] = design_transpose @ design_values
-    xtx_inv: NDArray[np.float64] = cast(
-        NDArray[np.float64],
-        np.linalg.pinv(design_crossproduct),
-    )
-    coefficients: NDArray[np.float64] = xtx_inv @ design_transpose @ response
-    fitted_values: NDArray[np.float64] = design_values @ coefficients
-    residuals: NDArray[np.float64] = response - fitted_values
-    rss: NDArray[np.float64] = cast(
-        NDArray[np.float64],
-        np.sum(np.square(residuals), axis=0),
-    )
-    residual_variance: NDArray[np.float64] = np.asarray(
-        rss / residual_dof,
-        dtype=np.float64,
-    )
-    failed_mask = ~np.isfinite(residual_variance) | (residual_variance <= 0.0)
-    return tuple(
-        str(feature_id)
-        for feature_id, failed in zip(matrix_aligned.index, failed_mask, strict=True)
-        if bool(failed)
-    )
-
-
-def _with_failed_model_fit_status(
-    *,
-    feature_eligibility_inputs: DifferentialFeatureEligibilityInputs,
-    failed_feature_ids: tuple[str, ...],
-) -> DifferentialFeatureEligibilityInputs:
-    failed_feature_id_set = set(failed_feature_ids)
-    feature_metadata = dataframe_copy(
-        feature_eligibility_inputs.feature_metadata,
-        deep=True,
-    )
-    status_values: NDArray[np.object_] = np.array(
-        dataframe_column(feature_metadata, DIFFERENTIAL_RESULT_STATUS_COLUMN).to_numpy(
-            dtype=object
-        ),
-        dtype=object,
-        copy=True,
-    )
-    reason_values: NDArray[np.object_] = np.array(
-        dataframe_column(
-            feature_metadata,
-            DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
-        ).to_numpy(dtype=object),
-        dtype=object,
-        copy=True,
-    )
-    fit_failure_reason = (
-        "Feature model fit failed before multiple-testing correction; residual "
-        "variance was zero or non-finite."
-    )
-    for row_position, label in enumerate(feature_metadata.index):
-        if str(label) not in failed_feature_id_set:
-            continue
-        status_values[int(row_position)] = DIFFERENTIAL_RESULT_STATUS_WITHHELD_OTHER
-        reason_values[int(row_position)] = fit_failure_reason
-    feature_metadata[DIFFERENTIAL_RESULT_STATUS_COLUMN] = status_values
-    feature_metadata[DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN] = reason_values
-    result_status = pd.Series(
-        status_values.astype(str),
-        index=_index_snapshot(feature_eligibility_inputs.result_status.index),
-        name=DIFFERENTIAL_RESULT_STATUS_COLUMN,
-    )
-    return DifferentialFeatureEligibilityInputs(
-        feature_metadata=feature_metadata,
-        result_status=result_status,
-        testable_feature_ids=tuple(
-            feature_id
-            for feature_id in feature_eligibility_inputs.testable_feature_ids
-            if feature_id not in failed_feature_id_set
-        ),
-        attach_to_result_tables=True,
-    )
-
-
 def _with_row_attrition_provenance(
     *,
     workflow_provenance: Mapping[str, object] | None,
@@ -682,17 +580,8 @@ def _with_row_attrition_provenance(
     return payload
 
 
-def _feature_ids(index: pd.Index) -> tuple[str, ...]:
-    return tuple(str(feature_id) for feature_id in index.tolist())
-
-
 def _examples(values: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(str(value) for value in values[:5])
-
-
-def _status_counts(result_status: pd.Series) -> dict[str, int]:
-    counts = result_status.astype(str).value_counts(sort=False)
-    return {str(status): int(count) for status, count in counts.items()}
 
 
 def _attach_imputation_policy_metadata(

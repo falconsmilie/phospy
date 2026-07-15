@@ -283,6 +283,20 @@ def test_differential_withhold_policy_excludes_withheld_features_from_testing() 
         atol=1e-12,
     )
 
+    assert result.workflow_provenance is not None
+    assert result.workflow_provenance["row_attrition_metrics"] == {
+        "input_sites": 4,
+        "sites_retained_for_model_fitting": 2,
+        "sites_excluded_before_testing": 2,
+        "sites_with_failed_model_fit": 0,
+        "sites_included_in_multiple_testing_family": 2,
+    }
+    row_attrition = result.workflow_provenance["row_attrition"]
+    assert [record["reason"] for record in row_attrition["records"]] == [
+        "sites_excluded_before_testing"
+    ]
+    assert [record["removed_rows"] for record in row_attrition["records"]] == [2]
+
 
 def test_differential_imputation_policy_is_recorded_in_provenance() -> None:
     result = DifferentialAnalysisWorkflow().run(_withhold_request())

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from phospy.api import (
     Contrast,
@@ -13,6 +14,7 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
+from phospy.errors import WorkflowBoundaryError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.differential.executor import (
     DifferentialAnalysisExecutor as DifferentialComputationExecutor,
@@ -374,3 +376,122 @@ def test_differential_provenance_counts_tested_and_failed_model_fit_sites() -> N
     payload = result.to_payload()
     payload_provenance = payload["workflow_provenance"]
     assert payload_provenance["row_attrition"]["records"] == row_attrition["records"]
+
+
+@pytest.mark.filterwarnings("ignore:overflow encountered in square:RuntimeWarning")
+def test_differential_marks_non_finite_residual_variance_rows_as_failed_model_fit() -> (
+    None
+):
+    genes = ("MAPK14", "AKT1", "GSK3B", "PRKACA", "RPS6")
+    sites = ("Y182", "T308", "S9", "S339", "S235")
+    site_index = protein_site_key_index(
+        protein_identifiers=genes,
+        sites=sites,
+    )
+    matrix = pd.DataFrame(
+        {
+            "A_1": [5.0, 1.0, 1e308, 2.0, 3.0],
+            "A_2": [5.0, 1.0, -1e308, 2.2, 3.1],
+            "B_1": [5.0, 2.0, 1e308, 1.8, 4.2],
+            "B_2": [5.0, 2.0, -1e308, 2.0, 4.0],
+        },
+        index=site_index,
+    )
+    base_request = _request()
+
+    result = DifferentialAnalysisWorkflow().run(
+        DifferentialAnalysisRequest(
+            dataset=_dataset_from_matrix(
+                matrix=matrix,
+                genes=genes,
+                sites=sites,
+                site_index=site_index,
+            ),
+            design=base_request.design,
+            contrasts=base_request.contrasts,
+            config=DifferentialAnalysisConfig(
+                multiple_testing=MultipleTestingConfig(method="bonferroni")
+            ),
+        )
+    )
+
+    table = result.table_for("B_vs_A")
+    tested = (
+        table[DIFFERENTIAL_RESULT_STATUS_COLUMN] == DIFFERENTIAL_RESULT_STATUS_TESTED
+    )
+
+    assert table[DIFFERENTIAL_RESULT_STATUS_COLUMN].tolist() == [
+        DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
+        DIFFERENTIAL_RESULT_STATUS_WITHHELD_OTHER,
+        DIFFERENTIAL_RESULT_STATUS_WITHHELD_OTHER,
+        DIFFERENTIAL_RESULT_STATUS_TESTED,
+        DIFFERENTIAL_RESULT_STATUS_TESTED,
+    ]
+    assert (
+        table.loc[site_index[2], DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN]
+        == "Feature model fit failed before multiple-testing correction; residual "
+        "variance was zero or non-finite."
+    )
+    assert table.loc[site_index[2], ["logFC", "t", "P.Value", "adj.P.Val"]].isna().all()
+    expected_adjusted = adjust_p_values(
+        table.loc[tested, "P.Value"].to_numpy(dtype=float),
+        method="bonferroni",
+    )
+    np.testing.assert_allclose(
+        table.loc[tested, "adj.P.Val"].to_numpy(dtype=float),
+        expected_adjusted,
+        rtol=1e-12,
+        atol=1e-12,
+    )
+
+    assert result.workflow_provenance is not None
+    assert result.workflow_provenance["row_attrition_metrics"] == {
+        "input_sites": 5,
+        "sites_retained_for_model_fitting": 4,
+        "sites_excluded_before_testing": 1,
+        "sites_with_failed_model_fit": 2,
+        "sites_included_in_multiple_testing_family": 2,
+    }
+
+
+def test_differential_all_rows_filtered_before_model_fit_fails_before_executor() -> (
+    None
+):
+    class _ExecutorSpy:
+        calls = 0
+
+        def run(self, request):
+            self.calls += 1
+            raise AssertionError("executor should not run when no rows are testable")
+
+    matrix = pd.DataFrame(
+        {
+            "A_1": [5.0, 10.0, 20.0],
+            "A_2": [5.0, 10.0, 20.0],
+            "B_1": [5.0, 10.0, 20.0],
+            "B_2": [5.0, 10.0, 20.0],
+        },
+        index=_site_index(),
+    )
+    executor = _ExecutorSpy()
+    with pytest.raises(
+        WorkflowBoundaryError,
+        match="differential.interpreter.feature_eligibility",
+    ) as exc_info:
+        DifferentialAnalysisWorkflow(executor=executor).run(  # type: ignore[arg-type]
+            DifferentialAnalysisRequest(
+                dataset=_dataset_from_matrix(
+                    matrix=matrix,
+                    genes=tuple(_GENES),
+                    sites=tuple(_SITES),
+                    site_index=_site_index(),
+                ),
+                design=_request().design,
+                contrasts=_request().contrasts,
+            )
+        )
+
+    assert executor.calls == 0
+    assert exc_info.value.details["status_counts"] == {
+        DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT: 3
+    }
