@@ -19,6 +19,7 @@ from phospy.science.datasets.preprocessing.control_sites import (
     ControlSiteSet,
     ControlSiteStatus,
 )
+from phospy.science.sites.organisms import normalize_optional_organism
 
 _DEFAULT_IDENTIFIER_NAMESPACE = "site_key"
 _CALLER_SUPPLIED_SOURCE_TYPES = frozenset({"caller_supplied", "local", "local_file"})
@@ -174,8 +175,8 @@ class ControlSiteMetadataCompatibilityValidator:
             if (
                 row.organism is not None
                 and expected_organism is not None
-                and _normalize_metadata_label(row.organism)
-                != _normalize_metadata_label(expected_organism)
+                and _normalize_organism_metadata_label(row.organism)
+                != _normalize_organism_metadata_label(expected_organism)
             ):
                 raise PhosPyInputError(
                     "control-site validation failed: incompatible organism metadata "
@@ -397,7 +398,7 @@ def _resolve_dataset_context(
     return _ControlSiteDatasetContext(
         site_keys=resolved_site_keys,
         site_metadata=resolved_metadata,
-        dataset_organism=_normalize_metadata_label(dataset_organism),
+        dataset_organism=_normalize_organism_metadata_label(dataset_organism),
     )
 
 
@@ -500,7 +501,9 @@ def _accepted_controls_require_metadata_compatibility(
     site_metadata_has_organism = (
         site_metadata is not None and "organism" in site_metadata.columns
     )
-    has_dataset_organism = _normalize_metadata_label(dataset_organism) is not None
+    has_dataset_organism = (
+        _normalize_organism_metadata_label(dataset_organism) is not None
+    )
     has_expected_identifier_namespace = (
         _normalize_metadata_label(expected_identifier_namespace) is not None
     )
@@ -671,7 +674,12 @@ def _site_metadata_by_key(
         for column in ("organism", "identifier_namespace"):
             if column not in site_metadata.columns:
                 continue
-            value = _normalize_metadata_label(site_metadata.iloc[position][column])
+            if column == "organism":
+                value = _normalize_organism_metadata_label(
+                    site_metadata.iloc[position][column]
+                )
+            else:
+                value = _normalize_metadata_label(site_metadata.iloc[position][column])
             if value is not None:
                 row[column] = value
         metadata_by_key[site_key] = row
@@ -700,6 +708,15 @@ def _normalize_metadata_label(value: object | None) -> str | None:
         return None
     text = str(value).strip()
     return text.lower() if text else None
+
+
+def _normalize_organism_metadata_label(value: object | None) -> str | None:
+    organism = normalize_optional_organism(
+        value,
+        field_name="control-site organism metadata",
+        error_type=PhosPyInputError,
+    )
+    return None if organism is None else organism.value
 
 
 def _is_missing_scalar(value: object | None) -> bool:

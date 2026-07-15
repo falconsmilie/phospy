@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 
 from phospy.errors.validation import PhosPyValidationError
-from phospy.science.references.models import ReferenceContext
+from phospy.science.references.models import Organism, ReferenceContext
 from phospy.science.sites.identifiers import (
     ParsedSiteToken,
     canonicalize_site_components,
@@ -853,7 +853,12 @@ def enforce_result_identity_metadata_coherence(
         for column_name, key_attribute in optional_key_columns.items():
             if column_name not in table.columns:
                 continue
-            encoded_value = str(getattr(decoded_key, key_attribute))
+            encoded_attribute = getattr(decoded_key, key_attribute)
+            encoded_value = (
+                encoded_attribute.value
+                if isinstance(encoded_attribute, Organism)
+                else str(encoded_attribute)
+            )
             row_value = _required_present_identity_text(
                 table.at[row_label, column_name],
                 field_name=field_name,

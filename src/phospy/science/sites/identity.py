@@ -8,12 +8,14 @@ from typing import TypeVar
 
 import pandas as pd
 
+from phospy.science.references.models import Organism
 from phospy.science.sites.identifiers import (
     canonicalize_site_components,
     canonicalize_site_identifier,
     parse_canonical_site_identifier,
     try_parse_site_token,
 )
+from phospy.science.sites.organisms import normalize_optional_organism
 
 ErrorType = TypeVar("ErrorType", bound=Exception)
 
@@ -43,7 +45,7 @@ class PhosphositeIdentity:
     gene_symbol: str
     residue: str | None
     position: int | None
-    organism: str | None = None
+    organism: Organism | None = None
     protein_id: str | None = None
     protein_accession: str | None = None
     isoform_id: str | None = None
@@ -118,7 +120,7 @@ def build_phosphosite_identity(
         gene_symbol=canonical_gene_symbol,
         residue=(None if parsed_site is None else parsed_site.residue),
         position=(None if parsed_site is None else int(parsed_site.position)),
-        organism=_optional_text(
+        organism=normalize_optional_organism(
             organism,
             field_name=f"{field_name}.organism",
             error_type=error_type,

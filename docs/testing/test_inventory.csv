@@ -95,9 +95,10 @@ tests/unit/test_correction_missingness_policy_contract.py,unit,391,18,false,fals
 tests/unit/test_dataframe_validation_primitives.py,unit,306,10,true,true,duplicate validation matrix,consolidate,Loss of this file would reduce repeated primitive validation coverage for dataframe validation primitives; protections must remain through a consolidated matrix before removal.,codex-audit,TST-FOLLOWUP-VAL-PRIMITIVE-DATAFRAME,
 tests/unit/test_dataset_boundary_test_hygiene.py,unit,96,1,false,false,,,,,,
 tests/unit/test_dataset_builder_internal_collaborators.py,unit,631,21,true,true,,,,,,
-tests/unit/test_dataset_builders_site_key_indexing.py,unit,464,13,true,true,,,,,,
+tests/unit/test_dataset_builders_site_key_indexing.py,unit,485,14,true,true,,,,,,
 tests/unit/test_dataset_normalizer_collaborators.py,unit,161,9,false,false,,,,,,
 tests/unit/test_dataset_normalizer_identity.py,unit,369,15,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for dataset normalizer identity, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
+tests/unit/test_dataset_organism_coherence.py,unit,196,6,false,false,,,,,,
 tests/unit/test_dataset_peptide_evidence_resolution.py,unit,715,23,true,true,,,,,,
 tests/unit/test_dataset_preprocessing_collaborators.py,unit,570,16,true,true,internal implementation detail,rewrite,Loss of this file would remove checks tied to current orchestration internals in dataset preprocessing collaborators; rewrite toward stable boundary contracts before consolidation.,codex-audit,TST-ORCH-002,Route to TST-ORCH-002 for collaborator/orchestration rewrite planning with explicit boundary-contract replacements before consolidation.
 tests/unit/test_dataset_preprocessing_subsystem.py,unit,2814,63,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for dataset preprocessing subsystem and increase risk of boundary regressions.,codex-audit,,
@@ -173,7 +174,7 @@ tests/unit/test_missing_data_split_modules.py,unit,523,18,true,false,scientific 
 tests/unit/test_multiple_testing_correction.py,unit,159,7,true,true,,,,,,
 tests/unit/test_peptide_evidence_models.py,unit,162,6,true,true,public API contract,keep,Loss of this file would weaken peptide evidence model contract coverage and increase risk of invalid evidence objects crossing domain boundaries.,codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_peptide_to_site_aggregation.py,unit,215,8,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for peptide-to-site aggregation, increasing risk of incorrect site-level evidence summarisation.",codex-audit,,New test file classified after audit-doc regeneration.
-tests/unit/test_phosphosite_identity.py,unit,333,19,true,true,,,,,,
+tests/unit/test_phosphosite_identity.py,unit,348,20,true,true,,,,,,
 tests/unit/test_phosphosite_importer_foundation.py,unit,197,6,false,false,,,,,,
 tests/unit/test_phosphosite_sequence_resolver.py,unit,255,12,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for phosphosite sequence resolver, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,
 tests/unit/test_policy_enum_boundaries.py,unit,378,18,true,true,duplicate validation matrix,consolidate,Loss of this file would reduce repeated primitive validation coverage for policy enum boundaries; protections must remain through a consolidated matrix before removal.,codex-audit,TST-FOLLOWUP-VAL-PRIMITIVE-ENUM,
@@ -221,7 +222,7 @@ tests/unit/test_request_validation_boundaries.py,unit,290,6,true,true,,,,,,
 tests/unit/test_result_caveats.py,unit,273,5,false,false,,,,,,
 tests/unit/test_result_snapshot_helpers.py,unit,536,9,false,false,,,,,,
 tests/unit/test_row_attrition_provenance.py,unit,240,12,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/unit/test_runtime_contract_guards.py,unit,145,4,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for runtime contract guards and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/unit/test_runtime_contract_guards.py,unit,178,6,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for runtime contract guards and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_science_package_ownership.py,unit,113,6,true,true,,,,,,
 tests/unit/test_scientific_coverage_scope_matrix_docs.py,unit,760,28,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/test_scientific_invariants.py,unit,711,19,false,false,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for scientific invariants, allowing numerically plausible but scientifically invalid behavior.",codex-audit,,

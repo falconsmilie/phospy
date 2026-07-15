@@ -22,6 +22,10 @@ from phospy.science.sites.identity import (
     validate_identity_optional_columns,
     validate_no_conflicting_identity_collisions,
 )
+from phospy.science.sites.organisms import (
+    normalize_optional_organism,
+    normalize_organism,
+)
 from phospy.science.sites.site_keys import (
     ProteinScopedPhosphositeKey,
     build_protein_scoped_site_key,
@@ -54,6 +58,8 @@ __all__ = [
     "build_phosphosite_identity",
     "validate_identity_optional_columns",
     "validate_no_conflicting_identity_collisions",
+    "normalize_optional_organism",
+    "normalize_organism",
     "ProteinScopedPhosphositeKey",
     "build_protein_scoped_site_key",
     "encode_site_key",

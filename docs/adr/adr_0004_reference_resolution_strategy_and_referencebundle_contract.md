@@ -187,6 +187,12 @@ The following compatibility rules apply.
 
 If a user-supplied `ReferenceBundle` organism and the dataset organism are both present, the two must be checked for compatibility.
 
+Compatibility compares resolved `Organism` values, not free-form strings.
+Supported organism aliases and case variants are resolved at the compatibility
+boundary before comparing values. The same resolved dataset organism is used
+for `ReferencePreset.AUTO`, explicit organism presets, and explicit
+`ReferenceBundle` compatibility.
+
 A mismatch must fail clearly.
 
 This is a scientific safety rule, not just a software preference. A dataset-organism and reference-organism mismatch can imply wrong sequence context, wrong substrate mappings, fragile gene-symbol assumptions, or unspoken cross-species translation assumptions. PhosPy should not silently proceed in those cases.
@@ -201,7 +207,10 @@ PhosPy should not silently prioritise one source of truth over the other.
 
 ### `AUTO`
 
-If `AUTO` is used, the dataset organism becomes the source of truth for bundled reference selection.
+If `AUTO` is used, the dataset organism becomes the source of truth for bundled
+reference selection. By the time workflow reference resolution runs, an
+analysis-ready dataset has either established one resolved organism from its
+single-organism row/site-key state or failed construction.
 
 ## Responsibility Boundaries
 

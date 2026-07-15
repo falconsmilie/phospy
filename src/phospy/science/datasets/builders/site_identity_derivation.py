@@ -8,6 +8,7 @@ from phospy.errors.input import UnsupportedInputFormatError
 from phospy.frames.ownership import own_dataframe
 from phospy.science.references.models import Organism
 from phospy.science.sites.identifiers import canonicalize_site_components_series
+from phospy.science.sites.organisms import normalize_organism
 from phospy.science.sites.site_keys import (
     build_protein_scoped_site_key,
     encode_site_key,
@@ -119,7 +120,11 @@ def _resolve_organism(
         allow_enum=True,
     )
     if explicit is not None:
-        return explicit
+        return normalize_organism(
+            explicit,
+            field_name=f"{field_name}.organism",
+            error_type=UnsupportedInputFormatError,
+        ).value
     if request_organism is not None:
         return str(request_organism.value).strip()
     raise UnsupportedInputFormatError(

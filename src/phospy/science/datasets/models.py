@@ -36,6 +36,10 @@ from phospy.science.datasets.imputation_metadata import (
 from phospy.science.datasets.imputation_metadata import (
     require_boolean_observation_mask as _require_boolean_observation_mask,
 )
+from phospy.science.datasets.organism_coherence import (
+    normalize_dataset_organism_state,
+    resolve_single_dataset_organism,
+)
 from phospy.science.datasets.preprocessing.protein_aware_preparation import (
     ProteinAwarePreparationResult,
 )
@@ -341,6 +345,13 @@ class AnalysisReadyPhosphoDataset:
         total = frames.total
         comparisons = frames.comparisons
         imputation_observation_mask = frames.imputation_observation_mask
+        normalized_organism_state = normalize_dataset_organism_state(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            error_type=DatasetValidationError,
+        )
+        phospho = normalized_organism_state.phospho
+        site_metadata = normalized_organism_state.site_metadata
         _require_instance(
             processing_state,
             expected_type=DatasetProcessingState,
@@ -399,6 +410,11 @@ class AnalysisReadyPhosphoDataset:
             organism,
             expected_type=Organism,
             error_message="dataset.organism must be an Organism enum value or None",
+        )
+        resolved_dataset_organism = resolve_single_dataset_organism(
+            site_metadata=site_metadata_table.frame,
+            organism=organism,
+            error_type=DatasetValidationError,
         )
         _require_instance(
             processing_state.ruv_readiness,
@@ -493,7 +509,7 @@ class AnalysisReadyPhosphoDataset:
             self, "intensity_scale_state", validated_intensity_scale_state
         )
         object.__setattr__(self, "processing_state", processing_state)
-        object.__setattr__(self, "organism", organism)
+        object.__setattr__(self, "organism", resolved_dataset_organism)
         object.__setattr__(self, "preprocessing_report", preprocessing_report)
         object.__setattr__(
             self,

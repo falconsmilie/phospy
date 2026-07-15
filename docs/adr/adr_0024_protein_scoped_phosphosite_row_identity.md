@@ -37,6 +37,14 @@ PhosPy adopts a two-key model for analysis-ready phosphosite rows:
 
 `display_id` is not the analysis-ready row identity and may repeat.
 
+Analysis-ready datasets are single-organism datasets. The dataset has one
+resolved `Organism`, and every row-level `organism` value plus every decoded
+`site_key.organism` value must agree with it. Uniform row metadata may infer an
+omitted dataset-level `organism`; an explicit dataset-level `organism` must
+match every row. Mixed human/mouse/rat rows are invalid for
+`AnalysisReadyPhosphoDataset`; if mixed-species support is added later, it must
+use a separate explicit type and contract.
+
 `AnalysisReadyPhosphoDataset.phospho.index` is `site_key`.
 
 `AnalysisReadyPhosphoDataset.site_metadata.index` is `site_key`.
@@ -61,7 +69,10 @@ identity. Ordinary user construction should use `AnalysisReadyDatasetBuilder`.
 
 Builder input may remain user-friendly and accept legacy display-indexed input
 only when enough protein context is available to deterministically derive
-`site_key`.
+`site_key`. Builder and direct/trusted construction paths normalize supported
+organism aliases and case variants to the shared `Organism` enum before storing
+analysis-ready state; arbitrary organism strings are not valid internal
+organism state.
 
 Peptide-evidence protein_accession is row-identity metadata. It must be
 preserved as protein_accession or explicit protein_namespace/protein_identifier
@@ -84,6 +95,11 @@ direct analysis-ready identity. Direct `AnalysisReadyPhosphoDataset`
 construction is advanced/trusted use and requires `phospho.index`,
 `site_metadata.index`, and `site_metadata["site_key"]` to all use the same
 unique encoded `site_key` values.
+
+Dataset construction owns organism coherence. Workflows must not repair,
+reinterpret, or independently normalize `dataset.organism`,
+`site_metadata["organism"]`, or decoded `site_key.organism`; they consume the
+resolved single-organism dataset or fail earlier at the dataset boundary.
 
 Kinase reference resources may continue to use display IDs at the reference
 boundary. The kinase workflow must match those display IDs through an explicit
@@ -108,7 +124,9 @@ human-readable display labels remain available for interpretation and reporting.
 
 Direct dataset constructors now require enough identity context to produce
 `site_key` and must fail explicitly when that context is missing. They also
-validate that `site_key` matches the metadata-derived protein-scoped key.
+validate that `site_key` matches the metadata-derived protein-scoped key and
+that dataset, row, and decoded site-key organisms resolve to one
+`Organism`.
 
 Builder pathways can preserve backward-friendly ingestion shape only when they
 can derive the required `site_key` without ambiguity.

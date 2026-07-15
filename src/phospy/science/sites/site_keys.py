@@ -7,6 +7,9 @@ from numbers import Integral
 from typing import TypeVar
 from urllib.parse import quote, unquote
 
+from phospy.science.references.models import Organism
+from phospy.science.sites.organisms import normalize_organism
+
 ErrorType = TypeVar("ErrorType", bound=Exception)
 
 _ENCODING_VERSION_PREFIX = "phospy:v1"
@@ -24,12 +27,23 @@ _VALID_RESIDUES = {"S", "T", "Y"}
 
 @dataclass(frozen=True, slots=True)
 class ProteinScopedPhosphositeKey:
-    organism: str
+    organism: Organism
     protein_namespace: str
     protein_identifier: str
     residue: str
     position: int
     isoform_id: str | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "organism",
+            normalize_organism(
+                self.organism,
+                field_name="site_key.organism",
+                error_type=ValueError,
+            ),
+        )
 
 
 def build_protein_scoped_site_key(
@@ -44,7 +58,7 @@ def build_protein_scoped_site_key(
     error_type: type[ErrorType],
 ) -> ProteinScopedPhosphositeKey:
     return ProteinScopedPhosphositeKey(
-        organism=_required_text(
+        organism=normalize_organism(
             organism,
             field_name=f"{field_name}.organism",
             error_type=error_type,
@@ -89,7 +103,7 @@ def encode_site_key(key: ProteinScopedPhosphositeKey) -> str:
         error_type=ValueError,
     )
     payload = {
-        "organism": canonical.organism,
+        "organism": canonical.organism.value,
         "protein_namespace": canonical.protein_namespace,
         "protein_identifier": canonical.protein_identifier,
         "residue": canonical.residue,

@@ -119,7 +119,7 @@ def _site_metadata_frame(index: pd.Index) -> pd.DataFrame:
         {
             "site_key": site_keys,
             "display_id": display_ids,
-            "organism": [key.organism for key in decoded_keys],
+            "organism": [key.organism.value for key in decoded_keys],
             "protein_namespace": [key.protein_namespace for key in decoded_keys],
             "protein_identifier": [key.protein_identifier for key in decoded_keys],
             "gene_symbol": [gene for gene, _ in parsed_display],
@@ -143,7 +143,7 @@ def _site_key_context_columns(site_keys: list[str] | pd.Index) -> dict[str, list
         for site_key in pd.Index(site_keys).astype(str).tolist()
     ]
     return {
-        "organism": [key.organism for key in decoded_keys],
+        "organism": [key.organism.value for key in decoded_keys],
         "protein_namespace": [key.protein_namespace for key in decoded_keys],
         "protein_identifier": [key.protein_identifier for key in decoded_keys],
     }

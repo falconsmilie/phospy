@@ -6,6 +6,7 @@ import pytest
 
 from phospy import AnalysisReadyDatasetBuilder
 from phospy.api import DatasetBuildRequest, Organism
+from phospy.errors import DatasetValidationError
 from phospy.errors.input import PhosPyInputError
 from phospy.science.sites.site_keys import (
     build_protein_scoped_site_key,
@@ -180,6 +181,26 @@ def test_builder_accepts_explicit_site_key_when_it_matches_metadata() -> None:
     assert built_site_metadata.index.tolist() == [expected_site_key]
     assert built_site_metadata.loc[:, "site_key"].tolist() == [expected_site_key]
     assert built_site_metadata.loc[:, "display_id"].tolist() == ["MAPK14;Y182;"]
+
+
+def test_builder_rejects_human_rows_with_rat_dataset_request() -> None:
+    phospho, site_metadata = _explicit_identity_frames()
+    human_site_key = _site_key(organism="human", protein_identifier="P28482")
+    site_metadata.loc[:, "organism"] = ["human"]
+    site_metadata.loc[:, "site_key"] = [human_site_key]
+
+    with pytest.raises(
+        DatasetValidationError,
+        match="dataset\\.organism must match every .* row_examples",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                organism=Organism.RAT,
+                input_intensity_scale="linear",
+            )
+        )
 
 
 @pytest.mark.parametrize(

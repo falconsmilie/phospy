@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from phospy.science.references.models import Organism
 from phospy.science.sites.identity import (
     PhosphositeIdentity,
     build_phosphosite_identity,
@@ -149,9 +150,9 @@ def test_encode_site_key_is_deterministic() -> None:
     assert encode_site_key(key) == encode_site_key(key)
 
 
-def test_site_key_encoding_escapes_delimiters_and_decodes_losslessly() -> None:
+def test_site_key_encoding_normalizes_organism_aliases_and_escapes_delimiters() -> None:
     key = build_protein_scoped_site_key(
-        organism="rat|cohort",
+        organism="Rattus norvegicus",
         protein_namespace="protein=accession",
         protein_identifier="P31750/alpha",
         residue="T",
@@ -162,8 +163,9 @@ def test_site_key_encoding_escapes_delimiters_and_decodes_losslessly() -> None:
     )
     encoded = encode_site_key(key)
 
-    assert "%7C" in encoded
+    assert "organism=rat" in encoded
     assert "%3D" in encoded
+    assert key.organism is Organism.RAT
     assert (
         decode_site_key(
             encoded,
@@ -172,6 +174,19 @@ def test_site_key_encoding_escapes_delimiters_and_decodes_losslessly() -> None:
         )
         == key
     )
+
+
+def test_build_protein_scoped_site_key_rejects_arbitrary_organism_strings() -> None:
+    with pytest.raises(ValueError, match="unsupported organism"):
+        build_protein_scoped_site_key(
+            organism="rat|cohort",
+            protein_namespace="protein_accession",
+            protein_identifier="P31750",
+            residue="T",
+            position=308,
+            field_name="test.site_key",
+            error_type=ValueError,
+        )
 
 
 def test_build_protein_scoped_site_key_accepts_python_int_position() -> None:

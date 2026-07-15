@@ -92,7 +92,7 @@ def site_key_context_columns(site_keys: list[str] | pd.Index) -> dict[str, list[
         for value in pd.Index(site_keys).astype(str).tolist()
     ]
     return {
-        "organism": [key.organism for key in decoded_keys],
+        "organism": [key.organism.value for key in decoded_keys],
         "protein_namespace": [key.protein_namespace for key in decoded_keys],
         "protein_identifier": [key.protein_identifier for key in decoded_keys],
     }

@@ -8,6 +8,7 @@ from phospy.api.requests import KinaseWorkflowRequest
 from phospy.errors import (
     PhosPyInputError,
     PhosPyWorkflowError,
+    ReferenceCompatibilityError,
     ReferenceResolutionError,
 )
 from phospy.science.datasets.builders.reader import DatasetInputReader
@@ -95,6 +96,38 @@ def test_reference_compatibility_auto_resolution_stays_explicit_without_assert(
             preset=ReferencePreset.AUTO,
             dataset_organism=None,
         )
+
+
+def test_reference_compatibility_auto_canonicalizes_dataset_organism_alias() -> None:
+    resolved = ReferenceCompatibilityValidator().resolve_preset_organism(
+        preset=ReferencePreset.AUTO,
+        dataset_organism="Rattus norvegicus",
+    )
+
+    assert resolved is Organism.RAT
+
+
+def test_reference_compatibility_explicit_bundle_uses_canonical_dataset_organism() -> (
+    None
+):
+    bundle = ReferenceBundle(
+        organism=Organism.HUMAN,
+        kinase_substrate_map=pd.DataFrame(
+            {"kinase": ["K"], "substrate_site": ["MAPK14;Y182;"]}
+        ),
+        site_sequences=pd.DataFrame(
+            {"site_sequence": ["AAAAAYAAAAA"]},
+            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+        ),
+    )
+    validator = ReferenceCompatibilityValidator()
+
+    validator.run(bundle, dataset_organism="Homo sapiens")
+    with pytest.raises(
+        ReferenceCompatibilityError,
+        match="references\\.organism must match dataset\\.organism",
+    ):
+        validator.run(bundle, dataset_organism="rat")
 
 
 def test_resolved_kinase_validator_rejects_invalid_overlap_summary_state() -> None:

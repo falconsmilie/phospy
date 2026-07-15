@@ -164,6 +164,12 @@ workflow tables. Adding reference version to `site_key` would make row identity
 change whenever a reference bundle is rebuilt, even when the biological protein
 coordinate is the same.
 
+The organism encoded in `site_key` is a shared `Organism` value, not an
+arbitrary string. Analysis-ready construction normalizes supported aliases
+and rejects contradictions between dataset-level organism, row-level organism,
+and decoded site-key organism. This keeps reference-context compatibility from
+having to compensate for mixed or ambiguous dataset organism state.
+
 Reference version, source name, proteome version, and table hash are provenance
 and compatibility context, not row-key fields. That is why `ReferenceContext`
 exists. It records comparable reference identity fields and derives a
@@ -193,6 +199,11 @@ workflow scope, operation, missing side or sides, and available left/right
 Reference manifests and reference validation remain responsible for license and
 redistribution status. Contributors must not mark references approved without
 verified evidence for the exact packaged files.
+
+Reference organism compatibility remains separate from reference-context
+version compatibility, but it follows the same single-organism policy:
+`ReferencePreset.AUTO`, explicit presets, and explicit bundles compare against
+the same resolved dataset `Organism`.
 
 ## Row-Attrition Provenance
 
