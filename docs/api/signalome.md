@@ -35,8 +35,17 @@ The upstream result must provide:
   matrices
 - non-empty `dataset.site_metadata.protein_id` values for interpreted sites
 
-Signalome does not reinterpret `display_id` as row identity and does not repair
-missing protein grouping metadata.
+Signalome requires `protein_id` because it groups retained phosphosites into
+protein-level module and protein-site context summaries. `protein_id` is
+therefore signalome-specific grouping metadata, not core protein identity.
+Core protein identity remains the dataset-level `organism`,
+`protein_namespace`, and `protein_identifier` metadata carried by the
+`site_key` row identity contract. Do not replace `protein_namespace` or
+`protein_identifier` with `protein_id`.
+
+Signalome does not reinterpret `display_id` as row identity, does not infer
+`protein_id` from `gene_symbol` or `display_id`, and does not repair missing
+protein grouping metadata.
 
 ## Localisation Prerequisite
 
@@ -232,8 +241,10 @@ as site-row removal.
 
 ## Limitations
 
-- Requires explicit `protein_id` grouping metadata for interpreted sites.
-- Does not infer protein identity from display labels.
+- Requires explicit `protein_id` grouping metadata for interpreted sites so
+  retained sites can be summarized by protein in signalome module context.
+- Does not infer `protein_id` or protein identity from `gene_symbol` or display
+  labels.
 - Does not run kinase scoring or prediction itself.
 - Module and network-style outputs are derived summaries, not causal proof or
   experimental evidence of signalling relationships.

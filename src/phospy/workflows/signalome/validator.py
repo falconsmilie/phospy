@@ -50,13 +50,15 @@ from phospy.validation.workflows.quantitative import (
 )
 
 SIGNALOME_PROTEIN_GROUPING_METADATA_NOTE = (
-    "Signalome uses dataset.site_metadata.protein_id as algorithm-specific "
-    "protein grouping metadata. This grouping field is separate from the "
-    "dataset-level protein-scoped row identity contract based on site_key, "
-    "display_id, organism, protein_namespace, protein_identifier, gene_symbol, "
-    "site, and site_sequence where required. "
-    "Signalome does not infer protein grouping from gene_symbol or display_id "
-    "and does not repair invalid site_key identity."
+    "Signalome uses dataset.site_metadata.protein_id as explicit "
+    "signalome-specific protein grouping metadata for protein-level module and "
+    "protein-site context summaries. It is not canonical protein identity. "
+    "Core protein identity remains the dataset-level organism, "
+    "protein_namespace, and protein_identifier metadata carried by the "
+    "site_key-indexed row identity contract. "
+    "Do not replace protein_namespace or protein_identifier with protein_id. "
+    "Signalome does not infer protein_id from gene_symbol or display_id and "
+    "does not repair invalid site_key identity."
 )
 
 SIGNALOME_SITE_IDENTITY_CONTRACT_NOTE = (

@@ -77,7 +77,9 @@ Important user-facing assumptions:
   context; sequence-aware workflows may require stricter centered window
   contracts before execution.
 - `protein_id` is optional at the base dataset boundary, but signalome requires
-  complete non-empty values for interpreted sites.
+  complete non-empty values for interpreted sites as workflow-specific grouping
+  metadata. It does not replace the core `protein_namespace` and
+  `protein_identifier` protein identity fields.
 
 `DatasetPreprocessingConfig` owns transforms, normalisation, missing-data
 handling, site construction, site-sequence resolution, total-protein
@@ -273,7 +275,13 @@ Important user-facing assumptions:
   upstream identity, including an `S/T/Y` center residue matched to the site, but
   it does not apply the fixed Kinase Library motif-window contract.
 - Complete non-empty `dataset.site_metadata.protein_id` values are required for
-  interpreted sites as signalome-specific protein grouping metadata.
+  interpreted sites as signalome-specific protein grouping metadata. Signalome
+  uses this field to group retained phosphosites into protein-level module and
+  protein-site context summaries; it is not core protein identity.
+- Core protein identity remains the upstream dataset's `organism`,
+  `protein_namespace`, and `protein_identifier` metadata under the `site_key`
+  row identity contract. Signalome does not infer `protein_id` from
+  `gene_symbol` or `display_id`.
 - Module and network outputs are derived summaries, not causal proof.
 - `candidate_scoring_policy="sampled"` approximates candidate module-count
   scoring only. It is not a general bypass for all signalome scale limits.

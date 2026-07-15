@@ -384,10 +384,7 @@ def test_signalome_workflow_requires_explicit_dataset_site_metadata_protein_id()
         )
     )
 
-    with pytest.raises(
-        WorkflowValidationError,
-        match="site_metadata is missing required columns: protein_id",
-    ):
+    with pytest.raises(WorkflowValidationError) as exc_info:
         SignalomeWorkflow().run(
             SignalomeWorkflowRequest(
                 kinase_result=kinase_result,
@@ -395,8 +392,16 @@ def test_signalome_workflow_requires_explicit_dataset_site_metadata_protein_id()
             )
         )
 
+    message = str(exc_info.value)
+    assert "site_metadata is missing required columns: protein_id" in message
+    assert "Missing signalome protein grouping metadata: protein_id" in message
+    assert "not canonical protein identity" in message
+    assert "protein_namespace" in message
+    assert "protein_identifier" in message
+    assert "does not infer protein_id from gene_symbol or display_id" in message
 
-def test_signalome_workflow_uses_explicit_dataset_protein_identity_when_present() -> (
+
+def test_signalome_workflow_uses_explicit_dataset_protein_grouping_metadata_when_present() -> (
     None
 ):
     base_dataset = build_rat_l6_dataset(n_sites=260)

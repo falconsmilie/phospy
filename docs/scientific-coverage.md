@@ -189,8 +189,9 @@ reference-to-dataset mapping layer; references remain reference/display
 identifiers. Analysis-ready datasets may carry `site_metadata.protein_id` as
 optional metadata, and it may be absent or incomplete at the base dataset
 boundary. Signalome requires complete `site_metadata.protein_id` values as
-algorithm-specific protein grouping metadata; that field is not the dataset row
-identity and is not encoded in `site_key`. See
+algorithm-specific protein grouping metadata for protein-level module and
+protein-site context summaries; that field is not core protein identity,
+is not the dataset row identity, and is not encoded in `site_key`. See
 [ADR-0024: Protein-Scoped Phosphosite Row Identity](adr/adr_0024_protein_scoped_phosphosite_row_identity.md).
 
 ### Differential Parity Envelope (Current Release)

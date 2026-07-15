@@ -1487,7 +1487,36 @@ def test_signalome_validator_requires_signalome_protein_grouping_metadata_column
     assert "Missing signalome protein grouping metadata: protein_id" in message
     assert "signalome protein grouping metadata requirement failed" in message
     assert "dataset.site_metadata.protein_id" in message
-    assert "dataset-level protein-scoped row identity" in message
+    assert "not canonical protein identity" in message
+    assert "Core protein identity remains" in message
+    assert "protein_namespace" in message
+    assert "protein_identifier" in message
+    assert "Do not replace protein_namespace or protein_identifier" in message
+    assert "does not infer protein_id from gene_symbol or display_id" in message
+    assert "gene_symbol" in message
+    assert "display_id" in message
+    assert "identity requirement failed" not in message
+
+
+def test_signalome_validator_blank_protein_id_message_distinguishes_grouping_metadata() -> (
+    None
+):
+    kinase_result = _kinase_result()
+    site_metadata = kinase_result.dataset.site_metadata.copy(deep=True)
+    site_metadata.loc[:, "protein_id"] = ["   "]
+    request = _signalome_request_with_site_metadata(site_metadata)
+
+    with pytest.raises(WorkflowValidationError) as exc_info:
+        SignalomeWorkflowValidator().run(request)
+
+    message = str(exc_info.value)
+    assert "Missing signalome protein grouping metadata: protein_id" in message
+    assert "dataset.site_metadata.protein_id" in message
+    assert "to contain non-empty string values" in message
+    assert "not canonical protein identity" in message
+    assert "protein_namespace" in message
+    assert "protein_identifier" in message
+    assert "does not infer protein_id from gene_symbol or display_id" in message
     assert "gene_symbol" in message
     assert "display_id" in message
     assert "identity requirement failed" not in message

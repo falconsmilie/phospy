@@ -232,9 +232,13 @@ sequences require an explicit conflict policy such as `prefer_dataset` or
 
 `SignalomeWorkflowRequest.kinase_result` must be a `KinaseWorkflowResult`.
 Signalome also requires explicit, non-empty `protein_id` values for every
-interpreted site as signalome-specific protein grouping metadata. Gene-symbol
-prefixes in display labels are not treated as protein grouping metadata or
-protein identity.
+interpreted site as signalome-specific protein grouping metadata. Signalome
+uses this field to group retained phosphosites into protein-level module and
+protein-site context summaries. `protein_id` is not core protein identity;
+core protein identity remains the dataset-level `organism`,
+`protein_namespace`, and `protein_identifier` metadata. Gene-symbol prefixes in
+display labels are not treated as protein grouping metadata or protein
+identity.
 Signalome aligns dataset, prediction, and score tables by `site_key` and does
 not reinterpret display IDs as row identity.
 Signalome validates that sequence-aware upstream site identity still provides a
@@ -263,7 +267,7 @@ shows exact tree-generation details and candidate-scoring details separately.
 | missing `gene_symbol` or `site` | Add those columns or, for builder input only, use index labels formatted as `GENE;SITE;` with sufficient protein context. |
 | missing protein-scoped identity metadata | Add non-empty `organism`, `protein_namespace`, `protein_identifier`, and `site`, or use a builder-compatible protein-context source that derives them before final construction. |
 | display-indexed direct construction | Use the builder with enough protein context, or, for advanced/trusted construction, use `AnalysisReadyPhosphoDataset.from_trusted_tables(...)` with encoded `site_key` indexes and matching `site_metadata.site_key`. |
-| signalome protein grouping metadata error | Add non-empty `protein_id` grouping metadata for every interpreted site; do not use `gene_symbol` or `display_id` as a fallback. |
+| signalome protein grouping metadata error | Add non-empty `protein_id` grouping metadata for every interpreted site; keep core protein identity in `protein_namespace` and `protein_identifier`; do not use `gene_symbol` or `display_id` as a fallback. |
 | workflow-specific sequence context error | Check selected `site_sequence`, sequence source, required window length, center index, center residue, alphabet, padding policy, and dataset/reference conflict policy for the workflow/scoring mode. |
 | reference resolution error | Use rat with `AUTO`, or pass an explicit `ReferenceBundle`. |
 | total-protein correction error | Provide `total`, set `intensity_transform.policy="log2"`, and configure identity mapping. |

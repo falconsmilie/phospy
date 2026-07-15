@@ -12,6 +12,7 @@ from phospy.science.signalomes.constants import (
     SITE_KEY_COLUMN,
 )
 from tests.support.site_keys import site_key_context_columns
+from tests.support.unsafe_dataset_states import unsafe_set_dataset_site_metadata_columns
 from tests.support.workflow_identity_coherence import (
     DUPLICATE_DISPLAY_ID,
     build_duplicate_display_differential_request,
@@ -35,6 +36,16 @@ def _assert_duplicate_display_rows(
     ]
     assert table.loc[:, SITE_KEY_COLUMN].is_unique
     assert int(table.loc[:, DISPLAY_ID_COLUMN].nunique()) == 1
+
+
+def _assert_signalome_protein_grouping_metadata_message(message: str) -> None:
+    assert "Missing signalome protein grouping metadata: protein_id" in message
+    assert "dataset.site_metadata.protein_id" in message
+    assert "not canonical protein identity" in message
+    assert "protein_namespace" in message
+    assert "protein_identifier" in message
+    assert "does not infer protein_id from gene_symbol or display_id" in message
+    assert "identity requirement failed" not in message
 
 
 def test_differential_workflow_preserves_duplicate_display_ids_by_site_key() -> None:
@@ -142,3 +153,32 @@ def test_signalome_workflow_does_not_repair_missing_site_key_identity() -> None:
         match="missing required columns: site_key.*does not repair weak dataset identity",
     ):
         SignalomeWorkflow().run(request)
+
+
+def test_signalome_workflow_rejects_missing_protein_id_grouping_metadata() -> None:
+    dataset = build_duplicate_display_kinase_dataset()
+    request = build_duplicate_display_signalome_request(dataset=dataset)
+    drop_site_metadata_column(dataset, "protein_id")
+
+    with pytest.raises(WorkflowValidationError) as exc_info:
+        SignalomeWorkflow().run(request)
+
+    message = str(exc_info.value)
+    assert "is missing required columns: protein_id" in message
+    _assert_signalome_protein_grouping_metadata_message(message)
+
+
+def test_signalome_workflow_rejects_blank_protein_id_grouping_metadata() -> None:
+    dataset = build_duplicate_display_kinase_dataset()
+    request = build_duplicate_display_signalome_request(dataset=dataset)
+    unsafe_set_dataset_site_metadata_columns(
+        dataset,
+        {"protein_id": ["", "   "]},
+    )
+
+    with pytest.raises(WorkflowValidationError) as exc_info:
+        SignalomeWorkflow().run(request)
+
+    message = str(exc_info.value)
+    assert "to contain non-empty string values" in message
+    _assert_signalome_protein_grouping_metadata_message(message)
