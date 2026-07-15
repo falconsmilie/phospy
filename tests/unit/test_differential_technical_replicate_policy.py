@@ -16,13 +16,23 @@ from phospy.api import (
     TechnicalReplicatePolicy,
 )
 from phospy.errors import WorkflowValidationError
+from phospy.provenance.derived_quantitative import (
+    DerivedQuantitativeDataProvenance,
+)
+from phospy.provenance.hashing import fingerprint_table
+from phospy.science.datasets.derived_quantitative import (
+    DerivedAnalysisReadyPhosphoDataset,
+)
+from phospy.science.datasets.models import DatasetPreprocessingReport
 from phospy.science.differential.executor import (
     DifferentialAnalysisExecutor as DifferentialComputationExecutor,
 )
 from phospy.science.differential.models import (
     DifferentialAnalysisRequest as ComputationRequest,
 )
+from phospy.validation.workflows.differential import ExperimentalDesignContractValidator
 from phospy.workflows.differential.executor import DifferentialAnalysisExecutor
+from phospy.workflows.differential.interpreter import DifferentialAnalysisInterpreter
 from phospy.workflows.differential.replicates import (
     TechnicalReplicateAggregationPlanner,
     TechnicalReplicateAggregator,
@@ -32,6 +42,9 @@ from phospy.workflows.differential.validator import DifferentialAnalysisValidato
 from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
     supported_log2_processing_state,
+)
+from tests.support.processing_state import (
+    imputed_processing_state as valid_imputed_processing_state,
 )
 from tests.support.site_keys import protein_site_key_index, site_key_context_columns
 
@@ -222,6 +235,31 @@ def _request(
     )
 
 
+def _aggregate(
+    *,
+    dataset: AnalysisReadyPhosphoDataset,
+    design: ExperimentalDesign,
+    policy: TechnicalReplicatePolicy,
+):
+    plan = TechnicalReplicateAggregationPlanner().run(
+        dataset=dataset,
+        design=design,
+        technical_replicate_policy=policy,
+    )
+    return TechnicalReplicateAggregator().run(
+        dataset=dataset,
+        design=design,
+        aggregation_plan=plan,
+    )
+
+
+def _fingerprint_by_name(fingerprints, name: str):
+    for fingerprint in fingerprints:
+        if fingerprint.name == name:
+            return fingerprint
+    raise AssertionError(f"missing fingerprint: {name}")
+
+
 def test_independent_biological_replicates_pass_unchanged() -> None:
     dataset = _dataset_with_technical_replicates()
     request = DifferentialAnalysisRequest(
@@ -376,6 +414,7 @@ def test_validator_does_not_mutate_dataset_or_design_for_aggregation_policy() ->
 def test_validator_keeps_phospho_and_total_frames_immutable() -> None:
     dataset = _dataset_with_technical_replicates_and_total()
     phospho_before = dataset.phospho.copy(deep=True)
+    assert dataset.total is not None
     total_before = dataset.total.copy(deep=True)
     request = _request(
         dataset=dataset,
@@ -437,6 +476,243 @@ def test_phospho_and_total_matrices_are_both_aggregated_when_total_present() -> 
         "total_protein": True,
     }
     assert resolved.workflow_provenance["both_phospho_and_total_aggregated"] is True
+
+
+def test_aggregation_returns_derived_dataset_with_fresh_provenance() -> None:
+    base_dataset = _dataset_with_technical_replicates()
+    source_report = DatasetPreprocessingReport.from_rows()
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=base_dataset.phospho,
+        site_metadata=base_dataset.site_metadata,
+        sample_metadata=base_dataset.sample_metadata,
+        total=base_dataset.total,
+        comparisons=base_dataset.comparisons,
+        organism=base_dataset.organism,
+        intensity_scale_state=base_dataset.intensity_scale_state,
+        processing_state=base_dataset.processing_state,
+        preprocessing_report=source_report,
+        provenance=base_dataset.provenance,
+    )
+
+    resolved = _aggregate(
+        dataset=dataset,
+        design=_repeated_design(),
+        policy=TechnicalReplicatePolicy.MEAN,
+    )
+
+    assert isinstance(resolved.dataset, DerivedAnalysisReadyPhosphoDataset)
+    assert resolved.dataset.provenance is not dataset.provenance
+    assert resolved.dataset.provenance is not None
+    assert (
+        resolved.dataset.provenance.workflow_name == "technical_replicate_aggregation"
+    )
+    assert resolved.dataset.preprocessing_report is None
+    assert dataset.preprocessing_report is source_report
+
+    lineage = resolved.dataset.derived_lineage
+    source_phospho = fingerprint_table(dataset.phospho, name="dataset.phospho")
+    derived_phospho = fingerprint_table(
+        resolved.dataset.phospho,
+        name="dataset.phospho",
+    )
+    parent_recorded = _fingerprint_by_name(
+        lineage.parent_dataset_fingerprints,
+        "dataset.phospho",
+    )
+    derived_recorded = _fingerprint_by_name(
+        lineage.derived_dataset_fingerprints,
+        "dataset.phospho",
+    )
+    assert parent_recorded.exact_hash_value == source_phospho.exact_hash_value
+    assert derived_recorded.exact_hash_value == derived_phospho.exact_hash_value
+    assert derived_recorded.rows == resolved.dataset.phospho.shape[0]
+    assert derived_recorded.columns == resolved.dataset.phospho.shape[1]
+    assert parent_recorded.exact_hash_value != derived_recorded.exact_hash_value
+    assert lineage.sample_count == resolved.dataset.phospho.shape[1]
+    assert lineage.sample_groups()[0] == ("A1", ("A1_T1", "A1_T2"))
+
+
+def test_mean_and_median_derived_provenance_differ() -> None:
+    site_index = _site_index()
+    phospho = pd.DataFrame(
+        {
+            "A1_T1": [1.0, 10.0],
+            "A1_T2": [2.0, 20.0],
+            "A1_T3": [100.0, 30.0],
+            "B1_T1": [4.0, 40.0],
+            "B1_T2": [5.0, 50.0],
+            "B1_T3": [6.0, 500.0],
+        },
+        index=site_index,
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "site_key": site_index.tolist(),
+            "display_id": _DISPLAY_IDS,
+            **site_key_context_columns(site_index),
+            "gene_symbol": _GENES,
+            "site": _SITES,
+            "site_sequence": [
+                ("A" * 15) + str(site).strip().upper()[0] + ("A" * 15)
+                for site in _SITES
+            ],
+            "protein_id": _GENES,
+        },
+        index=site_index.copy(),
+    )
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        organism=Organism.RAT,
+        intensity_scale_state=supported_log2_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_log2_processing_state(has_total_matrix=False),
+    )
+    design = ExperimentalDesign(
+        samples=tuple(
+            SampleDesignRecord(
+                sample_id=sample_id,
+                condition=sample_id[0],
+                biological_replicate_id=sample_id[:2],
+                technical_replicate_id=sample_id[-2:],
+            )
+            for sample_id in phospho.columns
+        )
+    )
+
+    mean = _aggregate(
+        dataset=dataset,
+        design=design,
+        policy=TechnicalReplicatePolicy.MEAN,
+    )
+    median = _aggregate(
+        dataset=dataset,
+        design=design,
+        policy=TechnicalReplicatePolicy.MEDIAN,
+    )
+
+    assert isinstance(mean.dataset, DerivedAnalysisReadyPhosphoDataset)
+    assert isinstance(median.dataset, DerivedAnalysisReadyPhosphoDataset)
+    assert mean.dataset.derived_lineage.aggregation_method == "mean"
+    assert median.dataset.derived_lineage.aggregation_method == "median"
+    assert (
+        mean.dataset.derived_lineage.lineage_hash_value
+        != median.dataset.derived_lineage.lineage_hash_value
+    )
+    assert (
+        _fingerprint_by_name(
+            mean.dataset.derived_lineage.derived_dataset_fingerprints,
+            "dataset.phospho",
+        ).exact_hash_value
+        != _fingerprint_by_name(
+            median.dataset.derived_lineage.derived_dataset_fingerprints,
+            "dataset.phospho",
+        ).exact_hash_value
+    )
+
+
+def test_total_protein_and_imputation_mask_lineage_are_recorded() -> None:
+    base = _dataset_with_technical_replicates_and_total()
+    mask = pd.DataFrame(
+        True,
+        index=base.phospho.index.copy(),
+        columns=base.phospho.columns.copy(),
+    )
+    mask.loc[base.phospho.index[0], "A1_T2"] = False
+    mask.loc[base.phospho.index[1], "B2_T1"] = False
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=base.phospho,
+        site_metadata=base.site_metadata,
+        sample_metadata=base.sample_metadata,
+        total=base.total,
+        organism=base.organism,
+        intensity_scale_state=base.intensity_scale_state,
+        processing_state=valid_imputed_processing_state(base.processing_state),
+        imputation_observation_mask=mask,
+        provenance=base.provenance,
+    )
+
+    resolved = _aggregate(
+        dataset=dataset,
+        design=_repeated_design(),
+        policy=TechnicalReplicatePolicy.MEAN,
+    )
+
+    assert isinstance(resolved.dataset, DerivedAnalysisReadyPhosphoDataset)
+    observed_mask = resolved.dataset.imputation_observed_mask_dataframe()
+    assert observed_mask is not None
+    assert bool(observed_mask.loc[base.phospho.index[0], "A1"]) is False
+    assert bool(observed_mask.loc[base.phospho.index[1], "B2"]) is False
+    lineage = resolved.dataset.derived_lineage
+    assert lineage.matrices_transformed["total_protein"] is True
+    assert lineage.matrices_transformed["imputation_observation_mask"] is True
+    assert (
+        _fingerprint_by_name(
+            lineage.derived_dataset_fingerprints, "dataset.total"
+        ).columns
+        == 4
+    )
+    assert (
+        _fingerprint_by_name(
+            lineage.derived_dataset_fingerprints,
+            "dataset.imputation_observation_mask",
+        ).columns
+        == 4
+    )
+
+
+def test_serialized_lineage_round_trips_and_verifies_actual_matrix() -> None:
+    dataset = _dataset_with_technical_replicates()
+    resolved = _aggregate(
+        dataset=dataset,
+        design=_repeated_design(),
+        policy=TechnicalReplicatePolicy.MEAN,
+    )
+
+    assert isinstance(resolved.dataset, DerivedAnalysisReadyPhosphoDataset)
+    lineage = resolved.dataset.derived_lineage
+    payload = lineage.to_payload()
+    restored = DerivedQuantitativeDataProvenance.from_payload(payload)
+    assert restored.to_payload() == payload
+
+    derived_phospho = fingerprint_table(
+        resolved.dataset.phospho,
+        name="dataset.phospho",
+    )
+    restored_phospho = _fingerprint_by_name(
+        restored.derived_dataset_fingerprints,
+        "dataset.phospho",
+    )
+    assert restored_phospho.exact_hash_value == derived_phospho.exact_hash_value
+    replayed = pd.concat(
+        [
+            dataset.phospho.loc[:, list(input_ids)].mean(axis=1).rename(output_id)
+            for output_id, input_ids in restored.sample_groups()
+        ],
+        axis=1,
+    )
+    replayed.columns = pd.Index([item[0] for item in restored.sample_groups()])
+    pdt.assert_frame_equal(replayed, resolved.dataset.phospho)
+
+
+def test_interpreter_consumes_derived_dataset_after_aggregation() -> None:
+    validated = DifferentialAnalysisValidator().run(
+        _request(technical_replicate_policy=TechnicalReplicatePolicy.MEAN)
+    )
+    seen_dataset_types: list[type[AnalysisReadyPhosphoDataset]] = []
+    real_validator = ExperimentalDesignContractValidator()
+
+    class _DesignValidatorSpy:
+        def run(self, **kwargs):
+            seen_dataset_types.append(type(kwargs["dataset"]))
+            return real_validator.run(**kwargs)
+
+    DifferentialAnalysisInterpreter(
+        design_validator=_DesignValidatorSpy(),  # type: ignore[arg-type]
+    ).run(validated)
+
+    assert DerivedAnalysisReadyPhosphoDataset in seen_dataset_types
 
 
 def test_technical_replicate_resolver_warns_and_preserves_wrapper_behaviour() -> None:

@@ -10,6 +10,19 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.errors.validation import WorkflowValidationError
+from phospy.provenance.derived_quantitative import (
+    TECHNICAL_REPLICATE_AGGREGATION_DERIVATION_TYPE,
+    TECHNICAL_REPLICATE_AGGREGATOR_IMPLEMENTATION,
+    DerivedQuantitativeDataProvenance,
+    DerivedSampleMapping,
+    build_derived_quantitative_run_provenance,
+)
+from phospy.provenance.environment import collect_environment_provenance
+from phospy.provenance.hashing import fingerprint_optional_table
+from phospy.provenance.models import JsonValue, TableFingerprint
+from phospy.science.datasets.derived_quantitative import (
+    DerivedAnalysisReadyPhosphoDataset,
+)
 from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.design.models import ExperimentalDesign, SampleDesignRecord
@@ -316,6 +329,11 @@ class TechnicalReplicateAggregator:
             {sample_id for group in groups for sample_id in group.input_sample_ids}
         )
         aggregate_total = aggregation_plan.aggregate_total_protein
+        derived_lineage = (
+            aggregated_dataset.derived_lineage
+            if isinstance(aggregated_dataset, DerivedAnalysisReadyPhosphoDataset)
+            else None
+        )
         workflow_provenance: dict[str, object] = {
             "technical_replicate_policy": technical_replicate_policy.value,
             "aggregation_policy": technical_replicate_policy.value,
@@ -329,6 +347,13 @@ class TechnicalReplicateAggregator:
             "both_phospho_and_total_aggregated": bool(aggregate_total),
             "groups": provenance_groups,
         }
+        if derived_lineage is not None:
+            workflow_provenance["derived_quantitative_data"] = (
+                derived_lineage.to_payload()
+            )
+            workflow_provenance["derived_dataset_type"] = type(
+                aggregated_dataset
+            ).__name__
         return TechnicalReplicateResolution(
             dataset=aggregated_dataset,
             design=aggregated_design,
@@ -374,7 +399,80 @@ class TechnicalReplicateAggregator:
                 )
             )
         )
-        return AnalysisReadyPhosphoDataset._from_owned(
+        parent_fingerprints = _collect_table_fingerprints(
+            (
+                ("dataset.phospho", phospho),
+                ("dataset.site_metadata", dataset_view.site_metadata),
+                ("dataset.sample_metadata", sample_metadata),
+                ("dataset.total", total),
+                ("dataset.comparisons", comparisons),
+                (
+                    "dataset.imputation_observation_mask",
+                    dataset.imputation_observed_mask_dataframe(),
+                ),
+            )
+        )
+        derived_fingerprints = _collect_table_fingerprints(
+            (
+                ("dataset.phospho", aggregated_phospho),
+                ("dataset.site_metadata", dataset_view.site_metadata),
+                ("dataset.sample_metadata", aggregated_sample_metadata),
+                ("dataset.total", aggregated_total),
+                ("dataset.comparisons", comparisons),
+                (
+                    "dataset.imputation_observation_mask",
+                    aggregated_imputation_observation_mask,
+                ),
+            )
+        )
+        environment = collect_environment_provenance()
+        quantitative_meaning = dataset.intensity_scale_state.quantity
+        lineage = DerivedQuantitativeDataProvenance(
+            derivation_type=TECHNICAL_REPLICATE_AGGREGATION_DERIVATION_TYPE,
+            parent_dataset_type=type(dataset).__name__,
+            derived_dataset_type="DerivedAnalysisReadyPhosphoDataset",
+            parent_dataset_fingerprints=parent_fingerprints,
+            derived_dataset_fingerprints=derived_fingerprints,
+            sample_mapping=tuple(
+                DerivedSampleMapping(
+                    output_sample_id=group.output_sample_id,
+                    input_sample_ids=group.input_sample_ids,
+                    condition=group.condition,
+                    biological_replicate_id=group.biological_replicate_id,
+                    technical_replicate_ids=group.technical_replicate_ids,
+                )
+                for group in groups
+            ),
+            aggregation_method=technical_replicate_policy.value,
+            input_intensity_scale=str(dataset.intensity_scale_state.label),
+            output_intensity_scale=str(dataset.intensity_scale_state.label),
+            quantitative_meaning=(
+                "unknown"
+                if quantitative_meaning is None
+                else quantitative_meaning.value
+            ),
+            missingness_policy=_missingness_policy_payload(dataset),
+            matrices_transformed={
+                "phospho": True,
+                "total_protein": aggregated_total is not None,
+                "sample_metadata": aggregated_sample_metadata is not None,
+                "imputation_observation_mask": (
+                    aggregated_imputation_observation_mask is not None
+                ),
+            },
+            implementation=TECHNICAL_REPLICATE_AGGREGATOR_IMPLEMENTATION,
+            implementation_version=environment.package_version,
+            parameters={
+                "aggregation_axis": "samples",
+                "source_grouping": "condition+biological_replicate_id",
+            },
+        )
+        provenance = build_derived_quantitative_run_provenance(
+            lineage=lineage,
+            environment=environment,
+            reference_context=dataset.reference_context,
+        )
+        return DerivedAnalysisReadyPhosphoDataset.from_owned_derived_tables(
             phospho=aggregated_phospho,
             site_metadata=dataset_view.site_metadata.copy(deep=True),
             intensity_scale_state=dataset.intensity_scale_state,
@@ -384,8 +482,9 @@ class TechnicalReplicateAggregator:
             comparisons=None if comparisons is None else comparisons.copy(deep=True),
             imputation_observation_mask=aggregated_imputation_observation_mask,
             organism=dataset.organism,
-            preprocessing_report=dataset.preprocessing_report,
-            provenance=dataset.provenance,
+            provenance=provenance,
+            derived_lineage=lineage,
+            allow_opaque_site_values=dataset.opaque_site_values_allowed,
         )
 
     @staticmethod
@@ -434,6 +533,41 @@ class TechnicalReplicateAggregator:
             columns=metadata.columns.copy(),
         )
         return aggregated
+
+
+def _collect_table_fingerprints(
+    entries: tuple[tuple[str, pd.DataFrame | None], ...],
+) -> tuple[TableFingerprint, ...]:
+    fingerprints: list[TableFingerprint] = []
+    for name, table in entries:
+        fingerprint = fingerprint_optional_table(table, name=name)
+        if fingerprint is None:
+            continue
+        fingerprints.append(fingerprint)
+    return tuple(fingerprints)
+
+
+def _missingness_policy_payload(
+    dataset: AnalysisReadyPhosphoDataset,
+) -> dict[str, JsonValue]:
+    missing_data = dataset.processing_state.missing_data
+    diagnostics = missing_data.diagnostics
+    imputation_method_id: str | None = None
+    if diagnostics is not None:
+        raw_imputation_method_id = diagnostics.get("imputation_method_id")
+        imputation_method_id = (
+            None if raw_imputation_method_id is None else str(raw_imputation_method_id)
+        )
+    return {
+        "policy": missing_data.policy.value,
+        "complete_matrix": bool(missing_data.complete_matrix),
+        "imputed": bool(missing_data.imputed),
+        "has_missing_values": missing_data.has_missing_values,
+        "missing_value_count": missing_data.missing_value_count,
+        "imputation_method_id": imputation_method_id,
+        "numeric_aggregation_skip_missing": True,
+        "imputation_observation_mask_aggregation": "all_source_cells_observed",
+    }
 
 
 class TechnicalReplicateResolver:

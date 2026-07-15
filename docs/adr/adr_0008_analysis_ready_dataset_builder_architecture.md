@@ -34,6 +34,13 @@ processing-state establishment. Direct dataset construction remains
 advanced/trusted use for callers who already own fully prepared analysis-ready
 tables.
 
+Update note (2026-07-15, workflow-derived quantitative ownership): The builder
+remains the ordinary public route for creating source analysis-ready datasets.
+Workflow-derived quantitative datasets, such as technical-replicate aggregated
+matrices, are not builder outputs and must not reuse builder preprocessing
+reports or source builder provenance. They are internal derived dataset objects
+with fresh derived-data provenance and explicit parent lineage.
+
 ## Context and Problem Statement
 
 Earlier ADRs established a clear direction:

@@ -1,5 +1,14 @@
 """Machine-readable run provenance services."""
 
+from phospy.provenance.derived_quantitative import (
+    DERIVED_QUANTITATIVE_DATA_FINGERPRINT_ALGORITHM,
+    DERIVED_QUANTITATIVE_DATA_PROVENANCE_SCHEMA_VERSION_V1,
+    TECHNICAL_REPLICATE_AGGREGATION_DERIVATION_TYPE,
+    TECHNICAL_REPLICATE_AGGREGATOR_IMPLEMENTATION,
+    DerivedQuantitativeDataProvenance,
+    DerivedSampleMapping,
+    build_derived_quantitative_run_provenance,
+)
 from phospy.provenance.environment import (
     BATCH_CORRECTION_ENVIRONMENT_DEPENDENCIES,
     DEFAULT_ENVIRONMENT_DEPENDENCIES,
@@ -43,6 +52,8 @@ from phospy.provenance.serialization import (
     batch_correction_provenance_from_payload,
     batch_correction_provenance_to_payload,
     from_payload,
+    table_fingerprint_from_payload,
+    table_fingerprint_to_payload,
     to_payload,
 )
 
@@ -54,7 +65,11 @@ __all__ = [
     "BATCH_CORRECTION_ENVIRONMENT_DEPENDENCIES",
     "BatchCorrectionProvenance",
     "BatchCorrectionRejectedEntity",
+    "DERIVED_QUANTITATIVE_DATA_FINGERPRINT_ALGORITHM",
+    "DERIVED_QUANTITATIVE_DATA_PROVENANCE_SCHEMA_VERSION_V1",
     "DeterminismKind",
+    "DerivedQuantitativeDataProvenance",
+    "DerivedSampleMapping",
     "EnvironmentProvenance",
     "KinaseLibraryResourceProvenance",
     "PreprocessingStageProvenance",
@@ -66,11 +81,14 @@ __all__ = [
     "ScientificPolicyId",
     "ScientificPolicyParameter",
     "ScientificPolicyRecord",
+    "TECHNICAL_REPLICATE_AGGREGATION_DERIVATION_TYPE",
+    "TECHNICAL_REPLICATE_AGGREGATOR_IMPLEMENTATION",
     "TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V1",
     "TableFingerprint",
     "TrustedDatasetConstructionAssertions",
     "batch_correction_provenance_from_payload",
     "batch_correction_provenance_to_payload",
+    "build_derived_quantitative_run_provenance",
     "collect_batch_correction_environment_provenance",
     "collect_environment_provenance",
     "fingerprint_matrix",
@@ -81,5 +99,7 @@ __all__ = [
     "from_payload",
     "hash_table_exact",
     "hash_table_tolerance",
+    "table_fingerprint_from_payload",
+    "table_fingerprint_to_payload",
     "to_payload",
 ]

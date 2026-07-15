@@ -86,6 +86,12 @@ result frames follows the same domain-owned internal view pattern.
 Provenance fields describe owned state at creation time. Caller mutation of
 exported snapshots must not alter those recorded fingerprints.
 
+Derived quantitative datasets created inside workflows follow the same rule.
+Their fingerprints describe the owned derived tables at derived-object creation
+time, not the parent dataset's tables. Parent dataset fingerprints may appear
+only as explicit lineage inputs. Source run provenance and preprocessing reports
+must not be reused as the derived object's own provenance.
+
 ## Consequences
 
 ### Positive Consequences
@@ -147,6 +153,9 @@ but cannot claim deep immutability.
 - Public accessors must not reintroduce public copy-semantics toggles.
 - Provenance-sensitive tests must continue to validate that public exports do
   not alter owned-state fingerprints.
+- Derived-data tests must validate both sides of lineage: parent fingerprints
+  remain recorded as inputs, and derived fingerprints match the actual derived
+  matrices, sample mapping, and optional masks/tables.
 - Export/publisher implementations remain the preferred high-volume persistence
   boundary.
 
@@ -189,4 +198,3 @@ i349-i356.
 
 YangLab. (n.d.). *PhosR* [Computer software]. GitHub.
 https://github.com/PYangLab/PhosR
-

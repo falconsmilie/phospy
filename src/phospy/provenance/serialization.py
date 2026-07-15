@@ -466,6 +466,14 @@ def _table_fingerprint_to_payload(fingerprint: TableFingerprint) -> dict[str, ob
     }
 
 
+def table_fingerprint_to_payload(
+    fingerprint: TableFingerprint,
+) -> dict[str, object]:
+    """Serialize a table fingerprint to a JSON-safe payload."""
+
+    return _table_fingerprint_to_payload(fingerprint)
+
+
 def _table_fingerprint_from_payload(payload: Mapping[str, object]) -> TableFingerprint:
     _reject_legacy_provenance_fields(
         payload,
@@ -537,6 +545,14 @@ def _table_fingerprint_from_payload(payload: Mapping[str, object]) -> TableFinge
             for key, value in column_index_structure.items()
         },
     )
+
+
+def table_fingerprint_from_payload(
+    payload: Mapping[str, object],
+) -> TableFingerprint:
+    """Deserialize a table fingerprint from a decoded payload."""
+
+    return _table_fingerprint_from_payload(payload)
 
 
 def _environment_to_payload(environment: EnvironmentProvenance) -> dict[str, object]:
@@ -1308,5 +1324,7 @@ __all__ = [
     "batch_correction_provenance_from_payload",
     "batch_correction_provenance_to_payload",
     "from_payload",
+    "table_fingerprint_from_payload",
+    "table_fingerprint_to_payload",
     "to_payload",
 ]

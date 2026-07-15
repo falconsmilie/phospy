@@ -1,5 +1,8 @@
 """Dataset domain package."""
 
+from phospy.science.datasets.derived_quantitative import (
+    DerivedAnalysisReadyPhosphoDataset,
+)
 from phospy.science.datasets.models import (
     AnalysisReadyPhosphoDataset,
     DatasetPreprocessingReport,
@@ -28,6 +31,7 @@ __all__ = [
     "ComparisonState",
     "DatasetPreprocessingReport",
     "DatasetProcessingState",
+    "DerivedAnalysisReadyPhosphoDataset",
     "MissingDataState",
     "NormalisationState",
     "SiteMatrixState",

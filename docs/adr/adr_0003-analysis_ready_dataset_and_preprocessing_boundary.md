@@ -77,6 +77,15 @@ hard input error unless a future ADR introduces an explicit,
 machine-readable-provenance repair policy. This does not weaken the final
 `AnalysisReadyPhosphoDataset.site_sequence` requirement.
 
+Update note (2026-07-15, derived quantitative datasets): A workflow may create
+an internal derived subtype of `AnalysisReadyPhosphoDataset` when it transforms
+an already analysis-ready quantitative matrix, such as technical-replicate
+aggregation. This does not introduce a second public dataset input model.
+Derived datasets must validate through the same analysis-ready invariants, own
+their derived tables, carry fresh derived-data provenance, retain explicit
+parent lineage, and avoid reusing source dataset provenance or preprocessing
+reports as if the derived matrix were untouched source data.
+
 ## Context and Problem Statement
 
 PhosPy is intended to expose one public dataset model and three primary
@@ -375,6 +384,14 @@ Builder-created datasets continue to carry builder-owned run provenance,
 including preprocessing stages, construction method, table fingerprints, and
 workflow parameters. Direct-construction markers are deliberately not
 builder-equivalent and must not add fake preprocessing stages.
+
+Workflow-derived datasets are a third ownership case. They must create fresh
+`RunProvenance` whose input tables are parent fingerprints and whose output
+tables are fingerprints of the actual derived tables. Parent lineage, including
+source-to-derived sample mapping and derivation parameters, belongs in typed
+derived-data provenance rather than in free-text notes. Reusing source
+preprocessing reports, source run provenance, or source output fingerprints as
+the derived dataset's own provenance is forbidden.
 
 ## Implementation Guidance
 

@@ -64,6 +64,16 @@ plan requires aggregation, the workflow interpreter uses
 the plan, aggregate the supported matrices, record technical-replicate lineage,
 and revalidate the resolved design before execution.
 
+Update note (2026-07-15, derived quantitative provenance):
+technical-replicate aggregation now constructs
+`DerivedAnalysisReadyPhosphoDataset`, a validated analysis-ready dataset whose
+`derived_lineage` records fresh derived table fingerprints, parent dataset
+fingerprints, source-to-derived sample mapping, aggregation method, input/output
+scale, missingness policy, matrices transformed, and implementation version.
+The derived dataset receives fresh `RunProvenance`; it must not reuse the
+source dataset provenance or preprocessing report. Differential interpretation
+and design revalidation consume this derived object directly before execution.
+
 `phospy.workflows.differential.replicates.TechnicalReplicateResolver` remains a
 backward-compatible wrapper around the planner and aggregator. It is not the
 current ownership point for differential workflow enforcement.
@@ -150,6 +160,9 @@ condition number, and maximum admissible condition number.
   `src/phospy/science/differential/models/provenance.py`.
 - Planner, aggregator, and compatibility-resolver behavior:
   `src/phospy/workflows/differential/replicates.py`.
+- Derived quantitative dataset and lineage models:
+  `src/phospy/science/datasets/derived_quantitative.py` and
+  `src/phospy/provenance/derived_quantitative.py`.
 - Differential request validation pipeline:
   `src/phospy/workflows/differential/validator.py`.
 - Differential provenance construction:
