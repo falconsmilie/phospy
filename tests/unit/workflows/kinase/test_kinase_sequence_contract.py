@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from contextlib import nullcontext
+
 import pandas as pd
 import pytest
 
@@ -13,6 +15,7 @@ from phospy.api import (
 )
 from phospy.api.configs.kinase import (
     KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
+    KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE,
 )
 from phospy.errors import WorkflowValidationError
 from phospy.provenance.hashing import fingerprint_table
@@ -25,7 +28,10 @@ from phospy.science.references.kinase_library import (
     KinaseLibraryResource,
 )
 from phospy.science.references.models import SequenceWindowDefinition
-from phospy.workflows.kinase.validator import KinaseWorkflowValidator
+from phospy.workflows.kinase.validator import (
+    KinaseWorkflowValidator,
+    _selected_explicit_reference_sequence_context,
+)
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -37,6 +43,10 @@ from tests.support.site_keys import (
 from tests.support.unsafe_dataset_states import (
     unsafe_drop_dataset_site_metadata_columns,
     unsafe_set_dataset_site_metadata_columns,
+)
+
+_PANDAS_COPY_ON_WRITE_CAN_BE_DISABLED = (
+    int(pd.__version__.split(".", maxsplit=1)[0]) < 3
 )
 
 
@@ -255,3 +265,42 @@ def test_base_dataset_sequence_can_pass_construction_but_fail_kinase_fixed_windo
     assert "workflow-specific sequence context contract failed" in message
     assert "expected_length=15" in message
     assert "observed_length=31" in message
+
+
+@pytest.mark.parametrize(
+    "copy_on_write",
+    (
+        [
+            pytest.param(False, id="copy-on-write-disabled"),
+            pytest.param(True, id="copy-on-write-enabled"),
+        ]
+        if _PANDAS_COPY_ON_WRITE_CAN_BE_DISABLED
+        else [pytest.param(None, id="copy-on-write-always-enabled")]
+    ),
+)
+def test_selected_explicit_reference_sequence_context_does_not_mutate_input_frame(
+    copy_on_write: bool | None,
+) -> None:
+    dataset = _dataset(sequences=(_window("S"), _window("T")))
+    site_metadata = dataset.site_metadata
+    original_site_metadata = site_metadata.copy(deep=True)
+    references = _references(sequences=(_window("T"), _window("T")))
+    first_site_key = site_metadata.index[0]
+    copy_mode = (
+        nullcontext()
+        if copy_on_write is None
+        else pd.option_context("mode.copy_on_write", copy_on_write)
+    )
+
+    with copy_mode:
+        selected, source_by_site = _selected_explicit_reference_sequence_context(
+            dataset=dataset,
+            site_metadata=site_metadata,
+            references=references,
+            conflict_policy=KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE,
+        )
+
+    pd.testing.assert_frame_equal(site_metadata, original_site_metadata)
+    assert selected.loc[first_site_key, "site_sequence"] == _window("T")
+    assert site_metadata.loc[first_site_key, "site_sequence"] == _window("S")
+    assert source_by_site[str(first_site_key)] == "reference"

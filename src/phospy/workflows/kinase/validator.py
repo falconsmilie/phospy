@@ -267,10 +267,14 @@ def _selected_explicit_reference_sequence_context(
             selected_sequence_values.append(reference_sequence_text)
             continue
         selected_sequence_values.append(raw_dataset_sequence)
-    # The validator only needs a read-only metadata view plus the selected
-    # sequence column; avoid deep-copying every metadata column for large datasets.
-    selected = site_metadata.copy(deep=False)
-    selected.loc[:, "site_sequence"] = selected_sequence_values
+    # `assign` constructs the selected metadata frame without mutating a shallow
+    # copy that may still share blocks with the dataset's internal view.
+    selected_sequences = pd.Series(
+        selected_sequence_values,
+        index=site_metadata.index,
+        dtype=object,
+    )
+    selected = site_metadata.assign(site_sequence=selected_sequences)
     return selected, source_by_site
 
 
