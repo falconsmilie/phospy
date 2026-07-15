@@ -311,6 +311,9 @@ def _scoring_limitation_caveat(
         "score_source": scoring_result.score_source,
         "score_scale": scoring_result.score_scale,
         "default_scoring_mode": KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
+        "score_interpretation": "relative_support_within_run",
+        "not_calibrated_probability": True,
+        "not_causal_activity_proof": True,
         "site_count": int(authoritative.shape[0]),
         "kinase_count": int(authoritative.shape[1]),
         "kinase_library_resource_provided": (
@@ -321,8 +324,9 @@ def _scoring_limitation_caveat(
         code=KINASE_SCORING_LIMITATION_CAVEAT_CODE,
         severity="info",
         message=(
-            "Kinase scoring uses PhosPy workflow scoring semantics; outputs are "
-            "not exact PhosR numerical equivalents."
+            "Kinase scoring outputs are relative support values under PhosPy "
+            "workflow scoring semantics; they are not exact PhosR numerical "
+            "equivalents and are not causal kinase activity proof."
         ),
         details=details,
     )

@@ -16,6 +16,8 @@ universe.
 
 "PhosR-inspired" in PhosPy docs means scoped, feature-level comparison lanes. It
 does not imply full PhosR package parity or full PhosR API compatibility.
+Current differential analysis is scoped to tested design and contrast envelopes;
+it is not full limma or PhosR parity.
 
 PhosPy does **not** provide HTTP endpoints or a web service. The supported user
 interface is the Python API.
@@ -99,6 +101,8 @@ The default kinase `scoring_mode="phosr_rank_weighted"` is PhosR-inspired
 rank-weighted scoring implemented by PhosPy. It combines available profile and
 motif support under PhosPy's support rules; it is not an exact PhosR
 implementation and is not intended to provide numerical parity with PhosR.
+Kinase scoring and prediction outputs are relative support within a run, not
+calibrated probabilities.
 Optional kinase activity outputs are exploratory kinase activity scores or
 activity-like substrate summaries. They depend on substrate coverage and
 reference evidence; they are not direct proof of kinase activation or causal

@@ -34,6 +34,7 @@ from phospy.workflows.differential.caveats import (
 )
 from phospy.workflows.kinase.caveats import (
     KINASE_DIRECT_TRUSTED_DATASET_CAVEAT_CODE,
+    KINASE_SCORING_LIMITATION_CAVEAT_CODE,
 )
 from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
@@ -257,3 +258,16 @@ def test_kinase_result_caveat_warns_for_missing_trusted_assertions() -> None:
         "quantitative_meaning_user_asserted",
         "reference_context_user_asserted",
     ]
+
+    scoring_caveat = _caveat_by_code(
+        result.caveats,
+        KINASE_SCORING_LIMITATION_CAVEAT_CODE,
+    )
+    assert scoring_caveat.severity == "info"
+    assert "relative support values" in scoring_caveat.message
+    assert "not causal kinase activity proof" in scoring_caveat.message
+    assert scoring_caveat.details["score_interpretation"] == (
+        "relative_support_within_run"
+    )
+    assert scoring_caveat.details["not_causal_activity_proof"] is True
+    assert scoring_caveat.details["not_calibrated_probability"] is True

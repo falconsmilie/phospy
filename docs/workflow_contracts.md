@@ -173,6 +173,8 @@ Important user-facing assumptions:
 
 - Conditions, batches, blocks, and covariates are not inferred from sample
   names.
+- Differential support is scoped to tested design and contrast envelopes; it is
+  not full limma or PhosR parity.
 - Batch can be modelled as an ordinary fixed-effect covariate when the design is
   valid, full rank, and contrasts are estimable. This is not batch correction.
 - Fixed-block paired designs are supported only when
@@ -232,6 +234,9 @@ Important user-facing assumptions:
 
 Important user-facing assumptions:
 
+- Bundled runtime references are rat-only for `ReferencePreset.AUTO` in this
+  release; human or mouse workflows require an explicit caller-supplied
+  `ReferenceBundle`.
 - Quantified rows are keyed by `site_key`; reference display IDs are projected
   through dataset `display_id` metadata.
 - `reference_display_ambiguity_policy="error"` rejects one-display-to-many

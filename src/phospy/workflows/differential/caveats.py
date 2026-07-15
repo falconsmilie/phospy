@@ -124,8 +124,9 @@ def build_differential_result_caveats(
                 code=DIFFERENTIAL_NARROW_PARITY_ENVELOPE_CAVEAT_CODE,
                 severity="info",
                 message=(
-                    "Differential analysis used the supported fixed-effect "
-                    "moderated OLS envelope; unsupported repeated-measure, "
+                    "Differential analysis used the supported scoped "
+                    "fixed-effect moderated OLS envelope; it is not full "
+                    "limma or PhosR parity, and unsupported repeated-measure, "
                     "mixed-effect, RUV/SPS, and duplicateCorrelation-style "
                     "models were not fit."
                 ),
@@ -218,7 +219,9 @@ def _narrow_parity_envelope_details(
     ):
         return None
     return {
+        "scope": "tested_design_and_contrast_envelope",
         "model_type": "moderated_ols_fixed_effect",
+        "full_limma_or_phosr_parity_claimed": False,
         "paired_design_policy": policy_provenance.design.paired_design_policy,
         "unsupported_design_feature_count": unsupported_count,
         "design_limitation_count": design_limitation_count,

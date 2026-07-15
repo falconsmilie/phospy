@@ -364,7 +364,9 @@ counts.
 
 ## Limitations
 
-- Bundled runtime references are rat-first in this release.
+- Bundled runtime references are rat-only for `ReferencePreset.AUTO` in this
+  release; human or mouse analysis requires an explicit caller-supplied
+  `ReferenceBundle`.
 - Scores are relative support values, not calibrated causal inference.
 - `phosr_rank_weighted` is PhosR-inspired PhosPy scoring, not exact PhosR
   numerical compatibility.
