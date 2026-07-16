@@ -346,6 +346,19 @@ def _execution_background_summary(
             "foreground_identifiers_missing_from_background": (
                 missing_foreground_identifiers
             ),
+            "retained_foreground_fraction": _retained_foreground_fraction(
+                retained_count=ora_result.selected_size,
+                selected_count=len(request.selected_identifiers),
+            ),
+            "selected_outside_background_policy": (
+                request.method_config.selected_outside_background_policy
+            ),
+            "set_member_outside_background_policy": (
+                request.config.set_member_outside_background_policy
+            ),
+            "minimum_retained_foreground_fraction": (
+                request.config.minimum_retained_foreground_fraction
+            ),
         }
     )
     return summary
@@ -465,6 +478,16 @@ def _foreground_background_intersection(
     return usable_foreground, missing_foreground
 
 
+def _retained_foreground_fraction(
+    *,
+    retained_count: int,
+    selected_count: int,
+) -> float | None:
+    if selected_count <= 0:
+        return None
+    return float(retained_count) / float(selected_count)
+
+
 def _foreground_background_diagnostics(
     *,
     request: InterpretedEnrichmentWorkflowRequest,
@@ -482,8 +505,21 @@ def _foreground_background_diagnostics(
         "foreground_size_before_intersection": len(request.selected_identifiers),
         "background_size": len(request.background_universe),
         "usable_foreground_size_after_background_intersection": len(usable_foreground),
+        "retained_foreground_fraction": _retained_foreground_fraction(
+            retained_count=len(usable_foreground),
+            selected_count=len(request.selected_identifiers),
+        ),
         "foreground_identifiers_missing_from_background_count": len(missing_foreground),
         "foreground_identifiers_missing_from_background": missing_foreground,
+        "selected_outside_background_policy": (
+            request.method_config.selected_outside_background_policy
+        ),
+        "set_member_outside_background_policy": (
+            request.config.set_member_outside_background_policy
+        ),
+        "minimum_retained_foreground_fraction": (
+            request.config.minimum_retained_foreground_fraction
+        ),
         "tested_set_count": set_size_filter_result.tested_set_count,
         "dropped_set_count": len(set_size_filter_result.dropped_sets),
         **unmatched_set_identifier_summary,
@@ -495,21 +531,25 @@ def _unmatched_set_identifier_summary(
     request: InterpretedEnrichmentWorkflowRequest,
 ) -> dict[str, object]:
     background = frozenset(request.background_universe)
-    missing_identifiers: list[str] = []
-    seen: set[str] = set()
+    missing_identifiers: set[str] = set()
     for enrichment_set in request.set_collection.enrichment_sets:
         for identifier in enrichment_set.identifiers:
-            if identifier in background or identifier in seen:
+            if identifier in background:
                 continue
-            seen.add(identifier)
-            missing_identifiers.append(identifier)
+            missing_identifiers.add(identifier)
 
-    preview = tuple(missing_identifiers[:MAX_UNMATCHED_SET_IDENTIFIER_DIAGNOSTIC_COUNT])
+    ordered_missing_identifiers = tuple(sorted(missing_identifiers))
+    preview = ordered_missing_identifiers[
+        :MAX_UNMATCHED_SET_IDENTIFIER_DIAGNOSTIC_COUNT
+    ]
     return {
-        "set_identifiers_missing_from_background_count": len(missing_identifiers),
+        "set_identifiers_missing_from_background_count": len(
+            ordered_missing_identifiers
+        ),
         "set_identifiers_missing_from_background": preview,
         "set_identifiers_missing_from_background_truncated": (
-            len(missing_identifiers) > MAX_UNMATCHED_SET_IDENTIFIER_DIAGNOSTIC_COUNT
+            len(ordered_missing_identifiers)
+            > MAX_UNMATCHED_SET_IDENTIFIER_DIAGNOSTIC_COUNT
         ),
         "set_identifiers_missing_from_background_preview_limit": (
             MAX_UNMATCHED_SET_IDENTIFIER_DIAGNOSTIC_COUNT
@@ -597,7 +637,20 @@ def _build_run_provenance(
         "selected_identifiers_provided": request.selected_identifier_input_count,
         "selected_identifier_count": len(request.selected_identifiers),
         "selected_identifiers_retained_in_universe": ora_result.selected_size,
+        "retained_foreground_fraction": _retained_foreground_fraction(
+            retained_count=ora_result.selected_size,
+            selected_count=len(request.selected_identifiers),
+        ),
         "selected_identifier_source": request.selected_identifier_source,
+        "selected_outside_background_policy": (
+            request.method_config.selected_outside_background_policy
+        ),
+        "set_member_outside_background_policy": (
+            request.config.set_member_outside_background_policy
+        ),
+        "minimum_retained_foreground_fraction": (
+            request.config.minimum_retained_foreground_fraction
+        ),
         "multiple_testing_correction": (
             request.method_config.multiple_testing_correction
         ),
@@ -619,6 +672,10 @@ def _build_run_provenance(
         "method_metadata": request.method_metadata,
         "background_summary": request.background_summary,
         "set_collection_summary": request.set_collection_summary,
+        "universe_policy": _universe_policy_provenance(
+            request=request,
+            ora_result=ora_result,
+        ),
         "row_attrition_metrics": row_attrition_metrics,
     }
     if row_attrition:
@@ -670,6 +727,10 @@ def _row_attrition_metrics(
         "selected_identifiers_provided": int(request.selected_identifier_input_count),
         "selected_identifiers_prepared": int(len(request.selected_identifiers)),
         "selected_identifiers_retained_in_universe": int(ora_result.selected_size),
+        "retained_foreground_fraction": _retained_foreground_fraction(
+            retained_count=ora_result.selected_size,
+            selected_count=len(request.selected_identifiers),
+        ),
         "selected_identifiers_dropped_before_universe_intersection": int(
             max(
                 request.selected_identifier_input_count
@@ -854,6 +915,51 @@ def _set_collection_provenance(
                 "source_version": enrichment_set.source_version,
             }
             for enrichment_set in request.set_collection.enrichment_sets
+        ),
+    }
+
+
+def _universe_policy_provenance(
+    *,
+    request: InterpretedEnrichmentWorkflowRequest,
+    ora_result: OraResult,
+) -> dict[str, object]:
+    set_identifier_summary = _unmatched_set_identifier_summary(request=request)
+    return {
+        "selected_outside_background_policy": (
+            request.method_config.selected_outside_background_policy
+        ),
+        "set_member_outside_background_policy": (
+            request.config.set_member_outside_background_policy
+        ),
+        "minimum_retained_foreground_fraction": (
+            request.config.minimum_retained_foreground_fraction
+        ),
+        "selected_identifier_count": len(request.selected_identifiers),
+        "selected_identifiers_retained_in_background_count": ora_result.selected_size,
+        "selected_identifiers_outside_background_count": len(
+            ora_result.dropped_selected_identifiers
+        ),
+        "selected_identifiers_outside_background": (
+            ora_result.dropped_selected_identifiers
+        ),
+        "retained_foreground_fraction": _retained_foreground_fraction(
+            retained_count=ora_result.selected_size,
+            selected_count=len(request.selected_identifiers),
+        ),
+        "set_identifiers_outside_background_count": (
+            set_identifier_summary["set_identifiers_missing_from_background_count"]
+        ),
+        "set_identifiers_outside_background": (
+            set_identifier_summary["set_identifiers_missing_from_background"]
+        ),
+        "set_identifiers_outside_background_truncated": (
+            set_identifier_summary["set_identifiers_missing_from_background_truncated"]
+        ),
+        "set_identifiers_outside_background_preview_limit": (
+            set_identifier_summary[
+                "set_identifiers_missing_from_background_preview_limit"
+            ]
         ),
     }
 

@@ -62,7 +62,9 @@ Current ORA:
 
 - consumes selected identifiers as a foreground set;
 - requires an explicit background universe;
-- intersects foreground and set members with that background;
+- applies the configured ORA universe policy for foreground and set members,
+  as specified by
+  [ADR-0036](adr_0036_enrichment_universe_and_attrition_policy.md);
 - tests each set using overlap counts; and
 - reports ORA p-values, adjusted p-values, overlap counts, overlap
   identifiers, enrichment ratio, diagnostics, and provenance.

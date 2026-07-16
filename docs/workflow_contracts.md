@@ -210,6 +210,11 @@ Important user-facing assumptions:
 - `identifier_kind`, selected identifiers, set members, and
   `background_universe` must use the same namespace.
 - The background universe is explicit and required.
+- Selected identifiers outside the background fail by default. Explicit drop is
+  available through enrichment universe policy, set-member outside-background
+  behavior is separately configurable, and retained-foreground thresholds can be
+  enforced. See
+  [ADR-0036](adr/adr_0036_enrichment_universe_and_attrition_policy.md).
 - Gene-level and site-level enrichment require explicit identifier semantics and
   are not interchangeable.
 - `EnrichmentWorkflow` consumes selected foreground identifiers for ORA, not a

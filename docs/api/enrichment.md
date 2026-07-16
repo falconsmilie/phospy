@@ -40,8 +40,9 @@ Also provide:
 
 The selected identifiers, background universe, and set collection must use the
 same identifier namespace. Gene-level and PTM-level collections are deliberately
-separate. Selected identifiers that are not present in the background are
-reported in diagnostics and are not used in ORA calculations.
+separate. Selected identifiers that are not present in the background fail by
+default. Intentional foreground intersection requires
+`selected_outside_background_policy="drop"` in `EnrichmentConfig`.
 
 ## Request Object
 
@@ -158,13 +159,37 @@ Use `EnrichmentConfig`.
 | `multiple_testing_correction` | `"benjamini_hochberg"` | `"benjamini_hochberg"`, `"bonferroni"`, `"holm"`, `"benjamini_yekutieli"`, `"none"` |
 | `min_set_size` | `None` | `None` or an integer `>= 1` |
 | `max_set_size` | `None` | `None` or an integer `>= 1` |
+| `selected_outside_background_policy` | `"error"` | `"error"` or `"drop"` |
+| `set_member_outside_background_policy` | `"drop"` | `"error"` or `"drop"` |
+| `minimum_retained_foreground_fraction` | `None` | `None` or a number in `[0.0, 1.0]` |
 
 The default multiple-testing correction is `"benjamini_hochberg"`. Available
 methods are `"benjamini_hochberg"`, `"bonferroni"`, `"holm"`,
 `"benjamini_yekutieli"`, and `"none"`. Correction is applied across the sets
-that are actually tested, after selected identifiers and set members are
-intersected with the explicit background and after optional set-size filters
-drop any sets.
+that are actually tested, after the configured universe policy has been applied
+and after optional set-size filters drop any sets.
+
+## Universe and Attrition Policy
+
+The selected foreground is conservative by default. If any selected identifier
+is outside `background_universe`, workflow validation raises
+`WorkflowValidationError`. This catches common namespace and universe mistakes
+before they become smaller analyses.
+
+Use `selected_outside_background_policy="drop"` only when the intended analysis
+is the selected/background intersection. When drop is enabled, PhosPy records
+the outside-background selected identifiers, retained counts, and retained
+foreground fraction in diagnostics and provenance. If all selected identifiers
+would be dropped, validation fails.
+
+Reference or set-member behavior is controlled separately with
+`set_member_outside_background_policy`. The default `"drop"` supports broad
+caller-supplied collections tested against an experiment-specific background.
+Set `"error"` when every set member must already be inside the background.
+
+Use `minimum_retained_foreground_fraction` to reject excessive foreground
+attrition even when selected dropping is enabled. For example, `0.8` requires at
+least 80% of normalized selected identifiers to remain in the background.
 
 Related collection classes:
 
@@ -252,8 +277,12 @@ background, and set collection overlap:
 | `foreground_size_before_intersection` | Number of selected identifiers before intersecting with the background. |
 | `background_size` | Number of identifiers in the explicit background. |
 | `usable_foreground_size_after_background_intersection` | Number of selected identifiers present in the background and used by ORA. |
+| `retained_foreground_fraction` | Fraction of normalized selected identifiers retained in the background. |
 | `foreground_identifiers_missing_from_background_count` | Count of selected identifiers absent from the background. |
 | `foreground_identifiers_missing_from_background` | The selected identifiers absent from the background. |
+| `selected_outside_background_policy` | Resolved selected-identifier outside-background policy. |
+| `set_member_outside_background_policy` | Resolved set-member outside-background policy. |
+| `minimum_retained_foreground_fraction` | Configured retained-foreground threshold, when any. |
 | `tested_set_count` | Number of sets tested after optional set-size filters. |
 | `dropped_set_count` | Number of sets dropped by optional set-size filters. |
 | `set_identifiers_missing_from_background_count` | Count of distinct set identifiers absent from the background. |
@@ -281,8 +310,10 @@ reference bundle, or set collection.
 
 The background matters because it defines the identifiers that could have been
 selected. If a foreground identifier is absent from the background, PhosPy
-reports it and excludes it from the hypergeometric test instead of inventing a
-mapping or expanding the universe.
+raises a validation error by default instead of inventing a mapping, expanding
+the universe, or silently shrinking the foreground. When the caller explicitly
+sets `selected_outside_background_policy="drop"`, the dropped identifiers and
+retained fraction are recorded in diagnostics and provenance.
 
 The enrichment ratio is a descriptive overlap summary for the selected
 identifiers, set members, and background used in the run. Adjusted p-values
@@ -299,8 +330,11 @@ Do not mix gene-level and site-level interpretation in the same result.
 Workflow provenance records method, identifier column and kind, collection kind,
 analysis level, explicit background size, selected identifier count, selected
 identifier source, set-collection source metadata when provided,
-multiple-testing correction, table fingerprints, offline/no-online-resource policy,
-and limitations.
+multiple-testing correction, table fingerprints, offline/no-online-resource
+policy, and limitations. It also records `universe_policy`, including the
+resolved selected and set-member outside-background policies, selected
+outside-background identifiers, retained foreground fraction, and deterministic
+set-member outside-background preview metadata.
 
 When identifier-set provenance is supplied, `result.provenance.workflow_parameters`
 also stores compact `selected_identifier_provenance` and

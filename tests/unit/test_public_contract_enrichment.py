@@ -17,6 +17,7 @@ from phospy.api import (
     ContractValidationError,
     EnrichmentConfig,
     EnrichmentIdentifierKind,
+    EnrichmentOutsideBackgroundPolicy,
     EnrichmentResultRecord,
     EnrichmentSetCollection,
     EnrichmentWorkflow,
@@ -31,6 +32,8 @@ from phospy.api.configs import (
     ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
     ENRICHMENT_IDENTIFIER_KIND_SITE_KEY,
     ENRICHMENT_METHOD_OVER_REPRESENTATION,
+    ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_DROP,
+    ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_ERROR,
     MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
     MULTIPLE_TESTING_CORRECTION_NONE,
 )
@@ -94,6 +97,15 @@ def test_enrichment_config_defaults_are_explicit() -> None:
     )
     assert config.min_set_size is None
     assert config.max_set_size is None
+    assert (
+        config.selected_outside_background_policy
+        == ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_ERROR
+    )
+    assert (
+        config.set_member_outside_background_policy
+        == ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_DROP
+    )
+    assert config.minimum_retained_foreground_fraction is None
 
     uncorrected = EnrichmentConfig(
         multiple_testing_correction=MULTIPLE_TESTING_CORRECTION_NONE
@@ -230,6 +242,14 @@ def test_enrichment_public_contract_remains_typed_and_narrow() -> None:
     assert get_args(result_hints["records"]) == (EnrichmentResultRecord, Ellipsis)
     assert config_hints["method"] == public_api.EnrichmentMethod
     assert config_hints["multiple_testing_correction"] == MultipleTestingCorrection
+    assert (
+        config_hints["selected_outside_background_policy"]
+        == EnrichmentOutsideBackgroundPolicy
+    )
+    assert (
+        config_hints["set_member_outside_background_policy"]
+        == EnrichmentOutsideBackgroundPolicy
+    )
 
     request_field_names = {field.name for field in fields(EnrichmentWorkflowRequest)}
     assert {"identifier_kind", "set_collection", "background_universe"} <= (

@@ -52,3 +52,4 @@ Use these ADRs when you need rationale and tradeoffs.
 | ADR-0033 | Result Caveats and Scientific Warning Ownership | Accepted | 2026-07-06 | [adr_0033_result_caveats.md](adr_0033_result_caveats.md) |
 | ADR-0034 | Quantitative State, Motif Scoring Semantics, and Reference Context | Accepted | 2026-07-09 | [adr_0034_quantitative_state_motif_semantics_and_reference_context.md](adr_0034_quantitative_state_motif_semantics_and_reference_context.md) |
 | ADR-0035 | Provenance Immutability and Stable Serialization | Accepted | 2026-07-15 | [adr_0035_provenance_immutability_and_stable_serialization.md](adr_0035_provenance_immutability_and_stable_serialization.md) |
+| ADR-0036 | Enrichment Universe and Attrition Policy | Accepted | 2026-07-16 | [adr_0036_enrichment_universe_and_attrition_policy.md](adr_0036_enrichment_universe_and_attrition_policy.md) |

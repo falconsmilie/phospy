@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 from numbers import Integral
 from typing import Literal, cast
 
-from phospy.contracts.configs import EnrichmentConfig
+from phospy.contracts.configs import (
+    ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_DROP,
+    ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_ERROR,
+    SUPPORTED_ENRICHMENT_OUTSIDE_BACKGROUND_POLICIES,
+    EnrichmentConfig,
+    EnrichmentOutsideBackgroundPolicy,
+)
 from phospy.contracts.enrichment_identifier_sets import (
     EnrichmentIdentifierSetProvenance,
     EnrichmentIdentifierSetSourceType,
@@ -106,6 +113,12 @@ class EnrichmentWorkflowValidator:
             role="Background",
             field_name="background_identifier_provenance",
             normalized_identifier_count=len(background_universe),
+        )
+        _validate_universe_policy(
+            selected_identifiers=selected_identifiers,
+            background_universe=background_universe,
+            set_collection=set_collection,
+            config=config,
         )
 
         return ValidatedEnrichmentWorkflowRequest(
@@ -284,7 +297,130 @@ def _validate_config(value: object) -> EnrichmentConfig:
             "enrichment workflow request config.min_set_size must be less than "
             "or equal to config.max_set_size"
         )
+    _validate_outside_background_policy(
+        value.selected_outside_background_policy,
+        field_name=(
+            "enrichment workflow request config.selected_outside_background_policy"
+        ),
+    )
+    _validate_outside_background_policy(
+        value.set_member_outside_background_policy,
+        field_name=(
+            "enrichment workflow request config.set_member_outside_background_policy"
+        ),
+    )
+    _validate_optional_unit_interval(
+        value.minimum_retained_foreground_fraction,
+        field_name=(
+            "enrichment workflow request config.minimum_retained_foreground_fraction"
+        ),
+    )
     return value
+
+
+def _validate_universe_policy(
+    *,
+    selected_identifiers: tuple[str, ...],
+    background_universe: tuple[str, ...],
+    set_collection: EnrichmentSetCollection,
+    config: EnrichmentConfig,
+) -> None:
+    background = frozenset(background_universe)
+    selected_outside_background = _identifiers_outside_background(
+        selected_identifiers,
+        background=background,
+    )
+    retained_selected_count = len(selected_identifiers) - len(
+        selected_outside_background
+    )
+
+    if (
+        selected_outside_background
+        and config.selected_outside_background_policy
+        == ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_ERROR
+    ):
+        raise WorkflowValidationError(
+            "enrichment workflow request selected_identifiers must be within "
+            "background_universe when "
+            "config.selected_outside_background_policy='error'; "
+            f"outside_count={len(selected_outside_background)}; "
+            f"outside_identifiers={selected_outside_background!r}. "
+            "This may indicate a namespace mismatch."
+        )
+
+    if (
+        config.selected_outside_background_policy
+        == ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_DROP
+        and retained_selected_count == 0
+    ):
+        raise WorkflowValidationError(
+            "enrichment workflow request selected_identifiers are empty after "
+            "background filtering; "
+            "config.selected_outside_background_policy='drop'; "
+            f"selected_identifier_count={len(selected_identifiers)}; "
+            f"foreground_identifiers_missing_from_background="
+            f"{selected_outside_background!r}."
+        )
+
+    minimum_retained_fraction = config.minimum_retained_foreground_fraction
+    if minimum_retained_fraction is not None:
+        retained_fraction = retained_selected_count / float(len(selected_identifiers))
+        if retained_fraction < minimum_retained_fraction:
+            raise WorkflowValidationError(
+                "enrichment workflow request retained foreground fraction is below "
+                "config.minimum_retained_foreground_fraction; "
+                f"retained_foreground_fraction={retained_fraction:.6g}; "
+                f"minimum_retained_foreground_fraction="
+                f"{minimum_retained_fraction:.6g}; "
+                f"selected_identifier_count={len(selected_identifiers)}; "
+                f"retained_selected_identifier_count={retained_selected_count}; "
+                f"foreground_identifiers_missing_from_background_count="
+                f"{len(selected_outside_background)}; "
+                f"foreground_identifiers_missing_from_background="
+                f"{selected_outside_background!r}."
+            )
+
+    set_members_outside_background = _set_members_outside_background(
+        set_collection=set_collection,
+        background=background,
+    )
+    if (
+        set_members_outside_background
+        and config.set_member_outside_background_policy
+        == ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_ERROR
+    ):
+        raise WorkflowValidationError(
+            "enrichment workflow request set_collection identifiers must be within "
+            "background_universe when "
+            "config.set_member_outside_background_policy='error'; "
+            f"outside_count={len(set_members_outside_background)}; "
+            f"outside_identifiers={set_members_outside_background!r}. "
+            "This may indicate a namespace mismatch."
+        )
+
+
+def _identifiers_outside_background(
+    identifiers: tuple[str, ...],
+    *,
+    background: frozenset[str],
+) -> tuple[str, ...]:
+    return tuple(
+        identifier for identifier in identifiers if identifier not in background
+    )
+
+
+def _set_members_outside_background(
+    *,
+    set_collection: EnrichmentSetCollection,
+    background: frozenset[str],
+) -> tuple[str, ...]:
+    missing = {
+        identifier
+        for enrichment_set in set_collection.enrichment_sets
+        for identifier in enrichment_set.identifiers
+        if identifier not in background
+    }
+    return tuple(sorted(missing))
 
 
 def _validate_identifier_set_provenance(
@@ -562,6 +698,34 @@ def _validate_optional_set_size_threshold(
             f"{field_name} must be greater than or equal to 1"
         )
     return value
+
+
+def _validate_outside_background_policy(
+    value: object,
+    *,
+    field_name: str,
+) -> EnrichmentOutsideBackgroundPolicy:
+    if value not in SUPPORTED_ENRICHMENT_OUTSIDE_BACKGROUND_POLICIES:
+        supported = ", ".join(
+            repr(policy) for policy in SUPPORTED_ENRICHMENT_OUTSIDE_BACKGROUND_POLICIES
+        )
+        raise WorkflowValidationError(f"{field_name} must be one of: {supported}")
+    return cast(EnrichmentOutsideBackgroundPolicy, value)
+
+
+def _validate_optional_unit_interval(
+    value: object | None,
+    *,
+    field_name: str,
+) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise WorkflowValidationError(f"{field_name} must be numeric or None")
+    normalised = float(value)
+    if not math.isfinite(normalised) or normalised < 0.0 or normalised > 1.0:
+        raise WorkflowValidationError(f"{field_name} must be within [0.0, 1.0]")
+    return normalised
 
 
 __all__ = [

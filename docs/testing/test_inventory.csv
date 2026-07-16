@@ -139,8 +139,8 @@ tests/unit/test_enrichment_multiple_testing_correction.py,unit,158,9,false,false
 tests/unit/test_enrichment_ora.py,unit,185,7,false,false,,,,,,
 tests/unit/test_enrichment_result_caveats.py,unit,96,4,false,false,,,,,,
 tests/unit/test_enrichment_workflow_boundaries.py,unit,9,1,false,false,,,,,,
-tests/unit/test_enrichment_workflow_stage_boundaries.py,unit,217,6,false,false,,,,,,
-tests/unit/test_enrichment_workflow_validation.py,unit,334,20,true,true,,,,,,
+tests/unit/test_enrichment_workflow_stage_boundaries.py,unit,219,6,false,false,,,,,,
+tests/unit/test_enrichment_workflow_validation.py,unit,369,21,true,true,,,,,,
 tests/unit/test_error_taxonomy_boundaries.py,unit,190,5,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for error taxonomy boundaries and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_evidence_multi_site_handling.py,unit,176,9,true,true,scientific invariant,keep,"Loss of this file would remove scientific invariant protection for multi-site evidence handling, increasing risk of incorrect peptide-to-site interpretation.",codex-audit,,New test file classified after audit-doc regeneration.
 tests/unit/test_experimental_design_contract.py,unit,983,34,false,false,,,,,,
@@ -206,7 +206,7 @@ tests/unit/test_provenance_regressions.py,unit,709,14,true,false,provenance/gold
 tests/unit/test_public_config_self_validation.py,unit,1079,41,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public config self validation and increase risk of boundary regressions.,codex-audit,,
 tests/unit/test_public_contract_boundary_honesty.py,unit,320,7,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract boundary honesty and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_contract_dataset.py,unit,408,16,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract dataset and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
-tests/unit/test_public_contract_enrichment.py,unit,255,11,false,false,,,,,,
+tests/unit/test_public_contract_enrichment.py,unit,275,11,false,false,,,,,,
 tests/unit/test_public_contract_errors.py,unit,742,24,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract errors and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
 tests/unit/test_public_contract_import_routes.py,unit,280,18,true,true,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract import routes and increase risk of boundary regressions.,codex-audit,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_public_contract_results.py,unit,402,9,false,false,public API contract,keep,Loss of this file would weaken documented public API/workflow contract coverage for public contract results and increase risk of boundary regressions.,codex-audit,,Public workflow contract coverage; treat as high-risk keep surface.
@@ -286,6 +286,6 @@ tests/unit/workflows/signalome/test_signalome_sequence_contract.py,signalome,159
 tests/validation/test_shared_identity_contracts.py,validation,233,6,false,false,,,,,,
 tests/validation/test_workflow_identity_validator_contracts.py,validation,126,3,true,true,,,,,,
 tests/workflows/test_differential_interpreter_fixed_effects.py,workflows,524,8,false,false,,,,,,
-tests/workflows/test_enrichment_workflow.py,workflows,768,22,true,true,,,,,,
+tests/workflows/test_enrichment_workflow.py,workflows,913,28,true,true,,,,,,
 tests/workflows/test_identity_coherence.py,workflows,184,6,false,false,,,,,,
 tests/workflows/test_kinase_activity_ssgsea.py,workflows,121,1,false,false,,,,,,

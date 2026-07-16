@@ -121,8 +121,10 @@ def test_enrichment_interpreter_resolves_set_and_background_execution_inputs() -
     assert interpreted.background_universe == validated.background_universe
     assert interpreted.set_collection is validated.set_collection
     assert interpreted.method_config.statistical_test == "hypergeometric"
-    assert interpreted.method_config.selected_outside_background_policy == "drop"
+    assert interpreted.method_config.selected_outside_background_policy == "error"
     assert interpreted.method_config.set_outside_background_policy == "drop"
+    assert interpreted.method_metadata["selected_outside_background_policy"] == "error"
+    assert interpreted.method_metadata["set_member_outside_background_policy"] == "drop"
     assert interpreted.identifier_semantics.analysis_level == "gene"
     assert interpreted.background_summary == {
         "source": "explicit",

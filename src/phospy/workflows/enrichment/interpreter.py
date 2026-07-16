@@ -7,7 +7,6 @@ from typing import cast
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.science.enrichment.models import ENRICHMENT_COLLECTION_KIND_GENE_SET
 from phospy.science.enrichment.ora import (
-    ORA_OUTSIDE_BACKGROUND_POLICY_DROP,
     ORA_STATISTICAL_TEST_HYPERGEOMETRIC,
     OraConfig,
 )
@@ -44,8 +43,12 @@ class EnrichmentWorkflowInterpreter:
         )
         method_config = OraConfig(
             statistical_test=ORA_STATISTICAL_TEST_HYPERGEOMETRIC,
-            selected_outside_background_policy=ORA_OUTSIDE_BACKGROUND_POLICY_DROP,
-            set_outside_background_policy=ORA_OUTSIDE_BACKGROUND_POLICY_DROP,
+            selected_outside_background_policy=(
+                request.config.selected_outside_background_policy
+            ),
+            set_outside_background_policy=(
+                request.config.set_member_outside_background_policy
+            ),
             multiple_testing_correction=request.config.multiple_testing_correction,
         )
         method_metadata: dict[str, object] = {
@@ -55,7 +58,13 @@ class EnrichmentWorkflowInterpreter:
             "selected_outside_background_policy": (
                 method_config.selected_outside_background_policy
             ),
+            "set_member_outside_background_policy": (
+                request.config.set_member_outside_background_policy
+            ),
             "set_outside_background_policy": method_config.set_outside_background_policy,
+            "minimum_retained_foreground_fraction": (
+                request.config.minimum_retained_foreground_fraction
+            ),
         }
         background_summary: dict[str, object] = {
             "source": "explicit",

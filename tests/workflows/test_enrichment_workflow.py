@@ -13,10 +13,12 @@ from phospy.api import (
     GeneSetCollection,
     MultipleTestingCorrection,
     PtmSetCollection,
+    WorkflowValidationError,
 )
 from phospy.api.configs import (
     ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
     ENRICHMENT_IDENTIFIER_KIND_SITE_KEY,
+    ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_DROP,
     SUPPORTED_MULTIPLE_TESTING_CORRECTIONS,
 )
 from phospy.science.enrichment.ora import OraEngine
@@ -97,6 +99,157 @@ def test_enrichment_workflow_happy_path_with_gene_symbols() -> None:
     assert tuple(result.table["term_id"])[:1] == ("KINASE_RESPONSE",)
 
 
+def test_enrichment_selected_outside_background_defaults_to_error() -> None:
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=_gene_collection(),
+        selected_identifiers=("AKT1", "UNKNOWN"),
+        background_universe=("AKT1", "MAPK1", "MTOR", "CDK1", "CDK2"),
+        config=EnrichmentConfig(),
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="selected_identifiers.*selected_outside_background_policy='error'",
+    ):
+        EnrichmentWorkflow().run(request)
+
+
+def test_enrichment_explicit_drop_records_universe_policy_diagnostics() -> None:
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=_gene_collection(),
+        selected_identifiers=("AKT1", "UNKNOWN", "MAPK1"),
+        background_universe=("AKT1", "MAPK1", "MTOR", "CDK1", "CDK2"),
+        config=EnrichmentConfig(
+            selected_outside_background_policy=(
+                ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_DROP
+            )
+        ),
+    )
+
+    result = EnrichmentWorkflow().run(request)
+
+    foreground_background = result.diagnostics["foreground_background"]
+    assert foreground_background["selected_outside_background_policy"] == "drop"
+    assert foreground_background["foreground_identifiers_missing_from_background"] == (
+        "UNKNOWN",
+    )
+    assert foreground_background["retained_foreground_fraction"] == pytest.approx(2 / 3)
+    assert result.provenance is not None
+    universe_policy = result.provenance.workflow_parameters["universe_policy"]
+    assert universe_policy["selected_identifiers_outside_background_count"] == 1
+    assert universe_policy["selected_identifiers_outside_background"] == ("UNKNOWN",)
+    assert universe_policy["set_identifiers_outside_background"] == (
+        "OUTSIDE_A",
+        "OUTSIDE_B",
+    )
+
+
+def test_enrichment_namespace_mismatch_is_not_silently_dropped() -> None:
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=_gene_collection(),
+        selected_identifiers=("rat|P12345|S10",),
+        background_universe=("AKT1", "MAPK1", "MTOR", "CDK1", "CDK2"),
+        config=EnrichmentConfig(),
+    )
+
+    with pytest.raises(WorkflowValidationError, match="namespace mismatch"):
+        EnrichmentWorkflow().run(request)
+
+
+def test_enrichment_set_member_outside_background_policy_is_configurable() -> None:
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=_gene_collection(),
+        selected_identifiers=("AKT1", "MAPK1"),
+        background_universe=("AKT1", "MAPK1", "MTOR", "CDK1", "CDK2"),
+        config=EnrichmentConfig(set_member_outside_background_policy="error"),
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="set_collection identifiers.*set_member_outside_background_policy",
+    ):
+        EnrichmentWorkflow().run(request)
+
+
+def test_enrichment_retained_foreground_fraction_threshold_is_enforced() -> None:
+    request = EnrichmentWorkflowRequest(
+        identifier_column="gene_symbol",
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        set_collection=_gene_collection(),
+        selected_identifiers=("AKT1", "MAPK1", "UNKNOWN"),
+        background_universe=("AKT1", "MAPK1", "MTOR", "CDK1", "CDK2"),
+        config=EnrichmentConfig(
+            selected_outside_background_policy=(
+                ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_DROP
+            ),
+            minimum_retained_foreground_fraction=0.75,
+        ),
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="retained foreground fraction.*minimum_retained_foreground_fraction",
+    ):
+        EnrichmentWorkflow().run(request)
+
+
+def test_enrichment_set_outside_background_diagnostics_are_order_deterministic() -> (
+    None
+):
+    collection_a = GeneSetCollection(
+        sets={
+            "B_TERM": ("OUTSIDE_B", "AKT1"),
+            "A_TERM": ("MAPK1", "OUTSIDE_A"),
+        },
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        source_name="unit_test",
+    )
+    collection_b = GeneSetCollection(
+        sets={
+            "A_TERM": ("OUTSIDE_A", "MAPK1"),
+            "B_TERM": ("AKT1", "OUTSIDE_B"),
+        },
+        identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+        source_name="unit_test",
+    )
+
+    def _run(collection: GeneSetCollection) -> EnrichmentWorkflowResult:
+        return EnrichmentWorkflow().run(
+            EnrichmentWorkflowRequest(
+                identifier_column="gene_symbol",
+                identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
+                set_collection=collection,
+                selected_identifiers=("AKT1", "MAPK1"),
+                background_universe=("AKT1", "MAPK1", "MTOR"),
+                config=EnrichmentConfig(),
+            )
+        )
+
+    result_a = _run(collection_a)
+    result_b = _run(collection_b)
+
+    assert result_a.diagnostics["foreground_background"][
+        "set_identifiers_missing_from_background"
+    ] == ("OUTSIDE_A", "OUTSIDE_B")
+    assert result_b.diagnostics["foreground_background"][
+        "set_identifiers_missing_from_background"
+    ] == ("OUTSIDE_A", "OUTSIDE_B")
+    assert result_a.provenance is not None
+    assert result_b.provenance is not None
+    assert (
+        result_a.provenance.workflow_parameters["universe_policy"]
+        == (result_b.provenance.workflow_parameters["universe_policy"])
+    )
+
+
 def test_enrichment_workflow_provenance_records_method_and_limitations() -> None:
     request = EnrichmentWorkflowRequest(
         identifier_column="gene_symbol",
@@ -151,7 +304,13 @@ def test_enrichment_workflow_provenance_records_identifier_and_set_attrition() -
         ),
         selected_identifiers=("AKT1", "AKT1", "OUTSIDE_SELECTED", "MAPK1"),
         background_universe=("AKT1", "MAPK1", "MTOR", "CDK1", "CDK1"),
-        config=EnrichmentConfig(min_set_size=1, max_set_size=3),
+        config=EnrichmentConfig(
+            min_set_size=1,
+            max_set_size=3,
+            selected_outside_background_policy=(
+                ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_DROP
+            ),
+        ),
     )
 
     result = EnrichmentWorkflow().run(request)
@@ -215,43 +374,25 @@ def test_enrichment_workflow_happy_path_with_site_keys() -> None:
     )
 
 
-def test_enrichment_foreground_identifiers_absent_from_background_are_reported() -> (
-    None
-):
+def test_enrichment_empty_foreground_after_explicit_drop_is_rejected() -> None:
     request = EnrichmentWorkflowRequest(
         identifier_column="gene_symbol",
         identifier_kind=ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
         set_collection=_gene_collection(),
         selected_identifiers=("UNKNOWN_A", "UNKNOWN_B"),
         background_universe=("AKT1", "MAPK1", "MTOR", "CDK1", "CDK2"),
-        config=EnrichmentConfig(),
+        config=EnrichmentConfig(
+            selected_outside_background_policy=(
+                ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_DROP
+            )
+        ),
     )
 
-    result = EnrichmentWorkflow().run(request)
-
-    foreground_background = result.diagnostics["foreground_background"]
-    assert foreground_background["foreground_size_before_intersection"] == 2
-    assert foreground_background["background_size"] == 5
-    assert (
-        foreground_background["usable_foreground_size_after_background_intersection"]
-        == 0
-    )
-    assert (
-        foreground_background["foreground_identifiers_missing_from_background_count"]
-        == 2
-    )
-    assert foreground_background["foreground_identifiers_missing_from_background"] == (
-        "UNKNOWN_A",
-        "UNKNOWN_B",
-    )
-    assert result.background_summary["selected_in_background_count"] == 0
-    assert result.background_summary["dropped_selected_identifiers"] == (
-        "UNKNOWN_A",
-        "UNKNOWN_B",
-    )
-    assert result.diagnostics["ora"]["selected_size"] == 0
-    assert all(record.input_overlap_count == 0 for record in result.records)
-    assert all(record.p_value == pytest.approx(1.0) for record in result.records)
+    with pytest.raises(
+        WorkflowValidationError,
+        match="empty after background filtering",
+    ):
+        EnrichmentWorkflow().run(request)
 
 
 def test_enrichment_mixed_matched_and_unmatched_foreground_keeps_ora_statistics() -> (
@@ -271,7 +412,11 @@ def test_enrichment_mixed_matched_and_unmatched_foreground_keeps_ora_statistics(
         set_collection=_gene_collection(),
         selected_identifiers=("AKT1", "UNKNOWN", "MAPK1"),
         background_universe=("AKT1", "MAPK1", "MTOR", "CDK1", "CDK2"),
-        config=EnrichmentConfig(),
+        config=EnrichmentConfig(
+            selected_outside_background_policy=(
+                ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_DROP
+            )
+        ),
     )
 
     matched_result = EnrichmentWorkflow().run(matched_request)

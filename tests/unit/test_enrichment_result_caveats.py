@@ -34,7 +34,7 @@ def _request() -> EnrichmentWorkflowRequest:
         ),
         selected_identifiers=("AKT1", "MAPK1", "OUTSIDE_BACKGROUND"),
         background_universe=("AKT1", "MAPK1", "MTOR"),
-        config=EnrichmentConfig(),
+        config=EnrichmentConfig(selected_outside_background_policy="drop"),
     )
 
 

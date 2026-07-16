@@ -16,6 +16,7 @@ from phospy.api import (
 from phospy.api.configs import (
     ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
     ENRICHMENT_IDENTIFIER_KIND_SITE_KEY,
+    ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_DROP,
 )
 from phospy.validation.workflows.enrichment import EnrichmentWorkflowValidator
 
@@ -203,9 +204,21 @@ def test_enrichment_validation_rejects_unsupported_correction_method() -> None:
         ({"max_set_size": 0}, "enrichment.max_set_size"),
         ({"min_set_size": True}, "enrichment.min_set_size"),
         ({"min_set_size": 4, "max_set_size": 3}, "min_set_size"),
+        (
+            {"selected_outside_background_policy": "warn"},
+            "selected_outside_background_policy",
+        ),
+        (
+            {"set_member_outside_background_policy": "warn"},
+            "set_member_outside_background_policy",
+        ),
+        (
+            {"minimum_retained_foreground_fraction": 1.1},
+            "minimum_retained_foreground_fraction",
+        ),
     ],
 )
-def test_enrichment_config_rejects_invalid_set_size_filters(
+def test_enrichment_config_rejects_invalid_universe_policy_fields(
     kwargs: dict[str, object],
     pattern: str,
 ) -> None:
@@ -221,6 +234,19 @@ def test_enrichment_validation_rejects_mutated_invalid_set_size_filters() -> Non
     object.__setattr__(request, "config", config)
 
     with pytest.raises(WorkflowValidationError, match="config.min_set_size"):
+        EnrichmentWorkflowValidator().run(request)
+
+
+def test_enrichment_validation_rejects_mutated_invalid_universe_policy() -> None:
+    request = _valid_gene_request()
+    config = EnrichmentConfig()
+    object.__setattr__(config, "selected_outside_background_policy", "warn")
+    object.__setattr__(request, "config", config)
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="config.selected_outside_background_policy",
+    ):
         EnrichmentWorkflowValidator().run(request)
 
 
@@ -307,11 +333,20 @@ def test_enrichment_workflow_run_rejects_invalid_request_before_execution() -> N
         EnrichmentWorkflow(executor=_ExecutorMustNotRun()).run(request)  # type: ignore[arg-type]
 
 
-def test_enrichment_validation_preserves_selected_identifiers_outside_background() -> (
+def test_enrichment_validation_preserves_selected_identifiers_with_explicit_drop() -> (
     None
 ):
     request = _valid_gene_request()
     object.__setattr__(request, "selected_identifiers", ("AKT1", "UNKNOWN"))
+    object.__setattr__(
+        request,
+        "config",
+        EnrichmentConfig(
+            selected_outside_background_policy=(
+                ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_DROP
+            )
+        ),
+    )
 
     validated = EnrichmentWorkflowValidator().run(request)
 

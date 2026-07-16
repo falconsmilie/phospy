@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
-from typing import cast
+from typing import Literal, cast
 
 from phospy.errors.validation import ContractValidationError
 from phospy.science.enrichment.models import (
@@ -28,6 +29,17 @@ from phospy.science.enrichment.models import (
     MultipleTestingCorrection,
 )
 
+ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_ERROR = "error"
+ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_DROP = "drop"
+EnrichmentOutsideBackgroundPolicy = Literal["error", "drop"]
+SUPPORTED_ENRICHMENT_OUTSIDE_BACKGROUND_POLICIES: tuple[
+    EnrichmentOutsideBackgroundPolicy,
+    ...,
+] = (
+    ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_ERROR,
+    ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_DROP,
+)
+
 
 @dataclass(frozen=True, slots=True)
 class EnrichmentConfig:
@@ -44,6 +56,13 @@ class EnrichmentConfig:
     )
     min_set_size: int | None = None
     max_set_size: int | None = None
+    selected_outside_background_policy: EnrichmentOutsideBackgroundPolicy = (
+        ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_ERROR
+    )
+    set_member_outside_background_policy: EnrichmentOutsideBackgroundPolicy = (
+        ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_DROP
+    )
+    minimum_retained_foreground_fraction: float | None = None
 
     def __post_init__(self) -> None:
         if self.method not in SUPPORTED_ENRICHMENT_METHODS:
@@ -90,6 +109,30 @@ class EnrichmentConfig:
             )
         object.__setattr__(self, "min_set_size", min_set_size)
         object.__setattr__(self, "max_set_size", max_set_size)
+        object.__setattr__(
+            self,
+            "selected_outside_background_policy",
+            _normalise_outside_background_policy(
+                self.selected_outside_background_policy,
+                field_name="enrichment.selected_outside_background_policy",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "set_member_outside_background_policy",
+            _normalise_outside_background_policy(
+                self.set_member_outside_background_policy,
+                field_name="enrichment.set_member_outside_background_policy",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "minimum_retained_foreground_fraction",
+            _normalise_optional_unit_interval(
+                self.minimum_retained_foreground_fraction,
+                field_name="enrichment.minimum_retained_foreground_fraction",
+            ),
+        )
 
 
 def _normalise_optional_set_size_threshold(
@@ -108,6 +151,34 @@ def _normalise_optional_set_size_threshold(
     return value
 
 
+def _normalise_outside_background_policy(
+    value: object,
+    *,
+    field_name: str,
+) -> EnrichmentOutsideBackgroundPolicy:
+    if value not in SUPPORTED_ENRICHMENT_OUTSIDE_BACKGROUND_POLICIES:
+        supported = ", ".join(
+            repr(policy) for policy in SUPPORTED_ENRICHMENT_OUTSIDE_BACKGROUND_POLICIES
+        )
+        raise ContractValidationError(f"{field_name} must be one of: {supported}")
+    return cast(EnrichmentOutsideBackgroundPolicy, value)
+
+
+def _normalise_optional_unit_interval(
+    value: object | None,
+    *,
+    field_name: str,
+) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ContractValidationError(f"{field_name} must be numeric or None")
+    normalised = float(value)
+    if not math.isfinite(normalised) or normalised < 0.0 or normalised > 1.0:
+        raise ContractValidationError(f"{field_name} must be within [0.0, 1.0]")
+    return normalised
+
+
 __all__ = [
     "ENRICHMENT_IDENTIFIER_KIND_DISPLAY_ID",
     "ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL",
@@ -115,6 +186,8 @@ __all__ = [
     "ENRICHMENT_IDENTIFIER_KIND_PROTEIN_ID",
     "ENRICHMENT_IDENTIFIER_KIND_SITE_KEY",
     "ENRICHMENT_METHOD_OVER_REPRESENTATION",
+    "ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_DROP",
+    "ENRICHMENT_OUTSIDE_BACKGROUND_POLICY_ERROR",
     "GENE_LEVEL_ENRICHMENT_IDENTIFIER_KINDS",
     "MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG",
     "MULTIPLE_TESTING_CORRECTION_BENJAMINI_YEKUTIELI",
@@ -124,9 +197,11 @@ __all__ = [
     "PTM_LEVEL_ENRICHMENT_IDENTIFIER_KINDS",
     "SUPPORTED_ENRICHMENT_IDENTIFIER_KINDS",
     "SUPPORTED_ENRICHMENT_METHODS",
+    "SUPPORTED_ENRICHMENT_OUTSIDE_BACKGROUND_POLICIES",
     "SUPPORTED_MULTIPLE_TESTING_CORRECTIONS",
     "EnrichmentConfig",
     "EnrichmentIdentifierKind",
     "EnrichmentMethod",
+    "EnrichmentOutsideBackgroundPolicy",
     "MultipleTestingCorrection",
 ]
