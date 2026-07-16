@@ -8,6 +8,7 @@ from phospy.contracts.configs.differential import (
     IMPUTED_VALUE_POLICY_REJECT,
     IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES,
 )
+from phospy.provenance import RowAttritionRecord, RowAttritionReport
 from phospy.science.design.matrix_builder import (
     DesignMatrixBuildResult,
     describe_fixed_effect_design,
@@ -454,4 +455,75 @@ def _technical_replicate_groups(
     return tuple(groups)
 
 
-__all__ = ["build_differential_policy_provenance"]
+class DifferentialWorkflowProvenanceAssembler:
+    """Assemble differential execution provenance from eligibility facts."""
+
+    def run(
+        self,
+        *,
+        workflow_provenance: Mapping[str, object] | None,
+        input_feature_ids: tuple[str, ...],
+        model_fit_feature_ids: tuple[str, ...],
+        failed_model_fit_feature_ids: tuple[str, ...],
+        multiple_testing_feature_ids: tuple[str, ...],
+    ) -> Mapping[str, object]:
+        payload: dict[str, object] = (
+            {} if workflow_provenance is None else dict(workflow_provenance)
+        )
+        input_count = int(len(input_feature_ids))
+        model_fit_count = int(len(model_fit_feature_ids))
+        failed_count = int(len(failed_model_fit_feature_ids))
+        multiple_testing_count = int(len(multiple_testing_feature_ids))
+        payload["row_attrition_metrics"] = {
+            "input_sites": input_count,
+            "sites_retained_for_model_fitting": model_fit_count,
+            "sites_excluded_before_testing": input_count - model_fit_count,
+            "sites_with_failed_model_fit": failed_count,
+            "sites_included_in_multiple_testing_family": multiple_testing_count,
+        }
+
+        records: list[RowAttritionRecord] = []
+        if input_count > model_fit_count:
+            model_fit_feature_id_set = set(model_fit_feature_ids)
+            records.append(
+                RowAttritionRecord(
+                    stage="differential_feature_eligibility",
+                    input_rows=input_count,
+                    output_rows=model_fit_count,
+                    removed_rows=input_count - model_fit_count,
+                    reason="sites_excluded_before_testing",
+                    examples=_row_examples(
+                        tuple(
+                            feature_id
+                            for feature_id in input_feature_ids
+                            if feature_id not in model_fit_feature_id_set
+                        )
+                    ),
+                )
+            )
+        if failed_count:
+            records.append(
+                RowAttritionRecord(
+                    stage="differential_model_fit",
+                    input_rows=model_fit_count,
+                    output_rows=multiple_testing_count,
+                    removed_rows=failed_count,
+                    reason="failed_model_fit",
+                    examples=_row_examples(failed_model_fit_feature_ids),
+                )
+            )
+        if records:
+            payload["row_attrition"] = RowAttritionReport.from_records(
+                records
+            ).to_payload()
+        return payload
+
+
+def _row_examples(values: tuple[str, ...]) -> tuple[str, ...]:
+    return tuple(str(value) for value in values[:5])
+
+
+__all__ = [
+    "DifferentialWorkflowProvenanceAssembler",
+    "build_differential_policy_provenance",
+]

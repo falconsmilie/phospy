@@ -432,6 +432,44 @@ Interpretation is a distinct stage and must not be hidden inside validation or e
 
 Executors should coordinate domain services and assemble results. They should not compensate for weak earlier stages.
 
+### Oversized Stage Decomposition
+
+When an interpreter or executor grows large enough that design construction,
+scientific eligibility, model fitting, diagnostics, result shaping, and
+provenance are mixed in one class, the stage must be decomposed into
+domain-specific collaborators instead of being split into passive files.
+
+For differential workflows, responsibility limits are:
+
+- design assembly owns execution design matrices, contrast vectors, covariate
+  column metadata, block metadata, sample order, formula, and design
+  descriptions
+- eligibility owns pre-fit feature eligibility, imputation-based withholding,
+  post-fit numerical eligibility, and filtering to the tested feature family
+- fitting owns calls into the scientific differential computation kernel only
+- result assembly owns expansion back to the public feature index, identity
+  metadata attachment, diagnostics, and public result construction
+- provenance assembly owns row-attrition metrics, row-attrition reports, and
+  workflow provenance payload updates
+
+For enrichment workflows, responsibility limits are:
+
+- validation and interpretation own identifier semantics, explicit background
+  universe preparation, and method configuration
+- set execution preparation owns min/max set-size filtering against the
+  background-intersected set size
+- the ORA kernel remains a pure scientific kernel with no pandas result-table,
+  workflow, provenance, or output-serialization imports
+- result assembly owns public enrichment records, summaries, diagnostics,
+  caveats, and public result construction
+- provenance assembly owns run provenance, row-attrition reports, and table
+  fingerprints
+
+Workflow executors coordinate these collaborators. They should not directly
+construct every diagnostic payload, provenance object, and public result table.
+This decomposition is not a license to introduce a generic service framework:
+collaborators must remain concrete, domain-specific, and acyclic.
+
 ### Config Movement
 
 Configuration should flow through the system as typed objects. Repeatedly unpacking config into long scalar argument lists is discouraged and should be treated as a maintainability smell.

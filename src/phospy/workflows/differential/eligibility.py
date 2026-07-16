@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -46,6 +47,11 @@ from phospy.workflows.differential.models import (
     DifferentialImputationPolicyInputs,
 )
 
+if TYPE_CHECKING:
+    from phospy.workflows.differential.models import (
+        InterpretedDifferentialAnalysisRequest,
+    )
+
 
 @dataclass(frozen=True, slots=True)
 class DifferentialPreFitEligibilityResolution:
@@ -63,6 +69,18 @@ class DifferentialPostFitEligibilityResolution:
     failed_model_fit_feature_ids: tuple[str, ...]
     valid_model_fit_feature_ids: tuple[str, ...]
     feature_eligibility_inputs: DifferentialFeatureEligibilityInputs | None
+
+
+@dataclass(frozen=True, slots=True)
+class DifferentialExecutionEligibilityResolution:
+    """Execution matrix and row attrition facts after eligibility filtering."""
+
+    computation_request: DifferentialComputationRequest
+    feature_eligibility_inputs: DifferentialFeatureEligibilityInputs | None
+    input_feature_ids: tuple[str, ...]
+    model_fit_feature_ids: tuple[str, ...]
+    failed_model_fit_feature_ids: tuple[str, ...]
+    multiple_testing_feature_ids: tuple[str, ...]
 
 
 class DifferentialPreFitEligibilityResolver:
@@ -136,6 +154,69 @@ class DifferentialPostFitEligibilityResolver:
         )
 
 
+class DifferentialComputationEligibilityResolver:
+    """Resolve execution-time feature eligibility before model fitting."""
+
+    def __init__(
+        self,
+        *,
+        post_fit_eligibility_resolver: DifferentialPostFitEligibilityResolver
+        | None = None,
+    ) -> None:
+        self._post_fit_eligibility_resolver = (
+            post_fit_eligibility_resolver or DifferentialPostFitEligibilityResolver()
+        )
+
+    def run(
+        self,
+        request: InterpretedDifferentialAnalysisRequest,
+    ) -> DifferentialExecutionEligibilityResolution:
+        computation_request = request.computation_request
+        imputation_policy_inputs = request.imputation_policy_inputs
+        feature_eligibility_inputs = request.feature_eligibility_inputs
+        if feature_eligibility_inputs is not None:
+            computation_request = _filter_computation_request_for_feature_eligibility(
+                computation_request=request.computation_request,
+                feature_eligibility_inputs=feature_eligibility_inputs,
+            )
+        elif imputation_policy_inputs is not None:
+            computation_request = _filter_computation_request_for_imputation_policy(
+                computation_request=request.computation_request,
+                imputation_policy_inputs=imputation_policy_inputs,
+            )
+        post_fit_eligibility = self._post_fit_eligibility_resolver.run(
+            computation_request=computation_request,
+            feature_eligibility_inputs=feature_eligibility_inputs,
+        )
+        model_fit_feature_ids = post_fit_eligibility.model_fit_feature_ids
+        failed_model_fit_feature_ids = post_fit_eligibility.failed_model_fit_feature_ids
+        if failed_model_fit_feature_ids:
+            computation_request = _filter_computation_request_for_feature_ids(
+                computation_request=computation_request,
+                feature_ids=post_fit_eligibility.valid_model_fit_feature_ids,
+                seam="differential.executor.model_fit_valid_features",
+                next_action=(
+                    "provide at least one feature whose fitted residual variance is "
+                    "finite and positive under the resolved differential design"
+                ),
+                details={
+                    "failed_model_fit_feature_ids": list(
+                        failed_model_fit_feature_ids[:5]
+                    ),
+                    "failed_model_fit_count": int(len(failed_model_fit_feature_ids)),
+                },
+            )
+            feature_eligibility_inputs = post_fit_eligibility.feature_eligibility_inputs
+        return DifferentialExecutionEligibilityResolution(
+            computation_request=computation_request,
+            feature_eligibility_inputs=feature_eligibility_inputs,
+            input_feature_ids=feature_ids(request.result_identity_metadata.index),
+            model_fit_feature_ids=model_fit_feature_ids,
+            failed_model_fit_feature_ids=failed_model_fit_feature_ids,
+            multiple_testing_feature_ids=feature_ids(computation_request.matrix.index),
+        )
+
+
 def filter_matrix_for_feature_ids(
     *,
     matrix: pd.DataFrame,
@@ -160,6 +241,104 @@ def differential_status_counts(result_status: pd.Series) -> dict[str, int]:
 
     counts = result_status.astype(str).value_counts(sort=False)
     return {str(status): int(count) for status, count in counts.items()}
+
+
+def _filter_computation_request_for_imputation_policy(
+    *,
+    computation_request: DifferentialComputationRequest,
+    imputation_policy_inputs: DifferentialImputationPolicyInputs,
+) -> DifferentialComputationRequest:
+    return _filter_computation_request_for_feature_ids(
+        computation_request=computation_request,
+        feature_ids=imputation_policy_inputs.testable_feature_ids,
+        seam="differential.executor.imputation_policy_testable_features",
+        next_action=(
+            "raise differential.imputed_value_max_fraction, require more "
+            "observed values per condition, or use a non-imputed dataset"
+        ),
+        details={"policy": imputation_policy_inputs.policy},
+    )
+
+
+def _filter_computation_request_for_feature_eligibility(
+    *,
+    computation_request: DifferentialComputationRequest,
+    feature_eligibility_inputs: DifferentialFeatureEligibilityInputs,
+) -> DifferentialComputationRequest:
+    return _filter_computation_request_for_feature_ids(
+        computation_request=computation_request,
+        feature_ids=feature_eligibility_inputs.testable_feature_ids,
+        seam="differential.executor.feature_eligibility_testable_features",
+        next_action=(
+            "ensure differential feature eligibility is resolved before "
+            "statistical execution and at least one feature remains testable"
+        ),
+        details={
+            "status_counts": differential_status_counts(
+                feature_eligibility_inputs.result_status
+            )
+        },
+    )
+
+
+def _filter_computation_request_for_feature_ids(
+    *,
+    computation_request: DifferentialComputationRequest,
+    feature_ids: tuple[str, ...],
+    seam: str,
+    next_action: str,
+    details: dict[str, object],
+) -> DifferentialComputationRequest:
+    testable_feature_ids = list(feature_ids)
+    if not testable_feature_ids:
+        raise WorkflowBoundaryError(
+            seam=seam,
+            next_action=next_action,
+            details=details,
+            message_prefix="differential workflow boundary validation failed",
+        )
+    current_feature_ids = tuple(
+        str(feature_id) for feature_id in computation_request.matrix.index.tolist()
+    )
+    if current_feature_ids == tuple(testable_feature_ids):
+        return computation_request
+    row_positions_by_feature_id = {
+        str(feature_id): position
+        for position, feature_id in enumerate(computation_request.matrix.index)
+    }
+    missing_feature_ids = [
+        feature_id
+        for feature_id in testable_feature_ids
+        if feature_id not in row_positions_by_feature_id
+    ]
+    if missing_feature_ids:
+        raise WorkflowBoundaryError(
+            seam=seam,
+            next_action=(
+                "ensure the interpreted computation matrix contains every "
+                "testable feature selected by differential feature eligibility"
+            ),
+            details={**details, "missing_feature_ids": missing_feature_ids[:5]},
+            message_prefix="differential workflow boundary validation failed",
+        )
+    row_positions = [
+        row_positions_by_feature_id[feature_id] for feature_id in testable_feature_ids
+    ]
+    filtered_matrix = pd.DataFrame(
+        computation_request.matrix.to_numpy(dtype=float)[row_positions, :],
+        index=pd.Index(
+            testable_feature_ids,
+            name=computation_request.matrix.index.name,
+        ),
+        columns=index_snapshot(computation_request.matrix.columns),
+    )
+    return DifferentialComputationRequest(
+        matrix=filtered_matrix,
+        design=computation_request.design,
+        contrasts=computation_request.contrasts,
+        empirical_bayes=computation_request.empirical_bayes,
+        multiple_testing_method=computation_request.multiple_testing_method,
+    )
 
 
 def _build_feature_eligibility_inputs(
@@ -601,6 +780,8 @@ def _with_failed_model_fit_status(
 
 
 __all__ = [
+    "DifferentialComputationEligibilityResolver",
+    "DifferentialExecutionEligibilityResolution",
     "DifferentialPostFitEligibilityResolution",
     "DifferentialPostFitEligibilityResolver",
     "DifferentialPreFitEligibilityResolution",
