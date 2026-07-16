@@ -6,6 +6,8 @@ from collections.abc import Collection, Iterable
 from enum import Enum
 from typing import TypeVar
 
+from phospy.errors.validation import ContractValidationError
+
 ValidationErrorType = type[Exception]
 _EnumT = TypeVar("_EnumT", bound=Enum)
 _ValueT = TypeVar("_ValueT")
@@ -29,7 +31,7 @@ def require_supported_literal(
     *,
     field_name: str,
     supported_values: Collection[str],
-    error_type: ValidationErrorType,
+    error_type: ValidationErrorType = ContractValidationError,
     sort_supported_values: bool = True,
 ) -> str:
     """Require one string-like literal to be in the supported values set."""
@@ -48,7 +50,7 @@ def require_instance(
     *,
     expected_type: type[_ValueT] | tuple[type[_ValueT], ...],
     field_name: str,
-    error_type: ValidationErrorType,
+    error_type: ValidationErrorType = ContractValidationError,
 ) -> _ValueT:
     """Require one object to be an instance of the expected type."""
 
@@ -69,7 +71,7 @@ def require_non_empty_string(
     value: object,
     *,
     field_name: str,
-    error_type: ValidationErrorType,
+    error_type: ValidationErrorType = ContractValidationError,
     when_provided: bool = False,
 ) -> str:
     """Require one non-empty string value."""
@@ -86,7 +88,7 @@ def coerce_policy_enum(
     value: object,
     *,
     field_name: str,
-    error_type: ValidationErrorType,
+    error_type: ValidationErrorType = ContractValidationError,
 ) -> _EnumT:
     """Coerce one value into an enum-backed policy with strict error messaging."""
 
@@ -110,7 +112,7 @@ def require_int_at_least(
     *,
     field_name: str,
     minimum: int,
-    error_type: ValidationErrorType,
+    error_type: ValidationErrorType = ContractValidationError,
 ) -> int:
     """Require an integer value greater than or equal to ``minimum``."""
 
@@ -127,7 +129,7 @@ def require_real_between(
     field_name: str,
     minimum: float,
     maximum: float,
-    error_type: ValidationErrorType,
+    error_type: ValidationErrorType = ContractValidationError,
 ) -> float:
     """Require a real numeric value constrained to an inclusive range."""
 
@@ -151,7 +153,7 @@ def require_optional_real_between(
     field_name: str,
     minimum: float,
     maximum: float,
-    error_type: ValidationErrorType,
+    error_type: ValidationErrorType = ContractValidationError,
 ) -> float | None:
     """Require an optional real numeric value constrained to an inclusive range."""
 
@@ -172,7 +174,7 @@ def require_int_between(
     field_name: str,
     minimum: int,
     maximum: int,
-    error_type: ValidationErrorType,
+    error_type: ValidationErrorType = ContractValidationError,
 ) -> int:
     """Require an integer value constrained to an inclusive range."""
 
@@ -192,7 +194,7 @@ def require_optional_int_at_least(
     *,
     field_name: str,
     minimum: int,
-    error_type: ValidationErrorType,
+    error_type: ValidationErrorType = ContractValidationError,
 ) -> int | None:
     """Require an optional integer value greater than or equal to ``minimum``."""
 
@@ -210,7 +212,7 @@ def require_local_filesystem_path(
     value: object,
     *,
     field_name: str,
-    error_type: ValidationErrorType,
+    error_type: ValidationErrorType = ContractValidationError,
     when_provided: bool = False,
 ) -> str:
     """Require one local filesystem path string and reject remote URLs."""

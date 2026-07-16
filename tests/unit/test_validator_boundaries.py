@@ -36,6 +36,7 @@ from phospy.api.requests import (
 )
 from phospy.api.results import KinaseWorkflowResult
 from phospy.errors import (
+    ContractValidationError,
     PhosPyInputError,
     PhosPyValidationError,
     ReferenceCompatibilityError,
@@ -845,7 +846,7 @@ def test_dataset_build_request_rejects_pairs_when_comparison_policy_is_none() ->
 
 def test_kinase_request_config_policy_fails_at_validator_boundary() -> None:
     with pytest.raises(
-        WorkflowValidationError,
+        ContractValidationError,
         match="scoring_config.min_substrates must be greater than or equal to 2",
     ):
         KinaseScoringConfig(min_substrates=1)
@@ -853,7 +854,7 @@ def test_kinase_request_config_policy_fails_at_validator_boundary() -> None:
 
 def test_kinase_request_rejects_non_bool_diagnostic_scoring_policy() -> None:
     with pytest.raises(
-        WorkflowValidationError,
+        ContractValidationError,
         match="scoring_config.include_diagnostic_scoring_tables must be a bool",
     ):
         KinaseScoringConfig(
@@ -864,7 +865,7 @@ def test_kinase_request_rejects_non_bool_diagnostic_scoring_policy() -> None:
 
 def test_kinase_request_rejects_non_bool_substrate_contribution_policy() -> None:
     with pytest.raises(
-        WorkflowValidationError,
+        ContractValidationError,
         match="scoring_config.include_substrate_contributions must be a bool",
     ):
         KinaseScoringConfig(
@@ -926,7 +927,7 @@ def test_kinase_request_rejects_unsupported_literal_policies(
     factory: object, pattern: str
 ) -> None:
     assert callable(factory)
-    with pytest.raises(WorkflowValidationError, match=pattern):
+    with pytest.raises(ContractValidationError, match=pattern):
         factory()
 
 
@@ -973,7 +974,7 @@ def test_positive_integer_policy_fails_at_validator_boundary(
 ) -> None:
     # Consolidated matrix preserves field-specific boundary messages.
     assert callable(factory)
-    with pytest.raises(WorkflowValidationError, match=pattern):
+    with pytest.raises(ContractValidationError, match=pattern):
         factory()
 
 
@@ -1232,7 +1233,7 @@ def test_kinase_validator_allows_gapped_flanks_when_centre_is_valid() -> None:
             "config.scientific.substrate_support_cutoff",
             1.5,
             lambda value: SignalomeScientificConfig(substrate_support_cutoff=value),
-            WorkflowValidationError,
+            ContractValidationError,
             "signalome workflow request config.scientific.substrate_support_cutoff",
             id="substrate-support-cutoff-above-max",
         ),
@@ -1240,7 +1241,7 @@ def test_kinase_validator_allows_gapped_flanks_when_centre_is_valid() -> None:
             "config.output.network_correlation_threshold",
             -0.1,
             lambda value: SignalomeOutputConfig(network_correlation_threshold=value),
-            WorkflowValidationError,
+            ContractValidationError,
             "signalome workflow request config.output.network_correlation_threshold",
             id="network-correlation-threshold-below-min",
         ),
@@ -1248,7 +1249,7 @@ def test_kinase_validator_allows_gapped_flanks_when_centre_is_valid() -> None:
             "config.scientific.assignment_policy",
             "invalid",
             lambda value: SignalomeScientificConfig(assignment_policy=value),  # type: ignore[arg-type]
-            WorkflowValidationError,
+            ContractValidationError,
             "signalome workflow request config.scientific.assignment_policy",
             id="assignment-policy-invalid",
         ),
@@ -1256,7 +1257,7 @@ def test_kinase_validator_allows_gapped_flanks_when_centre_is_valid() -> None:
             "config.output.network_policy",
             "invalid",
             lambda value: SignalomeOutputConfig(network_policy=value),  # type: ignore[arg-type]
-            WorkflowValidationError,
+            ContractValidationError,
             "signalome workflow request config.output.network_policy",
             id="network-policy-invalid",
         ),
@@ -1266,7 +1267,7 @@ def test_kinase_validator_allows_gapped_flanks_when_centre_is_valid() -> None:
             lambda value: SignalomeValidationConfig(
                 score_preconditioning_policy=value  # type: ignore[arg-type]
             ),
-            WorkflowValidationError,
+            ContractValidationError,
             "signalome workflow request config.validation.score_preconditioning_policy",
             id="score-preconditioning-policy-invalid",
         ),
@@ -1274,7 +1275,7 @@ def test_kinase_validator_allows_gapped_flanks_when_centre_is_valid() -> None:
             "config.clustering.module_count",
             True,
             lambda value: SignalomeClusteringConfig(module_count=value),  # type: ignore[arg-type]
-            WorkflowValidationError,
+            ContractValidationError,
             "signalome workflow request config.clustering.module_count must be an int",
             id="module-count-wrong-type-bool",
         ),
@@ -1282,7 +1283,7 @@ def test_kinase_validator_allows_gapped_flanks_when_centre_is_valid() -> None:
             "config.clustering.module_count",
             0,
             lambda value: SignalomeClusteringConfig(module_count=value),
-            WorkflowValidationError,
+            ContractValidationError,
             "signalome workflow request config.clustering.module_count",
             id="module-count-zero",
         ),
@@ -1290,7 +1291,7 @@ def test_kinase_validator_allows_gapped_flanks_when_centre_is_valid() -> None:
             "config.clustering.module_count",
             -1,
             lambda value: SignalomeClusteringConfig(module_count=value),
-            WorkflowValidationError,
+            ContractValidationError,
             "signalome workflow request config.clustering.module_count",
             id="module-count-negative",
         ),
@@ -1300,7 +1301,7 @@ def test_kinase_validator_allows_gapped_flanks_when_centre_is_valid() -> None:
             lambda value: SignalomeClusteringConfig(
                 module_selection_primary_correlation_threshold=value
             ),
-            WorkflowValidationError,
+            ContractValidationError,
             "module_selection_primary_correlation_threshold",
             id="module-selection-primary-threshold-above-max",
         ),
@@ -1310,7 +1311,7 @@ def test_kinase_validator_allows_gapped_flanks_when_centre_is_valid() -> None:
             lambda value: SignalomeClusteringConfig(
                 module_selection_fallback_correlation_threshold=value
             ),
-            WorkflowValidationError,
+            ContractValidationError,
             "module_selection_fallback_correlation_threshold",
             id="module-selection-fallback-threshold-below-min",
         ),
@@ -1320,7 +1321,7 @@ def test_kinase_validator_allows_gapped_flanks_when_centre_is_valid() -> None:
             lambda value: SignalomeClusteringConfig(
                 module_selection_max_clusters=value
             ),
-            WorkflowValidationError,
+            ContractValidationError,
             "module_selection_max_clusters",
             id="module-selection-max-clusters-zero",
         ),
@@ -1330,7 +1331,7 @@ def test_kinase_validator_allows_gapped_flanks_when_centre_is_valid() -> None:
             lambda value: SignalomeClusteringConfig(
                 clustering_engine=value  # type: ignore[arg-type]
             ),
-            WorkflowValidationError,
+            ContractValidationError,
             "signalome workflow request config.clustering.clustering_engine",
             id="clustering-engine-unsupported",
         ),

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import cast
 
-from phospy.errors.validation import WorkflowValidationError
+from phospy.errors.validation import ContractValidationError
 from phospy.science.enrichment.models import (
     ENRICHMENT_IDENTIFIER_KIND_DISPLAY_ID,
     ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
@@ -48,7 +48,7 @@ class EnrichmentConfig:
     def __post_init__(self) -> None:
         if self.method not in SUPPORTED_ENRICHMENT_METHODS:
             supported = ", ".join(repr(value) for value in SUPPORTED_ENRICHMENT_METHODS)
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 f"enrichment.method must be one of: {supported}"
             )
         if (
@@ -58,7 +58,7 @@ class EnrichmentConfig:
             supported = ", ".join(
                 repr(value) for value in SUPPORTED_MULTIPLE_TESTING_CORRECTIONS
             )
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 f"enrichment.multiple_testing_correction must be one of: {supported}"
             )
         object.__setattr__(
@@ -84,7 +84,7 @@ class EnrichmentConfig:
             and max_set_size is not None
             and min_set_size > max_set_size
         ):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "enrichment.min_set_size must be less than or equal to "
                 "enrichment.max_set_size"
             )
@@ -100,9 +100,9 @@ def _normalise_optional_set_size_threshold(
     if value is None:
         return None
     if isinstance(value, bool) or not isinstance(value, int):
-        raise WorkflowValidationError(f"{field_name} must be an int or None")
+        raise ContractValidationError(f"{field_name} must be an int or None")
     if value < 1:
-        raise WorkflowValidationError(
+        raise ContractValidationError(
             f"{field_name} must be greater than or equal to 1"
         )
     return value

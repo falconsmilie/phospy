@@ -5,7 +5,10 @@ import pandas as pd
 import pytest
 
 from phospy.api.configs import KinasePredictionConfig
-from phospy.errors import WorkflowStageError, WorkflowValidationError
+from phospy.errors import (
+    ContractValidationError,
+    WorkflowStageError,
+)
 from phospy.science.prediction import sampling_core
 from phospy.science.prediction.execution import run_adaptive_ensemble_prediction
 from phospy.science.prediction.policies import (
@@ -20,7 +23,7 @@ from phospy.science.prediction.sampling_runtime import (
 
 def test_kinase_prediction_config_rejects_adaptive_mode_without_seed() -> None:
     with pytest.raises(
-        WorkflowValidationError,
+        ContractValidationError,
         match=(
             "prediction_config.random_state must be provided when "
             "prediction_config.mode='adaptive_ensemble'"

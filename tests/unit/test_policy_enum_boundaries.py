@@ -21,7 +21,7 @@ from phospy.api.configs import (
     SignalomeValidationConfig,
 )
 from phospy.errors.input import PhosPyInputError
-from phospy.errors.validation import WorkflowValidationError
+from phospy.errors.validation import ContractValidationError
 from phospy.science.activities.threshold_membership import (
     threshold_membership_mask_array,
 )
@@ -323,7 +323,7 @@ def test_localisation_requirement_rejects_invalid_threshold(
     invalid_threshold: object,
 ) -> None:
     with pytest.raises(
-        WorkflowValidationError,
+        ContractValidationError,
         match="localisation_requirement.minimum_probability",
     ):
         LocalisationRequirement(

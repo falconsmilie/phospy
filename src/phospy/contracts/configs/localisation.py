@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from phospy.contracts.configs.common import _require_real_between
-from phospy.errors.validation import WorkflowValidationError
+from phospy.errors.validation import ContractValidationError
 
 LOCALISATION_POLICY_ALLOW_UNKNOWN = "allow_unknown"
 LOCALISATION_POLICY_REQUIRE_PRESENT = "require_present"
@@ -35,7 +35,7 @@ class LocalisationRequirement:
 
     def __post_init__(self) -> None:
         if not isinstance(self.require_present, bool):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "localisation_requirement.require_present must be a bool"
             )
         if self.minimum_probability is not None:
@@ -44,7 +44,7 @@ class LocalisationRequirement:
                 field_name="localisation_requirement.minimum_probability",
                 minimum=0.0,
                 maximum=1.0,
-                error_type=WorkflowValidationError,
+                error_type=ContractValidationError,
             )
 
     @property

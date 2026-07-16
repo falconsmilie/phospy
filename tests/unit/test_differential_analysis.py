@@ -23,6 +23,7 @@ from phospy.api import (
 )
 from phospy.api.configs import SUPPORTED_MULTIPLE_TESTING_METHODS
 from phospy.errors import (
+    ContractValidationError,
     PhosPyInputError,
     WorkflowValidationError,
 )
@@ -1048,7 +1049,7 @@ def test_differential_analysis_withholds_all_constant_site_intensities() -> None
 
 def test_differential_analysis_rejects_empty_condition_labels() -> None:
     with pytest.raises(
-        WorkflowValidationError,
+        ContractValidationError,
         match="condition",
     ):
         _request(

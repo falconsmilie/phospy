@@ -29,9 +29,9 @@ from phospy.api.results import (
     SignalomeWorkflowResult,
 )
 from phospy.errors import (
+    ContractValidationError,
     DatasetValidationError,
     ReferenceValidationError,
-    WorkflowValidationError,
 )
 from phospy.io.readers.tables import read_table
 from phospy.science.datasets.builders.validator import DatasetBuildRequestValidator
@@ -62,11 +62,11 @@ TOP_LEVEL_ERROR_FACADE = {
     "PhosPyInputError",
     "UnsupportedInputFormatError",
     "PhosPyValidationError",
+    "ContractValidationError",
     "PhosPyReferenceError",
     "ReferenceCompatibilityError",
     "ReferenceResolutionError",
     "PhosPyWorkflowError",
-    "WorkflowValidationError",
     "WorkflowBoundaryError",
     "SignalomeScaleError",
 }
@@ -632,7 +632,7 @@ def test_workflow_results_are_typed_containers_not_nested_type_validators() -> N
 def test_signalome_result_validates_expanded_signalome_field_type() -> None:
     kinase_result = _kinase_result()
     with pytest.raises(
-        WorkflowValidationError,
+        ContractValidationError,
         match="signalome_result.expanded_signalome must be a pandas DataFrame",
     ):
         SignalomeWorkflowResult(
@@ -651,7 +651,7 @@ def test_signalome_result_rejects_invalid_encoded_site_key_in_expanded_output() 
     expanded_signalome = _valid_expanded_signalome_table()
     expanded_signalome.loc[0, SITE_KEY_COLUMN] = "not-a-site-key"
 
-    with pytest.raises(WorkflowValidationError, match="site_key"):
+    with pytest.raises(ContractValidationError, match="site_key"):
         _signalome_result(expanded_signalome=expanded_signalome)
 
 
@@ -659,7 +659,7 @@ def test_signalome_result_rejects_missing_display_id_in_site_membership() -> Non
     site_membership = _valid_site_membership_table()
     site_membership.loc[0, DISPLAY_ID_COLUMN] = ""
 
-    with pytest.raises(WorkflowValidationError, match="non-empty display_id"):
+    with pytest.raises(ContractValidationError, match="non-empty display_id"):
         _signalome_result(site_membership=site_membership)
 
 
@@ -673,7 +673,7 @@ def test_signalome_result_rejects_site_rows_not_aligned_to_source_dataset() -> N
     site_membership.loc[0, SITE_ID_COLUMN] = unrelated_display_id
 
     with pytest.raises(
-        WorkflowValidationError,
+        ContractValidationError,
         match="align to signalome_result.dataset",
     ):
         _signalome_result(site_membership=site_membership)
@@ -690,7 +690,7 @@ def test_signalome_result_rejects_module_assignments_not_aligned_to_dataset() ->
     module_assignments.loc[:, "site"] = ["T308"]
 
     with pytest.raises(
-        WorkflowValidationError,
+        ContractValidationError,
         match="align to signalome_result.dataset",
     ):
         _signalome_result(module_assignments_table=module_assignments)
@@ -699,7 +699,7 @@ def test_signalome_result_rejects_module_assignments_not_aligned_to_dataset() ->
 def test_signalome_result_validates_site_membership_field_type() -> None:
     kinase_result = _kinase_result()
     with pytest.raises(
-        WorkflowValidationError,
+        ContractValidationError,
         match="signalome_result.site_membership must be a pandas DataFrame",
     ):
         SignalomeWorkflowResult(
@@ -717,7 +717,7 @@ def test_signalome_result_validates_site_membership_field_type() -> None:
 def test_signalome_result_validates_protein_site_context_field_type() -> None:
     kinase_result = _kinase_result()
     with pytest.raises(
-        WorkflowValidationError,
+        ContractValidationError,
         match="signalome_result.protein_site_context must be a pandas DataFrame",
     ):
         SignalomeWorkflowResult(

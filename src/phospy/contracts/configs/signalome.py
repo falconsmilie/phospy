@@ -14,7 +14,7 @@ from phospy.contracts.configs.reference_context import (
     REFERENCE_CONTEXT_COMPATIBILITY_POLICY_REQUIRE_KNOWN_MATCH,
     ReferenceContextCompatibilityPolicy,
 )
-from phospy.errors.validation import WorkflowValidationError
+from phospy.errors.validation import ContractValidationError
 
 SIGNALOME_MODULE_COUNT_FLOOR = 1
 SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT = 0.5
@@ -104,11 +104,11 @@ class SignalomeScientificConfig:
             ),
             minimum=0.0,
             maximum=1.0,
-            error_type=WorkflowValidationError,
+            error_type=ContractValidationError,
         )
         if self.assignment_policy not in SIGNALOME_ASSIGNMENT_POLICIES:
             allowed_policies = ", ".join(sorted(SIGNALOME_ASSIGNMENT_POLICIES))
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "signalome workflow request config.scientific.assignment_policy "
                 f"must be one of: {allowed_policies}"
             )
@@ -141,7 +141,7 @@ class SignalomeClusteringConfig:
                     "signalome workflow request config.clustering.module_count"
                 ),
                 minimum=SIGNALOME_MODULE_COUNT_FLOOR,
-                error_type=WorkflowValidationError,
+                error_type=ContractValidationError,
             )
         _require_real_between(
             self.module_selection_primary_correlation_threshold,
@@ -151,7 +151,7 @@ class SignalomeClusteringConfig:
             ),
             minimum=0.0,
             maximum=1.0,
-            error_type=WorkflowValidationError,
+            error_type=ContractValidationError,
         )
         _require_real_between(
             self.module_selection_fallback_correlation_threshold,
@@ -161,7 +161,7 @@ class SignalomeClusteringConfig:
             ),
             minimum=0.0,
             maximum=1.0,
-            error_type=WorkflowValidationError,
+            error_type=ContractValidationError,
         )
         _require_int_at_least(
             self.module_selection_max_clusters,
@@ -170,18 +170,18 @@ class SignalomeClusteringConfig:
                 "module_selection_max_clusters"
             ),
             minimum=SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_FLOOR,
-            error_type=WorkflowValidationError,
+            error_type=ContractValidationError,
         )
         if self.candidate_scoring_policy not in SIGNALOME_CANDIDATE_SCORING_POLICIES:
             allowed = ", ".join(sorted(SIGNALOME_CANDIDATE_SCORING_POLICIES))
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "signalome workflow request config.clustering."
                 "candidate_scoring_policy "
                 f"must be one of: {allowed}"
             )
         if self.clustering_engine not in SIGNALOME_CLUSTERING_ENGINES:
             allowed = ", ".join(sorted(SIGNALOME_CLUSTERING_ENGINES))
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "signalome workflow request config.clustering.clustering_engine "
                 f"must be one of: {allowed}"
             )
@@ -206,7 +206,7 @@ class SignalomeValidationConfig:
 
     def __post_init__(self) -> None:
         if not isinstance(self.allow_mixed_total_protein_quantitative_meaning, bool):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "signalome workflow request config.validation."
                 "allow_mixed_total_protein_quantitative_meaning must be a bool"
             )
@@ -217,13 +217,13 @@ class SignalomeValidationConfig:
             allowed_policies = ", ".join(
                 sorted(SIGNALOME_SCORE_PRECONDITIONING_POLICIES)
             )
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "signalome workflow request config.validation."
                 "score_preconditioning_policy "
                 f"must be one of: {allowed_policies}"
             )
         if not isinstance(self.localisation_requirement, LocalisationRequirement):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "signalome workflow request config.validation."
                 "localisation_requirement must be LocalisationRequirement"
             )
@@ -234,7 +234,7 @@ class SignalomeValidationConfig:
                 "signalome workflow request config.validation."
                 "reference_context_compatibility_policy"
             ),
-            error_type=WorkflowValidationError,
+            error_type=ContractValidationError,
         )
         object.__setattr__(
             self,
@@ -261,11 +261,11 @@ class SignalomeOutputConfig:
             ),
             minimum=0.0,
             maximum=1.0,
-            error_type=WorkflowValidationError,
+            error_type=ContractValidationError,
         )
         if self.network_policy not in SIGNALOME_KINASE_NETWORK_POLICIES:
             allowed_policies = ", ".join(sorted(SIGNALOME_KINASE_NETWORK_POLICIES))
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "signalome workflow request config.output.network_policy "
                 f"must be one of: {allowed_policies}"
             )
@@ -277,7 +277,7 @@ class SignalomeOutputConfig:
                     "network_min_paired_finite_observations"
                 ),
                 minimum=SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_FLOOR,
-                error_type=WorkflowValidationError,
+                error_type=ContractValidationError,
             )
 
 
@@ -297,7 +297,7 @@ class SignalomePerformanceConfig:
                 "signalome workflow request config.performance.max_exact_tree_sites"
             ),
             minimum=SIGNALOME_MAX_EXACT_TREE_SITES_FLOOR,
-            error_type=WorkflowValidationError,
+            error_type=ContractValidationError,
         )
         _require_int_at_least(
             self.max_full_candidate_scoring_sites,
@@ -306,7 +306,7 @@ class SignalomePerformanceConfig:
                 "max_full_candidate_scoring_sites"
             ),
             minimum=SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_FLOOR,
-            error_type=WorkflowValidationError,
+            error_type=ContractValidationError,
         )
 
 
@@ -330,26 +330,26 @@ class SignalomeConfig:
 
     def __post_init__(self) -> None:
         if not isinstance(self.scientific, SignalomeScientificConfig):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "signalome workflow request config.scientific must be "
                 "SignalomeScientificConfig"
             )
         if not isinstance(self.clustering, SignalomeClusteringConfig):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "signalome workflow request config.clustering must be "
                 "SignalomeClusteringConfig"
             )
         if not isinstance(self.validation, SignalomeValidationConfig):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "signalome workflow request config.validation must be "
                 "SignalomeValidationConfig"
             )
         if not isinstance(self.output, SignalomeOutputConfig):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "signalome workflow request config.output must be SignalomeOutputConfig"
             )
         if not isinstance(self.performance, SignalomePerformanceConfig):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "signalome workflow request config.performance must be "
                 "SignalomePerformanceConfig"
             )

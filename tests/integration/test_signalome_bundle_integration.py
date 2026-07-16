@@ -20,9 +20,9 @@ from phospy.api import (
 )
 from phospy.api.results import SignalomeWorkflowResult
 from phospy.errors import (
+    ContractValidationError,
     PhosPyInputError,
     PhosPyValidationError,
-    WorkflowValidationError,
 )
 from phospy.io.bundles.signalome import (
     SIGNALOME_BUNDLE_MANIFEST_VERSION,
@@ -555,7 +555,7 @@ def test_signalome_bundle_rejects_invalid_sidecar_table_schema(
     table_path = Path(manifest["signalome_outputs"]["tables"][table_key])
     invalid_table.to_csv(bundle_root / table_path)
 
-    with pytest.raises(WorkflowValidationError, match=pattern):
+    with pytest.raises(ContractValidationError, match=pattern):
         load_signalome_workflow_bundle(bundle_root)
 
 

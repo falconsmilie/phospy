@@ -497,6 +497,30 @@ def test_request_dto_modules_do_not_import_validation_domains() -> None:
     assert offenders == []
 
 
+def test_contract_modules_do_not_import_validation_domains() -> None:
+    offenders = sorted(
+        f"{path.relative_to(PROJECT_ROOT)} imports {module}"
+        for path in CONTRACTS_ROOT.rglob("*.py")
+        for module in _imported_modules(path)
+        if module == VALIDATION_PREFIX or module.startswith(f"{VALIDATION_PREFIX}.")
+    )
+
+    assert offenders == []
+
+
+def test_public_constructors_do_not_raise_workflow_boundary_exceptions() -> None:
+    offenders = sorted(
+        f"{name} ({obj.__module__})"
+        for name in public_api.__all__
+        if inspect.isclass(obj := getattr(public_api, name, None))
+        and "__post_init__" in getattr(obj, "__dict__", {})
+        if "WorkflowValidationError" in inspect.getsource(obj.__post_init__)
+        or "WorkflowBoundaryError" in inspect.getsource(obj.__post_init__)
+    )
+
+    assert offenders == []
+
+
 def test_request_dto_modules_do_not_call_dataset_or_workflow_validators() -> None:
     offenders = sorted(
         f"{path.relative_to(PROJECT_ROOT)} calls {call_name}"

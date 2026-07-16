@@ -14,6 +14,7 @@ import phospy.api.results as result_models
 import phospy.api.workflows as workflow_models
 import phospy.workflows as native_workflows
 from phospy.api import (
+    ContractValidationError,
     EnrichmentConfig,
     EnrichmentIdentifierKind,
     EnrichmentResultRecord,
@@ -101,7 +102,7 @@ def test_enrichment_config_defaults_are_explicit() -> None:
 
 
 def test_enrichment_unsupported_method_rejected() -> None:
-    with pytest.raises(WorkflowValidationError, match="enrichment.method"):
+    with pytest.raises(ContractValidationError, match="enrichment.method"):
         EnrichmentConfig(method="competitive")  # type: ignore[arg-type]
 
 
@@ -174,7 +175,7 @@ def test_enrichment_request_requires_exactly_one_identifier_source() -> None:
 
 
 def test_enrichment_gene_and_ptm_semantics_do_not_mix() -> None:
-    with pytest.raises(WorkflowValidationError, match="gene_set_collection"):
+    with pytest.raises(ContractValidationError, match="gene_set_collection"):
         GeneSetCollection(
             sets={"bad": ("rat|P12345|S10",)},
             identifier_kind=ENRICHMENT_IDENTIFIER_KIND_SITE_KEY,

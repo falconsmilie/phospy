@@ -16,6 +16,7 @@ from phospy.api import (
     Contrast,
     DatasetBuildRequest,
     DifferentialAnalysisRequest,
+    EnrichmentWorkflowRequest,
     ExperimentalDesign,
     KinaseWorkflowRequest,
     Organism,
@@ -173,6 +174,7 @@ def _kinase_result_missing_signalome_protein_id() -> KinaseWorkflowResult:
     [
         DatasetBuildRequest,
         DifferentialAnalysisRequest,
+        EnrichmentWorkflowRequest,
         KinaseWorkflowRequest,
         SignalomeWorkflowRequest,
     ],
@@ -195,6 +197,13 @@ def test_request_constructors_accept_payloads_without_scientific_validation() ->
         dataset=object(),  # type: ignore[arg-type]
         design=object(),  # type: ignore[arg-type]
         contrasts=object(),  # type: ignore[arg-type]
+        config=object(),  # type: ignore[arg-type]
+    )
+    EnrichmentWorkflowRequest(
+        identifier_column=object(),  # type: ignore[arg-type]
+        identifier_kind="not-a-kind",  # type: ignore[arg-type]
+        set_collection=object(),  # type: ignore[arg-type]
+        background_universe=object(),  # type: ignore[arg-type]
         config=object(),  # type: ignore[arg-type]
     )
     KinaseWorkflowRequest(

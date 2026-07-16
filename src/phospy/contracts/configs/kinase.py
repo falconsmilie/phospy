@@ -16,7 +16,7 @@ from phospy.contracts.configs.reference_context import (
     REFERENCE_CONTEXT_COMPATIBILITY_POLICY_REQUIRE_KNOWN_MATCH,
     ReferenceContextCompatibilityPolicy,
 )
-from phospy.errors.validation import WorkflowValidationError
+from phospy.errors.validation import ContractValidationError
 from phospy.policies import PolicyEnum
 from phospy.science.scoring.policy_models import ProfileSelfInclusionPolicy
 
@@ -223,7 +223,7 @@ class KinaseAttritionPolicy:
         )
         if self.on_violation not in KINASE_ATTRITION_POLICY_ON_VIOLATION_MODES:
             allowed = ", ".join(sorted(KINASE_ATTRITION_POLICY_ON_VIOLATION_MODES))
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 f"attrition_policy.on_violation must be one of: {allowed}"
             )
         object.__setattr__(
@@ -347,15 +347,15 @@ class KinaseScoringConfig:
 
     def __post_init__(self) -> None:
         if not isinstance(self.include_diagnostic_scoring_tables, bool):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "scoring_config.include_diagnostic_scoring_tables must be a bool"
             )
         if not isinstance(self.include_substrate_contributions, bool):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "scoring_config.include_substrate_contributions must be a bool"
             )
         if not isinstance(self.allow_mixed_total_protein_quantitative_meaning, bool):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "scoring_config.allow_mixed_total_protein_quantitative_meaning "
                 "must be a bool"
             )
@@ -365,7 +365,7 @@ class KinaseScoringConfig:
         )
         if normalized_scoring_mode not in KINASE_SCORING_MODES:
             allowed = ", ".join(sorted(KINASE_SCORING_MODES))
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 f"scoring_config.scoring_mode must be one of: {allowed}"
             )
         object.__setattr__(self, "scoring_mode", normalized_scoring_mode)
@@ -374,7 +374,7 @@ class KinaseScoringConfig:
             not in KINASE_PROFILE_MISSING_VALUE_STRATEGIES
         ):
             allowed = ", ".join(sorted(KINASE_PROFILE_MISSING_VALUE_STRATEGIES))
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "scoring_config.profile_missing_value_strategy must be one of: "
                 f"{allowed}"
             )
@@ -382,7 +382,7 @@ class KinaseScoringConfig:
             ProfileSelfInclusionPolicy,
             self.profile_self_inclusion_policy,
             field_name="scoring_config.profile_self_inclusion_policy",
-            error_type=WorkflowValidationError,
+            error_type=ContractValidationError,
         )
         object.__setattr__(
             self,
@@ -393,7 +393,7 @@ class KinaseScoringConfig:
             ReferenceContextCompatibilityPolicy,
             self.reference_context_compatibility_policy,
             field_name="scoring_config.reference_context_compatibility_policy",
-            error_type=WorkflowValidationError,
+            error_type=ContractValidationError,
         )
         object.__setattr__(
             self,
@@ -401,17 +401,17 @@ class KinaseScoringConfig:
             reference_context_compatibility_policy,
         )
         if not isinstance(self.attrition_policy, KinaseAttritionPolicy):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "scoring_config.attrition_policy must be KinaseAttritionPolicy"
             )
         _require_int_at_least(
             self.min_substrates,
             field_name="scoring_config.min_substrates",
             minimum=KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
-            error_type=WorkflowValidationError,
+            error_type=ContractValidationError,
         )
         if not isinstance(self.localisation_requirement, LocalisationRequirement):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "scoring_config.localisation_requirement must be "
                 "LocalisationRequirement"
             )
@@ -440,12 +440,12 @@ class KinaseScoringConfig:
 
 def _require_attrition_fraction(value: object, *, field_name: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise WorkflowValidationError(f"{field_name} must be a float or int")
+        raise ContractValidationError(f"{field_name} must be a float or int")
     fraction = float(value)
     if not math.isfinite(fraction):
-        raise WorkflowValidationError(f"{field_name} must be finite")
+        raise ContractValidationError(f"{field_name} must be finite")
     if not 0.0 <= fraction <= 1.0:
-        raise WorkflowValidationError(f"{field_name} must be between 0.0 and 1.0")
+        raise ContractValidationError(f"{field_name} must be between 0.0 and 1.0")
     return fraction
 
 
@@ -494,10 +494,10 @@ class KinaseActivityConfig:
 
     def __post_init__(self) -> None:
         if not isinstance(self.enabled, bool):
-            raise WorkflowValidationError("activity_config.enabled must be a bool")
+            raise ContractValidationError("activity_config.enabled must be a bool")
         if self.method not in KINASE_ACTIVITY_METHODS:
             allowed_methods = ", ".join(sorted(KINASE_ACTIVITY_METHODS))
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 f"activity_config.method must be one of: {allowed_methods}"
             )
         _require_real_between(
@@ -505,25 +505,25 @@ class KinaseActivityConfig:
             field_name="activity_config.threshold",
             minimum=0.0,
             maximum=1.0,
-            error_type=WorkflowValidationError,
+            error_type=ContractValidationError,
         )
         _require_int_at_least(
             self.min_substrates,
             field_name="activity_config.min_substrates",
             minimum=KINASE_ACTIVITY_MIN_SUBSTRATES_FLOOR,
-            error_type=WorkflowValidationError,
+            error_type=ContractValidationError,
         )
         _require_int_at_least(
             self.top_n_substrates,
             field_name="activity_config.top_n_substrates",
             minimum=KINASE_ACTIVITY_TOP_N_SUBSTRATES_FLOOR,
-            error_type=WorkflowValidationError,
+            error_type=ContractValidationError,
         )
         _require_int_at_least(
             self.ksea_min_substrates,
             field_name="activity_config.ksea_min_substrates",
             minimum=KINASE_ACTIVITY_MIN_SUBSTRATES_FLOOR,
-            error_type=WorkflowValidationError,
+            error_type=ContractValidationError,
         )
         if self.ksea_evidence_threshold is not None:
             _require_real_between(
@@ -531,51 +531,51 @@ class KinaseActivityConfig:
                 field_name="activity_config.ksea_evidence_threshold",
                 minimum=0.0,
                 maximum=1.0,
-                error_type=WorkflowValidationError,
+                error_type=ContractValidationError,
             )
         if self.ksea_p_value_method not in KINASE_ACTIVITY_KSEA_P_VALUE_METHODS:
             allowed_methods = ", ".join(sorted(KINASE_ACTIVITY_KSEA_P_VALUE_METHODS))
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 f"activity_config.ksea_p_value_method must be one of: {allowed_methods}"
             )
         if not isinstance(self.ksea_adjust_p_values, bool):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "activity_config.ksea_adjust_p_values must be a bool"
             )
         _require_int_at_least(
             self.ssgsea_min_substrates,
             field_name="activity_config.ssgsea_min_substrates",
             minimum=KINASE_ACTIVITY_MIN_SUBSTRATES_FLOOR,
-            error_type=WorkflowValidationError,
+            error_type=ContractValidationError,
         )
         if (
             self.ssgsea_ranking_direction
             not in KINASE_ACTIVITY_SSGSEA_RANKING_DIRECTIONS
         ):
             allowed = ", ".join(sorted(KINASE_ACTIVITY_SSGSEA_RANKING_DIRECTIONS))
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 f"activity_config.ssgsea_ranking_direction must be one of: {allowed}"
             )
         _require_int_at_least(
             self.ssgsea_permutations,
             field_name="activity_config.ssgsea_permutations",
             minimum=0,
-            error_type=WorkflowValidationError,
+            error_type=ContractValidationError,
         )
         if self.ssgsea_random_seed is not None:
             _require_int_at_least(
                 self.ssgsea_random_seed,
                 field_name="activity_config.ssgsea_random_seed",
                 minimum=0,
-                error_type=WorkflowValidationError,
+                error_type=ContractValidationError,
             )
         if self.ssgsea_permutations > 0 and self.ssgsea_random_seed is None:
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "activity_config.ssgsea_random_seed must be set when "
                 "activity_config.ssgsea_permutations is greater than 0"
             )
         if not isinstance(self.ssgsea_adjust_p_values, bool):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "activity_config.ssgsea_adjust_p_values must be a bool"
             )
 

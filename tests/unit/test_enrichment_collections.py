@@ -3,10 +3,10 @@ from __future__ import annotations
 import pytest
 
 from phospy.api import (
+    ContractValidationError,
     EnrichmentSet,
     EnrichmentSetCollection,
     GeneSetCollection,
-    WorkflowValidationError,
 )
 from phospy.api.configs import (
     ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
@@ -57,7 +57,7 @@ def test_enrichment_collection_duplicate_identifiers_within_set_are_deduplicated
 
 
 def test_enrichment_collection_mixed_identifier_kind_rejected() -> None:
-    with pytest.raises(WorkflowValidationError, match="cannot mix identifier_kind"):
+    with pytest.raises(ContractValidationError, match="cannot mix identifier_kind"):
         EnrichmentSetCollection(
             sets=(
                 EnrichmentSet(
@@ -77,7 +77,7 @@ def test_enrichment_collection_mixed_identifier_kind_rejected() -> None:
 
 
 def test_enrichment_collection_empty_set_rejected() -> None:
-    with pytest.raises(WorkflowValidationError, match="identifiers must not be empty"):
+    with pytest.raises(ContractValidationError, match="identifiers must not be empty"):
         EnrichmentSet(
             set_id="EMPTY",
             name="Empty set",

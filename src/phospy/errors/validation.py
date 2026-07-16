@@ -9,6 +9,10 @@ class PhosPyValidationError(PhosPyError):
     """Validation failure raised for invalid public or internal inputs."""
 
 
+class ContractValidationError(PhosPyValidationError):
+    """Public contract/value-object construction validation failed."""
+
+
 class DatasetValidationError(PhosPyValidationError):
     """Dataset contract validation failed."""
 

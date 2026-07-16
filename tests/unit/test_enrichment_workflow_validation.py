@@ -4,6 +4,7 @@ import pandas as pd
 import pytest
 
 from phospy.api import (
+    ContractValidationError,
     EnrichmentConfig,
     EnrichmentSetCollection,
     EnrichmentWorkflow,
@@ -208,7 +209,7 @@ def test_enrichment_config_rejects_invalid_set_size_filters(
     kwargs: dict[str, object],
     pattern: str,
 ) -> None:
-    with pytest.raises(WorkflowValidationError, match=pattern):
+    with pytest.raises(ContractValidationError, match=pattern):
         EnrichmentConfig(**kwargs)  # type: ignore[arg-type]
 
 

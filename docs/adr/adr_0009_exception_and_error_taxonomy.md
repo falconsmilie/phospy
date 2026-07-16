@@ -109,6 +109,13 @@ Validation failures include cases such as:
 
 Validation components should prefer raising this explicit type rather than leaking raw `KeyError`, `TypeError`, or generic `ValueError` as the intended failure mode.
 
+Constructor-level failures for generic public contract/value objects use
+`ContractValidationError`, a direct `PhosPyValidationError` subtype. This keeps
+local value-object invariant failures distinct from workflow request-boundary
+validation (`WorkflowValidationError`/`WorkflowBoundaryError`), dataset
+construction (`DatasetValidationError`), and reference construction
+(`ReferenceValidationError`).
+
 ## Input Exceptions
 
 Input-boundary failures should derive from:

@@ -116,6 +116,7 @@ from phospy.api.workflows import (
     SignalomeWorkflow,
 )
 from phospy.errors import (
+    ContractValidationError,
     PhosPyError,
     PhosPyInputError,
     PhosPyReferenceError,
@@ -208,6 +209,7 @@ _STABLE_PUBLIC_API = (
     "PhosPyInputError",
     "UnsupportedInputFormatError",
     "PhosPyValidationError",
+    "ContractValidationError",
     "PhosPyReferenceError",
     "ReferenceResolutionError",
     "ReferenceCompatibilityError",
@@ -428,6 +430,7 @@ __all__ = [
     "PhosPyInputError",
     "UnsupportedInputFormatError",
     "PhosPyValidationError",
+    "ContractValidationError",
     "PhosPyReferenceError",
     "ReferenceResolutionError",
     "ReferenceCompatibilityError",

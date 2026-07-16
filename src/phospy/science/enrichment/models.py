@@ -7,7 +7,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Literal, cast
 
-from phospy.errors.validation import WorkflowValidationError
+from phospy.errors.validation import ContractValidationError
 from phospy.science.statistics.multiple_testing import (
     MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
     MULTIPLE_TESTING_CORRECTION_BENJAMINI_YEKUTIELI,
@@ -241,7 +241,7 @@ class GeneSetCollection(EnrichmentSetCollection):
         )
         if identifier_kind not in GENE_LEVEL_ENRICHMENT_IDENTIFIER_KINDS:
             allowed = ", ".join(sorted(GENE_LEVEL_ENRICHMENT_IDENTIFIER_KINDS))
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 f"gene_set_collection.identifier_kind must be gene-level: {allowed}"
             )
         enrichment_sets = _coerce_legacy_collection_sets(
@@ -289,7 +289,7 @@ class PtmSetCollection(EnrichmentSetCollection):
         )
         if identifier_kind not in PTM_LEVEL_ENRICHMENT_IDENTIFIER_KINDS:
             allowed = ", ".join(sorted(PTM_LEVEL_ENRICHMENT_IDENTIFIER_KINDS))
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 f"ptm_set_collection.identifier_kind must be PTM-level: {allowed}"
             )
         enrichment_sets = _coerce_legacy_collection_sets(
@@ -463,12 +463,12 @@ def _normalise_identifier_sequence(
     allow_empty: bool = False,
 ) -> tuple[str, ...]:
     if isinstance(value, str | bytes | bytearray) or not isinstance(value, Sequence):
-        raise WorkflowValidationError(f"{field_name} must be a sequence of strings")
+        raise ContractValidationError(f"{field_name} must be a sequence of strings")
     normalised = tuple(
         _require_non_empty_string(item, field_name=f"{field_name}[]") for item in value
     )
     if not allow_empty and not normalised:
-        raise WorkflowValidationError(f"{field_name} must not be empty")
+        raise ContractValidationError(f"{field_name} must not be empty")
     return normalised
 
 
@@ -494,19 +494,19 @@ def _normalise_enrichment_set_sequence(
     field_name: str,
 ) -> tuple[EnrichmentSet, ...]:
     if isinstance(value, str | bytes | bytearray) or not isinstance(value, Sequence):
-        raise WorkflowValidationError(f"{field_name} must be a sequence")
+        raise ContractValidationError(f"{field_name} must be a sequence")
     enrichment_sets = tuple(value)
     if not enrichment_sets:
-        raise WorkflowValidationError(f"{field_name} must not be empty")
+        raise ContractValidationError(f"{field_name} must not be empty")
     normalised: list[EnrichmentSet] = []
     observed_ids: set[str] = set()
     for enrichment_set in enrichment_sets:
         if not isinstance(enrichment_set, EnrichmentSet):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 f"{field_name} must contain EnrichmentSet values"
             )
         if enrichment_set.set_id in observed_ids:
-            raise WorkflowValidationError(f"{field_name} set_id values must be unique")
+            raise ContractValidationError(f"{field_name} set_id values must be unique")
         observed_ids.add(enrichment_set.set_id)
         normalised.append(enrichment_set)
     return tuple(normalised)
@@ -525,7 +525,7 @@ def _resolve_collection_identifier_kind(
     )
     for enrichment_set in enrichment_sets:
         if enrichment_set.identifier_kind != resolved_identifier_kind:
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 f"{field_name} cannot mix identifier_kind values; "
                 f"set_id={enrichment_set.set_id!r}, "
                 f"observed={enrichment_set.identifier_kind!r}, "
@@ -552,7 +552,7 @@ def _resolve_collection_kind(
         ),
     )
     if resolved_collection_kind != expected_collection_kind:
-        raise WorkflowValidationError(
+        raise ContractValidationError(
             f"{field_name} must match identifier_kind {identifier_kind!r}; "
             f"observed={resolved_collection_kind!r}, "
             f"expected={expected_collection_kind!r}"
@@ -567,7 +567,7 @@ def _collection_kind_for_identifier_kind(
         return ENRICHMENT_COLLECTION_KIND_GENE_SET
     if identifier_kind in PTM_LEVEL_ENRICHMENT_IDENTIFIER_KINDS:
         return ENRICHMENT_COLLECTION_KIND_PTM_SET
-    raise WorkflowValidationError(
+    raise ContractValidationError(
         f"enrichment identifier_kind {identifier_kind!r} is not supported"
     )
 
@@ -607,11 +607,11 @@ def _coerce_legacy_collection_sets(
             for set_id, identifiers in sets.items()
         )
     if term_names is not None:
-        raise WorkflowValidationError(
+        raise ContractValidationError(
             f"{field_name} term_names are only valid when sets is a mapping"
         )
     if descriptions is not None:
-        raise WorkflowValidationError(
+        raise ContractValidationError(
             f"{field_name} descriptions are only valid when sets is a mapping"
         )
     return _normalise_enrichment_set_sequence(value, field_name=field_name)
@@ -624,18 +624,18 @@ def _require_collection_matches_identifier_kind(
     field_name: str,
 ) -> EnrichmentSetCollection:
     if not isinstance(collection, EnrichmentSetCollection):
-        raise WorkflowValidationError(
+        raise ContractValidationError(
             f"{field_name} must be EnrichmentSetCollection, "
             "GeneSetCollection, or PtmSetCollection"
         )
     if collection.identifier_kind != identifier_kind:
-        raise WorkflowValidationError(
+        raise ContractValidationError(
             f"{field_name}.identifier_kind must match request identifier_kind; "
             f"observed={collection.identifier_kind!r}, expected={identifier_kind!r}"
         )
     expected_collection_kind = _collection_kind_for_identifier_kind(identifier_kind)
     if collection.collection_kind != expected_collection_kind:
-        raise WorkflowValidationError(
+        raise ContractValidationError(
             f"{field_name}.collection_kind must match identifier_kind; "
             f"observed={collection.collection_kind!r}, "
             f"expected={expected_collection_kind!r}"
@@ -651,7 +651,7 @@ def _require_supported_value(
 ) -> str:
     if not isinstance(value, str) or value not in supported:
         allowed = ", ".join(repr(item) for item in supported)
-        raise WorkflowValidationError(f"{field_name} must be one of: {allowed}")
+        raise ContractValidationError(f"{field_name} must be one of: {allowed}")
     return value
 
 
@@ -661,9 +661,9 @@ def _normalise_set_mapping(
     field_name: str,
 ) -> dict[str, tuple[str, ...]]:
     if not isinstance(value, Mapping):
-        raise WorkflowValidationError(f"{field_name} must be a mapping")
+        raise ContractValidationError(f"{field_name} must be a mapping")
     if not value:
-        raise WorkflowValidationError(f"{field_name} must not be empty")
+        raise ContractValidationError(f"{field_name} must not be empty")
     normalised: dict[str, tuple[str, ...]] = {}
     for raw_term_id, raw_identifiers in value.items():
         term_id = _require_non_empty_string(
@@ -671,7 +671,7 @@ def _normalise_set_mapping(
             field_name=f"{field_name}.term_id",
         )
         if term_id in normalised:
-            raise WorkflowValidationError(f"{field_name} term IDs must be unique")
+            raise ContractValidationError(f"{field_name} term IDs must be unique")
         identifiers = _normalise_identifier_sequence(
             raw_identifiers,
             field_name=f"{field_name}[{term_id!r}]",
@@ -687,7 +687,7 @@ def _normalise_term_names(
     field_name: str,
 ) -> dict[str, str]:
     if not isinstance(value, Mapping):
-        raise WorkflowValidationError(f"{field_name} must be a mapping")
+        raise ContractValidationError(f"{field_name} must be a mapping")
     normalised: dict[str, str] = {}
     for raw_term_id, raw_term_name in value.items():
         term_id = _require_non_empty_string(
@@ -695,7 +695,7 @@ def _normalise_term_names(
             field_name=f"{field_name}.term_id",
         )
         if term_id not in allowed_term_ids:
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 f"{field_name} keys must refer to IDs present in sets"
             )
         normalised[term_id] = _require_non_empty_string(
@@ -712,7 +712,7 @@ def _normalise_optional_term_descriptions(
     field_name: str,
 ) -> dict[str, str]:
     if not isinstance(value, Mapping):
-        raise WorkflowValidationError(f"{field_name} must be a mapping")
+        raise ContractValidationError(f"{field_name} must be a mapping")
     normalised: dict[str, str] = {}
     for raw_term_id, raw_description in value.items():
         term_id = _require_non_empty_string(
@@ -720,7 +720,7 @@ def _normalise_optional_term_descriptions(
             field_name=f"{field_name}.term_id",
         )
         if term_id not in allowed_term_ids:
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 f"{field_name} keys must refer to IDs present in sets"
             )
         description = _normalise_optional_string(
@@ -734,7 +734,7 @@ def _normalise_optional_term_descriptions(
 
 def _require_non_empty_string(value: object, *, field_name: str) -> str:
     if not isinstance(value, str) or value.strip() == "":
-        raise WorkflowValidationError(f"{field_name} must be a non-empty string")
+        raise ContractValidationError(f"{field_name} must be a non-empty string")
     return value.strip()
 
 
@@ -746,7 +746,7 @@ def _normalise_optional_string(value: object | None, *, field_name: str) -> str 
 
 def _require_int_at_least(value: object, *, field_name: str, minimum: int) -> int:
     if not isinstance(value, int) or isinstance(value, bool) or value < minimum:
-        raise WorkflowValidationError(f"{field_name} must be an integer >= {minimum}")
+        raise ContractValidationError(f"{field_name} must be an integer >= {minimum}")
     return int(value)
 
 
@@ -758,10 +758,10 @@ def _normalise_optional_unit_interval(
     if value is None:
         return None
     if not isinstance(value, int | float) or isinstance(value, bool):
-        raise WorkflowValidationError(f"{field_name} must be numeric or None")
+        raise ContractValidationError(f"{field_name} must be numeric or None")
     normalised = float(value)
     if normalised < 0.0 or normalised > 1.0:
-        raise WorkflowValidationError(f"{field_name} must be within [0.0, 1.0]")
+        raise ContractValidationError(f"{field_name} must be within [0.0, 1.0]")
     return normalised
 
 
@@ -773,10 +773,10 @@ def _normalise_optional_non_negative_float(
     if value is None:
         return None
     if not isinstance(value, int | float) or isinstance(value, bool):
-        raise WorkflowValidationError(f"{field_name} must be numeric or None")
+        raise ContractValidationError(f"{field_name} must be numeric or None")
     normalised = float(value)
     if not math.isfinite(normalised) or normalised < 0.0:
-        raise WorkflowValidationError(f"{field_name} must be finite and >= 0.0")
+        raise ContractValidationError(f"{field_name} must be finite and >= 0.0")
     return normalised
 
 

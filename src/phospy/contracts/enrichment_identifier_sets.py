@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
 
+from phospy.errors.validation import ContractValidationError
 from phospy.provenance.models import InputIntensityScaleEvidence
 
 
@@ -33,6 +34,40 @@ class EnrichmentIdentifierSetProvenance:
             self,
             "source_type",
             _coerce_enrichment_identifier_set_source_type(self.source_type),
+        )
+        object.__setattr__(
+            self,
+            "source_label",
+            _require_non_empty_text(
+                self.source_label,
+                field_name="enrichment identifier-set provenance source_label",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "identifier_count",
+            _require_non_negative_int(
+                self.identifier_count,
+                field_name="enrichment identifier-set provenance identifier_count",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "upstream_workflow_id",
+            _normalise_optional_text(
+                self.upstream_workflow_id,
+                field_name=(
+                    "enrichment identifier-set provenance upstream_workflow_id"
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "upstream_result_id",
+            _normalise_optional_text(
+                self.upstream_result_id,
+                field_name="enrichment identifier-set provenance upstream_result_id",
+            ),
         )
         object.__setattr__(
             self,
@@ -70,7 +105,7 @@ def _coerce_enrichment_identifier_set_source_type(
         return EnrichmentIdentifierSetSourceType(str(value).strip())
     except ValueError as exc:
         supported = ", ".join(item.value for item in EnrichmentIdentifierSetSourceType)
-        raise ValueError(
+        raise ContractValidationError(
             "enrichment identifier-set provenance source_type must be one of: "
             + supported
         ) from exc
@@ -92,10 +127,32 @@ def _coerce_input_intensity_scale_evidence(
                 "input_intensity_scale_source_detail"
             ),
         )
-    raise TypeError(
+    raise ContractValidationError(
         "input_intensity_scale_evidence must be InputIntensityScaleEvidence, "
         "mapping, or None"
     )
+
+
+def _require_non_empty_text(value: object, *, field_name: str) -> str:
+    if not isinstance(value, str) or value.strip() == "":
+        raise ContractValidationError(f"{field_name} must be a non-empty string")
+    return value.strip()
+
+
+def _normalise_optional_text(value: object | None, *, field_name: str) -> str | None:
+    if value is None:
+        return None
+    return _require_non_empty_text(value, field_name=field_name)
+
+
+def _require_non_negative_int(value: object, *, field_name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ContractValidationError(f"{field_name} must be an int")
+    if value < 0:
+        raise ContractValidationError(
+            f"{field_name} must be greater than or equal to 0"
+        )
+    return value
 
 
 __all__ = [

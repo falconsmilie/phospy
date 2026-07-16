@@ -35,9 +35,9 @@ from phospy.api.results import (
     SignalomeWorkflowResult,
 )
 from phospy.errors import (
+    ContractValidationError,
     SignalomeScaleError,
     WorkflowBoundaryError,
-    WorkflowValidationError,
 )
 from phospy.errors.workflows import WorkflowStageError
 from phospy.science.signalomes.clustering import (
@@ -2850,7 +2850,7 @@ def test_signalome_result_rejects_malformed_site_membership_immediately() -> Non
         prediction_matrix=prediction_matrix,
         score_matrix=score_matrix,
     )
-    with pytest.raises(WorkflowValidationError, match="missing required columns"):
+    with pytest.raises(ContractValidationError, match="missing required columns"):
         SignalomeWorkflowResult(
             dataset=dataset,
             kinase_result=kinase_result,

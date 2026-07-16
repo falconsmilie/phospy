@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal, cast
 
-from phospy.errors.validation import WorkflowValidationError
+from phospy.errors.validation import ContractValidationError
 from phospy.science.differential.models.empirical_bayes_config import (
     EmpiricalBayesConfig,
 )
@@ -67,7 +67,7 @@ class MultipleTestingConfig:
             supported = ", ".join(
                 repr(value) for value in SUPPORTED_MULTIPLE_TESTING_METHODS
             )
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 f"differential.multiple_testing.method must be one of: {supported}"
             )
         object.__setattr__(
@@ -111,7 +111,7 @@ class DifferentialAnalysisConfig:
             supported = ", ".join(
                 repr(value) for value in SUPPORTED_PAIRED_DESIGN_POLICIES
             )
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 f"differential.paired_design_policy must be one of: {supported}"
             )
         if (
@@ -121,18 +121,18 @@ class DifferentialAnalysisConfig:
             supported = ", ".join(
                 repr(value) for value in SUPPORTED_DIFFERENTIAL_IMPUTED_VALUE_POLICIES
             )
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 f"differential.imputed_value_policy must be one of: {supported}"
             )
         if isinstance(cast(object, self.imputed_value_max_fraction), bool) or not (
             isinstance(cast(object, self.imputed_value_max_fraction), int | float)
         ):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "differential.imputed_value_max_fraction must be a numeric value"
             )
         imputed_value_max_fraction = float(self.imputed_value_max_fraction)
         if not 0.0 <= imputed_value_max_fraction <= 1.0:
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "differential.imputed_value_max_fraction must be in [0.0, 1.0]"
             )
         object.__setattr__(

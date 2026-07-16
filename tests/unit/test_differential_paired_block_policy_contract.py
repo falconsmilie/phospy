@@ -15,7 +15,7 @@ from phospy.api.configs import (
     PAIRED_DESIGN_POLICY_REJECT,
     SUPPORTED_PAIRED_DESIGN_POLICIES,
 )
-from phospy.errors import WorkflowValidationError
+from phospy.errors import ContractValidationError
 
 
 def test_paired_design_policy_defaults_to_reject() -> None:
@@ -73,7 +73,7 @@ def test_condition_only_design_still_uses_narrow_sample_contract() -> None:
 
 def test_unsupported_paired_design_policy_value_is_rejected() -> None:
     with pytest.raises(
-        WorkflowValidationError,
+        ContractValidationError,
         match="differential.paired_design_policy",
     ):
         DifferentialAnalysisConfig(

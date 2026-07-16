@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import TextIO, cast
 
 from phospy.errors.input import PhosPyInputError, UnsupportedInputFormatError
-from phospy.errors.validation import WorkflowValidationError
+from phospy.errors.validation import ContractValidationError, WorkflowValidationError
 from phospy.science.enrichment.collections import (
     EnrichmentCollectionKind,
     EnrichmentIdentifierKind,
@@ -88,7 +88,7 @@ def read_enrichment_sets_gmt(
         raise PhosPyInputError(
             f"failed to read GMT enrichment set file '{normalized_path}': {exc}"
         ) from exc
-    except WorkflowValidationError as exc:
+    except (ContractValidationError, WorkflowValidationError) as exc:
         raise PhosPyInputError(
             f"invalid GMT enrichment set file '{normalized_path}': {exc}"
         ) from exc
@@ -302,7 +302,7 @@ def _read_delimited_enrichment_sets(
         raise PhosPyInputError(
             f"failed to read enrichment set table '{path}': {exc}"
         ) from exc
-    except WorkflowValidationError as exc:
+    except (ContractValidationError, WorkflowValidationError) as exc:
         raise PhosPyInputError(f"invalid enrichment set table '{path}': {exc}") from exc
 
 
@@ -454,7 +454,7 @@ def _build_collection(
             source_name=source_name,
             source_version=source_version,
         )
-    except WorkflowValidationError as exc:
+    except (ContractValidationError, WorkflowValidationError) as exc:
         raise PhosPyInputError(
             f"invalid enrichment set collection in '{path}': {exc}"
         ) from exc

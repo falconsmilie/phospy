@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from phospy.contracts.configs.common import _require_int_at_least
-from phospy.errors.validation import WorkflowValidationError
+from phospy.errors.validation import ContractValidationError
 
 KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING = "deterministic_ranking"
 KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE = "adaptive_ensemble"
@@ -62,21 +62,21 @@ class KinasePredictionConfig:
     def __post_init__(self) -> None:
         if self.mode not in KINASE_PREDICTION_MODES:
             allowed_modes = ", ".join(sorted(KINASE_PREDICTION_MODES))
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 f"prediction_config.mode must be one of: {allowed_modes}"
             )
         if (
             self.mode == KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE
             and self.random_state is None
         ):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "prediction_config.random_state must be provided when "
                 "prediction_config.mode='adaptive_ensemble' so adaptive prediction "
                 "runs are reproducible"
             )
         if self.adaptive_policy not in KINASE_ADAPTIVE_POLICIES:
             allowed_policies = ", ".join(sorted(KINASE_ADAPTIVE_POLICIES))
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 f"prediction_config.adaptive_policy must be one of: {allowed_policies}"
             )
         if self.random_state is not None:
@@ -84,31 +84,31 @@ class KinasePredictionConfig:
                 self.random_state,
                 field_name="prediction_config.random_state",
                 minimum=0,
-                error_type=WorkflowValidationError,
+                error_type=ContractValidationError,
             )
         _require_int_at_least(
             self.top_k,
             field_name="prediction_config.top_k",
             minimum=1,
-            error_type=WorkflowValidationError,
+            error_type=ContractValidationError,
         )
         _require_int_at_least(
             self.deterministic_max_selected_kinases,
             field_name="prediction_config.deterministic_max_selected_kinases",
             minimum=1,
-            error_type=WorkflowValidationError,
+            error_type=ContractValidationError,
         )
         _require_int_at_least(
             self.adaptive_ensemble_runs,
             field_name="prediction_config.adaptive_ensemble_runs",
             minimum=1,
-            error_type=WorkflowValidationError,
+            error_type=ContractValidationError,
         )
         _require_int_at_least(
             self.n_iterations,
             field_name="prediction_config.n_iterations",
             minimum=1,
-            error_type=WorkflowValidationError,
+            error_type=ContractValidationError,
         )
 
     @classmethod

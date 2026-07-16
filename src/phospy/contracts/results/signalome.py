@@ -9,7 +9,7 @@ import pandas as pd
 
 from phospy.contracts.result_caveats import ResultCaveat, validate_result_caveats
 from phospy.contracts.results.kinase import KinaseWorkflowResult
-from phospy.errors.validation import WorkflowValidationError
+from phospy.errors.validation import ContractValidationError, PhosPyValidationError
 from phospy.frames.ownership import export_optional_dataframe, own_optional_dataframe
 from phospy.provenance.models import RunProvenance
 from phospy.science.datasets.internal_view import DatasetInternalView
@@ -149,7 +149,7 @@ class SignalomeWorkflowResult:
             validate_result_caveats(
                 caveats,
                 field_name="signalome_result.caveats",
-                error_type=WorkflowValidationError,
+                error_type=ContractValidationError,
             ),
         )
         object.__setattr__(
@@ -167,7 +167,7 @@ class SignalomeWorkflowResult:
     def __post_init__(self) -> None:
         payload = self._init_payload
         if payload is None:
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "signalome_result internal initialization payload missing"
             )
         expanded_signalome, site_membership, protein_site_context, _assume_owned = (
@@ -176,19 +176,19 @@ class SignalomeWorkflowResult:
         expanded_signalome = own_optional_dataframe(
             expanded_signalome,
             field_name="signalome_result.expanded_signalome",
-            error_type=WorkflowValidationError,
+            error_type=ContractValidationError,
             assume_owned=_assume_owned,
         )
         site_membership = own_optional_dataframe(
             site_membership,
             field_name="signalome_result.site_membership",
-            error_type=WorkflowValidationError,
+            error_type=ContractValidationError,
             assume_owned=_assume_owned,
         )
         protein_site_context = own_optional_dataframe(
             protein_site_context,
             field_name="signalome_result.protein_site_context",
-            error_type=WorkflowValidationError,
+            error_type=ContractValidationError,
             assume_owned=_assume_owned,
         )
         _validate_signalome_result_site_level_identity(
@@ -198,19 +198,25 @@ class SignalomeWorkflowResult:
             site_membership=site_membership,
         )
         if site_membership is not None:
-            site_membership = SignalomeSiteContext(
-                frame=site_membership,
-                _assume_owned=True,
-            ).frame
+            try:
+                site_membership = SignalomeSiteContext(
+                    frame=site_membership,
+                    _assume_owned=True,
+                ).frame
+            except PhosPyValidationError as exc:
+                raise ContractValidationError(str(exc)) from exc
         if protein_site_context is not None:
-            protein_site_context = SignalomeProteinSiteContext(
-                frame=protein_site_context,
-                _assume_owned=True,
-            ).frame
+            try:
+                protein_site_context = SignalomeProteinSiteContext(
+                    frame=protein_site_context,
+                    _assume_owned=True,
+                ).frame
+            except PhosPyValidationError as exc:
+                raise ContractValidationError(str(exc)) from exc
         if self.provenance is not None and not isinstance(
             self.provenance, RunProvenance
         ):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "signalome_result.provenance must be RunProvenance or None"
             )
         object.__setattr__(self, "_expanded_signalome", expanded_signalome)
@@ -330,7 +336,7 @@ def _validate_expanded_signalome_identity(
     ]
     if missing:
         joined = ", ".join(missing)
-        raise WorkflowValidationError(
+        raise ContractValidationError(
             f"signalome_result.expanded_signalome is missing required columns: {joined}"
         )
     if expanded_signalome is None or expanded_signalome.empty:
@@ -362,7 +368,7 @@ def _validate_site_level_signalome_rows(
     ]
     if missing:
         joined = ", ".join(missing)
-        raise WorkflowValidationError(
+        raise ContractValidationError(
             f"{field_name} is missing required columns: {joined}"
         )
     if table.empty:
@@ -376,7 +382,7 @@ def _validate_site_level_signalome_rows(
             )
         )
         if invalid_count:
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 f"{field_name} site rows require non-empty "
                 f"{column_name} values; invalid_count={invalid_count}"
             )
@@ -384,7 +390,7 @@ def _validate_site_level_signalome_rows(
     require_site_key_series(
         site_keys,
         field_name=f"{field_name}.{SITE_KEY_COLUMN}",
-        error_type=WorkflowValidationError,
+        error_type=ContractValidationError,
     )
     display_ids = table.loc[:, DISPLAY_ID_COLUMN].astype(str)
     missing_site_keys = [
@@ -395,7 +401,7 @@ def _validate_site_level_signalome_rows(
     if missing_site_keys:
         preview = ", ".join(repr(value) for value in missing_site_keys[:5])
         suffix = "" if len(missing_site_keys) <= 5 else " ..."
-        raise WorkflowValidationError(
+        raise ContractValidationError(
             f"{field_name}.{SITE_KEY_COLUMN} values must align to "
             "signalome_result.dataset; missing_site_keys="
             f"{preview}{suffix}"
@@ -412,7 +418,7 @@ def _validate_site_level_signalome_rows(
     if mismatches:
         preview = "; ".join(mismatches[:5])
         suffix = "" if len(mismatches) <= 5 else " ..."
-        raise WorkflowValidationError(
+        raise ContractValidationError(
             f"{field_name}.{DISPLAY_ID_COLUMN} values must match "
             "signalome_result.dataset.site_metadata.display_id for each site_key; "
             f"mismatches={preview}{suffix}"
@@ -430,7 +436,7 @@ def _signalome_dataset_identity_lookup(
     ]
     if missing:
         joined = ", ".join(missing)
-        raise WorkflowValidationError(
+        raise ContractValidationError(
             "signalome_result.dataset.site_metadata is missing required columns: "
             f"{joined}"
         )
@@ -438,7 +444,7 @@ def _signalome_dataset_identity_lookup(
     require_site_key_series(
         site_keys,
         field_name=f"signalome_result.dataset.site_metadata.{SITE_KEY_COLUMN}",
-        error_type=WorkflowValidationError,
+        error_type=ContractValidationError,
     )
     display_ids = site_metadata.loc[:, DISPLAY_ID_COLUMN]
     invalid_display_id_count = int(
@@ -449,7 +455,7 @@ def _signalome_dataset_identity_lookup(
         )
     )
     if invalid_display_id_count:
-        raise WorkflowValidationError(
+        raise ContractValidationError(
             "signalome_result.dataset.site_metadata.display_id values must be "
             "non-empty strings; "
             f"invalid_count={invalid_display_id_count}"

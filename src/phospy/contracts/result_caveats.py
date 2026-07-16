@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Literal, TypeAlias, cast
 
-from phospy.errors.input import PhosPyInputError
+from phospy.errors.validation import ContractValidationError
 
 ResultCaveatSeverity: TypeAlias = Literal["info", "warning", "error"]
 
@@ -107,7 +107,7 @@ def validate_result_caveats(
     caveats: Iterable[ResultCaveat],
     *,
     field_name: str,
-    error_type: type[Exception] = PhosPyInputError,
+    error_type: type[Exception] = ContractValidationError,
 ) -> tuple[ResultCaveat, ...]:
     """Return a tuple of validated common result caveats."""
 
@@ -157,12 +157,12 @@ def _require_result_caveat_severity(value: object) -> ResultCaveatSeverity:
     if isinstance(value, str) and value in _RESULT_CAVEAT_SEVERITIES:
         return cast(ResultCaveatSeverity, value)
     allowed = ", ".join(sorted(_RESULT_CAVEAT_SEVERITIES))
-    raise PhosPyInputError(f"result_caveat.severity must be one of: {allowed}")
+    raise ContractValidationError(f"result_caveat.severity must be one of: {allowed}")
 
 
 def _require_non_empty_text(value: object, *, field_name: str) -> str:
     if not isinstance(value, str) or value.strip() == "":
-        raise PhosPyInputError(f"{field_name} must be a non-empty string")
+        raise ContractValidationError(f"{field_name} must be a non-empty string")
     return value.strip()
 
 
@@ -172,11 +172,13 @@ def _require_details_mapping(
     field_name: str,
 ) -> dict[str, object]:
     if not isinstance(value, Mapping):
-        raise PhosPyInputError(f"{field_name} must be a mapping")
+        raise ContractValidationError(f"{field_name} must be a mapping")
     details: dict[str, object] = {}
     for key, item in value.items():
         if not isinstance(key, str) or key.strip() == "":
-            raise PhosPyInputError(f"{field_name} keys must be non-empty strings")
+            raise ContractValidationError(
+                f"{field_name} keys must be non-empty strings"
+            )
         details[key] = item
     return details
 

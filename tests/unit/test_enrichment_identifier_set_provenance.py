@@ -4,6 +4,7 @@ import pandas.testing as pdt
 import pytest
 
 from phospy.api import (
+    ContractValidationError,
     EnrichmentConfig,
     EnrichmentIdentifierSetProvenance,
     EnrichmentIdentifierSetSourceType,
@@ -298,21 +299,19 @@ def test_background_provenance_without_corresponding_background_fails() -> None:
 
 
 def test_blank_source_label_fails_with_role_and_field() -> None:
-    provenance = _provenance(
-        EnrichmentIdentifierSetSourceType.MANUAL,
-        count=2,
-        label=" ",
-    )
-
     with pytest.raises(
-        WorkflowValidationError,
-        match="Selected identifier-set provenance.*source_label",
+        ContractValidationError,
+        match="enrichment identifier-set provenance source_label",
     ):
-        EnrichmentWorkflowValidator().run(_request(selected_provenance=provenance))
+        _provenance(
+            EnrichmentIdentifierSetSourceType.MANUAL,
+            count=2,
+            label=" ",
+        )
 
 
 def test_invalid_source_type_during_provenance_deserialization_fails() -> None:
-    with pytest.raises(ValueError, match="source_type must be one of"):
+    with pytest.raises(ContractValidationError, match="source_type must be one of"):
         EnrichmentIdentifierSetProvenance(
             source_type="spreadsheet_guess",  # type: ignore[arg-type]
             source_label="bad",

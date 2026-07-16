@@ -33,6 +33,24 @@ Higher-level layers may compose owners, but must not duplicate ownership logic.
 
 - Dataset validation remains private and construction-bound: there is no public
   dataset `validate()` API.
+- Public constructor validation is explicit:
+  - Passive request DTOs (`DatasetBuildRequest`, `PhosphositeImportRequest`,
+    `DifferentialAnalysisRequest`, `EnrichmentWorkflowRequest`,
+    `KinaseWorkflowRequest`, and `SignalomeWorkflowRequest`) store payloads only.
+    Request type compatibility, contextual compatibility, and scientific
+    readiness are validated by the owning builder or workflow validator.
+  - Generic public value objects in `phospy.contracts` and public
+    design/enrichment contract objects validate only local, context-free
+    scalar/container invariants during construction and raise
+    `ContractValidationError`.
+  - Dataset constructors raise dataset-boundary validation errors
+    (`DatasetValidationError`) for strict analysis-ready dataset invariants.
+  - Reference bundle/resource constructors raise reference-boundary validation
+    errors (`ReferenceValidationError`) for reference structural invariants.
+  - Dataset-build preprocessing config constructors are builder-input policy
+    value objects. They validate local preprocessing option shape and continue
+    to raise `PhosPyInputError`, while data-dependent preprocessing eligibility
+    remains in the builder validation path.
 - Users validate dataset inputs by constructing datasets through supported
   builders, or by running workflows that validate requests at their boundary.
   Direct imports or calls into `phospy.validation.datasets` are internal support

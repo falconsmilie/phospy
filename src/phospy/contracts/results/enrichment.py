@@ -13,7 +13,7 @@ from phospy.contracts.enrichment_identifier_sets import (
     EnrichmentIdentifierSetProvenance,
 )
 from phospy.contracts.result_caveats import ResultCaveat, validate_result_caveats
-from phospy.errors.validation import WorkflowValidationError
+from phospy.errors.validation import ContractValidationError
 from phospy.frames.ownership import export_dataframe, own_dataframe
 from phospy.provenance.models import RunProvenance
 from phospy.science.enrichment.models import (
@@ -66,23 +66,23 @@ class EnrichmentWorkflowResult:
             field_name="enrichment_result.set_collection",
         )
         if not isinstance(self.config, EnrichmentConfig):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "enrichment_result.config must be EnrichmentConfig"
             )
         records = tuple(self.records)
         for record in records:
             if not isinstance(record, EnrichmentResultRecord):
-                raise WorkflowValidationError(
+                raise ContractValidationError(
                     "enrichment_result.records must contain "
                     "EnrichmentResultRecord values"
                 )
             if record.identifier_kind != identifier_kind:
-                raise WorkflowValidationError(
+                raise ContractValidationError(
                     "enrichment_result.records identifier_kind values must match "
                     "enrichment_result.identifier_kind"
                 )
             if record.collection_kind != set_collection.collection_kind:
-                raise WorkflowValidationError(
+                raise ContractValidationError(
                     "enrichment_result.records collection_kind values must match "
                     "enrichment_result.set_collection"
                 )
@@ -95,22 +95,22 @@ class EnrichmentWorkflowResult:
         caveats = validate_result_caveats(
             self.caveats,
             field_name="enrichment_result.caveats",
-            error_type=WorkflowValidationError,
+            error_type=ContractValidationError,
         )
         if not isinstance(self.diagnostics, Mapping):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "enrichment_result.diagnostics must be a mapping"
             )
         if not isinstance(self.method_metadata, Mapping):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "enrichment_result.method_metadata must be a mapping"
             )
         if not isinstance(self.background_summary, Mapping):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "enrichment_result.background_summary must be a mapping"
             )
         if not isinstance(self.set_collection_summary, Mapping):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "enrichment_result.set_collection_summary must be a mapping"
             )
         selected_identifier_provenance = _validate_optional_identifier_set_provenance(
@@ -124,13 +124,13 @@ class EnrichmentWorkflowResult:
         if self.provenance is not None and not isinstance(
             self.provenance, RunProvenance
         ):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "enrichment_result.provenance must be RunProvenance or None"
             )
         result_table = own_dataframe(
             _enrichment_records_to_dataframe(records),
             field_name="enrichment_result.table",
-            error_type=WorkflowValidationError,
+            error_type=ContractValidationError,
             assume_owned=True,
         )
         object.__setattr__(self, "identifier_kind", identifier_kind)
@@ -216,7 +216,7 @@ def _enrichment_records_to_dataframe(
 
 def _validate_enrichment_warning(value: object) -> str:
     if not isinstance(value, str) or value.strip() == "":
-        raise WorkflowValidationError(
+        raise ContractValidationError(
             "enrichment_result.warnings must contain non-empty strings"
         )
     return value.strip()
@@ -229,7 +229,7 @@ def _validate_optional_identifier_set_provenance(
 ) -> EnrichmentIdentifierSetProvenance | None:
     if value is None or isinstance(value, EnrichmentIdentifierSetProvenance):
         return value
-    raise WorkflowValidationError(
+    raise ContractValidationError(
         f"{field_name} must be EnrichmentIdentifierSetProvenance or None"
     )
 

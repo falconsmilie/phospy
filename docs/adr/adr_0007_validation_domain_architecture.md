@@ -49,12 +49,18 @@ Validation ownership is explicit and enforced by module boundaries:
    support for builders, importers, preprocessing, and workflow boundaries.
    They are not promoted through `phospy.api` and are not a supported user
    validation route.
-9. Public request DTOs remain command payloads. They may enforce narrow local
-   type/shape invariants, but scientific validation belongs at builder and
-   workflow boundaries.
+9. Public request DTOs remain passive command payloads. Their constructors store
+   payloads only; request type compatibility, contextual compatibility, and
+   scientific validation belong at builder and workflow boundaries.
 10. Public contract/config scalar coercion helpers live under
     `phospy.contracts.configs` when contract construction needs them.
     `phospy.contracts` must not import `phospy.validation`.
+11. Generic public contract value objects that do validate during construction
+    enforce only context-free local invariants and raise
+    `ContractValidationError`. Dataset and reference constructors keep their
+    boundary-specific validation exceptions. Workflow validators own
+    workflow-context and scientific validation and raise workflow validation
+    errors.
 
 The ownership map in `docs/validation-ownership.md` is part of ADR governance,
 not optional commentary.
@@ -73,6 +79,10 @@ not optional commentary.
 - **Neutral**
   - Validation remains an internal architecture concern; this ADR clarifies
     governance rather than changing public API surfaces.
+  - Constructor validation timing is predictable: passive request DTO
+    construction never validates scientific compatibility, while validated
+    value-object construction reports local contract failures with non-workflow
+    exceptions.
   - Users validate data by constructing datasets with supported builders or by
     running workflows. Internal validators remain directly importable only for
     package implementation and focused tests.

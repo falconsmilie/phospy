@@ -52,7 +52,7 @@ from phospy.api.configs import (
     SignalomeScientificConfig,
     SignalomeValidationConfig,
 )
-from phospy.errors import PhosPyInputError, WorkflowValidationError
+from phospy.errors import ContractValidationError, PhosPyInputError
 
 
 @pytest.mark.parametrize(
@@ -403,7 +403,7 @@ def test_dataset_preprocessing_config_presets_return_expected_values() -> None:
 def test_kinase_scoring_config_self_validates(
     kwargs: dict[str, object], pattern: str
 ) -> None:
-    with pytest.raises(WorkflowValidationError, match=pattern):
+    with pytest.raises(ContractValidationError, match=pattern):
         KinaseScoringConfig(**kwargs)  # type: ignore[arg-type]
 
 
@@ -423,7 +423,7 @@ def test_kinase_attrition_policy_accepts_valid_thresholds() -> None:
 
 def test_kinase_attrition_policy_rejects_negative_fraction() -> None:
     with pytest.raises(
-        WorkflowValidationError,
+        ContractValidationError,
         match="attrition_policy.minimum_reference_overlap_fraction",
     ):
         KinaseAttritionPolicy(minimum_reference_overlap_fraction=-0.1)
@@ -431,7 +431,7 @@ def test_kinase_attrition_policy_rejects_negative_fraction() -> None:
 
 def test_kinase_attrition_policy_rejects_fraction_above_one() -> None:
     with pytest.raises(
-        WorkflowValidationError,
+        ContractValidationError,
         match="attrition_policy.minimum_sequence_supported_fraction",
     ):
         KinaseAttritionPolicy(minimum_sequence_supported_fraction=1.1)
@@ -440,7 +440,7 @@ def test_kinase_attrition_policy_rejects_fraction_above_one() -> None:
 @pytest.mark.parametrize("value", [float("nan"), float("inf")])
 def test_kinase_attrition_policy_rejects_nonfinite_fraction(value: float) -> None:
     with pytest.raises(
-        WorkflowValidationError,
+        ContractValidationError,
         match="attrition_policy.minimum_scored_fraction must be finite",
     ):
         KinaseAttritionPolicy(minimum_scored_fraction=value)
@@ -448,7 +448,7 @@ def test_kinase_attrition_policy_rejects_nonfinite_fraction(value: float) -> Non
 
 def test_kinase_attrition_policy_rejects_invalid_violation_mode() -> None:
     with pytest.raises(
-        WorkflowValidationError,
+        ContractValidationError,
         match="attrition_policy.on_violation must be one of",
     ):
         KinaseAttritionPolicy(on_violation="ignore")  # type: ignore[arg-type]
@@ -570,7 +570,7 @@ def test_kinase_scoring_config_presets_return_expected_values() -> None:
 def test_kinase_prediction_config_self_validates(
     kwargs: dict[str, object], pattern: str
 ) -> None:
-    with pytest.raises(WorkflowValidationError, match=pattern):
+    with pytest.raises(ContractValidationError, match=pattern):
         KinasePredictionConfig(**kwargs)  # type: ignore[arg-type]
 
 
@@ -655,7 +655,7 @@ def test_optional_positive_integer_config_fields_self_validate(
         assert getattr(config, attribute_name) == value
         return
 
-    with pytest.raises(WorkflowValidationError, match=pattern):
+    with pytest.raises(ContractValidationError, match=pattern):
         factory(**kwargs)  # type: ignore[arg-type]
 
 
@@ -678,7 +678,7 @@ def test_kinase_prediction_config_presets_return_expected_values() -> None:
 
 def test_kinase_prediction_adaptive_reproducible_rejects_invalid_seed() -> None:
     with pytest.raises(
-        WorkflowValidationError,
+        ContractValidationError,
         match="prediction_config.random_state must be greater than or equal to 0",
     ):
         KinasePredictionConfig.adaptive_reproducible(random_state=-1)
@@ -755,7 +755,7 @@ def test_kinase_prediction_config_rejects_removed_ensemble_size_alias() -> None:
 def test_kinase_activity_config_self_validates(
     kwargs: dict[str, object], pattern: str
 ) -> None:
-    with pytest.raises(WorkflowValidationError, match=pattern):
+    with pytest.raises(ContractValidationError, match=pattern):
         KinaseActivityConfig(**kwargs)  # type: ignore[arg-type]
 
 
@@ -848,7 +848,7 @@ def test_kinase_activity_config_self_validates(
 )
 def test_signalome_config_self_validates(factory: object, pattern: str) -> None:
     assert callable(factory)
-    with pytest.raises(WorkflowValidationError, match=pattern):
+    with pytest.raises(ContractValidationError, match=pattern):
         factory()
 
 
@@ -924,7 +924,7 @@ def test_probability_like_range_fields_self_validate(
         return
 
     pattern = wrong_type_pattern if expectation == "wrong-type" else invalid_pattern
-    with pytest.raises(WorkflowValidationError, match=pattern):
+    with pytest.raises(ContractValidationError, match=pattern):
         factory(value)  # type: ignore[misc]
 
 

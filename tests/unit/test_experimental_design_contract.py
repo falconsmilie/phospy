@@ -15,7 +15,7 @@ from phospy.api import (
     SampleDesignRecord,
 )
 from phospy.api.configs import PAIRED_DESIGN_POLICY_FIXED_BLOCK
-from phospy.errors import WorkflowValidationError
+from phospy.errors import ContractValidationError, WorkflowValidationError
 from phospy.validation.workflows.differential import (
     ExperimentalDesignContractValidator,
 )
@@ -171,7 +171,7 @@ def test_extra_sample_in_design_fails() -> None:
 
 
 def test_duplicate_sample_ids_rejected() -> None:
-    with pytest.raises(WorkflowValidationError, match="duplicate sample IDs"):
+    with pytest.raises(ContractValidationError, match="duplicate sample IDs"):
         ExperimentalDesign(
             samples=(
                 SampleDesignRecord(sample_id="A_1", condition="A"),
@@ -183,7 +183,7 @@ def test_duplicate_sample_ids_rejected() -> None:
 
 
 def test_empty_condition_labels_rejected() -> None:
-    with pytest.raises(WorkflowValidationError, match="condition"):
+    with pytest.raises(ContractValidationError, match="condition"):
         SampleDesignRecord(sample_id="A_1", condition="")
 
 
@@ -745,7 +745,7 @@ def test_batch_covariate_declaration_records_contract() -> None:
 
 
 def test_duplicate_covariate_names_rejected() -> None:
-    with pytest.raises(WorkflowValidationError, match="duplicate covariate names"):
+    with pytest.raises(ContractValidationError, match="duplicate covariate names"):
         ExperimentalDesign(
             samples=_design().samples,
             fixed_effects=(
@@ -756,7 +756,7 @@ def test_duplicate_covariate_names_rejected() -> None:
 
 
 def test_unsupported_covariate_kind_rejected() -> None:
-    with pytest.raises(WorkflowValidationError, match="unsupported covariate kind"):
+    with pytest.raises(ContractValidationError, match="unsupported covariate kind"):
         FixedEffectCovariate(
             name="age",
             kind="ordinal",  # type: ignore[arg-type]

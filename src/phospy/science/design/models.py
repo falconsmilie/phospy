@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Literal, cast
 
-from phospy.errors.validation import WorkflowValidationError
+from phospy.errors.validation import ContractValidationError
 
 PairedDesignPolicy = Literal["reject", "fixed_block"]
 PAIRED_DESIGN_POLICY_REJECT: PairedDesignPolicy = "reject"
@@ -42,10 +42,10 @@ _RESERVED_SAMPLE_FIELD_NAMES = {
 
 def _require_non_empty_text(value: str, *, field_name: str) -> str:
     if not isinstance(value, str):
-        raise WorkflowValidationError(f"{field_name} must be a string")
+        raise ContractValidationError(f"{field_name} must be a string")
     normalized = value.strip()
     if normalized == "":
-        raise WorkflowValidationError(f"{field_name} must be a non-empty string")
+        raise ContractValidationError(f"{field_name} must be a non-empty string")
     return normalized
 
 
@@ -53,10 +53,10 @@ def _normalize_optional_text(value: str | None, *, field_name: str) -> str | Non
     if value is None:
         return None
     if not isinstance(value, str):
-        raise WorkflowValidationError(f"{field_name} must be a string or None")
+        raise ContractValidationError(f"{field_name} must be a string or None")
     normalized = value.strip()
     if normalized == "":
-        raise WorkflowValidationError(
+        raise ContractValidationError(
             f"{field_name} must be a non-empty string when provided"
         )
     return normalized
@@ -64,7 +64,7 @@ def _normalize_optional_text(value: str | None, *, field_name: str) -> str | Non
 
 def _require_bool(value: bool, *, field_name: str) -> bool:
     if not isinstance(value, bool):
-        raise WorkflowValidationError(f"{field_name} must be a bool")
+        raise ContractValidationError(f"{field_name} must be a bool")
     return value
 
 
@@ -74,13 +74,13 @@ def _normalize_fixed_effect_kind(
     field_name: str,
 ) -> FixedEffectCovariateKind:
     if not isinstance(value, str):
-        raise WorkflowValidationError(
+        raise ContractValidationError(
             f"{field_name} has unsupported covariate kind: {value!r}"
         )
     normalized = value.strip()
     if normalized not in SUPPORTED_FIXED_EFFECT_COVARIATE_KINDS:
         supported = ", ".join(sorted(SUPPORTED_FIXED_EFFECT_COVARIATE_KINDS))
-        raise WorkflowValidationError(
+        raise ContractValidationError(
             f"{field_name} has unsupported covariate kind: {value!r}; "
             f"supported kinds: {supported}"
         )
@@ -93,19 +93,19 @@ def _normalize_covariate_value(
     field_name: str,
 ) -> str | float:
     if isinstance(value, bool) or not isinstance(value, str | int | float):
-        raise WorkflowValidationError(
+        raise ContractValidationError(
             f"{field_name} values must be strings or finite numeric values"
         )
     if isinstance(value, str):
         normalized = value.strip()
         if normalized == "":
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 f"{field_name} values must be non-empty strings"
             )
         return normalized
     numeric = float(value)
     if not math.isfinite(numeric):
-        raise WorkflowValidationError(f"{field_name} values must be finite")
+        raise ContractValidationError(f"{field_name} values must be finite")
     return numeric
 
 
@@ -117,12 +117,12 @@ def _normalize_covariate_mapping(
     if value is None:
         return MappingProxyType({})
     if not isinstance(value, Mapping):
-        raise WorkflowValidationError(f"{field_name} must be a mapping")
+        raise ContractValidationError(f"{field_name} must be a mapping")
     normalized: dict[str, str | float] = {}
     for raw_key, raw_value in value.items():
         key = _require_non_empty_text(str(raw_key), field_name=f"{field_name}.keys")
         if key in normalized:
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 f"{field_name} contains duplicate covariate name: {key}"
             )
         normalized[key] = _normalize_covariate_value(
@@ -159,14 +159,14 @@ class FixedEffectCovariate:
             normalized_kind == FIXED_EFFECT_COVARIATE_KIND_BATCH
             and normalized_name != "batch"
         ):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "experimental_design batch fixed-effect covariate must use name='batch'"
             )
         if (
             normalized_name == "batch"
             and normalized_kind != FIXED_EFFECT_COVARIATE_KIND_BATCH
         ):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "experimental_design covariate name 'batch' is reserved for "
                 "batch fixed effects"
             )
@@ -272,14 +272,14 @@ def _normalize_fixed_effects(
     values: Iterable[FixedEffectCovariate],
 ) -> tuple[FixedEffectCovariate, ...]:
     if isinstance(values, str) or not isinstance(values, Iterable):
-        raise WorkflowValidationError(
+        raise ContractValidationError(
             "experimental_design.fixed_effects must be an iterable of "
             "FixedEffectCovariate values"
         )
     normalized: list[FixedEffectCovariate] = []
     for value in values:
         if not isinstance(value, FixedEffectCovariate):
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "experimental_design.fixed_effects must contain "
                 "FixedEffectCovariate values"
             )
@@ -376,12 +376,12 @@ class ExperimentalDesign:
     def __post_init__(self) -> None:
         samples = tuple(self.samples)
         if not samples:
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "experimental_design.samples must contain at least one sample"
             )
         for record in samples:
             if not isinstance(record, SampleDesignRecord):
-                raise WorkflowValidationError(
+                raise ContractValidationError(
                     "experimental_design.samples must contain SampleDesignRecord values"
                 )
         sample_ids = [record.sample_id for record in samples]
@@ -390,7 +390,7 @@ class ExperimentalDesign:
         )
         if duplicate_sample_ids:
             joined = ", ".join(duplicate_sample_ids)
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 f"experimental_design contains duplicate sample IDs: {joined}"
             )
 
@@ -400,7 +400,7 @@ class ExperimentalDesign:
             {name for name in fixed_effect_names if fixed_effect_names.count(name) > 1}
         )
         if duplicate_fixed_effects:
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "experimental_design contains duplicate covariate names: "
                 + ", ".join(duplicate_fixed_effects)
             )
@@ -410,7 +410,7 @@ class ExperimentalDesign:
             if covariate.name in _RESERVED_SAMPLE_FIELD_NAMES
         )
         if reserved:
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "experimental_design covariate names are reserved: "
                 + ", ".join(reserved)
             )
@@ -470,7 +470,7 @@ class Contrast:
             ),
         )
         if self.numerator_condition == self.denominator_condition:
-            raise WorkflowValidationError(
+            raise ContractValidationError(
                 "contrast numerator and denominator conditions must differ"
             )
 

@@ -38,7 +38,7 @@ from phospy.api.results import (
     SignalomeWorkflowResult,
 )
 from phospy.api.workflows import EnrichmentWorkflow
-from phospy.errors import WorkflowValidationError
+from phospy.errors import ContractValidationError
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
 INTENTIONAL_REQUEST_COMPATIBILITY_CONSTANTS = {
@@ -185,10 +185,10 @@ def test_workflow_requests_keep_ingestion_outside_workflows() -> None:
 
 
 def test_workflow_configs_self_validate_local_policy_constraints() -> None:
-    with pytest.raises(WorkflowValidationError, match="scoring_config.min_substrates"):
+    with pytest.raises(ContractValidationError, match="scoring_config.min_substrates"):
         KinaseScoringConfig(min_substrates=1)
     with pytest.raises(
-        WorkflowValidationError,
+        ContractValidationError,
         match="signalome workflow request config.output.network_policy",
     ):
         SignalomeConfig(

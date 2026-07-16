@@ -20,6 +20,7 @@ from phospy.errors.transformations import (
     TransformerExecutionError,
 )
 from phospy.errors.validation import (
+    ContractValidationError,
     DatasetValidationError,
     PhosPyValidationError,
     ReferenceIdentifierNormalisationValidationError,
@@ -39,6 +40,7 @@ __all__ = [
     "DatasetBuildError",
     "DatasetProcessingStateError",
     "DatasetValidationError",
+    "ContractValidationError",
     "InvalidTransformationStateError",
     "PhosPyBuildError",
     "PhosPyError",
