@@ -14,11 +14,17 @@ import pandas as pd
 
 from phospy.errors.validation import ReferenceValidationError
 from phospy.frames.ownership import export_dataframe, own_dataframe
-from phospy.provenance.hashing import fingerprint_table, hash_json_payload
+from phospy.provenance.hashing import fingerprint_table
 from phospy.provenance.models import (
     JsonValue,
+    ReferenceContextProtocol,
     ReferenceProvenance,
     validate_reference_source_version_agreement,
+)
+from phospy.provenance.reference_context import ReferenceContext
+from phospy.science.references.identifiers import (
+    ReferenceIdentifierNormalisationReport,
+    merge_reference_identifier_normalisation_reports,
 )
 from phospy.science.references.manifest import (
     RedistributionStatus as RedistributionStatus,
@@ -30,6 +36,7 @@ from phospy.science.references.manifest import (
     ReferenceManifest,
     SequenceWindowDefinition,
 )
+from phospy.tables.references import KinaseSubstrateReference, SiteSequenceReference
 
 
 class Organism(str, Enum):
@@ -58,145 +65,17 @@ class ReferencePreset(str, Enum):
 
 
 ReferenceBuildPath = str | Path | PathLike[str]
-_REFERENCE_CONTEXT_ID_PREFIX = "reference-context-v1:"
 
 
 def _empty_json_dict() -> dict[str, JsonValue]:
     return {}
 
 
-@dataclass(frozen=True, slots=True)
-class ReferenceContext:
-    """Comparable biological reference identity context."""
-
-    organism: str
-    protein_namespace: str
-    source_name: str
-    source_version: str
-    proteome_version: str | None
-    reference_table_sha256: str | None
-    reference_context_id: str = field(init=False, compare=False)
-
-    def __post_init__(self) -> None:
-        organism = _required_reference_context_text(
-            self.organism,
-            field_name="reference_context.organism",
-        ).lower()
-        protein_namespace = _required_reference_context_text(
-            self.protein_namespace,
-            field_name="reference_context.protein_namespace",
-        )
-        source_name = _required_reference_context_text(
-            self.source_name,
-            field_name="reference_context.source_name",
-        )
-        source_version = _required_reference_context_text(
-            self.source_version,
-            field_name="reference_context.source_version",
-        )
-        proteome_version = _optional_reference_context_text(self.proteome_version)
-        reference_table_sha256 = _optional_reference_context_text(
-            self.reference_table_sha256
-        )
-        if reference_table_sha256 is not None:
-            reference_table_sha256 = reference_table_sha256.lower()
-        object.__setattr__(self, "organism", organism)
-        object.__setattr__(self, "protein_namespace", protein_namespace)
-        object.__setattr__(self, "source_name", source_name)
-        object.__setattr__(self, "source_version", source_version)
-        object.__setattr__(self, "proteome_version", proteome_version)
-        object.__setattr__(
-            self,
-            "reference_table_sha256",
-            reference_table_sha256,
-        )
-        object.__setattr__(
-            self,
-            "reference_context_id",
-            _REFERENCE_CONTEXT_ID_PREFIX + hash_json_payload(self._identity_payload()),
-        )
-
-    @classmethod
-    def from_manifest(cls, manifest: ReferenceManifest) -> ReferenceContext:
-        """Build a reference context from manifest identity metadata."""
-
-        source_version = manifest.source_version
-        if source_version is None:
-            raise ReferenceValidationError(
-                "reference_context.source_version must be non-empty"
-            )
-        return cls(
-            organism=manifest.organism_common_name or manifest.organism,
-            protein_namespace=manifest.protein_namespace,
-            source_name=manifest.source_name,
-            source_version=source_version,
-            proteome_version=None,
-            reference_table_sha256=manifest.table_sha256,
-        )
-
-    @classmethod
-    def from_manifest_payload(
-        cls,
-        payload: Mapping[str, JsonValue],
-    ) -> ReferenceContext | None:
-        """Build a reference context from serialized manifest identity metadata."""
-
-        return _reference_context_from_manifest_payload(payload)
-
-    @classmethod
-    def from_payload(cls, payload: Mapping[str, object]) -> ReferenceContext:
-        """Deserialize a reference context payload."""
-
-        return cls(
-            organism=_payload_required_text(
-                payload,
-                "organism",
-                field_name="reference_context.organism",
-            ),
-            protein_namespace=_payload_required_text(
-                payload,
-                "protein_namespace",
-                field_name="reference_context.protein_namespace",
-            ),
-            source_name=_payload_required_text(
-                payload,
-                "source_name",
-                field_name="reference_context.source_name",
-            ),
-            source_version=_payload_required_text(
-                payload,
-                "source_version",
-                field_name="reference_context.source_version",
-            ),
-            proteome_version=_payload_optional_text(payload.get("proteome_version")),
-            reference_table_sha256=_payload_optional_text(
-                payload.get("reference_table_sha256")
-            ),
-        )
-
-    def to_payload(self) -> dict[str, JsonValue]:
-        """Return a JSON-compatible reference-context payload."""
-
-        payload = self._identity_payload()
-        payload["reference_context_id"] = self.reference_context_id
-        return payload
-
-    def _identity_payload(self) -> dict[str, JsonValue]:
-        return {
-            "organism": self.organism,
-            "protein_namespace": self.protein_namespace,
-            "source_name": self.source_name,
-            "source_version": self.source_version,
-            "proteome_version": self.proteome_version,
-            "reference_table_sha256": self.reference_table_sha256,
-        }
-
-
 def reference_context_from_provenance(
     provenance: ReferenceProvenance,
     *,
     manifest: ReferenceManifest | None = None,
-) -> ReferenceContext | None:
+) -> ReferenceContextProtocol | None:
     """Resolve a reference context from provenance or richer manifest metadata."""
 
     if provenance.reference_context is not None:
@@ -260,34 +139,6 @@ def _reference_context_from_manifest_payload(
     )
 
 
-def _required_reference_context_text(value: object, *, field_name: str) -> str:
-    if value is None:
-        raise ReferenceValidationError(f"{field_name} must be non-empty")
-    text = str(value).strip()
-    if not text:
-        raise ReferenceValidationError(f"{field_name} must be non-empty")
-    return text
-
-
-def _optional_reference_context_text(value: object | None) -> str | None:
-    if value is None:
-        return None
-    text = str(value).strip()
-    return text or None
-
-
-def _payload_required_text(
-    payload: Mapping[str, object],
-    key: str,
-    *,
-    field_name: str,
-) -> str:
-    value = payload.get(key)
-    if not isinstance(value, str) or not value.strip():
-        raise ReferenceValidationError(f"{field_name} must be non-empty")
-    return value.strip()
-
-
 def _payload_optional_text(value: object) -> str | None:
     if value is None:
         return None
@@ -298,7 +149,7 @@ def _payload_optional_text(value: object) -> str | None:
 
 
 def _reference_context_source_version(
-    reference_context: ReferenceContext | None,
+    reference_context: ReferenceContextProtocol | None,
 ) -> str | None:
     if reference_context is None:
         return None
@@ -449,6 +300,505 @@ class ReferenceBundleValidationReport:
         return payload
 
 
+_KINASE_SUBSTRATE_TABLE = "kinase_substrate_map"
+_SITE_SEQUENCES_TABLE = "site_sequences"
+_KINASE_SUBSTRATE_REQUIRED_COLUMNS = ("kinase", "substrate_site")
+_SITE_SEQUENCE_REQUIRED_COLUMNS = ("site_sequence",)
+_SOURCE_FILE_ROLE_ALIASES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("kinase_substrate", ("kinase_substrate", "kinase_substrate_map", "substrate_map")),
+    ("site_sequences", ("site_sequences", "site_sequence", "site_sequence_table")),
+)
+
+
+@dataclass(frozen=True, slots=True)
+class ReferenceBundleValidationResult:
+    """Validated reference tables plus the public validation report."""
+
+    kinase_substrate_map: pd.DataFrame
+    site_sequences: pd.DataFrame
+    identifier_normalisation: ReferenceIdentifierNormalisationReport | None
+    report: ReferenceBundleValidationReport
+
+
+class ReferenceBundleValidator:
+    """Validate the stable `ReferenceBundle` contract."""
+
+    def run(
+        self,
+        *,
+        organism: Organism,
+        kinase_substrate_map: object,
+        site_sequences: object,
+        provenance: ReferenceProvenance | None = None,
+        manifest: ReferenceManifest | None = None,
+    ) -> ReferenceBundleValidationResult:
+        if not isinstance(cast(object, organism), Organism):
+            raise ReferenceValidationError(
+                "references.organism must be an Organism enum value"
+            )
+        if not isinstance(kinase_substrate_map, pd.DataFrame):
+            raise ReferenceValidationError(
+                "references.kinase_substrate_map must be a pandas DataFrame"
+            )
+        if not isinstance(site_sequences, pd.DataFrame):
+            raise ReferenceValidationError(
+                "references.site_sequences must be a pandas DataFrame"
+            )
+        if provenance is not None and not isinstance(
+            cast(object, provenance), ReferenceProvenance
+        ):
+            raise ReferenceValidationError(
+                "references.provenance must be ReferenceProvenance or None"
+            )
+        if manifest is not None and not isinstance(
+            cast(object, manifest), ReferenceManifest
+        ):
+            raise ReferenceValidationError(
+                "references.manifest must be ReferenceManifest or None"
+            )
+        kinase_substrate_reference = KinaseSubstrateReference(
+            frame=kinase_substrate_map,
+            _assume_owned=True,
+        )
+        site_sequence_reference = SiteSequenceReference(
+            frame=site_sequences,
+            _assume_owned=True,
+        )
+        substrate_sites = {
+            str(value)
+            for value in kinase_substrate_reference.frame["substrate_site"].tolist()
+        }
+        known_sites = set(site_sequence_reference.frame.index.tolist())
+        missing_sequences = sorted(substrate_sites.difference(known_sites))
+        if missing_sequences:
+            missing_sample = ", ".join(missing_sequences[:10])
+            raise ReferenceValidationError(
+                "references.site_sequences is missing sequence entries for "
+                f"substrate sites in references.kinase_substrate_map: {missing_sample}"
+            )
+        identifier_normalisation = merge_reference_identifier_normalisation_reports(
+            report
+            for report in (
+                kinase_substrate_reference.identifier_normalisation,
+                site_sequence_reference.identifier_normalisation,
+            )
+            if report is not None
+        )
+        report = _build_validation_report(
+            organism=organism,
+            kinase_substrate_map=kinase_substrate_reference.frame,
+            site_sequences=site_sequence_reference.frame,
+            provenance=provenance,
+            manifest=manifest,
+        )
+        return ReferenceBundleValidationResult(
+            kinase_substrate_map=kinase_substrate_reference.frame,
+            site_sequences=site_sequence_reference.frame,
+            identifier_normalisation=identifier_normalisation,
+            report=report,
+        )
+
+
+def _build_validation_report(
+    *,
+    organism: Organism,
+    kinase_substrate_map: pd.DataFrame,
+    site_sequences: pd.DataFrame,
+    provenance: ReferenceProvenance | None,
+    manifest: ReferenceManifest | None,
+) -> ReferenceBundleValidationReport:
+    duplicate_records = _duplicate_kinase_substrate_records(kinase_substrate_map)
+    provenance_fields = _build_provenance_fields(
+        organism=organism,
+        provenance=provenance,
+        manifest=manifest,
+    )
+    required_source_files = _build_source_file_reports(
+        source_files=_resolve_source_files(
+            provenance=provenance,
+            manifest=manifest,
+        )
+    )
+    warnings = _build_compatibility_warnings(
+        organism_common_name=_resolve_organism_common_name(manifest=manifest),
+        identifier_namespace=_resolve_identifier_namespace(
+            provenance=provenance,
+            manifest=manifest,
+        ),
+        bundle_version=_resolve_bundle_version(
+            provenance=provenance,
+            manifest=manifest,
+        ),
+        required_source_files=required_source_files,
+        manifest=manifest,
+        provenance=provenance,
+    )
+    return ReferenceBundleValidationReport(
+        bundle_name=_resolve_bundle_name(provenance=provenance, manifest=manifest),
+        bundle_version=_resolve_bundle_version(
+            provenance=provenance,
+            manifest=manifest,
+        ),
+        organism=_resolve_organism(
+            organism=organism,
+            provenance=provenance,
+            manifest=manifest,
+        ),
+        organism_common_name=_resolve_organism_common_name(manifest=manifest),
+        identifier_namespace=_resolve_identifier_namespace(
+            provenance=provenance,
+            manifest=manifest,
+        ),
+        required_tables=(
+            _table_report(
+                table_name=_KINASE_SUBSTRATE_TABLE,
+                frame=kinase_substrate_map,
+                required_columns=_KINASE_SUBSTRATE_REQUIRED_COLUMNS,
+                important_fields=_KINASE_SUBSTRATE_REQUIRED_COLUMNS,
+            ),
+            _table_report(
+                table_name=_SITE_SEQUENCES_TABLE,
+                frame=site_sequences,
+                required_columns=_SITE_SEQUENCE_REQUIRED_COLUMNS,
+                important_fields=("index", "site_sequence"),
+            ),
+        ),
+        required_source_files=required_source_files,
+        kinase_substrate_record_count=int(kinase_substrate_map.shape[0]),
+        duplicate_record_count=len(duplicate_records),
+        duplicate_records=duplicate_records,
+        provenance_fields=provenance_fields,
+        compatibility_warnings=warnings,
+    )
+
+
+def _table_report(
+    *,
+    table_name: str,
+    frame: pd.DataFrame,
+    required_columns: tuple[str, ...],
+    important_fields: tuple[str, ...],
+) -> ReferenceBundleTableValidationReport:
+    present_columns = tuple(str(column) for column in frame.columns.tolist())
+    missing_required_columns = tuple(
+        column for column in required_columns if column not in present_columns
+    )
+    return ReferenceBundleTableValidationReport(
+        table_name=table_name,
+        present=True,
+        row_count=int(frame.shape[0]),
+        required_columns=required_columns,
+        present_columns=present_columns,
+        missing_required_columns=missing_required_columns,
+        missing_values=_missing_value_counts(
+            table_name=table_name,
+            frame=frame,
+            fields=important_fields,
+        ),
+    )
+
+
+def _missing_value_counts(
+    *,
+    table_name: str,
+    frame: pd.DataFrame,
+    fields: tuple[str, ...],
+) -> tuple[ReferenceBundleMissingValueCount, ...]:
+    counts: list[ReferenceBundleMissingValueCount] = []
+    for field_name in fields:
+        if field_name == "index":
+            values = pd.Series(frame.index.tolist(), dtype="object")
+        elif field_name in frame.columns:
+            values = frame[field_name]
+        else:
+            continue
+        missing_count = int(values.isna().sum())
+        if missing_count:
+            counts.append(
+                ReferenceBundleMissingValueCount(
+                    table_name=table_name,
+                    field_name=field_name,
+                    missing_count=missing_count,
+                )
+            )
+    return tuple(counts)
+
+
+def _duplicate_kinase_substrate_records(
+    frame: pd.DataFrame,
+) -> tuple[tuple[str, str], ...]:
+    kinases = frame["kinase"].astype(str).tolist()
+    substrate_sites = frame["substrate_site"].astype(str).tolist()
+    seen: set[tuple[str, str]] = set()
+    duplicates: list[tuple[str, str]] = []
+    duplicate_set: set[tuple[str, str]] = set()
+    for kinase, substrate_site in zip(kinases, substrate_sites, strict=True):
+        pair = (str(kinase), str(substrate_site))
+        if pair in seen:
+            duplicate_set.add(pair)
+            if pair not in duplicates:
+                duplicates.append(pair)
+            continue
+        seen.add(pair)
+    if not duplicate_set:
+        return ()
+    return tuple(pair for pair in duplicates if pair in duplicate_set)
+
+
+def _build_source_file_reports(
+    *,
+    source_files: Mapping[str, JsonValue] | None,
+) -> tuple[ReferenceBundleSourceFileValidationReport, ...]:
+    reports: list[ReferenceBundleSourceFileValidationReport] = []
+    for role, aliases in _SOURCE_FILE_ROLE_ALIASES:
+        source_file = _find_source_file(source_files=source_files, aliases=aliases)
+        reports.append(
+            ReferenceBundleSourceFileValidationReport(
+                role=role,
+                present=source_file is not None,
+                path=_extract_source_file_path(source_file),
+            )
+        )
+    return tuple(reports)
+
+
+def _find_source_file(
+    *,
+    source_files: Mapping[str, JsonValue] | None,
+    aliases: tuple[str, ...],
+) -> JsonValue | None:
+    if source_files is None:
+        return None
+    for alias in aliases:
+        value = source_files.get(alias)
+        if value is not None:
+            return value
+    return None
+
+
+def _extract_source_file_path(value: JsonValue | None) -> str | None:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, Mapping):
+        path = value.get("path")
+        if isinstance(path, str) and path.strip():
+            return path.strip()
+    return None
+
+
+def _resolve_source_files(
+    *,
+    provenance: ReferenceProvenance | None,
+    manifest: ReferenceManifest | None,
+) -> Mapping[str, JsonValue] | None:
+    if manifest is not None:
+        return manifest.source_files
+    if provenance is None or provenance.manifest is None:
+        return None
+    raw_source_files = provenance.manifest.get("source_files")
+    if isinstance(raw_source_files, Mapping):
+        return {
+            str(key): cast(JsonValue, value) for key, value in raw_source_files.items()
+        }
+    return None
+
+
+def _build_provenance_fields(
+    *,
+    organism: Organism,
+    provenance: ReferenceProvenance | None,
+    manifest: ReferenceManifest | None,
+) -> dict[str, JsonValue]:
+    fields: dict[str, JsonValue] = {
+        "source_type": provenance.source_type if provenance is not None else "explicit",
+        "organism": _resolve_organism(
+            organism=organism,
+            provenance=provenance,
+            manifest=manifest,
+        ),
+    }
+    for key, value in (
+        ("bundle_id", _resolve_bundle_name(provenance=provenance, manifest=manifest)),
+        (
+            "source_name",
+            _resolve_source_name(provenance=provenance, manifest=manifest),
+        ),
+        (
+            "source_version",
+            _resolve_source_version(provenance=provenance, manifest=manifest),
+        ),
+        (
+            "retrieved_at",
+            _resolve_retrieved_at(provenance=provenance, manifest=manifest),
+        ),
+        (
+            "identifier_namespace",
+            _resolve_identifier_namespace(
+                provenance=provenance,
+                manifest=manifest,
+            ),
+        ),
+    ):
+        if value is not None:
+            fields[key] = value
+    reference_context = (
+        None if provenance is None else provenance.reference_context
+    ) or (
+        reference_context_from_manifest_if_complete(manifest)
+        if manifest is not None
+        else None
+    )
+    if reference_context is not None:
+        fields["reference_context_id"] = reference_context.reference_context_id
+    if manifest is not None:
+        fields["license"] = manifest.license
+        fields["redistribution_status"] = manifest.redistribution_status.value
+        fields["supports"] = manifest.supports
+        fields["limitations"] = manifest.limitations
+        if manifest.source_url is not None:
+            fields["source_url"] = manifest.source_url
+        if manifest.license_url is not None:
+            fields["license_url"] = manifest.license_url
+        fields["retrieval_method"] = manifest.retrieval_method
+        fields["redistribution_basis"] = manifest.redistribution_basis
+    fields["source_files_available"] = (
+        _resolve_source_files(
+            provenance=provenance,
+            manifest=manifest,
+        )
+        is not None
+    )
+    return fields
+
+
+def _build_compatibility_warnings(
+    *,
+    organism_common_name: str | None,
+    identifier_namespace: str | None,
+    bundle_version: str | None,
+    required_source_files: tuple[ReferenceBundleSourceFileValidationReport, ...],
+    manifest: ReferenceManifest | None,
+    provenance: ReferenceProvenance | None,
+) -> tuple[str, ...]:
+    warnings: list[str] = []
+    if manifest is None and (provenance is None or provenance.manifest is None):
+        warnings.append(
+            "reference manifest metadata is not available; provenance review is limited"
+        )
+    if organism_common_name is None:
+        warnings.append(
+            "reference organism metadata is limited to ReferenceBundle.organism"
+        )
+    if identifier_namespace is None:
+        warnings.append("reference identifier namespace metadata is not available")
+    if bundle_version is None:
+        warnings.append("reference bundle version metadata is not available")
+    missing_source_roles = tuple(
+        item.role for item in required_source_files if not item.present
+    )
+    if missing_source_roles:
+        roles = ", ".join(missing_source_roles)
+        warnings.append(
+            "reference source-file metadata is incomplete for required role(s): "
+            f"{roles}"
+        )
+    return tuple(dict.fromkeys(warnings))
+
+
+def _resolve_bundle_name(
+    *,
+    provenance: ReferenceProvenance | None,
+    manifest: ReferenceManifest | None,
+) -> str | None:
+    if manifest is not None:
+        return manifest.bundle_id
+    if provenance is not None:
+        return provenance.bundle_id
+    return None
+
+
+def _resolve_bundle_version(
+    *,
+    provenance: ReferenceProvenance | None,
+    manifest: ReferenceManifest | None,
+) -> str | None:
+    if manifest is not None:
+        return manifest.reference_version
+    if provenance is not None:
+        return provenance.source_version
+    return None
+
+
+def _resolve_source_version(
+    *,
+    provenance: ReferenceProvenance | None,
+    manifest: ReferenceManifest | None,
+) -> str | None:
+    if manifest is not None:
+        return manifest.source_version
+    if provenance is not None:
+        return provenance.source_version
+    return None
+
+
+def _resolve_organism(
+    *,
+    organism: Organism,
+    provenance: ReferenceProvenance | None,
+    manifest: ReferenceManifest | None,
+) -> str:
+    if manifest is not None:
+        return manifest.organism
+    if provenance is not None:
+        return provenance.organism
+    return organism.value
+
+
+def _resolve_organism_common_name(
+    *,
+    manifest: ReferenceManifest | None,
+) -> str | None:
+    if manifest is None:
+        return None
+    return manifest.organism_common_name
+
+
+def _resolve_identifier_namespace(
+    *,
+    provenance: ReferenceProvenance | None,
+    manifest: ReferenceManifest | None,
+) -> str | None:
+    if manifest is not None:
+        return manifest.identifier_namespace
+    if provenance is not None:
+        return provenance.identifier_namespace
+    return None
+
+
+def _resolve_source_name(
+    *,
+    provenance: ReferenceProvenance | None,
+    manifest: ReferenceManifest | None,
+) -> str | None:
+    if manifest is not None:
+        return manifest.source_name
+    if provenance is not None:
+        return provenance.source_name
+    return None
+
+
+def _resolve_retrieved_at(
+    *,
+    provenance: ReferenceProvenance | None,
+    manifest: ReferenceManifest | None,
+) -> str | None:
+    if manifest is not None:
+        return manifest.retrieved_at.isoformat()
+    if provenance is not None:
+        return provenance.retrieved_at
+    return None
+
+
 @dataclass(frozen=True, slots=True)
 class BundledReferenceLane:
     """Inventory metadata for one packaged bundled reference lane."""
@@ -535,8 +885,6 @@ class ReferenceBundle:
                     ),
                 )
             )
-        from phospy.validation.references.bundle import ReferenceBundleValidator
-
         validation = ReferenceBundleValidator().run(
             organism=self.organism,
             kinase_substrate_map=kinase_substrate_map,

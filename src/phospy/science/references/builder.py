@@ -6,11 +6,11 @@ import re
 from collections.abc import Callable
 from hashlib import sha256
 from pathlib import Path
+from typing import Protocol
 
 import pandas as pd
 
 from phospy.errors.references import ReferenceResolutionError
-from phospy.io.bundles.reference_sources import ReferenceSourceTableReader
 from phospy.provenance.hashing import fingerprint_table
 from phospy.provenance.models import ReferenceProvenance
 from phospy.provenance.references import fingerprint_local_reference_source_file
@@ -100,19 +100,25 @@ _ORGANISM_TOKENS = {
 }
 
 
+class ReferenceSourceTableReader(Protocol):
+    """Reader protocol for local reference source tables."""
+
+    def run(self, path: Path, *, field_name: str) -> pd.DataFrame: ...
+
+
 class ReferenceBundleBuilder:
     """Build a validated ``ReferenceBundle`` from local kinase and sequence files."""
 
     def __init__(
         self,
         *,
+        source_reader: ReferenceSourceTableReader,
         request_validator: ReferenceBundleBuildRequestValidator | None = None,
-        source_reader: ReferenceSourceTableReader | None = None,
     ) -> None:
         self._request_validator = (
             request_validator or ReferenceBundleBuildRequestValidator()
         )
-        self._source_reader = source_reader or ReferenceSourceTableReader()
+        self._source_reader = source_reader
 
     def run(self, request: ReferenceBundleBuildRequest) -> ReferenceBundle:
         """Read local source files and return a normal validated reference bundle."""
@@ -626,4 +632,4 @@ def _reference_file_format(path: ReferenceBuildPath) -> str:
     return suffix or "table"
 
 
-__all__ = ["ReferenceBundleBuilder"]
+__all__ = ["ReferenceBundleBuilder", "ReferenceSourceTableReader"]

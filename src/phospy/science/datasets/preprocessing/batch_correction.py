@@ -9,7 +9,7 @@ from typing import Literal, TypeAlias
 import numpy as np
 import pandas as pd
 
-from phospy.contracts.configs import (
+from phospy.contracts.configs.preprocessing.batch_correction import (
     DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
     DatasetBatchCorrectionConfig,
 )

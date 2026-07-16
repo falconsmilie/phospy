@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 from phospy.errors.validation import ReferenceValidationError
+from phospy.io.bundles.reference_sources import ReferenceSourceTableReader
 from phospy.science.references import (
     KinaseLibraryResidueClass,
     KinaseLibraryResourceLoader,
@@ -17,7 +18,9 @@ def test_kinase_library_loader_loads_ser_thr_matrix(tmp_path: Path) -> None:
         tmp_path, kinase="AKT1", residue_class="ser_thr"
     )
 
-    resource = KinaseLibraryResourceLoader().run(path)
+    resource = KinaseLibraryResourceLoader(
+        source_reader=ReferenceSourceTableReader()
+    ).run(path)
 
     assert resource.source_version == "synthetic-kl-v1"
     assert resource.score_scale == "raw_log2_enrichment"
@@ -41,7 +44,9 @@ def test_kinase_library_loader_loads_tyr_matrix(tmp_path: Path) -> None:
         amino_acids=("A", "Y"),
     )
 
-    resource = KinaseLibraryResourceLoader().run(path)
+    resource = KinaseLibraryResourceLoader(
+        source_reader=ReferenceSourceTableReader()
+    ).run(path)
 
     matrix = resource.matrix_for("ABL1", "tyr")
     assert matrix.residue_class is KinaseLibraryResidueClass.TYR
@@ -56,7 +61,9 @@ def test_kinase_library_loader_rejects_invalid_residue_class(
     path = _write_kinase_library_fixture(tmp_path, residue_class="ser_tyr")
 
     with pytest.raises(ReferenceValidationError, match="residue_class"):
-        KinaseLibraryResourceLoader().run(path)
+        KinaseLibraryResourceLoader(source_reader=ReferenceSourceTableReader()).run(
+            path
+        )
 
 
 def test_kinase_library_loader_rejects_missing_positions(
@@ -65,7 +72,9 @@ def test_kinase_library_loader_rejects_missing_positions(
     path = _write_kinase_library_fixture(tmp_path, positions=(-1, 1))
 
     with pytest.raises(ReferenceValidationError, match="missing required positions"):
-        KinaseLibraryResourceLoader().run(path)
+        KinaseLibraryResourceLoader(source_reader=ReferenceSourceTableReader()).run(
+            path
+        )
 
 
 def test_kinase_library_loader_rejects_bad_numeric_scores(
@@ -74,13 +83,17 @@ def test_kinase_library_loader_rejects_bad_numeric_scores(
     path = _write_kinase_library_fixture(tmp_path, bad_score=True)
 
     with pytest.raises(ReferenceValidationError, match="score values must be numeric"):
-        KinaseLibraryResourceLoader().run(path)
+        KinaseLibraryResourceLoader(source_reader=ReferenceSourceTableReader()).run(
+            path
+        )
 
 
 def test_kinase_library_loader_preserves_provenance(tmp_path: Path) -> None:
     path = _write_kinase_library_fixture(tmp_path)
 
-    resource = KinaseLibraryResourceLoader().run(path)
+    resource = KinaseLibraryResourceLoader(
+        source_reader=ReferenceSourceTableReader()
+    ).run(path)
 
     provenance = resource.provenance
     assert provenance.source_type == "local"

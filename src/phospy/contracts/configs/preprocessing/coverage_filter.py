@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from phospy.validation.configs.preprocessing import (
+from phospy.contracts.configs.preprocessing._validation import (
     validate_group_coverage_filter_config,
 )
 

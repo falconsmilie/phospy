@@ -9,6 +9,7 @@ import warnings
 from dataclasses import dataclass, field
 from typing import Literal, cast
 
+from phospy.contracts.configs._validation import coerce_policy_enum
 from phospy.contracts.configs.common import _require_int_at_least, _require_real_between
 from phospy.contracts.configs.localisation import LocalisationRequirement
 from phospy.contracts.configs.reference_context import (
@@ -18,7 +19,6 @@ from phospy.contracts.configs.reference_context import (
 from phospy.errors.validation import WorkflowValidationError
 from phospy.policies import PolicyEnum
 from phospy.science.scoring.policy_models import ProfileSelfInclusionPolicy
-from phospy.validation.common.config_values import coerce_policy_enum
 
 KINASE_SCORING_MIN_SUBSTRATES_FLOOR = 2
 KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED = "phosr_rank_weighted"

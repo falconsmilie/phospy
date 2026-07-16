@@ -5,7 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from phospy.validation.configs.preprocessing import validate_normalisation_config
+from phospy.contracts.configs.preprocessing._validation import (
+    validate_normalisation_config,
+)
 
 DATASET_NORMALISATION_POLICY_NONE = "none"
 DATASET_NORMALISATION_POLICY_MEDIAN_CENTER = "median_center"

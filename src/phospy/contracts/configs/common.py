@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from phospy.validation.common.numbers import (
+from phospy.contracts.configs._validation import (
     require_int_at_least as _require_int_at_least,
 )
-from phospy.validation.common.numbers import (
+from phospy.contracts.configs._validation import (
     require_real_between as _require_real_between,
 )
 

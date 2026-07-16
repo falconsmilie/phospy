@@ -2,14 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from phospy.errors.base import PhosPyError
-
-if TYPE_CHECKING:
-    from phospy.science.references.identifiers import (
-        ReferenceIdentifierNormalisationReport,
-    )
 
 
 class PhosPyValidationError(PhosPyError):
@@ -28,12 +21,12 @@ class ReferenceIdentifierNormalisationValidationError(ReferenceValidationError):
     """Reference validation error carrying identifier-normalisation provenance."""
 
     message: str
-    identifier_normalisation_report: ReferenceIdentifierNormalisationReport
+    identifier_normalisation_report: object
 
     def __init__(
         self,
         message: str,
-        identifier_normalisation_report: ReferenceIdentifierNormalisationReport,
+        identifier_normalisation_report: object,
     ) -> None:
         super().__init__(message)
         self.message = message

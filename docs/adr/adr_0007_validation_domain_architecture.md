@@ -37,17 +37,24 @@ Validation ownership is explicit and enforced by module boundaries:
 4. Dataset construction owns dataset invariants. Validation-domain adapters may
    delegate through model construction, but do not duplicate model-boundary
    invariant logic.
-5. Workflow validators do not execute scoring/prediction/clustering science and
+5. Reference/resource model construction owns narrow structural invariants for
+   the value object being constructed. Validation modules may re-export or
+   compose those model-boundary validators, but the value object must not import
+   `phospy.validation` to validate itself.
+6. Workflow validators do not execute scoring/prediction/clustering science and
    do not perform data-transformation side effects.
-6. Public presets/config objects are still required to pass the same validator
+7. Public presets/config objects are still required to pass the same validator
    boundaries as manually constructed configs.
-7. Dataset validation modules under `phospy.validation.datasets` are internal
+8. Dataset validation modules under `phospy.validation.datasets` are internal
    support for builders, importers, preprocessing, and workflow boundaries.
    They are not promoted through `phospy.api` and are not a supported user
    validation route.
-8. Public request DTOs remain command payloads. They may enforce narrow local
+9. Public request DTOs remain command payloads. They may enforce narrow local
    type/shape invariants, but scientific validation belongs at builder and
    workflow boundaries.
+10. Public contract/config scalar coercion helpers live under
+    `phospy.contracts.configs` when contract construction needs them.
+    `phospy.contracts` must not import `phospy.validation`.
 
 The ownership map in `docs/validation-ownership.md` is part of ADR governance,
 not optional commentary.
@@ -94,12 +101,18 @@ not optional commentary.
 - Intensity-scale establishment and dataset coherence owners:
   `src/phospy/validation/transformations/state.py` and
   `src/phospy/science/datasets/models.py`.
+- Reference bundle and Kinase Library resource construction invariants:
+  `src/phospy/science/references/models.py` and
+  `src/phospy/science/references/kinase_library.py`; validation-package routes
+  re-export these validators for internal compatibility.
 - Workflow-boundary owners include
   `src/phospy/workflows/kinase/validator.py` and
   `src/phospy/workflows/signalome/validator.py`.
 - Public API boundary checks live in
   `tests/unit/api/test_validation_not_public_api.py` and
   `tests/architecture/test_validation_boundaries.py`.
+- Package dependency checks live in
+  `tests/architecture/test_package_dependency_dag.py`.
 
 ## References
 

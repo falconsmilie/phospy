@@ -7,6 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
+from phospy.contracts.configs._validation import coerce_policy_enum
 from phospy.contracts.configs.common import _require_int_at_least, _require_real_between
 from phospy.contracts.configs.localisation import LocalisationRequirement
 from phospy.contracts.configs.reference_context import (
@@ -14,7 +15,6 @@ from phospy.contracts.configs.reference_context import (
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.errors.validation import WorkflowValidationError
-from phospy.validation.common.config_values import coerce_policy_enum
 
 SIGNALOME_MODULE_COUNT_FLOOR = 1
 SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT = 0.5

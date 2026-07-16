@@ -14,10 +14,12 @@ from typing import TypeAlias
 
 import pandas as pd
 
+from phospy.contracts.configs._validation import (
+    require_non_empty_string,
+    require_optional_int_at_least,
+)
 from phospy.errors.input import PhosPyInputError
 from phospy.policies import PolicyEnum
-from phospy.validation.common.config_values import require_non_empty_string
-from phospy.validation.common.numbers import require_optional_int_at_least
 
 JsonScalar: TypeAlias = str | int | float | bool | None
 

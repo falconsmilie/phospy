@@ -30,6 +30,9 @@ from phospy.science.datasets.preprocessing.provenance_adapter import (
 from phospy.science.datasets.preprocessing.report_rows import (
     compose_stage_owned_report_tables,
 )
+from phospy.science.datasets.preprocessing.stages import (
+    SpsRuvStyleBatchCorrectionRunner,
+)
 from phospy.science.datasets.preprocessing.state_builder import (
     DatasetProcessingStateBuilder,
 )
@@ -51,10 +54,13 @@ class DatasetPreprocessor:
         self,
         *,
         pipeline: PreprocessingPipeline | None = None,
+        batch_correction_runner: SpsRuvStyleBatchCorrectionRunner | None = None,
         provenance_adapter: PreprocessingProvenanceAdapter | None = None,
         correction_integrator: CorrectedPreprocessingOutputIntegrator | None = None,
     ) -> None:
-        self._pipeline = pipeline or PreprocessingPipeline()
+        self._pipeline = pipeline or PreprocessingPipeline(
+            batch_correction_runner=batch_correction_runner
+        )
         self._provenance_adapter = (
             provenance_adapter or PreprocessingProvenanceAdapter()
         )

@@ -6,7 +6,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from numbers import Integral
-from typing import TYPE_CHECKING, TypeAlias
+from typing import Protocol, TypeAlias
 
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.validation import ReferenceValidationError
@@ -16,13 +16,10 @@ from phospy.provenance.immutability import (
     freeze_optional_json_mapping,
     thaw_json_mapping,
 )
+from phospy.provenance.reference_identifiers import (
+    ReferenceIdentifierNormalisationReport,
+)
 from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
-
-if TYPE_CHECKING:
-    from phospy.science.references.identifiers import (
-        ReferenceIdentifierNormalisationReport,
-    )
-    from phospy.science.references.models import ReferenceContext
 
 PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V1 = 1
 PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V2 = 2
@@ -67,6 +64,33 @@ JsonValue: TypeAlias = (
     | list["JsonValue"]
     | dict[str, "JsonValue"]
 )
+
+
+class ReferenceContextProtocol(Protocol):
+    """Structural protocol for reference-context provenance values."""
+
+    @property
+    def organism(self) -> str: ...
+
+    @property
+    def protein_namespace(self) -> str: ...
+
+    @property
+    def source_name(self) -> str: ...
+
+    @property
+    def source_version(self) -> str: ...
+
+    @property
+    def proteome_version(self) -> str | None: ...
+
+    @property
+    def reference_table_sha256(self) -> str | None: ...
+
+    @property
+    def reference_context_id(self) -> str: ...
+
+    def to_payload(self) -> Mapping[str, JsonValue]: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -914,7 +938,7 @@ class ReferenceProvenance:
     sequence_window: Mapping[str, JsonValue] | None = None
     manifest: Mapping[str, JsonValue] | None = None
     identifier_normalisation: ReferenceIdentifierNormalisationReport | None = None
-    reference_context: ReferenceContext | None = None
+    reference_context: ReferenceContextProtocol | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -1032,7 +1056,7 @@ class RunProvenance:
     random_seed_policy: str | None
     output_tables: tuple[TableFingerprint, ...]
     scientific_policies: tuple[ScientificPolicyRecord, ...] = ()
-    reference_context: ReferenceContext | None = None
+    reference_context: ReferenceContextProtocol | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.environment, EnvironmentProvenance):
@@ -1292,6 +1316,7 @@ __all__ = [
     "PREPROCESSING_STAGE_DETERMINISM_SEEDED_STOCHASTIC",
     "PreprocessingStageProvenance",
     "ReferenceProvenance",
+    "ReferenceContextProtocol",
     "ReproducibilityCaveat",
     "RowAttritionRecord",
     "RowAttritionReport",

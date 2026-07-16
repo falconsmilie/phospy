@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from phospy.validation.configs.preprocessing import (
+from phospy.contracts.configs.preprocessing._validation import (
     validate_intensity_transform_config,
 )
 

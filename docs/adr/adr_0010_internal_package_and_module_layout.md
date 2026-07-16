@@ -38,6 +38,7 @@ Without governance:
 1. Keep internal modules aligned to responsibility, not file length.
 2. Preserve workflow public contracts while allowing internal movement.
 3. Prevent compatibility modules from becoming new logic owners.
+4. Keep the package dependency graph acyclic and enforceable in CI.
 
 ## Decision
 
@@ -90,6 +91,27 @@ Without governance:
 7. `phospy.data` owns packaged static resources only.
 8. Public contract ownership stays under `phospy.api`.
 
+### Enforceable Package Dependency DAG
+
+Package imports must remain acyclic. The architecture tests parse all AST import
+statements, including local imports and `TYPE_CHECKING` imports, so cycles cannot
+be hidden by deferring imports.
+
+The enforced package rules are:
+
+1. `phospy.errors` is a leaf. It must not import any other `phospy` package.
+2. `phospy.contracts` must not import `phospy.validation` or
+   `phospy.workflows`.
+3. `phospy.science` must not import `phospy.io` or `phospy.workflows`.
+4. Concrete local readers, reference source loaders, and nested workflow runners
+   are injected by API/workflow orchestration adapters.
+5. Compatibility modules may re-export moved names, but they must not reintroduce
+   reverse imports or own new behavior.
+
+The CI graph check lives in
+`tests/architecture/test_package_dependency_dag.py`. New exemptions require an
+ADR update and a named test change; unexplained exemptions are not allowed.
+
 ### Acceptable Compatibility Shim Examples
 
 - bundle-format compatibility adapters where the compatibility concern is
@@ -129,6 +151,11 @@ Without governance:
 - `src/phospy/workflows/signalome/provenance.py`
 - `src/phospy/io/bundles/_signalome/{config,diagnostics,tables}.py`
 - `src/phospy/validation/references/compatibility.py`
+- `src/phospy/science/references/models.py`
+- `src/phospy/science/references/kinase_library.py`
+- `src/phospy/io/readers/dataset_inputs.py`
+- `src/phospy/workflows/batch_correction/preprocessing_adapter.py`
+- `tests/architecture/test_package_dependency_dag.py`
 
 ## Scope Boundaries
 
@@ -146,6 +173,9 @@ Future changes must satisfy all of the following:
 4. Is any new behavior added only in owning modules?
 5. Is any shim exposed publicly without explicit `phospy.api` export? If yes,
    reject.
+6. Does the AST package dependency graph remain acyclic?
+7. Does `science` avoid concrete I/O and workflow imports by using injected
+   protocols?
 
 ## References
 

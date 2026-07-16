@@ -11,12 +11,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Protocol
+from typing import Protocol
 
+from phospy.contracts import dataset_build as _dataset_build
 from phospy.contracts.configs import (
     KINASE_REFERENCE_DISPLAY_AMBIGUITY_POLICY_ERROR,
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_PREFER_REFERENCE,
-    DatasetPreprocessingConfig,
     DifferentialAnalysisConfig,
     EnrichmentConfig,
     KinaseActivityConfig,
@@ -26,11 +26,12 @@ from phospy.contracts.configs import (
     KinaseSiteSequenceConflictPolicy,
     SignalomeConfig,
 )
+from phospy.contracts.dataset_build import DatasetBuildRequest, DatasetInput
 from phospy.contracts.enrichment_identifier_sets import (
     EnrichmentIdentifierSetProvenance,
     EnrichmentIdentifierSetSourceType,
 )
-from phospy.science.datasets.builders.contracts import DatasetInput
+from phospy.contracts.results.kinase import KinaseWorkflowResult
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.design.contrast_helpers import (
     all_pairwise_contrasts,
@@ -57,30 +58,22 @@ from phospy.science.enrichment.models import (
     GeneSetCollection,
     PtmSetCollection,
 )
-from phospy.science.evidence import dataset_resolution as _dataset_resolution
 from phospy.science.references.kinase_library import KinaseLibraryResource
-from phospy.science.references.models import Organism, ReferenceBundle, ReferencePreset
-from phospy.science.transformations.models import (
-    IntensityScaleKind,
-    QuantitativeMeaning,
-)
-
-if TYPE_CHECKING:
-    from phospy.contracts.results import KinaseWorkflowResult, PhosphositeImportResult
+from phospy.science.references.models import ReferenceBundle, ReferencePreset
 
 DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING = (
-    _dataset_resolution.DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING
+    _dataset_build.DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING
 )
 DATASET_MULTI_SITE_POLICY_KEEP_JOINT = (
-    _dataset_resolution.DATASET_MULTI_SITE_POLICY_KEEP_JOINT
+    _dataset_build.DATASET_MULTI_SITE_POLICY_KEEP_JOINT
 )
-DATASET_MULTI_SITE_POLICY_REJECT = _dataset_resolution.DATASET_MULTI_SITE_POLICY_REJECT
-DATASET_MULTI_SITE_POLICY_SPLIT = _dataset_resolution.DATASET_MULTI_SITE_POLICY_SPLIT
+DATASET_MULTI_SITE_POLICY_REJECT = _dataset_build.DATASET_MULTI_SITE_POLICY_REJECT
+DATASET_MULTI_SITE_POLICY_SPLIT = _dataset_build.DATASET_MULTI_SITE_POLICY_SPLIT
 DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE = (
-    _dataset_resolution.DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE
+    _dataset_build.DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE
 )
 DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED = (
-    _dataset_resolution.DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED
+    _dataset_build.DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED
 )
 
 
@@ -128,49 +121,7 @@ class PhosphositeImportRequest:
 class PhosphositeImporter(Protocol):
     """Protocol for upstream phosphosite importers."""
 
-    def run(self, request: PhosphositeImportRequest) -> PhosphositeImportResult: ...
-
-
-@dataclass(frozen=True, slots=True)
-class DatasetBuildRequest:
-    """Request for building an ``AnalysisReadyPhosphoDataset``.
-
-    Construction stores the payload only. Dataset input shape, source types,
-    preprocessing compatibility, site-resolution mode, and scientific
-    readiness are validated by ``AnalysisReadyDatasetBuilder.run(...)`` before
-    interpretation or execution.
-
-    Supported public inputs are pandas ``DataFrame`` values or file paths.
-    ``site_resolution_mode`` selects one of two explicit lanes:
-
-    - ``site_level_resolved``: provide ``phospho`` + ``site_metadata``.
-    - ``peptide_evidence``: provide ``peptide_evidence`` plus
-      ``peptide_evidence_sample_intensity_columns`` and ``multi_site_policy``.
-
-    Preprocessing policy remains builder owned via ``preprocessing_config`` and
-    must still converge on a strict, missing-value-free
-    ``AnalysisReadyPhosphoDataset`` boundary. Opaque non-STY site tokens remain
-    disallowed by default and require explicit ``allow_opaque_site_values=True``.
-    """
-
-    phospho: DatasetInput | None = None
-    site_metadata: DatasetInput | None = None
-    sample_metadata: DatasetInput | None = None
-    total: DatasetInput | None = None
-    site_resolution_mode: str = DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED
-    peptide_evidence: DatasetInput | None = None
-    peptide_evidence_sample_intensity_columns: tuple[str, ...] | None = None
-    peptide_site_mapping: DatasetInput | None = None
-    multi_site_policy: str | None = None
-    allow_opaque_site_values: bool = False
-    organism: Organism | None = None
-    preprocessing_config: DatasetPreprocessingConfig = field(
-        default_factory=DatasetPreprocessingConfig
-    )
-    input_intensity_scale: IntensityScaleKind | str | None = None
-    allow_suspicious_declared_input_intensity_scale: bool = False
-    quantitative_meaning: QuantitativeMeaning | str | None = None
-    corrected_preprocessing_output: object | None = None
+    def run(self, request: PhosphositeImportRequest) -> object: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -270,6 +221,7 @@ __all__ = [
     "CategoricalCovariate",
     "DesignMatrix",
     "DatasetBuildRequest",
+    "DatasetInput",
     "PhosphositeImporter",
     "PhosphositeImportRequest",
     "SampleDesignRecord",

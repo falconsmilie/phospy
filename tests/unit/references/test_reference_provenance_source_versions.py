@@ -9,6 +9,7 @@ import pytest
 
 from phospy.errors.references import ReferenceResolutionError
 from phospy.errors.validation import ReferenceValidationError
+from phospy.io.bundles.reference_sources import ReferenceSourceTableReader
 from phospy.provenance.models import (
     EnvironmentProvenance,
     ReferenceProvenance,
@@ -106,7 +107,7 @@ def test_stock_builder_preserves_distinct_explicit_reference_and_source_versions
 ) -> None:
     kinase_path, sequence_path = _write_reference_sources(tmp_path)
 
-    bundle = ReferenceBundleBuilder().run(
+    bundle = ReferenceBundleBuilder(source_reader=ReferenceSourceTableReader()).run(
         _build_request(
             kinase_path,
             sequence_path,
@@ -133,7 +134,7 @@ def test_stock_builder_generates_deterministic_content_reference_version_when_om
 ) -> None:
     kinase_path, sequence_path = _write_reference_sources(tmp_path)
 
-    first = ReferenceBundleBuilder().run(
+    first = ReferenceBundleBuilder(source_reader=ReferenceSourceTableReader()).run(
         ReferenceBundleBuildRequest(
             organism=Organism.RAT,
             kinase_substrate_path=kinase_path,
@@ -147,7 +148,7 @@ def test_stock_builder_generates_deterministic_content_reference_version_when_om
             bundle_id="unit_local_snapshot",
         )
     )
-    second = ReferenceBundleBuilder().run(
+    second = ReferenceBundleBuilder(source_reader=ReferenceSourceTableReader()).run(
         ReferenceBundleBuildRequest(
             organism=Organism.RAT,
             kinase_substrate_path=kinase_path,
@@ -175,7 +176,7 @@ def test_generated_reference_version_changes_when_kinase_source_bytes_change(
     tmp_path: Path,
 ) -> None:
     kinase_path, sequence_path = _write_reference_sources(tmp_path)
-    first = ReferenceBundleBuilder().run(
+    first = ReferenceBundleBuilder(source_reader=ReferenceSourceTableReader()).run(
         _build_request(kinase_path, sequence_path, reference_version=None)
     )
 
@@ -187,7 +188,7 @@ def test_generated_reference_version_changes_when_kinase_source_bytes_change(
         }
     ).to_csv(kinase_path, index=False)
 
-    second = ReferenceBundleBuilder().run(
+    second = ReferenceBundleBuilder(source_reader=ReferenceSourceTableReader()).run(
         _build_request(kinase_path, sequence_path, reference_version=None)
     )
 
@@ -204,7 +205,7 @@ def test_generated_reference_version_changes_when_sequence_source_bytes_change(
     tmp_path: Path,
 ) -> None:
     kinase_path, sequence_path = _write_reference_sources(tmp_path)
-    first = ReferenceBundleBuilder().run(
+    first = ReferenceBundleBuilder(source_reader=ReferenceSourceTableReader()).run(
         _build_request(kinase_path, sequence_path, reference_version=None)
     )
 
@@ -217,7 +218,7 @@ def test_generated_reference_version_changes_when_sequence_source_bytes_change(
         }
     ).to_csv(sequence_path, index=False)
 
-    second = ReferenceBundleBuilder().run(
+    second = ReferenceBundleBuilder(source_reader=ReferenceSourceTableReader()).run(
         _build_request(kinase_path, sequence_path, reference_version=None)
     )
 
@@ -235,7 +236,7 @@ def test_builder_provenance_and_context_use_upstream_source_version(
 ) -> None:
     kinase_path, sequence_path = _write_reference_sources(tmp_path)
 
-    bundle = ReferenceBundleBuilder().run(
+    bundle = ReferenceBundleBuilder(source_reader=ReferenceSourceTableReader()).run(
         _build_request(
             kinase_path,
             sequence_path,
@@ -261,7 +262,7 @@ def test_builder_serialization_preserves_local_and_upstream_versions(
     tmp_path: Path,
 ) -> None:
     kinase_path, sequence_path = _write_reference_sources(tmp_path)
-    bundle = ReferenceBundleBuilder().run(
+    bundle = ReferenceBundleBuilder(source_reader=ReferenceSourceTableReader()).run(
         _build_request(
             kinase_path,
             sequence_path,
@@ -288,7 +289,7 @@ def test_existing_request_without_reference_version_remains_valid(
 ) -> None:
     kinase_path, sequence_path = _write_reference_sources(tmp_path)
 
-    bundle = ReferenceBundleBuilder().run(
+    bundle = ReferenceBundleBuilder(source_reader=ReferenceSourceTableReader()).run(
         ReferenceBundleBuildRequest(
             organism=Organism.RAT,
             kinase_substrate_path=kinase_path,
@@ -342,7 +343,9 @@ def test_existing_optional_positional_arguments_are_not_reinterpreted(
     assert request.limitations == ("legacy positional limitation",)
     assert request.reference_version is None
 
-    bundle = ReferenceBundleBuilder().run(request)
+    bundle = ReferenceBundleBuilder(source_reader=ReferenceSourceTableReader()).run(
+        request
+    )
 
     assert bundle.manifest is not None
     assert bundle.manifest.bundle_id == "positional_bundle"
@@ -354,7 +357,7 @@ def test_blank_reference_version_fails_build_request_validation(
     kinase_path, sequence_path = _write_reference_sources(tmp_path)
 
     with pytest.raises(ReferenceResolutionError, match="reference_version"):
-        ReferenceBundleBuilder().run(
+        ReferenceBundleBuilder(source_reader=ReferenceSourceTableReader()).run(
             _build_request(
                 kinase_path,
                 sequence_path,

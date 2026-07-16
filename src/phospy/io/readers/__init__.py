@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from phospy.io.readers.dataset_inputs import DatasetPathTableReader
 from phospy.io.readers.enrichment_sets import (
     load_enrichment_sets_csv,
     load_enrichment_sets_gmt,
@@ -45,6 +46,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "ColumnMappedPhosphositeImporter",
+    "DatasetPathTableReader",
     "FragPipeColumnMapping",
     "FragPipePTMProphetImporter",
     "FragPipePTMProphetImportRequest",

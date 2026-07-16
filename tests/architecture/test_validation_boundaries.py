@@ -54,11 +54,14 @@ from tests.support.site_keys import protein_site_key_index, site_key_context_col
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = PROJECT_ROOT / "src"
 API_ROOT = SRC_ROOT / "phospy" / "api"
+CONTRACTS_ROOT = SRC_ROOT / "phospy" / "contracts"
 DOCS_ROOT = PROJECT_ROOT / "docs"
 WORKFLOWS_ROOT = SRC_ROOT / "phospy" / "workflows"
 DATASET_VALIDATION_ROOT = SRC_ROOT / "phospy" / "validation" / "datasets"
-REQUEST_CONTRACTS_PATH = SRC_ROOT / "phospy" / "contracts" / "requests.py"
+REQUEST_CONTRACTS_PATH = CONTRACTS_ROOT / "requests.py"
+DATASET_BUILD_CONTRACTS_PATH = CONTRACTS_ROOT / "dataset_build.py"
 API_REQUESTS_PATH = API_ROOT / "requests.py"
+REQUEST_DTO_CONTRACT_PATHS = (REQUEST_CONTRACTS_PATH, DATASET_BUILD_CONTRACTS_PATH)
 DATASET_VALIDATION_PREFIX = "phospy.validation.datasets"
 VALIDATION_PREFIX = "phospy.validation"
 PRIVATE_IMPLEMENTATION_CLASS_SUFFIXES = ("Validator", "Interpreter", "Executor")
@@ -486,7 +489,7 @@ def test_reference_context_policy_is_not_exported_from_private_validation_api() 
 def test_request_dto_modules_do_not_import_validation_domains() -> None:
     offenders = sorted(
         f"{path.relative_to(PROJECT_ROOT)} imports {module}"
-        for path in (REQUEST_CONTRACTS_PATH, API_REQUESTS_PATH)
+        for path in (*REQUEST_DTO_CONTRACT_PATHS, API_REQUESTS_PATH)
         for module in _imported_modules(path)
         if module == VALIDATION_PREFIX or module.startswith(f"{VALIDATION_PREFIX}.")
     )
@@ -497,7 +500,7 @@ def test_request_dto_modules_do_not_import_validation_domains() -> None:
 def test_request_dto_modules_do_not_call_dataset_or_workflow_validators() -> None:
     offenders = sorted(
         f"{path.relative_to(PROJECT_ROOT)} calls {call_name}"
-        for path in (REQUEST_CONTRACTS_PATH, API_REQUESTS_PATH)
+        for path in (*REQUEST_DTO_CONTRACT_PATHS, API_REQUESTS_PATH)
         for call_name in _called_function_names(path)
         if call_name.endswith("Validator")
         or call_name.startswith(("enforce_", "validate_"))
@@ -552,11 +555,13 @@ def test_kinase_scoring_mode_input_contract_remains_internal() -> None:
 
 
 def test_workflow_request_dtos_do_not_own_domain_validation() -> None:
-    tree = ast.parse(
-        REQUEST_CONTRACTS_PATH.read_text(encoding="utf-8"),
-        filename=str(REQUEST_CONTRACTS_PATH),
-    )
-    request_classes = _request_dto_classes(tree)
+    request_classes = [
+        class_node
+        for path in REQUEST_DTO_CONTRACT_PATHS
+        for class_node in _request_dto_classes(
+            ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        )
+    ]
     discovered_request_names = {node.name for node in request_classes}
     offenders = [
         reason
@@ -570,7 +575,9 @@ def test_workflow_request_dtos_do_not_own_domain_validation() -> None:
 
 
 def test_dataset_request_dtos_do_not_call_private_dataset_validators() -> None:
-    request_source = REQUEST_CONTRACTS_PATH.read_text(encoding="utf-8")
+    request_source = "\n".join(
+        path.read_text(encoding="utf-8") for path in REQUEST_DTO_CONTRACT_PATHS
+    )
 
     assert DATASET_VALIDATION_PREFIX not in request_source
     for symbol_name in DATASET_VALIDATOR_EXPORT_NAMES:

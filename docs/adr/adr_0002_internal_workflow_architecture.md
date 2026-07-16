@@ -230,11 +230,26 @@ Good candidates for injected interfaces include:
 - workflow interpreter
 - workflow executor
 - reference provider
+- local table/path reader
+- reference source reader
+- nested workflow runner used by orchestration
 - dataset builder or preprocessing builder
 - kinase activity analyser
 - output publisher
 
 These are real seams where alternative implementations are plausible and useful.
+
+### Orchestration-Owned Concrete Adapters
+
+Scientific packages must express external collaborators as protocols or narrow
+constructor-injected contracts. They must not instantiate concrete I/O readers or
+other workflows directly.
+
+The public API and workflow orchestration layers are responsible for wiring
+default adapters. Examples include local dataset table readers, local reference
+source readers, Kinase Library resource readers, and the SPS/RUV-style batch
+correction workflow runner used by dataset preprocessing. This keeps scientific
+models and stages testable without importing `phospy.io` or `phospy.workflows`.
 
 ### Interfaces That Are Discouraged
 

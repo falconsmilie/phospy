@@ -9,11 +9,11 @@ from phospy.errors import WorkflowStageError, WorkflowValidationError
 from phospy.science.prediction import sampling_core
 from phospy.science.prediction.execution import run_adaptive_ensemble_prediction
 from phospy.science.prediction.policies import (
-    PredictionSamplingRandomSource,
     resolve_prediction_sampling_policy,
 )
 from phospy.science.prediction.sampling_core import run_adaptive_sampling_ensemble
 from phospy.science.prediction.sampling_runtime import (
+    PredictionSamplingRandomSource,
     transform_resampling_probabilities,
 )
 

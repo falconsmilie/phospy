@@ -8,10 +8,10 @@ import pandas as pd
 
 from phospy.science.prediction.candidates import build_candidate_substrate_list
 from phospy.science.prediction.policies import (
-    PredictionSamplingRandomSource,
     resolve_prediction_sampling_policy,
 )
 from phospy.science.prediction.sampling_runtime import (
+    PredictionSamplingRandomSource,
     normalize_probabilities,
     transform_resampling_probabilities,
 )

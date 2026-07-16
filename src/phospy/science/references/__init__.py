@@ -11,6 +11,7 @@ __all__ = [
     "KinaseLibraryResource",
     "KinaseLibraryResourceLoadRequest",
     "KinaseLibraryResourceLoader",
+    "KinaseLibraryResourceValidator",
     "Organism",
     "ReferenceBundle",
     "ReferenceBundleBuildRequest",
@@ -37,6 +38,7 @@ if TYPE_CHECKING:
         KinaseLibraryResource,
         KinaseLibraryResourceLoader,
         KinaseLibraryResourceLoadRequest,
+        KinaseLibraryResourceValidator,
         load_kinase_library_resource,
     )
     from phospy.science.references.models import (
@@ -69,6 +71,7 @@ def __getattr__(name: str) -> object:
         "KinaseLibraryResource",
         "KinaseLibraryResourceLoadRequest",
         "KinaseLibraryResourceLoader",
+        "KinaseLibraryResourceValidator",
         "load_kinase_library_resource",
     }:
         from phospy.science.references import kinase_library as _kinase_library

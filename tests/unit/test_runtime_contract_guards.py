@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pandas as pd
 import pytest
 
@@ -36,6 +38,16 @@ class _BrokenSourceValidator:
         return 123
 
 
+class _DatasetPathReader:
+    def run(self, path: Path, *, field_name: str) -> pd.DataFrame:
+        return pd.DataFrame(
+            {
+                "path": [str(path)],
+                "field_name": [field_name],
+            }
+        )
+
+
 def _dataset() -> AnalysisReadyPhosphoDataset:
     display_id = "MAPK14;Y182;"
     index = site_key_index_from_display_ids([display_id])
@@ -67,6 +79,26 @@ def test_dataset_input_reader_rejects_validator_contract_breach() -> None:
         match="source validator produced unsupported value type int",
     ):
         reader.run(pd.DataFrame({"sample_a": [1.0]}), field_name="phospho")
+
+
+def test_dataset_input_reader_requires_injected_path_reader_for_paths() -> None:
+    reader = DatasetInputReader()
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="path inputs require an injected DatasetPathTableReader",
+    ):
+        reader.run("phospho.csv", field_name="phospho")
+
+
+def test_dataset_input_reader_delegates_path_sources_to_injected_reader() -> None:
+    reader = DatasetInputReader(path_reader=_DatasetPathReader())
+
+    resolved = reader.run("phospho.csv", field_name="phospho")
+
+    assert resolved.to_dict(orient="records") == [
+        {"path": "phospho.csv", "field_name": "phospho"}
+    ]
 
 
 def test_reference_resolver_rejects_non_reference_input_types() -> None:

@@ -6,7 +6,7 @@ import hashlib
 
 import numpy as np
 
-from phospy.contracts.configs import KinaseAdaptivePolicy
+from phospy.contracts.configs.prediction import KinaseAdaptivePolicy
 from phospy.science.prediction.policies import (
     PredictionSamplingPolicy,
     resolve_prediction_sampling_policy,
@@ -15,6 +15,37 @@ from phospy.science.prediction.policies import (
 _PREDICTION_STREAM_SEED_HIGH_EXCLUSIVE = (2**31) - 1
 _PREDICTION_STREAM_SEED_DIGEST_SIZE_BYTES = 16
 _DEFAULT_RESAMPLING_WEIGHT_EXPONENT = 0.8
+
+
+class PredictionSamplingRandomSource:
+    """Resolve per-kinase RNG streams from the selected sampling policy."""
+
+    def __init__(
+        self,
+        *,
+        policy: PredictionSamplingPolicy,
+        random_state: int,
+    ) -> None:
+        self.policy = policy
+        self.random_state = random_state
+        self._global_rng: np.random.Generator | None = None
+        if self.policy.seed_strategy == "global_parity":
+            self._global_rng = np.random.default_rng(random_state)
+
+    def generators_for_kinase(
+        self,
+        *,
+        kinase: str,
+    ) -> tuple[np.random.Generator, np.random.Generator]:
+        if self.policy.seed_strategy == "stable_by_kinase":
+            return make_kinase_prediction_random_generators(
+                random_state=self.random_state,
+                kinase=kinase,
+            )
+
+        if self._global_rng is None:
+            self._global_rng = np.random.default_rng(self.random_state)
+        return make_prediction_random_generators(self._global_rng)
 
 
 def make_prediction_random_generators(
@@ -102,6 +133,7 @@ def transform_resampling_probabilities(
 
 
 __all__ = [
+    "PredictionSamplingRandomSource",
     "make_kinase_prediction_random_generators",
     "make_prediction_random_generators",
     "normalize_probabilities",

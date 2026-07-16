@@ -4,21 +4,32 @@ from __future__ import annotations
 
 from os import PathLike
 from pathlib import Path
+from typing import Protocol
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError, UnsupportedInputFormatError
+from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.builders.contracts import DatasetInput
 from phospy.validation.datasets.inputs import DatasetInputSourceValidator
+
+
+class DatasetPathTableReader(Protocol):
+    """Reader protocol for dataset builder local table paths."""
+
+    def run(self, path: Path, *, field_name: str) -> pd.DataFrame: ...
 
 
 class DatasetInputReader:
     """Resolve one supported builder input source into a DataFrame."""
 
     def __init__(
-        self, *, source_validator: DatasetInputSourceValidator | None = None
+        self,
+        *,
+        source_validator: DatasetInputSourceValidator | None = None,
+        path_reader: DatasetPathTableReader | None = None,
     ) -> None:
         self._source_validator = source_validator or DatasetInputSourceValidator()
+        self._path_reader = path_reader
 
     def run(self, source: DatasetInput, *, field_name: str) -> pd.DataFrame:
         validated_source = self._source_validator.run(source, field_name=field_name)
@@ -32,35 +43,16 @@ class DatasetInputReader:
             )
         return self._read_from_path(validated_source, field_name=field_name)
 
-    @staticmethod
     def _read_from_path(
-        source: str | Path | PathLike, *, field_name: str
+        self,
+        source: str | Path | PathLike,
+        *,
+        field_name: str,
     ) -> pd.DataFrame:
-        from phospy.io.readers.tables import (
-            read_phospho_matrix,
-            read_sample_metadata,
-            read_site_metadata,
-            read_table,
-            read_total_matrix,
-            supported_table_input_formats,
-        )
-
-        path = Path(source.strip()) if isinstance(source, str) else Path(source)
-        reader_by_field = {
-            "phospho": read_phospho_matrix,
-            "site_metadata": read_site_metadata,
-            "sample_metadata": read_sample_metadata,
-            "total": read_total_matrix,
-        }
-        read_from_path = reader_by_field.get(field_name, read_table)
-        try:
-            return read_from_path(path)
-        except UnsupportedInputFormatError as exc:
-            raise UnsupportedInputFormatError(
-                f"dataset build request {field_name} has unsupported file format at "
-                f"'{path}'. supported formats: {supported_table_input_formats()}"
-            ) from exc
-        except PhosPyInputError as exc:
+        if self._path_reader is None:
             raise PhosPyInputError(
-                f"failed to read dataset build request {field_name} from '{path}': {exc}"
-            ) from exc
+                "dataset build request path inputs require an injected "
+                "DatasetPathTableReader"
+            )
+        path = Path(source.strip()) if isinstance(source, str) else Path(source)
+        return self._path_reader.run(path, field_name=field_name)

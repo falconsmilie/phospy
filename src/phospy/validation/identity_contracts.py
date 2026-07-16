@@ -12,7 +12,8 @@ import numpy as np
 import pandas as pd
 
 from phospy.errors.validation import PhosPyValidationError
-from phospy.science.references.models import Organism, ReferenceContext
+from phospy.provenance.models import ReferenceContextProtocol
+from phospy.science.references.models import Organism
 from phospy.science.sites.identifiers import (
     ParsedSiteToken,
     canonicalize_site_components,
@@ -206,8 +207,8 @@ RESULT_TABLE_IDENTITY_CONTRACT = PhosphositeIdentityContract(
 
 
 def validate_reference_context_compatibility(
-    left: ReferenceContext | None,
-    right: ReferenceContext | None,
+    left: ReferenceContextProtocol | None,
+    right: ReferenceContextProtocol | None,
     *,
     operation: str,
     allow_unknown: bool = False,
@@ -1152,8 +1153,8 @@ def _required_operation_text(value: object) -> str:
 
 def _missing_reference_context_sides(
     *,
-    left: ReferenceContext | None,
-    right: ReferenceContext | None,
+    left: ReferenceContextProtocol | None,
+    right: ReferenceContextProtocol | None,
 ) -> tuple[str, ...]:
     missing: list[str] = []
     if left is None:
@@ -1163,14 +1164,14 @@ def _missing_reference_context_sides(
     return tuple(missing)
 
 
-def _reference_context_id(context: ReferenceContext | None) -> str | None:
+def _reference_context_id(context: ReferenceContextProtocol | None) -> str | None:
     return None if context is None else context.reference_context_id
 
 
 def _reference_context_mismatch_message(
     *,
-    left: ReferenceContext,
-    right: ReferenceContext,
+    left: ReferenceContextProtocol,
+    right: ReferenceContextProtocol,
     operation: str,
 ) -> str:
     mismatched_fields = [
@@ -1188,7 +1189,7 @@ def _reference_context_mismatch_message(
     )
 
 
-def _reference_context_summary(context: ReferenceContext) -> str:
+def _reference_context_summary(context: ReferenceContextProtocol) -> str:
     parts = [
         f"reference_context_id={context.reference_context_id!r}",
         f"organism={context.organism!r}",

@@ -32,7 +32,7 @@ from phospy.contracts.configs.preprocessing import (
     DatasetTotalProteinCorrectionConfig,
     SpsRuvBatchCorrectionConfig,
 )
-from phospy.validation.configs.preprocessing import (
+from phospy.contracts.configs.preprocessing._validation import (
     validate_preprocessing_section_type,
 )
 

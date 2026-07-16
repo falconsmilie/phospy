@@ -10,10 +10,10 @@ import pandas as pd
 from phospy.contracts.configs import KinasePredictionConfig
 from phospy.errors.workflows import WorkflowStageError
 from phospy.science.prediction.policies import (
-    PredictionSamplingRandomSource,
     resolve_prediction_sampling_policy,
 )
 from phospy.science.prediction.sampling_core import run_adaptive_sampling_ensemble
+from phospy.science.prediction.sampling_runtime import PredictionSamplingRandomSource
 
 
 def run_adaptive_ensemble_prediction(

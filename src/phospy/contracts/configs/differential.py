@@ -6,7 +6,9 @@ from dataclasses import dataclass, field
 from typing import Literal, cast
 
 from phospy.errors.validation import WorkflowValidationError
-from phospy.science.differential.models import EmpiricalBayesConfig
+from phospy.science.differential.models.empirical_bayes_config import (
+    EmpiricalBayesConfig,
+)
 from phospy.science.differential.policy_models import TechnicalReplicatePolicy
 from phospy.science.statistics.multiple_testing import (
     MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,

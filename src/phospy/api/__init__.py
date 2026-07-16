@@ -128,6 +128,10 @@ from phospy.errors import (
     WorkflowBoundaryError,
     WorkflowValidationError,
 )
+from phospy.io.bundles.kinase_library import (
+    KinaseLibraryResourceLoader,
+    load_kinase_library_resource,
+)
 from phospy.science.datasets.preprocessing.control_sites import (
     ControlSiteAnnotation,
     ControlSiteSet,
@@ -137,9 +141,7 @@ from phospy.science.datasets.preprocessing.control_sites import (
 from phospy.science.differential.policy_models import TechnicalReplicatePolicy
 from phospy.science.references.kinase_library import (
     KinaseLibraryResource,
-    KinaseLibraryResourceLoader,
     KinaseLibraryResourceLoadRequest,
-    load_kinase_library_resource,
 )
 from phospy.science.references.models import (
     ReferenceBundle,

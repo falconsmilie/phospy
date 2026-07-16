@@ -5,7 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from phospy.validation.configs.preprocessing import validate_site_matrix_config
+from phospy.contracts.configs.preprocessing._validation import (
+    validate_site_matrix_config,
+)
 
 DATASET_SITE_MATRIX_POLICY_AS_INPUT = "as_input"
 DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA = "build_from_metadata"

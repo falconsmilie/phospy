@@ -5,10 +5,15 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal, TypeAlias
+from typing import Literal, TypeAlias
 
 import pandas as pd
 
+from phospy.contracts.dataset_build import (
+    DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+    DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
+    DatasetBuildRequest,
+)
 from phospy.errors.input import PhosPyInputError
 from phospy.frames.ownership import (
     export_dataframe,
@@ -16,10 +21,6 @@ from phospy.frames.ownership import (
     own_dataframe,
     own_optional_dataframe,
 )
-
-if TYPE_CHECKING:
-    from phospy.contracts.requests import DatasetBuildRequest
-
 
 ImporterQualityStatus: TypeAlias = Literal[
     "reported",
@@ -687,12 +688,6 @@ class PhosphositeImportResult:
         preprocessing, site identity derivation, and peptide-evidence
         resolution.
         """
-
-        from phospy.contracts.requests import DatasetBuildRequest
-        from phospy.science.evidence.dataset_resolution import (
-            DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
-            DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
-        )
 
         common_kwargs = {
             "sample_metadata": sample_metadata,

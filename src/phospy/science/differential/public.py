@@ -3,10 +3,18 @@
 from __future__ import annotations
 
 import warnings
+from typing import Protocol
 
 from phospy.contracts.requests import DifferentialAnalysisRequest
 from phospy.science.differential.models import DifferentialAnalysisResult
-from phospy.workflows.differential.public import DifferentialAnalysisWorkflow
+
+
+class DifferentialAnalysisWorkflowContract(Protocol):
+    """Workflow collaborator required by the deprecated science shell."""
+
+    def run(self, request: DifferentialAnalysisRequest) -> DifferentialAnalysisResult:
+        """Execute differential analysis for a validated request."""
+        ...
 
 
 class DifferentialAnalysis:
@@ -15,7 +23,7 @@ class DifferentialAnalysis:
     def __init__(
         self,
         *,
-        workflow: DifferentialAnalysisWorkflow | None = None,
+        workflow: DifferentialAnalysisWorkflowContract,
     ) -> None:
         warnings.warn(
             (
@@ -26,7 +34,7 @@ class DifferentialAnalysis:
             DeprecationWarning,
             stacklevel=2,
         )
-        self._workflow = workflow or DifferentialAnalysisWorkflow()
+        self._workflow = workflow
 
     def run(self, request: DifferentialAnalysisRequest) -> DifferentialAnalysisResult:
         return self._workflow.run(request)

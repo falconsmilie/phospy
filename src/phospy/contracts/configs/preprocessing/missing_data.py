@@ -5,7 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from phospy.validation.configs.preprocessing import validate_missing_data_config
+from phospy.contracts.configs.preprocessing._validation import (
+    validate_missing_data_config,
+)
 
 DATASET_MISSING_DATA_POLICY_FORBID = "forbid"
 DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN = "impute_row_median"

@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from phospy.api import AnalysisReadyDatasetBuilder
 from phospy.api.requests import DatasetBuildRequest
 from phospy.errors import PhosPyInputError
 from phospy.io.readers.tables import (
@@ -14,7 +15,6 @@ from phospy.io.readers.tables import (
     read_sample_metadata,
     read_site_metadata,
 )
-from phospy.science.datasets.builders.public import AnalysisReadyDatasetBuilder
 from phospy.science.references.models import Organism
 from tests.support.site_keys import protein_site_key
 

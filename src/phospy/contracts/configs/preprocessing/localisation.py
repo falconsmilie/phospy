@@ -5,7 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from phospy.validation.configs.preprocessing import validate_localisation_config
+from phospy.contracts.configs.preprocessing._validation import (
+    validate_localisation_config,
+)
 
 DATASET_LOCALISATION_MODE_REQUIRE_THRESHOLD = "require_threshold"
 DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER = "allow_missing_with_waiver"

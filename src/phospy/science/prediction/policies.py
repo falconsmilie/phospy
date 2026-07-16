@@ -7,9 +7,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Literal
 
-import numpy as np
-
-from phospy.contracts.configs import (
+from phospy.contracts.configs.prediction import (
     KINASE_ADAPTIVE_POLICY_R_PARITY,
     KINASE_ADAPTIVE_POLICY_STABLE,
     KinaseAdaptivePolicy,
@@ -182,53 +180,12 @@ def resolve_prediction_sampling_policy(
     return DEFAULT_PREDICTION_SAMPLING_POLICY
 
 
-class PredictionSamplingRandomSource:
-    """Resolve per-kinase RNG streams from the selected sampling policy."""
-
-    def __init__(
-        self,
-        *,
-        policy: PredictionSamplingPolicy,
-        random_state: int,
-    ) -> None:
-        self.policy = policy
-        self.random_state = random_state
-        self._global_rng: np.random.Generator | None = None
-        if self.policy.seed_strategy == "global_parity":
-            self._global_rng = np.random.default_rng(random_state)
-
-    def generators_for_kinase(
-        self,
-        *,
-        kinase: str,
-    ) -> tuple[np.random.Generator, np.random.Generator]:
-        if self.policy.seed_strategy == "stable_by_kinase":
-            from phospy.science.prediction.sampling_runtime import (
-                make_kinase_prediction_random_generators,
-            )
-
-            return make_kinase_prediction_random_generators(
-                random_state=self.random_state,
-                kinase=kinase,
-            )
-
-        if self._global_rng is None:
-            self._global_rng = np.random.default_rng(self.random_state)
-
-        from phospy.science.prediction.sampling_runtime import (
-            make_prediction_random_generators,
-        )
-
-        return make_prediction_random_generators(self._global_rng)
-
-
 __all__ = [
     "DEFAULT_PREDICTION_SAMPLING_POLICY",
     "KinaseLibraryMotifScoringPolicy",
     "PredictionFinalScoreMode",
     "PredictionResamplingWeightMode",
     "PredictionSamplingPolicy",
-    "PredictionSamplingRandomSource",
     "PredictionSamplingSeedStrategy",
     "R_PARITY_PREDICTION_SAMPLING_POLICY",
     "resolve_prediction_sampling_policy",

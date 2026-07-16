@@ -38,6 +38,9 @@ from phospy.science.datasets.preprocessing.stage_registry import (
     build_registered_preprocessing_stage_instances,
     resolve_registered_preprocessing_stages,
 )
+from phospy.science.datasets.preprocessing.stages import (
+    SpsRuvStyleBatchCorrectionRunner,
+)
 from phospy.science.transformations.models import (
     IntensityTransformationEvent,
     MatrixIntensityScaleState,
@@ -73,6 +76,7 @@ class PreprocessingPipeline:
         stage_registry: tuple[PreprocessingStage, ...] | None = None,
         stage_contract_registry: tuple[PreprocessingStageMetadata, ...] | None = None,
         stage_metadata_registry: tuple[PreprocessingStageMetadata, ...] | None = None,
+        batch_correction_runner: SpsRuvStyleBatchCorrectionRunner | None = None,
     ) -> None:
         contract_overrides = (
             stage_metadata_registry
@@ -83,7 +87,8 @@ class PreprocessingPipeline:
             contract_overrides
         )
         stages = stage_registry or build_registered_preprocessing_stage_instances(
-            resolved_metadata_registry
+            resolved_metadata_registry,
+            batch_correction_runner=batch_correction_runner,
         )
         self._stages_by_key = {stage.stage_key: stage for stage in stages}
         if len(self._stages_by_key) != len(stages):

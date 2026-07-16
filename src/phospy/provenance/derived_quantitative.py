@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.environment import collect_environment_provenance
@@ -20,6 +20,7 @@ from phospy.provenance.immutability import (
 from phospy.provenance.models import (
     EnvironmentProvenance,
     JsonValue,
+    ReferenceContextProtocol,
     RunProvenance,
     TableFingerprint,
 )
@@ -27,9 +28,6 @@ from phospy.provenance.serialization import (
     table_fingerprint_from_payload,
     table_fingerprint_to_payload,
 )
-
-if TYPE_CHECKING:
-    from phospy.science.references.models import ReferenceContext
 
 DERIVED_QUANTITATIVE_DATA_PROVENANCE_SCHEMA_VERSION_V1 = 1
 DERIVED_QUANTITATIVE_DATA_FINGERPRINT_ALGORITHM = DEFAULT_STABLE_JSON_HASH_ALGORITHM
@@ -492,7 +490,7 @@ def build_derived_quantitative_run_provenance(
     *,
     lineage: DerivedQuantitativeDataProvenance,
     environment: EnvironmentProvenance | None = None,
-    reference_context: ReferenceContext | None = None,
+    reference_context: ReferenceContextProtocol | None = None,
 ) -> RunProvenance:
     """Build truthful run provenance for a derived quantitative dataset."""
 

@@ -12,12 +12,12 @@ from phospy.contracts.configs.localisation import LocalisationRequirement
 from phospy.contracts.requests import SignalomeWorkflowRequest
 from phospy.contracts.results import KinaseWorkflowResult
 from phospy.errors.validation import WorkflowValidationError
+from phospy.provenance.models import ReferenceContextProtocol
 from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.prediction.internal_view import (
     KinasePredictionInternalView,
     KinaseScoringInternalView,
 )
-from phospy.science.references.models import ReferenceContext
 from phospy.science.scoring.policy_models import DownstreamScoreSource
 from phospy.validation.common.dataframes import (
     require_dataframe,
@@ -365,7 +365,7 @@ def _require_reference_context_compatibility(
 
 def _reference_bundle_context(
     kinase_result: KinaseWorkflowResult,
-) -> ReferenceContext | None:
+) -> ReferenceContextProtocol | None:
     provenance = kinase_result.references.provenance
     if provenance is None:
         return None

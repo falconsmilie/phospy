@@ -10,10 +10,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from phospy.policies import PolicyEnum
-from phospy.validation.configs.preprocessing import (
+from phospy.contracts.configs.preprocessing._validation import (
     validate_internal_batch_correction_request,
 )
+from phospy.policies import PolicyEnum
 
 
 class InternalBatchCorrectionMethod(PolicyEnum):

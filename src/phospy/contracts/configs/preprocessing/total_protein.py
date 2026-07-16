@@ -7,7 +7,7 @@ from typing import Literal
 
 import pandas as pd
 
-from phospy.validation.configs.preprocessing import (
+from phospy.contracts.configs.preprocessing._validation import (
     validate_protein_aware_preparation_config,
     validate_total_protein_correction_config,
     validate_total_protein_correction_identity_config,

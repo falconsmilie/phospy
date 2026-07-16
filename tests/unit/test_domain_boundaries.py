@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 
 import phospy.io as phospy_io
+from phospy.api import AnalysisReadyDatasetBuilder
 from phospy.api.configs import (
     DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
@@ -26,7 +27,6 @@ from phospy.errors import (
     UnsupportedInputFormatError,
     UnsupportedOrganismError,
 )
-from phospy.science.datasets.builders.public import AnalysisReadyDatasetBuilder
 from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.references.models import Organism, ReferenceBundle, ReferencePreset

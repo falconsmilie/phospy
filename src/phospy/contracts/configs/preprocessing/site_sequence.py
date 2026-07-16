@@ -5,10 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from phospy.errors.input import PhosPyInputError
-from phospy.validation.configs.preprocessing import (
+from phospy.contracts.configs.preprocessing._validation import (
     validate_site_sequence_resolution_config,
 )
+from phospy.errors.input import PhosPyInputError
 
 DATASET_SITE_SEQUENCE_RESOLUTION_MODE_VALIDATE_EXISTING_AND_FILL_MISSING = (
     "validate_existing_and_fill_missing"

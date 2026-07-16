@@ -17,12 +17,12 @@ from phospy.contracts.configs import (
 )
 from phospy.contracts.requests import KinaseWorkflowRequest
 from phospy.errors.validation import WorkflowValidationError
+from phospy.provenance.models import ReferenceContextProtocol
 from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.references.kinase_library import KinaseLibraryResource
 from phospy.science.references.models import (
     ReferenceBundle,
-    ReferenceContext,
     ReferencePreset,
 )
 from phospy.validation.common.dataframes import require_dataframe
@@ -287,7 +287,7 @@ def _normalise_sequence_value(value: object) -> str | None:
 
 def _reference_bundle_context(
     references: ReferenceBundle,
-) -> ReferenceContext | None:
+) -> ReferenceContextProtocol | None:
     provenance = references.provenance
     if provenance is None:
         return None

@@ -17,7 +17,11 @@ from phospy.frames.ownership import (
     own_dataframe,
     own_optional_dataframe,
 )
-from phospy.provenance.models import RunProvenance, TrustedDatasetConstructionAssertions
+from phospy.provenance.models import (
+    ReferenceContextProtocol,
+    RunProvenance,
+    TrustedDatasetConstructionAssertions,
+)
 from phospy.science.datasets.direct_construction import (
     build_direct_construction_provenance,
 )
@@ -66,7 +70,7 @@ from phospy.science.datasets.processing_state import (
 from phospy.science.datasets.processing_state import (
     require_optional_instance as _require_optional_instance,
 )
-from phospy.science.references.models import Organism, ReferenceContext
+from phospy.science.references.models import Organism
 from phospy.science.transformations.models import IntensityScaleState
 from phospy.tables.datasets import (
     PhosphoIntensityMatrix,
@@ -579,7 +583,7 @@ class AnalysisReadyPhosphoDataset:
         return bool(self._allow_opaque_site_values)
 
     @property
-    def reference_context(self) -> ReferenceContext | None:
+    def reference_context(self) -> ReferenceContextProtocol | None:
         if self.provenance is None:
             return None
         return self.provenance.reference_context

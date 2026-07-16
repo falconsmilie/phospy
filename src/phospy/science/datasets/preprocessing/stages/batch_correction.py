@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import replace
+from typing import Protocol
+
+import pandas as pd
 
 from phospy.contracts.configs import (
     DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
@@ -13,6 +17,7 @@ from phospy.contracts.configs import (
     DatasetBatchCorrectionConfig,
 )
 from phospy.errors.input import PhosPyInputError
+from phospy.provenance.models import BatchCorrectionProvenance, JsonValue
 from phospy.science.datasets.preprocessing.batch_correction import (
     BATCH_CORRECTION_CONFOUNDING_NOT_APPLICABLE,
     BATCH_CORRECTION_DESIGN_PRESERVATION_PRESERVE_CONDITION_EFFECTS,
@@ -27,6 +32,10 @@ from phospy.science.datasets.preprocessing.batch_correction_metadata import (
 )
 from phospy.science.datasets.preprocessing.batch_correction_provenance import (
     build_native_batch_correction_provenance,
+)
+from phospy.science.datasets.preprocessing.control_sites import ControlSiteSet
+from phospy.science.datasets.preprocessing.correction_output import (
+    CorrectedPreprocessingOutput,
 )
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
@@ -45,6 +54,35 @@ from phospy.validation.datasets.batch_correction import (
 )
 
 
+class SpsRuvStyleBatchCorrectionResult(Protocol):
+    """Result shape required by the preprocessing batch-correction stage."""
+
+    @property
+    def corrected_preprocessing_output(self) -> CorrectedPreprocessingOutput: ...
+
+    @property
+    def diagnostics(self) -> Mapping[str, JsonValue]: ...
+
+    @property
+    def provenance(self) -> BatchCorrectionProvenance: ...
+
+
+class SpsRuvStyleBatchCorrectionRunner(Protocol):
+    """Runner protocol for SPS/RUV-style batch correction."""
+
+    def run(
+        self,
+        *,
+        phospho: pd.DataFrame,
+        config: object,
+        sample_metadata: pd.DataFrame | None,
+        control_site_set: ControlSiteSet,
+        missingness_policy: object,
+        upstream_observation_mask: pd.DataFrame | None,
+        site_metadata: pd.DataFrame,
+    ) -> SpsRuvStyleBatchCorrectionResult: ...
+
+
 class BatchCorrectionStage:
     """Resolve metadata, validate design adequacy, and apply batch correction."""
 
@@ -57,6 +95,7 @@ class BatchCorrectionStage:
         metadata_validator: BatchDesignMetadataValidator | None = None,
         adequacy_validator: BatchCorrectionAdequacyValidator | None = None,
         engine: BatchCorrectionEngine | None = None,
+        sps_ruv_runner: SpsRuvStyleBatchCorrectionRunner | None = None,
     ) -> None:
         self._metadata_resolver = metadata_resolver or BatchCorrectionMetadataResolver()
         self._metadata_validator = metadata_validator or BatchDesignMetadataValidator()
@@ -64,6 +103,7 @@ class BatchCorrectionStage:
             adequacy_validator or BatchCorrectionAdequacyValidator()
         )
         self._engine = engine or BatchCorrectionEngine()
+        self._sps_ruv_runner = sps_ruv_runner
 
     def run(self, state: PreprocessingState) -> PreprocessingStageResult:
         method = _resolve_method(state.plan)
@@ -86,7 +126,10 @@ class BatchCorrectionStage:
                 },
             )
         if method in SPS_RUV_BATCH_CORRECTION_METHODS:
-            return _run_sps_ruv_style_correction(state)
+            return _run_sps_ruv_style_correction(
+                state,
+                runner=self._sps_ruv_runner,
+            )
         if method != DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH:
             raise PhosPyInputError(
                 "dataset preprocessing plan contains unsupported "
@@ -251,16 +294,9 @@ def _resolve_parameters(plan: PreprocessingPlan) -> dict[str, object]:
 
 def _run_sps_ruv_style_correction(
     state: PreprocessingState,
+    *,
+    runner: SpsRuvStyleBatchCorrectionRunner | None,
 ) -> PreprocessingStageResult:
-    from phospy.science.datasets.preprocessing.control_sites import ControlSiteSet
-    from phospy.science.datasets.preprocessing.correction_output import (
-        CorrectedPreprocessingOutput,
-    )
-    from phospy.workflows.batch_correction.contracts import (
-        BatchCorrectionWorkflowRequest,
-    )
-    from phospy.workflows.batch_correction.workflow import BatchCorrectionWorkflow
-
     request = state.plan.batch_correction_internal_request
     control_site_set = state.plan.batch_correction_control_site_set
     missingness_policy = state.plan.batch_correction_missingness_policy
@@ -274,17 +310,20 @@ def _run_sps_ruv_style_correction(
             "dataset preprocessing plan SPS/RUV-style batch correction requires "
             "a ControlSiteSet"
         )
+    if runner is None:
+        raise PhosPyInputError(
+            "dataset preprocessing plan SPS/RUV-style batch correction requires "
+            "an injected SpsRuvStyleBatchCorrectionRunner"
+        )
     try:
-        result = BatchCorrectionWorkflow().run(
-            BatchCorrectionWorkflowRequest(
-                phospho=state.phospho,
-                config=request,
-                sample_metadata=state.sample_metadata,
-                control_site_set=control_site_set,
-                missingness_policy=missingness_policy,
-                upstream_observation_mask=state.imputation_observation_mask,
-                site_metadata=state.site_metadata,
-            )
+        result = runner.run(
+            phospho=state.phospho,
+            config=request,
+            sample_metadata=state.sample_metadata,
+            control_site_set=control_site_set,
+            missingness_policy=missingness_policy,
+            upstream_observation_mask=state.imputation_observation_mask,
+            site_metadata=state.site_metadata,
         )
     except PhosPyInputError as exc:
         raise PhosPyInputError(
@@ -376,4 +415,9 @@ BATCH_CORRECTION_STAGE_CONTRACT = PreprocessingStageContract(
 )
 
 
-__all__ = ["BATCH_CORRECTION_STAGE_CONTRACT", "BatchCorrectionStage"]
+__all__ = [
+    "BATCH_CORRECTION_STAGE_CONTRACT",
+    "BatchCorrectionStage",
+    "SpsRuvStyleBatchCorrectionResult",
+    "SpsRuvStyleBatchCorrectionRunner",
+]

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.immutability import thaw_json_value
@@ -25,15 +25,12 @@ from phospy.provenance.models import (
     RunProvenance,
     TableFingerprint,
 )
+from phospy.provenance.reference_context import ReferenceContext
+from phospy.provenance.reference_identifiers import (
+    ReferenceIdentifierNormalisationRecord,
+    ReferenceIdentifierNormalisationReport,
+)
 from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
-from phospy.science.references.models import ReferenceContext
-
-if TYPE_CHECKING:
-    from phospy.science.references.identifiers import (
-        ReferenceIdentifierNormalisationRecord,
-        ReferenceIdentifierNormalisationReport,
-    )
-
 
 _LEGACY_PROVENANCE_SCHEMA_ERROR = (
     "Legacy provenance schemas are no longer supported. Regenerate the result "
@@ -1037,10 +1034,6 @@ def _optional_reference_identifier_normalisation_from_payload(
 def _reference_identifier_normalisation_from_payload(
     payload: Mapping[str, object],
 ) -> ReferenceIdentifierNormalisationReport:
-    from phospy.science.references.identifiers import (
-        ReferenceIdentifierNormalisationReport,
-    )
-
     records_payload = _require_sequence(
         payload.get("records"),
         field_name="reference_identifier_normalisation.records",
@@ -1093,10 +1086,6 @@ def _reference_identifier_normalisation_from_payload(
 def _reference_identifier_normalisation_record_from_payload(
     payload: Mapping[str, object],
 ) -> ReferenceIdentifierNormalisationRecord:
-    from phospy.science.references.identifiers import (
-        ReferenceIdentifierNormalisationRecord,
-    )
-
     return ReferenceIdentifierNormalisationRecord(
         table_name=_require_str(
             payload.get("table_name"),
