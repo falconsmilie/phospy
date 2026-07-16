@@ -2,26 +2,58 @@
 
 from __future__ import annotations
 
+from typing import TypeVar, cast
+
+import numpy as np
 import pandas as pd
 
 ExceptionType = type[Exception]
+_PandasObject = TypeVar("_PandasObject", pd.DataFrame, pd.Series)
 _PANDAS_MAJOR_VERSION = int(str(pd.__version__).split(".", maxsplit=1)[0])
-_COPY_ON_WRITE_ENSURED = False
 
 
-def _ensure_copy_on_write_enabled() -> None:
-    """Enable pandas copy-on-write where available for safe shallow borrows."""
+def _pandas_has_native_copy_on_write() -> bool:
+    """Return whether shallow copies are locally mutation-isolated by pandas."""
 
-    global _COPY_ON_WRITE_ENSURED
-    if _COPY_ON_WRITE_ENSURED:
-        return
-    if _PANDAS_MAJOR_VERSION >= 3:
-        _COPY_ON_WRITE_ENSURED = True
-        return
-    mode_options = getattr(pd.options, "mode", None)
-    if mode_options is not None and hasattr(mode_options, "copy_on_write"):
-        pd.options.mode.copy_on_write = True
-    _COPY_ON_WRITE_ENSURED = True
+    return _PANDAS_MAJOR_VERSION >= 3
+
+
+def _mark_numpy_blocks_read_only(value: pd.DataFrame | pd.Series) -> bool:
+    """Mark a shallow pandas copy's NumPy blocks read-only.
+
+    This intentionally uses pandas' private BlockManager surface in one
+    contained helper. If that surface is unavailable, or if a block is backed by
+    an extension array that cannot be made read-only this way, callers fall back
+    to a deep copy.
+    """
+
+    manager = getattr(value, "_mgr", None)
+    blocks = getattr(manager, "blocks", None)
+    if blocks is None:
+        return False
+
+    for block in blocks:
+        values = getattr(block, "values", None)
+        if not isinstance(values, np.ndarray):
+            return False
+        read_only_values = values.view()
+        read_only_values.flags.writeable = False
+        try:
+            block.values = read_only_values
+        except (AttributeError, TypeError, ValueError):
+            return False
+    return True
+
+
+def _borrow_pandas_object(value: _PandasObject) -> _PandasObject:
+    """Return a mutation-isolated internal snapshot without global mutation."""
+
+    borrowed = cast(_PandasObject, value.copy(deep=False))
+    if _pandas_has_native_copy_on_write():
+        return borrowed
+    if _mark_numpy_blocks_read_only(borrowed):
+        return borrowed
+    return cast(_PandasObject, value.copy(deep=True))
 
 
 def own_dataframe(
@@ -57,17 +89,18 @@ def _borrow_dataframe(value: pd.DataFrame) -> pd.DataFrame:
 
     Borrowed access is mutation-isolated from the owning frame:
     - pandas>=3: shallow copy uses native copy-on-write semantics.
-    - pandas<3: this helper enables copy-on-write mode before borrowing.
+    - NumPy-backed pandas<3 frames: shallow copy with read-only borrowed blocks.
+    - unsupported pandas internals: deep-copy fallback.
 
     Internal mutation that should affect owned scientific state must happen on
-    explicitly owned frames, never through `_borrow_*` accessors.
+    explicitly owned frames, never through `_borrow_*` accessors. Writes to a
+    borrowed object may raise or detach locally; they must not mutate the owner.
     """
 
     if not isinstance(value, pd.DataFrame):
         raise TypeError("borrowed frame access requires a pandas DataFrame")
 
-    _ensure_copy_on_write_enabled()
-    return value.copy(deep=False)
+    return _borrow_pandas_object(value)
 
 
 def own_optional_dataframe(
@@ -140,8 +173,7 @@ def _borrow_series(value: pd.Series) -> pd.Series:
     if not isinstance(value, pd.Series):
         raise TypeError("borrowed series access requires a pandas Series")
 
-    _ensure_copy_on_write_enabled()
-    return value.copy(deep=False)
+    return _borrow_pandas_object(value)
 
 
 def own_optional_series(

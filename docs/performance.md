@@ -55,6 +55,10 @@ Guardrail enforcement is owned by
 - CI performance tests live in `tests/performance/`.
 - Local benchmark scripts live in `benchmarks/` and report plain `key=value` or
   JSONL metrics without affecting production logic.
+- DataFrame ownership copy behavior is tracked by
+  `benchmarks/measure_dataframe_ownership_copy_policy.py`, which reports
+  shallow/deep copy counts and owner-mutation leak counts for representative
+  borrowed-frame operations.
 
 ## Execution and Release Policy
 

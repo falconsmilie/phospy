@@ -1,10 +1,17 @@
 from __future__ import annotations
 
+import ast
 import importlib
 import inspect
+import os
+import subprocess
+import sys
+import warnings
 from collections.abc import Callable, Iterator
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -97,6 +104,9 @@ _KINASE_SITE_KEYS = _KINASE_SITE_INDEX.astype(str).tolist()
 _ALLOW_UNKNOWN_REFERENCE_CONTEXT = (
     ReferenceContextCompatibilityPolicy.ALLOW_UNKNOWN_WITH_CAVEAT
 )
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_NATIVE_PANDAS_COPY_ON_WRITE = int(str(pd.__version__).split(".", maxsplit=1)[0]) >= 3
+_PANDAS_COPY_ON_WRITE_OPTION_IS_MUTABLE = not _NATIVE_PANDAS_COPY_ON_WRITE
 
 
 def _phospho() -> pd.DataFrame:
@@ -291,6 +301,63 @@ def _mutate_first_frame_cell(frame: pd.DataFrame) -> None:
         frame.iloc[0, 0] = float(frame.iloc[0, 0]) + 1.0
     else:
         frame.iloc[0, 0] = f"{frame.iloc[0, 0]}_changed"
+
+
+def _mutate_existing_borrowed_frame_cell(
+    *,
+    owner: pd.DataFrame,
+    borrowed: pd.DataFrame,
+    value: object,
+) -> None:
+    before_value = owner.iloc[0, 0]
+    before_shape = owner.shape
+    before_columns = tuple(owner.columns)
+    try:
+        borrowed.iloc[0, 0] = value
+    except ValueError:
+        pass
+    assert owner.iloc[0, 0] == before_value
+    assert owner.shape == before_shape
+    assert tuple(owner.columns) == before_columns
+
+
+def _mutate_existing_borrowed_series_value(
+    *,
+    owner: pd.Series,
+    borrowed: pd.Series,
+    value: object,
+) -> None:
+    before_value = owner.iloc[0]
+    before_shape = owner.shape
+    try:
+        borrowed.iloc[0] = value
+    except ValueError:
+        pass
+    assert owner.iloc[0] == before_value
+    assert owner.shape == before_shape
+
+
+def _attribute_path(node: ast.AST) -> str | None:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        parent = _attribute_path(node.value)
+        if parent is None:
+            return None
+        return f"{parent}.{node.attr}"
+    return None
+
+
+def _assignment_targets(node: ast.AST) -> tuple[ast.AST, ...]:
+    if isinstance(node, ast.Assign):
+        return tuple(node.targets)
+    if isinstance(node, ast.AnnAssign | ast.AugAssign):
+        return (node.target,)
+    return ()
+
+
+def _pandas4_warning_type() -> type[Warning]:
+    return getattr(pd.errors, "Pandas4Warning", Warning)
 
 
 def _assert_dataframe_getter_defensive_snapshot(
@@ -543,6 +610,176 @@ def test_public_dataframe_accessors_do_not_accept_copy_keyword() -> None:
         assert "copy" not in signature.parameters
 
 
+def test_source_tree_has_no_pandas_global_option_assignments() -> None:
+    offenders: list[str] = []
+    for path in sorted((_REPO_ROOT / "src" / "phospy").rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            for target in _assignment_targets(node):
+                target_path = _attribute_path(target)
+                if target_path is None:
+                    continue
+                if target_path.startswith(("pd.options", "pandas.options")):
+                    line_number = getattr(node, "lineno", "?")
+                    offenders.append(
+                        f"{path.relative_to(_REPO_ROOT)}:{line_number} {target_path}"
+                    )
+
+    assert offenders == []
+
+
+def test_importing_phospy_does_not_emit_pandas_copy_on_write_warning() -> None:
+    env = os.environ.copy()
+    python_path = str(_REPO_ROOT / "src")
+    if env.get("PYTHONPATH"):
+        python_path = f"{python_path}{os.pathsep}{env['PYTHONPATH']}"
+    env["PYTHONPATH"] = python_path
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import warnings; import pandas as pd; "
+                "warning_type = getattr(pd.errors, 'Pandas4Warning', Warning); "
+                "warnings.simplefilter('error', warning_type); "
+                "import phospy"
+            ),
+        ],
+        cwd=_REPO_ROOT,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+
+
+@pytest.mark.skipif(
+    not _PANDAS_COPY_ON_WRITE_OPTION_IS_MUTABLE,
+    reason="pandas >=3 deprecates mode.copy_on_write and always enables CoW",
+)
+def test_importing_phospy_preserves_mutable_pandas_copy_on_write_option() -> None:
+    env = os.environ.copy()
+    python_path = str(_REPO_ROOT / "src")
+    if env.get("PYTHONPATH"):
+        python_path = f"{python_path}{os.pathsep}{env['PYTHONPATH']}"
+    env["PYTHONPATH"] = python_path
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import pandas as pd; "
+                "pd.set_option('mode.copy_on_write', False); "
+                "import phospy; "
+                "raise SystemExit(0 if pd.get_option('mode.copy_on_write') "
+                "is False else 1)"
+            ),
+        ],
+        cwd=_REPO_ROOT,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+
+
+@pytest.mark.skipif(
+    not _PANDAS_COPY_ON_WRITE_OPTION_IS_MUTABLE,
+    reason="pandas >=3 deprecates mode.copy_on_write and always enables CoW",
+)
+@pytest.mark.parametrize("copy_on_write", [False, True])
+def test_phospy_frame_borrowing_preserves_pandas_copy_on_write_option(
+    copy_on_write: bool,
+) -> None:
+    with pd.option_context("mode.copy_on_write", copy_on_write):
+        dataset = AnalysisReadyPhosphoDataset(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(),
+            organism=Organism.RAT,
+            intensity_scale_state=supported_linear_intensity_scale_state(
+                has_total_matrix=False
+            ),
+            processing_state=supported_linear_processing_state(has_total_matrix=False),
+        )
+
+        public_snapshot = dataset.to_dataframe()
+        public_snapshot.iloc[0, 0] = 123.0
+        borrowed = dataset._borrow_phospho_frame()
+        _mutate_existing_borrowed_frame_cell(
+            owner=dataset._phospho,
+            borrowed=borrowed,
+            value=999.0,
+        )
+
+        assert pd.get_option("mode.copy_on_write") == copy_on_write
+
+
+@pytest.mark.skipif(
+    _PANDAS_COPY_ON_WRITE_OPTION_IS_MUTABLE,
+    reason="pandas <3 has a mutable copy_on_write option covered separately",
+)
+def test_phospy_frame_borrowing_does_not_touch_deprecated_copy_on_write_option() -> (
+    None
+):
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", _pandas4_warning_type())
+        dataset = AnalysisReadyPhosphoDataset(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(),
+            organism=Organism.RAT,
+            intensity_scale_state=supported_linear_intensity_scale_state(
+                has_total_matrix=False
+            ),
+            processing_state=supported_linear_processing_state(has_total_matrix=False),
+        )
+
+        borrowed = dataset._borrow_phospho_frame()
+        _mutate_existing_borrowed_frame_cell(
+            owner=dataset._phospho,
+            borrowed=borrowed,
+            value=999.0,
+        )
+
+
+def test_concurrent_borrowed_access_preserves_pandas_copy_on_write_option() -> None:
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=_phospho(),
+        site_metadata=_site_metadata(),
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+
+    def worker(value: float) -> float:
+        borrowed = dataset._borrow_phospho_frame()
+        try:
+            borrowed.iloc[0, 0] = value
+        except ValueError:
+            pass
+        return float(dataset._phospho.iloc[0, 0])
+
+    if _PANDAS_COPY_ON_WRITE_OPTION_IS_MUTABLE:
+        context = pd.option_context("mode.copy_on_write", False)
+    else:
+        context = warnings.catch_warnings()
+
+    with context:
+        if not _PANDAS_COPY_ON_WRITE_OPTION_IS_MUTABLE:
+            warnings.simplefilter("error", _pandas4_warning_type())
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            owner_values = tuple(executor.map(worker, range(16)))
+
+        assert owner_values == (1.0,) * 16
+        if _PANDAS_COPY_ON_WRITE_OPTION_IS_MUTABLE:
+            assert pd.get_option("mode.copy_on_write") is False
+
+
 def test_internal_borrowed_dataset_access_is_mutation_isolated_without_deep_copy() -> (
     None
 ):
@@ -558,7 +795,11 @@ def test_internal_borrowed_dataset_access_is_mutation_isolated_without_deep_copy
 
     with _count_dataframe_deep_copies() as counts:
         borrowed = dataset._borrow_phospho_frame()
-        borrowed.iloc[0, 0] = 999.0
+        _mutate_existing_borrowed_frame_cell(
+            owner=dataset._phospho,
+            borrowed=borrowed,
+            value=999.0,
+        )
         borrowed.loc[:, "borrowed_only"] = [1.0, 2.0]
 
     assert borrowed is not dataset._phospho
@@ -596,10 +837,23 @@ def test_internal_borrowed_prediction_and_scoring_access_is_mutation_isolated() 
         borrowed_rank_weighted = (
             scoring_result._borrow_rank_weighted_fusion_scores_frame()
         )
-        borrowed_pred.iloc[0, 0] = 99.0
-        borrowed_profile.iloc[0, 0] = 88.0
+        _mutate_existing_borrowed_frame_cell(
+            owner=prediction_result._pred_mat,
+            borrowed=borrowed_pred,
+            value=99.0,
+        )
+        _mutate_existing_borrowed_frame_cell(
+            owner=scoring_result._profile_scores,
+            borrowed=borrowed_profile,
+            value=88.0,
+        )
         assert borrowed_rank_weighted is not None
-        borrowed_rank_weighted.iloc[0, 0] = 77.0
+        assert scoring_result._rank_weighted_fusion_scores is not None
+        _mutate_existing_borrowed_frame_cell(
+            owner=scoring_result._rank_weighted_fusion_scores,
+            borrowed=borrowed_rank_weighted,
+            value=77.0,
+        )
 
     assert counts.dataframe_deep == 0
     assert borrowed_pred is not prediction_result._pred_mat
@@ -611,6 +865,36 @@ def test_internal_borrowed_prediction_and_scoring_access_is_mutation_isolated() 
     assert float(scoring_result._rank_weighted_fusion_scores.iloc[0, 0]) == 0.75
     assert not hasattr(prediction_result, "borrow_pred_mat_frame")
     assert not hasattr(scoring_result, "borrow_profile_scores_frame")
+
+
+def test_borrowed_extension_array_frame_falls_back_to_deep_copy_for_isolation() -> None:
+    frame = pd.DataFrame({"label": pd.Series(["a", "b"], dtype="string")})
+
+    with _count_dataframe_deep_copies() as counts:
+        borrowed = _borrow_dataframe(frame)
+        borrowed.iloc[0, 0] = "changed"
+
+    assert str(frame.iloc[0, 0]) == "a"
+    assert str(borrowed.iloc[0, 0]) == "changed"
+    assert counts.dataframe_deep == (0 if _NATIVE_PANDAS_COPY_ON_WRITE else 1)
+
+
+def test_borrowed_series_access_is_mutation_isolated_without_dataframe_copy() -> None:
+    series = pd.Series([1.0, 2.0], index=["a", "b"], name="values")
+
+    with _count_dataframe_deep_copies() as counts:
+        borrowed = _borrow_series(series)
+        _mutate_existing_borrowed_series_value(
+            owner=series,
+            borrowed=borrowed,
+            value=999.0,
+        )
+
+    assert borrowed is not series
+    assert counts.dataframe_deep == 0
+    assert float(series.iloc[0]) == 1.0
+    series.iloc[0] = 321.0
+    assert float(series.iloc[0]) == 321.0
 
 
 def test_signalome_validator_read_path_does_not_mutate_internal_frames() -> None:

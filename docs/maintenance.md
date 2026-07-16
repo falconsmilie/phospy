@@ -244,6 +244,11 @@ Workflow internals may pass owned DataFrames without repeated defensive copies.
 Public result/table access should either return a safe copy or clearly mark the
 returned object as an internal-only borrowed reference.
 
+Frame ownership helpers must not set or restore pandas process-global options.
+Internal borrowed views are mutation-isolated locally: NumPy-backed pandas
+frames use shallow read-only borrowed blocks where possible, and unsupported
+pandas internals fall back to deep copies.
+
 Provenance fingerprints describe the owned internal state at creation time.
 
 Exposure categories:
@@ -252,7 +257,8 @@ Exposure categories:
 - `safe_public_copy`: `to_dataframe(...)`, `to_pandas(...)`, and
   `*_dataframe(...)` helpers (always defensive snapshots).
 - `borrowed_internal_view`: private/internal helpers only (`_borrow_dataframe`,
-  `_borrow_optional_dataframe`).
+  `_borrow_optional_dataframe`); writes may raise or detach locally, but must
+  not mutate the owner.
 - `export_snapshot`: persisted outputs and provenance fingerprints.
 
 ## Release Notes

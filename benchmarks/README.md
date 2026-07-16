@@ -13,6 +13,9 @@ This directory contains rewrite-native benchmark scripts that track active code 
 - `measure_preprocessing_performance_contracts.py`
   - Measures preprocessing contract hot paths: row-median imputation, median centering, and quantile normalisation.
   - Targets `phospy.science.datasets.preprocessing.stages.missing_data` and `phospy.science.datasets.preprocessing.stages.normalisation`.
+- `measure_dataframe_ownership_copy_policy.py`
+  - Measures internal DataFrame borrow copy counts, mutation leaks, and runtime for NumPy-backed and extension-array-backed frames.
+  - Targets `phospy.frames.ownership._borrow_dataframe`.
 - `measure_signalome_clustering_contracts.py`
   - Measures exact clustering below the exact-tree guardrail, guard failure above `max_exact_tree_sites`, and candidate-scoring policy behavior (`full` vs `sampled`).
   - Targets `phospy.science.signalomes.clustering.run_signalome_clustering_engine` and scale-guard policy thresholds in `phospy.science.signalomes.clustering`.

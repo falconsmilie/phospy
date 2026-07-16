@@ -22,6 +22,10 @@ Accepted.
 This ADR is aligned with ADR-0003 (dataset boundary), ADR-0005 (result model
 design), ADR-0006 (dataset state contract), and ADR-0014 (test policy).
 
+Update note (2026-07-16, pandas global option isolation): PhosPy frame ownership
+helpers must not set, restore, or otherwise mutate process-global pandas options.
+Borrowing semantics are local to PhosPy-owned objects.
+
 ## Context and Problem Statement
 
 PhosPy datasets and workflow results carry mutable pandas objects internally.
@@ -61,6 +65,8 @@ PhosPy adopts and enforces the following ownership rules:
 6. High-volume persistence is an explicit export or publishing concern, not an
    implicit public borrow path.
 7. Defensive-copy cost at public boundaries is accepted by design.
+8. PhosPy must not change host-application pandas global options, including
+   `mode.copy_on_write`.
 
 ## Boundary Rules
 
@@ -74,6 +80,16 @@ offer user-facing `copy=False` toggles for owned boundary data.
 Package-private `_borrow_*` helpers are allowed for trusted internal
 collaboration only. They return mutation-isolated internal snapshots, are not
 part of the public contract, and must stay out of public API routes.
+
+Borrowed snapshots are implemented without process-global pandas mutation:
+
+- pandas runtimes with native copy-on-write isolation may use shallow pandas
+  copies.
+- NumPy-backed pandas 2.x frames use shallow pandas copies whose borrowed blocks
+  are local read-only views. Writes to those borrowed objects may raise or
+  detach locally, but must not mutate the owner.
+- Unsupported pandas internals, including extension arrays that cannot be made
+  read-only through the local helper, fall back to deep copies.
 
 Implementation note (2026-06-14): workflow dataset access is mediated by the
 dataset-owned `DatasetInternalView`. Workflows may depend on that defensive
@@ -100,6 +116,7 @@ must not be reused as the derived object's own provenance.
 - Provenance fingerprint validity is protected from post-export mutation.
 - Replay assumptions are clearer for users and contributors.
 - Internal mutation semantics stay decoupled from caller mutation semantics.
+- Host applications keep control of pandas process-global configuration.
 
 ### Negative Consequences
 
@@ -107,6 +124,8 @@ must not be reused as the derived object's own provenance.
 - Contributors must maintain stricter discipline around internal frame helpers.
 - Some high-throughput paths need explicit publisher/export APIs for
   performance.
+- Extension-array-backed borrowed snapshots may allocate deep copies on pandas
+  versions without native local copy-on-write guarantees.
 
 ### Neutral Consequences
 
@@ -148,6 +167,8 @@ but cannot claim deep immutability.
   - dataset DataFrame defensive-copy behavior
   - result DataFrame defensive-copy behavior
   - activity-result Series defensive-copy behavior
+  - pandas global-option preservation
+  - borrowed-view mutation isolation without process-global option changes
 - New or changed public pandas accessors must include boundary-mutation tests
   that demonstrate internal state isolation.
 - Public accessors must not reintroduce public copy-semantics toggles.
@@ -158,6 +179,8 @@ but cannot claim deep immutability.
   matrices, sample mapping, and optional masks/tables.
 - Export/publisher implementations remain the preferred high-volume persistence
   boundary.
+- `benchmarks/measure_dataframe_ownership_copy_policy.py` records representative
+  shallow/deep copy counts for the internal borrow policy.
 
 ## Scope Boundaries
 
