@@ -39,9 +39,11 @@ class DatasetMissingDataConfig:
       values with that row's observed-value median.
     - `"impute_minprob"`: left-censored random imputation on log2-scale data
       using a MinProb-style column-wise normal model.
-    - `"impute_knn"`: nearest-neighbour imputation using scikit-learn
-      `KNNImputer` with fixed `metric="nan_euclidean"` and explicit row-level
-      missingness filtering.
+    - `"impute_knn"`: deterministic PhosPy-owned nearest-neighbour imputation
+      with fixed `distance="nan_euclidean"`, explicit row-level missingness
+      filtering, deterministic donor tie rules, and retained-column mean
+      fallback when a missing cell has no donor with overlapping observed
+      values.
 
     `min_observed_values` is required for `"impute_row_median"` and must stay
     unset for `"forbid"`, `"impute_minprob"`, and `"impute_knn"`.
@@ -58,6 +60,16 @@ class DatasetMissingDataConfig:
     - `k` with integer `>= 1`
     - `distance` fixed to `"nan_euclidean"`
     - `max_missing_fraction_per_row` with `0 < value <= 1`
+
+    The KNN implementation is chunked and guarded for practical preprocessing
+    scale. It drops rows above `max_missing_fraction_per_row`; for each
+    retained missing cell, donors must be retained rows observed in the target
+    column. Distances use the target/donor row's shared observed columns and are
+    scaled by `n_columns / shared_observed_column_count`. Donor ties are ordered
+    by `(str(row_id), original_position)`. The selected donor values are
+    averaged without distance weighting; if no donor has any shared observed
+    column, the retained-column mean is used. Requests outside the documented
+    KNN performance envelope fail with an actionable `PhosPyInputError`.
     """
 
     policy: DatasetMissingDataPolicy = DATASET_MISSING_DATA_POLICY_FORBID

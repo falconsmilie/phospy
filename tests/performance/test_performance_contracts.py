@@ -27,6 +27,9 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingState,
 )
+from phospy.science.datasets.preprocessing.stages.missing_data.knn import (
+    run_knn_policy,
+)
 from phospy.science.datasets.preprocessing.stages.normalisation import (
     NormalisationStage,
 )
@@ -63,6 +66,11 @@ from tests.support.performance_contracts import (
     DIAGNOSTIC_RUNTIME_RATIO_MULTIPLIER,
     KINASE_FILTERED_REFERENCE_PEAK_MIB_MAX,
     KINASE_FILTERED_REFERENCE_RUNTIME_SECONDS_MAX,
+    KNN_IMPUTATION_BENCHMARK_MISSING_TARGET_ROWS,
+    KNN_IMPUTATION_BENCHMARK_N_SAMPLES,
+    KNN_IMPUTATION_BENCHMARK_SITE_COUNTS,
+    KNN_IMPUTATION_PEAK_MIB_MAX,
+    KNN_IMPUTATION_RUNTIME_SECONDS_MAX_BY_SITE_COUNT,
     MOTIF_PEAK_MIB_MAX,
     MOTIF_RUNTIME_SECONDS_MAX,
     PREPROCESSING_CONTRACT_N_SAMPLES,
@@ -978,6 +986,56 @@ def test_quantile_normalisation_performance_contract() -> None:
     assert int(normalized_phospho.isna().sum().sum()) == 0
     assert runtime_seconds < QUANTILE_RUNTIME_SECONDS_MAX
     assert peak_mib < QUANTILE_PEAK_MIB_MAX
+
+
+@pytest.mark.parametrize("n_sites", KNN_IMPUTATION_BENCHMARK_SITE_COUNTS)
+def test_knn_imputation_10k_25k_50k_benchmark_and_peak_memory_regression(
+    n_sites: int,
+) -> None:
+    phospho = deterministic_matrix(
+        n_sites=int(n_sites),
+        n_samples=KNN_IMPUTATION_BENCHMARK_N_SAMPLES,
+        seed=4441 + int(n_sites),
+    )
+    missing_target_count = min(
+        KNN_IMPUTATION_BENCHMARK_MISSING_TARGET_ROWS,
+        int(phospho.shape[0]),
+    )
+    missing_positions = np.linspace(
+        0,
+        int(phospho.shape[0]) - 1,
+        num=missing_target_count,
+        dtype=int,
+    )
+    for offset, row_position in enumerate(np.unique(missing_positions)):
+        column_position = offset % int(phospho.shape[1])
+        phospho.iat[int(row_position), int(column_position)] = np.nan
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=deterministic_site_metadata(
+            phospho.index, include_protein_id=False
+        ),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan(
+            missing_data_policy="impute_knn",
+            missing_data_k=1,
+            missing_data_distance="nan_euclidean",
+            missing_data_max_missing_fraction_per_row=0.5,
+            stage_order=("missing_data",),
+        ),
+    )
+
+    outcome, runtime_seconds, peak_mib = measure_runtime_and_peak_mib(
+        lambda: run_knn_policy(state),
+        warmup=False,
+    )
+
+    assert outcome.phospho.shape == phospho.shape
+    assert int(outcome.phospho.isna().to_numpy().sum()) == 0
+    assert outcome.imputed_cell_count == missing_target_count
+    assert runtime_seconds < KNN_IMPUTATION_RUNTIME_SECONDS_MAX_BY_SITE_COUNT[n_sites]
+    assert peak_mib < KNN_IMPUTATION_PEAK_MIB_MAX
 
 
 def test_motif_scoring_contract_scales_with_eligible_overlap() -> None:

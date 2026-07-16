@@ -124,7 +124,22 @@ Common cross-field checks:
 - `impute_minprob` is left-censored random imputation with deterministic seeded draws and row-drop reporting above the configured missing-fraction threshold.
 - `missing_data.policy="impute_knn"` requires explicit `k`, `distance="nan_euclidean"`, and `max_missing_fraction_per_row`.
 - `impute_knn` requires `min_observed_values=None` and does not support alternative distance metrics in the public contract.
-- `impute_knn` drops rows above `max_missing_fraction_per_row`, reports dropped rows as not imputable, and must produce a complete matrix.
+- `impute_knn` is a deterministic PhosPy-owned implementation, not a
+  scikit-learn delegation. It drops rows above
+  `max_missing_fraction_per_row`, reports dropped rows as not imputable, and
+  must produce a complete matrix.
+- for each retained missing cell, `impute_knn` considers only retained donor
+  rows that have an observed value in that cell's column. Distances are
+  nan-euclidean over target/donor shared observed columns and scaled by
+  `n_columns / shared_observed_column_count`.
+- `impute_knn` resolves equal-distance donors by `(str(row_id),
+  original_position)`, averages selected donor values without distance
+  weighting, and falls back to the retained-column mean when no donor has any
+  shared observed value with the target row.
+- `impute_knn` is chunked but guarded: retained matrices above the documented
+  row, sample, or distance-work budgets fail with a `PhosPyInputError` that
+  reports the shape and suggests reducing retained missing rows or choosing a
+  simpler missing-data policy.
 - `subtract_log_total` requires `total` input data.
 - `subtract_log_total` requires `intensity_transform.policy="log2"`.
 - When `subtract_log_total` runs with `unmatched_policy="allow_uncorrected"` and

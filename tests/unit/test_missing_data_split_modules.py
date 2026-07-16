@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import inspect
+from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pandas.testing as pdt
 import pytest
@@ -14,6 +16,9 @@ from phospy.science.datasets.preprocessing.models import (
 from phospy.science.datasets.preprocessing.pipeline import PreprocessingPipeline
 from phospy.science.datasets.preprocessing.provenance_adapter import (
     PreprocessingProvenanceAdapter,
+)
+from phospy.science.datasets.preprocessing.stages.missing_data import (
+    knn as knn_module,
 )
 from phospy.science.datasets.preprocessing.stages.missing_data import (
     minprob as minprob_module,
@@ -200,6 +205,204 @@ def test_knn_policy_is_independently_testable() -> None:
     assert float(outcome.phospho.loc["row_impute", "sample_c"]) == pytest.approx(3.0)
     assert int(outcome.phospho.isna().to_numpy().sum()) == 0
     assert outcome.dropped_row_ids == ("row_drop",)
+
+
+def test_knn_policy_matches_reference_loop_for_current_small_fixture() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [0.0, 0.0, 0.0, 4.0, float("nan")],
+            "sample_b": [1.0, 1.0, 1.0, float("nan"), float("nan")],
+            "sample_c": [float("nan"), 2.0, 4.0, 8.0, float("nan")],
+            "sample_d": [5.0, 5.0, 7.0, float("nan"), float("nan")],
+        },
+        index=pd.Index(["target", "b_ref", "a_ref", "sparse_ref", "row_drop"]),
+    )
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=_site_metadata(phospho.index),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan(
+            missing_data_policy="impute_knn",
+            missing_data_k=2,
+            missing_data_distance="nan_euclidean",
+            missing_data_max_missing_fraction_per_row=0.5,
+            stage_order=("missing_data",),
+        ),
+    )
+
+    outcome = run_knn_policy(state)
+    expected = _reference_knn_policy_frame(state)
+
+    pdt.assert_frame_equal(outcome.phospho, expected)
+    assert outcome.dropped_row_ids == ("row_drop",)
+
+
+def test_knn_policy_imputes_all_missing_retained_row_from_column_means() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [float("nan"), 2.0, 4.0],
+            "sample_b": [float("nan"), 10.0, 20.0],
+            "sample_c": [float("nan"), 30.0, 50.0],
+        },
+        index=pd.Index(["all_missing", "row_ref_1", "row_ref_2"]),
+    )
+
+    outcome = run_knn_policy(
+        PreprocessingState(
+            phospho=phospho,
+            site_metadata=_site_metadata(phospho.index),
+            sample_metadata=None,
+            total=None,
+            plan=PreprocessingPlan(
+                missing_data_policy="impute_knn",
+                missing_data_k=1,
+                missing_data_distance="nan_euclidean",
+                missing_data_max_missing_fraction_per_row=1.0,
+                stage_order=("missing_data",),
+            ),
+        )
+    )
+
+    assert float(outcome.phospho.loc["all_missing", "sample_a"]) == pytest.approx(3.0)
+    assert float(outcome.phospho.loc["all_missing", "sample_b"]) == pytest.approx(15.0)
+    assert float(outcome.phospho.loc["all_missing", "sample_c"]) == pytest.approx(40.0)
+    assert outcome.dropped_row_ids == ()
+
+
+def test_knn_policy_ignores_donors_without_observed_overlap() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, float("nan"), 1.0],
+            "sample_b": [float("nan"), 10.0, 20.0],
+            "sample_c": [5.0, float("nan"), 5.0],
+        },
+        index=pd.Index(["target", "no_overlap_ref", "overlap_ref"]),
+    )
+
+    outcome = run_knn_policy(
+        PreprocessingState(
+            phospho=phospho,
+            site_metadata=_site_metadata(phospho.index),
+            sample_metadata=None,
+            total=None,
+            plan=PreprocessingPlan(
+                missing_data_policy="impute_knn",
+                missing_data_k=1,
+                missing_data_distance="nan_euclidean",
+                missing_data_max_missing_fraction_per_row=1.0,
+                stage_order=("missing_data",),
+            ),
+        )
+    )
+
+    assert float(outcome.phospho.loc["target", "sample_b"]) == pytest.approx(20.0)
+
+
+def test_knn_policy_falls_back_to_column_mean_when_no_donor_overlaps() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, float("nan"), float("nan")],
+            "sample_b": [float("nan"), 10.0, 20.0],
+            "sample_c": [float("nan"), 3.0, 5.0],
+        },
+        index=pd.Index(["target", "row_ref_1", "row_ref_2"]),
+    )
+
+    outcome = run_knn_policy(
+        PreprocessingState(
+            phospho=phospho,
+            site_metadata=_site_metadata(phospho.index),
+            sample_metadata=None,
+            total=None,
+            plan=PreprocessingPlan(
+                missing_data_policy="impute_knn",
+                missing_data_k=1,
+                missing_data_distance="nan_euclidean",
+                missing_data_max_missing_fraction_per_row=1.0,
+                stage_order=("missing_data",),
+            ),
+        )
+    )
+
+    assert float(outcome.phospho.loc["target", "sample_b"]) == pytest.approx(15.0)
+    assert float(outcome.phospho.loc["target", "sample_c"]) == pytest.approx(4.0)
+
+
+def test_knn_policy_rejects_too_many_sample_columns() -> None:
+    columns = pd.Index([f"sample_{index:02d}" for index in range(65)])
+    values = np.ones((2, int(columns.size)), dtype=float)
+    values[0, 0] = np.nan
+    phospho = pd.DataFrame(values, index=pd.Index(["target", "donor"]), columns=columns)
+
+    with pytest.raises(PhosPyInputError, match="sample columns"):
+        run_knn_policy(
+            PreprocessingState(
+                phospho=phospho,
+                site_metadata=_site_metadata(phospho.index),
+                sample_metadata=None,
+                total=None,
+                plan=PreprocessingPlan(
+                    missing_data_policy="impute_knn",
+                    missing_data_k=1,
+                    missing_data_distance="nan_euclidean",
+                    missing_data_max_missing_fraction_per_row=1.0,
+                    stage_order=("missing_data",),
+                ),
+            )
+        )
+
+
+def test_knn_policy_rejects_impractical_distance_work(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    phospho = pd.DataFrame(
+        np.arange(30, dtype=float).reshape(10, 3),
+        index=pd.Index([f"row_{index}" for index in range(10)]),
+        columns=pd.Index(["sample_a", "sample_b", "sample_c"]),
+    )
+    phospho.iloc[0:4, 1] = np.nan
+    monkeypatch.setattr(knn_module, "KNN_MAX_DISTANCE_FEATURE_OPERATIONS", 50)
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="estimated_distance_feature_operations",
+    ):
+        run_knn_policy(
+            PreprocessingState(
+                phospho=phospho,
+                site_metadata=_site_metadata(phospho.index),
+                sample_metadata=None,
+                total=None,
+                plan=PreprocessingPlan(
+                    missing_data_policy="impute_knn",
+                    missing_data_k=1,
+                    missing_data_distance="nan_euclidean",
+                    missing_data_max_missing_fraction_per_row=1.0,
+                    stage_order=("missing_data",),
+                ),
+            )
+        )
+
+
+def test_workflow_orchestration_does_not_import_knn_imputation_details() -> None:
+    root = Path(__file__).resolve().parents[2]
+    workflow_root = root / "src" / "phospy" / "workflows"
+    forbidden_tokens = (
+        "stages.missing_data.knn",
+        "run_knn_policy",
+        "_deterministic_knn_impute",
+        "KNNImputer",
+        "nan_euclidean",
+    )
+    violations: list[str] = []
+    for path in sorted(workflow_root.rglob("*.py")):
+        text = path.read_text(encoding="utf-8")
+        for token in forbidden_tokens:
+            if token in text:
+                violations.append(f"{path.relative_to(root).as_posix()}: {token}")
+
+    assert violations == []
 
 
 @pytest.mark.reproducibility
@@ -521,3 +724,74 @@ def replace_plan(
             stage_order=state.plan.stage_order,
         ),
     )
+
+
+def _reference_knn_policy_frame(state: PreprocessingState) -> pd.DataFrame:
+    max_missing_fraction = float(state.plan.missing_data_max_missing_fraction_per_row)
+    retained_mask = state.phospho.isna().mean(axis=1) <= max_missing_fraction
+    filtered = state.phospho.loc[retained_mask].copy(deep=True)
+    imputed_values = _reference_deterministic_knn_impute(
+        filtered,
+        n_neighbors=int(state.plan.missing_data_k),
+    )
+    return pd.DataFrame(
+        imputed_values,
+        index=filtered.index.copy(),
+        columns=filtered.columns.copy(),
+    )
+
+
+def _reference_deterministic_knn_impute(
+    phospho: pd.DataFrame,
+    *,
+    n_neighbors: int,
+) -> np.ndarray:
+    values = phospho.to_numpy(dtype=float, copy=True)
+    imputed_values = values.copy()
+    column_means = np.nanmean(values, axis=0)
+    row_sort_keys = tuple(
+        (str(row_id), int(position)) for position, row_id in enumerate(phospho.index)
+    )
+
+    for row_position, column_position in np.argwhere(np.isnan(values)):
+        row_index = int(row_position)
+        column_index = int(column_position)
+        donor_positions = np.flatnonzero(~np.isnan(values[:, column_index]))
+        candidates: list[tuple[float, tuple[str, int], int]] = []
+        for donor_position_raw in donor_positions:
+            donor_position = int(donor_position_raw)
+            distance = _reference_nan_euclidean_distance(
+                values[row_index],
+                values[donor_position],
+            )
+            if distance is not None:
+                candidates.append(
+                    (distance, row_sort_keys[donor_position], donor_position)
+                )
+
+        if candidates:
+            selected_positions = [
+                donor_position
+                for _, _, donor_position in sorted(candidates)[:n_neighbors]
+            ]
+            imputed_values[row_index, column_index] = float(
+                np.mean(values[selected_positions, column_index])
+            )
+        else:
+            imputed_values[row_index, column_index] = float(column_means[column_index])
+
+    return imputed_values
+
+
+def _reference_nan_euclidean_distance(
+    row: np.ndarray,
+    donor: np.ndarray,
+) -> float | None:
+    observed_mask = ~np.isnan(row) & ~np.isnan(donor)
+    observed_count = int(observed_mask.sum())
+    if observed_count == 0:
+        return None
+    differences = row[observed_mask] - donor[observed_mask]
+    squared_distance = float(np.dot(differences, differences))
+    scaled_squared_distance = squared_distance * float(row.shape[0]) / observed_count
+    return float(np.sqrt(scaled_squared_distance))
