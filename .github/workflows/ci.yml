@@ -82,24 +82,56 @@ jobs:
           cache: 'pip'
           cache-dependency-path: |
             pyproject.toml
-      - name: Install package with development dependencies
+            constraints/ci.txt
+      - name: Install constrained development dependencies
         run: |
-          unset PIP_CONSTRAINT PIP_BUILD_CONSTRAINT
           python -m venv .venv
           source .venv/bin/activate
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          python -m pip install -e ".[dev,test]"
       - name: Show type-check environment
         run: |
-          unset PIP_CONSTRAINT PIP_BUILD_CONSTRAINT
           source .venv/bin/activate
           python -c "import sys, importlib.metadata as md; print('python', sys.version); print('executable', sys.executable); print('pyright', md.version('pyright')); print('pandas', md.version('pandas')); print('pandas-stubs', md.version('pandas-stubs')); print('numpy', md.version('numpy')); print('scipy', md.version('scipy')); print('scikit-learn', md.version('scikit-learn'))"
       - name: Run Pyright
         run: |
-          unset PIP_CONSTRAINT PIP_BUILD_CONSTRAINT
           source .venv/bin/activate
           export PHOSPY_PYRIGHT_PYTHON="$PWD/.venv/bin/python"
           python scripts/run_pyright.py --verbose
+
+  clean-constrained-install:
+    needs: repo-hygiene
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+          cache-dependency-path: |
+            pyproject.toml
+            constraints/ci.txt
+      - name: Install constrained dev and test extras in a clean venv
+        run: |
+          python -m venv .venv-clean
+          source .venv-clean/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev,test]"
+          python -m pip check
+          mkdir -p build/reports
+          python -m pip freeze > "build/reports/clean-install-py${{ matrix.python-version }}.txt"
+      - name: Retain clean install report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: clean-install-py${{ matrix.python-version }}
+          path: build/reports/clean-install-py${{ matrix.python-version }}.txt
 
   benchmark-smoke:
     needs: repo-hygiene
@@ -154,28 +186,7 @@ jobs:
             docs/testing/diagnostic_payload_test_report.md \
             docs/testing/orchestration_test_candidates.md
 
-  performance-contracts:
-    needs: repo-hygiene
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.10'
-          cache: 'pip'
-          cache-dependency-path: |
-            pyproject.toml
-            constraints/ci.txt
-      - name: Install package
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[test]"
-      - name: Run performance contract tests
-        run: pytest tests/performance -m performance -q
-
-  unit-tests:
+  default-suite:
     needs: repo-hygiene
     runs-on: ubuntu-latest
     strategy:
@@ -197,8 +208,43 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[test]"
-      - name: Run unit tests
-        run: pytest tests/unit
+      - name: Run full default pytest suite
+        run: |
+          mkdir -p build/reports
+          pytest --durations=25 --durations-min=0.01 -m "not parity" --junitxml "build/reports/default-suite-py${{ matrix.python-version }}.xml"
+      - name: Retain default-suite duration report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: default-suite-py${{ matrix.python-version }}
+          path: build/reports/default-suite-py${{ matrix.python-version }}.xml
+
+  performance-contracts:
+    needs: repo-hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+          cache-dependency-path: |
+            pyproject.toml
+            constraints/ci.txt
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[test]"
+      - name: Run performance contract tests
+        run: make test-performance
+      - name: Retain performance budget reports
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: performance-contracts
+          path: build/reports/
 
   adaptive-mode-standard-install:
     needs: repo-hygiene
@@ -225,27 +271,6 @@ jobs:
           python -c "from phospy.science.prediction.svm import require_sklearn; require_sklearn()"
       - name: Run adaptive-mode tests
         run: pytest tests/unit/test_prediction_adaptive_sampling.py tests/unit/test_prediction_mode_regression.py tests/unit/test_prediction_svm_dependency_guard.py
-
-  integration-tests:
-    needs: repo-hygiene
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.10'
-          cache: 'pip'
-          cache-dependency-path: |
-            pyproject.toml
-            constraints/ci.txt
-      - name: Install package
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[test]"
-      - name: Run integration tests
-        run: pytest tests/integration
 
   activity-parity-gate:
     needs: repo-hygiene
@@ -289,6 +314,39 @@ jobs:
       - name: Run rewrite parity scientific gates
         run: pytest tests/parity -m "parity and not parity_diagnostic" -s
 
+  release-gate:
+    needs: repo-hygiene
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+          cache-dependency-path: |
+            pyproject.toml
+            constraints/ci.txt
+      - name: Install release-gate dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,test,parquet]"
+      - name: Run documented scientific release gate
+        run: make test-release-gate
+      - name: Retain release-gate audit and duration reports
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: release-gate-py${{ matrix.python-version }}
+          path: |
+            build/release-gate/
+            build/reports/
+
   parity-diagnostics:
     needs: repo-hygiene
     runs-on: ubuntu-latest
@@ -329,6 +387,115 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install build twine
-          python -m build
-          python scripts/validate_reference_bundle_distribution.py dist/*.whl
+          make build
           twine check dist/*
+      - name: Store distribution artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: python-package-distributions
+          path: dist/
+
+  distribution-install-tests:
+    needs: build-distributions
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+          cache-dependency-path: |
+            pyproject.toml
+            constraints/ci.txt
+      - name: Download distribution artifacts
+        uses: actions/download-artifact@v6
+        with:
+          name: python-package-distributions
+          path: dist/
+      - name: Install wheel artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/reports
+          python -m venv .venv-wheel
+          source .venv-wheel/bin/activate
+          python -m pip install --upgrade pip
+          wheel=(dist/*.whl)
+          python -m pip install -c constraints/ci.txt "${wheel[0]}[test]"
+          python -m pip check
+          python -c "import importlib.metadata as md; import phospy; print(md.version('phospy'))"
+          python -m pip freeze > "build/reports/wheel-install-py${{ matrix.python-version }}.txt"
+      - name: Install sdist artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/reports
+          python -m venv .venv-sdist
+          source .venv-sdist/bin/activate
+          python -m pip install --upgrade pip
+          sdist=(dist/*.tar.gz)
+          python -m pip install -c constraints/ci.txt "${sdist[0]}[test]"
+          python -m pip check
+          python -c "import importlib.metadata as md; import phospy; print(md.version('phospy'))"
+          python -m pip freeze > "build/reports/sdist-install-py${{ matrix.python-version }}.txt"
+      - name: Retain distribution install reports
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: distribution-install-py${{ matrix.python-version }}
+          path: build/reports/
+
+  release-verdict:
+    needs:
+      - repo-hygiene
+      - lint
+      - type-check
+      - clean-constrained-install
+      - default-suite
+      - performance-contracts
+      - release-gate
+      - build-distributions
+      - distribution-install-tests
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish reproducible release verdict
+        shell: bash
+        run: |
+          set -euo pipefail
+          declare -A results=(
+            [repo-hygiene]="${{ needs.repo-hygiene.result }}"
+            [lint]="${{ needs.lint.result }}"
+            [type-check]="${{ needs.type-check.result }}"
+            [clean-constrained-install]="${{ needs.clean-constrained-install.result }}"
+            [default-suite]="${{ needs.default-suite.result }}"
+            [performance-contracts]="${{ needs.performance-contracts.result }}"
+            [release-gate]="${{ needs.release-gate.result }}"
+            [build-distributions]="${{ needs.build-distributions.result }}"
+            [distribution-install-tests]="${{ needs.distribution-install-tests.result }}"
+          )
+
+          {
+            echo "## Release Verification Verdict"
+            echo
+            echo "| Check | Result |"
+            echo "| --- | --- |"
+            for job in repo-hygiene lint type-check clean-constrained-install default-suite performance-contracts release-gate build-distributions distribution-install-tests; do
+              echo "| ${job} | ${results[$job]} |"
+            done
+            echo
+            echo "The release verdict is valid only when every row is success."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          for job in "${!results[@]}"; do
+            if [[ "${results[$job]}" != "success" ]]; then
+              echo "Release verification failed at ${job}: ${results[$job]}" >&2
+              exit 1
+            fi
+          done

@@ -95,13 +95,26 @@ def _workflow_job_block(workflow_text: str, job_name: str) -> str:
 
 
 def _has_needs(job_block: str, dependency: str) -> bool:
-    return (
-        re.search(
-            rf"(?m)^\s+needs:\s*\n\s+- {re.escape(dependency)}\s*$",
-            job_block,
+    list_match = re.search(
+        r"(?ms)^\s+needs:\s*\n(?P<items>(?:\s+- .+\n)+)",
+        job_block,
+    )
+    if list_match is not None:
+        return (
+            re.search(
+                rf"(?m)^\s+- {re.escape(dependency)}\s*$",
+                list_match.group("items"),
+            )
+            is not None
         )
+    return (
+        re.search(rf"(?m)^\s+needs:\s*{re.escape(dependency)}\s*$", job_block)
         is not None
     )
+
+
+def _assert_supported_python_matrix(job_block: str) -> None:
+    assert "python-version: ['3.10', '3.11', '3.12']" in job_block
 
 
 def test_default_pytest_keeps_parity_out_of_fast_local_loop() -> None:
@@ -115,6 +128,27 @@ def test_release_gate_command_is_maintained_project_authority() -> None:
     assert DEFAULT_TEST_COMMAND == AUTHORITATIVE_RELEASE_GATE_COMMAND
     assert f"RELEASE_GATE_COMMAND ?= {AUTHORITATIVE_RELEASE_GATE_COMMAND}" in makefile
     assert '--test-command "$(RELEASE_GATE_COMMAND)"' in body
+
+
+def test_pyright_requirement_matches_ci_constraint() -> None:
+    pyproject = _load_pyproject()
+    dev_requirements = pyproject["project"]["optional-dependencies"]["dev"]
+    pyright_requirement = next(
+        requirement
+        for requirement in dev_requirements
+        if requirement.startswith("pyright>=")
+    )
+    constraint_text = _read("constraints/ci.txt")
+
+    required_version = re.search(r"pyright>=(\d+\.\d+\.\d+)", pyright_requirement)
+    constrained_version = re.search(
+        r"(?m)^pyright==(\d+\.\d+\.\d+)$",
+        constraint_text,
+    )
+
+    assert required_version is not None
+    assert constrained_version is not None
+    assert constrained_version.group(1) == required_version.group(1)
 
 
 @pytest.mark.parametrize(
@@ -142,22 +176,27 @@ def test_publish_workflow_cannot_publish_without_scientific_release_gate() -> No
     workflow = _read(".github/workflows/publish.yml")
     release_gate = _workflow_job_block(workflow, "release-gate")
     build = _workflow_job_block(workflow, "build")
+    distribution_install = _workflow_job_block(workflow, "distribution-install-tests")
     testpypi = _workflow_job_block(workflow, "publish-to-testpypi")
     pypi = _workflow_job_block(workflow, "publish-to-pypi")
 
     assert "run: make test-release-gate" in release_gate
+    _assert_supported_python_matrix(release_gate)
+    assert "release-gate-py${{ matrix.python-version }}" in release_gate
     assert _has_needs(build, "release-gate")
-    assert "python scripts/validate_reference_bundle_distribution.py dist/*.whl" in (
-        build
+    assert "make build" in build
+    assert build.index("make build") < build.index("twine check dist/*")
+    assert build.index("twine check dist/*") < build.index(
+        "uses: actions/upload-artifact@v5"
     )
-    assert build.index("python -m build") < build.index(
-        "python scripts/validate_reference_bundle_distribution.py dist/*.whl"
-    )
-    assert build.index(
-        "python scripts/validate_reference_bundle_distribution.py dist/*.whl"
-    ) < build.index("uses: actions/upload-artifact@v5")
-    assert _has_needs(testpypi, "build")
-    assert _has_needs(pypi, "build")
+    assert _has_needs(distribution_install, "build")
+    _assert_supported_python_matrix(distribution_install)
+    assert '"${wheel[0]}[test]"' in distribution_install
+    assert '"${sdist[0]}[test]"' in distribution_install
+    assert "importlib.metadata" in distribution_install
+    assert "phospy.__version__" not in distribution_install
+    assert _has_needs(testpypi, "distribution-install-tests")
+    assert _has_needs(pypi, "distribution-install-tests")
 
 
 def test_make_release_gate_covers_declared_blocking_marker_policy() -> None:
@@ -177,7 +216,12 @@ def test_make_release_gate_covers_declared_blocking_marker_policy() -> None:
 
     body = _make_target_body("test-release-gate")
     required_fragments = (
-        '$(PYTEST) -m "not parity and not performance and not release_gate"',
+        "$(PYTHON) scripts/validate_reference_bundle_index.py",
+        (
+            '$(PYTEST) $(PYTEST_DURATION_ARGS) -m "not parity and not '
+            'performance and not release_gate"'
+        ),
+        '--junitxml "$(PYTEST_REPORT_DIR)/release-default.xml"',
         "tests/golden",
         "tests/unit/test_provenance_regressions.py",
         (
@@ -189,9 +233,16 @@ def test_make_release_gate_covers_declared_blocking_marker_policy() -> None:
             "test_signalome_l6_provenance_matches_golden_contract"
         ),
         '-m "release_gate and (reproducibility or golden)"',
-        '$(PYTEST) tests/release -m "release_gate"',
-        '$(PYTEST) tests/parity -m "parity and not parity_diagnostic" -s',
-        '$(PYTEST) tests/performance -m "performance or release_gate" -q',
+        '$(PYTEST) $(PYTEST_DURATION_ARGS) tests/release -m "release_gate"',
+        (
+            '$(PYTEST) $(PYTEST_DURATION_ARGS) tests/parity -m "parity and '
+            'not parity_diagnostic" -s'
+        ),
+        (
+            "$(PYTEST) $(PYTEST_DURATION_ARGS) tests/performance -m "
+            '"performance or release_gate" -q'
+        ),
+        '--junitxml "$(PYTEST_REPORT_DIR)/release-performance.xml"',
     )
     for fragment in required_fragments:
         assert fragment in body
@@ -215,7 +266,8 @@ def test_make_release_gate_writes_metadata_before_pytest_commands() -> None:
         index
         for index, line in enumerate(body_lines)
         if line.startswith(
-            '$(PYTEST) -m "not parity and not performance and not release_gate"'
+            '$(PYTEST) $(PYTEST_DURATION_ARGS) -m "not parity and not '
+            'performance and not release_gate"'
         )
     )
     assert metadata_index < first_pytest_index
@@ -339,16 +391,57 @@ def test_ci_keeps_diagnostic_parity_non_blocking() -> None:
     assert '-m "parity_diagnostic"' in diagnostics
 
 
-def test_ci_distribution_build_validates_reference_bundle_wheels() -> None:
+def test_ci_release_verdict_requires_supported_version_verification() -> None:
+    workflow = _read(".github/workflows/ci.yml")
+    clean_install = _workflow_job_block(workflow, "clean-constrained-install")
+    default_suite = _workflow_job_block(workflow, "default-suite")
+    release_gate = _workflow_job_block(workflow, "release-gate")
+    distribution_install = _workflow_job_block(workflow, "distribution-install-tests")
+    verdict = _workflow_job_block(workflow, "release-verdict")
+
+    _assert_supported_python_matrix(clean_install)
+    _assert_supported_python_matrix(default_suite)
+    _assert_supported_python_matrix(release_gate)
+    _assert_supported_python_matrix(distribution_install)
+
+    assert 'python -m pip install -e ".[dev,test]"' in clean_install
+    assert 'pytest --durations=25 --durations-min=0.01 -m "not parity"' in (
+        default_suite
+    )
+    assert "run: make test-release-gate" in release_gate
+    assert "release-gate-py${{ matrix.python-version }}" in release_gate
+    assert '"${wheel[0]}[test]"' in distribution_install
+    assert '"${sdist[0]}[test]"' in distribution_install
+    assert "importlib.metadata" in distribution_install
+    assert "phospy.__version__" not in distribution_install
+    for dependency in (
+        "clean-constrained-install",
+        "default-suite",
+        "performance-contracts",
+        "release-gate",
+        "build-distributions",
+        "distribution-install-tests",
+    ):
+        assert _has_needs(verdict, dependency)
+
+
+def test_ci_distribution_build_validates_reference_bundle_archives() -> None:
     workflow = _read(".github/workflows/ci.yml")
     build = _workflow_job_block(workflow, "build-distributions")
+    makefile = _read("Makefile")
+    make_build = _make_target_body("build")
     validation_command = (
-        "python scripts/validate_reference_bundle_distribution.py dist/*.whl"
+        "python scripts/validate_reference_bundle_distribution.py dist/*"
     )
 
-    assert validation_command in build
-    assert build.index("python -m build") < build.index(validation_command)
-    assert build.index(validation_command) < build.index("twine check dist/*")
+    assert "make build" in build
+    assert build.index("make build") < build.index("twine check dist/*")
+    assert "build: check-tools validate-reference-bundles" in makefile
+    assert "$(BUILD)" in make_build
+    assert "$(PYTHON) scripts/validate_reference_bundle_distribution.py dist/*" in (
+        make_build
+    )
+    assert validation_command.replace("python", "$(PYTHON)") in make_build
 
 
 @pytest.mark.parametrize(
@@ -362,6 +455,9 @@ def test_release_gate_includes_required_threshold_bearing_parity_lanes(
     body = _make_target_body("test-release-gate")
     source = _read(relative_path)
 
-    assert '$(PYTEST) tests/parity -m "parity and not parity_diagnostic" -s' in body
+    assert (
+        '$(PYTEST) $(PYTEST_DURATION_ARGS) tests/parity -m "parity and '
+        'not parity_diagnostic" -s'
+    ) in body
     assert relative_path.as_posix().startswith("tests/parity/")
     assert "pytest.mark.parity" in source

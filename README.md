@@ -57,7 +57,7 @@ pytest tests/parity -m parity -s
 For public release verification, the authoritative release-gate command is
 `make test-release-gate`. It runs the default non-parity suite, release tests,
 reproducibility/golden checks, threshold-bearing parity tests, and performance
-contract tests:
+contract tests. CI runs the same command on Python 3.10, 3.11, and 3.12:
 
 ```bash
 pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
@@ -72,7 +72,12 @@ public scientific release; default `pytest` is not sufficient for release and is
 not release verification. The release gate writes its audit record to
 `build/release-gate/release_gate_metadata.json`; that JSON records the package
 version, runtime, dependency snapshot, test command, marker selectors, and
-fixture/reference fingerprints for the gate run.
+fixture/reference fingerprints for the gate run. Duration and JUnit reports are
+written under `build/reports/`.
+
+Release builds must use `make build`, which validates reference-bundle manifests
+from the actual Git index before building and validates both wheel and sdist
+archives against the committed reference manifests.
 
 ## Quick Start
 

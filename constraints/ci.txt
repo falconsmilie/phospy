@@ -1,5 +1,5 @@
 # Reproducible CI/release dependency set for scientific verification.
-# Updated: 2026-04-28
+# Updated: 2026-07-16
 #
 # Use with:
 #   python -m pip install -c constraints/ci.txt -e ".[test]"
@@ -17,7 +17,7 @@ tomli==2.2.1 ; python_version < "3.11"
 
 pytest==8.3.5
 pre-commit==4.1.0
-pyright==1.1.409
+pyright==1.1.410
 pandas-stubs==2.2.3.250527 ; python_version < "3.11"
 pandas-stubs==3.0.0.260204 ; python_version >= "3.11"
 scipy-stubs==1.17.1.4

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import io
 import json
+import subprocess
+import tarfile
 from hashlib import sha256
 from pathlib import Path, PurePosixPath
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -10,6 +13,7 @@ import pytest
 from phospy.science.references.validation import validate_bundled_reference_manifests
 from scripts.validate_reference_bundle_distribution import (
     ReferenceBundleDistributionError,
+    validate_reference_bundle_archive,
     validate_reference_bundle_wheel,
 )
 
@@ -54,6 +58,44 @@ def test_valid_temporary_wheel_archive_validates(tmp_path: Path) -> None:
     validate_reference_bundle_wheel(wheel_path)
 
 
+def test_valid_temporary_sdist_archive_validates(tmp_path: Path) -> None:
+    sdist_path = _write_reference_sdist(tmp_path=tmp_path)
+
+    validate_reference_bundle_archive(sdist_path)
+
+
+def test_distribution_validation_compares_archives_to_git_index(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _run_git(repo, "init")
+    _write_git_source_bundle(repo)
+    _run_git(repo, "add", "src/phospy/data/reference_bundles")
+    changed_bytes = b"Changed attribution\n"
+    wheel_path = _write_reference_wheel(
+        tmp_path=tmp_path,
+        packaged_file_overrides={"ATTRIBUTION.md": changed_bytes},
+    )
+
+    with pytest.raises(ReferenceBundleDistributionError) as exc_info:
+        validate_reference_bundle_archive(
+            wheel_path,
+            compare_git_index=True,
+            repo_root=repo,
+        )
+
+    message = str(exc_info.value)
+    assert (
+        "distribution reference-bundle file does not reproduce committed Git index blob"
+    ) in message
+    assert (
+        "affected file=src/phospy/data/reference_bundles/rat/l6_native/ATTRIBUTION.md"
+    ) in message
+    assert f"expected digest={_sha256(_BASE_FILES['ATTRIBUTION.md'])}" in message
+    assert f"actual digest={_sha256(changed_bytes)}" in message
+
+
 def test_distribution_validation_fails_for_changed_attribution_file(
     tmp_path: Path,
 ) -> None:
@@ -81,7 +123,7 @@ def test_distribution_validation_fails_for_missing_attribution_file(
 
     message = _distribution_error(wheel_path)
 
-    assert "required bundle-local attribution file is missing from wheel" in message
+    assert "required bundle-local attribution file is missing from archive" in message
     assert "affected file=ATTRIBUTION.md" in message
     assert f"expected digest={_sha256(_BASE_FILES['ATTRIBUTION.md'])}" in message
     assert "actual digest=missing" in message
@@ -95,7 +137,7 @@ def test_distribution_validation_fails_for_missing_csv(tmp_path: Path) -> None:
 
     message = _distribution_error(wheel_path)
 
-    assert "manifest-listed file is missing from wheel" in message
+    assert "manifest-listed file is missing from archive" in message
     assert "affected file=substrate_map.csv" in message
     assert f"expected digest={_sha256(_BASE_FILES['substrate_map.csv'])}" in message
     assert "actual digest=missing" in message
@@ -127,8 +169,8 @@ def test_distribution_validation_error_message_identifies_wheel_bundle_and_refer
 
     message = _distribution_error(wheel_path)
 
-    assert f"wheel path={wheel_path}" in message
-    assert f"bundle path={_BUNDLE_ROOT.as_posix()}" in message
+    assert f"archive path={wheel_path}" in message
+    assert "bundle path=src/phospy/data/reference_bundles/rat/l6_native" in message
     assert "reference ID=l6_native" in message
     assert "affected file=substrate_map.csv" in message
     assert f"expected digest={_sha256(_BASE_FILES['substrate_map.csv'])}" in message
@@ -151,7 +193,7 @@ def test_distribution_validation_error_message_identifies_wheel_bundle_and_refer
             "site_sequences.csv",
             sha256(_BASE_FILES["site_sequences.csv"]).hexdigest(),
             "missing",
-            "manifest-listed file is missing from wheel",
+            "manifest-listed file is missing from archive",
             id="wheel-missing-file",
         ),
         pytest.param(
@@ -183,8 +225,8 @@ def test_wheel_file_errors_keep_actionable_digest_contract(
     message = _distribution_error(wheel_path)
 
     assert expected_reason in message
-    assert f"wheel path={wheel_path}" in message
-    assert f"bundle path={_BUNDLE_ROOT.as_posix()}" in message
+    assert f"archive path={wheel_path}" in message
+    assert "bundle path=src/phospy/data/reference_bundles/rat/l6_native" in message
     assert "reference ID=l6_native" in message
     assert f"affected file={expected_file}" in message
     assert f"expected digest={expected_digest}" in message
@@ -223,6 +265,51 @@ def _write_reference_wheel(
             "Wheel-Version: 1.0\nGenerator: unit-test\nRoot-Is-Purelib: true\n",
         )
     return wheel_path
+
+
+def _write_reference_sdist(*, tmp_path: Path) -> Path:
+    sdist_path = tmp_path / "phospy-1.6.0.tar.gz"
+    with tarfile.open(sdist_path, "w:gz") as archive:
+        root = PurePosixPath("phospy-1.6.0") / "src" / _BUNDLE_ROOT
+        _add_tar_bytes(
+            archive,
+            (root / "manifest.json").as_posix(),
+            (json.dumps(_manifest_payload(), indent=2) + "\n").encode("utf-8"),
+        )
+        for relative_path, data in _BASE_FILES.items():
+            _add_tar_bytes(archive, (root / relative_path).as_posix(), data)
+    return sdist_path
+
+
+def _add_tar_bytes(
+    archive: tarfile.TarFile,
+    name: str,
+    data: bytes,
+) -> None:
+    info = tarfile.TarInfo(name)
+    info.size = len(data)
+    archive.addfile(info, io.BytesIO(data))
+
+
+def _write_git_source_bundle(repo: Path) -> None:
+    bundle_root = repo / "src" / "phospy" / "data" / "reference_bundles"
+    bundle_root = bundle_root / "rat" / "l6_native"
+    bundle_root.mkdir(parents=True)
+    (bundle_root / "manifest.json").write_text(
+        json.dumps(_manifest_payload(), indent=2) + "\n",
+        encoding="utf-8",
+    )
+    for relative_path, data in _BASE_FILES.items():
+        (bundle_root / relative_path).write_bytes(data)
+
+
+def _run_git(repo: Path, *args: str) -> None:
+    subprocess.run(
+        ("git", *args),
+        cwd=repo,
+        capture_output=True,
+        check=True,
+    )
 
 
 def _manifest_payload() -> dict[str, object]:

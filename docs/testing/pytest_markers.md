@@ -24,6 +24,7 @@ not sufficient for release. The release gate blocks release on:
 
 | Marker or suite | Release status |
 | --- | --- |
+| Git-index reference bundle check | Blocking through `python scripts/validate_reference_bundle_index.py` before release manifest tests. |
 | Default non-parity suite | Blocking through `pytest -m "not parity and not performance and not release_gate"` over configured `testpaths`. |
 | `release_gate` + `reproducibility` / `golden` | Blocking through explicit provenance and golden paths, including `tests/golden`. |
 | `tests/release` reference manifest gates | Blocking through `pytest tests/release -m "release_gate"`. |
@@ -50,7 +51,9 @@ Based on that configuration:
 
 The default local run deliberately omits release tests, threshold-bearing parity
 tests, and performance contracts unless they are selected separately through the
-release gate.
+release gate. Release-gate pytest commands include duration reporting and write
+JUnit reports under `build/reports/`; CI retains those reports for release
+review.
 
 This page documents marker usage and the release-gate command path used by
 release CI.

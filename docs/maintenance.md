@@ -18,7 +18,7 @@ pip install -c constraints/ci.txt -e ".[dev,test]"
 For full release-gate validation, install the release extras first. The
 authoritative release-gate command is `make test-release-gate`; it includes
 release tests, reproducibility/golden checks, parity tests, and performance
-contract tests:
+contract tests. CI runs the same command on Python 3.10, 3.11, and 3.12:
 
 ```bash
 pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
@@ -62,7 +62,8 @@ tests, reproducibility/golden checks, and performance contracts are not optional
 for public release decisions.
 
 The publish pipeline (`.github/workflows/publish.yml`) runs this same release
-gate before building and uploading tagged distributions.
+gate across all supported Python versions before building and uploading tagged
+distributions.
 
 Release confidence is artifact-level. A public scientific release claim applies
 only to the exact tagged source tree, source archive, wheel, or other release
@@ -75,12 +76,15 @@ The release gate writes a machine-readable audit record to
 with `RELEASE_GATE_METADATA_PATH=...` when CI or release packaging needs a
 different deterministic location. The JSON records the PhosPy version, Python
 version, platform, dependency snapshot, test command, marker selectors,
-fixture/reference fingerprints, and UTC generation time.
+fixture/reference fingerprints, and UTC generation time. Pytest duration
+summaries are printed during the run, and JUnit reports are written under
+`build/reports/` for retention by CI.
 
 Release-blocking coverage in `make test-release-gate` is:
 
 | Gate | Command selector |
 | --- | --- |
+| Git-index reference bundle check | `python scripts/validate_reference_bundle_index.py` |
 | Default non-parity suite | `pytest -m "not parity and not performance and not release_gate"` |
 | Provenance/golden contracts | `pytest tests/golden ... -m "release_gate and (reproducibility or golden)"` |
 | Reference manifest gates | `pytest tests/release -m "release_gate"` |
@@ -132,14 +136,25 @@ is ignored by git.
 ## Source and Release Archive Hygiene
 
 Source and release archives must be built from tracked source state, not from a
-local working-tree zip. Use a clean tree and a source-aware command such as
-`git archive` for source snapshots, and build package distributions through the
-release workflow after the release gate passes.
+local working-tree zip. Use a clean tree and `make build` for package
+distributions after the release gate passes:
+
+```bash
+make build
+```
+
+`make build` runs the Git-index reference-bundle validation first, builds the
+wheel and sdist, and validates both built archives against the committed
+reference manifests and file hashes.
 
 Do not broaden a release claim from one artifact to another. If the tagged
 source tree, source archive, wheel, dependency constraints, or bundled fixture
 set changes after a gate run, rerun the full release gate and keep the new
 metadata JSON with the release audit material.
+
+The release-verification CI verdict is reproducible only when the constrained
+`[dev,test]` install matrix, full default-suite matrix, full release-gate matrix,
+wheel/sdist install matrix, and built-archive reference validation all pass.
 
 Do not include generated artefacts in source/release archives. Exclude build
 outputs, documentation sites, cache directories, previous archive files, and

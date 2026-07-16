@@ -56,12 +56,23 @@ Run full release validation when changing scientific/parity/provenance/performan
 behavior or before preparing a release. The authoritative release-gate command
 is `make test-release-gate`; default `pytest` is not sufficient for release, and
 release tests, reproducibility/golden checks, parity tests, and performance
-contracts are release-blocking:
+contracts are release-blocking. CI runs this same command on Python 3.10, 3.11,
+and 3.12:
 
 ```bash
 pip install -c constraints/ci.txt -e ".[dev,test,parquet]"
 make test-release-gate
 ```
+
+Before publishing distributions, use the documented build command:
+
+```bash
+make build
+```
+
+It validates reference-bundle files from the actual Git index, builds the wheel
+and sdist, and checks both archives against the committed reference manifests.
+Release-gate duration and JUnit reports are written under `build/reports/`.
 
 ## Style
 

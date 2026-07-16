@@ -100,5 +100,8 @@ semantics are acceptable.
   release-validation commands (`make test-release-gate`).
 - The release-gate selector is
   `pytest tests/performance -m "performance or release_gate" -q`.
+- Release-gate and performance CI jobs publish pytest duration summaries and
+  retain JUnit reports from `build/reports/`, so current runtimes can be
+  reviewed with the budget constants in `tests/support/performance_contracts.py`.
 - Failing performance contracts block release until fixed, formally waived, or
   intentionally updated with matching test and documentation changes.

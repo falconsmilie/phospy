@@ -31,18 +31,37 @@ DEFAULT_TEST_MARKERS = (
     "performance or release_gate",
 )
 DEFAULT_TEST_STEPS = (
-    'python -m pytest -m "not parity and not performance and not release_gate"',
+    "python scripts/validate_reference_bundle_index.py",
     (
-        "python -m pytest tests/golden tests/unit/test_provenance_regressions.py "
+        "python -m pytest --durations=25 --durations-min=0.01 "
+        '-m "not parity and not performance and not release_gate" '
+        "--junitxml build/reports/release-default.xml"
+    ),
+    (
+        "python -m pytest --durations=25 --durations-min=0.01 "
+        "tests/golden tests/unit/test_provenance_regressions.py "
         "tests/integration/test_kinase_workflow_integration.py::"
         "test_kinase_public_predmat_provenance_matches_golden_contract "
         "tests/integration/test_signalome_workflow_integration.py::"
         "test_signalome_l6_provenance_matches_golden_contract "
-        '-m "release_gate and (reproducibility or golden)"'
+        '-m "release_gate and (reproducibility or golden)" '
+        "--junitxml build/reports/release-golden.xml"
     ),
-    'python -m pytest tests/release -m "release_gate"',
-    'python -m pytest tests/parity -m "parity and not parity_diagnostic" -s',
-    'python -m pytest tests/performance -m "performance or release_gate" -q',
+    (
+        "python -m pytest --durations=25 --durations-min=0.01 "
+        'tests/release -m "release_gate" '
+        "--junitxml build/reports/release-reference-manifest.xml"
+    ),
+    (
+        "python -m pytest --durations=25 --durations-min=0.01 "
+        'tests/parity -m "parity and not parity_diagnostic" -s '
+        "--junitxml build/reports/release-parity.xml"
+    ),
+    (
+        "python -m pytest --durations=25 --durations-min=0.01 "
+        'tests/performance -m "performance or release_gate" -q '
+        "--junitxml build/reports/release-performance.xml"
+    ),
 )
 RELEASE_GATE_DEPENDENCIES = (
     *DEFAULT_ENVIRONMENT_DEPENDENCIES,

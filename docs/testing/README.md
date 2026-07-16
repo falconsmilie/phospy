@@ -19,7 +19,13 @@ releases must run the authoritative release-gate command,
 `make test-release-gate`; that target is the release-blocking command and
 includes the default non-parity suite, release tests, provenance/golden checks,
 reference manifest gates, threshold-bearing parity tests, and performance
-contracts.
+contracts. The target also runs `scripts/validate_reference_bundle_index.py`
+against the actual Git index before release manifest tests, and CI runs the
+target on Python 3.10, 3.11, and 3.12.
+
+Release-gate pytest steps emit duration summaries and JUnit XML under
+`build/reports/`. CI retains those reports together with
+`build/release-gate/release_gate_metadata.json`.
 
 `parity_diagnostic` tests are informational unless they are intentionally
 promoted into the release selector.

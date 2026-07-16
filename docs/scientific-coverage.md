@@ -355,13 +355,18 @@ performance contracts. The maintained commands/workflows are:
 
 - Local release gate command: `make test-release-gate`
 - `make test-release-gate` executes:
+  - `python scripts/validate_reference_bundle_index.py`
   - `pytest -m "not parity and not performance and not release_gate"`
   - `pytest tests/golden tests/unit/test_provenance_regressions.py tests/integration/test_kinase_workflow_integration.py::test_kinase_public_predmat_provenance_matches_golden_contract tests/integration/test_signalome_workflow_integration.py::test_signalome_l6_provenance_matches_golden_contract -m "release_gate and (reproducibility or golden)"`
   - `pytest tests/release -m "release_gate"`
   - `pytest tests/parity -m "parity and not parity_diagnostic" -s`
   - `pytest tests/performance -m "performance or release_gate" -q`
 - Publish pipeline release gate workflow:
-  - `.github/workflows/publish.yml` job `release-gate` runs `make test-release-gate`
+  - `.github/workflows/publish.yml` job `release-gate` runs `make test-release-gate` on Python 3.10, 3.11, and 3.12
+  - `.github/workflows/publish.yml` validates and installs both wheel and sdist artifacts before publishing
+- CI release-verdict workflow:
+  - `.github/workflows/ci.yml` runs clean constrained `[dev,test]` installs, the full default suite, the full release gate, and wheel/sdist installation tests on Python 3.10, 3.11, and 3.12
+  - Release-gate and performance jobs retain duration/JUnit reports from `build/reports/`
 - CI parity workflows:
   - `.github/workflows/ci.yml` job `activity-parity-gate` runs `pytest tests/parity/test_activity_stage_parity.py -m "parity and activity_parity" -s`
   - `.github/workflows/ci.yml` job `parity-tests` runs `pytest tests/parity -m "parity and not parity_diagnostic" -s`

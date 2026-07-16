@@ -21,10 +21,12 @@ PUBLIC_WORKFLOW_OUTDIR ?= $(FIXTURES_ROOT)/public_workflow_reference
 ACTIVE_SCRIPTS_DIR ?= scripts/active
 RELEASE_GATE_METADATA_PATH ?= build/release-gate/release_gate_metadata.json
 RELEASE_GATE_COMMAND ?= make test-release-gate
+PYTEST_DURATION_ARGS ?= --durations=25 --durations-min=0.01
+PYTEST_REPORT_DIR ?= build/reports
 
 .PHONY: help \
 	check-tools check-r-tools fixtures-dirs \
-	install install-dev lint format type-check pre-commit test tests-all test-unit test-parity test-performance test-release-gate test-seams build clean \
+	install install-dev lint format type-check pre-commit test tests-all test-unit test-parity test-performance validate-reference-bundles test-release-gate test-seams build clean \
 	fixtures fixtures-r-l6 traces-r \
 	fixtures-public-workflow-reference fixtures-provenance-goldens fixtures-all \
 	dataset-builder-demo kinase-workflow-demo signalome-workflow-demo demo-all
@@ -40,6 +42,7 @@ help:
 	@echo   make test-unit                     Run the non-parity pytest suite
 	@echo   make test-parity                   Run the parity pytest suite
 	@echo   make test-performance              Run the performance contract suite
+	@echo   make validate-reference-bundles    Validate Git-index reference bundle manifests and files
 	@echo   make test-release-gate             Run release validation (default non-parity suite, provenance goldens, reference manifests, parity, performance)
 	@echo   make test                          Run unit and parity tests
 	@echo   make tests-all                     Alias for all-tests
@@ -47,7 +50,7 @@ help:
 	@echo   make dataset-builder-demo          Run examples.dataset_builder_demo.main()
 	@echo   make kinase-workflow-demo          Run examples.kinase_workflow_demo.main()
 	@echo   make signalome-workflow-demo       Run examples.signalome_workflow_demo.main()
-	@echo   make build                         Build source and wheel distributions
+	@echo   make build                         Build and validate source/wheel distributions
 	@echo   make clean                         Remove common local build and test artefacts
 	@echo   make fixtures-r-l6                 Generate the main L6 R-backed fixture family
 	@echo   make traces-r                      Regenerate the committed R L6 prediction trace
@@ -95,9 +98,14 @@ test-parity: check-tools
 	$(PYTEST) tests/parity -m parity -s
 
 test-performance: check-tools
-	$(PYTEST) tests/performance -m "performance or release_gate"
+	$(MKDIR_P) "$(PYTEST_REPORT_DIR)"
+	$(PYTEST) $(PYTEST_DURATION_ARGS) tests/performance -m "performance or release_gate" --junitxml "$(PYTEST_REPORT_DIR)/performance.xml"
+
+validate-reference-bundles: check-tools
+	$(PYTHON) scripts/validate_reference_bundle_index.py
 
 test-release-gate: check-tools
+	$(MKDIR_P) "$(PYTEST_REPORT_DIR)"
 	PYTHONPATH=src $(PYTHON) -m phospy.release.metadata \
 		--output "$(RELEASE_GATE_METADATA_PATH)" \
 		--test-command "$(RELEASE_GATE_COMMAND)" \
@@ -106,16 +114,18 @@ test-release-gate: check-tools
 		--test-marker "release_gate" \
 		--test-marker "parity and not parity_diagnostic" \
 		--test-marker "performance or release_gate" \
-		--test-step '$(PYTEST) -m "not parity and not performance and not release_gate"' \
-		--test-step '$(PYTEST) tests/golden tests/unit/test_provenance_regressions.py tests/integration/test_kinase_workflow_integration.py::test_kinase_public_predmat_provenance_matches_golden_contract tests/integration/test_signalome_workflow_integration.py::test_signalome_l6_provenance_matches_golden_contract -m "release_gate and (reproducibility or golden)"' \
-		--test-step '$(PYTEST) tests/release -m "release_gate"' \
-		--test-step '$(PYTEST) tests/parity -m "parity and not parity_diagnostic" -s' \
-		--test-step '$(PYTEST) tests/performance -m "performance or release_gate" -q'
-	$(PYTEST) -m "not parity and not performance and not release_gate"
-	$(PYTEST) tests/golden tests/unit/test_provenance_regressions.py tests/integration/test_kinase_workflow_integration.py::test_kinase_public_predmat_provenance_matches_golden_contract tests/integration/test_signalome_workflow_integration.py::test_signalome_l6_provenance_matches_golden_contract -m "release_gate and (reproducibility or golden)"
-	$(PYTEST) tests/release -m "release_gate"
-	$(PYTEST) tests/parity -m "parity and not parity_diagnostic" -s
-	$(PYTEST) tests/performance -m "performance or release_gate" -q
+		--test-step '$(PYTHON) scripts/validate_reference_bundle_index.py' \
+		--test-step '$(PYTEST) $(PYTEST_DURATION_ARGS) -m "not parity and not performance and not release_gate" --junitxml "$(PYTEST_REPORT_DIR)/release-default.xml"' \
+		--test-step '$(PYTEST) $(PYTEST_DURATION_ARGS) tests/golden tests/unit/test_provenance_regressions.py tests/integration/test_kinase_workflow_integration.py::test_kinase_public_predmat_provenance_matches_golden_contract tests/integration/test_signalome_workflow_integration.py::test_signalome_l6_provenance_matches_golden_contract -m "release_gate and (reproducibility or golden)" --junitxml "$(PYTEST_REPORT_DIR)/release-golden.xml"' \
+		--test-step '$(PYTEST) $(PYTEST_DURATION_ARGS) tests/release -m "release_gate" --junitxml "$(PYTEST_REPORT_DIR)/release-reference-manifest.xml"' \
+		--test-step '$(PYTEST) $(PYTEST_DURATION_ARGS) tests/parity -m "parity and not parity_diagnostic" -s --junitxml "$(PYTEST_REPORT_DIR)/release-parity.xml"' \
+		--test-step '$(PYTEST) $(PYTEST_DURATION_ARGS) tests/performance -m "performance or release_gate" -q --junitxml "$(PYTEST_REPORT_DIR)/release-performance.xml"'
+	$(PYTHON) scripts/validate_reference_bundle_index.py
+	$(PYTEST) $(PYTEST_DURATION_ARGS) -m "not parity and not performance and not release_gate" --junitxml "$(PYTEST_REPORT_DIR)/release-default.xml"
+	$(PYTEST) $(PYTEST_DURATION_ARGS) tests/golden tests/unit/test_provenance_regressions.py tests/integration/test_kinase_workflow_integration.py::test_kinase_public_predmat_provenance_matches_golden_contract tests/integration/test_signalome_workflow_integration.py::test_signalome_l6_provenance_matches_golden_contract -m "release_gate and (reproducibility or golden)" --junitxml "$(PYTEST_REPORT_DIR)/release-golden.xml"
+	$(PYTEST) $(PYTEST_DURATION_ARGS) tests/release -m "release_gate" --junitxml "$(PYTEST_REPORT_DIR)/release-reference-manifest.xml"
+	$(PYTEST) $(PYTEST_DURATION_ARGS) tests/parity -m "parity and not parity_diagnostic" -s --junitxml "$(PYTEST_REPORT_DIR)/release-parity.xml"
+	$(PYTEST) $(PYTEST_DURATION_ARGS) tests/performance -m "performance or release_gate" -q --junitxml "$(PYTEST_REPORT_DIR)/release-performance.xml"
 
 dataset-builder-demo: check-tools
 	PYTHONPATH=src $(PYTHON) -c "from examples.dataset_builder_demo import main; main()"
@@ -150,8 +160,9 @@ test-seams: check-tools
 
 fixtures-all: fixtures-r-l6 fixtures-public-workflow-reference
 
-build: check-tools
+build: check-tools validate-reference-bundles
 	$(BUILD)
+	$(PYTHON) scripts/validate_reference_bundle_distribution.py dist/*
 
 clean:
 	$(RM) .pytest_cache .ruff_cache build dist .eggs
