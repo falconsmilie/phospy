@@ -20,9 +20,9 @@ DIRECT_CONSTRUCTION_WARNING = (
     "analysis-ready state."
 )
 DIRECT_CONSTRUCTION_MISSING_ASSERTIONS_WARNING = (
-    "No typed trusted construction assertion metadata was supplied; sequence, "
-    "identity, quantitative meaning, and reference context are not recorded as "
-    "user-asserted."
+    "No typed trusted construction assertion metadata was supplied; identity, "
+    "quantitative meaning, localisation, sequence, and reference context are "
+    "not recorded as user-asserted or waived."
 )
 
 
@@ -58,6 +58,9 @@ def build_direct_construction_provenance(
         "builder_used": False,
         "warning": DIRECT_CONSTRUCTION_WARNING,
         "trusted_construction_assertions": assertions.to_payload(),
+        "trusted_construction_assertion_fingerprint": (
+            assertions.assertion_fingerprint
+        ),
         "trusted_assertion_metadata_provided": (assertions.assertion_metadata_provided),
         "missing_trusted_assertions": list(assertions.missing_assertions),
     }

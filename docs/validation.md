@@ -11,8 +11,10 @@ labels such as `MAPK14;Y182;` as the index when `site_metadata` provides enough
 protein context to derive `site_key`. Direct `AnalysisReadyPhosphoDataset`
 construction is advanced/trusted use and must already use encoded `site_key`
 row indexes; callers on that path should prefer
-`AnalysisReadyPhosphoDataset.from_trusted_tables(...)`. Display-indexed direct
-construction is invalid. Missing values are rejected by default.
+`AnalysisReadyPhosphoDataset.from_trusted_tables(...)` with typed evidence or
+explicit waivers for identity, quantitative meaning, localisation, sequence,
+and reference context. Display-indexed direct construction is invalid. Missing
+values are rejected by default.
 
 `site_metadata` must be a non-empty table aligned to `phospho.index`. It must
 include non-empty `gene_symbol`, `site`, and `site_sequence` columns at the

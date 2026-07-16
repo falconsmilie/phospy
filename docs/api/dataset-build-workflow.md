@@ -20,12 +20,16 @@ not the ordinary user construction story. Advanced callers should prefer
 analysis-ready tables. The factory delegates to constructor validation and
 requires encoded `site_key` indexes and auditable identity metadata
 (`site_key`, `display_id`, `organism`, `protein_namespace`,
-`protein_identifier`, `gene_symbol`, `site`, and `site_sequence`). It does not
+`protein_identifier`, `gene_symbol`, `site`, and `site_sequence`). It also
+requires `TrustedDatasetConstructionAssertions` with typed evidence or an
+explicit waiver for identity, quantitative meaning, localisation, sequence, and
+reference context. Localisation evidence must record source, policy, and
+threshold; sequence presence is not localisation evidence. The factory does not
 silently fall back to display-site identity, and validation cannot prove the
 biological correctness of user-asserted provenance. The compatibility
-constructor remains available. The builder may accept legacy display-indexed
-input only when `site_metadata` contains enough protein context to derive
-`site_key` without ambiguity.
+constructor remains available for advanced/internal use. The builder may accept
+legacy display-indexed input only when `site_metadata` contains enough protein
+context to derive `site_key` without ambiguity.
 
 `DatasetBuildRequest` is a lightweight command payload. Constructing it stores
 the requested inputs and policies, but does not prove the dataset-build request

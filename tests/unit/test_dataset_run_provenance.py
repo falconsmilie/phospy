@@ -353,9 +353,10 @@ def test_direct_dataset_construction_without_provenance_records_marker() -> None
     )
     assert construction["trusted_assertion_metadata_provided"] is False
     assert construction["missing_trusted_assertions"] == (
-        "sequence_user_asserted",
         "identity_user_asserted",
         "quantitative_meaning_user_asserted",
+        "localisation_user_asserted",
+        "sequence_user_asserted",
         "reference_context_user_asserted",
     )
     assertions = construction["trusted_construction_assertions"]
@@ -390,9 +391,10 @@ def test_direct_dataset_construction_provenance_serializes_round_trip() -> None:
     assert isinstance(trusted_assertions, dict)
     assert trusted_assertions["assertion_metadata_provided"] is False
     assert trusted_assertions["missing_assertions"] == [
-        "sequence_user_asserted",
         "identity_user_asserted",
         "quantitative_meaning_user_asserted",
+        "localisation_user_asserted",
+        "sequence_user_asserted",
         "reference_context_user_asserted",
     ]
 

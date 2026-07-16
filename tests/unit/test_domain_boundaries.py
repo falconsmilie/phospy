@@ -27,6 +27,10 @@ from phospy.errors import (
     UnsupportedInputFormatError,
     UnsupportedOrganismError,
 )
+from phospy.provenance import (
+    TrustedDatasetConstructionAssertions,
+    TrustedDatasetConstructionEvidence,
+)
 from phospy.science.datasets.internal_view import DatasetInternalView
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.references.models import Organism, ReferenceBundle, ReferencePreset
@@ -154,6 +158,31 @@ def _supported_dataset_state(*, has_total_matrix: bool) -> dict[str, object]:
     }
 
 
+def _trusted_assertions() -> TrustedDatasetConstructionAssertions:
+    return TrustedDatasetConstructionAssertions(
+        identity=TrustedDatasetConstructionEvidence.evidence(
+            source="unit-test site_key fixtures"
+        ),
+        quantitative_meaning=TrustedDatasetConstructionEvidence.evidence(
+            source="unit-test intensity matrix",
+            policy="linear analysis-ready matrix",
+        ),
+        localisation=TrustedDatasetConstructionEvidence.evidence(
+            source="localisation_confidence column",
+            policy="require_threshold",
+            threshold=0.75,
+        ),
+        sequence=TrustedDatasetConstructionEvidence.evidence(
+            source="unit-test site_sequence fixtures"
+        ),
+        reference_context=TrustedDatasetConstructionEvidence.waiver(
+            reason="unit-test fixtures do not carry reference context"
+        ),
+        asserted_by="unit-test",
+        assertion_source="test_domain_boundaries",
+    )
+
+
 def test_analysis_ready_from_trusted_tables_enforces_site_sequence() -> None:
     bad_site_metadata = _site_metadata().drop(columns=["site_sequence"])
     with pytest.raises(
@@ -202,6 +231,7 @@ def test_analysis_ready_from_trusted_tables_records_trusted_construction_marker(
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
+        trusted_construction_assertions=_trusted_assertions(),
         **_supported_dataset_state(has_total_matrix=False),
     )
 
@@ -218,13 +248,8 @@ def test_analysis_ready_from_trusted_tables_records_trusted_construction_marker(
         "Direct construction cannot prove biological correctness of "
         "caller-provided analysis-ready state."
     )
-    assert construction["trusted_assertion_metadata_provided"] is False
-    assert construction["missing_trusted_assertions"] == [
-        "sequence_user_asserted",
-        "identity_user_asserted",
-        "quantitative_meaning_user_asserted",
-        "reference_context_user_asserted",
-    ]
+    assert construction["trusted_assertion_metadata_provided"] is True
+    assert construction["missing_trusted_assertions"] == []
 
 
 def test_direct_construction_records_provenance_marker() -> None:
@@ -255,6 +280,7 @@ def test_trusted_factory_records_same_direct_construction_marker() -> None:
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
+        trusted_construction_assertions=_trusted_assertions(),
         **_supported_dataset_state(has_total_matrix=False),
     )
 
@@ -263,10 +289,13 @@ def test_trusted_factory_records_same_direct_construction_marker() -> None:
     assert trusted_dataset.provenance.workflow_name == (
         direct_dataset.provenance.workflow_name
     )
-    assert (
-        trusted_dataset.provenance.workflow_parameters["construction"]
-        == (direct_dataset.provenance.workflow_parameters["construction"])
-    )
+    trusted_construction = trusted_dataset.provenance.workflow_parameters[
+        "construction"
+    ]
+    direct_construction = direct_dataset.provenance.workflow_parameters["construction"]
+    assert trusted_construction["method"] == direct_construction["method"]
+    assert trusted_construction["source"] == direct_construction["source"]
+    assert trusted_construction["builder_used"] == direct_construction["builder_used"]
 
 
 def test_dataset_rejects_missing_site_sequence_column() -> None:
@@ -1158,14 +1187,30 @@ def test_dataset_internal_view_returns_defensive_frame_snapshots() -> None:
         sample_ids=["sample_a"],
     )
 
-    phospho_snapshot.iloc[0, 0] = 999.0
-    site_metadata_snapshot.loc[_SITE_KEY, "gene_symbol"] = "MUTATED"
+    def _mutate_snapshot(mutator) -> None:
+        try:
+            mutator()
+        except (TypeError, ValueError):
+            pass
+
+    _mutate_snapshot(lambda: phospho_snapshot.iloc.__setitem__((0, 0), 999.0))
+    _mutate_snapshot(
+        lambda: site_metadata_snapshot.loc.__setitem__(
+            (_SITE_KEY, "gene_symbol"),
+            "MUTATED",
+        )
+    )
     assert sample_metadata_snapshot is not None
-    sample_metadata_snapshot.loc["sample_a", "condition"] = "mutated"
+    _mutate_snapshot(
+        lambda: sample_metadata_snapshot.loc.__setitem__(
+            ("sample_a", "condition"),
+            "mutated",
+        )
+    )
     assert total_snapshot is not None
-    total_snapshot.iloc[0, 0] = 999.0
+    _mutate_snapshot(lambda: total_snapshot.iloc.__setitem__((0, 0), 999.0))
     assert comparisons_snapshot is not None
-    comparisons_snapshot.iloc[0, 0] = 0.99
+    _mutate_snapshot(lambda: comparisons_snapshot.iloc.__setitem__((0, 0), 0.99))
     assert imputation_summary is not None
     imputation_summary.loc[_SITE_KEY, "observed_cell_count"] = 0
 

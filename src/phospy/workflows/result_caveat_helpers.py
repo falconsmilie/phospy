@@ -20,9 +20,10 @@ if TYPE_CHECKING:
     from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 
 _TRUSTED_CONSTRUCTION_ASSERTION_FIELDS = (
-    "sequence_user_asserted",
     "identity_user_asserted",
     "quantitative_meaning_user_asserted",
+    "localisation_user_asserted",
+    "sequence_user_asserted",
     "reference_context_user_asserted",
 )
 

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
+import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
@@ -28,6 +31,22 @@ ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V1 = 1
 ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V2 = 2
 BATCH_CORRECTION_PROVENANCE_SCHEMA_VERSION_V1 = 1
 TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V1 = 1
+TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V2 = 2
+_TRUSTED_DATASET_CONSTRUCTION_REQUIRED_DIMENSIONS = (
+    "identity",
+    "quantitative_meaning",
+    "localisation",
+    "sequence",
+    "reference_context",
+)
+_TRUSTED_DATASET_CONSTRUCTION_MISSING_ASSERTION_NAMES = {
+    "identity": "identity_user_asserted",
+    "quantitative_meaning": "quantitative_meaning_user_asserted",
+    "localisation": "localisation_user_asserted",
+    "sequence": "sequence_user_asserted",
+    "reference_context": "reference_context_user_asserted",
+}
+_TRUSTED_DATASET_CONSTRUCTION_EVIDENCE_KINDS = frozenset({"evidence", "waiver"})
 
 
 class DeterminismKind(str, Enum):
@@ -179,6 +198,19 @@ def _optional_provenance_text(value: object | None) -> str | None:
     return text or None
 
 
+def _optional_provenance_float(
+    value: object | None, *, field_name: str
+) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise PhosPyInputError(f"{field_name} must be a finite number")
+    numeric = float(value)
+    if not math.isfinite(numeric):
+        raise PhosPyInputError(f"{field_name} must be a finite number")
+    return numeric
+
+
 @dataclass(frozen=True, slots=True)
 class InputIntensityScaleEvidence:
     """Workflow-visible evidence for how input intensity scale was established."""
@@ -235,41 +267,171 @@ class InputIntensityScaleEvidence:
 
 
 @dataclass(frozen=True, slots=True)
-class TrustedDatasetConstructionAssertions:
-    """User assertion provenance for trusted direct dataset construction."""
+class TrustedDatasetConstructionEvidence:
+    """Typed evidence or waiver for one trusted construction assertion."""
 
-    sequence_user_asserted: bool
-    identity_user_asserted: bool
-    quantitative_meaning_user_asserted: bool
-    reference_context_user_asserted: bool
+    kind: str
+    source: str | None = None
+    policy: str | None = None
+    threshold: float | None = None
+    waiver_reason: str | None = None
+    details: Mapping[str, JsonValue] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        kind = _required_provenance_text(
+            self.kind,
+            field_name="trusted_dataset_construction_evidence.kind",
+        )
+        if kind not in _TRUSTED_DATASET_CONSTRUCTION_EVIDENCE_KINDS:
+            supported = ", ".join(sorted(_TRUSTED_DATASET_CONSTRUCTION_EVIDENCE_KINDS))
+            raise PhosPyInputError(
+                "trusted_dataset_construction_evidence.kind must be one of: "
+                + supported
+            )
+        source = _optional_provenance_text(self.source)
+        policy = _optional_provenance_text(self.policy)
+        waiver_reason = _optional_provenance_text(self.waiver_reason)
+        threshold = _optional_provenance_float(
+            self.threshold,
+            field_name="trusted_dataset_construction_evidence.threshold",
+        )
+        if kind == "evidence" and source is None:
+            raise PhosPyInputError(
+                "trusted_dataset_construction_evidence.source is required when "
+                "kind='evidence'"
+            )
+        if kind == "waiver" and waiver_reason is None:
+            raise PhosPyInputError(
+                "trusted_dataset_construction_evidence.waiver_reason is required "
+                "when kind='waiver'"
+            )
+        object.__setattr__(self, "kind", kind)
+        object.__setattr__(self, "source", source)
+        object.__setattr__(self, "policy", policy)
+        object.__setattr__(self, "threshold", threshold)
+        object.__setattr__(self, "waiver_reason", waiver_reason)
+        object.__setattr__(
+            self,
+            "details",
+            freeze_json_mapping(
+                self.details,
+                field_name="trusted_dataset_construction_evidence.details",
+            ),
+        )
+
+    @classmethod
+    def evidence(
+        cls,
+        *,
+        source: str,
+        policy: str | None = None,
+        threshold: float | None = None,
+        details: Mapping[str, JsonValue] | None = None,
+    ) -> TrustedDatasetConstructionEvidence:
+        """Create an explicit evidence record."""
+
+        return cls(
+            kind="evidence",
+            source=source,
+            policy=policy,
+            threshold=threshold,
+            details={} if details is None else details,
+        )
+
+    @classmethod
+    def waiver(
+        cls,
+        *,
+        reason: str,
+        policy: str | None = None,
+        details: Mapping[str, JsonValue] | None = None,
+    ) -> TrustedDatasetConstructionEvidence:
+        """Create an explicit waiver record."""
+
+        return cls(
+            kind="waiver",
+            policy=policy,
+            waiver_reason=reason,
+            details={} if details is None else details,
+        )
+
+    @property
+    def is_waiver(self) -> bool:
+        """Return whether this assertion is an explicit waiver."""
+
+        return self.kind == "waiver"
+
+    def to_payload(self) -> dict[str, object]:
+        """Return a JSON-compatible evidence payload."""
+
+        return {
+            "kind": self.kind,
+            "source": self.source,
+            "policy": self.policy,
+            "threshold": self.threshold,
+            "waiver_reason": self.waiver_reason,
+            "details": thaw_json_mapping(
+                self.details,
+                field_name="trusted_dataset_construction_evidence.details",
+            ),
+        }
+
+
+def _optional_trusted_construction_evidence(
+    value: object | None,
+    *,
+    field_name: str,
+) -> TrustedDatasetConstructionEvidence | None:
+    if value is None:
+        return None
+    if not isinstance(value, TrustedDatasetConstructionEvidence):
+        raise PhosPyInputError(
+            f"{field_name} must be TrustedDatasetConstructionEvidence or None"
+        )
+    return value
+
+
+@dataclass(frozen=True, slots=True)
+class TrustedDatasetConstructionAssertions:
+    """User assertion provenance for trusted direct dataset construction.
+
+    Complete trusted construction metadata records typed evidence or an
+    explicit waiver for identity, quantitative meaning, localisation, sequence,
+    and reference context. A missing assertion bundle is reserved for legacy
+    direct-construction audit markers.
+    """
+
+    identity: TrustedDatasetConstructionEvidence | None = None
+    quantitative_meaning: TrustedDatasetConstructionEvidence | None = None
+    localisation: TrustedDatasetConstructionEvidence | None = None
+    sequence: TrustedDatasetConstructionEvidence | None = None
+    reference_context: TrustedDatasetConstructionEvidence | None = None
     assertion_metadata_provided: bool = True
     asserted_by: str | None = None
     assertion_source: str | None = None
     notes: str | None = None
-    schema_version: int = TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V1
+    schema_version: int = TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V2
 
     def __post_init__(self) -> None:
-        sequence_user_asserted = _required_provenance_bool(
-            self.sequence_user_asserted,
-            field_name="trusted_dataset_construction_assertions.sequence_user_asserted",
+        identity = _optional_trusted_construction_evidence(
+            self.identity,
+            field_name="trusted_dataset_construction_assertions.identity",
         )
-        identity_user_asserted = _required_provenance_bool(
-            self.identity_user_asserted,
-            field_name="trusted_dataset_construction_assertions.identity_user_asserted",
+        quantitative_meaning = _optional_trusted_construction_evidence(
+            self.quantitative_meaning,
+            field_name="trusted_dataset_construction_assertions.quantitative_meaning",
         )
-        quantitative_meaning_user_asserted = _required_provenance_bool(
-            self.quantitative_meaning_user_asserted,
-            field_name=(
-                "trusted_dataset_construction_assertions."
-                "quantitative_meaning_user_asserted"
-            ),
+        localisation = _optional_trusted_construction_evidence(
+            self.localisation,
+            field_name="trusted_dataset_construction_assertions.localisation",
         )
-        reference_context_user_asserted = _required_provenance_bool(
-            self.reference_context_user_asserted,
-            field_name=(
-                "trusted_dataset_construction_assertions."
-                "reference_context_user_asserted"
-            ),
+        sequence = _optional_trusted_construction_evidence(
+            self.sequence,
+            field_name="trusted_dataset_construction_assertions.sequence",
+        )
+        reference_context = _optional_trusted_construction_evidence(
+            self.reference_context,
+            field_name="trusted_dataset_construction_assertions.reference_context",
         )
         assertion_metadata_provided = _required_provenance_bool(
             self.assertion_metadata_provided,
@@ -277,43 +439,44 @@ class TrustedDatasetConstructionAssertions:
                 "trusted_dataset_construction_assertions.assertion_metadata_provided"
             ),
         )
+        supplied_assertions = {
+            "identity": identity,
+            "quantitative_meaning": quantitative_meaning,
+            "localisation": localisation,
+            "sequence": sequence,
+            "reference_context": reference_context,
+        }
         if not assertion_metadata_provided and any(
-            (
-                sequence_user_asserted,
-                identity_user_asserted,
-                quantitative_meaning_user_asserted,
-                reference_context_user_asserted,
-            )
+            value is not None for value in supplied_assertions.values()
         ):
             raise PhosPyInputError(
                 "trusted_dataset_construction_assertions cannot record user "
                 "assertions when assertion_metadata_provided is False"
             )
+        if assertion_metadata_provided:
+            missing = tuple(
+                name for name, value in supplied_assertions.items() if value is None
+            )
+            if missing:
+                raise PhosPyInputError(
+                    "trusted_dataset_construction_assertions requires typed "
+                    "evidence or an explicit waiver for: " + ", ".join(missing)
+                )
+            _require_localisation_evidence_or_waiver(localisation)
         schema_version = _required_non_negative_row_count(
             self.schema_version,
             field_name="trusted_dataset_construction_assertions.schema_version",
         )
-        if schema_version != TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V1:
+        if schema_version != TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V2:
             raise PhosPyInputError(
                 "trusted_dataset_construction_assertions.schema_version must be "
-                f"{TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V1}"
+                f"{TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V2}"
             )
-        object.__setattr__(
-            self,
-            "sequence_user_asserted",
-            sequence_user_asserted,
-        )
-        object.__setattr__(self, "identity_user_asserted", identity_user_asserted)
-        object.__setattr__(
-            self,
-            "quantitative_meaning_user_asserted",
-            quantitative_meaning_user_asserted,
-        )
-        object.__setattr__(
-            self,
-            "reference_context_user_asserted",
-            reference_context_user_asserted,
-        )
+        object.__setattr__(self, "identity", identity)
+        object.__setattr__(self, "quantitative_meaning", quantitative_meaning)
+        object.__setattr__(self, "localisation", localisation)
+        object.__setattr__(self, "sequence", sequence)
+        object.__setattr__(self, "reference_context", reference_context)
         object.__setattr__(
             self,
             "assertion_metadata_provided",
@@ -332,32 +495,86 @@ class TrustedDatasetConstructionAssertions:
         object.__setattr__(self, "notes", _optional_provenance_text(self.notes))
         object.__setattr__(self, "schema_version", schema_version)
 
+    @property
+    def identity_user_asserted(self) -> bool:
+        """Return whether identity has typed evidence or a waiver."""
+
+        return self.identity is not None
+
+    @property
+    def quantitative_meaning_user_asserted(self) -> bool:
+        """Return whether quantitative meaning has typed evidence or a waiver."""
+
+        return self.quantitative_meaning is not None
+
+    @property
+    def localisation_user_asserted(self) -> bool:
+        """Return whether localisation has typed evidence or a waiver."""
+
+        return self.localisation is not None
+
+    @property
+    def sequence_user_asserted(self) -> bool:
+        """Return whether sequence has typed evidence or a waiver."""
+
+        return self.sequence is not None
+
+    @property
+    def reference_context_user_asserted(self) -> bool:
+        """Return whether reference context has typed evidence or a waiver."""
+
+        return self.reference_context is not None
+
+    @property
+    def assertion_fingerprint(self) -> str:
+        """Return a stable fingerprint of the assertion payload."""
+
+        encoded = json.dumps(
+            self._to_payload(include_fingerprint=False),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+            allow_nan=False,
+        ).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
+
+    @property
+    def waived_assertions(self) -> tuple[str, ...]:
+        """Return assertion dimensions satisfied by explicit waiver."""
+
+        waived: list[str] = []
+        for dimension in _TRUSTED_DATASET_CONSTRUCTION_REQUIRED_DIMENSIONS:
+            record = getattr(self, dimension)
+            if isinstance(record, TrustedDatasetConstructionEvidence) and (
+                record.is_waiver
+            ):
+                waived.append(dimension)
+        return tuple(waived)
+
     @classmethod
     def missing(cls) -> TrustedDatasetConstructionAssertions:
         """Return explicit metadata for absent trusted assertion provenance."""
 
         return cls(
-            sequence_user_asserted=False,
-            identity_user_asserted=False,
-            quantitative_meaning_user_asserted=False,
-            reference_context_user_asserted=False,
             assertion_metadata_provided=False,
             notes="No typed trusted construction assertion metadata was supplied.",
         )
 
     @property
     def missing_assertions(self) -> tuple[str, ...]:
-        """Return required assertion fields not recorded as user-asserted."""
+        """Return required assertion fields not recorded or waived."""
 
+        if not self.assertion_metadata_provided:
+            return tuple(
+                _TRUSTED_DATASET_CONSTRUCTION_MISSING_ASSERTION_NAMES[dimension]
+                for dimension in _TRUSTED_DATASET_CONSTRUCTION_REQUIRED_DIMENSIONS
+            )
         missing: list[str] = []
-        if not self.sequence_user_asserted:
-            missing.append("sequence_user_asserted")
-        if not self.identity_user_asserted:
-            missing.append("identity_user_asserted")
-        if not self.quantitative_meaning_user_asserted:
-            missing.append("quantitative_meaning_user_asserted")
-        if not self.reference_context_user_asserted:
-            missing.append("reference_context_user_asserted")
+        for dimension in _TRUSTED_DATASET_CONSTRUCTION_REQUIRED_DIMENSIONS:
+            if getattr(self, dimension) is None:
+                missing.append(
+                    _TRUSTED_DATASET_CONSTRUCTION_MISSING_ASSERTION_NAMES[dimension]
+                )
         return tuple(missing)
 
     @property
@@ -369,22 +586,69 @@ class TrustedDatasetConstructionAssertions:
     def to_payload(self) -> dict[str, object]:
         """Return a JSON-compatible trusted assertion payload."""
 
-        return {
+        return self._to_payload(include_fingerprint=True)
+
+    def _to_payload(self, *, include_fingerprint: bool) -> dict[str, object]:
+        payload: dict[str, object] = {
             "schema_version": int(self.schema_version),
             "assertion_metadata_provided": bool(self.assertion_metadata_provided),
-            "sequence_user_asserted": bool(self.sequence_user_asserted),
+            "identity": _trusted_evidence_payload(self.identity),
+            "quantitative_meaning": _trusted_evidence_payload(
+                self.quantitative_meaning
+            ),
+            "localisation": _trusted_evidence_payload(self.localisation),
+            "sequence": _trusted_evidence_payload(self.sequence),
+            "reference_context": _trusted_evidence_payload(self.reference_context),
             "identity_user_asserted": bool(self.identity_user_asserted),
             "quantitative_meaning_user_asserted": bool(
                 self.quantitative_meaning_user_asserted
             ),
+            "localisation_user_asserted": bool(self.localisation_user_asserted),
+            "sequence_user_asserted": bool(self.sequence_user_asserted),
             "reference_context_user_asserted": bool(
                 self.reference_context_user_asserted
             ),
+            "waived_assertions": list(self.waived_assertions),
             "missing_assertions": list(self.missing_assertions),
             "asserted_by": self.asserted_by,
             "assertion_source": self.assertion_source,
             "notes": self.notes,
         }
+        if include_fingerprint:
+            payload["assertion_fingerprint"] = self.assertion_fingerprint
+        return payload
+
+
+def _trusted_evidence_payload(
+    value: TrustedDatasetConstructionEvidence | None,
+) -> dict[str, object] | None:
+    if value is None:
+        return None
+    return value.to_payload()
+
+
+def _require_localisation_evidence_or_waiver(
+    value: TrustedDatasetConstructionEvidence | None,
+) -> None:
+    if value is None:
+        return
+    if value.kind == "waiver":
+        return
+    if value.policy is None:
+        raise PhosPyInputError(
+            "trusted_dataset_construction_assertions.localisation.policy is "
+            "required when localisation is recorded as evidence"
+        )
+    if value.threshold is None:
+        raise PhosPyInputError(
+            "trusted_dataset_construction_assertions.localisation.threshold is "
+            "required when localisation is recorded as evidence"
+        )
+    if value.threshold < 0.0 or value.threshold > 1.0:
+        raise PhosPyInputError(
+            "trusted_dataset_construction_assertions.localisation.threshold must "
+            "be between 0 and 1"
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -557,8 +821,74 @@ class TableFingerprint:
     column_index_structure: Mapping[str, JsonValue] | None = None
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "column_names", tuple(self.column_names))
-        object.__setattr__(self, "dtypes", tuple(self.dtypes))
+        name = _required_provenance_text(self.name, field_name="table_fingerprint.name")
+        rows = _required_non_negative_row_count(
+            self.rows,
+            field_name="table_fingerprint.rows",
+        )
+        columns = _required_non_negative_row_count(
+            self.columns,
+            field_name="table_fingerprint.columns",
+        )
+        column_names = _provenance_string_tuple(
+            self.column_names,
+            field_name="table_fingerprint.column_names",
+        )
+        dtypes = _provenance_string_tuple(
+            self.dtypes,
+            field_name="table_fingerprint.dtypes",
+        )
+        if len(column_names) != columns:
+            raise PhosPyInputError(
+                "table_fingerprint.column_names length must match "
+                "table_fingerprint.columns"
+            )
+        if len(dtypes) != columns:
+            raise PhosPyInputError(
+                "table_fingerprint.dtypes length must match table_fingerprint.columns"
+            )
+        object.__setattr__(self, "name", name)
+        object.__setattr__(self, "rows", rows)
+        object.__setattr__(self, "columns", columns)
+        object.__setattr__(
+            self,
+            "index_name",
+            None if self.index_name is None else str(self.index_name),
+        )
+        object.__setattr__(self, "column_names", column_names)
+        object.__setattr__(self, "dtypes", dtypes)
+        object.__setattr__(
+            self,
+            "exact_hash_algorithm",
+            _required_provenance_text(
+                self.exact_hash_algorithm,
+                field_name="table_fingerprint.exact_hash_algorithm",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "exact_hash_value",
+            _required_provenance_text(
+                self.exact_hash_value,
+                field_name="table_fingerprint.exact_hash_value",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "tolerance_hash_algorithm",
+            _required_provenance_text(
+                self.tolerance_hash_algorithm,
+                field_name="table_fingerprint.tolerance_hash_algorithm",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "tolerance_hash_value",
+            _required_provenance_text(
+                self.tolerance_hash_value,
+                field_name="table_fingerprint.tolerance_hash_value",
+            ),
+        )
         object.__setattr__(
             self,
             "index_structure",
@@ -1323,5 +1653,7 @@ __all__ = [
     "RunProvenance",
     "TableFingerprint",
     "TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V1",
+    "TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V2",
     "TrustedDatasetConstructionAssertions",
+    "TrustedDatasetConstructionEvidence",
 ]

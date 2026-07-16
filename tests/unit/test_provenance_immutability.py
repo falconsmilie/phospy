@@ -128,6 +128,28 @@ def test_provenance_rejects_unsupported_and_non_finite_json_values() -> None:
         _run_with_parameters({"bad": float("inf")})
 
 
+def test_table_fingerprint_rejects_invalid_shape_and_hash_state() -> None:
+    valid = {
+        "name": "dataset.phospho",
+        "rows": 1,
+        "columns": 1,
+        "index_name": "site_id",
+        "column_names": ("sample_a",),
+        "dtypes": ("float64",),
+        "exact_hash_algorithm": "sha256-stable-json-v1",
+        "exact_hash_value": "a" * 64,
+        "tolerance_hash_algorithm": "sha256-float-round-8dp-v1",
+        "tolerance_hash_value": "b" * 64,
+    }
+
+    with pytest.raises(PhosPyInputError, match="rows"):
+        TableFingerprint(**{**valid, "rows": -1})
+    with pytest.raises(PhosPyInputError, match="column_names length"):
+        TableFingerprint(**{**valid, "columns": 2})
+    with pytest.raises(PhosPyInputError, match="exact_hash_value"):
+        TableFingerprint(**{**valid, "exact_hash_value": ""})
+
+
 def test_provenance_round_trip_payload_and_hash_are_stable() -> None:
     provenance = _run_with_parameters({"nested": {"items": ["a", {"score": 1.0}]}})
 

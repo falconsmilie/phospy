@@ -36,12 +36,17 @@ def test_public_api_marks_direct_dataset_construction_advanced_trusted() -> None
     assert "Ordinary users" in model_doc
     assert "AnalysisReadyDatasetBuilder.run" in model_doc
     assert "from_trusted_tables" in model_doc
+    assert "not the primary advanced construction API" in model_doc
+    assert "typed evidence or an explicit" in model_doc
+    assert "localisation" in model_doc
     assert "cannot prove" in model_doc
     assert "biological correctness" in model_doc
     assert "minimal" in model_doc
     assert "direct-construction provenance marker" in model_doc
     assert "same structural invariants as direct construction" in factory_doc
     assert "site_sequence" in factory_doc
+    assert "source, policy" in factory_doc
+    assert "threshold" in factory_doc
     assert "cannot prove" in factory_doc
     assert "biological correctness" in factory_doc
 

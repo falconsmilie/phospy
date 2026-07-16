@@ -28,6 +28,7 @@ from phospy.provenance.hashing import (
 )
 from phospy.provenance.models import (
     TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V1,
+    TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V2,
     BatchCorrectionProvenance,
     BatchCorrectionRejectedEntity,
     DeterminismKind,
@@ -41,6 +42,7 @@ from phospy.provenance.models import (
     RunProvenance,
     TableFingerprint,
     TrustedDatasetConstructionAssertions,
+    TrustedDatasetConstructionEvidence,
 )
 from phospy.provenance.references import fingerprint_local_reference_source_file
 from phospy.provenance.scientific_policy_models import (
@@ -84,8 +86,10 @@ __all__ = [
     "TECHNICAL_REPLICATE_AGGREGATION_DERIVATION_TYPE",
     "TECHNICAL_REPLICATE_AGGREGATOR_IMPLEMENTATION",
     "TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V1",
+    "TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V2",
     "TableFingerprint",
     "TrustedDatasetConstructionAssertions",
+    "TrustedDatasetConstructionEvidence",
     "batch_correction_provenance_from_payload",
     "batch_correction_provenance_to_payload",
     "build_derived_quantitative_run_provenance",

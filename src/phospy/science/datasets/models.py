@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -212,6 +213,54 @@ def _resolve_trusted_construction_assertions(
     return None
 
 
+def _require_complete_from_trusted_assertions(
+    *,
+    dataset: AnalysisReadyPhosphoDataset,
+) -> None:
+    assertions = dataset.trusted_construction_assertions
+    required_message = (
+        "AnalysisReadyPhosphoDataset.from_trusted_tables requires "
+        "trusted_construction_assertions with typed evidence or an explicit "
+        "waiver for identity, quantitative meaning, localisation, sequence, "
+        "and reference context"
+    )
+    if assertions is None:
+        raise DatasetValidationError(required_message)
+    if not assertions.assertion_metadata_provided:
+        raise DatasetValidationError(required_message)
+    if not assertions.all_required_assertions_present:
+        raise DatasetValidationError(
+            required_message + "; missing: " + ", ".join(assertions.missing_assertions)
+        )
+    _require_assertions_linked_to_provenance(dataset=dataset)
+
+
+def _require_assertions_linked_to_provenance(
+    *,
+    dataset: AnalysisReadyPhosphoDataset,
+) -> None:
+    assertions = dataset.trusted_construction_assertions
+    provenance = dataset.provenance
+    if assertions is None or provenance is None:
+        raise DatasetValidationError(
+            "dataset.trusted_construction_assertions must be linked to "
+            "dataset.provenance"
+        )
+    construction = provenance.workflow_parameters.get("construction")
+    if not isinstance(construction, Mapping):
+        raise DatasetValidationError(
+            "dataset.provenance.workflow_parameters['construction'] must record "
+            "trusted construction assertion provenance"
+        )
+    construction_payload = cast(Mapping[str, object], construction)
+    observed = construction_payload.get("trusted_construction_assertion_fingerprint")
+    if observed != assertions.assertion_fingerprint:
+        raise DatasetValidationError(
+            "dataset.trusted_construction_assertions must be provenance-linked; "
+            "trusted_construction_assertion_fingerprint does not match"
+        )
+
+
 def _analysis_ready_matrix_missing_value_count(matrix: pd.DataFrame) -> int:
     if _can_use_fast_numeric_missing_value_scan(matrix):
         try:
@@ -260,7 +309,7 @@ class AnalysisReadyPhosphoDataset:
     own complete analysis-ready tables should prefer
     ``AnalysisReadyPhosphoDataset.from_trusted_tables(...)`` as the explicit
     trusted construction lane. The public constructor remains available for
-    compatibility.
+    compatibility, but it is not the primary advanced construction API.
 
     Construction validates structural invariants, including table shape,
     alignment, analysis-ready ``site_key`` identity, processing-state
@@ -270,7 +319,10 @@ class AnalysisReadyPhosphoDataset:
     Direct construction without supplied assertion metadata records explicit
     missing trusted-construction assertions; direct construction without
     supplied provenance receives a minimal direct-construction provenance marker
-    that records this audit limitation.
+    that records this audit limitation. The primary
+    ``from_trusted_tables(...)`` lane requires typed evidence or an explicit
+    waiver for identity, quantitative meaning, localisation, sequence, and
+    reference context.
 
     `phospho` stores the quantitative matrix after builder preprocessing policy
     has been applied. When total/protein correction is enabled in the builder
@@ -666,17 +718,17 @@ class AnalysisReadyPhosphoDataset:
 
         Validation can confirm structural consistency, but it cannot prove the
         biological correctness of caller-asserted analysis-ready state,
-        provenance, or scientific claims. Pass
-        ``trusted_construction_assertions`` when sequence, identity,
-        quantitative meaning, and reference context are asserted by the caller.
-        Without supplied assertion metadata, the dataset records explicit
-        missing assertion provenance and downstream workflows can surface a
-        stronger trusted-construction caveat. Without supplied run provenance,
-        the dataset receives the same direct trusted-construction marker used
-        by the compatibility constructor.
+        provenance, or scientific claims. The primary advanced lane requires
+        ``trusted_construction_assertions`` with typed evidence or an explicit
+        waiver for identity, quantitative meaning, localisation, sequence, and
+        reference context. Localisation evidence must record source, policy,
+        and threshold; otherwise callers must record an explicit waiver. Without
+        supplied run provenance, the dataset receives the same direct
+        trusted-construction marker used by the compatibility constructor, with
+        the assertion fingerprint linked into provenance.
         """
 
-        return cls(
+        dataset = cls(
             phospho=phospho,
             site_metadata=site_metadata,
             intensity_scale_state=intensity_scale_state,
@@ -692,6 +744,8 @@ class AnalysisReadyPhosphoDataset:
             trusted_construction_assertions=trusted_construction_assertions,
             allow_opaque_site_values=allow_opaque_site_values,
         )
+        _require_complete_from_trusted_assertions(dataset=dataset)
+        return dataset
 
     @classmethod
     def _from_owned(

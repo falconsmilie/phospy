@@ -20,6 +20,14 @@ including uncertain site assignments.
 PhosPy needs an explicit, auditable policy for localisation confidence at
 dataset construction time so workflow components consume already eligible data.
 
+Update note (2026-07-16, trusted construction evidence): Trusted
+analysis-ready construction must not infer localisation confidence from
+`site_sequence` presence or from any generic "trusted" switch. The preferred
+advanced factory requires explicit localisation evidence with source, policy,
+and threshold, or an explicit localisation waiver. Compatibility direct
+construction remains advanced/internal and records missing assertion metadata
+when callers bypass that preferred factory.
+
 ## Decision
 
 PhosPy enforces localisation eligibility at the dataset preprocessing/validation
@@ -61,6 +69,16 @@ When localisation validation is waived, PhosPy records this decision in:
 - preprocessing operations/provenance payload (`localisation_mode`,
   `localisation_min_confidence`, `localisation_confidence_column`,
   `localisation_waiver_reason`)
+
+For trusted `AnalysisReadyPhosphoDataset.from_trusted_tables(...)`
+construction, localisation is recorded in
+`TrustedDatasetConstructionAssertions.localisation` as either:
+
+- typed evidence: source, policy, and threshold
+- explicit waiver: waiver reason, with optional policy/details
+
+This assertion payload is immutable and linked into construction provenance by
+fingerprint. Sequence presence alone is not localisation evidence.
 
 ## Consequences
 

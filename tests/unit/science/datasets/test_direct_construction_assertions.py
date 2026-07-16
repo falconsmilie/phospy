@@ -5,7 +5,10 @@ import pytest
 
 from phospy.api import Organism
 from phospy.errors import DatasetValidationError
-from phospy.provenance import TrustedDatasetConstructionAssertions
+from phospy.provenance import (
+    TrustedDatasetConstructionAssertions,
+    TrustedDatasetConstructionEvidence,
+)
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
@@ -51,6 +54,40 @@ def _site_metadata(index: pd.Index) -> pd.DataFrame:
     )
 
 
+def _complete_assertions(
+    *,
+    localisation: TrustedDatasetConstructionEvidence | None = None,
+    reference_context: TrustedDatasetConstructionEvidence | None = None,
+    identity: TrustedDatasetConstructionEvidence | None = None,
+) -> TrustedDatasetConstructionAssertions:
+    return TrustedDatasetConstructionAssertions(
+        identity=identity
+        or TrustedDatasetConstructionEvidence.evidence(
+            source="protein-scoped site_key export",
+            details={"site_key_schema": "protein-scoped-v1"},
+        ),
+        quantitative_meaning=TrustedDatasetConstructionEvidence.evidence(
+            source="curated log2 intensity export",
+            policy="analysis-ready quantitative matrix",
+        ),
+        localisation=localisation
+        or TrustedDatasetConstructionEvidence.evidence(
+            source="localisation_confidence column",
+            policy="require_threshold",
+            threshold=0.75,
+        ),
+        sequence=TrustedDatasetConstructionEvidence.evidence(
+            source="site_sequence column curated before PhosPy import",
+        ),
+        reference_context=reference_context
+        or TrustedDatasetConstructionEvidence.waiver(
+            reason="source export did not retain reference context metadata",
+        ),
+        asserted_by="unit-test",
+        assertion_source="curated analysis-ready export",
+    )
+
+
 def _trusted_dataset(
     assertions: TrustedDatasetConstructionAssertions | None = None,
 ) -> AnalysisReadyPhosphoDataset:
@@ -63,19 +100,12 @@ def _trusted_dataset(
             has_total_matrix=False
         ),
         processing_state=supported_linear_processing_state(has_total_matrix=False),
-        trusted_construction_assertions=assertions,
+        trusted_construction_assertions=assertions or _complete_assertions(),
     )
 
 
 def test_from_trusted_tables_records_typed_construction_assertions() -> None:
-    assertions = TrustedDatasetConstructionAssertions(
-        sequence_user_asserted=True,
-        identity_user_asserted=True,
-        quantitative_meaning_user_asserted=True,
-        reference_context_user_asserted=False,
-        asserted_by="unit-test",
-        assertion_source="curated analysis-ready export",
-    )
+    assertions = _complete_assertions()
 
     dataset = _trusted_dataset(assertions)
 
@@ -86,42 +116,95 @@ def test_from_trusted_tables_records_typed_construction_assertions() -> None:
     payload = construction["trusted_construction_assertions"]
     assert isinstance(payload, dict)
     assert payload["assertion_metadata_provided"] is True
+    assert payload["identity"]["source"] == "protein-scoped site_key export"
+    assert payload["quantitative_meaning"]["policy"] == (
+        "analysis-ready quantitative matrix"
+    )
+    assert payload["localisation"]["source"] == "localisation_confidence column"
+    assert payload["localisation"]["policy"] == "require_threshold"
+    assert payload["localisation"]["threshold"] == 0.75
+    assert payload["sequence"]["source"] == (
+        "site_sequence column curated before PhosPy import"
+    )
+    assert payload["reference_context"]["kind"] == "waiver"
     assert payload["sequence_user_asserted"] is True
     assert payload["identity_user_asserted"] is True
     assert payload["quantitative_meaning_user_asserted"] is True
-    assert payload["reference_context_user_asserted"] is False
+    assert payload["localisation_user_asserted"] is True
+    assert payload["reference_context_user_asserted"] is True
     assert payload["asserted_by"] == "unit-test"
     assert payload["assertion_source"] == "curated analysis-ready export"
-    assert construction["missing_trusted_assertions"] == [
-        "reference_context_user_asserted"
-    ]
-
-
-def test_from_trusted_tables_records_missing_assertion_metadata_visibly() -> None:
-    dataset = _trusted_dataset()
-
-    assertions = dataset.trusted_construction_assertions
-    assert assertions is not None
-    assert assertions.assertion_metadata_provided is False
-    assert assertions.missing_assertions == (
-        "sequence_user_asserted",
-        "identity_user_asserted",
-        "quantitative_meaning_user_asserted",
-        "reference_context_user_asserted",
+    assert payload["waived_assertions"] == ["reference_context"]
+    assert payload["missing_assertions"] == []
+    assert construction["missing_trusted_assertions"] == []
+    assert construction["trusted_construction_assertion_fingerprint"] == (
+        assertions.assertion_fingerprint
     )
+
+
+def test_from_trusted_tables_rejects_missing_localisation_evidence() -> None:
+    index = _site_index()
+
+    with pytest.raises(
+        DatasetValidationError,
+        match="from_trusted_tables requires.*localisation",
+    ):
+        AnalysisReadyPhosphoDataset.from_trusted_tables(
+            phospho=_phospho(index),
+            site_metadata=_site_metadata(index),
+            organism=Organism.RAT,
+            intensity_scale_state=supported_linear_intensity_scale_state(
+                has_total_matrix=False
+            ),
+            processing_state=supported_linear_processing_state(has_total_matrix=False),
+        )
+
+
+def test_from_trusted_tables_accepts_and_serializes_localisation_waiver() -> None:
+    assertions = _complete_assertions(
+        localisation=TrustedDatasetConstructionEvidence.waiver(
+            reason="historical source lacks localisation confidence export",
+            policy="trusted_curation_waiver",
+        )
+    )
+
+    dataset = _trusted_dataset(assertions)
 
     assert dataset.provenance is not None
     construction = dataset.provenance.workflow_parameters["construction"]
-    assert isinstance(construction, dict)
     payload = construction["trusted_construction_assertions"]
     assert isinstance(payload, dict)
-    assert payload["assertion_metadata_provided"] is False
-    assert payload["sequence_user_asserted"] is False
-    assert payload["identity_user_asserted"] is False
-    assert payload["quantitative_meaning_user_asserted"] is False
-    assert payload["reference_context_user_asserted"] is False
-    assert construction["trusted_assertion_metadata_provided"] is False
-    assert "assertion_warning" in construction
+    assert payload["localisation"]["kind"] == "waiver"
+    assert payload["localisation"]["waiver_reason"] == (
+        "historical source lacks localisation confidence export"
+    )
+    assert "localisation" in payload["waived_assertions"]
+    assert payload["missing_assertions"] == []
+
+
+def test_caller_mutable_assertion_details_cannot_alter_provenance() -> None:
+    details = {"columns": ["site_key"], "schema": {"version": 1}}
+    assertions = _complete_assertions(
+        identity=TrustedDatasetConstructionEvidence.evidence(
+            source="mutable caller metadata",
+            details=details,
+        )
+    )
+
+    dataset = _trusted_dataset(assertions)
+    details["columns"].append("mutated")
+    details["schema"]["version"] = 99
+
+    assert dataset.provenance is not None
+    construction = dataset.provenance.workflow_parameters["construction"]
+    payload = construction["trusted_construction_assertions"]
+    identity_payload = payload["identity"]
+    assert identity_payload["details"] == {
+        "columns": ["site_key"],
+        "schema": {"version": 1},
+    }
+    with pytest.raises(TypeError):
+        assertions.identity.details["schema"] = {"version": 2}  # type: ignore[index]
 
 
 def test_from_trusted_tables_rejects_untyped_assertion_mapping() -> None:

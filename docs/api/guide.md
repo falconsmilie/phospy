@@ -61,7 +61,9 @@ already own fully prepared `site_key`-indexed tables and processing-state
 provenance. Advanced callers should prefer
 `AnalysisReadyPhosphoDataset.from_trusted_tables(...)`, which runs the same
 structural validation as direct construction, including required
-`site_sequence`, but cannot prove the biological correctness of user-asserted
+`site_sequence`, and requires typed trusted-construction evidence or explicit
+waivers for identity, quantitative meaning, localisation, sequence, and
+reference context. It cannot prove the biological correctness of user-asserted
 state or provenance. Ordinary dataset construction should use
 `AnalysisReadyDatasetBuilder().run(DatasetBuildRequest(...))`.
 

@@ -86,6 +86,16 @@ their derived tables, carry fresh derived-data provenance, retain explicit
 parent lineage, and avoid reusing source dataset provenance or preprocessing
 reports as if the derived matrix were untouched source data.
 
+Update note (2026-07-16, trusted construction assertions): The primary
+advanced path for caller-owned analysis-ready tables is
+`AnalysisReadyPhosphoDataset.from_trusted_tables(...)`. It requires immutable,
+provenance-linked `TrustedDatasetConstructionAssertions` with typed evidence or
+an explicit waiver for identity, quantitative meaning, localisation, sequence,
+and reference context. Localisation evidence must record source, policy, and
+threshold; sequence presence is not localisation evidence. The compatibility
+constructor remains available only for advanced/internal compatibility and
+records missing trusted-construction assertion metadata when callers omit it.
+
 ## Context and Problem Statement
 
 PhosPy is intended to expose one public dataset model and three primary
@@ -392,6 +402,45 @@ source-to-derived sample mapping and derivation parameters, belongs in typed
 derived-data provenance rather than in free-text notes. Reusing source
 preprocessing reports, source run provenance, or source output fingerprints as
 the derived dataset's own provenance is forbidden.
+
+### Non-Builder Construction Inventory
+
+The standard source dataset construction path is
+`AnalysisReadyDatasetBuilder.run(DatasetBuildRequest(...))`, implemented by
+`DatasetBuildExecutor` and the private
+`AnalysisReadyPhosphoDataset._from_owned(...)` transfer after preprocessing,
+state establishment, and builder provenance assembly.
+
+Every source path that constructs an analysis-ready dataset without the
+ordinary builder is explicitly scoped:
+
+- `AnalysisReadyPhosphoDataset.from_trusted_tables(...)`: primary
+  advanced/trusted lane for caller-owned analysis-ready tables. It still runs
+  model-boundary validation and additionally requires typed evidence or waiver
+  assertions for identity, quantitative meaning, localisation, sequence, and
+  reference context.
+- `AnalysisReadyPhosphoDataset(...)`: compatibility constructor for
+  advanced/internal use. It validates structural invariants and organism
+  coherence, but when assertion metadata is absent it records missing
+  trusted-construction assertions rather than certifying biological correctness.
+- `AnalysisReadyDatasetModelBoundaryValidator.run(...)`: validation-domain
+  adapter that delegates to the model constructor so tests and internal
+  validators exercise the same dataset boundary. It is not a separate public
+  construction policy.
+- `AnalysisReadyPhosphoDataset._from_owned(...)`: private ownership-transfer
+  constructor used by the builder and bundle reconstruction code only after
+  those callers have assembled typed provenance and already-owned tables. It
+  does not relax organism, table, sequence, processing-state, or fingerprint
+  validity.
+- `DerivedAnalysisReadyPhosphoDataset.from_owned_derived_tables(...)`: internal
+  workflow-derived quantitative lane, currently for technical-replicate
+  aggregation. It validates through the same analysis-ready boundary, carries
+  typed parent lineage, and must not masquerade as a fresh source dataset.
+
+Reviewers should treat any new call to `AnalysisReadyPhosphoDataset(...)`,
+`from_trusted_tables(...)`, `_from_owned(...)`, or
+`DerivedAnalysisReadyPhosphoDataset.from_owned_derived_tables(...)` as a
+construction-boundary decision and require one of the scoped rationales above.
 
 ## Implementation Guidance
 

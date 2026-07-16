@@ -11,6 +11,7 @@ ADR_INDEX = ADR_ROOT / "index.md"
 ADR_0034 = (
     ADR_ROOT / "adr_0034_quantitative_state_motif_semantics_and_reference_context.md"
 )
+ADR_0003 = ADR_ROOT / "adr_0003-analysis_ready_dataset_and_preprocessing_boundary.md"
 
 _ADR_ID_PATTERN = re.compile(r"^- \*\*ADR ID:\*\*\s*(ADR-\d{4})\s*$", re.MULTILINE)
 _ADR_STATUS_PATTERN = re.compile(r"^- \*\*Status:\*\*\s*(.+?)\s*$", re.MULTILINE)
@@ -169,6 +170,24 @@ def test_adr_0034_records_quantitative_motif_and_reference_decisions() -> None:
         "activity_score",
         "mixed_phospho_total_log_ratio_and_phosphosite_log_abundance",
         "unknown quantitative meaning is rejected by default",
+    )
+    missing = [term for term in required_terms if term not in normalized]
+
+    assert missing == []
+
+
+def test_dataset_boundary_adr_inventories_non_builder_construction_paths() -> None:
+    normalized = " ".join(_read_text(ADR_0003).split())
+
+    required_terms = (
+        "Non-Builder Construction Inventory",
+        "AnalysisReadyPhosphoDataset.from_trusted_tables",
+        "AnalysisReadyPhosphoDataset(...)",
+        "AnalysisReadyDatasetModelBoundaryValidator.run",
+        "AnalysisReadyPhosphoDataset._from_owned",
+        "DerivedAnalysisReadyPhosphoDataset.from_owned_derived_tables",
+        "typed evidence or waiver assertions",
+        "Localisation evidence must record source, policy, and threshold",
     )
     missing = [term for term in required_terms if term not in normalized]
 

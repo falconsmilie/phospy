@@ -88,7 +88,7 @@ def _trusted_site_metadata(index: pd.Index) -> pd.DataFrame:
 
 def _trusted_dataset_without_assertion_metadata() -> AnalysisReadyPhosphoDataset:
     index = _trusted_site_index()
-    return AnalysisReadyPhosphoDataset.from_trusted_tables(
+    return AnalysisReadyPhosphoDataset(
         phospho=_trusted_phospho(index),
         site_metadata=_trusted_site_metadata(index),
         organism=Organism.RAT,
@@ -220,9 +220,10 @@ def test_differential_result_caveat_warns_for_missing_trusted_assertions() -> No
     assert caveat.severity == "warning"
     assert caveat.details["trusted_assertion_metadata_provided"] is False
     assert caveat.details["missing_trusted_assertions"] == [
-        "sequence_user_asserted",
         "identity_user_asserted",
         "quantitative_meaning_user_asserted",
+        "localisation_user_asserted",
+        "sequence_user_asserted",
         "reference_context_user_asserted",
     ]
 
@@ -253,9 +254,10 @@ def test_kinase_result_caveat_warns_for_missing_trusted_assertions() -> None:
     assert caveat.severity == "warning"
     assert caveat.details["trusted_assertion_metadata_provided"] is False
     assert caveat.details["missing_trusted_assertions"] == [
-        "sequence_user_asserted",
         "identity_user_asserted",
         "quantitative_meaning_user_asserted",
+        "localisation_user_asserted",
+        "sequence_user_asserted",
         "reference_context_user_asserted",
     ]
 
