@@ -50,8 +50,11 @@ available for deterministic derivation. Direct `AnalysisReadyPhosphoDataset`
 construction is advanced/trusted use and must already use `site_key` indexes;
 callers on that path should prefer
 `AnalysisReadyPhosphoDataset.from_trusted_tables(...)` with typed evidence or
-explicit waivers for identity, quantitative meaning, localisation, sequence,
-and reference context. A display label should look like `TSC2;S939;`; it is not
+explicit waivers for identity, intensity scale, quantitative meaning,
+localisation, sequence, and reference context, plus non-waivable aligned-table
+structure evidence. Supplied trusted provenance must match the actual table
+fingerprints, and direct constructor compatibility use emits
+`DeprecationWarning`. A display label should look like `TSC2;S939;`; it is not
 unique row identity and may repeat when distinct `site_key` rows preserve
 distinct protein context. Rows that resolve to the
 same `site_key` are duplicate scientific evidence for the same analysis-ready

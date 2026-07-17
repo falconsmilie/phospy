@@ -106,28 +106,33 @@ def test_provenance_constructor_recursively_freezes_source_input() -> None:
 
     provenance = _run_with_parameters(source)
     parameters = provenance.workflow_parameters["parameters"]
-    assert isinstance(parameters, FrozenJsonMapping)
-    assert not isinstance(parameters, dict)
-    assert parameters["nested"]["items"] == ("a", {"score": 1.0})
+    assert isinstance(parameters, dict)
+    assert parameters["nested"]["items"] == ["a", {"score": 1.0}]
+    frozen_parameters = provenance._frozen_workflow_parameters["parameters"]
+    assert isinstance(frozen_parameters, FrozenJsonMapping)
+    assert not isinstance(frozen_parameters, dict)
+    assert frozen_parameters["nested"]["items"] == ("a", {"score": 1.0})
 
-    with pytest.raises(TypeError):
-        provenance.workflow_parameters["new"] = "value"  # type: ignore[index]
-    with pytest.raises(TypeError):
-        parameters["nested"]["extra"] = "value"  # type: ignore[index]
-    with pytest.raises((AttributeError, TypeError)):
-        parameters["nested"]["items"].append("b")  # type: ignore[attr-defined]
-    with pytest.raises(TypeError):
-        parameters["nested"]["items"][1]["score"] = 2.0  # type: ignore[index]
+    parameters["nested"]["items"].append("public-only")
+    parameters["nested"]["items"][1]["score"] = 2.0
+    assert provenance.workflow_parameters["parameters"]["nested"]["items"] == [
+        "a",
+        {"score": 1.0},
+    ]
 
     source["nested"]["items"].append("source-only")
     source["nested"]["items"][1]["score"] = 9.0
 
-    assert parameters["nested"]["items"] == ("a", {"score": 1.0})
+    assert provenance.workflow_parameters["parameters"]["nested"]["items"] == [
+        "a",
+        {"score": 1.0},
+    ]
+    assert frozen_parameters["nested"]["items"] == ("a", {"score": 1.0})
 
 
 def test_base_class_mutation_bypass_is_unavailable() -> None:
     provenance = _run_with_parameters({"nested": {"items": ["a"]}})
-    parameters = provenance.workflow_parameters["parameters"]
+    parameters = provenance._frozen_workflow_parameters["parameters"]
     nested = parameters["nested"]
     items = nested["items"]
 
@@ -141,9 +146,12 @@ def test_base_class_mutation_bypass_is_unavailable() -> None:
     with pytest.raises(TypeError):
         list.append(items, "b")  # type: ignore[arg-type]
 
+    public_parameters = provenance.workflow_parameters["parameters"]
+    public_parameters["nested"]["items"].append("public-only")
+
     after_hash = hash_json_payload(cast(JsonValue, to_payload(provenance)))
     assert after_hash == before_hash
-    assert provenance.workflow_parameters["parameters"]["nested"]["items"] == ("a",)
+    assert provenance.workflow_parameters["parameters"]["nested"]["items"] == ["a"]
 
 
 def test_provenance_serialization_returns_fresh_mutable_payloads() -> None:
@@ -158,10 +166,10 @@ def test_provenance_serialization_returns_fresh_mutable_payloads() -> None:
     fresh_parameters = fresh_payload["workflow_parameters"]["parameters"]
 
     assert fresh_parameters["nested"]["items"] == ["a", {"score": 1.0}]
-    assert provenance.workflow_parameters["parameters"]["nested"]["items"] == (
+    assert provenance.workflow_parameters["parameters"]["nested"]["items"] == [
         "a",
         {"score": 1.0},
-    )
+    ]
 
 
 def test_provenance_rejects_unsupported_and_non_finite_json_values() -> None:

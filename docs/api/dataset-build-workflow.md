@@ -22,12 +22,15 @@ requires encoded `site_key` indexes and auditable identity metadata
 (`site_key`, `display_id`, `organism`, `protein_namespace`,
 `protein_identifier`, `gene_symbol`, `site`, and `site_sequence`). It also
 requires `TrustedDatasetConstructionAssertions` with typed evidence or an
-explicit waiver for identity, quantitative meaning, localisation, sequence, and
-reference context. Localisation evidence must record source, policy, and
-threshold; sequence presence is not localisation evidence. The factory does not
+explicit waiver for identity, intensity scale, quantitative meaning,
+localisation, sequence, and reference context, plus non-waivable aligned-table
+structure evidence. Localisation evidence must record source, policy, and
+threshold; sequence presence is not localisation evidence. Supplied trusted
+provenance must match the actual table fingerprints. The factory does not
 silently fall back to display-site identity, and validation cannot prove the
 biological correctness of user-asserted provenance. The compatibility
-constructor remains available for advanced/internal use. The builder may accept
+constructor remains available for advanced/internal use and emits
+`DeprecationWarning`. The builder may accept
 legacy display-indexed input only when `site_metadata` contains enough protein
 context to derive `site_key` without ambiguity.
 

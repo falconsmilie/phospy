@@ -95,6 +95,7 @@ class DerivedAnalysisReadyPhosphoDataset(AnalysisReadyPhosphoDataset):
             provenance=provenance,
             allow_opaque_site_values=allow_opaque_site_values,
             _assume_owned=_assume_owned,
+            _emit_direct_constructor_deprecation=False,
         )
         _require_lineage_matches_owned_state(
             dataset=self,

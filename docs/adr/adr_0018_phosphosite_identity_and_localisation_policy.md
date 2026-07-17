@@ -28,6 +28,13 @@ and threshold, or an explicit localisation waiver. Compatibility direct
 construction remains advanced/internal and records missing assertion metadata
 when callers bypass that preferred factory.
 
+Update note (2026-07-17, no inferred localisation): The seven-dimension
+trusted construction assertion schema keeps localisation separate from sequence
+and aligned-structure evidence. `site_sequence` presence remains mandatory at
+the dataset boundary but is never accepted as localisation evidence. The
+localisation dimension must record source, policy, and threshold, or an
+explicit localisation waiver.
+
 ## Decision
 
 PhosPy enforces localisation eligibility at the dataset preprocessing/validation

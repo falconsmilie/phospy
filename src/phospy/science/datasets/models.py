@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import cast
@@ -18,12 +19,16 @@ from phospy.frames.ownership import (
     own_dataframe,
     own_optional_dataframe,
 )
+from phospy.provenance.hashing import fingerprint_optional_table_strict
 from phospy.provenance.models import (
     ReferenceContextProtocol,
     RunProvenance,
+    TableFingerprint,
     TrustedDatasetConstructionAssertions,
 )
 from phospy.science.datasets.direct_construction import (
+    DIRECT_CONSTRUCTION_DEPRECATION_WARNING,
+    DIRECT_CONSTRUCTION_WORKFLOW_NAME,
     build_direct_construction_provenance,
 )
 from phospy.science.datasets.imputation_metadata import (
@@ -222,8 +227,8 @@ def _require_complete_from_trusted_assertions(
     required_message = (
         "AnalysisReadyPhosphoDataset.from_trusted_tables requires "
         "trusted_construction_assertions with typed evidence or an explicit "
-        "waiver for identity, quantitative meaning, localisation, sequence, "
-        "and reference context"
+        "waiver for identity, intensity scale, quantitative meaning, aligned "
+        "structure, localisation, sequence, and reference context"
     )
     if assertions is None:
         raise DatasetValidationError(required_message)
@@ -259,6 +264,145 @@ def _require_assertions_linked_to_provenance(
         raise DatasetValidationError(
             "dataset.trusted_construction_assertions must be provenance-linked; "
             "trusted_construction_assertion_fingerprint does not match"
+        )
+
+
+def _fingerprints_for_analysis_ready_tables(
+    *,
+    phospho: pd.DataFrame,
+    site_metadata: pd.DataFrame,
+    sample_metadata: pd.DataFrame | None,
+    total: pd.DataFrame | None,
+    comparisons: pd.DataFrame | None,
+    imputation_observation_mask: pd.DataFrame | None,
+) -> tuple[TableFingerprint, ...]:
+    entries: tuple[tuple[str, pd.DataFrame | None], ...] = (
+        ("dataset.phospho", phospho),
+        ("dataset.site_metadata", site_metadata),
+        ("dataset.sample_metadata", sample_metadata),
+        ("dataset.total", total),
+        ("dataset.comparisons", comparisons),
+        ("dataset.imputation_observation_mask", imputation_observation_mask),
+    )
+    fingerprints: list[TableFingerprint] = []
+    for name, table in entries:
+        fingerprint = fingerprint_optional_table_strict(table, name=name)
+        if fingerprint is None:
+            continue
+        fingerprints.append(fingerprint)
+    return tuple(fingerprints)
+
+
+def _require_trusted_provenance_table_fingerprints(
+    *,
+    provenance: RunProvenance,
+    actual_fingerprints: tuple[TableFingerprint, ...],
+) -> None:
+    _require_fingerprint_sets_match(
+        expected=actual_fingerprints,
+        actual=provenance.output_tables,
+        field_name="run_provenance.output_tables",
+        expected_source="actual analysis-ready dataset tables",
+    )
+    if provenance.workflow_name == DIRECT_CONSTRUCTION_WORKFLOW_NAME:
+        _require_fingerprint_sets_match(
+            expected=actual_fingerprints,
+            actual=provenance.input_tables,
+            field_name="run_provenance.input_tables",
+            expected_source="actual analysis-ready dataset tables",
+        )
+
+
+def _require_fingerprint_sets_match(
+    *,
+    expected: tuple[TableFingerprint, ...],
+    actual: tuple[TableFingerprint, ...],
+    field_name: str,
+    expected_source: str,
+) -> None:
+    expected_by_name = _fingerprint_map(expected, field_name=field_name)
+    actual_by_name = _fingerprint_map(actual, field_name=field_name)
+    missing = sorted(set(expected_by_name) - set(actual_by_name))
+    unexpected = sorted(set(actual_by_name) - set(expected_by_name))
+    if missing or unexpected:
+        detail_parts: list[str] = []
+        if missing:
+            detail_parts.append("missing fingerprints: " + ", ".join(missing))
+        if unexpected:
+            detail_parts.append("unexpected fingerprints: " + ", ".join(unexpected))
+        raise DatasetValidationError(
+            f"{field_name} must match {expected_source}; " + "; ".join(detail_parts)
+        )
+    for name in expected_by_name:
+        _require_fingerprint_matches(
+            expected=expected_by_name[name],
+            actual=actual_by_name[name],
+            field_name=f"{field_name}.{name}",
+            expected_source=expected_source,
+        )
+
+
+def _fingerprint_map(
+    fingerprints: tuple[TableFingerprint, ...],
+    *,
+    field_name: str,
+) -> dict[str, TableFingerprint]:
+    result: dict[str, TableFingerprint] = {}
+    for fingerprint in fingerprints:
+        if fingerprint.name in result:
+            raise DatasetValidationError(
+                f"{field_name} contains duplicate table fingerprint "
+                f"{fingerprint.name!r}"
+            )
+        result[fingerprint.name] = fingerprint
+    return result
+
+
+def _require_fingerprint_matches(
+    *,
+    expected: TableFingerprint,
+    actual: TableFingerprint,
+    field_name: str,
+    expected_source: str,
+) -> None:
+    checks: tuple[tuple[str, object, object], ...] = (
+        ("rows", expected.rows, actual.rows),
+        ("columns", expected.columns, actual.columns),
+        ("index_name", expected.index_name, actual.index_name),
+        ("column_names", expected.column_names, actual.column_names),
+        ("dtypes", expected.dtypes, actual.dtypes),
+        ("index_structure", expected.index_structure, actual.index_structure),
+        (
+            "column_index_structure",
+            expected.column_index_structure,
+            actual.column_index_structure,
+        ),
+        (
+            "exact_hash_algorithm",
+            expected.exact_hash_algorithm,
+            actual.exact_hash_algorithm,
+        ),
+        ("exact_hash_value", expected.exact_hash_value, actual.exact_hash_value),
+        (
+            "tolerance_hash_algorithm",
+            expected.tolerance_hash_algorithm,
+            actual.tolerance_hash_algorithm,
+        ),
+        (
+            "tolerance_hash_value",
+            expected.tolerance_hash_value,
+            actual.tolerance_hash_value,
+        ),
+    )
+    mismatched = [
+        name
+        for name, expected_value, actual_value in checks
+        if expected_value != actual_value
+    ]
+    if mismatched:
+        raise DatasetValidationError(
+            f"{field_name} does not match {expected_source}; mismatched fields: "
+            + ", ".join(mismatched)
         )
 
 
@@ -322,8 +466,10 @@ class AnalysisReadyPhosphoDataset:
     supplied provenance receives a minimal direct-construction provenance marker
     that records this audit limitation. The primary
     ``from_trusted_tables(...)`` lane requires typed evidence or an explicit
-    waiver for identity, quantitative meaning, localisation, sequence, and
-    reference context.
+    waiver for identity, intensity scale, quantitative meaning, aligned table
+    structure, localisation, sequence, and reference context. The compatibility
+    constructor emits ``DeprecationWarning``; new trusted callers should use
+    ``from_trusted_tables(...)``.
 
     `phospho` stores the quantitative matrix after builder preprocessing policy
     has been applied. When total/protein correction is enabled in the builder
@@ -381,7 +527,15 @@ class AnalysisReadyPhosphoDataset:
         trusted_construction_assertions: TrustedDatasetConstructionAssertions
         | None = None,
         _assume_owned: bool = False,
+        _emit_direct_constructor_deprecation: bool = True,
+        _enforce_trusted_table_fingerprints: bool = False,
     ) -> None:
+        if _emit_direct_constructor_deprecation:
+            warnings.warn(
+                DIRECT_CONSTRUCTION_DEPRECATION_WARNING,
+                DeprecationWarning,
+                stacklevel=2,
+            )
         _require_instance(
             allow_opaque_site_values,
             expected_type=bool,
@@ -567,6 +721,23 @@ class AnalysisReadyPhosphoDataset:
             provenance=provenance,
             error_type=DatasetValidationError,
         )
+        if _enforce_trusted_table_fingerprints:
+            actual_fingerprints = _fingerprints_for_analysis_ready_tables(
+                phospho=phospho_table.frame,
+                site_metadata=site_metadata_table.frame,
+                sample_metadata=(
+                    None
+                    if sample_metadata_table is None
+                    else sample_metadata_table.frame
+                ),
+                total=None if total_table is None else total_table.frame,
+                comparisons=comparisons,
+                imputation_observation_mask=imputation_observation_mask,
+            )
+            _require_trusted_provenance_table_fingerprints(
+                provenance=provenance,
+                actual_fingerprints=actual_fingerprints,
+            )
         object.__setattr__(
             self, "intensity_scale_state", validated_intensity_scale_state
         )
@@ -726,10 +897,12 @@ class AnalysisReadyPhosphoDataset:
         biological correctness of caller-asserted analysis-ready state,
         provenance, or scientific claims. The primary advanced lane requires
         ``trusted_construction_assertions`` with typed evidence or an explicit
-        waiver for identity, quantitative meaning, localisation, sequence, and
-        reference context. Localisation evidence must record source, policy,
-        and threshold; otherwise callers must record an explicit waiver. Without
-        supplied run provenance, the dataset receives the same direct
+        waiver for identity, intensity scale, quantitative meaning, aligned
+        structure, localisation, sequence, and reference context. Localisation
+        evidence must record source, policy, and threshold; otherwise callers
+        must record an explicit waiver. Supplied run provenance must fingerprint
+        the exact analysis-ready tables; false table fingerprints are rejected.
+        Without supplied run provenance, the dataset receives the same direct
         trusted-construction marker used by the compatibility constructor, with
         the assertion fingerprint linked into provenance.
         """
@@ -749,6 +922,8 @@ class AnalysisReadyPhosphoDataset:
             provenance=provenance,
             trusted_construction_assertions=trusted_construction_assertions,
             allow_opaque_site_values=allow_opaque_site_values,
+            _emit_direct_constructor_deprecation=False,
+            _enforce_trusted_table_fingerprints=True,
         )
         _require_complete_from_trusted_assertions(dataset=dataset)
         return dataset
@@ -786,6 +961,7 @@ class AnalysisReadyPhosphoDataset:
             provenance=provenance,
             allow_opaque_site_values=allow_opaque_site_values,
             _assume_owned=True,
+            _emit_direct_constructor_deprecation=False,
         )
 
     def to_dataframe(self) -> pd.DataFrame:

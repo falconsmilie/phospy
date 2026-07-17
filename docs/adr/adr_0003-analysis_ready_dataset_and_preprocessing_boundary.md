@@ -91,11 +91,21 @@ Update note (2026-07-16, trusted construction assertions): The primary
 advanced path for caller-owned analysis-ready tables is
 `AnalysisReadyPhosphoDataset.from_trusted_tables(...)`. It requires immutable,
 provenance-linked `TrustedDatasetConstructionAssertions` with typed evidence or
-an explicit waiver for identity, quantitative meaning, localisation, sequence,
-and reference context. Localisation evidence must record source, policy, and
-threshold; sequence presence is not localisation evidence. The compatibility
-constructor remains available only for advanced/internal compatibility and
-records missing trusted-construction assertion metadata when callers omit it.
+an explicit waiver for user-asserted scientific dimensions. Localisation
+evidence must record source, policy, and threshold; sequence presence is not
+localisation evidence. The compatibility constructor remains available only for
+advanced/internal compatibility and records missing trusted-construction
+assertion metadata when callers omit it.
+
+Update note (2026-07-17, seven-dimension trusted construction attestations):
+Trusted construction assertions now require seven evidence dimensions:
+identity, intensity scale, quantitative meaning, aligned table structure,
+localisation, sequence, and reference context. Aligned-structure evidence is
+not waivable because table shape and alignment are mechanically checked.
+Supplied trusted provenance must match strict fingerprints of the actual
+analysis-ready tables, and false fingerprints are rejected. The compatibility
+constructor emits `DeprecationWarning`; new advanced callers should use
+`from_trusted_tables(...)`.
 
 ## Context and Problem Statement
 
@@ -417,13 +427,18 @@ ordinary builder is explicitly scoped:
 
 - `AnalysisReadyPhosphoDataset.from_trusted_tables(...)`: primary
   advanced/trusted lane for caller-owned analysis-ready tables. It still runs
-  model-boundary validation and additionally requires typed evidence or waiver
-  assertions for identity, quantitative meaning, localisation, sequence, and
-  reference context.
+  model-boundary validation and additionally requires seven typed assertion
+  dimensions: identity, intensity scale, quantitative meaning, aligned table
+  structure, localisation, sequence, and reference context. Only scientific
+  assertion dimensions may be waived; these remain typed evidence or waiver
+  assertions. Aligned table structure is not waivable, and supplied trusted
+  provenance table fingerprints must match the actual constructed tables.
 - `AnalysisReadyPhosphoDataset(...)`: compatibility constructor for
   advanced/internal use. It validates structural invariants and organism
   coherence, but when assertion metadata is absent it records missing
   trusted-construction assertions rather than certifying biological correctness.
+  It emits `DeprecationWarning`; new advanced callers should use
+  `from_trusted_tables(...)`.
 - `AnalysisReadyDatasetModelBoundaryValidator.run(...)`: validation-domain
   adapter that delegates to the model constructor so tests and internal
   validators exercise the same dataset boundary. It is not a separate public

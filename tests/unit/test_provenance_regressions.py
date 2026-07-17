@@ -166,13 +166,15 @@ def test_direct_dataset_construction_marker_is_not_builder_equivalent() -> None:
         "caller-provided analysis-ready state."
     )
     assert construction["trusted_assertion_metadata_provided"] is False
-    assert construction["missing_trusted_assertions"] == (
+    assert construction["missing_trusted_assertions"] == [
         "identity_user_asserted",
+        "intensity_scale_user_asserted",
         "quantitative_meaning_user_asserted",
+        "aligned_structure_user_asserted",
         "localisation_user_asserted",
         "sequence_user_asserted",
         "reference_context_user_asserted",
-    )
+    ]
     trusted_assertions = construction["trusted_construction_assertions"]
     assert isinstance(trusted_assertions, Mapping)
     assert trusted_assertions["assertion_metadata_provided"] is False
@@ -187,7 +189,9 @@ def test_direct_dataset_construction_marker_is_not_builder_equivalent() -> None:
     assert isinstance(payload_assertions, dict)
     assert payload_assertions["missing_assertions"] == [
         "identity_user_asserted",
+        "intensity_scale_user_asserted",
         "quantitative_meaning_user_asserted",
+        "aligned_structure_user_asserted",
         "localisation_user_asserted",
         "sequence_user_asserted",
         "reference_context_user_asserted",

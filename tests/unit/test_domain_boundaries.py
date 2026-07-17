@@ -164,9 +164,17 @@ def _trusted_assertions() -> TrustedDatasetConstructionAssertions:
         identity=TrustedDatasetConstructionEvidence.evidence(
             source="unit-test site_key fixtures"
         ),
+        intensity_scale=TrustedDatasetConstructionEvidence.evidence(
+            source="unit-test intensity scale state",
+            policy="require_established_intensity_scale_state",
+        ),
         quantitative_meaning=TrustedDatasetConstructionEvidence.evidence(
             source="unit-test intensity matrix",
             policy="linear analysis-ready matrix",
+        ),
+        aligned_structure=TrustedDatasetConstructionEvidence.evidence(
+            source="unit-test aligned phospho/site metadata fixtures",
+            policy="require_matching_site_key_index",
         ),
         localisation=TrustedDatasetConstructionEvidence.evidence(
             source="localisation_confidence column",
@@ -250,7 +258,7 @@ def test_analysis_ready_from_trusted_tables_records_trusted_construction_marker(
         "caller-provided analysis-ready state."
     )
     assert construction["trusted_assertion_metadata_provided"] is True
-    assert construction["missing_trusted_assertions"] == ()
+    assert construction["missing_trusted_assertions"] == []
 
 
 def test_direct_construction_records_provenance_marker() -> None:

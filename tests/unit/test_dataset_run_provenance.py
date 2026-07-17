@@ -352,13 +352,15 @@ def test_direct_dataset_construction_without_provenance_records_marker() -> None
         "caller-provided analysis-ready state."
     )
     assert construction["trusted_assertion_metadata_provided"] is False
-    assert construction["missing_trusted_assertions"] == (
+    assert construction["missing_trusted_assertions"] == [
         "identity_user_asserted",
+        "intensity_scale_user_asserted",
         "quantitative_meaning_user_asserted",
+        "aligned_structure_user_asserted",
         "localisation_user_asserted",
         "sequence_user_asserted",
         "reference_context_user_asserted",
-    )
+    ]
     assertions = construction["trusted_construction_assertions"]
     assert isinstance(assertions, Mapping)
     assert assertions["assertion_metadata_provided"] is False
@@ -392,7 +394,9 @@ def test_direct_dataset_construction_provenance_serializes_round_trip() -> None:
     assert trusted_assertions["assertion_metadata_provided"] is False
     assert trusted_assertions["missing_assertions"] == [
         "identity_user_asserted",
+        "intensity_scale_user_asserted",
         "quantitative_meaning_user_asserted",
+        "aligned_structure_user_asserted",
         "localisation_user_asserted",
         "sequence_user_asserted",
         "reference_context_user_asserted",

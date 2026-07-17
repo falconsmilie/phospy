@@ -48,4 +48,5 @@ class AnalysisReadyDatasetModelBoundaryValidator:
             organism=organism,
             preprocessing_report=preprocessing_report,
             provenance=provenance,
+            _emit_direct_constructor_deprecation=False,
         )

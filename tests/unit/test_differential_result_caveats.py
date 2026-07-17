@@ -214,7 +214,9 @@ def test_differential_result_caveats_include_direct_dataset_construction() -> No
     assert caveat.details["trusted_assertion_metadata_provided"] is False
     assert caveat.details["missing_trusted_assertions"] == [
         "identity_user_asserted",
+        "intensity_scale_user_asserted",
         "quantitative_meaning_user_asserted",
+        "aligned_structure_user_asserted",
         "localisation_user_asserted",
         "sequence_user_asserted",
         "reference_context_user_asserted",

@@ -246,13 +246,13 @@ def test_dataset_builder_attaches_full_native_batch_correction_provenance() -> N
     assert provenance.control_site_source["source_type"] == "not_applicable"
     assert provenance.selected_site_key_rows == ()
     assert provenance.batch_metadata["column"] == "batch"
-    assert provenance.batch_metadata["sample_order"] == (
+    assert provenance.batch_metadata["sample_order"] == [
         "sample_1",
         "sample_2",
         "sample_3",
         "sample_4",
-    )
-    assert provenance.design_metadata["condition_columns"] == ("condition",)
+    ]
+    assert provenance.design_metadata["condition_columns"] == ["condition"]
     assert provenance.replicate_metadata is None
     assert provenance.missing_value_policy["policy"] == (
         "reject_missing_at_batch_correction"

@@ -62,9 +62,11 @@ provenance. Advanced callers should prefer
 `AnalysisReadyPhosphoDataset.from_trusted_tables(...)`, which runs the same
 structural validation as direct construction, including required
 `site_sequence`, and requires typed trusted-construction evidence or explicit
-waivers for identity, quantitative meaning, localisation, sequence, and
-reference context. It cannot prove the biological correctness of user-asserted
-state or provenance. Ordinary dataset construction should use
+waivers for identity, intensity scale, quantitative meaning, localisation,
+sequence, and reference context, plus non-waivable aligned-table structure
+evidence. Supplied trusted provenance must match the actual table fingerprints.
+It cannot prove the biological correctness of user-asserted state or
+provenance. Ordinary dataset construction should use
 `AnalysisReadyDatasetBuilder().run(DatasetBuildRequest(...))`.
 
 Use `phospy.api` for stable request, workflow, primary result, reference, enum,

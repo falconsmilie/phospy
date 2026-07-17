@@ -141,11 +141,11 @@ def test_enrichment_explicit_drop_records_universe_policy_diagnostics() -> None:
     assert result.provenance is not None
     universe_policy = result.provenance.workflow_parameters["universe_policy"]
     assert universe_policy["selected_identifiers_outside_background_count"] == 1
-    assert universe_policy["selected_identifiers_outside_background"] == ("UNKNOWN",)
-    assert universe_policy["set_identifiers_outside_background"] == (
+    assert universe_policy["selected_identifiers_outside_background"] == ["UNKNOWN"]
+    assert universe_policy["set_identifiers_outside_background"] == [
         "OUTSIDE_A",
         "OUTSIDE_B",
-    )
+    ]
 
 
 def test_enrichment_namespace_mismatch_is_not_silently_dropped() -> None:

@@ -25,10 +25,12 @@ Identity boundary summary:
   `organism`, `protein_namespace`, `protein_identifier`, `gene_symbol`, `site`,
   and `site_sequence`.
 - `from_trusted_tables(...)` requires `TrustedDatasetConstructionAssertions`
-  with typed evidence or an explicit waiver for identity, quantitative meaning,
-  localisation, sequence, and reference context. Localisation evidence must
+  with typed evidence or an explicit waiver for identity, intensity scale,
+  quantitative meaning, localisation, sequence, and reference context, plus
+  non-waivable aligned-table structure evidence. Localisation evidence must
   record source, policy, and threshold; sequence presence is not localisation
-  evidence.
+  evidence. Supplied trusted provenance must match the actual table
+  fingerprints.
 - Trusted analysis-ready construction requires encoded `site_key` indexes and
   does not silently fall back to display-site identity.
 - Trusted construction validates structural invariants, including required

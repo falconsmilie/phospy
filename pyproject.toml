@@ -97,6 +97,9 @@ testpaths = [
   "tests/architecture",
 ]
 addopts = "-m \"not parity\""
+filterwarnings = [
+  'ignore:AnalysisReadyPhosphoDataset\(\.\.\.\) direct construction is deprecated.*:DeprecationWarning',
+]
 markers = [
   "unit: focused tests for a single module/function contract with isolated collaborators",
   "integration: multi-component rewrite workflow tests",

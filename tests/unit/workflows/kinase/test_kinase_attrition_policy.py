@@ -317,7 +317,7 @@ def test_kinase_provenance_records_attrition_policy_and_metrics() -> None:
         caveat.details["observed_value"]
     )
     policy_violations = scoring_diagnostics["attrition_policy_violations"]
-    assert isinstance(policy_violations, tuple)
+    assert isinstance(policy_violations, list)
     assert policy_violations[0]["scored_sites"] == caveat.details["scored_sites"]
     scoring_config = result.provenance.workflow_parameters["scoring_config"]
     assert isinstance(scoring_config, Mapping)

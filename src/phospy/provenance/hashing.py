@@ -92,7 +92,42 @@ def fingerprint_table(
 ) -> TableFingerprint:
     """Build a typed deterministic table fingerprint."""
 
-    normalized_table = _normalize_provenance_table_view(table, name=name)
+    return _fingerprint_table(
+        table,
+        name=name,
+        algorithm=algorithm,
+        normalize_provenance_view=True,
+    )
+
+
+def fingerprint_table_strict(
+    table: pd.DataFrame,
+    *,
+    name: str,
+    algorithm: str = DEFAULT_TABLE_HASH_ALGORITHM,
+) -> TableFingerprint:
+    """Build a typed fingerprint over the exact supplied table structure."""
+
+    return _fingerprint_table(
+        table,
+        name=name,
+        algorithm=algorithm,
+        normalize_provenance_view=False,
+    )
+
+
+def _fingerprint_table(
+    table: pd.DataFrame,
+    *,
+    name: str,
+    algorithm: str,
+    normalize_provenance_view: bool,
+) -> TableFingerprint:
+    normalized_table = (
+        _normalize_provenance_table_view(table, name=name)
+        if normalize_provenance_view
+        else table
+    )
     exact_hash_algorithm = _exact_hash_algorithm_name(algorithm)
     tolerance_hash_algorithm = _tolerance_hash_algorithm_name(algorithm)
     exact_hash = hash_table_exact(normalized_table, name=name, algorithm=algorithm)
@@ -144,6 +179,19 @@ def fingerprint_optional_table(
     if table is None:
         return None
     return fingerprint_table(table, name=name, algorithm=algorithm)
+
+
+def fingerprint_optional_table_strict(
+    table: pd.DataFrame | None,
+    *,
+    name: str,
+    algorithm: str = DEFAULT_TABLE_HASH_ALGORITHM,
+) -> TableFingerprint | None:
+    """Build a strict optional table fingerprint when a table exists."""
+
+    if table is None:
+        return None
+    return fingerprint_table_strict(table, name=name, algorithm=algorithm)
 
 
 def fingerprint_optional_matrix(
@@ -416,7 +464,9 @@ __all__ = [
     "fingerprint_matrix",
     "fingerprint_optional_matrix",
     "fingerprint_optional_table",
+    "fingerprint_optional_table_strict",
     "fingerprint_table",
+    "fingerprint_table_strict",
     "hash_json_payload",
     "hash_table_exact",
     "hash_table_tolerance",

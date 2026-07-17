@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 
 from phospy.provenance.environment import collect_environment_provenance
-from phospy.provenance.hashing import fingerprint_optional_table
+from phospy.provenance.hashing import fingerprint_optional_table_strict
 from phospy.provenance.models import (
     RunProvenance,
     TableFingerprint,
@@ -19,10 +19,17 @@ DIRECT_CONSTRUCTION_WARNING = (
     "Direct construction cannot prove biological correctness of caller-provided "
     "analysis-ready state."
 )
+DIRECT_CONSTRUCTION_DEPRECATION_WARNING = (
+    "AnalysisReadyPhosphoDataset(...) direct construction is deprecated; use "
+    "AnalysisReadyPhosphoDataset.from_trusted_tables(...) with "
+    "TrustedDatasetConstructionAssertions for trusted construction, or "
+    "AnalysisReadyDatasetBuilder.run(...) for ordinary dataset construction."
+)
 DIRECT_CONSTRUCTION_MISSING_ASSERTIONS_WARNING = (
     "No typed trusted construction assertion metadata was supplied; identity, "
-    "quantitative meaning, localisation, sequence, and reference context are "
-    "not recorded as user-asserted or waived."
+    "intensity scale, quantitative meaning, aligned structure, localisation, "
+    "sequence, and reference context are not recorded as user-asserted or "
+    "waived."
 )
 
 
@@ -86,7 +93,7 @@ def _fingerprint_direct_construction_tables(
 ) -> tuple[TableFingerprint, ...]:
     fingerprints: list[TableFingerprint] = []
     for name, table in entries:
-        fingerprint = fingerprint_optional_table(table, name=name)
+        fingerprint = fingerprint_optional_table_strict(table, name=name)
         if fingerprint is None:
             continue
         fingerprints.append(fingerprint)
@@ -95,6 +102,7 @@ def _fingerprint_direct_construction_tables(
 
 __all__ = [
     "DIRECT_CONSTRUCTION_METHOD",
+    "DIRECT_CONSTRUCTION_DEPRECATION_WARNING",
     "DIRECT_CONSTRUCTION_MISSING_ASSERTIONS_WARNING",
     "DIRECT_CONSTRUCTION_SOURCE",
     "DIRECT_CONSTRUCTION_WARNING",

@@ -455,7 +455,7 @@ def test_batch_correction_workflow_diagnostics_and_provenance_record_rejected_co
         "downstream_workflows",
     )
     interpreter_plan = result.provenance.resolved_parameters["interpreter_plan"]
-    assert interpreter_plan["executed_stage_order"] == tuple(
+    assert interpreter_plan["executed_stage_order"] == list(
         result.provenance.preprocessing_stage_order
     )
     assert (

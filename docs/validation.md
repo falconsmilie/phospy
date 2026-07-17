@@ -12,9 +12,12 @@ protein context to derive `site_key`. Direct `AnalysisReadyPhosphoDataset`
 construction is advanced/trusted use and must already use encoded `site_key`
 row indexes; callers on that path should prefer
 `AnalysisReadyPhosphoDataset.from_trusted_tables(...)` with typed evidence or
-explicit waivers for identity, quantitative meaning, localisation, sequence,
-and reference context. Display-indexed direct construction is invalid. Missing
-values are rejected by default.
+explicit waivers for identity, intensity scale, quantitative meaning,
+localisation, sequence, and reference context, plus non-waivable aligned-table
+structure evidence. Supplied trusted provenance must match the actual table
+fingerprints. The compatibility constructor emits `DeprecationWarning`.
+Display-indexed direct construction is invalid. Missing values are rejected by
+default.
 
 `site_metadata` must be a non-empty table aligned to `phospho.index`. It must
 include non-empty `gene_symbol`, `site`, and `site_sequence` columns at the

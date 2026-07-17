@@ -33,21 +33,38 @@ ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V2 = 2
 BATCH_CORRECTION_PROVENANCE_SCHEMA_VERSION_V1 = 1
 TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V1 = 1
 TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V2 = 2
+TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V3 = 3
 _TRUSTED_DATASET_CONSTRUCTION_REQUIRED_DIMENSIONS = (
     "identity",
+    "intensity_scale",
     "quantitative_meaning",
+    "aligned_structure",
     "localisation",
     "sequence",
     "reference_context",
 )
 _TRUSTED_DATASET_CONSTRUCTION_MISSING_ASSERTION_NAMES = {
     "identity": "identity_user_asserted",
+    "intensity_scale": "intensity_scale_user_asserted",
     "quantitative_meaning": "quantitative_meaning_user_asserted",
+    "aligned_structure": "aligned_structure_user_asserted",
     "localisation": "localisation_user_asserted",
     "sequence": "sequence_user_asserted",
     "reference_context": "reference_context_user_asserted",
 }
 _TRUSTED_DATASET_CONSTRUCTION_EVIDENCE_KINDS = frozenset({"evidence", "waiver"})
+_BATCH_CORRECTION_PROVENANCE_JSON_MAPPING_FIELDS = frozenset(
+    {
+        "resolved_parameters",
+        "control_site_source",
+        "batch_metadata",
+        "design_metadata",
+        "missing_value_policy",
+        "diagnostics",
+        "dependency_versions",
+        "imputation_policy",
+    }
+)
 
 
 class DeterminismKind(str, Enum):
@@ -397,13 +414,16 @@ class TrustedDatasetConstructionAssertions:
     """User assertion provenance for trusted direct dataset construction.
 
     Complete trusted construction metadata records typed evidence or an
-    explicit waiver for identity, quantitative meaning, localisation, sequence,
-    and reference context. A missing assertion bundle is reserved for legacy
-    direct-construction audit markers.
+    explicit waiver for identity, intensity scale, quantitative meaning,
+    aligned table structure, localisation, sequence, and reference context.
+    A missing assertion bundle is reserved for legacy direct-construction audit
+    markers.
     """
 
     identity: TrustedDatasetConstructionEvidence | None = None
+    intensity_scale: TrustedDatasetConstructionEvidence | None = None
     quantitative_meaning: TrustedDatasetConstructionEvidence | None = None
+    aligned_structure: TrustedDatasetConstructionEvidence | None = None
     localisation: TrustedDatasetConstructionEvidence | None = None
     sequence: TrustedDatasetConstructionEvidence | None = None
     reference_context: TrustedDatasetConstructionEvidence | None = None
@@ -411,16 +431,24 @@ class TrustedDatasetConstructionAssertions:
     asserted_by: str | None = None
     assertion_source: str | None = None
     notes: str | None = None
-    schema_version: int = TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V2
+    schema_version: int = TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V3
 
     def __post_init__(self) -> None:
         identity = _optional_trusted_construction_evidence(
             self.identity,
             field_name="trusted_dataset_construction_assertions.identity",
         )
+        intensity_scale = _optional_trusted_construction_evidence(
+            self.intensity_scale,
+            field_name="trusted_dataset_construction_assertions.intensity_scale",
+        )
         quantitative_meaning = _optional_trusted_construction_evidence(
             self.quantitative_meaning,
             field_name="trusted_dataset_construction_assertions.quantitative_meaning",
+        )
+        aligned_structure = _optional_trusted_construction_evidence(
+            self.aligned_structure,
+            field_name="trusted_dataset_construction_assertions.aligned_structure",
         )
         localisation = _optional_trusted_construction_evidence(
             self.localisation,
@@ -442,7 +470,9 @@ class TrustedDatasetConstructionAssertions:
         )
         supplied_assertions = {
             "identity": identity,
+            "intensity_scale": intensity_scale,
             "quantitative_meaning": quantitative_meaning,
+            "aligned_structure": aligned_structure,
             "localisation": localisation,
             "sequence": sequence,
             "reference_context": reference_context,
@@ -463,18 +493,21 @@ class TrustedDatasetConstructionAssertions:
                     "trusted_dataset_construction_assertions requires typed "
                     "evidence or an explicit waiver for: " + ", ".join(missing)
                 )
+            _require_aligned_structure_evidence(aligned_structure)
             _require_localisation_evidence_or_waiver(localisation)
         schema_version = _required_non_negative_row_count(
             self.schema_version,
             field_name="trusted_dataset_construction_assertions.schema_version",
         )
-        if schema_version != TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V2:
+        if schema_version != TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V3:
             raise PhosPyInputError(
                 "trusted_dataset_construction_assertions.schema_version must be "
-                f"{TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V2}"
+                f"{TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V3}"
             )
         object.__setattr__(self, "identity", identity)
+        object.__setattr__(self, "intensity_scale", intensity_scale)
         object.__setattr__(self, "quantitative_meaning", quantitative_meaning)
+        object.__setattr__(self, "aligned_structure", aligned_structure)
         object.__setattr__(self, "localisation", localisation)
         object.__setattr__(self, "sequence", sequence)
         object.__setattr__(self, "reference_context", reference_context)
@@ -503,10 +536,22 @@ class TrustedDatasetConstructionAssertions:
         return self.identity is not None
 
     @property
+    def intensity_scale_user_asserted(self) -> bool:
+        """Return whether intensity scale has typed evidence or a waiver."""
+
+        return self.intensity_scale is not None
+
+    @property
     def quantitative_meaning_user_asserted(self) -> bool:
         """Return whether quantitative meaning has typed evidence or a waiver."""
 
         return self.quantitative_meaning is not None
+
+    @property
+    def aligned_structure_user_asserted(self) -> bool:
+        """Return whether aligned table structure has typed evidence or a waiver."""
+
+        return self.aligned_structure is not None
 
     @property
     def localisation_user_asserted(self) -> bool:
@@ -594,15 +639,21 @@ class TrustedDatasetConstructionAssertions:
             "schema_version": int(self.schema_version),
             "assertion_metadata_provided": bool(self.assertion_metadata_provided),
             "identity": _trusted_evidence_payload(self.identity),
+            "intensity_scale": _trusted_evidence_payload(self.intensity_scale),
             "quantitative_meaning": _trusted_evidence_payload(
                 self.quantitative_meaning
             ),
+            "aligned_structure": _trusted_evidence_payload(self.aligned_structure),
             "localisation": _trusted_evidence_payload(self.localisation),
             "sequence": _trusted_evidence_payload(self.sequence),
             "reference_context": _trusted_evidence_payload(self.reference_context),
             "identity_user_asserted": bool(self.identity_user_asserted),
+            "intensity_scale_user_asserted": bool(self.intensity_scale_user_asserted),
             "quantitative_meaning_user_asserted": bool(
                 self.quantitative_meaning_user_asserted
+            ),
+            "aligned_structure_user_asserted": bool(
+                self.aligned_structure_user_asserted
             ),
             "localisation_user_asserted": bool(self.localisation_user_asserted),
             "sequence_user_asserted": bool(self.sequence_user_asserted),
@@ -649,6 +700,18 @@ def _require_localisation_evidence_or_waiver(
         raise PhosPyInputError(
             "trusted_dataset_construction_assertions.localisation.threshold must "
             "be between 0 and 1"
+        )
+
+
+def _require_aligned_structure_evidence(
+    value: TrustedDatasetConstructionEvidence | None,
+) -> None:
+    if value is None:
+        return
+    if value.kind == "waiver":
+        raise PhosPyInputError(
+            "trusted_dataset_construction_assertions.aligned_structure cannot be "
+            "waived; table shape and alignment are mechanically verified"
         )
 
 
@@ -1002,15 +1065,53 @@ class PreprocessingStageProvenance:
     notes: str | None = None
     diagnostics: dict[str, JsonValue] | None = None
     batch_correction_provenance: BatchCorrectionProvenance | None = None
+    _frozen_parameters: Mapping[str, JsonValue] = field(
+        init=False,
+        repr=False,
+        compare=False,
+    )
+    _frozen_diagnostics: Mapping[str, JsonValue] | None = field(
+        init=False,
+        repr=False,
+        compare=False,
+    )
+
+    def __getattribute__(self, name: str) -> object:
+        if name == "parameters":
+            try:
+                frozen = object.__getattribute__(self, "_frozen_parameters")
+            except AttributeError:
+                return object.__getattribute__(self, name)
+            return thaw_json_mapping(
+                frozen, field_name="preprocessing_stage.parameters"
+            )
+        if name == "diagnostics":
+            try:
+                frozen_optional = object.__getattribute__(
+                    self,
+                    "_frozen_diagnostics",
+                )
+            except AttributeError:
+                return object.__getattribute__(self, name)
+            if frozen_optional is None:
+                return None
+            return thaw_json_mapping(
+                frozen_optional,
+                field_name="preprocessing_stage.diagnostics",
+            )
+        return object.__getattribute__(self, name)
 
     def __post_init__(self) -> None:
+        raw_parameters = object.__getattribute__(self, "parameters")
+        frozen_parameters = freeze_json_mapping(
+            raw_parameters,
+            field_name="preprocessing_stage.parameters",
+        )
+        object.__setattr__(self, "_frozen_parameters", frozen_parameters)
         object.__setattr__(
             self,
             "parameters",
-            freeze_json_mapping(
-                self.parameters,
-                field_name="preprocessing_stage.parameters",
-            ),
+            frozen_parameters,
         )
         object.__setattr__(
             self,
@@ -1067,14 +1168,13 @@ class PreprocessingStageProvenance:
                 field_name="preprocessing_stage.imputed_row_ids",
             ),
         )
-        object.__setattr__(
-            self,
-            "diagnostics",
-            freeze_optional_json_mapping(
-                self.diagnostics,
-                field_name="preprocessing_stage.diagnostics",
-            ),
+        raw_diagnostics = object.__getattribute__(self, "diagnostics")
+        frozen_diagnostics = freeze_optional_json_mapping(
+            raw_diagnostics,
+            field_name="preprocessing_stage.diagnostics",
         )
+        object.__setattr__(self, "_frozen_diagnostics", frozen_diagnostics)
+        object.__setattr__(self, "diagnostics", frozen_diagnostics)
 
 
 @dataclass(frozen=True, slots=True)
@@ -1126,6 +1226,23 @@ class BatchCorrectionProvenance:
     dependency_versions: Mapping[str, str | None] = field(default_factory=dict)
     schema_version: int = BATCH_CORRECTION_PROVENANCE_SCHEMA_VERSION_V1
     imputation_policy: Mapping[str, JsonValue] = field(default_factory=dict)
+
+    def __getattribute__(self, name: str) -> object:
+        if name in _BATCH_CORRECTION_PROVENANCE_JSON_MAPPING_FIELDS:
+            value = object.__getattribute__(self, name)
+            return thaw_json_mapping(
+                value,
+                field_name=f"batch_correction_provenance.{name}",
+            )
+        if name == "replicate_metadata":
+            value = object.__getattribute__(self, name)
+            if value is None:
+                return None
+            return thaw_json_mapping(
+                value,
+                field_name="batch_correction_provenance.replicate_metadata",
+            )
+        return object.__getattribute__(self, name)
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -1428,6 +1545,23 @@ class RunProvenance:
     output_tables: tuple[TableFingerprint, ...]
     scientific_policies: tuple[ScientificPolicyRecord, ...] = ()
     reference_context: ReferenceContextProtocol | None = None
+    _frozen_workflow_parameters: Mapping[str, JsonValue] = field(
+        init=False,
+        repr=False,
+        compare=False,
+    )
+
+    def __getattribute__(self, name: str) -> object:
+        if name == "workflow_parameters":
+            try:
+                frozen = object.__getattribute__(self, "_frozen_workflow_parameters")
+            except AttributeError:
+                return object.__getattribute__(self, name)
+            return thaw_json_mapping(
+                frozen,
+                field_name="run_provenance.workflow_parameters",
+            )
+        return object.__getattribute__(self, name)
 
     def __post_init__(self) -> None:
         if not isinstance(self.environment, EnvironmentProvenance):
@@ -1454,13 +1588,20 @@ class RunProvenance:
             raise PhosPyInputError(
                 "run_provenance.reference must be ReferenceProvenance or None"
             )
+        raw_workflow_parameters = object.__getattribute__(self, "workflow_parameters")
+        frozen_workflow_parameters = freeze_json_mapping(
+            raw_workflow_parameters,
+            field_name="run_provenance.workflow_parameters",
+        )
+        object.__setattr__(
+            self,
+            "_frozen_workflow_parameters",
+            frozen_workflow_parameters,
+        )
         object.__setattr__(
             self,
             "workflow_parameters",
-            freeze_json_mapping(
-                self.workflow_parameters,
-                field_name="run_provenance.workflow_parameters",
-            ),
+            frozen_workflow_parameters,
         )
         object.__setattr__(
             self,
@@ -1794,6 +1935,7 @@ __all__ = [
     "TableFingerprint",
     "TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V1",
     "TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V2",
+    "TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V3",
     "TrustedDatasetConstructionAssertions",
     "TrustedDatasetConstructionEvidence",
 ]

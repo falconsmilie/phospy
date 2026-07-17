@@ -28,6 +28,15 @@ stringifying keys during construction. Those approaches either leave
 base-class mutation paths open, retain aliases to mutable caller state, or
 collapse distinct key identities before stable serialization.
 
+Update note (2026-07-17, trusted construction assertion linkage): Trusted
+dataset construction assertions are immutable provenance values. Their nested
+evidence details are recursively frozen, serialized from fresh payloads, and
+linked into direct-construction provenance by a stable assertion fingerprint.
+`from_trusted_tables(...)` also verifies supplied table fingerprints against
+the actual constructed tables; table hashes, shape, axis alignment, organism
+coherence, and `site_sequence` presence are mechanically checked facts rather
+than waivable assertion text.
+
 ## Decision
 
 All JSON-like provenance values must be normalized through the
@@ -54,9 +63,12 @@ deserialized payloads, and stable JSON hashing.
 
 Serialization must thaw provenance into fresh JSON payloads every time. Public
 payloads remain ordinary `dict` and `list` containers, but those containers are
-copies and are not aliases of internal provenance state. Serialized JSON
-objects always have string keys because provenance objects cannot contain any
-other key type.
+copies and are not aliases of internal provenance state. Documented public
+provenance JSON accessors such as run `workflow_parameters`, preprocessing
+stage `parameters` and `diagnostics`, and batch-correction provenance mapping
+fields follow the same rule: each read returns a fresh JSON-shaped payload while
+the dataclass storage remains frozen. Serialized JSON objects always have
+string keys because provenance objects cannot contain any other key type.
 
 Stable hashing and round-trip serialization must operate on the same validated
 JSON-compatible value space. Hashing therefore validates and serializes fresh
@@ -66,20 +78,21 @@ representation or stringification.
 
 ## Consequences
 
-Code that reads stored provenance must treat arrays as immutable sequences, not
-as concrete `list` instances. Code that needs a mutable JSON payload must call a
-serialization function and mutate that fresh payload, not the provenance object.
+Code that reads internal stored provenance must treat arrays as immutable
+sequences, not as concrete `list` instances. Code that reads documented public
+JSON provenance accessors receives mutable-looking fresh `dict` and `list`
+payloads, but mutating those copies must not affect the provenance object.
 
 Provenance constructors are now the enforcement boundary for JSON-like
 immutability. Workflow assemblers may still normalize domain objects into JSON
 facts before constructing provenance, but unsupported values that reach a
 provenance dataclass fail at construction rather than being stringified.
 
-Code must not test provenance JSON objects with `isinstance(value, dict)`.
-Internal provenance mappings satisfy `collections.abc.Mapping`; mutable `dict`
-objects are produced only by serialization/thawing helpers. Code that needs an
-array payload must serialize first, because internal provenance arrays are
-tuples.
+Code must not test internal provenance JSON objects with `isinstance(value,
+dict)`. Internal provenance mappings satisfy `collections.abc.Mapping`; mutable
+`dict` objects are produced only by serialization/thawing helpers or by
+documented public JSON accessors. Code that needs an array payload must use one
+of those public/thawing paths, because internal provenance arrays are tuples.
 
 This decision complements ADR-0016's dataframe ownership boundary: dataframe
 inputs are copied at public boundaries, while JSON-like provenance inputs are
@@ -89,8 +102,9 @@ recursively frozen and serialized from fresh payloads.
 
 The recursive freezer lives in `src/phospy/provenance/immutability.py`.
 Provenance dataclasses with JSON-like mapping fields route those fields through
-the freezer in `__post_init__`. Serialization helpers route frozen provenance
-through the thawing path before returning payloads.
+the freezer in `__post_init__`. Serialization helpers and selected public JSON
+accessors route frozen provenance through the thawing path before returning
+payloads.
 
 The concrete container policy is:
 
@@ -117,4 +131,6 @@ The current audited fields include:
 - run-level `workflow_parameters`;
 - scientific-policy `parameters`; and
 - derived-quantitative missingness, matrix-transformation, and parameter
-  mappings.
+  mappings; and
+- trusted dataset construction evidence `details` and construction workflow
+  parameters.

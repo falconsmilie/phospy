@@ -128,6 +128,12 @@ Unknown evidence is not a permission to proceed silently. It is an explicit
 state that validators and result assembly must treat according to workflow
 policy. Scientific caveats must not be removed to make tests pass.
 
+For trusted `AnalysisReadyPhosphoDataset.from_trusted_tables(...)`
+construction, intensity-scale evidence is also a separate
+`TrustedDatasetConstructionAssertions.intensity_scale` dimension. It is not
+satisfied by the quantitative-meaning assertion; callers must explicitly record
+how the already-established `IntensityScaleState` was known.
+
 ## Quantitative Matrix Meaning
 
 `QuantitativeMeaning` records the scientific interpretation of matrix values.
