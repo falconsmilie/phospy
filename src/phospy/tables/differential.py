@@ -7,7 +7,7 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
-from phospy.validation.workflows.differential_result_tables import (
+from phospy.tables._differential_validation import (
     require_boolean,
     require_column_name,
     require_differential_result_columns,

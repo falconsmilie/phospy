@@ -12,6 +12,13 @@ from phospy.errors.validation import (
     ReferenceIdentifierNormalisationValidationError,
     ReferenceValidationError,
 )
+from phospy.frames.validation import (
+    require_canonical_string_column,
+    require_columns,
+    require_dataframe,
+    require_non_empty_string_column,
+    require_unique_index,
+)
 from phospy.science.references.identifiers import (
     ReferenceIdentifierNormalisationRecord,
     ReferenceIdentifierNormalisationReport,
@@ -21,13 +28,6 @@ from phospy.science.references.identifiers import (
     normalise_reference_site_id,
 )
 from phospy.tables.base import TableSchema
-from phospy.validation.common.dataframes import (
-    require_canonical_string_column,
-    require_columns,
-    require_dataframe,
-    require_non_empty_string_column,
-    require_unique_index,
-)
 
 
 def _raise_with_identifier_normalisation_report(

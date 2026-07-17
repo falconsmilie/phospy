@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from phospy.api.configs import SignalomeConfig
+from phospy.contracts.configs import SignalomeConfig
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.primitives import require_mapping
 from phospy.io.bundles._signalome.config import (
@@ -14,7 +14,7 @@ from phospy.io.bundles._signalome.config import (
 )
 
 if TYPE_CHECKING:
-    from phospy.api.requests import SignalomeWorkflowRequest
+    from phospy.contracts.requests import SignalomeWorkflowRequest
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,7 +29,7 @@ class SignalomeWorkflowConfigSnapshot:
     ) -> SignalomeWorkflowConfigSnapshot:
         """Create a config snapshot from a workflow request."""
 
-        from phospy.api.requests import SignalomeWorkflowRequest
+        from phospy.contracts.requests import SignalomeWorkflowRequest
 
         if not isinstance(request, SignalomeWorkflowRequest):
             raise PhosPyInputError(

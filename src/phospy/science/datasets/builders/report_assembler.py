@@ -6,8 +6,8 @@ from collections.abc import Mapping
 
 import pandas as pd
 
-from phospy.contracts.configs import DATASET_BATCH_CORRECTION_METHOD_NONE
 from phospy.errors.build import DatasetBuildError
+from phospy.science.configs import DATASET_BATCH_CORRECTION_METHOD_NONE
 from phospy.science.datasets.builders.sequence_derivation import (
     SiteSequenceDerivationReport,
 )

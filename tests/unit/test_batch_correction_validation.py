@@ -347,7 +347,7 @@ def test_batch_validation_fails_during_preprocessing_stage_execution() -> None:
         PhosPyInputError,
         match="perfectly confounded",
     ):
-        DatasetPreprocessor().run(
+        _preprocessor_with_batch_validators().run(
             phospho=_phospho(),
             site_metadata=_site_metadata(),
             sample_metadata=_confounded_sample_metadata(),
@@ -362,7 +362,7 @@ def test_batch_validation_fails_during_preprocessing_stage_execution() -> None:
 
 def test_batch_validation_failure_reports_context_without_execution_claim() -> None:
     with pytest.raises(PhosPyInputError) as exc_info:
-        DatasetPreprocessor().run(
+        _preprocessor_with_batch_validators().run(
             phospho=_phospho(),
             site_metadata=_site_metadata(),
             sample_metadata=_confounded_sample_metadata(),
@@ -387,6 +387,13 @@ def test_batch_validation_failure_reports_context_without_execution_claim() -> N
 def test_batch_correction_plan_rejects_requested_method_without_stage() -> None:
     with pytest.raises(PhosPyInputError, match="stage_order.*batch_correction"):
         PreprocessingPlan(batch_correction_method="linear_residualize_batch")
+
+
+def _preprocessor_with_batch_validators() -> DatasetPreprocessor:
+    return DatasetPreprocessor(
+        batch_correction_metadata_validator=BatchDesignMetadataValidator(),
+        batch_correction_adequacy_validator=BatchCorrectionAdequacyValidator(),
+    )
 
 
 def _phospho() -> pd.DataFrame:

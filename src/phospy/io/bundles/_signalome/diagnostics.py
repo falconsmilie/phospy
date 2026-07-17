@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phospy.api.configs import SIGNALOME_SCORE_PRECONDITIONING_POLICIES
+from phospy.contracts.configs import SIGNALOME_SCORE_PRECONDITIONING_POLICIES
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.primitives import (
     require_float,

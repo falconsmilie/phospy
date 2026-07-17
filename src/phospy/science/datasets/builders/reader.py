@@ -4,13 +4,54 @@ from __future__ import annotations
 
 from os import PathLike
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, cast
 
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.builders.contracts import DatasetInput
-from phospy.validation.datasets.inputs import DatasetInputSourceValidator
+
+
+class DatasetInputSourceValidatorProtocol(Protocol):
+    """Validate one dataset builder input source before reading."""
+
+    def run(
+        self,
+        value: object | None,
+        *,
+        field_name: str,
+        allow_none: bool = False,
+    ) -> object: ...
+
+
+class DatasetInputSourceValidator:
+    """Validate supported source types for dataset build inputs."""
+
+    def run(
+        self,
+        source: object | None,
+        *,
+        field_name: str,
+        allow_none: bool = False,
+    ) -> pd.DataFrame | str | Path | None:
+        if source is None:
+            if allow_none:
+                return None
+            raise PhosPyInputError(f"dataset build request {field_name} is required")
+        if isinstance(source, pd.DataFrame):
+            return source
+        if isinstance(source, (str, Path, PathLike)):
+            if isinstance(source, str) and not source.strip():
+                raise PhosPyInputError(
+                    f"dataset build request {field_name} path cannot be empty"
+                )
+            if isinstance(source, (str, Path)):
+                return source
+            return Path(cast(PathLike[str], source))
+        raise PhosPyInputError(
+            f"dataset build request {field_name} must be a pandas DataFrame or a "
+            "file path (str/pathlib.Path)"
+        )
 
 
 class DatasetPathTableReader(Protocol):
@@ -25,7 +66,7 @@ class DatasetInputReader:
     def __init__(
         self,
         *,
-        source_validator: DatasetInputSourceValidator | None = None,
+        source_validator: DatasetInputSourceValidatorProtocol | None = None,
         path_reader: DatasetPathTableReader | None = None,
     ) -> None:
         self._source_validator = source_validator or DatasetInputSourceValidator()

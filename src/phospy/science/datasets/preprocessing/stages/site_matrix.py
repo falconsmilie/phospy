@@ -38,7 +38,7 @@ from phospy.science.datasets.preprocessing.stages.site_matrix_components import 
     SiteMatrixRowAuditBuilder,
 )
 from phospy.science.sites.identifiers import canonicalize_site_components_series
-from phospy.validation.datasets.protein_scoped_site_identity import (
+from phospy.science.sites.identity_columns import (
     enforce_display_id_column,
     enforce_site_key_column,
 )

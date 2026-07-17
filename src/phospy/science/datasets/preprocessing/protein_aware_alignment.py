@@ -7,13 +7,16 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from phospy.contracts.configs.preprocessing.total_protein import (
+from phospy.policies import PolicyEnum
+from phospy.science.configs.preprocessing._validation import (
+    validate_protein_aware_sample_alignment_config,
+)
+from phospy.science.configs.preprocessing.total_protein import (
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICIES,
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_ALLOW_MISSING_WITH_REPORT,
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_REQUIRE_UNAMBIGUOUS,
     DatasetProteinAwarePreparationMappingPolicy,
 )
-from phospy.policies import PolicyEnum
 from phospy.science.datasets.preprocessing.protein_mapping import (
     ProteinMappingRecord,
     ProteinMappingResult,
@@ -22,9 +25,6 @@ from phospy.science.datasets.preprocessing.protein_mapping import (
 from phospy.science.transformations.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
-)
-from phospy.validation.configs.preprocessing import (
-    validate_protein_aware_sample_alignment_config,
 )
 
 PROTEIN_AWARE_REASON_MATCHED_PROTEIN_AVAILABLE = "matched_protein_available"

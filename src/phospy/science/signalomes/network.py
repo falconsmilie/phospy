@@ -7,7 +7,8 @@ from collections.abc import Mapping, Sequence
 import numpy as np
 import pandas as pd
 
-from phospy.contracts.configs import (
+from phospy.errors.workflows import WorkflowStageError
+from phospy.science.configs import (
     SIGNALOME_KINASE_NETWORK_POLICIES,
     SIGNALOME_KINASE_NETWORK_POLICY_ABSOLUTE_THRESHOLD,
     SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY,
@@ -15,7 +16,6 @@ from phospy.contracts.configs import (
     SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT,
     SignalomeKinaseNetworkPolicy,
 )
-from phospy.errors.workflows import WorkflowStageError
 from phospy.science.signalomes.constants import (
     CORRELATION_COLUMN,
     CORRELATION_REASON_COLUMN,

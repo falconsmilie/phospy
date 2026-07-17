@@ -6,7 +6,7 @@ import hashlib
 
 import numpy as np
 
-from phospy.contracts.configs.prediction import KinaseAdaptivePolicy
+from phospy.science.configs.prediction import KinaseAdaptivePolicy
 from phospy.science.prediction.policies import (
     PredictionSamplingPolicy,
     resolve_prediction_sampling_policy,

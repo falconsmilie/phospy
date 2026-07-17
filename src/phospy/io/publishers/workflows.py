@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
+from phospy.contracts.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.processing_state import processing_state_to_payload
 from phospy.io.readers.tables import table_suffix_for_format, write_table

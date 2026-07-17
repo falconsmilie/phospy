@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from phospy.api.results import KinaseWorkflowResult
+from phospy.contracts.results import KinaseWorkflowResult
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._kinase.constants import (
     CONFIG_SNAPSHOT_RELATIVE_PATH,

@@ -23,7 +23,9 @@ from phospy.science.datasets.preprocessing.stages import (
     SITE_MATRIX_STAGE_CONTRACT,
     SITE_SEQUENCE_RESOLUTION_STAGE_CONTRACT,
     TOTAL_PROTEIN_CORRECTION_STAGE_CONTRACT,
+    BatchCorrectionAdequacyValidatorProtocol,
     BatchCorrectionStage,
+    BatchDesignMetadataValidatorProtocol,
     SpsRuvStyleBatchCorrectionRunner,
 )
 
@@ -159,6 +161,12 @@ def build_registered_preprocessing_stage_instances(
     metadata_registry: Sequence[PreprocessingStageContract],
     *,
     batch_correction_runner: SpsRuvStyleBatchCorrectionRunner | None = None,
+    batch_correction_metadata_validator: (
+        BatchDesignMetadataValidatorProtocol | None
+    ) = None,
+    batch_correction_adequacy_validator: (
+        BatchCorrectionAdequacyValidatorProtocol | None
+    ) = None,
 ) -> tuple[PreprocessingStage, ...]:
     """Construct stage instances from registry-owned stage factories."""
 
@@ -172,7 +180,11 @@ def build_registered_preprocessing_stage_instances(
             and factory is BatchCorrectionStage
         ):
             instances.append(
-                BatchCorrectionStage(sps_ruv_runner=batch_correction_runner)
+                BatchCorrectionStage(
+                    sps_ruv_runner=batch_correction_runner,
+                    metadata_validator=batch_correction_metadata_validator,
+                    adequacy_validator=batch_correction_adequacy_validator,
+                )
             )
             continue
         instances.append(factory())

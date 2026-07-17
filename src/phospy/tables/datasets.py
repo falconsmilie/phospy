@@ -7,14 +7,7 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from phospy.errors.validation import DatasetValidationError
-from phospy.science.sites.identifiers import (
-    canonicalize_site_components_series,
-    canonicalize_site_identifier,
-)
-from phospy.tables.base import (
-    TableSchema,
-)
-from phospy.validation.common.dataframes import (
+from phospy.frames.validation import (
     require_dataframe,
     require_exact_index_match,
     require_finite_numeric_dataframe,
@@ -23,18 +16,27 @@ from phospy.validation.common.dataframes import (
     require_unique_columns,
     require_unique_index,
 )
-from phospy.validation.datasets.site_metadata import (
-    enforce_site_identity_rows,
+from phospy.science.evidence.localisation import (
     validate_localisation_confidence_column,
     validate_localisation_probability_column,
-    validate_site_identity_metadata,
-    validate_site_sequence_column,
 )
-from phospy.validation.identity_contracts import (
+from phospy.science.sites.identifiers import (
+    canonicalize_site_components_series,
+    canonicalize_site_identifier,
+)
+from phospy.science.sites.identity_contracts import (
     ANALYSIS_READY_DATASET_BASE_IDENTITY_CONTRACT,
     enforce_analysis_ready_site_key_index,
     enforce_phosphosite_identity_contract,
     enforce_site_key_matches_metadata,
+)
+from phospy.science.sites.metadata_validation import (
+    enforce_site_identity_rows,
+    validate_site_identity_metadata,
+    validate_site_sequence_column,
+)
+from phospy.tables.base import (
+    TableSchema,
 )
 
 

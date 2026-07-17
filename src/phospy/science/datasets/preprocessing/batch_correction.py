@@ -9,11 +9,11 @@ from typing import Literal, TypeAlias
 import numpy as np
 import pandas as pd
 
-from phospy.contracts.configs.preprocessing.batch_correction import (
+from phospy.errors.input import PhosPyInputError
+from phospy.science.configs.preprocessing.batch_correction import (
     DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
     DatasetBatchCorrectionConfig,
 )
-from phospy.errors.input import PhosPyInputError
 
 BatchCorrectionStatus: TypeAlias = Literal["disabled", "applied", "rejected"]
 BatchCorrectionConfoundingCheckStatus: TypeAlias = Literal[

@@ -12,6 +12,14 @@ import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
 from phospy.frames.ownership import export_dataframe, own_dataframe
+from phospy.frames.validation import (
+    require_dataframe,
+    require_finite_numeric_dataframe,
+    require_non_empty_dataframe,
+    require_numeric_dataframe,
+    require_unique_columns,
+    require_unique_index,
+)
 from phospy.science.differential.linear_model import (
     DifferentialDesignDecomposition,
     DifferentialDesignDecompositionError,
@@ -23,14 +31,6 @@ from phospy.science.differential.models.empirical_bayes_config import (
 from phospy.science.statistics.multiple_testing import (
     MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
     MultipleTestingCorrection,
-)
-from phospy.validation.common.dataframes import (
-    require_dataframe,
-    require_finite_numeric_dataframe,
-    require_non_empty_dataframe,
-    require_numeric_dataframe,
-    require_unique_columns,
-    require_unique_index,
 )
 
 

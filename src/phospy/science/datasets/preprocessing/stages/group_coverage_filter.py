@@ -11,6 +11,11 @@ import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.hashing import hash_table_tolerance
+from phospy.science.datasets.preprocessing.group_coverage_metadata import (
+    GroupCoverageFilterMetadataValidator,
+    ResolvedGroupCoverageFilterMetadata,
+    require_numeric_group_coverage_matrix,
+)
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_GROUP_COVERAGE_FILTER,
     PreprocessingPlan,
@@ -26,11 +31,6 @@ from phospy.science.datasets.preprocessing.report_schema import PreprocessingRow
 from phospy.science.datasets.preprocessing.stage_contract import (
     DeterminismKind,
     PreprocessingStageContract,
-)
-from phospy.validation.datasets.group_coverage_filter import (
-    GroupCoverageFilterMetadataValidator,
-    ResolvedGroupCoverageFilterMetadata,
-    require_numeric_group_coverage_matrix,
 )
 
 _REMOVAL_REASON = "insufficient finite coverage within configured sample groups"

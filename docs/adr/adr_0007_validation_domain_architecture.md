@@ -23,12 +23,19 @@ Ownership is now maintained as an executable map in
 `docs/validation-ownership.md` with invariant owner, enforcement point,
 exclusions, and associated tests.
 
+Update note (2026-07-17, validation ownership under package DAG): Validation
+remains private and independently owned. Science and table modules no longer
+import concrete `phospy.validation` implementations; they either own local
+domain invariants or consume protocols wired by API/workflow adapters.
+
 ## Decision
 
 Validation ownership is explicit and enforced by module boundaries:
 
-1. `validation/common` owns structural primitives only (DataFrame type/shape,
-   required columns, uniqueness, finite/missing checks, and generic alignment).
+1. `phospy.frames` owns neutral structural dataframe primitives (DataFrame
+   type/shape, required columns, uniqueness, finite/missing checks, and generic
+   alignment). `validation/common` remains a compatibility route and must not
+   regain ownership of neutral frame behavior.
 2. Domain modules own scientific and domain semantics (for example phosphosite
    identity, reference compatibility, replicate policy, and localisation
    eligibility).
@@ -61,6 +68,9 @@ Validation ownership is explicit and enforced by module boundaries:
     boundary-specific validation exceptions. Workflow validators own
     workflow-context and scientific validation and raise workflow validation
     errors.
+12. Validation modules may depend on consumer-owned protocols and science-owned
+    value models, but concrete workflow/build/preprocessing collaborators must
+    not depend back on validation implementations.
 
 The ownership map in `docs/validation-ownership.md` is part of ADR governance,
 not optional commentary.
@@ -100,7 +110,9 @@ not optional commentary.
 ## Implementation Notes
 
 - Ownership registry: `docs/validation-ownership.md`.
-- Shared structural primitives: `src/phospy/validation/common/dataframes.py`.
+- Shared structural primitives: `src/phospy/frames/validation.py`; legacy
+  validation routes under `src/phospy/validation/common/` are compatibility
+  wrappers.
 - Phosphosite-specific identifier/coherence validation owner:
   `src/phospy/science/sites/validation.py`.
 - Differential design/contrast validation ownership:
@@ -123,6 +135,7 @@ not optional commentary.
   `tests/architecture/test_validation_boundaries.py`.
 - Package dependency checks live in
   `tests/architecture/test_package_dependency_dag.py`.
+- Adapter wiring checks live in `tests/unit/test_protocol_adapter_wiring.py`.
 
 ## References
 

@@ -12,7 +12,6 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from phospy.contracts.result_caveats import ResultCaveat, validate_result_caveats
 from phospy.errors.input import PhosPyInputError
 from phospy.frames.ownership import (
     export_dataframe,
@@ -33,6 +32,7 @@ from phospy.science.differential.models.tables import (
     DIFFERENTIAL_RESULT_WITHHELD_STATUSES,
     validate_result_table_contract,
 )
+from phospy.science.result_caveats import ResultCaveat, validate_result_caveats
 
 if TYPE_CHECKING:
     from phospy.science.datasets.models import DatasetPreprocessingReport

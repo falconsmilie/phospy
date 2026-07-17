@@ -2,7 +2,9 @@
 
 from phospy.science.datasets.preprocessing.stages.batch_correction import (
     BATCH_CORRECTION_STAGE_CONTRACT,
+    BatchCorrectionAdequacyValidatorProtocol,
     BatchCorrectionStage,
+    BatchDesignMetadataValidatorProtocol,
     SpsRuvStyleBatchCorrectionResult,
     SpsRuvStyleBatchCorrectionRunner,
 )
@@ -45,7 +47,9 @@ from phospy.science.datasets.preprocessing.stages.total_protein_correction impor
 
 __all__ = [
     "BATCH_CORRECTION_STAGE_CONTRACT",
+    "BatchCorrectionAdequacyValidatorProtocol",
     "BatchCorrectionStage",
+    "BatchDesignMetadataValidatorProtocol",
     "SpsRuvStyleBatchCorrectionResult",
     "SpsRuvStyleBatchCorrectionRunner",
     "COMPARISONS_STAGE_CONTRACT",

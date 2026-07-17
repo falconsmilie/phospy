@@ -19,6 +19,14 @@ from phospy.frames.ownership import (
     own_dataframe,
     own_optional_dataframe,
 )
+from phospy.frames.validation import (
+    require_dataframe,
+    require_exact_index_match,
+    require_finite_numeric_dataframe,
+    require_non_empty_dataframe,
+    require_numeric_dataframe,
+    require_unique_columns,
+)
 from phospy.provenance.hashing import fingerprint_optional_table_strict
 from phospy.provenance.models import (
     ReferenceContextProtocol,
@@ -78,27 +86,38 @@ from phospy.science.datasets.processing_state import (
     require_optional_instance as _require_optional_instance,
 )
 from phospy.science.references.models import Organism
-from phospy.science.transformations.models import IntensityScaleState
-from phospy.tables.datasets import (
+from phospy.science.tables.datasets import (
     PhosphoIntensityMatrix,
     SampleMetadataTable,
     SiteMetadataTable,
     TotalProteinMatrix,
 )
-from phospy.validation.common.dataframes import (
-    require_dataframe,
-    require_exact_index_match,
-    require_finite_numeric_dataframe,
-    require_non_empty_dataframe,
-    require_numeric_dataframe,
-    require_unique_columns,
+from phospy.science.transformations.models import IntensityScaleState
+from phospy.science.transformations.state_coherence import (
+    require_intensity_scale_state_coherence,
 )
-from phospy.validation.transformations.state import IntensityScaleStateValidator
 
 _PROCESSING_STATE_COMPAT_EXPORTS = (_require_boolean_observation_mask,)
-_INTENSITY_SCALE_STATE_VALIDATOR = IntensityScaleStateValidator()
 _NUMPY_DTYPES_WITH_NAN_SENTINELS = frozenset(("f", "c"))
 _NUMPY_DTYPES_WITHOUT_MISSING_SENTINELS = frozenset(("i", "u"))
+
+
+class _IntensityScaleStateValidator:
+    def run(
+        self,
+        *,
+        intensity_scale_state: IntensityScaleState,
+        has_total_matrix: bool,
+        require_established: bool = False,
+    ) -> IntensityScaleState:
+        return require_intensity_scale_state_coherence(
+            intensity_scale_state=intensity_scale_state,
+            has_total_matrix=has_total_matrix,
+            require_established=require_established,
+        )
+
+
+_INTENSITY_SCALE_STATE_VALIDATOR = _IntensityScaleStateValidator()
 
 
 @dataclass(frozen=True, slots=True)

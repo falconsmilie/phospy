@@ -5,17 +5,17 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from phospy.tables.base import TableSchema, require_canonical_label_index
-from phospy.tables.signalome.common import (
-    _require_integer_compatible_index,
-    _require_non_negative_integer_index,
-)
-from phospy.validation.common.dataframes import (
+from phospy.frames.validation import (
     require_dataframe,
     require_finite_numeric_dataframe,
     require_numeric_dataframe,
     require_unique_columns,
     require_unique_index,
+)
+from phospy.tables.base import TableSchema, require_canonical_label_index
+from phospy.tables.signalome.common import (
+    _require_integer_compatible_index,
+    _require_non_negative_integer_index,
 )
 
 _ROW_TOTAL_ATOL = 0.05

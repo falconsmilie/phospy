@@ -10,6 +10,14 @@ from phospy.frames.ownership import (
     own_optional_series,
     own_series,
 )
+from phospy.frames.validation import (
+    require_dataframe,
+    require_exact_index_match,
+    require_finite_numeric_dataframe,
+    require_numeric_dataframe,
+    require_unique_columns,
+    require_unique_index,
+)
 
 __all__ = [
     "export_dataframe",
@@ -20,4 +28,10 @@ __all__ = [
     "own_optional_dataframe",
     "own_optional_series",
     "own_series",
+    "require_dataframe",
+    "require_exact_index_match",
+    "require_finite_numeric_dataframe",
+    "require_numeric_dataframe",
+    "require_unique_columns",
+    "require_unique_index",
 ]

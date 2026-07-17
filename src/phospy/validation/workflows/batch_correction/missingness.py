@@ -20,7 +20,9 @@ from phospy.contracts.configs.preprocessing import (
     TemporaryImputationMethod,
 )
 from phospy.errors.input import PhosPyInputError
-from phospy.workflows.batch_correction.contracts import BatchCorrectionWorkflowRequest
+from phospy.validation.workflows.batch_correction.protocols import (
+    BatchCorrectionWorkflowRequestProtocol,
+)
 
 _UNSAFE_UPSTREAM_ELIGIBILITY_IMPACTS = frozenset(
     {
@@ -75,7 +77,7 @@ class BatchCorrectionWorkflowMissingnessValidator:
     def run(
         self,
         *,
-        request: BatchCorrectionWorkflowRequest,
+        request: BatchCorrectionWorkflowRequestProtocol,
     ) -> CorrectionMissingnessPolicy:
         policy = _resolve_upstream_observation_mask_policy(
             request=request,
@@ -105,7 +107,7 @@ class BatchCorrectionWorkflowMissingnessValidator:
 
 def _reject_actual_missing_values_before_execution(
     *,
-    request: BatchCorrectionWorkflowRequest,
+    request: BatchCorrectionWorkflowRequestProtocol,
 ) -> None:
     if request.config.method is not InternalBatchCorrectionMethod.SPS_RUV_STYLE:
         return
@@ -117,7 +119,7 @@ def _reject_actual_missing_values_before_execution(
 
 def _validate_temporary_imputation_execution_support(
     *,
-    request: BatchCorrectionWorkflowRequest,
+    request: BatchCorrectionWorkflowRequestProtocol,
     policy: CorrectionMissingnessPolicy,
 ) -> None:
     config = request.config
@@ -223,7 +225,7 @@ def _reject_unexecutable_temporary_imputation_method(
 
 def _resolve_upstream_observation_mask_policy(
     *,
-    request: BatchCorrectionWorkflowRequest,
+    request: BatchCorrectionWorkflowRequestProtocol,
     policy: CorrectionMissingnessPolicy | None,
 ) -> CorrectionMissingnessPolicy | None:
     upstream_mask = request.upstream_observation_mask

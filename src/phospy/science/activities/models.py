@@ -20,14 +20,14 @@ from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
 from phospy.science.activities.threshold_membership import (
     ActivityThresholdMembershipDiagnostics,
 )
-from phospy.tables.activity import (
+from phospy.science.tables.activity import (
     ActivityCountMatrix,
     ActivityCountSeries,
     ActivityMatrix,
     ActivityStatisticsTable,
     ActivityTargetTable,
 )
-from phospy.tables.kinase import KinasePredictionMatrix
+from phospy.science.tables.kinase import KinasePredictionMatrix
 
 
 @dataclass(frozen=True, slots=True)

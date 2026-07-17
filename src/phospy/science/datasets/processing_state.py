@@ -20,6 +20,9 @@ from phospy.frames.ownership import (
     own_dataframe,
     own_optional_dataframe,
 )
+from phospy.frames.validation import (
+    require_columns,
+)
 from phospy.science.datasets._processing_state.json_contracts import (
     MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
     TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1,
@@ -84,9 +87,6 @@ from phospy.science.datasets.preprocessing.report_schema import (
     reorder_columns,
 )
 from phospy.science.transformations.models import IntensityTransformationEvent
-from phospy.validation.common.dataframes import (
-    require_columns,
-)
 
 _ExpectedType = TypeVar("_ExpectedType")
 _SITE_ID_REASON_PATTERN = re.compile(r"site identifier|site_id|site id")

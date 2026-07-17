@@ -9,13 +9,13 @@ from typing import NoReturn
 
 import pandas as pd
 
-from phospy.api.results import (
+from phospy.contracts.result_caveats import result_caveats_from_payloads
+from phospy.contracts.results import (
     KinaseWorkflowAttritionProvenance,
     KinaseWorkflowCaveat,
     KinaseWorkflowResult,
     SignalomeWorkflowResult,
 )
-from phospy.contracts.result_caveats import result_caveats_from_payloads
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.intensity_scale_state import (
     intensity_scale_state_from_payload,

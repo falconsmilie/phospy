@@ -6,14 +6,14 @@ from dataclasses import dataclass, replace
 
 import pandas as pd
 
-from phospy.contracts.configs import (
+from phospy.errors.input import PhosPyInputError
+from phospy.provenance.hashing import hash_table_tolerance
+from phospy.science.configs import (
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT,
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_MAPPING_TABLE,
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ERROR,
 )
-from phospy.errors.input import PhosPyInputError
-from phospy.provenance.hashing import hash_table_tolerance
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
     PreprocessingPlan,

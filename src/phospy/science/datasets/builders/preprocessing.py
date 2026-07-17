@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.contracts.configs import DATASET_BATCH_CORRECTION_METHOD_NONE
-from phospy.contracts.configs.preprocessing.total_protein import (
+from phospy.errors.input import PhosPyInputError
+from phospy.science.configs import DATASET_BATCH_CORRECTION_METHOD_NONE
+from phospy.science.configs.preprocessing.total_protein import (
     DatasetProteinAwarePreparationConfig,
 )
-from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.builders.contracts import PreprocessedDatasetBuildTables
 from phospy.science.datasets.preprocessing.correction_output import (
     CorrectedPreprocessingOutput,
@@ -18,6 +18,7 @@ from phospy.science.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingStageExecution,
     PreprocessingState,
+    reject_external_corrected_output_after_downstream_preprocessing,
 )
 from phospy.science.datasets.preprocessing.pipeline import PreprocessingPipeline
 from phospy.science.datasets.preprocessing.protein_aware_preparation import (
@@ -31,6 +32,8 @@ from phospy.science.datasets.preprocessing.report_rows import (
     compose_stage_owned_report_tables,
 )
 from phospy.science.datasets.preprocessing.stages import (
+    BatchCorrectionAdequacyValidatorProtocol,
+    BatchDesignMetadataValidatorProtocol,
     SpsRuvStyleBatchCorrectionRunner,
 )
 from phospy.science.datasets.preprocessing.state_builder import (
@@ -41,9 +44,6 @@ from phospy.science.transformations.models import (
     IntensityScaleState,
     IntensityTransformationEvent,
     QuantitativeMeaning,
-)
-from phospy.validation.datasets.preprocessing import (
-    reject_external_corrected_output_after_downstream_preprocessing,
 )
 
 
@@ -57,9 +57,17 @@ class DatasetPreprocessor:
         batch_correction_runner: SpsRuvStyleBatchCorrectionRunner | None = None,
         provenance_adapter: PreprocessingProvenanceAdapter | None = None,
         correction_integrator: CorrectedPreprocessingOutputIntegrator | None = None,
+        batch_correction_metadata_validator: (
+            BatchDesignMetadataValidatorProtocol | None
+        ) = None,
+        batch_correction_adequacy_validator: (
+            BatchCorrectionAdequacyValidatorProtocol | None
+        ) = None,
     ) -> None:
         self._pipeline = pipeline or PreprocessingPipeline(
-            batch_correction_runner=batch_correction_runner
+            batch_correction_runner=batch_correction_runner,
+            batch_correction_metadata_validator=batch_correction_metadata_validator,
+            batch_correction_adequacy_validator=batch_correction_adequacy_validator,
         )
         self._provenance_adapter = (
             provenance_adapter or PreprocessingProvenanceAdapter()

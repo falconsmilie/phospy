@@ -324,7 +324,7 @@ def _minimal_analysis_ready_payload() -> dict[str, object]:
     }
 
 
-def test_api_package_does_not_import_private_dataset_validation_modules() -> None:
+def test_only_builder_adapter_imports_private_dataset_validation_modules() -> None:
     offenders = sorted(
         str(path.relative_to(PROJECT_ROOT))
         for path in API_ROOT.rglob("*.py")
@@ -333,6 +333,7 @@ def test_api_package_does_not_import_private_dataset_validation_modules() -> Non
             or module.startswith(f"{DATASET_VALIDATION_PREFIX}.")
             for module in _imported_modules(path)
         )
+        if path.name != "builders.py"
     )
 
     assert offenders == []

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from phospy.api.results import KinaseWorkflowResult
+from phospy.contracts.results import KinaseWorkflowResult
 from phospy.io.bundles._kinase.constants import (
     CONFIG_SNAPSHOT_RELATIVE_PATH,
     MANIFEST_FILENAME,

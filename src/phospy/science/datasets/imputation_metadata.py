@@ -11,7 +11,7 @@ import pandas as pd
 
 from phospy.errors.validation import DatasetValidationError
 from phospy.frames.ownership import borrow_dataframe, export_dataframe, own_dataframe
-from phospy.validation.common.dataframes import (
+from phospy.frames.validation import (
     require_dataframe,
     require_exact_index_match,
 )

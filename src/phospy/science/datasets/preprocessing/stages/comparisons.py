@@ -7,11 +7,11 @@ from itertools import combinations
 
 import pandas as pd
 
-from phospy.contracts.configs import (
-    DatasetComparisonPair,
-)
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.hashing import hash_table_tolerance
+from phospy.science.configs import (
+    DatasetComparisonPair,
+)
 from phospy.science.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
     ComparisonBuildResult,

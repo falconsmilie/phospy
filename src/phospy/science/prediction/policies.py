@@ -7,14 +7,14 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Literal
 
-from phospy.contracts.configs.prediction import (
-    KINASE_ADAPTIVE_POLICY_R_PARITY,
-    KINASE_ADAPTIVE_POLICY_STABLE,
-    KinaseAdaptivePolicy,
-)
 from phospy.provenance.scientific_policy_models import (
     ScientificPolicyId,
     ScientificPolicyRecord,
+)
+from phospy.science.configs.prediction import (
+    KINASE_ADAPTIVE_POLICY_R_PARITY,
+    KINASE_ADAPTIVE_POLICY_STABLE,
+    KinaseAdaptivePolicy,
 )
 
 PredictionSamplingSeedStrategy = Literal["stable_by_kinase", "global_parity"]

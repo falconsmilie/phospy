@@ -43,11 +43,11 @@ from phospy.errors import (
     UnsupportedInputFormatError,
     WorkflowValidationError,
 )
-from phospy.science.datasets.builders.validator import DatasetBuildRequestValidator
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.science.references.models import Organism, ReferenceBundle, ReferencePreset
 from phospy.science.transformations.models import QuantitativeMeaning
+from phospy.validation.datasets.builder_request import DatasetBuildRequestValidator
 from phospy.validation.datasets.preprocessing import (
     DatasetPreprocessingConfigValidator,
 )

@@ -10,7 +10,7 @@ import numpy.typing as npt
 import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
-from phospy.validation.common.dataframes import (
+from phospy.frames.validation import (
     require_dataframe,
     require_finite_numeric_dataframe,
     require_non_empty_dataframe,
@@ -19,7 +19,7 @@ from phospy.validation.common.dataframes import (
     require_unique_columns,
     require_unique_index,
 )
-from phospy.validation.identity_contracts import (
+from phospy.science.sites.identity_contracts import (
     RESULT_IDENTITY_COLUMNS,
     RESULT_TABLE_IDENTITY_CONTRACT,
     enforce_phosphosite_identity_contract,

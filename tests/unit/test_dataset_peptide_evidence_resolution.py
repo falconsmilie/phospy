@@ -15,7 +15,6 @@ from phospy.api.requests import (
     DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
     DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
 )
-from phospy.science.datasets.builders.validator import DatasetBuildRequestValidator
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.science.evidence import (
     DATASET_PEPTIDE_DUPLICATE_POLICY_RETAIN_ALL_ROWS,
@@ -30,6 +29,7 @@ from phospy.science.evidence.dataset_resolution import (
     _single_non_empty_string_or_error,
 )
 from phospy.science.sites.site_keys import decode_site_key
+from phospy.validation.datasets.builder_request import DatasetBuildRequestValidator
 
 
 def _site_key_for_display_id(

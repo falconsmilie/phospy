@@ -6,7 +6,9 @@ from phospy.science.datasets.preprocessing.control_sites import ControlSiteMappi
 from phospy.validation.workflows.batch_correction.control_sites import (
     ControlSiteEligibilityValidator,
 )
-from phospy.workflows.batch_correction.contracts import BatchCorrectionWorkflowRequest
+from phospy.validation.workflows.batch_correction.protocols import (
+    BatchCorrectionWorkflowRequestProtocol,
+)
 
 _MIN_ELIGIBLE_CONTROLS = 2
 
@@ -23,7 +25,9 @@ class BatchCorrectionWorkflowControlSiteValidator:
             eligibility_validator or ControlSiteEligibilityValidator()
         )
 
-    def run(self, *, request: BatchCorrectionWorkflowRequest) -> ControlSiteMapping:
+    def run(
+        self, *, request: BatchCorrectionWorkflowRequestProtocol
+    ) -> ControlSiteMapping:
         config = request.config
         return self._eligibility_validator.run(
             control_set=request.control_site_set,

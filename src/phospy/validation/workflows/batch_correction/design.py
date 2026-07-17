@@ -19,7 +19,9 @@ from phospy.validation.datasets.batch_correction import (
     BatchDesignMetadataValidator,
     ResolvedBatchDesignMetadata,
 )
-from phospy.workflows.batch_correction.contracts import BatchCorrectionWorkflowRequest
+from phospy.validation.workflows.batch_correction.protocols import (
+    BatchCorrectionWorkflowRequestProtocol,
+)
 
 _MIN_NUMERICAL_RANK_TOLERANCE = 0.0
 
@@ -41,7 +43,7 @@ class BatchCorrectionWorkflowDesignValidator:
     def run(
         self,
         *,
-        request: BatchCorrectionWorkflowRequest,
+        request: BatchCorrectionWorkflowRequestProtocol,
     ) -> ResolvedBatchDesignMetadata:
         config = request.config
         metadata = self._metadata_validator.run(
@@ -76,7 +78,7 @@ class BatchCorrectionWorkflowFactorFeasibilityValidator:
     def run(
         self,
         *,
-        request: BatchCorrectionWorkflowRequest,
+        request: BatchCorrectionWorkflowRequestProtocol,
         dataset_metadata: ResolvedBatchDesignMetadata,
         control_site_mapping: ControlSiteMapping,
         missingness_policy: CorrectionMissingnessPolicy,

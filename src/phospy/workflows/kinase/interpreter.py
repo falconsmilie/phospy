@@ -21,6 +21,7 @@ from phospy.science.references.resolution import (
 from phospy.validation.identity_contracts import (
     validate_reference_context_compatibility,
 )
+from phospy.validation.references.compatibility import ReferenceCompatibilityValidator
 from phospy.workflows._pandas_typing import (
     dataframe_column,
     dataframe_copy,
@@ -65,7 +66,8 @@ class KinaseWorkflowInterpreter:
         resolved_validator: ResolvedKinaseEligibilityValidator | None = None,
     ) -> None:
         self._reference_resolver = reference_resolver or ReferenceResolver(
-            provider=BundledReferenceProvider()
+            provider=BundledReferenceProvider(),
+            compatibility_validator=ReferenceCompatibilityValidator(),
         )
         self._reference_projector = reference_projector or KinaseReferenceProjector()
         self._site_sequence_support_builder = (

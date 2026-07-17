@@ -14,14 +14,7 @@ from phospy.frames.ownership import (
     own_dataframe,
     own_series,
 )
-from phospy.science.evidence.multi_site import (
-    MultiSiteHandlingConfig,
-    MultiSiteObservation,
-    build_multi_site_observation,
-    resolve_site_mapping_frame,
-)
-from phospy.science.sites.identifiers import canonicalize_site_identifier
-from phospy.validation.common.dataframes import (
+from phospy.frames.validation import (
     require_columns,
     require_dataframe,
     require_finite_numeric_dataframe,
@@ -30,6 +23,13 @@ from phospy.validation.common.dataframes import (
     require_unique_columns,
     require_unique_row_pairs,
 )
+from phospy.science.evidence.multi_site import (
+    MultiSiteHandlingConfig,
+    MultiSiteObservation,
+    build_multi_site_observation,
+    resolve_site_mapping_frame,
+)
+from phospy.science.sites.identifiers import canonicalize_site_identifier
 
 _REQUIRED_EVIDENCE_COLUMNS: tuple[str, ...] = (
     "peptide_row_id",

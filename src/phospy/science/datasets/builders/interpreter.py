@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import cast
 
-from phospy.contracts.requests import DatasetBuildRequest
 from phospy.errors.input import PhosPyInputError
 from phospy.science.datasets.builders.contracts import (
+    DatasetBuildRequestProtocol,
     InterpretedDatasetBuildRequest,
 )
 from phospy.science.datasets.builders.interpreter_collaborators import (
@@ -55,7 +55,10 @@ class DatasetBuildRequestInterpreter:
             )
         )
 
-    def run(self, request: DatasetBuildRequest) -> InterpretedDatasetBuildRequest:
+    def run(
+        self,
+        request: DatasetBuildRequestProtocol,
+    ) -> InterpretedDatasetBuildRequest:
         resolved_sources = self._source_resolver.run(request)
         preprocessing_plan = self._preprocessing_planner.run(
             request,

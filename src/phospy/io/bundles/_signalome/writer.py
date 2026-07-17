@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from phospy.api.results import SignalomeWorkflowResult
+from phospy.contracts.results import SignalomeWorkflowResult
 from phospy.io.bundles._shared.json_files import write_json
 from phospy.io.bundles._shared.tables import (
     write_bundle_table,

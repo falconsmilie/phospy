@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from phospy.api.results import SignalomeWorkflowResult
+from phospy.contracts.results import SignalomeWorkflowResult
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.intensity_scale_state import (
     intensity_scale_state_to_payload,

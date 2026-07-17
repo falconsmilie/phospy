@@ -26,6 +26,12 @@ Accepted.
 
 This ADR establishes the target internal workflow architecture for the ongoing architecture reset and rewrite effort.
 
+Update note (2026-07-17, package DAG enforcement): Workflow and builder
+composition may inject private validators into science-owned interpreters,
+preprocessors, and resolvers through consumer-owned protocols. Science
+collaborators must not import concrete `phospy.validation` implementations;
+public API adapters and workflow orchestration own concrete validator wiring.
+
 ## Context and Problem Statement
 
 PhosPy has accumulated orchestration patterns that are more complex than necessary for the product it is intended to be. The current direction has shown signs of wrapper-heavy execution paths, repeated validation across multiple layers, duplicated accessors, loose helper composition, and abstractions that are more "smart" than useful.
@@ -217,6 +223,14 @@ activity, or signalome algorithms. The public workflow still coordinates a
 validator, interpreter, and executor; the post-resolution validator is a narrow
 validation seam used only when interpretation creates facts required for
 scientific eligibility.
+
+### Protocol Adapter Rule
+
+Interpreters, executors, and preprocessing stages define the protocols they
+consume when they need validation or external loading collaborators. Concrete
+validators remain private to `phospy.validation` and are wired by API/workflow
+adapter code. Local imports, dynamic imports, or service-locator style lookup
+must not be used to hide package edges.
 
 ## Interface Rules
 

@@ -9,17 +9,19 @@ from phospy.errors.input import PhosPyInputError
 from phospy.validation.configs.preprocessing import (
     reject_unsupported_ruv_iii_style_method,
 )
-from phospy.workflows.batch_correction.contracts import BatchCorrectionWorkflowRequest
+from phospy.validation.workflows.batch_correction.protocols import (
+    BatchCorrectionWorkflowRequestProtocol,
+)
 
 
 class BatchCorrectionWorkflowRequestValidator:
     """Validate workflow request containers without scientific interpretation."""
 
-    def run(self, request: object) -> BatchCorrectionWorkflowRequest:
-        if not isinstance(request, BatchCorrectionWorkflowRequest):
+    def run(self, request: object) -> BatchCorrectionWorkflowRequestProtocol:
+        if not isinstance(request, BatchCorrectionWorkflowRequestProtocol):
             raise PhosPyInputError(
                 "batch-correction workflow request must be "
-                "BatchCorrectionWorkflowRequest"
+                "BatchCorrectionWorkflowRequest-compatible"
             )
         if not isinstance(request.config, InternalBatchCorrectionRequest):
             raise PhosPyInputError(

@@ -6,10 +6,11 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from os import PathLike
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from typing import Protocol
 
 import pandas as pd
 
+from phospy.science.configs.dataset import DatasetPreprocessingConfig
 from phospy.science.datasets.builders.sequence_derivation import (
     SiteSequenceDerivationReport,
 )
@@ -45,11 +46,59 @@ from phospy.science.transformations.models import (
     QuantitativeMeaning,
 )
 
-if TYPE_CHECKING:
-    from phospy.contracts.requests import DatasetBuildRequest
-    from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
-
 DatasetInput = pd.DataFrame | str | Path | PathLike[str]
+
+
+class DatasetBuildRequestProtocol(Protocol):
+    """Builder-owned request shape consumed by science collaborators."""
+
+    @property
+    def phospho(self) -> DatasetInput | None: ...
+
+    @property
+    def site_metadata(self) -> DatasetInput | None: ...
+
+    @property
+    def sample_metadata(self) -> DatasetInput | None: ...
+
+    @property
+    def total(self) -> DatasetInput | None: ...
+
+    @property
+    def site_resolution_mode(self) -> str: ...
+
+    @property
+    def peptide_evidence(self) -> DatasetInput | None: ...
+
+    @property
+    def peptide_evidence_sample_intensity_columns(self) -> tuple[str, ...] | None: ...
+
+    @property
+    def peptide_site_mapping(self) -> DatasetInput | None: ...
+
+    @property
+    def multi_site_policy(self) -> str | None: ...
+
+    @property
+    def allow_opaque_site_values(self) -> bool: ...
+
+    @property
+    def organism(self) -> Organism | None: ...
+
+    @property
+    def preprocessing_config(self) -> DatasetPreprocessingConfig: ...
+
+    @property
+    def input_intensity_scale(self) -> IntensityScaleKind | str | None: ...
+
+    @property
+    def allow_suspicious_declared_input_intensity_scale(self) -> bool: ...
+
+    @property
+    def quantitative_meaning(self) -> QuantitativeMeaning | str | None: ...
+
+    @property
+    def corrected_preprocessing_output(self) -> object | None: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,21 +152,25 @@ class PreprocessedDatasetBuildTables:
 class DatasetBuildValidatorContract(Protocol):
     """Internal contract for dataset build request validation."""
 
-    def run(self, request: DatasetBuildRequest) -> DatasetBuildRequest: ...
+    def run(
+        self,
+        request: DatasetBuildRequestProtocol,
+    ) -> DatasetBuildRequestProtocol: ...
 
 
 class DatasetBuildInterpreterContract(Protocol):
     """Internal contract for request interpretation into executable inputs."""
 
-    def run(self, request: DatasetBuildRequest) -> InterpretedDatasetBuildRequest: ...
+    def run(
+        self,
+        request: DatasetBuildRequestProtocol,
+    ) -> InterpretedDatasetBuildRequest: ...
 
 
 class DatasetBuildExecutorContract(Protocol):
     """Internal contract for constructing the final dataset."""
 
-    def run(
-        self, request: InterpretedDatasetBuildRequest
-    ) -> AnalysisReadyPhosphoDataset: ...
+    def run(self, request: InterpretedDatasetBuildRequest) -> object: ...
 
 
 class DatasetPreprocessorContract(Protocol):
@@ -161,6 +214,7 @@ class DatasetIntensityScaleResolverContract(Protocol):
 __all__ = [
     "DatasetBuildExecutorContract",
     "DatasetBuildInterpreterContract",
+    "DatasetBuildRequestProtocol",
     "DatasetIntensityScaleResolverContract",
     "DatasetPreprocessorContract",
     "DatasetBuildValidatorContract",

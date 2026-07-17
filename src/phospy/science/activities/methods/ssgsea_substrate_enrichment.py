@@ -10,6 +10,15 @@ import numpy as np
 import pandas as pd
 
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.frames.validation import (
+    require_canonical_string_column,
+    require_columns,
+    require_dataframe,
+    require_non_empty_string_column,
+    require_unique_columns,
+    require_unique_index,
+    require_unique_row_pairs,
+)
 from phospy.science.activities.models import (
     SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_METHOD,
     ActivityMethodSummary,
@@ -23,16 +32,7 @@ from phospy.science.activities.scientific_policies import (
     build_ssgsea_substrate_enrichment_activity_policy,
 )
 from phospy.science.activities.statistics import benjamini_hochberg_q_values
-from phospy.tables.activity import ActivityMatrix
-from phospy.validation.common.dataframes import (
-    require_canonical_string_column,
-    require_columns,
-    require_dataframe,
-    require_non_empty_string_column,
-    require_unique_columns,
-    require_unique_index,
-    require_unique_row_pairs,
-)
+from phospy.science.tables.activity import ActivityMatrix
 
 SSGSEA_RANKING_DIRECTION_DESCENDING = "descending"
 SSGSEA_RANKING_DIRECTION_ASCENDING = "ascending"

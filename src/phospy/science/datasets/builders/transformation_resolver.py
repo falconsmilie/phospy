@@ -26,7 +26,9 @@ from phospy.science.transformations.models import (
     IntensityScaleState,
     establish_intensity_scale_state,
 )
-from phospy.validation.transformations.state import IntensityScaleStateValidator
+from phospy.science.transformations.state_coherence import (
+    require_intensity_scale_state_coherence,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,7 +53,6 @@ class DatasetIntensityScaleResolver:
 
     def __init__(self, *, transformer: Transformer | None = None) -> None:
         self._transformer = transformer
-        self._state_validator = IntensityScaleStateValidator()
 
     def run(
         self,
@@ -293,7 +294,7 @@ class DatasetIntensityScaleResolver:
         source: str,
     ) -> None:
         try:
-            self._state_validator.run(
+            require_intensity_scale_state_coherence(
                 intensity_scale_state=state,
                 has_total_matrix=has_total_matrix,
             )

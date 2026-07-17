@@ -11,89 +11,137 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = PROJECT_ROOT / "src"
 PACKAGE_ROOT = SRC_ROOT / "phospy"
-TARGET_DOMAINS = frozenset(
+
+ALLOWED_PACKAGE_EDGES = frozenset(
     {
-        "api",
-        "contracts",
-        "errors",
-        "io",
-        "provenance",
-        "science",
-        "validation",
-        "workflows",
+        ("phospy.api", "phospy.contracts"),
+        ("phospy.api", "phospy.errors"),
+        ("phospy.api", "phospy.io"),
+        ("phospy.api", "phospy.science"),
+        ("phospy.api", "phospy.tables"),
+        ("phospy.api", "phospy.validation"),
+        ("phospy.api", "phospy.workflows"),
+        ("phospy.contracts", "phospy.errors"),
+        ("phospy.contracts", "phospy.frames"),
+        ("phospy.contracts", "phospy.policies"),
+        ("phospy.contracts", "phospy.provenance"),
+        ("phospy.contracts", "phospy.science"),
+        ("phospy.contracts", "phospy.tables"),
+        ("phospy.frames", "phospy.errors"),
+        ("phospy.io", "phospy.contracts"),
+        ("phospy.io", "phospy.errors"),
+        ("phospy.io", "phospy.provenance"),
+        ("phospy.io", "phospy.science"),
+        ("phospy.io", "phospy.validation"),
+        ("phospy.policies", "phospy.errors"),
+        ("phospy.provenance", "phospy.errors"),
+        ("phospy.release", "phospy.provenance"),
+        ("phospy.science", "phospy.errors"),
+        ("phospy.science", "phospy.frames"),
+        ("phospy.science", "phospy.policies"),
+        ("phospy.science", "phospy.provenance"),
+        ("phospy.tables", "phospy.errors"),
+        ("phospy.tables", "phospy.frames"),
+        ("phospy.tables", "phospy.science"),
+        ("phospy.validation", "phospy.contracts"),
+        ("phospy.validation", "phospy.errors"),
+        ("phospy.validation", "phospy.frames"),
+        ("phospy.validation", "phospy.provenance"),
+        ("phospy.validation", "phospy.science"),
+        ("phospy.workflows", "phospy.contracts"),
+        ("phospy.workflows", "phospy.errors"),
+        ("phospy.workflows", "phospy.provenance"),
+        ("phospy.workflows", "phospy.science"),
+        ("phospy.workflows", "phospy.tables"),
+        ("phospy.workflows", "phospy.validation"),
+    }
+)
+
+FORBIDDEN_PACKAGE_EDGES = frozenset(
+    {
+        ("phospy.errors", "phospy.api"),
+        ("phospy.errors", "phospy.contracts"),
+        ("phospy.errors", "phospy.io"),
+        ("phospy.errors", "phospy.science"),
+        ("phospy.errors", "phospy.tables"),
+        ("phospy.errors", "phospy.validation"),
+        ("phospy.errors", "phospy.workflows"),
+        ("phospy.io", "phospy.api"),
+        ("phospy.science", "phospy.contracts"),
+        ("phospy.science", "phospy.io"),
+        ("phospy.science", "phospy.tables"),
+        ("phospy.science", "phospy.validation"),
+        ("phospy.science", "phospy.workflows"),
+        ("phospy.validation", "phospy.workflows"),
     }
 )
 
 
 @dataclass(frozen=True, slots=True)
+class ImportRecord:
+    source_module: str
+    source_path: Path
+    target: str
+    line: int
+
+
+@dataclass(frozen=True, slots=True)
 class ImportGraph:
     modules: frozenset[str]
-    edges: dict[str, frozenset[str]]
-    paths: dict[str, Path]
+    module_edges: dict[str, frozenset[str]]
+    package_edges: frozenset[tuple[str, str]]
+    records: tuple[ImportRecord, ...]
 
 
 def test_package_dependency_graph_has_no_static_cycles() -> None:
     graph = _build_import_graph()
     cycles = [
         tuple(sorted(component))
-        for component in _strongly_connected_components(graph.edges)
+        for component in _strongly_connected_components(
+            _package_adjacency(graph.package_edges)
+        )
         if len(component) > 1
     ]
 
     assert cycles == [], _format_cycles(cycles)
 
 
-def test_errors_package_is_a_leaf() -> None:
+def test_package_dependency_graph_matches_allowed_edge_table() -> None:
     graph = _build_import_graph()
-    offenders = _forbidden_edges(
-        graph,
-        source_roots={"phospy.errors"},
-        forbidden_targets={"phospy"},
-        allowed_targets={"phospy.errors"},
-    )
 
-    assert offenders == [], _format_edges(offenders)
+    unexpected = sorted(graph.package_edges - ALLOWED_PACKAGE_EDGES)
+    stale_allowed = sorted(ALLOWED_PACKAGE_EDGES - graph.package_edges)
+
+    assert unexpected == [], _format_package_edges(unexpected, graph.records)
+    assert stale_allowed == [], "\n".join(f"{s} -> {t}" for s, t in stale_allowed)
 
 
-def test_contracts_do_not_depend_on_workflow_or_validation_packages() -> None:
+def test_forbidden_package_edges_are_absent() -> None:
     graph = _build_import_graph()
-    offenders = _forbidden_edges(
-        graph,
-        source_roots={"phospy.contracts"},
-        forbidden_targets={"phospy.validation", "phospy.workflows"},
-    )
+    offenders = sorted(graph.package_edges & FORBIDDEN_PACKAGE_EDGES)
 
-    assert offenders == [], _format_edges(offenders)
+    assert offenders == [], _format_package_edges(offenders, graph.records)
 
 
-def test_science_does_not_depend_on_workflow_or_concrete_io_packages() -> None:
-    graph = _build_import_graph()
-    offenders = _forbidden_edges(
-        graph,
-        source_roots={"phospy.science"},
-        forbidden_targets={"phospy.io", "phospy.workflows"},
-    )
+def test_import_extractor_includes_all_static_import_forms() -> None:
+    source = """
+import phospy.science.datasets.models
+from phospy.validation.datasets import preprocessing
+from .science import datasets
+import importlib
+importlib.import_module("phospy.io.bundles")
+__import__("phospy.workflows.kinase")
+"""
+    path = PACKAGE_ROOT / "__init__.py"
+    imports = tuple(_imported_modules("phospy", path, ast.parse(source)))
 
-    assert offenders == [], _format_edges(offenders)
-
-
-def test_package_dependency_graph_is_reviewed_in_ci() -> None:
-    graph = _build_import_graph()
-    package_edges = _package_edges(graph)
-
-    assert package_edges, "package graph is unexpectedly empty"
-    assert "phospy.science -> phospy.contracts" in package_edges
-    assert "phospy.workflows -> phospy.science" in package_edges
-    assert all(
-        edge not in package_edges
-        for edge in (
-            "phospy.errors -> phospy.science",
-            "phospy.contracts -> phospy.validation",
-            "phospy.contracts -> phospy.workflows",
-            "phospy.science -> phospy.io",
-            "phospy.science -> phospy.workflows",
-        )
-    ), "\n".join(package_edges)
+    assert "phospy.science.datasets.models" in imports
+    assert "phospy.validation.datasets" in imports
+    assert "phospy.validation.datasets.preprocessing" in imports
+    assert "phospy.science" in imports
+    assert "phospy.science.datasets" in imports
+    assert "phospy.io.bundles" in imports
+    assert "phospy.workflows.kinase" in imports
 
 
 def test_public_import_routes_load_in_clean_interpreters() -> None:
@@ -104,12 +152,15 @@ def test_public_import_routes_load_in_clean_interpreters() -> None:
             "from phospy.contracts.requests import DatasetBuildRequest",
             "from phospy.errors import PhosPyError",
             "from phospy.science.references.models import ReferenceBundle",
+            "from phospy.science.datasets.builders.public import "
+            "AnalysisReadyDatasetBuilder as ScienceDatasetBuilder",
             "from phospy.validation.references.bundle import ReferenceBundleValidator",
             "assert AnalysisReadyDatasetBuilder",
             "assert ReferenceBundleBuilder",
             "assert DatasetBuildRequest",
             "assert PhosPyError",
             "assert ReferenceBundle",
+            "assert ScienceDatasetBuilder",
             "assert ReferenceBundleValidator",
             "assert KinaseWorkflow",
         ]
@@ -135,22 +186,36 @@ def test_public_import_routes_load_in_clean_interpreters() -> None:
 
 
 def _build_import_graph() -> ImportGraph:
-    paths = {
-        _module_name(path): path
-        for path in PACKAGE_ROOT.rglob("*.py")
-        if _domain_name(path) in TARGET_DOMAINS
-    }
+    paths = {_module_name(path): path for path in PACKAGE_ROOT.rglob("*.py")}
     modules = frozenset(paths)
-    edges: dict[str, frozenset[str]] = {}
+    records: list[ImportRecord] = []
+    module_edges: dict[str, frozenset[str]] = {}
     for module_name, path in paths.items():
-        resolved_edges = {
-            resolved
-            for imported in _imported_modules(module_name, path)
-            if (resolved := _resolve_module(imported, modules)) is not None
-            and _top_level_package(resolved) in TARGET_DOMAINS
-        }
-        edges[module_name] = frozenset(resolved_edges)
-    return ImportGraph(modules=modules, edges=edges, paths=paths)
+        resolved_edges: set[str] = set()
+        tree = ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
+        for imported in _imported_modules(module_name, path, tree):
+            if not imported.startswith("phospy"):
+                continue
+            resolved = _resolve_module(imported, modules)
+            if resolved is None or resolved == module_name:
+                continue
+            resolved_edges.add(resolved)
+            records.append(
+                ImportRecord(
+                    source_module=module_name,
+                    source_path=path,
+                    target=resolved,
+                    line=1,
+                )
+            )
+        module_edges[module_name] = frozenset(resolved_edges)
+    package_edges = frozenset(_package_edges(module_edges))
+    return ImportGraph(
+        modules=modules,
+        module_edges=module_edges,
+        package_edges=package_edges,
+        records=tuple(records),
+    )
 
 
 def _module_name(path: Path) -> str:
@@ -161,27 +226,26 @@ def _module_name(path: Path) -> str:
     return ".".join(parts)
 
 
-def _domain_name(path: Path) -> str | None:
-    relative = path.relative_to(PACKAGE_ROOT)
-    if len(relative.parts) < 2:
-        return None
-    return relative.parts[0]
-
-
-def _imported_modules(module_name: str, path: Path) -> Iterable[str]:
-    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+def _imported_modules(
+    module_name: str,
+    path: Path,
+    tree: ast.AST,
+) -> Iterable[str]:
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                if alias.name.startswith("phospy"):
-                    yield alias.name
+                yield alias.name
         elif isinstance(node, ast.ImportFrom):
             imported = _resolve_import_from(module_name, path, node)
-            if imported is None or not imported.startswith("phospy"):
+            if imported is None:
                 continue
             yield imported
             for alias in node.names:
-                yield f"{imported}.{alias.name}"
+                yield f"{imported}.{alias.name}" if imported else alias.name
+        elif isinstance(node, ast.Call):
+            imported = _static_dynamic_import_target(node)
+            if imported is not None:
+                yield imported
 
 
 def _resolve_import_from(
@@ -199,6 +263,21 @@ def _resolve_import_from(
     return ".".join((*package_parts, *module_parts))
 
 
+def _static_dynamic_import_target(node: ast.Call) -> str | None:
+    is_importlib_call = (
+        isinstance(node.func, ast.Attribute) and node.func.attr == "import_module"
+    )
+    is_dunder_import = isinstance(node.func, ast.Name) and node.func.id == "__import__"
+    if not (is_importlib_call or is_dunder_import):
+        return None
+    if not node.args:
+        return None
+    first_arg = node.args[0]
+    if not isinstance(first_arg, ast.Constant) or not isinstance(first_arg.value, str):
+        return None
+    return first_arg.value
+
+
 def _resolve_module(imported: str, modules: frozenset[str]) -> str | None:
     parts = imported.split(".")
     for index in range(len(parts), 1, -1):
@@ -208,11 +287,37 @@ def _resolve_module(imported: str, modules: frozenset[str]) -> str | None:
     return None
 
 
-def _top_level_package(module_name: str) -> str | None:
+def _package_edges(
+    module_edges: dict[str, frozenset[str]],
+) -> set[tuple[str, str]]:
+    edges: set[tuple[str, str]] = set()
+    for source, targets in module_edges.items():
+        source_package = _package_name(source)
+        if source_package is None:
+            continue
+        for target in targets:
+            target_package = _package_name(target)
+            if target_package is None or target_package == source_package:
+                continue
+            edges.add((source_package, target_package))
+    return edges
+
+
+def _package_name(module_name: str) -> str | None:
     parts = module_name.split(".")
-    if len(parts) < 2:
+    if len(parts) < 2 or parts[0] != "phospy":
         return None
-    return parts[1]
+    return ".".join(parts[:2])
+
+
+def _package_adjacency(
+    package_edges: Iterable[tuple[str, str]],
+) -> dict[str, frozenset[str]]:
+    adjacency: dict[str, set[str]] = {}
+    for source, target in package_edges:
+        adjacency.setdefault(source, set()).add(target)
+        adjacency.setdefault(target, set())
+    return {source: frozenset(targets) for source, targets in adjacency.items()}
 
 
 def _strongly_connected_components(
@@ -234,8 +339,6 @@ def _strongly_connected_components(
         on_stack.add(node)
 
         for target in graph.get(node, ()):
-            if target not in graph:
-                continue
             if target not in indices:
                 strong_connect(target)
                 lowlinks[node] = min(lowlinks[node], lowlinks[target])
@@ -259,50 +362,25 @@ def _strongly_connected_components(
     return components
 
 
-def _forbidden_edges(
-    graph: ImportGraph,
-    *,
-    source_roots: set[str],
-    forbidden_targets: set[str],
-    allowed_targets: set[str] | None = None,
-) -> list[str]:
-    allowed_targets = allowed_targets or set()
-    offenders: list[str] = []
-    for source, targets in graph.edges.items():
-        if not any(_is_under(source, root) for root in source_roots):
-            continue
-        for target in sorted(targets):
-            if any(_is_under(target, allowed) for allowed in allowed_targets):
-                continue
-            if any(_is_under(target, forbidden) for forbidden in forbidden_targets):
-                offenders.append(
-                    f"{graph.paths[source].relative_to(PROJECT_ROOT)}: "
-                    f"{source} -> {target}"
-                )
-    return sorted(offenders)
-
-
-def _is_under(module_name: str, root: str) -> bool:
-    return module_name == root or module_name.startswith(f"{root}.")
-
-
-def _package_edges(graph: ImportGraph) -> list[str]:
-    edges: set[str] = set()
-    for source, targets in graph.edges.items():
-        source_package = ".".join(source.split(".")[:2])
-        for target in targets:
-            target_package = ".".join(target.split(".")[:2])
-            if source_package == target_package:
-                continue
-            edges.add(f"{source_package} -> {target_package}")
-    return sorted(edges)
-
-
 def _format_cycles(cycles: list[tuple[str, ...]]) -> str:
     if not cycles:
         return ""
     return "\n\n".join("\n".join(cycle) for cycle in cycles)
 
 
-def _format_edges(edges: list[str]) -> str:
-    return "\n".join(edges)
+def _format_package_edges(
+    edges: Iterable[tuple[str, str]],
+    records: tuple[ImportRecord, ...],
+) -> str:
+    lines: list[str] = []
+    for source, target in edges:
+        lines.append(f"{source} -> {target}")
+        examples = [
+            record
+            for record in records
+            if _package_name(record.source_module) == source
+            and _package_name(record.target) == target
+        ][:8]
+        for record in examples:
+            lines.append(f"  {record.source_path.relative_to(PROJECT_ROOT)}")
+    return "\n".join(lines)

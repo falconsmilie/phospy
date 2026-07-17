@@ -8,7 +8,9 @@ from typing import Protocol
 
 import pandas as pd
 
-from phospy.contracts.configs import (
+from phospy.errors.input import PhosPyInputError
+from phospy.provenance.models import BatchCorrectionProvenance, JsonValue
+from phospy.science.configs import (
     DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
     DATASET_BATCH_CORRECTION_METHOD_NONE,
     SPS_RUV_BATCH_CORRECTION_METHODS,
@@ -16,8 +18,6 @@ from phospy.contracts.configs import (
     SUPPORTED_INTERNAL_BATCH_CORRECTION_STAGE_ORDER,
     DatasetBatchCorrectionConfig,
 )
-from phospy.errors.input import PhosPyInputError
-from phospy.provenance.models import BatchCorrectionProvenance, JsonValue
 from phospy.science.datasets.preprocessing.batch_correction import (
     BATCH_CORRECTION_CONFOUNDING_NOT_APPLICABLE,
     BATCH_CORRECTION_DESIGN_PRESERVATION_PRESERVE_CONDITION_EFFECTS,
@@ -48,10 +48,47 @@ from phospy.science.datasets.preprocessing.stage_contract import (
     DeterminismKind,
     PreprocessingStageContract,
 )
-from phospy.validation.datasets.batch_correction import (
-    BatchCorrectionAdequacyValidator,
-    BatchDesignMetadataValidator,
-)
+
+
+class BatchDesignMetadataValidatorProtocol(Protocol):
+    """Validator required before resolving batch-correction design metadata."""
+
+    def run(
+        self,
+        *,
+        phospho: pd.DataFrame,
+        sample_metadata: pd.DataFrame | None,
+        batch_column: str,
+        condition_columns: tuple[str, ...],
+        context: str,
+    ) -> object: ...
+
+
+class BatchCorrectionAdequacyValidatorProtocol(Protocol):
+    """Validator required before executing linear residual batch correction."""
+
+    def run(
+        self,
+        *,
+        batch_by_sample: Mapping[str, str],
+        condition_by_sample: Mapping[str, str],
+        sample_order: tuple[str, ...],
+        preserve_condition_effects: bool,
+    ) -> object: ...
+
+
+class _MissingBatchDesignMetadataValidator:
+    def run(self, **_: object) -> object:
+        raise PhosPyInputError(
+            "BatchCorrectionStage requires an injected BatchDesignMetadataValidator"
+        )
+
+
+class _MissingBatchCorrectionAdequacyValidator:
+    def run(self, **_: object) -> object:
+        raise PhosPyInputError(
+            "BatchCorrectionStage requires an injected BatchCorrectionAdequacyValidator"
+        )
 
 
 class SpsRuvStyleBatchCorrectionResult(Protocol):
@@ -92,15 +129,17 @@ class BatchCorrectionStage:
         self,
         *,
         metadata_resolver: BatchCorrectionMetadataResolver | None = None,
-        metadata_validator: BatchDesignMetadataValidator | None = None,
-        adequacy_validator: BatchCorrectionAdequacyValidator | None = None,
+        metadata_validator: BatchDesignMetadataValidatorProtocol | None = None,
+        adequacy_validator: BatchCorrectionAdequacyValidatorProtocol | None = None,
         engine: BatchCorrectionEngine | None = None,
         sps_ruv_runner: SpsRuvStyleBatchCorrectionRunner | None = None,
     ) -> None:
         self._metadata_resolver = metadata_resolver or BatchCorrectionMetadataResolver()
-        self._metadata_validator = metadata_validator or BatchDesignMetadataValidator()
+        self._metadata_validator = (
+            metadata_validator or _MissingBatchDesignMetadataValidator()
+        )
         self._adequacy_validator = (
-            adequacy_validator or BatchCorrectionAdequacyValidator()
+            adequacy_validator or _MissingBatchCorrectionAdequacyValidator()
         )
         self._engine = engine or BatchCorrectionEngine()
         self._sps_ruv_runner = sps_ruv_runner

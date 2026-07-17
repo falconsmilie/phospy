@@ -34,7 +34,6 @@ from phospy.errors import (
     ReferenceValidationError,
 )
 from phospy.io.readers.tables import read_table
-from phospy.science.datasets.builders.validator import DatasetBuildRequestValidator
 from phospy.science.signalomes.constants import (
     DISPLAY_ID_COLUMN,
     EXPANDED_SIGNALOME_ROW_KIND_COLUMN,
@@ -47,6 +46,7 @@ from phospy.science.signalomes.models import (
     SignalomeAssignments,
     SignalomeModules,
 )
+from phospy.validation.datasets.builder_request import DatasetBuildRequestValidator
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,

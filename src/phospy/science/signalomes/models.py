@@ -7,17 +7,17 @@ from typing import Literal
 
 import pandas as pd
 
-from phospy.contracts.configs import (
-    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
-    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
-    SignalomeScorePreconditioningPolicy,
-)
 from phospy.errors.validation import PhosPyValidationError
 from phospy.frames.ownership import (
     export_dataframe,
     export_optional_dataframe,
     own_dataframe,
     own_optional_dataframe,
+)
+from phospy.science.configs import (
+    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
+    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
+    SignalomeScorePreconditioningPolicy,
 )
 
 SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS = "correlation_thresholds"
@@ -204,7 +204,7 @@ class SignalomeAssignments:
     _table: pd.DataFrame = field(init=False, repr=False)
 
     def __init__(self, table: pd.DataFrame, _assume_owned: bool = False) -> None:
-        from phospy.tables.signalome import SignalomeAssignmentsTable
+        from phospy.science.tables.signalome import SignalomeAssignmentsTable
 
         table = own_dataframe(
             table,
@@ -239,7 +239,7 @@ class SignalomeModules:
     _table: pd.DataFrame = field(init=False, repr=False)
 
     def __init__(self, table: pd.DataFrame, _assume_owned: bool = False) -> None:
-        from phospy.tables.signalome import SignalomeModulesTable
+        from phospy.science.tables.signalome import SignalomeModulesTable
 
         table = own_dataframe(
             table,
@@ -286,7 +286,7 @@ class KinaseNetwork:
         correlation_diagnostics: SignalomeNetworkCorrelationDiagnostics | None = None,
         _assume_owned: bool = False,
     ) -> None:
-        from phospy.tables.signalome import (
+        from phospy.science.tables.signalome import (
             KinaseNetworkCandidateCorrelationsTable,
             KinaseNetworkEdgesTable,
             KinaseNetworkNodesTable,

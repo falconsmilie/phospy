@@ -37,7 +37,10 @@ from phospy.science.references.manifest import (
     ReferenceManifest,
     SequenceWindowDefinition,
 )
-from phospy.tables.references import KinaseSubstrateReference, SiteSequenceReference
+from phospy.science.tables.references import (
+    KinaseSubstrateReference,
+    SiteSequenceReference,
+)
 
 
 class ReferencePreset(str, Enum):

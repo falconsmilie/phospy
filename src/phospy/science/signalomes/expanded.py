@@ -8,12 +8,12 @@ from collections.abc import Mapping, Sequence
 import numpy as np
 import pandas as pd
 
-from phospy.contracts.configs import (
+from phospy.errors.workflows import WorkflowStageError
+from phospy.science.configs import (
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
     SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
     SignalomeAssignmentPolicy,
 )
-from phospy.errors.workflows import WorkflowStageError
 from phospy.science.signalomes.assignments import _normalize_top_kinase_weights
 from phospy.science.signalomes.constants import (
     DISPLAY_ID_COLUMN,

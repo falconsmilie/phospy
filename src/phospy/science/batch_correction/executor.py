@@ -9,10 +9,10 @@ from typing import Protocol, TypeAlias
 import numpy as np
 import pandas as pd
 
-from phospy.contracts.configs.preprocessing import TemporaryImputationMethod
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance import fingerprint_matrix
 from phospy.provenance.models import TableFingerprint
+from phospy.science.configs.preprocessing import TemporaryImputationMethod
 from phospy.science.datasets.preprocessing.correction_output import (
     CorrectedPreprocessingOutput,
 )

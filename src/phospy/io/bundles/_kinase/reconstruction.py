@@ -6,12 +6,12 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import NoReturn
 
-from phospy.api.results import (
+from phospy.contracts.result_caveats import result_caveats_from_payloads
+from phospy.contracts.results import (
     KinaseWorkflowAttritionProvenance,
     KinaseWorkflowCaveat,
     KinaseWorkflowResult,
 )
-from phospy.contracts.result_caveats import result_caveats_from_payloads
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._kinase.manifest import KinaseManifestSections
 from phospy.io.bundles._shared.intensity_scale_state import (

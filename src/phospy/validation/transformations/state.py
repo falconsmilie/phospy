@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import cast
-
-from phospy.errors.validation import TransformationValidationError
 from phospy.science.transformations.models import IntensityScaleState
+from phospy.science.transformations.state_coherence import (
+    require_intensity_scale_state_coherence,
+)
 
 
 class IntensityScaleStateValidator:
@@ -18,30 +18,8 @@ class IntensityScaleStateValidator:
         has_total_matrix: bool,
         require_established: bool = False,
     ) -> IntensityScaleState:
-        if not isinstance(cast(object, intensity_scale_state), IntensityScaleState):
-            raise TransformationValidationError(
-                "dataset.intensity_scale_state must be an IntensityScaleState instance"
-            )
-        if require_established and not intensity_scale_state.is_established:
-            raise TransformationValidationError(
-                "dataset.intensity_scale_state must be established through a "
-                "supported PhosPy path; use AnalysisReadyDatasetBuilder or a "
-                "supported transformer/bundle reconstruction path"
-            )
-        if has_total_matrix and intensity_scale_state.total is None:
-            raise TransformationValidationError(
-                "intensity_scale_state.total is required when dataset.total is provided"
-            )
-        if not has_total_matrix and intensity_scale_state.total is not None:
-            raise TransformationValidationError(
-                "intensity_scale_state.total must be None when dataset.total is absent"
-            )
-        if (
-            intensity_scale_state.total is not None
-            and intensity_scale_state.total.kind
-            is not intensity_scale_state.phospho.kind
-        ):
-            raise TransformationValidationError(
-                "phospho and total matrices must share one intensity scale kind"
-            )
-        return intensity_scale_state
+        return require_intensity_scale_state_coherence(
+            intensity_scale_state,
+            has_total_matrix=has_total_matrix,
+            require_established=require_established,
+        )

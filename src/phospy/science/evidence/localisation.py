@@ -44,6 +44,135 @@ class LocalisationConfidenceNormalisationReport:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class LocalisationProbabilityAssessment:
+    """Parsed localisation-probability assessment for one metadata column."""
+
+    normalized: pd.Series
+    missing_mask: pd.Series
+    invalid_mask: pd.Series
+    invalid_examples: tuple[str, ...]
+
+    @property
+    def missing_count(self) -> int:
+        return int(self.missing_mask.sum())
+
+    @property
+    def invalid_count(self) -> int:
+        return int(self.invalid_mask.sum())
+
+
+def assess_localisation_probability_column(
+    *,
+    site_metadata: pd.DataFrame,
+    field_name: str,
+    error_type: type[Exception],
+    column_name: str = "localisation_probability",
+) -> LocalisationProbabilityAssessment | None:
+    """Parse optional localisation probability values with diagnostics."""
+
+    if column_name not in site_metadata.columns:
+        return None
+    values = site_metadata[column_name]
+    values_index = pd.Index(values.index)
+    missing_mask = values.isna()
+    blank_string_mask = values.map(
+        lambda value: isinstance(value, str) and value.strip() == ""
+    )
+    bool_mask = values.map(lambda value: isinstance(value, (bool, np.bool_)))
+    parse_exempt_mask = missing_mask | blank_string_mask | bool_mask
+    numeric_values = pd.to_numeric(values.mask(parse_exempt_mask), errors="coerce")
+    finite_mask = pd.Series(
+        np.isfinite(numeric_values.to_numpy(dtype=float, copy=False, na_value=np.nan)),
+        index=values_index,
+    )
+    valid_numeric_mask = (
+        ~parse_exempt_mask
+        & numeric_values.notna()
+        & finite_mask
+        & numeric_values.ge(0.0)
+        & numeric_values.le(1.0)
+    )
+    missing_mask = pd.Series(
+        (missing_mask | blank_string_mask).to_numpy(dtype=bool, copy=False),
+        index=values_index,
+        dtype="boolean",
+    )
+    invalid_mask = pd.Series(
+        ((~missing_mask.astype(bool)) & (~valid_numeric_mask)).to_numpy(
+            dtype=bool,
+            copy=False,
+        ),
+        index=values_index,
+        dtype="boolean",
+    )
+    normalized = pd.Series(pd.NA, index=values_index, dtype="Float64")
+    if bool(valid_numeric_mask.any()):
+        normalized.loc[valid_numeric_mask] = numeric_values.loc[
+            valid_numeric_mask
+        ].astype(float)
+    invalid_examples: list[str] = []
+    invalid_positions = np.flatnonzero(invalid_mask.to_numpy(dtype=bool, copy=False))
+    for position in invalid_positions[:_EXAMPLE_LIMIT]:
+        site_id = values.index[int(position)]
+        raw_value = values.at[site_id]
+        parsed = _parse_confidence_value(raw_value, scale="probability")
+        invalid_examples.append(f"{site_id!r}:{raw_value!r}:{parsed}")
+
+    if bool((missing_mask & invalid_mask).any()):
+        raise error_type(
+            f"{field_name}.{column_name} localisation parsing produced inconsistent "
+            "missing/invalid masks"
+        )
+    return LocalisationProbabilityAssessment(
+        normalized=normalized,
+        missing_mask=missing_mask,
+        invalid_mask=invalid_mask,
+        invalid_examples=tuple(invalid_examples),
+    )
+
+
+def validate_localisation_probability_column(
+    *,
+    site_metadata: pd.DataFrame,
+    field_name: str,
+    error_type: type[Exception],
+    column_name: str = "localisation_probability",
+) -> None:
+    """Validate optional localisation probability values when present."""
+
+    assessment = assess_localisation_probability_column(
+        site_metadata=site_metadata,
+        field_name=field_name,
+        error_type=error_type,
+        column_name=column_name,
+    )
+    if assessment is None or assessment.invalid_count == 0:
+        return
+    raise error_type(
+        f"{field_name}.{column_name} must contain values in [0.0, 1.0] or missing; "
+        f"invalid_row_count={assessment.invalid_count}; "
+        f"examples={_summarise_examples(list(assessment.invalid_examples), limit=3)}"
+    )
+
+
+def validate_localisation_confidence_column(
+    *,
+    site_metadata: pd.DataFrame,
+    field_name: str,
+    error_type: type[Exception],
+    column_name: str = "localisation_confidence",
+) -> None:
+    """Validate optional localisation-confidence values when present."""
+
+    validate_localisation_probability_column(
+        site_metadata=site_metadata,
+        field_name=field_name,
+        error_type=error_type,
+        column_name=column_name,
+    )
+
+
 def normalise_localisation_confidence_series(
     values: pd.Series,
     *,
@@ -155,6 +284,11 @@ def _validate_scale(scale: str) -> None:
     raise PhosPyInputError(f"localisation confidence scale must be one of: {supported}")
 
 
+def _summarise_examples(values: list[str], *, limit: int = _EXAMPLE_LIMIT) -> str:
+    suffix = "" if len(values) <= limit else " ..."
+    return "[" + ", ".join(values[:limit]) + suffix + "]"
+
+
 def _is_missing(value: object) -> bool:
     if value is None or value is pd.NA or value is pd.NaT:
         return True
@@ -175,5 +309,9 @@ __all__ = [
     "LOCALISATION_CONFIDENCE_SCALE_PROBABILITY",
     "SUPPORTED_LOCALISATION_CONFIDENCE_SCALES",
     "LocalisationConfidenceNormalisationReport",
+    "LocalisationProbabilityAssessment",
+    "assess_localisation_probability_column",
     "normalise_localisation_confidence_series",
+    "validate_localisation_confidence_column",
+    "validate_localisation_probability_column",
 ]

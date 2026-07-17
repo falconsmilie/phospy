@@ -2,16 +2,25 @@
 
 from __future__ import annotations
 
-from phospy.contracts.requests import DatasetBuildRequest
+from typing import cast
+
 from phospy.science.datasets.builders.contracts import (
     DatasetBuildExecutorContract,
     DatasetBuildInterpreterContract,
+    DatasetBuildRequestProtocol,
     DatasetBuildValidatorContract,
 )
 from phospy.science.datasets.builders.executor import DatasetBuildExecutor
 from phospy.science.datasets.builders.interpreter import DatasetBuildRequestInterpreter
-from phospy.science.datasets.builders.validator import DatasetBuildRequestValidator
 from phospy.science.datasets.models import AnalysisReadyPhosphoDataset
+
+
+class _PassthroughDatasetBuildValidator:
+    def run(
+        self,
+        request: DatasetBuildRequestProtocol,
+    ) -> DatasetBuildRequestProtocol:
+        return request
 
 
 class AnalysisReadyDatasetBuilder:
@@ -29,12 +38,12 @@ class AnalysisReadyDatasetBuilder:
         interpreter: DatasetBuildInterpreterContract | None = None,
         executor: DatasetBuildExecutorContract | None = None,
     ) -> None:
-        self._validator = validator or DatasetBuildRequestValidator()
+        self._validator = validator or _PassthroughDatasetBuildValidator()
         self._interpreter = interpreter or DatasetBuildRequestInterpreter()
         self._executor = executor or DatasetBuildExecutor()
 
-    def run(self, request: DatasetBuildRequest) -> AnalysisReadyPhosphoDataset:
+    def run(self, request: DatasetBuildRequestProtocol) -> AnalysisReadyPhosphoDataset:
         """Validate, interpret, execute, and provenance-stamp a build request."""
         validated = self._validator.run(request)
         interpreted = self._interpreter.run(validated)
-        return self._executor.run(interpreted)
+        return cast(AnalysisReadyPhosphoDataset, self._executor.run(interpreted))

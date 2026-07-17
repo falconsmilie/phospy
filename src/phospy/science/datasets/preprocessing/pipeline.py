@@ -39,6 +39,8 @@ from phospy.science.datasets.preprocessing.stage_registry import (
     resolve_registered_preprocessing_stages,
 )
 from phospy.science.datasets.preprocessing.stages import (
+    BatchCorrectionAdequacyValidatorProtocol,
+    BatchDesignMetadataValidatorProtocol,
     SpsRuvStyleBatchCorrectionRunner,
 )
 from phospy.science.transformations.models import (
@@ -77,6 +79,12 @@ class PreprocessingPipeline:
         stage_contract_registry: tuple[PreprocessingStageMetadata, ...] | None = None,
         stage_metadata_registry: tuple[PreprocessingStageMetadata, ...] | None = None,
         batch_correction_runner: SpsRuvStyleBatchCorrectionRunner | None = None,
+        batch_correction_metadata_validator: (
+            BatchDesignMetadataValidatorProtocol | None
+        ) = None,
+        batch_correction_adequacy_validator: (
+            BatchCorrectionAdequacyValidatorProtocol | None
+        ) = None,
     ) -> None:
         contract_overrides = (
             stage_metadata_registry
@@ -89,6 +97,8 @@ class PreprocessingPipeline:
         stages = stage_registry or build_registered_preprocessing_stage_instances(
             resolved_metadata_registry,
             batch_correction_runner=batch_correction_runner,
+            batch_correction_metadata_validator=batch_correction_metadata_validator,
+            batch_correction_adequacy_validator=batch_correction_adequacy_validator,
         )
         self._stages_by_key = {stage.stage_key: stage for stage in stages}
         if len(self._stages_by_key) != len(stages):

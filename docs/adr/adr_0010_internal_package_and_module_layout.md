@@ -20,6 +20,11 @@ Accepted.
 
 This ADR supersedes earlier high-level package-layout guidance.
 
+Update note (2026-07-17, actual package DAG): The enforced package graph is now
+the complete top-level `phospy` graph, not a curated subset. Architecture tests
+parse every source file and compare actual package edges with an explicit
+allowed-edge table.
+
 ## Context and Problem Statement
 
 Internal workflow code has been split into focused modules (validators,
@@ -94,19 +99,33 @@ Without governance:
 ### Enforceable Package Dependency DAG
 
 Package imports must remain acyclic. The architecture tests parse all AST import
-statements, including local imports and `TYPE_CHECKING` imports, so cycles cannot
-be hidden by deferring imports.
+statements, including local imports, relative imports, `TYPE_CHECKING` imports,
+and static `importlib.import_module(...)` / `__import__(...)` calls, so cycles
+cannot be hidden by deferring imports.
 
 The enforced package rules are:
 
 1. `phospy.errors` is a leaf. It must not import any other `phospy` package.
 2. `phospy.contracts` must not import `phospy.validation` or
    `phospy.workflows`.
-3. `phospy.science` must not import `phospy.io` or `phospy.workflows`.
+3. `phospy.science` must not import `phospy.contracts`, `phospy.io`,
+   `phospy.tables`, `phospy.validation`, or `phospy.workflows`.
 4. Concrete local readers, reference source loaders, and nested workflow runners
    are injected by API/workflow orchestration adapters.
 5. Compatibility modules may re-export moved names, but they must not reintroduce
    reverse imports or own new behavior.
+6. API adapters may import private validation modules for composition, but those
+   validators must not be exported from public namespaces.
+
+The current top-level orientation is:
+
+- `api -> contracts, errors, io, science, tables, validation, workflows`
+- `contracts -> errors, frames, policies, provenance, science, tables`
+- `io -> contracts, errors, provenance, science, validation`
+- `science -> errors, frames, policies, provenance`
+- `tables -> errors, frames, science`
+- `validation -> contracts, errors, frames, provenance, science`
+- `workflows -> contracts, errors, provenance, science, tables, validation`
 
 The CI graph check lives in
 `tests/architecture/test_package_dependency_dag.py`. New exemptions require an

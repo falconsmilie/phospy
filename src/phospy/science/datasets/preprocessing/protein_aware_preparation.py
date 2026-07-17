@@ -7,7 +7,19 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from phospy.contracts.configs.preprocessing.total_protein import (
+from phospy.errors.input import PhosPyInputError
+from phospy.errors.validation import DatasetValidationError
+from phospy.frames.ownership import export_dataframe, own_dataframe
+from phospy.frames.validation import (
+    require_columns,
+    require_exact_index_match,
+    require_numeric_dataframe,
+    require_unique_columns,
+    require_unique_index,
+)
+from phospy.provenance.models import RunProvenance
+from phospy.provenance.serialization import to_payload as provenance_to_payload
+from phospy.science.configs.preprocessing.total_protein import (
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICIES,
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_ALLOW_MISSING_WITH_REPORT,
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_REQUIRE_UNAMBIGUOUS,
@@ -16,11 +28,6 @@ from phospy.contracts.configs.preprocessing.total_protein import (
     DATASET_PROTEIN_AWARE_PREPARATION_POLICY_PREPARE_MODEL_INPUTS,
     DatasetProteinAwarePreparationConfig,
 )
-from phospy.errors.input import PhosPyInputError
-from phospy.errors.validation import DatasetValidationError
-from phospy.frames.ownership import export_dataframe, own_dataframe
-from phospy.provenance.models import RunProvenance
-from phospy.provenance.serialization import to_payload as provenance_to_payload
 from phospy.science.datasets.preprocessing.protein_aware_alignment import (
     PROTEIN_AWARE_REASON_AMBIGUOUS_PROTEIN_MAPPING,
     PROTEIN_AWARE_REASON_MATCHED_PROTEIN_AVAILABLE,
@@ -41,13 +48,6 @@ from phospy.science.datasets.preprocessing.protein_mapping import (
     ProteinMappingStatus,
 )
 from phospy.science.transformations.models import IntensityScaleState
-from phospy.validation.common.dataframes import (
-    require_columns,
-    require_exact_index_match,
-    require_numeric_dataframe,
-    require_unique_columns,
-    require_unique_index,
-)
 
 PROTEIN_AWARE_PREPARATION_SCHEMA_VERSION = 1
 

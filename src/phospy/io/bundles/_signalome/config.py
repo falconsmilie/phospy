@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     SIGNALOME_ASSIGNMENT_POLICIES,
     SIGNALOME_CANDIDATE_SCORING_POLICIES,
     SIGNALOME_CLUSTERING_ENGINES,

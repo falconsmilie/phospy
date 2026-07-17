@@ -8,7 +8,8 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import TypeAlias, cast
 
-from phospy.contracts.configs.preprocessing.control_sites import (
+from phospy.policies import PolicyEnum
+from phospy.science.configs.preprocessing.control_sites import (
     CONTROL_SITE_SELECTION_METHOD_CALLER_SUPPLIED,
     CONTROL_SITE_SOURCE_CALLER_SUPPLIED,
     CONTROL_SITE_STATUS_CONTROL,
@@ -17,7 +18,6 @@ from phospy.contracts.configs.preprocessing.control_sites import (
     CONTROL_SITE_STATUS_NON_CONTROL,
     CONTROL_SITE_STATUS_UNKNOWN,
 )
-from phospy.policies import PolicyEnum
 
 CONTROL_SITE_REASON_DUPLICATE_CONTROL_ANNOTATION = "duplicate_control_annotation"
 CONTROL_SITE_REASON_INVALID_CONTROL_STATUS = "invalid_control_status"

@@ -27,7 +27,7 @@ from phospy.science.datasets.preprocessing.stage_contract import (
     DeterminismKind,
     PreprocessingStageContract,
 )
-from phospy.validation.datasets.site_metadata import (
+from phospy.science.evidence.localisation import (
     assess_localisation_probability_column,
 )
 

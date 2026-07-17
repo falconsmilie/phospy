@@ -5,6 +5,13 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from phospy.frames.validation import (
+    require_canonical_string_column,
+    require_columns,
+    require_dataframe,
+    require_non_empty_string_column,
+    require_unique_index,
+)
 from phospy.science.signalomes.constants import (
     CORRELATION_COLUMN,
     CORRELATION_REASON_COLUMN,
@@ -26,13 +33,6 @@ from phospy.tables.signalome.common import (
     _require_non_negative_integer_column,
     _require_numeric_bounds,
     _require_numeric_column,
-)
-from phospy.validation.common.dataframes import (
-    require_canonical_string_column,
-    require_columns,
-    require_dataframe,
-    require_non_empty_string_column,
-    require_unique_index,
 )
 
 _KINASE_NETWORK_EDGES_REQUIRED_COLUMNS = (

@@ -78,38 +78,47 @@ class BatchCorrectionWorkflow:
         executor: BatchCorrectionExecutorContract | None = None,
         provenance_recorder: BatchCorrectionProvenanceRecorderContract | None = None,
     ) -> None:
-        self._request_validator = (
-            request_validator or BatchCorrectionWorkflowRequestValidator()
+        self._request_validator: BatchCorrectionRequestValidatorContract = (
+            request_validator
+            or cast(
+                BatchCorrectionRequestValidatorContract,
+                BatchCorrectionWorkflowRequestValidator(),
+            )
         )
-        self._design_validator = (
+        self._design_validator: BatchCorrectionDesignValidatorContract = (
             design_validator or BatchCorrectionWorkflowDesignValidator()
         )
-        self._control_site_validator = (
+        self._control_site_validator: BatchCorrectionControlSiteValidatorContract = (
             control_site_validator or BatchCorrectionWorkflowControlSiteValidator()
         )
-        self._stage_order_validator = (
+        self._stage_order_validator: BatchCorrectionStageOrderValidatorContract = (
             stage_order_validator or BatchCorrectionWorkflowStageOrderValidator()
         )
-        self._missingness_validator = (
+        self._missingness_validator: BatchCorrectionMissingnessValidatorContract = (
             missingness_validator or BatchCorrectionWorkflowMissingnessValidator()
         )
-        self._factor_feasibility_validator = (
+        self._factor_feasibility_validator: BatchCorrectionFactorFeasibilityValidatorContract = (
             factor_feasibility_validator
             or BatchCorrectionWorkflowFactorFeasibilityValidator()
         )
-        self._interpreter = interpreter or BatchCorrectionPlanInterpreter()
-        self._executor = executor or cast(
+        self._interpreter: BatchCorrectionInterpreterContract = (
+            interpreter or BatchCorrectionPlanInterpreter()
+        )
+        self._executor: BatchCorrectionExecutorContract = executor or cast(
             BatchCorrectionExecutorContract,
             SpsRuvStyleExecutor(),
         )
-        self._provenance_recorder = (
+        self._provenance_recorder: BatchCorrectionProvenanceRecorderContract = (
             provenance_recorder or BatchCorrectionProvenanceRecorder()
         )
 
     def run(self, request: object) -> BatchCorrectionWorkflowResult:
         """Validate, interpret, execute, and record batch correction."""
 
-        validated_request = self._request_validator.run(request)
+        validated_request = cast(
+            BatchCorrectionWorkflowRequest,
+            self._request_validator.run(request),
+        )
         dataset_metadata = self._design_validator.run(request=validated_request)
         self._stage_order_validator.run(config=validated_request.config)
         control_site_mapping = self._control_site_validator.run(

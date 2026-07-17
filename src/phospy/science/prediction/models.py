@@ -9,11 +9,6 @@ from types import MappingProxyType
 import numpy as np
 import pandas as pd
 
-from phospy.contracts.configs import (
-    KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
-    KINASE_SCORING_MODES,
-    normalize_kinase_scoring_mode,
-)
 from phospy.errors.validation import PhosPyValidationError
 from phospy.frames.ownership import (
     _borrow_dataframe,
@@ -21,6 +16,20 @@ from phospy.frames.ownership import (
     export_dataframe,
     export_optional_dataframe,
     own_optional_dataframe,
+)
+from phospy.frames.validation import (
+    require_dataframe,
+    require_exact_index_match,
+    require_finite_numeric_dataframe,
+    require_numeric_dataframe,
+    require_unique_columns,
+    require_unique_index,
+)
+from phospy.policies import coerce_policy_enum
+from phospy.science.configs import (
+    KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
+    KINASE_SCORING_MODES,
+    normalize_kinase_scoring_mode,
 )
 from phospy.science.prediction.motif_scoring import (
     KinaseLibraryMotifScoringResult,
@@ -36,20 +45,11 @@ from phospy.science.scoring.policy_models import (
     ProfileSelfInclusionPolicy,
 )
 from phospy.science.sites.validation import require_site_key_index
-from phospy.tables.base import require_canonical_label_index
-from phospy.tables.kinase import (
+from phospy.science.tables.base import require_canonical_label_index
+from phospy.science.tables.kinase import (
     KinasePredictionMatrix,
     KinaseProfileScoreDiagnosticTable,
     KinaseScoreMatrix,
-)
-from phospy.validation.common.config_values import coerce_policy_enum
-from phospy.validation.common.dataframes import (
-    require_dataframe,
-    require_exact_index_match,
-    require_finite_numeric_dataframe,
-    require_numeric_dataframe,
-    require_unique_columns,
-    require_unique_index,
 )
 
 

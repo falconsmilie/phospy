@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast
 
-from phospy.api.configs import (
+from phospy.contracts.configs import (
     KINASE_ACTIVITY_KSEA_P_VALUE_METHODS,
     KINASE_ACTIVITY_METHODS,
     KINASE_ADAPTIVE_POLICIES,
@@ -41,7 +41,7 @@ from phospy.io.bundles._shared.primitives import (
 )
 
 if TYPE_CHECKING:
-    from phospy.api.requests import KinaseWorkflowRequest
+    from phospy.contracts.requests import KinaseWorkflowRequest
 
 _SCORING_CONFIG_ALLOWED_FIELDS = frozenset(
     {
@@ -117,7 +117,7 @@ class KinaseWorkflowConfigSnapshot:
     ) -> KinaseWorkflowConfigSnapshot:
         """Create a config snapshot from a workflow request."""
 
-        from phospy.api.requests import KinaseWorkflowRequest
+        from phospy.contracts.requests import KinaseWorkflowRequest
 
         if not isinstance(request, KinaseWorkflowRequest):
             raise PhosPyInputError(

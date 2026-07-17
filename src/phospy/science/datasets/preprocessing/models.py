@@ -10,8 +10,17 @@ from typing import Protocol, cast
 
 import pandas as pd
 
-from phospy.contracts.configs.dataset import DatasetPreprocessingConfig
-from phospy.contracts.configs.preprocessing import (
+from phospy.errors.input import PhosPyInputError
+from phospy.provenance.hashing import hash_table_tolerance
+from phospy.provenance.models import (
+    PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
+    BatchCorrectionProvenance,
+    DeterminismKind,
+    ReproducibilityCaveat,
+    TableFingerprint,
+)
+from phospy.science.configs.dataset import DatasetPreprocessingConfig
+from phospy.science.configs.preprocessing import (
     DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
     DATASET_BATCH_CORRECTION_METHOD_NONE,
     DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN,
@@ -37,19 +46,10 @@ from phospy.contracts.configs.preprocessing import (
     InternalBatchCorrectionRequest,
     SpsRuvBatchCorrectionConfig,
 )
-from phospy.contracts.configs.preprocessing._validation import (
+from phospy.science.configs.preprocessing._validation import (
     reject_unsupported_ruv_iii_style_method,
     validate_group_coverage_filter_config,
     validate_protein_aware_preparation_config,
-)
-from phospy.errors.input import PhosPyInputError
-from phospy.provenance.hashing import hash_table_tolerance
-from phospy.provenance.models import (
-    PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
-    BatchCorrectionProvenance,
-    DeterminismKind,
-    ReproducibilityCaveat,
-    TableFingerprint,
 )
 from phospy.science.datasets.preprocessing.batch_correction import (
     BatchCorrectionReport,
@@ -153,6 +153,16 @@ _BATCH_CORRECTION_DOWNSTREAM_BOUNDARY_STAGES = (
     DATASET_PREPROCESSING_STAGE_NORMALISATION,
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
 )
+_EXTERNAL_CORRECTION_DOWNSTREAM_MATRIX_CONSUMING_STAGES = frozenset(
+    {
+        *_BATCH_CORRECTION_DOWNSTREAM_BOUNDARY_STAGES,
+        "normalization",
+        "differential_analysis_preparation",
+        "kinase_activity_preparation",
+        "enrichment_preparation",
+        "signalome_preparation",
+    }
+)
 
 StageOwnedPreprocessingReportValue = (
     PreprocessingRowAuditRow
@@ -224,6 +234,29 @@ class PreprocessingStageOrderValidator:
                 "boundary; downstream stages before batch_correction: "
                 + ", ".join(downstream_before_batch)
             )
+
+
+def reject_external_corrected_output_after_downstream_preprocessing(
+    stage_order: tuple[str, ...],
+) -> None:
+    """Reject external correction when the plan has downstream matrix consumers."""
+
+    configured = tuple(
+        stage
+        for stage in (str(item).strip() for item in stage_order)
+        if stage in _EXTERNAL_CORRECTION_DOWNSTREAM_MATRIX_CONSUMING_STAGES
+    )
+    if not configured:
+        return
+    raise PhosPyInputError(
+        "external corrected output cannot be integrated after downstream "
+        "preprocessing stages. Configured downstream matrix-consuming "
+        "preprocessing stages: "
+        + ", ".join(configured)
+        + ". Provide the corrected output as the only matrix-changing "
+        "preprocessing input, or use native SpsRuvBatchCorrectionConfig inside "
+        "the preprocessing pipeline."
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -1301,6 +1334,7 @@ __all__ = [
     "PreprocessingState",
     "StageOwnedPreprocessingReportValue",
     "TotalProteinCorrectionIdentityPolicy",
+    "reject_external_corrected_output_after_downstream_preprocessing",
 ]
 
 

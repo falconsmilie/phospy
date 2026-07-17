@@ -5,6 +5,13 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from phospy.frames.validation import (
+    require_columns,
+    require_dataframe,
+    require_non_empty_string_column,
+    require_string_index,
+    require_unique_index,
+)
 from phospy.science.signalomes.constants import (
     DISPLAY_ID_COLUMN,
     GENE_SYMBOL_COLUMN,
@@ -28,6 +35,10 @@ from phospy.science.signalomes.constants import (
     TOP_SCORE_COLUMN,
     UNSUPPORTED_KINASE,
 )
+from phospy.science.sites.identity_contracts import (
+    enforce_analysis_ready_site_key_index,
+    enforce_site_key_column_matches_index,
+)
 from phospy.tables.base import TableSchema, ValidationErrorType
 from phospy.tables.signalome.common import (
     _column_series,
@@ -36,17 +47,6 @@ from phospy.tables.signalome.common import (
     _require_integer_compatible_column,
     _require_non_negative_integer_column,
     _require_string_column,
-)
-from phospy.validation.common.dataframes import (
-    require_columns,
-    require_dataframe,
-    require_non_empty_string_column,
-    require_string_index,
-    require_unique_index,
-)
-from phospy.validation.identity_contracts import (
-    enforce_analysis_ready_site_key_index,
-    enforce_site_key_column_matches_index,
 )
 
 _SIGNALOME_ASSIGNMENTS_REQUIRED_COLUMNS = (

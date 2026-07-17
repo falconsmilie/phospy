@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
+from datetime import date
 from hashlib import sha256
+from os import PathLike
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, cast
 
 import pandas as pd
 
@@ -30,10 +33,9 @@ from phospy.science.references.models import (
     SequenceWindowDefinition,
 )
 from phospy.science.sites.identifiers import canonicalize_site_series
-from phospy.tables.references import KinaseSubstrateReference, SiteSequenceReference
-from phospy.validation.references.builder import (
-    ReferenceBundleBuildRequestValidator,
-    ValidatedReferenceBundleBuildRequest,
+from phospy.science.tables.references import (
+    KinaseSubstrateReference,
+    SiteSequenceReference,
 )
 
 _COLUMN_TOKEN_PATTERN = re.compile(r"[^a-z0-9]+")
@@ -100,6 +102,235 @@ _ORGANISM_TOKENS = {
 }
 
 
+class ValidatedReferenceBundleBuildRequestProtocol(Protocol):
+    """Validated local-source reference build request shape."""
+
+    @property
+    def organism(self) -> Organism: ...
+
+    @property
+    def kinase_substrate_path(self) -> Path: ...
+
+    @property
+    def site_sequence_path(self) -> Path: ...
+
+    @property
+    def source_name(self) -> str: ...
+
+    @property
+    def source_version(self) -> str: ...
+
+    @property
+    def retrieved_at(self) -> date: ...
+
+    @property
+    def license(self) -> str: ...
+
+    @property
+    def redistribution_status(self) -> str: ...
+
+    @property
+    def identifier_namespace(self) -> str: ...
+
+    @property
+    def sequence_window(self) -> SequenceWindowDefinition | None: ...
+
+    @property
+    def bundle_id(self) -> str | None: ...
+
+    @property
+    def organism_common_name(self) -> str | None: ...
+
+    @property
+    def supports(self) -> tuple[str, ...]: ...
+
+    @property
+    def limitations(self) -> tuple[str, ...]: ...
+
+    @property
+    def reference_version(self) -> str | None: ...
+
+
+class ReferenceBundleBuildRequestValidatorProtocol(Protocol):
+    """Validator adapter consumed by reference bundle building."""
+
+    def run(
+        self,
+        request: ReferenceBundleBuildRequest,
+    ) -> ValidatedReferenceBundleBuildRequestProtocol: ...
+
+
+@dataclass(frozen=True, slots=True)
+class _ValidatedReferenceBundleBuildRequest:
+    organism: Organism
+    kinase_substrate_path: Path
+    site_sequence_path: Path
+    source_name: str
+    source_version: str
+    retrieved_at: date
+    license: str
+    redistribution_status: str
+    identifier_namespace: str
+    sequence_window: SequenceWindowDefinition | None
+    bundle_id: str | None
+    organism_common_name: str | None
+    supports: tuple[str, ...]
+    limitations: tuple[str, ...]
+    reference_version: str | None
+
+
+class ReferenceBundleBuildRequestValidator:
+    """Validate local-source reference builder request fields."""
+
+    def run(
+        self,
+        request: ReferenceBundleBuildRequest,
+    ) -> ValidatedReferenceBundleBuildRequestProtocol:
+        if not isinstance(request, ReferenceBundleBuildRequest):
+            raise ReferenceResolutionError(
+                "reference bundle build request must be a ReferenceBundleBuildRequest"
+            )
+        organism = request.organism
+        if not isinstance(cast(object, organism), Organism):
+            raise ReferenceResolutionError(
+                "reference bundle build request organism must be an Organism enum value"
+            )
+        sequence_window = request.sequence_window
+        if sequence_window is not None:
+            self._validate_sequence_window(sequence_window)
+        return _ValidatedReferenceBundleBuildRequest(
+            organism=organism,
+            kinase_substrate_path=self._require_local_path(
+                request.kinase_substrate_path,
+                field_name="reference bundle build request kinase_substrate_path",
+            ),
+            site_sequence_path=self._require_local_path(
+                request.site_sequence_path,
+                field_name="reference bundle build request site_sequence_path",
+            ),
+            source_name=self._require_non_empty_string(
+                request.source_name,
+                field_name="reference bundle build request source_name",
+            ),
+            source_version=self._require_non_empty_string(
+                request.source_version,
+                field_name="reference bundle build request source_version",
+            ),
+            retrieved_at=self._require_date(
+                request.retrieved_at,
+                field_name="reference bundle build request retrieved_at",
+            ),
+            license=self._require_non_empty_string(
+                request.license,
+                field_name="reference bundle build request license",
+            ),
+            redistribution_status=self._require_non_empty_string(
+                request.redistribution_status,
+                field_name="reference bundle build request redistribution_status",
+            ),
+            identifier_namespace=self._require_non_empty_string(
+                request.identifier_namespace,
+                field_name="reference bundle build request identifier_namespace",
+            ),
+            sequence_window=sequence_window,
+            bundle_id=self._optional_non_empty_string(
+                request.bundle_id,
+                field_name="reference bundle build request bundle_id",
+            ),
+            organism_common_name=self._optional_non_empty_string(
+                request.organism_common_name,
+                field_name="reference bundle build request organism_common_name",
+            ),
+            supports=self._require_non_empty_string_sequence(
+                request.supports,
+                field_name="reference bundle build request supports",
+            ),
+            limitations=self._require_non_empty_string_sequence(
+                request.limitations,
+                field_name="reference bundle build request limitations",
+            ),
+            reference_version=self._optional_non_empty_string(
+                request.reference_version,
+                field_name="reference bundle build request reference_version",
+            ),
+        )
+
+    @staticmethod
+    def _require_local_path(value: object, *, field_name: str) -> Path:
+        if isinstance(value, str):
+            normalized = value.strip()
+            if not normalized:
+                raise ReferenceResolutionError(f"{field_name} must be non-empty")
+            if "://" in normalized.lower():
+                raise ReferenceResolutionError(
+                    f"{field_name} must be a local filesystem path; remote URLs "
+                    "are not supported"
+                )
+            return Path(normalized)
+        if isinstance(value, Path):
+            return value
+        if isinstance(value, PathLike):
+            return Path(cast(PathLike[str], value))
+        raise ReferenceResolutionError(f"{field_name} must be a local filesystem path")
+
+    @staticmethod
+    def _require_non_empty_string(value: object, *, field_name: str) -> str:
+        if not isinstance(value, str) or not value.strip():
+            raise ReferenceResolutionError(f"{field_name} must be a non-empty string")
+        return value.strip()
+
+    @classmethod
+    def _optional_non_empty_string(
+        cls,
+        value: object,
+        *,
+        field_name: str,
+    ) -> str | None:
+        if value is None:
+            return None
+        return cls._require_non_empty_string(value, field_name=field_name)
+
+    @classmethod
+    def _require_non_empty_string_sequence(
+        cls,
+        value: object,
+        *,
+        field_name: str,
+    ) -> tuple[str, ...]:
+        if not isinstance(value, Sequence) or isinstance(
+            value,
+            (str, bytes, bytearray),
+        ):
+            raise ReferenceResolutionError(
+                f"{field_name} must be a sequence of non-empty strings"
+            )
+        resolved: list[str] = []
+        for item in value:
+            resolved.append(cls._require_non_empty_string(item, field_name=field_name))
+        return tuple(resolved)
+
+    @staticmethod
+    def _require_date(value: object, *, field_name: str) -> date:
+        if isinstance(value, str):
+            try:
+                return date.fromisoformat(value.strip())
+            except ValueError as exc:
+                raise ReferenceResolutionError(
+                    f"{field_name} must be an ISO date string"
+                ) from exc
+        if not isinstance(value, date):
+            raise ReferenceResolutionError(f"{field_name} must be a datetime.date")
+        return value
+
+    @staticmethod
+    def _validate_sequence_window(value: SequenceWindowDefinition) -> None:
+        if not isinstance(value, SequenceWindowDefinition):
+            raise ReferenceResolutionError(
+                "reference bundle build request sequence_window must be a "
+                "SequenceWindowDefinition"
+            )
+
+
 class ReferenceSourceTableReader(Protocol):
     """Reader protocol for local reference source tables."""
 
@@ -113,7 +344,7 @@ class ReferenceBundleBuilder:
         self,
         *,
         source_reader: ReferenceSourceTableReader,
-        request_validator: ReferenceBundleBuildRequestValidator | None = None,
+        request_validator: ReferenceBundleBuildRequestValidatorProtocol | None = None,
     ) -> None:
         self._request_validator = (
             request_validator or ReferenceBundleBuildRequestValidator()
@@ -286,7 +517,7 @@ class ReferenceBundleBuilder:
 
     def _build_manifest(
         self,
-        request: ValidatedReferenceBundleBuildRequest,
+        request: ValidatedReferenceBundleBuildRequestProtocol,
         *,
         sequence_window: SequenceWindowDefinition,
         kinase_source: pd.DataFrame,
@@ -380,7 +611,7 @@ class ReferenceBundleBuilder:
 
     @staticmethod
     def _resolve_sequence_window(
-        request: ValidatedReferenceBundleBuildRequest,
+        request: ValidatedReferenceBundleBuildRequestProtocol,
         *,
         site_sequences: pd.DataFrame,
     ) -> SequenceWindowDefinition:
@@ -586,7 +817,9 @@ class ReferenceBundleBuilder:
         return None
 
     @staticmethod
-    def _default_bundle_id(request: ValidatedReferenceBundleBuildRequest) -> str:
+    def _default_bundle_id(
+        request: ValidatedReferenceBundleBuildRequestProtocol,
+    ) -> str:
         raw = (
             f"local-{request.organism.value}-{request.source_name}-"
             f"{request.source_version}-{request.retrieved_at.isoformat()}"
@@ -628,8 +861,14 @@ def _generated_local_reference_version(
 
 
 def _reference_file_format(path: ReferenceBuildPath) -> str:
-    suffix = Path(path).suffix.lower().lstrip(".")
+    suffix = Path(cast(str | PathLike[str], path)).suffix.lower().lstrip(".")
     return suffix or "table"
 
 
-__all__ = ["ReferenceBundleBuilder", "ReferenceSourceTableReader"]
+__all__ = [
+    "ReferenceBundleBuilder",
+    "ReferenceBundleBuildRequestValidator",
+    "ReferenceBundleBuildRequestValidatorProtocol",
+    "ReferenceSourceTableReader",
+    "ValidatedReferenceBundleBuildRequestProtocol",
+]

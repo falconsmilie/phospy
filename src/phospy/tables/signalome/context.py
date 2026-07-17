@@ -5,6 +5,11 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.errors.validation import WorkflowValidationError
+from phospy.frames.validation import (
+    require_columns,
+    require_dataframe,
+    require_non_empty_string_column,
+)
 from phospy.science.signalomes.constants import (
     DISPLAY_ID_COLUMN,
     ISOFORM_ID_COLUMN,
@@ -49,11 +54,6 @@ from phospy.tables.signalome.common import (
     _require_json_string_column,
     _require_numeric_column,
     _require_string_column,
-)
-from phospy.validation.common.dataframes import (
-    require_columns,
-    require_dataframe,
-    require_non_empty_string_column,
 )
 
 _SITE_MEMBERSHIP_REQUIRED_COLUMNS = (

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from phospy.api.results import SignalomeWorkflowResult
+from phospy.contracts.results import SignalomeWorkflowResult
 from phospy.io.bundles._signalome.snapshots import SignalomeWorkflowConfigSnapshot
 
 

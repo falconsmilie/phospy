@@ -7,10 +7,12 @@ from typing import NoReturn
 
 import pandas as pd
 
-from phospy.contracts.requests import DatasetBuildRequest
 from phospy.errors.build import DatasetBuildError
 from phospy.errors.input import PhosPyInputError
-from phospy.science.datasets.builders.contracts import DatasetInput
+from phospy.science.datasets.builders.contracts import (
+    DatasetBuildRequestProtocol,
+    DatasetInput,
+)
 from phospy.science.datasets.builders.normalizer import (
     DatasetConventionNormalizer,
     NormalizedDatasetInputs,
@@ -22,6 +24,9 @@ from phospy.science.datasets.builders.sequence_derivation import (
 )
 from phospy.science.datasets.builders.site_identity_derivation import (
     DatasetSiteIdentityDeriver,
+)
+from phospy.science.datasets.preprocessing.group_coverage_metadata import (
+    GroupCoverageFilterMetadataValidator,
 )
 from phospy.science.datasets.preprocessing.models import PreprocessingPlan
 from phospy.science.datasets.preprocessing.plan_interpreter import (
@@ -41,14 +46,11 @@ from phospy.science.evidence.dataset_resolution import (
 from phospy.science.evidence.models import PeptideEvidenceTable
 from phospy.science.references.models import Organism
 from phospy.science.sites.identifiers import SiteIdentifierNormalisationReport
-from phospy.science.sites.validation import require_no_mixed_site_key_isoform_scope
-from phospy.validation.datasets.group_coverage_filter import (
-    GroupCoverageFilterMetadataValidator,
-)
-from phospy.validation.datasets.protein_scoped_site_identity import (
+from phospy.science.sites.identity_columns import (
     enforce_display_id_column,
     enforce_site_key_column,
 )
+from phospy.science.sites.validation import require_no_mixed_site_key_isoform_scope
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,7 +95,10 @@ class DatasetBuildSourceResolver:
             site_identity_deriver or DatasetSiteIdentityDeriver()
         )
 
-    def run(self, request: DatasetBuildRequest) -> ResolvedDatasetBuildSources:
+    def run(
+        self,
+        request: DatasetBuildRequestProtocol,
+    ) -> ResolvedDatasetBuildSources:
         sample_metadata = self._read_optional(
             request.sample_metadata,
             field_name="sample_metadata",
@@ -181,7 +186,7 @@ class DatasetBuildSourceResolver:
 
     def _resolve_peptide_evidence_inputs(
         self,
-        request: DatasetBuildRequest,
+        request: DatasetBuildRequestProtocol,
     ) -> tuple[pd.DataFrame, pd.DataFrame, str, PeptideEvidenceResolutionSummary]:
         peptide_evidence = self._reader.run(
             _require_dataset_input(
@@ -440,7 +445,7 @@ class DatasetBuildPreprocessingPlanner:
 
     def run(
         self,
-        request: DatasetBuildRequest,
+        request: DatasetBuildRequestProtocol,
         *,
         phospho: pd.DataFrame | None = None,
         sample_metadata: pd.DataFrame | None = None,
